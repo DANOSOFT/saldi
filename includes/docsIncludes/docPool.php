@@ -2618,7 +2618,7 @@ JS;
 	print "<input type='hidden' name='MAX_FILE_SIZE' value='100000000'>";
 	print "<input type='hidden' name='openPool' value='1'>";
 	print "<label for='fileUploadInput' style='display: block; width: 100%; margin-bottom: 12px; cursor: pointer;'>";
-	print "<input id='fileUploadInput' class='inputbox' name='uploadedFile' type='file' accept='.pdf,.jpg,.jpeg,.png' style='width: 100%; height: auto; min-height: 40px; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 12px; box-sizing: border-box; overflow: visible; background-color: #ffffff; transition: all 0.3s ease; pointer-events: auto; position: relative; z-index: 10; cursor: pointer;'>";
+	print "<input id='fileUploadInput' class='inputbox' name='uploadedFile[]' type='file' accept='.pdf,.jpg,.jpeg,.png' multiple style='width: 100%; height: auto; min-height: 40px; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 12px; box-sizing: border-box; overflow: visible; background-color: #ffffff; transition: all 0.3s ease; pointer-events: auto; position: relative; z-index: 10; cursor: pointer;'>";
 	print "</label>";
 	print "<button type='submit' id='fileUploadSubmit' style='width: 100%; padding: 10px; margin-bottom: 12px; background-color: $buttonColor; color: $buttonTxtColor; border: 2px solid $buttonColor; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; box-sizing: border-box; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.2);'>".findtekst(1078, $sprog_id)."</button>";
 	print "</form>";
@@ -2635,106 +2635,133 @@ JS;
 				e.preventDefault();
 				
 				if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-					alert('Please select a file first.');
+					alert('Please select at least one file.');
 					return;
 				}
 				
-				var file = fileInput.files[0];
-				
-				// Check file type
+				var files = Array.from(fileInput.files);
 				var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
-				var fileName = file.name.toLowerCase();
-				var isAllowed = allowedExtensions.some(function(ext) {
-					return fileName.endsWith(ext);
-				});
 				
-				if (!isAllowed) {
-					alert('Please select a PDF or image file (jpg, png).');
-					return;
+				// Validate all files first
+				for (var i = 0; i < files.length; i++) {
+					var fileName = files[i].name.toLowerCase();
+					var isAllowed = allowedExtensions.some(function(ext) {
+						return fileName.endsWith(ext);
+					});
+					if (!isAllowed) {
+						alert('File ' + files[i].name + ' is not allowed. Please select only PDF or image files (jpg, png).');
+						return;
+					}
 				}
 				
 				// Show loading state
 				var originalBtnText = submitBtn.innerHTML;
-				submitBtn.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> Uploader og analyserer...';
+				var totalFiles = files.length;
+				var uploadedCount = 0;
+				var failedCount = 0;
+				var lastUploadedFilename = null;
+				
+				function updateProgress() {
+					submitBtn.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> Uploader ' + (uploadedCount + failedCount + 1) + ' af ' + totalFiles + '...';
+				}
+				
 				submitBtn.disabled = true;
 				submitBtn.style.opacity = '0.7';
 				fileInput.disabled = true;
-				
-				// Create FormData
-				var formData = new FormData();
-				formData.append('uploadedFile', file);
-				formData.append('openPool', '1');
-				
-				// Add clipVariables if available
-				if (typeof clipVariables !== 'undefined') {
-					for (var key in clipVariables) {
-						if (clipVariables.hasOwnProperty(key)) {
-							formData.append(key, clipVariables[key]);
-						}
-					}
-				}
+				updateProgress();
 				
 				// Determine URL
 				var currentPath = window.location.pathname;
 				var uploadUrl = currentPath.indexOf('/includes/') !== -1 ? 'documents.php' : '../includes/documents.php';
 				
-				// Send via fetch
-				fetch(uploadUrl, {
-					method: 'POST',
-					body: formData
-				})
-				.then(function(response) {
-					return response.text().then(function(text) {
-						try {
-							return JSON.parse(text);
-						} catch(e) {
-							if (text.indexOf('\"success\":true') !== -1) {
-								var filenameMatch = text.match(/\"filename\"\\s*:\\s*\"([^\"]+)\"/);
-								return {
-									success: true,
-									filename: filenameMatch ? filenameMatch[1] : file.name,
-									message: 'File uploaded successfully'
-								};
-							}
-							throw new Error('Invalid response from server');
-						}
-					});
-				})
-				.then(function(data) {
-					// Reset button
-					submitBtn.innerHTML = originalBtnText;
-					submitBtn.disabled = false;
-					submitBtn.style.opacity = '1';
-					fileInput.disabled = false;
-					fileInput.value = '';
-					
-					if (data && data.success) {
-						var message = '✓ Upload successful: ' + data.filename;
-						if (data.extracted) {
-							if (data.extracted.amount) message += '\\nAmount: ' + data.extracted.amount;
-							if (data.extracted.date) message += '\\nDate: ' + data.extracted.date;
+				// Upload files sequentially
+				function uploadFile(index) {
+					if (index >= files.length) {
+						// All files processed
+						submitBtn.innerHTML = originalBtnText;
+						submitBtn.disabled = false;
+						submitBtn.style.opacity = '1';
+						fileInput.disabled = false;
+						fileInput.value = '';
+						
+						var message = '✓ Upload complete!\\n';
+						message += uploadedCount + ' file(s) uploaded successfully';
+						if (failedCount > 0) {
+							message += '\\n' + failedCount + ' file(s) failed';
 						}
 						alert(message);
 						
-						// Redirect to focus on the uploaded file
-						var currentUrl = new URL(window.location.href);
-						currentUrl.searchParams.set('poolFile', data.filename);
-						currentUrl.searchParams.set('openPool', '1');
-						window.location.href = currentUrl.toString();
-					} else {
-						alert('Error: ' + (data && data.message ? data.message : 'Upload failed'));
+						// Redirect to focus on the last uploaded file
+						if (lastUploadedFilename) {
+							var currentUrl = new URL(window.location.href);
+							currentUrl.searchParams.set('poolFile', lastUploadedFilename);
+							currentUrl.searchParams.set('openPool', '1');
+							window.location.href = currentUrl.toString();
+						} else {
+							window.location.reload();
+						}
+						return;
 					}
-				})
-				.catch(function(error) {
-					// Reset button on error
-					submitBtn.innerHTML = originalBtnText;
-					submitBtn.disabled = false;
-					submitBtn.style.opacity = '1';
-					fileInput.disabled = false;
 					
-					console.error('Upload error:', error);
-					alert('Error uploading file: ' + error.message);
-				});
+					var file = files[index];
+					updateProgress();
+					
+					// Create FormData for this file
+					var formData = new FormData();
+					formData.append('uploadedFile', file);
+					formData.append('openPool', '1');
+					
+					// Add clipVariables if available
+					if (typeof clipVariables !== 'undefined') {
+						for (var key in clipVariables) {
+							if (clipVariables.hasOwnProperty(key)) {
+								formData.append(key, clipVariables[key]);
+							}
+						}
+					}
+					
+					fetch(uploadUrl, {
+						method: 'POST',
+						body: formData
+					})
+					.then(function(response) {
+						return response.text().then(function(text) {
+							try {
+								return JSON.parse(text);
+							} catch(e) {
+								if (text.indexOf('\"success\":true') !== -1) {
+									var filenameMatch = text.match(/\"filename\"\\s*:\\s*\"([^\"]+)\"/);
+									return {
+										success: true,
+										filename: filenameMatch ? filenameMatch[1] : file.name,
+										message: 'File uploaded successfully'
+									};
+								}
+								throw new Error('Invalid response from server');
+							}
+						});
+					})
+					.then(function(data) {
+						if (data && data.success) {
+							uploadedCount++;
+							lastUploadedFilename = data.filename;
+						} else {
+							failedCount++;
+							console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
+						}
+						// Continue to next file
+						uploadFile(index + 1);
+					})
+					.catch(function(error) {
+						failedCount++;
+						console.error('Upload error for ' + file.name + ':', error);
+						// Continue to next file
+						uploadFile(index + 1);
+					});
+				}
+				
+				// Start uploading from first file
+				uploadFile(0);
 			});
 		}
 	});
