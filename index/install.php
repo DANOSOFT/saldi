@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 4.1.1---2025-05-29---
+//------------index/install.php----lap 5.0.0---2026-01-20---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,7 +34,7 @@
 // 20250116 allow user specified hostname for database, ie. other than localhost.
 // 20250129 Increase session_id length constraint from 30 to 32 on table online.
 // 20250428 LOE Set default storage engine to InnoDB for MySQL 5.7+ (replaces 'storage_engine')+$current_year
-
+// 20260120 PHR Removed an echo.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -218,7 +218,6 @@ if (isset($_POST['opret'])){
 	$tempdb="template0";
 
 	if ($db_type=="mysqli") {
-		echo "$db_host , $db_bruger' '$db_password<br>";
 		$connection = db_connect ("$db_host", "$db_bruger", "$db_password");
 	} else {
 		$connection = db_connect ("$db_host", "$db_bruger", "$db_password", "template1");
