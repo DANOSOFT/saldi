@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.1 --- 2026-01-19 ---
+// --- finans/kassekladde.php --- ver 4.1.1 --- 2026-01-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -2013,7 +2013,7 @@ SCRIPT;
 		// print "<tbody>"; # Tabel 1.3 -> kladdelinjer
 		// print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
 		print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
-
+		print "<tr class='table-krow'><td colspan='22' style='padding: 10px 0;'></td></tr>";
 		print "<tr>";
 		if ($vis_bilag && !$fejl && !$udskriv)
 			print "<td></td>";
@@ -2050,14 +2050,15 @@ SCRIPT;
 				print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 			}
 		}
-		print "<th style='width:0.51%;'></th>\n"; 
-		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
+		print "<td align='right' width='30px'><b> <span></b></td>";
+		print "<td align='right' width='30px'><b> <span></b></td>";
+		print "<td align='right' width='30px'><b> <span></b></td>";
+		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'></b></td>";
 		print "</tr>\n";
 
 		print "</thead>";
 		print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
-		print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
-
+		
 
     }
 
