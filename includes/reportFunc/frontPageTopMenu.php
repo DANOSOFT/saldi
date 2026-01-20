@@ -86,6 +86,7 @@
 			if ($r['var_value'] == 'on') {
 				print "<td align=center><span onclick='javascript:location.href='../debitor/multiroute.php''><input title='Multiroute' style='width:135px' type='button' value='" . findtekst(923, $sprog_id) . "'></span></td>\n";
 			}
+				print "<td align=center><span onClick=\"javascript:location.href='../debitor/postnr.php'\"><input title='Top 100 efter postnr' style='width:115px' type='button' value='Postnr'></span></td>\n";
 			print "</tr>\n";
 			print "</form>";
 			print "<tr><td colspan=5 class='border-hr-top'></td></tr>\n";
