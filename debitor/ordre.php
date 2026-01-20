@@ -867,6 +867,8 @@ if (isset($_POST['copy']) && $_POST['copy']) $b_submit = 'Kopier';
 elseif (isset($_POST['credit']) && $_POST['credit']) $b_submit = 'Krediter';
 elseif (isset($_POST['delete']) && $_POST['delete']) $b_submit = 'Slet';
 elseif (isset($_POST['doInvoice']) && $_POST['doInvoice']) $b_submit = 'doInvoice';
+elseif (isset($_POST['deliver']) && $_POST['deliver']) $b_submit = 'Lever';
+elseif (isset($_POST['receive']) && $_POST['receive']) $b_submit = 'Lever';
 elseif (isset($_POST['lookUp']) && $_POST['lookUp']) $b_submit = 'Opslag';
 elseif (isset($_POST['print']) && $_POST['print']) $b_submit = 'Udskriv';
 elseif (isset($_POST['save']) && $_POST['save']) $b_submit = 'Gem';
@@ -5400,8 +5402,8 @@ function ordreside($id, $regnskab)
 			}
 
 			if ($status == 1 && $bogfor != 0 && $hurtigfakt != 'on' && $leveres_ialt) {
-				if ($art == 'DO') print "<td align=\"center\"  width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1483|Levér', $sprog_id) . "\" name=\"b_submit\" onclick=\"javascript:docChange = false;\"></td>\n";
-				else print "<td align=\"center\" width=$width title=\"" . findtekst('1491|Klik her for at tage varer retur', $sprog_id) . "\"><input type=\"submit\"  class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1485|Modtag', $sprog_id) . "\" name=\"b_submit\" onclick=\"javascript:docChange = false;\"></td>\n";
+				if ($art == 'DO') print "<td align=\"center\"  width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1483|Levér', $sprog_id) . "\" name=\"deliver\" onclick=\"javascript:docChange = false;\"></td>\n";
+				else print "<td align=\"center\" width=$width title=\"" . findtekst('1491|Klik her for at tage varer retur', $sprog_id) . "\"><input type=\"submit\"  class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1485|Modtag', $sprog_id) . "\" name=\"receive\" onclick=\"javascript:docChange = false;\"></td>\n";
 			}
 			$confirm2  = findtekst('1524|Faktura sendes som email til', $sprog_id); #Faktura sendes som email til
 			$confirm3  = findtekst('1525|Faktura tilføjes PBS/Nets liste!', $sprog_id);
