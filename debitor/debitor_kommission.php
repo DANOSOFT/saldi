@@ -465,9 +465,13 @@ $folder=str_replace('debitor/debitor_kommission.php','',$folder);
 $myLink="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
 $myLink=str_replace('bizsys','mysale',$myLink);
 
-// Add clickable row renderer for kontonr - kommission handles links separately
+// Add clickable row renderer for all columns (whole row is clickable)
 foreach ($columns as &$column) {
-	if ($column['field'] == 'kontonr') {
+	$originalRender = isset($column['render']) ? $column['render'] : null;
+	$field = $column['field'];
+	
+	if ($field == 'kontonr') {
+		// kontonr keeps special MySale link handling
 		$column["render"] = function ($value, $row, $column) use ($myLink, $db) {
 			// Handle kommission links: if mysale is enabled, open MySale link, otherwise go to debitorkort
 			if (isset($row['mysale']) && $row['mysale']) {
@@ -477,16 +481,40 @@ foreach ($columns as &$column) {
 				for ($x=0;$x<strlen($txt);$x++) {
 					$lnk.=dechex(ord(substr($txt,$x,1)));
 				}
-				return "<td align='{$column['align']}'><a href='$lnk' target='_blank' class='kommission-link'>$value</a></td>";
+				return "<td align='{$column['align']}' onclick=\"window.location.href='$lnk'\" style='cursor:pointer'><a href='$lnk' target='_blank' class='kommission-link'>$value</a></td>";
 			} else {
 				// Link to debitorkort for customers without MySale
 				$url = "debitorkort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor_kommission.php";
-				return "<td align='{$column['align']}'><a href='$url'>$value</a></td>";
+				return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
 			}
 		};
-		break;
+	} else {
+		// All other columns get onclick handler
+		$column["render"] = function ($value, $row, $column) use ($originalRender, $myLink, $db) {
+			// Determine URL based on mysale status
+			if (isset($row['mysale']) && $row['mysale']) {
+				$txt = $row['id'] .'|'. $row['kontonr'] .'@'. $db .'@'. $_SERVER['HTTP_HOST'];
+				$url = $myLink;
+				for ($x=0;$x<strlen($txt);$x++) {
+					$url.=dechex(ord(substr($txt,$x,1)));
+				}
+			} else {
+				$url = "debitorkort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor_kommission.php";
+			}
+			
+			// Get the display value from original render or default
+			if ($originalRender) {
+				$td = $originalRender($value, $row, $column);
+				// Replace opening <td with onclick and cursor style
+				$td = preg_replace('/<td([^>]*)>/', "<td$1 onclick=\"window.location.href='$url'\" style='cursor:pointer'>", $td);
+				return $td;
+			} else {
+				return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'>{$value}</td>";
+			}
+		};
 	}
 }
+unset($column); // break the reference
 
 // Build filters
 $filters = array();
