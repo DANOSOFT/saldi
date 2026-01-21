@@ -442,7 +442,7 @@ include_once '../includes/oldDesign/footer.php';
         } elseif ($field == 'kontakt') {
             $column["generateSearch"] = function ($column, $term) {
                 $term = db_escape_string($term);
-                return "a.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%$term%'))";
+                return "(a.kontakt ILIKE '%$term%' OR a.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%$term%')))";
             };
         } elseif ($field == 'kontonr' || $field == 'postnr') {
             // kontonr and postnr are text identifiers, use text search
