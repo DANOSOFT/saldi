@@ -274,7 +274,7 @@ for ($x=0;$x<$vis_feltantal;$x++) {
                 $tmp2="adresser.".$tmp;
                 $udvaelg.=udvaelg($find[$x],$tmp2, 'DATO');
             } elseif ($tmp == 'kontakt' && $find[$x]) {
-                $udvaelg.=" and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
+                $udvaelg.=" and (adresser.kontakt ILIKE '%".db_escape_string($find[$x])."%' OR adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%')))";
             } elseif ($find[$x] && !in_array($tmp,$numfelter)) {
                 $searchTerm = "*" . str_replace(" ", "*", $find[$x]) . "*";
                 $tmp2="adresser.".$tmp;
