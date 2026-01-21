@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 5.0.0 --- 2026-01-15---
+// --- includes/online.php --- patch 5.0.0 --- 2026-01-20---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,6 +56,7 @@
 // 23-05-2024 PBLM Setup notification from easyUBL
 // 20251119 PHR added  && $title != "POS Ordre" to if (!$isApiCall) 
 // 20260115 PHR fetch from settings disabled if $ver < '3.7.2'
+// 20260120 PHR fetch from settings disabled if table settings does not exist
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor)) $buttonColor = '#114691';
@@ -71,6 +72,7 @@ if ($questionMarkPos !== false) {
 $slashCount = substr_count($path, '/');
 $relativePath = str_repeat('../', max(0, $slashCount - 2));
 
+
 if (isset($_COOKIE['timezone'])) { #20190110
 	$timezone = $_COOKIE['timezone'];
 	date_default_timezone_set($timezone);
@@ -78,7 +80,9 @@ if (isset($_COOKIE['timezone'])) { #20190110
 	date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
 	$r = db_fetch_array(db_select("select lukket,version from regnskab where id='1' and db = '$sqdb'", __FILE__ . " linje " . __LINE__)); # 20210930
-	if (isset($dbver) && $dbver >= '3.7.2') {
+	$qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name = 'settings'";
+	(db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))?$useSettings=1:$useSettings=0;
+	if ($useSettings) {
 		$r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
 		if ($r['var_value']) {
 			$timezone = $r['var_value'];
@@ -223,7 +227,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	}
 
 	$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
-	if (isset($dbver) && $dbver >= '3.7.2' && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	if ($useSettings && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$baseCurrency = $r['var_value'];
 	} else $baseCurrency = 'DKK';
 
@@ -273,13 +277,13 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			}
 		}
 		$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-		if (isset($dbver) && $dbver >= '3.7.2' && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		if ($useSettings && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$buttonColor = "#$r[var_value]";
 		} else {
 			$buttonColor = '#114691'; // Default button color
 		}
 		$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		if ($useSettings && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$buttonTxtColor = "#$r[var_value]";
 		} else {
 			$buttonTxtColor = '#ffffff'; // Default button text color
