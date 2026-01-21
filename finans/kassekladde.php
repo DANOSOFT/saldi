@@ -190,7 +190,7 @@ print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css">';
-print '<script src="../javascript/accountAutocomplete.js" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.2" defer></script>';
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
@@ -1023,7 +1023,7 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 						financeLookup($find, 'kontonr', $fokus, $opslag_id, $id[$opslag_id], $kladde_id, $bilag[$opslag_id], $dato[$opslag_id], $beskrivelse[$opslag_id], $d_type[$opslag_id], $debet[$opslag_id], $k_type[$opslag_id], $kredit[$opslag_id], $faktura[$opslag_id], $belob[$opslag_id], $momsfri[$opslag_id], $afd[$opslag_id], $projekt[$opslag_id], $ansat[$opslag_id], $valuta[$opslag_id], $forfaldsdato[$opslag_id], $betal_id[$opslag_id], $opslag_id);
 					}
 				}
-				if ((strstr($fokus, "fakt")) || (strstr($fokus, "belo"))) {
+				if ((strstr($fokus, "fakt"))) {
 					include("kassekladde_includes/openpost_inc.php");
 					openpost($find, 'firmanavn', $fokus, $opslag_id, $id[$opslag_id], $kladde_id, $bilag[$opslag_id], $dato[$opslag_id], $beskrivelse[$opslag_id], $d_type[$opslag_id], $debet[$opslag_id], $k_type[$opslag_id], $kredit[$opslag_id], $faktura[$opslag_id], $belob[$opslag_id], $momsfri[$opslag_id], $afd[$opslag_id], $projekt[$opslag_id], $ansat[$opslag_id], $valuta[$opslag_id], $forfaldsdato[$opslag_id], $betal_id[$opslag_id], $opslag_id);
 				}
