@@ -1463,7 +1463,8 @@ if ($background_file && file_exists($background_file)) {
 					2 => "ordrebek$ordrenr",
 					3 => "flgs{$ordrenr}_{$lev_nr}",
 					4 => "fakt$fakturanr",
-					5 => "kn$fakturanr"
+					5 => "kn$fakturanr",
+					9 => "plukliste$ordrenr"
 				];
 				if ($db == "saldi_1022") {
 					$dato = date('Y-m-d');
@@ -1472,7 +1473,8 @@ if ($background_file && file_exists($background_file)) {
 						2 => "$ordrenr-ordrebek-$kontonr-$dato",
 						3 => "{$ordrenr}_{$lev_nr}-flgs-$kontonr-$dato",
 						4 => "$fakturanr-fakt-$kontonr-$dato",
-						5 => "$fakturanr-kn-$kontonr-$dato"
+						5 => "$fakturanr-kn-$kontonr-$dato",
+						9 => "$ordrenr-plukliste-$kontonr-$dato"
 					];
 				}
 
@@ -1607,7 +1609,7 @@ if ($background_file && file_exists($background_file)) {
 									$dkantal[$x] = str_replace("-", "", $dkantal[$x]);
 								}
 								if ($formular == 3 || $formular == 9) {
-									for ($z = 0; $z <= count($variabel); $z++) {
+									for ($z = 0; $z <= count($variabel ?? []); $z++) {
 										if (isset($variabel[$z]) && $variabel[$z] == 'lokation') {
 											$qtxt = "select lok1 as location from lagerstatus where vare_id = '$vare_id[$x]' and lager = '$lager[$x]'";
 											$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));

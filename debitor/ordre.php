@@ -237,6 +237,7 @@ include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
 include("../includes/tid2decimal.php");
 
+
 $title = findtekst('1092|Kundeordre', $sprog_id);
 $txt370 = findtekst('370|Kontant', $sprog_id);
 $txt283 = findtekst('283|Kreditkort', $sprog_id);
@@ -3601,6 +3602,17 @@ function ordreside($id, $regnskab)
 			if ($betalings_id) print "<tr class='tableTexting2'><td><b>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td><td align=\"right\">&nbsp;$betalings_id</td></tr>";
 			print "<tr><td colspan=\"2\"><b><hr></b></tr>\n";
 			print "<tr class='tableTexting'><td colspan=\"2\"><a href=\"ordre.php?id=$id&returside=$returside&vis_lev_addr=1\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . "</td></tr>\n";
+			// Plukliste buttons
+			include("../includes/topline_settings.php");
+			$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+			print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+			print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Print plukliste</button></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+			if ($pluklisteEmail) {
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='sendPlukliste.php?id=$id'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Send plukliste</button></td></tr>\n";
+			}
 		}
 		$lev_max = 0;
 		$q = db_select("select lev_nr from batch_salg where ordre_id = $id", __FILE__ . " linje " . __LINE__);
@@ -4769,6 +4781,17 @@ function ordreside($id, $regnskab)
 				if (substr(findtekst('248|Ordrefelt 5', $sprog_id), 0, 1) != "#") print "<tr><td><span onmouseover=\"return overlib('" . findtekst('253|Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 248 & 253.', $sprog_id) . "',WIDTH=600);\" onmouseout=\"return nd();\">" . findtekst('248|Ordrefelt 5', $sprog_id) . "</span></td><td><input class = 'inputbox' type = 'text' name=\"felt_5\" style=\"width:200px\" value=\"$felt_5\" $disabled></td></tr>\n";
 			}
 			if ($betalings_id) print "<tr><td>" . findtekst('2534|Betalings-ID', $sprog_id) . ":</td><td>&nbsp;$betalings_id</td></tr>";
+			// Plukliste buttons
+			include("../includes/topline_settings.php");
+			$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+			print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+			print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Print plukliste</button></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+			if ($pluklisteEmail) {
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='sendPlukliste.php?id=$id'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Send plukliste</button></td></tr>\n";
+			}
 			print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
 			print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
 			print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
