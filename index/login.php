@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.1 ----2026-01-14--------------
+// --- index/login.php --- patch 5.0.0 --- 2026-01-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -68,6 +68,7 @@
 // 20250405 LOE - Revised with several improvements
 // 20250614 PHR - sanitize prevented login for users with, among other things, email as username
 // 20260114 PHR - column tlf will be added if it does not exist. Else twofactor crashes.
+// 20260120 PHR fetch from settings disabled if table settings does not exist
 
 ob_start(); //Starter output buffering
 @session_start();
@@ -128,22 +129,26 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 #$_COOKIE['timezone'] = $timezone;#20210929
+$qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name = 'settings'";
+(db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))?$useSettings=1:$useSettings=0;
 
-$r=db_fetch_array(db_select("select var_value from settings where var_name='alertText'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['customAlertText']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'",__FILE__ . " linje " . __LINE__)); #20211007
-if (isset($r['var_value'])) $_SESSION['ps2pdf']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='pdftk'",__FILE__ . " linje " . __LINE__));
+echo "US $useSettings";
+if ($useSettings) {
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='alertText'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['customAlertText']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'",__FILE__ . " linje " . __LINE__)); #20211007
+	if (isset($r['var_value'])) $_SESSION['ps2pdf']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='pdftk'",__FILE__ . " linje " . __LINE__));
 #if (isset($r['var_value'])) $_SESSION['pdftk']=$r['var_value']; #20211006 This is not available in develop database
-$r=db_fetch_array(db_select("select var_value from settings where var_name='ftp'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['ftp']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='dbdump'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['dbdump']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='tar'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['tar']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='zip'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['zip']=$r['var_value'];
-
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='ftp'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['ftp']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='dbdump'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['dbdump']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='tar'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['tar']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='zip'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['zip']=$r['var_value'];
+}
 
 #$r=db_fetch_array(db_select("select var_value from settings where var_grp='localization'",__FILE__ . " linje " . __LINE__));#20211006
 #if ($r['var_value']) $_SESSION['lang2']=$r['var_value'];
@@ -197,7 +202,7 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	date_default_timezone_set($timezone);
 	$qtxt="select version from regnskab where id='1'"; 
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	if ($r['version'] >= '3.7.2') {
+	if ($useSettings) {
 		$r=db_fetch_array(db_select("select var_value from settings where var_name='timezone'",__FILE__ . " linje " . __LINE__));
 		if ($timezone=$r['var_value']) {
 			date_default_timezone_set($timezone);
@@ -522,6 +527,7 @@ if ($userId) {
 		include("../includes/connect.php"); #20111105
 
 	# Get 2fa keys for SMS
+	if ($useSettingsd) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='nexmo_api_key' AND var_grp='2fa'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if(isset($r["var_value"])) $nexmo_api_key = $r["var_value"]; //20240502 Checks first that it is set before assigning it
@@ -530,7 +536,7 @@ if ($userId) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='nexmo_api_secret' AND var_grp='2fa'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if(isset($r["var_value"])) $nexmo_api_secret = $r["var_value"];
-
+	}
 	/* $userName = "revisor";
 	db_connect ("$sqhost", "$squser", "$sqpass", "$db");
 	$query = db_select("SELECT user_id FROM settings WHERE var_name = 'revisor' AND var_grp = 'system'", __FILE__ . " linje " . __LINE__);
