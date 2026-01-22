@@ -834,8 +834,8 @@
 834	Ved at udfylde dette felt med kontonummer for din inkassoadvokat (kreditor)	By filling in this field with the account number of your debt collection lawyer (creditor)	Ved å fylle ut dette feltet med kontonummeret til din inkassoadvokat (kreditor)
 835	Saldi URL:	Saldi URL:	Saldi URL:
 836	Skal sættes som variablen $url i api klienten	Must be set as the variable $url in the api client	Må angis som variabelen $url i api-klienten
-837	Hvis feltet er afmærket vil &apos;udtages fra kasse&apos; som default være 0	If the field is marked, &apos;taken out of box&apos; will by default be 0	Hvis feltet er merket, vil &apos;tas ut av boksen&apos; som standard 0	
-838	Sæt &apos;udtages fra kasse&apos; til 0	Set &apos;taken out of box&apos; to 0	Sett &apos;tatt ut av esken&apos; til 0	
+837	Hvis feltet er afmærket vil &apos;udtages fra kasse&apos; som default være 0	If the field is marked, &apos;taken out of box&apos; will by default be 0	Hvis feltet er merket, vil &apos;tas ut av boksen&apos; som standard 0
+838	Sæt &apos;udtages fra kasse&apos; til 0	Set &apos;taken out of box&apos; to 0	Sett &apos;tatt ut av esken&apos; til 0
 839	Er dette felt afmærket skal der foretages valg af bruger / ekspedient inden ekspedition.	If this field is marked, a choice of user / clerk must be made before dispatch.	Hvis dette feltet er merket, må du velge bruker / ekspeditør før utsendelse.
 840	Tvungen brugervalg	Forced user choice	Tvunget brukervalg
 841	Kreditor kontonummer til inkassoselskab 	Creditor account number for debt collection company	Kreditorens kontonummer for inkassoselskapet
@@ -1098,7 +1098,7 @@
 1098	Jobkort	Job card	Jobbkort
 1099	Slet	Delete	Slett
 1100	Kopier	Copy	Kopier
-1101	Original tilbud	Original offer	Opprinnelig tilbud
+1101	Originalt tilbud	Original offer	Opprinnelig tilbud
 1102	Kreditnota	Credit note	Kredittnota
 1103	Kortterminal	Card terminal	Kortterminal
 1104	Terminal ikke startet	Terminal not started	Terminal ikke startet
@@ -2314,8 +2314,8 @@
 2314	Flatpay ID	Flatpay ID	Flatpay ID
 2315	Dit hemmelige Flatpay ID, klik inputtet for at lave en ny	Your secret Flatpay ID, click the input to create a new one	Din hemmelige Flatpay ID, klikk på feltet for å lage en ny
 2316	Terminal IP/ID	Terminal IP/ID	Terminal IP/ID
-2317	Vibrant API Nøgle	Virant API Key	Vibrant API Key
-2318	API Nøglen til din Vibrant APP	The API key for your vibrant APP	API-key for din Vibrant APP
+2317	Vibrant API-nøgle	Virant API Key	Vibrant API-nøkkel
+2318	API-nøglen til din Vibrant APP	The API key for your vibrant APP	API-nøkkelen for din Vibrant APP
 2319	Kurs	Exchange rate	Vekslingskurs
 2320	SAF-T	SAF-T	SAF-T
 2321	Dansk SAF-T standart er baseret på OECD standard	Danish SAF-T is based on the OECD standard	Den norske SAF-t-standarden er basert på OECD-standarden
@@ -2335,7 +2335,7 @@
 2335	Indlæs/udlæs kontoplan	Load/Export chart of accounts	Laste/Eksportere kontoplan
 2336	Importer mappingfil til offentlig standard kontoplan	you can import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
 2337	De kontonumre som <u>ikke</u> kan mappes ændres i	The account numbers that cannot be mapped can be changed in	Kontonumrene som ikke kan kartlegges kan endres i
-2338	Systemdata &#8658 Kontoplan	System data &#8658 Chart of accounts	Systemdata &#8658 Kontoplan	
+2338	Systemdata &#8658 Kontoplan	System data &#8658 Chart of accounts	Systemdata &#8658 Kontoplan
 2339	Her kan man under det enkelte kontonummer tilføje standard kontonummer i feltet	Here, under the individual account number, you can add the standard account number in the field	Her kan du under det enkelte kontonummeret legge til standard kontonummer i feltet
 2340	Map til	Map to	Map til
 2341	Sidst på siden kan man se en udskrift af Standard Kontoplan	At the end of the page you can see a printout of the Standard Account Plan	På slutten av siden kan du se en utskrift av Standard Account Plan
