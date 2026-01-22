@@ -177,6 +177,16 @@ class AttachmentModel
         
         // Use custom filename or original filename
         $filename = $customFilename ?: $uploadedFile['name'];
+        if ($customFilename) {
+            // If custom filename provided but has no extension, append one based on detected mime type
+            $pathInfo = pathinfo($customFilename);
+            if (empty($pathInfo['extension'])) {
+                $extension = $this->getExtensionFromMimeType($mimeType);
+                $filename = $customFilename . '.' . $extension;
+            } else {
+                $filename = $customFilename;
+            }
+        }
         
         // Check if uploaded file is an image and convert to PDF
         $mimeType = mime_content_type($uploadedFile['tmp_name']);
@@ -285,7 +295,16 @@ class AttachmentModel
         
         // Determine filename
         $filename = $customFilename;
-        if (!$filename) {
+        if ($customFilename) {
+            // If custom filename provided but has no extension, append one based on detected mime type
+            $pathInfo = pathinfo($customFilename);
+            if (empty($pathInfo['extension'])) {
+                $extension = $this->getExtensionFromMimeType($mimeType);
+                $filename = $customFilename . '.' . $extension;
+            } else {
+                $filename = $customFilename;
+            }
+        } else {
             // Try to determine extension from mime type
             $extension = $this->getExtensionFromMimeType($mimeType);
             $filename = 'upload_' . date('YmdHis') . '.' . $extension;
