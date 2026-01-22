@@ -4631,13 +4631,22 @@ function ordreside($id, $regnskab)
 				$a_afd[$x] = $r['afd'];
 				$x++;
 			}
-			if (!in_array($ref, $ansat)) {
-				$r = db_fetch_array(db_select("select navn from ansatte,brugere where brugere.brugernavn='$ref' and ansatte.id=" . nr_cast('brugere.ansat_id') . "", __FILE__ . " linje " . __LINE__));
-				if (!empty($r['navn'])) $ref = $r['navn']; #20210715
-
+			if (!in_array($ref,$ansat)) {
+				$r=db_fetch_array(db_select("select navn from ansatte,brugere where brugernavn='$ref' and ansatte.id=".nr_cast('brugere.ansat_id')."",__FILE__ . " linje " . __LINE__));
+				if (!empty($r['navn'])) $ref=$r['navn']; #20210715
+				
+			}
+			
+			for ($x=0;$x<count($ansat);$x++) {
+				if (!$x) {
+				print "<tr><td>".findtekst(1097,$sprog_id)."</td>\n";
+				print "<td><select style=\"width:125px;\" class = 'inputbox' name=\"ref\" $disabled>\n";
+				print "<option>$ref</option>\n";
+				}
+				if ($ref!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
 			}
 
-					print "<td><input style=\"width:125px;\" class = 'inputbox' name=\"ref\" value=\"$ref\" onfocus=\"document.forms[0].fokus.value=this.name;\" $disabled></td>\n";
+					
 		}
 		$x = 0;
 		$afd_navn = array();
