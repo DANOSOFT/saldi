@@ -3758,6 +3758,8 @@ function ordreside($id, $regnskab)
 						else $dg[$x] = 0;
 						$dk_db[$x] = dkdecimal($dbi[$x], 2);
 						$dk_dg[$x] = dkdecimal($dg[$x], 2);
+
+
 					}
 				}
 				if (($art == 'DK') && ($antal[$x] < 0)) $bogfor == 0;
@@ -5097,6 +5099,7 @@ function ordreside($id, $regnskab)
 					else $dg[$x] = 0;
 					$dk_db[$x] = dkdecimal($dbi[$x], 2);
 					$dk_dg[$x] = dkdecimal($dg[$x], 2);
+					
 				}
 				if (($art == 'DK') && ($antal[$x] < 0)) $bogfor == 0;
 				if ($serienr[$x]) {
@@ -5869,6 +5872,10 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	global $tdlv, $txt370;
 	global $sprog_id;
 
+	$db_new = $pris - $kostpris;
+	$db_original = afrund($db_new, 2);
+	$dg_original = afrund($db_new / $pris * 100, 2);
+
 	if (!isset($reserveret[$x])) $reserveret[$x] = 0;
 	$beskrivelse = str_replace("&lt;br&gt;", "\r\n", $beskrivelse);
 	$beskrivelse = str_replace("&lt;BR&gt;", "\r\n", $beskrivelse);
@@ -6045,7 +6052,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	} elseif ($saetnr) {
 		print "<td><input type=\"hidden\" name=\"pris$x\" value=\"" . dkdecimal($pris, 2) . "\"></td><td><input class = 'inputbox' type=\"hidden\" name=\"raba$x\" value=\"0\"></td>";
 	} elseif (!$rvnr) {
-		print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - db: $dk_db - dg: $dk_dg%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n"; #2013.11.29 Fjerner 0,00 ved fokus, og tilføjer 0,00 hvis feltet er tomt
+		print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - db: $db_original - dg: $dg_original%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n"; #2013.11.29 Fjerner 0,00 ved fokus, og tilføjer 0,00 hvis feltet er tomt
 		$title = $dkantal . "*" . dkdecimal(($rabat / 100) * $pris, 2) . "% = " . dkdecimal($antal * ($rabat / 100) * $pris, 2);
 		print "<td valign = 'top' title=\"$title\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right\" size=\"4\" name=\"raba$x\" value=\"$dkrabat\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n";
 	} else print "<td></td><td></td>";
