@@ -59,7 +59,7 @@
 		print "<input type=\"hidden\" name=\"betvaluta\" value=\"$betvaluta\">";
 		print "</td></tr>\n";
 		if ($status<3) {
-			$q=db_select("select kodenr,box1 from grupper where art = 'VK' order by box1",__FILE__ . " linje " . __LINE__);
+			$q=db_select("select kodenr,box1 from grupper where art = 'VK' and box4 = '1' order by box1",__FILE__ . " linje " . __LINE__);
 			while($r=db_fetch_array($q)) {
 				$qtxt="select kurs from valuta where valdate <='$dd' and gruppe='$r[kodenr]' order by valdate desc limit 1";
 				$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
