@@ -838,7 +838,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleBtn.type = 'button';
         toggleBtn.id = 'filter-toggle-btn'; 
         toggleBtn.style.cssText =
-            'padding:4px 8px; border:1px solid #999; height:22px; color:white; cursor:pointer; font-size:12px;';
+            'padding:4px 8px; border:1px solid #999; border-radius:4px; height:22px; color:white; cursor:pointer; font-size:12px;';
 
        
         var sidebar = window.parent.document.querySelector('.sidebar');

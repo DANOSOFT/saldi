@@ -1636,6 +1636,14 @@ print '<style>
         border-top: 1px solid #ccc;
     }
 
+    /* Border radius for buttons */
+    input[type="submit"],
+    input[type="button"],
+    button,
+    .button {
+        border-radius: 4px;
+    }
+
     /* Print styles */
     @media print {
         /* Hide navigation and non-essential elements - including Saldi framework elements */
@@ -4444,7 +4452,6 @@ document.addEventListener('DOMContentLoaded', function() {
 ";
 
 	?>
-
 
 
 
