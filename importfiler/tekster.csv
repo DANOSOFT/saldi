@@ -816,8 +816,8 @@
 816	Projektnr.	Project no.	Prosjektnr.
 817	Afmærkes feltet anvendes HTML/CSS til formulargenerering. 	If the field is checked, HTML / CSS is used for form generation.	Hvis feltet er merket av, brukes HTML / CSS for generering av skjemaer.
 818	Brug HTML/CSS til formulargenerering	Use HTML / CSS for form generation	Bruk HTML / CSS for generering av skjemaer
-819	API Nøgle	API Key	API-nøkkel
-820	API nøglen er en unik nøgle til verificering af din adgang til regnskabet	The API key is a unique key used to verify your access to the accounting system	API-nøkkelen er en unik nøkkel for å verifisere din tilgang til regnskapet
+819	API-nøgle	API Key	API-nøkkel
+820	API-nøglen er en unik nøgle til verificering af din adgang til regnskabet	The API key is a unique key used to verify your access to the accounting system	API-nøkkelen er en unik nøkkel for å verifisere din tilgang til regnskapet
 821	Tilladte IP adresser	Allowed IP addresses	Tillatte IP-adresser
 822	Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator. 	Specify which IP addresses have access to use the API. Use comma as separator.	Spesifiser hvilke IP-adresser som har tilgang til å bruke API. Bruk komma som skilletegn.
 823	Brugernavn	Username	Brukernavn
