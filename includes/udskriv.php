@@ -1,10 +1,10 @@
-<?php #topkode_start
+<?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.1.1 --- 2026.01.02 ---
+// --- includes/udskriv.php --- lap 4.1.1 --- 2026.01.22 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -335,12 +335,11 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>";
-
-				if ($returside) $href="\"$returside\" accesskey=\"L\"";
+				if ($returside) $href="\"../debitor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 
 				print "<td width='10%'><a href=$href>
-					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 				print "<td width='80%' align='center' title='".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id)."'>
 					   <a href=../temp/$ps_fil.pdf target=blank>
