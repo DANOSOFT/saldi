@@ -487,7 +487,7 @@ if ($sort && $fokus && $b_submit == 'vareOpslag') {
 $bogfor = 1;
 
 $gruppe = 0;
-if ($id) {
+if ($id && is_numeric($id)) {
 	$r = db_fetch_array(db_select("SELECT adresser.gruppe,ordrer.status,ordrer.sprog FROM ordrer,adresser WHERE ordrer.id = '$id' AND adresser.id=ordrer.konto_id", __FILE__ . " linje " . __LINE__));
 	$status = if_isset($r, 0, 'status');
 	$gruppe = if_isset($r, 0, 'gruppe');
@@ -958,7 +958,7 @@ if (isset($_POST['opdat_mailtext'])) {
 	db_modify("update ordrer set mail_subj='$mail_subj',mail_text='$mail_text' where id='$id'", __FILE__ . " linje " . __LINE__);
 }
 
-if (isset($_POST['newAccountNo']) && $newAccountNo = $_POST['newAccountNo']) {
+if (isset($_REQUEST['newAccountNo']) && $newAccountNo = $_REQUEST['newAccountNo']) {
 	if (strtolower($newAccountNo == 'n')) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=../debitor/ordre.php&ordre_id=$id&fokus=kontonr\">\n";
 		exit;
@@ -1884,7 +1884,10 @@ if ($status < 3 && $b_submit) {
 					if ($posnr_ny[$x] >= 1) {
 						$alert = str_replace("'", "`", findtekst('1841|Hint! Du skal sætte tegnet - (minus) i feltet Pos for at slette en varelinje.', $sprog_id));
 						#						if ($varenr[$x]==$rvnr) $posnr_ny[$x]+=1000;
-						db_modify("update ordrelinjer set posnr='$posnr_ny[$x]' where id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
+						// Only update if linje_id is not empty (to avoid SQL errors with empty id)
+						if ($linje_id[$x]) {
+							db_modify("update ordrelinjer set posnr='$posnr_ny[$x]' where id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
+						}
 					} else print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
 				}
 				if (!isset($projekt[$x])) $projekt[$x] = 0;
@@ -5023,7 +5026,10 @@ function ordreside($id, $regnskab)
 			$lines_found++;
 			if ($row['posnr'] > 0) $lines_with_posnr_gt_0++;
 			if (is_numeric($row['samlevare'])) $lines_with_numeric_samlevare++;
-			if ($row['posnr'] > 0 && !is_numeric($row['samlevare'])) {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
+			# Fix for duplicate positions: If item has both saet AND samlevare='on', it's a huvudvaren in a saet collection
+			# and will be rendered separately at lines 5151-5152, so skip it here
+			$is_huvudvaren_in_saet = ($row['saet'] && $row['samlevare'] == 'on');
+			if ($row['posnr'] > 0 && !is_numeric($row['samlevare']) && !$is_huvudvaren_in_saet) {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
 				$x++;
 				$linje_id[$x]        = $row['id'];
 				$kred_linje_id[$x]   = $row['kred_linje_id'];
@@ -5298,8 +5304,12 @@ function ordreside($id, $regnskab)
 			if ($saet[$x] && $saetpris) {
 				$y = $x + 1;
 				if (!$samlevare[$x] && $saet[$x] && ($saet[$x + 1] != $saet[$x] || $samlevare[$x + 1])) {
-					$r = db_fetch_array(db_select("select id,beskrivelse,lager from ordrelinjer where saet = '$saet[$x]' and ordre_id='$id' and samlevare='on'", __FILE__ . " linje " . __LINE__));
-					list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', '0', '0', '', '', $r['beskrivelse'], '', $r['lager'], $saetpris, '0', 'percent', '100', '1', '0', '0', '0', '', '0', '0', '0', '', '', '', '', '', '', '', '', '', '', '', '', '0', '', '0', $saetnr, $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));
+					$r = db_fetch_array(db_select("select id,varenr,beskrivelse,lager,vare_id,pris,antal from ordrelinjer where saet = '$saet[$x]' and ordre_id='$id' and samlevare='on'", __FILE__ . " linje " . __LINE__));
+					if ($r) { # Render even if varenr is empty (ordrelinjer now handles this for collections)
+						# Use saetpris if available, otherwise use hovedvaren's own price * antal
+						$display_price = $saetpris > 0 ? $saetpris : ($r['pris'] * ($r['antal'] ?: 1));
+						list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', $r['id'], '0', '', $r['varenr'], $r['beskrivelse'], '', $r['lager'], $display_price, '0', 'percent', '100', '1', '0', '0', $r['vare_id'], '', '0', '0', '0', '', 'on', '', '', '', '', '', '', '', '', '', '', '0', '', $saet[$x], $saetnr, $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));
+					}
 					$saetnr = 0;
 				}
 			}
@@ -5895,7 +5905,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	#lse cho "$beskrivelse $pris<br>";
 	#  if (!$ny_pos) $ny_pos=1;
 	if ($readonly) $readonly = "readonly=\"readonly\"";
-	if ($varenr) {
+	if ($varenr || ($saet && $samlevare)) {
 		if ($rabatart == 'amount') $ialt = ($pris - $rabat) * $antal;
 		else $ialt = ($pris - ($pris / 100 * $rabat)) * $antal;
 		if ($procentfakt) {
@@ -5935,45 +5945,55 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		$disabled = NULL;
 	}
 	#  if ($x) {
-	print "<input type=\"hidden\" name=\"linje_id[$x]\" value=\"$linje_id\">\n";
-	print "<input type=\"hidden\" name=\"kred_linje_id[$x]\" value=\"$kred_linje_id\">\n";
-	print "<input type=\"hidden\" name=\"vare_id[$x]\" value=\"$vare_id\">\n";
-	print "<input type=\"hidden\" name=\"antal[$x]\" value=\"$antal\">\n";
-	print "<input type=\"hidden\" name=\"serienr[$x]\" value=\"$serienr\">\n";
-	print "<input type=\"hidden\" name=\"momsfri[$x]\" value=\"$momsfri\">\n";
-	print "<input type=\"hidden\" name=\"varemomssats[$x]\" value=\"$varemomssats\">\n";
-	print "<input type=\"hidden\" name=\"proc$x\" value=\"$procent\">\n";
-	print "<input type=\"hidden\" name=\"saet[$x]\" value=\"$saet\">\n";
-	print "<input type=\"hidden\" name=\"samlevare[$x]\" value=\"$samlevare\">\n";
-	print "<input type=\"hidden\" name=\"kostpris[$x]\" value=\"$kostpris\">\n"; #20170906
-	print "<input type=\"hidden\" name=\"lager[$x]\" value=\"$lager\">\n";
+	// Hidden inputs will be printed inside the TR element to enable drag-and-drop
+	// Store values for later use inside the TR
+	$hidden_inputs = "";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"linje_id[$x]\" value=\"$linje_id\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"kred_linje_id[$x]\" value=\"$kred_linje_id\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"vare_id[$x]\" value=\"$vare_id\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"antal[$x]\" value=\"$antal\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"serienr[$x]\" value=\"$serienr\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"momsfri[$x]\" value=\"$momsfri\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"varemomssats[$x]\" value=\"$varemomssats\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"proc$x\" value=\"$procent\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"saet[$x]\" value=\"$saet\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"samlevare[$x]\" value=\"$samlevare\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"kostpris[$x]\" value=\"$kostpris\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"lager[$x]\" value=\"$lager\">\n";
 	#  if ($art=='OT' || $saetnr || ($rvnr && $rabat)) { // Når input fields er 'disabled' bliver de ikke opdateret, derfor tilføjes hidden fields
-	print "<input type=\"hidden\" name=\"beskrivelse$x\" value=\"$beskrivelse\">\n";
-	if ($fokus != "pris$x") print "<input type=\"hidden\" name=\"pris$x\" value=\"$dkpris\">\n";
-	print "<input type=\"hidden\" name=\"raba$x\" value=\"$dkrabat\">\n";
-	print "<input type=\"hidden\" name=\"vare$x\" value=\"$varenr\">\n"; #Tilføjet 20161011 Hvis fjernes fungerer "samlet pris ikke"
-	print "<input type=\"hidden\" name=\"posn$x\" value=\"$ny_pos\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"beskrivelse$x\" value=\"$beskrivelse\">\n";
+	if ($fokus != "pris$x") $hidden_inputs .= "<input type=\"hidden\" name=\"pris$x\" value=\"$dkpris\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"raba$x\" value=\"$dkrabat\">\n";
+	$hidden_inputs .= "<input type=\"hidden\" name=\"vare$x\" value=\"$varenr\">\n"; #Tilføjet 20161011 Hvis fjernes fungerer "samlet pris ikke"
+	$hidden_inputs .= "<input type=\"hidden\" name=\"posn$x\" value=\"$ny_pos\">\n";
+	if ($saet && $samlevare) {
+		$hidden_inputs .= "<input type=\"hidden\" name=\"dkan$x\" value=\"$dkantal\">\n";
+	}
 	if ($fokus == 'dkan' . $x) { #20151019
-		print "<input type=\"hidden\" name=\"dkantal[$x]\" value=\"$dkantal\">\n";
-		print "<input type=\"hidden\" name=\"fokus\" value=\"pris$x\">\n";
+		$hidden_inputs .= "<input type=\"hidden\" name=\"dkantal[$x]\" value=\"$dkantal\">\n";
+		$hidden_inputs .= "<input type=\"hidden\" name=\"fokus\" value=\"pris$x\">\n";
 	}
 	#  }
 	$prplho = NULL;
-
-	print "<td></td>";
 
 	if ($fokus == 'pris' . $x) { #20151019
 		if ($pris == 0) $prplho = "placeholder=\"0,00\"";
 		else $fokus = 'vare0';
 	}
 	#  }
-	if ($saet && $samlevare) {
-		print "<input type=\"hidden\" name=\"posn$x\" value=\"$ny_pos\">\n";
-		print "<input type=\"hidden\" name=\"vare$x\" value=\"$varenr\">\n";
-		print "<input type=\"hidden\" name=\"dkan$x\" value=\"$dkantal\" onfocus='this.select()'>\n";
-	} else {
-		$txtColor = 'black';
-		$qtyTitle = '';
+	#  }
+	
+	// Start the row and print hidden inputs for ALL row types
+	($x) ? $y = NULL : $y = '_';
+    // Main collection items should be visible now
+    $rowStyle = "";
+	print "<tr class='ordrelinje' $rowStyle data-line-id='$x'>\n";
+	print "<td style='display:none;'>$hidden_inputs</td>\n";
+	
+	print "<td class='drag-handle' style='cursor:move; text-align:center; vertical-align:middle; width:30px; background:#f5f5f5;'>⋮⋮</td>";
+
+	$txtColor = 'black';
+	$qtyTitle = '';
 		$stockQty = $min_lager = 0;
 		if ($lager && $vare_id) {
 			$g = 0;
@@ -6010,13 +6030,8 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			}
 		}
 		($x) ? $y = NULL : $y = '_';
-		// print "<tr class='ordrelinje'>\n";
-		print "<tr class='ordrelinje' data-line-id='$x'>\n";
-		#    print "<td valign = 'top'><div onClick='this.form.submit();'><a>X</a></div></td>";
-		// print "<input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;width:50px;\" name=\"posn$x\" value=\"$ny_pos\" $disabled></td>\n";
-		print "<td class='drag-handle' style='cursor:move; text-align:center; vertical-align:middle; width:30px; background:#f5f5f5;'>⋮⋮</td>";
-
-		// print "<td class='drag-handle' style='cursor:move; text-align:center; vertical-align:middle; width:30px; background:#f5f5f5;'>⋮⋮</td>";
+		// TR and hidden inputs already printed above
+		
 		print "<td valign='top'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='posn$x' value='$ny_pos' $disabled></td>\n";
 		$title = "Nt/Bt " . number_format($grossWeight, 1, ',', '.') . "/" . number_format($netWeight, 1, ',', '.') . " kg. ";
 		$title .= "L: " . number_format($itemLength, 0, ',', '.') . " B: " . number_format($itemWidth, 0, ',', '.') . " ";
@@ -6053,13 +6068,20 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		elseif ($saetnr || ($rvnr && $rabat)) $dis = NULL;
 		else $dis = $disabled;
 		print "<td valign = 'top' title=\"$title\"><textarea class=\"autosize inputbox ordreText comment\" $readonly rows=\"1\" cols=\"58\" name=\"beskrivelse$x\" onchange=\"javascript:docChange = true;\" $dis>$beskrivelse</textarea></td>\n";
-	}
 	if ($saet) {
-		print "<td><input type=\"hidden\" name=\"pris$x\" value=\"$dkpris\"></td><td>
-     		<input class = 'inputbox' type=\"hidden\" name=\"raba$x\" value=\"$dkrabat\"></td>
-			<input type=\"hidden\" name=\"posn$x\" value=\"$ny_pos\">\n";
+		// Hidden inputs pris, raba, posn are already in $hidden_inputs
+		if ($samlevare) {
+			// Print Price and Discount for main item ONLY
+			print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - db: $dk_db - dg: $dk_dg%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n";
+			$title = $dkantal . "*" . dkdecimal(($rabat / 100) * $pris, 2) . "% = " . dkdecimal($antal * ($rabat / 100) * $pris, 2);
+			print "<td valign = 'top' title=\"$title\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right\" size=\"4\" name=\"raba$x\" value=\"$dkrabat\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n";
+		} else {
+			// Just print empty cells to maintain table alignment for sub-items
+			print "<td></td><td></td>";
+		}
 	} elseif ($saetnr) {
-		print "<td><input type=\"hidden\" name=\"pris$x\" value=\"" . dkdecimal($pris, 2) . "\"></td><td><input class = 'inputbox' type=\"hidden\" name=\"raba$x\" value=\"0\"></td>";
+		// Hidden inputs are in $hidden_inputs
+		print "<td></td><td></td>";
 	} elseif (!$rvnr) {
 		print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - db: $db_original - dg: $dg_original%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n"; #2013.11.29 Fjerner 0,00 ved fokus, og tilføjer 0,00 hvis feltet er tomt
 		$title = $dkantal . "*" . dkdecimal(($rabat / 100) * $pris, 2) . "% = " . dkdecimal($antal * ($rabat / 100) * $pris, 2);
@@ -6077,7 +6099,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$dk_db = dkdecimal($dkb, 2);
 	$dk_dg = dkdecimal($dg, 2);
 	if ($art == 'DK') $ialt = (float)$ialt * -1;
-	if ($varenr) {
+	if ($varenr || ($saet && $samlevare)) {
 		if ($rvnr) {
 			$disabled = 'disabled';
 			if ($incl_moms && !$momsfri) $tmp = dkdecimal($antal * ($pris + $pris * $varemomssats / 100), 2);
@@ -6088,7 +6110,11 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		}
 	} else $tmp = NULL;
 	if ($saet) {
-		print "<td></td>";
+		if ($samlevare) {
+			print "<td valign = 'top' align=\"right\" title=\"db: $dk_db - dg: $dk_dg%\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"10\" value=\"$tmp\" $disabled></td>\n";
+		} else {
+			print "<td></td>";
+		}
 	} elseif ($saetnr || $varenr == $rvnr) {
 		if ($saetnr) {
 			$qtxt = "select lev_varenr from ordrelinjer where samlevare='on' and saet='$saetnr' and ordre_id='$id'";
@@ -6222,7 +6248,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"" . findtekst('1501|Vælg serienr', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n"; #20210715
 
 	} else {
-		// print "<td></td>";
+		print "<td></td>";
 
 	}
 
