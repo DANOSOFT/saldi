@@ -5891,9 +5891,11 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	global $tdlv, $txt370;
 	global $sprog_id;
 
-	$db_new = $pris - $kostpris;
+	$pris_num = is_numeric($pris) ? (float)$pris : 0;
+	$kostpris_num = is_numeric($kostpris) ? (float)$kostpris : 0;
+	$db_new = $pris_num - $kostpris_num;
 	$db_original = afrund($db_new, 2);
-	$dg_original = afrund($db_new / $pris * 100, 2);
+	$dg_original = ($pris_num != 0) ? afrund($db_new / $pris_num * 100, 2) : 0;
 
 	if (!isset($reserveret[$x])) $reserveret[$x] = 0;
 	$beskrivelse = str_replace("&lt;br&gt;", "\r\n", $beskrivelse);
