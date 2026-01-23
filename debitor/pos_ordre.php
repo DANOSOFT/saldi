@@ -3212,7 +3212,7 @@ function kasseoptalling(
 	$x = 0;
 	$k = $kasse - 1;
 	$tmp = $valuta = array();
-	$q = db_select("select * from grupper where art = 'VK' order by box1", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select * from grupper where art = 'VK' and box4 = '1' order by box1", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$valuta[$x] = $r['box1'];
 		$tmp = explode(chr(9), $r['box4']);
