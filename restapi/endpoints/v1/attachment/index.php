@@ -115,6 +115,17 @@ class AttachmentEndpoint extends BaseEndpoint
                 }
             }
             
+            // Validate required fields
+            if (!$totalAmount) {
+                $this->sendResponse(false, null, 'Missing required field: extracted_data.total_amount', 400);
+                return;
+            }
+            
+            if (!$invoiceDate) {
+                $this->sendResponse(false, null, 'Missing required field: extracted_data.invoice_date', 400);
+                return;
+            }
+            
             // Remove data URI prefix if present (e.g., "data:image/png;base64,")
             if (preg_match('/^data:([^;]+);base64,/', $base64Data, $matches)) {
                 $mimeType = $matches[1];
@@ -140,15 +151,9 @@ class AttachmentEndpoint extends BaseEndpoint
             $metadata = [
                 'date' => $invoiceDate,
                 'amount' => $totalAmount,
-                'accountnr' => isset($data->accountnr) ? $data->accountnr : '',
-                'subject' => isset($data->subject) ? $data->subject : '',
+                'accountnr' => isset($data->accountnr) ? $data->accountnr : ''
             ];
-
-            // Prefer subject as filename when provided and non-empty
-            if (!empty($metadata['subject'])) {
-                $customFilename = $metadata['subject'];
-            }
-
+            
             $attachment = new AttachmentModel();
             $result = $attachment->saveBase64File($fileContent, $customFilename, $metadata);
             
