@@ -599,7 +599,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$portovarenr      = if_isset($_POST, null, 'portovarenr');
 		$showDB           = if_isset($_POST, null, 'showDB');
 		$showDG           = if_isset($_POST, null, 'showDG');
+		$pluklisteEmail   = if_isset($_POST, null, 'pluklisteEmail');
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
+		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
 		update_settings_value("porto_varnr", "ordre", $portovarenr, "Varenr to autmatically include on new orders");
 		update_settings_value("showDB", "ordre", $showDB, "Weather or not to show the DB on the order page");
 		update_settings_value("showDG", "ordre", $showDG, "Weather or not to show the DG on the order page");

@@ -397,16 +397,35 @@ for ($x=0;$x<$vis_feltantal;$x++) {
 	$columns[] = $column;
 }
 
-// Add clickable row renderer for kontonr
+// Add clickable row renderer for all columns (whole row is clickable)
 foreach ($columns as &$column) {
-	if ($column['field'] == 'kontonr') {
+	$originalRender = isset($column['render']) ? $column['render'] : null;
+	$field = $column['field'];
+	
+	if ($field == 'kontonr') {
+		// kontonr keeps the link for accessibility/right-click
 		$column["render"] = function ($value, $row, $column) {
 			$url = "historikkort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor_historik.php";
 			return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
 		};
-		break;
+	} else {
+		// All other columns get onclick handler
+		$column["render"] = function ($value, $row, $column) use ($originalRender) {
+			$url = "historikkort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor_historik.php";
+			
+			// Get the display value from original render or default
+			if ($originalRender) {
+				$td = $originalRender($value, $row, $column);
+				// Replace opening <td with onclick and cursor style
+				$td = preg_replace('/<td([^>]*)>/', "<td$1 onclick=\"window.location.href='$url'\" style='cursor:pointer'>", $td);
+				return $td;
+			} else {
+				return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'>{$value}</td>";
+			}
+		};
 	}
 }
+unset($column); // break the reference
 
 // Build filters
 $filters = array();

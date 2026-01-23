@@ -737,7 +737,7 @@ $bundmenu = if_isset($_GET['bundmenu']);
 $kassebeholdning = if_isset($_GET['kassebeholdning']);
 if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 	$calc = findtekst('2390|Beregn',$sprog_id);
-	if (isset($_POST['optael']) && ($_POST['optael'] == findtekst('555|Godkend',$sprog_id) || $_POST['optael'] == findtekst('3089|Beregn',$sprog_id))) {
+	if (isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id))) {
 		$cookievalue = (int)$_POST['ore_10'] . chr(9) . (int)$_POST['ore_20'] . chr(9) . $_POST['ore_50'] . chr(9) . $_POST['kr_1'] . chr(9) . $_POST['kr_2'] . chr(9) . $_POST['kr_5'] .
 			chr(9) . $_POST['kr_10'] . chr(9) . $_POST['kr_20'] . chr(9) . $_POST['kr_50'] . chr(9) . $_POST['kr_100'] .
 			chr(9) . $_POST['kr_200'] . chr(9) . $_POST['kr_500'] . chr(9) . $_POST['kr_1000'] .
@@ -769,7 +769,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 		(int) $_POST['rappen_5'] * 0.05 +
 			(int) $_POST['rappen_10'] * 0.1 +
 			(int) $_POST['rappen_20'] * 0.2;
-		($_POST['optael'] == findtekst('555|Godkend',$sprog_id)) ? $godkendt = 1 : $godkendt = 0;
+		(isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id)) ? $godkendt = 1 : $godkendt = 0;
 		if ($godkendt && round($optalt - $_POST['optalt'], 2) != 0) { #20180822 + 20220222 
 			$godkendt = 0;
 			$alert = findtekst(1862, $sprog_id); #20210820
@@ -779,7 +779,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 			fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls kassebeholdning($kasse,$optalt,$godkendt,$cookievalue)\n");
 		include_once("pos_ordre_includes/boxCountMethods/cashBalance.php");
 		cashBalance($kasse, $optalt, $godkendt, $cookievalue);
-	} elseif (!isset($_POST['optael'])) {
+	} elseif (!isset($_POST['optael']) && !isset($_POST['calculate']) && !isset($_POST['cancel'])) {
 		if ($tracelog)
 			fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls kassebeholdning($kasse,0,0,'')\n");
 		include_once("pos_ordre_includes/boxCountMethods/cashBalance.php");
@@ -3212,7 +3212,7 @@ function kasseoptalling(
 	$x = 0;
 	$k = $kasse - 1;
 	$tmp = $valuta = array();
-	$q = db_select("select * from grupper where art = 'VK' order by box1", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select * from grupper where art = 'VK' and box4 = '1' order by box1", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$valuta[$x] = $r['box1'];
 		$tmp = explode(chr(9), $r['box4']);
@@ -3269,7 +3269,7 @@ function kasseoptalling(
 	}
 
 	$forventet = $byttepenge + $tilgang + $kortdiff;
-	(isset($_POST['optael']) && $_POST['optael']) ? $ny_morgen = $optalt - $udtages : $ny_morgen = 0; #20200112
+	(isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'])) ? $ny_morgen = $optalt - $udtages : $ny_morgen = 0; #20200112
 	specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet); #, $fiveRappen, $tenRappen, $twentyRappen
 	if ($valuta[0]) {
 		for ($x = 0; $x < count($valuta); $x++) {
@@ -3328,7 +3328,7 @@ function kasseoptalling(
 		}
 	}
 #	$calcTxtArr = setCashCountText();
-	if (($optalt || $optalt == '0') && $_POST['optael'] == findtekst('3089|Beregn',$sprog_id)) { #LN 20190219
+	if (($optalt || $optalt == '0') && isset($_POST['calculate'])) { #LN 20190219
 #		if($kortdiff) {
 #			$disabled='disabled';
 #			$title='Der kan ikke godkendes når der er differencer på betalingskort';
@@ -3378,7 +3378,7 @@ function kasseoptalling(
 		$title = findtekst(1853, $sprog_id);
 		$txt   = findtekst('555|Godkend',$sprog_id);
 		print "<td align = 'right' colspan = '1' title = '$title'>";// Accept(Godkend) button
-		print "<input $disabled style = 'width:135px;' type = 'submit' name = 'optael' value = '$txt' ";
+		print "<input $disabled style = 'width:135px;' type = 'submit' name = 'optael' value = '$txt' "; // Godkend button keeps 'optael' name
 		print "onclick = \"javascript:return confirm('$acceptPrint')\"></td></tr>\n";
 	}
 	if (!count($valuta) && $tilgang != '0,00') displayLine(findtekst('370|Kontant',$sprog_id),$tilgang,$baseCurrency);

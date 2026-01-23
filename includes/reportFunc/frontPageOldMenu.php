@@ -93,7 +93,11 @@ db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and
 			$r=db_fetch_array(db_select("select var_value from settings where var_name = 'useMultiRoute'", __FILE__ . " linje " . __LINE__));
 			if ($r['var_value'] == 'on') {
 				print "</tr><tr><td colspan = '5'><hr></td></tr><tr><td></td><td align = 'center'>";
-				print "<span onclick=\"javascript:location.href='../debitor/multiroute.php'\"><input title='Multiroute' style=\"$butStyle\" type='button' value=' " . findtekst('923|Multiroute', $sprog_id) . "'></span></td>\n";
+				print "<span onclick=\"javascript:location.href='../debitor/multiroute.php'\"><input title='Multiroute' style=\"$butStyle\" type='button' value=' " . findtekst('923|Multiroute', $sprog_id) . "'></span></td>";
+				print "<td></td><td align='center'><span onClick=\"javascript:location.href='../debitor/postnr.php'\"><input title='Top 100 efter postnr' style=\"$butStyle\" type='button' value='Top 100 postnr'></span></td>\n";
+			} else {
+				print "</tr><tr><td colspan = '5'><hr></td></tr><tr><td></td><td align='center'>";
+				print "<span onClick=\"javascript:location.href='../debitor/postnr.php'\"><input title='Top 100 efter postnr' style=\"$butStyle\" type='button' value='Top 100 postnr'></span></td>\n";
 			}
 			print "</tr>\n";
 		} else {
@@ -124,7 +128,7 @@ db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and
 		$txt2134 = findtekst('2134|Vælg periode', $sprog_id);
 		$txt903 = findtekst('903|fra', $sprog_id);
 		$txt904 = findtekst('904|til', $sprog_id);
-		if ($kontoart == 'D') {
+		if ($kontoart == 'D' && db_fetch_array(db_select("select id from grupper where art = 'POS' and box2 != '' and box2 is not null and kodenr = '1'", __FILE__ . " linje " . __LINE__))) {
 			print "<tr><td colspan='6'><hr></td></tr>\n";
 			print "<tr><td colspan='6'>&nbsp;</td></tr>\n";
 			print "<tr><th colspan='6' style='text-align:center;'><p>".findtekst('2711|SAF-T kasserapport', $sprog_id);"</p></th></tr>\n";

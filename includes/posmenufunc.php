@@ -55,6 +55,7 @@
 
 include("posmenufunc_includes/buttonFunc.php");
 
+
 if (!function_exists('menubuttons')) {
 	function menubuttons($id, $menu_id, $vare_id, $plads)
 	{
@@ -194,6 +195,7 @@ if (!function_exists('menubuttons')) {
 		#		background-color: $bgcolor;\"";
 		$twidth = $width * $cols . "px";
 		$theight = $height * $rows . "px";
+		$found_any = false;
 		print "<table border=\"0\" cellspacing=\"$cellspacing\" cellpadding=\"1\" width=\"$twidth\" height=\"$theight\" valign=\"top\"><tbody>\n"; # table 1 ->
 		if (substr($beskrivelse, 0, 1) != "!")
 			print "<tr><td colspan=\"$cols\" align=\"center\" bgcolor=\"$bgcolor5\">$beskrivelse</td></tr>\n";
@@ -204,6 +206,7 @@ if (!function_exists('menubuttons')) {
 				$c = $d = 0;
 				$qtxt = "select * from pos_buttons where menu_id=$menuid and row='$x' and col='$y'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$found_any = true;
 					$a = str_replace("\n", "\n ", $r['beskrivelse']);
 					$b = $r['color'];
 					$c = $r['vare_id'] * 1;
@@ -815,7 +818,7 @@ if (!function_exists('tastatur')) {
 		$vis_kontoopslag = $r['box11'];
 		$vis_hurtigknap = $r['box12'];
 		$vis_indbetaling = $r['box14'];
-		$timeout = $r['box13'] * 1;
+		$timeout = (int) $r['box13'];
 		$r = db_fetch_array(db_select("select var_value from settings where var_name = 'card_enabled'", __FILE__ . " linje " . __LINE__));
 		$card_enabled = explode(chr(9), $r['var_value']);
 

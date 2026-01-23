@@ -1,25 +1,29 @@
 <?php
-// -------------kreditor/serienummer.php----------lap 3.2.9-----2012-04-11----
-// LICENS
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
+// --- kreditor/serienummer.php --- lap 5.0.0 --- 2026-01-23 ---
+/// LICENSE
 //
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20260123 PHR if (!$leveres && !$leveret) changed to if ($leveres == 0 && $leveret == 0) as it did not alert when value is 0.000
 @session_start();
 $s_id=session_id();
 
@@ -70,7 +74,7 @@ if ($_POST['submit']) {
         } elseif ($sn_id[$x]) {
 					if ($art=='KK') db_modify("update serienr set kobslinje_id=$kred_linje_id where id=$sn_id[$x]",__FILE__ . " linje " . __LINE__);
 					else db_modify("update serienr set salgslinje_id='0' where id=$sn_id[$x]",__FILE__ . " linje " . __LINE__);
-					
+
 				}
       }
 # echo "$y && $y<$leveres+$leveret<br>";
@@ -109,24 +113,26 @@ print "<tr><td colspan=2 align=center>Posnr: $posnr - Varenr: $varenr</td></tr>
 ";
 print "<tr><td colspan=2><hr></td></tr>
 ";
-if ($antal>0) { 
-  $query = db_select("select * from serienr where kobslinje_id = '$linje_id' and batch_kob_id > 0 order by serienr",__FILE__ . " linje " . __LINE__);
-  while ($row = db_fetch_array($query)) {
-    print "<tr><td colspan=2>$row[serienr]</td></tr>\n";
+if ($antal>0) {
+  $qtxt = "select * from serienr where kobslinje_id = '$linje_id' and batch_kob_id > 0 order by serienr";
+  $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+  while ($r = db_fetch_array($q)) {
+    print "<tr><td colspan=2>$r[serienr]</td></tr>\n";
   }
   print "<tr><td colspan=2><hr></td></tr>\n";
   $sn_antal=0;
-  $query = db_select("select * from serienr where kobslinje_id = '$linje_id' and batch_kob_id < 1 order by serienr",__FILE__ . " linje " . __LINE__);
-  while ($row = db_fetch_array($query)) {
+  $qtxt = "select * from serienr where kobslinje_id = '$linje_id' and batch_kob_id < 1 order by serienr";
+  $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+  while ($r = db_fetch_array($q)) {
     $sn_antal++;
-    $sn_id[$sn_antal]=$row['id'];
-    $serienr[$sn_antal]=$row['serienr'];
+    $sn_id[$sn_antal]=$r['id'];
+    $serienr[$sn_antal]=$r['serienr'];
   }
   for ($x=1; $x<=$leveres+$leveret; $x++) {
     print "<tr><td colspan=2><input type=text size=40 name=serienr[$x] value=\"$serienr[$x]\"></td></tr>\n";
     print "<input type=hidden name=sn_id[$x] value='$sn_id[$x]'>";
   }
-	if (!$leveres && !$leveret) print "<BODY onLoad=\"javascript:alert('Ingen varer er sat til levering')\">";
+    print "<BODY onLoad=\"javascript:alert('Ingen varer er sat til levering')\">";
 
 } else {
 	$sn_antal=0;  # Hvis kobslinje ID er negativ er serienummeret valgt til returnering.
@@ -138,10 +144,10 @@ if ($antal>0) {
 	$solgt=0;
   while ($row = db_fetch_array($query)) {
 		if ($art=='KK' && $row['salgslinje_id']>0) {
-      print "<tr><td>$row[serienr]</td><td>solgt</td></tr>"; 
+      print "<tr><td>$row[serienr]</td><td>solgt</td></tr>";
     } elseif ($row['batch_kob_id']>=0) { #Hvis batch_kob_id er negativ er varen returneret.
 			$sn_antal++;
-      print "<tr><td>$row[serienr]</td><td><input type=\"checkbox\" name=\"valg[$sn_antal]\""; 
+      print "<tr><td>$row[serienr]</td><td><input type=\"checkbox\" name=\"valg[$sn_antal]\"";
       if ($row['kobslinje_id']<0 || $row['salgslinje_id']==$linje_id) {
 				print " checked";
 #echo "<br>$sn_antal>=abs($leveret)<br>";
@@ -156,7 +162,7 @@ if ($antal>0) {
     }
     else print "<tr><td>$row[serienr]</td></tr>\n";
   }
-} 
+}
 # if ($solgt&&!$sn_antal) print "<tr><td colspan=2>Alle varer fra krediteret ordre er solgt</td></tr>\n";
 print "<tr><td colspan=2><hr></td></tr>\n";
 print "<input type=hidden name=antal value='$antal'>";

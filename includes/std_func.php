@@ -2175,14 +2175,12 @@ if (!function_exists('get_next_number')) {
 	}
 }
 
-//                   ----------------------------- get_next_order_number ------------------------------
 if (!function_exists('get_next_order_number')) {
 	function get_next_order_number($art = 'DO')
 	{
 		/**
 		 * Generates the next available order number (ordrenr) for a given 'art' (type).
-		 * Uses database transactions and SELECT FOR UPDATE to prevent race conditions and duplicate numbers.
-		 * Works on both PostgreSQL and MySQL/MySQLi.
+		 * Uses database transactions and table locking to prevent race conditions and duplicate numbers.
 		 * 
 		 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
 		 * 
@@ -2213,7 +2211,7 @@ if (!function_exists('get_next_order_number')) {
 				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
 				
 				// Double-check that this order number doesn't exist (extra safety)
-				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art' FOR UPDATE";
+				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art'";
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				
 				if (!$check_r || !$check_r['id']) {

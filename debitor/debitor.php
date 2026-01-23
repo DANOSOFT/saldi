@@ -274,7 +274,7 @@ for ($x=0;$x<$vis_feltantal;$x++) {
                 $tmp2="adresser.".$tmp;
                 $udvaelg.=udvaelg($find[$x],$tmp2, 'DATO');
             } elseif ($tmp == 'kontakt' && $find[$x]) {
-                $udvaelg.=" and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
+                $udvaelg.=" and (adresser.kontakt ILIKE '%".db_escape_string($find[$x])."%' OR adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%')))";
             } elseif ($find[$x] && !in_array($tmp,$numfelter)) {
                 $searchTerm = "*" . str_replace(" ", "*", $find[$x]) . "*";
                 $tmp2="adresser.".$tmp;
@@ -442,7 +442,7 @@ include_once '../includes/oldDesign/footer.php';
         } elseif ($field == 'kontakt') {
             $column["generateSearch"] = function ($column, $term) {
                 $term = db_escape_string($term);
-                return "a.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%$term%'))";
+                return "(a.kontakt ILIKE '%$term%' OR a.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%$term%')))";
             };
         } elseif ($field == 'kontonr' || $field == 'postnr') {
             // kontonr and postnr are text identifiers, use text search
@@ -479,16 +479,35 @@ include_once '../includes/oldDesign/footer.php';
         $columns[] = $column;
     }
 
-    // Add clickable row renderer for kontonr
+    // Add clickable row renderer for all columns (whole row is clickable)
     foreach ($columns as &$column) {
-        if ($column['field'] == 'kontonr') {
+        $originalRender = isset($column['render']) ? $column['render'] : null;
+        $field = $column['field'];
+        
+        if ($field == 'kontonr') {
+            // kontonr keeps the link for accessibility/right-click
             $column["render"] = function ($value, $row, $column) {
                 $url = "debitor"."kort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor.php";
                 return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
             };
-            break;
+        } else {
+            // All other columns get onclick handler
+            $column["render"] = function ($value, $row, $column) use ($originalRender) {
+                $url = "debitor"."kort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor.php";
+                
+                // Get the display value from original render or default
+                if ($originalRender) {
+                    $td = $originalRender($value, $row, $column);
+                    // Replace opening <td with onclick and cursor style
+                    $td = preg_replace('/<td([^>]*)>/', "<td$1 onclick=\"window.location.href='$url'\" style='cursor:pointer'>", $td);
+                    return $td;
+                } else {
+                    return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'>{$value}</td>";
+                }
+            };
         }
     }
+    unset($column); // break the reference
 
     // Build filters
     $filters = array();

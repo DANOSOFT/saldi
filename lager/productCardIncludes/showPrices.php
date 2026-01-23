@@ -93,7 +93,7 @@
     } elseif ($salgspris) {
         $CM=0;
         $CM = 100 - $kostpris[0] * 100 / $netprice;
-        print " ". dkdecimal($CM,1) ."% dg";
+        print " ". dkdecimal($CM,2) ."% dg";
     }
     print "</td></tr>";
 

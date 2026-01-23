@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.1 --- 2026-01-14 ---
+// --- finans/kassekladde.php --- ver 4.1.1 --- 2026-01-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -148,6 +148,7 @@ print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" 
 
 
 
+
 $langId = !empty($sprog_id) ? intval($sprog_id) : 1;
 print '<script>
 window.saldiLanguage = ' . $langId . ';
@@ -204,7 +205,19 @@ print "<script>
 print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
 include("kassekladde_includes/moveButton.php");
 include("kassekladde_includes/moveButtonStyle.php");
+########################
 
+// Handle AJAX duplicate line request
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    && isset($_POST['action'])
+    && $_POST['action'] === 'duplicate_line'
+) {
+   include("kassekladde_includes/duplicate_line.php");
+}
+
+
+#######################
 $page_display = true;
 if (!isset($tidspkt))
 	$tidspkt = 0;
@@ -1061,7 +1074,7 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 			}
 			#if (strstr($submit,"Udlig")) {
 			if ($submit == 'offset') {
-				#print "<meta http-equiv='refresh' content='0;URL=../finans/autoudlign.php?kladde_id=$kladde_id'>";
+				print "<meta http-equiv='refresh' content='0;URL=../finans/autoudlign.php?kladde_id=$kladde_id'>";
 			}
 			if (strstr($submit, "DocuB")) {
 				print "<meta http-equiv='refresh' content='0;URL=../finans/docubizzimport.php?kladde_id=$kladde_id'>";
@@ -1241,13 +1254,13 @@ $columns = array(
         }
         
         $dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id, \"" . htmlspecialchars($bilag) . "\")'" : "";
-        $dropAttr = "ondragover='clipDragOver(event)' ondrop='clipDrop(event, $id, \"" . htmlspecialchars($bilag) . "\")'";
+        $dropAttr = "";
         $dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
         
         $txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
         return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
-            <a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L'>
-            <img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' $dragAttr class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></a>
+            <a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L' $dragAttr>
+            <img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></a>
         </td>";
     }
 ),
@@ -1623,6 +1636,14 @@ print '<style>
         border-top: 1px solid #ccc;
     }
 
+    /* Border radius for buttons */
+    input[type="submit"],
+    input[type="button"],
+    button,
+    .button {
+        border-radius: 4px;
+    }
+
     /* Print styles */
     @media print {
         /* Hide navigation and non-essential elements - including Saldi framework elements */
@@ -1916,7 +1937,14 @@ print '<style>
 ##################
 
 if (!$udskriv) {
-	print "<form name='kassekladde' id='kassekladde' action='../finans/kassekladde.php?kksort=$kksort' method='post'>";
+$action_url = "../finans/kassekladde.php?kksort=$kksort";
+if ($kladde_id) {
+    $action_url .= "&kladde_id=$kladde_id";
+}
+if ($tjek) {
+    $action_url .= "&tjek=$tjek";
+}
+	print "<form name='kassekladde' id='kassekladde' action='$action_url' method='post'>";
 print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
 print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
 print "<tr><td width='100%' valign='top' height='1%' align='center' class='kassekladde-note-tb'>
@@ -1993,7 +2021,7 @@ SCRIPT;
 		// print "<tbody>"; # Tabel 1.3 -> kladdelinjer
 		// print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
 		print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
-
+		print "<tr class='table-krow'><td colspan='22' style='padding: 10px 0;'></td></tr>";
 		print "<tr>";
 		if ($vis_bilag && !$fejl && !$udskriv)
 			print "<td></td>";
@@ -2030,13 +2058,15 @@ SCRIPT;
 				print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 			}
 		}
-		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
+		print "<td align='right' width='30px'><b> <span></b></td>";
+		print "<td align='right' width='30px'><b> <span></b></td>";
+		print "<td align='right' width='30px'><b> <span></b></td>";
+		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'></b></td>";
 		print "</tr>\n";
 
 		print "</thead>";
 		print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
-		print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
-
+		
 
     }
 
@@ -2366,14 +2396,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			// Drag-and-drop attributes for linking documents between lines
 			$dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id[$y], \"" . htmlspecialchars($bilag[$y]) . "\")'" : "";
-			$dropAttr = "ondragover='clipDragOver(event)' ondrop='clipDrop(event, $id[$y], \"" . htmlspecialchars($bilag[$y]) . "\")'";
+$dropAttr = "";
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 			
 			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			print "<a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L'>";
+			print "<a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L' $dragAttr>";
 #			print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
-			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' $dragAttr class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></a></td>\n";
+			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></a></td>\n";
 		}
 		if (!isset($dub_bilag[$y]))
 			$dub_bilag[$y] = 0;
@@ -2455,8 +2485,37 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y onchange='javascript:docChange = true;'></td>\n";
 		}
 
+		#######
 		print "<td class='drag-handle' style='cursor:move;'>&#x2630; " . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
-    	print "</td>\n";
+
+		// Add Plus and Delete buttons
+		print "<td style='text-align:center; white-space:nowrap;'>";
+
+		// Plus button - always enabled
+		print "<td style='text-align:center; white-space:nowrap;'>";
+
+		$plusTitle = "Duplicate this line";  
+		print "<button type='button' class='duplicate-line-btn' data-row='$y' data-id='$id[$y]' title='$plusTitle'>+</button>";
+
+		// Delete button - disabled if document attached
+		$qtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$id[$y]'";
+		$hasDoc = ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__)));
+
+		if ($hasDoc) {
+			$deleteTitle = "Remove attached document first";  
+			$deleteDisabled = "disabled";
+		} else {
+			$deleteTitle = "Delete this line";  
+			$deleteDisabled = "";
+		}
+
+		print "<button type='button' class='delete-line-btn' data-row='$y' data-id='$id[$y]' title='$deleteTitle' $deleteDisabled>x</button>";
+
+		print "</td>\n";
+
+		print "</tr>\n";
+
+		######
 
 		if ($control_bal_fetched) {
 			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
@@ -2734,6 +2793,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
 		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='javascript:docChange = true;'></td>\n";
+		
 		print "</tr>\n";
 	}
 	#	if (count($bilag)<10) print "<tr><td align='center' colspan='8'>".findtekst('598|-', $sprog_id)."</td></tr>";
@@ -3611,15 +3671,17 @@ if ($page_display) {
 
 
 if($page_display){ #20251213
-		print "
-
-
+		
+?>
 
 
 <script>
-
 document.addEventListener('DOMContentLoaded', function() {
-    // Get all rows and their buttons by the respective IDs
+    // PHP-injected variables
+    const tjek = <?php echo isset($tjek) ? json_encode($tjek) : '""'; ?>;
+    const kladde_id = <?php echo isset($kladde_id) ? json_encode($kladde_id) : '""'; ?>;
+
+    // All action buttons
     const buttonRows = [
         { rowId: 'kopierButtonRow', buttonId: 'kopier-button', name: 'copy2new' },
         { rowId: '', buttonId: 'revert-button', name: 'revert' },
@@ -3634,7 +3696,6 @@ document.addEventListener('DOMContentLoaded', function() {
         { rowId: '', buttonId: 'offset-button', name: 'offset' }
     ];
 
-    const footerBox = document.querySelector('.fixedFooter #footer-box');
     const actionButtonsCenter = document.querySelector('.fixedFooter .action-buttons-center');
 
     buttonRows.forEach(({ rowId, buttonId, name }) => {
@@ -3643,44 +3704,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (button && actionButtonsCenter) {
             // Hide the original row (if it exists)
-            if (buttonRow) {
-                buttonRow.style.display = 'none';
-            }
+            if (buttonRow) buttonRow.style.display = 'none';
 
-            // Clone the button to keep its functionality intact
+            // Clone the button
             const clonedButton = button.cloneNode(true);
             clonedButton.name = name;
-
-            // Append the cloned button to the center container
             actionButtonsCenter.appendChild(clonedButton);
 
-            // Attach a click listener to manually submit the form
+            // Attach click listener
             clonedButton.addEventListener('click', function(event) {
                 const form = document.getElementById('kassekladde');
+                if (!form) return;
 
-                if (form) {
-                    const hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';
-                    hiddenInput.name = clonedButton.name;
-                    hiddenInput.value = clonedButton.value || '';
+                // Add the button action itself as hidden
+                const hiddenButtonInput = document.createElement('input');
+                hiddenButtonInput.type = 'hidden';
+                hiddenButtonInput.name = clonedButton.name;
+                hiddenButtonInput.value = clonedButton.value || '';
+                form.appendChild(hiddenButtonInput);
 
-                    form.appendChild(hiddenInput);
-
-                    const formData = new FormData(form);
-                    formData.forEach((value, key) => {
-                      
-                    });
-
-                
-                    form.submit();
+                // Add PHP variables tjek and kladde_id as hidden fields
+                if (tjek) {
+                    const tjekInput = document.createElement('input');
+                    tjekInput.type = 'hidden';
+                    tjekInput.name = 'tjek';
+                    tjekInput.value = tjek;
+                    form.appendChild(tjekInput);
                 }
+
+                if (kladde_id) {
+                    const kladdeInput = document.createElement('input');
+                    kladdeInput.type = 'hidden';
+                    kladdeInput.name = 'kladde_id';
+                    kladdeInput.value = kladde_id;
+                    form.appendChild(kladdeInput);
+                }
+
+                // Submit the form
+                form.submit();
             });
         }
     });
 });
 </script>
-";
-	}
+
+<?php
+}
 
 
 
@@ -3736,6 +3805,38 @@ document.addEventListener('DOMContentLoaded', function() {
 		}
 
 
+.duplicate-line-btn,
+.delete-line-btn {
+    border: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 12px;          /* adjust for the smaller circle */
+    line-height: 18px;        /* centers the symbol vertically */
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 5px;
+}
+
+/* Plus button styling */
+.duplicate-line-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+/* Delete button styling */
+.delete-line-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+/* Disabled delete button */
+.delete-line-btn:disabled {
+    background-color: #ccc;
+    color: white;
+    cursor: not-allowed;
+}
 
 </style>
 
@@ -3866,6 +3967,92 @@ window.addEventListener('DOMContentLoaded', function() {
   
 
 });
+
+// Duplicate line functionality
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('duplicate-line-btn') || e.target.closest('.duplicate-line-btn')) {
+        const button = e.target.classList.contains('duplicate-line-btn') ? e.target : e.target.closest('.duplicate-line-btn');
+        const sourceId = button.getAttribute('data-id');
+        const kladdeId = document.querySelector('[name="kladde_id"]').value;
+        
+        if (!sourceId) {
+            alert('No source_id found for this line');
+            return;
+        }
+        
+        console.log('Duplicating line with source_id:', sourceId, 'kladde_id:', kladdeId);
+        
+        // Create FormData to send via AJAX
+        const formData = new FormData();
+        formData.append('action', 'duplicate_line');
+        formData.append('kladde_id', kladdeId);
+        formData.append('source_id', sourceId);
+        
+        // Show loading indicator
+        const originalHTML = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '⏳';
+        
+        // Send AJAX request to kassekladde.php itself
+        fetch('kassekladde.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            return response.text();
+        })
+        .then(text => {
+            // Try to parse as JSON
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    // Reload the page to show the duplicated line
+                    window.location.reload();
+                } else {
+                    alert('Fejl: ' + (data.message || 'Ukendt fejl'));
+                    button.disabled = false;
+                    button.innerHTML = originalHTML;
+                }
+            } catch (e) {
+                
+                if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+					 window.location.reload();
+                } else if (text.includes('Fatal error') || text.includes('Warning') || text.includes('Notice')) {
+                    alert('PHP error detected: ' + text.substring(0, 200));
+                } else {
+                    alert('Invalid response from server: ' + text.substring(0, 200));
+                }
+                
+                button.disabled = false;
+                button.innerHTML = originalHTML;
+            }
+        })
+        .catch(error => {
+            console.error('Network error:', error);
+            alert('Network error: ' + error.message);
+            button.disabled = false;
+            button.innerHTML = originalHTML;
+        });
+    }
+});
+// Delete line functionality
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('delete-line-btn') && !e.target.disabled) {
+        const row = e.target.getAttribute('data-row');
+        const bilagField = document.querySelector(`[name="bila${row}"]`);
+        
+        if (confirm('Are you sure you want to delete this line?')) {
+            // Set bilag to '-' to mark for deletion
+            bilagField.value = '-';
+            
+            // Submit the form
+            document.getElementById('kassekladde').submit();
+        }
+    }
+});
+
+
 </script>
 
 
@@ -4015,12 +4202,12 @@ print "
 <style>
 /* Clip drag and drop styles */
 .clip-cell {
-	transition: all 0.2s ease;
+	/* transition: all 0.2s ease; Removed to prevent drag flicker */
 }
 .clip-cell.drag-over {
 	background-color: #d4edda !important;
 	box-shadow: inset 0 0 8px rgba(40, 167, 69, 0.5);
-	transform: scale(1.1);
+	/* transform: scale(1.1); Removed to prevent drag flicker */
 }
 .clip-cell.drag-over-invalid {
 	background-color: #f8d7da !important;
@@ -4045,10 +4232,19 @@ function clipDragStart(event, sourceId, sourceBilag) {
 	console.log('clipDragStart called - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
 	clipDragSourceId = sourceId;
 	clipDragSourceBilag = sourceBilag;
-	event.dataTransfer.setData('text/plain', sourceId);
+	
+	// Use JSON in text/plain for reliability across platforms
+	const dragData = JSON.stringify({
+		sourceId: sourceId,
+		sourceBilag: sourceBilag
+	});
+	console.log('clipDragStart - setting dragData:', dragData);
+	event.dataTransfer.setData('text/plain', dragData);
+	
+	// Keep text/bilag just in case, but text/plain JSON is primary
 	event.dataTransfer.setData('text/bilag', sourceBilag);
 	event.dataTransfer.effectAllowed = 'link';
-	console.log('clipDragStart - dataTransfer set:', event.dataTransfer.getData('text/plain'), event.dataTransfer.getData('text/bilag'));
+	console.log('clipDragStart - dataTransfer set. text/plain:', event.dataTransfer.getData('text/plain'), 'text/bilag:', event.dataTransfer.getData('text/bilag'));
 	
 	// Add visual feedback
 	event.target.classList.add('dragging');
@@ -4087,6 +4283,10 @@ function clipDragOver(event) {
 function clipDragLeave(event) {
 	const cell = event.target.closest('.clip-cell');
 	if (cell) {
+		// Prevent firing when moving to a child element
+		if (event.relatedTarget && cell.contains(event.relatedTarget)) {
+			return;
+		}
 		console.log('clipDragLeave - leaving cell:', cell.dataset.sourceId);
 		cell.classList.remove('drag-over', 'drag-over-invalid');
 	}
@@ -4101,11 +4301,44 @@ function clipDrop(event, targetSourceId, targetBilag) {
 		cell.classList.remove('drag-over', 'drag-over-invalid');
 	}
 	
-	const sourceId = event.dataTransfer.getData('text/plain') || clipDragSourceId;
-	const sourceBilag = event.dataTransfer.getData('text/bilag') || clipDragSourceBilag;
-	console.log('clipDrop - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
-	console.log('clipDrop - from dataTransfer:', event.dataTransfer.getData('text/plain'), event.dataTransfer.getData('text/bilag'));
-	console.log('clipDrop - from global vars:', clipDragSourceId, clipDragSourceBilag);
+	let sourceId = null;
+	let sourceBilag = null;
+	
+	// Try parsing JSON from text/plain
+	try {
+		const rawData = event.dataTransfer.getData('text/plain');
+		console.log('clipDrop - rawData from text/plain:', rawData);
+		
+		if (rawData && rawData.startsWith('{')) {
+			const data = JSON.parse(rawData);
+			console.log('clipDrop - parsed JSON:', data);
+			sourceId = data.sourceId;
+			sourceBilag = data.sourceBilag;
+		} else {
+			// Fallback for simple ID if needed
+			console.log('clipDrop - rawData is not JSON, treating as ID');
+			sourceId = rawData;
+		}
+	} catch (e) {
+		console.error('Drag drop parse error', e);
+		sourceId = event.dataTransfer.getData('text/plain');
+	}
+
+	// Fallback to globals or text/bilag
+	if (!sourceBilag) {
+		console.log('clipDrop - sourceBilag missing, checking text/bilag');
+		sourceBilag = event.dataTransfer.getData('text/bilag');
+	}
+	if (!sourceId) { 
+		console.log('clipDrop - sourceId missing, using global fallback:', clipDragSourceId);
+		sourceId = clipDragSourceId;
+	}
+	if (!sourceBilag) {
+		console.log('clipDrop - sourceBilag missing, using global fallback:', clipDragSourceBilag);
+		sourceBilag = clipDragSourceBilag;
+	}
+	
+	console.log('clipDrop FINAL - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
 	
 	// Don't link to itself
 	if (sourceId == targetSourceId) {
@@ -4162,14 +4395,46 @@ document.addEventListener('dragend', function(event) {
 	document.querySelectorAll('.clip-cell').forEach(cell => {
 		cell.classList.remove('drag-over', 'drag-over-invalid');
 	});
-	clipDragSourceId = null;
-	clipDragSourceBilag = null;
+	
+	// Delay cleanup to ensure drop handler has time to read the values
+	setTimeout(() => {
+		clipDragSourceId = null;
+		clipDragSourceBilag = null;
+	}, 100);
 });
 
-// Add dragleave handler to cells
+// Setup drag and drop event listeners programmatically (works better in Chrome than inline handlers)
 document.addEventListener('DOMContentLoaded', function() {
-	document.querySelectorAll('.clip-cell').forEach(cell => {
-		cell.addEventListener('dragleave', clipDragLeave);
+	// Use event delegation for better performance with dynamic content
+	document.addEventListener('dragover', function(e) {
+		const cell = e.target.closest('.clip-cell');
+		if (cell) {
+			e.preventDefault(); // MUST be here for drop to work in Chrome
+			e.stopPropagation();
+			clipDragOver(e);
+		}
+	});
+	
+	document.addEventListener('drop', function(e) {
+		console.log('DROP EVENT CAPTURED at document level - target:', e.target);
+		const cell = e.target.closest('.clip-cell');
+		console.log('DROP - closest clip-cell:', cell);
+		if (cell) {
+			const targetId = cell.dataset.sourceId;
+			const targetBilag = cell.dataset.bilag;
+			console.log('DROP - calling clipDrop with targetId:', targetId, 'targetBilag:', targetBilag);
+			clipDrop(e, targetId, targetBilag);
+		} else {
+			console.log('DROP - no clip-cell found, preventing default anyway');
+			e.preventDefault();
+		}
+	});
+	
+	document.addEventListener('dragleave', function(e) {
+		const cell = e.target.closest('.clip-cell');
+		if (cell) {
+			clipDragLeave(e);
+		}
 	});
 	
 	// Initialize account autocomplete after page is fully loaded
@@ -4187,8 +4452,6 @@ document.addEventListener('DOMContentLoaded', function() {
 ";
 
 	?>
-
-
 
 
 

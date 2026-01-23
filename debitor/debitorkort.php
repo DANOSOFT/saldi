@@ -1100,7 +1100,7 @@ print "name='addr2' value=\"$addr2\" onchange=\"javascript:docChange = true;\"><
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('363|Postnr./By', $sprog_id) . "<!--tekst 363--></td><td><input class='inputbox' type='text' size='3' ";
 print "name='postnr' value=\"$postnr\" onchange=\"javascript:docChange = true;\">\n";
-print "<input class='inputbox' type='text' size=19 name=bynavn value=\"$bynavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<input class='inputbox' type='text' size=16 name=bynavn value=\"$bynavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr gcolor=$bg><td>" . findtekst('364|Land', $sprog_id) . "<!--tekst 364--></td><td><input class='inputbox' type='text' size='25' ";
 print "name='land' value=\"$land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
@@ -1420,7 +1420,7 @@ if ($kontotype == 'erhverv') {
 	if ($id) {
 
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td title=\"" . findtekst('393|Positionsnummer. Primær kontakt har nummer 1', $sprog_id) . "\"><!--tekst 393-->" . findtekst('394|Pos.', $sprog_id) . "<!--tekst 394--></td><td>" . findtekst('398|Kontakt', $sprog_id) . "<!--tekst 398--></td><td title=\"" . findtekst('399|Direkte telefonnummer eller lokalnummer', $sprog_id) . "\"><!--tekst 399-->" . findtekst('400|Direkte/lokal', $sprog_id) . "<!--tekst 400--></td><td>" . findtekst('401|Mobil', $sprog_id) . "<!--tekst 401--></td><td>" . findtekst('402|E-mail', $sprog_id) . "<!--tekst 402--></td><td><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id>" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></a></td></tr>\n";
+		print "<tr bgcolor=$bg><td title=\"" . findtekst('393|Positionsnummer. Primær kontakt har nummer 1', $sprog_id) . "\"><!--tekst 393-->" . findtekst('394|Pos.', $sprog_id) . "<!--tekst 394--></td><td>" . findtekst('398|Kontakt', $sprog_id) . "<!--tekst 398--></td><td title=\"" . findtekst('399|Direkte telefonnummer eller lokalnummer', $sprog_id) . "\"><!--tekst 399-->" . findtekst('400|Direkte/lokal', $sprog_id) . "<!--tekst 400--></td><td>" . findtekst('401|Mobil', $sprog_id) . "<!--tekst 401--></td><td>" . findtekst('402|E-mail', $sprog_id) . "<!--tekst 402--></td><td><a href='ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id'><button class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></button></a></td></tr>\n";
 		$x = 0;
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
@@ -1455,7 +1455,7 @@ if (!isset($slet)) $slet = NULL;
 print "<tr>";
 if ($slet == "NO") {
 	print "<td colspan='2' width='20%'><br></td>";
-	print "<td align='center' width='30%'>";
+	print "<td colspan='2' align='center' width='30%'>";
 	print "<input type='submit' class='button green medium' style='border-radius:4px;' accesskey='g' ";
 	print "value=" . findtekst('471|Gem/opdatér', $sprog_id) . " name='submit' onclick='javascript:docChange = false;'>";
 	print "&nbsp;<input type='submit' style='border-radius:4px;' ";

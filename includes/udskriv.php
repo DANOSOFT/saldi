@@ -1,10 +1,10 @@
-<?php #topkode_start
+<?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.0.7 --- 2025.05.21 ---
+// --- includes/udskriv.php --- lap 4.1.1 --- 2026.01.22 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2013.03.20 Tilføjet mulighed for fravalg af logo på udskrift. Søg "PDF-tekst"
 // 2013.12.02	Efter udskrivning af kreditorordre, åbnes ordre som debitorordre. Tilføjer $art. Søg $art.
@@ -38,11 +38,13 @@
 // 2019.11.05 PHR - Varius cleanup
 // 2020.01.13 PHR - Print from 'genfakturer' returned to includes/ordreliste.php which does not exist. 20200113
 // 20230522 PHR php8
+// 20260102 LOE Added alert to install pdftk if not already done.
+
 
 @session_start();
 $s_id=session_id();
 header('Expires: Mon, 01 Jan 2017 05:00:00 GMT'); 
-header('Cache-Control: no-store, no-cache, must-revalidate'); 
+header('Cache-Control: no-store, no-cache, must-revalidate');  
 header('Cache-Control: post-check=0, pre-check=0', FALSE); 
 header('Pragma: no-cache');
 
@@ -53,20 +55,43 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 
 if (!isset($exec_path)) $exec_path="/usr/bin";
-$localPrint=if_isset($_COOKIE['localPrint']);
+$localPrint=if_isset($_COOKIE, NULL, 'localPrint');
 $udfil=$zx=NULL;
 
-$ps_fil=if_isset($_GET['ps_fil']);
-$valg=if_isset($_GET['valg']);
-$logoart=if_isset($_GET['logoart']);
-$id=if_isset($_GET['id']);
-$udskriv_til=if_isset($_GET['udskriv_til']);
-$udskrift=if_isset($_GET['udskrift']);
-$bgr=if_isset($_GET['bgr']);# stillads
-$art=if_isset($_GET['art']);
-$ordreliste=if_isset($_GET['ordreliste']);
-$ordre_antal=if_isset($_GET['ordre_antal']);
-$returside=if_isset($_GET['returside']);
+$ps_fil        = if_isset($_GET, NULL, 'ps_fil');
+$valg          = if_isset($_GET, NULL, 'valg');
+$logoart       = if_isset($_GET, NULL, 'logoart');
+$id            = if_isset($_GET, NULL, 'id');
+$udskriv_til   = if_isset($_GET, NULL, 'udskriv_til');
+$udskrift      = if_isset($_GET, NULL, 'udskrift');
+$bgr           = if_isset($_GET, NULL, 'bgr');          # stillads
+$art           = if_isset($_GET, NULL, 'art');
+$ordreliste    = if_isset($_GET, NULL, 'ordreliste');
+$ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
+$returside    = if_isset($_GET, NULL, 'returside');
+
+
+if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
+    if (!$returside) $returside = '../debitor/ordreliste.php';
+    $pdftk_check = shell_exec("which pdftk");
+	$pdftk_check = trim($pdftk_check); 
+
+
+    // If pdftk is not installed, alert the user and redirect
+    if (!$pdftk_check) {
+        error_log("ERROR: pdftk is not installed. Please install pdftk first.");
+        
+        // Use JavaScript to alert and then redirect
+        echo "<script>
+                alert('ERROR: pdftk is not installed. Please install pdftk first.');
+                setTimeout(function() {
+                    window.location.href = '$returside';
+                }, 1000); // 1 second delay
+              </script>";
+        exit();
+    }
+}
+
 
 if ($returside=='ordreliste.php') { #20200113
 	if ($art=='KO' || $art=='KK') $returside="../kreditor/ordreliste.php";
@@ -157,7 +182,7 @@ if ($valg) {
 				$udfil="../temp/$a/$b/udskrift.pdf";
 				fwrite($log,__line__." $udfil=\"../temp/$a/$b/udskrift.pdf\"\n");
 				$ps_fil="/$a/$b/udskrift";
-				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n");
+				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n"); 
 			} else $udfil=NULL;
 		} 
 		if ($udfil) {
@@ -217,7 +242,14 @@ if ($valg) {
 	if ($zx) { # Brug PostScript 
 		$tmp = system ("ls");
 			fwrite($log,__line__." system (\"$ps2pdf ../temp/$ps_fil.ps ../temp/$ps_fil.pdf\")\n");
-			system ("$ps2pdf ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
+			
+			
+			#system ("$ps2pdf ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
+			if (file_exists("../temp/$ps_fil.ps") && filesize("../temp/$ps_fil.ps") > 0) {
+				system ("$ps2pdf ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
+			} else {
+				fwrite($log, "Error: PS file not found or empty: ../temp/$ps_fil.ps\n");
+			}
 		}
 
 		fwrite($log,__line__." if (file_exists(\"../temp/$ps_fil.pdf\")\n");
@@ -235,7 +267,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 	if (isset($_GET['bgr']) && $_GET['bgr']) {
     $bgr_param = urldecode($_GET['bgr']);
-	// alert($bgr_param);
+	
     if (file_exists($bgr_param)) {
         $bg_fil = $bgr_param;
     }
@@ -303,12 +335,11 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>";
-
-				if ($returside) $href="\"$returside\" accesskey=\"L\"";
+				if ($returside) $href="\"../debitor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 
 				print "<td width='10%'><a href=$href>
-					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 				print "<td width='80%' align='center' title='".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id)."'>
 					   <a href=../temp/$ps_fil.pdf target=blank>

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-12-23 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2026-01-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20120822 Tilrettet til NETS leverandørservice - søg 20120822
@@ -199,7 +199,7 @@
 // 20250811 PHR Corrected wrong text numbers
 // 20250819 LOE $afd checked strictly before usage
 // 20250903 LOE Enabled order to still work with account lookup when 'Offer' is active
-
+// 20260121 LOE formularsprog synched with existing language template
 @session_start();
 $s_id = session_id();
 
@@ -236,6 +236,7 @@ include("../includes/online.php");
 include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
 include("../includes/tid2decimal.php");
+
 
 $title = findtekst('1092|Kundeordre', $sprog_id);
 $txt370 = findtekst('370|Kontant', $sprog_id);
@@ -867,6 +868,8 @@ if (isset($_POST['copy']) && $_POST['copy']) $b_submit = 'Kopier';
 elseif (isset($_POST['credit']) && $_POST['credit']) $b_submit = 'Krediter';
 elseif (isset($_POST['delete']) && $_POST['delete']) $b_submit = 'Slet';
 elseif (isset($_POST['doInvoice']) && $_POST['doInvoice']) $b_submit = 'doInvoice';
+elseif (isset($_POST['deliver']) && $_POST['deliver']) $b_submit = 'Lever';
+elseif (isset($_POST['receive']) && $_POST['receive']) $b_submit = 'Lever';
 elseif (isset($_POST['lookUp']) && $_POST['lookUp']) $b_submit = 'Opslag';
 elseif (isset($_POST['print']) && $_POST['print']) $b_submit = 'Udskriv';
 elseif (isset($_POST['save']) && $_POST['save']) $b_submit = 'Gem';
@@ -2915,6 +2918,7 @@ function ordreside($id, $regnskab)
 	global $width;
 	global $menu;
 	global $fast_db;
+	global $formularsprog;
 
 
 	if ($menu == 'T') {
@@ -3307,7 +3311,7 @@ function ordreside($id, $regnskab)
 	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$url = "jobkort.php?returside=ordre.php&konto_id=$konto_id&ordre_id=$id";
 		$jobkort = "<a href=$url style=\"text-decoration:none\">";
-		$jobkort .= "<input type=\"button\" style=\"width:125px; border-radius: 4px;\" value=\"" . lcfirst(findtekst('1098|Jobkort', $sprog_id)) . "\" ";
+		$jobkort .= "<input type=\"button\" style=\"width:125px; border-radius: 4px;margin-left: 5px;\" value=\"" . lcfirst(findtekst('1098|Jobkort', $sprog_id)) . "\" ";
 		$jobkort .= "onClick=\"window.navigate('$url')\"></a>"; #20210630
 	} else $jobkort = NULL;
 	$url = "debitorkort.php?returside=ordre.php&konto_id=$konto_id&ordre_id=$id";
@@ -3449,6 +3453,7 @@ function ordreside($id, $regnskab)
 		else print "<tr><td width=\"50%\"></td>\n";
 		print "</tbody></table>\n"; # <- Tabel 1
 		##### pile ########
+		
 		$txt140 = findtekst('140|Adresse', $sprog_id);
 		$txt666 = findtekst('666|Postnr & by', $sprog_id);
 		print "<table class='dataTableForm' cellpadding='0' cellspacing='0' style='max-width:1400px; margin: 0 auto;' bordercolor='#FFFFFF'  width='100%' border='1' valign = 'top'><tbody>\n"; #Tabel 2 ->
@@ -3480,7 +3485,10 @@ function ordreside($id, $regnskab)
 			$q = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) print "<option>$r[sprog]</option>\n";
 			print "</SELECT></td></tr>";
-		} else print "</td></tr>";
+		} else{
+			error_log("!!!! only Danish language forms set");
+			print "</td></tr>";
+		}
 
 		print "<tr><td><b>" . findtekst('2104|Udskriv til', $sprog_id) . "</b></td>";
 		#		if ($email)
@@ -3602,6 +3610,17 @@ function ordreside($id, $regnskab)
 			if ($betalings_id) print "<tr class='tableTexting2'><td><b>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td><td align=\"right\">&nbsp;$betalings_id</td></tr>";
 			print "<tr><td colspan=\"2\"><b><hr></b></tr>\n";
 			print "<tr class='tableTexting'><td colspan=\"2\"><a href=\"ordre.php?id=$id&returside=$returside&vis_lev_addr=1\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . "</td></tr>\n";
+			// Plukliste buttons
+			include("../includes/topline_settings.php");
+			$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+			print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+			print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Print plukliste</button></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+			if ($pluklisteEmail) {
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='sendPlukliste.php?id=$id'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Send plukliste</button></td></tr>\n";
+			}
 		}
 		$lev_max = 0;
 		$q = db_select("select lev_nr from batch_salg where ordre_id = $id", __FILE__ . " linje " . __LINE__);
@@ -3616,6 +3635,7 @@ function ordreside($id, $regnskab)
 				print "<tr class='tableTexting'><td colspan=\"2\"> <a href='udskriftsvalg.php?id=$id&valg=$levnr&formular=3'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</a></td></tr>\n";
 			}
 		}
+		
 		if (!$formularsprog) $formularsprog = 'Dansk';
 		($art == 'DO') ? $form_nr = 4 : $form_nr = 5;
 		$qtxt = "select * from formularer where formular='$form_nr' and art='5' ";
@@ -3741,6 +3761,8 @@ function ordreside($id, $regnskab)
 						else $dg[$x] = 0;
 						$dk_db[$x] = dkdecimal($dbi[$x], 2);
 						$dk_dg[$x] = dkdecimal($dg[$x], 2);
+
+
 					}
 				}
 				if (($art == 'DK') && ($antal[$x] < 0)) $bogfor == 0;
@@ -4326,14 +4348,123 @@ function ordreside($id, $regnskab)
 			}
 		}
 		print "</SELECT></td></tr>\n";
-		if (db_fetch_array(db_select("select distinct sprog from formularer where sprog != 'Dansk'", __FILE__ . " linje " . __LINE__))) {
-			print "<tr><td title=\"" . findtekst('1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.', $sprog_id) . "\">" . findtekst('801|Sprog', $sprog_id) . "</span></td>\n";
-			print "<td><select class = 'inputbox' style=\"width:130px\" name=\"sprog\">\n";
-			print "<option>$formularsprog</option>\n";
-			$q = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) print "<option>$r[sprog]</option>\n";
-			print "</SELECT></td>";
-		} else print "<tr><td colspan=\"2\"></td>";
+			####################******************
+			//##########
+			// Get values from tekster.csv 
+			$fp = fopen("../importfiler/tekster.csv","r");
+			if ($linje = trim(fgets($fp))) {
+				$a = explode("\t", $linje);
+			}
+			// remove first element in a 
+			array_shift($a);
+			fclose($fp);
+			###############
+				if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sprog'])) {
+					
+					  $language2 = $_POST['sprog']; // e.g. "Dansk"
+                     $sprog_id1 = array_search($language2, $a, true);
+                     $sprog_id1 = ($sprog_id1 !== false) ? $sprog_id1 + 1 : 1;
+					if($sprog_id1 != $sprog_id){
+						
+
+						if ($sprog_id1 !== '') {
+							include("../includes/connect.php");
+							// Save to database here
+							global $s_id;
+							$unixtime = time();
+							$qtxt = "UPDATE online SET logtime='$unixtime', language_id='$sprog_id1' WHERE session_id='$s_id'";
+							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+
+							$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+							$url12 = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+							header("Location: $url12");
+							exit;
+
+						}
+					}
+				}
+				###########
+
+			//########
+
+			// CSV-based mapping
+			// $sprog_id is 1-based; array is 0-based
+			$gac = $a[$sprog_id - 1] ;
+		
+			$language2 = $a[$sprog_id - 1] ?? $a[0];
+			
+			$formularsprog = get_settings_value('sprog', 'brugerSprog', $language2, $bruger_id);
+	
+			if (!$formularsprog) {
+
+				$qtxt = "
+					SELECT var_value
+					FROM settings
+					WHERE var_name = 'sprog'
+					AND var_grp  = 'brugerSprog'
+					AND user_id = '$bruger_id'
+					LIMIT 1
+				";
+
+				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+
+					// Value exists
+					$formularsprog = $r['var_value'];
+
+				} else {
+                   error_log("Inserting default language value for user $bruger_id");
+					// Not set → insert default value
+					
+
+					$itxt = "
+						INSERT INTO settings
+						(var_name, var_grp, var_value, user_id)
+						VALUES
+						('sprog', 'brugerSprog', '$formularsprog', '$bruger_id')
+					";
+					db_modify($itxt, __FILE__ . " linje " . __LINE__);
+					$formularsprog = $language2;
+				}
+			}elseif($language2 != $formularsprog){
+				error_log("User setting formularsprog is different from language2 - ".$formularsprog." vs ".$language2);
+				// update user setting
+				$utxt = "
+					UPDATE settings
+					SET var_value = '$language2'
+					WHERE var_name = 'sprog'
+					AND var_grp  = 'brugerSprog'
+					AND user_id = '$bruger_id'
+				";
+				db_modify($utxt, __FILE__ . " linje " . __LINE__);
+				$formularsprog = $language2;
+			}
+			############################************
+			if (db_fetch_array(db_select(
+				"select distinct sprog from formularer where sprog != 'Dansk'",
+				__FILE__ . " linje " . __LINE__
+			))) {
+
+				print "<tr><td title=\"" .
+					findtekst(
+						'1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.',
+						$sprog_id
+					) . "\">" .
+					findtekst('801|Sprog', $sprog_id) .
+					"</span></td>\n";
+
+				//Select now built from CSV, values are 1-based
+				print "<td><select class='inputbox' style='width:130px' name='sprog'>\n";
+               error_log("Formularsprog is  $formularsprog and lang is ; ".print_r($a, true)."and sprog id is $sprog_id");
+				foreach ($a as $lang) {
+                   $selected = ($lang === $formularsprog) ? "selected" : "";
+                   print "<option value=\"$lang\" $selected>$lang</option>\n";
+                }      
+
+				print "</SELECT></td>";
+			}else{ 
+				error_log("####>>> >> # Only Danish language set in formularer table ####");
+				print "<tr><td colspan=\"2\"></td>";
+			}
 
 		print "<tr><td>" . findtekst('1095|Momssats', $sprog_id) . "</td><td>";
 		print "<input class='inputbox' style='text-align:right;width:60px' type='text' name='momssats' ";
@@ -4486,7 +4617,7 @@ function ordreside($id, $regnskab)
 			$list[0] = $baseCurrency;
 			$beskriv[0] = 'Danske kroner';
 			print "<td>" . findtekst('1069|Valuta', $sprog_id) . " </td>\n";
-			print "<td><input style=\"width:125px;\" class = 'inputbox' name=\"ny_valuta\" value=\"$valuta\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td><td>";
+			print "<td><input style=\"width:130px;\" class = 'inputbox' name=\"ny_valuta\" value=\"$valuta\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td><td>";
 			if ($valutakurs != 100) print "($valutakurs)";
 			print "</td>\n";
 		} else //print "<tr><td colspan=\"2\" width=\"200\">\n"; # udkommenteret 15052014
@@ -4503,13 +4634,22 @@ function ordreside($id, $regnskab)
 				$a_afd[$x] = $r['afd'];
 				$x++;
 			}
-			if (!in_array($ref, $ansat)) {
-				$r = db_fetch_array(db_select("select navn from ansatte,brugere where brugere.brugernavn='$ref' and ansatte.id=" . nr_cast('brugere.ansat_id') . "", __FILE__ . " linje " . __LINE__));
-				if (!empty($r['navn'])) $ref = $r['navn']; #20210715
-
+			if (!in_array($ref,$ansat)) {
+				$r=db_fetch_array(db_select("select navn from ansatte,brugere where brugernavn='$ref' and ansatte.id=".nr_cast('brugere.ansat_id')."",__FILE__ . " linje " . __LINE__));
+				if (!empty($r['navn'])) $ref=$r['navn']; #20210715
+				
+			}
+			
+			for ($x=0;$x<count($ansat);$x++) {
+				if (!$x) {
+				print "<tr><td>".findtekst(1097,$sprog_id)."</td>\n";
+				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"ref\" $disabled>\n";
+				print "<option>$ref</option>\n";
+				}
+				if ($ref!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
 			}
 
-					print "<td><input style=\"width:125px;\" class = 'inputbox' name=\"ref\" value=\"$ref\" onfocus=\"document.forms[0].fokus.value=this.name;\" $disabled></td>\n";
+					
 		}
 		$x = 0;
 		$afd_navn = array();
@@ -4524,11 +4664,12 @@ function ordreside($id, $regnskab)
 		// Ensure afd is set from user settings for new orders before rendering dropdown
 		if (!$id) {
 			$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
+				
 		}
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr) > 1) {
 			print "</td><td></td>\n";
-			print "<td>" . findtekst('1198|Afd.', $sprog_id) . "</td><td><select style=\"width:125px;\" class = 'inputbox' name=\"afd\">";
+			print "<td>" . findtekst('1198|Afd.', $sprog_id) . "</td><td><select style=\"width:130px;\" class = 'inputbox' name=\"afd\">";
 			for ($x = 0; $x < count($afd_nr); $x++) {
 				if ($afd_nr[$x] == $afd) print "<option value=\"$afd_nr[$x]\" selected>$afd_nr[$x] $afd_navn[$x]</option>";
 			}
@@ -4618,7 +4759,7 @@ function ordreside($id, $regnskab)
 			print "<input type=\"hidden\" name=\"felt_4\" style=\"width:200px\" value=\"$felt_4\">\n";
 			#print "<input type=\"hidden\" name=\"felt_5\" style=\"width:200px\" value=\"$felt_5\">\n";
 		} else {
-			print "<tr><td align=\"center\">$jobkort $debitorkort</td><td align=\"left\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . " <input class='checkmark' type=\"checkbox\" name=\"vis_lev_addr\"><td></tr>\n";
+			print "<tr><td align=\"center\">$jobkort $debitorkort</td><td align=\"center\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . " <input class='checkmark' type=\"checkbox\" name=\"vis_lev_addr\"><td></tr>\n";
 			print "<tr><td colspan=\"2\"><hr><td></tr>\n";
 			print "<tr><td colspan=\"2\" align=\"center\"><b>" . findtekst('243|Ekstrafelter', $sprog_id) . "</b></tr>\n";
 			print "<tr><td colspan=\"2\"><hr></b></tr>\n";
@@ -4770,6 +4911,17 @@ function ordreside($id, $regnskab)
 				if (substr(findtekst('248|Ordrefelt 5', $sprog_id), 0, 1) != "#") print "<tr><td><span onmouseover=\"return overlib('" . findtekst('253|Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 248 & 253.', $sprog_id) . "',WIDTH=600);\" onmouseout=\"return nd();\">" . findtekst('248|Ordrefelt 5', $sprog_id) . "</span></td><td><input class = 'inputbox' type = 'text' name=\"felt_5\" style=\"width:200px\" value=\"$felt_5\" $disabled></td></tr>\n";
 			}
 			if ($betalings_id) print "<tr><td>" . findtekst('2534|Betalings-ID', $sprog_id) . ":</td><td>&nbsp;$betalings_id</td></tr>";
+			// Plukliste buttons
+			include("../includes/topline_settings.php");
+			$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+			print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+			print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+			if ($pluklisteEmail) {
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='sendPlukliste.php?id=$id'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px'>Send plukliste</button></td></tr>\n";
+			}
 			print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
 			print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
 			print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
@@ -4962,6 +5114,7 @@ function ordreside($id, $regnskab)
 					else $dg[$x] = 0;
 					$dk_db[$x] = dkdecimal($dbi[$x], 2);
 					$dk_dg[$x] = dkdecimal($dg[$x], 2);
+					
 				}
 				if (($art == 'DK') && ($antal[$x] < 0)) $bogfor == 0;
 				if ($serienr[$x]) {
@@ -5410,8 +5563,8 @@ function ordreside($id, $regnskab)
 			}
 
 			if ($status == 1 && $bogfor != 0 && $hurtigfakt != 'on' && $leveres_ialt) {
-				if ($art == 'DO') print "<td align=\"center\"  width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1483|Levér', $sprog_id) . "\" name=\"b_submit\" onclick=\"javascript:docChange = false;\"></td>\n";
-				else print "<td align=\"center\" width=$width title=\"" . findtekst('1491|Klik her for at tage varer retur', $sprog_id) . "\"><input type=\"submit\"  class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1485|Modtag', $sprog_id) . "\" name=\"b_submit\" onclick=\"javascript:docChange = false;\"></td>\n";
+				if ($art == 'DO') print "<td align=\"center\"  width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1483|Levér', $sprog_id) . "\" name=\"deliver\" onclick=\"javascript:docChange = false;\"></td>\n";
+				else print "<td align=\"center\" width=$width title=\"" . findtekst('1491|Klik her for at tage varer retur', $sprog_id) . "\"><input type=\"submit\"  class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1485|Modtag', $sprog_id) . "\" name=\"receive\" onclick=\"javascript:docChange = false;\"></td>\n";
 			}
 			$confirm2  = findtekst('1524|Faktura sendes som email til', $sprog_id); #Faktura sendes som email til
 			$confirm3  = findtekst('1525|Faktura tilføjes PBS/Nets liste!', $sprog_id);
@@ -5738,6 +5891,10 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	global $tdlv, $txt370;
 	global $sprog_id;
 
+	$db_new = $pris - $kostpris;
+	$db_original = afrund($db_new, 2);
+	$dg_original = afrund($db_new / $pris * 100, 2);
+
 	if (!isset($reserveret[$x])) $reserveret[$x] = 0;
 	$beskrivelse = str_replace("&lt;br&gt;", "\r\n", $beskrivelse);
 	$beskrivelse = str_replace("&lt;BR&gt;", "\r\n", $beskrivelse);
@@ -5926,7 +6083,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		// Hidden inputs are in $hidden_inputs
 		print "<td></td><td></td>";
 	} elseif (!$rvnr) {
-		print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - db: $dk_db - dg: $dk_dg%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n"; #2013.11.29 Fjerner 0,00 ved fokus, og tilføjer 0,00 hvis feltet er tomt
+		print "<td valign = 'top' title=\"" . findtekst('1499|Kost', $sprog_id) . ": " . dkdecimal($kostpris, 2) . " - db: $db_original - dg: $dg_original%\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;\" size=\"10\" $prplho name=\"pris$x\" value=\"$dkpris\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n"; #2013.11.29 Fjerner 0,00 ved fokus, og tilføjer 0,00 hvis feltet er tomt
 		$title = $dkantal . "*" . dkdecimal(($rabat / 100) * $pris, 2) . "% = " . dkdecimal($antal * ($rabat / 100) * $pris, 2);
 		print "<td valign = 'top' title=\"$title\"><input class = 'inputbox' type = 'text' $readonly style=\"text-align:right\" size=\"4\" name=\"raba$x\" value=\"$dkrabat\" onchange=\"javascript:docChange = true;\" onfocus=\"if(this.value == '0,00') {this.value=''}\" onblur=\"if(this.value == ''){this.value ='0,00'}\" $disabled></td>\n";
 	} else print "<td></td><td></td>";

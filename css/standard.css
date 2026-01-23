@@ -42,8 +42,8 @@ div.vindue  {
 }
 .inputbox {
 	margin-bottom: 1px;
-	padding: 1px 1px;
-	height: 20px;
+	/* padding: 1px 1px; */
+	/* height: 20px; */
 	border: 1px solid #DDDDDD;
 	background: #FFFFFF;
 }

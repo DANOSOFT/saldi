@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 4.1.1 --- 2025-09-25 ---
+// --- includes/formfunk.php --- patch 4.1.1 --- 2026-01-03 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 2012.09.06 Tilføjet mulighed for at vise momssats på ordrelinjer. 
@@ -91,7 +91,7 @@
 // 20241002 PHR 'Kontant' in texts replaced by text ID 370
 // 20250630 PHR Somebody has removed brackets in line 2285 & 2289 - Why !!!
 // 20250925 LOE Kilde added to kontoprint function and used to determine which records to print 
-
+// 20251231 LOE Adding department supported path for background uploads
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
 
@@ -1022,8 +1022,6 @@ if (!function_exists('formularprint')) {
 		global $transportsum;
 		global $vis_saet;
 		global $y, $ya;
-
-
 		$bgr = $psfp1 = $htmfp1 = $kommentarprint = $rvnr = $serienr = $skjul_nul_lin = NULL;
 		$folgeseddel = $mailantal = $nomailantal = 0;
 		$side_x = 210;
@@ -1242,6 +1240,7 @@ if (!function_exists('formularprint')) {
 				#	$ordresum=$row['sum'];
 				#	$ordremomssum=$row['moms'];
 				$formularsprog = strtolower($row['sprog']);
+				
 				if (!$formularsprog)
 					$formularsprog = "dansk";
 				if (($formular == 4) || ($formular == 5)) {
@@ -1292,18 +1291,7 @@ if ($background_file && file_exists($background_file)) {
     $bgr = basename($background_file, '.pdf'); // e.g. 'English_ordrer_bg'
     $background_pdf_path = $background_file;
 } else {
-    // if ($formular == 5 && file_exists("../logolib/$db_id/kreditnota_bg.pdf"))
-    //     $bgr = "kreditnota_bg";
-    // elseif ($formular >= 3 && file_exists("../logolib/$db_id/faktura_bg.pdf"))
-    //     $bgr = "faktura_bg";
-    // elseif ($formular == 2 && file_exists("../logolib/$db_id/ordrer_bg.pdf"))
-    //     $bgr = "ordrer_bg";
-    // elseif ($formular <= 1 && file_exists("../logolib/$db_id/tilbud_bg.pdf"))
-    //     $bgr = "tilbud_bg";
-    // elseif (file_exists("../logolib/$db_id/bg.pdf"))
-    //     $bgr = "bg";
-    // $background_pdf_path = "../logolib/$db_id/$bgr.pdf";
-
+   
 	$bgr = 'bg'; // Default background
 	$background_pdf_path = "../logolib/$db_id/$bgr.pdf";
 	 if ($lang == 'english' && file_exists("../logolib/$db_id/bg_english.pdf")) {
@@ -1332,13 +1320,23 @@ if ($background_file && file_exists($background_file)) {
 				$logoart = 'PDF';
 			} elseif ($udskriv_til == 'PDF-tekst') {
 				$logoart = 'PDF';
-			} elseif (file_exists("../logolib/$db_id/$formular.ps")) {
-				$logo = "../logolib/$db_id/$formular.ps";
-				$logoart = 'PS';
-			} elseif (file_exists("../logolib/$db_id/$bgr.ps")) {
-				$logo = "../logolib/$db_id/$bgr.ps";
-				$logoart = 'PS';
-			} else {
+			// } elseif (file_exists("../logolib/$db_id/$formular.ps")) {
+			// 	$logo = "../logolib/$db_id/$formular.ps";
+			// 	$logoart = 'PS';
+			// } elseif (file_exists("../logolib/$db_id/$bgr.ps")) {
+			// 	$logo = "../logolib/$db_id/$bgr.ps";
+			// 	$logoart = 'PS';
+			} elseif($afd > 0 && file_exists("../logolib/afd$afd/$formular.ps")) {
+				
+                $logo = "../logolib/afd$afd/$formular.ps"; 
+                $logoart = 'PS';
+                $logo_found = true;
+            } elseif ($afd > 0 && file_exists("../logolib/afd$afd/$bgr.ps")) {
+                $logo = "../logolib/afd$afd/$bgr.ps";
+                $logoart = 'PS';
+                $logo_found = true;
+				
+            } else {
 				$query = db_select("select * from formularer where formular = '$formular' and art = '1' and beskrivelse = 'LOGO' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {
 					$logo_X = $row['xa'] * 2.86;
@@ -1388,8 +1386,15 @@ if ($background_file && file_exists($background_file)) {
 					fclose($logofil);
 				}
 			}
+			########################
+	 
+
+
+			######################
 			$query = db_select("select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__);
+			$found = false;
 			while ($row = db_fetch_array($query)) {
+				$found = true;
 				if ($row['beskrivelse'] == 'generelt') {
 					$antal_ordrelinjer = $row['xa'];
 					$ya = $row['ya'];
@@ -1410,6 +1415,13 @@ if ($background_file && file_exists($background_file)) {
 				}
 				$var_antal = $x;
 			}
+			if (!$found) {
+				
+				echo "<script>alert('Background not set for this language');</script>";
+				echo "<button onclick='window.history.go(-3)'>Go Back</button>";
+				exit;
+			}
+
 			if ($formular == 3 && !$lev_nr) {
 				$qtxt = "select MAX(lev_nr) as lev_nr from batch_salg where ordre_id = $ordre_id[$o]";
 				$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -1463,7 +1475,8 @@ if ($background_file && file_exists($background_file)) {
 					2 => "ordrebek$ordrenr",
 					3 => "flgs{$ordrenr}_{$lev_nr}",
 					4 => "fakt$fakturanr",
-					5 => "kn$fakturanr"
+					5 => "kn$fakturanr",
+					9 => "plukliste$ordrenr"
 				];
 				if ($db == "saldi_1022") {
 					$dato = date('Y-m-d');
@@ -1472,7 +1485,8 @@ if ($background_file && file_exists($background_file)) {
 						2 => "$ordrenr-ordrebek-$kontonr-$dato",
 						3 => "{$ordrenr}_{$lev_nr}-flgs-$kontonr-$dato",
 						4 => "$fakturanr-fakt-$kontonr-$dato",
-						5 => "$fakturanr-kn-$kontonr-$dato"
+						5 => "$fakturanr-kn-$kontonr-$dato",
+						9 => "$ordrenr-plukliste-$kontonr-$dato"
 					];
 				}
 
@@ -1562,6 +1576,7 @@ if ($background_file && file_exists($background_file)) {
 					$x = 0;
 					// 20190115 herover: tilføjet ,id til 'order by' -- herunder: tilføjet  || $row['folgevare']
 					// grundet manglende varenr 9494600512 på fakt 4193 i saldi_401
+					
 					while ($row = db_fetch_array($q)) {
 						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!in_array($row['posnr'], $posnr) || $row['folgevare'])) {
 							$x++;
@@ -1607,7 +1622,7 @@ if ($background_file && file_exists($background_file)) {
 									$dkantal[$x] = str_replace("-", "", $dkantal[$x]);
 								}
 								if ($formular == 3 || $formular == 9) {
-									for ($z = 0; $z <= count($variabel); $z++) {
+									for ($z = 0; $z <= count($variabel ?? []); $z++) {
 										if (isset($variabel[$z]) && $variabel[$z] == 'lokation') {
 											$qtxt = "select lok1 as location from lagerstatus where vare_id = '$vare_id[$x]' and lager = '$lager[$x]'";
 											$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -1848,6 +1863,7 @@ if ($background_file && file_exists($background_file)) {
 						$skriv = 1; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
 					#				if ($saet[$x] && $samlevare[$x]) $skriv=0; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
 					if ($skriv) {
+					
 						for ($z = 1; $z <= $var_antal; $z++) {
 							if (substr($variabel[$z], 0, 8) == "fritekst") {
 								$tmp = substr($variabel[$z], 9);
@@ -1974,6 +1990,7 @@ if ($background_file && file_exists($background_file)) {
 						unlink($mappe . "/" . $pfliste[$x] . "_*.htm");
 					#				unlink ($mappe."/".$pfliste[$x]."_*.pdf");
 				} else {
+					
 					system("$ps2pdf $mappe/$pfliste[$x].ps $mappe/$pfliste[$x].pdf");
 				}
 				#			print "--> \n";
@@ -1984,6 +2001,7 @@ if ($background_file && file_exists($background_file)) {
 				// 	system("mv $out $mappe/$pfliste[$x].pdf");
 				// 	#				print "--> \n";
 				// }
+				
 					if ($logoart == 'PDF' && $background_pdf_path && file_exists($background_pdf_path)) {
 						$out = $mappe . "/" . $pfliste[$x] . "x.pdf";
 						system("$pdftk $mappe/$pfliste[$x].pdf background $background_pdf_path output $out");
@@ -1999,7 +2017,6 @@ if ($background_file && file_exists($background_file)) {
 		} elseif ($nomailantal > 0) {
 			print "<big><b>Vent - Udskrift genereres</b></big><br>";
 			$mappe = str_replace('../temp/', '', $mappe);
-			// print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=$bgr&returside=$returside\">"; #20131202
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=$returside\">";
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
