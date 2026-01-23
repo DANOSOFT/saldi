@@ -486,7 +486,7 @@ if ($sort && $fokus && $b_submit == 'vareOpslag') {
 $bogfor = 1;
 
 $gruppe = 0;
-if ($id) {
+if ($id && is_numeric($id)) {
 	$r = db_fetch_array(db_select("SELECT adresser.gruppe,ordrer.status,ordrer.sprog FROM ordrer,adresser WHERE ordrer.id = '$id' AND adresser.id=ordrer.konto_id", __FILE__ . " linje " . __LINE__));
 	$status = if_isset($r, 0, 'status');
 	$gruppe = if_isset($r, 0, 'gruppe');
@@ -955,7 +955,7 @@ if (isset($_POST['opdat_mailtext'])) {
 	db_modify("update ordrer set mail_subj='$mail_subj',mail_text='$mail_text' where id='$id'", __FILE__ . " linje " . __LINE__);
 }
 
-if (isset($_POST['newAccountNo']) && $newAccountNo = $_POST['newAccountNo']) {
+if (isset($_REQUEST['newAccountNo']) && $newAccountNo = $_REQUEST['newAccountNo']) {
 	if (strtolower($newAccountNo == 'n')) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=../debitor/ordre.php&ordre_id=$id&fokus=kontonr\">\n";
 		exit;
@@ -4874,7 +4874,10 @@ function ordreside($id, $regnskab)
 			$lines_found++;
 			if ($row['posnr'] > 0) $lines_with_posnr_gt_0++;
 			if (is_numeric($row['samlevare'])) $lines_with_numeric_samlevare++;
-			if ($row['posnr'] > 0 && !is_numeric($row['samlevare'])) {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
+			# Fix for duplicate positions: If item has both saet AND samlevare='on', it's a huvudvaren in a saet collection
+			# and will be rendered separately at lines 5151-5152, so skip it here
+			$is_huvudvaren_in_saet = ($row['saet'] && $row['samlevare'] == 'on');
+			if ($row['posnr'] > 0 && !is_numeric($row['samlevare']) && !$is_huvudvaren_in_saet) {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
 				$x++;
 				$linje_id[$x]        = $row['id'];
 				$kred_linje_id[$x]   = $row['kred_linje_id'];
@@ -5148,8 +5151,12 @@ function ordreside($id, $regnskab)
 			if ($saet[$x] && $saetpris) {
 				$y = $x + 1;
 				if (!$samlevare[$x] && $saet[$x] && ($saet[$x + 1] != $saet[$x] || $samlevare[$x + 1])) {
-					$r = db_fetch_array(db_select("select id,beskrivelse,lager from ordrelinjer where saet = '$saet[$x]' and ordre_id='$id' and samlevare='on'", __FILE__ . " linje " . __LINE__));
-					list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', '0', '0', '', '', $r['beskrivelse'], '', $r['lager'], $saetpris, '0', 'percent', '100', '1', '0', '0', '0', '', '0', '0', '0', '', '', '', '', '', '', '', '', '', '', '', '', '0', '', '0', $saetnr, $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));
+					$r = db_fetch_array(db_select("select id,varenr,beskrivelse,lager,vare_id,pris,antal from ordrelinjer where saet = '$saet[$x]' and ordre_id='$id' and samlevare='on'", __FILE__ . " linje " . __LINE__));
+					if ($r) { # Render even if varenr is empty (ordrelinjer now handles this for collections)
+						# Use saetpris if available, otherwise use hovedvaren's own price * antal
+						$display_price = $saetpris > 0 ? $saetpris : ($r['pris'] * ($r['antal'] ?: 1));
+						list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', $r['id'], '0', '', $r['varenr'], $r['beskrivelse'], '', $r['lager'], $display_price, '0', 'percent', '100', '1', '0', '0', $r['vare_id'], '', '0', '0', '0', '', 'on', '', '', '', '', '', '', '', '', '', '', '0', '', $saet[$x], $saetnr, $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));
+					}
 					$saetnr = 0;
 				}
 			}
@@ -5741,7 +5748,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	#lse cho "$beskrivelse $pris<br>";
 	#  if (!$ny_pos) $ny_pos=1;
 	if ($readonly) $readonly = "readonly=\"readonly\"";
-	if ($varenr) {
+	if ($varenr || ($saet && $samlevare)) {
 		if ($rabatart == 'amount') $ialt = ($pris - $rabat) * $antal;
 		else $ialt = ($pris - ($pris / 100 * $rabat)) * $antal;
 		if ($procentfakt) {
@@ -5935,7 +5942,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$dk_db = dkdecimal($dkb, 2);
 	$dk_dg = dkdecimal($dg, 2);
 	if ($art == 'DK') $ialt = (float)$ialt * -1;
-	if ($varenr) {
+	if ($varenr || ($saet && $samlevare)) {
 		if ($rvnr) {
 			$disabled = 'disabled';
 			if ($incl_moms && !$momsfri) $tmp = dkdecimal($antal * ($pris + $pris * $varemomssats / 100), 2);

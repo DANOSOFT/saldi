@@ -2204,7 +2204,11 @@ if (!function_exists('get_next_order_number')) {
 				
 				// Use SELECT FOR UPDATE to lock relevant rows - works on both PostgreSQL and MySQL
 				// This locks the rows being read until the transaction is committed
-				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art' FOR UPDATE";
+				// Use LOCK TABLE to ensure uniqueness and prevent race conditions
+				// FOR UPDATE with aggregate functions is not allowed in PostgreSQL
+				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+				
+				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
 				

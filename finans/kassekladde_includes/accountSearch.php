@@ -91,7 +91,7 @@ if ($type === 'finance' || $type === '') {
         $totalCount = intval($countRow['cnt']);
     }
     
-    $qtxt = "SELECT kontonr, firmanavn, kontakt 
+    $qtxt = "SELECT id, kontonr, firmanavn, kontakt 
              FROM adresser 
              WHERE $baseWhere
              ORDER BY kontonr LIMIT $limit OFFSET $offset";
@@ -101,6 +101,7 @@ if ($type === 'finance' || $type === '') {
     if ($query) {
         while ($row = db_fetch_array($query)) {
             $results[] = array(
+                'id' => $row['id'],
                 'kontonr' => trim($row['kontonr']),
                 'beskrivelse' => trim(stripslashes($row['firmanavn'])),
                 'kontakt' => isset($row['kontakt']) ? trim($row['kontakt']) : '',
@@ -123,7 +124,7 @@ if ($type === 'finance' || $type === '') {
         $totalCount = intval($countRow['cnt']);
     }
     
-    $qtxt = "SELECT kontonr, firmanavn, kontakt 
+    $qtxt = "SELECT id, kontonr, firmanavn, kontakt 
              FROM adresser 
              WHERE $baseWhere
              ORDER BY kontonr LIMIT $limit OFFSET $offset";
@@ -133,6 +134,7 @@ if ($type === 'finance' || $type === '') {
     if ($query) {
         while ($row = db_fetch_array($query)) {
             $results[] = array(
+                'id' => $row['id'],
                 'kontonr' => trim($row['kontonr']),
                 'beskrivelse' => trim(stripslashes($row['firmanavn'])),
                 'kontakt' => isset($row['kontakt']) ? trim($row['kontakt']) : '',

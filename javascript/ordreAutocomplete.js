@@ -309,7 +309,18 @@
         if (type === 'item') {
             const urlParams = new URLSearchParams(window.location.search);
             const orderId = urlParams.get('id');
-            window.location.href = `ordre.php?id=${orderId}&vare_id=${id}`;
+            const kontoId = urlParams.get('konto_id');
+
+            let redirectUrl = 'ordre.php?';
+            if (orderId) {
+                redirectUrl += `id=${orderId}&`;
+            }
+            if (kontoId) {
+                redirectUrl += `konto_id=${kontoId}&`;
+            }
+            redirectUrl += `vare_id=${id}`;
+
+            window.location.href = redirectUrl;
         } else if (type === 'customer') {
             const urlParams = new URLSearchParams(window.location.search);
             const orderId = urlParams.get('id');
