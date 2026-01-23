@@ -3308,7 +3308,7 @@ function ordreside($id, $regnskab)
 	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$url = "jobkort.php?returside=ordre.php&konto_id=$konto_id&ordre_id=$id";
 		$jobkort = "<a href=$url style=\"text-decoration:none\">";
-		$jobkort .= "<input type=\"button\" style=\"width:125px; border-radius: 4px;\" value=\"" . lcfirst(findtekst('1098|Jobkort', $sprog_id)) . "\" ";
+		$jobkort .= "<input type=\"button\" style=\"width:125px; border-radius: 4px;margin-left: 5px;\" value=\"" . lcfirst(findtekst('1098|Jobkort', $sprog_id)) . "\" ";
 		$jobkort .= "onClick=\"window.navigate('$url')\"></a>"; #20210630
 	} else $jobkort = NULL;
 	$url = "debitorkort.php?returside=ordre.php&konto_id=$konto_id&ordre_id=$id";
@@ -4614,7 +4614,7 @@ function ordreside($id, $regnskab)
 			$list[0] = $baseCurrency;
 			$beskriv[0] = 'Danske kroner';
 			print "<td>" . findtekst('1069|Valuta', $sprog_id) . " </td>\n";
-			print "<td><input style=\"width:125px;\" class = 'inputbox' name=\"ny_valuta\" value=\"$valuta\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td><td>";
+			print "<td><input style=\"width:130px;\" class = 'inputbox' name=\"ny_valuta\" value=\"$valuta\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td><td>";
 			if ($valutakurs != 100) print "($valutakurs)";
 			print "</td>\n";
 		} else //print "<tr><td colspan=\"2\" width=\"200\">\n"; # udkommenteret 15052014
@@ -4640,7 +4640,7 @@ function ordreside($id, $regnskab)
 			for ($x=0;$x<count($ansat);$x++) {
 				if (!$x) {
 				print "<tr><td>".findtekst(1097,$sprog_id)."</td>\n";
-				print "<td><select style=\"width:125px;\" class = 'inputbox' name=\"ref\" $disabled>\n";
+				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"ref\" $disabled>\n";
 				print "<option>$ref</option>\n";
 				}
 				if ($ref!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
@@ -4666,7 +4666,7 @@ function ordreside($id, $regnskab)
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr) > 1) {
 			print "</td><td></td>\n";
-			print "<td>" . findtekst('1198|Afd.', $sprog_id) . "</td><td><select style=\"width:125px;\" class = 'inputbox' name=\"afd\">";
+			print "<td>" . findtekst('1198|Afd.', $sprog_id) . "</td><td><select style=\"width:130px;\" class = 'inputbox' name=\"afd\">";
 			for ($x = 0; $x < count($afd_nr); $x++) {
 				if ($afd_nr[$x] == $afd) print "<option value=\"$afd_nr[$x]\" selected>$afd_nr[$x] $afd_navn[$x]</option>";
 			}
@@ -4756,7 +4756,7 @@ function ordreside($id, $regnskab)
 			print "<input type=\"hidden\" name=\"felt_4\" style=\"width:200px\" value=\"$felt_4\">\n";
 			#print "<input type=\"hidden\" name=\"felt_5\" style=\"width:200px\" value=\"$felt_5\">\n";
 		} else {
-			print "<tr><td align=\"center\">$jobkort $debitorkort</td><td align=\"left\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . " <input class='checkmark' type=\"checkbox\" name=\"vis_lev_addr\"><td></tr>\n";
+			print "<tr><td align=\"center\">$jobkort $debitorkort</td><td align=\"center\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . " <input class='checkmark' type=\"checkbox\" name=\"vis_lev_addr\"><td></tr>\n";
 			print "<tr><td colspan=\"2\"><hr><td></tr>\n";
 			print "<tr><td colspan=\"2\" align=\"center\"><b>" . findtekst('243|Ekstrafelter', $sprog_id) . "</b></tr>\n";
 			print "<tr><td colspan=\"2\"><hr></b></tr>\n";
@@ -4914,10 +4914,10 @@ function ordreside($id, $regnskab)
 			print "<tr><td colspan=\"2\"><hr></td></tr>\n";
 			print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
 			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-			print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Print plukliste</button></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
 			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
 			if ($pluklisteEmail) {
-				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='sendPlukliste.php?id=$id'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Send plukliste</button></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='sendPlukliste.php?id=$id'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px'>Send plukliste</button></td></tr>\n";
 			}
 			print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
 			print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
