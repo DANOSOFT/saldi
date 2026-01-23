@@ -90,6 +90,7 @@
 // 20240918 PBLM Added function betalingslink
 // 20241002 PHR 'Kontant' in texts replaced by text ID 370
 // 20250630 PHR Somebody has removed brackets in line 2285 & 2289 - Why !!!
+// 2026.01.23 MMK Hvis linje starter med xc og har pris på 0 skjules på faktrua, brugt til interne lagersynkronisering af varer
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
@@ -1465,6 +1466,7 @@ if ($background_file && file_exists($background_file)) {
 					$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 					$x = 0;
 					// 20190115 herover: tilføjet ,id til 'order by' -- herunder: tilføjet  || $row['folgevare']
+					// 2026.01.23 MMK Hvis linje starter med xc og har pris på 0 skjules på faktrua, brugt til interne lagersynkronisering af varer
 					// grundet manglende varenr 9494600512 på fakt 4193 i saldi_401
 					while ($row = db_fetch_array($q)) {
 						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!in_array($row['posnr'], $posnr) || $row['folgevare'])) {
@@ -1749,8 +1751,11 @@ if ($background_file && file_exists($background_file)) {
 						$transportsum = $transportsum + $l_sum[$x - 1];
 					$skriv = 0;
 					if ($kommentarprint || $formular != 3 || $varenr[$x])
-						$skriv = 1; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
-					#				if ($saet[$x] && $samlevare[$x]) $skriv=0; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
+						$skriv = 1; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint";
+					#				if ($saet[$x] && $samlevare[$x]) $skriv=0; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint";
+					// 2026.01.23 MMK Hvis linje starter med xc og har pris på 0 skjules på faktrua, brugt til interne lagersynkronisering af varer
+					if (stripos($beskrivelse[$x], 'xc') === 0 && (float)$l_sum[$x] == 0)
+						$skriv = 0; # Hide stock diff lines (xc prefix with zero cost)
 					if ($skriv) {
 						for ($z = 1; $z <= $var_antal; $z++) {
 							if (substr($variabel[$z], 0, 8) == "fritekst") {
