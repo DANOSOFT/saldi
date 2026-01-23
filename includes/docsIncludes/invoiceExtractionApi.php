@@ -24,7 +24,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	// Get API URL from settings or use default
 	global $db;
 	
-	// include connect to get master DB
+/* 	// include connect to get master DB
 	include "connect.php";
 
 	$qtxt = "SELECT var_value FROM settings WHERE var_name = 'apikey' AND var_grp = 'app_api'";
@@ -33,9 +33,9 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	}
 
 	// include online.php to get user DB
-	include "online.php";
+	include "online.php"; */
 	$apiUrl = "http://72.62.59.20:5000/extract-invoice";
-	
+	$apiKey = "change-me-in-production";
 	// Try to get API URL from settings
 	/* $qtxt = "SELECT var_value FROM settings WHERE var_name = 'invoiceExtractionApiUrl' AND var_grp = 'api'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
