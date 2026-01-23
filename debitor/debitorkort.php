@@ -1100,7 +1100,7 @@ print "name='addr2' value=\"$addr2\" onchange=\"javascript:docChange = true;\"><
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('363|Postnr./By', $sprog_id) . "<!--tekst 363--></td><td><input class='inputbox' type='text' size='3' ";
 print "name='postnr' value=\"$postnr\" onchange=\"javascript:docChange = true;\">\n";
-print "<input class='inputbox' type='text' size=19 name=bynavn value=\"$bynavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<input class='inputbox' type='text' size=16 name=bynavn value=\"$bynavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr gcolor=$bg><td>" . findtekst('364|Land', $sprog_id) . "<!--tekst 364--></td><td><input class='inputbox' type='text' size='25' ";
 print "name='land' value=\"$land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
@@ -1455,7 +1455,7 @@ if (!isset($slet)) $slet = NULL;
 print "<tr>";
 if ($slet == "NO") {
 	print "<td colspan='2' width='20%'><br></td>";
-	print "<td align='center' width='30%'>";
+	print "<td colspan='2' align='center' width='30%'>";
 	print "<input type='submit' class='button green medium' style='border-radius:4px;' accesskey='g' ";
 	print "value=" . findtekst('471|Gem/opdatér', $sprog_id) . " name='submit' onclick='javascript:docChange = false;'>";
 	print "&nbsp;<input type='submit' style='border-radius:4px;' ";
