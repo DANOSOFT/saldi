@@ -3311,7 +3311,7 @@ function ordreside($id, $regnskab)
 	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$url = "jobkort.php?returside=ordre.php&konto_id=$konto_id&ordre_id=$id";
 		$jobkort = "<a href=$url style=\"text-decoration:none\">";
-		$jobkort .= "<input type=\"button\" style=\"width:125px; border-radius: 4px;margin-left: 5px;\" value=\"" . lcfirst(findtekst('1098|Jobkort', $sprog_id)) . "\" ";
+		$jobkort .= "<input type=\"button\" style=\"width:125px; border-radius: 4px;margin: 5px;\" value=\"" . lcfirst(findtekst('1098|Jobkort', $sprog_id)) . "\" ";
 		$jobkort .= "onClick=\"window.navigate('$url')\"></a>"; #20210630
 	} else $jobkort = NULL;
 	$url = "debitorkort.php?returside=ordre.php&konto_id=$konto_id&ordre_id=$id";
@@ -3616,7 +3616,7 @@ function ordreside($id, $regnskab)
 			print "<tr><td colspan=\"2\"><hr></td></tr>\n";
 			print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
 			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-			print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Print plukliste</button></td></tr>\n";
+			print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
 			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
 			if ($pluklisteEmail) {
 				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;'><button type='button' onclick=\"window.location.href='sendPlukliste.php?id=$id'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 100%'>Send plukliste</button></td></tr>\n";
