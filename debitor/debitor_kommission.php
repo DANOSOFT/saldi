@@ -469,6 +469,7 @@ $myLink=str_replace('bizsys','mysale',$myLink);
 foreach ($columns as &$column) {
 	$originalRender = isset($column['render']) ? $column['render'] : null;
 	$field = $column['field'];
+	$openInPage = null;
 	
 	if ($field == 'kontonr') {
 		// kontonr keeps special MySale link handling
@@ -481,11 +482,11 @@ foreach ($columns as &$column) {
 				for ($x=0;$x<strlen($txt);$x++) {
 					$lnk.=dechex(ord(substr($txt,$x,1)));
 				}
-				return "<td align='{$column['align']}' onclick=\"window.location.href='$lnk'\" style='cursor:pointer'><a href='$lnk' target='_blank' class='kommission-link'>$value</a></td>";
+				return "<td align='{$column['align']}' onclick=\"window.open('$lnk','_blank')\" style='cursor:pointer'>$value</td>"; // <a href='$lnk' target='_blank' class='kommission-link'>$value</a>
 			} else {
 				// Link to debitorkort for customers without MySale
 				$url = "debitorkort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor_kommission.php";
-				return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
+				return "<td align='{$column['align']}' onclick=\"window.open('$url','_self')\" style='cursor:pointer'>$value</td>"; // <a href='$url'>$value</a>
 			}
 		};
 	} else {
@@ -498,18 +499,20 @@ foreach ($columns as &$column) {
 				for ($x=0;$x<strlen($txt);$x++) {
 					$url.=dechex(ord(substr($txt,$x,1)));
 				}
+				$openInPage = ",'_blank'";
 			} else {
 				$url = "debitorkort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor_kommission.php";
+				$openInPage = ",'_self'";
 			}
 			
 			// Get the display value from original render or default
 			if ($originalRender) {
 				$td = $originalRender($value, $row, $column);
 				// Replace opening <td with onclick and cursor style
-				$td = preg_replace('/<td([^>]*)>/', "<td$1 onclick=\"window.location.href='$url'\" style='cursor:pointer'>", $td);
+				$td = preg_replace('/<td([^>]*)>/', "<td$1 onclick=\"window.open('$url' $openInPage)\" style='cursor:pointer'>", $td);
 				return $td;
 			} else {
-				return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'>{$value}</td>";
+				return "<td align='{$column['align']}' onclick=\"window.open('$url' $openInPage)\" style='cursor:pointer'>{$value}</td>";
 			}
 		};
 	}
