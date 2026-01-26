@@ -176,7 +176,6 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	
 	// Execute request
 	$response = curl_exec($ch);
-	file_put_contents("invoiceExtractionApi.json", $response);
 	$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 	$curlError = curl_error($ch);
 	curl_close($ch);
@@ -247,7 +246,6 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	}
 	
 	// No data extracted
-	error_log("Invoice extraction API returned no extractable data");
 	return null;
 }
 
