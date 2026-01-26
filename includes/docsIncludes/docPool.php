@@ -824,6 +824,7 @@ $svgChevronDown = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke=
 $svgSpinner = '<svg class="icon-svg icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>';
 $svgLink = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
 $svgFile = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+$svgScan = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>';
 
 print "<div id='docPoolContainer'>";
 print "<div id='leftPanel'>";
@@ -874,10 +875,16 @@ print "<div id='docPoolToolbar' style='display: flex; justify-content: space-bet
 print "<div style='flex: 1; margin-right: 10px;'>";
 print "<input type='text' id='poolSearchBox' placeholder='Søg...' oninput='filterPoolFiles()' style='width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;'>";
 print "</div>";
-// View mode toggle
-print "<div style='display: flex; gap: 4px;'>";
+// View mode toggle and extract all button
+print "<div style='display: flex; gap: 8px;'>";
+// Extract all button
+print "<button type='button' id='extractAllBtn' onclick='extractAllPoolFiles()' title='Opdater alle filer med fakturadata' style='padding: 8px 12px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgScan <span style='font-size: 12px;'>Opdater alle</span></button>";
+// Delete selected button
+print "<button type='button' id='deleteSelectedBtn' onclick='deleteSelectedFiles()' title='Slet valgte filer' style='padding: 8px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgTrash <span style='font-size: 12px;'>Slet valgte</span></button>";
+print "<div style='display: flex; gap: 0;'>";
 print "<button type='button' id='tableViewBtn' onclick='setViewMode(\"table\")' title='Tabelvisning' style='padding: 8px 12px; background-color: $buttonColor; color: $buttonTxtColor; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;'>$svgTable</button>";
 print "<button type='button' id='cardViewBtn' onclick='setViewMode(\"card\")' title='Kortvisning' style='padding: 8px 12px; background-color: #e9ecef; color: #495057; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px;'>$svgGrid</button>";
+print "</div>";
 print "</div>";
 print "</div>";
 
@@ -939,7 +946,8 @@ print <<<JS
 			trash: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
 			save: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
 			x: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-			file: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>'
+			file: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>',
+			scan: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>'
 		};
 		
 		// Initialize view mode toggle buttons on page load
@@ -1460,6 +1468,7 @@ print <<<JS
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>" + svgIcons.trash + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='Udtræk fakturadata'>" + svgIcons.scan + "</button>" +
 				"</div>";
 
 			// Check if this checkbox should be checked (restore from sessionStorage)
@@ -1865,6 +1874,7 @@ print <<<JS
 				html += '<div class="card-actions" style="flex-shrink: 0; display: flex; gap: 4px;" onclick="event.stopPropagation();">';
 				html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); enableCardEdit(\\'' + escapeHTML(filename) + '\\', \\'' + escapeHTML(subject) + '\\', \\'' + escapeHTML(account) + '\\', \\'' + escapeHTML(amount) + '\\', \\'' + escapeHTML(dateFormatted) + '\\'); return false;" style="padding: 6px 10px; background: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Rediger">' + svgIcons.pencil + '</button>';
 				html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); deletePoolFile(\\'' + escapeHTML(filename) + '\\', ' + JSON.stringify(subject) + ', \\'' + escapeHTML(deleteUrl) + '\\'); return false;" style="padding: 6px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Slet">' + svgIcons.trash + '</button>';
+				html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); extractPoolFile(\\'' + escapeHTML(filename) + '\\'); return false;" style="padding: 6px 10px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Udtræk fakturadata">' + svgIcons.scan + '</button>';
 				html += '</div>';
 				
 				html += '</div>';
@@ -2375,6 +2385,266 @@ window.deletePoolFile = function(poolFile, subject, deleteUrl) {
 	}
 };
 
+// Extract invoice data from pool file via API
+window.extractPoolFile = function(poolFile) {
+	// Show loading state
+	const btn = event.target.closest('button');
+	const originalContent = btn.innerHTML;
+	btn.innerHTML = '<svg class="icon-svg icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>';
+	btn.disabled = true;
+	
+	// Make AJAX call to extract invoice data
+	const formData = new FormData();
+	formData.append('action', 'extract');
+	formData.append('poolFile', poolFile);
+	formData.append('db', db);
+	
+	fetch('docsIncludes/extractInvoiceHandler.php', {
+		method: 'POST',
+		body: formData
+	})
+	.then(response => response.json())
+	.then(result => {
+		btn.innerHTML = originalContent;
+		btn.disabled = false;
+		
+		if (result.success) {
+			// Update the row or card with extracted data
+			const extracted = result.data;
+			let message = 'Udtrækket data:';
+			if (extracted.amount) message += 'Beløb: ' + extracted.amount;
+			if (extracted.date) message += 'Dato: ' + extracted.date;
+			if (extracted.vendor) message += 'Leverandør: ' + extracted.vendor;
+			
+			if (confirm(message + 'Vil du opdatere filen med disse data?')) {
+				// Save the extracted data to the .info file
+				const saveData = new FormData();
+				saveData.append('action', 'save');
+				saveData.append('poolFile', poolFile);
+				saveData.append('db', db);
+				if (extracted.amount) saveData.append('newAmount', extracted.amount);
+				if (extracted.date) saveData.append('newDate', extracted.date);
+				if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
+				
+				fetch('docsIncludes/extractInvoiceHandler.php', {
+					method: 'POST',
+					body: saveData
+				})
+				.then(response => response.json())
+				.then(saveResult => {
+					if (saveResult.success) {
+						// Reload the page to show updated data
+						window.location.reload();
+					} else {
+						alert('Fejl ved gemning: ' + (saveResult.error || 'Ukendt fejl'));
+					}
+				})
+				.catch(error => {
+					alert('Fejl ved gemning: ' + error.message);
+				});
+			}
+		} else {
+			alert('Fejl ved udtræk: ' + (result.error || 'Ingen data kunne udtrækkes'));
+		}
+	})
+	.catch(error => {
+		btn.innerHTML = originalContent;
+		btn.disabled = false;
+		alert('Fejl ved udtræk: ' + error.message);
+	});
+};
+
+// Extract invoice data from ALL pool files
+window.extractAllPoolFiles = async function() {
+	// Get all pool files from the docData array
+	if (!docData || docData.length === 0) {
+		alert('Ingen filer i puljen at opdatere');
+		return;
+	}
+	
+	const btn = document.getElementById('extractAllBtn');
+	const originalContent = btn.innerHTML;
+	let processed = 0;
+	let successful = 0;
+	let failed = 0;
+	const total = docData.length;
+	
+	// Disable button and show progress
+	btn.disabled = true;
+	btn.style.opacity = '0.7';
+	
+	const updateProgress = () => {
+		btn.innerHTML = '<svg class="icon-svg icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> <span style="font-size: 12px;">' + processed + '/' + total + '</span>';
+	};
+	
+	updateProgress();
+	
+	// Process each file sequentially
+	for (const file of docData) {
+		const poolFile = file.filename;
+		
+		try {
+			// Extract data
+			const extractFormData = new FormData();
+			extractFormData.append('action', 'extract');
+			extractFormData.append('poolFile', poolFile);
+			extractFormData.append('db', db);
+			
+			const extractResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
+				method: 'POST',
+				body: extractFormData
+			});
+			
+			const extractResult = await extractResponse.json();
+			
+			if (extractResult.success && extractResult.data) {
+				const extracted = extractResult.data;
+				
+				// Only save if we got some data
+				if (extracted.amount || extracted.date || extracted.vendor) {
+					// Save the extracted data to the .info file
+					const saveData = new FormData();
+					saveData.append('action', 'save');
+					saveData.append('poolFile', poolFile);
+					saveData.append('db', db);
+					if (extracted.amount) saveData.append('newAmount', extracted.amount);
+					if (extracted.date) saveData.append('newDate', extracted.date);
+					if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
+					
+					const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
+						method: 'POST',
+						body: saveData
+					});
+					
+					const saveResult = await saveResponse.json();
+					if (saveResult.success) {
+						successful++;
+					} else {
+						failed++;
+						console.error('Failed to save data for ' + poolFile + ': ' + (saveResult.error || 'Unknown error'));
+					}
+				} else {
+					// No data extracted
+					failed++;
+				}
+			} else {
+				failed++;
+				console.error('Failed to extract data from ' + poolFile + ': ' + (extractResult.error || 'Unknown error'));
+			}
+		} catch (error) {
+			failed++;
+			console.error('Error processing ' + poolFile + ': ' + error.message);
+		}
+		
+		processed++;
+		updateProgress();
+	}
+	
+	// Restore button
+	btn.innerHTML = originalContent;
+	btn.disabled = false;
+	btn.style.opacity = '1';
+	
+	// Show summary
+	let message = 'Opdatering afsluttet!';
+	message += 'Behandlet: ' + total + ' filer';
+	message += 'Succesfulde: ' + successful;
+	if (failed > 0) {
+		message += 'Fejlede: ' + failed;
+	}
+	
+	alert(message);
+	
+	// Reload the page to show updated data
+	if (successful > 0) {
+		window.location.reload();
+	}
+};
+
+// Delete selected files
+window.deleteSelectedFiles = async function() {
+	// Get all selected checkboxes
+	const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+	if (checkboxes.length === 0) {
+		alert('Ingen filer valgt. Vælg venligst de filer du vil slette.');
+		return;
+	}
+	
+	// Confirm deletion
+	const confirmMsg = 'Er du sikker på at du vil slette ' + checkboxes.length + ' fil(er)?';
+	if (!confirm(confirmMsg)) {
+		return;
+	}
+	
+	const btn = document.getElementById('deleteSelectedBtn');
+	const originalContent = btn.innerHTML;
+	let deleted = 0;
+	let failed = 0;
+	const total = checkboxes.length;
+	const filesToDelete = Array.from(checkboxes).map(cb => cb.value);
+	
+	// Disable button and show progress
+	btn.disabled = true;
+	btn.style.opacity = '0.7';
+	
+	const updateProgress = () => {
+		btn.innerHTML = '<svg class="icon-svg icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> <span style="font-size: 12px;">' + deleted + '/' + total + '</span>';
+	};
+	
+	updateProgress();
+	
+	// Process each file
+	for (const poolFile of filesToDelete) {
+		try {
+			// Delete via form submission (using the existing unlink mechanism)
+			const formData = new FormData();
+			formData.append('action', 'delete');
+			formData.append('poolFile', poolFile);
+			formData.append('db', db);
+			
+			const response = await fetch('docsIncludes/extractInvoiceHandler.php', {
+				method: 'POST',
+				body: formData
+			});
+			
+			const result = await response.json();
+			
+			if (result.success) {
+				deleted++;
+				// Remove from sessionStorage
+				sessionStorage.removeItem('poolFileChecked_' + poolFile);
+			} else {
+				failed++;
+				console.error('Failed to delete ' + poolFile + ': ' + (result.error || 'Unknown error'));
+			}
+		} catch (error) {
+			failed++;
+			console.error('Error deleting ' + poolFile + ': ' + error.message);
+		}
+		
+		updateProgress();
+	}
+	
+	// Restore button
+	btn.innerHTML = originalContent;
+	btn.disabled = false;
+	btn.style.opacity = '1';
+	
+	// Show summary
+	let message = 'Sletning afsluttet!';
+	message += 'Slettet: ' + deleted + ' filer';
+	if (failed > 0) {
+		message += 'Fejlede: ' + failed;
+	}
+	
+	alert(message);
+	
+	// Reload the page to show updated list
+	if (deleted > 0) {
+		window.location.reload();
+	}
+};
+
 // Handle Enter key to save
 window.handleEnterKey = function(event, input) {
 	if (event.key === "Enter") {
@@ -2481,6 +2751,7 @@ window.saveRowData = function(input) {
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>" + svgIcons.trash + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='Udtræk fakturadata'>" + svgIcons.scan + "</button>" +
 				"</div>";
 			
 			row.querySelector('td:nth-child(6)').innerHTML = actionsCell;
@@ -3460,7 +3731,9 @@ HTML;
 	
 	if(!is_numeric($docFocus)) {
 	print "<script language=\"javascript\">";
-	print "document.gennemse.$docFocus.focus();";
+	if($docFocus != "" && $docFocus != "."){
+		print "document.gennemse.$docFocus.focus();";
+	}
 	print "</script>";
 	}
 
