@@ -1,4 +1,28 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- finans/kassekladde_includes/topLineKassekladde.php --- patch 5.0.0 --- 2026.01.26 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+// Copyright (c) 2003-2026 Saldi.dk ApS
+// -----------------------------------------------------------------------------------
+// 20260126 PHR fixed $exitDraft
 
 $border = 'border:1px';
 $TableBG = "bgcolor=$bgcolor";
@@ -17,7 +41,7 @@ print "<table class='topLine' width='100%' align='center' border='0' cellspacing
 
 # Back button
 print "<td width=5% style='$buttonStyle'>
-	<a href=\"javascript:confirmClose('$backUrl?exitDraft=$kladde_id','$tekst')\" accesskey='L'>
+	<a href=\"javascript:confirmClose('$backUrl?exitDraft=$kladde_id&line=". __line__ ."','$tekst')\" accesskey='L'>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 	$icon_back ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 

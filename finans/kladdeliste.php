@@ -1,6 +1,11 @@
 <?php
-// --- finans/kladdeliste.php -------- patch 4.1.1 --- 2026.01.12 --- 
-//                           LICENSE
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026.01.26 --- 
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -15,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // -----------------------------------------------------------------------------------
 // 20150722 PHR Vis alle/egne gemmes nu som cookie. 
 // 20181220 MSC - Rettet ny kladde knap til Ny
@@ -28,6 +33,7 @@
 // 12/02/2025 PBLM - Added a new button to open the digital approver
 // 16/05/2025 make sure the back button redirect too the previous page rather than going back to the dashboard
 // 20251021 LOE Added pagination and static header and footer
+// 20260126 PHR fixed $exitDraft
 
 @session_start();
 $s_id=session_id();
@@ -192,6 +198,11 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></scr
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
+$exitDraft = if_isset($_GET['exitDraft']);
+if ($exitDraft) {
+	$qtxt = "update kladdeliste set hvem = '', tidspkt = NULL where id = '$exitDraft'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 if (strpos(findtekst('639|Kladdeliste', $sprog_id),'undtrykke')) {
 	$qtxt = "update tekster set tekst = '' where tekst_id >= '600'";
