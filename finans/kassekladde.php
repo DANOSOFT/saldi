@@ -2840,8 +2840,37 @@ $dropAttr = "";
 			print "</form>";
 
 		} elseif ($bogfort == 'S') {
-			print "<tr><td colspan=9 align='center'><input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'></td></tr>\n";
-			print "</form>";
+
+		print "<form method='post' action='kassekladde.php?kladde_id=$kladde_id&tjek=$kladde_id'>";
+print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
+
+print "
+<tr style='position: relative;'>
+  <td colspan='9'
+      style='
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+      '>
+    <input
+      type='submit'
+      class='button rosy medium'
+      accesskey='a'
+      value='" . findtekst('1090|Annuller simulering', $sprog_id) . "'
+      name='cancelSimulation'
+      onclick='docChange = false;'
+    >
+  </td>
+</tr>
+";
+
+print "</form>";
+			// print "<form method='post' action='kassekladde.php?kladde_id=$kladde_id&tjek=$kladde_id'>";
+			// print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
+			// print "<tr><td colspan=9 align='center'><input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'></td></tr>\n";
+			// print "</form>";
 		} else {
 			print "<td align='center'><span title='" . findtekst('1544|Klik her for at gemme', $sprog_id) . "'><input type='submit' class='button green medium' style='width:120px;' accesskey='g' value='" . findtekst('3|Gem', $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1545|Opslag - din markørs placering angiver hvilken tabel, opslag foretages i', $sprog_id) . "'><input type='submit' class='button blue medium' style='width:120px;' accesskey='o' value='" . findtekst('644|Opslag', $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span></td>";
