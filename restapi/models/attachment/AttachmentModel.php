@@ -95,7 +95,13 @@ class AttachmentModel
      */
     private function loadMetadata($filepath)
     {
-        $metadataPath = $filepath . '.info';
+        // Get filename without extension and directory
+        $pathInfo = pathinfo($filepath);
+        $filenameWithoutExt = $pathInfo['filename'];
+        $directory = isset($pathInfo['dirname']) ? $pathInfo['dirname'] . '/' : '';
+        
+        // Create metadata path as filename.info (without the file extension)
+        $metadataPath = $directory . $filenameWithoutExt . '.info';
         if (file_exists($metadataPath)) {
             $content = file_get_contents($metadataPath);
             if ($content !== false) {
@@ -369,11 +375,13 @@ class AttachmentModel
      */
     private function saveMetadata($filepath, $metadata)
     {
-        $metadataPath = $filepath . '.info';
-        
-        // Get filename without extension
+        // Get filename without extension and directory
         $pathInfo = pathinfo($filepath);
         $filenameWithoutExt = $pathInfo['filename'];
+        $directory = isset($pathInfo['dirname']) ? $pathInfo['dirname'] . '/' : '';
+        
+        // Create metadata path as filename.info (without the file extension)
+        $metadataPath = $directory . $filenameWithoutExt . '.info';
         
         // Extract values from metadata array
         $account = isset($metadata['accountnr']) ? $metadata['accountnr'] : '';
@@ -427,7 +435,13 @@ class AttachmentModel
     {
         if ($this->filepath && file_exists($this->filepath)) {
             // Also delete metadata file if it exists
-            $metadataPath = $this->filepath . '.info';
+            // Get filename without extension and directory
+            $pathInfo = pathinfo($this->filepath);
+            $filenameWithoutExt = $pathInfo['filename'];
+            $directory = isset($pathInfo['dirname']) ? $pathInfo['dirname'] . '/' : '';
+            
+            // Create metadata path as filename.info (without the file extension)
+            $metadataPath = $directory . $filenameWithoutExt . '.info';
             if (file_exists($metadataPath)) {
                 @unlink($metadataPath);
             }
