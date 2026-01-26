@@ -74,6 +74,56 @@
         
     }
 
+    // Update company data at EasyUBL with new data from database
+    function updateCompany() {
+        global $apiKey, $db;
+        
+        // Get the existing company ID from the database
+        $query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+        
+        if(db_num_rows($query) === 0) {
+            // No company ID exists, cannot update - need to create first
+            return ['success' => false, 'message' => 'No company ID found. Please create a company first.'];
+        }
+        
+        $res = db_fetch_array($query);
+        $companyId = $res["var_value"];
+        
+        // Get fresh company data from the database
+        $data = createCompany($apiKey);
+        
+        // Send update request to EasyUBL with the actual company ID
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Update/$companyId");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $response = json_decode($response, true);
+        curl_close($ch);
+        
+        $timestamp = date("Y-m-d-H-i-s");
+        
+        if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "") {
+            // An error occurred
+            $errorNumber = curl_errno($ch);
+            $errorMessage = curl_error($ch);
+            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response];
+            
+            // Save error response in temp folder
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            
+            return ['success' => false, 'message' => 'Error updating company: ' . $errorMessage];
+        }
+        
+        // Save successful response in temp folder for debugging
+        file_put_contents("../temp/$db/Update-company-success-$timestamp.json", json_encode($response, JSON_UNESCAPED_UNICODE));
+        
+        return ['success' => true, 'companyId' => $companyId, 'response' => $response];
+    }
+
     // Getting the company id from the database
     function getCompanyID(){
         global $apiKey, $db;

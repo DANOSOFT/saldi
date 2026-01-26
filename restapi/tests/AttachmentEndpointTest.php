@@ -56,7 +56,7 @@ class AttachmentEndpointTest
         $loginData = [
             'username' => $username,
             'password' => $password,
-            'database' => 'test_3'
+            'account_name' => 'test2'
         ];
         
         // Add database parameter if provided (can be database name or tenant ID)
@@ -242,7 +242,7 @@ class AttachmentEndpointTest
             echo "\n❌ Test failed with error: " . $e->getMessage() . "\n";
             echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
         } finally {
-            $this->cleanup();
+           /*  $this->cleanup(); */
         }
     }
 
@@ -856,7 +856,7 @@ class AttachmentEndpointTest
             // Verify metadata is also returned when getting the file
             $filename = $response['data']['filename'];
             $getResponse = $this->makeRequest('GET', null, $filename);
-            
+            print_r($getResponse);
             if ($getResponse['success'] && isset($getResponse['data']['metadata'])) {
                 $retrievedMetadata = $getResponse['data']['metadata'];
                 
@@ -1368,7 +1368,7 @@ class AttachmentEndpointTest
     public function __destruct()
     {
         if (is_dir($this->testFilesDir)) {
-            $this->cleanup();
+           /*  $this->cleanup(); */
         }
     }
 }
