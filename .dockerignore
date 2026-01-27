@@ -1,0 +1,29 @@
+# Ignore git directory
+.git
+.gitignore
+
+# Ignore Docker configuration files used on host but not needed in build
+docker-compose.yml
+docker-compose.prod.yml
+.dockerignore
+README.md
+
+# Ignore persistent data directories (should be mounted, not copied in build)
+saldibilag/
+backup/
+saldiupdates/
+saldi_data/
+pg_data/
+
+# Ignore temporary/build artifacts
+*.log
+.env
+
+src/includes/connect.php
+
+# IDE filer
+.idea/
+.vscode/
+
+# Docker compose mappen (ikke nødvendig i image)
+docker/docker-compose/
