@@ -388,7 +388,7 @@ console.log('Locaiton', this.contentWindow.document.location.href);
       trigger_iframe_load();
       stopLoading();
       content_finished_loading(this);"
-      id="iframe_a" src="-"
+      id="iframe_a" src="about:blank"
       name="iframe_a"
       title="Site"
       class="content-iframe"></iframe>
