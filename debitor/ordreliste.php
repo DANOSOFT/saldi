@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-12-30--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-01-27--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,70 +21,9 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 20121004 Fjernet email fra $selectfelter og indsat søgerutine til emails - søg 20121004
-// 20121017 Tilføjet link til oioubl import for automatisk ordreoprettelse - søg 20121017
-// 20141106 Ændret søgning på firmanavn så kun det relevante firmanavn kommer med ved søgning. 20141106
-// 20141107 tilføjet <center>
-// 20150308 Tilføjet "and art like 'D%' and status < '3'" da den fjernede tidspkt på afsluttede ordrer. 20150308
-// 20160901	Tilføjet array tekstfelter til søgning med wildcard
-// 20161217	PHR Tilføjet vis_lagerstatus. Søg vis_lagerstatus: 
-// 20170209	PHR Tilføjet mulighed for at slette ordrer direkte fra liste.
-// 20170520	PHR fjernet valutaberegning på kostpriser da det gav forlert DB/DG
-// 20170601 PHR	Delvis tilbageført ændringer fra 20141106 da alle fakturaer ikke kommer med ved opslag fra debitorkort 20170601
-// 20180418	PHR	Mulighed for at gemme ordre ved klik på kundeordrenr. Søg $gem_id
-// 20180907	PHR Tilføjet 'Hent fra shop'
-// 20181127 PHR Udlignet sættes til 1 hvis ingen openpost.
-// 20181128	PHR Tilføjet kundegruppe som søgefelt
-// 20181217 msc Rettet fejl & forbedret design
-// 20190107 MSC Rettet overskift fra Kunder - Åbne ordrer til Åbne ordrer
-// 20190116 MSC - Rettet ny ordre knap til ny & tilføjet ny knap under Fakturede ordrer.
-// 20190213 MSC - Rettet topmenu design til og isset fejl
-// 20190215 MSC - Rettet topmenu design til
-// 20190320 PHR - Varius improvements in selections related to 'sum_m_moms'
-// 20190429 PHR - Removed '\n' from $overlibTxt as ir destroys 'overlib';
-// 20190703 PHR - Users can now choose whether they want dropdown. Search $dropDown
-// 20190704 RG (Rune Grysbæk) Mysqli implementation 
-// 20191008 PHR Added 'ref' to 'tekstfelter' as search in 'ref' did not give any result.   
-// 20191022 PHR Added 'isset($checked[$c]) &&' to avoid notice in log.
-// 20210318 LOE Translated these text to English #20210318
-// 20210319 LOE added this block of code for switching between two selected languages #20210319
-// 20210323 LOE Did some general translating and using dynmic variables via findteskt func. for ordrer and tibuld #20210323
-// 20210325 LOE Added these variables #20210325
-// 20210328 PHR Definition of various variables #20210328
-// 20210527 LOE Added these variables 
-// 20210623	LOE Created select_valg function to select each box from grupper table available for global usage
-// 20110620 MSC Implementing new top menu design
-// 20110708 MSC Implementing new top menu design
-// 20110713 MSC Implementing new top menu design 
-// 20210714 LOE Started translation for JavaScript alerts and title texts 
-// 20210715 LOE More translations for the title and confirm texts
-// 20210716 MSC Implementing new top menu design & moving hard coded styling, from old design, in standard.css file
-// 20210719 LOE Added a text for this title ..unset class error commented out...class variable used without being set
-// 20210720 MSC Implementing new top menu design 
-// 20210803 MSC Implementing new top menu design 
-// 20210812 MSC Implementing new top menu design 
-// 20210817 Updated some blocks of codes using translated variables 
-// 20210818 This part of the code added ; ordre_id was not set now it is set
-// 20210902 MSC - Implementing new design
-// 20210906 MSC - Implementing new design
-// 20210907 MSC - Implementing new design
-// 20211018 LOE - Fixed some bugs
-// 20211102 MSC - Implementing new design
-// 20220210 PHR - Some cleanup 
-// 20220210 PHR - Added queries in function select_valg
-// 20220301 PHR - Added "$valg == 'faktura' ||" as invoiced orders should not be locked
-// 20220619 PHR Removed misplaced ';' from findtekst(386...
-// 20220824 PHR Changed 'hent_ordrer' to wait 30 sec between fetches
-// 20230320 MSC - Fixed so tilbud icon would show up, if setting is on and fixed footer in tilbud section
-// 20230323 PBLM Fixed minor error
-// 20230621 PHR missing $sprog_id
-// 20230719 LOE Made some minor modification
-// 20230829 MSC - Copy pasted new design into code
-// 20231113 PHR Added search for 'Land'
-// 20231206 PHR PHP 8 error in 'genberegn'
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240815 PHR- $title 
 // 20250828 PHR error in translation of 'tilbud'
@@ -96,6 +35,7 @@
 // 14082025 Sawaneh Fix invoicelist for english language
 // 20251016 MS Changed "$confirm1" and "confirm('$confirm1 $valg?')" to allow complete translation
 // 20251104 LOE General 0verhaul of this file to fit the new grid framework.
+// 20260127 LOE Selected calender type now saved for the user.
 @session_start();
 $s_id = session_id();
 
@@ -532,7 +472,7 @@ if (isset($_GET['konto_id']) && $_GET['konto_id']) {
     // Only pre-populate if search fields are empty
     if (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
         $konto_id_from_get = db_escape_string($_GET['konto_id']);
-        $qtxt = "SELECT firmanavn, kontonr FROM adresser WHERE id = '$konto_id_from_get'";
+        $qtxt = "SELECT firmanavn kontonr FROM adresser WHERE id = '$konto_id_from_get'";
         $debug_log[] = "Query to fetch customer: $qtxt";
 
         if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -609,9 +549,11 @@ function generateDateRangeSearch($column, $term) {
         return "1=1";
     }
     
-    // Check if it's a date range (contains " - ")
-    if (strpos($term, ' - ') !== false) {
-        $dates = explode(' - ', $term);
+    // Check if it's a date range (contains " : " or " - ")
+    if (strpos($term, ' : ') !== false || strpos($term, ' - ') !== false) {
+        // Normalize to colon separator for splitting
+        $term = str_replace(' - ', ' : ', $term);
+        $dates = explode(' : ', $term);
         
         if (count($dates) == 2) {
             $startDate = trim($dates[0]);
@@ -1457,6 +1399,8 @@ if (preg_match('/background-color:([a-fA-F0-9#]+)/', $topStyle, $matches)) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var bruger_id = <?php echo json_encode($bruger_id); ?>;
+    
     // Initialize date range pickers for date fields
     const dateInputs = document.querySelectorAll(
         "input[name^='search[ordrelst_'][name$='[ordredate]'], " +
@@ -1467,132 +1411,298 @@ document.addEventListener('DOMContentLoaded', function() {
         "input[name^='search[ordrelst_'][name$='[settletime'], "+
         "input[name^='search[ordrelst_'][name$='[fakturadate]']"
     );
+    
     dateInputs.forEach(function(input) {
-        // Get existing value if any
-        var existingValue = input.value.trim();
+        // Add autocomplete="off" to prevent browser history dropdown
+        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('autocapitalize', 'off');
+        input.setAttribute('autocorrect', 'off');
+        input.setAttribute('spellcheck', 'false');
+        
+        // Get the field name from input name
+        var fieldName = input.name;
+        var match = fieldName.match(/search\[(.*?)\]\[(.*?)\]/);
+        
+        if (!match) return;
+        
+        var gridId = match[1];
+        var field = match[2];
+        
+        // Initialize variables
+        var savedPreference = null;
         var startDate = moment();
         var endDate = moment();
-        var isRange = false;
-
-        // Parse existing value - check if it's a range (contains " - ")
-        if (existingValue !== '') {
-            if (existingValue.includes(' - ')) {
-                // This is a date range
-                isRange = true;
-                var dates = existingValue.split(' - ');
-                var parsedStart = moment(dates[0].trim(), 'DD-MM-YYYY', true);
-                var parsedEnd = moment(dates[1].trim(), 'DD-MM-YYYY', true);
-                
-                if (parsedStart.isValid() && parsedEnd.isValid()) {
-                    startDate = parsedStart;
-                    endDate = parsedEnd;
+        var chosenLabel = null;
+        
+        // Function to load saved preference from database
+        function loadSavedPreference(callback) {
+            $.ajax({
+                url: 'save_date_settings.php',
+                type: 'POST',
+                data: {
+                    action: 'get_date_preference',
+                    grid_id: gridId,
+                    field: field,
+                    bruger_id: bruger_id
+                },
+                success: function(response) {
+                    try {
+                        if (response && typeof response === 'string') {
+                            response = JSON.parse(response);
+                        }
+                        
+                        if (response && response.date_value !== undefined && response.date_value !== null && response.date_value !== '') {
+                            if (callback) callback(response);
+                        } else {
+                            if (callback) callback(null);
+                        }
+                    } catch(e) {
+                        console.log('Error parsing response:', e);
+                        if (callback) callback(null);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error loading date preference:', error);
+                    if (callback) callback(null);
                 }
-            } else {
-                // Single date
-                var parsed = moment(existingValue, 'DD-MM-YYYY', true);
-                if (parsed.isValid()) {
-                    startDate = parsed;
-                    endDate = parsed;
-                }
-            }
+            });
         }
-
-        // Initialize daterangepicker with range support
-        $(input).daterangepicker({
-            singleDatePicker: false, // CHANGED: Allow range selection
-            showDropdowns: true,
-            autoUpdateInput: false,
-            autoApply: false,
-             linkedCalendars: false,
-            startDate: startDate,
-            endDate: endDate,
-            minYear: 1900,
-            maxYear: parseInt(moment().format('YYYY'), 10) + 10,
-           ranges: {'Clear': [],
-                'I dag': [moment(), moment()],
-                'I går': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-                'Sidste 7 dage': [moment().subtract(6, 'days'), moment()],
-                'Sidste 30 dage': [moment().subtract(29, 'days'), moment()],
-                'Denne måned': [moment().startOf('month'), moment().endOf('month')],
-                'Sidste måned': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
-                'Dette år': [moment().startOf('year'), moment().endOf('year')],
-                'Sidste år': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
-            },
-             locale: {
-                format: 'DD-MM-YYYY',
-                separator: ' - ',
-                applyLabel: 'Søg',
-                cancelLabel: 'Ryd',
-                fromLabel: 'Fra',
-                toLabel: 'Til',
-                customRangeLabel: 'Brugerdefineret',
-                daysOfWeek: ['Sø', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø'],
-                monthNames: ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
-                    'Juli', 'August', 'September', 'Oktober', 'November', 'December'
-                ],
-                firstDay: 1
+        
+        // Load saved preference via AJAX BEFORE initializing picker
+        loadSavedPreference(function(preference) {
+            if (preference) {
+                savedPreference = preference;
+                chosenLabel = preference.range_type;
+                
+                // Parse the saved date value
+                var dateValue = preference.date_value;
+                if (dateValue.includes(' : ') || dateValue.includes(' - ')) {
+                    var separator = dateValue.includes(' : ') ? ' : ' : ' - ';
+                    var dates = dateValue.split(separator);
+                    
+                    if (dates.length >= 2) {
+                        var parsedStart = moment(dates[0].trim(), 'DD-MM-YYYY', true);
+                        var parsedEnd = moment(dates[1].trim(), 'DD-MM-YYYY', true);
+                        
+                        if (parsedStart.isValid() && parsedEnd.isValid()) {
+                            startDate = parsedStart;
+                            endDate = parsedEnd;
+                        }
+                    }
+                } else {
+                    // Single date
+                    var parsed = moment(dateValue, 'DD-MM-YYYY', true);
+                    if (parsed.isValid()) {
+                        startDate = parsed;
+                        endDate = parsed;
+                    }
+                }
+                
+                // Set input value from saved preference ONLY if there's a search value in the URL
+                var urlParams = new URLSearchParams(window.location.search);
+                var searchKey = 'search[' + gridId + '][' + field + ']';
+                var urlSearchValue = urlParams.get(searchKey);
+                
+                if (urlSearchValue && urlSearchValue.trim() !== '') {
+                    input.value = urlSearchValue;
+                } else {
+                    // URL has no search value (empty or cleared), so leave input empty
+                    input.value = '';
+                }
             }
+            
+            initializePicker();
         });
-
-        // When user clicks "Søg" (Apply) button
-        $(input).on('apply.daterangepicker', function(ev, picker) {
-            //fake clear implementation @~~~~~~~~~~~~~~~~~~~ 
-             if (picker.chosenLabel === 'Clear') {
+        
+        function initializePicker() {
+            // Initialize daterangepicker
+            $(input).daterangepicker({
+                singleDatePicker: false,
+                showDropdowns: true,
+                autoUpdateInput: false,
+                autoApply: false,
+                linkedCalendars: false,
+                startDate: startDate,
+                endDate: endDate,
+                minYear: 1900,
+                maxYear: parseInt(moment().format('YYYY'), 10) + 10,
+                alwaysShowCalendars: true,
+                showCustomRangeLabel: true,
+                ranges: {
+                    'Clear': [],
+                    'I dag': [moment(), moment()],
+                    'I går': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Sidste 7 dage': [moment().subtract(6, 'days'), moment()],
+                    'Sidste 30 dage': [moment().subtract(29, 'days'), moment()],
+                    'Denne måned': [moment().startOf('month'), moment().endOf('month')],
+                    'Sidste måned': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                    'Dette år': [moment().startOf('year'), moment().endOf('year')],
+                    'Sidste år': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
+                },
+                locale: {
+                    format: 'DD-MM-YYYY',
+                    separator: ' : ',
+                    applyLabel: 'Søg',
+                    cancelLabel: 'Ryd',
+                    fromLabel: 'Fra',
+                    toLabel: 'Til',
+                    customRangeLabel: 'Brugerdefineret',
+                    daysOfWeek: ['Sø', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø'],
+                    monthNames: ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
+                        'Juli', 'August', 'September', 'Oktober', 'November', 'December'
+                    ],
+                    firstDay: 1
+                }
+            });
+            
+            var picker = $(input).data('daterangepicker');
+            
+            // Set the chosenLabel AFTER initialization if we have a known range type
+            if (savedPreference && chosenLabel !== null && chosenLabel !== undefined && chosenLabel !== 'Clear') {
+                setTimeout(function() {
+                    if (picker) {
+                        picker.chosenLabel = chosenLabel;
+                        
+                        // If the saved range type exists in ranges, apply it
+                        if (chosenLabel in picker.ranges) {
+                            picker.setStartDate(picker.ranges[chosenLabel][0]);
+                            picker.setEndDate(picker.ranges[chosenLabel][1]);
+                        }
+                        
+                        // Update the calendar display
+                        picker.updateCalendars();
+                        picker.updateView();
+                    }
+                }, 100);
+            } else if (savedPreference && (chosenLabel === null || chosenLabel === undefined)) {
+                // We have a date value but unknown range type
+                if (picker) {
+                    picker.chosenLabel = null;
+                }
+            }
+            
+            // When user clicks "Søg" (Apply) button
+            $(input).on('apply.daterangepicker', function(ev, picker) {
+                // Handle Clear action - just clear input and submit
+                if (picker.chosenLabel === 'Clear') {
+                    $(this).val('');
+                    
+                    var form = $(this).closest('form');
+                    if (form.length > 0) {
+                        form.submit();
+                    }
+                    
+                    picker.hide();
+                    return;
+                }
+                
+                var selectedStartDate = picker.startDate.format('DD-MM-YYYY');
+                var selectedEndDate = picker.endDate.format('DD-MM-YYYY');
+                
+                var displayValue;
+                if (selectedStartDate === selectedEndDate) {
+                    displayValue = selectedStartDate;
+                } else {
+                    displayValue = selectedStartDate + ' : ' + selectedEndDate;
+                }
+                
+                $(this).val(displayValue);
+                
+                // Determine the range type to save
+                var rangeTypeToSave = picker.chosenLabel;
+                if (!rangeTypeToSave || rangeTypeToSave === 'Custom Range' || rangeTypeToSave === 'Brugerdefineret') {
+                    rangeTypeToSave = 'Custom';
+                }
+                
+                // Save the range type preference via AJAX
+                $.ajax({
+                    url: 'save_date_settings.php',
+                    type: 'POST',
+                    data: {
+                        action: 'save_date_preference',
+                        grid_id: gridId,
+                        field: field,
+                        range_type: rangeTypeToSave,
+                        date_value: displayValue,
+                        bruger_id: bruger_id
+                    },
+                    success: function(response) {
+                        var form = $(input).closest('form');
+                        if (form.length > 0) {
+                            form.submit();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('Error saving date preference:', error);
+                    }
+                });
+            });
+            
+            // When user clicks "Ryd" (Cancel) button
+            $(input).on('cancel.daterangepicker', function(ev, picker) {
                 $(this).val('');
-
+                
                 var form = $(this).closest('form');
                 if (form.length > 0) {
-                    console.log('Submitting form to clear filter...');
                     form.submit();
                 }
-
-                picker.hide(); // hide the picker after clearing
-                return; // stop further processing
-            }  //@~~~~~~~~~~~~~~
+            });
             
-            var selectedStartDate = picker.startDate.format('DD-MM-YYYY');
-            var selectedEndDate = picker.endDate.format('DD-MM-YYYY');
-            
-            // If same date, show single date, otherwise show range
-            var displayValue;
-            if (selectedStartDate === selectedEndDate) {
-                displayValue = selectedStartDate;
-            } else {
-                displayValue = selectedStartDate + ' - ' + selectedEndDate;
-            }
-            
-            console.log('Applied date range:', displayValue);
-            $(this).val(displayValue);
-
-            // Submit the form automatically
-            var form = $(this).closest('form');
-            if (form.length > 0) {
-                console.log('Submitting form...');
-                form.submit();
-            }
-        });
-
-        // When user clicks "Ryd" (Cancel) button
-        $(input).on('cancel.daterangepicker', function(ev, picker) {
-            console.log('Clearing date field');
-            $(this).val('');
-
-            // Submit form to clear the filter
-            var form = $(this).closest('form');
-            if (form.length > 0) {
-                console.log('Submitting form to clear filter...');
-                form.submit();
-            }
-        });
-
-        // Visual feedback when opening/closing
-        $(input).on('show.daterangepicker', function(ev, picker) {
-            console.log('Date picker opened');
-        });
-
-        $(input).on('hide.daterangepicker', function(ev, picker) {
-            console.log('Date picker closed');
-        });
+            // Visual feedback when opening - reload saved preference
+            $(input).on('show.daterangepicker', function(ev, picker) {
+                // Reload saved preference from database when picker opens
+                loadSavedPreference(function(freshPreference) {
+                    if (freshPreference && freshPreference.date_value) {
+                        // Update the picker's chosenLabel with the saved preference
+                        if (freshPreference.range_type !== null && freshPreference.range_type !== undefined && freshPreference.range_type !== 'Clear') {
+                            picker.chosenLabel = freshPreference.range_type;
+                        } else {
+                            picker.chosenLabel = null;
+                        }
+                        
+                        // Parse and set the dates from the saved value
+                        var dateValue = freshPreference.date_value;
+                        if (dateValue.includes(' : ') || dateValue.includes(' - ')) {
+                            var separator = dateValue.includes(' : ') ? ' : ' : ' - ';
+                            var dates = dateValue.split(separator);
+                            
+                            if (dates.length >= 2) {
+                                var parsedStart = moment(dates[0].trim(), 'DD-MM-YYYY', true);
+                                var parsedEnd = moment(dates[1].trim(), 'DD-MM-YYYY', true);
+                                
+                                if (parsedStart.isValid() && parsedEnd.isValid()) {
+                                    picker.setStartDate(parsedStart);
+                                    picker.setEndDate(parsedEnd);
+                                }
+                            }
+                        } else {
+                            var parsed = moment(dateValue, 'DD-MM-YYYY', true);
+                            if (parsed.isValid()) {
+                                picker.setStartDate(parsed);
+                                picker.setEndDate(parsed);
+                            }
+                        }
+                        
+                        // Update calendars
+                        picker.updateCalendars();
+                        picker.updateView();
+                        
+                        // Highlight the active range in the list
+                        if (picker.chosenLabel && picker.chosenLabel !== 'Clear') {
+                            // Remove active class from all ranges
+                            picker.container.find('.ranges li').removeClass('active');
+                            
+                            // Add active class to the saved range
+                            picker.container.find('.ranges li').each(function() {
+                                if ($(this).text().trim() === picker.chosenLabel) {
+                                    $(this).addClass('active');
+                                }
+                            });
+                        }
+                    }
+                });
+            });
+        }
     });
 });
 </script>
