@@ -1,0 +1,374 @@
+kontonr	beskrivelse	kontotype	momskode	fra_konto
+10	Resultatopgørelse	H		0
+100	Nettoomsætning	H		0
+1010	Omsætning	D	S1	0
+1015	Fragt	D	S1	0
+1020	Eksport til tredieland	D		0
+1030	Engrossalg	D		0
+1035	Andre driftsindtægter	D	S1	0
+1045	Kontantrabat	D	S1	0
+1050	Kassedifferencer	D	S1	0
+1795	Nettoomsætning i alt	Z		1000
+1999	Vareforbrug	H		0
+2010	Vareforbrug	D		0
+2020	Lagerregulering	D		0
+2030	Importtold til 15223	D		0
+2595	Vareforbrug i alt	Z		2000
+2995	Bruttoavance	Z		1000
+3998	Andre eksterne omkostninger	H		0
+3999	Lokaleomkostninger	H		0
+4010	Husleje	D	K1	0
+4020	Ejendomsskat Fabriksvej 12	D		0
+4025	Forsikring Fabriksvej 12	D		0
+4030	El-forbrug	D	K1	0
+4040	Varme	D	K1	0
+4045	Gasforbrug	D	K1	0
+4050	Vand	D	K1	0
+4070	Lokalevedligeholdelse	D	K1	0
+4075	Renovation	D	K1	0
+4080	Rengøring	D	K1	0
+4095	Alarm	D	K1	0
+4391	X-Padel Udlæg	D		0
+4495	Lokaleomkostninger i alt	Z		4000
+4999	Salgs- og distributions omkostninger	H		0
+5010	Annoncer og reklame	D	K1	0
+5011	Annoncer og reklame, uden moms	D		0
+5015	Reklameartikler 	D		0
+5020	Emballage	D	K1	0
+5025	Tryksager og brochurer	D	K1	0
+5030	Sponsorgaver	D		0
+5033	Sponsorat m/moms	D		0
+5035	Udstillinger	D	K1	0
+5037	Messeudgifter	D		0
+5038	Kodaafgift	D		0
+5040	Dekorationsudgifter	D	K1	0
+5045	Blomster	D		0
+5055	Repræsentation vin og spiritus	D		0
+5060	Rejseomkostninger	D		0
+5061	Mødeudgifter	D		0
+5065	Rejseomkostninger hotel og restaurant	D		0
+5070	Fragt	D	K1	0
+5075	Truck/Lager	D	K1	0
+5080	Varevogn, brændstof	D	K1	0
+5081	Varevogn, reparation	D	K1	0
+5082	Varevogn, forsikring og vægtafgift	D		0
+5083	Leasing, Varebiler	D	K1	0
+5084	Periodisering leasing	D		0
+5085	Salg af varebil 	D	K1	0
+5140	Personvogn, brændstof	D		0
+5141	Personvogn, reparation	D		0
+5142	Persongovn, forsikring og vægtafgift	D		0
+5145	Personvogn, leasing	D		0
+5160	Bøder	D		0
+5190	Skattefri befordringsgodtgørelse	D		0
+5200	Tab på debitorer	D	S1	0
+5495	Salgs- og distributions omkostninger i alt	Z		5000
+5999	Andre Omkostninger	H		0
+6010	Kontorartikler	D	K1	0
+6020	Telefon og Fax	D	K1	0
+6080	Porto/Frimærker	D		0
+6085	Forsikringer (ikke personale)	D		0
+6090	Kontingenter m. moms	D	K1	0
+6095	Kontingenter u. moms	D		0
+6100	Aviser og blade	D		0
+6110	EDB omkostninger	D	K1	0
+6115	Omkostninger Dataløn	D	K1	0
+6120	Diverse gebyrer	D		0
+6130	Revision og regnskabsass.	D	K1	0
+6145	Advokat	D	K1	0
+6160	Vedligeholdelse driftsmidler	D	K1	0
+6175	Ikke fradragsberettigede omkostninger	D		0
+6250	Kursusudgifter	D		0
+6255	Arbejdstøj	D	K1	0
+6265	Fortæring personale	D		0
+6270	Andre personaleomkostninger	D		0
+6271	Konsulentbistand 	D	K1	0
+6275	Diverse med moms	D	K1	0
+6280	Diverse uden moms	D		0
+6285	Domæne, patent-& varemærke	D		0
+6290	Erstatninger	D		0
+6295	SPØRGSMÅL !!!!!!!!!!!!!!!!!!!!!!!!!!!!	D		0
+6495	Andre omkostninger I alt	Z		6000
+6995	Andre eksterne omkostninger i alt	Z		2999
+6999	Personaleomkostninger	H		0
+7010	Lønninger (AM-grundlag)	D		0
+7015	Særlig udbetaling	D		0
+7025	Reg. Feriepengeforpligtelse	D		0
+7055	ATP Medarbejderdel	D		0
+7065	Pension medarbejderdel	D		0
+7070	Lønrefusion	D		0
+7080	Viderefaktureret lønninger	D		0
+7125	Direktion	D		0
+7130	Direktion fri bil	D		0
+7145	Lønninger i alt	Z		7010
+7155	Pension direktion	D		0
+7165	Pension, arbejdsgiverdel	D		0
+7195	Pensioner i alt	Z		7155
+7210	ATP Arbejdsgiverdel	D		0
+7215	ATP, Finansieringsbidrag	D		0
+7225	Arbejdsskadeforsikring	D		0
+7230	Barselsfond	D		0
+7235	Andre Sociale omkostninger	D		0
+7255	Sociale omkostninger i alt	Z		7210
+7290	Personaleomkostninger i alt	Z		7000
+7295	Resultat før afskrivninger	Z		1000
+7999	Afskrivninger	H		0
+8020	Afskrivning Goodwill	D		0
+8025	Afskrivning Lokaleindretning	D		0
+8027	Afskrivning Lejerettigheder	D		0
+8050	Afskrivning driftsmidler	D		0
+8060	Afskrivninger Bygning	D		0
+8070	Småanskaffelser	D	K1	0
+8075	Fortjeneste driftsmidler	D		0
+8095	Afskrivninger i alt	Z		8000
+8795	Resultat før finansposter	Z		1000
+8999	Finansielle indtægter	H		0
+9070	Renteindtægter bank	D		0
+9100	Renteindtægter debitorer	D		0
+9105	Andre renteindtægter	D		0
+9108	Udbytter	D		0
+9110	Kursregulering værdipapirer	D		0
+9140	Modtagne kontantrabatter	D		0
+9145	Renter/procentgodtgørelse selsk.	D		0
+9195	Finansielle indtægter i alt	Z		9000
+9199	Finansielle omkostninger	H		0
+9250	Renteudgifter kassekredit	D		0
+9260	Anlægslån	D		0
+9270	Renter Fabriksvej 12	D		0
+9280	Renter Billån 7136-0001030670	D		0
+9290	Renter T&S	D		0
+9310	Andre renter	D		0
+9315	Låneomk. Uden fradrag	D		0
+9340	Kreditorer	D		0
+9342	X-Padel Køb m moms	D	K1	0
+9343	X-Padel Salg m moms	D	S1	0
+9345	Renter Anpartsselskabet af 30.01.2014	D		0
+9346	Mellemregning Leif Olsen Holding	D		0
+9347	Mellemregning X-padel	D		0
+9350	Garantiprovision	D		0
+9355	Kautionspræmie	D		0
+9360	Kursdifferencer	D		0
+9365	Diverse	D		0
+9485	Finansielle omkostninger i alt	Z		9200
+9495	Resultat før ekstraord. Poster	Z		1000
+9499	Skat af ord. resultat	H		0
+9510	Årets skat	D		0
+9515	Skat tidligere år	D		0
+9525	Eventualskat reg.	D		0
+9590	Skat af ord. Resulultat i alt	Z		9500
+9695	Årets resultat	Z		1000
+10000	-------------------------------------------------	X		0
+10001	Balance	H		0
+10002	Aktiver	H		0
+10003	Anlægsaktiver	H		0
+10004	Immaterielle anlægsaktiver	H		0
+10005	Goodwill	H		0
+10305	Samlet anskaffelsessum	S		0
+10310	Årets tilgang	S		0
+10360	Akkumulerede afskrivninger	S		0
+10365	Årets afskrivninger	S		0
+10390	Goodwill Ultimo	Z		10300
+10399	Indretning lejede lokaler	H		0
+10405	Samlet ansk. sum primo	S		0
+10410	Årets tilgang m. moms	S	K1	0
+10415	Årets tilgang u. moms	S		0
+10420	Årets afgang u/moms	S		0
+10425	Årets afgang m/moms	S	S1	0
+10460	Akkumulerede afskrivninger	S		0
+10490	Indretning lejede lokaler ultimo	Z		10400
+10499	Deposita	H		0
+10505	Huslejedepositum	S		0
+10510	Årets tilgang m. moms	S	K1	0
+10515	Årets tilgang u. moms	S		0
+10520	Årets afgang m. moms	S	S1	0
+10525	Årets afgang u. moms	S		0
+10595	Deposita ultimo	Z		10500
+10995	Immat. Anlægsaktiver i alt	Z		10000
+11000	Materielle anlægsaktiver	H		0
+11100	Grunde og bygninger	H		0
+11110	Årets tilgang med moms	S	K1	0
+11120	Køb Fabriksvej 12	S		0
+11150	Forbedring Fabriksvej 12 momspl.	S		0
+11160	Afskrivninger Fabriksvej 12	S		0
+11170	Salgssum ejendom	S		0
+11180	Fortjeneste ejendom	S		0
+11190	Grunde og bygninger Ultimo	Z		11100
+11499	Inventar	H		0
+11505	Samlet anskaffelsessum primo	S		0
+11510	Årets tilgang med moms	S	K1	0
+11560	Akkumulerede afskrivninger	S		0
+11590	Inventar Ultimo	Z		11500
+11599	EDB-udstyr	H		0
+11610	Årets tilgang med moms	S	K1	0
+11690	EDB-udstyr ultimo	Z		11600
+11699	Biler	H		0
+11705	Anskaffelsessum primo	S		0
+11710	Årets tilgang m. moms	S	K1	0
+11715	Årets tilgang u. moms	S		0
+11720	Årets afgang m. moms	S	S1	0
+11725	Årets afgang u. moms	S		0
+11790	Biler Ultimo	Z		11700
+11800	Forudbetaling	S		0
+11810	Årets tilgang med moms	S	K1	0
+11815	Årets tilgang uden moms	S		0
+11820	Årets afgang med moms	S	S1	0
+11825	Årets afgang uden moms	S		0
+11890	Forudbetaling ultimo	Z		11800
+11995	Materielle Anlægsaktiver i alt	Z		11000
+14995	Anlægsaktiver i alt	Z		9999
+14999	Omsætningsaktiver	H		0
+15000	Varebeholdninger	H		0
+15100	Varebeholdning primo	S		0
+15200	Svømmende varer	S		
+15210	Varekøb danske leverandører	S	K1	0
+15215	Engrossalg	S	S1	0
+15216	Engrossalg USD konto	S	S1	0
+15220	Bonus	S	K1	0
+15223	Importtold	S		
+15225	Emballage	S	K1	0
+15227	Told indkøb	S		
+15228	Fragt indkøb	S		0
+15230	Varekøb import fra EU-lande	S	E1	0
+15240	Varekøb import fra øvrig udland	S	E1	0
+15241	Varekøb import Laxholm	S	E1	0
+15242	Varekøb import Taizhou	S	E1	0
+15243	Varekøb import Royal Garden	S	E1	0
+15244	Varekøb import Trade Point	S	E1	0
+15245	Varekøb import Nylon King	S	E1	0
+15246	Varekøb import Farry Hartono	S		0
+15247	Varekøb import Cinas	S		0
+15248	Varekøb import Alba Garden	S		0
+15249	Varekøb Schou USD	S	K1	0
+15250	Varekøb u. moms	S	E1	0
+15251	Varekøb import Schou	S		0
+15252	Varekøb import May Viet	S		0
+15253	Varekøb import Shenzhen Sun.	S		0
+15300	Svømmende varer	S		
+15325	Hjemtagelsesomk. M. moms	S	K1	0
+15330	Hjemtagelsesomk. u. moms	S		0
+15335	Rabat	S		0
+15410	Vareforbrug	S		0
+15995	Varebeholdninger i alt	Z		15000
+15999	Tilgodehavender	H		0
+16000	Tilgodehavender fra salg	H		0
+16110	Debitorer danske	S		0
+16111	Ventekonto engrossalg	S		0
+16150	Hensættelse til tab	S		
+16295	Tilgodehavender fra salg i alt	Z		16100
+16299	Andre tilgodehavender	H		0
+16310	Varekøb forudbetaling	S		0
+16610	Andre tilgodehavender	S		0
+16625	Dankort	S		0
+16626	Diners	S		0
+16627	Visa/Mastercard/Eurocard	S		0
+16628	Acceptcard	S		0
+16629	American Express	S		0
+16635	Personaledebitorer	S		0
+16640	Aconto løn	S		0
+16644	Lån til Michael Goldin	S		0
+16645	Lån til Kent Burmeister	S		0
+16646	Lån til Lån10	S		0
+16647	Lån til Martin Jensen	S		0
+16648	Lån til Forever Fitness	S		0
+16649	Lån til Kenneth Lütøft	S		0
+16650	Diverse tilgodehavender	S		0
+16651	Lån til Helsingør Paddeltennis	S		0
+16655	Tilgodehavende salg porte 	S		
+16700	Mellemregning Kop & Kande	S		0
+16701	Leif Olsen Ejendom Aps 	S		0
+16895	Andre tilgodehavender i alt	Z		16300
+16910	Periodeafgrænsningsposter	S		0
+16920	Periodisering leasing	S		0
+16995	Tilgodehavender i alt	Z		16000
+16999	Værdipapirer og kapitalandele	H		0
+17030	Andre værdipapirer	S		0
+17495	Værdipapirer og kapitalandele i alt	Z		17000
+17999	Likvide beholdninger	H		0
+18010	Kassebeholdning Helsinge	S		0
+18011	Kassebeholdning Helsingør	S		0
+18012	Kassebeholdning Fabriksvej	S		0
+18013	Kassebeholdning Internet	S		0
+18014	Kassebeholdning Ballerup	S		0
+18020	Kasse -> Bank Helsinge	S		0
+18021	Kasse -> Bank Helsingør	S		0
+18022	Kasse -> Bank Ballerup	S		0
+18023	Kasse -> Bank Internet	S		0
+18024	Kasse -> Bank Ballerup	S		0
+18025	Helsinge JB 7136 1044408	S		0
+18026	Ballerup JB 7136 1044390	S		0
+18028	Helsingør JB 7136 1051940	S		0
+18050	USD konto 6329 1287579	S		0
+18495	Likvide beholdninger i alt	Z		18000
+18995	Omsætningsaktiver i alt	Z		14999
+19995	Aktiver i alt	Z		9998
+19996	Balance	H		0
+19997	Passiver	H		0
+19999	Egenkapital	H		0
+20010	Indskudskapital	S		0
+20095	Egenkapital i alt	Z		20000
+20799	Resultat	H		0
+20800	Korrektion	S		
+20810	Overført resultat	S		0
+20820	Årets resultat	R		9695
+20890	Udloddet udbytte	S		0
+20895	Resultat i alt	Z		20800
+22000	Hensættelser	H		0
+22110	Eventualskat	S		0
+22495	Hensættelser i alt	Z		22000
+23999	Langfristet gæld	H		0
+24995	Langfristet gæld i alt	Z		24000
+24999	Kortfristet gæld	H		0
+25320	Jyske Bank 5050 1548742	S		0
+25321	Nordnet aktie depot 	S		0
+25322	Nordnet Bankkonto	S		0
+25330	Fakturaindbet JB 7136 1017214	S		0
+25335	Kontant indbetaling 7136 1061451	S		0
+25340	CIBOR JB 7136 1074637	S		0
+25395	Kassekredit i alt	Z		25310
+25999	Lev. Af varer/tjenesteydelser	H		0
+26010	Kreditorer danske	S		0
+26090	Rettelse Kreditorer	S		0
+26110	Skyldige omkostninger	S		0
+26115	Hensat til revisor m.m.	S		0
+26120	Gavekort og tilgodesedler	S	S1	0
+26121	Hensat gavekort	S		0
+26195	Lev. Af varer/tjenesteydelser i alt	Z		26000
+26499	Anden gæld i øvrigt	H		0
+26799	Selskabsskat	H		0
+26810	Selskabsskat primo	S		0
+26830	Skat af årets resultat	S		0
+26835	Betalt ordinær a/c skat 20. mar	S		0
+26850	Betalt ordinær a/c skat 20. nov	S		0
+26895	Selskabsskat i alt	Z		26800
+26998	Anden gæld	H		0
+26999	Moms	H		0
+27110	Udgående afgift	S		0
+27115	Moms af varekøb m.v. i udland	S		0
+27120	Indgående afgift	S		0
+27125	Moms leasing personbiler	S		0
+27140	Elafgift	S		0
+27150	Vandafgift	S		0
+27200	Afregnet moms	S		0
+27295	Moms i alt	Z		27100
+27510	Skyldig  A-skat	S		0
+27520	Skyldig AM- bidrag	S		0
+27535	Skyldig ATP og FIB bidrag	S		0
+27540	Skyldig samlet betaling	S		
+27550	Skyldig pension	S		0
+27560	Beregnet feriepengeforpligtelse	S		0
+27570	Skyldige feriepenge	S		0
+27590	Skattekonto	S		0
+27610	Skyldig gavekort	S		0
+27615	Skyldig lønposter	S		0
+27620	Forudbetaling for varer	S		0
+27627	Mellemregning Mebel Home	S		0
+27628	Mellemregning Leif Olsen Holding	S		0
+27629	Mellemregning By the Lake	S		0
+27630	Mellemregning Leif Olsen	S		0
+27631	Skyldig udbytteskat	S		0
+27790	Anden gæld i øvrigt i alt	Z		27500
+27795	Anden gæld i alt	Z		27000
+27995	Kortfristet gæld i alt	Z		25000
+28995	Gæld i alt	Z		24000
+29995	Passiver i alt	Z		19998
+30000	Balancekontrol	Z		10000

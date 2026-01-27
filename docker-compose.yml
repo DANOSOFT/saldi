@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: saldi_app
+    ports:
+      - "${SALDI_PORT:-8080}:80"
+    environment:
+      GENERATE_CONNECT_PHP: ${GENERATE_CONNECT_PHP:-1}
+      DB_TYPE: ${DB_TYPE:?set DB_TYPE}
+      DB_HOST: ${DB_HOST:?set DB_HOST}
+      DB_NAME: ${DB_NAME:?set DB_NAME}
+      DB_USER: ${DB_USER:?set DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+    volumes:
+      - ./src:/var/www/html/saldi
+    restart: always

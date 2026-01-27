@@ -1,0 +1,1150 @@
+/* 
+
+  Name: Colorful Dark Top Menu
+  Author: MSC
+
+*/
+
+/* Insert font family Viga */
+@font-face {
+  font-family: 'Viga';
+  src: url(../../fonts/topmenu/viga-regular-webfont.woff2) format('woff2'),
+       url(../../fonts/topmenu/viga-regular-webfont.woff) format('woff'),
+       url(../../fonts/topmenu/Viga-Regular.ttf) format('tff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Insert font family Montserrat */
+@font-face {
+  font-family: 'Montserrat';
+  src: url(../../fonts/topmenu/montserrat-medium-webfont.woff2) format('woff2'),
+       url(../../fonts/topmenu/montserrat-medium-webfont.woff) format('woff'),
+       url(../../fonts/topmenu/Montserrat-Medium.ttf) format('tff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Background color and default text color */
+body {
+    background-color: #222222;
+}
+
+/* Slide down menu container */
+.container {
+    width: 100%;
+    max-width: 1600px;
+}
+
+/* Slide down menu header */
+.header {
+    padding: 8px 0 10px 0;
+    background: #222222;
+    position: relative;
+    display: none;
+    z-index: 2000;
+    min-width: 1050px;
+}
+
+/* Header, navigation and Menu styling */
+.header .navigation .menu span {
+    display: block;
+    margin-top: 14px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #fff;
+    font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Header, navigation, menu and menu-list styling*/
+.header .navigation .menu .menu-list ul {
+    list-style: none;
+    padding-left: 0px;
+}
+
+/* Header, navigation, menu and menu-list styling*/
+.header .navigation .menu .menu-list ul li {
+    background: #333333;
+    border: 0px solid #222222;
+    border-top: 0;
+}
+
+/* Header, navigation, menu and menu-list styling*/
+.header .navigation .menu .menu-list ul li a {
+    font-size: 15px;
+}
+
+/* The end for each navgivation category */
+.menu-end {
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    background: #333333;
+    font-size: 3px;
+}
+
+/* Header, navigation and menu styling */
+.header .navigation .menu span {
+    display: block;
+    margin-top: 14px;
+    font-size: 16px;
+    color: #fff;
+    font-family: 'Montserrat', Tahoma, sans-serif;
+    font-weight: bolder;
+}
+
+/* Header and navigation styling */
+.header .navigation .sform span {
+    display: block;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    border-bottom: 1px dashed #ccc;
+    font-size: 15px;
+    color: #555;
+    font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Header, navigation input styling */
+.header .navigation .sform .form .form-group input {
+    margin-bottom: 10px;
+}
+
+/* Slide down menu button */
+.menu-btn {
+    position: absolute;
+    right: 5%;
+    z-index: 1500;
+}
+
+/* Slide down menu button link */
+.menu-btn a, .menu-btn a:link, .menu-btn a:visited, .menu-btn a:active {
+    display: inline-block;
+    width: 90px;
+    height: 35px;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    line-height: 35px;
+    text-align: center;
+    font-size: 14px;
+    color: #fff;
+    background: #0a306e;
+    text-decoration: none !important;
+    font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Logo header */
+.head {
+    background: rgba(0, 0, 0, 1.0);
+    border-top: 3px solid #0a306e;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+    padding: 8px 0;
+    width: 100%;
+    position: absolute;
+    z-index: 1000;
+    min-width: 1050px;
+}
+
+/* Head and logo postion */
+.head .logo {
+    margin-top: 7px;
+    margin-left: 5%;
+    margin-right: 5%;
+}
+
+/* Logo img size */
+.head .logo img {
+    width: 50px;
+    height: 50px;
+}
+
+/* Logo Color Link */
+.head .logo a {
+    color: black;
+}
+
+/* Logo Color Link */
+.head .logo a, a:link, a:visited, a:active {
+  text-decoration: none !important;
+  background-size: 0px;
+}
+
+/* Slide down menu headers */
+
+/* Kunder header */
+.headKund {
+    background: #1792A2;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Leverandører header */
+.headLev {
+    background: #277BC6;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Finans header */
+.headFina {
+    background: #272CC6;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+    margin-top: 2px;
+}
+
+/* Lager header */
+.headLag {
+    background: #7127C6;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Systemdata header */
+.headSys {
+    background: #C127C6;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Bruger header */
+.headBrug {
+    background: #C6277B;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Slide down menu list */
+.menu-list ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  background-color: #333333;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Slide down menu list link */
+.menu-list li a {
+  display: block;
+  color: #ffffff;
+  padding: 14px 20px;
+  text-decoration: none;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  -o-transition:.5s;
+  -ms-transition:.5s;
+  -moz-transition:.5s;
+  -webkit-transition:.5s;
+  /* ...and now for the proper property */
+  transition:.5s;
+}
+
+/* Slide down menu list link on hover */
+.menu-list li a:hover {
+  background-color: #555;
+  color: white;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  background-size: 100% 3px;
+}
+
+/* Container for logo and firm name */
+.logo-container {
+  display: flex;
+  flex-direction: row;
+  width: auto;
+}
+
+/* Styling of firm name */
+.logo-name {
+  margin-top:2px;
+  font-size: 35px;
+  font-family: 'Viga', Tahoma, sans-serif;
+  text-transform: uppercase;
+  color: #79b2ff;
+  margin-left:10px;
+}
+
+/* Styling of financial accounting name */
+.regnskab-name {
+  margin-top:11px;
+  font-size: 25px;
+  font-family: 'Viga', Tahoma, sans-serif;
+  text-transform: uppercase;
+  color: white;
+  margin-left:10px;
+}
+
+.logolink {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Flex container */
+.flex-container
+{
+  display: flex;
+  justify-content: center;
+  min-width: 1050px;
+}
+
+/* Content */
+.content
+{
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  font-size: 17px;
+  margin-top: 120px;
+  margin-left: 5%;
+  margin-right: 5%;
+  margin-bottom: 30px;
+  width: 100%;
+  color: #fff;
+}
+
+/* Content, without sidebar */
+.content-noside {
+  padding: 10px;
+  width: 100%;
+  background-color: #333333;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+/* Content, when using sidebar */
+.side-content {
+  padding: 10px;
+  width: 90%;
+  background-color: #333333;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+/* Container, when using sidebar */
+.sidebar-container
+{
+  display: flex;
+  flex-direction: row;
+}
+
+/* Sidebar, when using sidebar */
+.sidebar {
+  width: 20%;
+  background-color: #333333;
+  min-width: 200px;
+}
+
+/* Sidebar menu list */
+.sidebar-menu ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  background-color: #333333;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Sidebar menu link */
+.sidebar-menu li a {
+  display: block;
+  color: #ffffff;
+  padding: 10px 10px;
+  text-decoration: none;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  -o-transition:.5s;
+  -ms-transition:.5s;
+  -moz-transition:.5s;
+  -webkit-transition:.5s;
+  transition:.5s;
+}
+
+/* Sidebar menu link hover */
+.sidebar-menu li a:hover {
+  background-color: #555;
+  color: white;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  background-size: 100% 3px;
+}
+
+/* Scrolling bar */
+/* The emerging W3C standard
+ that is currently Firefox-only */
+ * {
+  scrollbar-color: #555555 #222222;
+  scrollbar-width: auto;
+}
+/* Works on Chrome/Edge/Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+}
+*::-webkit-scrollbar-track {
+  font-size: 17px;
+  background: #222222;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #555555;
+  border-radius: 0px;
+}
+
+/* Link styling */
+a, a:link, a:visited, a:active {
+  color: #1792A2;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 2px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 2px;
+  transition: 0.5s;
+}
+
+/* Link styling on hover */
+a:hover {
+  color: #C127C6;
+  text-decoration: none;
+  background-size: 100% 2px;
+}
+
+/* Input styling */
+input {
+  color: #fff;
+  background-color: #555;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+  outline: none;
+}
+
+/* Select styling */
+select {
+  color: #fff;
+  background-color: #555;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+  outline: none;
+}
+
+/* Select focus styling */
+select:focus {
+  color: #fff;
+  background-color: #555;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #777;
+  border-radius: 5px;
+}
+
+/* Input focus styling */
+input:focus {
+  color: #fff;
+  background-color: #555;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #777;
+  border-radius: 5px;
+}
+
+/* Input focus styling for button */
+input[type=button]:focus {
+  color: #fff;
+  background-color: #7a7a7a;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #444;
+  border-radius: 5px;
+}
+
+/* Input focus styling for reset button */
+input[type=reset]:focus {
+  color: #fff;
+  background-color: #7a7a7a;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #444;
+  border-radius: 5px;
+}
+
+/* Input focus styling for submit button */
+input[type=submit]:focus {
+  color: #fff;
+  background-color: #7a7a7a;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #444;
+  border-radius: 5px;
+}
+
+/* Checkmark styling for Ordrevisning */
+
+/* The container */
+.checkContainerVisning {
+  display: inline;
+  position: relative;
+  padding-left: 35px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  font-size: 22px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Hide the browser's default checkbox */
+.checkContainerVisning input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+/* Create a custom checkbox */
+.checkmarkVisning {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 20px;
+  width: 20px;
+  background-color: #555;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  -webkit-transition: 0.5s;
+}
+
+/* On mouse-over */
+.checkContainerVisning:hover input ~ .checkmarkVisning {
+  background-color: #7a7a7a;
+  border: 1px solid #777;
+}
+
+/* When the checkbox is checked */
+.checkContainerVisning input:checked ~ .checkmarkVisning {
+  background-color: #7a7a7a;
+  border: 1px solid #777;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmarkVisning:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the checkmark when checked */
+.checkContainerVisning input:checked ~ .checkmarkVisning:after {
+  display: block;
+}
+
+/* Style the checkmark/indicator */
+.checkContainerVisning .checkmarkVisning:after {
+  left: 6px;
+  top: 3px;
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+
+/* Checkmark styling for Ordreliste */
+
+/* The container */
+.checkContainerOrdreliste {
+  display: inline;
+  position: relative;
+  padding-left: 35px;
+  margin-bottom: 15px;
+  cursor: pointer;
+  font-size: 22px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  right : -45%;
+}
+
+/* Hide the browser's default checkbox */
+.checkContainerOrdreliste input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+/* Create a custom checkbox */
+.checkmarkOrdreliste {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 17px;
+  width: 17px;
+  background-color: #555;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  -webkit-transition: 0.5s;
+}
+
+/* On mouse-over */
+.checkContainerOrdreliste :hover input ~ .checkmarkOrdreliste {
+  background-color: #7a7a7a;
+  border: 1px solid #777;
+}
+
+/* When the checkbox is checked */
+.checkContainerOrdreliste input:checked ~ .checkmarkOrdreliste {
+  background-color: #7a7a7a;
+  border: 1px solid #777;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmarkOrdreliste:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the checkmark when checked */
+.checkContainerOrdreliste input:checked ~ .checkmarkOrdreliste:after {
+  display: block;
+}
+
+/* Style the checkmark/indicator */
+.checkContainerOrdreliste .checkmarkOrdreliste:after {
+  left: 5px;
+  top: 2px;
+  width: 6px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+
+/* Textarea styling */
+textarea {
+  color: #fff;
+  background-color: #555;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 0px solid #000000;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+  outline: none;
+  resize: none;
+  scrollbar-width: auto;
+  scrollbar-color: #222222 #555555;
+}
+
+/* Textarea focus styling */
+textarea:focus {
+  color: #fff;
+  background-color: #555;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #777;
+  border-radius: 5px;
+}
+
+/* Scrolling bar */
+
+/* Works on Chrome/Edge/Safari */
+textarea::-webkit-scrollbar {
+  width: 10px;
+}
+textarea::-webkit-scrollbar-track {
+  background: #555555;
+}
+textarea::-webkit-scrollbar-thumb {
+  background-color: #222222;
+  border-radius: 0px;
+}
+
+/* Label styling */
+label {
+  font-weight: 400;
+  display: inline;
+}
+
+/* Title for category Kunder */
+.titleKund {
+  background-color: #1792A2;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Leverandører */
+.titleLev {
+  background-color: #277BC6;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Finans */
+.titleFina {
+  background-color: #272CC6;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Lager */
+.titleLag {
+  background-color: #7127C6;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Systemdata */
+.titleSys {
+  background-color: #C127C6;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Bruger */
+.titleBrug {
+  background-color: #C6277B;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Sub-title for kunder (no radius) */
+
+.sub-title-kund {
+  background-color: #199fb1;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 20px 20px 10px 20px;
+}
+
+/* Sub-title for kunder */
+
+.sub-title-kund-radius {
+  background-color: #199fb1;
+  padding: 10px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 20px 20px 10px 20px;
+}
+
+.sub-title-kund-left {
+  background-color: #199fb1;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-top-left-radius: 5px;
+  padding: 20px 20px 10px 20px;
+}
+
+.sub-title-kund-right {
+  background-color: #199fb1;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-top-right-radius: 5px;
+  padding: 20px 20px 10px 20px;
+}
+
+/* Sub-title link for kunder */
+
+.sub-title-link-kund a, .sub-title-link-kund a:link, .sub-title-link-kund a:visited, .sub-title-link-kund a:active {
+  color: black;
+  background-color: #199fb1 !important;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 0px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 0px;
+  transition: 0.5s;
+  padding: 2px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 550 !important;
+}
+
+/* Sub-title for kunder, link on hover */
+
+.sub-title-link-kund a:hover {
+  background-color: #199fb1 !important;
+  color: white;
+  text-decoration: none;
+  background-size: 0% 0px;
+  font-weight: 550 !important;
+}
+
+/* Separating line for tables top */
+
+.border-hr-top {
+  border-top: 3px solid #333333;
+  height: 3px;
+}
+
+/* Separating line for tables bottom */
+
+.border-hr-bottom {
+  border-bottom: 3px solid #333333;
+  height: 3px;
+}
+
+/* Dropdown button */
+.dropbtn {
+  transition-duration: 0.4s;
+  outline: 0px solid orange;
+  background-color: #333333;
+  border: none;
+  -o-transition:.5s;
+  -ms-transition:.5s;
+  -moz-transition:.5s;
+  -webkit-transition:.5s;
+  transition:.5s;
+  padding: 14px 20px;
+  text-align: left;
+  color: white;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  font-size: 14px;
+  width: 233px;
+}
+
+/* Dropdown button on hover and focus */
+.dropbtn:hover, .dropbtn:focus {
+  padding: 14px 20px;
+  background-color: #555;
+  outline: 0px solid orange;
+}
+
+/* Dropdown */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown content */
+.dropdown-content {
+  display: none;
+  position: absolute;
+  overflow: auto;
+  z-index: 3000;
+}
+
+/* Dropdown content link */
+.dropdown-content a {
+  color: black;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+/* dropdown content link on hover */
+.dropdown a:hover {
+  background-color: #ddd;
+}
+
+/* Dropdown show */
+.show {display: block;}
+
+/* Theme switcher button */
+.theme-switcher-btn {
+  transition-duration: 0.4s;
+  outline: 0px solid orange;
+  background-color: #333333;
+  border: none;
+  -o-transition:.5s;
+  -ms-transition:.5s;
+  -moz-transition:.5s;
+  -webkit-transition:.5s;
+  transition:.5s;
+  padding: 14px 20px;
+  text-align: center;
+  color: white;
+}
+
+/* Theme switcher button on hover */
+.theme-switcher-btn:hover {
+  padding: 14px 20px;
+  outline: 0px solid orange;
+  background-color: #555;
+  border: none;
+  color: white;
+}
+
+/* Back to top link */
+#back2Top {
+  width: 40px;
+  line-height: 40px;
+  overflow: hidden;
+  z-index: 999;
+  display: none;
+  cursor: pointer;
+  position: fixed;
+  bottom: 20px;
+  right: 5px;
+  background-color: none;
+  color: #555;
+  text-align: center;
+  font-size: 30px;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 0px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 0px;
+  transition: 0.5s;
+}
+
+/* Back to top link on hover */
+#back2Top:hover {
+  background-color: none;
+  color: white;
+}
+
+/* Footer styling */
+.footer {
+  width: 100%;
+  text-align: center;
+  padding-bottom: 20px;
+  font-size: 16px;
+  color: white;
+  font-family: 'Montserrat';
+}
+
+.currentThemeIMG {
+  height: 100%;
+  width: 100%;
+  border: 0px;
+  width: 100px;
+  height: 13px;
+  pointer-events: none;
+  background-image: url('../../img/topmenu/theme/darkcolor.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  border: 0px solid #000;
+}
+
+.themeIMG {
+  pointer-events: none;
+  text-align: center;
+}
+
+.imgInvert {
+  -webkit-filter: invert(1);
+  filter: invert(1);
+}
+
+.imgNoTextDeco a, .imgNoTextDeco a:link, .imgNoTextDeco a:visited, .imgNoTextDeco a:active {
+  color: grey;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 0px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 0px;
+  transition: 0.5s;
+}
+
+.imgNoTextDeco a:hover {
+  color: white;
+  text-decoration: none;
+  background-size: 0% 0px;
+}
+
+.ordreTablebg {
+  background-color: #333333;
+}
+
+.CellWithComment{
+  position:relative;
+}
+
+.CellComment{
+  display:none;
+  position:absolute; 
+  z-index:100;
+  border:1px;
+  background-color:#666;
+  border-style:solid;
+  border-width:1px;
+  border-color:#777;
+  padding:3px;
+  color:#fff; 
+  top:50px; 
+  left:20px;
+  min-width: 100px;
+  max-width: 500px;
+  font-size: 16px;
+}
+
+.CellWithComment:hover span.CellComment{
+  display:block;
+}
+
+/* Red OBS */
+.obs {
+  color: #ed5757;
+}
+
+.dataTable table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+}
+
+.dataTable th {
+	border-bottom: 3px solid #333333;
+  background-color: #474747;
+  border-radius: 5px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: white;
+  padding: 15px;
+}
+
+.dataTable td {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: white;
+  padding: 10px;
+}
+
+.dataTable tfoot {
+  border-top: 3px solid #333333;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: white;
+}
+
+.dataTableNTH table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+}
+
+.dataTableNTH th {
+	border-bottom: 3px solid #333333;
+  background-color: #474747;
+  border-radius: 5px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: white;
+  padding: 15px;
+}
+
+.dataTableNTH td {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: white;
+  padding: 10px;
+}
+
+.dataTableNTH tbody tr:nth-child(even) {
+  background-color: #5e5e5e;
+}
+
+.dataTableNTH tfoot {
+  border-top: 3px solid #333333;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: white;
+}
+
+.dataTablediv {
+  background-color: #474747;
+  border-radius: 5px;
+}
+
+/* Table border left */
+.table-border-left {
+  border-left: 3px solid #333333;
+}
+
+/* Table border right */
+.table-border-right {
+  border-left: 3px solid #333333;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
