@@ -95,6 +95,8 @@
 // 20250512 PHR - added feedback message after product creation 'shopurl' fetch 	
 // 26062025 PBLM - Changed alert text to danish
 // 20250924 PBLM - Alert for saved product is disabled
+// 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
+
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -1148,7 +1150,7 @@ if ($saveItem) {
 }
 
 if ($saveItem && $beskrivelse[0] != $oldDescription) {
-    if ($confirmDescriptionChange)
+    if ($confirmDescriptionChange && $oldDescription)
         include("productCardIncludes/changeDescription.php");
     else {
         $qtxt = "update varer set beskrivelse = '" . db_escape_string($beskrivelse[0]) . "' where id= '$id'";

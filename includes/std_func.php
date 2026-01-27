@@ -120,6 +120,8 @@
 // 20250630 PHR Minor change in transtjek
 // 20250811 PHR Another minor change in transtjek
 // 20251106 LOE Added z-index to tekstboks function
+// 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
+
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
@@ -1858,7 +1860,7 @@ if (!function_exists('sync_shop_vare')) {
 		#if ($partOfItem) echo __line__." Id $vare_id is part of another item<br>";  	
 		$qtxt = "select box8 from grupper where kodenr='$itemGroup' and art = 'VG' AND fiscal_year = $regnaar";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		echo $qtxt;
+		// echo $qtxt;  // Debug line removed
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (!$r['box8']) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no stock\n");
@@ -1903,7 +1905,7 @@ if (!function_exists('sync_shop_vare')) {
 		} else {
 			$qtxt = "select varer.varenr, varer.varenr_alias, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
 			$qtxt .= "where lagerstatus.vare_id='$vare_id' and lagerstatus.lager='$lager' and varer.id='$vare_id'";
-			echo $qtxt;
+			// echo $qtxt;  // Debug line removed
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$stock = $r['stock'];
 				$itemNo = $r['varenr'];
