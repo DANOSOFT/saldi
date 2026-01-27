@@ -8,12 +8,13 @@ src/includes/connect.php
 bilag/
 saldibilag/
 
-# Temp directories
-**/temp/
-src/bordplaner/temp/
+# Temp directories (ignore contents, keep .gitkeep)
+**/temp/*
+!**/temp/.gitkeep
 
-# Logo library (user data)
-src/logolib/
+# Logo library (ignore contents, keep .gitkeep)
+src/logolib/*
+!src/logolib/.gitkeep
 
 # Certificates
 src/certs/
