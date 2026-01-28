@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 4.1.1 --- 2025-11-06 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-01-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,79 +21,9 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
-// 20130210 Break ændret til break 1 Tastefejl rettet.
-// 20140501 Funktion findtekst - teksten ignoreres nu hvis tekst="-"
-// 20140505 Funktion findtekst insdat db_escape_string. (PHR - Danosoft) Søg 20140505
-// 20141010 CA  Funktionen farvenuance antager hvid baggrund, hvis ingen angivet. Søg 20141010
-// 20141031 CA  Funktionen advarselsboks skal erstatte JavaScript Alertbokse - er ikke færdig. Søg 20141031
-// 20141031 PHR tilføjet funktion "find_varemomssats"
-// 20141121 CA  Funktionen tekstsboks erstatter advarselsboks en udgave med og uden tabel. Søg 20141121
-// 20141121 CA  Tilføjet funktion bokshjoerne til flytning af tekstbokse. Søg 20141121
-// 20141223 PHR Tilføjet funktion find_lagervaerdi til brug med aut_lager. Søg 20141223
-// 20150218 PK  Tilføjet to funktioner til at lave uppercase på tekst-streng. Søg mb_ucfirst eller mb_ucwords
-// 20150313 CA  Byttet om på farverne for infoboks (nu blå) og popop (nu grøn). Søg 20150313
-// 20160116 PHR Oprettet funktion regnstartslut
-// 20161011 PHR Oprettet funktion lagerreguler
-// 20161022 PHR Rettet funktion lagerreguler $diff skal ikke fratrækkes $rest 20161022
-// 20161124 PHR Rettet funktion lagerreguler så lagerstatus fjernes for lagre > 0 hvis der ikke er flere lagre  Søg 20161022
-// 20161217 PHR Tilføjet funktion find_beholdning (Flyttet fra lager/varer.php)
-// 20161222 PHR Rettet funktion lagerreguler så dubletter på lager 0 slettes hvis der ikke er flere lagre.
-// 20161222 PHR Rettet fejl. Lager o blev ikke fundet så dublet blev oprettet på lager 0
-// 20170404 PHR Funktion 'find_lagervaerdi' udelader nu ikke bogførte ordrer da disse kan give skæve tal.
-// 20180119 PHR Tilføjet funktion hent_shop_ordrer som opdaterer ordrer fra shop.
-// 20180123 PHR En del rettelser i funktion lagerreguler i forhold til varianter og flere lagre.
-// 20180518 PHR Tilføjet funktion alert.
-// 20181126 PHR Variabeldefiniton i div. funktioner. 
-// 20181220 MSC  Rettet fejl
-// 20190104 PHR	 " nye funktioner create_debtor & get_next_number
-// 20190221 MSC  Flytter $boksid="" til enden søg edit 2019.02.21 for kode
-// 20190423 PHR 'bynavn' (city) was not inserted in 'adresser' if not set in function create_debtor. 20190423
-// 20190605 PHR Added if_isset to avoid warning. 20190605
-// 20190704 RG  (Rune Grysbæk) Mysqli implementation 
-// 20200326 PHR Optimized function findtekst.
-// 20200327 PHR Moved function barcode form lager/varekort
-// 20200407 PHR Some minor changes to function barcode to work with kreditor/ordre.php
-// 20200907 PHR Function sync_shop_vare. Query parted in 2 to make it find varenr if no shop_id
-// 20200917 PHR	Added missing email in create_debtor
-// 20210225 LOE Added active language function
-// 20200917 PHR Added missing email in create_debtor
-// 20201119 PHR Some optimation in function lagerreguler an extended logging in function sync_shop_vare 
-// 20210107 PHR Function cvrnr_omr. Removed GB from EU
-// 20210107 PHR Function lagerreguler. Added file & line to wget call. 
-// 20210301 CA  Added function trim_utf8. Trims for traditional whitespaces and &nbsp;
-// 20210302 LOE Function csv_to_array() and engdan() added 
-// 20210303 LOE Added this block to handle a situation when tekster table is empty
-// 20210304 LOE Replaced the if(!$teskt) fuction with an updated version 
-// 20210409 LOE Modified engdan() to accomondate other languages
-// 20210419 LOE Did some modifications in findtekst function 20210419
-// 20210421 LOE modified added activelanguage id activelanguage() function 20210421
-// 20210427 LOE Modified active language function
-// 20210428 LOE findtekst function is modified to accomodate admin during installation Danish as the default 20210428
-// 20210429 LOE activeLanguage function also updated 
-// 20210517 Loe Updated findtekst function using abs function to get negative ids for admins positive and updated some where it applies
-// 20210518 LOE Added this to check handle more than one account for the admin ..if the initial language still exists it updates the table with active one
-// 20210704 LOE Little modification of findtekst() function
-// 20210818 LOE Did some modication to findtekst function checking before insert if the value already exists in tekster table
-// 20210828 LOE Updated findtekst function 
-// 20210830 LOE Created get_ip function...This is used in login.php file and in brugere.php
-// 20210831 LOE Created restrict_user_ip and restore_user_ip functions
-// 20210901 LOE Created authenticate_user_ip function
-// 20210908 LOE Created input_ip function
-// 20210909 LOE Modified some function relating to Ip
-// 20210915 LOE Modified activeLanguage function for older vesion compatibility
-// 20210916 LOE Modified findtekst function to have a default language for develop db
-// 20210917 LOE Set sprog_id for admins and updated some codes
-// 20210922 LOE Added session language for admin users.
-// 20211001 LOE Added lingua as language set for admins*
-// 20211006 LOE Updating some findtekst function codes
-// 20211007 LOE For admin checking before insert if the value already exists in tekster table
-// 20211008 PHR Function findtekst rolled back.
-// 20211013 PHR Function sync_shop_vare & lagerreguler - added totalStock 
-// 20211015 LOE Modified some codes to adjust to IP moved to settings table
-// 20211029 PHR Function barcode - If not numeric, barcode is not EAN13
 // 20220110 PHR Function 'sync_shop_vare' Check if item is a stock item
 // 20200125 PHR Added func getAvailable, added it to func sync_shop_vare and addef func sync_shop_vare to func lagerreguler
 // 20220514 PHR Function findtekst. Added str_replace('\n\n',"\n\n" to newTxt
@@ -121,6 +51,7 @@
 // 20250811 PHR Another minor change in transtjek
 // 20251106 LOE Added z-index to tekstboks function
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
+// 20260127 PHR corrected error in function get_next_order_number
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -2208,7 +2139,9 @@ if (!function_exists('get_next_order_number')) {
 				// FOR UPDATE with aggregate functions is not allowed in PostgreSQL
 				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
 				
-				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
+#				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
+				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) AS max_ordrenr ";
+				$qtxt.= "FROM (SELECT ordrenr FROM ordrer WHERE art = '$art' FOR UPDATE) t";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
 				
@@ -2224,7 +2157,8 @@ if (!function_exists('get_next_order_number')) {
 					// Order number already exists (shouldn't happen with proper locking)
 					// Increment and retry
 					$ordrenr++;
-					usleep(rand(10000, 50000)); // Small random delay to reduce contention
+					$rand = rand(10000, 50000)+$bruger_id*100;
+					usleep($rand); // Small random delay to reduce contention
 				}
 			}
 			
