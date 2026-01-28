@@ -1506,7 +1506,6 @@ if ($menu=='T') {
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
 <script src="../javascript/kreditorOrdreAutocomplete.js"></script>
 
-?>
 <style>
 .ordreform { 
 	overflow-x: auto;
