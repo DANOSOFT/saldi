@@ -1578,13 +1578,12 @@ function render_search_style() {
             position: sticky;
             top: 0;
             z-index: 2;
-            background-color: #f4f4f4;
             text-align: left;
             border-bottom: 2px solid #ddd;
         }
         .datatable thead tr,
         .datatable thead th {
-            background-color: #f4f4f4;
+            /* background-color: #f4f4f4; */
         }
         .datatable tbody {
             /* No special styling needed - will expand naturally */
