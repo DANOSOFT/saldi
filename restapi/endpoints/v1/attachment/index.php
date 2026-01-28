@@ -104,14 +104,22 @@ class AttachmentEndpoint extends BaseEndpoint
             $base64Data = $data->image_base64;
             $totalAmount = null;
             $invoiceDate = null;
+            $invoiceNumber = null;
+            $invoiceDescription = null;
             
-            // Extract total_amount and invoice_date from extracted_data
+            // Extract total_amount, invoice_date, invoice_number, and invoice_description from extracted_data
             if (isset($data->extracted_data)) {
                 if (isset($data->extracted_data->total_amount)) {
                     $totalAmount = $data->extracted_data->total_amount;
                 }
                 if (isset($data->extracted_data->invoice_date)) {
                     $invoiceDate = $data->extracted_data->invoice_date;
+                }
+                if (isset($data->extracted_data->invoice_number)) {
+                    $invoiceNumber = $data->extracted_data->invoice_number;
+                }
+                if (isset($data->extracted_data->invoice_description)) {
+                    $invoiceDescription = $data->extracted_data->invoice_description;
                 }
             }
             
@@ -140,18 +148,22 @@ class AttachmentEndpoint extends BaseEndpoint
             }
             
             // Get custom filename if provided (from id field or filename)
+            // create random string for end of filename
+            $randomString = bin2hex(random_bytes(8));
             $customFilename = null;
             if (isset($data->id)) {
                 $customFilename = $data->id;
             } elseif (isset($data->filename)) {
-                $customFilename = $data->filename;
+                $customFilename = $data->filename . '_' . $randomString;
             }
             
-            // Extract metadata (accountnr is optional for now)
+            // Extract metadata (accountnr, invoiceNumber, and invoiceDescription are optional for now)
             $metadata = [
                 'date' => $invoiceDate,
                 'amount' => $totalAmount,
-                'accountnr' => isset($data->accountnr) ? $data->accountnr : ''
+                'accountnr' => isset($data->accountnr) ? $data->accountnr : '',
+                'invoiceNumber' => $invoiceNumber !== null ? $invoiceNumber : '',
+                'invoiceDescription' => $invoiceDescription !== null ? $invoiceDescription : ''
             ];
             
             $attachment = new AttachmentModel();

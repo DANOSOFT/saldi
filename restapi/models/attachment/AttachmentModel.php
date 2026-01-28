@@ -10,6 +10,24 @@ class AttachmentModel
     private $metadata;
     private static $baseUploadDir = '/var/www/html/pblm/bilag/';
     private static $db = null;
+    private static $logFile = '/var/www/html/pblm/bilag/attachment_debug.log';
+    
+    /**
+     * Log debug message to file
+     * 
+     * @param string $message Message to log
+     * @param mixed $data Optional data to include
+     */
+    private static function debugLog($message, $data = null)
+    {
+        $timestamp = date('Y-m-d H:i:s');
+        $logMessage = "[{$timestamp}] {$message}";
+        if ($data !== null) {
+            $logMessage .= " | Data: " . print_r($data, true);
+        }
+        $logMessage .= "\n";
+        file_put_contents(self::$logFile, $logMessage, FILE_APPEND);
+    }
     
     /**
      * Constructor
@@ -108,12 +126,14 @@ class AttachmentModel
                 // Split by lines
                 $lines = explode("\n", trim($content));
                 
-                // Parse the format: filename, account, amount, date
+                // Parse the format: filename, account, amount, date, invoiceNumber, invoiceDescription
                 if (count($lines) >= 3) {
                     $this->metadata = [
                         'accountnr' => isset($lines[1]) ? trim($lines[1]) : '',
                         'amount' => isset($lines[2]) ? trim($lines[2]) : '',
-                        'date' => isset($lines[3]) ? trim($lines[3]) : ''
+                        'date' => isset($lines[3]) ? trim($lines[3]) : '',
+                        'invoiceNumber' => isset($lines[4]) ? trim($lines[4]) : '',
+                        'invoiceDescription' => isset($lines[5]) ? trim($lines[5]) : ''
                     ];
                 } else {
                     // Try to parse as JSON for backward compatibility
@@ -163,11 +183,23 @@ class AttachmentModel
      */
     public function saveUploadedFile($uploadedFile, $customFilename = null)
     {
+        self::debugLog('=== saveUploadedFile START ===');
+        self::debugLog('Uploaded file info', [
+            'name' => isset($uploadedFile['name']) ? $uploadedFile['name'] : 'N/A',
+            'type' => isset($uploadedFile['type']) ? $uploadedFile['type'] : 'N/A',
+            'size' => isset($uploadedFile['size']) ? $uploadedFile['size'] : 'N/A',
+            'tmp_name' => isset($uploadedFile['tmp_name']) ? $uploadedFile['tmp_name'] : 'N/A',
+            'error' => isset($uploadedFile['error']) ? $uploadedFile['error'] : 'N/A',
+            'customFilename' => $customFilename
+        ]);
+        
         if (!isset($uploadedFile['tmp_name']) || !is_uploaded_file($uploadedFile['tmp_name'])) {
+            self::debugLog('ERROR: Invalid uploaded file - tmp_name missing or not uploaded file');
             return false;
         }
         
         $uploadDir = self::getUploadDir();
+        self::debugLog('Upload directory', $uploadDir);
         
         // Ensure upload directory exists with better error handling
         if (!is_dir($uploadDir)) {
@@ -186,17 +218,22 @@ class AttachmentModel
         
         // Check if uploaded file is an image and convert to PDF
         $mimeType = mime_content_type($uploadedFile['tmp_name']);
+        self::debugLog('Detected mime type', $mimeType);
         
         $convertedFile = null;
         $isConverted = false;
         
         if ($this->isImage($mimeType)) {
+            self::debugLog('File is an image, attempting conversion to PDF');
             $convertedFile = $this->convertImageToPdf($uploadedFile['tmp_name'], $filename);
             if ($convertedFile) {
                 // Update filename to have .pdf extension
                 $pathInfo = pathinfo($filename);
                 $filename = $pathInfo['filename'] . '.pdf';
                 $isConverted = true;
+                self::debugLog('Image converted to PDF', ['convertedFile' => $convertedFile, 'newFilename' => $filename]);
+            } else {
+                self::debugLog('ERROR: Image to PDF conversion failed');
             }
         }
         
@@ -216,12 +253,16 @@ class AttachmentModel
         
         $success = false;
         
+        self::debugLog('Saving file', ['filepath' => $filepath, 'isConverted' => $isConverted]);
+        
         if ($isConverted && $convertedFile) {
             // For converted files, use copy() instead of move_uploaded_file()
             $success = copy($convertedFile, $filepath);
+            self::debugLog('Copy result (converted)', $success);
         } else {
             // For original uploaded files, use move_uploaded_file()
             $success = move_uploaded_file($uploadedFile['tmp_name'], $filepath);
+            self::debugLog('move_uploaded_file result', $success);
         }
         
         if ($success) {
@@ -231,6 +272,12 @@ class AttachmentModel
             $this->mimeType = mime_content_type($filepath);
             $this->uploadDate = date('Y-m-d H:i:s');
             
+            self::debugLog('=== saveUploadedFile SUCCESS ===', [
+                'filename' => $this->filename,
+                'size' => $this->size,
+                'mimeType' => $this->mimeType
+            ]);
+            
             // Clean up temporary converted file if it was created
             if ($convertedFile && file_exists($convertedFile)) {
                 @unlink($convertedFile);
@@ -238,6 +285,7 @@ class AttachmentModel
             
             return true;
         } else {
+            self::debugLog('=== saveUploadedFile FAILED ===');
             // Clean up temporary converted file if it was created and save failed
             if ($convertedFile && file_exists($convertedFile)) {
                 @unlink($convertedFile);
@@ -256,7 +304,16 @@ class AttachmentModel
      */
     public function saveBase64File($fileContent, $customFilename = null, $metadata = null)
     {
+        self::debugLog('=== saveBase64File START ===');
+        self::debugLog('Input info', [
+            'contentLength' => strlen($fileContent),
+            'contentFirst100' => substr($fileContent, 0, 100),
+            'customFilename' => $customFilename,
+            'metadata' => $metadata
+        ]);
+        
         if (empty($fileContent)) {
+            self::debugLog('ERROR: Empty file content');
             return false;
         }
         
@@ -288,6 +345,11 @@ class AttachmentModel
         
         // Detect mime type
         $mimeType = mime_content_type($tempFile);
+        self::debugLog('Temp file created', [
+            'tempFile' => $tempFile,
+            'tempFileSize' => filesize($tempFile),
+            'mimeType' => $mimeType
+        ]);
         
         // Determine filename
         $filename = $customFilename;
@@ -296,18 +358,30 @@ class AttachmentModel
             $extension = $this->getExtensionFromMimeType($mimeType);
             $filename = 'upload_' . date('YmdHis') . '.' . $extension;
         }
+        self::debugLog('Filename determined', $filename);
         
         // Check if file is an image and convert to PDF
         $convertedFile = null;
         $isConverted = false;
         
         if ($this->isImage($mimeType)) {
+            self::debugLog('Image detected, attempting PDF conversion', [
+                'mimeType' => $mimeType,
+                'tempFile' => $tempFile,
+                'filename' => $filename
+            ]);
             $convertedFile = $this->convertImageToPdf($tempFile, $filename);
             if ($convertedFile) {
                 // Update filename to have .pdf extension
                 $pathInfo = pathinfo($filename);
                 $filename = $pathInfo['filename'] . '.pdf';
                 $isConverted = true;
+                self::debugLog('PDF conversion successful', [
+                    'convertedFile' => $convertedFile,
+                    'newFilename' => $filename
+                ]);
+            } else {
+                self::debugLog('PDF conversion FAILED - convertedFile is false');
             }
         }
         
@@ -342,6 +416,12 @@ class AttachmentModel
             $this->mimeType = mime_content_type($filepath);
             $this->uploadDate = date('Y-m-d H:i:s');
             
+            self::debugLog('=== saveBase64File SUCCESS ===', [
+                'filename' => $this->filename,
+                'size' => $this->size,
+                'mimeType' => $this->mimeType
+            ]);
+            
             // Save metadata to JSON file if provided
             if ($metadata !== null && is_array($metadata)) {
                 $this->saveMetadata($filepath, $metadata);
@@ -356,6 +436,7 @@ class AttachmentModel
             
             return true;
         } else {
+            self::debugLog('=== saveBase64File FAILED ===');
             // Clean up temporary files
             @unlink($tempFile);
             if ($convertedFile && file_exists($convertedFile)) {
@@ -387,9 +468,11 @@ class AttachmentModel
         $account = isset($metadata['accountnr']) ? $metadata['accountnr'] : '';
         $amount = isset($metadata['amount']) ? $metadata['amount'] : '';
         $date = isset($metadata['date']) ? $metadata['date'] : '';
+        $invoiceNumber = isset($metadata['invoiceNumber']) ? $metadata['invoiceNumber'] : '';
+        $invoiceDescription = isset($metadata['invoiceDescription']) ? $metadata['invoiceDescription'] : '';
         
-        // Create content: filename, account, amount, date (one per line)
-        $content = $filenameWithoutExt . "\n" . $account . "\n" . $amount . "\n" . $date . "\n";
+        // Create content: filename, account, amount, date, invoiceNumber, invoiceDescription (one per line)
+        $content = $filenameWithoutExt . "\n" . $account . "\n" . $amount . "\n" . $date . "\n" . $invoiceNumber . "\n" . $invoiceDescription . "\n";
         
         if (file_put_contents($metadataPath, $content) === false) {
             return false;
@@ -518,20 +601,33 @@ class AttachmentModel
     private function convertImageToPdf($imagePath, $originalFilename)
     {
         try {
+            self::debugLog('convertImageToPdf START', [
+                'imagePath' => $imagePath,
+                'originalFilename' => $originalFilename
+            ]);
+            
             // Check if GD extension is available
             if (!extension_loaded('gd')) {
+                self::debugLog('convertImageToPdf FAILED: GD extension not loaded');
                 return false;
             }
             
             // Create image resource based on mime type
             $imageInfo = getimagesize($imagePath);
             if (!$imageInfo) {
+                self::debugLog('convertImageToPdf FAILED: getimagesize returned false');
                 return false;
             }
             
             $imageWidth = $imageInfo[0];
             $imageHeight = $imageInfo[1];
             $mimeType = $imageInfo['mime'];
+            
+            self::debugLog('Image info retrieved', [
+                'width' => $imageWidth,
+                'height' => $imageHeight,
+                'mimeType' => $mimeType
+            ]);
             
             // Create image resource
             $image = false;
@@ -550,6 +646,7 @@ class AttachmentModel
                     if (function_exists('imagecreatefrombmp')) {
                         $image = imagecreatefrombmp($imagePath);
                     } else {
+                        self::debugLog('convertImageToPdf FAILED: imagecreatefrombmp not available');
                         return false;
                     }
                     break;
@@ -557,16 +654,21 @@ class AttachmentModel
                     if (function_exists('imagecreatefromwebp')) {
                         $image = imagecreatefromwebp($imagePath);
                     } else {
+                        self::debugLog('convertImageToPdf FAILED: imagecreatefromwebp not available');
                         return false;
                     }
                     break;
                 default:
+                    self::debugLog('convertImageToPdf FAILED: unsupported mime type', $mimeType);
                     return false;
             }
             
             if (!$image) {
+                self::debugLog('convertImageToPdf FAILED: image resource creation failed');
                 return false;
             }
+            
+            self::debugLog('Image resource created successfully');
             
             // Create a simple PDF using basic PDF structure
             $tempPdfPath = tempnam(sys_get_temp_dir(), 'img2pdf_') . '.pdf';
@@ -574,18 +676,24 @@ class AttachmentModel
             // Convert image to JPEG for embedding in PDF
             $tempJpegPath = tempnam(sys_get_temp_dir(), 'img2pdf_') . '.jpg';
             if (!imagejpeg($image, $tempJpegPath, 90)) {
+                self::debugLog('convertImageToPdf FAILED: imagejpeg failed');
                 imagedestroy($image);
                 return false;
             }
             imagedestroy($image);
             
+            self::debugLog('Temporary JPEG created', ['tempJpegPath' => $tempJpegPath]);
+            
             // Get JPEG data
             $jpegData = file_get_contents($tempJpegPath);
             if ($jpegData === false) {
+                self::debugLog('convertImageToPdf FAILED: could not read temp JPEG');
                 @unlink($tempJpegPath);
                 return false;
             }
             $jpegSize = strlen($jpegData);
+            
+            self::debugLog('JPEG data read', ['jpegSize' => $jpegSize]);
             
             // Calculate PDF dimensions (A4 = 595.28 x 841.89 points)
             $pageWidth = 595.28;
@@ -612,12 +720,18 @@ class AttachmentModel
             
             // Write PDF to file
             if (file_put_contents($tempPdfPath, $pdfContent) === false) {
+                self::debugLog('convertImageToPdf FAILED: could not write PDF file');
                 @unlink($tempJpegPath);
                 return false;
             }
             
             // Clean up temporary JPEG
             @unlink($tempJpegPath);
+            
+            self::debugLog('convertImageToPdf SUCCESS', [
+                'tempPdfPath' => $tempPdfPath,
+                'pdfSize' => strlen($pdfContent)
+            ]);
             
             return $tempPdfPath;
             
