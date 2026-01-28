@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/brugere.php-----patch 4.0.8 ----2023-07-23-----
-//                           LICENSE
+// --------------systemdata/brugere.php-----patch 5.0.0 ----2026-01-27-----
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,25 +21,11 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-// 20150327 CA  - Topmenudesign tilføjet                             søg 20150327
-// 20161104	PHR	- Ændret kryptering af adgangskode
-// 20181220 MSC - Rettet isset fejl
-// 20190221 MSC - Rettet topmenu design
-// 20190225 MSC - Rettet topmenu design
-// 20190321 PHR - Added 'read only' attribut at 'varekort'
-// 20190415 PHR - Corrected an error in module order printet on screen, resulting in wrong rights to certain modules
-// 20200709 PHR - Various changes in variable names and user deletion.
-// 20210711 LOE - Translated some texts to Norsk and English from Dansk
-// 20210828 LOE - Added a functionality to enable users select language from user's page
-// 20210831 LOE - Added more funtionalities
-// 20210901 LOE - This block of code added to authenticate user IP
-// 20210908 LOE - Added input box for IP addresses
-// 20210909 LOE - Modified some codes relating to Ip
-// 20211015 LOE - Modified some codes to adjust to IP moved to settings table
 // 20220514 MSC - Implementing new design
 // 20230316 PHR Replaced *1 by (int)
+// 20260127 PHR update settings value
 
 @session_start();
 $s_id=session_id();
@@ -174,9 +160,12 @@ if ($addUser || $updateUser) {
 			$kode=saldikrypt($id,$kode);
 			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
 		}
+		if ($employeeId[0]) {
+			$qtxt = "select afd from ansatte where id = '$employeeId[0]'";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			update_settings_value('afd', 'brugerAfd', $r['afd'], $employeeId[0]);
+		}
 	}
-
-	
 	// if($restore_user){
 	// 	restore_user_ip($restore_user, $re_id); #20210831 + 20210909
 	// }
