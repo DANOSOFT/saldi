@@ -669,15 +669,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 const firstCell = cells[0];
                 const bogfort = firstCell.getAttribute('data-bogfort');
                 
-                // If this row is posted (not '-' or '!')
-                // Non-posted entries have '-' or '!', anything else means posted
-                const isPosted = postedText && 
-                                postedText !== '-' && 
-                                postedText !== '!' && 
-                                postedText !== '';
+                // Simulated entries have bogfort = 'S'
+                if (bogfort === 'S' && !foundSimulatedSeparator) {
+                    foundSimulatedSeparator = true;
+                    
+                    // Create separator row for simulated drafts
+                    const separatorRow = document.createElement('tr');
+                    separatorRow.style.backgroundColor = '#fff8e1';
+                    separatorRow.style.fontWeight = 'bold';
+                    separatorRow.className = 'simulated-separator';
+                    separatorRow.innerHTML = '<td colspan=\"2\" style=\"text-align: center; font-weight: bold; padding: 12px; background-color: #fff8e1;\">".findtekst('1085|Simuleret', $sprog_id)." ".findtekst('639|Kladdeliste', $sprog_id)."</td><td colspan=\"5\" style=\"background-color: #fff8e1; padding: 12px;\"><hr style=\"margin: 0; border: 0; border-top: 2px solid #f9a825;\"></td>';
+                    
+                    // Insert before this row
+                    row.parentNode.insertBefore(separatorRow, row);
+                }
                 
-                if (isPosted) {
-                    foundSeparator = true;
+                // Posted entries have bogfort = 'V' or other letters (not '-', '!', or 'S')
+                if (bogfort && bogfort !== '-' && bogfort !== '!' && bogfort !== 'S' && !foundPostedSeparator) {
+                    foundPostedSeparator = true;
                     
                     // Create separator row for posted drafts
                     const separatorRow = document.createElement('tr');
