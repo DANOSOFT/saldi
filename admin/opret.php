@@ -362,7 +362,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify("CREATE TABLE  crm ($id_column,konto_id int,kontakt_id int,ansat_id int,notat text,notedate date,spor text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 
 	######## Brugere ########
-	db_modify("CREATE TABLE brugere($id_column,brugernavn text,kode text,email text,twofactor $boolean_type,tmp_kode text,status boolean,regnskabsaar integer,rettigheder text,ansat_id integer,sprog_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE brugere($id_column,brugernavn text,kode text,email text,twofactor $boolean_type,tmp_kode text,status boolean,regnskabsaar integer,rettigheder text,ansat_id integer,sprog_id integer,language_id integer,ip_address varchar(45),tlf varchar(20),PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 
 	######## Grupper ########
 	db_modify("CREATE TABLE grupper ($id_column,beskrivelse text,kode text,kodenr integer,art text,box1 text,box2 text,box3 text,box4 text,box5 text,box6 text,box7 text,box8 text,box9 text,box10 text,box11 text,box12 text,box13 text,box14 text,fiscal_year integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
@@ -583,11 +583,11 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt ="CREATE TABLE rentalitems ($id_column,rt_item_id int,item_id int, qty $decimal_type(15,0),";
-	$qtxt.=" unit varchar(1), item_name varchar(255), product_id int, PRIMARY KEY (id) )";
+	$qtxt.=" unit varchar(1), item_name varchar(255), product_id int, saved smallint, PRIMARY KEY (id) )";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt = "CREATE TABLE rentalperiod ($id_column, rt_id int, rt_cust_id int, rt_from $decimal_type(15,0),";
-	$qtxt.= "rt_to $decimal_type(15,0), item_id int, cust_id int, PRIMARY KEY (id))";
+	$qtxt.= "rt_to $decimal_type(15,0), item_id int, cust_id int, order_id int, expiry_time timestamp, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt="CREATE TABLE returnings ($id_column, price $decimal_type(15,3), kasse integer, report_number integer default 0, PRIMARY KEY (id))";
@@ -626,6 +626,41 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify("CREATE TABLE IF NOT EXISTS datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id $varchar(10), column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, $quote_offset INTEGER, sort TEXT)", __FILE__ . " line " . __LINE__);
 
 	db_modify("CREATE TABLE IF NOT EXISTS tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id $varchar(10), selector TEXT)", __FILE__ . " line " . __LINE__);
+
+	######## Missing tables from sql.txt ########
+	$qtxt = "CREATE TABLE betalingslink ($id_column, payment_intent_id varchar(255), amount integer, ";
+	$qtxt.= "betalings_link varchar(255), kontonr integer, created_at timestamp, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE kds_records ($id_column, data text, bumped $boolean_type, timestamp integer, ";
+	$qtxt.= "time_to_complete integer, rush $boolean_type, last_undo $boolean_type, sort_timestamp integer, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	db_modify("CREATE TABLE notifications ($id_column, msg varchar(255), read_status integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
+
+	db_modify("CREATE TABLE rentalclosed ($id_column, day integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
+
+	db_modify("CREATE TABLE rentalmail ($id_column, host varchar(255), username varchar(255), password varchar(255), PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
+
+	db_modify("CREATE TABLE rentalpayment ($id_column, apikey varchar(255), trade_conditions varchar(255), PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE rentalremote ($id_column, product_id integer, descript text, is_active smallint, ";
+	$qtxt.= "choose_periods smallint, max integer, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	db_modify("CREATE TABLE rentalremoteperiods ($id_column, rentalremote_id integer, amount integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE rentalreserved ($id_column, item_id integer, rr_from $decimal_type(15,0), ";
+	$qtxt.= "rr_to $decimal_type(15,0), comment varchar(255), PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE rentalsettings ($id_column, booking_format integer, search_cust_name integer, ";
+	$qtxt.= "search_cust_number integer, search_cust_tlf integer, start_day integer, deletion integer, ";
+	$qtxt.= "find_weeks integer, end_day integer, put_together integer, pass varchar(255), ";
+	$qtxt.= "invoice_date smallint, use_password integer, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	db_modify("CREATE TABLE stockmovement ($id_column, vareid integer, beholdning integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
 
 
 	if ($db_type=="mysql" || $db_type=="mysqli") {
