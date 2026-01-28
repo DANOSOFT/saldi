@@ -7,7 +7,8 @@
    BASE LAYOUT
    ============================================ */
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -107,7 +108,7 @@ html, body {
 
 #leftPanel {
   flex: 0 0 var(--docpool-left-panel-default);
-  min-width: var(--docpool-left-panel-min);
+  min-width: 50%;
   max-width: var(--docpool-left-panel-max);
   display: flex;
   flex-direction: column;
@@ -213,7 +214,7 @@ html, body {
   /* Background color removed - inherits from parent */
 }
 
-#fileListContainer > div {
+#fileListContainer>div {
   width: 100%;
 }
 
@@ -273,7 +274,7 @@ html, body {
   background-color: var(--docpool-bg-hover);
 }
 
-#fileListContainer table thead th > div {
+#fileListContainer table thead th>div {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -634,18 +635,18 @@ html, body {
   #docPoolContainer {
     flex-direction: column;
   }
-  
+
   #leftPanel {
     flex: 0 0 50%;
     max-width: 100%;
   }
-  
+
   #resizer {
     width: 100%;
     height: 5px;
     cursor: row-resize;
   }
-  
+
   #rightPanel {
     flex: 1;
     min-height: 200px;
@@ -717,21 +718,21 @@ html, body {
    ============================================ */
 
 @media print {
+
   #topBarHeader,
   #leftPanel,
   #resizer,
   #fixedBottom {
     display: none !important;
   }
-  
+
   #docPoolContainer {
     position: static;
     height: auto;
   }
-  
+
   #rightPanel {
     width: 100%;
     height: auto;
   }
 }
-
