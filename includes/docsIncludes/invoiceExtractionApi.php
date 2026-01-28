@@ -268,13 +268,6 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	
 	// Return extracted data
 	if ($amount !== null || $date !== null || $vendor !== null || $invoiceNumber !== null || $description !== null) {
-		file_put_contents('extracted_data.json', json_encode(array(
-			'amount' => $amount,
-			'date' => $date,
-			'vendor' => $vendor,
-			'invoiceNumber' => $invoiceNumber,
-			'description' => $description
-		)));
 		return array(
 			'amount' => $amount,
 			'date' => $date,
