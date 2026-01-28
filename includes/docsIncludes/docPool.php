@@ -1556,7 +1556,7 @@ print <<<JS
 		if (hasPerfectMatches && perfectMatchRows) {
 			const perfectFilesJson = JSON.stringify(perfectMatches).replace(/'/g, "&#39;");
 			perfectMatchHeader = "<tr style='background-color: #007bff; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + perfectFilesJson + ")' title='Klik for at vælge alle bilag med perfekt match'>" +
-				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #007bff;'>" +
+				"<td colspan='8' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #007bff;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.star + "</span>" +
 				"Perfekt match (beløb: " + escapeHTML(totalSum) + " + dato: " + escapeHTML(targetDate) + ") - " + perfectMatches.length + " fundet" +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
@@ -1568,7 +1568,7 @@ print <<<JS
 		if (hasAmountToMatch && exactMatches.length > 0 && matchingAmountRows) {
 			const exactFilesJson = JSON.stringify(exactMatches).replace(/'/g, "&#39;");
 			matchingHeader = "<tr style='background-color: #28a745; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + exactFilesJson + ")' title='Klik for at vælge alle bilag med beløb match'>" +
-				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #28a745;'>" +
+				"<td colspan='8' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #28a745;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.check + "</span>" +
 				"Beløb match (beløb: " + escapeHTML(totalSum) + ") - " + exactMatches.length + " fundet" +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
@@ -1580,7 +1580,7 @@ print <<<JS
 		if (hasDateOnlyMatches && dateMatchRows) {
 			const dateFilesJson = JSON.stringify(dateOnlyMatches).replace(/'/g, "&#39;");
 			dateMatchHeader = "<tr style='background-color: #17a2b8; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + dateFilesJson + ")' title='Klik for at vælge alle bilag med dato match'>" +
-				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #17a2b8;'>" +
+				"<td colspan='8' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #17a2b8;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.calendar + "</span>" +
 				"Dato match (" + escapeHTML(targetDate) + ") - " + dateOnlyMatches.length + " fundet" +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
@@ -3133,6 +3133,165 @@ JS;
 			});
 		}
 	});
+	</script>";
+
+	// JavaScript for drag and drop functionality - define handleDrop and handleDragOver functions
+	print "<script>
+	// Global functions for drag and drop (must be global for inline event handlers)
+	function handleDragOver(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		var dropZone = document.getElementById('dropZone');
+		if (dropZone) {
+			dropZone.style.borderColor = '$buttonColor';
+			dropZone.style.backgroundColor = 'rgba(0,0,0,0.08)';
+			dropZone.style.transform = 'scale(1.02)';
+		}
+	}
+	
+	function handleDrop(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		
+		var dropZone = document.getElementById('dropZone');
+		if (dropZone) {
+			dropZone.style.borderColor = '$buttonColor';
+			dropZone.style.backgroundColor = 'rgba(0,0,0,0.02)';
+			dropZone.style.transform = 'scale(1)';
+		}
+		
+		var files = e.dataTransfer.files;
+		if (!files || files.length === 0) {
+			console.log('No files dropped');
+			return;
+		}
+		
+		// Validate file types
+		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+		var validFiles = [];
+		for (var i = 0; i < files.length; i++) {
+			var fileName = files[i].name.toLowerCase();
+			var isAllowed = allowedExtensions.some(function(ext) {
+				return fileName.endsWith(ext);
+			});
+			if (isAllowed) {
+				validFiles.push(files[i]);
+			} else {
+				alert('File ' + files[i].name + ' is not allowed. Please select only PDF or image files (jpg, png).');
+			}
+		}
+		
+		if (validFiles.length === 0) {
+			return;
+		}
+		
+		// Show loading state on drop zone
+		var dropText = document.getElementById('dropText');
+		var originalDropText = dropText ? dropText.innerHTML : '';
+		var totalFiles = validFiles.length;
+		var uploadedCount = 0;
+		var failedCount = 0;
+		var lastUploadedFilename = null;
+		
+		function updateDropProgress() {
+			if (dropText) {
+				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> Uploader ' + (uploadedCount + failedCount + 1) + ' af ' + totalFiles + '...';
+			}
+		}
+		
+		updateDropProgress();
+		
+		// Determine URL
+		var currentPath = window.location.pathname;
+		var uploadUrl = currentPath.indexOf('/includes/') !== -1 ? 'documents.php' : '../includes/documents.php';
+		
+		// Upload files sequentially
+		function uploadFile(index) {
+			if (index >= validFiles.length) {
+				// All files processed
+				if (dropText) {
+					dropText.innerHTML = originalDropText;
+				}
+				
+				var message = '✓ Upload complete!\\n';
+				message += uploadedCount + ' file(s) uploaded successfully';
+				if (failedCount > 0) {
+					message += '\\n' + failedCount + ' file(s) failed';
+				}
+				alert(message);
+				
+				// Redirect to focus on the last uploaded file
+				if (lastUploadedFilename) {
+					var currentUrl = new URL(window.location.href);
+					currentUrl.searchParams.set('poolFile', lastUploadedFilename);
+					currentUrl.searchParams.set('openPool', '1');
+					window.location.href = currentUrl.toString();
+				} else {
+					window.location.reload();
+				}
+				return;
+			}
+			
+			var file = validFiles[index];
+			updateDropProgress();
+			
+			// Create FormData for this file
+			var formData = new FormData();
+			formData.append('uploadedFile', file);
+			formData.append('openPool', '1');
+			
+			// Add clipVariables if available
+			if (typeof clipVariables !== 'undefined') {
+				for (var key in clipVariables) {
+					if (clipVariables.hasOwnProperty(key)) {
+						formData.append(key, clipVariables[key]);
+					}
+				}
+			}
+			
+			fetch(uploadUrl, {
+				method: 'POST',
+				body: formData
+			})
+			.then(function(response) {
+				return response.text().then(function(text) {
+					try {
+						return JSON.parse(text);
+					} catch(e) {
+						if (text.indexOf('\"success\":true') !== -1) {
+							var filenameMatch = text.match(/\"filename\"\\s*:\\s*\"([^\"]+)\"/);
+							return {
+								success: true,
+								filename: filenameMatch ? filenameMatch[1] : file.name,
+								message: 'File uploaded successfully'
+							};
+						}
+						throw new Error('Invalid response from server');
+					}
+				});
+			})
+			.then(function(data) {
+				if (data && data.success) {
+					uploadedCount++;
+					lastUploadedFilename = data.filename;
+				} else {
+					failedCount++;
+					console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
+				}
+				// Continue to next file
+				uploadFile(index + 1);
+			})
+			.catch(function(error) {
+				failedCount++;
+				console.error('Upload error for ' + file.name + ':', error);
+				// Continue to next file
+				uploadFile(index + 1);
+			});
+		}
+		
+		// Start uploading from first file
+		uploadFile(0);
+	}
 	</script>";
 
 	// Add drag and drop zone - use buttonColor with opacity for background

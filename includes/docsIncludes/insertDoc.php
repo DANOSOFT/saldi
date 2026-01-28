@@ -70,6 +70,10 @@ if ($docFolder && $source == 'creditorOrder') {
 		exit;
 	}
 	if (!$sourceId) {
+		// Check if we're adding to an existing bilag (bilag passed from form or URL)
+		$existingBilagPos = null;
+		$existingBilagDate = null;
+		
 		if (!$bilag) {
 			include_once("../includes/stdFunc/fiscalYear.php");
 			$bilag=1;
@@ -80,15 +84,38 @@ if ($docFolder && $source == 'creditorOrder') {
 				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($q)) $bilag=$row['bilag']+1;
 			}
+		} else {
+			// Bilag is already set - check if there's an existing entry to get its pos and date
+			// This preserves position when adding document to an existing bilag entry
+			$qtxt = "SELECT pos, transdate FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag' ORDER BY pos DESC LIMIT 1";
+			$existingEntry = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if ($existingEntry) {
+				$existingBilagPos = $existingEntry['pos'];
+				$existingBilagDate = $existingEntry['transdate'];
+			}
 		}
-		$qtxt = "insert into kassekladde (bilag,kladde_id,transdate,d_type,k_type,amount) values ";
-		$qtxt.= "('$bilag','$kladde_id','". date("Y-m-d") ."','F','F','0')";
+		
+		// Use existing date/pos if available, otherwise calculate new ones
+		$transdate_for_insert = $existingBilagDate ? $existingBilagDate : date("Y-m-d");
+		
+		if ($existingBilagPos !== null) {
+			// Place right after the existing entry with this bilag
+			$next_pos = $existingBilagPos + 1;
+		} else {
+			// Calculate the next pos value for proper ordering
+			$pos_qtxt = "SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag' AND transdate = '$transdate_for_insert'";
+			$pos_result = db_fetch_array(db_select($pos_qtxt, __FILE__ . " linje " . __LINE__));
+			$next_pos = $pos_result ? $pos_result['next_pos'] : 1;
+		}
+		
+		$qtxt = "insert into kassekladde (bilag,kladde_id,transdate,d_type,k_type,amount,pos) values ";
+		$qtxt.= "('$bilag','$kladde_id','$transdate_for_insert','F','F','0','$next_pos')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt = "select max(id) as id from kassekladde where kladde_id = '$kladde_id' and bilag = '$bilag'";
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$sourceId = $r['id'];
 		}
-	} 
+	}  
 	if ($sourceId) {
 		if ($_POST['dato']) {
 			$qtxt = "update kassekladde set transdate = '". usdate($_POST['dato']) ."' where id = '$sourceId'";
