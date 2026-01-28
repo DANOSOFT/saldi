@@ -1555,6 +1555,7 @@ function save_filter_setup($id) {
  * @return void Outputs the embedded CSS for styling the data table and search functionality.
  */
 function render_search_style() {
+    global $bgcolor;
     echo <<<STYLE
     <style>
         /* ==========================================================================
@@ -1583,7 +1584,7 @@ function render_search_style() {
         }
         .datatable thead tr,
         .datatable thead th {
-            /* background-color: #f4f4f4; */
+            background-color: $bgcolor;
         }
         .datatable tbody {
             /* No special styling needed - will expand naturally */
