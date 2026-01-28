@@ -2810,75 +2810,75 @@
 2810	Akkord afregning	Piecework settlement	Akkordoppgjør
 2811	Akkord med dyrtid	Piecework with premium time	Akkord med dyrtid
 2812	Plads	Site	Plass
-2813	
-2814	
-2815	
-2816	
-2817	
-2818	
-2819	
-2820	
-2821	
-2822	
-2823	
-2824	
-2825	
-2826	
-2827	
-2828	
-2829	
-2830	
-2831	
-2832	
-2833	
-2834	
-2835	
-2836	
-2837	
-2838	
-2839	
-2840	
-2841	
-2842	
-2843	
-2844	
-2845	
-2846	
-2847	
-2848	
-2849	
-2850	
-2851	
-2852	
-2853	
-2854	
-2855	
-2856	
-2857	
-2858	
-2859	
-2860	
-2861	
-2862	
-2863	
-2864	
-2865	
-2866	
-2867	
-2868	
-2869	
-2870	
-2871	
-2872	
-2873	
-2874	
-2875	
-2876	
-2877	
-2878	
-2879	
-2880	
-2881	
+2813	Tilbage til sag	Back to project	Tilbake til prosjekt
+2814	Tilbage til tilbud	Back to offer	Tilbake til tilbud
+2815	Kopi til sag	Copy to project	Kopi til prosjekt
+2816	Print akkordliste	Print piecework list	Skriv ut akkordliste
+2817	Sagsinformation	Project information	Prosjektinformasjon
+2818	Ret status	Edit status	Rediger status
+2819	Sagsnr.	Project no.	Prosjektnr.
+2820	Opstillingsadresse	Installation address	Monteringsadresse
+2821	Avanceret søgning	Advanced search	Avansert søk
+2822	Find sag	Find project	Finn prosjekt
+2823	Kontrol	Inspection	Kontroll
+2824	Skema	Form	Skjema
+2825	Tid	Time	Tid
+2826	Kontrolleret af	Inspected by	Kontrollert av
+2827	Opret skema til sagen her	Create form for the project here	Opprett skjema for prosjektet her
+2828	Opret skema	Create form	Opprett skjema
+2829	Nyt skema	New form	Nytt skjema
+2830	Skrevet af	Written by	Skrevet av
+2831	Kopi	Copy	Kopi
+2832	Opret tilbud til sagen her	Create offer for the project here	Opprett tilbud for prosjektet her
+2833	Opret Tilbud	Create Offer	Opprett Tilbud
+2834	Nyt Tilbud	New Offer	Nytt Tilbud
+2835	fra Tilbud	from Offer	fra Tilbud
+2836	Fase	Phase	Fase
+2837	Kategori	Category	Kategori
+2838	Tilføjet af	Added by	Lagt til av
+2839	Klik her for at slette dette bilag	Click here to delete this attachment	Klikk her for å slette dette vedlegget
+2840	Vil du slette bilag	Do you want to delete attachment	Vil du slette vedlegg
+2841	Ret fase, kategori og tilknyt bilag til kontrolskema	Edit phase, category and attach document to inspection form	Rediger fase, kategori og knytt vedlegg til kontrollskjema
+2842	Opret bilag til sagen her	Create attachment for the project here	Opprett vedlegg for prosjektet her
+2843	Opret bilag	Create attachment	Opprett vedlegg
+2844	Nyt bilag	New attachment	Nytt vedlegg
+2845	Klik her for at slette notatet fra sagen	Click here to delete the note from the project	Klikk her for å slette notatet fra prosjektet
+2846	Vil du slette notatet fra sagen	Do you want to delete the note from the project	Vil du slette notatet fra prosjektet
+2847	Opret notat til sagen her	Create note for the project here	Opprett notat for prosjektet her
+2848	Opret notat	Create note	Opprett notat
+2849	Nyt notat	New note	Nytt notat
+2850	Opgavenavn	Task name	Oppgavenavn
+2851	Hurtigsøgning	Quick search	Hurtigsøk
+2852	Find kunde	Find customer	Finn kunde
+2853	Opret ny, eller vælg eksisterende kunde til sag her!	Create new, or select existing customer for project here!	Opprett ny, eller velg eksisterende kunde for prosjekt her!
+2854	Ingen beskrivelse	No description	Ingen beskrivelse
+2855	Ingen ansvarlig	No responsible person	Ingen ansvarlig
+2856	Intet telefonnummer	No phone number	Intet telefonnummer
+2857	Ingen e-mailadresse	No email address	Ingen e-postadresse
+2858	Sagens omkostninger	Project costs	Prosjektets kostnader
+2859	Tilbudspris	Offer price	Tilbudspris
+2860	Allrisk	All-risk	Allrisk
+2861	Tilbudspris u. moms	Offer price excl. VAT	Tilbudspris u. mva.
+2862	Tilbudspris m. moms	Offer price incl. VAT	Tilbudspris m. mva.
+2863	Faktureret i alt	Invoiced total	Fakturert totalt
+2864	Lønudgifter	Wage expenses	Lønnsutgifter
+2865	Lønudgifter u. sociale	Wage expenses excl. social costs	Lønnsutgifter u. sosiale
+2866	Lønudgifter m. sociale	Wage expenses incl. social costs	Lønnsutgifter m. sosiale
+2867	Vis akkordlister	Show piecework lists	Vis akkordlister
+2868	Tilbudsnr.	Offer no.	Tilbudsnr.
+2869	Opgaver	Tasks	Oppgaver
+2870	Opgavenr.	Task no.	Oppgavenr.
+2871	Start / Slut	Start / End	Start / Slutt
+2872	Montage	Assembly	Montasje
+2873	Demontage	Disassembly	Demontasje
+2874	Omfang	Scope	Omfang
+2875	Kontakt tlf.	Contact Phone	Kontakt tlf.
+2876	Kontakt e-mail	Contact email	Kontakt e-post
+2877	Slet opgave	Delete task	Slett oppgave
+2878	Vil du slette denne opgave	Do you want to delete this task	Vil du slette denne oppgaven
+2879	Ændr eksisterende kunde på sagen	Change existing customer on the project	Endre eksisterende kunde på prosjektet
+2880	Kontaktpersoner til sagen	Contact persons for the project	Kontaktpersoner for prosjektet
+2881	Notat	Note	Notat
 2882	
 2883	
 2884	
