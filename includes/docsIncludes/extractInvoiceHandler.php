@@ -82,6 +82,8 @@ if ($action === 'save') {
 	$newDate = isset($_POST['newDate']) ? $_POST['newDate'] : '';
 	$newSubject = isset($_POST['newSubject']) ? $_POST['newSubject'] : '';
 	$newAccount = isset($_POST['newAccount']) ? $_POST['newAccount'] : '';
+	$newInvoiceNumber = isset($_POST['newInvoiceNumber']) ? $_POST['newInvoiceNumber'] : '';
+	$newDescription = isset($_POST['newDescription']) ? $_POST['newDescription'] : '';
 	
 	$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
 	$infoFile = "$puljePath/$baseName.info";
@@ -91,6 +93,8 @@ if ($action === 'save') {
 	$existingAccount = '';
 	$existingAmount = '';
 	$existingDate = '';
+	$existingInvoiceNumber = '';
+	$existingDescription = '';
 	
 	if (file_exists($infoFile)) {
 		$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
@@ -98,12 +102,16 @@ if ($action === 'save') {
 		$existingAccount = isset($infoLines[1]) ? trim($infoLines[1]) : '';
 		$existingAmount = isset($infoLines[2]) ? trim($infoLines[2]) : '';
 		$existingDate = isset($infoLines[3]) ? trim($infoLines[3]) : '';
+		$existingInvoiceNumber = isset($infoLines[4]) ? trim($infoLines[4]) : '';
+		$existingDescription = isset($infoLines[5]) ? trim($infoLines[5]) : '';
 	}
 	
 	// Use new values if provided, otherwise keep existing
 	$finalSubject = !empty($newSubject) ? $newSubject : (!empty($existingSubject) ? $existingSubject : $baseName);
 	$finalAccount = !empty($newAccount) ? $newAccount : $existingAccount;
 	$finalAmount = !empty($newAmount) ? $newAmount : $existingAmount;
+	$finalInvoiceNumber = !empty($newInvoiceNumber) ? $newInvoiceNumber : $existingInvoiceNumber;
+	$finalDescription = !empty($newDescription) ? $newDescription : $existingDescription;
 	
 	// Format date to yyyy-mm-dd if provided
 	$dateToUse = !empty($newDate) ? $newDate : $existingDate;
@@ -122,7 +130,9 @@ if ($action === 'save') {
 		$finalSubject,
 		$finalAccount,
 		$finalAmount,
-		$finalDate
+		$finalDate,
+		$finalInvoiceNumber,
+		$finalDescription
 	];
 	
 	if (file_put_contents($infoFile, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
@@ -138,17 +148,21 @@ if ($action === 'save') {
 					subject = '". db_escape_string($finalSubject) ."',
 					account = '". db_escape_string($finalAccount) ."',
 					amount = '". db_escape_string($finalAmount) ."',
+					invoice_number = '". db_escape_string($finalInvoiceNumber) ."',
+					description = '". db_escape_string($finalDescription) ."',
 					file_date = '". db_escape_string($finalDate) ."',
 					updated = CURRENT_TIMESTAMP
 					WHERE filename = '". db_escape_string($filename) ."'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			} else {
-				$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date) VALUES (
+				$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
 					'". db_escape_string($filename) ."',
 					'". db_escape_string($finalSubject) ."',
 					'". db_escape_string($finalAccount) ."',
 					'". db_escape_string($finalAmount) ."',
-					'". db_escape_string($finalDate) ."'
+					'". db_escape_string($finalDate) ."',
+					'". db_escape_string($finalInvoiceNumber) ."',
+					'". db_escape_string($finalDescription) ."'
 				)";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}

@@ -28,6 +28,7 @@
 // 20250824 LOE _docPoolData.php added to this file for improved data handling, also checks that file is .pdf before setting default. Update .info subject 
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
+
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
@@ -45,6 +46,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$newAccount	= if_isset($_POST,NULL,'newAccount');
 	$newAmount	= if_isset($_POST,NULL,'newAmount');
 	$newDate	   = if_isset($_POST,NULL,'newDate');
+	$newInvoiceNumber = if_isset($_POST,NULL,'newInvoiceNumber');
+	$newInvoiceDescription = if_isset($_POST,NULL,'newInvoiceDescription');
 
 	$afd         = if_isset($_POST,NULL,'afd');
 	$bilag       = if_isset($_POST,NULL,'bilag');
@@ -139,7 +142,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				
 				if (file_exists($infoFile)) {
 					$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
-					// Line 0: subject, Line 1: account, Line 2: amount, Line 3: date
+					// Line 0: subject, Line 1: account, Line 2: amount, Line 3: date, Line 4: invoiceNumber, Line 5: invoiceDescription
 					if (isset($infoLines[3]) && !empty(trim($infoLines[3]))) {
 						$infoDate = trim($infoLines[3]);
 						// Try to parse the date
@@ -153,6 +156,16 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					if (isset($infoLines[2]) && !empty(trim($infoLines[2])) && empty($newAmount)) {
 						$_POST['sum'] = trim($infoLines[2]);
 						error_log("docPool INSERT - Got amount from .info file: " . $_POST['sum']);
+					}
+					// Get invoice_number from line 4
+					if (isset($infoLines[4]) && !empty(trim($infoLines[4]))) {
+						$_POST['fakturanr'] = trim($infoLines[4]);
+						error_log("docPool INSERT - Got invoice_number from .info file: " . $_POST['fakturanr']);
+					}
+					// Get invoice_description from line 5
+					if (isset($infoLines[5]) && !empty(trim($infoLines[5]))) {
+						$_POST['beskrivelse'] = trim($infoLines[5]);
+						error_log("docPool INSERT - Got invoice_description from .info file: " . $_POST['beskrivelse']);
 					}
 				} else {
 					error_log("docPool INSERT - .info file not found: $infoFile");
@@ -431,7 +444,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 												$newSubject ?? '',
 												$newAccount ?? '',
 												$newAmount ?? '',
-												$newDate ?? ''
+												$newDate ?? '',
+												$newInvoiceNumber ?? '',
+												$newInvoiceDescription ?? ''
 											]; 
 
 											// Write to the file
@@ -546,7 +561,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							$infoSubject,
 							$newAccount ?? '',
 							$newAmount ?? '',
-							$newDate ?? ''
+							$newDate ?? '',
+							$newInvoiceNumber ?? '',
+							$newInvoiceDescription ?? ''
 						];
 						
 						if (file_put_contents($infoFile, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
@@ -1004,7 +1021,7 @@ print <<<JS
 				if (resizer) resizer.style.display = 'block';
 				if (leftPanel) {
 					leftPanel.style.flex = '0 0 35%';
-					leftPanel.style.maxWidth = '50%';
+					leftPanel.style.width = '50%';
 				}
 			}
 			
@@ -1157,30 +1174,42 @@ print <<<JS
 					</th>
 					<th onclick="sortFiles('subject')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Subject</span>
+							<span>Fil</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
 					<th onclick="sortFiles('account')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Account</span>
+							<span>Kontonr</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
 					<th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Amount</span>
+							<span>Beløb</span>
+							<span>&#9660;</span>
+						</div>
+					</th>
+					<th onclick="sortFiles('invoiceNumber')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+						<div style="display: flex; justify-content: space-between; align-items: center;">
+							<span>Fakturanr</span>
+							<span>&#9660;</span>
+						</div>
+					</th>
+					<th onclick="sortFiles('description')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
+						<div style="display: flex; justify-content: space-between; align-items: center;">
+							<span>Beskrivelse</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
 					<th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Date</span>
+							<span>Dato</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
 					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 90px; color:${buttonTxtColor};">
-						<span>Actions</span>
+						<span>Handlinger</span>
 					</th>
 				</tr>
 			</thead>
@@ -1358,7 +1387,7 @@ print <<<JS
 		for (const row of docData) {
 			// Apply search filter
 			if (searchFilter) {
-				const searchText = ((row.filename || '') + ' ' + (row.subject || '') + ' ' + (row.account || '') + ' ' + (row.amount || '') + ' ' + (row.date || '')).toLowerCase();
+				const searchText = ((row.filename || '') + ' ' + (row.subject || '') + ' ' + (row.account || '') + ' ' + (row.amount || '') + ' ' + (row.date || '') + ' ' + (row.invoiceNumber || '') + ' ' + (row.description || '')).toLowerCase();
 				if (searchText.indexOf(searchFilter) === -1) {
 					continue;
 				}
@@ -1461,6 +1490,8 @@ print <<<JS
 			const accountCell = "<span class='cell-content'>" + escapeHTML(row.account) + "</span>";
 			const amountCell = "<span class='cell-content'>" + amountDisplay + "</span>";
 			const dateCell = "<span class='cell-content'>" + dateDisplay + "</span>";
+			const invoiceNumberCell = "<span class='cell-content'>" + escapeHTML(row.invoiceNumber) + "</span>";
+			const descriptionCell = "<span class='cell-content'>" + escapeHTML(row.description) + "</span>";
 
 			// poolFileFromHref already set above
 			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
@@ -1486,6 +1517,8 @@ print <<<JS
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.account) + "'>" + accountCell + "</td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
+								"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.invoiceNumber) + "'>" + invoiceNumberCell + "</td>" +
+				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.description) + "'>" + descriptionCell + "</td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
 				"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
 				"</tr>";
@@ -1953,6 +1986,12 @@ print <<<JS
 			const newDate = prompt('Dato (ÅÅÅÅ-MM-DD):', date);
 			if (newDate === null) return;
 			
+			const newDescription = prompt('Beskrivelse:', description);
+			if (newDescription === null) return;
+			
+			const newInvoiceNumber = prompt('Fakturanummer:', invoiceNumber);
+			if (newInvoiceNumber === null) return;
+			
 			// Save via AJAX (reuse existing save logic)
 			const form = document.forms['gennemse'];
 			if (!form) return;
@@ -1968,6 +2007,8 @@ print <<<JS
 			formData.append('newSubject', newSubject);
 			formData.append('newAccount', newAccount);
 			formData.append('newAmount', newAmount);
+			formData.append('newDescription', newDescription);
+			formData.append('newInvoiceNumber', newInvoiceNumber);
 			formData.append('newDate', newDate);
 			
 			url.searchParams.forEach((value, key) => {
@@ -2303,10 +2344,12 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 			cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
 			cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
 			cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
-			cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
+			cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.invoiceNumber || '') + "</span>";
+			cells[5].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.description || '') + "</span>";
+			cells[6].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
 			// Restore original actions
 			if (row.dataset.originalActions) {
-				cells[5].innerHTML = row.dataset.originalActions;
+				cells[7].innerHTML = row.dataset.originalActions;
 			}
 			row.removeAttribute('data-editing');
 			delete row.dataset.originalValues;
@@ -2336,10 +2379,12 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 		cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
 		cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(account) + "' data-field='account' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
 		cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-		cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' " + inputEvents + ">";
+		cells[4].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber) + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+		cells[5].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(description) + "' data-field='description' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+		cells[6].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' " + inputEvents + ">";
 		
 		// Update actions column with only save (green) and cancel (red) buttons when editing
-		cells[5].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
+		cells[7].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
 			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Gem'>" + svgIcons.save + "</button>" +
 			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Annuller'>" + svgIcons.x + "</button>" +
 			"</div>";
@@ -2361,10 +2406,12 @@ window.cancelRowEdit = function(button) {
 		cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
 		cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
 		cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
-		cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
+		cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.invoiceNumber || '') + "</span>";
+		cells[5].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.description || '') + "</span>";
+		cells[6].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
 		// Restore original actions
 		if (row.dataset.originalActions) {
-			cells[5].innerHTML = row.dataset.originalActions;
+			cells[7].innerHTML = row.dataset.originalActions;
 		}
 		row.removeAttribute('data-editing');
 		delete row.dataset.originalValues;
@@ -2414,6 +2461,8 @@ window.extractPoolFile = function(poolFile) {
 			let message = 'Udtrækket data:';
 			if (extracted.amount) message += 'Beløb: ' + extracted.amount;
 			if (extracted.date) message += 'Dato: ' + extracted.date;
+			if (extracted.invoiceNumber) message += 'Fakturanummer: ' + extracted.invoiceNumber;
+			if (extracted.description) message += 'Beskrivelse: ' + extracted.description;
 			if (extracted.vendor) message += 'Leverandør: ' + extracted.vendor;
 			
 			if (confirm(message + 'Vil du opdatere filen med disse data?')) {
@@ -2424,6 +2473,8 @@ window.extractPoolFile = function(poolFile) {
 				saveData.append('db', db);
 				if (extracted.amount) saveData.append('newAmount', extracted.amount);
 				if (extracted.date) saveData.append('newDate', extracted.date);
+				if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
+				if (extracted.description) saveData.append('newDescription', extracted.description);
 				if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
 				
 				fetch('docsIncludes/extractInvoiceHandler.php', {
@@ -3137,6 +3188,15 @@ JS;
 	$ext = pathinfo($poolFile, PATHINFO_EXTENSION);
 	$fullName = "$docFolder/$db/pulje/$poolFile";
 	
+	// Skip processing if poolFile is empty or points to a directory
+	if (empty($poolFile) || is_dir($fullName)) {
+		// Log and skip - this is not a valid file
+		if (is_dir($fullName)) {
+			error_log("Skipping directory in poolFile: $fullName");
+		}
+		$poolFile = '';
+	}
+	
 #	cho __line__." $fullName<br>";
 	$descFile = $newName = str_replace($ext,'.desc',$fullName);
 	if (strpos($fullName,'æ')) {
@@ -3205,7 +3265,7 @@ JS;
 		$fullName = $newName ;
 		$corrected = 1;
 	}
-	if (!$ext) {
+	if (!$ext && $poolFile && file_exists($fullName) && is_file($fullName)) {
 		$fileType = strtolower(file_get_contents($fullName, FALSE, NULL, 0, 4));
 		if ($fileType == '%pdf') $newName = $fullName.'.pdf';
 		else $newName = $fullName;
@@ -3642,12 +3702,16 @@ JS;
 					$Account = $lines[1] ?? '';
 					$Amount  = $lines[2] ?? '';
 					$Date	= $lines[3] ?? '';
+					$InvoiceNumber = $lines[4] ?? '';
+					$InvoiceDescription = $lines[5] ?? '';
 					
 				} else {
 					$Subject = if_isset($newSubject,NULL);
 					$Account = if_isset($newAccount,NULL);
 					$Amount  = if_isset($newAmount,NULL);
-					$Date	= if_isset($newDate,NULL);	
+					$Date	= if_isset($newDate,NULL);
+					$InvoiceNumber = if_isset($newInvoiceNumber,NULL);
+					$InvoiceDescription = if_isset($newInvoiceDescription,NULL);	
 
 				}
 			} 

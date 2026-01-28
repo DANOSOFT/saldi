@@ -121,6 +121,8 @@ ob_start();
                 $subject = trim($lines[0] ?? '') !== '' ? trim($lines[0]) : $base;//default to filename
                 $account        = $lines[1] ?? '';
                 $amount         = $lines[2] ?? '';
+                $invoiceNumber  = $lines[3] ?? '';
+                $description    = $lines[4] ?? '';
                 // Use line 3 for date, but fall back to file mod time if empty
                 $insertedDate   = (isset($lines[3]) && trim($lines[3]) !== '') ? trim($lines[3]) : $modDate1; 
                 
@@ -243,6 +245,8 @@ ob_start();
             'amount' => $amount,
             'date' => $modDate,
             'href' => $hreftxt,
+            'invoiceNumber' => $invoiceNumber,
+            'description' => $description,
             'fil_nr' => $fil_nr,
         ];
 

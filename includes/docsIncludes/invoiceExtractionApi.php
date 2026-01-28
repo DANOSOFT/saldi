@@ -216,6 +216,16 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		if (isset($extractedData['total_amount'])) {
 			$amount = $extractedData['total_amount'];
 		}
+
+		// Get invoice_number
+		if (isset($extractedData['invoice_number'])) {
+			$invoiceNumber = $extractedData['invoice_number'];
+		}	
+
+		// Get invoice_description
+		if (isset($extractedData['invoice_description'])) {
+			$description = $extractedData['invoice_description'];
+		}	
 		
 		// Get invoice_date
 		if (isset($extractedData['invoice_date'])) {
@@ -260,7 +270,9 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		return array(
 			'amount' => $amount,
 			'date' => $date,
-			'vendor' => $vendor
+			'vendor' => $vendor,
+			'invoiceNumber' => $invoiceNumber,
+			'description' => $description
 		);
 	}
 	
