@@ -180,6 +180,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$curlError = curl_error($ch);
 	curl_close($ch);
 
+
 	// Check for cURL errors
 	if ($curlError) {
 		error_log("cURL error calling invoice extraction API: $curlError");
@@ -220,12 +221,12 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		// Get invoice_number
 		if (isset($extractedData['invoice_number'])) {
 			$invoiceNumber = $extractedData['invoice_number'];
-		}	
+		}
 
 		// Get invoice_description
 		if (isset($extractedData['invoice_description'])) {
 			$description = $extractedData['invoice_description'];
-		}	
+		}
 		
 		// Get invoice_date
 		if (isset($extractedData['invoice_date'])) {
@@ -266,7 +267,14 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	}
 	
 	// Return extracted data
-	if ($amount !== null || $date !== null) {
+	if ($amount !== null || $date !== null || $vendor !== null || $invoiceNumber !== null || $description !== null) {
+		file_put_contents('extracted_data.json', json_encode(array(
+			'amount' => $amount,
+			'date' => $date,
+			'vendor' => $vendor,
+			'invoiceNumber' => $invoiceNumber,
+			'description' => $description
+		)));
 		return array(
 			'amount' => $amount,
 			'date' => $date,

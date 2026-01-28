@@ -118,14 +118,13 @@ ob_start();
                 $modDate1 = date("Y-m-d H:i:s", filemtime($infoFile)); 
                 #
                         
-                $subject = trim($lines[0] ?? '') !== '' ? trim($lines[0]) : $base;//default to filename
+                $subject = trim($lines[0] ?? '') !== '' ? trim($lines[0]) : $base; // default to filename
                 $account        = $lines[1] ?? '';
                 $amount         = $lines[2] ?? '';
-                $invoiceNumber  = $lines[3] ?? '';
-                $description    = $lines[4] ?? '';
                 // Use line 3 for date, but fall back to file mod time if empty
-                $insertedDate   = (isset($lines[3]) && trim($lines[3]) !== '') ? trim($lines[3]) : $modDate1; 
-                
+                $insertedDate   = (isset($lines[3]) && trim($lines[3]) !== '') ? trim($lines[3]) : $modDate1;
+                $invoiceNumber  = $lines[4] ?? '';  // ✓ FIXED - now reads from correct line
+                $description    = $lines[5] ?? ''; 
             }
 
         if (!empty($subject)) {

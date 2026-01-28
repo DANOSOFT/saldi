@@ -67,7 +67,9 @@ if ($action === 'extract') {
 			'data' => [
 				'amount' => $result['amount'] ?? null,
 				'date' => $result['date'] ?? null,
-				'vendor' => $result['vendor'] ?? null
+				'vendor' => $result['vendor'] ?? null,
+				'invoiceNumber' => $result['invoiceNumber'] ?? null,
+				'description' => $result['description'] ?? null
 			]
 		]);
 	} else {

@@ -85,6 +85,18 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			error_log("docPool INSERT - NOT setting amount. sourceId=$sourceId, newAmount=$newAmount");
 		}
 		
+		// Set invoice number from pool file if sourceId is empty (new entry) and newInvoiceNumber is set
+		if (!$sourceId && $newInvoiceNumber) {
+			$_POST['fakturanr'] = $newInvoiceNumber;
+			error_log("docPool INSERT - Setting fakturanr from pool file: newInvoiceNumber=$newInvoiceNumber");
+		}
+		
+		// Set description from pool file if sourceId is empty (new entry) and newInvoiceDescription is set
+		if (!$sourceId && $newInvoiceDescription) {
+			$_POST['beskrivelse'] = $newInvoiceDescription;
+			error_log("docPool INSERT - Setting beskrivelse from pool file: newInvoiceDescription=$newInvoiceDescription");
+		}
+		
 		// Debug logging - log what we receive
 		error_log("docPool INSERT - POST poolFiles: " . (isset($_POST['poolFiles']) ? $_POST['poolFiles'] : 'NOT SET'));
 		error_log("docPool INSERT - POST poolFile: " . (isset($_POST['poolFile']) ? (is_array($_POST['poolFile']) ? implode(',', $_POST['poolFile']) : $_POST['poolFile']) : 'NOT SET'));
@@ -1497,7 +1509,7 @@ print <<<JS
 			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>" + svgIcons.pencil + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(row.invoiceNumber || '') + "\", \"" + escapeHTML(row.description || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>" + svgIcons.trash + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='Udtræk fakturadata'>" + svgIcons.scan + "</button>" +
 				"</div>";
@@ -1513,15 +1525,15 @@ print <<<JS
 				(isDateMatch && !isAmountMatch ? "data-date-match='true' " : "") +
 				(isCombinationMatch ? "data-combination-match='true' " : "");
 				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
-				"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
-				"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
-				"<td style='padding:6px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.account) + "'>" + accountCell + "</td>" +
-				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
-								"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.invoiceNumber) + "'>" + invoiceNumberCell + "</td>" +
-				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.description) + "'>" + descriptionCell + "</td>" +
-				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
-				"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
-				"</tr>";
+					"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
+					"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
+					"<td style='padding:6px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.account) + "'>" + accountCell + "</td>" +
+					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
+					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.invoiceNumber) + "'>" + invoiceNumberCell + "</td>" +
+					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.description) + "'>" + descriptionCell + "</td>" +
+					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
+					"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
+					"</tr>";
 			
 			// Categorize rows by match type (priority order)
 			if (isMatch) {
@@ -2182,6 +2194,20 @@ print <<<JS
 				} else {
 					console.log('No amount in fileData');
 				}
+				// Transfer invoice number if available
+				if (fileData.invoiceNumber) {
+					formData.append('newInvoiceNumber', fileData.invoiceNumber);
+					console.log('Transferring invoice number from pool file:', fileData.invoiceNumber);
+				} else {
+					console.log('No invoiceNumber in fileData');
+				}
+				// Transfer invoice description if available
+				if (fileData.description) {
+					formData.append('newInvoiceDescription', fileData.description);
+					console.log('Transferring invoice description from pool file:', fileData.description);
+				} else {
+					console.log('No description in fileData');
+				}
 			} else {
 				console.log('Could not find file in docData. Available filenames:', docData.map(d => d.filename));
 			}
@@ -2333,7 +2359,7 @@ print <<<JS
 	};
 	
 // Enable editing for a specific row
-window.enableRowEdit = function(button, poolFile, subject, account, amount, date) {
+window.enableRowEdit = function(button, poolFile, subject, account, amount, date, invoiceNumber, description) {
 	// Disable any other row that might be in edit mode
 	const allRows = document.querySelectorAll('tr[data-editing="true"]');
 	allRows.forEach(row => {
@@ -2364,64 +2390,71 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 	// Store original values and actions
 	const cells = row.querySelectorAll('td');
 	const originalActions = cells.length >= 6 ? cells[5].innerHTML : '';
-	row.dataset.originalValues = JSON.stringify({ subject, account, amount, date });
+	 // Store original values
+	 console.log(subject, account, amount, date, invoiceNumber, description);
+    row.dataset.originalValues = JSON.stringify({ 
+        subject, 
+        account, 
+        amount, 
+        date,
+        invoiceNumber,
+        description
+    });
+
 	row.dataset.originalActions = originalActions;
 	row.setAttribute('data-editing', 'true');
 	row.setAttribute('data-pool-file', poolFile);
 
-	// Make cells editable (skip checkbox column which is cells[0])
-	if (cells.length >= 6) {
-		const dateFormatted = date.split(' ')[0] || date;
-		
-		// Add multiple event handlers to prevent row clicks during text selection
-		const stopPropagation = "event.stopPropagation();";
-		const inputEvents = "onclick='" + stopPropagation + "' onmousedown='" + stopPropagation + "' onmouseup='" + stopPropagation + "' onmousemove='" + stopPropagation + "'";
-		cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-		cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(account) + "' data-field='account' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-		cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-		cells[4].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber) + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-		cells[5].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(description) + "' data-field='description' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-		cells[6].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' " + inputEvents + ">";
-		
-		// Update actions column with only save (green) and cancel (red) buttons when editing
-		cells[7].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Gem'>" + svgIcons.save + "</button>" +
-			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Annuller'>" + svgIcons.x + "</button>" +
-			"</div>";
-		
-		// Focus on first input (subject)
-		setTimeout(() => cells[1].querySelector('input').focus(), 10);
-	}
+	// Make cells editable (update to handle all 8 columns)
+    if (cells.length >= 8) {
+        const dateFormatted = date.split(' ')[0] || date;
+        const stopPropagation = "event.stopPropagation();";
+        const inputEvents = "onclick='" + stopPropagation + "' onmousedown='" + stopPropagation + "' onmouseup='" + stopPropagation + "' onmousemove='" + stopPropagation + "'";
+        
+        cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(account) + "' data-field='account' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[4].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber || '') + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[5].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(description || '') + "' data-field='description' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[6].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' " + inputEvents + ">";
+        
+        // Update actions column
+        cells[7].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
+            "<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;' title='Gem'>" + svgIcons.save + "</button>" +
+            "<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;' title='Annuller'>" + svgIcons.x + "</button>" +
+            "</div>";
+        
+        // Focus on first input
+        setTimeout(() => cells[1].querySelector('input').focus(), 10);
+    }
 };
 
 // Cancel editing and restore original values
 window.cancelRowEdit = function(button) {
-	const row = button.closest('tr[data-editing="true"]');
-	if (!row) return;
-	
-	const cells = row.querySelectorAll('td');
-	if (cells.length >= 6) {
-		// Restore original values (skip checkbox column which is cells[0])
-		const originalData = row.dataset.originalValues ? JSON.parse(row.dataset.originalValues) : {};
-		cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
-		cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
-		cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
-		cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.invoiceNumber || '') + "</span>";
-		cells[5].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.description || '') + "</span>";
-		cells[6].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
-		// Restore original actions
-		if (row.dataset.originalActions) {
-			cells[7].innerHTML = row.dataset.originalActions;
-		}
-		row.removeAttribute('data-editing');
-		delete row.dataset.originalValues;
-		delete row.dataset.originalActions;
-	}
-	
-	// Update bulk button state
-	if (typeof updateBulkButton === 'function') {
-		updateBulkButton();
-	}
+const row = button.closest('tr[data-editing="true"]');
+    if (!row) return;
+    
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 8) {
+        const originalData = row.dataset.originalValues ? JSON.parse(row.dataset.originalValues) : {};
+        cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
+        cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
+        cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
+        cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.invoiceNumber || '') + "</span>";
+        cells[5].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.description || '') + "</span>";
+        cells[6].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
+        
+        if (row.dataset.originalActions) {
+            cells[7].innerHTML = row.dataset.originalActions;
+        }
+        row.removeAttribute('data-editing');
+        delete row.dataset.originalValues;
+        delete row.dataset.originalActions;
+    }
+    
+    if (typeof updateBulkButton === 'function') {
+        updateBulkButton();
+    }
 };
 
 // Delete pool file with confirmation
@@ -2454,16 +2487,16 @@ window.extractPoolFile = function(poolFile) {
 	.then(result => {
 		btn.innerHTML = originalContent;
 		btn.disabled = false;
-		
+
 		if (result.success) {
 			// Update the row or card with extracted data
 			const extracted = result.data;
-			let message = 'Udtrækket data:';
-			if (extracted.amount) message += 'Beløb: ' + extracted.amount;
-			if (extracted.date) message += 'Dato: ' + extracted.date;
-			if (extracted.invoiceNumber) message += 'Fakturanummer: ' + extracted.invoiceNumber;
-			if (extracted.description) message += 'Beskrivelse: ' + extracted.description;
-			if (extracted.vendor) message += 'Leverandør: ' + extracted.vendor;
+			let message = 'Udtrækket data: \\n';
+			if (extracted.amount) message += 'Beløb: ' + extracted.amount + "\\n";
+			if (extracted.date) message += 'Dato: ' + extracted.date + "\\n";
+			if (extracted.invoiceNumber) message += 'Fakturanummer: ' + extracted.invoiceNumber + "\\n";
+			if (extracted.description) message += 'Beskrivelse: ' + extracted.description + "\\n";
+			if (extracted.vendor) message += 'Leverandør: ' + extracted.vendor + "\\n";
 			
 			if (confirm(message + 'Vil du opdatere filen med disse data?')) {
 				// Save the extracted data to the .info file
@@ -2706,28 +2739,32 @@ window.handleEnterKey = function(event, input) {
 
 // Save row data via AJAX
 window.saveRowData = function(input) {
-	const row = input.closest('tr[data-editing="true"]');
-	if (!row) return;
+    const row = input.closest('tr[data-editing="true"]');
+    if (!row) return;
 
-	const poolFile = row.getAttribute('data-pool-file');
-	const inputs = row.querySelectorAll('.edit-input');
-	
-	const data = {
-		rename: 'Ret filnavn',
-		poolFile: poolFile,
-		newSubject: '',
-		newAccount: '',
-		newAmount: '',
-		newDate: ''
-	};
+    const poolFile = row.getAttribute('data-pool-file');
+    const inputs = row.querySelectorAll('.edit-input');
+    
+    const data = {
+        rename: 'Ret filnavn',
+        poolFile: poolFile,
+        newSubject: '',
+        newAccount: '',
+        newAmount: '',
+        newDate: '',
+        newInvoiceNumber: '',
+        newInvoiceDescription: ''
+    };
 
-	inputs.forEach(input => {
-		const field = input.getAttribute('data-field');
-		if (field === 'subject') data.newSubject = input.value;
-		else if (field === 'account') data.newAccount = input.value;
-		else if (field === 'amount') data.newAmount = input.value;
-		else if (field === 'date') data.newDate = input.value;
-	});
+    inputs.forEach(input => {
+        const field = input.getAttribute('data-field');
+        if (field === 'subject') data.newSubject = input.value;
+        else if (field === 'account') data.newAccount = input.value;
+        else if (field === 'amount') data.newAmount = input.value;
+        else if (field === 'date') data.newDate = input.value;
+        else if (field === 'invoiceNumber') data.newInvoiceNumber = input.value;
+        else if (field === 'description') data.newInvoiceDescription = input.value;
+    });
 
 	// Get the form action URL
 	const form = document.forms['gennemse'];
@@ -2751,6 +2788,8 @@ window.saveRowData = function(input) {
 	formData.append('newAccount', data.newAccount);
 	formData.append('newAmount', data.newAmount);
 	formData.append('newDate', data.newDate);
+	formData.append('newInvoiceNumber', data.newInvoiceNumber);
+	formData.append('newInvoiceDescription', data.newInvoiceDescription);
 	
 	// Add URL parameters to form data
 	url.searchParams.forEach((value, key) => {
@@ -2768,10 +2807,14 @@ window.saveRowData = function(input) {
 		newAccount: data.newAccount,
 		newAmount: data.newAmount,
 		newDate: data.newDate,
+		newInvoiceNumber: data.newInvoiceNumber,
+		newInvoiceDescription: data.newInvoiceDescription,
 		url: url.toString()
 	});
 
 	// Send AJAX request
+	console.log('Sending AJAX request to:', url.toString());
+	console.log('Form data:', formData);
 	fetch(url.toString(), {
 		method: 'POST',
 		body: formData,
@@ -2789,10 +2832,13 @@ window.saveRowData = function(input) {
 			}
 			
 			// Update cells (skip checkbox column which is nth-child(1))
+			// Update cells (skip checkbox column which is nth-child(1))
 			row.querySelector('td:nth-child(2)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newSubject) + "</span>";
 			row.querySelector('td:nth-child(3)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newAccount) + "</span>";
 			row.querySelector('td:nth-child(4)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newAmount) + "</span>";
-			row.querySelector('td:nth-child(5)').innerHTML = "<span class='cell-content'>" + escapeHTML(dateFormatted) + "</span>";
+			row.querySelector('td:nth-child(5)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newInvoiceNumber || '') + "</span>";
+			row.querySelector('td:nth-child(6)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newInvoiceDescription || '') + "</span>";
+			row.querySelector('td:nth-child(7)').innerHTML = "<span class='cell-content'>" + dateFormatted + "</span>";
 			
 			// Restore actions column with updated values
 			const poolFileFromRow = row.getAttribute('data-pool-file');
@@ -2800,12 +2846,12 @@ window.saveRowData = function(input) {
 			const deleteUrl = currentUrl.replace(/poolFile=[^&]*/, '') + (currentUrl.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromRow);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>" + svgIcons.pencil + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(data.newInvoiceNumber || '') + "\", \"" + escapeHTML(data.newInvoiceDescription || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>" + svgIcons.trash + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='Udtræk fakturadata'>" + svgIcons.scan + "</button>" +
 				"</div>";
 			
-			row.querySelector('td:nth-child(6)').innerHTML = actionsCell;
+			row.querySelector('td:nth-child(8)').innerHTML = actionsCell;
 			
 			// Remove edit mode
 			row.removeAttribute('data-editing');
