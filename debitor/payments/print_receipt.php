@@ -101,6 +101,12 @@ if ($type == 'flatpay') {
     if ($data['transactionType'] == 'SALE') $bon.= "KØB\n";
     else $bon.= "RETUR\n";
     $bon.= "DKK ".number_format($data['amount']/100, 2, ',', '.')."\n";
+    
+    // added surcharge functionality
+    if($data["amountSurcharge"]){
+      $bon.= "Kort gebyr: ".number_format($data['amountSurcharge']/100, 2, ',', '.')."\n";
+      $bon.= "Total: ".number_format($data['amountSurcharge']+$data["amount"]/100, 2, ',', '.')."\n";
+    }
 
     $txt = strtoupper($data['status']);
     while (strlen($txt) < 40) $txt = ' '.$txt.' ';
