@@ -1634,7 +1634,7 @@ function removeDfmPickup(idx) {
 
 
 	print "<tr><td colspan='2'>&nbsp;</td></tr>";
-	print "<tr><td colspan='1'>&nbsp;</td><td style='text-align:center'>\n";
+	print "<tr><td colspan='2' style='text-align:center'>\n";
 	print "     <input class='button green medium' name='submit' type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."'>\n";
 	print "</td></tr>\n";
 	print "</form>\n\n";
