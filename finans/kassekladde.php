@@ -3797,10 +3797,10 @@ document.addEventListener('DOMContentLoaded', function() {
     position: sticky;
     top: 0;
     z-index: 10;
-	background-color: #ebebeb !important;
+	background-color: <?php echo $bgColor; ?> !important;
 }
 .datatable thead tr, .datatable thead th{
-	background-color: #ebebeb !important;
+	background-color: <?php echo $bgColor; ?> !important;
 }
 
 /* Sticky footer outside the scroll container */

@@ -1,4 +1,5 @@
 <?php
+
 #..includes/grid.php
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -933,7 +934,7 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
     }
     print "<th class='filler-row'></th>";
     print "</tr>";
-    print "<tr style='background-color: #f4f4f4'>";
+    print "<tr style='background-color: $bgColor !important;'>";
     foreach ($columns as $column) {
         echo "<th class='$column[field]'>";
         if ($column["searchable"]) {
@@ -1555,7 +1556,7 @@ function save_filter_setup($id) {
  * @return void Outputs the embedded CSS for styling the data table and search functionality.
  */
 function render_search_style() {
-    global $bgcolor;
+    global $bgcolor, $bgcolordark;
     echo <<<STYLE
     <style>
         /* ==========================================================================
@@ -1580,7 +1581,7 @@ function render_search_style() {
             top: 0;
             z-index: 2;
             text-align: left;
-            border-bottom: 2px solid #ddd;
+            border-bottom: 2px solid $bgcolordark;
         }
         .datatable thead tr,
         .datatable thead th {

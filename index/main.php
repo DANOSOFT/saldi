@@ -109,6 +109,34 @@ setInterval(checkRefreshCookie, 500);
     background-color: <?php echo $buttonColor; ?> !important;
     color: <?php echo $buttonTxtColor; ?> !important;
   }
+
+  .link_name{
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  a, p{
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .bx{
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .logo-img {
+    width: 120px;
+    height: 40px; /* ← REQUIRED */
+
+    background-color: <?php echo $buttonTxtColor; ?> !important;
+
+    -webkit-mask: url("../img/sidebar_logo.png") no-repeat center;
+    mask: url("../img/sidebar_logo.png") no-repeat center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  .sidebar:not(.closed) .nav-links li .sub-menu li a::before{
+    background: <?php echo $buttonTxtColor; ?> !important;
+  }
 </style>
 
 <meta charset="utf-8">
@@ -125,8 +153,8 @@ setInterval(checkRefreshCookie, 500);
 <div class="sidebar">
 
   <div class="logo wide">
-    <img class="logo-img" src="../img/sidebar_logo.png">
-    <i id="icon-open" class='bx bxs-arrow-from-right'></i>
+    <div class="logo-img"></div>
+    <i id="icon-open" class="bx bxs-arrow-from-right"></i>
   </div>
 
   <div class="logo small" onclick="

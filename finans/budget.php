@@ -280,7 +280,7 @@ print "<style>
     background-color: #f4f4f4;
 }
 .budget-wrapper table thead td {
-    border-bottom: 2px solid #ddd;
+    /* border-bottom: 2px solid #ddd; */
     background-color: #f4f4f4;
     padding: 8px;
 }

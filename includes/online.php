@@ -270,6 +270,9 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$popup = $r['box2'];
 			$menu = $r['box3'];
 			$bgcolor = $r['box4'];
+			// lets make a slightly darker background color for the grid header
+			$bgcolordark = darkenColor($bgcolor, 0.2);
+
 			$bgnuance1 = $r['box5']; #20210928
 			if (strpos($jsvars, "reziseable")) { #tilfoejet 20090730 grundet stavefejl i reziseable
 				$jsvars = str_replace("reziseable", "resizable", $jsvars);
