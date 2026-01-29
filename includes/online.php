@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 5.0.0 --- 2026-01-20---
+// --- includes/online.php --- patch 5.0.0 --- 2026-01-29---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -57,6 +57,7 @@
 // 20251119 PHR added  && $title != "POS Ordre" to if (!$isApiCall) 
 // 20260115 PHR fetch from settings disabled if $ver < '3.7.2'
 // 20260120 PHR fetch from settings disabled if table settings does not exist
+// 20260129 PHR More updates to make it work with very old releases.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor)) $buttonColor = '#114691';
@@ -265,9 +266,6 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$popup = $r['box2'];
 			$menu = $r['box3'];
 			$bgcolor = $r['box4'];
-			// lets make a slightly darker background color for the grid header
-			$bgcolordark = darkenColor($bgcolor, 0.2);
-
 			$bgnuance1 = $r['box5']; #20210928
 			if (strpos($jsvars, "reziseable")) { #tilfoejet 20090730 grundet stavefejl i reziseable
 				$jsvars = str_replace("reziseable", "resizable", $jsvars);
