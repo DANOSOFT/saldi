@@ -36,7 +36,7 @@
 // 20250504 LOE Updated to allow for mysql db conversion to psql, default texts if tekster table not found yet; must backup first
 // 20250511 LOE Various changes to ehance user's experience
 // 20260127 LOE Updated migrateMySQLToPostgreSQL for some isolated fixes.
-// 20260129 PHR Added some str_replace
+// 20260129 PHR Added some str_replace  and a call to connect.php before lookup in 'regnskab'
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -71,6 +71,7 @@ if (isset($_GET['db']) && $_GET['db']) {
 		db_create($tmpDb);		
 	}
 	if (!$regnskab) {
+		include("../includes/connect.php");
 		$r=db_fetch_array(db_select("select * from regnskab where db='$tmpDb'",__FILE__ . " linje " . __LINE__));
 		$regnskab=$r['regnskab'];
 	}
