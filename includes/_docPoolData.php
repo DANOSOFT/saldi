@@ -25,24 +25,6 @@ ob_start();
     }
     $files = scandir($dir);
     $data = [];
-
-    $baseNameCounts = [];
-    foreach ($files as $file) {
-        $base = pathinfo($file, PATHINFO_FILENAME);
-        $baseNameCounts[$base] = ($baseNameCounts[$base] ?? 0) + 1;
-    }
-
-
-    $data = [];
-
-    $files = scandir($dir);
-    $baseNameCounts = [];
-
-    // Count base names (used to pair .pdf and .info files)
-    foreach ($files as $file) {
-        $base = pathinfo($file, PATHINFO_FILENAME);
-        $baseNameCounts[$base] = ($baseNameCounts[$base] ?? 0) + 1;
-    }
     $fil_nr=0;
 
     foreach ($files as $file) {
@@ -200,22 +182,27 @@ ob_start();
     
             ###############################
             $fullPath = rtrim($dir, '/\\') . DIRECTORY_SEPARATOR . $file;
-
-            // Retry up to 6 times with short delay
-            $retries = 6;
-            $delayMs = 100; // milliseconds
-
-            while ($retries-- > 0) {
-                clearstatcache(true, $fullPath); // Clear PHP's file status cache
-                if (file_exists($fullPath)) {
-                    $modDate = date("Y-m-d H:i:s", filemtime($fullPath));
-                    break;
+            
+            if (file_exists($fullPath)) {
+                $modDate = date("Y-m-d H:i:s", filemtime($fullPath));
+            } else {
+                // Retry up to 6 times with short delay if file doesn't appear to exist
+                $retries = 6;
+                $delayMs = 100; // milliseconds
+    
+                while ($retries-- > 0) {
+                    clearstatcache(true, $fullPath); // Clear PHP's file status cache
+                    if (file_exists($fullPath)) {
+                        $modDate = date("Y-m-d H:i:s", filemtime($fullPath));
+                        break;
+                    }
+                    usleep($delayMs * 1000); // Delay in microseconds
                 }
-                usleep($delayMs * 1000); // Delay in microseconds
-            }
-
-            if (!isset($modDate)) {
-                error_log("File does not exist after retries: $fullPath");
+    
+                if (!isset($modDate)) {
+                    error_log("File does not exist after retries: $fullPath");
+                    continue; // Skip this file if it really doesn't exist
+                }
             }
 
 

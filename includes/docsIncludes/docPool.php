@@ -37,8 +37,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 	((isset($_POST['unlink']) && $_POST['unlink']) || (isset($_GET['unlink']) && $_GET['unlink']))?$unlink=1:$unlink=0;
 	$cleanupOrphans = if_isset($_GET, NULL, 'cleanupOrphans');
+	$cleanup = get_settings_value("cleanup", "docs", 0);
 
-	if ($cleanupOrphans) {
+		if ($cleanupOrphans && !$cleanup) {
 		$puljePath = "$docFolder/$db/pulje";
 		if (is_dir($puljePath)) {
 			$files = scandir($puljePath);
@@ -77,7 +78,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				echo "<script>alert('Ingen forældreløse info-filer fundet.');</script>";
 			}
 		}
-		
+		update_settings_value("cleanup", "docs", 1);
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1\">";
 		exit;
 	}
