@@ -130,6 +130,11 @@ ob_start();
         if (!empty($subject)) {
                 // Sanitize subject to make it filename-safe
                 #$safeSubject = preg_replace('/[^A-Za-z0-9_\-]/', '_', $subject);
+                /* 
+                // DISABLED: This auto-rename logic causes issues where filenames are changed
+                // simply by viewing the list, causing broken links and "file not found" errors.
+                // Filename changes should only happen via explicit user action (Edit/Rename).
+                
                 $updaTe = false;
             if (preg_match('/^[A-Za-z0-9_\-]+$/', $subject)) {
                 // Already safe, no need to sanitize
@@ -184,6 +189,7 @@ ob_start();
                         error_log("Failed to update first line of .info file: $infoFile");
                     }
                 }
+                */
         }
 
 

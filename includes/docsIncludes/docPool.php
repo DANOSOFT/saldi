@@ -2478,6 +2478,7 @@ window.extractPoolFile = function(poolFile) {
 	formData.append('action', 'extract');
 	formData.append('poolFile', poolFile);
 	formData.append('db', db);
+	formData.append('docFolder', docFolder);
 	
 	fetch('docsIncludes/extractInvoiceHandler.php', {
 		method: 'POST',
@@ -2504,6 +2505,7 @@ window.extractPoolFile = function(poolFile) {
 				saveData.append('action', 'save');
 				saveData.append('poolFile', poolFile);
 				saveData.append('db', db);
+				saveData.append('docFolder', docFolder);
 				if (extracted.amount) saveData.append('newAmount', extracted.amount);
 				if (extracted.date) saveData.append('newDate', extracted.date);
 				if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
@@ -2517,8 +2519,8 @@ window.extractPoolFile = function(poolFile) {
 				.then(response => response.json())
 				.then(saveResult => {
 					if (saveResult.success) {
-						// Reload the page to show updated data
-						window.location.reload();
+						// Reload the page while preserving the current URL (keeps poolFile selection)
+						window.location.href = window.location.href;
 					} else {
 						alert('Fejl ved gemning: ' + (saveResult.error || 'Ukendt fejl'));
 					}
@@ -3874,22 +3876,17 @@ JS;
 		//Check if the fullname exists or already deleted:
 
 			if (!file_exists($fullName)) {
+			// Log the issue but DON'T auto-select another file - this was causing wrong .info file operations
+			error_log("docPool: Selected file not found: $fullName. Clearing selection to prevent wrong file operations.");
 			
-				
-				// Attempt to get the first .pdf file in the same directory
-				$directory = dirname($fullName);
-				$pdfFiles = glob($directory . '/*.pdf');
-
-				if (!empty($pdfFiles)) {
-					$fullName = $pdfFiles[0]; // First PDF found 
-
-					$poolFile = basename($pdfFiles[0]);
-					
-				} else {
-					error_log("No PDF files found in directory: $directory");
-					$fullName = null; // Optional: unset it if nothing is found
-				}
-			}
+			// Clear the selection to prevent operating on wrong file
+			// User will need to select a file manually
+			$poolFile = '';
+			$fullName = null;
+			
+			// Note: Previously this code would auto-select ANY PDF which caused issues
+			// with .info files being deleted for the wrong document
+		}
 
 		// Ensure it's a .pdf file
 		if (strtolower(pathinfo($fullName, PATHINFO_EXTENSION)) === 'pdf') {
@@ -3939,10 +3936,11 @@ print <<<HTML
 
 		if (fileInput) {
 			// Always strip .pdf from what the user types
-			fileInput.value = fileInput.value.replace(/\.pdf$/i, '');
+			let val = fileInput.value.replace(/\.pdf$/i, '');
+			fileInput.value = val;
 
 			if (subjectInput) {
-				subjectInput.value = fileInput.value.trim();
+				subjectInput.value = val.trim();
 			}
 		}
 	}
@@ -3955,7 +3953,10 @@ print <<<HTML
 		if (fileInput) {
 			fileInput.value = fileInput.value.replace(/\.pdf$/i, '');
 			if (subjectInput) {
-				subjectInput.value = fileInput.value.trim();
+				// Don't auto-fill subject on load if it's already set (preserves existing subject)
+				if (!subjectInput.value) {
+					subjectInput.value = fileInput.value.trim();
+				}
 			}
 		}
 	});
@@ -3963,8 +3964,11 @@ print <<<HTML
 	// Before form submit, add .pdf back
 	document.querySelector('form')?.addEventListener('submit', function () {
 		const fileInput = document.querySelector('input[name="newFileName"]');
-		if (fileInput && !fileInput.value.endsWith('.pdf')) {
-			fileInput.value = fileInput.value.trim() + '.pdf';
+		if (fileInput) {
+			let val = fileInput.value.trim();
+			if (!val.toLowerCase().endsWith('.pdf')) {
+				fileInput.value = val + '.pdf';
+			}
 		}
 	});
 
@@ -3981,9 +3985,17 @@ print <<<HTML
 			if (lastDot !== -1) {
 				extension = filename.substring(lastDot);
 			}
+			
+			// If extension is missing or not .pdf, ensure it's .pdf (since we work with PDFs)
+			if (!extension || extension.toLowerCase() !== '.pdf') {
+				extension = '.pdf';
+			}
 
 			// Always update filename's basename with the subject's value when subject changes
-			fileInput.value = subjectInput.value + extension;
+			// TRIM the subject value to avoid trailing spaces becoming underscores
+			fileInput.value = subjectInput.value.trim() + extension;
+		}
+	}
 		}
 	}
 	</script>

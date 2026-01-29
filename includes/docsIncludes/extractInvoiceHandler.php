@@ -42,9 +42,41 @@ if (empty($poolFile)) {
 	exit;
 }
 
-// Build full path to the pool file
-$puljePath = "../../bilag/$db/pulje";
+// Get docFolder from POST (same as what docPool.php uses)
+$docFolder = isset($_POST['docFolder']) ? $_POST['docFolder'] : '../bilag';
+
+// Build full path to the pool file using the same path structure as docPool.php
+// docFolder is relative to the includes/ directory (e.g., "../bilag")
+// Since this handler is in includes/docsIncludes/, we need to go up one level first
+$puljePath = "../" . $docFolder . "/$db/pulje";
+
+// Normalize the path to handle potential double-slashes
+$puljePath = preg_replace('#/+#', '/', $puljePath);
+
+// Debug: log the constructed paths
+error_log("extractInvoiceHandler: docFolder=$docFolder, db=$db, puljePath=$puljePath, poolFile=$poolFile");
+
 $filePath = "$puljePath/$poolFile";
+
+// If file not found, try alternate path constructions
+if (!file_exists($filePath)) {
+	error_log("extractInvoiceHandler: File not found at primary path: $filePath. Trying alternates...");
+	
+	$altPaths = [
+		$docFolder . "/$db/pulje/$poolFile",           // Without the extra ../
+		"../../bilag/$db/pulje/$poolFile",              // Hardcoded fallback for standard location
+	];
+	
+	foreach ($altPaths as $alt) {
+		$alt = preg_replace('#/+#', '/', $alt); // Normalize
+		if (file_exists($alt)) {
+			$filePath = $alt;
+			$puljePath = dirname($alt);
+			error_log("extractInvoiceHandler: Found file at alternate path: $alt");
+			break;
+		}
+	}
+}
 
 // Action: extract - Call the invoice extraction API
 if ($action === 'extract') {
@@ -90,6 +122,11 @@ if ($action === 'save') {
 	$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
 	$infoFile = "$puljePath/$baseName.info";
 	
+	// Debug log
+	error_log("extractInvoiceHandler SAVE: poolFile=$poolFile, baseName=$baseName, infoFile=$infoFile");
+	error_log("extractInvoiceHandler SAVE: newAmount=$newAmount, newDate=$newDate, newSubject=$newSubject");
+	error_log("extractInvoiceHandler SAVE: newInvoiceNumber=$newInvoiceNumber, newDescription=$newDescription");
+	
 	// Read existing .info file if it exists
 	$existingSubject = '';
 	$existingAccount = '';
@@ -100,12 +137,20 @@ if ($action === 'save') {
 	
 	if (file_exists($infoFile)) {
 		$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
-		$existingSubject = isset($infoLines[0]) ? trim($infoLines[0]) : '';
-		$existingAccount = isset($infoLines[1]) ? trim($infoLines[1]) : '';
-		$existingAmount = isset($infoLines[2]) ? trim($infoLines[2]) : '';
-		$existingDate = isset($infoLines[3]) ? trim($infoLines[3]) : '';
-		$existingInvoiceNumber = isset($infoLines[4]) ? trim($infoLines[4]) : '';
-		$existingDescription = isset($infoLines[5]) ? trim($infoLines[5]) : '';
+		// Check if file() returned false (read failure)
+		if ($infoLines !== false && is_array($infoLines)) {
+			$existingSubject = isset($infoLines[0]) ? trim($infoLines[0]) : '';
+			$existingAccount = isset($infoLines[1]) ? trim($infoLines[1]) : '';
+			$existingAmount = isset($infoLines[2]) ? trim($infoLines[2]) : '';
+			$existingDate = isset($infoLines[3]) ? trim($infoLines[3]) : '';
+			$existingInvoiceNumber = isset($infoLines[4]) ? trim($infoLines[4]) : '';
+			$existingDescription = isset($infoLines[5]) ? trim($infoLines[5]) : '';
+			error_log("extractInvoiceHandler SAVE: Read existing - subject=$existingSubject, account=$existingAccount, amount=$existingAmount, date=$existingDate, invoiceNumber=$existingInvoiceNumber, description=$existingDescription");
+		} else {
+			error_log("extractInvoiceHandler SAVE: file() failed or returned non-array for $infoFile");
+		}
+	} else {
+		error_log("extractInvoiceHandler SAVE: Info file does not exist: $infoFile");
 	}
 	
 	// Use new values if provided, otherwise keep existing
@@ -127,8 +172,10 @@ if ($action === 'save') {
 		}
 	}
 	
+	error_log("extractInvoiceHandler SAVE: Final values - subject=$finalSubject, account=$finalAccount, amount=$finalAmount, date=$finalDate, invoiceNumber=$finalInvoiceNumber, description=$finalDescription");
+	
 	// Write to .info file
-	$infoLines = [
+	$infoLinesToWrite = [
 		$finalSubject,
 		$finalAccount,
 		$finalAmount,
@@ -137,7 +184,7 @@ if ($action === 'save') {
 		$finalDescription
 	];
 	
-	if (file_put_contents($infoFile, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
+	if (file_put_contents($infoFile, implode(PHP_EOL, $infoLinesToWrite) . PHP_EOL) !== false) {
 		// Also update the database if pool_files table exists
 		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
 		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -172,6 +219,7 @@ if ($action === 'save') {
 		
 		echo json_encode(['success' => true]);
 	} else {
+		error_log("extractInvoiceHandler SAVE: file_put_contents failed for $infoFile");
 		echo json_encode(['success' => false, 'error' => 'Kunne ikke gemme til .info fil']);
 	}
 	exit;

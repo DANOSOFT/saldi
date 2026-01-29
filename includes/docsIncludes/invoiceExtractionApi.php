@@ -210,6 +210,8 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$amount = null;
 	$date = null;
 	$vendor = null;
+	$invoiceNumber = null;
+	$description = null;
 	if (isset($responseData['extracted_data'])) {
 		$extractedData = $responseData['extracted_data'];
 		

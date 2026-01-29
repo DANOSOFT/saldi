@@ -233,10 +233,13 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				$infoFile = "$poolDir/$baseName.info";
 				
 				// Prepare .info file content
+				// Format: subject (line 1), account (line 2), amount (line 3), date (line 4), invoiceNumber (line 5), description (line 6)
 				$subject = $baseName;
 				$account = '';
 				$amount = '';
 				$date = '';
+				$invoiceNumber = '';
+				$description = '';
 				
 				// Use extracted data if available
 				if ($extractedData !== null) {
@@ -246,13 +249,53 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					if (isset($extractedData['date']) && !empty($extractedData['date'])) {
 						$date = $extractedData['date'];
 					}
+					if (isset($extractedData['invoiceNumber']) && !empty($extractedData['invoiceNumber'])) {
+						$invoiceNumber = $extractedData['invoiceNumber'];
+					}
+					if (isset($extractedData['description']) && !empty($extractedData['description'])) {
+						$description = $extractedData['description'];
+					}
 				}
 				
-				// Create .info file (only if it doesn't exist)
+				// Create or update .info file
 				if (!file_exists($infoFile)) {
-					$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL;
+					// Create new .info file with all fields
+					$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL . $invoiceNumber . PHP_EOL . $description . PHP_EOL;
 					file_put_contents($infoFile, $infoContent);
 					chmod($infoFile, 0666);
+				} else {
+					// Update existing .info file with extracted data if available
+					if ($extractedData !== null) {
+						$lines = file($infoFile, FILE_IGNORE_NEW_LINES);
+						// Preserve existing subject and account if they exist
+						$subject = isset($lines[0]) && !empty($lines[0]) ? $lines[0] : $baseName;
+						$account = isset($lines[1]) ? $lines[1] : '';
+						
+						// Update amount if present
+						if (!empty($amount)) $lines[2] = $amount;
+						elseif (!isset($lines[2])) $lines[2] = '';
+						
+						// Update date if present
+						if (!empty($date)) $lines[3] = $date;
+						elseif (!isset($lines[3])) $lines[3] = '';
+						
+						// Update invoice number if present
+						if (!empty($invoiceNumber)) $lines[4] = $invoiceNumber;
+						elseif (!isset($lines[4])) $lines[4] = '';
+						
+						// Update description if present
+						if (!empty($description)) $lines[5] = $description;
+						elseif (!isset($lines[5])) $lines[5] = '';
+						
+						// Ensure we have 6 lines
+						while (count($lines) < 6) {
+							$lines[] = '';
+						}
+						
+						// Write updated content (using only first 6 lines)
+						$infoContent = implode(PHP_EOL, array_slice($lines, 0, 6)) . PHP_EOL;
+						file_put_contents($infoFile, $infoContent);
+					}
 				}
 				
 				// Return JSON response for AJAX
@@ -512,11 +555,13 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 			$infoFile = "$poolDir/$baseName.info";
 			
 			// Prepare .info file content
-			// Format: subject (line 1), account (line 2), amount (line 3), date (line 4)
+			// Format: subject (line 1), account (line 2), amount (line 3), date (line 4), invoiceNumber (line 5), description (line 6)
 			$subject = $baseName;
 			$account = '';
 			$amount = '';
 			$date = '';
+			$invoiceNumber = '';
+			$description = '';
 			
 			// Use extracted data if available
 			if ($extractedData !== null) {
@@ -526,11 +571,18 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 				if (isset($extractedData['date']) && !empty($extractedData['date'])) {
 					$date = $extractedData['date'];
 				}
+				if (isset($extractedData['invoiceNumber']) && !empty($extractedData['invoiceNumber'])) {
+					$invoiceNumber = $extractedData['invoiceNumber'];
+				}
+				if (isset($extractedData['description']) && !empty($extractedData['description'])) {
+					$description = $extractedData['description'];
+				}
 			}
 			
 			// Create or update .info file
 			if (!file_exists($infoFile)) {
-				$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL;
+				// Create new .info file with all fields
+				$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL . $invoiceNumber . PHP_EOL . $description . PHP_EOL;
 				file_put_contents($infoFile, $infoContent);
 				chmod($infoFile, 0666);
 			} else {
@@ -540,22 +592,30 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 					// Preserve existing subject and account if they exist
 					$subject = isset($lines[0]) && !empty($lines[0]) ? $lines[0] : $baseName;
 					$account = isset($lines[1]) ? $lines[1] : '';
-					// Update amount and date from API if extracted
-					if (!empty($amount)) {
-						$lines[2] = $amount;
-					} elseif (!isset($lines[2])) {
-						$lines[2] = '';
-					}
-					if (!empty($date)) {
-						$lines[3] = $date;
-					} elseif (!isset($lines[3])) {
-						$lines[3] = '';
-					}
-					// Ensure we have 4 lines
-					while (count($lines) < 4) {
+					
+					// Update amount if present
+					if (!empty($amount)) $lines[2] = $amount;
+					elseif (!isset($lines[2])) $lines[2] = '';
+					
+					// Update date if present
+					if (!empty($date)) $lines[3] = $date;
+					elseif (!isset($lines[3])) $lines[3] = '';
+					
+					// Update invoice number if present
+					if (!empty($invoiceNumber)) $lines[4] = $invoiceNumber;
+					elseif (!isset($lines[4])) $lines[4] = '';
+					
+					// Update description if present
+					if (!empty($description)) $lines[5] = $description;
+					elseif (!isset($lines[5])) $lines[5] = '';
+					
+					// Ensure we have 6 lines
+					while (count($lines) < 6) {
 						$lines[] = '';
 					}
-					$infoContent = implode(PHP_EOL, array_slice($lines, 0, 4)) . PHP_EOL;
+					
+					// Write updated content (using only first 6 lines)
+					$infoContent = implode(PHP_EOL, array_slice($lines, 0, 6)) . PHP_EOL;
 					file_put_contents($infoFile, $infoContent);
 				}
 			}
