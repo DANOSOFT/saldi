@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// -------systemdata/ansatte_save.php--------lap 3.0.0-------2015-02-13--06:51-----
+// --- systemdata/ansatte_save.php --- lap 5.0.0 --- 2026-01-27 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,12 +23,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2016 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20140923 PK - Validering af $nummer. Tjekker om $nummer er et tal, og om talet findes i forvejen 
 // 20140924 PK - Validering af $navn, så der skrives en meddelelse hvis der ikke er udfyldt navn
 // 20150213	PHR - header("location:ansatte.php?id=$id&funktion=ret_ansat"); smadrer alting, så jeg har sat "if ($menu=='T')" foran.
-
+// 20260127 PHR update settings value
 
 if ($konto_id=$_POST['konto_id']) {
 	$id=$_POST['id']*1;
@@ -96,7 +96,13 @@ if ($konto_id=$_POST['konto_id']) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($menu=='T') header("location:ansatte.php?id=$id&funktion=ret_ansat");
 		}
-		for ($x=1; $x<=$pro_antal; $x++) { 
+		if ($id) {
+			$qtxt = "select id from brugere where ansat_id = '$id'";
+			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				update_settings_value('afd', 'brugerAfd', $afd, $r['id']);
+			}
+		}
+		for ($x=1; $x<=$pro_antal; $x++) {
 			if ($provision_id[$x]) {
 				$provision[$x]=usdecimal($provision[$x]);
 				db_modify("update provision set provision='$provision[$x]',gruppe_id='$gruppe_id[$x]' where id = '$provision_id[$x]'",__FILE__ . " linje " . __LINE__);

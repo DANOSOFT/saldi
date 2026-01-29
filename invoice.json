@@ -1,0 +1,120 @@
+{
+    "invoiceCreditnote": "Inv",
+    "id": "227683",
+    "issueDate": "2025-10-09T00:00:00+02:00",
+    "dueDate": "2025-10-23T00:00:00.000Z",
+    "deliveryDate": "2025-10-17T00:00:00+02:00",
+    "salesOrderID": "122576",
+    "note": "",
+    "buyerReference": "00029783_071-1",
+    "accountingCost": "0",
+    "externalReference": "",
+    "accountingCustomerParty": {
+        "endpointId": "5797100000072",
+        "endpointIdType": "GLN",
+        "name": "Landssj\u00fakrah\u00fasi\u00f0, Goymslan\/ Sekti\u00f3nsstova",
+        "companyId": "",
+        "postalAddress": {
+            "streetName": "Eirargar\u00f0ur",
+            "buildingNumber": "13",
+            "inhouseMail": "ordra@ls.fo",
+            "additionalStreetName": "",
+            "attentionName": "Hildigar\u00f0 Patursson",
+            "cityName": "T\u00f3rshavn",
+            "postalCode": "100",
+            "countrySubentity": "",
+            "addressLine": "",
+            "countryCode": "DK"
+        },
+        "contact": {
+            "initials": "LGS",
+            "name": "Hildigar\u00f0 Patursson",
+            "telephone": "+298304527",
+            "electronicMail": "ordra@ls.fo"
+        }
+    },
+    "documentCurrencyCode": "EUR",
+    "totalAmount": 150.36,
+    "deliverAddress": {
+        "streetName": "J.C Svabosg\u00f8ta 41-49",
+        "buildingNumber": "41-49",
+        "inhouseMail": "ordra@ls.fo",
+        "additionalStreetName": "Felagsgoymslan",
+        "attentionName": "Hildigar\u00f0 Patursson",
+        "cityName": "T\u00f3rshavn",
+        "postalCode": "0100",
+        "countrySubentity": "",
+        "addressLine": "",
+        "countryCode": "DK"
+    },
+    "paymentMeans": {
+        "bankName": "Sparekassen Fyn",
+        "bankRegNo": "0828",
+        "bankAccount": "0002880369",
+        "bic": "",
+        "iban": "",
+        "creditorIdentifier": "",
+        "paymentID": ""
+    },
+    "invoiceLines": [
+        {
+            "id": "678013",
+            "quantity": 2,
+            "quantityUnitCode": "EA",
+            "price": 31.68,
+            "discountPercent": 0,
+            "discountAmount": 0,
+            "vatPercent": 0,
+            "lineAmount": 63.36,
+            "priceInclTax": false,
+            "taxOnProfit": false,
+            "name": "481045",
+            "description": "Orchidometer - farve",
+            "accountingCost": "",
+            "commodityCode": "",
+            "isAllowanceCharge": false
+        },
+        {
+            "id": "678209",
+            "quantity": 0,
+            "quantityUnitCode": "EA",
+            "price": 0,
+            "discountPercent": 0,
+            "discountAmount": 0,
+            "vatPercent": 0,
+            "lineAmount": 0,
+            "priceInclTax": false,
+            "taxOnProfit": false,
+            "name": "txt",
+            "description": "HSkode: 901780 Oprindelsesland: IL",
+            "accountingCost": "",
+            "commodityCode": "",
+            "isAllowanceCharge": false
+        },
+        {
+            "id": "678014",
+            "quantity": 1,
+            "quantityUnitCode": "EA",
+            "price": 87,
+            "discountPercent": 0,
+            "discountAmount": 0,
+            "vatPercent": 0,
+            "lineAmount": 87,
+            "priceInclTax": false,
+            "taxOnProfit": false,
+            "name": "9982",
+            "description": "Forsendelse \u00f8vrig udland \/ Delivery",
+            "accountingCost": "",
+            "commodityCode": "",
+            "isAllowanceCharge": false
+        }
+    ],
+    "vatBreakdown": [
+        {
+            "vatCategoryCode": "Z",
+            "vatRate": 0,
+            "vatableAmount": 150.36,
+            "vatAmount": 0
+        }
+    ]
+}

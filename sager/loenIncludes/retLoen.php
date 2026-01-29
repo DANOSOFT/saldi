@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- lap 4.1.1 --- 2025-09-03 ---
+// --- sager/loenIncludes/retLoen.php --- lap 5.0.0 --- 2026-01-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20230703 PHR New up/down height add on's was omitted in new note (seddel) whe denied (afvist)
 // 20231005 PHR mentor and km now omittet on hoursalary (timeløn)
 // 20250305 PHR Error if no employes in includes 'dyrtid'note.
 // 20250903 PHR changed dkdecimal($sum) to $sum
+// 20260126 PHR *1 replaced by (float) in $medarb_loen
 
 function ret_loen() {
 	global $brugernavn;
@@ -241,7 +242,7 @@ function ret_loen() {
 				$skur2[$x]=$skur_sats2;
 				$skur1[$x]=0;
 			} else {$skur1[$x]=0;$skur2[$x]=0;}
-			if ($loen_km[$x]) $loen_km[$x]=str_replace(",",".",$loen_km[$x])*1;
+			if ($loen_km[$x]) $loen_km[$x]=(float)str_replace(",",".",$loen_km[$x]);
 			if 	(!$medarb_nr[$x] && !$medarb_navn[$x]) $ansat_id[$x]=0;
 			if (is_numeric($medarb_nr[$x])) {
 				$r=db_fetch_array(db_select("select id,trainee,startdate from ansatte where nummer='$medarb_nr[$x]'",__FILE__ . " linje " . __LINE__));
@@ -879,8 +880,8 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 #cho "$medarb_nr[$x] $medarb_navn[$x]<br>";
 			$medarb_trainee[$x]=$r['trainee'];
 			$medarb_startdate[$x]=$r['startdate'];
-			$medarb_loen[$x]=str_replace(",",".",$r['loen'])*1;
-			$medarb_extraloen[$x]=str_replace(",",".",$r['extraloen'])*1;
+			$medarb_loen[$x]=(float)str_replace(",",".",$r['loen']);
+			$medarb_extraloen[$x]=(float)str_replace(",",".",$r['extraloen']);
 #cho "$medarb_trainee[$x] t $traineemdr $traineepct<br>";
 		}
 	}

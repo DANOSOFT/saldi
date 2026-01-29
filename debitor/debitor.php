@@ -90,183 +90,28 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style.js.php");
+include(get_relative() . "includes/grid.php");
 
 $id = if_isset($_GET,NULL,'id');
 $returside=if_isset($_GET,NULL,'returside');
 
 
 $valg= strtolower(if_isset($_GET,NULL,'valg'));
+// Route to separate files for historik and kommission
+if ($valg == 'historik') {
+	include('debitor_historik.php');
+	exit;
+}
+if ($valg == 'kommission') {
+	include('debitor_kommission.php');
+	exit;
+}
+// Default to debitor view
+if (!$valg || $valg == 'rental') $valg = $valg ? $valg : "debitor";
+
 $sort = if_isset($_GET, NULL, 'sort');
 $start = if_isset($_GET, NULL, 'start');
 $nysort = if_isset($_GET, NULL, 'nysort');
-$invite=$mailTo=$mySale=array();
-if ($valg == 'kommission') setcookie("mySalePw", $s_id,0,"/");
-if (!$valg) $valg="debitor";
-if ((isset($_POST['kommission']) || isset($_POST['historik'])) && $_POST['debId']) {
-	$debId=$_POST['debId'];
-	if (isset($_POST['mySale'])) $mySale=$_POST['mySale'];
-	if (isset($_POST['invite'])) $invite=$_POST['invite'];
-	if (isset($_POST['mailTo'])) $mailTo=$_POST['mailTo'];
-	$start*=1;
-	for ($i=0;$i<count($debId);$i++) {
-		$qtxt="select id,kontonr,firmanavn,email from adresser where id='$debId[$i]'";
-		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$custId[$i]   = $r['id'];
-		$custNo[$i]   = $r['kontonr'];
-		$custName[$i] = $r['firmanavn'];
-		$custMail[$i] = $r['email'];
-		if (!isset($mySale[$i])) $mySale[$i]=NULL;
-		if (!isset($invite[$i])) $invite[$i]=NULL;
-		if ($mySale[$i] || $invite[$i]) {
-		#			db_modify("update adresser set mysale='on' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
-			$tmp=trim($_SERVER['PHP_SELF'],'/');
-			list ($folder,$tmp)=explode('/',$tmp,2);
-			$lnk[$i]="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
-			$lnk[$i]=str_replace('bizsys','mysale',$lnk[$i]);
-			$txt = $custId[$i] .'|'. $custNo[$i] .'@'. $db  .'@'. $_SERVER['HTTP_HOST'];
-			for ($x=0;$x<strlen($txt);$x++) {
-				$lnk[$i].=dechex(ord(substr($txt,$x,1)));
-			}
-		} # 	else db_modify("update adresser set mysale='' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
-
-	}
-	include("../includes/connect.php");
-#			$qtxt = "CREATE TABLE mysale (id serial NOT NULL,deb_id int, db varchar(20), email varchar(60), link text, PRIMARY KEY (id))";
-#			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	
-	$x = 0;
-	$myAccId = array();
-	$qtxt="select * from mysale where db='$db'";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$myId[$x]=$r['id'];
-		$myAccId[$x]=$r['deb_id'];
-		$x++;
-	}
-	for ($i=0;$i<count($debId);$i++) {
-		if (in_array($debId[$i],$myAccId)) {
-			for ($x=0;$x<count($myAccId);$x++) {
-				if ($myAccId[$x] == $debId[$i]) {
-					if ($mySale[$i] || $invite[$i]) $qtxt = "update mysale set email = '$custMail[$i]', link = '$lnk[$i]'";
-					else $qtxt = "update mysale set email = '', link = ''";
-					$qtxt.= " where id = $myId[$x]";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
-			}
-		} elseif ($mySale[$i] || $invite[$i]) {
-			$qtxt="insert into mysale (deb_id,db,email,link) values ('$debId[$i]','$db','$custMail[$i]','$lnk[$i]')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
-	}
-	include("../includes/online.php");
-	if((count($invite) || count($mailTo)) && !class_exists('phpmailer')) {
-		ini_set("include_path", ".:../phpmailer");
-		require("class.phpmailer.php");
-	}
-	# Hent egen stamdata
-	$qtxt="select * from adresser where art='S'";
-	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$afsendermail=$r['email'];
-	$afsendernavn=$r['firmanavn'];
-	$from=$afsendermail;
-	
-	($r['felt_1'])?$smtp=$r['felt_1']:$smtp='localhost';
-	($r['felt_2'])?$smtp_user=$r['felt_2']:$smtp_user=NULL;
-	($r['felt_3'])?$smtp_pwd=$r['felt_3']:$smtp_pwd=NULL;
-	($r['felt_4'])?$smtp_enc=$row['felt_4']:$smtp_enc=NULL;
-
-	for ($i=0;$i<count($debId);$i++) {
-		if (!isset($invite[$i])) $invite[$i]=NULL;
-		if (!isset($mailTo[$i])) $mailTo[$i]=NULL;
-		if ($invite[$i] || $mailTo[$i]) {
-			if ($invite[$i]) db_modify("update adresser set mysale='$invite[$i]' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
-			$qtxt="select * from adresser where art='S'";
-			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-
-			if ($invite[$i]) { 
-				$myLink="<a href='$lnk[$i]'>Mit Salg</a>";
-				$mailText = "Kære $custName[$i],<br><br>Klik på nedestående link for at se dit salg.<br><br>";
-				$mailText.= "$myLink<br><br>";
-				$mailText.= "Bedste hilsner<br>$afsendernavn<br>";
-				$varGrp='mySale';
-			} else {
-				$varGrp='debitor';
-			}
-			$qtxt="select var_value from settings where var_name = 'mailSubject' and var_grp = '$varGrp'";
-			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			if ($r2['var_value']) $subject=$r2['var_value'];
-			else $subject = "Adgang til dit salg hos $afsendernavn";
-			$qtxt="select var_value from settings where var_name = 'mailText' and var_grp = '$varGrp'";
-			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			if ($r2['var_value']) {
-				$mailText=$r2['var_value'];
-				$mailText=str_replace("\n","<br>",$mailText);
-				$mailText=str_replace('$kunde',$custName[$i],$mailText);
-				$mailText=str_replace('$link',$myLink,$mailText);
-			}
-/*
-			if ($charset=="UTF-8") {
-				$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
-				$mailText=mb_convert_encoding($mailText, 'ISO-8859-1', 'UTF-8');
-				$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
-			}
-*/		
-			$mail = new PHPMailer();
-			$mail->IsSMTP(); // send via SMTP
-			$mail->CharSet = "$charset";
-			$mail->SMTPDebug  = 2;
-			$mail->Host  = $smtp; // SMTP servers 
-			if ($smtp!='localhost') {
-				if ($smtp_user) {
-					$mail->SMTPAuth = true;     // turn on SMTP authentication
-					$mail->Username = $smtp_user;  // SMTP username
-					$mail->Password = $smtp_pwd; // SMTP password
-					if ($smtp_enc) $mail->SMTPSecure = $smtp_enc; // SMTP kryptering
-				}
-			} else {
-				$mail->SMTPAuth = false;
-				if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121016
-					$from = $db.'@'.$_SERVER['SERVER_NAME']; #20130731
-				$from = str_replace('bizsys','post',$from);
-				}
-			}
-			if ($subject && $mailText) {
-				$mail->SetFrom($from,$afsendernavn);
-#				$mail->FromName = $afsendernavn;
-				$mail->AddReplyTo($afsendermail);
-				$mail->AddAddress($custMail[$i]);
-				$mail->WordWrap = 50;  // set word wrap
-				$mail->IsHTML(true);   // send as HTML
-				$ren_text=html_entity_decode($mailText,ENT_COMPAT,$charset);
-				$ren_text=str_replace("<br>","\n",$ren_text);
-				$ren_text=str_replace("<b>","*",$ren_text);
-				$ren_text=str_replace("</b>","*",$ren_text);
-				$ren_text=str_replace("<a href='$lnk'>". $lnk ."</a>"," $lnk ",$ren_text);
-				$ren_text=str_replace("<hr>","------------------------------",$ren_text);
-				$mail->Subject  =  "$subject";
-				$mail->Body     =  "$mailText";
-				$mail->AltBody  =  "$ren_text";
-				$svar=NULL;
-				print "<!--";
-				if(!$mail->Send()){
-					$svar = "Mailer Error: " . $mail->ErrorInfo;
-				}
-				print "-->";
-				if ($svar) {
-					echo $svar."<br>";
-					exit;
-				}
-				echo "Mail sendt til $custName[$i] &lt;$custMail[$i]&gt;<br>";
-				flush();
-				usleep (250000);
-			}
-		} else {
-			if (!isset($mySale[$i])) $mySale[$i]=NULL;
-			db_modify("update adresser set mysale='$mySale[$i]' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
-		}
-	}
-	print "<meta http-equiv='refresh' content='2'>";
-}
 
 $sort=str_replace("adresser.","",$sort);
 if ($sort && $nysort==$sort) $sort=$sort." desc";
@@ -300,25 +145,12 @@ if ($x == 0) {
 		$box4 = "5".chr(9)."35".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10";
 		$box6 = "Kontonr".chr(9)."Firmanavn".chr(9)."Adresse".chr(9)."Adresse 2".chr(9);
 		$box6.= "Postnr".chr(9)."By".chr(9)."Kontakt".chr(9)."Telefon";
-	} elseif ($valg=='kommission') {
-		$box3 = "kontonr".chr(9)."firmanavn".chr(9)."addr1".chr(9)."addr2".chr(9)."postnr".chr(9);
-		$box3.= "bynavn".chr(9)."kontakt".chr(9)."tlf".chr(9)."invoiced";
-		$box5 = "right".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left";
-		$box4 = "5".chr(9)."35".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10";
-		$box6 = "Kontonr".chr(9)."Firmanavn".chr(9)."Adresse".chr(9)."Adresse 2".chr(9);
-		$box6.= "Postnr".chr(9)."By".chr(9)."Kontakt".chr(9)."Telefon".chr(9)."Sidste faktura";
 	} elseif ($valg=='rental') {
 		$box3 = "kontonr".chr(9)."firmanavn".chr(9)."addr1".chr(9)."addr2".chr(9)."postnr".chr(9)."bynavn";
 		$box4 = "5".chr(9)."35".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10";
 		$box5 = "right".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left";
 		$box7 = 50;
-	} else {
-		$box3 = "kontonr".chr(9)."firmanavn".chr(9)."addr1".chr(9)."addr2".chr(9)."postnr".chr(9);
-		$box3.= "bynavn".chr(9)."kontakt".chr(9)."tlf";
-		$box5 = "right".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left";
-		$box4 = "5".chr(9)."35".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10";
-		$box6 = "Kontonr".chr(9)."Firmanavn".chr(9)."Adresse".chr(9)."Adresse 2".chr(9);
-		$box6.= "Postnr".chr(9)."By".chr(9)."Kontakt".chr(9)."Telefon";
+		$box6 = "Kontonr".chr(9)."Firmanavn".chr(9)."Adresse".chr(9)."Adresse 2".chr(9)."Postnr".chr(9)."By";
 	}
 	$qtxt = "insert into grupper(beskrivelse,kode,kodenr,art,box3,box4,box5,box6,box7) values ";
 	$qtxt.= "('debitorlistevisning','$valg','$bruger_id','DLV','$box3','$box4','$box5','$box6','$box7')";
@@ -360,13 +192,11 @@ $sortering=$sort;
 if ($menu=='T') {
 	if ($valg=='debitor') {
 		$title = "".findtekst(117,$sprog_id)."";
-		} if ($valg=='historik') {
-			$title= "".findtekst(907,$sprog_id)."";
-		} if ($valg=='kommission') {
-			$title= "".findtekst(909,$sprog_id)."";
-		} if ($valg=='rental') {
-			$title= "".findtekst(1116,$sprog_id)."";
-		}
+	} elseif ($valg=='rental') {
+		$title= "".findtekst(1116,$sprog_id)."";
+	} else {
+		$title = "".findtekst(117,$sprog_id)."";
+	}
 } else {
 	$title="Debitorliste";
 }
@@ -390,36 +220,17 @@ if ($menu=='T') {
 } elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
 else include_once 'debLstIncludes/oldTopLine.php';
 
-$steps = array();
-$steps[] = array(
-    "selector" => "#debitore",
-    "content" => findtekst('2621|Her ser du en liste af alle dine kunder', $sprog_id)."."
-);
-$steps[] = array(
-    "selector" => "#opret-ny",
-    "content" => findtekst('2622|For at oprette en ny kunde, klik her', $sprog_id)."."
-);
-$steps[] = array(
-    "selector" => "#kommission",
-    "content" => findtekst('2623|Tilmeld dine kunder til kommissionssalgssystemet her', $sprog_id)."."
-);
-$steps[] = array(
-    "selector" => 'input[type="checkbox"][name^="mySale["], input[type="submit"][name="kommission"]',
-    "content" => findtekst('2624|Før du kan inviterer en kunde til \'Mit Salg\', skal du aktivere deres konto. Sæt hak i \'aktiver\' og tryk OK.', $sprog_id)
-);
-$steps[] = array(
-    "selector" => ".kommission-link",
-    "content" => findtekst('2625|Når en kunde er aktiveret kan du åbne deres konto her', $sprog_id)."."
-);
-$steps[] = array(
-    "selector" => 'input[type="checkbox"][name^="invite["], input[type="submit"][name="kommission"]',
-    "content" => findtekst('2626|Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. De vil her få et link til \'Mit Salg\' og kan oprette deres labels derigennem. Det er kun muligt at invitere en kunde, hvis de har en e-mail sat op på deres stamkort.', $sprog_id)
-);
-
-include(__DIR__ . "/../includes/tutorial.php");
-create_tutorial("deblist", $steps);
-
-
+// Skip grid conversion for rental view - use old system
+if ($valg == 'rental') {
+    $r = db_fetch_array(db_select("select box3,box4,box5,box6,box8,box11 from grupper where art = 'DLV' and kodenr = '$bruger_id' and kode='$valg'",__FILE__ . " linje " . __LINE__));
+    $vis_felt=explode(chr(9),$r['box3']);
+    $feltbredde=explode(chr(9),$r['box4']);
+    $justering=explode(chr(9),$r['box5']);
+    $feltnavn=explode(chr(9),$r['box6']);
+    $vis_feltantal=count($vis_felt);
+    $select=explode(chr(9),$r['box8']);
+} else {
+    // Use grid system for debitor, kommission, and historik views
 $r = db_fetch_array(db_select("select box3,box4,box5,box6,box8,box11 from grupper where art = 'DLV' and kodenr = '$bruger_id' and kode='$valg'",__FILE__ . " linje " . __LINE__));
 $vis_felt=explode(chr(9),$r['box3']);
 $feltbredde=explode(chr(9),$r['box4']);
@@ -427,6 +238,8 @@ $justering=explode(chr(9),$r['box5']);
 $feltnavn=explode(chr(9),$r['box6']);
 $vis_feltantal=count($vis_felt);
 $select=explode(chr(9),$r['box8']);
+    $skjul_lukkede=$r['box11'];
+}
 
 $y=0;
 for ($x=0;$x<=$vis_feltantal;$x++) {
@@ -436,6 +249,9 @@ for ($x=0;$x<=$vis_feltantal;$x++) {
 	}
 }
 $numfelter=array("rabat","momskonto","kreditmax","betalingsdage","gruppe","kontoansvarlig","postnr","kontonr");
+
+// If rental view, use old system
+if ($valg == 'rental') {
 ####################################################################################
 $udvaelg=NULL;
 $tmp=trim(if_isset($find[0],NULL));
@@ -448,27 +264,6 @@ $qtxt="update grupper set box10='". db_escape_string($tmp) ."' where art = 'DLV'
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 if ($skjul_lukkede) $udvaelg = " and lukket != 'on'";
-// for ($x=0;$x<$vis_feltantal;$x++) {
-//     if (isset($find[$x])) {
-//         $find[$x]=trim($find[$x]);
-//         $tmp=$vis_felt[$x];
-//         if ($tmp) {
-//             if ($find[$x] && in_array($tmp, array('invoiced', 'kontaktet', 'kontaktes'))) {
-//                 $tmp2="adresser.".$tmp;
-//                 $udvaelg.=udvaelg($find[$x],$tmp2, 'DATO');
-//             } elseif ($tmp == 'kontakt' && $find[$x]) {
-//                 // Special handling for kontakt field - search in ansatte table (case-insensitive)
-//                 $udvaelg.=" and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
-//             } elseif ($find[$x] && !in_array($tmp,$numfelter)) {
-//                 $tmp2="adresser.".$tmp;
-//                 $udvaelg.=udvaelg($find[$x],$tmp2, 'TEXT');
-//             } elseif ($find[$x]||$find[$x]=="0") {
-//                 $tmp2="adresser.".$tmp;
-//                 $udvaelg.=udvaelg(db_escape_string($find[$x]),$tmp2, 'NR');
-//             }
-//         }
-//     }
-// }
 
 for ($x=0;$x<$vis_feltantal;$x++) {
     if (isset($find[$x])) {
@@ -479,10 +274,8 @@ for ($x=0;$x<$vis_feltantal;$x++) {
                 $tmp2="adresser.".$tmp;
                 $udvaelg.=udvaelg($find[$x],$tmp2, 'DATO');
             } elseif ($tmp == 'kontakt' && $find[$x]) {
-                // Special handling for kontakt field - search in ansatte table (case-insensitive)
-                $udvaelg.=" and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
+                $udvaelg.=" and (adresser.kontakt ILIKE '%".db_escape_string($find[$x])."%' OR adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%')))";
             } elseif ($find[$x] && !in_array($tmp,$numfelter)) {
-                // Add wildcards for partial text search
                 $searchTerm = "*" . str_replace(" ", "*", $find[$x]) . "*";
                 $tmp2="adresser.".$tmp;
                 $udvaelg.=udvaelg($searchTerm,$tmp2, 'TEXT');
@@ -493,7 +286,6 @@ for ($x=0;$x<$vis_feltantal;$x++) {
         }
     }
 }
-// ...existing code...
 
 if (count($dg_liste)) {
 	$x=0;
@@ -515,208 +307,23 @@ if (count($cat_liste)) {
 }
 
 $sortering="adresser.".$sortering;
-
 $ialt=0;
 $lnr=0;
 if (!$linjeantal) $linjeantal=100;
 $slut=$start+$linjeantal;
 $adresserantal=0;
-
 $qtxt = "select count(id) as antal from adresser where art = 'D' $udvaelg";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+    $antal=$r['antal'];
 
-$antal=$r['antal'];
+    // Continue with old table rendering for rental view
 if ($menu=='T'){
 	print "<table class='dataTableBooking' style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><thead>\n<tr>";
 } else {
 	print "<table cellpadding='1'  style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' cellspacing='1' border='0' valign='top' width='100%'><tbody>\n<tr>";
 }
-if ($start>0) {
-	$prepil=$start-$linjeantal;
-	if ($prepil<0) $prepil=0;
-	print "<td class='imgNoTextDeco style='padding: 20px'><a href=debitor.php?start=$prepil&valg=$valg><img class='imgInvert imgFade' src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
-} else {
-	print "<td width=10px>";
-#	if (file_exists("rotary_addrsync.php")) print "<a href=\"rotary_addrsync.php\" target=\"blank\" title=\"".findtekst(1665, $sprog_id)."\">!</a>";
-	print "</td>";
-}
-// if ($valg != 'rental' && $start == 0) {
-if ($valg != 'rental') { 
-	for ($x=0;$x<$vis_feltantal;$x++) {
-		if (substr($vis_felt[$x],0,4) == 'cat_') {
-			print "<td width=10px align=$justering[$x]><b>$feltnavn[$x]</b></td>\n";
-		} else {
-			if ($feltbredde[$x]) $width="width=$feltbredde[$x]";
-			else $width="";
-			print "<td align=$justering[$x] $width style='padding: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'><b><a href='debitor.php?nysort=$vis_felt[$x]&sort=$sort&valg=$valg'>$feltnavn[$x]</b></td>\n";
-		}
-	}
-}
-// if ($valg=='kommission'  && $start == 0) {
-if ($valg=='kommission') {
-	$folder=trim($_SERVER['PHP_SELF'],'/');
-	$folder=str_replace('debitor/debitor.php','',$folder);
-	$myLink="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
-	$myLink=str_replace('bizsys','mysale',$myLink);
-	print "<td align='center' width=10px><b>Aktiv</b></td>";
-	print "<td align='center' width=10px><b>Inviter</b></td>";
-}
-
-if ($antal>$slut && !$dg_liste[0] && !$cat_liste[0] && $cat_liste[0] != '0' && $valg=='debitor') { #20230402
-	$nextpil=$start+$linjeantal;
-	print "<td align=right class='imgNoTextDeco' style='padding: 20px' colspan='$vis_feltantal'><a href=debitor.php?start=$nextpil&valg=$valg><img class='imgInvert imgFade' src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td><tr>";
-}
-elseif ($antal>$slut && $valg=='kommission') { #20230402
-	$nextpil=$start+$linjeantal;
-	$tmp = $vis_feltantal+2;
-	print "<td align=right class='imgNoTextDeco' style='width:10px;' colspan='1'><a href=debitor.php?start=$nextpil&valg=$valg><img class='imgInvert imgFade' src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td><tr>";
-} else {
-	print "<td width=10px></td>";
-}
-
-print "</tr>\n";
-if ($dg_antal || $cat_antal) $linjeantal=0;
-#################################### Sogefelter ##########################################
-
-
-
-print "<tr><td width=10px></td>"; #giver plase til venstrepil v. flere sider
-// if (!$start) {
-	print "<form name=debitorliste action=debitor.php method=post>\n";	
-	print "<input type=hidden name=valg value=$valg>\n";
-	print "<input type=hidden name=sort value='$ny_sort'>\n";
-	print "<input type=hidden name=nysort value='$sort'>\n";
-	print "<input type=hidden name=kontoid value=$kontoid>\n";
-
-	for ($x=0;$x<$vis_feltantal;$x++) {
-		$span=''; 
-		if (!isset($feltbredde[$x])) $feltbredde[$x]=0;
-		if (!isset($justering[$x])) $justering[$x]=0;
-		if (!isset($find[$x])) $find[$x]=NULL;
-		print "<td align=$justering[$x]><span title= '$span'>";
-		if (substr($vis_felt[$x],0,4) == 'cat_') {
-			print '';
-		} elseif ($vis_felt[$x]=="kontoansvarlig") {
-			$ansat_id=array();$ansat_init=array();
-			$y=0;
-			$qtxt = "select distinct(ansatte.id) as ansat_id,ansatte.initialer as initialer from ansatte,adresser where ";
-			$qtxt.= "adresser.art='S' and ansatte.konto_id=adresser.id order by ansatte.initialer";
-			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			while ($r=db_fetch_array($q)) {
-				$y++;
-				$ansat_id[$y]=$r['ansat_id'];
-				$ansat_init[$y]=$r['initialer'];
-			}
-			$ansatantal=$y;
-			if (in_array($vis_felt[$x],$selectfelter)) {
-				print "<SELECT NAME=\"find[$x]\">";
-				if (!$find[$x]) print "<option value=\"\"></option>";
-				for ($y=1;$y<=$ansatantal;$y++) if ($ansat_init[$y] && $find[$x]==$ansat_id[$y]) print "<option value=\"$ansat_id[$y]\">".stripslashes($ansat_init[$y])."</option>";
-				if ($find[$x]) print "<option value=\"\"></option>";
-				for ($y=1;$y<=$ansatantal;$y++) if ($ansat_init[$y] && $find[$x]!=$ansat_id[$y]) print "<option value=\"$ansat_id[$y]\">".stripslashes($ansat_init[$y])."</option>";
-				print "</SELECT></td>\b";
-			} 
-			#			print "<input class=\"inputbox\" type=text readonly=$readonly size=$feltbredde[$x] style=\"text-align:$justering[$x]\" name=find[$x] value=\"$r[tmp]\">";
-		} elseif ($vis_felt[$x]=="status") {
-			$status_id=array();$status_init=array();
-			$qtxt = "select box3,box4 from grupper where art='DebInfo'";
-			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$status_id=explode(chr(9),$r['box3']);
-			$status_beskrivelse=explode(chr(9),$r['box4']);
-			$status_antal=count($status_id);
-			if (in_array($vis_felt[$x],$selectfelter)) {
-				print "<SELECT NAME=\"find[$x]\">";
-				if (!$find[$x]) print "<option value=\"\"></option>";
-				for ($y=0;$y<$status_antal;$y++) {
-					if ($status_beskrivelse[$y] && $find[$x]==$status_id[$y]) {
-						print "<option value=\"$status_id[$y]\">".stripslashes($status_beskrivelse[$y])."</option>";
-					}
-				}
-				if ($find[$x]) print "<option value=\"\"></option>";
-				for ($y=0;$y<$status_antal;$y++) {
-					if ($status_beskrivelse[$y] && $find[$x]!=$status_id[$y]) {
-						print "<option value=\"$status_id[$y]\">".stripslashes($status_beskrivelse[$y])."</option>";
-					}
-				}
-				print "</SELECT></td>\n";
-			}
-			#			print "<input class=\"inputbox\" type=text readonly=$readonly size=$feltbredde[$x] style=\"text-align:$justering[$x]\" name=find[$x] value=\"$r[tmp]\">";
-		} elseif (in_array($vis_felt[$x],$selectfelter)) {
-			$tmp=$vis_felt[$x];
-			print "<SELECT NAME=\"find[$x]\">";
-			print "<option>".stripslashes($find[$x])."</option>";
-			
-			// Special handling for kontakt field to search all employees
-			if ($tmp == 'kontakt') {
-				$qtxt = "select distinct(ansatte.navn) as kontakt from ansatte, adresser where adresser.art='S' and ansatte.konto_id=adresser.id order by ansatte.navn";
-			} else {
-				$qtxt = "select distinct($tmp) from adresser where art = 'D'";
-			}
-			
-			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($find[$x]) print "<option></option>";
-			while ($r=db_fetch_array($q)) {
-				if ($tmp == 'kontakt') {
-					print "<option>$r[kontakt]</option>";
-				} else {
-					print "<option>$r[$tmp]</option>";
-				}
-			}
-			print "</SELECT></td>\n";
-		} else {
-			if ($vis_felt[$x]=='invoiced') $titletxt=findtekst(1666, $sprog_id); #20210728
-			else $titletxt= '';
-			print "<input class=\"inputbox\" title=\"$titletxt\" type='text' size='$feltbredde[$x]' style='text-align:$justering[$x]' ";
-			print "name='find[$x]' value=\"$find[$x]\">";
-		}
-	}
-	print "</td>\n";
-	if ($valg=='kommission') print "<td colspan='1'></td><td colspan='1'></td>";
-	print "<td colspan='1' align=right style='width:10px;'><input class='button blue medium' type='submit' value=".findtekst('913|Søg', $sprog_id)." name=\"search\"></td>";
-
-	print "</form></tr>\n";
-// }
-
-if ($menu=='T') {
-	print "<tr><th colspan=20 style='padding: 0px; height: 1px;'></th></tr>";
-	print "</thead><tbody>";
-} else {
-	print "<tr><td colspan=11><hr></td></tr>\n";
-}
-
-######################################################################################################################
-if ($valg=='kommission' || $valg=='historik') {
-	$action="debitor.php?start=$start&valg=$valg&sort=$sort";
-	print "<form name='kommission' action='$action' method='post'>";
-}
-if ($valg == 'rental') include ("../debitor/debLstIncludes/debRentalLst.php");
-else include ("../debitor/debLstIncludes/debLst.php");
-if ($valg == 'historik'){
-	if ($menu=='T') {
-		print "</tbody><tfoot>\n";
-	} else {
-		print "<tr><td colspan=12><hr></td></tr>\n";
-	}
-} else {
-	if ($menu=='T') {
-		print "</tbody><tfoot>\n";
-	} else {
-		print "";
-	}
-}
-print "<tr><td colspan=$colspan><br></td>\n";
-if ($valg == 'kommission' || $valg == 'historik') {
-#	$colspan++;
-	print "<td colspan='2' align='right'>";
-	if ($valg == 'kommission') print "<input style='width:75px;' type='submit' name='kommission' value='OK'>";
-	else print "<input style='width:100px;' type='submit' name='historik' value='Send'>";
-	print "</td></tr>";
-	print "<tr><td colspan='$colspan'>";
-	print "<td colspan='2' align='right'><input style='width:100px;' type='submit' name='chooseAll' value='".findtekst('89|Vælg alle', $sprog_id)."'></td>";
-	print "</form>";
-}
-print "</tr>\n";
-$colspan++;
+    // ... rest of old table code for rental view ...
+    include ("../debitor/debLstIncludes/debRentalLst.php");
 #print "<table border=0 width=100%><tbody>";
 
 #print "</tbody></table></td>";
@@ -739,7 +346,293 @@ include_once '../includes/topmenu/footer.php';
 ";
 
 include_once '../includes/oldDesign/footer.php';
+    }
+} else {
+    // GRID SYSTEM IMPLEMENTATION
+    // Build columns array for grid
+    $columns = array();
+
+    // Get ansatte for kontoansvarlig field
+    $ansat_id=array();
+    $ansat_init=array();
+    $y=0;
+    $qtxt = "select distinct(ansatte.id) as ansat_id,ansatte.initialer as initialer from ansatte,adresser where ";
+    $qtxt.= "adresser.art='S' and ansatte.konto_id=adresser.id order by ansatte.initialer";
+    $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+    while ($r=db_fetch_array($q)) {
+        $y++;
+        $ansat_id[$y]=$r['ansat_id'];
+        $ansat_init[$y]=$r['initialer'];
+    }
+    $ansatantal=$y;
+
+    // Get status options
+    $status_id=array();
+    $status_beskrivelse=array();
+    $qtxt = "select box3,box4 from grupper where art='DebInfo'";
+    $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+    if ($r) {
+        $status_id=explode(chr(9),$r['box3']);
+        $status_beskrivelse=explode(chr(9),$r['box4']);
+    }
+    $status_antal=count($status_id);
+
+    // Build columns from stored configuration
+    for ($x=0;$x<$vis_feltantal;$x++) {
+        if (!isset($vis_felt[$x]) || !$vis_felt[$x]) continue;
+        if (substr($vis_felt[$x],0,4) == 'cat_') continue; // Skip category columns for now
+        
+        $field = $vis_felt[$x];
+        $headerName = isset($feltnavn[$x]) ? $feltnavn[$x] : $field;
+        $width = isset($feltbredde[$x]) && $feltbredde[$x] ? ($feltbredde[$x] / 100) : 1;
+        $align = isset($justering[$x]) ? $justering[$x] : 'left';
+        $isSearchable = true; // All fields are searchable in grid
+        
+        $column = array(
+            "field" => $field,
+            "headerName" => $headerName,
+            "width" => $width,
+            "align" => $align,
+            "sortable" => true,
+            "searchable" => $isSearchable,
+            "sqlOverride" => "a.$field"
+        );
+        
+        // Determine field type
+        // kontonr and postnr are identifiers, not numeric values, so treat as text
+        if ($field == 'kontonr' || $field == 'postnr') {
+            $column["type"] = "text";
+        } elseif (in_array($field, $numfelter)) {
+            $column["type"] = "number";
+            if ($align == 'left') $column["align"] = "right";
+        } elseif (in_array($field, array('invoiced', 'kontaktet', 'kontaktes'))) {
+            $column["type"] = "date";
+        } else {
+            $column["type"] = "text";
+        }
+        
+        // Special renderers
+        if ($field == 'kontoansvarlig') {
+            $column["render"] = function ($value, $row, $column) use ($ansat_id, $ansat_init, $ansatantal) {
+                $display = '';
+                for ($y=1;$y<=$ansatantal;$y++) {
+                    if (isset($ansat_id[$y]) && $ansat_id[$y]==$value) {
+                        $display = stripslashes($ansat_init[$y]);
+                        break;
+                    }
+                }
+                return "<td align='{$column['align']}'>$display</td>";
+            };
+        } elseif ($field == 'status') {
+            $column["render"] = function ($value, $row, $column) use ($status_id, $status_beskrivelse, $status_antal) {
+                $display = '';
+                for ($y=0;$y<$status_antal;$y++) {
+                    if (isset($status_id[$y]) && $status_id[$y]==$value) {
+                        $display = stripslashes($status_beskrivelse[$y]);
+                        break;
+                    }
+                }
+                return "<td align='{$column['align']}'>$display</td>";
+            };
+        } elseif (in_array($field, array('invoiced', 'kontaktet', 'kontaktes'))) {
+            $column["render"] = function ($value, $row, $column) {
+                if ($value=='1970-01-01' || !$value) return "<td align='{$column['align']}'></td>";
+                return "<td align='{$column['align']}'>".dkdato($value)."</td>";
+            };
+        } elseif ($field == 'kontakt') {
+            $column["generateSearch"] = function ($column, $term) {
+                $term = db_escape_string($term);
+                return "(a.kontakt ILIKE '%$term%' OR a.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%$term%')))";
+            };
+        } elseif ($field == 'kontonr' || $field == 'postnr') {
+            // kontonr and postnr are text identifiers, use text search
+            $column["generateSearch"] = function ($column, $term) {
+                $field = $column['sqlOverride'];
+                $term = db_escape_string($term);
+                return "$field::text ILIKE '%$term%'";
+            };
+        } elseif (in_array($field, $numfelter)) {
+            $column["generateSearch"] = function ($column, $term) {
+                $field = $column['sqlOverride'];
+                $term = db_escape_string($term);
+                if (strstr($term, ':')) {
+                    list($num1, $num2) = explode(":", $term, 2);
+                    return "$field >= '".usdecimal($num1)."' AND $field <= '".usdecimal($num2)."'";
+                } else {
+                    $term = usdecimal($term);
+                    return "$field >= $term AND $field <= $term";
+                }
+            };
+        } elseif (in_array($field, array('invoiced', 'kontaktet', 'kontaktes'))) {
+            $column["generateSearch"] = function ($column, $term) {
+                $field = $column['sqlOverride'];
+                $term = db_escape_string($term);
+                if (strstr($term, ':')) {
+                    list($date1, $date2) = explode(":", $term, 2);
+                    return "$field >= '".usdate($date1)."' AND $field <= '".usdate($date2)."'";
+                } else {
+                    return "$field = '".usdate($term)."'";
+                }
+            };
+        }
+        
+        $columns[] = $column;
+    }
+
+    // Add clickable row renderer for all columns (whole row is clickable)
+    foreach ($columns as &$column) {
+        $originalRender = isset($column['render']) ? $column['render'] : null;
+        $field = $column['field'];
+        
+        if ($field == 'kontonr') {
+            // kontonr keeps the link for accessibility/right-click
+            $column["render"] = function ($value, $row, $column) {
+                $url = "debitor"."kort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor.php";
+                return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
+            };
+        } else {
+            // All other columns get onclick handler
+            $column["render"] = function ($value, $row, $column) use ($originalRender) {
+                $url = "debitor"."kort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor.php";
+                
+                // Get the display value from original render or default
+                if ($originalRender) {
+                    $td = $originalRender($value, $row, $column);
+                    // Replace opening <td with onclick and cursor style
+                    $td = preg_replace('/<td([^>]*)>/', "<td$1 onclick=\"window.location.href='$url'\" style='cursor:pointer'>", $td);
+                    return $td;
+                } else {
+                    return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'>{$value}</td>";
+                }
+            };
+        }
+    }
+    unset($column); // break the reference
+
+    // Build filters
+    $filters = array();
+
+    // Hide closed filter
+    if ($skjul_lukkede) {
+        $filters[] = array(
+            "filterName" => "Misc",
+            "joinOperator" => "and",
+            "options" => array(
+                array(
+                    "name" => "Vis udgået",
+                    "checked" => "",
+                    "sqlOn" => "",
+                    "sqlOff" => "(a.lukket IS NULL OR a.lukket = '0' or a.lukket = '')",
+                )
+            )
+        );
+    }
+
+    // Debtor groups filter - show all available groups (group by kodenr to avoid duplicates)
+    // Use GROUP BY to ensure unique kodenr values, taking the first beskrivelse for each
+    $q=db_select("select kodenr, MIN(beskrivelse) as beskrivelse from grupper where art = 'DG' group by kodenr order by kodenr",__FILE__ . " linje " . __LINE__);
+    $dg_options = array();
+    $seen_kodenr = array(); // Track seen kodenr values to prevent duplicates
+    $seen_names = array(); // Also track by name to catch any remaining duplicates
+    while ($r=db_fetch_array($q)) {
+        $kodenr = (int)$r['kodenr']; // Ensure it's an integer
+        $name = trim($r['beskrivelse']);
+        // Check both kodenr and name to prevent duplicates
+        $key = $kodenr . '|' . $name;
+        if (!in_array($kodenr, $seen_kodenr) && !in_array($name, $seen_names)) {
+            $seen_kodenr[] = $kodenr;
+            $seen_names[] = $name;
+            $dg_options[] = array(
+                "name" => $name,
+                "checked" => "",
+                "sqlOn" => "a.gruppe = $kodenr",
+                "sqlOff" => "",
+            );
+        }
+    }
+    if (count($dg_options)) {
+        $filters[] = array(
+            "filterName" => "Kundegrupper",
+            "joinOperator" => "or",
+            "options" => $dg_options
+        );
+    }
+
+    // Categories filter - show all available categories
+    $r=db_fetch_array(db_select("select box1,box2 from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
+    if ($r && $r['box1'] && $r['box2']) {
+        $cat_id=explode(chr(9),$r['box1']);
+        $cat_beskrivelse=explode(chr(9),$r['box2']);
+        $cat_antal=count($cat_id);
+        $cat_options = array();
+        for ($y=0;$y<$cat_antal;$y++) {
+            if (isset($cat_id[$y]) && isset($cat_beskrivelse[$y]) && $cat_id[$y] && $cat_beskrivelse[$y]) {
+                $cat_options[] = array(
+                    "name" => $cat_beskrivelse[$y],
+                    "checked" => "",
+                    "sqlOn" => "(a.kategori = '{$cat_id[$y]}' or a.kategori LIKE '{$cat_id[$y]}".chr(9)."%' or a.kategori LIKE '%".chr(9)."{$cat_id[$y]}' or a.kategori LIKE '%".chr(9)."{$cat_id[$y]}".chr(9)."%')",
+                    "sqlOff" => "",
+                );
+            }
+        }
+        if (count($cat_options)) {
+            $filters[] = array(
+                "filterName" => "Kategorier",
+                "joinOperator" => "or",
+                "options" => $cat_options
+            );
+        }
+    }
+
+    // Build query
+    $select_fields = array();
+    foreach ($columns as $col) {
+        $select_fields[] = $col['sqlOverride'] . " AS " . $col['field'];
+    }
+    $select_fields[] = "a.id AS id";
+
+    $query = "SELECT " . implode(",\n    ", $select_fields) . "
+FROM adresser a
+WHERE a.art = 'D' AND {{WHERE}}
+ORDER BY {{SORT}}";
+
+    // Row styling
+    $rowStyleFn = function ($row) {
+        if (isset($row['lukket']) && $row['lukket'] == 'on') {
+            return "color: #f00;";
+        }
+        return "";
+    };
+
+    // Meta column not used in default debitor view
+    $metaColumnFn = null;
+
+    // Create grid data array
+    $data = array(
+        "table_name" => "debitor_list",
+        "query" => $query,
+        "columns" => $columns,
+        "filters" => $filters,
+        "rowStyle" => $rowStyleFn,
+        "metaColumn" => $metaColumnFn,
+    );
+
+    // Render grid - use unique table_id to prevent conflicts with other grid views
+    $table_id = 'debitor_list';
+    
+    // Render grid - match vareliste.php structure exactly
+    print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+    create_datagrid($table_id, $data);
+    print "</div>";
+    
+    if ($menu=='T') {
+        include_once '../includes/topmenu/footer.php';
+    } else {
+        include_once '../includes/oldDesign/footer.php';
+    }
 }
+
+
 
 
 ?>

@@ -34,7 +34,6 @@ $attachId    = null;
 $email       = null;
 $kundeordnr  = null;
 $projekt[0]  = null;
-$ref         = null;
 $udskriv_til = null;
 
 
@@ -108,12 +107,7 @@ if ($x>0) {
 	$list[0]='DKK';
 	$beskriv[0]='Danske kroner';
 	print "<tr><td>Valuta</td>";
-	print "<td><select class='inputbox' name=valuta>";
-	for ($x=0; $x<=$tmp; $x++) {
-if ($valuta!=$list[$x]) print "<option title='$beskriv[$x]' onchange='javascript:docChange = true;'>$list[$x]</option>";
-else print "<option title='$beskriv[$x]' selected='selected' onchange='javascript:docChange = true;'>$list[$x]</option>";
-	}
-	print "</SELECT></td>";
+	print "<td><input class='inputbox' style='width:110px;' name='valuta' value='$valuta' onfocus='document.forms[0].fokus.value=this.name;'></td>";
 } else print "<tr><td width=200></tr>";
 $list=array();
 $beskriv=array();
@@ -128,14 +122,7 @@ $prj_antal=$x;
 if ($x>0) {
 	$vis_projekt='1';
 	print "<td><span title= '".findtekst(950, $sprog_id)."';>".findtekst(553, $sprog_id)."</span></td>";
-	print "<td><select class='inputbox' name=projekt[0]>";
-	for ($x=0; $x<=$prj_antal; $x++) {
-		if (!isset($beskriv[$x])) $beskriv[$x] = NULL;
-		if (!isset($list[$x])   ) $list[$x]    = NULL;
-		if ($projekt[0]!=$list[$x]) print "<option title='$beskriv[$x]' onchange='javascript:docChange = true;'>$list[$x]</option>";
-		else print "<option title='$beskriv[$x]' selected='selected' onchange='javascript:docChange = true;'>$list[$x]</option>";
-	}
-	print "</SELECT></td></tr>";
+	print "<td><input class='inputbox' style='width:110px;' name='projekt[0]' value='{$projekt[0]}' onfocus='document.forms[0].fokus.value=this.name;'></td></tr>";
 } else print "<tr><td</tr>";
 
 print "<tr><td>".findtekst(935,$sprog_id)."</td>";
@@ -192,33 +179,19 @@ if (!$ref) {
 		if ($r['navn']) $ref=$r['navn'];
 	}
 }
-$q = db_select("select id from adresser where art = 'S'",__FILE__ . " linje " . __LINE__);
-if ($r = db_fetch_array($q)) {
-	$q2 = db_select("select navn,afd from ansatte where konto_id = '$r[id]' and lukket != 'on' order by navn",__FILE__ . " linje " . __LINE__);
-	$x=0;
-	while ($r2 = db_fetch_array($q2)) {
-$x++;
-if ($x==1) {
 	$txt1097 = findtekst('1097|Vor ref.', $sprog_id);
 	print "<tr><td>$txt1097</td>";
-	print "<td colspan=3><select style='text-align:right;width:110px;' class='inputbox' name=ref>";
-	if ($ref) print "<option>$ref</option>";
-}
-if ($ref!=$r2['navn']) print "<option> $r2[navn]</option>";
+	print "<td colspan=3><input class='inputbox' style='width:110px;' name='ref' value='$ref' onfocus='document.forms[0].fokus.value=this.name;'></td></tr>";
+if (count($lager_nr)) {
+	print "<tr><td>Lager</td>";
+	print "<td colspan='1'><select style='text-align:right;width:110px;' class='inputbox' name='lager'>";
+	for ($x=0;$x<count($lager_nr);$x++) {
+if ($lager==$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
 	}
-	print "</SELECT>";
-	if ($x) print "</td></tr>";
-if (count($afd_nr)) {
-	print "<tr><td>Afd.</td>";
-	print "<td colspan='1'><select style='text-align:right;width:110px;' class='inputbox' name='afd'>";
-	for ($x=0;$x<count($afd_nr);$x++) {
-if ($afd==$afd_nr[$x]) print "<option value='$afd_nr[$x]'>$afd_nr[$x]: $afd_navn[$x]</option>";
-	}
-	for ($x=0;$x<count($afd_nr);$x++) {
-if ($afd!=$afd_nr[$x]) print "<option value='$afd_nr[$x]'>$afd_nr[$x]: $afd_navn[$x]</option>";
+	for ($x=0;$x<count($lager_nr);$x++) {
+if ($lager!=$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
 	}
 	print "</td></tr>";
-}
 }
 
 if ($status==0){print "<tr><td>".findtekst('555|Godkend', $sprog_id)."</td><td><input class='inputbox' type=checkbox name=godkend></td></tr>\n";}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------/includes/udvaelg.php--------lap 4.0.9----2023.11.13-----
+// -------------/includes/udvaelg.php--------lap 4.1.1----2025.11.06-----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2015.01.05 Retter fejlindtastning til noget brugbart 20150105-1
 // 2015.01.05 sikrer at numeriske værdier er numeriske ved at gange med 1 20150105-2
@@ -33,6 +33,24 @@
 // 20180228 PHR Fejlrettelse i ovenstående.
 // 20231113 PHR Added lower & upper to text search
 // 01072025 PBLM Added else $udvaelg= " and $key::text like '$tmp%'"; on line 97 for better search
+
+
+/*
+ * The function 'udvaelg' generates a SQL WHERE condition based on the inputs.
+ * It uses `$tmp` (a string to be searched or matched) and `$key` (the column or field to compare against) 
+ * to create various types of queries depending on the value of `$art` (which could represent the type of data being processed).
+ * 
+ * The function handles different types of input:
+ * - `$art` can specify types like "DATO", "TID", "TEXT", "NR", "BELOB", etc., which change how `$tmp` is processed.
+ * - If `$art` is "BELOB", the function creates a range using the values around `$tmp`.
+ * - If `$art` is "DATO", it converts dates to a specific format.
+ * - If `$art` is "TEXT", it creates more complex string comparisons, including case-insensitive matching and handling of wildcards.
+ * 
+ * In general, this function is used to create parts of SQL queries dynamically, based on various input types.
+ */
+
+
+
 
 if (!function_exists('udvaelg')){
 	function udvaelg ($tmp, $key, $art){
@@ -84,15 +102,11 @@ if (!function_exists('udvaelg')){
 			} elseif ($art=="TEXT") {
 				if (strstr($tmp,'*')) {
 					$tmp=str_replace('*','%',$tmp);
-					$udvaelg = " and ($key like '$tmp'";
-					$udvaelg.= " or lower($key) like '".mb_strtolower($tmp)."'";
-					$udvaelg.= " or upper($key) like '".mb_strtoupper($tmp)."')";
+					// Use ilike for case-insensitive matching in PostgreSQL
+					$udvaelg = " and $key ilike '$tmp'";
 				} else {
-					$udvaelg = " and ($key = '$tmp'";
-					$udvaelg.= " or lower($key) like '".mb_strtolower($tmp)."'";
-					$udvaelg.= " or upper($key) like '".mb_strtoupper($tmp)."'";
-					$udvaelg.= " or lower($key) like '%".mb_strtolower($tmp)."%'";
-					$udvaelg.= " or upper($key) like '%".mb_strtoupper($tmp)."%')";
+					// Use ilike for case-insensitive matching - supports both exact and partial matches
+					$udvaelg = " and ($key ilike '$tmp' or $key ilike '%$tmp%')";
 				}
 			} else $udvaelg= " and $key::text like '$tmp%'";
 			}

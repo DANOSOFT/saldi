@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.1 ----2025-05-19--------------
+// --- index/login.php --- patch 5.0.0 --- 2026-01-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20130919 Tjekkede ikke om der var opdateringer ved login i "hovedregnskab" Søg 20130919
 // 20140106	Tilføjet opslag i tmp_kode. Søg tmp_kode
@@ -67,6 +67,8 @@
 // 20250325 LOE - Fixed 'ansat_id'  "Undefined array key" notice and checks that other variables are set before use if $userId exists
 // 20250405 LOE - Revised with several improvements
 // 20250614 PHR - sanitize prevented login for users with, among other things, email as username
+// 20260114 PHR - column tlf will be added if it does not exist. Else twofactor crashes.
+// 20260120 PHR fetch from settings disabled if table settings does not exist
 
 ob_start(); //Starter output buffering
 @session_start();
@@ -127,22 +129,26 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 #$_COOKIE['timezone'] = $timezone;#20210929
+$qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name = 'settings'";
+(db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))?$useSettings=1:$useSettings=0;
 
-$r=db_fetch_array(db_select("select var_value from settings where var_name='alertText'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['customAlertText']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'",__FILE__ . " linje " . __LINE__)); #20211007
-if (isset($r['var_value'])) $_SESSION['ps2pdf']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='pdftk'",__FILE__ . " linje " . __LINE__));
+echo "US $useSettings";
+if ($useSettings) {
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='alertText'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['customAlertText']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'",__FILE__ . " linje " . __LINE__)); #20211007
+	if (isset($r['var_value'])) $_SESSION['ps2pdf']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='pdftk'",__FILE__ . " linje " . __LINE__));
 #if (isset($r['var_value'])) $_SESSION['pdftk']=$r['var_value']; #20211006 This is not available in develop database
-$r=db_fetch_array(db_select("select var_value from settings where var_name='ftp'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['ftp']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='dbdump'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['dbdump']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='tar'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['tar']=$r['var_value'];
-$r=db_fetch_array(db_select("select var_value from settings where var_name='zip'",__FILE__ . " linje " . __LINE__));
-if (isset($r['var_value'])) $_SESSION['zip']=$r['var_value'];
-
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='ftp'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['ftp']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='dbdump'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['dbdump']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='tar'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['tar']=$r['var_value'];
+	$r=db_fetch_array(db_select("select var_value from settings where var_name='zip'",__FILE__ . " linje " . __LINE__));
+	if (isset($r['var_value'])) $_SESSION['zip']=$r['var_value'];
+}
 
 #$r=db_fetch_array(db_select("select var_value from settings where var_grp='localization'",__FILE__ . " linje " . __LINE__));#20211006
 #if ($r['var_value']) $_SESSION['lang2']=$r['var_value'];
@@ -196,7 +202,7 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	date_default_timezone_set($timezone);
 	$qtxt="select version from regnskab where id='1'"; 
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	if ($r['version'] >= '3.7.2') {
+	if ($useSettings) {
 		$r=db_fetch_array(db_select("select var_value from settings where var_name='timezone'",__FILE__ . " linje " . __LINE__));
 		if ($timezone=$r['var_value']) {
 			date_default_timezone_set($timezone);
@@ -497,6 +503,7 @@ if (!$dbMail && $db != $sqdb) {
 	$mainMail = $r['email'];
 } else $mainMail = $dbMail;
 # Check whether the user exsists
+
 if ($userId) {
 	$db_skriv_id=NULL;
 		if (!isset($sqhost) || !isset($dbuser) || !isset($sqpass) || !isset($sqdb)) {
@@ -520,6 +527,7 @@ if ($userId) {
 		include("../includes/connect.php"); #20111105
 
 	# Get 2fa keys for SMS
+	if ($useSettingsd) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='nexmo_api_key' AND var_grp='2fa'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if(isset($r["var_value"])) $nexmo_api_key = $r["var_value"]; //20240502 Checks first that it is set before assigning it
@@ -528,8 +536,8 @@ if ($userId) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='nexmo_api_secret' AND var_grp='2fa'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if(isset($r["var_value"])) $nexmo_api_secret = $r["var_value"];
-
-	$userName = "revisor";
+	}
+	/* $userName = "revisor";
 	db_connect ("$sqhost", "$squser", "$sqpass", "$db");
 	$query = db_select("SELECT user_id FROM settings WHERE var_name = 'revisor' AND var_grp = 'system'", __FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($query)) {
@@ -540,7 +548,7 @@ if ($userId) {
 		}
 	} else {
 		$userId = 0; // Default value if not found
-	}
+	} */
 	include("../includes/connect.php");
 	if (
 		!(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
@@ -759,24 +767,40 @@ if ($userId) {
 	# ###################################################
 	# If its not an administrator
 	#if ($db_id !== 1) {
+
+	$qtxt = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS ";
+	$qtxt.= "WHERE table_name = 'brugere' AND column_name = 'tlf' ";
+	if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		$qtxt = "ALTER TABLE brugere add tlf varchar(16)";
+		db_modify($qtxt, __FILE__ . "linje" . __LINE__);
+	}
+
 	if ((int)$db_id !== 1) { // 20240502 Without the integer this always evaluates to true on goods account as admin
-		$qtxt = "select email, twofactor, tmp_kode from brugere where id=$userId";
+		$qtxt = "select email, twofactor, tmp_kode, tlf from brugere where id=$userId";
 		$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	} else {
 		$r = array("twofactor" => FALSE);
 	}
-echo $db_id;
-	if (isset($r["twofactor"])  && isset($tlf_num)) {
+	if (isset($r["twofactor"]) && $r["twofactor"] == 't') {
 		$json_data = file_get_contents('php://input');
 		$decoded_data = json_decode($json_data, true);
 							       
-		$tlf_num = $r["email"];
-		$real_code = explode("|",$r["tmp_kode"])[0];
-		$real_expire = explode("|",$r["tmp_kode"])[1];
+		$tlf_num = $r["tlf"];
+		$email = $r["email"];
+		$bruger_id = $userId; // Set bruger_id to userId
+		$real_code = NULL;
+		$real_expire = 0;
+		if (!empty($r["tmp_kode"])) {
+			$tmp_kode_parts = explode("|", $r["tmp_kode"]);
+			if (count($tmp_kode_parts) >= 2) {
+				$real_code = $tmp_kode_parts[0];
+				$real_expire = $tmp_kode_parts[1];
+			}
+		}
 		$status = NULL;
 
 		$code = $_POST['code_1'] . $_POST['code_2'] . $_POST['code_3'] . $_POST['code_4'] . $_POST['code_5'] . $_POST['code_6'];
-		if ($code && time() <= $real_expire) {
+		if ($code && $real_expire && time() <= $real_expire) {
 			if ($real_code == $code) {
 				$status = "success";
 			} else {
@@ -785,7 +809,7 @@ echo $db_id;
 		}
 		if ($bruger_id && $tlf_num) {
 		# The code has expired and a new one needs sent
-		if (time() > $real_expire && $status !== "success") {
+		if ((!$real_expire || time() > $real_expire) && $status !== "success") {
 			$status = "En sms er sendt til din telefon +" . substr($tlf_num, 0, 4) . "______";
 
 			# Generate secure random 4 didget integer using urandom
@@ -796,26 +820,12 @@ echo $db_id;
 			mt_srand($seed);
 			$random_integer = mt_rand(100000, 999999);
 
-			// Initialize cURL session
-			$ch = curl_init();
-
-			// Set cURL options
-			curl_setopt($ch, CURLOPT_URL, "https://rest.nexmo.com/sms/json");
-			curl_setopt($ch, CURLOPT_POST, 1);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-				'from' => 'Saldi',
-				'text' => "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter",
-				'to' => $r['email'],
-				'api_key' => $nexmo_api_key,
-				'api_secret' => $nexmo_api_secret
-			]));
-
-			// Execute cURL request
-			$result = curl_exec($ch);
+			$cleanedPhoneNumber = clean_phone_number($tlf_num);
+			$result = send_sms("Saldi", $cleanedPhoneNumber, "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter");
 
 			// Check for errors
 			if ($result === false) {
-				echo 'cURL error: ' . curl_error($ch);
+				echo "Der opstod en fejl ved afsendelse af sms. Prøv igen senere.";
 			} else {
 				$current_time = time();
 				$expire = $current_time + 180; // Expires in 3 minutes
@@ -824,9 +834,32 @@ echo $db_id;
 
 				include("tofaktor.php");
 			}
-			
-			// Close cURL session
-			curl_close($ch);
+			exit;
+		} else if ($status !== "success") {
+			include("tofaktor.php");
+			exit;
+		}
+	}elseif($bruger_id && $email) {
+		# The code has expired and a new one needs sent
+		if ((!$real_expire || time() > $real_expire) && $status !== "success") {
+			# Generate secure random 6 digit integer using urandom
+			$urandom = fopen('/dev/urandom', 'rb');
+			$seed = fread($urandom, 32);
+			fclose($urandom);
+			$seed = unpack('L', $seed)[1];
+			mt_srand($seed);
+			$random_integer = mt_rand(100000, 999999);
+
+			$status = "En email er sendt til din email " . $email;
+			$result = send_email($email, "Saldi 2FA kode", "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter");
+			if ($result === false) {
+				echo "Der opstod en fejl ved afsendelse af email. Prøv igen senere.";
+			} else {
+				$current_time = time();
+				$expire = $current_time + 180; // Expires in 3 minutes
+				db_modify("UPDATE brugere SET tmp_kode='$random_integer|$expire' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
+				include("tofaktor.php");
+			}
 			exit;
 		} else if ($status !== "success") {
 			include("tofaktor.php");

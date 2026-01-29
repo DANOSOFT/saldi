@@ -257,7 +257,8 @@ if (!$row['levdate']){
 							while ($r=db_fetch_array($q)){
 								if ($r['fakturadate']) $bogf_beh+=$r['rest'];
 							}
-							if ($bogf_beh>0 && $kostmetode=='1') {
+							
+							if ($bogf_beh>0 && $kostmetode=='1' ) {
 								$ny_kostpris=($bogf_beh*$gl_kostpris[$x]+$antal[$x]*$snitpris[$x])/($bogf_beh+$antal[$x]);
 							} else $ny_kostpris=$snitpris[$x];
 							#cho "select id from batch_kob where vare_id=$vare_id[$x] and fakturadate>'$levdate'<br>";
@@ -288,7 +289,7 @@ if (!$row['levdate']){
 						} elseif ($beholdning[$x]>0 && $kostmetode=='1') $ny_kostpris=($beholdning[$x]*$gl_kostpris[$x]+$antal[$x]*$snitpris[$x])/($beholdning[$x]+$antal[$x]);
 						else $ny_kostpris=$snitpris[$x];
 						if ($kostmetode) {
-							if ($ny_kostpris!=$gl_kostpris[$x]) {
+							if ($ny_kostpris!=$gl_kostpris[$x] && $art=="KO") {
 								include_once("../lager/productsIncludes/updateProductPrice.php");
 								updateProductPrice($vare_id[$x],$ny_kostpris,$levdate);
 							}

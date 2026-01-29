@@ -82,7 +82,16 @@ $columns[] = array(
     "sqlOverride" => "v.varenr",
     "generateSearch" => function ($column, $term) {
         $term = db_escape_string($term);
-        return "(v.varenr ILIKE '%$term%' OR v.varenr_alias ILIKE '%$term%')";
+        // Split search term into words and match all words
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "(v.varenr ILIKE '%$word%' OR v.varenr_alias ILIKE '%$word%')";
+            }
+        }
+        return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
     },
 );
 
@@ -98,8 +107,18 @@ $columns[] = array(
     "sqlOverride" => "v.varenr",
     "generateSearch" => function ($column, $term) {
         $term = db_escape_string($term);
-        return "(v.varenr ILIKE '%$term%' OR v.varenr_alias ILIKE '%$term%')";
+        // Split search term into words and match all words
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "(v.varenr ILIKE '%$word%' OR v.varenr_alias ILIKE '%$word%')";
+            }
+        }
+        return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
     },
+    "hidden" => true,
 );
 
 $columns[] = array(
@@ -115,7 +134,16 @@ $columns[] = array(
     "sqlOverride" => "v.beskrivelse",
     "generateSearch" => function ($column, $term) {
         $term = db_escape_string($term);
-        return "(v.beskrivelse ILIKE '%$term%' OR v.beskrivelse_alias ILIKE '%$term%')";
+        // Split search term into words and match all words
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "(v.beskrivelse ILIKE '%$word%' OR v.beskrivelse_alias ILIKE '%$word%')";
+            }
+        }
+        return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
     },
 );
 
@@ -132,8 +160,18 @@ $columns[] = array(
     "sqlOverride" => "v.beskrivelse",
     "generateSearch" => function ($column, $term) {
         $term = db_escape_string($term);
-        return "(v.beskrivelse ILIKE '%$term%' OR v.beskrivelse_alias ILIKE '%$term%')";
+        // Split search term into words and match all words
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "(v.beskrivelse ILIKE '%$word%' OR v.beskrivelse_alias ILIKE '%$word%')";
+            }
+        }
+        return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
     },
+    "hidden" => true,
 );
 
 $columns[] = array(
@@ -330,6 +368,7 @@ $filters[] = array(
     "joinOperator" => "or",
     "options" => $VGs
 );
+
 log_performance("Varegrupper filter query", $varegrupper_start);
 
 $leverandor_start = microtime(true);
@@ -347,7 +386,7 @@ while ($row = db_fetch_array($q)) {
     $levs[] = array(
         "name" => $row["firmanavn"],
         "checked" => "",
-        "sqlOn" => "ol.kontonr_concat LIKE '%$row[kontonr]%'", // Fixed: changed from levs.lev to ol.kontonr_concat
+        "sqlOn" => "ol.kontonr_concat = '$row[kontonr]'", // Fixed: changed from levs.lev to ol.kontonr_concat
         "sqlOff" => "",
     );
 }
@@ -356,6 +395,7 @@ $filters[] = array(
     "joinOperator" => "or",
     "options" => $levs
 );
+
 log_performance("Leverandøre filter query", $leverandor_start);
 
 // Misc

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- patch 4.1.0 --- 2024-05-22 ---
+// --- includes/rapportfunc.php --- patch 4.1.0 --- 2025-12-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20121106 Kontrol for aktivt regnskabsaar v. bogføring af rykker.Søg 20121106  
@@ -76,13 +76,14 @@
 // 20230824 MSC - Copy pasted new design into code
 // 20240330 PHR	- Corrections in open post when fromdate != currentdate
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
+// 20250924 LOE - Modify select url to use window.location.href instead of window.open to fit into main frame.
 
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
 {
 ?>
-	<script LANGUAGE="JavaScript">
+	<script LANGUAGE="JavaScript"> 
 		<!--
 		function confirmSubmit(tekst) {
 			var agree = confirm(tekst);
@@ -212,7 +213,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<tr><td width=100% height=\"8\">\n";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
 
-		print "<td width='10%'><a accesskey=l href=\"rapport.php\">
+		print "<td width='10%' style='$topStyle' ><a accesskey=l href=\"rapport.php\">
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
 		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
@@ -225,8 +226,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<td width=\"80%\" $top_bund>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
 		print "<td width=\"10%\" $top_bund>\n";
 	}
-	print "<div style='padding:5px;height:12px;'><center><select name=\"aabenpostmode\"
-		onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\"></div>\n";
+	print "<div><center><select name='aabenpostmode' style='$topStyle' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
 	if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
 	elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
 	elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
@@ -733,18 +733,50 @@ $backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 		print "<div class='content-noside'>";
 		print "<div class='dataTablediv' style='width:700px; margin: auto;'><table width='100%' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" class='dataTableSmall'><tbody>\n";
 	} elseif ($menu == 'S') {
-		print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
+			
+	#####################
+	$leftemptyBtn  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	
+	#####################
+	print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
+	
+	print "<tr id='topTr'><td width=5% style='$topStyle'>";
+	print "<span class='headerbtn' style='$buttonStyle'>"
+	. $leftemptyBtn . "</span>";
+	print "</td>";
 
-		print "<tr><td width='10%' align='center' style='$buttonStyle'><a href=$returside accesskey=L>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>";
+	print "<td width='75%' align='center' style='$topStyle'>$title</td>";
 
-		print "<td width='80%' align='center' style='$topStyle'>$title</td>";
-
-		print "<td width='10%' align='center' style='$topStyle''><br></td>";
+	
+	print "<td width='5%' align='center' style='$topStyle''><br></td>";
 
 		print "</tr><tr class='noHover'><td height=99%><br></td></td>";
 		print "<td valign='top' align='center'><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
 		print "<tr><td align=center colspan=\"5\"><big><b>$title</b></big><br><br></td></tr>";
+	?>
+	<style>
+	.headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+	}
+	a:link{
+		text-decoration: none;
+	}
+	</style>
+	<script>
+			document.addEventListener("DOMContentLoaded", function() {
+			var trElement = document.getElementById("topTr");
+			if (trElement) {
+				
+				trElement.classList.remove("hover-highlight");
+			}
+		});
+	</script>
+	<?php
+     
+		##################
 	} else {
 		$butCol = '#009578';
 		$topStyle = "border:1;border-color:#fefefe;border-radius:5px;width:100%;height:100%;background:url('../img/knap_bg.gif');";
@@ -1076,7 +1108,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 				if ($fromdate)
 					$firstdate = $fromdate;
 				if ($todate)
-					$lastdate = $todate;
+					$lastdate = $todate; 
 				print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=" . dkdato($firstdate) . 	"&dato_til=" . dkdato($lastdate) . "&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Send som mail (Åbner i popup)\">
 					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></td>\n";
 			}

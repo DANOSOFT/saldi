@@ -68,7 +68,7 @@ print "<div id='bg'></div>";
 
 $type = ($raw_amount < 0) ? "process_refund" : "process_payment_intent";
 $amount = abs($raw_amount) * 100;
-echo $ordre_id;
+
 if($type == "process_refund") {
   $query = db_select("SELECT betalings_id FROM ordrer WHERE id = $ordre_id", __FILE__ . " linje " . __LINE__);
   $row = db_fetch_array($query);
@@ -134,7 +134,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       count--;
       if (count == 0) {
         setTimeout(() => {
-          documentgetElementById('continue').style.display = 'none';
+          document.getElementById('continue').style.display = 'none';
           var elm = document.getElementById('continue-error');
           elm.style.display = 'block';
           var elm = document.getElementById('status');

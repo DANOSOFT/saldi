@@ -64,6 +64,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20250820 PHR Added some line ident comments
+// 20251206 LOE some topline codes moved to ../includes/S_topLine.php also used by other files
 
 @session_start();
 $s_id=session_id();
@@ -88,7 +89,7 @@ if (!isset ($_GET['kun_salg'])) $_GET['kun_salg'] = NULL;
 if (!isset ($_GET['lagertal'])) $_GET['lagertal'] = NULL;
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
-: 'javascript:window.history.go(-2);';
+: '../index/menu.php';
 if ($popup) $returside="../includes/luk.php";
 
 else $returside = $backUrl;
@@ -138,8 +139,8 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 
 #if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";}
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
-elseif ($submit == findtekst(992,$sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
-elseif ($submit == findtekst(2082,$sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
+elseif ($submit == findtekst('992|Lagerstatus', $sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
+elseif ($submit == findtekst('2082|Prisliste', $sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
 elseif ($inventoryCount) print print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 
@@ -197,19 +198,11 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		print "</div><!-- end of header -->
 			<div class=\"maincontentLargeHolder\">\n";
 	} elseif ($menu=='S') {
-		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
-		print "<tr><td width=100%>";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+		$title = findtekst('964|Varerapport - forside', $sprog_id);
 
-		print "<td width=\"10%\"><a href='$returside' accesskey=L>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		include("../includes/S_topLine.php"); 
 
-		print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('964|Varerapport - forside', $sprog_id)."</td>";
-
-		print "<td width=\"10%\" align='center' style='$topStyle'></td></tr>\n";
-
-		print "</tbody></table></td></tr>\n"; #B slut
-		print "</tr>\n<tr><td height=\"60%\" \"width=100%\" align=\"center\" valign=\"bottom\">";
+		print "</tr>\n<tr><td height=\"10%\" \"width=100%\" align=\"center\" valign=\"bottom\">";
 	} else {
 		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
 		print "<tr><td width=100%>";
@@ -291,10 +284,10 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	}
 	$trbg=$bgcolor;
 	print "<form name=rapport action=rapport.php method=post>";
-	print "<table  bgcolor='$bgcolor' class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-	print "<tr><td align=\"center\" colspan=\"3\"><h3>".findtekst(965,$sprog_id)."<br></h3></td></tr>\n";
+	print "<table  bgcolor='$bgcolor' width='800px' class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	#print "<tr><td align=\"center\" colspan=\"3\"><h3>".findtekst('965|Varerapport', $sprog_id)."<br></h3></td></tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-	print "<tr bgcolor='$trbg'><td>".findtekst(774,$sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"varegruppe\" style=\"width:200px;\">";
+	print "<tr bgcolor='$trbg'><td>".findtekst('774|Varegrupper', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"varegruppe\" style=\"width:200px;\">";
 	for ($x=0;$x<count($vg_nr);$x++) {
 		if ($varegruppe == $vg_nr[$x]) print "<option value=$vg_nr[$x]>$vg_nr[$x] : $vg_navn[$x]</option>";
  	}
@@ -317,7 +310,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	}
 	if (count($afd_nr)>1) {
 		($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-		print "<tr bgcolor='$trbg'><td> Afdeling </td><td colspan=\"2\"><select class=\"inputbox\" name=\"afd\" style=\"width:200px;\">";
+		print "<tr bgcolor='$trbg'><td>".findtekst('274|Afdeling', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"afd\" style=\"width:200px;\">";
 		for ($x=0;$x<count($afd_nr);$x++) {
 			if ($afd == $afd_nr[$x]) print "<option value=$afd_nr[$x]>$afd_nr[$x] : $afd_navn[$x]</option>";
 		}
@@ -328,7 +321,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	}
 	if (count($ref_nr)>1) {
 		($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-		print "<tr bgcolor='$trbg'><td> ".findtekst(884,$sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"ref\" style=\"width:200px;\">";
+		print "<tr bgcolor='$trbg'><td>".findtekst('884|Sælger', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"ref\" style=\"width:200px;\">";
 		for ($x=0;$x<=count($ref_nr);$x++) {
 			if ($ref == $ref_nr[$x]) print "<option value=$ref_nr[$x]>$ref_brugernavn[$x]</option>";
 		}
@@ -341,42 +334,47 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	}
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 	print "<tr bgcolor='$trbg'>";
-	print "	<td>".findtekst(899,$sprog_id)."</td>";
+	print "	<td>".findtekst('899|Periode', $sprog_id)."</td>";
 	print "	<td colspan=\"1\"><input class=\"inputbox\" style=\"width:97px;\" type=\"text\" name=\"dato_fra\" value=\"$dato_fra\"></td>";
 	print "	<td colspan=\"1\"><input class=\"inputbox\" style=\"width:97px;\" type=\"text\" name=\"dato_til\" value=\"$dato_til\"></td>";
 	print "	</tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-	print "<tr bgcolor='$trbg'><td>".findtekst(917,$sprog_id)."</td><td colspan=\"2\"><input class=\"inputbox\" style=\"width:200px;\" name=\"varenr\" value=\"$varenr\"></td></tr>\n";
+	print "<tr bgcolor='$trbg'><td>".findtekst('917|Varenr.', $sprog_id)."</td>";
+	print "<td colspan=\"2\"><input class=\"inputbox\" style=\"width:200px;\" name=\"varenr\" value=\"$varenr\"></td></tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-	print "<tr bgcolor='$trbg'><td>".findtekst(967,$sprog_id)."</td><td colspan=\"2\"><input class=\"inputbox\" style=\"width:200px;\" name=\"varenavn\" value=\"$varenavn\"></td></tr>\n";
+	print "<tr bgcolor='$trbg'><td>".findtekst('967|Varenavn', $sprog_id)."</td>";
+	print "<td colspan=\"2\"><input class=\"inputbox\" style=\"width:200px;\" name=\"varenavn\" value=\"$varenavn\"></td></tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-	print "<tr bgcolor='$trbg'><td>".findtekst(968,$sprog_id)."</td><td colspan=\"2\"><input type=\"checkbox\" name=\"detaljer\" $detaljer></td></tr>\n";
+	print "<tr bgcolor='$trbg'><td>".findtekst('968|Detaljeret', $sprog_id)."</td>";
+	print "<td colspan=\"2\"><input type=\"checkbox\" name=\"detaljer\" $detaljer></td></tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-	print "<tr bgcolor='$trbg'><td>".findtekst(969,$sprog_id)."</td><td colspan=\"2\"><input type=\"checkbox\" name=\"kun_salg\"$kun_salg></td></tr>\n";
+	print "<tr bgcolor='$trbg'><td>".findtekst('969|Kun salg / DB', $sprog_id)."</td>";
+	print "<td colspan=\"2\"><input type=\"checkbox\" name=\"kun_salg\"$kun_salg></td></tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-	print "<tr bgcolor='$trbg'><td>".findtekst(970,$sprog_id)."./".strtolower(findtekst('476|Værdi', $sprog_id))."</td><td colspan=\"2\"><input type=\"checkbox\" name=\"lagertal\" $lagertal></td></tr>\n";
+	print "<tr bgcolor='$trbg'><td>".findtekst('970|Beregn lagerbeh.', $sprog_id)."/".strtolower(findtekst('476|Værdi', $sprog_id))."</td>";
+	print "<td colspan=\"2\"><input type=\"checkbox\" name=\"lagertal\" $lagertal></td></tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 	print "<tr bgcolor='$trbg'><td colspan='3' align=center><input class='button green medium' type=submit value=\"  OK  \" name=\"submit\"></td></tr>\n";
 	print "</tbody></table>";
 	print "<tr><td ALIGN=\"center\" Valign=\"top\" height=39%><center><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>\n";
 	print "<tr><td><hr></td></tr>\n";
-	$txt = "<tr><td ALIGN=center title='".findtekst(971,$sprog_id)."'>";
-	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst(992,$sprog_id)."\" name='submit'>";
+	$txt = "<tr><td ALIGN=center title='".findtekst('971|Se lagerstatus på vilkårlig dato', $sprog_id)."'>";
+	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst('992|Lagerstatus', $sprog_id)."\" name='submit'>";
 	$txt.= "</td></tr>\n";
 	print $txt;
-	$txt = "<tr><td ALIGN=center title='".findtekst(972,$sprog_id)."'>";
-	$txt.= "<input class='button gray medium' style=\"width:350px;\" type=submit value=\"".findtekst(993,$sprog_id)."\" name=\"lokMinMax\">";
+	$txt = "<tr><td ALIGN=center title='".findtekst('972|Beholdningsrapport med lokation samt min og max', $sprog_id)."'>";
+	$txt.= "<input class='button gray medium' style=\"width:350px;\" type=submit value=\"".findtekst('993|Beholdningsrapport', $sprog_id)."\" name=\"lokMinMax\">";
 	$txt.= "</td></tr>\n";
 	if ($db == 'bizsys_49') print $txt;
 	print "<tr><td><hr></td></tr>\n";
-	$txt = "<tr><td ALIGN=center title='".findtekst(973,$sprog_id)."'>";
+	$txt = "<tr><td ALIGN=center title='".findtekst('973|Funktion til optælling og regulering af varelager', $sprog_id)."'>";
 	$txt.= "<input class='button gray medium' style=\"width:350px;\" ";
-	$txt.= "type = 'submit' value='".findtekst(1956,$sprog_id)."' name='inventoryCount'>";
+	$txt.= "type = 'submit' value='".findtekst('1956|Lageroptælling', $sprog_id)."' name='inventoryCount'>";
 	$txt.=  "</td></tr>\n";
 	print $txt;
 	print "<tr><td><hr></td></tr>\n";
-	$txt = "<tr><td ALIGN=center title='".findtekst(971,$sprog_id)."'>";
-	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst(2082,$sprog_id)."\" name='submit'>";
+	$txt = "<tr><td ALIGN=center title='".findtekst('971|Se lagerstatus på vilkårlig dato', $sprog_id)."'>";
+	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst('2082|Prisliste', $sprog_id)."\" name='submit'>";
 	$txt.= "</td></tr>\n";
 	print $txt;
 	print "</form>";
@@ -388,6 +386,8 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 ##################################################################################################
 function varegruppe($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref) {
 
+	include("../includes/topline_settings.php");
+
 #	global $connection;
 	global $bgcolor,$bgcolor5,$brugernavn;
 	global $db;
@@ -397,9 +397,9 @@ function varegruppe($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,
 	global $top_bund;
 	global $sprog_id; #20210406
 
-	if ($detaljer) $cols=9;
-	elseif ($kun_salg) $cols=8;
-	else $cols=15;
+	if ($detaljer) $cols=12;
+	elseif ($kun_salg) $cols=11;
+	else $cols=18;
 
 	$v_gr = array();
 	$v_navn = array();
@@ -424,19 +424,29 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		include_once '../includes/top_menu.php';
 		include_once '../includes/top_header.php';
 		print "<div id=\"header\">
-		<div class=\"headerbtnLft\">$luk ".findtekst(30,$sprog_id)."</a></div>
+		<div class=\"headerbtnLft\">$luk ".findtekst('30|Tilbage', $sprog_id)."</a></div>
 		<span class=\"headerTxt\">Rapport | Varesalg | ".dkdato($date_from)." - ".dkdato($date_to); "</span>";
 		print "<div class=\"headerbtnRght\"></div>";
 		print "</div><!-- end of header -->
 			<div class=\"maincontentLargeHolder\">\n";
 		print "<table class='dataTable' width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-	} else {
-		print "<table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	} elseif ($menu=='S') {
+		print "<table width = 100% cellpadding='1' cellspacing='1' border='0'><tbody>";
 
-		print "<tr><td colspan=\"$cols\" height=\"9\">";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund>$luk ".findtekst(30,$sprog_id)."</a></td>";
-		print "<td width=\"80%\" $top_bund>Rapport | varesalg | ".dkdato($date_from)." - ".dkdato($date_to);
+		print "<tr><td colspan='$cols' height='9'>";
+		print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>"; #B
+
+		print "<td width='10%'>$luk<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+		print findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		
+		print "<td width='80%' align='center' style='$topStyle'>".findtekst('1142|Rapport', $sprog_id)." | ".findtekst('2746|Varesalg', $sprog_id)." | ".dkdato($date_from)." - ".dkdato($date_to);
+	} else {
+		print "<table width = 100% cellpadding='1' cellspacing='1' border='0'><tbody>";
+
+		print "<tr><td colspan='$cols' height='9'>";
+		print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>"; #B
+		print "<td width='10%' $top_bund>$luk ".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+		print "<td width='80%' $top_bund>".findtekst('1142|Rapport', $sprog_id)." | ".findtekst('2746|Varesalg', $sprog_id)." | ".dkdato($date_from)." - ".dkdato($date_to);
 	}
 	if ($afd) {
 		$r=db_fetch_array(db_select("select beskrivelse from grupper where art = 'AFD' and kodenr = '$afd'",__FILE__ . " linje " . __LINE__));
@@ -468,9 +478,15 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	}
 	if ($menu=='T') {
 
+	} elseif ($menu=='S') {
+	print "</td>";
+	print "<td width='10%'><a href='../temp/$db/salgsrapport.csv' target='_blank'>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+	print "</tbody></table>"; #B slut
+
 	} else {
 	print "</td>";
-	print "<td width=\"10%\" $top_bund><a href='../temp/$db/salgsrapport.csv' target='_blank'>csv</a></td>";
+	print "<td width='10%' $top_bund><a href='../temp/$db/salgsrapport.csv' target='_blank'>CSV</a></td>";
 	print "</tbody></table>"; #B slut
 	}
 	print "</td></tr>\n";
@@ -605,34 +621,40 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 
 	if (!$detaljer) {
 		if ($kun_salg) {
-			print "<tr><td><b>".findtekst(917,$sprog_id).".</b></td>
-			<td><b>".findtekst(945,$sprog_id)."</b></td>
-			<td><b>".findtekst(914,$sprog_id)."</b></td>
-			<td align=\"right\"><b>".findtekst(974,$sprog_id)."</b></td>
-			<td align=\"right\"><b>".findtekst(949,$sprog_id)."</b></td>
+			print "<tr><td><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
+			<td><b>(alias)</b></td>
+			<td><b>".findtekst('945|Enhed', $sprog_id)."</b></td>
+			<td><b>".findtekst('914|Beskrivelse', $sprog_id)."</b></td>
+			<td><b>(alias)</b></td>
+			<td align=\"right\"><b>".findtekst('950|Kostpris', $sprog_id)."</b></td>
+			<td align=\"right\"><b>".findtekst('974|Solgt', $sprog_id)."</b></td>
+			<td align=\"right\"><b>".findtekst('949|Salgspris', $sprog_id)."</b></td>
 			<td align=\"right\"><b>DB</b></td>
 			<td align=\"right\"><b>DG</b></td>
-			<td align=\"right\"><b>".findtekst(975,$sprog_id)."</b></td>"; #20210402
-			fwrite($csvfile, "Varenr;Enhed;Beskrivelse;Solgt;Salgspris;DB;DG;". mb_convert_encoding('På lager', 'ISO-8859-1', 'UTF-8') ."\r\n");
+			<td align=\"right\"><b>".findtekst('975|På lager', $sprog_id)."</b></td>"; #20210402
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Solgt;Salgspris;DB;DG;". mb_convert_encoding('På lager', 'ISO-8859-1', 'UTF-8') ."\r\n");
 		} else {
-			print "<tr><td><b>".findtekst(917,$sprog_id).".</b></td>
-			<td><b>".findtekst(945,$sprog_id)."</b></td>
-			<td><b>".findtekst(914,$sprog_id)."</b></td>
-			<td align=\"right\"><b>".findtekst(976,$sprog_id)."</b></td>
-			<td align=\"right\"><b>".findtekst(977,$sprog_id)."</b></td>
-			<td align=\"right\"><b>".findtekst(978,$sprog_id)."</b></td>
-			<td align=\"right\"><b>".findtekst(974,$sprog_id)."</b></td>
-			<td align=\"right\"><b>".findtekst(949,$sprog_id)."</b></td>
-			<td align=\"right\"><b>+".findtekst(770,$sprog_id)."</b></td>
-			<td align=\"right\"><b>".findtekst(979,$sprog_id)."</b></td>
+			print "<tr><td><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
+			<td><b>(alias)</b></td>
+			<td><b>".findtekst('945|Enhed', $sprog_id)."</b></td>
+			<td><b>".findtekst('914|Beskrivelse', $sprog_id)."</b></td>
+			<td><b>(alias)</b></td>
+			<td align=\"right\"><b>".findtekst('950|Kostpris', $sprog_id)."</b></td>
+			<td align=\"right\"><b>".findtekst('976|Bestilt', $sprog_id)."</b></td>
+			<td align=\"right\"><b>".findtekst('977|Købt', $sprog_id)."</b></td>
+			<td align=\"right\"><b>".findtekst('978|Købspris', $sprog_id)."</b></td>
+			<td align=\"right\"><b>".findtekst('974|Solgt', $sprog_id)."</b></td>
+			<td align=\"right\"><b>".findtekst('949|Salgspris', $sprog_id)."</b></td>
+			<td align=\"right\"><b>".findtekst('770|Moms', $sprog_id)."</b></td>
+			<td align=\"right\"><b>".findtekst('979|Reguleret', $sprog_id)."</b></td>
 			<td align=\"right\"><b>DB</b></td>
 			<td align=\"right\"><b>DG</b></td>";
 			#<td align=\"right\"><b>K&oslash;bspris</b></td>";
-			fwrite($csvfile, "Varenr;Enhed;Beskrivelse;Bestilt;". mb_convert_encoding('Købt', 'ISO-8859-1', 'UTF-8') .";". mb_convert_encoding('Købspris', 'ISO-8859-1', 'UTF-8') .";");
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Bestilt;". mb_convert_encoding('Købt', 'ISO-8859-1', 'UTF-8') .";". mb_convert_encoding('Købspris', 'ISO-8859-1', 'UTF-8') .";");
 			fwrite($csvfile, "Solgt;Salgspris;". mb_convert_encoding('+moms', 'ISO-8859-1', 'UTF-8') .";Reguleret;DB;DG");
 			if (count($lagergruppe) && $lagertal) {
-				print "<td align=\"right\"><b>".findtekst(980,$sprog_id)."</b></td>
-				<td align=\"right\"><b>".findtekst(476,$sprog_id)."</b></td>";
+				print "<td align=\"right\"><b>".findtekst('980|Beholdning', $sprog_id)."</b></td>
+				<td align=\"right\"><b>".findtekst('476|Værdi', $sprog_id)."</b></td>";
 				fwrite($csvfile,";Beholdning;". mb_convert_encoding('Værdi', 'ISO-8859-1', 'UTF-8'));
 			}
 			print "</tr>\n";
@@ -640,16 +662,18 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		}
 	}
 	$tt_kobt=$tt_solgt=$tt_regul=$tt_k_pris=$tt_s_pris=$tt_moms=$tt_kost=$tt_dkBi=$tt_stockvalue=0;
-	$beskrivelse=$enhed=$varenr=array();
+	$beskrivelse=$enhed=$varenr=$varenr_alias=$beskrivelse_alias=array();
 	for ($x=0;$x<count($v_id);$x++) {
 		$beholdning[$x]=0;
-		$qtxt="select * from varer where id='$v_id[$x]'";
-		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$varenr[$x]=$r['varenr'];
-		$enhed[$x]=$r['enhed'];
-		$beskrivelse[$x]=$r['beskrivelse'];
-		$v_kostpris[$x]=$r['kostpris'];
-		$samlevare[$x]=$r['samlevare'];
+	$qtxt="select * from varer where id='$v_id[$x]'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$varenr[$x]=$r['varenr'];
+	$varenr_alias[$x]=$r['varenr_alias'];
+	$enhed[$x]=$r['enhed'];
+	$beskrivelse[$x]=$r['beskrivelse'];
+	$beskrivelse_alias[$x]=$r['beskrivelse_alias'];
+	$v_kostpris[$x]=$r['kostpris'];
+	$samlevare[$x]=$r['samlevare'];
 		if ($kun_salg || ($lagertal && in_array($v_gr[$x],$lagergruppe) && !$samlevare[$x])) {
 			$qtxt = "select sum(antal) as beholdning from batch_kob where vare_id='$v_id[$x]'";
 			if ($date_to != date("Y-m-d")) $qtxt.= " and fakturadate <= '$date_to'"; //20240404
@@ -720,14 +744,26 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
-			print "<tr><td colspan=\"3\"><b>$varenr[$x] $beskrivelse[$x]</b></td></tr>\n";
-			fwrite($csvfile,";;;\"$varenr[$x] ".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
+			print "<tr><td colspan=\"5\"><b>$varenr[$x] $beskrivelse[$x]</b></td></tr>\n";
+			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
+				print "<tr><td colspan=\"5\"><b>Alias: $varenr_alias[$x] $beskrivelse_alias[$x]</b></td></tr>\n";
+			}
+			fwrite($csvfile,";;;;\"$varenr[$x] ".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
+			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
+				fwrite($csvfile,";;;;\"Alias: $varenr_alias[$x] ".mb_convert_encoding($beskrivelse_alias[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
+			}
 #			if ($enhed[$x]) print "<tr><td colspan=\"3\">$enhed[$x]</td></tr>\n";
 #			print "<tr><td colspan=\"3\"><b>$beskrivelse[$x]</b></td></tr>\n";
 			print "<tr><td></td></tr>\n";
 			if (!$kun_salg) {
-				print "<tr><td>".findtekst(981,$sprog_id)."</td><td align=\"right\">".findtekst(916,$sprog_id)."</td><td align=\"right\">".findtekst(915,$sprog_id)."</td><td align=\"right\">".findtekst(770,$sprog_id)."</td><td align=\"right\">Incl. moms</td><td align=\"right\">".findtekst(107,$sprog_id)."</td></tr>\n";
-			fwrite($csvfile, mb_convert_encoding('Købsdato', 'ISO-8859-1', 'UTF-8') .";Antal;Pris;Moms\Incl. moms;Ordre\r\n");
+				print "<tr>";
+				print "<td>".findtekst('981|Købsdato', $sprog_id)."</td>";
+				print "<td align='right'>".findtekst('916|Antal', $sprog_id)."</td>";
+				print "<td align='right'>".findtekst('915|Pris', $sprog_id)."</td>";
+				print "<td align='right'>".findtekst('770|Moms', $sprog_id)."</td>";
+				print "<td align='right'>".findtekst('2747|Inkl. moms', $sprog_id)."</td>";
+				print "<td align='right'>".findtekst('107|Ordrer', $sprog_id)."</td></tr>\n";
+			fwrite($csvfile, mb_convert_encoding('Købsdato', 'ISO-8859-1', 'UTF-8') .";Antal;Pris;Moms;Incl. moms;Ordre\r\n");
 				print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 				print "<!-- Line". __line__ ."-->\n";
 				for ($y=0;$y<count($k_antal);$y++) {
@@ -847,7 +883,16 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		if ($t_s_pris && $t_dkBi) $t_dg=$t_dkBi*100/$t_s_pris;
 		else $t_dg=100;
 		if ($detaljer) {
-			print "<tr><td>".findtekst(982,$sprog_id)."</td><td align=\"right\">".findtekst(916,$sprog_id)."</td><td align=\"right\">".findtekst(915,$sprog_id)."</td><td align=\"right\">".findtekst(770,$sprog_id)."</td><td align=\"right\">Incl.moms</td><td align=\"right\">".findtekst(950,$sprog_id)."</td><td align=\"right\">DB</td><td align=\"right\">DG</td><td align=\"right\">".findtekst(605,$sprog_id)."</td></tr>\n";
+			print "<tr>";
+			print "<td>".findtekst('982|Salgsdato', $sprog_id)."</td>";
+			print "<td align=\"right\">".findtekst('916|Antal', $sprog_id)."</td>";
+			print "<td align=\"right\">".findtekst('915|Pris', $sprog_id)."</td>";
+			print "<td align=\"right\">".findtekst('770|Moms', $sprog_id)."</td>";
+			print "<td align=\"right\">".findtekst('2747|Inkl. moms', $sprog_id)."</td>";
+			print "<td align=\"right\">".findtekst('950|Kostpris', $sprog_id)."</td>";
+			print "<td align=\"right\">DB</td>";
+			print "<td align=\"right\">DG</td>";
+			print "<td align=\"right\">".findtekst('605|Ordre', $sprog_id)."</td></tr>\n";
 			fwrite($csvfile, "Salgsdato;Antal;Pris;Moms;Incl.moms;Kostpris;DB;DG\r\n");
 			print "<!-- Line". __line__ ."-->\n";
 			for ($y=count($bk_id);$y<count($linje_id);$y++) {
@@ -860,7 +905,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					print "<td align='right'>".dkdecimal($kostpris[$y],2)."</td>";
 					print "<td align='right'>".dkdecimal($dkBi[$y],2)."</td>";
 					print "<td align='right'> ".dkdecimal($dg[$y],2)."%</td>";
-					print "<td align='right' title=\"\" onClick=\"javascript:s_ordre=window.open('../debitor/ordre.php?id=$s_ordre_id[$y]&returside=../includes/luk.php','s_ordre','width=800,height=400,$jsvars')\"> <u>Se</u></td></tr>\n";
+					print "<td align='right' class='hover-preview' data-preview-url='../debitor/ordre.php?id=$s_ordre_id[$y]&returside=../includes/luk.php' title=\"Hover to preview order details\" onClick=\"javascript:s_ordre=window.open('../debitor/ordre.php?id=$s_ordre_id[$y]&returside=../includes/luk.php','s_ordre','width=800,height=400,$jsvars')\"> <u>Se</u></td></tr>\n";
 					fwrite($csvfile, dkdato($fakturadate[$y]).";".dkdecimal($s_antal[$y],2).";".dkdecimal($pris[$y],2).";");
 					fwrite($csvfile, dkdecimal($moms[$y],2).";".dkdecimal($pris[$y]+($moms[$y]),2).";".dkdecimal($kostpris[$y],2).";");
 					fwrite($csvfile, dkdecimal($dkBi[$y],2).";".dkdecimal($dg[$y],2)."%\r\n");
@@ -886,7 +931,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			fwrite($csvfile, dkdecimal($t_dg,2)."\r\n");
 			if (!$kun_salg) print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 			if (!$afd && !$lev && !$ref && !$kun_salg) {
-			print "<tr><td>Lagerreguleret</td><td align=\"right\">Antal</td></tr>\n";
+			print "<tr><td>".findtekst('2237|Lagerreguleret', $sprog_id)."</td><td align=\"right\">".findtekst('916|Antal', $sprog_id)."</td></tr>\n";
 			fwrite($csvfile, "Lagerreguleret;Antal\r\n");
 			$fd=array_unique($fakturadate); #20160804
 			sort($fd);
@@ -915,7 +960,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 				fwrite($csvfile, "-----------\r\n");
 				($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-				print "<tr bgcolor='$linjebg'><td>Samlet til-/afgang i perioden</td><td align='right'> <b>".dkdecimal($t_kobt+$t_regul-$t_solgt,2)."</b></td><tr>"; #20151105
+				print "<tr bgcolor='$linjebg'><td>".findtekst('984|Samlet til-/afgang i perioden', $sprog_id)."</td><td align='right'> <b>".dkdecimal($t_kobt+$t_regul-$t_solgt,2)."</b></td><tr>"; #20151105
 				fwrite($csvfile, "Samlet til-/afgang i perioden;".dkdecimal($t_kobt+$t_regul-$t_solgt,2)."\r\n");
 			}
 			}
@@ -930,10 +975,14 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			}
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 			print "<tr bgcolor='$linjebg'><td>$varenr[$x]</td>";
+			print "<td>$varenr_alias[$x]</td>";
 			print "<td>$enhed[$x]</td>";
 			print "<td>$beskrivelse[$x]</td>";
-			fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\";");
+			print "<td>$beskrivelse_alias[$x]</td>";
+			fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\";\"".mb_convert_encoding($beskrivelse_alias[$x], 'ISO-8859-1', 'UTF-8')."\";");
 			if ($kun_salg) {
+				print "<td align='right'>".dkdecimal($v_kostpris[$x],2)."</td>";
+				fwrite($csvfile, dkdecimal($v_kostpris[$x],2).";");
 				print "<td align='right'>".dkdecimal($t_solgt,2)."</td>";
 				fwrite($csvfile, dkdecimal($t_solgt,2).";");
 				print "<td align='right'>".dkdecimal($t_s_pris,2)."</td>";
@@ -945,6 +994,8 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				print "<td align='right'>".dkdecimal($beholdning[$x],2)."</td>";#20180925
 				fwrite($csvfile, dkdecimal($beholdning[$x],2)."\r\n");
 			} else {
+				print "<td align='right'>".dkdecimal($v_kostpris[$x],2)."</td>";
+				fwrite($csvfile, dkdecimal($v_kostpris[$x],2).";");
 				if (!isset($ov_qty[$x])) $ov_qty[$x]=0;
 				print "<td align='right'>".dkdecimal($ov_qty[$x],2)."</td>";
 				fwrite($csvfile, dkdecimal($ov_qty[$x],2).";");
@@ -1050,35 +1101,39 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		fwrite($csvfile, "-------------\r\n");
 		if ($kun_salg) {
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-			print "<tr bgcolor='$linjebg'><td Colspan=\"3\"><b>Summeret</b></td>
-			<td align=\"right\">".findtekst(974,$sprog_id)."</td>
-			<td align=\"right\">".findtekst(949,$sprog_id)."</td>
+			print "<tr bgcolor='$linjebg'><td Colspan=\"5\"><b>Summeret</b></td>
+			<td align=\"right\">".findtekst('950|Kostpris', $sprog_id)."</td>
+			<td align=\"right\">".findtekst('974|Solgt', $sprog_id)."</td>
+			<td align=\"right\">".findtekst('949|Salgspris', $sprog_id)."</td>
 			<td align=\"right\">DB</td>
 			<td align=\"right\">DG</td>";
-		fwrite($csvfile, "Solgt;Salgspris;DB;DG\r\n");
-		}	else {
+		fwrite($csvfile, "Kostpris;Solgt;Salgspris;DB;DG\r\n");
+		} else {
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-			print "<tr bgcolor='$linjebg'><td Colspan=\"3\"><b>".findtekst(983,$sprog_id)."</b></td>
+			print "<tr bgcolor='$linjebg'><td Colspan=\"5\"><b>".findtekst('983|Summeret', $sprog_id)."</b></td>
+			<td align=\"right\">".findtekst('950|Kostpris', $sprog_id)."</td>
 			<td align=\"right\"></td>
 			<td align=\"right\"></td>
-			<td align=\"right\">".findtekst(978,$sprog_id)."</td>
+			<td align=\"right\">".findtekst('978|Købspris', $sprog_id)."</td>
 			<td align=\"right\"></td>
-			<td align=\"right\">".findtekst(949,$sprog_id)."</td>
-			<td align=\"right\">".findtekst(770,$sprog_id)."</td>
-			<td align=\"right\">".findtekst(984,$sprog_id)."</td>
+			<td align=\"right\">".findtekst('949|Salgspris', $sprog_id)."</td>
+			<td align=\"right\">".findtekst('770|Moms', $sprog_id)."</td>
+			<td align=\"right\">".findtekst('984|Samlet til-/afgang i perioden', $sprog_id)."</td>
 			<td align=\"right\">DB</td>
 			<td align=\"right\">DG</td>
 <!--			<td align=\"right\"></td>  -->
 			<td align=\"right\"></td>";
-			if ($lagertal && $tt_stockvalue) print "<td align=\"right\">Samlet lagerværdi</td>";
+			if ($lagertal && $tt_stockvalue) print "<td align=\"right\">".findtekst('2748|Samlet lagerværdi', $sprog_id)."</td>";
 			print "</tr>\n";
-			fwrite($csvfile, "Summeret;;;;;". mb_convert_encoding('Købspris', 'ISO-8859-1', 'UTF-8') .";;Salgspris;Moms;;DB;DG;;". mb_convert_encoding('Værdi', 'ISO-8859-1', 'UTF-8') ."\r\n");
+			fwrite($csvfile, "Summeret;;;;;Kostpris;;". mb_convert_encoding('Købspris', 'ISO-8859-1', 'UTF-8') .";;Salgspris;Moms;;DB;DG;;". mb_convert_encoding('Værdi', 'ISO-8859-1', 'UTF-8') ."\r\n");
 		}
-		if (!isset($varenr[$x])) $varenr[$x]=$enhed[$x]=$beskrivelse[$x]=NULL;
+		if (!isset($varenr[$x])) $varenr[$x]=$enhed[$x]=$beskrivelse[$x]=$varenr_alias[$x]=$beskrivelse_alias[$x]=NULL;
 		print "<tr><td>$varenr[$x]</td>";
+		print "<td>$varenr_alias[$x]</td>";
 		print "<td>$enhed[$x]</td>";
 		print "<td>$beskrivelse[$x]</td>";
-		fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\"");
+		print "<td>$beskrivelse_alias[$x]</td>";
+		fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\";\"".mb_convert_encoding($beskrivelse_alias[$x], 'ISO-8859-1', 'UTF-8')."\"");
 		if (!$kun_salg) {
 #			print "<td align='right'> <b>".dkdecimal($tt_kobt,2)."</b></td>";
 #			fwrite($csvfile, dkdecimal($tt_kobt,2).";");
@@ -1090,6 +1145,8 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			print "<td align='right'> <b></b></td>";
 			fwrite($csvfile,";");
 		} else {
+			print "<td align='right'><b></b></td>";
+			fwrite($csvfile, ";");
 			print "<td align='right'> <b>".dkdecimal($tt_solgt,2)."</b></td>";
 			fwrite($csvfile, dkdecimal($tt_solgt,2).";");
 		}

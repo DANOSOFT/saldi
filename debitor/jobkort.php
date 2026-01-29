@@ -6,9 +6,9 @@
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// Fra og med version 3.2.2 dog under iagttagelse af fï¿½lgende:
 // 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// Programmet mï¿½ ikke uden forudgï¿½ende skriftlig aftale anvendes
 // i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
 // 
 // Programmet er udgivet med haab om at det vil vaere til gavn,
@@ -35,11 +35,12 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
+include("../includes/topline_settings.php");
 
 
 $luk=if_isset($_GET['luk']);
 
-$kortnavn=findtekst(29,$sprog_id);
+$kortnavn=findtekst('29|Jobkort', $sprog_id);
 
 $id=if_isset($_GET['id']);
 $select_id=if_isset($_GET['select_id']); 
@@ -73,19 +74,19 @@ if (!$id && $konto_id) {
 	  $r=db_fetch_array(db_select("select id from jobkort where konto_id='$konto_id'and hvem='$hvem' and tidspkt = '$tidspkt'",__FILE__ . " linje " . __LINE__));
 		$id=$r['id'];
 		$r=db_fetch_array(db_select("select * from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__));
-		if ($r['felt_1'] && findtekst(7,$sprog_id)==findtekst(255,$sprog_id)) {
+		if ($r['felt_1'] && findtekst('7|Felt 1', $sprog_id)==findtekst('255|Ekstrafelt 1', $sprog_id)) {
 			db_modify("update jobkort set felt_2='".db_escape_string($r['felt_1'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 		}
-		if ($r['felt_2'] && findtekst(13,$sprog_id)==findtekst(256,$sprog_id)) {
+		if ($r['felt_2'] && findtekst('13|Felt 7', $sprog_id)==findtekst('256|Ekstrafelt 2', $sprog_id)) {
 			db_modify("update jobkort set felt_8='".db_escape_string($r['felt_2'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 		}
-		if ($r['felt_3'] && findtekst(9,$sprog_id)==findtekst(257,$sprog_id)) {
+		if ($r['felt_3'] && findtekst('9|Felt 3', $sprog_id)==findtekst('257|Ekstrafelt 3', $sprog_id)) {
 			db_modify("update jobkort set felt_4='".db_escape_string($r['felt_3'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 		}
-		if ($r['felt_4'] && findtekst(11,$sprog_id)==findtekst(258,$sprog_id)) {
+		if ($r['felt_4'] && findtekst('11|Felt 5', $sprog_id)==findtekst('258|Ekstrafelt 4', $sprog_id)) {
 			db_modify("update jobkort set felt_6='".db_escape_string($r['felt_4'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 		}
-		if ($r['felt_5'] && findtekst(16,$sprog_id)==findtekst(259,$sprog_id)) {
+		if ($r['felt_5'] && findtekst('16|Felt 10', $sprog_id)==findtekst('259|Ekstrafelt 5', $sprog_id)) {
 			db_modify("update jobkort set felt_11='".db_escape_string($r['felt_5'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 		}
 		if ($id && $ordre_id) {
@@ -93,19 +94,19 @@ if (!$id && $konto_id) {
 			if ($r['lev_navn']) db_modify("update jobkort set firmanavn='".db_escape_string($r['lev_navn'])."'where id='$id'",__FILE__ . " linje " . __LINE__); 
 			if ($r['lev_addr1']) db_modify("update jobkort set addr1='".db_escape_string($r['lev_addr1'])."',addr2='".db_escape_string($r['lev_addr2'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 			if ($r['lev_postnr']) db_modify("update jobkort set postnr='".db_escape_string($r['lev_postnr'])."',bynavn = '".db_escape_string($r['lev_bynavn'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
-			if ($r['felt_1'] && findtekst(7,$sprog_id)==findtekst(244,$sprog_id)) {
+			if ($r['felt_1'] && findtekst('7|Felt 1', $sprog_id)==findtekst('244|Ordrefelt 1', $sprog_id)) {
 				db_modify("update jobkort set felt_2='".db_escape_string($r['felt_1'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 			}
-			if ($r['felt_2'] && findtekst(13,$sprog_id)==findtekst(245,$sprog_id)) {
+			if ($r['felt_2'] && findtekst('13|Felt 7', $sprog_id)==findtekst('245|Ordrefelt 2', $sprog_id)) {
 				db_modify("update jobkort set felt_8='".db_escape_string($r['felt_2'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 			}
-			if ($r['felt_3'] && findtekst(9,$sprog_id)==findtekst(246,$sprog_id)) {
+			if ($r['felt_3'] && findtekst('9|Felt 3', $sprog_id)==findtekst('246|Ordrefelt 3', $sprog_id)) {
 				db_modify("update jobkort set felt_4='".db_escape_string($r['felt_3'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 			}
-			if ($r['felt_4'] && findtekst(11,$sprog_id)==findtekst(247,$sprog_id)) {
+			if ($r['felt_4'] && findtekst('11|Felt 5', $sprog_id)==findtekst('247|Ordrefelt 4', $sprog_id)) {
 				db_modify("update jobkort set felt_6='".db_escape_string($r['felt_4'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 			}
-			if ($r['felt_5'] && findtekst(16,$sprog_id)==findtekst(248,$sprog_id)) {
+			if ($r['felt_5'] && findtekst('16|Felt 10', $sprog_id)==findtekst('248|Ordrefelt 5', $sprog_id)) {
 				db_modify("update jobkort set felt_11='".db_escape_string($r['felt_5'])."' where id='$id'",__FILE__ . " linje " . __LINE__); 
 			}
 		}
@@ -169,7 +170,7 @@ if ($_POST){
 		print "<meta http-equiv=\"refresh\" content=\"0;URL='jobkortprint.php?id=$id'\">";
 	}
 }
-print "<div style=\"font-family: arial, verdana, sans-serif;\">";
+print "<div style=\"font-family: arial, verdana, sans-serif; padding-bottom: 60px;\">";
 
 if (!$konto_id && $id) {
 	$r=db_fetch_array(db_select("select konto_id from jobkort where id = '$id'",__FILE__ . " linje " . __LINE__));
@@ -192,25 +193,27 @@ $tlf=trim($r['tlf']);
 $fax=trim($r['fax']);
 $email=trim($r['email']);
 */
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+
 if ($menu=='T') {
-	$leftbutton="<a href=jobkort.php?luk=luk accesskey=L>".findtekst(30,$sprog_id)."</a>";
-	$rightbutton="";
-	$vejledning=NULL;
-	include("../includes/topmenu.php");
-	print "<div id=\"topmenu\" style=\"position:absolute;top:6px;right:0px\">";
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">";
+	print "<div class=\"headerbtnLft headLink\"><a href=\"jobkort.php?luk=luk\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+	print "<div class=\"headerTxt\">$title</div>";
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+	print "</div>";
+	print "<div class='content-noside'>";
 } elseif ($menu=='S') {
-	include("../includes/sidemenu.php");
+	include_once 'debLstIncludes/topLineJobkort.php';
 } else {
-	print "<tr><td colspan=3 align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\"$top_bund><a href=jobkort.php?luk=luk accesskey=L>".findtekst(30,$sprog_id)."</a><br></td>";
-	print "<td width=\"80%\"$top_bund>".findtekst(29,$sprog_id)."<br></td>";
-	print "<td width=\"10%\"$top_bund><a href=jobkort.php accesskey=N>".findtekst(39,$sprog_id)."</a><br></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
+	include_once 'debLstIncludes/oldTopLine.php';
 }
-print "<td width=10% align=center></td><td width=80% align=center>";
+
+// Add scrollable wrapper for side menu
+if ($menu=='S') {
+	print "<tr><td style='width: 100%; height: calc(100vh - 110px); overflow-y: auto; display: block;'>\n";
+}
+
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" widht=\"800\"><tbody>";
 
 print "<form name=\"jobkort\" action=\"jobkort.php?id=$id\" method=\"post\">";
@@ -263,48 +266,48 @@ while ($r = db_fetch_array($q)) {
 	print "<input type=hidden name=felt_id[$x][$y] value='$r[id]'>";
 }
 $feltantal=$z;
-$tmp=trim(findtekst(28,$sprog_id));
+$tmp=trim(findtekst('28|Firmanavn', $sprog_id));
 print "<tr><td colspan=\"6\"><table border=\"0\" width=\"100%\"><tbody>";
-if ($tmp=="Firmanavn") $tekst="Title=\"Tip: Tekster kan ændres under Indstillinger -> Diverse -> Sprog -> Dansk!\"";
-print "<tr><td width=\"20%\">".findtekst(6,$sprog_id)." $id</td><td align = center \"$tekst\" width=\"60%\">".findtekst(28,$sprog_id)."<!--tekst 28--></td>";
-print "<td align=\"right\">".findtekst(27,$sprog_id)."<!--tekst 27--><input type=text size=1 name=felt_1 value=\"".$felt_1."\"></tr>";
+if ($tmp=="Firmanavn") $tekst="Title=\"Tip: Tekster kan ï¿½ndres under Indstillinger -> Diverse -> Sprog -> Dansk!\"";
+print "<tr><td width=\"20%\">".findtekst('6|Jobnr.', $sprog_id).": $id</td><td align = center \"$tekst\" width=\"60%\">".findtekst('28|Firmanavn', $sprog_id)."<!--tekst 28--></td>";
+print "<td align=\"right\">".findtekst('27|Planlagt til uge', $sprog_id).": <!--tekst 27--><input type=text size=1 name=felt_1 value=\"".$felt_1."\"></tr>";
 if ($ordre_id) {
 	$r=db_fetch_array(db_select("select ordrenr from ordrer where id = '$ordre_id'",__FILE__ . " linje " . __LINE__));
 	$ordrenr=$r['ordrenr'];
-	print "<tr><td>".findtekst(500,$sprog_id)." $ordrenr</td></tr>";
+	print "<tr><td>".findtekst('500|Ordrenr.', $sprog_id)." $ordrenr</td></tr>";
 }
 print "</tbody></table></td></tr>";
 print "<tr><td colspan=6><hr></td></tr>";
 print "<tr><td colspan=4>$firmanavn<br></td><td width=10%><align=\"right\">Kontonr</td><td align=\"right\">$kontonr</td></tr>";
-print "<tr><td colspan=4>$addr1<br></td><td width=10%><align=\"right\">".findtekst(377,$sprog_id)."<!--tekst 377--></td><td align=\"right\">$tlf</td></tr>";
-print "<tr><td colspan=4>$addr2<br></td><td width=10%><align=\"right\">".findtekst(378,$sprog_id)."<!--tekst 378--></td><td align=\"right\">$fax</td></tr>";
+print "<tr><td colspan=4>$addr1<br></td><td width=10%><align=\"right\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></td><td align=\"right\">$tlf</td></tr>";
+print "<tr><td colspan=4>$addr2<br></td><td width=10%><align=\"right\">".findtekst('378|Telefax', $sprog_id)."<!--tekst 378--></td><td align=\"right\">$fax</td></tr>";
 print "<tr><td colspan=4>$postnr $bynavn<br></td><td width=10%><br></tr>";
 print "<tr><td colspan=6><hr></td></tr>";
-print "<tr><td>".findtekst(7,$sprog_id)."<!--tekst 7--></td><td colspan=2><input type=text size=40 name=felt_2 value=\"".$felt_2."\"><br></td>";
-print "<td>".findtekst(8,$sprog_id)."<!--tekst 8--></td><td colspan=2><input type=checkbox name=felt_3 \"".$felt_3."\"></tr>";
-print "<tr><td>".findtekst(9,$sprog_id)."<!--tekst 9--></td><td colspan=2><input type=text size=40 name=felt_4 value=\"".$felt_4."\"><br></td>";
-print "<td>".findtekst(10,$sprog_id)."<!--tekst 10--></td><td colspan=2><input type=checkbox name=felt_5 \"".$felt_5."\"><br></tr>";
-print "<tr><td>".findtekst(11,$sprog_id)."<!--tekst 11--></td><td colspan=2><input type=text size=40 name=felt_6 value=\"".$felt_6."\"><br></td>";
-print "<td>".findtekst(12,$sprog_id)."<!--tekst 12--></td><td colspan=2><input type=checkbox name=felt_7 \"".$felt_7."\"><br></tr>";
-print "<tr><td>".findtekst(13,$sprog_id)."<!--tekst 13--></td><td colspan=2><input type=text size=40 name=felt_8 value=\"".$felt_8."\"><br></td>";
-print "<td>".findtekst(14,$sprog_id)."<!--tekst 14--></td><td colspan=2><input type=checkbox name=felt_9 \"".$felt_9."\"><br></tr>";
-print "<tr><td>".findtekst(15,$sprog_id)."<!--tekst 15--></td><td colspan=2><input type=text size=40 name=felt_10 value=\"".$felt_10."\"><br></td></tr>";
-print "<tr><td>".findtekst(16,$sprog_id)."<!--tekst 16--></td><td colspan=4><input type=text size=120 name=felt_11 value=\"".$felt_11."\"><br></tr>";
+print "<tr><td>".findtekst('7|Felt 1', $sprog_id)."<!--tekst 7--></td><td colspan=2><input type=text size=40 name=felt_2 value=\"".$felt_2."\"><br></td>";
+print "<td>".findtekst('8|Felt 2', $sprog_id)."<!--tekst 8--></td><td colspan=2><input type=checkbox name=felt_3 \"".$felt_3."\"></tr>";
+print "<tr><td>".findtekst('9|Felt 3', $sprog_id)."<!--tekst 9--></td><td colspan=2><input type=text size=40 name=felt_4 value=\"".$felt_4."\"><br></td>";
+print "<td>".findtekst('10|Felt 4', $sprog_id)."<!--tekst 10--></td><td colspan=2><input type=checkbox name=felt_5 \"".$felt_5."\"><br></tr>";
+print "<tr><td>".findtekst('11|Felt 5', $sprog_id)."<!--tekst 11--></td><td colspan=2><input type=text size=40 name=felt_6 value=\"".$felt_6."\"><br></td>";
+print "<td>".findtekst('12|Felt 6', $sprog_id)."<!--tekst 12--></td><td colspan=2><input type=checkbox name=felt_7 \"".$felt_7."\"><br></tr>";
+print "<tr><td>".findtekst('13|Felt 7', $sprog_id)."<!--tekst 13--></td><td colspan=2><input type=text size=40 name=felt_8 value=\"".$felt_8."\"><br></td>";
+print "<td>".findtekst('14|Felt 8', $sprog_id)."<!--tekst 14--></td><td colspan=2><input type=checkbox name=felt_9 \"".$felt_9."\"><br></tr>";
+print "<tr><td>".findtekst('15|Felt 9', $sprog_id)."<!--tekst 15--></td><td colspan=2><input type=text size=40 name=felt_10 value=\"".$felt_10."\"><br></td></tr>";
+print "<tr><td>".findtekst('16|Felt 10', $sprog_id)."<!--tekst 16--></td><td colspan=4><input type=text size=120 name=felt_11 value=\"".$felt_11."\"><br></tr>";
 print "<tr><td colspan=6><hr></td></tr>";
 print "";
 if ($ordre_id) {
-	$tekst=findtekst(501,$sprog_id);
+	$tekst=findtekst('501|OpdatÃ©r feltet herunder med information fra ordren?.', $sprog_id);
 	$a="<span title=\"Klik her for at opdatere fra ordre\" onclick=\"return confirm('$tekst')\"><a href=jobkort.php?id=$id&returside=$returside&$id&konto_id=$konto_id&ordre_id=$ordre_id&opdat17=1>";
 	$b="</a>";
 } else {
 	$a=NULL;
 	$b=NULL;
 }
-print "<tr><td colspan=6>$a".findtekst(17,$sprog_id)."$b<!--tekst 17--></td></tr>";
+print "<tr><td colspan=6>$a".findtekst('17|BemÃ¦rkning 1', $sprog_id)."$b<!--tekst 17--></td></tr>";
 if (!$felt_indhold[1][1] && $ordrelinjer) $felt_indhold[1][1]=$ordrelinjer;
 print "<tr><td colspan=6><textarea name=\"felt_indhold[1][1]\" rows=\"5\" cols=\"150\">".$felt_indhold[1][1]."</textarea></td></tr>\n";
 print "<tr><td colspan=6><hr></td></tr>";
-print "<tr><td>".findtekst(18,$sprog_id)."<!--tekst 18--></td><td>".findtekst(19,$sprog_id)."<!--tekst 19--></td><td>".findtekst(20,$sprog_id)."<!--tekst 20--></td><td>".findtekst(21,$sprog_id)."<!--tekst 21--></td><td>".findtekst(22,$sprog_id)."<!--tekst 22--></td><td>".findtekst(23,$sprog_id)."<!--tekst 23--></td></tr>";
+print "<tr><td>".findtekst('18|Tabelfelt 1', $sprog_id)."<!--tekst 18--></td><td>".findtekst('19|Tabelfelt 2', $sprog_id)."<!--tekst 19--></td><td>".findtekst('20|Tabelfelt 3', $sprog_id)."<!--tekst 20--></td><td>".findtekst('21|Tabelfelt 4', $sprog_id)."<!--tekst 21--></td><td>".findtekst('22|Tabelfelt 5', $sprog_id)."<!--tekst 22--></td><td>".findtekst('23|Tabelfelt 6', $sprog_id)."<!--tekst 23--></td></tr>";
 $x=1;$sum6=0;$sum7=0;$sum8=0;
 while (isset($felt_id[2][$x])|isset($felt_id[3][$x])|isset($felt_id[4][$x])|isset($felt_id[5][$x])|isset($felt_id[6][$x])|isset($felt_id[7][$x])) {
 #	for($i=2;$i<=7;$i++) if (!isset($felt_indhold[$i][$x])) $felt_indhold[$i][$x]=NULL;
@@ -324,21 +327,22 @@ print	"<td><input type=text size=20 name=felt_indhold[4][$x]></td><td><input typ
 print	"<td><input type=text style=\"text-align: right\" size=10 name=felt_indhold[6][$x]></td><td><input type=text style=\"text-align: right\" size=10 name=felt_indhold[7][$x]></td></tr>";
 print	"<td colspan=3></td><td><input type=readonly style=\"text-align: right\" size=10 value=$sum5></td><td><input type=readonly style=\"text-align: right\" size=10 value=$sum6></td><td><input type=readonly style=\"text-align: right\" size=10 value=$sum7></td></tr>";
 
-print "<tr><td colspan=6>".findtekst(24,$sprog_id)."</td></tr>";
+print "<tr><td colspan=6>".findtekst('24|BemÃ¦rkning 2', $sprog_id)."</td></tr>";
 print "<tr><td colspan=6><textarea name=\"felt_indhold[8][1]\" rows=\"5\" cols=\"150\">".$felt_indhold[8][1]."</textarea></td></tr>\n";
 print "<tr><td colspan=6><br></td></tr>";
-print "<tr><td colspan=6>".findtekst(25,$sprog_id)."</td></tr>";
+print "<tr><td colspan=6>".findtekst('25|BemÃ¦rkning 3', $sprog_id)."</td></tr>";
 print "<tr><td colspan=6><textarea name=\"felt_indhold[9][1]\" rows=\"5\" cols=\"150\">".$felt_indhold[9][1]."</textarea></td></tr>\n";
 print "<tr><td colspan=6><br></td></tr>";
-print "<tr><td colspan=6>".findtekst(26,$sprog_id)."</td></tr>";
+print "<tr><td colspan=6>".findtekst('26|BemÃ¦rkning 4', $sprog_id)."</td></tr>";
 print "<tr><td colspan=6><textarea name=\"felt_indhold[10][1]\" rows=\"5\" cols=\"150\">".$felt_indhold[10][1]."</textarea></td></tr>\n";
-print "<tr><td colspan=6><br></td></tr>";
-print "<tr><td colspan=6 align=center><input type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\">
-				<input type=submit accesskey=\"u\" value=\"Udskriv\" name=\"udskriv\">
-				<input type=submit accesskey=\"s\" value=\"Slet\" name=\"slet\"></td></tr>";
-print "</form>";
+print "<tr><td colspan=6 style=\"height: 70px;\"></td></tr>";
 print "</tbody></table>";
-print "</td><td width=10%>";
+print "<div style=\"position: fixed; bottom: 0; left: 0; right: 0; background: #f5f5f5; border-top: 1px solid #ccc; padding: 5px 0; text-align: center; z-index: 1000;\">
+	<input type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\" style=\"padding: 3px; margin: 0 5px; cursor: pointer;\">
+	<input type=submit accesskey=\"u\" value=\"Udskriv\" name=\"udskriv\" style=\"padding: 3px; margin: 0 5px; cursor: pointer;\">
+	<input type=submit accesskey=\"s\" value=\"Slet\" name=\"slet\" style=\"padding: 3px; margin: 0 5px; cursor: pointer;\">
+</div>";
+print "</form>";
 
 function kontoopslag($id) {
 	global $bgcolor;
@@ -388,7 +392,13 @@ function kontoopslag($id) {
 }
 
 ?>
+<?php if ($menu == 'T') { ?>
+</div> <!-- content-noside -->
+<?php } elseif ($menu == 'S') { ?>
 </td></tr>
 </tbody></table>
-</div>
+<?php } else { ?>
+</td></tr>
+</tbody></table>
+<?php } ?>
 </body></html>

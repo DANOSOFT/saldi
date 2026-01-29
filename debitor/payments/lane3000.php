@@ -32,6 +32,11 @@ $s_id = session_id();
 #print '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">';
 #print '</head>';
 
+// Prevent caching of this page
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 $css = "../../css/flatpay.css";
 
 include ("../../includes/connect.php");
@@ -52,7 +57,12 @@ $raw_amount = (float) usdecimal(if_isset($_GET['amount'], 0));
 $pretty_amount = dkdecimal($raw_amount, 2);
 $ordre_id    = if_isset($_GET['id'], 0);
 $indbetaling = if_isset($_GET['indbetaling'], 0);
+$return_url = if_isset($_GET['return_url'], 'pos_ordre.php');
 $kasse = $_COOKIE['saldi_pos'];
+
+// Build the return URL base with all parameters except cardscheme (which is added in JS)
+$return_url_base = '../' . $return_url;
+$return_url_params = '?id=' . urlencode($ordre_id) . '&godkendt=OK&indbetaling=' . urlencode($indbetaling) . '&amount=' . urlencode($raw_amount) . '&modtaget=' . urlencode($raw_amount);
 
 // Log initialization
 writeLog("Lane3000 payment started - Amount: $raw_amount, Order ID: $ordre_id, Kasse: $kasse, Session: $s_id");
@@ -80,8 +90,25 @@ $guid = db_fetch_array($q)[0];
 $qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$regnaar'";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 $terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
-
+if($terminal_id == "test"){
+    include "lane3000-sim.php";
+    exit;
+}
 writeLog("Terminal ID retrieved: $terminal_id");
+
+// Fetch printserver
+$r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
+$x = $kasse - 1;
+$tmp = explode(chr(9), $r['box3']);
+$printserver = trim($tmp[$x]);
+if (!$printserver) $printserver = 'localhost';
+elseif ($printserver == 'box' || $printserver == 'saldibox') {
+	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
+	if ($fp = fopen($filnavn, 'r')) {
+		$printserver = trim(fgets($fp));
+		fclose($fp);
+	}
+}
 
 # Print setup
 $printfile = 'https://'.$_SERVER['SERVER_NAME'];
@@ -123,7 +150,7 @@ function countdown(i) {
 
 const failed = (event) => {
     logToServer('User clicked failed/back button', 'INFO');
-    window.location.replace('../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=afvist')
+    window.location.replace('../<?php print $return_url; ?>?id=<?php print urlencode($ordre_id); ?>&godkendt=afvist')
 }
 
 // Variable used to check weather or not to leave the page
@@ -145,7 +172,7 @@ function leave(cardScheme) {
         setTimeout(function() { leave(cardScheme); }, 2500);
     } else {
         logToServer(`Payment successful, redirecting with card scheme: ${cardScheme}`, 'INFO');
-        window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
+        window.location.replace('<?php print $return_url_base . $return_url_params; ?>&cardscheme=' + encodeURIComponent(cardScheme));
     }
 }
 
@@ -153,10 +180,10 @@ function leave(cardScheme) {
 async function get_api_key(baseurl) {
     const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
-    
+    console.log("<?php print get_settings_value("username", "move3500", "", null, $kasse);?>", "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>");
     const data = {
-        "username": "<?php print get_settings_value("username", "move3500", "");?>",
-        "password": "<?php print get_settings_value("password", "move3500", "");?>"
+        "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
+        "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
     }
     console.log(data)
     
@@ -195,6 +222,32 @@ async function get_api_key(baseurl) {
         // Log the response (don't wait for it to complete)
         const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
         
+/*         // write a put command to the settings for the terminal
+        const putPromise = fetch(
+            `${baseurl}terminal/TERMINAL ID HERER/settings`,
+            {
+                method: 'put',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `bearer ${jsondata.token}`
+                },
+                body: JSON.stringify({
+                    "printerWidth": 0
+                }),
+            }
+        ).then(async (putRes) => {
+            const putData = await putRes.json().catch(() => ({}));
+            if (putRes.ok) {
+                logToServer(`Terminal settings updated successfully - Status: ${putRes.status}`, 'INFO');
+            } else {
+                logToServer(`Terminal settings update failed - Status: ${putRes.status}, Error: ${JSON.stringify(putData)}`, 'ERROR');
+            }
+            return putRes;
+        }).catch((putError) => {
+            logToServer(`Terminal settings update exception: ${putError.message}`, 'ERROR');
+            console.error('Terminal settings PUT failed:', putError);
+        }); */
+
         if (res.status != 200) {
             // Wait for both error logging and fail function
             await Promise.allSettled([
@@ -238,7 +291,8 @@ async function print_str(baseurl, apikey, data) {
                 body: JSON.stringify({
                     data: data, 
                     id: '<?php print $ordre_id; ?>',
-                    type: 'move3500'
+                    type: 'move3500',
+                    terminal_id: '<?php print $terminal_id; ?>'
                 })
             }
         );
@@ -263,9 +317,9 @@ async function print_str(baseurl, apikey, data) {
                 logToServer('Receipt saved successfully', 'INFO')
             ]);
         }
-        
+
         // Open print window and log it
-        window.open("http://localhost/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
+        window.open("http://<?php echo $printserver ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
         
         await Promise.allSettled([
             logToServer('Print command sent', 'INFO')
@@ -291,6 +345,10 @@ async function start_payment(baseurl, apikey, amount) {
         "amount": <?php print $amount; ?>
     }
     
+    // Log the exact request details for debugging
+    logToServer(`Transaction request - URL: ${baseurl}terminal/<?php print $terminal_id; ?>/transaction, Data: ${JSON.stringify(data)}`, 'DEBUG');
+    console.log('Transaction request data:', data);
+    
     try {
         var res = await fetch(
             `${baseurl}terminal/<?php print $terminal_id; ?>/transaction`,
@@ -306,7 +364,7 @@ async function start_payment(baseurl, apikey, amount) {
 
         counting = false;
         var jsondata = await res.json();
-        
+     
         logToServer(`Payment response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
         
         if (res.status != 201) {
@@ -337,7 +395,7 @@ async function start_payment(baseurl, apikey, amount) {
 async function start() {
     logToServer('Payment process started', 'INFO');
     // https://connectcloud-test.aws.nets.eu/v1/
-    const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
+    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
     const apikey = await get_api_key(baseurl);

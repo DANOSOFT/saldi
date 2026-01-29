@@ -38,9 +38,19 @@ if (!$id) {
 }
 include ('../includes/std_func.php');
 include ('../includes/connect.php');
+include ('../includes/license_func.php');
+
+// Check if booking feature is licensed
 $qtxt = "select db from regnskab where id = '$id'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	$db = $r['db'];
+	
+	// Get db_id for license check
+	$db_id = $id;
+	if (!is_feature_licensed('booking')) {
+		show_upgrade_message('Booking');
+		exit;
+	}
 	$qtxt = "select brugernavn from online where session_id = '$s_id' and db = '$db'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$username = $r['brugernavn']; #Existing user allready logged in;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 4.1.1 --- 2025.08.29 ---
+// --- finans/bankimport.php --- patch 4.1.1 --- 2025.11.06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,9 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250205 PHR Added "betalt = '0' or " and better recognition of FIK string
 // 20250829 PHR	Check for lineshift in description
+// 20250918 PHR	More check for lineshift in description
+// 20251012 PHR Added Currency
+// 20251106 PHR Corrected date error
 
 ini_set("auto_detect_line_endings", true);
 
@@ -97,7 +100,7 @@ if(($_GET)||($_POST)) {
 		$kontonr     = if_isset($_POST['kontonr'],0);
 		$gebyrkonto  = (int)if_isset($_POST['gebyrkonto'],NULL);
 		$valuta      = if_isset($_POST['valuta'],NULL);
-		$valuta_kode = if_isset($_POST['valuta_kode'],NULL);
+		$currencyCode = if_isset($_POST['currencyCode'],NULL);
 		$bilag       = if_isset($_POST['bilag'],NULL);
 		$afd         = if_isset($_POST['afd'],NULL);
 		$vend        = if_isset($_POST['vend'],NULL);
@@ -168,18 +171,20 @@ if(($_GET)||($_POST)) {
 				db_modify ("insert into grupper (beskrivelse,art,kode,kodenr) values ('Bankimport','KASKL','3','$bruger_id')",__FILE__ . " linje " . __LINE__);
 			}
 			if (!$feltantal) $feltantal=1;	
-			vis_data($kladde_id,$filnavn,'',$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$valuta_kode,$afd);
+			vis_data($kladde_id,$filnavn,'',$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$currencyCode,$afd);
 		} else {
-			echo findtekst(1370, $sprog_id)." >$uploadErr<<br>";
+#cho findtekst(1370, $sprog_id)." >$uploadErr<<br>";
 		}
 	}
 	elseif($show){
-		vis_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$valuta_kode,$afd);
+		vis_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$currencyCode,$afd);
 	}
 	elseif($import){
 		if (($kladde_id)&&($filnavn)&&($splitter)&&($kontonr))	{
-			flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$valuta_kode,$afd[0]);
-		} else vis_data($kladde_id, $filnavn, $splitter, $feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$valuta_kode,$afd);
+			flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$currencyCode,$afd[0]);
+		} else {
+			vis_data($kladde_id, $filnavn, $splitter, $feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$currencyCode,$afd);
+		}
 	}
 	else {
 		upload($kladde_id, $bilag);
@@ -212,19 +217,21 @@ print "</tbody></table>";
 print "</td></tr>";
 }
 
-function vis_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$valuta_kode,$afd){
-global $bruger_id,$charset,$sprog_id;
+function vis_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$currencyCode,$afd){
+global $baseCurrency,$bruger_id,$charset,$sprog_id;
 
 $bankName = '';
 $komma = $punktum = $semikolon = $tabulator = $x = 0;
-$valuta = array();
+$currencyAlert = $valuta = array();
+$valuta[0] = $baseCurrency;
+$x = 1;
 $q=db_select("select kodenr,box1 from grupper where art='VK' order by box1",__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	if (trim($r['box1'])) {
-		$x++;
 		$valutakode[$x]=$r['kodenr'];
 		$valuta[$x]=$r['box1'];
-		}
+		$x++;
+	}
 }
 
 $x=0;
@@ -271,6 +278,7 @@ if ($fp) {
 }
 
 
+$i = 0;
 $fp=fopen("$filnavn","r");
 if ($fp) {
 	if ($splitter=='Komma') $splittegn=",";
@@ -284,7 +292,7 @@ if ($fp) {
 			$i++;
 		}
 	}
-	$y=0;
+	$y = 0;
 	$newLine = array();
 	$tmp = '';
 	for ($i=0;$i<count($line);$i++){
@@ -304,8 +312,8 @@ if ($fp) {
 	}
 	$line = NULL;
 // 20250829 <--
-	$y=0;
-	$feltantal=0;
+
+	$feltantal = $y = 0;
 #	while ($linje=fgets($fp)) {
 	for ($i=0;$i<count($newLine);$i++){
 		$linje = $newLine[$i];
@@ -346,11 +354,13 @@ if ($fp) {
 			if (!isset($felt[$x])) $felt[$x] = NULL;
 			$ny_linje[$y]=$ny_linje[$y].$felt[$x]."\n";
 		}
+#cho "$y $ny_linje[$y]<br>";
 	}
-}  
+}
 $linjeantal=$y;
 #$cols=$feltantal;
 fclose ($fp);
+#cho "$filnavn<br>";
 $fp=fopen($filnavn."2","w");
 if ($vend) {
  for ($y=$linjeantal;$y>=1;$y--) fwrite($fp,$ny_linje[$y]);
@@ -384,14 +394,14 @@ if (count($afd_nr)) {
 	print "</select>";
 }	
 if ($v_ant=count($valuta)) {
-	$valuta_kode*=1;
-	print "<span title='".findtekst(1394, $sprog_id)."'> ".findtekst(1069, $sprog_id)."<select name='valuta_kode'>\n";
-	for ($x=1;$x<=$v_ant;$x++) {
-		if ($valutakode[$x]==$valuta_kode) print "<option value='$valutakode[$x]'>$valuta[$x]</option>\n";
+	$currencyCode = (int)$currencyCode;
+	print "<span title='".findtekst(1394, $sprog_id)."'> ".findtekst(1069, $sprog_id)."<select name='currencyCode'>\n";
+	for ($x=0;$x<$v_ant;$x++) {
+		if ($valutakode[$x]==$currencyCode) print "<option value='$valutakode[$x]'>$valuta[$x]</option>\n";
 	}
 	print "<option value='0'>DKK</option>\n";
-	for ($x=1;$x<=$v_ant;$x++) {
-		if ($valutakode[$x]!=$valuta_kode) print "<option value='$valutakode[$x]'>$valuta[$x]</option>\n";
+	for ($x=0;$x<$v_ant;$x++) {
+		if ($valutakode[$x]!=$currencyCode) print "<option value='$valutakode[$x]'>$valuta[$x]</option>\n";
 	}
 	print "</select></span>";
 }
@@ -418,7 +428,7 @@ print "<tr><td colspan=$cols><hr></td></tr>\n";
 $splitter=chr(9);
 print "<tr><td><span title='".findtekst(1404, $sprog_id)."'><input type=text size=4 name=bilag value=$bilag></span></td>";
 $belob = $beskr = $dato = $kundenr = 0;
-for ($y=0; $y<=$feltantal; $y++) {
+for ($y=0; $y<count($feltnavn); $y++) {
 	if ($feltnavn[$y]=='dato' && $dato==1) {
 		$aalert = findtekst(1405, $sprog_id);
 		alert("$aalert");
@@ -456,6 +466,8 @@ for ($y=0; $y<=$feltantal; $y++) {
 	else $kundenr=1;
 	if ($feltnavn[$y]!='recieverAccount') print "<option value=\"recieverAccount\">recieverAccount</option>\n";
 	else $recieverAccount=1;
+	if ($feltnavn[$y]!='currency') print "<option value=\"currency\">".findtekst('776|Valuta', $sprog_id)."</option>\n";
+	else $currency=1;
 	print "</select>";
 }
 print "</form>";
@@ -468,9 +480,10 @@ if ($fp) {
 		if ($linje=trim($linje)) {
 			$x++;
 			$skriv_linje=1;
-			$felt=array();
+			$felt = array();
 			$felt = explode($splitter, $linje);
-			for ($y=0; $y<=$feltantal; $y++) {
+			for ($y=0; $y<count($feltnavn); $y++) {
+				if (!isset($felt[$y])) $felt[$y] = NULL;
 				$felt[$y]=trim($felt[$y]);
 				$felt[$y]=trim($felt[$y],'"');
 				if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
@@ -512,6 +525,7 @@ if ($fp) {
 					}	else {
 						$skriv_linje=0;
 					}
+					if (!is_numeric(substr($felt[$y],-2))) $skriv_linje=0;
 				}
 				if ($feltnavn[$y]=='beskrivelse') { // 20220120
 					$felt[$y]=str_replace("%c3%a6","æ",$felt[$y]);
@@ -527,32 +541,41 @@ if ($fp) {
 					$felt[$y]=str_replace("%C3%98","Ø",$felt[$y]);
 					$felt[$y]=str_replace("%C3%85","Å",$felt[$y]);
 				}
+				if ($feltnavn[$y]=='currency') {
+					$currencyCode = 0;
+					if ($skriv_linje && !in_array($felt[$y],$valuta) && !in_array($felt[$y],$currencyAlert)) {
+						alert("$felt[$y] ikke fundet i Valutaliste - sættes til $baseCurrency");
+						$currencyAlert[$x] = $felt[$y];
+					}
+					for ($i=0;$i<count($valuta);$i++) {
+						if ($felt[$y] == $valuta[$i]) $currencyCode = $valutakode[$i];
+					}
+				}
 			}
 			if ($skriv_linje==1){
 				print "<tr><td>$bilag</td>";
-				for ($y=0; $y<=$feltantal; $y++) {
-					if ($feltnavn[$y]=='belob' || $feltnavn[$y]=='saldo') {
+				for ($y=0; $y<count($feltnavn); $y++) {
+					if (isset($feltnavn[$y]) && ($feltnavn[$y]=='belob' || $feltnavn[$y]=='saldo')) {
 						print "<td align=right>$felt[$y]&nbsp;</td>";
 					}
-					elseif ($feltnavn[$y]) {print "<td>$felt[$y]&nbsp;</td>";}
-				else print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
+					elseif ($feltnavn[$y]) {print "<td>$felt[$y]&nbsp;</td>\n";}
+				else print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>\n";
 				}
 				print "</tr>";
 				$bilag++;
 			} else {
-				print "<tr><td><span style=\"color: rgb(153, 153, 153);\">-</span></td>";
-				for ($y=0; $y<=$feltantal; $y++) {
-					if ($feltnavn[$y]=='belob' || $feltnavn[$y]=='saldo') {
-						print "<td align=right><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
-					} elseif ($feltnavn[$y]) print "<td><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
-					else print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
+				print "<tr><td><span style=\"color: rgb(153, 153, 153);\">-</span></td>\n";
+				for ($y=0; $y<count($feltnavn); $y++) {
+					if (isset($feltnavn[$y]) && ($feltnavn[$y]=='belob' || $feltnavn[$y]=='saldo')) {
+						print "<td align=right><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>\n";
+					} elseif ($feltnavn[$y]) print "<td><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>\n";
+					else print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>\n";
 				}
 				print "</tr>";
 			}
 		}
 	}
 }
-
 fclose($fp);
 print "</tbody></table>";
 print "</td></tr>";
@@ -566,12 +589,23 @@ for ($y=0; $y<=$feltantal; $y++) {
 }
 } # endfunc # vis_data
 
-function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$valuta_kode,$afd) {
-	global $charset;
+function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$currencyCode,$afd) {
+	global $baseCurrency,	$charset;
 
 	$afd*=1;
-	$valuta_kode*=1;
-	
+	$currencyCode = (int)$currencyCode;
+
+	$valuta[0] = $baseCurrency;
+	$valutakode[0] = 0;
+	$x = 1;
+	$q=db_select("select kodenr,box1 from grupper where art='VK' order by box1",__FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (trim($r['box1'])) {
+			$valutakode[$x]=$r['kodenr'];
+			$valuta[$x]=$r['box1'];
+			$x++;
+		}
+	}
 	transaktion('begin');
 	$splitter=chr(9);
 	$fp=fopen($filnavn."2","r");
@@ -595,17 +629,23 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$felt[$y] = str_replace('-','',$felt[$y]);
 						$felt[$y] = str_replace('/','',$felt[$y]);
 						$felt[$y] = str_replace('.','',$felt[$y]);
+						$felt[$y] = trim($felt[$y],'"');
+						$felt[$y] = trim($felt[$y]);
 						if (is_numeric($felt[$y]) && strlen($felt[$y])=='8') { #20210916
 							$thisYear=date('Y');
-							if (substr($felt[$y],0,4) >= $thisYear-2 && 
+							if (substr($felt[$y],0,4) >= $thisYear-2 &&
 							substr($felt[$y],0,4) <= $thisYear+2 &&
 							substr($felt[$y],4,2) <= 12) {
 								$year=substr($felt[$y],0,4);
 								$month=substr($felt[$y],4,2);
 								$day=substr($felt[$y],6,2);
-								$felt[$y] = $day ."-". $month."-". $year; 
+							} else {
+								$day=substr($felt[$y],0,2);
+								$month=substr($felt[$y],2,2);
+								$year=substr($felt[$y],4,4);
 							}
-						}	 
+							$felt[$y] = $day ."-". $month."-". $year;
+						}
 						$felt[$y]=str_replace("-jan-","-01-",$felt[$y]);
 						$felt[$y]=str_replace("-feb-","-02-",$felt[$y]);
 						$felt[$y]=str_replace("-mar-","-03-",$felt[$y]);
@@ -642,7 +682,14 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$felt[$y]=str_replace("%C3%85","Å",$felt[$y]);
 						$felt[$y]=str_replace("+"," ",$felt[$y]);
 					}
+					if ($feltnavn[$y]=='currency') {
+						$currencyCode = 0;
+						if (!in_array($felt[$y],$valuta)) $felt[$y] = $baseCurrency;
+						for ($i=0;$i<count($valuta);$i++) {
+								if ($felt[$y] == $valuta[$i]) $currencyCode = $valutakode[$i];
+						}
 					}
+				}
  			}		
  			if ($skriv_linje==1){
 				for ($y=0; $y<=$feltantal; $y++) {
@@ -653,6 +700,7 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 					elseif ($feltnavn[$y]=="recieverAccount") $recieverAccount = db_escape_string($felt[$y]);
 					elseif ($feltnavn[$y]=="kundenr")         $kundenr         = db_escape_string($felt[$y]);
 					elseif ($feltnavn[$y]=='saldo')           $saldo           = usdecimal($felt[$y]);
+					elseif ($feltnavn[$y]=='currency')        $currency        = db_escape_string($felt[$y]);
 				}
 				$qtxt=NULL;
 				$beskrivelse = trim($beskrivelse);
@@ -728,12 +776,20 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 					} elseif ($kundenr) { #20220531
 						$k_type='D';
 						$kredit=$kundenr;
+					} elseif ($kundenr) { #20220531
+						$k_type='D';
+						$kredit=$kundenr;
 					} elseif ($recieverAccount) { #20220531
 						$qtxt = "select kontonr from adresser where bank_konto = '$recieverAccount'";
 						if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 							$k_type='D';
 							$kredit=$r['kontonr'];
 							$amount*=-1;
+						}
+					} elseif ($curency) { #20251008
+						$currencyCode = 0;
+						for ($i=0;$i<count($valuta);$i++) {
+							if ($currency == $valuta[$i]) $currencyCode = $valutakode[$i];
 						}
 					} else { #20220120 Finds debitor paid by paylist.
 						$kredit='0';
@@ -746,29 +802,29 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
 						$qtxt.= "  values ";
 						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','F','0','$faktura','$amount',";
-						$qtxt.= "'$kladde_id','$valuta_kode','$afd','$saldo')";
+						$qtxt.= "'$kladde_id','$currencyCode','$afd','$saldo')";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt = "insert into kassekladde ";
 						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
 						$qtxt.= "  values ";
 						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','0','$k_type','$kredit','$faktura','$fakturasum',";
-						$qtxt.= "'$kladde_id','$valuta_kode','$afd','$saldo')";
+						$qtxt.= "'$kladde_id','$currencyCode','$afd','$saldo')";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt= "insert into kassekladde ";
 						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
 						$qtxt.= "  values ";
 						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','0','F','$gebyrkonto','$faktura','$kortgebyr','$kladde_id',";
-						$qtxt.= "'$valuta_kode','$afd','$saldo')";
+						$qtxt.= "'$currencyCode','$afd','$saldo')";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} else {
 						$qtxt = " insert into kassekladde ";
 						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
 						$qtxt.= " values ";
 						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','$k_type','$kredit','$faktura','$amount','$kladde_id',";
-						$qtxt.= "'$valuta_kode','$afd','$saldo')";
+						$qtxt.= "'$currencyCode','$afd','$saldo')";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+						$bilag++; #20170630 Flyttet fra over db_mod...
 					}
-					$bilag++;
 				} elseif ($amount < 0) {
 						$dtype=$ktype='F';
 						$debet=0;
@@ -816,7 +872,7 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 					if ($saldo) $qtxt.=',saldo';
 					$qtxt.= " ) values ";
 					$qtxt.= "('$bilag','$transdate','$beskrivelse','$d_type','$debet','$ktype',";
-					$qtxt.= "'$kontonr','".abs($amount)."','$kladde_id','$valuta_kode','$afd'";
+					$qtxt.= "'$kontonr','".abs($amount)."','$kladde_id','$currencyCode','$afd'";
 					if ($saldo) $qtxt.=",'$saldo'";
 					$qtxt.= ")";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -825,8 +881,10 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 			}
 		}
 	}
+#
+
+fclose($fp);
 #xit;
-	fclose($fp);
 	unlink($filnavn); # sletter filen.
 	unlink($filnavn."2"); # sletter filen.
 	transaktion('commit');

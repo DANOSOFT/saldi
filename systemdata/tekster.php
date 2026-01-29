@@ -65,9 +65,9 @@ if ($menu=='T') {
 // 		print "<table class='dataTable2'><tbody>";
 // 	   #print "<tr><td><a href=tekster.php?sprog_id=$sprog&sort=tekst_id>Id</a></td>";
 // 	   print "<tr><td><a href=tekster.php?sprog_id=$Danish_Langid&sort=tekst_id>Id</a></td>"; #20210819
-// 	   #print "<td width=400><a href=tekster.php?sprog_id=$sprog&sort=tekst>".findtekst(31,$sprog_id)."</a></td>";
-// 	   print "<td width=400><a href=tekster.php?sprog_id=$Danish_Langid&sort=tekst>".findtekst(31,$sprog_id)."</a></td>"; 
-// 	   print "<td title=\"".findtekst(33,$sprog_id)."\">".findtekst(32,$sprog_id)."</td>";
+// 	   #print "<td width=400><a href=tekster.php?sprog_id=$sprog&sort=tekst>".findtekst('31|Nuværende tekst', $sprog_id)."</a></td>";
+// 	   print "<td width=400><a href=tekster.php?sprog_id=$Danish_Langid&sort=tekst>".findtekst('31|Nuværende tekst', $sprog_id)."</a></td>"; 
+// 	   print "<td title=\"".findtekst('33|Skriv nyt tekstforslag', $sprog_id)."\">".findtekst('32|Ny tekst', $sprog_id)."</td>";
 // 	   for($x=1; $x<=$tekstantal; $x++){
 // 		   print "<input type=hidden name=id[$x] value=\"$id[$x]\">";
 // 		   #print "<input type=hidden name=tekst[$x] value=\"$tekst[$x]\">";
@@ -92,7 +92,7 @@ if (!$sort) $sort="tekst";
 
 $sprog_id=if_isset($_GET['sprog_id']);
 $kopier=if_isset($_GET['kopier']);
-#$title= findtekst(30,$sprog_id); #20210818
+#$title= findtekst('30|Tilbage', $sprog_id); #20210818
 
 if($_POST) {
 	$tekstantal=if_isset($_POST['tekstantal']); 
@@ -146,9 +146,9 @@ print "<form name=\"tekster\" action=\"tekster.php?sprog_id=$sprog_id&sort=$sort
  print "<table class='dataTable2'><tbody>";
 #print "<tr><td><a href=tekster.php?sprog_id=$sprog&sort=tekst_id>Id</a></td>";
 print "<tr><td><a href=tekster.php?sprog_id=$sprog_id&sort=tekst_id>Id</a></td>"; #20210819
-#print "<td width=400><a href=tekster.php?sprog_id=$sprog&sort=tekst>".findtekst(31,$sprog_id)."</a></td>";
-print "<td width=400><a href=tekster.php?sprog_id=$sprog_id&sort=tekst>".findtekst(31,$sprog_id)."</a></td>"; 
-print "<td title=\"".findtekst(33,$sprog_id)."\">".findtekst(32,$sprog_id)."</td>";
+#print "<td width=400><a href=tekster.php?sprog_id=$sprog&sort=tekst>".findtekst('31|Nuværende tekst', $sprog_id)."</a></td>";
+print "<td width=400><a href=tekster.php?sprog_id=$sprog_id&sort=tekst>".findtekst('31|Nuværende tekst', $sprog_id)."</a></td>"; 
+print "<td title=\"".findtekst('33|Skriv nyt tekstforslag', $sprog_id)."\">".findtekst('32|Ny tekst', $sprog_id)."</td>";
 for($x=1; $x<=$tekstantal; $x++){
 	print "<input type=hidden name=id[$x] value=\"$id[$x]\">";
 	#print "<input type=hidden name=tekst[$x] value=\"$tekst[$x]\">";

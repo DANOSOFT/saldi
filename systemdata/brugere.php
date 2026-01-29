@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/brugere.php-----patch 4.0.8 ----2023-07-23-----
-//                           LICENSE
+// --------------systemdata/brugere.php-----patch 5.0.0 ----2026-01-27-----
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,25 +21,11 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-// 20150327 CA  - Topmenudesign tilføjet                             søg 20150327
-// 20161104	PHR	- Ændret kryptering af adgangskode
-// 20181220 MSC - Rettet isset fejl
-// 20190221 MSC - Rettet topmenu design
-// 20190225 MSC - Rettet topmenu design
-// 20190321 PHR - Added 'read only' attribut at 'varekort'
-// 20190415 PHR - Corrected an error in module order printet on screen, resulting in wrong rights to certain modules
-// 20200709 PHR - Various changes in variable names and user deletion.
-// 20210711 LOE - Translated some texts to Norsk and English from Dansk
-// 20210828 LOE - Added a functionality to enable users select language from user's page
-// 20210831 LOE - Added more funtionalities
-// 20210901 LOE - This block of code added to authenticate user IP
-// 20210908 LOE - Added input box for IP addresses
-// 20210909 LOE - Modified some codes relating to Ip
-// 20211015 LOE - Modified some codes to adjust to IP moved to settings table
 // 20220514 MSC - Implementing new design
 // 20230316 PHR Replaced *1 by (int)
+// 20260127 PHR update settings value
 
 @session_start();
 $s_id=session_id();
@@ -114,8 +100,16 @@ if ($addUser || $updateUser) {
 	$brugernavn=trim(if_isset($_POST[$tmp]));
 	$kode=trim(if_isset($_POST['kode']));
 	$kode2=trim(if_isset($_POST['kode2']));
+	$tlf=trim(if_isset($_POST['tlf']));
+	$email=trim(if_isset($_POST['email']));
 	$medarbejder=trim(if_isset($_POST['medarbejder']));
 	$employeeId=if_isset($_POST['employeeId']);
+	$twofactor=if_isset($_POST['twofactor']);
+	if($twofactor){
+		$twofactor = 't';  // PostgreSQL boolean true
+	} else {
+		$twofactor = 'f';  // PostgreSQL boolean false
+	}
 	// $restore_user = if_isset($_POST['ruser_ip']); #20210831
 	$insert_ip = if_isset($_POST['insert_ip']); #20210908
 	// $user_ip = if_isset($_POST['user_ip']); #20210831
@@ -124,7 +118,6 @@ if ($addUser || $updateUser) {
 	$user_ip=$insert_ip;
 	// input_ip($user_ip, $id);
 	} #20210908
-	
 	$rights=$_POST['rights'];
 	$roRights=$_POST['roRights'];
 	$rettigheder=NULL;
@@ -152,8 +145,8 @@ if ($addUser || $updateUser) {
 #			print "<tr><td align=center>Der findes allerede en bruger med brugenavn: $brugernavn!</td></tr>";
 		}	else {
 			if (!$regnaar) $regnaar=1;
-			$qtxt = "insert into brugere (brugernavn,kode,rettigheder,regnskabsaar,ansat_id,ip_address) ";
-			$qtxt.= "values ('$brugernavn','$kode','$rettigheder','$regnaar',$employeeId[0],'$insert_ip')";
+			$qtxt = "insert into brugere (brugernavn,kode,rettigheder,regnskabsaar,ansat_id,ip_address,tlf,twofactor,email) ";
+			$qtxt.= "values ('$brugernavn','$kode','$rettigheder','$regnaar',$employeeId[0],'$insert_ip','$tlf','$twofactor','$email')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="select id from brugere where brugernavn = '$brugernavn' and kode = '$kode'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -162,10 +155,15 @@ if ($addUser || $updateUser) {
 	}
 	if ($id && $kode && $brugernavn) {
 		if (strstr($kode,'**********')) {
-			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip' where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
 		} else {
 			$kode=saldikrypt($id,$kode);
-			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip' where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
+		}
+		if ($employeeId[0]) {
+			$qtxt = "select afd from ansatte where id = '$employeeId[0]'";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			update_settings_value('afd', 'brugerAfd', $r['afd'], $employeeId[0]);
 		}
 	}
 	// if($restore_user){
@@ -300,6 +298,8 @@ if ($ret_id) {
 	$query = db_select("select * from brugere where id = $ret_id",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	$userName=$row['brugernavn'];
+	
+
 	print "<tr><td></td>";
 	print "<input type=hidden name=id value=$row[id]>";
 	$tmp="navn".rand(100,999);				#For at undgaa at browseren "husker" et forkert brugernavn.
@@ -353,7 +353,14 @@ if ($ret_id) {
 	
 		###########################################20210831
 	print "<tr><td>".findtekst('1904|Angiv brugerens tilladte IP adresser', $sprog_id)."</td><td><input class=\"inputbox\" type= text  name=insert_ip maxlength=49 value='$row[ip_address]' ></td></tr>"; #20210908
-	
+	print "<tr title='Hvis telefon og email er udfyldt, vil 2fa sendes til tlf og ikke email'><td>Tlf (til 2fa):</td><td><input class=\"inputbox\" type=text size=20 name=tlf value='$row[tlf]'></td></tr>";
+	print "<tr title='Hvis telefon og email er udfyldt, vil 2fa sendes til tlf og ikke email'><td>Email (til 2fa):</td><td><input class=\"inputbox\" type=text size=20 name=email value='$row[email]'></td></tr>";
+	if($row['twofactor'] == 't') {
+		$twofactor = "checked";
+	} else {
+		$twofactor = "";
+	}
+	print "<tr><td>two factor authentication	</td><td><input class=\"inputbox\" type=\"checkbox\" name=\"twofactor\" $twofactor></td></tr>";
 	print "</tbody></table></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
@@ -385,6 +392,7 @@ if ($ret_id) {
 		print "</td>";
 	}
 	print "</tr>";
+	print "<tr><td>Tlf (til 2fa):</td><td><input class=\"inputbox\" type=text size=20 name=tlf></td></tr>";
 	print "<tr><td> ".findtekst('324|Adgangskode', $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode></td></tr>";
 	print "<tr><td> ".findtekst('328|Gentag adgangskode', $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode2></td></tr>";
 	print "</tbody></table></td></tr>";

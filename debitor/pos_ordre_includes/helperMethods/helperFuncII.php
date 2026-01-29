@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- debitor/pos_ordre_includes/helperMethods/helperFuncII.php--patch 4.0.8 ----2023-08-31----
-//                           LICENSE
+// --- debitor/pos_ordre_includes/helperMethods/helperFuncII.php --- patch 4.1.1 --- 2025-09-26 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,20 +21,27 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2019-2025 Saldi.dk ApS
 // -------------------------------------------------------------------------------------------------
 //
 // 20190312 LN Make various helper functions for the pos_ordre and the report files
 // 20190319 LN Added new function to return a unque box id
 // 20200211	PHR	function getUniqueBoxId. Corrected function as it destroyed the global $db var.
+// 20250926 PHR Updated function getVatArray
 
-function getVatArray($linjeantal, $dkkpris, $vatArray) {
+function getVatArray($id) {
+	// called from debitor/pos_ordre_includes/posTxtPrint/postTxtPrintFunc.php
+
 	$vatRate = array();
-	for($x=1; $x<=$linjeantal; $x++) { # 20190123 LN
-		$price = $dkkpris[$x];
-		$price = floatval(str_replace(',', '.', str_replace('.', '', $price)));
-		$vatPercentage = $vatArray[$x];
-		$vat = $price / 100 * $vatPercentage; 
+	$qtxt = "select * from ordrelinjer where ordre_id = '$id'";
+	$q = db_select($qtxt, __FILE__ . "linje" . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$price = ($r['pris'] - ($r['pris'] * $r['rabat'] / 100)) * $r['antal'];
+		$vatPercentage = $r['momssats'];
+		if ($vatPercentage) {
+			$price+= ($price*$vatPercentage/100);
+		}
+		$vat = $price / 100 * $vatPercentage;
 		$vatRate[$vatPercentage]['percentage'] = truncate_number($vatPercentage);
 		if (!isset($vatRate[$vatPercentage]['base']))  $vatRate[$vatPercentage]['base']  = 0; 
 		if (!isset($vatRate[$vatPercentage]['vat']))   $vatRate[$vatPercentage]['vat']   = 0; 
@@ -47,7 +54,7 @@ function getVatArray($linjeantal, $dkkpris, $vatArray) {
 	return $vatRate;
 }
 
-function makeOrderIdArray($kasse,$date) {	
+function makeOrderIdArray($kasse,$date) {
 	$ordreIdArr = array();
 	$qtxt = "select id from ordrer where felt_5 = '$kasse' and fakturadate = '$date'"; 
 	$orderQuery = db_select($qtxt, __FILE__ . "linje" . __LINE__);

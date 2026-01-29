@@ -29,11 +29,11 @@ $s_id = session_id();
 
 $css = "../css/sidebar_style.css?v=20";
 
-include("../includes/std_func.php");
 include("../includes/connect.php");
+include("../includes/license_func.php");
 include("../includes/online.php");
+include("../includes/std_func.php");
 include("../includes/stdFunc/dkDecimal.php");
-
 
 function check_permissions($permarr)
 {
@@ -109,6 +109,34 @@ setInterval(checkRefreshCookie, 500);
     background-color: <?php echo $buttonColor; ?> !important;
     color: <?php echo $buttonTxtColor; ?> !important;
   }
+
+  .link_name{
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  a, p{
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .bx{
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .logo-img {
+    width: 120px;
+    height: 40px; /* ← REQUIRED */
+
+    background-color: <?php echo $buttonTxtColor; ?> !important;
+
+    -webkit-mask: url("../img/sidebar_logo.png") no-repeat center;
+    mask: url("../img/sidebar_logo.png") no-repeat center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  .sidebar:not(.closed) .nav-links li .sub-menu li a::before{
+    background: <?php echo $buttonTxtColor; ?> !important;
+  }
 </style>
 
 <meta charset="utf-8">
@@ -125,8 +153,8 @@ setInterval(checkRefreshCookie, 500);
 <div class="sidebar">
 
   <div class="logo wide">
-    <img class="logo-img" src="../img/sidebar_logo.png">
-    <i id="icon-open" class='bx bxs-arrow-from-right'></i>
+    <div class="logo-img"></div>
+    <i id="icon-open" class="bx bxs-arrow-from-right"></i>
   </div>
 
   <div class="logo small" onclick="
@@ -211,7 +239,7 @@ setInterval(checkRefreshCookie, 500);
     <!-- Booking -->
     <?php
     $query = db_select("select var_value from settings where var_grp='rental'", __FILE__ . " linje " . __LINE__);
-    if (db_num_rows($query) > 0) {
+    if (db_num_rows($query) > 0 && is_feature_licensed('booking')) {
     ?>
       <li style="display: <?php if (check_permissions(array(6))) {
                             echo 'block';
@@ -241,6 +269,7 @@ setInterval(checkRefreshCookie, 500);
         </ul>
       <?php } ?>
       <!-- Kreditor -->
+      <?php if (is_feature_licensed('kreditor')) { ?>
       <li style="display: <?php if (check_permissions(array(7, 8, 13))) {
                             echo 'block';
                           } else {
@@ -268,8 +297,10 @@ setInterval(checkRefreshCookie, 500);
           ?>
         </ul>
       </li>
+      <?php } ?>
 
-      <!-- Kreditor -->
+      <!-- Lager -->
+      <?php if (is_feature_licensed('lager')) { ?>
       <li style="display: <?php if (check_permissions(array(9, 10, 15))) {
                             echo 'block';
                           } else {
@@ -297,8 +328,9 @@ setInterval(checkRefreshCookie, 500);
           ?>
         </ul>
       </li>
+      <?php } ?>
 
-      <!-- Kreditor -->
+      <!-- System -->
       <li style="display: <?php if (check_permissions(array(0, 1, 11))) {
                             echo 'block';
                           } else {

@@ -34,7 +34,11 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
-$regnskabsaar=$_GET['aar'];
+$regnskabsaar=if_isset($_GET['aar']);
+
+// Ensure $charset is defined
+if ($db_encode == "UTF8") $charset = "UTF-8";
+else $charset = "ISO-8859-1";
 
 $returside="diverse.php?sektion=div_io";
 
@@ -49,7 +53,7 @@ if (fwrite($fp,"fileformat".chr(9)."version".chr(9)."delimiter".chr(9)."charset"
 	while ($r=db_fetch_array($q)) {
 		 $beskrivelse=$r['beskrivelse'];
 		 if ($charset=="UTF-8") $beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
-		 $r['col']*=1;$r['row']*=1;$r['colspan']*=1;$r['rowspan']*=1;
+		 $r['col']=(int)$r['col'];$r['row']=(int)$r['row'];$r['colspan']=(int)$r['colspan'];$r['rowspan']=(int)$r['rowspan'];
 		 $linje=str_replace("\n","",$r['menu_id'].chr(9).$r['row'].chr(9).$r['col'].chr(9).$beskrivelse.chr(9).$r['color'].chr(9).$r['funktion'].chr(9).$r['vare_id'].chr(9).$r['colspan'].chr(9).$r['rowspan']);
 		 fwrite($fp, $linje."\r\n");
 	} 
@@ -59,7 +63,7 @@ if (fwrite($fp,"fileformat".chr(9)."version".chr(9)."delimiter".chr(9)."charset"
 	while ($r=db_fetch_array($q)) {
 		$beskrivelse=$r['box1'];
 		if ($charset=="UTF-8") $beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
-		$r['kode']*=1;$r['kodenr']*=1;$r['box2']*=1;$r['box3']*=1;$r['h']*=1;$r['box5']*=1;
+		$r['kode']=(int)$r['kode'];$r['kodenr']=(int)$r['kodenr'];$r['box2']=(int)$r['box2'];$r['box3']=(int)$r['box3'];$r['box4']=(int)$r['box4'];$r['box5']=(int)$r['box5'];
 		$linje=str_replace("\n","",$r['beskrivelse'].chr(9).$r['art'].chr(9).$r['kode'].chr(9).$r['kodenr'].chr(9).$beskrivelse.chr(9).$r['box2'].chr(9).$r['box3'].chr(9).$r['box4'].chr(9).$r['box5'].chr(9).$r['box6'].chr(9).$r['box7'].chr(9).$r['box8'].chr(9).$r['box9'].chr(9).$r['box10'].chr(9).$r['box11'].chr(9).$r['box12']);
 		fwrite($fp, $linje."\r\n");
 	}

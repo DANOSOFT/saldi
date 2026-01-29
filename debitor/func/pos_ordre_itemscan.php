@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- debitor/func/pos_ordre_itemscan.php ---- lap 4.1.0 -- 2024.01.12 --
+// -------- debitor/func/pos_ordre_itemscan.php ---- lap 4.1.1 -- 2025.10.07 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2014-2024 saldi.dk aps
+// Copyright (c) 2014-2025 saldi.dk aps
 // ----------------------------------------------------------------------------
 //
 // 2014.05.08 - Indsat diverse til bordhåndtering, bruger nr fra ordrer til bordnummer (PHR - Danosoft) Søg 20140508 eller $bordnr 
@@ -66,6 +66,7 @@
 // 20230613 PHR php8
 // 20231220 PHR added htmlentities to #20210829
 // 20240112 PHR Set $myDe to '-' if empty 
+// 20251007 PHR Now looking for varenr_alias
 
 function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$rabat_ny,$lager_ny) {
 	print "\n<!-- Function varescan (start)-->\n";
@@ -97,11 +98,10 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 		$l=strlen($varenr_ny)-1;
 		$varenr_ny=substr($varenr_ny,0,$l);
 	}
-	
+
 	for ($l=0;$l<count($lagernr);$l++){
 		if ($lager_ny==$lagernr[$l] && strlen($lagernavn[$l])==1) $lager_ny=$lagernavn[$l];
 	}
-
 	if ($id) {
 		$r=db_fetch_array(db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__));
 		$konto_id=$r['konto_id'];
@@ -271,6 +271,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			$qtxt.= "or stregkode LIKE '$varenr_ny' limit 1";
 			if (!$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__))) {
 				$qtxt="select * from varer where lower(varenr) = '$varenr_low' or upper(varenr) = '$varenr_up' or varenr LIKE '$varenr_ny' ";
+				$qtxt.="or lower(varenr_alias) = '$varenr_low' or upper(varenr_alias) = '$varenr_up' or varenr_alias LIKE '$varenr_ny'";
 				$qtxt.="or lower(stregkode) = '$varenr_low' or upper(stregkode) = '$varenr_up' or stregkode LIKE '$varenr_ny'";
 				if (strlen($varenr_ny)==12 && is_numeric($varenr_ny)) $qtxt.=" or stregkode='0$varenr_ny'";
 			}

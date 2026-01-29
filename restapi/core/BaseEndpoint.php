@@ -5,6 +5,7 @@ include_once __DIR__ . "/../../includes/connect.php";
 include_once __DIR__ . "/../../includes/std_func.php";
 include_once __DIR__ . "/auth.php";
 include_once __DIR__ . "/logging.php";
+include_once __DIR__ . "/cors.php";
 require_once __DIR__ . '/ApiException.php';
 
 
@@ -51,12 +52,25 @@ abstract class BaseEndpoint
 
     public function handleRequestMethod()
     {
+        // Start output buffering to catch any errors/warnings
+        ob_start();
+        
         // Check authorization
         if (!$this->checkAuthorization()) {
+            // If checkAuthorization didn't already send a response (shouldn't happen if it calls sendResponse)
+            // Send a default unauthorized response
+            ob_end_clean(); // Clear any buffered output
             http_response_code(401);
-            #echo json_encode(array("message" => "Unauthorized"));
-            return;
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Unauthorized',
+                'data' => null
+            ]);
+            exit;
         }
+        
+        ob_end_clean(); // Clear any buffered output before processing request
 
         $method = $_SERVER['REQUEST_METHOD'];
 
@@ -105,6 +119,29 @@ abstract class BaseEndpoint
             return false;
         }
 
+        // Try JWT authentication first (for new mobile app endpoints)
+        if (isset($headers['authorization']) && preg_match('/Bearer\s+/i', $headers['authorization'])) {
+            // JWT token authentication
+            require_once __DIR__ . '/JWT.php';
+            require_once __DIR__ . '/JWTAuth.php';
+            
+            $payload = JWTAuth::validateToken();
+            if ($payload) {
+                // JWT authentication successful
+                // Store user info for later use
+                $this->userId = $payload['user_id'];
+                $this->username = $payload['username'];
+                
+                // Get tenant database if X-Tenant-ID is provided
+                if (isset($headers['x-tenant-id'])) {
+                    $this->tenantDb = JWTAuth::getTenantDatabase();
+                }
+                
+                return true;
+            }
+        }
+
+        // Fall back to legacy API key authentication (for backward compatibility)
         // Check for required headers
         $requiredHeaders = ['authorization', 'x-saldiuser', 'x-db'];
         foreach ($requiredHeaders as $header) {
@@ -150,6 +187,11 @@ abstract class BaseEndpoint
 
     protected function sendResponse($success, $data = null, $message = '', $httpCode = 200)
     {
+        // Clear any output buffers to ensure clean JSON response
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
         http_response_code($httpCode);
         header('Content-Type: application/json');
         

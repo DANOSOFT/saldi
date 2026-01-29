@@ -86,6 +86,34 @@ print "<!--function send_mails start-->";
 		elseif (!$mailtext && $r['xa']=='2') $mailtext=$r['beskrivelse'];
 		elseif ($r['xa']=='3') $bilagnavn=$r['beskrivelse']; #2013.11.21 Finder bilag-navn
 	}
+	
+	# Load language-specific sender email and name from settings table
+	# Determine language ID: 0 for Danish/default, actual ID for other languages
+	$lang_id = 0; // Default to 0 for Danish
+	
+	if ($formularsprog && strtolower($formularsprog) != 'dansk') {
+		$qtxt = "select kodenr from grupper where art = 'VSPR' and lower(box1) = lower('$formularsprog')";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if ($r) {
+			$lang_id = $r['kodenr'];
+		}
+	}
+	
+	error_log("DEBUG: formularsprog='$formularsprog', lang_id='$lang_id'");
+	
+	# Load sender email for this language
+	$lang_sender_email = NULL;
+	$qtxt = "select var_value from settings where var_name = 'sender_email' and var_grp = 'email_settings' and group_id = '$lang_id'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$lang_sender_email = $r['var_value'];
+	error_log("DEBUG: Found lang_sender_email='$lang_sender_email' for lang_id='$lang_id'");
+	
+	# Load sender name for this language
+	$lang_sender_name = NULL;
+	$qtxt = "select var_value from settings where var_name = 'sender_name' and var_grp = 'email_settings' and group_id = '$lang_id'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$lang_sender_name = $r['var_value'];
+	error_log("DEBUG: Found lang_sender_name='$lang_sender_name' for lang_id='$lang_id'");
 	if (strpos($mailtext,'$firmanavn')) {
 		$qtxt = "select firmanavn from ordrer where id = '$ordre_id'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -101,9 +129,47 @@ print "<!--function send_mails start-->";
 	$row = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$afsendermail=$row['email'];
 	$afsendernavn=$row['firmanavn'];
+	
+	// Debug logging
+	$debug_file = "../temp/$db/pbs_email_debug.log";
+	$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: Checking sender information\n";
+	$debug_msg .= "Database query result:\n";
+	$debug_msg .= "  email: " . var_export($row['email'], true) . "\n";
+	$debug_msg .= "  firmanavn: " . var_export($row['firmanavn'], true) . "\n";
+	$debug_msg .= "Initial afsendermail: " . var_export($afsendermail, true) . "\n";
+	$debug_msg .= "Initial afsendernavn: " . var_export($afsendernavn, true) . "\n";
+	
+	# Use language-specific sender email if available, otherwise use default
+	if ($lang_sender_email && trim($lang_sender_email) != '') {
+		$afsendermail = $lang_sender_email;
+		$debug_msg .= "Using language-specific email: '$afsendermail'\n";
+		error_log("DEBUG: Using language-specific email: '$afsendermail'");
+	} else {
+		$debug_msg .= "Using default email: '$afsendermail' (lang_sender_email was empty or null)\n";
+		error_log("DEBUG: Using default email: '$afsendermail' (lang_sender_email was empty or null)");
+	}
+	
+	# Use language-specific sender name if available, otherwise use default
+	if ($lang_sender_name && trim($lang_sender_name) != '') {
+		$afsendernavn = $lang_sender_name;
+		$debug_msg .= "Using language-specific sender name: '$afsendernavn'\n";
+		error_log("DEBUG: Using language-specific sender name: '$afsendernavn'");
+	} else {
+		$debug_msg .= "Using default sender name: '$afsendernavn' (lang_sender_name was empty or null)\n";
+		error_log("DEBUG: Using default sender name: '$afsendernavn' (lang_sender_name was empty or null)");
+	}
+	
 	$afsendermail=str_replace(",",";",$afsendermail);
 	$afsendermails=explode(";",$afsendermail);
 	$from=$afsendermails[0];
+	
+	$debug_msg .= "After processing:\n";
+	$debug_msg .= "  afsendermail (raw): " . var_export($afsendermail, true) . "\n";
+	$debug_msg .= "  afsendermails array: " . var_export($afsendermails, true) . "\n";
+	$debug_msg .= "  afsendermails[0]: " . var_export($afsendermails[0], true) . "\n";
+	$debug_msg .= "  afsendernavn: " . var_export($afsendernavn, true) . "\n";
+	$debug_msg .= "  from: " . var_export($from, true) . "\n";
+	
 	($row['felt_1'])?$smtp=$row['felt_1']:$smtp='localhost';
 	($row['felt_2'])?$smtp_user=$row['felt_2']:$smtp_user=NULL;
 	($row['felt_3'])?$smtp_pwd=$row['felt_3']:$smtp_pwd=NULL;
@@ -113,12 +179,23 @@ print "<!--function send_mails start-->";
 		$r = db_fetch_array(db_select("select * from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
 		$brugermail=$r['email'];
 	}
+	
+	$debug_msg .= "Validation check:\n";
+	$debug_msg .= "  !afsendermails[0]: " . var_export(!$afsendermails[0], true) . "\n";
+	$debug_msg .= "  !afsendernavn: " . var_export(!$afsendernavn, true) . "\n";
+	$debug_msg .= "  Condition result (!afsendermails[0] || !afsendernavn): " . var_export((!$afsendermails[0] || !$afsendernavn), true) . "\n";
+	
 	if (!$afsendermails[0] || !$afsendernavn) {
+		$debug_msg .= "ERROR: Missing sender information - email or company name is empty!\n";
+		file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 		if (!$webservice) {
 			print "<BODY onLoad=\"javascript:alert('Firmanavn eller e-mail for afsender ikke udfyldt.\\nSe (Indstillinger -> stamdata).\\nMail ikke afsendt!')\">";
 		}
 		return("Missing sender mail");
 	}
+	
+	$debug_msg .= "Sender information OK - proceeding with email\n";
+	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 	$fakturanavn=basename($filnavn);
 	
 	if ($mailbilag && $ordre_id) {
@@ -287,9 +364,25 @@ print "<!--function send_mails start-->";
 	$mail->Body     =  "$mailtext";
 	$mail->AltBody  =  "$ren_text";
 	$svar=NULL;
+	
+	// Debug logging
+	$debug_file = "../temp/$db/pbs_email_debug.log";
+	$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: Attempting to send email\n";
+	$debug_msg .= "To: " . var_export($email, true) . "\n";
+	$debug_msg .= "From: " . var_export($from, true) . "\n";
+	$debug_msg .= "Subject: " . var_export($subjekt, true) . "\n";
+	$debug_msg .= "Attachment: " . var_export($filnavn, true) . "\n";
+	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
+	
 	print "<!--";
 	if(!$mail->Send()){
  		$svar = "Mailer Error: " . $mail->ErrorInfo;
+		$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: EMAIL SEND FAILED\n";
+		$debug_msg .= "Error: " . $mail->ErrorInfo . "\n";
+		file_put_contents($debug_file, $debug_msg, FILE_APPEND);
+	} else {
+		$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: EMAIL SENT SUCCESSFULLY\n";
+		file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 	}
 	print "-->";
 	if ($svar) {

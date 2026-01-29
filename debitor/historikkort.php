@@ -1,5 +1,5 @@
 <?php
-// --- debitor/historikkort.php --- patch 4.1.1 --- 2025-08-08 ---
+// --- debitor/historikkort.php --- patch 4.1.1 --- 2025-11-21 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // 20220719 MSC - Implementing new design
 // 20241009 MMK - Added datepicker functionalaty
 // 20250808 PHR - Added $id to returside 
+// 20251121 LOE - Modified icons to SVG format and buttons to fit the new design
 
 @session_start();
 $s_id = session_id();
@@ -279,23 +280,27 @@ if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 	print "<div class=\"headerTxt\">$title</div>";
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu == 'S') {
+    ############################
+     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
+    ##########################
 	$center = "";
 	$width = "width=10%";
 	print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
 	print "<tr><td align='center' valign='top' height='1%'>\n";
 	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
 
-	$tekst = findtekst(154, $sprog_id);
+	$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 	print "<td width='10%' align=center><a href=\"javascript:confirmClose('$returside')\" accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>\n";
+		  <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".$icon_back  . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
-	print "<td width='80%' align=center style='$topStyle'>" . findtekst(1668, $sprog_id) . "</td>\n";
+	print "<td width='80%' align=center style='$topStyle'>" . findtekst('1668|Historik for debitor', $sprog_id) . "</td>\n";
 
 	print "<td width='10%' align=center style='$buttonStyle;'>
 		   <br></td>\n";
@@ -303,21 +308,44 @@ if ($menu == 'T') {
 	print "</tbody></table>\n"; #tabel2a slut
 	print "</td></tr>\n";
 	print "<tr><td width=\"100%\" valign=\"top\">";
+    ####
+    print "</td></tr>\n";
+
+    print "</tbody></table>\n";  # tabel1 slut
+    #####
+
+    ?>
+    <style>
+    .headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+	}
+    </style>
+    <?php
+
 } else {
 	$center = "";
 	$width = "width=10%";
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; #tabel1 start
 	print "<tr><td align=\"center\" valign=\"top\" height=\"1%\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>\n"; #tabel2a start
-	$tekst = findtekst(154, $sprog_id);
+	$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 	#if ($returside=="debitorkort.php") print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?id=$id&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
 	#print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
-	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></div></td>\n";
-	print "<td width=\"80%\" align=center><div class=\"top_bund\">" . findtekst(1668, $sprog_id) . "</div></td>\n";
-	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></div></td>\n";
+	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></div></td>\n";
+	print "<td width=\"80%\" align=center><div class=\"top_bund\">" . findtekst('1668|Historik for debitor', $sprog_id) . "</div></td>\n";
+	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>" . findtekst('39|Ny', $sprog_id) . "</a><br></div></td>\n";
 	print "</tbody></table>\n"; #tabel2a slut
 	print "</td></tr>\n";
 	print "<tr><td width=\"100%\" valign=\"top\">";
+}
+
+print "<div class='outer-datatable-wrapper'>";
+print "<div class='datatable-wrapper'>";
+if($menu == 'S'){
+ print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
 }
 print "<table class='dataTableForm' width=\"100%\" cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>"; #tabel2b start
 
@@ -470,7 +498,7 @@ $kontaktes = $kontaktes ?: dkdato(if_isset($_GET['kontaktigen'], NULL));
 $html_kontaktet = "<input class='inputbox date-picker' type='text' name='kontaktet' value='$kontaktet' onchange='javascript:docChange = true;'>\n";
 $html_kontaktes = "<input class='inputbox date-picker' type='text' name='kontaktes' value='$kontaktes' onchange='javascript:docChange = true;'>\n";
 
-$submit_text = $historik_id ? findtekst(471, $sprog_id) : findtekst(3, $sprog_id);
+$submit_text = $historik_id ? findtekst('471|Gem/opdatér', $sprog_id) : findtekst('3|Gem', $sprog_id);
 $submit_input = "<input class='submit-button' type='submit' accesskey='g' value='$submit_text' name='submit' onclick='javascript:docChange = false;'>";
 
 echo $historik_id ? "<input type='hidden' name='historik_id' value='$historik_id'>" : "";
@@ -534,12 +562,12 @@ while ($r = db_fetch_array($q)) {
 
     if ($vis_bilag) {
         if ($dokument) {
-            #print "<td align='right' title='" . findtekst(1454, $sprog_id) . ": $dokument'>";
+            #print "<td align='right' title='" . findtekst('1454|Klik her for at åbne bilaget', $sprog_id) . ": $dokument'>";
             print "<a class='action-button' href='../includes/bilag.php?kilde=historik&filnavn=$dokument&kilde_id=$id&bilag_id=$r[id]'>";
             #print "<img style='border: 0px solid' alt='clip med papir' src='../ikoner/paper.png'></a>";
 			print "$attached_icon</a>";
         } else {
-            #print "<td align='right' title='" . findtekst(1455, $sprog_id) . "'>";
+            #print "<td align='right' title='" . findtekst('1455|Klik her for at vedhæfte et bilag', $sprog_id) . "'>";
             print "<a class='action-button' href='../includes/bilag.php?kilde=historik&ny=ja&kilde_id=$id&bilag_id=$r[id]'>";
             #print "<img style='border: 0px solid' alt='papirclip' src='../ikoner/clip.png'></a>";
 			print "$attach_icon</a>";
@@ -557,7 +585,8 @@ print "</tbody>
 </table>
 </td></tr>
 </tbody></table>";
-
+print "</div>"; //datatable-wrapper
+print "</div>"; //outer-datatable-wrapper
 if ($menu == 'T') {
 	include_once '../includes/topmenu/footer.php';
 } else {
@@ -634,6 +663,7 @@ $(function() {
 </script>
 
 <style>
+    
 	#contact-header p, #contact-header h1{margin: 0; padding: 0;}
 	#contact-header {
 		display: flex;
@@ -788,5 +818,44 @@ $(function() {
 
 	.link:hover {
 		background-color: #f5f5f5;
+	}
+</style>
+ <script>
+document.addEventListener('DOMContentLoaded', function() {
+   
+    let themeColor = document.querySelector('.center-btn');
+
+    if (themeColor) {
+       
+        let themeColorBackgroundColor = window.getComputedStyle(themeColor).backgroundColor;
+        // Get all buttons
+        let buttons = document.querySelectorAll('#contact-header #button-column button, .submit-button');
+        // Loop through each button and set its background color
+        buttons.forEach(button => {
+            button.style.cssText = `background-color: ${themeColorBackgroundColor} !important`;
+        });
+    }
+});
+
+</script>   
+
+<style>
+
+    .outer-datatable-wrapper {
+        width: 100%;
+        height: calc(100vh - 34px - 34px);
+    }
+    .datatable-wrapper {
+        margin-bottom: 5px;
+        overflow-x: auto;
+        position: relative;
+        height: 100%;
+        width: 100%;
+    }
+	.tbody{
+		min-height: calc(100vh - 200px);
+	}
+    a:link{
+		text-decoration: none;
 	}
 </style>

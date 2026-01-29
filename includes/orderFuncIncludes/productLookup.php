@@ -35,6 +35,9 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 		$qtxt = "select var_value from settings where var_name='itemLookup' and var_grp='deb_order' and user_id='$bruger_id'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			$sort = $r['var_value'];
+			if ($sort == "ordredate"){
+				$sort = "varenr";
+			}
 			$qtxt = NULL;
 		} else {
 			$sort = 'beskrivelse';
@@ -88,7 +91,7 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 			$lager = (int) $r['kodenr'];
 		}
 	}
-	$lager *= 1;
+	$lager = (int)$lager;
 
 	if ($id && (!$art || !$ref)) {
 		$r = db_fetch_array(db_select("select art,ref from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));

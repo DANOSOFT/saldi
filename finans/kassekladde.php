@@ -1,10 +1,10 @@
-<?php
+<?php 
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.1 --- 2024-08-07 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-01-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20120809 søg 20120809 V. openpostopslag viser både kreditorer og debitorer hvis de har samme kontonr - rettet 
@@ -88,14 +88,17 @@
 // 20240725 PHR - Replaced 'DKK' with $baseCurrency.
 // 20240804	PHR - Removed (float) from belob
 // 20240807 PHR	- Minor correction.
-// 04-02-2025 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
-//  28-05-2025 Sawaneh -  Adedd position-based sorting to kassekladde entries
+// 20250204 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
+// 20250528 Sawaneh -  Added position-based sorting to kassekladde entries
+// 20251022 LOE - Updated some variables to use the  function if_isset() to minimize errors
+// 20251024 LOE - Static Headers, footer and pagination applied.
+// 20260126 PHR - Moved "</tr>" down to include $saldo
 
 ob_start(); //Starter output buffering
 
 @session_start();
 $s_id = session_id();
-$title = "Kassekladde";
+$title = "Kassekladde"; 
 $modulnr = 2;
 $css = "../css/standard.css";
 $afd = $amount = $ansat = $ansat_id = $belob = $beskrivelse = $betal_id = $bilag = $dato = $d_type = $debet = array();
@@ -137,10 +140,59 @@ include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
 
+include("../includes/grid.php");
 
 print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/datepickerDa.css">';
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
+print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
+
+
+
+
+$langId = !empty($sprog_id) ? intval($sprog_id) : 1;
+print '<script>
+window.saldiLanguage = ' . $langId . ';
+window.saldiTranslations = {
+    selectAccount: "' . findtekst('586', $langId) . ' ' . findtekst('592', $langId) . '",
+    selectDebtor: "' . findtekst('586', $langId) . ' Debitor",
+    selectCreditor: "' . findtekst('586', $langId) . ' Kreditor",
+    selectDepartment: "' . findtekst('586', $langId) . ' ' . findtekst('274', $langId) . '",
+    selectEmployee: "' . findtekst('586', $langId) . ' Medarbejder",
+    selectCurrency: "' . findtekst('586', $langId) . ' ' . findtekst('776', $langId) . '",
+    selectAmount: "' . findtekst('586', $langId) . ' ' . findtekst('934', $langId) . '",
+    openItems: "Åbne Poster",
+    close: "' . findtekst('2172', $langId) . '",
+    search: "' . findtekst('913', $langId) . '...",
+    searchAccount: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('43', $langId)) . ' / ' . strtolower(findtekst('914', $langId)) . '...",
+    searchInvoice: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('643', $langId)) . ' / ' . strtolower(findtekst('138', $langId)) . '...",
+    noResults: "Ingen resultater",
+    code: "Kode",
+    description: "' . findtekst('914', $langId) . '",
+    initials: "' . findtekst('647', $langId) . '",
+    name: "' . findtekst('138', $langId) . '",
+    companyName: "' . findtekst('28', $langId) . '",
+    accountNo: "' . findtekst('43', $langId) . '",
+    invoiceNo: "' . findtekst('643', $langId) . '",
+    date: "' . findtekst('635', $langId) . '",
+    amount: "' . findtekst('934', $langId) . '",
+    vat: "' . findtekst('770', $langId) . '",
+    shortcut: "' . findtekst('1191', $langId) . '",
+    balance: "Saldo",
+    showing: "Viser",
+    of: "af",
+    previous: "' . findtekst('2598', $langId) . '",
+    next: "' . findtekst('1200', $langId) . '",
+    today: "' . findtekst('2773', $langId) . '",
+    week: "' . findtekst('2669', $langId) . '"
+};
+</script>';
+print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
+print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css">';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.2" defer></script>';
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
@@ -149,13 +201,26 @@ print "<script>
 	}
 		function defokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
-		that.style.backgroundColor = bgcolor;
+		that.style.backgroundColor = bgcolor; 
 	}
 </script>";
 print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
 include("kassekladde_includes/moveButton.php");
 include("kassekladde_includes/moveButtonStyle.php");
+########################
 
+// Handle AJAX duplicate line request
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    && isset($_POST['action'])
+    && $_POST['action'] === 'duplicate_line'
+) {
+   include("kassekladde_includes/duplicate_line.php");
+}
+
+
+#######################
+$page_display = true;
 if (!isset($tidspkt))
 	$tidspkt = 0;
 if (!isset($row['tidspkt']))
@@ -179,16 +244,18 @@ if ($tjek = if_isset($_GET['tjek'])) {
 			else
 				print "<meta http-equiv='refresh' content='0;URL=../finans/kladdeliste.php'>";
 		} else {
+			$page_display = false;
 			$a--;
 			$tidspkt = $a . " " . $b; #der fratraekkes 1. sec af hensyn til refreshtjek;
 			db_modify("update kladdeliste set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
 		}
 	}
+/*
 	if (db_fetch_array(db_select("select id from tmpkassekl where kladde_id='$tjek'", __FILE__ . " linje " . __LINE__)))
 		$fejl = 1;
 	else
 		$fejl = 0;
-
+*/
 	if ($r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__))) {
 		$kksort = $r['box1'];
 		$kontrolkonto = $r['box2'];
@@ -251,22 +318,22 @@ if ($_GET) {
 	$x               = (int) if_isset($_GET['x'], 0);
 	$id[$x]          =       if_isset($_GET['id']);
 	$lobenr[$x]      =       if_isset($_GET['lobenr']);
-	$kladde_id       = (int) if_isset($_GET['kladde_id'], 0);
-	$bilag[$x]       = (int) if_isset($_GET['bilag'], 0);
-	$dato[$x]        =       if_isset($_GET['dato']);
-	$beskrivelse[$x] =       if_isset($_GET['beskrivelse']);
-	$d_type[$x]      =       if_isset($_GET['d_type']);
-	$debet[$x]       =       if_isset($_GET['debet']);
-	$k_type[$x]      =       if_isset($_GET['k_type']);
-	$kredit[$x]      =       if_isset($_GET['kredit']);
-	$faktura[$x]     =       if_isset($_GET['faktura']);
+	$kladde_id       = (int) if_isset($_GET,0,'kladde_id');
+	$bilag[$x]       = (int) if_isset($_GET,0,'bilag');
+	$dato[$x]        =       if_isset($_GET,'','dato');
+	$beskrivelse[$x] =       if_isset($_GET,'','beskrivelse');
+	$d_type[$x]      =       if_isset($_GET,'','d_type');
+	$debet[$x]       =       if_isset($_GET,'','debet');
+	$k_type[$x]      =       if_isset($_GET,'','k_type');
+	$kredit[$x]      =       if_isset($_GET,'','kredit');
+	$faktura[$x]     =       if_isset($_GET,'','faktura');
 	$belob[$x]       =       if_isset($_GET['belob']);
-	$momsfri[$x]     =       if_isset($_GET['momsfri'], '');
-	$afd[$x]         =       if_isset($_GET['afd'], '');
-	$projekt[$x]     =       if_isset($_GET['projekt'], '');
-	$ansat[$x]       =       if_isset($_GET['ansat'], '');
-	$valuta[$x]      =       if_isset($_GET['valuta'], '');
-	$find            =       if_isset($_GET['find'], '');
+	$momsfri[$x]     =       if_isset($_GET,'','momsfri');
+	$afd[$x]         =       if_isset($_GET,'','afd');
+	$projekt[$x]     =       if_isset($_GET,'','projekt');
+	$ansat[$x]       =       if_isset($_GET,'','ansat');
+	$valuta[$x]      =       if_isset($_GET,'','valuta');
+	$find            =       if_isset($_GET,'','find');
 	$beskrivelse[$x] =  trim(if_isset($beskrivelse[$x], ''));
 	$d_type[$x]      =  trim(if_isset($d_type[$x], ''));
 	$debet[$x]       =  trim(if_isset($debet[$x], ''));
@@ -424,16 +491,21 @@ if ($_POST) {
 				&& !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x] && !$faktura[$x] && !$belob[$x]
 			) {
 				$bilag[$x] = '-'; #20170418
+				$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
 			} elseif (
 				$submit != 'lookup' && (!$bilag[$x] || $bilag[$x] == $bilag[$x - 1]) && (!$dato[$x] || $dato[$x] == $dato[$x - 1])
 				&& (!$beskrivelse[$x] || $beskrivelse[$x] == $beskrivelse[$x - 1]) && !$d_type[$x] && !$k_type[$x] && !$debet[$x]
 				&& !$kredit[$x] && !$faktura[$x] && !$belob[$x]
 			) {
 				$bilag[$x] = '-'; #20230302
+				$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
 			}
 		} elseif (!$bilag[$x] && !$dato[$x] && !$beskrivelse[$x] && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x])
 			$bilag[$x] = '-';
-		elseif ($bilag[$x - 1] == '-' && $dato[$x] == $dato[$x - 2] && !$beskrivelse[$x] && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x]) $bilag[$x] = '-'; # 20170419
+		elseif ($bilag[$x - 1] == '-' && $dato[$x] == $dato[$x - 2] && !$beskrivelse[$x] && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x]) {
+			$bilag[$x] = '-'; # 20170419
+			$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
+		}
 		if (($bilag[$x] == "-*")) $sletrest = 1;
 		if ($sletrest) $bilag[$x] = '-';
 		if (($bilag[$x] == "=*")) $restlig = 1;
@@ -441,7 +513,10 @@ if ($_POST) {
 		if ($bilag[$x] == "=")               $bilag[$x]        = $bilag[$x - 1];
 		if ($bilag[$x] == "+")               $bilag[$x]        = $bilag[$x - 1] + 1;
 		if (substr($bilag[$x], 0, 1) == "+") $bilag[$x]        = $bilag[$x - 1] + 1;
-		if (!$dato[$x] || $dato[$x] == '=')  $dato[$x]         = $dato[$x - 1];
+		# 20251217 OLD CODE - date was copied even for deleted rows causing empty rows to show date/amount/currency
+		# if (!$dato[$x] || $dato[$x] == '=')  $dato[$x]         = $dato[$x - 1];
+		# 20251217 NEW CODE - Don't copy date for rows marked for deletion (bilag = '-')
+		if ($bilag[$x] != '-' && (!$dato[$x] || $dato[$x] == '='))  $dato[$x] = $dato[$x - 1];
 		if ($beskrivelse[$x] == "=")         $beskrivelse[$x]  = $beskrivelse[$x - 1];
 		if ($d_type[$x] == "=")              $d_type[$x]       = $d_type[$x - 1];
 		if ($debet[$x] == "=")               $debet[$x]        = $debet[$x - 1];
@@ -460,14 +535,18 @@ if ($_POST) {
 		if ($kredit[$x])                     $kontrolsum       = $kontrolsum - $dkkamount[$x];
 		$bilagssum[$x] = $kontrolsum;
 		# fjerner autogenererede linjer hvis bilaget er i balance
-		if (!$kontrolsum && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x] && $bilag[$x] == $bilag[$x - 1] && $dato[$x] == $dato[$x - 1] && $beskrivelse[$x] == $beskrivelse[$x - 1])
+		if (!$kontrolsum && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x] && $bilag[$x] == $bilag[$x - 1] && $dato[$x] == $dato[$x - 1] && $beskrivelse[$x] == $beskrivelse[$x - 1]) {
 			$bilag[$x] = "-";
+			$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
+		}
 		if ((!$sletslut) && ($bilag[$x] == "->")) {
 			$sletstart = $x;
 			$bilag[$x] = "-";
+			$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
 		}
 		if ($bilag[$x] == "<-") {
 			$bilag[$x] = "-";
+			$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
 			if ((!$sletslut) && ($sletstart))
 				$sletslut = $x;
 		}
@@ -852,6 +931,7 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 			$alert = findtekst('1583|Brug af refresh konstateret - handling ignoreret', $sprog_id); //Brug af refresh konstateret - handling ignoreret
 			print "<BODY onLoad=\"javascript:alert('$alert')\">";
 		} else {
+			$page_display = false;
 			$qtxt = "update kladdeliste set hvem = '$brugernavn', tidspkt='$tidspkt'";
 			if ($ny_kladdenote) {
 				$qtxt .= ", kladdenote = '$ny_kladdenote' ";
@@ -946,7 +1026,7 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 						financeLookup($find, 'kontonr', $fokus, $opslag_id, $id[$opslag_id], $kladde_id, $bilag[$opslag_id], $dato[$opslag_id], $beskrivelse[$opslag_id], $d_type[$opslag_id], $debet[$opslag_id], $k_type[$opslag_id], $kredit[$opslag_id], $faktura[$opslag_id], $belob[$opslag_id], $momsfri[$opslag_id], $afd[$opslag_id], $projekt[$opslag_id], $ansat[$opslag_id], $valuta[$opslag_id], $forfaldsdato[$opslag_id], $betal_id[$opslag_id], $opslag_id);
 					}
 				}
-				if ((strstr($fokus, "fakt")) || (strstr($fokus, "belo"))) {
+				if ((strstr($fokus, "fakt"))) {
 					include("kassekladde_includes/openpost_inc.php");
 					openpost($find, 'firmanavn', $fokus, $opslag_id, $id[$opslag_id], $kladde_id, $bilag[$opslag_id], $dato[$opslag_id], $beskrivelse[$opslag_id], $d_type[$opslag_id], $debet[$opslag_id], $k_type[$opslag_id], $kredit[$opslag_id], $faktura[$opslag_id], $belob[$opslag_id], $momsfri[$opslag_id], $afd[$opslag_id], $projekt[$opslag_id], $ansat[$opslag_id], $valuta[$opslag_id], $forfaldsdato[$opslag_id], $betal_id[$opslag_id], $opslag_id);
 				}
@@ -971,10 +1051,10 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 			if ($submit == 'simulate') { #20210721
 				print "<meta http-equiv='refresh' content='0;URL=../finans/bogfor.php?kladde_id=$kladde_id&funktion=simuler'>";
 				/*
-																																		#				?>
-																																		#				<body onload="simuler()">
-																																		#				<?php
-																																		*/
+																								#?>
+																								#<body onload="simuler()">
+																								#<?php
+																								*/
 			}
 			#if (strstr($submit,"Bogf"))	{
 			if ($submit == 'doPost') {
@@ -1048,6 +1128,7 @@ if (strlen($kontrolkonto)>1) setcookie("saldi_ktrkto",$kontrolkonto,time()+60*60
 else setcookie("saldi_ktrkto",$kontrolkonto,time()-3600);
 ob_end_flush();	//Sender det "bufferede" output afsted...
 */
+
 if ($kladde_id) {
 	$query = db_select("select kladdenote, bogfort from kladdeliste where id = $kladde_id", __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
@@ -1058,12 +1139,22 @@ $x = 0;
 ($visipop) ? $ny = NULL : $ny = findtekst('39|Ny', $sprog_id); #20210628
 
 if (!$simuler) {
+
+	if ($returside == "kontospec.php") {
+		$backUrl = "kontospec.php";
+	} else {
+		$backUrl = "../finans/kladdeliste.php";
+	}
 	if ($returside != "regnskab") {
 		$returside = "../finans/kladdeliste.php";
 	}
+
 	($udskriv) ? $height = '' : $height = 'height="100%"';
+	if ($udskriv) {
+		print "<div class='print-view'>";
+	}
 	if ($menu != 'T') {
-		print "<table width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
+		#print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
 	}
 	if (!$udskriv) {
 		if ($menu == 'T') {
@@ -1072,140 +1163,921 @@ if (!$simuler) {
 
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			print "<div id='header'>";
-			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id&line=". __line__ .";','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 			print "<div class='headerTxt'>$title &nbsp;•&nbsp; $kladde_id</div>";
-			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\"' title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
+			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id&line=". __line__ .";','$tekst')\"' title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
 			print "</div>";
 			print "<div class='content-noside'>";
 
 		} elseif ($menu=='S') {
-			print "<tr><td height='1%' align='center' valign='top'>";
-			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
-
-			print "<td width='10%'>";
-			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
-			print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>";
-			print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-			print "<td width='80%' style='$topStyle' align='center'> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
-
-			print "<td id='tutorial-help' width=5% style=$buttonStyle>
-			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-				".findtekst('2564|Hjælp', $sprog_id)."  
-			</button></td>";
-
-			print "<td width='10%'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>";
-			print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">$ny</button></a></td></tr>";
+			include_once 'kassekladde_includes/topLineKassekladde.php';
 		} else {
-			print "<tr><td height='1%' align='center' valign='top'>";
+			print "<tr><td height='1%' align='center' valign='top' class='top-header'>"; 
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
 			if ($popup) print "<td onClick='JavaScript:opener.location.reload();' width='10%' $top_bund>";
 			else print "<td $top_bund>";
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			if ($popup || $visipop) {
-				print "<a href=\"javascript:confirmClose('../includes/luk.php?tabel=kladdeliste&amp;id=$kladde_id&exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+				print "<a href=\"javascript:confirmClose('../includes/luk.php?tabel=kladdeliste&amp;id=$kladde_id&exitDraft=$kladde_id&line=". __line__ .";','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			} else {
-				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id&line=". __line__ .";&line=". __line__ .";','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			}
 			print "<td width='80%' $top_bund> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
-			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>$ny</a></td></tr>";
+			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id&line=". __line__ .";&line=". __line__ .";','$tekst')\" accesskey='N'>$ny</a></td></tr>";
+			print "</tbody></table>"; # Tabel 1.1 <- Toplinje
+			print "</td></tr>\n";
 		}
-		print "</tbody></table>"; # Tabel 1.1 <- Toplinje
-		print "</td></tr>\n";
 	}
 }
-if (!$udskriv) {
-	print "<form name='kassekladde' id='kassekladde' action='../finans/kassekladde.php?kksort=$kksort' method='post'>";
-	print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
-	print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
 
-	print "<tr><td width='100%' valign='top' height='1%\ align='center'>
-		   <table width='100%' cellpadding='0' cellspacing='0' border='0' align = 'center' valign = 'top'>";
-	print "<tbody>"; # Tabel 1.2 -> bemærkningstekst
-	print "<tr>";
-	print "<td width = '14%'></td>";
-	print "<td align='left'><b><span title= '" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</b>
-	<input class='inputbox' type='text' style='width:750px' name=ny_kladdenote value='$kladdenote'
-	onchange='javascript:docChange = true;'></td>";
-	if ($bogfort == "-") {
-		if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
-		if ($kontrolkonto == "-") $kontrolkonto = "";
-		print "<td></td><td><span title= '" . findtekst('1560|Angiv kontonummer til kontrol af kontobevægelser', $sprog_id) . "'><input class='inputbox' type='text' style='text-align:right;width:80px' name='kontrolkonto' value='$kontrolkonto' placeholder = 'kontrolkonto' onchange='javascript:docChange = true;'></td>";
-		#	} elseif ($bogfort!="S") {
-	} else {
-		print "<td></td><td width='80px' align='center'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px;float:left' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
-	}
-	print "<td></td><td width = '7%' align='center'>
-		<a href='../finans/kassekladde.php?kladde_id=$kladde_id&udskriv=1' target='blank'>
-		<img src='../ikoner/print.png' style='border: 0px solid;'></a></td>
-		<td width = '7%' align = 'center'><a href = https://saldi.dk/dok/ledgerGuide.pdf target = '_blank' id='questionmark'>?</a></td></tr>\n";
-	#print "</tr><tr><td><br color='$bgcolor5' 'align='center''></td></tr>\n";
-	print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
+function build_kassekladde_query($kladde_id, $kksort) {
+    $query = "
+         SELECT 
+            k.id,
+            k.bilag,
+            k.transdate,
+            k.beskrivelse,
+            k.d_type,
+            k.debet,
+            k.k_type,
+            k.kredit,
+            k.faktura,
+            k.amount as belob,
+            k.momsfri,
+            k.afd,
+            k.ansat,
+            k.projekt,
+            k.valuta,
+            k.forfaldsdate,
+            k.betal_id,
+            k.pos,
+            k.dokument,
+            k.saldo
+        FROM kassekladde k
+        WHERE k.kladde_id = '$kladde_id' AND {{WHERE}}
+        ORDER BY {{SORT}}
+    ";
+    return $query;
+}
+
+// Define columns for the grid
+$columns = array(
+    // Bilag clip column (if vis_bilag is enabled)
+    array(
+    'field' => 'clip',
+    'headerName' => '',
+    'type' => 'text',
+    'width' => '0.5',
+    'sortable' => false,
+    'searchable' => false,
+    'hidden' => !$vis_bilag,
+    'render' => function($value, $row, $column) use ($kladde_id, $sprog_id) {
+        $id = $row['id'];
+        $bilag = $row['bilag'];
+        $dokument = $row['dokument'];
+        
+        // Check documents table for attached files
+        $qtxt = "select id, filename from documents where source = 'kassekladde' and source_id = '$id' order by id limit 1";
+        $docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+        
+        $hasDoc = ($dokument || $docRow) ? true : false;
+        
+        if ($hasDoc) {
+            $clip = 'paper.png';
+            $titletxt = findtekst(1454, $sprog_id);
+            $href = "../includes/documents.php?source=kassekladde&sourceId=$id&kladde_id=$kladde_id&bilag=$bilag&fokus=bila";
+        } else {
+            $clip = 'clip.png';
+            $titletxt = findtekst(1455, $sprog_id);
+            $href = "../includes/documents.php?source=kassekladde&sourceId=$id&kladde_id=$kladde_id&bilag=$bilag&fokus=bila&openPool=1";
+        }
+        
+        $dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id, \"" . htmlspecialchars($bilag) . "\")'" : "";
+        $dropAttr = "";
+        $dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
+        
+        $txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
+        return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
+            <a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L' $dragAttr>
+            <img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></a>
+        </td>";
+    }
+),
+    
+    // Bilag number
+    array(
+        'field' => 'bilag',
+        'headerName' => findtekst('671|Bilag', $sprog_id),
+        'type' => 'text',
+        'width' => '1',
+        'align' => 'right',
+        'sortable' => true,
+        'searchable' => true,
+        'defaultSort' => true,
+		"sqlOverride" => "k.bilag",
+		"valueGetter" => function ($value, $row, $column) {
+			return $value;
+		},
+		"generateSearch" => function ($column, $term) {
+			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
+			$term = db_escape_string(trim($term, "'"));
+			
+			if (empty($term)) {
+				return "1=1";
+			}
+			
+			// Cast integer field to text for ILIKE search
+			return "$field::text ILIKE '%$term%'";
+		},
+        'defaultSortDirection' => 'asc'
+    ),
+    
+    // Date
+    array(
+        'field' => 'transdate',
+        'headerName' => findtekst('635|Dato', $sprog_id),
+        'type' => 'text',
+        'width' => '1.5',
+		 'align' => 'center',
+        'sortable' => true,
+        'searchable' => true,
+		"sqlOverride" => "k.transdate",
+        'valueGetter' => function($value, $row, $column) {
+            return dkdato($value);
+        },
+	 'generateSearch' => function ($column, $term) {
+        return generateSearch($column, $term);
+      },
+    ),
+    
+    // Description
+    array(
+        'field' => 'beskrivelse',
+        'headerName' => findtekst('1068|Bilagstekst', $sprog_id),
+        'type' => 'text',
+        'width' => '3',
+        'sortable' => false,
+        'searchable' => true
+    ),
+    
+    // D/K Type for Debet
+    array(
+        'field' => 'd_type',
+        'headerName' => 'D/K',
+        'type' => 'text',
+        'width' => '0.5',
+        'align' => 'center',
+        'sortable' => false,
+        'searchable' => false
+    ),
+    
+    // Debet
+    array(
+        'field' => 'debet',
+        'headerName' => findtekst('1000|Debet', $sprog_id),
+        'type' => 'text',
+        'width' => '1.5',
+        'align' => 'left',
+        'sortable' => true,
+       'defaultSort' => true,
+		"sqlOverride" => "k.debet",
+		"valueGetter" => function ($value, $row, $column) {
+			return $value;
+		},
+		"generateSearch" => function ($column, $term) {
+			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
+			$term = db_escape_string(trim($term, "'"));
+			
+			if (empty($term)) {
+				return "1=1";
+			}
+			
+			// Cast integer field to text for ILIKE search
+			return "$field::text ILIKE '%$term%'";
+		},
+        'defaultSortDirection' => 'asc'
+    ),
+    
+    // D/K Type for Kredit
+    array(
+        'field' => 'k_type',
+        'headerName' => 'D/K',
+        'type' => 'text',
+        'width' => '0.5',
+        'align' => 'center',
+        'sortable' => false,
+        'searchable' => false
+    ),
+    
+    // Kredit
+    array(
+        'field' => 'kredit',
+        'headerName' => findtekst('1001|Kredit', $sprog_id),
+        'type' => 'text',
+        'width' => '1.5',
+        'align' => 'left',
+         'sortable' => true,
+        'defaultSort' => true,
+		"sqlOverride" => "k.kredit",
+		"valueGetter" => function ($value, $row, $column) {
+			return $value;
+		},
+		"generateSearch" => function ($column, $term) {
+			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
+			$term = db_escape_string(trim($term, "'"));
+			
+			if (empty($term)) {
+				return "1=1";
+			}
+			
+			// Cast integer field to text for ILIKE search
+			return "$field::text ILIKE '%$term%'";
+		},
+        'defaultSortDirection' => 'asc'
+    ),
+    
+    // Faktura
+    array(
+        'field' => 'faktura',
+        'headerName' => findtekst('828|Fakturanr.', $sprog_id),
+        'type' => 'text',
+        'width' => '1.5',
+        'align' => 'right',
+        'sortable' => false,
+        'searchable' => true
+    ),
+    
+    // Amount/Beløb
+    array(
+        'field' => 'belob',
+        'headerName' => findtekst('934|Beløb', $sprog_id),
+        'type' => 'text',
+        'width' => '1.5',
+        'align' => 'right',
+        'sortable' => true,
+        'searchable' => true,
+        // 'decimalPrecision' => 2,
+       'defaultSort' => true,
+		"sqlOverride" => "k.amount",
+		"valueGetter" => function ($value, $row, $column) {
+			return $value;
+		},
+		"generateSearch" => function ($column, $term) {
+			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
+			$term = db_escape_string(trim($term, "'"));
+			
+			if (empty($term)) {
+				return "1=1";
+			}
+			
+			// Cast integer field to text for ILIKE search
+			return "$field::text ILIKE '%$term%'";
+		},
+        'defaultSortDirection' => 'asc'
+    ),
+    
+    // Afdeling (if visible)
+    array(
+        'headerName' => findtekst('2464|Afd.', $sprog_id),
+        'type' => 'number',
+        'width' => '1',
+        'align' => 'right',
+			'sortable' => false,
+        'searchable' => false,
+        'hidden' => !$vis_afd
+	
+    ),
+    
+    // Ansat (if visible)
+    array(
+        'headerName' => findtekst('589|Ansat', $sprog_id),
+        'type' => 'text',
+        'width' => '1',
+        'hidden' => !$vis_ansat,
+		 'sortable' => false,
+        'searchable' => false
+    ),
+    
+    // Projekt (if visible)
+    array(
+        'headerName' => 'Proj.',
+        'type' => 'number',
+        'width' => '1',
+        'align' => 'right',
+		 'sortable' => false,
+        'searchable' => false,
+        'hidden' => !$vis_projekt
+		
+    ),
+    
+    // Valuta (if visible)
+    array(
+        'headerName' => findtekst('1069|Valuta', $sprog_id),
+        'type' => 'text',
+        'width' => '1',
+        'hidden' => !$vis_valuta,
+		 'sortable' => false,
+        'searchable' => false
+        
+    ),
+    
+    // Forfald (if there are debitor/kreditor entries)
+    array(
+        'field' => 'forfaldsdate',
+        'headerName' => findtekst('1070|Forfald', $sprog_id),
+        'type' => 'text',
+        'width' => '1.5',
+        'sortable' => true,
+        'searchable' => true,
+        "sqlOverride" => "k.forfaldsdate",
+        'valueGetter' => function($value, $row, $column) {
+            return dkdato($value);
+        },
+		'generateSearch' => function ($column, $term) {
+			return generateSearch($column, $term);
+		},
+    ),
+    
+    // Betalings-ID (if visible)
+    array(
+        'field' => 'betal_id',
+        'headerName' => findtekst('2534|Betalings-ID', $sprog_id),
+        'type' => 'text',
+        'width' => '1.5',
+         'sortable' => false,
+        'searchable' => false,
+        'hidden' => !($vis_forfald && $vis_bet_id)
+    ),
+    
+    // Momsfri
+    array(
+        'field' => 'momsfri',
+        'headerName' => findtekst('2589|u/m', $sprog_id),
+        'type' => 'text',
+        'width' => '0.5',
+        'align' => 'center',
+        'sortable' => false,
+        'searchable' => false,
+        'render' => function($value, $row, $column) {
+            return "<td align='center'>" . (strstr($value, 'on') ? 'V' : '') . "</td>";
+        }
+    ),
+    
+    // Position
+    array(
+        'field' => 'pos',
+        'headerName' => 'Position',
+        'type' => 'text',
+        'width' => '1',
+        'align' => 'center',
+         'sortable' => false,
+        'searchable' => false
+    )
+);
+##########
+function generateSearch(array $column, string $term): string
+{
+    $field = !empty($column['sqlOverride']) ? $column['sqlOverride'] : $column['field'];
+    $term  = trim($term);
+
+    if ($term === '') {
+        return "1=1";
+    }
+
+    // single date
+    if (preg_match('/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/', $term, $matches)) {
+        $sqlDate = db_escape_string(
+            $matches[3] . '-' .
+            str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' .
+            str_pad($matches[1], 2, '0', STR_PAD_LEFT)
+        );
+        return "$field = '$sqlDate'";
+    }
+
+    // date range
+    if (strpos($term, ':') !== false) {
+        [$date1, $date2] = array_map('trim', explode(':', $term, 2));
+
+        if ($date1 === '' || $date2 === '') {
+            return "1=1";
+        }
+
+        if (preg_match('/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/', $date1, $m1)) {
+            $date1 = $m1[3] . '-' . str_pad($m1[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($m1[1], 2, '0', STR_PAD_LEFT);
+        }
+
+        if (preg_match('/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/', $date2, $m2)) {
+            $date2 = $m2[3] . '-' . str_pad($m2[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($m2[1], 2, '0', STR_PAD_LEFT);
+        }
+
+        return sprintf(
+            "%s >= '%s' AND %s <= '%s'",
+            $field,
+            db_escape_string($date1),
+            $field,
+            db_escape_string($date2)
+        );
+    }
+
+    $term = db_escape_string($term);
+    return "$field::text ILIKE '%$term%'";
+}
+
+#########
+// Add metaColumn for undo button if bogført
+$metaColumnFn = null;
+if (!$udskriv && $bogfort != 'S') {
+    $metaColumnFn = function($row) use ($kladde_id) {
+		global $sprog_id;
+        $id = $row['id'];
+        return "<td title='" . findtekst('1574|Tilbagefør postering', $sprog_id) . "'>
+            <a href='../finans/kassekladde.php?kladde_id=$kladde_id&ompost=$id' id='undo'>
+            <img alt='undo' src='../ikoner/undo.png' style='border: 0px solid; width: 18px; height: 17px;'></a>
+        </td>";
+    };
+}
+
+$metaColumnHeaders = array();
+if (!$udskriv && $bogfort != 'S') {
+    $metaColumnHeaders[] = ''; // Empty header for undo button column
+}
+
+// Define filters 
+$filters = array();
+
+// Build the grid data structure
+$grid_data = array(
+    'query' => build_kassekladde_query($kladde_id, $kksort),
+    'columns' => $columns,
+    'filters' => $filters,
+    'metaColumn' => $metaColumnFn,           
+    'metaColumnHeaders' => $metaColumnHeaders  
+);
+
+// Add row styling function if kontrolkonto is set
+$rowStyleFn = null;
+if ($kontrolkonto) {
+    $rowStyleFn = function($row) {
+        // Add any special row styling
+        return '';
+    };
+}
+###############################
+print '<style>
+   
+    /* Sticky footer for action buttons */
+    .kassekladde-footer {
+        position: sticky;
+        bottom: 0;
+        background-color: #f1f1f1;
+        z-index: 9;
+        padding: 8px 0;
+        border-top: 1px solid #ccc;
+    }
+
+    /* Border radius for buttons */
+    input[type="submit"],
+    input[type="button"],
+    button,
+    .button {
+        border-radius: 4px;
+    }
+
+    /* Print styles */
+    @media print {
+        /* Hide navigation and non-essential elements - including Saldi framework elements */
+        .sidebar,
+        .side-menu,
+        .left-menu,
+        #sidebar,
+        #side-menu,
+        #left-menu,
+        nav,
+        .nav,
+        .navigation,
+        .top-menu,
+        #top-menu,
+        .top-header,
+        .kassekladde-note-tb,
+        .table-con,
+        .header-row,
+        .kassekladde-footer,
+        #header,
+        .headerbtnLft,
+        .headerbtnRght,
+        .content-noside > div:first-child,
+        form input[type="submit"],
+        form input[type="button"],
+        .button,
+        a[href*="print"],
+        #questionmark,
+        footer,
+        .footer,
+        #footer,
+        .top_menu,
+        #top_menu,
+        .side_menu,
+        #side_menu,
+        .fixedFooter,
+        #footer-box,
+        /* Saldi framework specific elements */
+        .navbar,
+        .logobar,
+        .menuBar,
+        .dropdownMenu,
+        .dropDown,
+        .dropDownbtn,
+        .dropdownContent-Fin,
+        .dropdownContent-Kun,
+        .dropdownContent-Lev,
+        .dropdownContent-Lag,
+        .dropdownContent-Sys,
+        .dropdownContent-Bru,
+        .logo-link,
+        .logo-container,
+        .logo,
+        .logo-name,
+        .logoimg,
+        .leftmenuholder,
+        .leftmenu,
+        .leftmenuhead,
+        #leftmenuholder {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
+            width: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Reset sticky and fixed positioning */
+        .kassekladde-thead {
+            position: static !important;
+            background-color: transparent !important;
+        }
+        
+        * {
+            position: static !important;
+            box-sizing: border-box !important;
+        }
+        
+        /* Critical fix for Chrome blank page issue */
+        html, body {
+            margin: 0 !important;
+            padding: 10px !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        
+        .content-noside {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        
+        /* Reset Saldi content container margins - .content has margin-top: 70px for fixed nav */
+        .content {
+            margin: 0 !important;
+            margin-top: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            min-width: 0 !important;
+        }
+        
+        /* Flex container reset */
+        .flex-container {
+            display: block !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            justify-content: initial !important;
+        }
+        
+        /* Fix table height issues that cause blank pages */
+        table {
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            page-break-inside: auto;
+            border-collapse: collapse;
+        }
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+            height: auto !important;
+        }
+        thead {
+            display: table-header-group;
+        }
+        td, th {
+            overflow: visible !important;
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            text-overflow: clip !important;
+            padding: 4px 8px !important;
+            max-width: none !important;
+            height: auto !important;
+        }
+        
+        /* Critical fix for outerTable height=100% HTML attribute */
+        .outerTable,
+        .outerTable tbody,
+        .outerTable tr,
+        .outerTable td {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        
+        /* Reset any div with height: 100% */
+        div.vindue,
+        .print-view,
+        div {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        
+        /* Global table reset for print - remove all borders */
+        table, tr, td, th {
+            border: none !important;
+            border-collapse: collapse !important;
+        }
+
+        /* Ensure data table is visible and properly styled */
+        .dataTable, .dataTableForm, .outerTable, .formnavi, .print-view table {
+            display: table !important; /* Restore table display to prevent clipping */
+            border-collapse: collapse !important;
+            border: none !important;
+            height: auto !important;
+            min-height: 0 !important;
+            width: 100% !important;
+            font-size: 7pt !important; /* Further reduced font size to fit all 16 columns */
+            table-layout: auto !important; /* Allow browser to balance column widths */
+        }
+        
+        .dataTable td, .dataTableForm td, .outerTable td, .formnavi td, .print-view td,
+        .dataTable th, .dataTableForm th, .outerTable th, .formnavi th, .print-view th {
+            border: none !important;
+            border-bottom: 1px solid #eee !important;
+            background-color: transparent !important;
+            padding: 2px 1px !important; /* Minimal padding */
+            word-wrap: break-word !important;
+        }
+
+        /* Target the description/text column specifically to prevent it from being too wide */
+        .dataTable td:nth-child(3), .dataTableForm td:nth-child(3) {
+            max-width: 200px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        .dataTable th, .dataTableForm th, .outerTable th, .formnavi th, .print-view th {
+            background-color: #f2f2f2 !important;
+            font-weight: bold !important;
+            text-align: left !important;
+            border-bottom: 2px solid #ccc !important;
+            white-space: nowrap !important;
+        }
+
+        /* Zebra striping for rows */
+        .dataTable tbody tr:nth-child(even), 
+        .dataTableForm tbody tr:nth-child(even),
+        .formnavi tbody tr:nth-child(even),
+        .print-view tbody tr:nth-child(even),
+        tr.table-row:nth-child(even) {
+            background-color: #f2f2f2 !important;
+        }
+
+        /* Restore columns previously hidden */
+        .drag-handle, .clip-cell, .clip-icon {
+            display: table-cell !important; /* Restore visibility */
+            width: auto !important;
+            padding: 2px !important;
+        }
+
+        /* Remove input borders and backgrounds in print */
+        input.inputbox, select.inputbox, input[type="text"], input[type="checkbox"], input[type="button"], input[type="submit"] {
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            color: black !important;
+            width: 100% !important; /* Allow inputs to fill cell width */
+            min-width: 0 !important;
+        }
+        
+        /* Ensure all content is visible */
+        .formnavi, .dataTableForm, .kassekladde-scroll-container, .print-view {
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
+            display: block !important;
+            width: 100% !important;
+        }
+        
+        .kassekladde-scroll-container {
+            display: block !important;
+        }
+        
+        /* Hide top menu and navigation bars */
+        .logobar,
+        .navbar,
+        .menuBar,
+        .dropdownMenu,
+        .logo-bg,
+        .logo,
+        .logo-container,
+        .content-noside > .headLink,
+        .top-header-container {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            min-height: 0 !important;
+        }
+        
+        /* Force override of HTML height attributes on tables */
+        table[height] {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        
+        /* Additional body reset */
+        body {
+            padding-bottom: 0 !important;
+            margin-bottom: 0 !important;
+        }
+        
+        /* Switch to landscape orientation to fit all columns */
+        @page {
+            size: landscape;
+            margin: 0.5cm;
+        }
+    }
+		
+</style>';
+//For grid print, use the customized grid print.
+  print "<script>
+// No override for window.print to allow native browser print dialog
+</script>";
+
+##################
+
+if (!$udskriv) {
+$action_url = "../finans/kassekladde.php?kksort=$kksort";
+if ($kladde_id) {
+    $action_url .= "&kladde_id=$kladde_id";
+}
+if ($tjek) {
+    $action_url .= "&tjek=$tjek";
+}
+	print "<form name='kassekladde' id='kassekladde' action='$action_url' method='post'>";
+print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
+print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
+print "<tr><td width='100%' valign='top' height='1%' align='center' class='kassekladde-note-tb'>
+       <table width='100%' cellpadding='0' cellspacing='0' border='0' align='center' valign='top'>";
+print "<tbody>"; # Tabel 1.2 -> bemærkningstekst  
+print "<tr style='vertical-align: middle;'>"; # Added vertical-align
+print "<td width='14%'></td>";
+print "<td align='left' style='white-space: nowrap;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
+<input class='inputbox' type='text' style='width:750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
+onchange='javascript:docChange = true;'></td>";
+if ($bogfort == "-") {
+	$page_display = false;
+    if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
+    if ($kontrolkonto == "-") $kontrolkonto = "";
+    print "<td style='padding-left: 10px;'></td><td style='vertical-align: middle;'><span title='" . findtekst('1560|Angiv kontonummer til kontrol af kontobevægelser', $sprog_id) . "'><input class='inputbox' type='text' style='text-align:right;width:80px; vertical-align: middle;' name='kontrolkonto' value='$kontrolkonto' placeholder='kontrolkonto' onchange='javascript:docChange = true;'></span></td>";
+} else {
+    print "<td style='padding-left: 10px;'></td><td width='120px' align='left' style='vertical-align: middle;'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px; vertical-align: middle;' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
+}
+print "<td width='7%' align='center' style='vertical-align: middle;'>
+    <a href='javascript:void(0)' onclick='window.print(); return false;'>
+    <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;' title='Print'></a></td>
+    <td width='7%' align='center' style='vertical-align: middle;'><a href='https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' id='questionmark'>?</a></td></tr>\n";
+print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
-	# ####################################################################################################
+	
 }
 if ($udskriv)
 	print "<tr><td style='width:100%;'>";
 else
 	print "<tr><td style='height:100%;width:100%;'>";
+
+##########################
+// Create the datagrid
 if (($bogfort && $bogfort != '-') || $udskriv) {
-	if ($menu == 'T') {
-		print "<br><center><table class='dataTable' width='100%' cellpadding='1' cellspacing='3' border='0' align = 'center' valign = 'top'>";
-	} else {
-		print "<table cellpadding='1' cellspacing='3' border='0' align = 'center' valign = 'top'>";
-	}
-}
-#elseif ($browser=="opera" || $browser=="firefox") print "<table cellpadding='0' cellspacing='0' border='0' align = 'center' valign = 'top'>";
-else
-	print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
-// print "<tbody>"; # Tabel 1.3 -> kladdelinjer
-// print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
-print "<thead>";
+   # echo "<center>";
+    if (!$udskriv) {  // Close the form if it's open Searches don't work without this
+        print "</form>";
+    }
+	print "<div style='width: 100%; height: calc(98vh - 34px - 18px);'>";
+		create_datagrid("kass_$brugernavn", $grid_data);
+	print "</div>";
+	########
+	 // Add preserved parameters 
+    echo <<<SCRIPT
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('#datatable-wrapper-kass_$brugernavn form');
+        if (form) {
+            // Add kladde_id
+            const kladdeInput = document.createElement('input');
+            kladdeInput.type = 'hidden';
+            kladdeInput.name = 'kladde_id';
+            kladdeInput.value = '$kladde_id';
+            form.appendChild(kladdeInput);
+            
+            // Add tjek
+            const tjekInput = document.createElement('input');
+            tjekInput.type = 'hidden';
+            tjekInput.name = 'tjek';
+            tjekInput.value = '$tjek';
+            form.appendChild(tjekInput);
+        }
+    });
+    </script>
+SCRIPT;
+	########
+	
+	
+}else{
+	if($bogfort != 'V' ){
+		print "<div class='kassekladde-scroll-container'>";  
+		print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
+		
+		// print "<tbody>"; # Tabel 1.3 -> kladdelinjer
+		// print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
+		print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
+		print "<tr class='table-krow'><td colspan='22' style='padding: 10px 0;'></td></tr>";
+		print "<tr>";
+		if ($vis_bilag && !$fejl && !$udskriv)
+			print "<td></td>";
+		print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
+		print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmyy (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
+		print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
+		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
+		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
+		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
+		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Debet', $sprog_id)) . "</b></td>";
+		print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td>";
+		print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
 
-print "<tr>";
-if ($vis_bilag && !$fejl && !$udskriv)
-	print "<td></td>";
-print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
-print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmyy (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
-print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
-print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
-print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
-print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
-print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Debet', $sprog_id)) . "</b></td>";
-print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td>";
-print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
-if ($vis_afd)
-	print "<td align = left><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
-if ($vis_ansat)
-	print "<td align = left><b> <span title= '" . findtekst('1568|Angiv hvilken ansat posteringen hører under', $sprog_id) . "'>" . findtekst('589|Ansat', $sprog_id) . "</b></td>";
-if ($vis_projekt)
-	print "<td align = left><b> <span title= '" . findtekst('1569|Angiv hvilket projekt posteringen hører under', $sprog_id) . "'>Proj.</b></td>";
-if ($vis_valuta)
-	print "<td align = left><b> <span title= '" . findtekst('1570|Angiv valuta for posteringen', $sprog_id) . "'>" . findtekst('1069|Valuta', $sprog_id) . "</b></td>";
-if (db_fetch_array(db_select("select id from kassekladde where kladde_id = '$kladde_id' and (k_type = 'K' or d_type = 'D')", __FILE__ . " linje " . __LINE__))) {
-	print "<td  align='center'><b> <span title= '" . findtekst('1571|Betalingsdato for debitor- eller kreditorfaktura', $sprog_id) . "'>" . findtekst('1070|Forfald', $sprog_id) . "</b></td>";
-	if ($vis_bet_id)
-		print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalings-ID fra girokort - kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td>";
-}
-print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
-print "<td align='center' width='60px'><b>Position</b></td>";
-if ($kontrolkonto) {
-	print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>".findtekst('2595|Regnskab', $sprog_id)."</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
-	$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
-	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		print "<td style = 'width:20px'></td>";
-		print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
-	}
-}
-#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
-print "</tr>\n";
+		if ($vis_afd)
+			print "<td align = left><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
+		if ($vis_ansat)
+			print "<td align = left><b> <span title= '" . findtekst('1568|Angiv hvilken ansat posteringen hører under', $sprog_id) . "'>" . findtekst('589|Ansat', $sprog_id) . "</b></td>";
+		if ($vis_projekt)
+			print "<td align = left><b> <span title= '" . findtekst('1569|Angiv hvilket projekt posteringen hører under', $sprog_id) . "'>Proj.</b></td>";
+		if ($vis_valuta)
+			print "<td align = left><b> <span title= '" . findtekst('1570|Angiv valuta for posteringen', $sprog_id) . "'>" . findtekst('1069|Valuta', $sprog_id) . "</b></td>";
+		if (db_fetch_array(db_select("select id from kassekladde where kladde_id = '$kladde_id' and (k_type = 'K' or d_type = 'D')", __FILE__ . " linje " . __LINE__))) {
+			print "<td  align='center'><b> <span title= '" . findtekst('1571|Betalingsdato for debitor- eller kreditorfaktura', $sprog_id) . "'>" . findtekst('1070|Forfald', $sprog_id) . "</b></td>";
+			if ($vis_bet_id)
+				print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalings-ID fra girokort - kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td>";
+		}
+		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
+		print "<td align='center' width='60px'><b>Position</b></td>";
+		if ($kontrolkonto) {
+			print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>".findtekst('2595|Regnskab', $sprog_id)."</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
+			$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
+			if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				print "<td style = 'width:20px'></td>";
+				print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
+			}
+		}
+		print "<td align='right' width='30px'><b> <span></b></td>";
+		print "<td align='right' width='30px'><b> <span></b></td>";
+		print "<td align='right' width='30px'><b> <span></b></td>";
+		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'></b></td>";
+		print "</tr>\n";
 
-print "</thead>";
-print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
+		print "</thead>";
+		print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
+		
 
+    }
+
+	   
+}
 #####################################  Output  #################################
 
+
+###################
+
 $r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
+
 if ($r)
 	$kksort = $r['box1'];
 if ($r) $kontrolkonto = $r['box2'];
@@ -1282,6 +2154,7 @@ if ($kksort == 'bilag,transdate') {
 	#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$bilagssum = 0;
+	$x = 0;
 	#cho __line__." $qtxt<br>";
 	while ($row = db_fetch_array($q)) {
 		$x++;
@@ -1396,84 +2269,16 @@ if ($kksort == 'bilag,transdate') {
 	if (!$fejl)
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 }
-for ($y = 1; $y <= $x; $y++)
+
+
+for ($y = 1; $y <= $x; $y++){
 	if (!$fejl)
 		$antal_ex = $x;
+}
+
 if (($bogfort && $bogfort != '-') || $udskriv) {
-	for ($y = 1; $y <= $x; $y++) {
-		if (!$beskrivelse[$y])
-			$beskrivelse[$y] = "&nbsp;";
-		#		if (($d_type[$y]!="D")&&($d_type[$y]!="K")) $d_type[$y]="F"; #phr 20070801
-		if ($debet[$y] < 1) {
-			$debet[$y] = "&nbsp;";
-			$d_type[$y] = "&nbsp;"; #phr 20070801
-		}
-		#		if (($k_type[$y]!="D")&&($k_type[$y]!="K")) $k_type[$y]="F"; #phr 20070801
-		if ($kredit[$y] < 1) {
-			$kredit[$y] = "&nbsp;";
-			$k_type[$y] = "&nbsp;"; #phr 20070801
-		}
-		if (!$faktura[$y])
-			$faktura[$y] = "&nbsp;";
-		($linjebg != $bgcolor) ? $linjebg = $bgcolor : $linjebg = $bgcolor5;
-		print "<tr bgcolor=$linjebg>";
-		if ($vis_bilag && !$fejl && !$udskriv && isset($id[$y])) {
-			$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
-			if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$clip = 'paper.png';
-				$titletxt =  findtekst('1454|Klik her for at åbne bilaget', $sprog_id);
-			} else {
-				$clip = 'clip.png';
-				$titletxt =  findtekst('1455|Klik her for at vedhæfte et bilag', $sprog_id);
-			}
-			$href = "../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&dokument=$dokument[$y]&bilag_id=$id[$y]&fokus=bila$y";
-			print "<td title='$titletxt'><!-- ". __line__ ." -->";
-			print "<a onClick='this.form.submit()' href='$href' id='clip'><img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
-		}
-		print "<td> $bilag[$y]</td>";
-		print "<td> $dato[$y]</td>";
-		print "<td> $beskrivelse[$y]</td>";
-		print "<td> $d_type[$y]</td>";
-		print "<td align=right title='$debettext[$y]'>$debet[$y]</td>";
-		print "<td> $k_type[$y]</td>";
-		print "<td align=right title='$kredittext[$y]'>$kredit[$y]</td>";
-		print "<td align=right>$faktura[$y]</td>";
-		print "<td align=right>". dkdecimal($amount[$y]) ."</td>";
-		if ($vis_afd)
-			print "<td align=right> $afd[$y]</td>";
-		if ($vis_ansat)
-			print "<td align=right>$ansat[$y]</td>";
-		if ($vis_projekt)
-			print "<td align=right>$projekt[$y]</td>";
-		if ($vis_valuta)
-			print "<td align=right>$valuta[$y]</td>";
-		if ($forfaldsdato[$y]) {
-			print "<td>$forfaldsdato[$y]</td>";
-			if ($vis_bet_id)
-				print "<td>$betal_id[$y]</td>";
-		} elseif ($vis_forfald) {
-			print "<td><br></td>";
-			if ($vis_bet_id)
-				print "<td><br></td>";
-		}
-		if (strstr($momsfri[$y], "on")) {
-			print "<td align='center'> V</td>";
-		} else {
-			print "<td> <br></td>";
-		}
-		if (strstr($momsfri[$y], "on")) {
-			print "<td align='center'> V</td>";
-		} else {
-			print "<td> <br></td>";
-		}
-		
-		// .........Position column.............
-		print "<td align='center'>" . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
-		if (!$udskriv && $bogfort != 'S')
-			print "<td title='" . findtekst('1574|Tilbagefør postering', $sprog_id) . "'><a href='../finans/kassekladde.php?kladde_id=$kladde_id&ompost=$id[$y]' id='undo'><img alt='undo' src='../ikoner/undo.png' style='border: 0px solid ; width: 18px; height: 17px;'></a></td>";
-		print "</tr>\n";
-	}
-	print "<tr><td><br></td></tr>";
+	
+	#now uses grid
 } else { ################################ Kladden er ikke bogfort ########################################
 
 	$debetsum = $kontrolmoms = $kontrolsaldo = $kreditsum = 0;
@@ -1521,9 +2326,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!isset($kredittext[$y])) $kredittext[$y] = NULL;
 		if (!isset($debettext[$y]))  $debettext[$y]  = NULL;
 		$amount[$y] = (float) $amount[$y];
-		if ((!$fejl) && ((($bilag[$y]) == "-") || (!$bilag[$y]) && (!$dato[$y]))) {
+		# 20251217 OLD CODE - only cleared fields when there was no error, but rows with bilag="-" should always be cleared
+		# if ((!$fejl) && ((($bilag[$y]) == "-") || (!$bilag[$y]) && (!$dato[$y]))) {
+		# 20251217 NEW CODE - Clear fields for rows marked for deletion (bilag = "-") regardless of error state
+		if ((($bilag[$y]) == "-") || ((!$fejl) && (!$bilag[$y]) && (!$dato[$y]))) {
 			$bilag[$y] = $dato[$y] = $beskrivelse[$y] = $d_type[$y] = $debet[$y] = $k_type[$y] = $kredit[$y] = $faktura[$y] = '';
 			$belob[$y] = $momsfri[$y] = '';
+			$amount[$y] = ''; # 20251217 Also clear amount to prevent "0,00" from showing
 			$afd[$y] = '';
 			$projekt[$y] = '';
 			$valuta[$y] = '';
@@ -1555,45 +2364,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$tmp = (100 + $kontrolmoms) / 100;
 
 		if ($kontrolkonto) {
-/*
-			$pre = ($y-1);
-			if ($y == 1) {
-				$qtxt = "select sum(debet - kredit) as amount from transaktioner where ";
-				$qtxt.= "kontonr = '$kontrolkonto' and transdate >= '$regnstart' and transdate <= '$transdate[$y]'";
-				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $kontrolkonto+=$r['amount'];
-			} elseif ($transdate[$y] != $transdate[$pre]) {
-				$qtxt = "select sum(debet - kredit) as amount from transaktioner where ";
-				$qtxt.= "kontonr = '$kontrolkonto' and transdate > '$transdate[$pre]' and transdate <= '$transdate[$y]'";
-				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $kontrolkonto+=$r['amount'];
-			}
-*/
-/*
-			include_once("kassekladde_includes/datebalance_inc.php");
-			include_once("kassekladde_includes/transdate_inc.php");
-			$date_to = usdate($dato[$y]);
-			if ($y === 1) {
-				$date_from = usdate($dato[$y]);
-				$date_previous = $date_from;
-				$control_next_date = transdate($kontrolkonto, $date_to, 'next');
-				$control_record_date = transdate($kontrolkonto, $date_to, 'prev');
-			} else {
-				$date_previous = usdate($dato[$y - 1]);
-				if (!($date_to === $date_from)) {
-					$date_to = usdate($dato[$y]);
-					if (preg_replace('/\D/', '', $date_to) >= preg_replace('/\D/', '', $control_next_date)) {
-						$q2 = db_select("select transdate from transaktioner where transdate<='$date_to' and transdate>'$date_from' and kontonr='$kontrolkonto'", __FILE__ . " linje " . __LINE__);
-						if ($r2 = db_fetch_array($q2)) {
-							$control_bal_fetched = TRUE;
-							$control_bal_latest = $date_to;
-							$kontrolsaldo = datebalance($kontrolkonto, $regnaar, $date_to);
-							$date_from = usdate($dato[$y]);
-							$control_next_date = transdate($kontrolkonto, $date_to, 'next');
-							$control_record_date = transdate($kontrolkonto, $date_to, 'prev');
-						}
-					}
-				}
-			}
-*/
+
 			if ($d_type[$y] == 'F' && $debet[$y] == $kontrolkonto) {
 				$kontrolsaldo += $dkkamount[$y] / $tmp; # 20230302
 			}
@@ -1607,19 +2378,31 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			list($dub_bilag[$y], $dub_kladde_id[$y]) = explode(",", find_dublet($id[$y], $transdate[$y], $d_type[$y], $debet[$y], $k_type[$y], $kredit[$y], $amount[$y], $faktura[$y]));
 		print "<tr>";
 		if ($vis_bilag && !$fejl && isset($id[$y])) { #### use
-			$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
-			if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
+			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$hasDoc = ($dokument[$y] || $docRow) ? true : false;
+			if ($hasDoc) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
+				// Document is attached - show document viewer with list of attachments for this line
+				// Just pass sourceId - documents.php will check for documents and show the viewer
+				$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y";
 			} else {
 				$clip = 'clip.png';
 				$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
+				// No document attached - go to pool to choose one
+				$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y&openPool=1";
 			}
-			print "<td title='$titletxt'><!-- ". __line__ ." -->	";
+			// Drag-and-drop attributes for linking documents between lines
+			$dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id[$y], \"" . htmlspecialchars($bilag[$y]) . "\")'" : "";
+$dropAttr = "";
+			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
+			
+			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			print "<a href=\"javascript:confirmClose('../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y&dokument=$dokument[$y]','$txt')\" accesskey='L'>";
+			print "<a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L' $dragAttr>";
 #			print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
-			print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
+			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></a></td>\n";
 		}
 		if (!isset($dub_bilag[$y]))
 			$dub_bilag[$y] = 0;
@@ -1632,6 +2415,18 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$title = NULL;
 			$color = NULL;
 		}
+		// get last bilagsnr from database but check if the row already has asigned bilagnr
+		$qtxt = "select bilag from kassekladde WHERE kladde_id = '$kladde_id'";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		if (db_num_rows($q) == 0){
+			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
+			if ($y == 1) {
+				$bilag[$y] = $last_bilag;
+			}
+		}
+		echo "<script>console.log('bilag[$y]: " . $bilag[$y] . "');</script>";
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$y' $de_fok value =\"$beskrivelse[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -1678,9 +2473,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($vis_bet_id)
 				print "<td><input class='inputbox' type='text' style='text-align:left;width:100px;' name='b_id$y' $de_fok value =\"$betal_id[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		} elseif ($vis_forfald) {
-			print "<td><input class='inputbox' style='left;width:75px;' readonly='readonly' size='10'><br></td>\n";
+			print "<td><input class='inputbox' style='text-align:left;width:75px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
-				print "<td><input class='inputbox' readonly='readonly' size='10'><br></td>\n";
+				print "<td><input class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
 		if ($momsfri[$y] == 'on') {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='javascript:docChange = true;' ></td>\n";
@@ -1689,8 +2484,35 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y onchange='javascript:docChange = true;'></td>\n";
 		}
 
+		#######
 		print "<td class='drag-handle' style='cursor:move;'>&#x2630; " . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
-    	print "</td>\n";
+
+		// Add Plus and Delete buttons
+		print "<td style='text-align:center; white-space:nowrap;'>";
+
+		// Plus button - always enabled
+		print "<td style='text-align:center; white-space:nowrap;'>";
+
+		$plusTitle = "Duplicate this line";  
+		print "<button type='button' class='duplicate-line-btn' data-row='$y' data-id='$id[$y]' title='$plusTitle'>+</button>";
+
+		// Delete button - disabled if document attached
+		$qtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$id[$y]'";
+		$hasDoc = ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__)));
+
+		if ($hasDoc) {
+			$deleteTitle = "Remove attached document first";  
+			$deleteDisabled = "disabled";
+		} else {
+			$deleteTitle = "Delete this line";  
+			$deleteDisabled = "";
+		}
+
+		print "<button type='button' class='delete-line-btn' data-row='$y' data-id='$id[$y]' title='$deleteTitle' $deleteDisabled>x</button>";
+
+		print "</td>\n";
+
+		######
 
 		if ($control_bal_fetched) {
 			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
@@ -1736,24 +2558,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!array_key_exists($x + 1, $amount))
 		$amount[$x + 1] = 0;
 	if (abs($amount[$x + 1]) > 0.01) {
+		// 20251218: Voucher NOT in balance - create auto-balance line with SAME bilag number
 		$beskrivelse[$x + 1] = $beskrivelse[$x];
 		$bilag[$x + 1] = $bilag[$x];
 		//$dato[$x+1]=$dato[$x];
 		isset($dato[$x]) && $dato[$x + 1] = $dato[$x];
 		//$valuta[$x+1]=$valuta[$x]; #20121110 Rettet fra $valuta[$x+1]=$baseCurrency
 		isset($valuta[$x]) && $valuta[$x + 1] = $valuta[$x];
-	} elseif ($bilag[$x + 1] == $bilag[$x]) {
-		//if (isset($amount[$x+1]) && $amount[$x] > 0) {
-		if (isset($amount[$x])) {
-			if (array_key_exists($x + 1, $amount) && $amount[$x] > 0) { //20230710
-				$amount[$x + 1] = '';
-				if ($bilag[$x] != '0')
-					$bilag[$x + 1] = $bilag[$x] + 1;
-				//$dato[$x+1]=$dato[$x];
-				isset($dato[$x]) && $dato[$x + 1] = $dato[$x];
-			}
-		}
-	} #end if($bilag[$x+1]==$bilag[$x])
+	} else {
+		// 20251218: Voucher IS in balance - clear the auto-balance line, prepare next bilag
+		$amount[$x + 1] = '';
+		$beskrivelse[$x + 1] = '';
+		$bilag[$x + 1] = '';
+		$dato[$x + 1] = '';
+	} #end if(abs($amount[$x + 1]) > 0.01)
 
 	if ($x > 20) {
 		$y = $x + 5;
@@ -1766,7 +2584,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if ($amount[$x])     $belob = dkdecimal($amount[$x], 2);
 	else $belob = "";
 	if (!isset($amount[$x - 1])) $amount[$x - 1] = 0;
-	if (($amount[$x - 1]) && ($amount[$x - 1] < 0.01)) {
+	// 20251218 Modified: Only clear bilag/dato when voucher is balanced (amount[$x] near zero)
+	// Previously checked $amount[$x - 1] which was wrong - should check $amount[$x] (the imbalance)
+	if (abs($amount[$x]) < 0.01) {
 		$bilag[$x] = "";
 		$dato[$x] = "";
 		$belob = "";
@@ -1776,6 +2596,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!$debet[$tmp] && !$kredit[$tmp])
 			$fokus = nextfokus($fokus);
 	}
+	print "</tr>\n";
+	
 	if (!isset($dato[$y]))         $dato[$y]        = NULL;
 	if (!isset($beskrivelse[$y]))  $beskrivelse[$y] = NULL;
 	if (!isset($debet[$y]))        $debet[$y]       = NULL;
@@ -1836,8 +2658,30 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td></td>\n";
 			}
 		}
-		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;' 
-		name='bila$x' $de_fok value =\"$bilag[$x]\" onchange='javascript:docChange = true;'></td>\n";
+		// get last bilagsnr from database but check if the row already has asigned bilagnr
+		
+		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
+		if (isset($bilag[$x]) && $bilag[$x]) {
+			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
+			$next = $bilag[$x];
+		} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
+			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
+			if ($x == 1) {
+				$next = $last_bilag;
+			} else {
+				$next = $bilag[$x-1] + 1;
+			}
+		} else {
+			$next = $bilag[$x-1] + 1;
+		}
+		if($dato[$x] == ''){
+			$dato[$x] = dkdato(date("Y-m-d"));
+		}
+		
+		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
+		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' 
 		name='dato$x' $de_fok value =\"$dato[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' 
@@ -1878,9 +2722,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' 
 			name='b_id$x' $de_fok value =\"$betal_id[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		} elseif ($vis_forfald) {
-			print "<td><input  class='inputbox' readonly='readonly' style='left;width:75px;' size='10'><br></td>\n";
+			print "<td><input  class='inputbox' style='text-align:left;width:75px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
-				print "<td><input  class='inputbox' readonly='readonly' size='10'><br></td>\n";
+				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
 		if ($momsfri[$x] == 'on') {
 			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' checked onchange='javascript:docChange = true;'></td>\n";
@@ -1901,7 +2745,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$y = $x;
 	} else
 		$y = $x - 1;
-	#cho __line__." Y $y<br>";  	
+	#cho __line__." Y $y<br>";   	
 
 	$x++;
 	if ($x == 1) {
@@ -1943,11 +2787,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		#		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=forf$z $de_fok onchange='javascript:docChange = true;'></td>\n";
 #		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=b_id$z $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_forfald) {
-			print "<td><input  class='inputbox'  style='left;width:75px;' readonly='readonly' size='10'><br></td>\n";
+			print "<td><input  class='inputbox' style='text-align:left;width:75px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
-				print "<td><input  class='inputbox' readonly='readonly' size='10'><br></td>\n";
+				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
 		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='javascript:docChange = true;'></td>\n";
+		
 		print "</tr>\n";
 	}
 	#	if (count($bilag)<10) print "<tr><td align='center' colspan='8'>".findtekst('598|-', $sprog_id)."</td></tr>";
@@ -1962,7 +2807,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 ($udskriv) ? $div = '' : $div = '</div>';
 ?>
-	<script	src="../javascript/jquery-1.10.2.min.js"></script>
 	<script	src="../javascript/jquery.formnavigation.js"></script>
 	<script>
 	$(document).ready(function () {
@@ -1970,30 +2814,62 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	});
 	</script>
 	<?php
-	print "</tbody></table></td><td></td></tr>"; # Tabel 1.3 <- Kladdelinjer
-	print "<tr><td><br></td></tr>\n";
-	print "<tr><td align='center'>";
+
+	print "</tbody></table></center></div>";   # Tabel 1.3 <- Kladdelinjer
+	print "</td></tr>\n";
+	print "<tr class='kassekladde-footer'><td align='center'>";
 	if ($menu == 'T') {
 		print "<table width='900px' border='0' cellspacing='0' cellpadding='1'><tbody><tr>"; # Tabel 1.4 -> Knapper
 	} else {
-		print "<table width='800px' border='0' cellspacing='0' cellpadding='1'><tbody><tr>"; # Tabel 1.4 -> Knapper
+	print "<table id='buttonTable' style='margin: 0 auto; width:800px;' border='0' cellspacing='0' cellpadding='1'><tbody>
+       <tr>";
+ # Tabel 1.4 -> Knapper
 	}
 	if (!$udskriv) {
 		if ($bogfort == 'V') {
 			#		print "<input type=hidden name=ny_kladdenote value='$kladdenote'>";
-			print "<tr><td colspan=9 align='center'><input type='submit' class='button gray medium' accesskey='k' value=\"" . findtekst('1598|Kopier til ny', $sprog_id) . "\" name='copy2new' onclick='javascript:docChange = false;'></td></tr>\n";
+			
+			print "<tr id='kopierButtonRow'><td colspan=9 align='center'><input type='submit' class='button gray medium' accesskey='k' value=\"" . findtekst('1598|Kopier til ny', $sprog_id) . "\" name='copy2new' onclick='javascript:docChange = false;' id='kopier-button'></td></tr>\n";
+
 			print "</form>";
-			#		print "</tbody></table></td></tr>\n";
-#		print "</tbody></table>";
+
 		} elseif ($bogfort == '!') {
 			#		print "<input type=hidden name=ny_kladdenote value='$kladdenote'>";
 			print "<tr><td colspan=9 align='center'><input type='submit' accesskey='b' value='" . findtekst('1597|Tilbagefør', $sprog_id) . "' name='revert' onclick='javascript:docChange = false;'></td></tr>\n";
 			print "</form>";
-			#		print "</tbody></table></td></tr>\n";
-#		print "</tbody></table>";
+
 		} elseif ($bogfort == 'S') {
-			print "<tr><td colspan=9 align='center'><input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'></td></tr>\n";
-			print "</form>";
+
+		print "<form method='post' action='kassekladde.php?kladde_id=$kladde_id&tjek=$kladde_id'>";
+print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
+
+print "
+<tr style='position: relative;'>
+  <td colspan='9'
+      style='
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+      '>
+    <input
+      type='submit'
+      class='button rosy medium'
+      accesskey='a'
+      value='" . findtekst('1090|Annuller simulering', $sprog_id) . "'
+      name='cancelSimulation'
+      onclick='docChange = false;'
+    >
+  </td>
+</tr>
+";
+
+print "</form>";
+			// print "<form method='post' action='kassekladde.php?kladde_id=$kladde_id&tjek=$kladde_id'>";
+			// print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
+			// print "<tr><td colspan=9 align='center'><input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'></td></tr>\n";
+			// print "</form>";
 		} else {
 			print "<td align='center'><span title='" . findtekst('1544|Klik her for at gemme', $sprog_id) . "'><input type='submit' class='button green medium' style='width:120px;' accesskey='g' value='" . findtekst('3|Gem', $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1545|Opslag - din markørs placering angiver hvilken tabel, opslag foretages i', $sprog_id) . "'><input type='submit' class='button blue medium' style='width:120px;' accesskey='o' value='" . findtekst('644|Opslag', $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span></td>";
@@ -2022,8 +2898,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 #	if ($udskriv) print "<tr><td width=\"100%\" height=\"100%\">zz</td></tr>";
 	print "</tbody></table>"; # Tabel 1 <- 
 	if ($udskriv) {
-		print "<body onLoad=\"javascript:window.print()\">"; #;javascript:window.close();\">";
-	
+		print "</div>"; # Close print-view div
+		print "<script>window.onload = function() { window.print(); };</script>";
 	}
 	#############################################################################################################################
 	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {
@@ -2044,6 +2920,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $aarslut;
 
 		$lukket = NULL;
+		if (!$debitornr) $debitornr = array();
+
 		if ($kladde_id) {
 			$qtxt = "select bogfort from kladdeliste where id = $kladde_id";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2325,7 +3203,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$ym = $year . $month;
 
 			if (!function_exists('checkOpenFiscalYear')) include_once('../includes/stdFunc/checkOpenFiscalYear.php');
-			if (!checkOpenFiscalYear($transdate)) {
+			// DEBUG 20251216 - Show all fiscal years directly
+			$debug_q = db_select("select kodenr, box1, box2, box3, box4, box5 from grupper where art = 'RA' order by kodenr", __FILE__ . " linje " . __LINE__);
+			$all_years = '';
+			while ($debug_r = db_fetch_array($debug_q)) {
+				$all_years .= "yr{$debug_r['kodenr']}:{$debug_r['box2']}{$debug_r['box1']}-{$debug_r['box4']}{$debug_r['box3']}(box5={$debug_r['box5']}); ";
+			}
+			print "<script>console.log('DEBUG ALL fiscal years: $all_years');</script>";
+			// END DEBUG
+			$debug_result = checkOpenFiscalYear($transdate);
+			print "<script>console.log('DEBUG fiscal year check: regnaar=$regnaar, transdate=$transdate, ym=$ym, aarstart=$aarstart, aarslut=$aarslut, result=" . ($debug_result ? 'PASS' : 'FAIL') . "');</script>";
+			if (!$debug_result) {
 
 
 #			if (!$fejl && $dato && ($ym < $aarstart || $ym > $aarslut)) {
@@ -2778,11 +3666,430 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 	print "<script language=\"javascript\">";
 	print "document.kassekladde.$fokus.focus()";
 	print "</script>";
-	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
+	// if ($menu == 'T') {
+	// 	include_once '../includes/topmenu/footer.php';
+	// } else {
+	// 	include_once '../includes/oldDesign/footer.php';
+	// }
+
+	#######################
+	// --- Sticky Pagination Footer ---
+
+if ($page_display) {
+	
+	?>
+     <style>
+		 html, body {
+			overflow-y: hidden !important;
+		}
+		/* .datatable, #datatable-wrapper {
+			height: 100vh !important;
+		}  */
+		 #datatable-wrapper {
+			height: 100vh !important;
+		} 
+
+		.dropdown {
+			display: none;
+		}
+	
+	</style>
+	<?php
+}
+
+
+if($page_display){ #20251213
+		
+?>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // PHP-injected variables
+    const tjek = <?php echo isset($tjek) ? json_encode($tjek) : '""'; ?>;
+    const kladde_id = <?php echo isset($kladde_id) ? json_encode($kladde_id) : '""'; ?>;
+
+    // All action buttons
+    const buttonRows = [
+        { rowId: 'kopierButtonRow', buttonId: 'kopier-button', name: 'copy2new' },
+        { rowId: '', buttonId: 'revert-button', name: 'revert' },
+        { rowId: '', buttonId: 'cancelSimulation-button', name: 'cancelSimulation' },
+        { rowId: '', buttonId: 'save-button', name: 'save' },
+        { rowId: '', buttonId: 'lookup-button', name: 'lookup' },
+        { rowId: '', buttonId: 'simulate-button', name: 'simulate' },
+        { rowId: '', buttonId: 'doPost-button', name: 'doPost' },
+        { rowId: '', buttonId: 'upload-button', name: 'upload' },
+        { rowId: '', buttonId: 'submitDocuBizz-button', name: 'submit' },
+        { rowId: '', buttonId: 'import-button', name: 'import' },
+        { rowId: '', buttonId: 'offset-button', name: 'offset' }
+    ];
+
+    const actionButtonsCenter = document.querySelector('.fixedFooter .action-buttons-center');
+
+    buttonRows.forEach(({ rowId, buttonId, name }) => {
+        const button = document.getElementById(buttonId);
+        const buttonRow = rowId ? document.getElementById(rowId) : null;
+
+        if (button && actionButtonsCenter) {
+            // Hide the original row (if it exists)
+            if (buttonRow) buttonRow.style.display = 'none';
+
+            // Clone the button
+            const clonedButton = button.cloneNode(true);
+            clonedButton.name = name;
+            actionButtonsCenter.appendChild(clonedButton);
+
+            // Attach click listener
+            clonedButton.addEventListener('click', function(event) {
+                const form = document.getElementById('kassekladde');
+                if (!form) return;
+
+                // Add the button action itself as hidden
+                const hiddenButtonInput = document.createElement('input');
+                hiddenButtonInput.type = 'hidden';
+                hiddenButtonInput.name = clonedButton.name;
+                hiddenButtonInput.value = clonedButton.value || '';
+                form.appendChild(hiddenButtonInput);
+
+                // Add PHP variables tjek and kladde_id as hidden fields
+                if (tjek) {
+                    const tjekInput = document.createElement('input');
+                    tjekInput.type = 'hidden';
+                    tjekInput.name = 'tjek';
+                    tjekInput.value = tjek;
+                    form.appendChild(tjekInput);
+                }
+
+                if (kladde_id) {
+                    const kladdeInput = document.createElement('input');
+                    kladdeInput.type = 'hidden';
+                    kladdeInput.name = 'kladde_id';
+                    kladdeInput.value = kladde_id;
+                    form.appendChild(kladdeInput);
+                }
+
+                // Submit the form
+                form.submit();
+            });
+        }
+    });
+});
+</script>
+
+<?php
+}
+
+
+
+?>
+<style>
+	
+/*scrollable container for the editable form */
+.kassekladde-scroll-container {
+    height: calc(100vh - 98px);
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+}
+
+/* Sticky header inside the scroll container */
+.kassekladde-scroll-container thead.kassekladde-thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+	background-color: <?php echo $bgColor; ?> !important;
+}
+.datatable thead tr, .datatable thead th{
+	background-color: <?php echo $bgColor; ?> !important;
+}
+
+/* Sticky footer outside the scroll container */
+.kassekladde-footer {
+    position: sticky;
+    bottom: 0;
+    background-color: #f1f1f1;
+    z-index: 10;
+    padding: 10px 0;
+    border-top: 2px solid #ccc;
+    margin-top: 10px;
+}
+
+/* Ensure proper table display */
+.formnavi.dataTableForm{
+    border-collapse: collapse;
+    margin-bottom: 0;
+}
+.datatable thead, .datatable tfoot, .datatable tfoot tr, .datatable tfoot td{
+	background-color: #ebebeb !important;
+}
+
+/* Make sure thead stays visible */
+.formnavi.dataTableForm thead {
+    position: sticky;
+    top: 0;
+}
+ html, body {
+			overflow-y: hidden !important;
+		}
+
+
+.duplicate-line-btn,
+.delete-line-btn {
+    border: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 12px;          /* adjust for the smaller circle */
+    line-height: 18px;        /* centers the symbol vertically */
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 5px;
+}
+
+/* Plus button styling */
+.duplicate-line-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+/* Delete button styling */
+.delete-line-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+/* Disabled delete button */
+.delete-line-btn:disabled {
+    background-color: #ccc;
+    color: white;
+    cursor: not-allowed;
+}
+
+</style>
+
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+
+    // -------------------------------
+    // Kopier button logic 
+    // -------------------------------
+    const footerBox = document.getElementById('footer-box');
+    const kopierButton = document.getElementById('kopier-button');
+
+   if (kopierButton && footerBox) {
+        const kopierRow = document.getElementById('kopierButtonRow');
+        if (kopierRow) kopierRow.remove();
+        
+        // Create a NEW form for the kopier button
+        const kopierForm = document.createElement('form');
+        kopierForm.method = 'post';
+        kopierForm.action = '../finans/kassekladde.php';
+        kopierForm.style.cssText = 'margin: 0; padding: 0; display: inline;';
+        
+        // Clone all necessary hidden inputs from the original form
+        const originalForm = document.getElementById('kassekladde');
+        if (originalForm) {
+            // Get kladde_id, tidspkt, and other hidden fields
+            const kladdeIdInput = originalForm.querySelector('input[name="kladde_id"]');
+            const tidspktInput = originalForm.querySelector('input[name="tidspkt"]');
+            const kksortInput = document.querySelector('input[name="kksort"]') || 
+                               document.createElement('input');
+            
+            // Clone or create these inputs for the new form
+            if (kladdeIdInput) {
+                const clone = kladdeIdInput.cloneNode(true);
+                kopierForm.appendChild(clone);
+            }
+            
+            if (tidspktInput) {
+                const clone = tidspktInput.cloneNode(true);
+                kopierForm.appendChild(clone);
+            }
+            
+            // Add kksort if not already in form
+            kksortInput.type = 'hidden';
+            kksortInput.name = 'kksort';
+            kksortInput.value = '<?php echo $kksort; ?>';
+            kopierForm.appendChild(kksortInput);
+        }
+        
+        // Clone the button and add it to the new form
+        const clonedButton = kopierButton.cloneNode(true);
+        clonedButton.name = 'copy2new';
+       
+        
+        // Remove any existing onclick handlers and add this
+        clonedButton.onclick = null;
+        clonedButton.addEventListener('click', function(e) {
+            // Submit our specific form
+            kopierForm.submit();
+            return false;
+        });
+        
+        kopierForm.appendChild(clonedButton);
+        
+        // Style and position the form container
+        kopierForm.style.cssText = `
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            padding: 0;
+            margin: 0;
+            background: transparent;
+            border: none;
+        `;
+        
+        // Ensure footer box has proper positioning
+        footerBox.style.position = 'relative';
+        footerBox.style.display = 'flex';
+        footerBox.style.justifyContent = 'flex-end';
+        footerBox.style.alignItems = 'center';
+        
+        // Add the new form to footer
+        footerBox.appendChild(kopierForm);
+    } else {
+        console.log('Footer box or kopier button not found');
+    }
+
+    // -------------------------------
+    // Select auto-submit using dynamic wrapper
+    // -------------------------------
+
+    // Find wrapper dynamically
+    const wrapper = document.querySelector('[id^="datatable-wrapper-kassekladde_"]');
+    if (!wrapper) {
+        console.log('Wrapper not found');
+        return;
+    }
+
+    // Get the form inside wrapper
+    const form = wrapper.querySelector('form') || wrapper.closest('form');
+    if (!form) {
+        console.log('Form not found inside wrapper');
+        return;
+    }
+
+    // Find all selects inside wrapper
+    const selects = wrapper.querySelectorAll('select');
+    if (!selects.length) {
+        console.log('No selects found inside wrapper');
+        return;
+    }
+
+    selects.forEach(select => {
+        select.addEventListener('change', function() {
+            
+            let brugernavn = select.name.split('_').pop().replace(']', '');
+            const params = new URLSearchParams(window.location.search);
+            params.set(select.name, select.value);
+            params.set('brugernavn', brugernavn);
+
+            const newUrl = window.location.pathname + '?' + params.toString();
+            
+            window.location.href = newUrl;
+        });
+    });
+
+  
+
+});
+
+// Duplicate line functionality
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('duplicate-line-btn') || e.target.closest('.duplicate-line-btn')) {
+        const button = e.target.classList.contains('duplicate-line-btn') ? e.target : e.target.closest('.duplicate-line-btn');
+        const sourceId = button.getAttribute('data-id');
+        const kladdeId = document.querySelector('[name="kladde_id"]').value;
+        
+        if (!sourceId) {
+            alert('No source_id found for this line');
+            return;
+        }
+        
+        console.log('Duplicating line with source_id:', sourceId, 'kladde_id:', kladdeId);
+        
+        // Create FormData to send via AJAX
+        const formData = new FormData();
+        formData.append('action', 'duplicate_line');
+        formData.append('kladde_id', kladdeId);
+        formData.append('source_id', sourceId);
+        
+        // Show loading indicator
+        const originalHTML = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '⏳';
+        
+        // Send AJAX request to kassekladde.php itself
+        fetch('kassekladde.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            return response.text();
+        })
+        .then(text => {
+            // Try to parse as JSON
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    // Reload the page to show the duplicated line
+                    window.location.reload();
+                } else {
+                    alert('Fejl: ' + (data.message || 'Ukendt fejl'));
+                    button.disabled = false;
+                    button.innerHTML = originalHTML;
+                }
+            } catch (e) {
+                
+                if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+					 window.location.reload();
+                } else if (text.includes('Fatal error') || text.includes('Warning') || text.includes('Notice')) {
+                    alert('PHP error detected: ' + text.substring(0, 200));
+                } else {
+                    alert('Invalid response from server: ' + text.substring(0, 200));
+                }
+                
+                button.disabled = false;
+                button.innerHTML = originalHTML;
+            }
+        })
+        .catch(error => {
+            console.error('Network error:', error);
+            alert('Network error: ' + error.message);
+            button.disabled = false;
+            button.innerHTML = originalHTML;
+        });
+    }
+});
+// Delete line functionality
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('delete-line-btn') && !e.target.disabled) {
+        const row = e.target.getAttribute('data-row');
+        const bilagField = document.querySelector(`[name="bila${row}"]`);
+        
+        if (confirm('Are you sure you want to delete this line?')) {
+            // Set bilag to '-' to mark for deletion
+            bilagField.value = '-';
+            
+            // Submit the form
+            document.getElementById('kassekladde').submit();
+        }
+    }
+});
+
+
+</script>
+
+
+
+
+<?php
+
+
+	########################
 
 	$steps = array();
 	$steps[] = array(
@@ -2820,6 +4127,360 @@ include("kassekladde_includes/drag-handle-ajax-call.php");
 include("kassekladde_includes/unsavedWarning.php");
 
 
+###############dropdown date select
+print "<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const brugernavn = " . json_encode($brugernavn) . ";
+  
+  const kassekladdeInput = document.querySelector(
+    \"input[name='search[kass_\" + brugernavn + \"][transdate]']\"
+  );
+   const forfaldsdateInput = document.querySelector(
+    \"input[name='search[kass_\" + brugernavn + \"][forfaldsdate]']\"
+  );
+
+    // Function to initialize a single datepicker
+    function initDatepicker(input) {
+        if (!input) return;
+        
+        // Get existing value if any
+        var existingValue = input.value.trim();
+        var startDate = moment(); // Default to today
+        
+        // Parse existing value if it exists
+        if (existingValue !== '') {
+            var parsed = moment(existingValue, 'DD-MM-YYYY', true);
+            if (parsed.isValid()) {
+                startDate = parsed;
+            }
+        }
+        
+        // Initialize daterangepicker
+        $(input).daterangepicker({
+            singleDatePicker: true,
+            showDropdowns: true,
+            autoUpdateInput: false,
+            autoApply: false,
+            startDate: startDate,
+            minYear: 1900,
+            maxYear: parseInt(moment().format('YYYY'), 10) + 10,
+            locale: {
+                format: 'DD-MM-YYYY',
+                cancelLabel: '".findtekst('2117|Ryd', $sprog_id)."',
+                applyLabel: '".findtekst('913|Søg', $sprog_id)."',
+                daysOfWeek: ['Sø', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø'],
+                monthNames: ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni', 
+                             'Juli', 'August', 'September', 'Oktober', 'November', 'December'],
+                firstDay: 1
+            }
+        });
+        
+        // Set initial value if exists
+        if (existingValue !== '') {
+            $(input).val(existingValue);
+        }
+        
+        // Show date in field immediately when date is selected from calendar
+        $(input).on('show.daterangepicker', function(ev, picker) {
+            // Update field when date changes in the picker
+            picker.container.find('.calendar-table').off('click.updateField').on('click.updateField', 'td.available', function() {
+                setTimeout(function() {
+                    var selectedDate = picker.startDate.format('DD-MM-YYYY');
+                    $(input).val(selectedDate);
+                }, 10);
+            });
+        });
+        
+        // When user clicks \"Søg\" (Apply/Search) button - submit the form
+        $(input).on('apply.daterangepicker', function(ev, picker) {
+            var selectedDate = picker.startDate.format('DD-MM-YYYY');
+            $(this).val(selectedDate);
+            
+            // Submit the form
+            var form = $(this).closest('form');
+            if (form.length > 0) {
+                form.submit();
+            }
+        });
+        
+        // When user clicks \"Ryd\" (Clear/Cancel) button
+        $(input).on('cancel.daterangepicker', function(ev, picker) {
+            $(this).val('');
+            
+            // Submit form to clear the filter
+            var form = $(this).closest('form');
+            if (form.length > 0) {
+                form.submit();
+            }
+        });
+    }
+    
+   
+    initDatepicker(kassekladdeInput);
+	initDatepicker(forfaldsdateInput);
+   
+   
+});
+</script>";
+
+
+
+// Add clip drag-and-drop JavaScript for linking documents between lines
+print "
+<style>
+/* Clip drag and drop styles */
+.clip-cell {
+	/* transition: all 0.2s ease; Removed to prevent drag flicker */
+}
+.clip-cell.drag-over {
+	background-color: #d4edda !important;
+	box-shadow: inset 0 0 8px rgba(40, 167, 69, 0.5);
+	/* transform: scale(1.1); Removed to prevent drag flicker */
+}
+.clip-cell.drag-over-invalid {
+	background-color: #f8d7da !important;
+}
+.clip-icon[draggable='true'] {
+	cursor: grab !important;
+}
+.clip-icon[draggable='true']:active {
+	cursor: grabbing !important;
+}
+.clip-icon.dragging {
+	opacity: 0.5;
+}
+</style>
+
+<script>
+// Clip drag and drop for linking documents between kassekladde lines
+let clipDragSourceId = null;
+let clipDragSourceBilag = null;
+
+function clipDragStart(event, sourceId, sourceBilag) {
+	console.log('clipDragStart called - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
+	clipDragSourceId = sourceId;
+	clipDragSourceBilag = sourceBilag;
+	
+	// Use JSON in text/plain for reliability across platforms
+	const dragData = JSON.stringify({
+		sourceId: sourceId,
+		sourceBilag: sourceBilag
+	});
+	console.log('clipDragStart - setting dragData:', dragData);
+	event.dataTransfer.setData('text/plain', dragData);
+	
+	// Keep text/bilag just in case, but text/plain JSON is primary
+	event.dataTransfer.setData('text/bilag', sourceBilag);
+	event.dataTransfer.effectAllowed = 'link';
+	console.log('clipDragStart - dataTransfer set. text/plain:', event.dataTransfer.getData('text/plain'), 'text/bilag:', event.dataTransfer.getData('text/bilag'));
+	
+	// Add visual feedback
+	event.target.classList.add('dragging');
+	console.log('clipDragStart - added dragging class to:', event.target);
+	
+	// Add drag image
+	const dragImage = event.target.cloneNode(true);
+	dragImage.style.width = '30px';
+	dragImage.style.height = '30px';
+	document.body.appendChild(dragImage);
+	event.dataTransfer.setDragImage(dragImage, 15, 15);
+	setTimeout(() => dragImage.remove(), 0);
+}
+
+function clipDragOver(event) {
+	event.preventDefault();
+	event.dataTransfer.dropEffect = 'link';
+	
+	// Find the clip cell
+	const cell = event.target.closest('.clip-cell');
+	if (cell) {
+		const targetId = cell.dataset.sourceId;
+		const targetBilag = cell.dataset.bilag;
+		console.log('clipDragOver - targetId:', targetId, 'targetBilag:', targetBilag, 'sourceId:', clipDragSourceId);
+		// Don't allow dropping on itself
+		if (targetId == clipDragSourceId) {
+			cell.classList.add('drag-over-invalid');
+			cell.classList.remove('drag-over');
+		} else {
+			cell.classList.add('drag-over');
+			cell.classList.remove('drag-over-invalid');
+		}
+	}
+}
+
+function clipDragLeave(event) {
+	const cell = event.target.closest('.clip-cell');
+	if (cell) {
+		// Prevent firing when moving to a child element
+		if (event.relatedTarget && cell.contains(event.relatedTarget)) {
+			return;
+		}
+		console.log('clipDragLeave - leaving cell:', cell.dataset.sourceId);
+		cell.classList.remove('drag-over', 'drag-over-invalid');
+	}
+}
+
+function clipDrop(event, targetSourceId, targetBilag) {
+	console.log('clipDrop called - targetSourceId:', targetSourceId, 'targetBilag:', targetBilag);
+	event.preventDefault();
+	
+	const cell = event.target.closest('.clip-cell');
+	if (cell) {
+		cell.classList.remove('drag-over', 'drag-over-invalid');
+	}
+	
+	let sourceId = null;
+	let sourceBilag = null;
+	
+	// Try parsing JSON from text/plain
+	try {
+		const rawData = event.dataTransfer.getData('text/plain');
+		console.log('clipDrop - rawData from text/plain:', rawData);
+		
+		if (rawData && rawData.startsWith('{')) {
+			const data = JSON.parse(rawData);
+			console.log('clipDrop - parsed JSON:', data);
+			sourceId = data.sourceId;
+			sourceBilag = data.sourceBilag;
+		} else {
+			// Fallback for simple ID if needed
+			console.log('clipDrop - rawData is not JSON, treating as ID');
+			sourceId = rawData;
+		}
+	} catch (e) {
+		console.error('Drag drop parse error', e);
+		sourceId = event.dataTransfer.getData('text/plain');
+	}
+
+	// Fallback to globals or text/bilag
+	if (!sourceBilag) {
+		console.log('clipDrop - sourceBilag missing, checking text/bilag');
+		sourceBilag = event.dataTransfer.getData('text/bilag');
+	}
+	if (!sourceId) { 
+		console.log('clipDrop - sourceId missing, using global fallback:', clipDragSourceId);
+		sourceId = clipDragSourceId;
+	}
+	if (!sourceBilag) {
+		console.log('clipDrop - sourceBilag missing, using global fallback:', clipDragSourceBilag);
+		sourceBilag = clipDragSourceBilag;
+	}
+	
+	console.log('clipDrop FINAL - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
+	
+	// Don't link to itself
+	if (sourceId == targetSourceId) {
+		console.log('clipDrop - cannot link to itself, returning');
+		return;
+	}
+	
+	// Confirm the action - show bilag numbers instead of line IDs
+	console.log('clipDrop - showing confirm dialog for bilag', sourceBilag, 'to', targetBilag);
+	if (!confirm('Link bilag fra bilag ' + sourceBilag + ' til bilag ' + targetBilag + '?')) {
+		console.log('clipDrop - user cancelled');
+		return;
+	}
+	
+	console.log('clipDrop - user confirmed, calling linkDocumentsBetweenLines');
+	// Make AJAX call to link documents
+	linkDocumentsBetweenLines(sourceId, targetSourceId);
+}
+
+function linkDocumentsBetweenLines(fromSourceId, toSourceId) {
+console.log('Linking:', fromSourceId, 'to', toSourceId);
+	const formData = new FormData();
+	formData.append('action', 'linkDocuments');
+	formData.append('fromSourceId', fromSourceId);
+	formData.append('toSourceId', toSourceId);
+	formData.append('source', 'kassekladde');
+	
+	fetch('../includes/docsIncludes/linkDocumentsApi.php', {
+		method: 'POST',
+		body: formData
+	})
+	.then(response => response.json())
+	.then(data => {
+		if (data.success) {
+			alert('Bilag linket succesfuldt! (' + data.count + ' dokument(er))');
+			// Refresh the page to show updated document links
+			location.reload();
+		} else {
+			alert('Fejl: ' + (data.message || 'Kunne ikke linke bilag'));
+		}
+	})
+	.catch(error => {
+		console.error('Error linking documents:', error);
+		alert('Fejl ved linking af bilag: ' + error.message);
+	});
+}
+
+// Add dragend handler to clean up
+document.addEventListener('dragend', function(event) {
+	if (event.target.classList) {
+		event.target.classList.remove('dragging');
+	}
+	// Remove all drag-over classes
+	document.querySelectorAll('.clip-cell').forEach(cell => {
+		cell.classList.remove('drag-over', 'drag-over-invalid');
+	});
+	
+	// Delay cleanup to ensure drop handler has time to read the values
+	setTimeout(() => {
+		clipDragSourceId = null;
+		clipDragSourceBilag = null;
+	}, 100);
+});
+
+// Setup drag and drop event listeners programmatically (works better in Chrome than inline handlers)
+document.addEventListener('DOMContentLoaded', function() {
+	// Use event delegation for better performance with dynamic content
+	document.addEventListener('dragover', function(e) {
+		const cell = e.target.closest('.clip-cell');
+		if (cell) {
+			e.preventDefault(); // MUST be here for drop to work in Chrome
+			e.stopPropagation();
+			clipDragOver(e);
+		}
+	});
+	
+	document.addEventListener('drop', function(e) {
+		console.log('DROP EVENT CAPTURED at document level - target:', e.target);
+		const cell = e.target.closest('.clip-cell');
+		console.log('DROP - closest clip-cell:', cell);
+		if (cell) {
+			const targetId = cell.dataset.sourceId;
+			const targetBilag = cell.dataset.bilag;
+			console.log('DROP - calling clipDrop with targetId:', targetId, 'targetBilag:', targetBilag);
+			clipDrop(e, targetId, targetBilag);
+		} else {
+			console.log('DROP - no clip-cell found, preventing default anyway');
+			e.preventDefault();
+		}
+	});
+	
+	document.addEventListener('dragleave', function(e) {
+		const cell = e.target.closest('.clip-cell');
+		if (cell) {
+			clipDragLeave(e);
+		}
+	});
+	
+	// Initialize account autocomplete after page is fully loaded
+	if (typeof window.initAccountAutocomplete === 'function') {
+		console.log('Calling initAccountAutocomplete from kassekladde.php');
+		window.initAccountAutocomplete();
+	}
+	
+	// Initialize datepicker on all date fields
+	$('input[name^=\"dato\"]').datepickerDa();
+	// Initialize datepicker on Due Date fields
+	$('input[name^=\"forf\"]').datepickerDa();
+});
+</script>
+";
 
 	?>
+
+
+
 

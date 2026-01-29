@@ -15,14 +15,15 @@
 	// if ($valg=="$faktura1") print "<td width = 20% align=center $knap_ind>".findtekst(643, $sprog_id)."</td>";
 	// else print "<td width = 20% align=center><a href='ordreliste.php?valg=$faktura1&konto_id=$konto_id&returside=$returside'>".findtekst(643, $sprog_id)."</a></td>";
 
-if ($valg=="tilbud" && !$hurtigfakt) {print "<td width = 20% align=center $knap_ind>".findtekst(812, $sprog_id)."</td>";}
-elseif (!$hurtigfakt) {print "<td width = 20% align=center><a href='ordreliste.php?valg=tilbud&konto_id=$konto_id&returside=$returside'>".findtekst(812, $sprog_id)."</a></td>";} //20210318
-if ($valg=="ordrer") {print "<td width = 20% align=center $knap_ind>".findtekst(107, $sprog_id)."</td>";}
-else {print "<td width = 20% align=center><a href='ordreliste.php?valg=ordrer&konto_id=$konto_id&returside=$returside'>".findtekst(107, $sprog_id)."</a></td>";}
-if ($valg=="faktura") print "<td width = 20% align=center $knap_ind>".findtekst(643, $sprog_id)."</td>";
-else print "<td width = 20% align=center><a href='ordreliste.php?valg=faktura&konto_id=$konto_id&returside=$returside'>".findtekst(643, $sprog_id)."</a></td>";
-	if ($valg=='pbs') print "<td width = 20% align=center $knap_ind>".findtekst(385, $sprog_id)."</td>";
-	elseif ($pbs) print "<td width = 20% align=center><a href='ordreliste.php?valg=pbs&konto_id=$konto_id&returside=$returside'>".findtekst(385, $sprog_id)."</a></td>";
+// Simplified tab links - just pass valg, session handles the rest
+if ($valg=="tilbud" && !$hurtigfakt) {print "<td width=20% align=center $knap_ind>".findtekst(812, $sprog_id)."</td>";}
+elseif (!$hurtigfakt) {print "<td width=20% align=center><a href='ordreliste.php?valg=tilbud'>".findtekst(812, $sprog_id)."</a></td>";}
+if ($valg=="ordrer") {print "<td width=20% align=center $knap_ind>".findtekst(107, $sprog_id)."</td>";}
+else {print "<td width=20% align=center><a href='ordreliste.php?valg=ordrer'>".findtekst(107, $sprog_id)."</a></td>";}
+if ($valg=="faktura") print "<td width=20% align=center $knap_ind>".findtekst(643, $sprog_id)."</td>";
+else print "<td width=20% align=center><a href='ordreliste.php?valg=faktura'>".findtekst(643, $sprog_id)."</a></td>";
+if ($valg=='pbs') print "<td width=20% align=center $knap_ind>".findtekst(385, $sprog_id)."</td>";
+elseif ($pbs) print "<td width=20% align=center><a href='ordreliste.php?valg=pbs'>".findtekst(385, $sprog_id)."</a></td>";
 	print "</tbody></table></td>\n"; # <- Tabel 1.1.1
 	if ($valg=='pbs') {
 		if ($popup) print "<td width=10% $top_bund onClick=\"javascript:ordre=window.open('pbs_import.php?returside=x','ordre','scrollbars=1,resizable=1');ordre.focus();\"><a accesskey=N href=ordreliste.php?sort=$sort>Import PBS</a></td>\n";

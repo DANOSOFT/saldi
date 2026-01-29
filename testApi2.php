@@ -1,6 +1,6 @@
 <?php
 if(isset($_GET["put_new_orders"])){
-$saldiuser='hej'; #En bruger i har i saldi uden nogen rettigheder
+$saldiuser='api'; #En bruger i har i saldi uden nogen rettigheder
 $api_key='4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD'; #Findes under Indstillinger ->  Diverse -> API
 $serverurl="https://ssl12.saldi.dk/pblm/api"; #Findes under Indstillinger ->  Diverse -> API
 $db='test_4';#' #Findes under Indstillinger ->  Diverse -> API 

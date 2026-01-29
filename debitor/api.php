@@ -74,6 +74,56 @@
         
     }
 
+    // Update company data at EasyUBL with new data from database
+    function updateCompany() {
+        global $apiKey, $db;
+        
+        // Get the existing company ID from the database
+        $query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+        
+        if(db_num_rows($query) === 0) {
+            // No company ID exists, cannot update - need to create first
+            return ['success' => false, 'message' => 'No company ID found. Please create a company first.'];
+        }
+        
+        $res = db_fetch_array($query);
+        $companyId = $res["var_value"];
+        
+        // Get fresh company data from the database
+        $data = createCompany($apiKey);
+        
+        // Send update request to EasyUBL with the actual company ID
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Update/$companyId");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $response = json_decode($response, true);
+        curl_close($ch);
+        
+        $timestamp = date("Y-m-d-H-i-s");
+        
+        if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "") {
+            // An error occurred
+            $errorNumber = curl_errno($ch);
+            $errorMessage = curl_error($ch);
+            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response];
+            
+            // Save error response in temp folder
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            
+            return ['success' => false, 'message' => 'Error updating company: ' . $errorMessage];
+        }
+        
+        // Save successful response in temp folder for debugging
+        file_put_contents("../temp/$db/Update-company-success-$timestamp.json", json_encode($response, JSON_UNESCAPED_UNICODE));
+        
+        return ['success' => true, 'companyId' => $companyId, 'response' => $response];
+    }
+
     // Getting the company id from the database
     function getCompanyID(){
         global $apiKey, $db;
@@ -91,7 +141,6 @@
             $response = curl_exec($ch);
             $response = json_decode($response, true);
             curl_close($ch);
-            echo $response;
             $timestamp = date("Y-m-d-H-i-s");
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
@@ -144,7 +193,7 @@
 
     // Sending the invoice to the recipient through easyUBL
     function getInvoicesOrder($data, $url, $orderId) {
-        global $db, $apiKey;
+        global $bruger_id, $db, $apiKey;
         $companyID = getCompanyID();
         if($companyID == "error"){
             die("Der er sket en fejl. Kontakt support.");
@@ -162,14 +211,14 @@
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         $result = curl_exec($ch);
-        
+
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
-        file_put_contents($result, "../temp/$db/fakture-result-$ranStr.json");
+        file_put_contents("../temp/$db/fakture-result-$ranStr.json", $result);
         $result = json_decode($result, true);
         if (curl_errno($ch)) {
             echo 'Error: ' . curl_error($ch);
-            file_put_contents(curl_error($ch), "../temp/$db/fakture-error-$ranStr.json");
+            file_put_contents("../temp/$db/fakture-error-$ranStr.json", curl_error($ch));
             exit();
         }
         
@@ -187,11 +236,20 @@
             
             // save response in file in temp folder
             file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            if($result["message"] !== ""){
             ?>
             <script>
+                alert("<?php echo $result["message"]; ?>");
+            </script>
+            <?php
+            }else{
+            ?>
+            <script>
+
                 alert("Der opdstod en fejl under sending af fakturaen. kontakt support. Tlf: 46902208");
             </script>
             <?php
+            }
             exit;
         }
         // decode base64
@@ -229,25 +287,54 @@
         $r_faktura = db_fetch_array($query);
         $initials = explode(" ", $r_faktura["firmanavn"]);
         foreach($initials as $key => $value){
-            $initials[$key] = substr($value, 0, 1);
+            $initials[$key] = mb_substr($value, 0, 1, "UTF-8");
         }
         $initials = implode("", $initials);
+
         if($r_faktura["art"] == "DK"){
             $creditNote = "Cre";
         }else{
             $creditNote = "Inv";
         }
+        $cvrnr_with_prefix = "";
         // check if the ean number is 13 characters long
         if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === false){
             $endpointId = $r_faktura["ean"];
             $endpointType = "GLN";
-        }else if($_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === true){
-            // split at ean at : and take the first part
+        } else if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") !== false){
+            // Change === true to !== false
             $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
             $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
-        }else{
+            if(is_numeric($endpointType)){
+                if($endpointType == 0007){
+                    $endpointId = "SE".$endpointId;
+                }
+                $cvrnr_with_prefix = $endpointId;
+                $endpointType = "DK:CVR";
+            }
+        } else {
             $endpointId = "DK".$r_faktura["cvrnr"];
             $endpointType = "DK:CVR";
+        }
+        if($cvrnr_with_prefix == ""){
+            if($r_faktura["cvrnr"]) {
+                // Check if CVR number starts with digits only (Danish CVR)
+                if (preg_match('/^\d/', $r_faktura["cvrnr"])) {
+                    // Danish CVR - add DK prefix
+                    $cvrnr_with_prefix = "DK" . $r_faktura["cvrnr"];
+                } else {
+                    // Already has country prefix (SE, NO, etc.) - use as is
+                    $cvrnr_with_prefix = $r_faktura["cvrnr"];
+                }
+            }else{
+                $cvrnr_with_prefix = "";
+            }
+        }
+        // country code should be the same as prefix for cvrnr
+        $countryCode = "DK";
+        
+        if($cvrnr_with_prefix !== ""){
+            $countryCode = substr($cvrnr_with_prefix, 0, 2);
         }
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
@@ -260,7 +347,7 @@
                 "postalCode" => $r_faktura["lev_postnr"],
                 "countrySubentity" => "",
                 "addressLine" => "",
-                "countryCode" => "DK"
+                "countryCode" => $countryCode
             ];
         }else{
             $deliverAddress = [
@@ -291,7 +378,7 @@
                 "endpointId" =>  $endpointId, //$r_faktura["ean"], // 5790002747557
                 "endpointIdType" => $endpointType, // GLN = Global Location Number (EAN)
                 "name" => $r_faktura["firmanavn"],
-                "companyId" => "DK".$r_faktura["cvrnr"],
+                "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
                     "streetName" => explode(" ", $r_faktura["addr1"])[0],
                     "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
@@ -302,10 +389,10 @@
                     "postalCode" => $r_faktura["postnr"],
                     "countrySubentity" => "",
                     "addressLine" => "",
-                    "countryCode" => "DK"
+                    "countryCode" => $countryCode
                 ],
                 "contact" => [
-                    "initials" => $initials,
+                    "initials" => ($initials !== null && $initials !== "") ? $initials : "",
                     "name" => ($r_faktura["kontakt"] !== "") ? $r_faktura["kontakt"] : $r_faktura["firmanavn"],
                     "telephone" => strval($r_faktura["phone"]),
                     "electronicMail" => $r_faktura["email"]
@@ -320,19 +407,25 @@
                 "bankName" => $adresse["bank_navn"],
                 "bankRegNo" => $adresse["bank_reg"],
                 "bankAccount" => $adresse["bank_konto"],
-                "bic" => "", 
-                "iban" => "", 
-                "creditorIdentifier" => "", 
+                "bic" => "",
+                "iban" => "",
+                "creditorIdentifier" => "",
                 "paymentID" => ""
             ],
         ];
     
         $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
         while ($res = db_fetch_array($query)) {
-            $res["pris"] = abs($res["pris"]);
-            $res["rabat"] = abs($res["rabat"]);
-            $res["antal"] = abs($res["antal"]);
-            $res["momssats"] = abs($res["momssats"]);
+            
+            $res["rabat"] = abs((float)$res["rabat"]);
+            if($creditNote == "Cre"){
+                $res["antal"] = abs((float)$res["antal"]);
+                $res["pris"] = abs((float)$res["pris"]);
+            }else{
+                $res["antal"] = (float)$res["antal"];
+                $res["pris"] = (float)$res["pris"];
+            }
+            $res["momssats"] = abs((float)$res["momssats"]);
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
             if(trim($res["beskrivelse"]) == ""){
                 continue;

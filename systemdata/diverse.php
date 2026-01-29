@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2025-05-26------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2025-11-24------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,6 +86,7 @@
 // 20250414 LOE Updated barcodescan location and updated some variables
 // 20250513 Sawaneh add max user update in kontoindstillinger()
 // 20250526 PHR 'nyt_navn' changed to 'newName'
+// 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
 
 
 @session_start();
@@ -273,13 +274,15 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$dfm_url            = if_isset($_POST['dfm_url']);
 		$dfm_gooddes        = if_isset($_POST['dfm_gooddes']);
 		$dfm_sercode        = if_isset($_POST['dfm_sercode']);
-		$dfm_pickup_addr    = if_isset($_POST['dfm_pickup_addr']);
-		$dfm_pickup_name1   = if_isset($_POST['dfm_pickup_name1']);
-		$dfm_pickup_name2   = if_isset($_POST['dfm_pickup_name2']);
-		$dfm_pickup_street1 = if_isset($_POST['dfm_pickup_street1']);
-		$dfm_pickup_street2 = if_isset($_POST['dfm_pickup_street2']);
-		$dfm_pickup_town    = if_isset($_POST['dfm_pickup_town']);
-		$dfm_pickup_zipcode = if_isset($_POST['dfm_pickup_zipcode']);
+		// Multiple pickup addresses - now handled as arrays
+		$dfm_pickup_group_ids = isset($_POST['dfm_pickup_group_id']) && is_array($_POST['dfm_pickup_group_id']) ? $_POST['dfm_pickup_group_id'] : array();
+		$dfm_pickup_addrs     = isset($_POST['dfm_pickup_addr']) && is_array($_POST['dfm_pickup_addr']) ? $_POST['dfm_pickup_addr'] : array();
+		$dfm_pickup_name1s    = isset($_POST['dfm_pickup_name1']) && is_array($_POST['dfm_pickup_name1']) ? $_POST['dfm_pickup_name1'] : array();
+		$dfm_pickup_name2s    = isset($_POST['dfm_pickup_name2']) && is_array($_POST['dfm_pickup_name2']) ? $_POST['dfm_pickup_name2'] : array();
+		$dfm_pickup_street1s  = isset($_POST['dfm_pickup_street1']) && is_array($_POST['dfm_pickup_street1']) ? $_POST['dfm_pickup_street1'] : array();
+		$dfm_pickup_street2s  = isset($_POST['dfm_pickup_street2']) && is_array($_POST['dfm_pickup_street2']) ? $_POST['dfm_pickup_street2'] : array();
+		$dfm_pickup_towns     = isset($_POST['dfm_pickup_town']) && is_array($_POST['dfm_pickup_town']) ? $_POST['dfm_pickup_town'] : array();
+		$dfm_pickup_zipcodes  = isset($_POST['dfm_pickup_zipcode']) && is_array($_POST['dfm_pickup_zipcode']) ? $_POST['dfm_pickup_zipcode'] : array();
 		$mySale             = if_isset($_POST['mySale']);
 		$mySaleLabel        = if_isset($_POST['mySaleLabel']);
 		$paperflow          = if_isset($_POST['paperflow']);
@@ -350,7 +353,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 		} elseif ($id > 0) {
 			// db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+			$qtxt = "update grupper set  ";
+			$qtxt.= "box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' ";
+			$qtxt.= "WHERE id = '$id'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			if ($box8 == 'on') {
 				update_settings_value("paymentDays", "payment", $paymentDays, "Number of days for payment");
 			} else {
@@ -375,13 +381,14 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "update settings set var_value='$var_value[$x]' where id='$r[id]'";
 			} elseif ($var_value[$x]) {
-				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-				$qtxt.= "('GLS','$var_name[$x]','$var_value[$x]','$var_description[$x]','0')";
+/* 				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
+				$qtxt.= "('GLS','$var_name[$x]','$var_value[$x]','$var_description[$x]','0')"; */
 			} else
 				$qtxt = NULL;
 			if ($qtxt)
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+		// DFM settings (without pickup addresses - they are now stored separately)
 		$var_name = array(
 			'dfm_id',
 			'dfm_user',
@@ -393,14 +400,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			'dfm_pay',
 			'dfm_url',
 			'dfm_gooddes',
-			'dfm_sercode',
-			'dfm_pickup_addr',
-			'dfm_pickup_name1',
-			'dfm_pickup_name2',
-			'dfm_pickup_street1',
-			'dfm_pickup_street2',
-			'dfm_pickup_town',
-			'dfm_pickup_zipcode'
+			'dfm_sercode'
 		);
 		$var_value = array(
 			"$dfm_id",
@@ -413,14 +413,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			"$dfm_pay",
 			"$dfm_url",
 			"$dfm_gooddes",
-			"$dfm_sercode",
-			"$dfm_pickup_addr",
-			"$dfm_pickup_name1",
-			"$dfm_pickup_name2",
-			"$dfm_pickup_street1",
-			"$dfm_pickup_street2",
-			"$dfm_pickup_town",
-			"$dfm_pickup_zipcode"
+			"$dfm_sercode"
 		);
 		$var_description = array(
 			'DFM id',
@@ -433,14 +426,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			'DFM standardbetalingsmetode',
 			"DFM API URL",
 			"DFM standardgodsbeskrivelse",
-			"DFM standardleveringsmetode",
-			'DFM legal address is not the pickup addree',
-			'DFM pickup name1',
-			'DFM pickup name2',
-			'DFM pickup street1',
-			'DFM pickup street2',
-			'DFN pickup town',
-			'DFM pickup zipcode'
+			"DFM standardleveringsmetode"
 		);
 		for ($x = 0; $x < count($var_name); $x++) {
 			$var_description[$x] .= ', used at DFM integration';
@@ -448,12 +434,76 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "update settings set var_value='" . db_escape_string($var_value[$x]) . "' where id='$r[id]'";
 			} elseif ($var_value[$x]) {
-				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-				$qtxt.= "('GLS','$var_name[$x]','" . db_escape_string($var_value[$x]) . "','$var_description[$x]','0')";
+/* 				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
+				$qtxt.= "('GLS','$var_name[$x]','" . db_escape_string($var_value[$x]) . "','$var_description[$x]','0')"; */
 			} else
 				$qtxt = NULL;
 			if ($qtxt)
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		
+		// Handle multiple DFM pickup addresses
+		// First, get all existing group_ids from DFM_Pickup to know which to delete
+		$existing_group_ids = array();
+		$qtxt = "select distinct group_id from settings where var_grp='DFM_Pickup'";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$existing_group_ids[] = $r['group_id'];
+		}
+		
+		// Track which group_ids we're keeping/updating
+		$updated_group_ids = array();
+		
+		// Process each submitted pickup address
+		if (is_array($dfm_pickup_group_ids)) {
+			foreach ($dfm_pickup_group_ids as $idx => $group_id) {
+				// Skip if no name1 provided (empty entry)
+				if (empty($dfm_pickup_name1s[$idx])) continue;
+				
+				// Determine the actual group_id to use
+				if (strpos((string)$group_id, 'new_') === 0) {
+					// New address - find the next available group_id
+					$qtxt = "select coalesce(max(group_id), 0) + 1 as next_id from settings where var_grp='DFM_Pickup'";
+					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					$actual_group_id = $r['next_id'];
+				} else {
+					$actual_group_id = intval($group_id);
+				}
+				
+				$updated_group_ids[] = $actual_group_id;
+				
+				// Pickup address fields to save
+				$pickup_fields = array(
+					'dfm_pickup_addr' => isset($dfm_pickup_addrs[$idx]) ? $dfm_pickup_addrs[$idx] : '1',
+					'dfm_pickup_name1' => isset($dfm_pickup_name1s[$idx]) ? $dfm_pickup_name1s[$idx] : '',
+					'dfm_pickup_name2' => isset($dfm_pickup_name2s[$idx]) ? $dfm_pickup_name2s[$idx] : '',
+					'dfm_pickup_street1' => isset($dfm_pickup_street1s[$idx]) ? $dfm_pickup_street1s[$idx] : '',
+					'dfm_pickup_street2' => isset($dfm_pickup_street2s[$idx]) ? $dfm_pickup_street2s[$idx] : '',
+					'dfm_pickup_town' => isset($dfm_pickup_towns[$idx]) ? $dfm_pickup_towns[$idx] : '',
+					'dfm_pickup_zipcode' => isset($dfm_pickup_zipcodes[$idx]) ? $dfm_pickup_zipcodes[$idx] : ''
+				);
+				
+				foreach ($pickup_fields as $field_name => $field_value) {
+					$escaped_value = db_escape_string($field_value);
+					$qtxt = "select id from settings where var_grp='DFM_Pickup' and var_name='$field_name' and group_id='$actual_group_id'";
+					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+						$qtxt = "update settings set var_value='$escaped_value' where id='$r[id]'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					} else {
+						$qtxt = "insert into settings (var_grp, var_name, var_value, var_description, group_id) values ";
+						$qtxt .= "('DFM_Pickup', '$field_name', '$escaped_value', 'DFM pickup address field', '$actual_group_id')";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					}
+				}
+			}
+		}
+		
+		// Delete pickup addresses that were removed (not in updated list)
+		foreach ($existing_group_ids as $old_group_id) {
+			if (!in_array($old_group_id, $updated_group_ids)) {
+				$qtxt = "delete from settings where var_grp='DFM_Pickup' and group_id='$old_group_id'";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
 		}
 		$var_name = array('qp_agreement_id', 'qp_merchant', 'qp_md5secret', 'qp_itemGrp');
 		$var_value = array($qp_agreement_id, $qp_merchant, $qp_md5secret, $qp_itemGrp);
@@ -526,7 +576,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
 	} elseif ($sektion == 'ordre_valg') {
-		$box1             = if_isset($_POST['box1']); #incl_moms
+		$vatPrivateCustomers = if_isset($_POST['vatPrivateCustomers']);
+		$vatBusinessCustomers = if_isset($_POST['vatBusinessCustomers']);
 		$box2             = if_isset($_POST['box2']); #Rabatvarenr
 		$box3             = if_isset($_POST['box3']); #folge_s_tekst
 		$box4             = if_isset($_POST['box4']); #hurtigfakt
@@ -543,12 +594,17 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$rabatvarenr      = if_isset($_POST['rabatvarenr']);
 		$kostmetode       = if_isset($_POST['kostmetode']);
 		$saetvarenr       = if_isset($_POST['saetvarenr']); #20150907
-		$orderNoteEnabled = if_isset($_POST['orderNoteEnabled']);
-		$debitoripad      = if_isset($_POST['debitoripad']);
-		$portovarenr      = if_isset($_POST['portovarenr']);
+		$orderNoteEnabled = if_isset($_POST, null, 'orderNoteEnabled');
+		$debitoripad      = if_isset($_POST, null, 'debitoripad');
+		$portovarenr      = if_isset($_POST, null, 'portovarenr');
+		$showDB           = if_isset($_POST, null, 'showDB');
+		$showDG           = if_isset($_POST, null, 'showDG');
+		$pluklisteEmail   = if_isset($_POST, null, 'pluklisteEmail');
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
+		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
 		update_settings_value("porto_varnr", "ordre", $portovarenr, "Varenr to autmatically include on new orders");
-
+		update_settings_value("showDB", "ordre", $showDB, "Weather or not to show the DB on the order page");
+		update_settings_value("showDG", "ordre", $showDG, "Weather or not to show the DG on the order page");
 
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
@@ -583,16 +639,21 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		# <- 20150907
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='3'", __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];
-			$qtxt = "update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',";
+			$qtxt = "update grupper set  box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',";
 			$qtxt.= "box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13',";
 			$qtxt.= "box14='$box14' WHERE id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,";
-			$qtxt.= "box12,box13,box14) values ('Div_valg (Ordrer)','3','DIV','$box1','$box2','$box3','$box4','$box5','$box6',";
+			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,";
+			$qtxt.= "box12,box13,box14) values ('Div_valg (Ordrer)','3','DIV','$box2','$box3','$box4','$box5','$box6',";
 			$qtxt.= "'$box7','$box8','$box9','$box10','$box11','$box12','$box13','$box14')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+		
+		// Save VAT options to settings table
+		update_settings_value("vatPrivateCustomers", "ordre", $vatPrivateCustomers, "Show VAT on orders for private customers");
+		update_settings_value("vatBusinessCustomers", "ordre", $vatBusinessCustomers, "Show VAT on orders for business customers");
+		
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];
 			db_modify("update grupper set box6='$kostmetode',box8='$saetvareid' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -617,7 +678,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'productOptions') {
 
 		$id                              = $_POST['id'];
-		$box1                            = if_isset($_POST['box1']); #incl_moms
+		$box1                            = if_isset($_POST['box1']); #incl_moms (legacy - not used for VAT anymore)
 		$DisItemIfNeg_id                 = if_isset($_POST['DisItemIfNeg_id']);
 		$DisItemIfNeg                    = if_isset($_POST['DisItemIfNeg']);
 		$vatOnItemCard_id                = if_isset($_POST['vatOnItemCard_id']);
@@ -933,9 +994,102 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				db_modify("insert into variant_typer (beskrivelse,variant_id) values ('$var_type_beskrivelse[$x]','$variant_id[$x]')", __FILE__ . " linje " . __LINE__);
 		}
 	#######################################################################################
+	} elseif ($sektion == 'variant_valg_import_types') {
+		// Import variant types (main categories like Color, Size)
+		$imported = 0;
+		$skipped = 0;
+		if (isset($_FILES['variant_types_file']) && $_FILES['variant_types_file']['error'] == 0) {
+			$filnavn = $_FILES['variant_types_file']['tmp_name'];
+			if (($handle = fopen($filnavn, "r")) !== FALSE) {
+				while (($line = fgets($handle)) !== FALSE) {
+					$line = trim($line);
+					// Handle both semicolon and comma separated, but expect single column
+					$parts = preg_split('/[;,\t]/', $line);
+					$variant_name = trim($parts[0]);
+					
+					// Convert encoding if needed
+					if ($db_encode == "UTF8" && !mb_check_encoding($variant_name, 'UTF-8')) {
+						$variant_name = mb_convert_encoding($variant_name, 'UTF-8', 'ISO-8859-1');
+					}
+					
+					if (!empty($variant_name)) {
+						// Check if variant already exists
+						$escaped_name = db_escape_string($variant_name);
+						$existing = db_fetch_array(db_select("SELECT id FROM varianter WHERE LOWER(beskrivelse) = LOWER('$escaped_name')", __FILE__ . " linje " . __LINE__));
+						if (!$existing) {
+							db_modify("INSERT INTO varianter (beskrivelse) VALUES ('$escaped_name')", __FILE__ . " linje " . __LINE__);
+							$imported++;
+						} else {
+							$skipped++;
+						}
+					}
+				}
+				fclose($handle);
+			}
+		}
+		$_SESSION['variant_import_message'] = "Importeret: $imported varianttyper. Sprunget over (eksisterer allerede): $skipped";
+		header("Location: diverse.php?sektion=variant_valg");
+		exit;
+	#######################################################################################
+	} elseif ($sektion == 'variant_valg_import_values') {
+		// Import variant values (values for existing types like Red, Blue for Color)
+		$imported = 0;
+		$skipped = 0;
+		$not_found = 0;
+		if (isset($_FILES['variant_values_file']) && $_FILES['variant_values_file']['error'] == 0) {
+			$filnavn = $_FILES['variant_values_file']['tmp_name'];
+			if (($handle = fopen($filnavn, "r")) !== FALSE) {
+				while (($line = fgets($handle)) !== FALSE) {
+					$line = trim($line);
+					// Expect format: variant_name;value or variant_name,value
+					$parts = preg_split('/[;,\t]/', $line, 2);
+					if (count($parts) >= 2) {
+						$variant_name = trim($parts[0]);
+						$value_name = trim($parts[1]);
+						
+						// Convert encoding if needed
+						if ($db_encode == "UTF8") {
+							if (!mb_check_encoding($variant_name, 'UTF-8')) {
+								$variant_name = mb_convert_encoding($variant_name, 'UTF-8', 'ISO-8859-1');
+							}
+							if (!mb_check_encoding($value_name, 'UTF-8')) {
+								$value_name = mb_convert_encoding($value_name, 'UTF-8', 'ISO-8859-1');
+							}
+						}
+						
+						if (!empty($variant_name) && !empty($value_name)) {
+							// Find the variant by name
+							$escaped_variant = db_escape_string($variant_name);
+							$variant = db_fetch_array(db_select("SELECT id FROM varianter WHERE LOWER(beskrivelse) = LOWER('$escaped_variant')", __FILE__ . " linje " . __LINE__));
+							
+							if ($variant) {
+								$variant_id = $variant['id'];
+								$escaped_value = db_escape_string($value_name);
+								
+								// Check if value already exists for this variant
+								$existing = db_fetch_array(db_select("SELECT id FROM variant_typer WHERE variant_id = '$variant_id' AND LOWER(beskrivelse) = LOWER('$escaped_value')", __FILE__ . " linje " . __LINE__));
+								if (!$existing) {
+									db_modify("INSERT INTO variant_typer (beskrivelse, variant_id) VALUES ('$escaped_value', '$variant_id')", __FILE__ . " linje " . __LINE__);
+									$imported++;
+								} else {
+									$skipped++;
+								}
+							} else {
+								$not_found++;
+							}
+						}
+					}
+				}
+				fclose($handle);
+			}
+		}
+		$_SESSION['variant_import_message'] = "Importeret: $imported værdier. Sprunget over (eksisterer allerede): $skipped. Variant ikke fundet: $not_found";
+		header("Location: diverse.php?sektion=variant_valg");
+		exit;
+	#######################################################################################
 	} elseif ($sektion == 'shop_valg') {
 		$id = if_isset($_POST['id']);
-#		$box1 = if_isset($_POST['box1']);   #incl_moms
+#		$box1 = if_isset($_POST['box1']);   #incl_moms (legacy - not used for VAT anymore)
 		$box2 = if_isset($_POST['box2']);   #Shop url
 		$box3 = if_isset($_POST['box3']);   #shop valg
 		$box4 = if_isset($_POST['box4']);   #merchant id

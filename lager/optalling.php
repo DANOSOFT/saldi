@@ -121,6 +121,7 @@ if ($slet && $vare_id && $varenr) {
 			}
 			if ($varenr) {
 				$qtxt = "select varenr from varer where lower(varenr) like '$varenr' or stregkode='$varenr'";
+				$qtxt.= " or varenr_alias like '$varenr' or lower(varenr_alias) like '$varenr'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
 					$varenr = $r['varenr'];
 				else {
@@ -217,7 +218,7 @@ if ($vare_id && ($optalt || $optalt == '0')) {
 	#	if ($optalt) { # remmet 20120913 saa det er muligt at optaelle til 0.
 	$optalt = usdecimal($optalt, 2);
 	$beholdning *= 1;
-	$lager *= 1;
+	$lager = (int)$lager;
 	$variant_id *= 1;
 	$qtxt = "select id from regulering where vare_id='$vare_id' and variant_id='$variant_id' and optalt='$optalt' and lager= '$lager' and beholdning='$beholdning' and tidspkt='$tidspkt' and bogfort='0'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -862,7 +863,7 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 							}
 
 							if ($reguleres[0]) {
-								$lager *= 1;
+								$lager = (int)$lager;
 								#									db_modify("insert into batch_kob(vare_id,linje_id,kobsdate,fakturadate,ordre_id, antal,rest,pris,lager) 
 #										values 
 #										('$vare_id[$v]','0','$transdate','$transdate','0','0','$reguleres[0]','$kostpris','$lager[$id]')",__FILE__ . " linje " . __LINE__);

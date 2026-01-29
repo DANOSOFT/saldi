@@ -28,8 +28,19 @@ ini_set("include_path", ".:../phpmailer");
 require("class.phpmailer.php");
 		
 for($x=1;$x<=$mailantal;$x++) {
+	$debug_file = "../temp/$db/pbs_email_debug.log";
+	$debug_msg = "\n" . date("Y-m-d H:i:s") . " - mail_faktura.php: Processing email $x of $mailantal\n";
+	$debug_msg .= "PDF file: ../temp/$db/$pfliste[$x].pdf\n";
+	$debug_msg .= "Email: " . var_export($email[$x], true) . "\n";
+	$debug_msg .= "Language: " . var_export($mailsprog[$x], true) . "\n";
+	$debug_msg .= "Form number: " . var_export($form_nr[$x], true) . "\n";
+	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
+	
 	system ("/usr/bin/ps2pdf ../temp/$db/$pfliste[$x] ../temp/$db/$pfliste[$x].pdf");
-	send_mails("../temp/$db/$pfliste[$x].pdf",$email[$x],$mailsprog[$x],$form_nr[$x]);	
+	$result = send_mails("../temp/$db/$pfliste[$x].pdf",$email[$x],$mailsprog[$x],$form_nr[$x]);
+	
+	$debug_msg = "\n" . date("Y-m-d H:i:s") . " - mail_faktura.php: send_mails() returned: " . var_export($result, true) . "\n";
+	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 #	unlink("../temp/$db/$pfliste[$x]");
 #	unlink("../temp/$db/$pfliste[$x].pdf");
 }
@@ -39,15 +50,53 @@ function send_mails($filnavn,$email,$mailsprog,$form_nr) {
 	global $mailantal;
 	global $charset;
 	
-	$q=db_select("select * from formularer where formular='$form_nr' and art='5'");
+	$q=db_select("select * from formularer where formular='$form_nr' and art='5' and lower(sprog)='".strtolower($mailsprog)."'");
 	while ($r = db_fetch_array($q)) {
 		if ($r['xa']=='1') $subjekt=$r['beskrivelse'];	
 		elseif ($r['xa']=='2') $mailtext=$r['beskrivelse'];
 	}
+	
+	# Load language-specific sender email and name from settings table
+	# Determine language ID: 0 for Danish/default, actual ID for other languages
+	$lang_id = 0; // Default to 0 for Danish
+	
+	if ($mailsprog && strtolower($mailsprog) != 'dansk') {
+		$qtxt = "select kodenr from grupper where art = 'VSPR' and lower(box1) = lower('$mailsprog')";
+		$r = db_fetch_array(db_select($qtxt));
+		if ($r) {
+			$lang_id = $r['kodenr'];
+		}
+	}
+	
+	error_log("DEBUG: mailsprog='$mailsprog', lang_id='$lang_id'");
+	
+	# Load sender email for this language
+	$lang_sender_email = NULL;
+	$qtxt = "select var_value from settings where var_name = 'sender_email' and var_grp = 'email_settings' and group_id = '$lang_id'";
+	$r = db_fetch_array(db_select($qtxt));
+	$lang_sender_email = $r['var_value'];
+	error_log("DEBUG: Found lang_sender_email='$lang_sender_email' for lang_id='$lang_id'");
+	
+	# Load sender name for this language
+	$lang_sender_name = NULL;
+	$qtxt = "select var_value from settings where var_name = 'sender_name' and var_grp = 'email_settings' and group_id = '$lang_id'";
+	$r = db_fetch_array(db_select($qtxt));
+	$lang_sender_name = $r['var_value'];
+	error_log("DEBUG: Found lang_sender_name='$lang_sender_name' for lang_id='$lang_id'");
 		
 	$row = db_fetch_array(db_select("select * from adresser where art='S'"));
 	$afsendermail=$row['email'];
 	$afsendernavn=$row['firmanavn'];
+	
+	# Use language-specific sender email if available, otherwise use default
+	if ($lang_sender_email && trim($lang_sender_email) != '') {
+		$afsendermail = $lang_sender_email;
+	}
+	
+	# Use language-specific sender name if available, otherwise use default
+	if ($lang_sender_name && trim($lang_sender_name) != '') {
+		$afsendernavn = $lang_sender_name;
+	}
 	if (!$afsendermail || !$afsendernavn) {
 		print "<BODY onLoad=\"javascript:alert('Firmanavn eller e-mail for afsender ikke udfyldt.\\nSe (Indstillinger -> stamdata).\\nMail ikke afsendt!')\">";
 		return;

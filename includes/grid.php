@@ -1,5 +1,6 @@
 <?php
 
+#..includes/grid.php
 /**
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -250,78 +251,58 @@ function create_datagrid($id, $grid_data) {
     global $defaultValues;
     global $bruger_id;
     global $db;
-    // Performance logging for grid creation
-    $grid_start_time = microtime(true);
-    $log_file = "../../temp/$db/vareliste_performance.log";
-    
-    function log_grid_performance($message, $start_time = null) {
-        global $log_file;
-        
-        // Safety check - if log_file is still empty, skip logging
-        if (empty($log_file)) {
-            return microtime(true);
-        }
-        
-        $current_time = microtime(true);
-        if ($start_time) {
-            $elapsed = round(($current_time - $start_time) * 1000, 2);
-            $message .= " (took {$elapsed}ms)";
-        }
-        $timestamp = date('Y-m-d H:i:s');
-        
-        // Use error suppression to prevent fatal errors
-        @file_put_contents($log_file, "[$timestamp] GRID: $message\n", FILE_APPEND | LOCK_EX);
-        return $current_time;
-    }
-
-    log_grid_performance("Grid creation started");
 
     // Normalize columns with default values
-    $normalize_start = microtime(true);
     $columns = normalize_columns($grid_data['columns'], $defaultValues);
-    log_grid_performance("Column normalization", $normalize_start);
-    log_grid_performance("Column normalization", $normalize_start);
     
-    $filter_start = microtime(true);
     $columns_filtered = array_filter($columns, function ($item) {
         return !$item["hidden"];
     });
 
     // Retrieve filters
     $filters = $grid_data["filters"];
-    log_grid_performance("Column filtering and filters setup", $filter_start);
-
+    $searchId1 = if_isset($_GET, NULL, "search");
+    $searchId2 = if_isset($searchId1,NULL, $id); //properly handle the if_isset values
     // Fetch stored grid setup from the database
-    $fetch_setup_start = microtime(true);
     list($columns_setup, $search_setup, $filter_setup) = fetch_grid_setup(
         $id,
         $columns_filtered,
-        if_isset($_GET["search"][$id], array()),
+        if_isset($searchId2, array()),
         $filters
     );
-    log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
-    log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
-    
-    $setup_processing_start = microtime(true);
     $columns_setup = json_decode($columns_setup, true);
     $columns_updated = fill_missing_values($columns_setup, $columns);
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
-    $searchTerms = if_isset($_GET["search"][$id], $search_setup);
+    $s3 = if_isset($_GET, NULL,"search"); // prevent excessive error logs
+    $s4 = if_isset($s3, NULL, $id);
+    $searchTerms = if_isset($s4, $search_setup);
     $search_json  = db_escape_string(json_encode($searchTerms));
-    log_grid_performance("JSON processing and search setup", $setup_processing_start);
+    // Log the value of $s3
+
 
     // Retrieve stored grid settings from the database
-    $grid_settings_start = microtime(true);
     $q = "SELECT search_setup, rowcount, \"offset\", \"sort\" FROM datatables WHERE user_id = $bruger_id AND tabel_id='$id'";
     $r = db_fetch_array(db_select($q, __FILE__ . " line " . __LINE__));
-    log_grid_performance("Grid settings query", $grid_settings_start);
 
     // Determine sorting, row count, and offset
-    $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
-    $selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+    $sortArrayGet = if_isset($_GET, NULL, 'sort');
+    $sortArrayDb = if_isset($r,NULL, 'sort');
+    $sortId = if_isset($sortArrayGet, NULL, $id);
+    # $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
+     if(!$sortId){
+       $sort = if_isset($sortArrayDb, get_default_sort($columns_updated)); #This is for database stored values
+     }else{
+        $sort = $sortId; #This is necessary for handling GET values...don't remove it, else sorting fails for some implemented pages
+     }
 
+     $rowC1 = if_isset($_GET, NULL, "rowcount");
+     $rowCId = if_isset($rowC1,NULL,$id);
+     $rowCdb = if_isset($r, NULL,"rowcount"); //properly use the if_isset to prevent too many error logs
+     #$selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+    $selectedrowcount = if_isset($rowCId, if_isset($rowCdb, 100));
+  
     // Use isset to avoid zero triggering if
     $offset =   isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
                 isset($r["offset"]) ? $r["offset"] : 
@@ -349,48 +330,33 @@ function create_datagrid($id, $grid_data) {
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
-    $rowStyleFn = if_isset($grid_data['rowStyle'], null);
-    $metaColumnFn = if_isset($grid_data['metaColumn'], null);
+    $rowStyleFn = if_isset($grid_data, NULL,'rowStyle');
+    $metaColumnFn = if_isset($grid_data,NULL,'metaColumn');
+    $metaColumnHeaders = if_isset($grid_data, NULL,'metaColumnHeaders');
     $totalWidth = calculate_total_width($columns_updated);
-    $menu = if_isset($_GET["menu"][$id], "main"); // ['main', 'kolonner', 'filtre']
+    $menuData = if_isset($_GET, [], 'menu');
+    $menu = if_isset($menuData, "main", $id);// ['main', 'kolonner', 'filtre']
 
     $rows = array();
     $query = "";
-
+ 
     // Handle different menu options
     if ($menu == "main") {
         // Build and execute the main query
-        $query_build_start = microtime(true);
         $query = build_query($id, $grid_data, $columns_updated, $filters_updated, $searchTerms, $sort, $selectedrowcount, $offset);
-        log_grid_performance("Query building", $query_build_start);
-        
-        // Log the actual query being executed
-        $query_length = strlen($query);
-        log_grid_performance("Built query with length: {$query_length} characters");
         
         print "<!-- \n DEBUG QUERY \n\n$query -->";
         
-        $main_query_start = microtime(true);
         $sqlquery = db_select($query, __FILE__ . " line " . __LINE__);
-        log_grid_performance("Main SQL query execution", $main_query_start);
-        
-        $fetch_rows_start = microtime(true);
         $rows = fetch_rows_from_query($sqlquery);
-        log_grid_performance("Fetching rows from query", $fetch_rows_start);
 
         // Fetch total row count
-        $count_query_start = microtime(true);
         $countQuery = build_count_query($grid_data, $columns_updated, $filters_updated, $searchTerms, $sort);
-        $count_query_length = strlen($countQuery);
-        log_grid_performance("Built count query with length: {$count_query_length} characters");
-        
         $countResult = db_select($countQuery, __FILE__ . " line " . __LINE__);
         $totalItems = db_fetch_array($countResult)["total_items"];
         $totalRows = count($rows);
-        log_grid_performance("Count query execution", $count_query_start);
-
+ 
         // Render the data grid
-        $render_start = microtime(true);
         render_datagrid(
             $id,
             $columns_updated, 
@@ -399,6 +365,7 @@ function create_datagrid($id, $grid_data) {
             $searchTerms, 
             $rowStyleFn, 
             $metaColumnFn,
+            $metaColumnHeaders,
             $query, 
             $sort,
             $selectedrowcount,
@@ -407,15 +374,12 @@ function create_datagrid($id, $grid_data) {
             $offset,
             $menu
         );
-        log_grid_performance("Grid rendering", $render_start);
 
         // Render additional styles and scripts
-        $styles_start = microtime(true);
         render_search_style();
         render_dropdown_style();
         render_pagination_script($id);
         render_sort_script($id);
-        log_grid_performance("Rendering styles and scripts", $styles_start);
 
     } else if ($menu == "kolonner") {
         if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -459,15 +423,9 @@ function create_datagrid($id, $grid_data) {
         render_filter_edit_style();
         render_move_script();
     }
-
+ 
     // Render dropdown script for interactions
-    $dropdown_start = microtime(true);
     render_dropdown_script($id, $query);
-    log_grid_performance("Dropdown script rendering", $dropdown_start);
-
-    // Final grid performance log
-    $total_grid_time = microtime(true) - $grid_start_time;
-    log_grid_performance("TOTAL grid creation completed in " . round($total_grid_time * 1000, 2) . "ms");
 
     return $rows;
 }
@@ -847,6 +805,7 @@ function calculate_total_width($columns) {
  * @param array $searchTerms An array of search terms used to filter table data. Each term corresponds to a column.
  * @param callable|null $rowStyleFn A callback function to define dynamic styles for each row. Receives a row and returns a style string.
  * @param callable|null $metaColumnFn A callback function to render metadata for each row. Receives a row and returns an HTML string.
+ * @param array|null $metaColumnHeaders An array of header names for meta columns (e.g., ['Aktiv', 'Inviter']).
  * @param array $query The query parameters used for filtering and sorting the table data. Typically includes search, sort, and pagination data.
  * @param string $sort The current sorting criteria, e.g., the column and direction (e.g., 'column_name ASC').
  * @param int $selectedrowcount The total number of rows selected by the user for some action (e.g., bulk action).
@@ -857,7 +816,7 @@ function calculate_total_width($columns) {
  *
  * @return void Outputs the full HTML structure of the datagrid, including a table and necessary form fields for interaction.
  */
-function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
+function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $metaColumnHeaders, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
     // Start table wrapper and form
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
@@ -870,7 +829,7 @@ function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowSt
 HTML;
 
     // Render table headers
-    render_table_headers($columns, $searchTerms, $totalWidth, $id);
+    render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaColumnHeaders);
 
     echo <<<HTML
                 </thead>
@@ -886,13 +845,26 @@ HTML;
         echo "$metaColumn</tr>";
     }
 
-    if ($selectedrowcount < 1000) {
-        for ($i=0; $i < $selectedrowcount - $rowCount; $i++) {
-            echo "<tr style='background-color: unset; pointer-events: none;' class='filler-row'>";
-            echo "<td>-&nbsp;</td>";
-            echo "</tr>";
-        }
-    }
+    // ==========================================================================
+    // OLD FILLER ROWS CODE - Commented out 2025-11-25
+    // Problem: Only worked for selectedrowcount < 1000 and filler rows had only 1 <td>
+    // ==========================================================================
+    // if ($selectedrowcount < 1000) {
+    //     for ($i=0; $i < $selectedrowcount - $rowCount; $i++) {
+    //         echo "<tr style='background-color: unset; pointer-events: none;' class='filler-row'>";
+    //         echo "<td>-&nbsp;</td>";
+    //         echo "</tr>";
+    //     }
+    // }
+    // ==========================================================================
+    // NEW FILLER ROW CODE - Added 2025-11-25
+    // Single filler row that expands to fill remaining vertical space
+    // This pushes the footer to the bottom of the container
+    // ==========================================================================
+    $columnCount = count($columns) + 1; // +1 for the extra dropdown column in header
+    echo "<tr class='filler-row'>";
+    echo "<td colspan='$columnCount'></td>";
+    echo "</tr>";
 
     echo <<<HTML
                 </tbody>
@@ -931,9 +903,10 @@ HTML;
  * @param int $totalWidth The total width of the table, used to calculate the width percentage of each column.
  * @param string $id The unique identifier for the table. Used to generate dynamic IDs and actions related to sorting and interactions.
  *
+ * @param array|null $metaColumnHeaders An array of header names for meta columns.
  * @return void Outputs the full HTML structure for the table header and the search row, including sorting functionality and search inputs.
  */
-function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
+function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaColumnHeaders = null) {
     print "<tr>";
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
@@ -953,9 +926,15 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
         }
         echo "</th>";
     }
+    // Add meta column headers if provided
+    if ($metaColumnHeaders && is_array($metaColumnHeaders)) {
+        foreach ($metaColumnHeaders as $header) {
+            echo "<th style='text-align: center;'>$header</th>";
+        }
+    }
     print "<th class='filler-row'></th>";
     print "</tr>";
-    print "<tr style='background-color: #f4f4f4'>";
+    print "<tr style='background-color: $bgColor !important;'>";
     foreach ($columns as $column) {
         echo "<th class='$column[field]'>";
         if ($column["searchable"]) {
@@ -964,6 +943,22 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
         }
         echo "</th>";
     }
+    // Add empty search cells for meta columns
+    if ($metaColumnHeaders && is_array($metaColumnHeaders)) {
+        foreach ($metaColumnHeaders as $header) {
+            echo "<th></th>";
+        }
+    }
+
+    global $sprog_id;
+    $txt1 = findtekst('913|Søg', $sprog_id);
+    $txt2 = findtekst('2755|Ryd søgning', $sprog_id);
+    $txt3 = findtekst('2756|Eksportér til CSV', $sprog_id);
+    $txt4 = findtekst('2757|Eksportér til PDF', $sprog_id);
+    $txt5 = findtekst('2148|Redigér', $sprog_id);
+    $txt6 = findtekst('2758|Kolonner', $sprog_id);
+    $txt7 = findtekst('2759|Filtre', $sprog_id);
+    $txt8 = findtekst('2760|Vis SQL', $sprog_id);
 
     echo <<<HTML
                         <th>
@@ -972,42 +967,42 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
                                 <div class="dropdown-content">
                                     <button type="submit" class="dropdown-btn">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
-                                        Søg
+                                        {$txt1}
                                     </button>
                                     <button type="button" onclick="handleAction{$id}('clear')">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
-                                        Ryd søgning
+                                        {$txt2}
                                     </button>
                                     <button type="button" onclick="handleAction{$id}('exportCSV')">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm240-240H200v160h240v-160Zm80 0v160h240v-160H520Zm-80-80v-160H200v160h240Zm80 0h240v-160H520v160ZM200-680h560v-80H200v80Z"/></svg>
-                                        Export til CSV
+                                        {$txt3}
                                     </button>
                                     <button type="button" onclick="handleAction{$id}('exportPDF')">
                                     <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/></svg>
-                                        Export til PDF
+                                        {$txt4}
                                     </button>
                                     <div id='edit-button' class="has-secondary-dropdown">
                                         <span>
                                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
-                                            Rediger
+                                            {$txt5}
                                         </span>
 
                                         <svg id="turn-arrow2" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                                         <div class="secondary-dropdown">
                                             <button type="button" onclick="handleAction{$id}('kolonner')">
                                                 <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M121-280v-400q0-33 23.5-56.5T201-760h559q33 0 56.5 23.5T840-680v400q0 33-23.5 56.5T760-200H201q-33 0-56.5-23.5T121-280Zm79 0h133v-400H200v400Zm213 0h133v-400H413v400Zm213 0h133v-400H626v400Z"/></svg>
-                                                Kolonner
+                                                {$txt6}
                                             </button>
                                             <button type="button" onclick="handleAction{$id}('filtre')">
                                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M440-160q-17 0-28.5-11.5T400-200v-240L168-736q-15-20-4.5-42t36.5-22h560q26 0 36.5 22t-4.5 42L560-440v240q0 17-11.5 28.5T520-160h-80Zm40-308 198-252H282l198 252Zm0 0Z"/></svg>
-                                                Filtre
+                                                {$txt7}
                                             </button>
                                         </div>
                                     </div>
 
                                     <button type="button" onclick="handleAction{$id}('showSQL')">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M560-160v-80h120q17 0 28.5-11.5T720-280v-80q0-38 22-69t58-44v-14q-36-13-58-44t-22-69v-80q0-17-11.5-28.5T680-720H560v-80h120q50 0 85 35t35 85v80q0 17 11.5 28.5T840-560h40v160h-40q-17 0-28.5 11.5T800-360v80q0 50-35 85t-85 35H560Zm-280 0q-50 0-85-35t-35-85v-80q0-17-11.5-28.5T120-400H80v-160h40q17 0 28.5-11.5T160-600v-80q0-50 35-85t85-35h120v80H280q-17 0-28.5 11.5T240-680v80q0 38-22 69t-58 44v14q36 13 58 44t22 69v80q0 17 11.5 28.5T280-240h120v80H280Z"/></svg>
-                                        Vis SQL
+                                        {$txt8}
                                     </button>
                                 </div>
                             </div>
@@ -1037,7 +1032,7 @@ HTML;
  */
 function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
     // Define the possible row count options
-    $rowCounts = [50, 100, 250, 500, 1000, 5000, 999999999];
+    $rowCounts = [50, 100, 250, 500, 1000];
 
     // Build the options dynamically
     $options = '';
@@ -1086,16 +1081,20 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
     }
 
     // Output the footer with dynamic options
+    global $sprog_id;
+    $txt1 = lcfirst(findtekst('2767|Af', $sprog_id));
+    $txt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+
     echo <<<HTML
             <tr>
                 <td colspan=100>
                     <input type='hidden' name="offset[$id]" value="$offset" size='4'>
                     <div id='footer-box'>
                         <span style='display: flex' id='page-status'>
-                            $offsetFrom-$offsetTo&nbsp;af&nbsp;$totalItems
+                            $offsetFrom-$offsetTo&nbsp;{$txt1}&nbsp;$totalItems
                         </span>
                         |
-                        <span>Linjer pr. side 
+                        <span>{$txt2} 
                             <select name="rowcount[$id]" onchange="this.form.submit()">
                                 $options
                             </select> 
@@ -1162,20 +1161,31 @@ function render_table_row($columns, $row, $searchTerms) {
  * @return void Outputs the HTML structure directly.
  */
 function render_column_setup($id, $columns, $all_columns) {
+
+    global $sprog_id;
+    $txt1 = findtekst('2761|Vælg hvilke felter der skal være synlige i tabellen', $sprog_id);
+    $txt2 = findtekst('543|Felt', $sprog_id);
+    $txt3 = findtekst('2762|Valgfri overskrift', $sprog_id);
+    $txt4 = findtekst('2763|Valgfri beskrivelse', $sprog_id);
+    $txt5 = findtekst('540|Feltbredde', $sprog_id);
+    $txt6 = findtekst('541|Justering', $sprog_id);
+    $txt7 = findtekst('3|Gem', $sprog_id);
+    $txt8 = findtekst('2172|Luk', $sprog_id);
+    
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="POST" action="">
             <div class="datatable-search-wrapper">
                 <table class="datatable" id="datatable-$id" style="width: 100%;">
-                    <tr><td colspan=100>Vælg hvilke felter der skal være synlige i tabellen</td></tr>
+                    <tr><td colspan=100>{$txt1}</td></tr>
                     <tr><td colspan=100><hr></td></tr>
                     <tr>
                         <th>Pos</th>
-                        <th>Felt</th>
-                        <th>Valgfri overskrift</th>
-                        <th>Valgfri beskrivelse</th>
-                        <th align='right' style='text-align: right;'>Feltbredde</th>
-                        <th>Justering</th>
+                        <th>{$txt2}</th>
+                        <th>{$txt3}</th>
+                        <th>{$txt4}</th>
+                        <th align='right' style='text-align: right;'>{$txt5}</th>
+                        <th>{$txt6}</th>
                     </tr>
                     <tr><td colspan=100><hr></td></tr>
 HTML;
@@ -1186,8 +1196,8 @@ HTML;
     echo <<<HTML
             <tr>
                 <td colspan="100" align="right">
-                    <button>Gem</button>
-                    <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>Luk</button>
+                    <button>{$txt7}</button>
+                    <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>{$txt8}</button>
                 </td>
             </tr>
                 </table>
@@ -1393,7 +1403,7 @@ function save_column_setup($id) {
 
     // Print the result
     $columns_json = db_escape_string(json_encode($rows));
-    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -1410,11 +1420,19 @@ function save_column_setup($id) {
  * @return void Outputs the full HTML form for setting up filters. No value is returned.
  */
 function render_filter_setup($id, $filters, $all_filters) {
+
+    global $sprog_id;
+    $txt1 = findtekst('2764|Vælg hvilke filtre der skal være aktive', $sprog_id);
+    $txt2 = findtekst('2765|Markér alle', $sprog_id);
+    $txt3 = findtekst('2766|Fjern alle', $sprog_id);
+    $txt4 = findtekst('3|Gem', $sprog_id);
+    $txt5 = findtekst('2172|Luk', $sprog_id);
+
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="POST" action="">
             <div class="datatable-search-wrapper">
-                Vælg hvilke filtre der skal være aktive <br><hr>
+                {$txt1} <br><hr>
                 <div id='filter-wrapper'>
 HTML;
 
@@ -1425,10 +1443,10 @@ HTML;
                 </div>
                 <hr>
                 <div style='display: flex; justify-content: flex-end; gap: 5px;'>
-                    <button class="select">Marker alle</button>
-                    <button class="deselect">Fjern alle</button>
-                    <button>Gem</button>
-                    <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>Luk</button>
+                    <button class="select">{$txt2}</button>
+                    <button class="deselect">{$txt3}</button>
+                    <button>{$txt4}</button>
+                    <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>{$txt5}</button>
                     <script>
                         const checkboxes = document.querySelectorAll('[type="checkbox"]');
                         document.querySelector('.select').addEventListener('click', function(event) {
@@ -1518,7 +1536,7 @@ function save_filter_setup($id) {
     $filter_json = db_escape_string(json_encode($rows));
 
     // Save the updated JSON to the database
-    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -1538,43 +1556,80 @@ function save_filter_setup($id) {
  * @return void Outputs the embedded CSS for styling the data table and search functionality.
  */
 function render_search_style() {
+    global $bgcolor, $bgcolordark;
     echo <<<STYLE
     <style>
+        /* ==========================================================================
+         * DATATABLE WRAPPER AND TABLE STYLES
+         * Sawaneh- Modified 2025-11-25: Footer stays at bottom of viewport
+         * ========================================================================== */
         .datatable-wrapper {
             margin-bottom: 5px;
             overflow-x: auto;
+            overflow-y: auto;
             position: relative;
-
             height: 100%;
             width: 100%;
         }
         .datatable {
             border-collapse: collapse;
             width: 100%;
-        }
-        .datatable tfoot {
-            position: sticky;
-            bottom: 0; /* Stick to the bottom */
-            z-index: 1; /* Ensure it stays above other content */
-            background-color: #f4f4f4; /* Background color for the footer */
-            border-top: 2px solid #ddd; /* Optional: separate footer visually */
+            height: 100%; /* Table fills the wrapper height */
         }
         .datatable thead {
             position: sticky;
-            top: 0; /* Stick to the top */
-            z-index: 1; /* Ensure it stays above other content */
-            background-color: #f4f4f4; /* Background color for the header */
+            top: 0;
+            z-index: 2;
             text-align: left;
-            border-bottom: 2px solid #ddd;
+            border-bottom: 2px solid $bgcolordark;
         }
+        .datatable thead tr,
+        .datatable thead th {
+            background-color: $bgcolor;
+        }
+        .datatable tbody {
+            /* No special styling needed - will expand naturally */
+        }
+        .datatable tfoot {
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            background-color: #f4f4f4;
+            border-top: 2px solid #ddd;
+        }
+        .datatable tfoot tr,
+        .datatable tfoot td {
+            background-color: #f4f4f4;
+        }
+        /* ========================================================================== */
         .datatable tbody tr:nth-child(2n) {
             background-color: #e0e0f0;
         }
         .datatable tbody tr:hover {
-            border-width: 1px 0 1px 0;
-            border-color: #333;
-            border-style: solid;
+            outline: 2px solid #b2b2b2;
+            background-color: #f9f9f9;
+            cursor: pointer;
         }
+        /* ==========================================================================
+         * FILLER ROW STYLES - Added 2025-11-25
+         * Filler rows should be invisible and not interactive
+         * ========================================================================== */
+        .datatable tbody tr.filler-row {
+            background-color: transparent !important;
+            pointer-events: none;
+        }
+        .datatable tbody tr.filler-row:nth-child(2n) {
+            background-color: transparent !important;
+        }
+        .datatable tbody tr.filler-row:hover {
+            outline: none;
+            background-color: transparent !important;
+            cursor: default;
+        }
+        .datatable tbody tr.filler-row td {
+            height: 100%; /* Filler row expands to fill remaining space */
+        }
+        /* ========================================================================== */
         .datatable-search-wrapper input {
             width: 100%;
         }

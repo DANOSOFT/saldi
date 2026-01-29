@@ -1,0 +1,126 @@
+/**
+ * DocPool Design System - CSS Variables
+ * Base theming variables for the DocPool component
+ */
+
+:root {
+  /* Color System */
+  --docpool-primary: #114691;
+  --docpool-primary-text: #ffffff;
+  --docpool-primary-light: rgba(17, 70, 145, 0.6);
+  --docpool-primary-hover: rgba(17, 70, 145, 0.9);
+
+  /* Background Colors */
+  --docpool-bg-main: #ffffff;
+  --docpool-bg-secondary: #f5f5f5;
+  --docpool-bg-hover: rgba(0, 0, 0, 0.05);
+  --docpool-bg-selected: rgba(17, 70, 145, 0.15);
+  --docpool-bg-editing: rgba(17, 70, 145, 0.1);
+
+  /* Text Colors */
+  --docpool-text-primary: #000000;
+  --docpool-text-secondary: #666666;
+  --docpool-text-muted: #999999;
+  --docpool-text-inverse: #ffffff;
+
+  /* Border Colors */
+  --docpool-border: #ddd;
+  --docpool-border-hover: #999;
+  --docpool-border-focus: var(--docpool-primary);
+
+  /* Action Colors */
+  --docpool-success: #28a745;
+  --docpool-success-hover: #218838;
+  --docpool-danger: #dc3545;
+  --docpool-danger-hover: #c82333;
+  --docpool-warning: #ffc107;
+  --docpool-info: #0dcaf0;
+
+  /* Spacing */
+  --docpool-spacing-xs: 4px;
+  --docpool-spacing-sm: 8px;
+  --docpool-spacing-md: 12px;
+  --docpool-spacing-lg: 16px;
+  --docpool-spacing-xl: 24px;
+
+  /* Border Radius */
+  --docpool-radius-sm: 4px;
+  --docpool-radius-md: 6px;
+  --docpool-radius-lg: 8px;
+  --docpool-radius-xl: 12px;
+
+  /* Shadows */
+  --docpool-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --docpool-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --docpool-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --docpool-shadow-xl: 0 4px 16px rgba(0, 0, 0, 0.3);
+
+  /* Transitions */
+  --docpool-transition-fast: 0.15s;
+  --docpool-transition-base: 0.2s;
+  --docpool-transition-slow: 0.3s;
+  --docpool-transition-ease: ease;
+
+  /* Typography */
+  --docpool-font-family: Arial, Helvetica, sans-serif;
+  --docpool-font-size-xs: 11px;
+  --docpool-font-size-sm: 12px;
+  --docpool-font-size-base: 13px;
+  --docpool-font-size-md: 14px;
+  --docpool-font-size-lg: 16px;
+  --docpool-font-weight-normal: 400;
+  --docpool-font-weight-medium: 500;
+  --docpool-font-weight-semibold: 600;
+  --docpool-font-weight-bold: 700;
+
+  /* Layout */
+  --docpool-header-height: 60px;
+  --docpool-left-panel-min: 200px;
+  --docpool-left-panel-max: 80%;
+  --docpool-left-panel-default: 50%;
+  --docpool-resizer-width: 5px;
+  --docpool-right-panel-min: 200px;
+
+  /* Z-index Layers */
+  --docpool-z-base: 1;
+  --docpool-z-sticky: 10;
+  --docpool-z-dropdown: 100;
+  --docpool-z-fixed: 1000;
+  --docpool-z-modal: 9999;
+
+  /* File Upload */
+  --docpool-upload-zone-border: 2px dashed;
+  --docpool-upload-zone-bg: rgba(0, 0, 0, 0.02);
+  --docpool-upload-zone-bg-hover: rgba(0, 0, 0, 0.05);
+
+  /* Grid/Datatable specific variables */
+  --grid-wrapper-bg: var(--docpool-bg-main);
+  --grid-table-bg: var(--docpool-bg-main);
+  --grid-header-bg: #f4f4f4;
+  --grid-footer-bg: #f4f4f4;
+  --grid-row-even: #e0e0f0;
+  --grid-row-hover: #f9f9f9;
+  --grid-row-selected: var(--docpool-bg-selected);
+  --grid-border: var(--docpool-border);
+  --grid-border-hover: var(--docpool-border-hover);
+  --grid-search-bg: var(--docpool-bg-main);
+  --grid-search-border: var(--docpool-border);
+  --grid-search-focus: var(--docpool-border-focus);
+  --grid-highlight-bg: #FF0;
+  --grid-highlight-text: var(--docpool-text-primary);
+
+  /* Dropdown styling */
+  --dropdown-bg: var(--docpool-bg-main);
+  --dropdown-shadow: var(--docpool-shadow-md);
+  --dropdown-hover-bg: #f1f1f1;
+  --dropdown-min-width: 150px;
+
+  /* Pagination */
+  --pagination-button-size: 24px;
+  --pagination-gap: 3px;
+
+  /* Common input styling */
+  --input-padding: var(--docpool-spacing-sm);
+  --input-border-radius: var(--docpool-radius-sm);
+  --input-font-size: var(--docpool-font-size-base);
+}

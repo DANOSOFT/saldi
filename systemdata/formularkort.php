@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formularkort --- patch 4.0.8 --- 2023-10-03 ---
+// --- systemdata/formularkort --- patch 4.1.1 --- 2026-01-19 ---
 // 							LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------------
 
 // 20120906 Tilføjet mulighed for at vise momssats på ordrelinjer.
@@ -51,6 +51,7 @@
 // 20230719 PHR Cleanup in 'mailtext
 // 20230828 PHR Fixed error in above
 // 20231003 PHR Added ordre_valuta
+// 20260103 LOE User can now set language based on already defined languages
 
 @session_start();
 $s_id=session_id();
@@ -63,7 +64,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 	
-$art=$art_nr=$form_nr=$linjeantal=$nyt_sprog=$submit=$x=NULL;
+$art=$art_nr=$form_nr=$linjeantal=$nyt_sprog=$submit=$x=$form_sprog_id=NULL;
 $id=$db_id;
 	
 /*
@@ -85,6 +86,31 @@ else {$returside="syssetup.php";}
 $navn=if_isset($_GET['navn']);
 
 if (isset($_POST) && $_POST) {
+
+       ######
+		if (isset($_POST['slet_sprog']) && $_POST['slet_sprog']) {
+			$slet_sprog = if_isset($_POST['slet_sprog']);
+			
+			// Don't allow deleting "Dansk"
+			if ($slet_sprog != 'Dansk') {
+				// Delete from formularer table
+				db_modify("delete from formularer where sprog = '$slet_sprog'",__FILE__ . " linje " . __LINE__);
+				
+				// Delete from grupper table
+				db_modify("delete from grupper where art = 'VSPR' and box1 = '$slet_sprog'",__FILE__ . " linje " . __LINE__);
+				
+				// Show confirmation message
+				print "<BODY onLoad=\"javascript:alert('$slet_sprog has been deleted!')\">";
+				
+				// Refresh the page
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=formularkort.php?nyt_sprog=yes\">";
+				exit;
+			} else {
+				print "<BODY onLoad=\"javascript:alert('".findtekst('2516|Dansk kan ikke slettes', $sprog_id).".')\">";
+			}
+		}
+	   #####
+
 
 	if ($nyt_sprog) {
 		$nyt_sprog=if_isset($_POST['nyt_sprog']);
@@ -137,6 +163,8 @@ if (isset($_POST) && $_POST) {
 			$form_sprog_id=$r['kodenr']+1;
 			db_modify("insert into grupper (beskrivelse,kodenr,art,box1) values ('Formular og varesprog','$form_sprog_id','VSPR','$formularsprog')");
 		}
+	}else{
+		$form_sprog_id = 0;
 	}
 	
 	if (isset($_POST['op']) || isset($_POST['hojre'])) { #Flytning af 0 punkt.
@@ -276,7 +304,8 @@ if ($menu=='T') {  # 20150331 start
 	print "<div id=\"header\">\n";
 	print "<div class=\"headerbtnLft\">";
     print "<a class='button blue small' class=\"button red small left\" href=\"formular_indlaes_std.php\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</a> &nbsp;";
-    print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">".findtekst('801|Sprog', $sprog_id)."</a></div>\n";
+    print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">".findtekst('801|Sprog', $sprog_id)."</a> &nbsp;";
+    print "<a title=\"Email indstillinger for sprog\" class='button blue small' href=\"email_settings.php\" accesskey=\"e\">Email Settings</a></div>\n";
 	print "<span class=\"headerTxt\"></span>\n";     
 	print "<div class=\"headerbtnRght\"><a title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\" class='button blue small' href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></div>";    
 	print "</div><!-- end of header -->";
@@ -303,6 +332,9 @@ if ($menu=='T') {  # 20150331 start
 
 	print "<td width='6%'><span title='".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."'><a href=formularkort.php?nyt_sprog=yes accesskey='s'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('801|Sprog', $sprog_id)."</button></a></span></td>\n";
+
+	print "<td width='6%'><span title='Email indstillinger for sprog'><a href=email_settings.php accesskey='e'>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email Settings</button></a></span></td>\n";
 
 	print "<td width='6%'><span title='".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."'><a href=logoupload.php?upload=yes accesskey='u'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></span></td>\n";#20210804
@@ -516,7 +548,8 @@ $tmp = db_escape_string($formularsprog);
 		}
 	}
 	if (!$id1) {
-		for ($x=1;$x<=2;$x++) {
+		$max_fields = ($form_nr==1 || $form_nr==2 || $form_nr==4) ? 3 : 2; # Back to original field count
+		for ($x=1;$x<=$max_fields;$x++) {
 			$qtxt = "insert into formularer (xa, formular, art, sprog) values ('$x', '$form_nr',$art_nr,'$formularsprog')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt = "select max id as id from formularer where ";
@@ -539,6 +572,7 @@ $tmp = db_escape_string($formularsprog);
 	print "<td colspan = '4'  title=\"".findtekst('219|Skriv teksten til den email som bruges', $sprog_id)."\">";
 	print "<textarea name='beskrivelse[2]' rows='5' cols='100' onchange='javascript:docChange = true;'>";
 	print "$mailtext</textarea></td></tr>\n";
+	
 	if ($form_nr==1 || $form_nr==2 || $form_nr==4) {
 		print "<tr>";
 		print "<td title=\"".findtekst('672|Skriv navn til vedhæftet bilag', $sprog_id)."\">".findtekst('671|Bilag', $sprog_id)."&nbsp;</td>";
@@ -561,34 +595,100 @@ if ($tmp!=$nyt_sprog) {
 	print "<BODY onLoad=\"javascript:alert('".findtekst('2513|Sprogbenævnelse må ikke indeholde specialtegn. Oprettelse af', $sprog_id)." $nyt_sprog ".findtekst('2514|er annulleret', $sprog_id).".')\">";
 } elseif ($nyt_sprog && $handling=='gem' && $nyt_sprog!="yes") {
 
+	// $tmp=strtolower($nyt_sprog);
+	// if (db_fetch_array($q=db_select("select kodenr from grupper where lower(box1) = '$tmp' and art = 'VSPR' ",__FILE__ . " linje " . __LINE__))) {
+	// 	print "<BODY onLoad=\"javascript:alert('$nyt_sprog ".findtekst('2512|er allerede oprettet. Oprettelse annulleret', $sprog_id).".')\">";
+	// } elseif ($skabelon && $handling=='gem') {
+	// 	$r=db_fetch_array($q=db_select("select max(kodenr) as kodenr from grupper where art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
+	// 	$kodenr=$r['kodenr']+1;
+	// 	db_modify("insert into grupper (beskrivelse,kodenr,art,box1) values ('sprog','$kodenr','VSPR','$nyt_sprog')",__FILE__ . " linje " . __LINE__);
+	// 	$q=db_select("select * from formularer where sprog = '$skabelon'",__FILE__ . " linje " . __LINE__);
+	// 	while ($r=db_fetch_array($q)) {
+	// 		$xa=$r['xa']*1; $ya=$r['ya']*1; $xb=$r['xb']*1; $yb=$r['yb']*1;$str=$r['str']*1;$color=$r['color']*1;
+	// 		db_modify("insert into formularer(formular,art,beskrivelse,justering,xa,ya,xb,yb,str,color,font,fed,kursiv,side,sprog) values	('$r[formular]','$r[art]','".db_escape_string($r['beskrivelse'])."','$r[justering]','$xa','$ya','$xb','$yb','$str','$color','$r[font]','$r[fed]','$r[kursiv]','$r[side]','".db_escape_string($nyt_sprog)."')",__FILE__ . " linje " . __LINE__);
+	// 	}
+	// 	print "<BODY onLoad=\"javascript:alert('$nyt_sprog ".findtekst('2491|er oprettet', $sprog_id).".')\">";
+	// }
+	########################
 	$tmp=strtolower($nyt_sprog);
-	if (db_fetch_array($q=db_select("select kodenr from grupper where lower(box1) = '$tmp' and art = 'VSPR' ",__FILE__ . " linje " . __LINE__))) {
-		print "<BODY onLoad=\"javascript:alert('$nyt_sprog ".findtekst('2512|er allerede oprettet. Oprettelse annulleret', $sprog_id).".')\">";
-	} elseif ($skabelon && $handling=='gem') {
-		$r=db_fetch_array($q=db_select("select max(kodenr) as kodenr from grupper where art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
-		$kodenr=$r['kodenr']+1;
-		db_modify("insert into grupper (beskrivelse,kodenr,art,box1) values ('sprog','$kodenr','VSPR','$nyt_sprog')",__FILE__ . " linje " . __LINE__);
-		$q=db_select("select * from formularer where sprog = '$skabelon'",__FILE__ . " linje " . __LINE__);
-		while ($r=db_fetch_array($q)) {
-			$xa=$r['xa']*1; $ya=$r['ya']*1; $xb=$r['xb']*1; $yb=$r['yb']*1;$str=$r['str']*1;$color=$r['color']*1;
-			db_modify("insert into formularer(formular,art,beskrivelse,justering,xa,ya,xb,yb,str,color,font,fed,kursiv,side,sprog) values	('$r[formular]','$r[art]','".db_escape_string($r['beskrivelse'])."','$r[justering]','$xa','$ya','$xb','$yb','$str','$color','$r[font]','$r[fed]','$r[kursiv]','$r[side]','".db_escape_string($nyt_sprog)."')",__FILE__ . " linje " . __LINE__);
+
+		// Check if language exists in grupper table
+		$exists_in_grupper = db_fetch_array($q=db_select("select kodenr from grupper where lower(box1) = '$tmp' and art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
+
+		// Check if language exists in formularer table
+		$exists_in_formularer = db_fetch_array($q=db_select("select id from formularer where lower(sprog) = '$tmp' limit 1",__FILE__ . " linje " . __LINE__));
+
+		// Only show alert if language exists in BOTH tables
+		if ($exists_in_grupper && $exists_in_formularer) {
+			print "<BODY onLoad=\"javascript:alert('$nyt_sprog ".findtekst('2512|er allerede oprettet. Oprettelse annulleret', $sprog_id).".')\">";
+		} elseif ($skabelon && $handling=='gem') {
+			// Insert into grupper if it doesn't exist there
+			if (!$exists_in_grupper) {
+				$r=db_fetch_array($q=db_select("select max(kodenr) as kodenr from grupper where art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
+				$kodenr=$r['kodenr']+1;
+				db_modify("insert into grupper (beskrivelse,kodenr,art,box1) values ('sprog','$kodenr','VSPR','$nyt_sprog')",__FILE__ . " linje " . __LINE__);
+			}
+			
+			// Insert into formularer if it doesn't exist there
+			if (!$exists_in_formularer) {
+				$q=db_select("select * from formularer where sprog = '$skabelon'",__FILE__ . " linje " . __LINE__);
+				while ($r=db_fetch_array($q)) {
+					$xa=$r['xa']*1; $ya=$r['ya']*1; $xb=$r['xb']*1; $yb=$r['yb']*1;$str=$r['str']*1;$color=$r['color']*1;
+					db_modify("insert into formularer(formular,art,beskrivelse,justering,xa,ya,xb,yb,str,color,font,fed,kursiv,side,sprog) values	('$r[formular]','$r[art]','".db_escape_string($r['beskrivelse'])."','$r[justering]','$xa','$ya','$xb','$yb','$str','$color','$r[font]','$r[fed]','$r[kursiv]','$r[side]','".db_escape_string($nyt_sprog)."')",__FILE__ . " linje " . __LINE__);
+				}
+			}
+			
+			print "<BODY onLoad=\"javascript:alert('$nyt_sprog ".findtekst('2491|er oprettet', $sprog_id).".')\">";
 		}
-		print "<BODY onLoad=\"javascript:alert('$nyt_sprog ".findtekst('2491|er oprettet', $sprog_id).".')\">";
-	}
+	########################
 } elseif ($skabelon && $handling=='slet') {
 	db_modify("delete from formularer where sprog = '$skabelon'",__FILE__ . " linje " . __LINE__);
 	db_modify("delete from grupper where art = 'VSPR' and box1 = '$skabelon'",__FILE__ . " linje " . __LINE__);
 	 
 } else {
+	###############Get the language from template
+		$fp = fopen("../importfiler/tekster.csv","r");
+		if ($linje = trim(fgets($fp))) {
+			$a = explode("\t", $linje);
+		}
+		array_shift($a);
+		fclose($fp);
+	################
 	print "<form name=formularvalg action=$_SERVER[PHP_SELF]?nyt_sprog=yes method=\"post\">";
 	print "<tr><td width=100% align=center><table border=0><tbody>"; # 20150331
-	print "<tr><td>".findtekst('2490|Skriv sprog der ønskes tilføjet', $sprog_id).":</td><td><input class='inputbox' type='text' name='nyt_sprog' size='15'<td></tr>";
-	print "<tr><td>".findtekst('801|Sprog', $sprog_id); #." ".findtekst('801|Sprog', $sprog_id)."</td>";
+	// print "<tr><td>".findtekst('2490|Skriv sprog der ønskes tilføjet', $sprog_id).":</td><td><input class='inputbox' type='text' name='nyt_sprog' size='15'<td></tr>";
+	#####
+	print "<tr><td>"
+    . findtekst('2490|Skriv sprog der ønskes tilføjet', $sprog_id)
+    . ":</td><td>";
+		print "<select class='inputbox' name='nyt_sprog' size='1'>";
+		foreach ($a as $value) {
+			$value = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+			print "<option value='$value'>$value</option>";
+		}
+		print "</select>";
+		print "</td></tr>";
+	#####
+	print "<tr><td>Existing ".findtekst('801|Sprog', $sprog_id); #." ".findtekst('801|Sprog', $sprog_id)."</td>";
 	print "<td><SELECT class='inputbox' NAME='skabelon'>";
 	$q=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) print "<option>$r[sprog]</option>";
 	print "<option></option>";
 	print "</SELECT></td><tr>";
+	print "<tr><td colspan=2 align=center>";
+	#print "<input type=submit accesskey='g' name='gem' value='".findtekst('3|Gem', $sprog_id)."'>&nbsp;";
+	print "<tr><td>".findtekst('1099|Slet', $sprog_id)." ".findtekst('801|Sprog', $sprog_id).":</td>";
+	print "<td><SELECT class='inputbox' NAME='slet_sprog'>";
+	print "<option value=''>-- select --</option>";
+	$q1=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
+	while ($r=db_fetch_array($q1)) {
+		// Don't show "Dansk" in the delete dropdown
+		if ($r['sprog'] != 'Dansk') {
+			print "<option value='".$r['sprog']."'>".$r['sprog']."</option>";
+		}
+	}
+	print "</SELECT></td><tr>";
+	
 	print "<tr><td colspan=2 align=center>";
 	print "<input type=submit accesskey='g' name='gem' value='".findtekst('3|Gem', $sprog_id)."'>&nbsp;";
 	print "<input type=submit accesskey='s' name='slet' value='".findtekst('1099|Slet', $sprog_id)."' onclick=\"return confirm('".findtekst('2492|Slet det valgte sprog', $sprog_id)."?')\">&nbsp;";

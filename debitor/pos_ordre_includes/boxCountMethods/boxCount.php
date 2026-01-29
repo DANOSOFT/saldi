@@ -194,8 +194,8 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 	print "<tr><td align=\"center\" colspan=\"3\">";
 	print "<span onclick='window.open(\"http://$printserver/saldiprint.php?skuffe=1\")'>";
 	print "<button type='button' style='width:100px'>". findtekst('2391|Skuffe',$sprog_id) ."</button></span>&nbsp;";
-	print "<input type='submit' style='width:100px' name='optael' value='". findtekst('2390|Beregn',$sprog_id) ."'>&nbsp;";
-	print "<input type='submit' style='width:100px' name='optael' value='". findtekst('81|Afbryd',$sprog_id) ."'>";
+	print "<input type='submit' style='width:100px' name='calculate' value='". findtekst('2390|Beregn',$sprog_id) ."'>&nbsp;";
+	print "<input type='submit' style='width:100px' name='cancel' value='". findtekst('81|Afbryd',$sprog_id) ."'>";
 	print "</td></tr>\n";
 	print "<tr><td align=\"center\" colspan=\"3\">";
 	print "<a href=pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&printXreport=1>";

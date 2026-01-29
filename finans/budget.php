@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------finans/budget.php ----------- patch 4.0.7 --- 2023.03.04 ---
+// -------------finans/budget.php ----------- patch 4.1.1 --- 2025.12.03 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,7 +51,14 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/finansfunk.php");
 include("../includes/topline_settings.php");
-	
+include("../includes/grid.php");
+
+include_once '../includes/oldDesign/header.php';
+
+$icon_regnskab = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M319-250h322v-60H319v60Zm0-170h322v-60H319v60ZM220-80q-24 0-42-18t-18-42v-680q0-24 18-42t42-18h361l219 219v521q0 24-18 42t-42 18H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186 680-680Z"/></svg>';
+$help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+$icon_budget = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M560-440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35ZM280-320q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80h400q0-33 23.5-56.5T840-480v-160q-33 0-56.5-23.5T760-720H360q0 33-23.5 56.5T280-640v160q33 0 56.5 23.5T360-400Zm440 240H120q-33 0-56.5-23.5T40-240v-440h80v440h680v80ZM280-400v-320 320Z"/></svg>';
+
 $udfyld=if_isset($_POST['udfyld']);
 $procent=if_isset($_POST['procent']);
 $plusminus=if_isset($_POST['plusminus']);
@@ -105,49 +112,32 @@ while ($r=db_fetch_array($q)) {
 	if ($x && $md[$x]==$md[$x-1] && $kontonr[$x]==$kontonr[$x-1]) db_modify("delete from budget where id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
 	$x++;
 }
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "<div class=\"headerTxt\">$title $beskrivelse[0]</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-	print  "<table class='dataTable' width='100%' border='0' cellspacing='0'>";
-} elseif ($menu=='S') {
-	print "<div align=\"center\">";
+print "<tr><td height='25' align='center' valign='top'>";
+print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+print "<td width='75%' style='$topStyle' align='left'><table border='0' cellspacing='2' cellpadding='0'><tbody>";
 
-	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+print "<td width='200px' align='center'>
+    <a href='regnskab.php?returside=$returside'>
+    <button class='headerbtn' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+    $icon_regnskab ".findtekst('849|Regnskab', $sprog_id)."
+    </button></a></td>";
 
-	print "<td width='10%'>";
-	print "<a href=\"../index/menu.php\" accesskey=\"L\">
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		   .findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
+print "<td>&nbsp;</td>";
 
-	print "<td style='$topStyle' align='center'>$title $beskrivelse[0]</td>";
+print "<td width='200px' align='center'>
+    <button class='headerbtn' style='$butDownStyle; width:100%'>
+    $icon_budget Budget
+    </button></td>";
 
-	print "<td width='13%'><a href='regnskab.php' accesskey='R'>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		   .findtekst('115|Regnskab',$sprog_id)."</button></a></td>";
+print "</tbody></table></td>";
 
-	print "</tbody></table>";
-	print "</td></tr>";
-} else {
-	print "<div align=\"center\">";
-	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
-	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>"; # 20210312
-	else print "<a href=\"../index/menu.php\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund>$title $beskrivelse[0]</td> ";
-	print "<td width=\"10%\" $top_bund><a href=\"regnskab.php\" accesskey=\"R\">".findtekst(115,$sprog_id)."</a></td> ";
-	print "</tbody></table> ";
-	print "</td></tr> ";
-}
+print "<td id='tutorial-help' width='5%' style='$buttonStyle'>
+    <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+    $help_icon ".findtekst('2564|Hjælp', $sprog_id)."
+    </button></td>";
+
+print "</tbody></table></td></tr>";
+print "</tbody></table>";
 
 while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 #echo "$slutdato, $slutmaaned, $slutaar	";				
@@ -265,12 +255,60 @@ while (!checkdate($slutmaaned,$slutdato,$slutaar)){
 $regnstart = $startaar. "-" . $startmaaned . "-" . '01';
 $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
-print " <tr><td valign=\"top\"> ";
-if ($menu=='T') {
-} else {
-	print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
+// print "<tr><td valign=\"top\"> ";
+// if ($menu=='T') {
+// } else {
+// 	print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
+// }
+// print "<tbody>";
+
+print "<style>
+.budget-wrapper {
+    height: calc(100vh - 50px);
+    width: 100%;
+    overflow: auto;
+    position: relative;
 }
-print "<tbody>";
+.budget-wrapper table {
+    border-collapse: collapse;
+    width: 100%;
+}
+.budget-wrapper table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f4f4f4;
+}
+.budget-wrapper table thead td {
+    /* border-bottom: 2px solid #ddd; */
+    background-color: #f4f4f4;
+    padding: 8px;
+}
+.budget-wrapper table tbody tr:nth-child(2n) {
+    background-color: #e0e0f0;
+}
+.budget-wrapper table tbody tr:hover {
+    background-color: #f9f9f9;
+}
+.headerbtn, .center-btn {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    gap: 5px;
+}
+
+.budget-wrapper table tfoot {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background-color: #f4f4f4;
+    border-top: 2px solid #ddd;
+}
+</style>";
+
+print "<div class='budget-wrapper' id='budget-wrapper'>";
+print "<table width='100%' cellpadding='0' cellspacing='1px' border='0' valign='top'>";
+print "<thead>";
 print "<form name=udfyld action=budget.php?regnaar=$regnaar&returside=$returside method=post>";
 print "<tr><td><br></td><td colspan=15>".findtekst(806, $sprog_id)." ";
 print "<select class=\"inputbox\" NAME=\"plusminus\">";
@@ -281,19 +319,30 @@ print "</select>";
 $procent=$procent*1;
 print " &nbsp;<input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=2 name=\"procent\" value=\"$procent\">% &nbsp;";
 print "<input class='button blue small' type=submit name=udfyld value=OK>";
+
 print "</td></tr>";
 print "</form>";
-print "<tr><td><b>".findtekst(804, $sprog_id)."</b></td> ";
-print "<td><b>".findtekst(805, $sprog_id)."</b></td> ";
-##print "<td title=\"Ved regnskabs&aring;rets begyndelse. De fleste overf&oslash;rt fra regnskabet &aring;ret f&oslash;r.\" align=right><b> Primo</a></b></td> ";
-#for ($z=1; $z<=$maanedantal; $z++) {
-#	print "<td width=20 title=\"$z. regnskabsm&aring;ned\"><b> MD_$z<b><br></td>";
-#}
-$budget_csvdata="\"Kontonr\";\"Kontonavn\";"; # 20150622 del 2 start
+print "<tr>";
+print "<td><b>".findtekst(804, $sprog_id)."</b></td>";
+print "<td><b>".findtekst(805, $sprog_id)."</b></td>";
+$budget_csvdata="\"Kontonr\";\"Kontonavn\";";
 $budget_csvdata.=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaaned", $regnskabsaar);
-print "<td align=right><b> I alt</a></b></td> "; 
-$budget_csvdata.="\"I alt\"\n"; # 20150622 del 2 slut
+print "<td align=right><b> I alt</b></td>";
+$budget_csvdata.="\"I alt\"\n";
 print "</tr>";
+print "</thead>";
+print "<tbody>";
+// print "<tr><td><b>".findtekst(804, $sprog_id)."</b></td> ";
+// print "<td><b>".findtekst(805, $sprog_id)."</b></td> ";
+// ##print "<td title=\"Ved regnskabs&aring;rets begyndelse. De fleste overf&oslash;rt fra regnskabet &aring;ret f&oslash;r.\" align=right><b> Primo</a></b></td> ";
+// #for ($z=1; $z<=$maanedantal; $z++) {
+// #	print "<td width=20 title=\"$z. regnskabsm&aring;ned\"><b> MD_$z<b><br></td>";
+// #}
+// $budget_csvdata="\"Kontonr\";\"Kontonavn\";"; # 20150622 del 2 start
+// $budget_csvdata.=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaaned", $regnskabsaar);
+// print "<td align=right><b> I alt</a></b></td> "; 
+// $budget_csvdata.="\"I alt\"\n"; # 20150622 del 2 slut
+// print "</tr>";
 
 $y='';
 print "<form name=budget action=budget.php?regnaar=$regnaar&returside=$returside method=post>";
@@ -366,20 +415,30 @@ if ($fp) { # 20150622 del 3 start
 }
 fclose($fp);
 
+// print "<input type='hidden' name='kontoantal' value='$kontoantal'>\n";
+// print "<input type='hidden' name='maanedantal' value='$maanedantal'>\n";
+// print "<tr>\n";
+// print "<td colspan='20'><center><input class='button green medium' style='width:150px;' type='submit' name='gem' value='".findtekst('3|Gem', $sprog_id)."' accesskey='g'>\n</center></td></tr>";  # 20210312
+// print "<tr><td colspan='20'><center>".findtekst('807|Hent budget som datafil ved at højreklikke på', $sprog_id)." <a href='".$filnavn."'>".findtekst('809|dette link', $sprog_id)."</a> ".findtekst('808|og vælg &apos;Gem link som ..', $sprog_id)."'</center></td></tr>"; 
+// print "</tr>\n";
+// print "</form>\n"; # 20150622 del 3 slut
+
+print "</tbody>";
+print "<tfoot>";
+print "<tr>";
+print "<td colspan='20' style='text-align:center; padding:15px;'>";
 print "<input type='hidden' name='kontoantal' value='$kontoantal'>\n";
 print "<input type='hidden' name='maanedantal' value='$maanedantal'>\n";
-print "<tr>\n";
-print "<td colspan='20'><center><input class='button green medium' style='width:150px;' type='submit' name='gem' value='".findtekst('3|Gem', $sprog_id)."' accesskey='g'>\n</center></td></tr>";  # 20210312
-print "<tr><td colspan='20'><center>".findtekst('807|Hent budget som datafil ved at højreklikke på', $sprog_id)." <a href='".$filnavn."'>".findtekst('809|dette link', $sprog_id)."</a> ".findtekst('808|og vælg &apos;Gem link som ..', $sprog_id)."'</center></td></tr>"; 
-print "</tr>\n";
-print "</form>\n"; # 20150622 del 3 slut
+print "<input class='button green medium' style='width:150px;' type='submit' name='gem' value='".findtekst('3|Gem', $sprog_id)."' accesskey='g'>";
+print "<br><br>";
+print findtekst('807|Hent budget som datafil ved at højreklikke på', $sprog_id)." <a href='".$filnavn."'>".findtekst('809|dette link', $sprog_id)."</a> ".findtekst('808|og vælg &apos;Gem link som ..', $sprog_id)."'";
+print "</td></tr>";
+print "</tfoot>";
+print "</form>\n";
 ####################################################################################################
 
-print "</tbody>
-</table>
-	</td></tr>
-</tbody></table>";
-
+print "</table>";
+print "</div>";
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';
 } else {

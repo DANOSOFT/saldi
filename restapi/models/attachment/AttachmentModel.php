@@ -7,8 +7,27 @@ class AttachmentModel
     private $size;
     private $mimeType;
     private $uploadDate;
+    private $metadata;
     private static $baseUploadDir = '/var/www/html/pblm/bilag/';
     private static $db = null;
+    private static $logFile = '/var/www/html/pblm/bilag/attachment_debug.log';
+    
+    /**
+     * Log debug message to file
+     * 
+     * @param string $message Message to log
+     * @param mixed $data Optional data to include
+     */
+    private static function debugLog($message, $data = null)
+    {
+        $timestamp = date('Y-m-d H:i:s');
+        $logMessage = "[{$timestamp}] {$message}";
+        if ($data !== null) {
+            $logMessage .= " | Data: " . print_r($data, true);
+        }
+        $logMessage .= "\n";
+        file_put_contents(self::$logFile, $logMessage, FILE_APPEND);
+    }
     
     /**
      * Constructor
@@ -75,10 +94,56 @@ class AttachmentModel
             $this->size = filesize($filepath);
             $this->mimeType = mime_content_type($filepath);
             $this->uploadDate = date('Y-m-d H:i:s', filemtime($filepath));
+            
+            // Load metadata if it exists
+            $this->loadMetadata($filepath);
+            
             return true;
         }
         
         return false;
+    }
+    
+    /**
+     * Load metadata from text file if it exists
+     * Format: filename (without ext), account, amount, date (one per line)
+     * 
+     * @param string $filepath Path to the main file
+     * @return void
+     */
+    private function loadMetadata($filepath)
+    {
+        // Get filename without extension and directory
+        $pathInfo = pathinfo($filepath);
+        $filenameWithoutExt = $pathInfo['filename'];
+        $directory = isset($pathInfo['dirname']) ? $pathInfo['dirname'] . '/' : '';
+        
+        // Create metadata path as filename.info (without the file extension)
+        $metadataPath = $directory . $filenameWithoutExt . '.info';
+        if (file_exists($metadataPath)) {
+            $content = file_get_contents($metadataPath);
+            if ($content !== false) {
+                // Split by lines
+                $lines = explode("\n", trim($content));
+                
+                // Parse the format: filename, account, amount, date, invoiceNumber, invoiceDescription
+                if (count($lines) >= 3) {
+                    $this->metadata = [
+                        'accountnr' => isset($lines[1]) ? trim($lines[1]) : '',
+                        'amount' => isset($lines[2]) ? trim($lines[2]) : '',
+                        'date' => isset($lines[3]) ? trim($lines[3]) : '',
+                        'invoiceNumber' => isset($lines[4]) ? trim($lines[4]) : '',
+                        'invoiceDescription' => isset($lines[5]) ? trim($lines[5]) : ''
+                    ];
+                } else {
+                    // Try to parse as JSON for backward compatibility
+                    $metadata = json_decode($content, true);
+                    if ($metadata !== null) {
+                        $this->metadata = $metadata;
+                    }
+                }
+            }
+        }
     }
     
     /**
@@ -118,56 +183,62 @@ class AttachmentModel
      */
     public function saveUploadedFile($uploadedFile, $customFilename = null)
     {
+        self::debugLog('=== saveUploadedFile START ===');
+        self::debugLog('Uploaded file info', [
+            'name' => isset($uploadedFile['name']) ? $uploadedFile['name'] : 'N/A',
+            'type' => isset($uploadedFile['type']) ? $uploadedFile['type'] : 'N/A',
+            'size' => isset($uploadedFile['size']) ? $uploadedFile['size'] : 'N/A',
+            'tmp_name' => isset($uploadedFile['tmp_name']) ? $uploadedFile['tmp_name'] : 'N/A',
+            'error' => isset($uploadedFile['error']) ? $uploadedFile['error'] : 'N/A',
+            'customFilename' => $customFilename
+        ]);
+        
         if (!isset($uploadedFile['tmp_name']) || !is_uploaded_file($uploadedFile['tmp_name'])) {
-            error_log("AttachmentModel: Invalid uploaded file");
+            self::debugLog('ERROR: Invalid uploaded file - tmp_name missing or not uploaded file');
             return false;
         }
         
         $uploadDir = self::getUploadDir();
+        self::debugLog('Upload directory', $uploadDir);
         
         // Ensure upload directory exists with better error handling
         if (!is_dir($uploadDir)) {
             if (!mkdir($uploadDir, 0755, true)) {
-                error_log("AttachmentModel: Failed to create upload directory: " . $uploadDir);
                 return false;
             }
         }
         
         // Double-check that directory was created and is writable
         if (!is_dir($uploadDir) || !is_writable($uploadDir)) {
-            error_log("AttachmentModel: Upload directory is not writable: " . $uploadDir);
             return false;
         }
         
         // Use custom filename or original filename
         $filename = $customFilename ?: $uploadedFile['name'];
-        error_log("AttachmentModel: Processing file: " . $filename);
         
         // Check if uploaded file is an image and convert to PDF
         $mimeType = mime_content_type($uploadedFile['tmp_name']);
-        error_log("AttachmentModel: Detected mime type: " . $mimeType);
+        self::debugLog('Detected mime type', $mimeType);
         
         $convertedFile = null;
         $isConverted = false;
         
         if ($this->isImage($mimeType)) {
-            error_log("AttachmentModel: Converting image to PDF");
+            self::debugLog('File is an image, attempting conversion to PDF');
             $convertedFile = $this->convertImageToPdf($uploadedFile['tmp_name'], $filename);
             if ($convertedFile) {
-                error_log("AttachmentModel: Image converted successfully to: " . $convertedFile);
                 // Update filename to have .pdf extension
                 $pathInfo = pathinfo($filename);
                 $filename = $pathInfo['filename'] . '.pdf';
                 $isConverted = true;
+                self::debugLog('Image converted to PDF', ['convertedFile' => $convertedFile, 'newFilename' => $filename]);
             } else {
-                error_log("AttachmentModel: Image conversion failed, proceeding with original file");
-                // Continue with original file if conversion fails
+                self::debugLog('ERROR: Image to PDF conversion failed');
             }
         }
         
         // Sanitize filename
         $filename = $this->sanitizeFilename($filename);
-        error_log("AttachmentModel: Sanitized filename: " . $filename);
         
         // Check if file already exists and generate unique name if needed
         $originalFilename = $filename;
@@ -179,22 +250,19 @@ class AttachmentModel
         }
         
         $filepath = $uploadDir . $filename;
-        error_log("AttachmentModel: Final filepath: " . $filepath);
         
         $success = false;
+        
+        self::debugLog('Saving file', ['filepath' => $filepath, 'isConverted' => $isConverted]);
         
         if ($isConverted && $convertedFile) {
             // For converted files, use copy() instead of move_uploaded_file()
             $success = copy($convertedFile, $filepath);
-            if (!$success) {
-                error_log("AttachmentModel: Failed to copy converted file to: " . $filepath);
-            }
+            self::debugLog('Copy result (converted)', $success);
         } else {
             // For original uploaded files, use move_uploaded_file()
             $success = move_uploaded_file($uploadedFile['tmp_name'], $filepath);
-            if (!$success) {
-                error_log("AttachmentModel: Failed to move uploaded file to: " . $filepath);
-            }
+            self::debugLog('move_uploaded_file result', $success);
         }
         
         if ($success) {
@@ -204,20 +272,241 @@ class AttachmentModel
             $this->mimeType = mime_content_type($filepath);
             $this->uploadDate = date('Y-m-d H:i:s');
             
+            self::debugLog('=== saveUploadedFile SUCCESS ===', [
+                'filename' => $this->filename,
+                'size' => $this->size,
+                'mimeType' => $this->mimeType
+            ]);
+            
             // Clean up temporary converted file if it was created
             if ($convertedFile && file_exists($convertedFile)) {
                 @unlink($convertedFile);
             }
             
-            error_log("AttachmentModel: File saved successfully: " . $filename);
             return true;
         } else {
+            self::debugLog('=== saveUploadedFile FAILED ===');
             // Clean up temporary converted file if it was created and save failed
             if ($convertedFile && file_exists($convertedFile)) {
                 @unlink($convertedFile);
             }
             return false;
         }
+    }
+    
+    /**
+     * Save base64 decoded file content
+     * 
+     * @param string $fileContent Decoded file content
+     * @param string|null $customFilename Optional custom filename
+     * @param array|null $metadata Optional metadata (date, amount, accountnr)
+     * @return bool Success status
+     */
+    public function saveBase64File($fileContent, $customFilename = null, $metadata = null)
+    {
+        self::debugLog('=== saveBase64File START ===');
+        self::debugLog('Input info', [
+            'contentLength' => strlen($fileContent),
+            'contentFirst100' => substr($fileContent, 0, 100),
+            'customFilename' => $customFilename,
+            'metadata' => $metadata
+        ]);
+        
+        if (empty($fileContent)) {
+            self::debugLog('ERROR: Empty file content');
+            return false;
+        }
+        
+        $uploadDir = self::getUploadDir();
+        
+        // Ensure upload directory exists
+        if (!is_dir($uploadDir)) {
+            if (!mkdir($uploadDir, 0755, true)) {
+                return false;
+            }
+        }
+        
+        // Double-check that directory was created and is writable
+        if (!is_dir($uploadDir) || !is_writable($uploadDir)) {
+            return false;
+        }
+        
+        // Create temporary file to process the content
+        $tempFile = tempnam(sys_get_temp_dir(), 'base64_upload_');
+        if ($tempFile === false) {
+            return false;
+        }
+        
+        // Write content to temporary file
+        if (file_put_contents($tempFile, $fileContent) === false) {
+            @unlink($tempFile);
+            return false;
+        }
+        
+        // Detect mime type
+        $mimeType = mime_content_type($tempFile);
+        self::debugLog('Temp file created', [
+            'tempFile' => $tempFile,
+            'tempFileSize' => filesize($tempFile),
+            'mimeType' => $mimeType
+        ]);
+        
+        // Determine filename
+        $filename = $customFilename;
+        if (!$filename) {
+            // Try to determine extension from mime type
+            $extension = $this->getExtensionFromMimeType($mimeType);
+            $filename = 'upload_' . date('YmdHis') . '.' . $extension;
+        }
+        self::debugLog('Filename determined', $filename);
+        
+        // Check if file is an image and convert to PDF
+        $convertedFile = null;
+        $isConverted = false;
+        
+        if ($this->isImage($mimeType)) {
+            self::debugLog('Image detected, attempting PDF conversion', [
+                'mimeType' => $mimeType,
+                'tempFile' => $tempFile,
+                'filename' => $filename
+            ]);
+            $convertedFile = $this->convertImageToPdf($tempFile, $filename);
+            if ($convertedFile) {
+                // Update filename to have .pdf extension
+                $pathInfo = pathinfo($filename);
+                $filename = $pathInfo['filename'] . '.pdf';
+                $isConverted = true;
+                self::debugLog('PDF conversion successful', [
+                    'convertedFile' => $convertedFile,
+                    'newFilename' => $filename
+                ]);
+            } else {
+                self::debugLog('PDF conversion FAILED - convertedFile is false');
+            }
+        }
+        
+        // Sanitize filename
+        $filename = $this->sanitizeFilename($filename);
+        
+        // Check if file already exists and generate unique name if needed
+        $originalFilename = $filename;
+        $counter = 1;
+        while (file_exists($uploadDir . $filename)) {
+            $pathInfo = pathinfo($originalFilename);
+            $filename = $pathInfo['filename'] . '_' . $counter . '.' . $pathInfo['extension'];
+            $counter++;
+        }
+        
+        $filepath = $uploadDir . $filename;
+        
+        $success = false;
+        
+        if ($isConverted && $convertedFile) {
+            // For converted files, use copy()
+            $success = copy($convertedFile, $filepath);
+        } else {
+            // For original files, use copy() from temp file
+            $success = copy($tempFile, $filepath);
+        }
+        
+        if ($success) {
+            $this->filename = $filename;
+            $this->filepath = $filepath;
+            $this->size = filesize($filepath);
+            $this->mimeType = mime_content_type($filepath);
+            $this->uploadDate = date('Y-m-d H:i:s');
+            
+            self::debugLog('=== saveBase64File SUCCESS ===', [
+                'filename' => $this->filename,
+                'size' => $this->size,
+                'mimeType' => $this->mimeType
+            ]);
+            
+            // Save metadata to JSON file if provided
+            if ($metadata !== null && is_array($metadata)) {
+                $this->saveMetadata($filepath, $metadata);
+                $this->metadata = $metadata;
+            }
+            
+            // Clean up temporary files
+            @unlink($tempFile);
+            if ($convertedFile && file_exists($convertedFile)) {
+                @unlink($convertedFile);
+            }
+            
+            return true;
+        } else {
+            self::debugLog('=== saveBase64File FAILED ===');
+            // Clean up temporary files
+            @unlink($tempFile);
+            if ($convertedFile && file_exists($convertedFile)) {
+                @unlink($convertedFile);
+            }
+            return false;
+        }
+    }
+    
+    /**
+     * Save metadata to text file alongside the main file
+     * Format: filename (without ext), account, amount, date (one per line)
+     * 
+     * @param string $filepath Path to the main file
+     * @param array $metadata Metadata to save
+     * @return bool Success status
+     */
+    private function saveMetadata($filepath, $metadata)
+    {
+        // Get filename without extension and directory
+        $pathInfo = pathinfo($filepath);
+        $filenameWithoutExt = $pathInfo['filename'];
+        $directory = isset($pathInfo['dirname']) ? $pathInfo['dirname'] . '/' : '';
+        
+        // Create metadata path as filename.info (without the file extension)
+        $metadataPath = $directory . $filenameWithoutExt . '.info';
+        
+        // Extract values from metadata array
+        $account = isset($metadata['accountnr']) ? $metadata['accountnr'] : '';
+        $amount = isset($metadata['amount']) ? $metadata['amount'] : '';
+        $date = isset($metadata['date']) ? $metadata['date'] : '';
+        $invoiceNumber = isset($metadata['invoiceNumber']) ? $metadata['invoiceNumber'] : '';
+        $invoiceDescription = isset($metadata['invoiceDescription']) ? $metadata['invoiceDescription'] : '';
+        
+        // Create content: filename, account, amount, date, invoiceNumber, invoiceDescription (one per line)
+        $content = $filenameWithoutExt . "\n" . $account . "\n" . $amount . "\n" . $date . "\n" . $invoiceNumber . "\n" . $invoiceDescription . "\n";
+        
+        if (file_put_contents($metadataPath, $content) === false) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Get file extension from mime type
+     * 
+     * @param string $mimeType
+     * @return string File extension (without dot)
+     */
+    private function getExtensionFromMimeType($mimeType)
+    {
+        $mimeToExt = [
+            'image/jpeg' => 'jpg',
+            'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/bmp' => 'bmp',
+            'image/webp' => 'webp',
+            'image/tiff' => 'tiff',
+            'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'text/plain' => 'txt',
+            'text/csv' => 'csv'
+        ];
+        
+        return $mimeToExt[$mimeType] ?? 'bin';
     }
     
     /**
@@ -228,6 +517,17 @@ class AttachmentModel
     public function delete()
     {
         if ($this->filepath && file_exists($this->filepath)) {
+            // Also delete metadata file if it exists
+            // Get filename without extension and directory
+            $pathInfo = pathinfo($this->filepath);
+            $filenameWithoutExt = $pathInfo['filename'];
+            $directory = isset($pathInfo['dirname']) ? $pathInfo['dirname'] . '/' : '';
+            
+            // Create metadata path as filename.info (without the file extension)
+            $metadataPath = $directory . $filenameWithoutExt . '.info';
+            if (file_exists($metadataPath)) {
+                @unlink($metadataPath);
+            }
             return unlink($this->filepath);
         }
         return false;
@@ -301,18 +601,21 @@ class AttachmentModel
     private function convertImageToPdf($imagePath, $originalFilename)
     {
         try {
-            error_log("AttachmentModel: Starting image conversion for: " . $imagePath);
+            self::debugLog('convertImageToPdf START', [
+                'imagePath' => $imagePath,
+                'originalFilename' => $originalFilename
+            ]);
             
             // Check if GD extension is available
             if (!extension_loaded('gd')) {
-                error_log("AttachmentModel: GD extension not available");
+                self::debugLog('convertImageToPdf FAILED: GD extension not loaded');
                 return false;
             }
             
             // Create image resource based on mime type
             $imageInfo = getimagesize($imagePath);
             if (!$imageInfo) {
-                error_log("AttachmentModel: Could not get image size for: " . $imagePath);
+                self::debugLog('convertImageToPdf FAILED: getimagesize returned false');
                 return false;
             }
             
@@ -320,7 +623,11 @@ class AttachmentModel
             $imageHeight = $imageInfo[1];
             $mimeType = $imageInfo['mime'];
             
-            error_log("AttachmentModel: Image info - Width: $imageWidth, Height: $imageHeight, Type: $mimeType");
+            self::debugLog('Image info retrieved', [
+                'width' => $imageWidth,
+                'height' => $imageHeight,
+                'mimeType' => $mimeType
+            ]);
             
             // Create image resource
             $image = false;
@@ -339,7 +646,7 @@ class AttachmentModel
                     if (function_exists('imagecreatefrombmp')) {
                         $image = imagecreatefrombmp($imagePath);
                     } else {
-                        error_log("AttachmentModel: BMP support not available");
+                        self::debugLog('convertImageToPdf FAILED: imagecreatefrombmp not available');
                         return false;
                     }
                     break;
@@ -347,41 +654,46 @@ class AttachmentModel
                     if (function_exists('imagecreatefromwebp')) {
                         $image = imagecreatefromwebp($imagePath);
                     } else {
-                        error_log("AttachmentModel: WebP support not available");
+                        self::debugLog('convertImageToPdf FAILED: imagecreatefromwebp not available');
                         return false;
                     }
                     break;
                 default:
-                    error_log("AttachmentModel: Unsupported image type: " . $mimeType);
+                    self::debugLog('convertImageToPdf FAILED: unsupported mime type', $mimeType);
                     return false;
             }
             
             if (!$image) {
-                error_log("AttachmentModel: Failed to create image resource");
+                self::debugLog('convertImageToPdf FAILED: image resource creation failed');
                 return false;
             }
             
+            self::debugLog('Image resource created successfully');
+            
             // Create a simple PDF using basic PDF structure
             $tempPdfPath = tempnam(sys_get_temp_dir(), 'img2pdf_') . '.pdf';
-            error_log("AttachmentModel: Creating PDF at: " . $tempPdfPath);
             
             // Convert image to JPEG for embedding in PDF
             $tempJpegPath = tempnam(sys_get_temp_dir(), 'img2pdf_') . '.jpg';
             if (!imagejpeg($image, $tempJpegPath, 90)) {
-                error_log("AttachmentModel: Failed to create temporary JPEG");
+                self::debugLog('convertImageToPdf FAILED: imagejpeg failed');
                 imagedestroy($image);
                 return false;
             }
             imagedestroy($image);
             
+            self::debugLog('Temporary JPEG created', ['tempJpegPath' => $tempJpegPath]);
+            
             // Get JPEG data
             $jpegData = file_get_contents($tempJpegPath);
             if ($jpegData === false) {
-                error_log("AttachmentModel: Failed to read temporary JPEG");
+                self::debugLog('convertImageToPdf FAILED: could not read temp JPEG');
                 @unlink($tempJpegPath);
                 return false;
             }
             $jpegSize = strlen($jpegData);
+            
+            self::debugLog('JPEG data read', ['jpegSize' => $jpegSize]);
             
             // Calculate PDF dimensions (A4 = 595.28 x 841.89 points)
             $pageWidth = 595.28;
@@ -408,7 +720,7 @@ class AttachmentModel
             
             // Write PDF to file
             if (file_put_contents($tempPdfPath, $pdfContent) === false) {
-                error_log("AttachmentModel: Failed to write PDF file");
+                self::debugLog('convertImageToPdf FAILED: could not write PDF file');
                 @unlink($tempJpegPath);
                 return false;
             }
@@ -416,14 +728,16 @@ class AttachmentModel
             // Clean up temporary JPEG
             @unlink($tempJpegPath);
             
-            error_log("AttachmentModel: PDF created successfully: " . $tempPdfPath);
+            self::debugLog('convertImageToPdf SUCCESS', [
+                'tempPdfPath' => $tempPdfPath,
+                'pdfSize' => strlen($pdfContent)
+            ]);
+            
             return $tempPdfPath;
             
         } catch (Exception $e) {
-            error_log("AttachmentModel: Exception in convertImageToPdf: " . $e->getMessage());
             return false;
         } catch (Error $e) {
-            error_log("AttachmentModel: Error in convertImageToPdf: " . $e->getMessage());
             return false;
         }
     }
@@ -539,12 +853,19 @@ class AttachmentModel
      */
     public function toArray()
     {
-        return [
+        $array = [
             'filename' => $this->filename,
             'size' => $this->size,
             'mimeType' => $this->mimeType,
             'uploadDate' => $this->uploadDate
         ];
+        
+        // Include metadata if available
+        if ($this->metadata !== null) {
+            $array['metadata'] = $this->metadata;
+        }
+        
+        return $array;
     }
     
     // Getter methods

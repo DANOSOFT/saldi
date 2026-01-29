@@ -43,6 +43,7 @@
 // 20250407 LOE konto_til when not set and ktoNameTo default values moved from while loop.
 // 20250516 Sulayman updated the drowdown konto_fra and konto_til to show according to the selected konto_fra and konto_til.
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
+// 20251206 LOE Unified topline without back button for reports moved to includes/S_topLine.php
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
 	global $bruger_id,$brugernavn;
@@ -210,26 +211,19 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<div id=\"header\">";
 		print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";
 		print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";  
 		print "</div>";
 		print "<div class='content-noside'>";
 #	} elseif ($menu == 'S') {
 #		include("../includes/sidemenu.php");
 	} elseif ($menu == 'S') {
-		print "<table width='100%' height='100%' border='0' cellspacing='2' cellpadding='0'><tbody>"; #
-		print "<tr>";
 
-		print "<td width='10%'>";
-		if ($popup)
-			print "<a href=../includes/luk.php accesskey=L>
-			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
-		else
-			print "<a href='$backUrl' accesskey=L>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				   .findtekst(30, $sprog_id)."</button></a></td>";
+		$title =  findtekst(897, $sprog_id);
 
-		print "<td width='80%' align='center' style='$topStyle'> " . findtekst(897, $sprog_id) . " </td>";
-		print "<td width='10%' style='$topStyle'><br></td>";
+		#######################
+		include("../includes/S_topLine.php");
+
+		########################
 
 	} else {
 		print "<table width='100%' height='100%' border='0' cellspacing='2' cellpadding='0'><tbody>"; #A
@@ -269,7 +263,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	}
 	print "</select></td>";
 	$txt = findtekst(898, $sprog_id);
-	print "<td><input class='button gray medium' type='submit' value='$txt' name='submit'></td></tr>\n";
+	// print "<td><input class='button gray medium' type='submit' value='$txt' name='submit'></td></tr>\n";
 	print "<tr><td><br><br></td></tr>";
 	print "</form>\n\n";
 	print "<form name=rapport action=rapport.php method=post>\n";
@@ -333,7 +327,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	if ($antal_afd) {
 		$afdeling[0] = '0';
 		$afd_navn[0] = 'Kun poster uden afd.';
-		print "<tr><td>Afdeling:</td><td><select name=afd>\n";
+		print "<tr><td>".findtekst('274|Afdeling', $sprog_id).":</td><td><select name=afd>\n";
 		if ($afd || $afd == '0') {
 			for ($x = 0; $x <= $antal_afd; $x++) {
 				if ($afd == $afdeling[$x])
@@ -391,7 +385,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		#		print "</tr>";
 	}
 	if ($antal_ansatte) {
-		print "<tr><td>Ansat:</td><td colspan='2'><select name=ansat_fra>\n";
+		print "<tr><td>".findtekst('589|Ansat', $sprog_id).":</td><td colspan='2'><select name=ansat_fra>\n";
 		print "<option>$ansat_fra</option>\n";
 		if ($ansat_fra) {
 			print "<option></option>\n";

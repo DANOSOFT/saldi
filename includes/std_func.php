@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 4.1.1 --- 2025-08-11 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-01-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,79 +21,9 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
-// 20130210 Break ændret til break 1 Tastefejl rettet.
-// 20140501 Funktion findtekst - teksten ignoreres nu hvis tekst="-"
-// 20140505 Funktion findtekst insdat db_escape_string. (PHR - Danosoft) Søg 20140505
-// 20141010 CA  Funktionen farvenuance antager hvid baggrund, hvis ingen angivet. Søg 20141010
-// 20141031 CA  Funktionen advarselsboks skal erstatte JavaScript Alertbokse - er ikke færdig. Søg 20141031
-// 20141031 PHR tilføjet funktion "find_varemomssats"
-// 20141121 CA  Funktionen tekstsboks erstatter advarselsboks en udgave med og uden tabel. Søg 20141121
-// 20141121 CA  Tilføjet funktion bokshjoerne til flytning af tekstbokse. Søg 20141121
-// 20141223 PHR Tilføjet funktion find_lagervaerdi til brug med aut_lager. Søg 20141223
-// 20150218 PK  Tilføjet to funktioner til at lave uppercase på tekst-streng. Søg mb_ucfirst eller mb_ucwords
-// 20150313 CA  Byttet om på farverne for infoboks (nu blå) og popop (nu grøn). Søg 20150313
-// 20160116 PHR Oprettet funktion regnstartslut
-// 20161011 PHR Oprettet funktion lagerreguler
-// 20161022 PHR Rettet funktion lagerreguler $diff skal ikke fratrækkes $rest 20161022
-// 20161124 PHR Rettet funktion lagerreguler så lagerstatus fjernes for lagre > 0 hvis der ikke er flere lagre  Søg 20161022
-// 20161217 PHR Tilføjet funktion find_beholdning (Flyttet fra lager/varer.php)
-// 20161222 PHR Rettet funktion lagerreguler så dubletter på lager 0 slettes hvis der ikke er flere lagre.
-// 20161222 PHR Rettet fejl. Lager o blev ikke fundet så dublet blev oprettet på lager 0
-// 20170404 PHR Funktion 'find_lagervaerdi' udelader nu ikke bogførte ordrer da disse kan give skæve tal.
-// 20180119 PHR Tilføjet funktion hent_shop_ordrer som opdaterer ordrer fra shop.
-// 20180123 PHR En del rettelser i funktion lagerreguler i forhold til varianter og flere lagre.
-// 20180518 PHR Tilføjet funktion alert.
-// 20181126 PHR Variabeldefiniton i div. funktioner. 
-// 20181220 MSC  Rettet fejl
-// 20190104 PHR	 " nye funktioner create_debtor & get_next_number
-// 20190221 MSC  Flytter $boksid="" til enden søg edit 2019.02.21 for kode
-// 20190423 PHR 'bynavn' (city) was not inserted in 'adresser' if not set in function create_debtor. 20190423
-// 20190605 PHR Added if_isset to avoid warning. 20190605
-// 20190704 RG  (Rune Grysbæk) Mysqli implementation 
-// 20200326 PHR Optimized function findtekst.
-// 20200327 PHR Moved function barcode form lager/varekort
-// 20200407 PHR Some minor changes to function barcode to work with kreditor/ordre.php
-// 20200907 PHR Function sync_shop_vare. Query parted in 2 to make it find varenr if no shop_id
-// 20200917 PHR	Added missing email in create_debtor
-// 20210225 LOE Added active language function
-// 20200917 PHR Added missing email in create_debtor
-// 20201119 PHR Some optimation in function lagerreguler an extended logging in function sync_shop_vare 
-// 20210107 PHR Function cvrnr_omr. Removed GB from EU
-// 20210107 PHR Function lagerreguler. Added file & line to wget call. 
-// 20210301 CA  Added function trim_utf8. Trims for traditional whitespaces and &nbsp;
-// 20210302 LOE Function csv_to_array() and engdan() added 
-// 20210303 LOE Added this block to handle a situation when tekster table is empty
-// 20210304 LOE Replaced the if(!$teskt) fuction with an updated version 
-// 20210409 LOE Modified engdan() to accomondate other languages
-// 20210419 LOE Did some modifications in findtekst function 20210419
-// 20210421 LOE modified added activelanguage id activelanguage() function 20210421
-// 20210427 LOE Modified active language function
-// 20210428 LOE findtekst function is modified to accomodate admin during installation Danish as the default 20210428
-// 20210429 LOE activeLanguage function also updated 
-// 20210517 Loe Updated findtekst function using abs function to get negative ids for admins positive and updated some where it applies
-// 20210518 LOE Added this to check handle more than one account for the admin ..if the initial language still exists it updates the table with active one
-// 20210704 LOE Little modification of findtekst() function
-// 20210818 LOE Did some modication to findtekst function checking before insert if the value already exists in tekster table
-// 20210828 LOE Updated findtekst function 
-// 20210830 LOE Created get_ip function...This is used in login.php file and in brugere.php
-// 20210831 LOE Created restrict_user_ip and restore_user_ip functions
-// 20210901 LOE Created authenticate_user_ip function
-// 20210908 LOE Created input_ip function
-// 20210909 LOE Modified some function relating to Ip
-// 20210915 LOE Modified activeLanguage function for older vesion compatibility
-// 20210916 LOE Modified findtekst function to have a default language for develop db
-// 20210917 LOE Set sprog_id for admins and updated some codes
-// 20210922 LOE Added session language for admin users.
-// 20211001 LOE Added lingua as language set for admins*
-// 20211006 LOE Updating some findtekst function codes
-// 20211007 LOE For admin checking before insert if the value already exists in tekster table
-// 20211008 PHR Function findtekst rolled back.
-// 20211013 PHR Function sync_shop_vare & lagerreguler - added totalStock 
-// 20211015 LOE Modified some codes to adjust to IP moved to settings table
-// 20211029 PHR Function barcode - If not numeric, barcode is not EAN13
 // 20220110 PHR Function 'sync_shop_vare' Check if item is a stock item
 // 20200125 PHR Added func getAvailable, added it to func sync_shop_vare and addef func sync_shop_vare to func lagerreguler
 // 20220514 PHR Function findtekst. Added str_replace('\n\n',"\n\n" to newTxt
@@ -119,6 +49,10 @@
 // 20250405 LOE if_isset() updated and to check explicitly if array keys exist if they are arrays.
 // 20250630 PHR Minor change in transtjek
 // 20250811 PHR Another minor change in transtjek
+// 20251106 LOE Added z-index to tekstboks function
+// 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
+// 20260127 PHR corrected error in function get_next_order_number
+
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
@@ -1035,7 +969,7 @@ if (!function_exists('tekstboks')) {
 			$bokshorisontal = '68%';
 
 
-		$boksindhold .= "\n<div id='" . $boksid . "' style='position:fixed; margin:10px; border:solid 4px " . $bokskant . "; padding:1px; background:" . $boksbaggrund . ";";
+		$boksindhold .= "\n<div id='" . $boksid . "' style='position:fixed; margin:10px; z-index:100; border:solid 4px " . $bokskant . "; padding:1px; background:" . $boksbaggrund . ";";
 		if ($bokstype === 'info')
 			$boksindhold .= " display:none;";
 		$boksindhold .= " top:" . $boksvertikal . "; left:" . $bokshorisontal . "; width:320px;'>\n";
@@ -1857,7 +1791,7 @@ if (!function_exists('sync_shop_vare')) {
 		#if ($partOfItem) echo __line__." Id $vare_id is part of another item<br>";  	
 		$qtxt = "select box8 from grupper where kodenr='$itemGroup' and art = 'VG' AND fiscal_year = $regnaar";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		echo $qtxt;
+		// echo $qtxt;  // Debug line removed
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (!$r['box8']) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no stock\n");
@@ -1900,12 +1834,13 @@ if (!function_exists('sync_shop_vare')) {
 				exec("nohup $txt > /dev/null 2>&1 &\n");
 			}
 		} else {
-			$qtxt = "select varer.varenr, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
+			$qtxt = "select varer.varenr, varer.varenr_alias, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
 			$qtxt .= "where lagerstatus.vare_id='$vare_id' and lagerstatus.lager='$lager' and varer.id='$vare_id'";
-			echo $qtxt;
+			// echo $qtxt;  // Debug line removed
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$stock = $r['stock'];
 				$itemNo = $r['varenr'];
+				$itemNoAlias = $r['varenr_alias'];
 				$costPrice = $r['kostpris'];
 			} #$stock=$itemNo=NULL; #20210225
 			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$vare_id'";
@@ -1920,27 +1855,28 @@ if (!function_exists('sync_shop_vare')) {
 			else
 				$shop_id = 0;
 
-			$qtxt = "SELECT varenr, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
+			$qtxt = "SELECT varenr, varenr_alias, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$salesPrice = $r['salgspris'];
 				$discountType = $r['m_type'];
 				$discount = $r['m_rabat'];
 				$itemNo = $r['varenr'];
+				$itemNoAlias = $r['varenr_alias'];
 				$costPrice = $r['kostpris'];
 				$retailPrice = $r["retail_price"];
 				$webFragt = $r["colli_webfragt"];
 				$stregkode = $r["stregkode"];
-				$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+				$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-if ($bruger_id == '-1') echo "$txt<br>";
+#if ($bruger_id == '-1') echo "$txt<br>";
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				if($api_fil2){
-					$txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+					$txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
 					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
 				if($api_fil3){
-					$txt = "$api_fil3?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+					$txt = "$api_fil3?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
 					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
@@ -1950,29 +1886,29 @@ if ($bruger_id == '-1') echo "$txt<br>";
 			if ($itemNo) {
 				#			if (($shop_id || $itemNo) && is_numeric($stock)) {
 				$rand = rand();
-				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
+				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&skuAlias=" . urlencode("$itemNoAlias") . "&costPrice=$costPrice&rand=$rand";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				if($api_fil2){
-					$txt = "$api_fil2?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
+					$txt = "$api_fil2?sku=" . urlencode("$itemNo") . "&skuAlias=" . urlencode("$itemNoAlias") . "&costPrice=$costPrice&rand=$rand";
 					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
 				$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-				$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+				$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				if($api_fil2){
 					$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-if ($bruger_id == '-1') echo "$txt<br>";
+					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+#if ($bruger_id == '-1') echo "$txt<br>";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
 				if($api_fil3){
 					$txt = "$api_fil3?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-if ($bruger_id == '-1') echo "$txt<br>";
+					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+#if ($bruger_id == '-1') echo "$txt<br>";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
@@ -1996,46 +1932,52 @@ if ($bruger_id == '-1') echo "$txt<br>";
 					}
 					for ($x = 0; $x < count($partOf); $x++) {
 						$shop_id = 0;
-						$qtxt = "select varenr,kostpris from varer where id = '$partOf[$x]'";
-if ($bruger_id == '-1') echo __line__." $qtxt<br>";
+						$qtxt = "select varenr,varenr_alias,kostpris from varer where id = '$partOf[$x]'";
+#if ($bruger_id == '-1') echo __line__." $qtxt<br>";
 						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 							$costPrice = $r['kostpris'];
 							$productNo = $r['varenr'];
+							$productNoAlias = $r['varenr_alias'];
 						}
-if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
+#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
 						$qtxt = "select shop_id from shop_varer where saldi_id = $partOf[$x]";
 						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $shop_id = $r['shop_id'];
 						list($totalStock, $stock) = explode('|', getAvailable($partOf[$x], $lager));
 						$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-						$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") ."&sku=" . urlencode("$productNo");
+						$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
 						$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 						fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
 						exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						if($api_fil2){
-if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
+#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
 							$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") ."&sku=" . urlencode("$productNo");
+							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
 							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
 							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						}
 						if($api_fil3){
-if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
+#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
 							$txt = "$api_fil3?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") ."&sku=" . urlencode("$productNo");
+							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
 							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
 							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						}
-						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo"); 
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 						shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						if($api_fil2){
-							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo"); 
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
+							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						}
+						if($api_fil3){
+							$txt = "$api_fil3?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						}
 					}
@@ -2163,6 +2105,164 @@ if (!function_exists('get_next_number')) {
 
 		}
 		return ($kontonr);
+	}
+}
+
+if (!function_exists('get_next_order_number')) {
+	function get_next_order_number($art = 'DO')
+	{
+		/**
+		 * Generates the next available order number (ordrenr) for a given 'art' (type).
+		 * Uses database transactions and table locking to prevent race conditions and duplicate numbers.
+		 * 
+		 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
+		 * 
+		 * @return int - The next available order number.
+		 * @throws Exception - If unable to generate unique order number after maximum attempts.
+		 */
+		global $db_type;
+		
+		$max_attempts = 10;
+		$attempt = 0;
+		$ordrenr = null;
+		
+		// Start transaction to ensure atomicity
+		transaktion('begin');
+		
+		try {
+			while ($attempt < $max_attempts) {
+				$attempt++;
+				
+				// Use SELECT FOR UPDATE to lock relevant rows - works on both PostgreSQL and MySQL
+				// This locks the rows being read until the transaction is committed
+				// Use LOCK TABLE to ensure uniqueness and prevent race conditions
+				// FOR UPDATE with aggregate functions is not allowed in PostgreSQL
+				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+				
+#				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
+				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) AS max_ordrenr ";
+				$qtxt.= "FROM (SELECT ordrenr FROM ordrer WHERE art = '$art' FOR UPDATE) t";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
+				
+				// Double-check that this order number doesn't exist (extra safety)
+				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art'";
+				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				
+				if (!$check_r || !$check_r['id']) {
+					// Order number is unique, commit transaction and return
+					transaktion('commit');
+					return $ordrenr;
+				} else {
+					// Order number already exists (shouldn't happen with proper locking)
+					// Increment and retry
+					$ordrenr++;
+					$rand = rand(10000, 50000)+$bruger_id*100;
+					usleep($rand); // Small random delay to reduce contention
+				}
+			}
+			
+			// If we get here, we couldn't generate a unique number
+			transaktion('rollback');
+			throw new Exception("Could not generate unique order number after $max_attempts attempts");
+			
+		} catch (Exception $e) {
+			transaktion('rollback');
+			throw $e;
+		}
+	}
+}
+
+//                   ----------------------------- get_next_invoice_number ------------------------------
+if (!function_exists('get_next_invoice_number')) {
+	function get_next_invoice_number($art = 'DO', $id = null)
+	{
+		/**
+		 * Generates the next available invoice number (fakturanr) for a given 'art' (type).
+		 * Uses database transactions and locking to prevent race conditions and duplicate numbers.
+		 * Handles non-numeric fakturanr field by using string comparison and conversion.
+		 * 
+		 * @param string $art - The order type ('DO', 'DK', 'PO', etc.)
+		 * @param int $id - The order ID to exclude from checks (optional)
+		 * 
+		 * @return int - The next available invoice number.
+		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
+		 */
+		
+		$max_attempts = 10;
+		$attempt = 0;
+		$fakturanr = null;
+		
+		// Start transaction to ensure atomicity
+		transaktion('begin');
+		
+		try {
+			while ($attempt < $max_attempts) {
+				$attempt++;
+				
+				// Lock the ordrer table to prevent concurrent access
+				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+				
+				// Get the maximum invoice number for the given art type
+				// Since fakturanr is not numeric, we need to handle it carefully
+				// Fetch all records and find max in PHP to avoid database-specific casting issues
+				$qtxt = "SELECT fakturanr FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr != '' AND fakturanr IS NOT NULL";
+				if ($id) {
+					$qtxt .= " AND id != '$id'";
+				}
+				$qtxt .= " ORDER BY fakturadate DESC, id DESC LIMIT 100";
+				
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				$fakturanr = 1; // Start with 1
+				
+				while ($r = db_fetch_array($q)) {
+					$existing_fakturanr = (int)$r['fakturanr'];
+					if ($fakturanr <= $existing_fakturanr) {
+						$fakturanr = $existing_fakturanr + 1;
+					}
+				}
+				
+				// Double-check that this invoice number doesn't exist (extra safety)
+				$qtxt = "SELECT id FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr = '$fakturanr'";
+				if ($id) {
+					$qtxt .= " AND id != '$id'";
+				}
+				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				
+				if (!$check_r['id']) {
+					// Check minimum invoice number from settings
+					$r = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'RB' AND kodenr='1'", __FILE__ . " linje " . __LINE__));
+					if ($r && $fakturanr < (int)$r['box1']) {
+						$fakturanr = (int)$r['box1'];
+					}
+					if ($fakturanr < 1) {
+						$fakturanr = 1;
+					}
+					
+					// If order ID is provided, set the fakturanr on the order NOW while table is locked
+					// This prevents race conditions between getting and setting the number
+					if ($id) {
+						db_modify("UPDATE ordrer SET fakturanr='$fakturanr' WHERE id='$id'", __FILE__ . " linje " . __LINE__);
+					}
+					
+					// Invoice number is unique, commit transaction and return
+					transaktion('commit');
+					return $fakturanr;
+				} else {
+					// Invoice number already exists, increment and try again
+					$fakturanr++;
+					usleep(rand(10000, 50000)); // Small random delay to reduce contention
+				}
+			}
+			
+			// If we get here, we couldn't generate a unique number
+			transaktion('rollback');
+			throw new Exception("Could not generate unique invoice number after $max_attempts attempts");
+			
+		} catch (Exception $e) {
+			transaktion('rollback');
+			throw $e;
+		}
 	}
 }
 
@@ -2768,4 +2868,82 @@ if (!function_exists('send_sms')) {
 	}
 }
 
+if (!function_exists('send_email')) { 
+	function send_email($to, $subject, $message)
+	{
+		/**
+		* Sends an email to a recipient
+		*
+		* @param $to - The email address of the recipient
+		* @param $subject - The subject of the email
+		* @param $message - The message to send
+		*
+		* @return bool - If the system was able to send the email or not
+		*/
+
+		$headers = "From: Saldi <info@saldi.dk>\r\n";
+		$headers .= "Reply-To: info@saldi.dk\r\n";
+		$headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+
+		mail($to, $subject, $message, $headers);
+		if (mail($to, $subject, $message, $headers)) {
+			return true;
+		} else {
+			echo "<script>alert('Der opstod en fejl ved afsendelse af email. Prøv igen senere.');</script>";
+			return false;
+		}
+	}
+}
+
+if (!function_exists('brightenColor')) {
+    /**
+     * Brightens a hex color by a given amount.
+     * @param string $color The hex color code (e.g., '#ff0000').
+     * @param float $amount The amount to brighten (0 to 1).
+     * @return string The brightened hex color code.
+     */
+    function brightenColor($color, $amount = 0.2) {
+        // Remove # if present
+        $color = ltrim($color, '#');
+        
+        // Convert hex to RGB
+        $r = hexdec(substr($color, 0, 2));
+        $g = hexdec(substr($color, 2, 2));
+        $b = hexdec(substr($color, 4, 2));
+        
+        // Brighten each component
+        $r = min(255, $r + ($amount * (255 - $r)));
+        $g = min(255, $g + ($amount * (255 - $g)));
+        $b = min(255, $b + ($amount * (255 - $b)));
+        
+        // Convert back to hex
+        return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
+    }
+}
+
+if (!function_exists('darkenColor')) {
+    /**
+     * Darkens a hex color by a given amount.
+     * @param string $color The hex color code (e.g., '#ff0000').
+     * @param float $amount The amount to darken (0 to 1).
+     * @return string The darkened hex color code.
+     */
+    function darkenColor($color, $amount = 0.2) {
+        // Remove # if present
+        $color = ltrim($color, '#');
+        
+        // Convert hex to RGB
+        $r = hexdec(substr($color, 0, 2));
+        $g = hexdec(substr($color, 2, 2));
+        $b = hexdec(substr($color, 4, 2));
+        
+        // Darken each component
+        $r = max(0, $r - ($amount * $r));
+        $g = max(0, $g - ($amount * $g));
+        $b = max(0, $b - ($amount * $b));
+        
+        // Convert back to hex
+        return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
+    }
+}
 ?>

@@ -22,7 +22,7 @@ function yearX1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $sluta
 
 	print "<form name='year1' action='regnskabskort.php' method='post'>";
 	// 1226 = Ret 1. regnskabsår 
-	if ($id) print "<tr><td colspan=4 align = center><big><b>".findtekst(1226,$sprog_id)." $beskrivelse</big></td></tr>\n";
+	if ($id) print "<tr><td colspan=4 align = center><big><b>".findtekst('1226|Ret 1. regnskabsår:', $sprog_id)." $beskrivelse</big></td></tr>\n";
 	else {
 		print "<tr><td colspan=4 align = center><big><b>Velkommen til som SALDI bruger</b></big><br />
 			Du skal f&oslash;rst oprette dit 1. regnskabs&aring;r, f&oslash;r du kan bruge systemet.<br /><br />
@@ -32,11 +32,11 @@ function yearX1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $sluta
 			Hvis der er noget, du er i tvivl om, er du velkommen til at kontakte os p&aring; telefon 4690 2208<br />
 			God forn&oslash;jelse.<br /><br />
 			</td></tr>\n";
-		print "<tr><td colspan=4 align = center><big><b>".findtekst(1227,$sprog_id)." $beskrivelse</big></td></tr>\n";
+		print "<tr><td colspan=4 align = center><big><b>".findtekst('1227|Opret 1. regnskabsår:', $sprog_id)." $beskrivelse</big></td></tr>\n";
 	}
 	print "<tr><td colspan=4 align='center'><table width=100% border=0><tbody><tr>"; #########################table 4c start
-	print "<tr><td></td><td align='center'>Start</td><td align='center'>Start</td><td align='center'>".findtekst(1216,$sprog_id)."</td><td align='center'>".findtekst(1216,$sprog_id)."</td><td align='center'>".findtekst(1086,$sprog_id)."</td></tr>\n";
-	print "<tr><td align='center'>".findtekst(914,$sprog_id)."</td><td align='center'>".findtekst(1217,$sprog_id)."</td><td align='center'>".findtekst(1218,$sprog_id)."</td><td align='center'>".findtekst(1217,$sprog_id)."</td><td align='center'>".findtekst(1218,$sprog_id)."</td><td align='center'>".findtekst(1219,$sprog_id)."</tr>\n";
+	print "<tr><td></td><td align='center'>Start</td><td align='center'>Start</td><td align='center'>".findtekst('1216|Slut', $sprog_id)."</td><td align='center'>".findtekst('1216|Slut', $sprog_id)."</td><td align='center'>".findtekst('1086|Bogføring', $sprog_id)."</td></tr>\n";
+	print "<tr><td align='center'>".findtekst('914|Beskrivelse', $sprog_id)."</td><td align='center'>".findtekst('1217|Måned', $sprog_id)."</td><td align='center'>".findtekst('1218|År', $sprog_id)."</td><td align='center'>".findtekst('1217|Måned', $sprog_id)."</td><td align='center'>".findtekst('1218|År', $sprog_id)."</td><td align='center'>".findtekst('1219|Tilladt', $sprog_id)."</tr>\n";
 	print "<input type=hidden name=kodenr value='$kodenr'><input type=hidden name='id' value='$id'>\n";
 	print "<tr><td align='center'><input type=text size='30' name='beskrivelse' value=\"$beskrivelse\" onchange=\"javascript:docChange = true;\"></td>\n";
 	if ($laast) $type="readonly=readonly";
@@ -59,24 +59,24 @@ function yearX1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $sluta
 	print "</tr>\n</tbody></table></td></tr>\n"; ###################################################table 4c slut
 	print "<tr><td colspan=4 width=100% align='center'><table heigth=100% border=0><tbody>"; ###########################table 5c start
 	print "<td align='center' valign=\"top\"><table heigth=100% border=1 $styleborder><tbody>\n";  #################################table 6d start	print "<tr><td align='center'>1. faktnr</td><td align='center'>1. modt. nr.</td><tr>";
-	print "<tr>\n <td>".findtekst(1220,$sprog_id)."</td>\n";
+	print "<tr>\n <td>".findtekst('1220|1. fakturanummer', $sprog_id)."</td>\n";
 	print " <td align='center'><input type=text style='text-align:right' size='4' name=fakt value=$fakt onchange=\"javascript:docChange = true;\"></td>\n</tr>\n";
-	print "<tr>\n <td>".findtekst(1221,$sprog_id)."</td>\n";
+	print "<tr>\n <td>".findtekst('1221|1. modtagelsesnummer', $sprog_id)."</td>\n";
 	print " <td align='center'><input type=text style='text-align:right' size='4' name=modt value=$modt onchange=\"javascript:docChange = true;\"></td>\n</tr>\n";
 	print "</tbody></table></td>\n"; ##########################################################table 6d slut
 	print "<td><table border=1 $styleborder><tbody>"; ##############################################table 7d start
 	if ($no_faktbill) $no_faktbill="checked";
 	if ((!$no_faktbill)&&($faktbill)) $faktbill="checked";
 	if ($modtbill) $modtbill="checked";
-	print "<tr><td align='center'>".findtekst(1222,$sprog_id)."</td><td align='center'><input type='checkbox' name=no_faktbill $no_faktbill onchange=\"javascript:docChange = true;\"></td></tr>\n"; #20210709
-	print "<tr><td align='center'>".findtekst(1223,$sprog_id)."</td><td align='center'><input type='checkbox' name=faktbill $faktbill onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	print "<tr><td align='center'>".findtekst(1224,$sprog_id)."</td><td align='center'><input type='checkbox' name=modtbill $modtbill onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr><td align='center'>".findtekst('1222|Undlad bilagsnummer til faktura', $sprog_id)."</td><td align='center'><input type='checkbox' name=no_faktbill $no_faktbill onchange=\"javascript:docChange = true;\"></td></tr>\n"; #20210709
+	print "<tr><td align='center'>".findtekst('1223|Brug fakturanummer som bilagsnummer', $sprog_id)."</td><td align='center'><input type='checkbox' name=faktbill $faktbill onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr><td align='center'>".findtekst('1224|Brug modtagelsesnummer som bilagsnummer', $sprog_id)."</td><td align='center'><input type='checkbox' name=modtbill $modtbill onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	print "</tbody></table></td>\n"; ##########################################################table 7d slut
 	print "<td valign=\"top\"><table border=0><tbody>\n"; ##############################################table 8d start
-	print "<tr><td><input class='button green medium' style='width:150px' type=submit accesskey=\"g\" value=\"".findtekst(3,$sprog_id)."\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
+	print "<tr><td><input class='button green medium' style='width:150px' type=submit accesskey=\"g\" value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
 	print "</tbody></table></td></tr>\n";#####################################################table8d slut
 	print "</td></tbody></table></td></tr>\n";#####################################################table5c slut
-	print "<tr><td colspan=2 align='center'> ".findtekst(1225,$sprog_id)."</td><td align = center> ".findtekst(1000,$sprog_id)."</td><td align = center> ".findtekst(1001,$sprog_id)."</td></tr>\n";
+	print "<tr><td colspan=2 align='center'> ".findtekst('1225|Indtast primotal for 1. regnskabsår:', $sprog_id)."</td><td align = center> ".findtekst('1000|Debet', $sprog_id)."</td><td align = center> ".findtekst('1001|Kredit', $sprog_id)."</td></tr>\n";
 	$y=0;
 	$debetsum=0;
 	$kreditsum=0;
@@ -112,9 +112,9 @@ echo "$kredit[$y]<br>";
 #	print "<tr><td colspan = 3> Overfr �ningsbalance</td><td align='center'><input type='checkbox' name=primotal checked></td></tr>\n";
 	print "<input type=hidden name=kontoantal value=$y>";
 	print "<tr><td colspan='4' align='center'>";
-	print "<input class='buttom green medium' style='width:150px;' type='submit' accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\" style=\"width:100px\" ";
+	print "<input class='buttom green medium' style='width:150px;' type='submit' accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" style=\"width:100px\" ";
 	print "name=\"submit\" onclick=\"javascript:docChange = false;\">";
-#	print "&nbsp;&nbsp;<input class='button green medium' type=submit value=\"".findtekst(1009,$sprog_id)." ".findtekst(1218,$sprog_id)."\" name=\"delete\"  style=\"width:100px\" ";
+#	print "&nbsp;&nbsp;<input class='button green medium' type=submit value=\"".findtekst('1009|Momsrapport (konti som skal indgå i momsrapport)', $sprog_id)." ".findtekst('1218|År', $sprog_id)."\" name=\"delete\"  style=\"width:100px\" ";
 #	print "onclick=\"javascript:docChange = false;\">";
 	print "</td></tr>\n";
 	print "</form></tbody></table>";

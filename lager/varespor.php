@@ -53,7 +53,7 @@ if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=$returside accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
+	print "<div class=\"headerbtnLft headLink\"><a href=$returside accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";     
 	print "<div class=\"headerTxt\">$title</div>";     
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
 	print "</div>";
@@ -86,7 +86,7 @@ print "<tr><td><br></td></tr>";
 
 ########################################################################################
 
-print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('977|Købt', $sprog_id))." ===</b></td></tr>";
+print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('2744|Tilgang', $sprog_id))." ===</b></td></tr>";
 print "<tr><td>".findtekst('438|Dato', $sprog_id)."</td>
 	<td align=right>".findtekst('916|Antal', $sprog_id)."</td>
 	<td align=right>".findtekst('28|Firmanavn', $sprog_id)."</td>
@@ -171,7 +171,7 @@ print "<tr><td colspan=5><br></td></tr>";
 
 
 ########################################################################################
-print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('974|Solgt', $sprog_id))." ===</b></td></tr>";
+print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('2745|Afgang', $sprog_id))." ===</b></td></tr>";
 print "<tr><td>".findtekst('438|Dato', $sprog_id)."</td>
 	<td align=right>".findtekst('916|Antal', $sprog_id)."</td>
 	<td align=right>".findtekst('28|Firmanavn', $sprog_id)."</td>

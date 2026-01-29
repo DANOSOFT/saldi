@@ -122,16 +122,16 @@ if (isset($_POST['slet'])) {
 	$kontonr = (int) $_POST['kontonr'];
 	$map_to = (int) $_POST['map_to'];
 	$beskrivelse = addslashes($_POST['beskrivelse']);
-	$kontotype = if_isset($_POST['kontotype']);
+	$kontotype = addslashes(if_isset($_POST['kontotype']));
 	#	$katagori=if_isset($_POST['katagori']);
-	$moms = if_isset($_POST['moms']);
+	$moms = addslashes(if_isset($_POST['moms']));
 	$fra_kto = if_isset($_POST['fra_kto']) * 1;
 	$til_kto = if_isset($_POST['kontonr']);
 	$saldo = if_isset($_POST['saldo']);
-	$valuta = if_isset($_POST['valuta']);
-	$ny_valuta = if_isset($_POST['ny_valuta']);
-	$genvej = if_isset($_POST['genvej']);
-	$lukket = if_isset($_POST['lukket']);
+	$valuta = addslashes(if_isset($_POST['valuta']));
+	$ny_valuta = addslashes(if_isset($_POST['ny_valuta']));
+	$genvej = addslashes(if_isset($_POST['genvej']));
+	$lukket = addslashes(if_isset($_POST['lukket']));
 
 	$regnaar_return = if_isset($_POST['regnaar']);
 	$maaned_fra = if_isset($_POST['maaned_fra']);

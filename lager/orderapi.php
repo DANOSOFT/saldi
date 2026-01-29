@@ -1,6 +1,13 @@
 <?php
 /**
  * Order API - Handles creation of purchase orders for products
+ * 
+ * Features:
+ * - Automatic order creation for products
+ * - Serial number support (same as kreditor/ordre.php)
+ * - Currency conversion handling
+ * - VAT rate calculation
+ * - Supplier group validation
  */
 
 session_start();
@@ -48,6 +55,19 @@ function genbestil($vare_id, $antal) {
     $lev_varenr = $supplier_info['lev_varenr'];
     $pris = (int)$supplier_info['kostpris'];
     $ordredate = date("Y-m-d");
+
+    // Check if product requires serial numbers and validate quantity
+    $product_info = getProductInfo($vare_id);
+    if ($product_info && $product_info['serienr']) {
+        // Round quantity to whole number for serial number products
+        $antal = round($antal, 0);
+        
+        // Validate quantity for serial number products
+        if (!validateSerialNumberQuantity($vare_id, $antal)) {
+            showSerialNumberError($product_info['varenr'], $antal);
+            return;
+        }
+    }
 
     // Check for existing open order for today
     $existing_order = findExistingOrder($lev_id, $ordredate);
@@ -232,9 +252,7 @@ function createNewOrder($lev_id, $ref, &$pris, $baseCurrency, $ordredate) {
  * Get the next order number
  */
 function getNextOrderNumber() {
-    $query = "SELECT ordrenr FROM ordrer WHERE art='KO' OR art='KK' ORDER BY ordrenr DESC LIMIT 1";
-    $result = db_fetch_array(db_select($query, __FILE__ . " line " . __LINE__));
-    return $result ? $result['ordrenr'] + 1 : 1;
+    return get_next_order_number('KO');
 }
 
 /**
@@ -311,10 +329,23 @@ function addProductToOrder($ordre_id, $vare_id, $pris, $antal) {
     $enhed = db_escape_string($product['enhed']);
     $beskrivelse = db_escape_string($product['beskrivelse']);
     $momsfri = $product['momsfri'];
+    $serienr = $product['serienr'];
+    
+    // Handle serial number products
+    if ($serienr) {
+        // Round quantity to whole number for serial number products
+        $antal = round($antal, 0);
+        
+        // Validate quantity for serial number products
+        if (!validateSerialNumberQuantity($vare_id, $antal)) {
+            showSerialNumberError($varenr, $antal);
+            return;
+        }
+    }
     
     // Insert order line
     $query = "INSERT INTO ordrelinjer (
-        ordre_id, posnr, varenr, vare_id, beskrivelse, enhed, pris, lev_varenr, antal, momsfri
+        ordre_id, posnr, varenr, vare_id, beskrivelse, enhed, pris, lev_varenr, antal, momsfri, serienr
     ) VALUES (
         '" . db_escape_string($ordre_id) . "',
         '1000',
@@ -325,7 +356,8 @@ function addProductToOrder($ordre_id, $vare_id, $pris, $antal) {
         '" . db_escape_string($pris) . "',
         '" . $lev_varenr . "',
         '" . db_escape_string($antal) . "',
-        '" . db_escape_string($momsfri) . "'
+        '" . db_escape_string($momsfri) . "',
+        '" . db_escape_string($serienr) . "'
     )";
     
     db_modify($query, __FILE__ . " line " . __LINE__);
@@ -342,6 +374,7 @@ function getProductInfo($vare_id) {
         varer.varenr as varenr,
         varer.beskrivelse as beskrivelse,
         varer.enhed as enhed,
+        varer.serienr as serienr,
         vare_lev.lev_varenr as lev_varenr,
         grupper.box7 as momsfri 
     FROM varer, vare_lev, grupper 
@@ -391,4 +424,29 @@ function showSupplierGroupError($vare_id) {
     $varenr = $product ? $product['varenr'] : 'Unknown';
     
     print "<BODY onLoad=\"javascript:alert('Leverand&oslash;rgruppe ikke korrekt opsat for varenr $varenr')\">";
+}
+
+/**
+ * Validate serial number quantity - check if quantity matches registered serial numbers
+ */
+function validateSerialNumberQuantity($vare_id, $antal) {
+    // Count existing serial numbers for this product
+    $query = "SELECT COUNT(*) as count FROM serienr WHERE vare_id = " . (int)$vare_id . " AND kobslinje_id > 0";
+    $result = db_fetch_array(db_select($query, __FILE__ . " line " . __LINE__));
+    $registered_count = $result ? (int)$result['count'] : 0;
+    
+    // For serial number products, quantity should not exceed registered serial numbers
+    // This follows the same logic as in ordre.php
+    if ($antal > $registered_count && $registered_count > 0) {
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Show serial number validation error
+ */
+function showSerialNumberError($varenr, $antal) {
+    print "<BODY onLoad=\"javascript:alert('Antal kan ikke v&aelig;re st&oslash;rre end antal registrerede serienr for varenr: $varenr (Antal: $antal)')\">";
 }

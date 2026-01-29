@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php -----patch 4.1.0 ----2025-08-16--------------
+// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-10-07--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -223,6 +223,7 @@
 // 20250701 PHR Check if order exists. if not set id to 0
 // 20250806 PHR php8 issue in sizeof($_POST)
 // 20250816 PHR Compared and merged changes from ssl7
+// 20251007 PHR Changed "$_POST['proforma'] == 'Proforma')" to "$_POST['proforma'])" 
 
 @session_start();
 $s_id = session_id();
@@ -736,7 +737,7 @@ $bundmenu = if_isset($_GET['bundmenu']);
 $kassebeholdning = if_isset($_GET['kassebeholdning']);
 if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 	$calc = findtekst('2390|Beregn',$sprog_id);
-	if (isset($_POST['optael']) && ($_POST['optael'] == findtekst('555|Godkend',$sprog_id) || $_POST['optael'] == findtekst('3089|Beregn',$sprog_id))) {
+	if (isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id))) {
 		$cookievalue = (int)$_POST['ore_10'] . chr(9) . (int)$_POST['ore_20'] . chr(9) . $_POST['ore_50'] . chr(9) . $_POST['kr_1'] . chr(9) . $_POST['kr_2'] . chr(9) . $_POST['kr_5'] .
 			chr(9) . $_POST['kr_10'] . chr(9) . $_POST['kr_20'] . chr(9) . $_POST['kr_50'] . chr(9) . $_POST['kr_100'] .
 			chr(9) . $_POST['kr_200'] . chr(9) . $_POST['kr_500'] . chr(9) . $_POST['kr_1000'] .
@@ -768,7 +769,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 		(int) $_POST['rappen_5'] * 0.05 +
 			(int) $_POST['rappen_10'] * 0.1 +
 			(int) $_POST['rappen_20'] * 0.2;
-		($_POST['optael'] == findtekst('555|Godkend',$sprog_id)) ? $godkendt = 1 : $godkendt = 0;
+		(isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id)) ? $godkendt = 1 : $godkendt = 0;
 		if ($godkendt && round($optalt - $_POST['optalt'], 2) != 0) { #20180822 + 20220222 
 			$godkendt = 0;
 			$alert = findtekst(1862, $sprog_id); #20210820
@@ -778,7 +779,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 			fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls kassebeholdning($kasse,$optalt,$godkendt,$cookievalue)\n");
 		include_once("pos_ordre_includes/boxCountMethods/cashBalance.php");
 		cashBalance($kasse, $optalt, $godkendt, $cookievalue);
-	} elseif (!isset($_POST['optael'])) {
+	} elseif (!isset($_POST['optael']) && !isset($_POST['calculate']) && !isset($_POST['cancel'])) {
 		if ($tracelog)
 			fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls kassebeholdning($kasse,0,0,'')\n");
 		include_once("pos_ordre_includes/boxCountMethods/cashBalance.php");
@@ -1229,7 +1230,7 @@ if ($vare_id) {
 	$zReport = (isset($_POST['zRapport']) && $_POST['zRapport'] == "Z-Rapport") ? True : False;
 	if (!$id && !$varenr_ny && $kundedisplay)
 		kundedisplay('**** Velkommen ****', '', '1');
-	if ((isset($_POST['kopi']) && $_POST['kopi'] == "Kopier") || (isset($_POST['proforma']) && $_POST['proforma'] == 'Proforma') || (isset($_POST['udskriv']) && $_POST['udskriv']) || $xReport || $zReport) {
+	if ((isset($_POST['kopi']) && $_POST['kopi'] == "Kopier") || (isset($_POST['proforma']) && $_POST['proforma']) || (isset($_POST['udskriv']) && $_POST['udskriv']) || $xReport || $zReport) {
 		$momssats = (float) $momssats;
 		if ($id && (!$xReport && !$zReport)) {
 			if ($tracelog)
@@ -1682,8 +1683,7 @@ if ($id && $gem) {
 		$tmp = $kasse - 1;
 		$afd = (int) $afdelinger[$tmp];
 	}
-	$r = db_fetch_array(db_select("select max(ordrenr) as ordrenr from ordrer where art = 'DO'", __FILE__ . " linje " . __LINE__));
-	$ordrenr = $r['ordrenr'] + 1;
+	$ordrenr = get_next_order_number('DO');
 	if (db_fetch_array(db_select("select id from adresser where kontonr = '1'", __FILE__ . " linje " . __LINE__)))
 		$kontonr = 1;
 	else
@@ -2273,10 +2273,7 @@ function opret_posordre($konto_id, $kasse) {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$r[id]\">\n";
 		}
 	}
-	if ($r = db_fetch_array($q = db_select("select ordrenr from ordrer where art='PO' order by ordrenr desc", __FILE__ . " linje " . __LINE__))) {
-		$ordrenr = $r['ordrenr'] + 1;
-	} else
-		$ordrenr = 1;
+		$ordrenr = get_next_order_number('PO');
 	$ordredate = date("Y-m-d");
 	$tidspkt = date("U");
 	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
@@ -3215,7 +3212,7 @@ function kasseoptalling(
 	$x = 0;
 	$k = $kasse - 1;
 	$tmp = $valuta = array();
-	$q = db_select("select * from grupper where art = 'VK' order by box1", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select * from grupper where art = 'VK' and box4 = '1' order by box1", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$valuta[$x] = $r['box1'];
 		$tmp = explode(chr(9), $r['box4']);
@@ -3272,7 +3269,7 @@ function kasseoptalling(
 	}
 
 	$forventet = $byttepenge + $tilgang + $kortdiff;
-	(isset($_POST['optael']) && $_POST['optael']) ? $ny_morgen = $optalt - $udtages : $ny_morgen = 0; #20200112
+	(isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'])) ? $ny_morgen = $optalt - $udtages : $ny_morgen = 0; #20200112
 	specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet); #, $fiveRappen, $tenRappen, $twentyRappen
 	if ($valuta[0]) {
 		for ($x = 0; $x < count($valuta); $x++) {
@@ -3331,7 +3328,7 @@ function kasseoptalling(
 		}
 	}
 #	$calcTxtArr = setCashCountText();
-	if (($optalt || $optalt == '0') && $_POST['optael'] == findtekst('3089|Beregn',$sprog_id)) { #LN 20190219
+	if (($optalt || $optalt == '0') && isset($_POST['calculate'])) { #LN 20190219
 #		if($kortdiff) {
 #			$disabled='disabled';
 #			$title='Der kan ikke godkendes når der er differencer på betalingskort';
@@ -3381,7 +3378,7 @@ function kasseoptalling(
 		$title = findtekst(1853, $sprog_id);
 		$txt   = findtekst('555|Godkend',$sprog_id);
 		print "<td align = 'right' colspan = '1' title = '$title'>";// Accept(Godkend) button
-		print "<input $disabled style = 'width:135px;' type = 'submit' name = 'optael' value = '$txt' ";
+		print "<input $disabled style = 'width:135px;' type = 'submit' name = 'optael' value = '$txt' "; // Godkend button keeps 'optael' name
 		print "onclick = \"javascript:return confirm('$acceptPrint')\"></td></tr>\n";
 	}
 	if (!count($valuta) && $tilgang != '0,00') displayLine(findtekst('370|Kontant',$sprog_id),$tilgang,$baseCurrency);

@@ -4,99 +4,98 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------systemdata/view_logoupload.php------------patch 3.6.7-----2017-02-10-------------
-// LICENS
+// --------systemdata/view_logoupload.php------------patch 4.1.1-----2026-01-21------
+//                               LICENSE      
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2016 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20260102 LOE Updated to use department format for viewing uploaded background.
 
-@session_start();
+session_start();
 $s_id=session_id();
 
-	include("../includes/connect.php");
-	include("../includes/online.php");
-	include("../includes/std_func.php");
+include("../includes/connect.php");
+include("../includes/online.php");
+include("../includes/std_func.php");
 
-	global $db_id;
-	$current_sprog = isset($_GET['sprog']) ? $_GET['sprog'] : 'Dansk';
-	#echo "$db_id";
-	$url  = isset($_SERVER['HTTPS']) ? 'https://' : 'http://';
-	$url .= $_SERVER['SERVER_NAME'];
-	$url .= htmlspecialchars($_SERVER['REQUEST_URI']);
-	$urlstr = dirname(dirname($url));
-	$dataurl = isset($_SERVER['HTTPS']) ? 'https' : 'http';
-	
-	$baggrund=if_isset($_GET['vis']);
+global $db_id;
+$current_sprog = isset($_GET['sprog']) ? $_GET['sprog'] : 'Dansk';
+#echo "$db_id";
+$url  = isset($_SERVER['HTTPS']) ? 'https://' : 'http://';
+$url .= $_SERVER['SERVER_NAME'];
+$url .= htmlspecialchars($_SERVER['REQUEST_URI']);
+$urlstr = dirname(dirname($url));
+$dataurl = isset($_SERVER['HTTPS']) ? 'https' : 'http'; 
 
+$baggrund=if_isset($_GET['vis']);
 
-function find_background_file($db_id, $baggrund) {
-    $file_path = "../logolib/$db_id/$baggrund.pdf";
-    if (file_exists($file_path)) {
+function find_background_file($db_id, $baggrund, $current_sprog, $department = null) {
+    // First check if it's a full path (from formularprint)
+    if (file_exists($baggrund)) {
         return $baggrund;
     }
     
-    if (strpos($baggrund, '_') !== false) {
-        $parts = explode('_', $baggrund, 2);
-        if (count($parts) == 2) {
-            $default_file = $parts[1];
-            $default_path = "../logolib/$db_id/$default_file.pdf";
-            if (file_exists($default_path)) {
-                return $default_file;
-            }
+    // Convert language to directory format: lowercase and replace spaces with underscores
+    $lang_dir_name = strtolower(str_replace(' ', '_', $current_sprog));
+    
+    // Check language_department directory if department is specified
+    if ($department) {
+        $dept_path = "../logolib/{$lang_dir_name}_{$department}/{$baggrund}.pdf";
+        if (file_exists($dept_path)) {
+            return $dept_path;
         }
     }
     
     return false;
 }
 
-$actual_file = find_background_file($db_id, $baggrund);
-	
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	// print "<td width=\"10%\" $top_bund height=\"1%\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=logoupload.php>Luk</a></td>";
-	print "<td width=\"10%\" $top_bund height=\"1%\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"logoupload.php?sprog=$current_sprog\">Luk</a></td>";
-	print "<td width=\"80%\" $top_bund align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Udskrift</td>";
-	print "<td width=\"10%\" $top_bund align = \"right\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">&nbsp;</td>";
-	print "<tr><td width=\"100%\" height=\"100%\" align=\"center\" valign=\"top\" colspan=\"3\">";
-	// print "<div style=\"height:100%;\">
-	// <object style=\"width:50%;height:100%;\" data=\"$dataurl://docs.google.com/viewer?url=$urlstr%2Flogolib%2F$db_id%2F$baggrund.pdf&amp;embedded=true\"> <!-- bg skal være en variabel sent fra logoupload.php -->
-	// 	<p>Din browser kan ikke vise denne fil. Hent filen herunder.</p>
-	// 	<a href=\"../logolib/$db_id/bg.pdf</a> 
-	// </object>
-	// </div>";
+// Get department from URL if available
+$department = isset($_GET['department']) ? $_GET['department'] : null;
 
-	if ($actual_file) {
+$actual_file = find_background_file($db_id, $baggrund, $current_sprog, $department);
+
+if ($actual_file && file_exists($actual_file)) {
+    $usefile = $actual_file;
+} else {
+    $usefile = false;
+}
+
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+print "<td width=\"10%\" $top_bund height=\"1%\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"logoupload.php?sprog=$current_sprog" . ($department ? "&department=$department" : "") . "\">Close</a></td>";
+print "<td width=\"80%\" $top_bund align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Print</td>";
+print "<td width=\"10%\" $top_bund align = \"right\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">&nbsp;</td>";
+print "<tr><td width=\"100%\" height=\"100%\" align=\"center\" valign=\"top\" colspan=\"3\">";
+
+if ($usefile && file_exists($usefile)) {
     print "<div style=\"height:100%;\">
-    <object style=\"width:50%;height:100%;\" data=\"$dataurl://docs.google.com/viewer?url=$urlstr%2Flogolib%2F$db_id%2F$actual_file.pdf&amp;embedded=true\">
-        <p>Din browser kan ikke vise denne fil. Hent filen herunder.</p>
-        <a href=\"../logolib/$db_id/$actual_file.pdf\">Download PDF</a> 
-    </object>
+    <iframe style=\"width:100%;height:100%;\" src=\"$usefile#toolbar=0&navpanes=0&scrollbar=0\">
+        <p>Your browser cannot display this file. <a href=\"$usefile\">Download PDF</a></p>
+    </iframe>
     </div>";
 } else {
+    $dept_info = $department ? " (department $department)" : "";
     print "<div style=\"height:100%; text-align:center; padding-top:50px;\">
-        <h2>Fil ikke fundet</h2>
-        <p>Filen '$baggrund.pdf' kunne ikke findes.</p>
-        <p><a href=\"logoupload.php\">Tilbage til upload</a></p>
+        <h2>File not found</h2>
+        <p>The file '$baggrund.pdf' could not be found for language '$current_sprog'$dept_info.</p>
+        <p><a href=\"logoupload.php?sprog=$current_sprog" . ($department ? "&department=$department" : "") . "\">Back to upload</a></p> 
     </div>";
 }
-	
-	print "</td></tr>";
-	print "</tbody></table>";
-	
-  
+
+print "</td></tr>";
+print "</tbody></table>";
+
 ?>

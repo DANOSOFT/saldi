@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Integration Oversigt - Custom Audio</title>
+    
+        <style>
+        @media print {
+            @page {
+                size: A4;
+                margin: 2cm;
+            }
+            body {
+                font-size: 11pt;
+            }
+            h1 { page-break-after: avoid; }
+            h2 { page-break-after: avoid; }
+            h3 { page-break-after: avoid; }
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+        }
+        h1 {
+            font-size: 28pt;
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+            margin-bottom: 30px;
+        }
+        h2 {
+            font-size: 20pt;
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+        h3 {
+            font-size: 16pt;
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        ul, ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        p {
+            margin-bottom: 12px;
+        }
+        strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        em {
+            font-style: italic;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        hr {
+            border: none;
+            border-top: 2px solid #ecf0f1;
+            margin: 30px 0;
+        }
+        </style>
+        
+</head>
+<body>
+<h1>Integration Oversigt - Custom Audio</h1>
+
+<h2>Hvad gør integrationen?</h2>
+
+<p>
+Integrationen forbinder jeres <strong>Custom Audio webshop</strong> med <strong>Saldi regnskabssystem</strong>, så data automatisk synkroniseres mellem de to systemer.
+</p>
+
+<hr>
+<h2>Hvad bliver synkroniseret?</h2>
+
+<h3>1. Ordreimport (Webshop → Saldi)</h3>
+
+<p>
+Når en kunde laver en ordre på jeres webshop, bliver ordren automatisk:
+</p>
+<ul>
+  <li>Importeret til Saldi</li>
+  <li>Oprettet som en ordre med alle kundeoplysninger</li>
+  <li>Faktureret automatisk * kund hvis dette ønskes</li>
+</ul>
+
+<p>
+<strong>Hvad bliver overført:</strong>
+</p>
+
+<p>
+<strong>Kundeoplysninger:</strong>
+</p>
+<ul>
+  <li>Firmanavn, adresse, postnummer, by, land</li>
+  <li>Telefon, email</li>
+  <li>CVR nummer (hvis tilgængelig)</li>
+  <li>Kontaktperson</li>
+</ul>
+
+<p>
+<strong>Leveringsoplysninger:</strong>
+</p>
+<ul>
+  <li>Leveringsfirmanavn</li>
+  <li>Leveringsadresse</li>
+  <li>Leveringspostnummer, by, land</li>
+  <li>Leveringskontakt</li>
+</ul>
+
+<p>
+<strong>Ordreoplysninger:</strong>
+</p>
+<ul>
+  <li>Ordrenummer fra webshop</li>
+  <li>Ordredato</li>
+  <li>Ordrestatus</li>
+  <li>Betalingsmetode</li>
+  <li>Betalings-ID (transaktionsnummer)</li>
+  <li>Kunde kommentarer</li>
+</ul>
+
+<p>
+<strong>Produkter:</strong>
+</p>
+<ul>
+  <li>Varenummer</li>
+  <li>Produktbeskrivelse</li>
+  <li>Antal</li>
+  <li>Pris (inkl. rabatter)</li>
+  <li>Variant information</li>
+</ul>
+
+<p>
+<strong>Fragt:</strong>
+</p>
+<ul>
+  <li>Fragtmetode</li>
+  <li>Fragtpris (automatisk beregnet med moms)</li>
+</ul>
+
+<p>
+<strong>Priser og moms:</strong>
+</p>
+<ul>
+  <li>Netto sum (beregnes automatisk)</li>
+  <li>Moms sum (beregnes automatisk)</li>
+  <li>Momsats</li>
+</ul>
+
+<p>
+<strong>Hvilke ordrer importeres?</strong>
+</p>
+<ul>
+  <li>Kun komplette ordrer (betalte ordrer)</li>
+  <li>Ordrer fra de sidste 3 dage (inkl. i dag)</li>
+  <li>Ordrer der ikke allerede er importeret</li>
+</ul>
+
+<hr>
+<h3>2. Lageropdatering (Saldi → Webshop)</h3>
+
+<p>
+Når lagerbeholdningen ændres i Saldi, opdateres den automatisk på webshoppen.
+</p>
+
+<p>
+<strong>Hvordan virker det?</strong>
+</p>
+<ul>
+  <li>Saldi sender den nye lagerbeholdning</li>
+  <li>Systemet sammenligner med nuværende lager på webshop</li>
+  <li>Kun hvis der er en forskel, opdateres webshoppen</li>
+</ul>
+
+<hr>
+<h3>3. Prisopdatering (Saldi → Webshop)</h3>
+
+<p>
+Når priser ændres i Saldi, opdateres de automatisk på webshoppen.
+</p>
+
+<p>
+<strong>Hvad bliver opdateret?</strong>
+</p>
+<ul>
+  <li>Salgspris (beregnes som Saldi pris × 1.25)</li>
+  <li>Rabatpris (hvis der er rabat)</li>
+  <li>Indkøbspris</li>
+  <li>Vægt/fragt</li>
+  <li>Stregkode</li>
+  <li>Detailpris</li>
+</ul>
+
+<hr>
+<h3>4. Indkøbsprisopdatering (Saldi → Webshop)</h3>
+
+<p>
+Når indkøbsprisen ændres i Saldi, opdateres den automatisk på webshoppen.
+</p>
+
+<hr>
+<h2>Standardværdier</h2>
+
+<p>
+Følgende værdier er sat som standard og kan tilpasses:
+</p>
+
+<p>
+<strong>Ordreindstillinger:</strong>
+</p>
+<ul>
+  <li>Reference: "Webshop"</li>
+  <li>Betalingsbetingelse: "Kreditkort"</li>
+  <li>Betalingsdage: (skal defineres)</li>
+  <li>Gruppe: 1</li>
+  <li>Afdeling: 7</li>
+  <li>Valutakurs: 100%</li>
+</ul>
+
+<p>
+<strong>Produktindstillinger:</strong>
+</p>
+<ul>
+  <li>Lager: (skal defineres)</li>
+  <li>Varegruppe for fragt: (skal defineres)</li>
+  <li>Varegruppe for kommentarer: 0</li>
+</ul>
+
+<hr>
+<h2>Hvordan aktiveres integrationen?</h2>
+
+<p>
+Integrationen kører automatisk, når den aktiveres fra Saldi:
+</p>
+
+<ol>
+  <li><strong>Ordreimport</strong> - Kører automatisk og henter nye ordrer</li>
+  <li><strong>Lageropdatering</strong> - Kører når lager ændres i Saldi</li>
+  <li><strong>Prisopdatering</strong> - Kører når priser ændres i Saldi</li>
+  <li><strong>Indkøbsprisopdatering</strong> - Kører når indkøbspris ændres i Saldi</li>
+</ol>
+
+<hr>
+<h2>Vigtige noter</h2>
+
+<p>
+<strong>Automatisk fakturering:</strong>
+</p>
+<ul>
+  <li>Alle importerede ordrer faktureres automatisk i Saldi</li>
+  <li>Betalingen registreres som POS betaling</li>
+</ul>
+
+<p>
+<strong>Duplikatkontrol:</strong>
+</p>
+<ul>
+  <li>Systemet husker hvilke ordrer der allerede er importeret</li>
+  <li>Samme ordre importeres ikke to gange</li>
+</ul>
+
+<p>
+<strong>Fejlhåndtering:</strong>
+</p>
+<ul>
+  <li>Hvis en ordre ikke kan importeres, logges fejlen</li>
+  <li>Systemet fortsætter med næste ordre</li>
+</ul>
+
+<p>
+<strong>Tidsperiode:</strong>
+</p>
+<ul>
+  <li>Ordreimport henter ordrer fra de sidste 3 dage</li>
+  <li>Dette kan justeres efter behov</li>
+</ul>
+
+<hr>
+<h2>Hvad skal konfigureres?</h2>
+
+<p>
+Følgende skal defineres før integrationen kan bruges:
+</p>
+
+<ol>
+  <li><strong>API adgang</strong> - API URL og nøgle fra Custom Audio webshop</li>
+  <li><strong>Lager</strong> - Hvilket lager produkter skal tilknyttes</li>
+  <li><strong>Varegruppe</strong> - Varegruppe for fragt</li>
+  <li><strong>Betalingsdage</strong> - Standard betalingsdage for ordrer</li>
+  <li><strong>Site ID</strong> - Hvis webshoppen har flere sites</li>
+</ol>
+
+<hr>
+<h2>Support</h2>
+
+<p>
+Hvis der opstår problemer eller spørgsmål til integrationen, kontakt support med:
+</p>
+<ul>
+  <li>Beskrivelse af problemet</li>
+  <li>Ordrenummer (hvis relevant)</li>
+  <li>Tidsstempel for hvornår problemet opstod</li>
+</ul>
+
+
+</body>
+</html>

@@ -1099,14 +1099,14 @@ $periodDateTo = $txt2137 . ' ' . $endDay . '. ' . $endMonth . ' ' . $endYear;
 
 /***************************************************************************************************** */
 
-$newTitle = findtekst('3019|SAF-T', $sprog_id)." ".findtekst('2226|Kasse', $sprog_id);
+$newTitle = findtekst('2320|SAF-T', $sprog_id)." ".findtekst('2226|Kasse', $sprog_id);
 if ($menu == 'T') {
     $title = findtekst('1142|Rapport', $sprog_id)." • $newTitle";
 
     include_once '../includes/top_header.php';
     include_once '../includes/top_menu.php';
     print "<div id=\"header\">";
-    print "<div class=\"headerbtnLft headLink\"><a href=\"rapport.php\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+    print "<div class=\"headerbtnLft headLink\"><a href=\"rapport.php\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
     print "<div class=\"headerTxt\">$title</div>";
     print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
     print "</div>";
@@ -1141,8 +1141,8 @@ if ($menu == 'T') {
  */
 print "<div class=\"popup\"><span class=\"popuptext\" id=\"createMessage\">$fileCreatedMessage</span><span class=\"popuptext\" id=\"downloadMessage\"></span></div>";
 
-$txt778 = findtekst('778|Regnskabsår', $sprog_id);
-$txt899 = findtekst('899|Periode', $sprog_id);
+$txt778  = findtekst('778|Regnskabsår', $sprog_id);
+$txt899  = findtekst('899|Periode', $sprog_id);
 $txt2135 = findtekst('2135|Der er ingen data i den valgte periode', $sprog_id);
 
 print "<table class=\"saftHeader\">\n";
@@ -1154,7 +1154,7 @@ print "</table>\n";
 print "<table class=\"saftTable1\">\n";
 if ($startTimePeriod && $endTimePeriod) {
     print "<tr><th colspan=\"2\">";
-    print "Her kan du oprette en SAF-T Cash Register rapport:";
+    print findtekst('2712|Her kan du oprette en SAF-T kasserapport', $sprog_id).":";
     print "</th><th>&nbsp;</th><th>&nbsp;</th></tr>\n";
     print "<tr><td>";
     print "<form method=\"post\" action=\"saftCashRegisterCreator.php\" style=\"margin-bottom: 0;\">";
@@ -1235,7 +1235,7 @@ if ($startTimePeriod && $endTimePeriod) {
     print "<input type='hidden' name='paidAmntString' value='" . $paidAmntString . "'>";
     print "<input type='hidden' name='payment_empIDString' value='" . $payment_empIDString . "'>";
     print "<input type='hidden' name='payment_curCodeString' value='" . $payment_curCodeString . "'>";
-    print "<span><button type=\"submit\">Opret SAF-T fil</button></span>";
+    print "<span><button type=\"submit\">".findtekst('2709|Opret SAF-T fil', $sprog_id)."</button></span>";
     print "</form>";
     print "</td><td>&nbsp;</td><td>&nbsp;</td>";
     print "<td>&nbsp;</td></tr>\n";
@@ -1246,19 +1246,23 @@ print "</table>\n";
 print "<hr>";
 if ($fileExist) {
     print "<table class='saftTable2'>";
-    print "<tr><th>File name</th><th>Size</th><th>Date and time of creation</th><th>&nbsp;</th>";
-    print "<tr><td>$fileName</td><td>$fileSizeKb</td><td>$formatedDate</td><td><button id='download' onclick='downloadFile(\"$filePath\", \"$fileName\")'>Download</button></td></tr>"; // <a href='$filePath' download><button>Download</button></a> 
+    print "<tr><th>".findtekst('2706|Filnavn', $sprog_id)."</th>";
+    print "<th>".findtekst('2030|Størrelse', $sprog_id)."</th>";
+    print "<th>".findtekst('2707|Dato og klokkeslæt for oprettelse', $sprog_id)."</th>";
+    print "<th>&nbsp;</th>";
+    print "<tr><td>$fileName</td><td>$fileSizeKb</td><td>$formatedDate</td>";
+    print "<td><button id='download' onclick='downloadFile(\"$filePath\", \"$fileName\")'>".findtekst('2708|Download', $sprog_id)."</button></td></tr>"; // <a href='$filePath' download><button>Download</button></a> 
     print "</table>";
-    print '<table class="saftTable3">';
-    print '<tr><td>';
-    print '<button onclick="showXML()" id="showXML">Vis XML fil</button>';
-    print '</td></tr></table>';
+    print "<table class='saftTable3'>";
+    print "<tr><td>";
+    print "<button onclick='showXML()' id='showXML'>".findtekst('2350|Vis XML fil', $sprog_id)."</button>";
+    print "</td></tr></table>";
 }
 if ($fileExist) {
-    print '<div id="xmlFile">';
+    print "<div id='xmlFile'>";
     $newFilePath = str_replace(' ', '%20', $filePath);
-    print '<pre data-src=' . $newFilePath . '></pre>';
-    print '</div>';
+    print "<pre data-src=" . $newFilePath . "></pre>";
+    print "</div>";
 }
 
 ?>

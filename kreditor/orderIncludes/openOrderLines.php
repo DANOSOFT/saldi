@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.10 --- 2025-05-24 ----
+// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.10 --- 2025-11-13 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,8 +33,17 @@
 // 20240628 PHR 'recieve' is not shown if $bogfor == 1
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250524 PHR Bogfor now set to 0 if tidl_lev (Delivered) differs from antal (qty)
+// 20251113 PHR Corrected error in $tidl_lev for creditnotas
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
+
+// Add button styling with border-radius
+print "<style>
+    input[type='submit'] {
+        border-radius: 4px;
+    }
+</style>";
+
 $kreditmax=NULL;
 for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) {
@@ -73,12 +82,7 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   else $tmp=NULL;
   print "<td align=right><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee;text-align:right' readonly='readonly' size=10 value='$tmp'></td>";
   if ($vis_projekt && !$projekt[0]) {
-  print "<td><select class='inputbox' NAME=projekt[$x]>";
-  for ($a=0; $a<=$prj_antal; $a++) {
-    if ($projekt[$x]!=$list[$a]) print "<option  value='$list[$a]' title='$beskriv[$a]'>$list[$a]</option>";
-    else print "<option value='$list[$a]' title='$beskriv[$a]' selected='selected'>$list[$a]</option>";
-  }
-  print "</option></td>";
+  print "<td><input class='inputbox' style='width:50px;' name='projekt[$x]' value='{$projekt[$x]}' onfocus='document.forms[0].fokus.value=this.name;'></td>";
 }
 if ($status>=1) {
   if ($vare_id[$x]) {
@@ -131,13 +135,17 @@ if ($status>=1) {
       $qtxt = "select antal from batch_kob where linje_id = '$linje_id[$x]'";
       $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
       while ($r = db_fetch_array($q)) {
-        if ($art=='KK') $tidl_lev[$x] = $tidl_lev[$x] - $r['antal'];
-        else $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
+ #       if ($art=='KK') $tidl_lev[$x] = $tidl_lev[$x] - $r['antal'];
+  #      else $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
+         $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
       }
     }
-    if ($antal[$x] != $tidl_lev[$x]) $bogfor = 0;
-
-    $dk_tidl_lev[$x] = dkdecimal($tidl_lev[$x],2);
+    // make it so antal and tidl_lev have the same number of decimal places
+    $antal[$x] = round($antal[$x],2);
+    $tidl_lev[$x] = round($tidl_lev[$x],2);
+     if ($antal[$x] != $tidl_lev[$x]) $bogfor = 0;
+    if ($art=='KK') $tidl_lev[$x] *=-1;
+     $dk_tidl_lev[$x] = dkdecimal($tidl_lev[$x],2);
     if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-1);
     if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-2);
     if (afrund(abs($antal[$x])-abs($tidl_lev[$x]),3)!=0) {
@@ -234,11 +242,10 @@ print "value='Gem' name='save' onclick='javascript:docChange = false;'></td>";
 print "<td align='center'><input type=submit style = 'width:120px;' accesskey='o' ";
 print "value='Opslag' name='lookup' onclick='javascript:docChange = false;'></td>";
 
-echo __line__." $bogfor<br>";
 if ($status > 1 && $bogfor==1){
   print "<td align=center><input type=submit style = 'width:120px;'accesskey='b' value='".findtekst(1065, $sprog_id)."' ";
   print "name='postNow' onclick='javascript:docChange = false;'></td>";
-} else {
+} elseif ($status >= 1) {
   if ($art=='KK') {
     print "<td align='center'>";
     print "<!--Returnér --><input type='submit' style = 'width:120px;' accesskey='m' ";
@@ -246,7 +253,7 @@ if ($status > 1 && $bogfor==1){
     print "name='return' onclick='javascript:docChange = false;'></td>";
   } else {
     print "<td align=center><input type=submit style = 'width:120px;'";
-    print "accesskey='m' value='".findtekst(1485, $sprog_id)."' ";
+    print "accesskey='m' value='".findtekst('1485|Modtag', $sprog_id)."' ";
     print "name='receive' onclick='javascript:docChange = false;'></td>";
   }
 }

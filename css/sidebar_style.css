@@ -53,13 +53,7 @@
 }
 
 .sidebar.closed .logo i {
-    transform: translateX(-109px) rotate(180deg);
-}
-
-.sidebar .logo-img {
-    width: 105px;
-    height: auto;
-    transition: 0.3s ease;
+    transform: rotate(180deg);
 }
 
 .sidebar.closed .logo .logo-img {

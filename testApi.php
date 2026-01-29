@@ -3,7 +3,7 @@ if(isset($_GET["put_new_orders"])){
 $saldiuser='api'; #En bruger i har i saldi uden nogen rettigheder
 $api_key='4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD'; #Findes under Indstillinger ->  Diverse -> API
 $serverurl="https://ssl12.saldi.dk/pblm/api"; #Findes under Indstillinger ->  Diverse -> API
-$db='test_4';#' #Findes under Indstillinger ->  Diverse -> API 
+$db='test_4';#' #Findes under Indstillinger ->  Diverse -> API
 
  // Build the Saldi API request URL with order information
  $url = "action=insert_shop_order";
@@ -24,7 +24,7 @@ $db='test_4';#' #Findes under Indstillinger ->  Diverse -> API
  // Add order details
  $url .= "&shop_ordre_id=" . urlencode("3485745"); // Example shop order ID
  $url .= "&shop_status=" . urlencode("New Order");
- $url .= "&nettosum=" . urlencode("104.00"); // Example net amount
+ $url .= "&nettosum=" . urlencode("480.00"); // Example net amount
  $url .= "&momssum=" . urlencode("25.00"); // Example VAT amount
  $url .= "&ordredate=" . urlencode(date('Y-m-d H:i:s')); // Current date and time
  
@@ -57,10 +57,10 @@ $saldi_ordre_id = intval(trim($response, " \t\n\r\0\x0B\""));
 	$urltxt .= "&saldi_ordre_id=" . urlencode($saldi_ordre_id);
 	
 	// Add product details
-	$urltxt .= "&varenr=" . urlencode("020350");
-	$urltxt .= "&beskrivelse=" . urlencode("2 Phono til 2 x XLR Hun kabel - 1,5 m");
+	$urltxt .= "&varenr=" . urlencode("test45");
+	$urltxt .= "&beskrivelse=" . urlencode("Broafgift");
 	$urltxt .= "&antal=" . urlencode(2);
-	$urltxt .= "&pris=" . urlencode(65.00); // Unit price
+	$urltxt .= "&pris=" . urlencode(240.00); // Unit price
 	
 	// Handle discounts if applicable
 	/* if (isset($orderLine['unitPriceBeforeSpecialOffer']) && $orderLine['unitPriceBeforeSpecialOffer'] > $orderLine['unitPrice']) {

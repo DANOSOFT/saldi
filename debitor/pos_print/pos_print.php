@@ -1,4 +1,5 @@
 <?php
+@session_start();
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -32,6 +33,7 @@
 #$printserver='localhost';
 $dd=date("Y-m-d");
 include ("pos_ordre_includes/posTxtPrint/wrapText.php");
+include ("../includes/stdFunc/dkDecimal.php");
 (isset($labelWidth))?$width=$labelWidth:$width=48;
 /*
 $txt="www.shop.dk";
@@ -216,6 +218,35 @@ while($linje=fgets($fp))$bon.=$linje;
 
 include ("pos_ordre_includes/voucherFunc/printVoucher.php");
 $bon.= printVoucher($id,NULL);
+
+// Check for card receipt and add it to the print job (only when Udskriv button is manually clicked)
+$card_receipt_file = "../temp/$db/terminal_$id.txt";
+echo "<script>console.log('Card receipt file: " . $id . "');</script>";
+// Check if this is a manual print by looking for the Udskriv button in POST data
+$is_manual_print = isset($_POST['udskriv']) && ($_POST['udskriv'] == "Udskriv" || $_POST['udskriv'] == "Print");
+
+// Debug: Log what we're checking
+error_log("Card receipt check: file_exists=" . (file_exists($card_receipt_file) ? 'true' : 'false') . 
+          ", POST_udskriv=" . (isset($_POST['udskriv']) ? $_POST['udskriv'] : 'not_set') . 
+          ", is_manual_print=" . ($is_manual_print ? 'true' : 'false'));
+
+if (file_exists($card_receipt_file) && $is_manual_print) {
+    $card_receipt_content = file_get_contents($card_receipt_file);
+    $card_data = json_decode($card_receipt_content, true);
+    
+    if ($card_data) {
+        // Add card receipt header
+        $bon .= "\n\n";
+        $bon .= "========================================\n";
+        $bon .= "           KORTKVITTERING\n";
+        $bon .= "========================================\n";
+        
+        $bon .= $card_data;
+        
+        $bon .= "========================================\n";
+    }
+}
+
 $bon = urlencode($bon);
 if (strtolower(substr($printserver,0,1))=='n') {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">\n";
