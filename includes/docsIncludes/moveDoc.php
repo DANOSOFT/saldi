@@ -50,6 +50,14 @@ if ($moveDoc) {
 	// Move the file
 	if (file_exists($moveDoc)) {
 		rename("$moveDoc", "$new");
+		
+		// Move corresponding .info file if it exists
+		$infoDoc = preg_replace('/\.pdf$/i', '.info', $moveDoc);
+		// Check if replacement happened and file exists
+		if ($infoDoc !== $moveDoc && file_exists($infoDoc)) {
+			$infoNew = preg_replace('/\.pdf$/i', '.info', $new);
+			rename("$infoDoc", "$infoNew");
+		}
 	}
 	
 	// Delete from database

@@ -36,6 +36,52 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$afd =  $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
 
 	((isset($_POST['unlink']) && $_POST['unlink']) || (isset($_GET['unlink']) && $_GET['unlink']))?$unlink=1:$unlink=0;
+	$cleanupOrphans = if_isset($_GET, NULL, 'cleanupOrphans');
+
+	if ($cleanupOrphans) {
+		$puljePath = "$docFolder/$db/pulje";
+		if (is_dir($puljePath)) {
+			$files = scandir($puljePath);
+			$count = 0;
+			foreach ($files as $file) {
+				if ($file == '.' || $file == '..') continue;
+				
+				$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+				
+				// Look for .info files
+				if ($ext === 'info') {
+					$baseName = pathinfo($file, PATHINFO_FILENAME);
+					$pdfFile = "$puljePath/$baseName.pdf";
+					
+					// If corresponding PDF does not exist
+					if (!file_exists($pdfFile)) {
+						$infoFile = "$puljePath/$file";
+						if (unlink($infoFile)) {
+							$count++;
+							error_log("Cleanup: Removed orphaned info file: $file");
+							
+							// Cleanup database
+							$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+							if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+								$dbFilename = $baseName . '.pdf';
+								$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($dbFilename) ."'";
+								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+							}
+						}
+					}
+				}
+			}
+			if ($count > 0) {
+				echo "<script>alert('Oprydning færdig. Fjernede $count forældreløse info-filer.');</script>";
+			} else {
+				echo "<script>alert('Ingen forældreløse info-filer fundet.');</script>";
+			}
+		}
+		
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1\">";
+		exit;
+	}
+
 	(isset($_POST['rename']) && $_POST['rename'])?$rename=1:$rename=0;
 	(isset($_POST['unlinkFile']) && $_POST['unlinkFile'])?$unlinkFile=$_POST['unlinkFile']:((isset($_GET['unlinkFile']) && $_GET['unlinkFile'])?$unlinkFile=$_GET['unlinkFile']:$unlinkFile=NULL);
 	

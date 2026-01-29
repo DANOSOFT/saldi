@@ -186,6 +186,25 @@ if (!file_exists($showDoc)) {
 		$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
 		$qtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','$source','$sourceId','". date('U') ."','$userId')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+
+		// Move corresponding .info file if it exists (when moving from pool)
+		if ($insertFile) {
+			$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+			$infoFileSource = "$docFolder/pulje/$baseName.info";
+			
+			if (file_exists($infoFileSource)) {
+				// Destination path for info file
+				$infoFileDest = dirname($showDoc) . "/$baseName.info";
+				if (rename($infoFileSource, $infoFileDest)) {
+					// Remove from pool_files table
+					$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+					if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+						$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($fileName) ."'";
+						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					}
+				}
+			}
+		}
 		} else {
 			alert("Move from pool Failed");
 		}
