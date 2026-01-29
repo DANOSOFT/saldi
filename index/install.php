@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 5.0.0---2026-01-20---
+//------------index/install.php----lap 5.0.0---2026-01-27--- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20140701 Tilføjet bilag til create regnskab
@@ -35,6 +35,7 @@
 // 20250129 Increase session_id length constraint from 30 to 32 on table online.
 // 20250428 LOE Set default storage engine to InnoDB for MySQL 5.7+ (replaces 'storage_engine')+$current_year
 // 20260120 PHR Removed an echo.
+// 20260127 LOE Added findtextinst() for language selection management.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -44,6 +45,7 @@ ob_start(); //Starter output buffering
 <head>
 	<meta content="text/html; charset=UTF-8" http-equiv="content-type">
 	<title>SALDI - det frie danske finansprogram</title>
+
 <?php
 if (file_exists("../includes/connect.php")) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php\">";
@@ -56,6 +58,7 @@ include("../includes/db_query.php");
 include("../includes/settings.php");
 include("../includes/version.php");
 include("../includes/std_func.php");
+include("languageText.php");
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
@@ -64,15 +67,23 @@ print "<td width=\"100%\" align = \"center\" $top_bund>$font<a href=\"http://sal
 print "</tbody></table></td></tr><tr><td align=\"center\" valign=\"center\">\n";
 
 ##########
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['language'])) {
-    $_SESSION['language'] = $_POST['language'];
 
-    
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
+
+// Handle language setting (from POST or COOKIE)
+if (isset($_POST['language'])) {
+    $sprog_id = $_POST['language'];
+    setcookie('sprog_id', $sprog_id, time() + (86400 * 30), "/");
+    $_SESSION['language'] = $sprog_id;
+} elseif (isset($_COOKIE['sprog_id'])) {
+    $sprog_id = $_COOKIE['sprog_id'];
+} elseif (isset($_SESSION['language'])) {
+    $sprog_id = $_SESSION['language'];
+} else {
+    $sprog_id = '1';
 }
 
-$current_language = $_SESSION['language'] ?? '';
+
+$sprog_id = $_SESSION['language'] ?? '';
 
 $language_names = [
     '1' => 'Dansk',
@@ -80,6 +91,8 @@ $language_names = [
     '3' => 'Norsk',
 ];
 
+#####
+if (!isset($_POST['opret'])) {
 print '<html><head><title>Language Selection</title></head><body>';
 
 print '<form method="POST">';
@@ -87,18 +100,20 @@ print '<label for="language">Choose language:</label>';
 print '<select name="language" id="language" onchange="this.form.submit()">';
 
 print '<option value="">-- Select --</option>';
-print '<option value="1"' . ($current_language === '1' ? ' selected' : '') . '>1: Dansk</option>';
-print '<option value="2"' . ($current_language === '2' ? ' selected' : '') . '>2: English</option>';
-print '<option value="3"' . ($current_language === '3' ? ' selected' : '') . '>3: Norsk</option>';
+print '<option value="1"' . ($sprog_id === '1' ? ' selected' : '') . '>1: Dansk</option>';
+print '<option value="2"' . ($sprog_id === '2' ? ' selected' : '') . '>2: English</option>';
+print '<option value="3"' . ($sprog_id === '3' ? ' selected' : '') . '>3: Norsk</option>';
 
 print '</select>';
 print '</form>';
+}
 ##########
 
 
-
-
 if (isset($_POST['opret'])){
+	 if (isset($_POST['language'])) {
+        $sprog_id = $_POST['language'];
+    }
 	$felt_mangler=false;	
 	$pw_diff=false;	
 	$db_encode=$_POST['db_encode'];
@@ -157,20 +172,24 @@ if (isset($_POST['opret'])){
 	$_SESSION['db_bruger']=$db_bruger;
 	$_SESSION['db_password']=$db_password;
 	$_SESSION['adm_navn']=$adm_navn;
-	$_SESSION['adm_password']=$adm_password;
+	$_SESSION['adm_password']=$adm_password; 
 
 	$tmp = "<table>\n";
-	$tmp.= "<tr><td colspan=\"2\" align=\"center\"><big><b>Oplysninger til SALDI-installering</b></big></td></tr>\n";	
+	$tmp.= "<tr><td colspan=\"2\" align=\"center\"><big><b>".findtextinst('1963|Oplysninger til SALDI-installering',$sprog_id). "</b></big></td></tr>\n";	
 	$tmp.= "<tr><td>Databaseserver </td><td><b>$db_type</b></td></tr>\n";
-	$tmp.="<tr><td>Servernavn </td><td><b>$db_host</b></td></tr>\n";
-	$tmp.= "<tr><td>Tegns&aelig;t </td><td><b>$db_encode</b></td></tr>\n";
-	$tmp.= "<tr><td>Databasenavn </td><td><b>$db_navn</b></td></tr>\n";
-	$tmp.= "<tr><td>Dataadministrator </td><td><b>$db_bruger</b></td></tr>\n";
-	$tmp.= "<tr><td>Adgangskode for databaseadministrator </td><td><b>$db_pw</b></td></tr>\n";
-	$tmp.= "<tr><td>SALDI-administratorens brugernavn </td><td><b>$adm_navn</b></td></tr>\n";
-	$tmp.= "<tr><td>SALDI-administratorens adgangskode </td><td><b>$adm_pw</b></td></tr>\n";
-	$tmp.= "<tr><td>Verificeret adgangskode </td><td><b>$verify_adm_pw</b></td></tr>\n";
-/*
+	$tmp.="<tr><td>".findtextinst('2559|Servernavn',$sprog_id)."</td><td><b>$db_host</b></td></tr>\n";
+	$tmp.= "<tr><td>".findtextinst('1965|Tegnsæt',$sprog_id)." </td><td><b>$db_encode</b></td></tr>\n";
+	$tmp.= "<tr><td>".findtextinst('1966|Databasenavn',$sprog_id)." </td><td><b>$db_navn</b></td></tr>\n";
+	$tmp.= "<tr><td>".findtextinst('1967|Dataadministrator',$sprog_id)."</td><td><b>$db_bruger</b></td></tr>\n";
+	$tmp.= "<tr><td>".findtextinst('1968|Adgangskode for databaseadministrator',$sprog_id)."</td><td><b>$db_pw</b></td></tr>\n";
+	$tmp.= "<tr><td>".findtextinst('1969|SALDI-administratorens brugernavn',$sprog_id)."</td><td><b>$adm_navn</b></td></tr>\n";
+	$tmp.= "<tr><td>".findtextinst('1970|SALDI-administratorens adgangskode',$sprog_id)."</td><td><b>$adm_pw</b></td></tr>\n";
+	$tmp.= "<tr><td>".findtextinst('1971|Verificeret adgangskode',$sprog_id)."</td><td><b>$verify_adm_pw</b></td></tr>\n"; 
+
+
+
+
+	/*
 	$tmp.="<tr><td>Program til postscript -> pdf (ps2pdf)</td><td><b>$path_ps2pdf</b></td></tr>\n";
 	$tmp.="<tr><td>Program til html -> pdf (weasyprint)</td><td><b>$path_weasyprint</b></td></tr>\n";
 	$tmp.="<tr><td>Program til sammenlægning af PDF (pdftk)</td><td><b>$path_pdftk</b></td></tr>\n";
@@ -182,10 +201,10 @@ if (isset($_POST['opret'])){
 */
 	
 	$tmp.="<tr><td colspan=\"2\"><hr \></td></tr>\n\n";
-	if ( $felt_mangler ) $tmp.="<tr><td colspan=\"2\"><b><i>Et eller flere felter mangler at blive udfyldt ovenfor.</i></b></td></tr>\n";
-	if ( $pw_diff )  $tmp.="<tr><td colspan=\"2\"><b><i>Adgangskode og verifikationskoden for SALDI-administrator er forskellig.</i></b></td></tr>\n";
+	if ( $felt_mangler ) $tmp.="<tr><td colspan=\"2\"><b><i>".findtextinst('1972|Et eller flere felter mangler at blive udfyldt ovenfor.',$sprog_id)."</i></b></td></tr>\n";
+	if ( $pw_diff )  $tmp.="<tr><td colspan=\"2\"><b><i>".findtextinst('1973|Adgangskode og verifikationskoden for SALDI-administrator er forskellig.',$sprog_id)."</i></b></td></tr>\n"; 
 	if ( $felt_mangler || $pw_diff ) {
-		$tmp.="<tr><td colspan=\"2\"><b><i>G&aring; tilbage til forrige side og ret fejlene</i></b><br />Brug eventuelt browserens tilbage-knap for at g&aring; tilbage.</p>\n\n";
+		$tmp.="<tr><td colspan=\"2\"><b><i>".findtextinst('1974|G&aring; tilbage til forrige side og ret fejlene</i></b><br />Brug eventuelt browserens tilbage-knap for at g&aring; tilbage.',$sprog_id)."</p>\n\n";
 		$tmp.="</body></html>\n";
 		print $tmp;
 		exit;
@@ -317,22 +336,22 @@ if (isset($_POST['opret'])){
 		skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type);
 		fclose($fp);
 		print "<table width=\"75%\"><tr><td style=\"text-align:center\">\n\n";
-		print "\n\n<h1>SALDI er installeret</h1>\n\n";
-		print "<p>Dit SALDI-system er nu oprettet. Og det f&oslash;rste, du skal g&oslash;re, er at oprette et regnskab.</p>\n\n";
-		print "<p>Dette g&oslash;res ved at loggge ind med <b>$db_navn</b> som regnskab, <b>$adm_navn</b> \n";
-		print "som brugernavn og den valgte adgangskode</p>\n\n";
-		print "<p>Tegn en hotline-aftale for kun, s&aring; kan du ringe eller sende en e-mail \n";
-		print "og f&aring; hurtigt svar p&aring; sp&oslash;rgsm&aring;l om brugen af SALDI<!-- samt sikret dig adgang til automatiske opdateringer -->.</p>\n\n";
-		print "<p>Se mere p&aring; <a href=\"http://saldi.dk/hotline\" target=\"_blank\">http://saldi.dk/hotline</a></p>\n\n";
+		print "\n\n<h1>".findtext("1982|SALDI er installeret,$sprog_id")."</h1>\n\n";
+		print "<p>".findtextinst("1983|Dit SALDI-system er nu oprettet. Og det f&oslash;rste, du skal g&oslash;re, er at oprette et regnskab.", $sprog_id)."</p>\n\n";
+		print "<p>".findtextinst("1984|Dette g&oslash;res ved at loggge ind med, $sprog_id")." <b>$db_navn</b> ".findtextinst("1985|som regnskab,$sprog_id").", <b>$adm_navn</b> \n";
+		print "".findtextinst("1986|som brugernavn og den valgte adgangskode, $sprog_id")."</p>\n\n";
+		print "<p>".findtextinst("1987|Tegn en hotline-aftale for kun, s&aring; kan du ringe eller sende en e-mail,$sprog_id")." \n";
+		print "".findtextinst("1988|og f&aring; hurtigt svar p&aring; sp&oslash;rgsm&aring;l om brugen af SALDI<!-- samt sikret dig adgang til automatiske opdateringer -->,$sprog_id").".</p>\n\n";
+		print "<p>".findtextinst("1989|Se mere p&aring,$sprog_id")."; <a href=\"http://saldi.dk/hotline\" target=\"_blank\">http://saldi.dk/hotline</a></p>\n\n";
 		print "<p>&nbsp;</p>\n\n";
 #		print "<p><a href=../index/index.php>Forts&aelig;t</a></p>\n\n";
-		print "<p><a href=\"../index/index.php\" title=\"Til SALDI-administratorsiden hvor regnskaber administreres\" \n";
+		print "<p><a href=\"../index/index.php\" title=\"".findtextinst("1990|Til SALDI-administratorsiden hvor regnskaber administreres,$sprog_id")."\" \n";
 		print " style=\"text-decoration:none\"><input type=\"button\" value=\"Forts&aelig;t\"></a>\n\n";
 		print "</td></tr></table>\n\n";
 	} else {
-		print "<p>Webbrugere har ikke skriveadgang til kataloget \"includes\", hvor \"connect.php\" skal oprettes.</p>\n\n";
-		print "<p>S&oslash;rg for at der er skriveadgang for den bruger, som den bes&oslash;gende k&oslash;rer som (webserverbrugeren) \n";
-		print "til katalogerne \n";
+		print "<p>".findtextinst("1975|Webbrugere har ikke skriveadgang til kataloget, $sprog_id")." \"includes\", ".findtextinst("1976|hvor \"connect.php\" skal oprettes,$sprog_id").".</p>\n\n";
+		print "<p>".findtextinst("1977|S&oslash;rg for at der er skriveadgang for den bruger, som den bes&oslash;gende k&oslash;rer som (webserverbrugeren),$sprog_id")." \n";
+		print "".findtextinst("1978|til katalogerne,$sprog_id")."\n";
 		print "\"includes\", \"temp\" og \"logolib\". Se hvordan i installeringsvejledningen INSTALLATION.txt.</p>\n\n";
 		print "</td></tr></table></body></html>\n";
 		exit;
@@ -353,35 +372,36 @@ if (isset($_POST['opret'])){
 
 	$current_year = date("Y");
 	print	"<table width=40% align=center border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print	"<tr><td colspan=\"5\" align=\"center\"><font face=\"Helvetica, Arial, sans-serif\"><big><b>Velkommen til SALDI</b></big></td></tr>";
-	print	"<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\">".findtekst('1994|Hvis du har installeret webserveren Apache med PHP og en af databaseserverne PostgreSQL eller MySQL, kan du nu installere SALDI',$sprog_id).".</td></tr>";
+	print	"<tr><td colspan=\"5\" align=\"center\"><font face=\"Helvetica, Arial, sans-serif\"><big><b>".findtextinst("1993|Velkommen til SALDI",$sprog_id)."</b></big></td></tr>";
+	print	"<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\">".findtextinst('1994|Hvis du har installeret webserveren Apache med PHP og en af databaseserverne PostgreSQL eller MySQL, kan du nu installere SALDI',$sprog_id).".</td></tr>";
 	print	"<FORM name=\"opret\" METHOD=POST ACTION=\"install.php\"><tr><td colspan=2><br></td></tr>";
 	$title="V&aelig;lg den databaseserver, du &oslash;nsker at bruge.";
 	print "<tr><td><font face=\"Arial,Helvetica\">Databaseserver</td><td title=\"$title\"><SELECT NAME=db_type>";
 	if ($db_type) print "<option>$db_type</option>";
-	if ($db_type!='PostgreSQL') print "<option>PostgreSQL</option>";
+	if ($db_type!='PostgreSQL') print "<option>PostgreSQL</option>"; 
 	if ($db_type!='MySQLi') print "<option>MySQLi</option></SELECT>";
 	print "</td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('2559|Servernavn',$sprog_id)."</td><td title=\"Hostname for databaseserver\"><input type=\"text\" name=\"db_host\" value=\"$db_host\"><td><td width=\"5%\"></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('2559|Servernavn',$sprog_id)."</td><td title=\"Hostname for databaseserver\"><input type=\"text\" name=\"db_host\" value=\"$db_host\"><td><td width=\"5%\"></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1965|Tegnsæt',$sprog_id)."</td><td title=\"V&aelig;lg det tegns&aelig;t du &oslash;nsker at bruge. Nyere versioner af PostgreSQL fungerer kun med UTF8\"><SELECT NAME=db_encode><option>UTF8</option><option>LATIN9</option></SELECT></td><td></td></tr>";;
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('1965|Tegnsæt',$sprog_id)."</td><td title=\"".findtextinst('1996|V&aelig;lg det tegns&aelig;t du &oslash;nsker at bruge. Nyere versioner af PostgreSQL fungerer kun med UTF8',$sprog_id)."\"><SELECT NAME=db_encode><option>UTF8</option><option>LATIN9</option></SELECT></td><td></td></tr>";;
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1966|Databasenavn',$sprog_id)."</td><td title=\"&Oslash;nsket navn p&aring; din hoveddatabase for SALDI\"><INPUT TYPE=TEXT NAME=db_navn VALUE = \"$db_navn\"> <td><td width=5%></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('1966|Databasenavn',$sprog_id)."</td><td title=\"".findtextinst('1997|&Oslash;nsket navn p&aring; din hoveddatabase for SALDI',$sprog_id)."\"><INPUT TYPE=TEXT NAME=db_navn VALUE = \"$db_navn\"> <td><td width=5%></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('2560|Eksisterende databaseadministrator',$sprog_id)."</td> <td title=\"Navn p&aring; en bruger, som har i forvejen har tilladelse til at oprette, rette og slette databaser. Typisk er det for PostgreSQL brugeren postgres og for MySQL brugeren root.\"><INPUT TYPE=TEXT NAME=db_bruger VALUE=\"$db_bruger\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('2560|Eksisterende databaseadministrator',$sprog_id)."</td> <td title=\"".findtextinst('1998|Navn p&aring; en bruger, som har i forvejen har tilladelse til at oprette, rette og slette databaser. Typisk er det for PostgreSQL brugeren postgres og for MySQL brugeren root.',$sprog_id)."\"><INPUT TYPE=TEXT NAME=db_bruger VALUE=\"$db_bruger\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1968|Adgangskode for databaseadministrator',$sprog_id)."</td><td title=\"Adgangskode for ovenst&aring;ende bruger\"><INPUT TYPE=password NAME=db_password VALUE=\"$db_password\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('1968|Adgangskode for databaseadministrator',$sprog_id)."</td><td title=\"".findtextinst('1999|Adgangskode for ovenst&aring;ende bruger',$sprog_id)."\"><INPUT TYPE=password NAME=db_password VALUE=\"$db_password\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1969|SALDI-administratorens brugernavn',$sprog_id)."</td><td title=\"&Oslash;nsket navn p&aring; din administratorkonto til dit SALDI-system\"><INPUT TYPE=TEXT NAME=adm_navn VALUE = \"$adm_navn\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('1969|SALDI-administratorens brugernavn',$sprog_id)."</td><td title=\"".findtextinst('2000|&Oslash;nsket navn p&aring; din administratorkonto til dit SALDI-system',$sprog_id)."\"><INPUT TYPE=TEXT NAME=adm_navn VALUE = \"$adm_navn\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1970|SALDI-administratorens adgangskode',$sprog_id)."</td><td title=\"&Oslash;nsket adgangskode for administratoren af dit SALDI-system\"><INPUT TYPE=password NAME=adm_password VALUE = \"$adm_password\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('1970|SALDI-administratorens adgangskode',$sprog_id)."</td><td title=\"".findtextinst('2001|&Oslash;nsket adgangskode for administratoren af dit SALDI-system',$sprog_id)."\"><INPUT TYPE=password NAME=adm_password VALUE = \"$adm_password\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('2561|SALDI-administratorens adgangskode igen',$sprog_id)."</td><td title=\"Verificering af ovenst&aring;ende adgangskode\"><INPUT TYPE=password NAME=verify_adm_password VALUE = \"$adm_password\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtextinst('2561|SALDI-administratorens adgangskode igen',$sprog_id)."</td><td title=\"".findtextinst('2002|Verificering af ovenst&aring;ende adgangskode',$sprog_id)."\"><INPUT TYPE=password NAME=verify_adm_password VALUE = \"$adm_password\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td colspan=2 align=center title=\"Klik her for at oprette dit SALDI-system\"><INPUT TYPE=submit name=opret VALUE=Install&eacute;r></td></tr>";
+	print "<tr><td colspan=2 align=center title=\"".findtextinst('2005|Klik her for at oprette dit SALDI-system',$sprog_id)."\"><INPUT TYPE=submit name=opret VALUE=Install&eacute;r></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\"> ".findtekst('2004|<b>Alle</b> felter skal udfyldes. Hvis du er i tvivl, s&aring; udfyld kun de tomme felter',$sprog_id).".</td></tr>";
+	print "<input type=\"hidden\" name=\"language\" value=\"$sprog_id\">";
+	print "<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\"> ".findtextinst('2004|<b>Alle</b> felter skal udfyldes. Hvis du er i tvivl, s&aring; udfyld kun de tomme felter',$sprog_id).".</td></tr>";
 	print "<tr><td><br></td></tr><tr></tr></FORM>";
 	print "</tr>";
 	print	"</tbody></table>";
