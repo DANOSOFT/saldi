@@ -1176,7 +1176,7 @@ global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownSt
 	$linkUrl = "documents.php?linkBilag=1&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
 	print "<div style='margin-top: 15px; padding: 10px; text-align: center; display: flex; flex-direction: column; gap: 10px;'>";
 	print "<a href='$poolUrl' style='display: inline-block; padding: 10px 20px; background-color: $buttonColor; color: $buttonTxtColor; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
-	print "<i class='fa fa-plus'></i> " . findtekst('2592|Dokumentpulje', $sprog_id);
+	print "<i class='fa fa-plus'></i>Dokumentpulje";
 	print "</a>";
 	print "<a href='$linkUrl' style='display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
 	print "<i class='fa fa-link'></i> Link bilag fra anden linje";
