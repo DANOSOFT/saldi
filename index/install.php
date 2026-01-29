@@ -36,6 +36,7 @@
 // 20250428 LOE Set default storage engine to InnoDB for MySQL 5.7+ (replaces 'storage_engine')+$current_year
 // 20260120 PHR Removed an echo.
 // 20260127 LOE Added findtextinst() for language selection management.
+// 
 
 session_start();
 ob_start(); //Starter output buffering
