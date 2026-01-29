@@ -37,6 +37,35 @@ if ($moveDoc) {
 
 	$bilag_id = $tmpA[$h];
 	$fileName = $tmpA[$x];
+	
+	// Security check: Block if locked and older than 24h
+	$locked = 0;
+	if ($source == 'creditor') {
+		$qtxt = "select status from ordrer where id = '$sourceId'";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
+		// Handle potential schema ambiguity (art vs status)
+		$statusVal = isset($r['art']) ? $r['art'] : (isset($r['status']) ? $r['status'] : 0);
+		($statusVal >= '3')?$locked='1':$locked='0'; 
+	} elseif ($source == 'kassekladde') {
+		if ($kladde_id) {
+			$qtxt = "select bogfort from kladdeliste where id = '$kladde_id'";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			($r['bogfort'] == 'V')?$locked='1':$locked='0';
+		}
+	}
+	
+	$qtxt = "select timestamp from documents where source = '$source' and source_id = '$sourceId' and filename = '".db_escape_string($fileName)."'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$docTimestamp = $r ? $r['timestamp'] : 0;
+	
+	if ($locked == 1 && (date('U') - $docTimestamp > 86400)) {
+		echo '<script type="text/javascript">';
+		echo "alert('Handling afvist: Linjen er bogført/låst og bilaget er ældre end 24 timer.');";
+		echo "window.history.back();";
+		echo '</script>';
+		exit;
+	}
+
 	$new = '';
 
 	for ($i=0;$i<count($tmpA)-4;$i++) {

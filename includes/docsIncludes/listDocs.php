@@ -81,7 +81,20 @@ if (!isset($sourceId) || $sourceId === '') {
 		exit;
 }
 
-$qtxt = "select id,filename,filepath from documents where source = '$source' and source_id = '$sourceId' order by id";
+$locked = 0;
+if ($source == 'creditor') {
+	$qtxt = "select status from ordrer where id = '$sourceId'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
+	($r['art'] >= '3')?$locked='1':$locked='0'; 
+} elseif ($source == 'kassekladde') {
+	if ($kladde_id) {
+		$qtxt = "select bogfort from kladdeliste where id = '$kladde_id'";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		($r['bogfort'] == 'V')?$locked='1':$locked='0';
+	}
+}
+
+$qtxt = "select id,filename,filepath,timestamp from documents where source = '$source' and source_id = '$sourceId' order by id";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 if($q !== false){
 	$rowIndex = 0;
@@ -163,19 +176,25 @@ if($q !== false){
 			print "<td style='padding: 8px; border: 1px solid #ddd; font-weight: $fontWeight;" . ($isCurrentDoc ? " border-left: none;" : "") . "' title='$docTitle'>" . ($isCurrentDoc ? "<i class='fa fa-caret-right' style='margin-right: 4px;'></i>" : "") . $linkIndicator . htmlspecialchars($showName, ENT_QUOTES)."</td>";
 			print "<td style='padding: 4px; border: 1px solid #ddd; text-align: center;' onclick='event.stopPropagation();'>";
 			
-			// Delete button - for linked docs, only removes database reference
-			if ($isLinkedDoc) {
-				$deleteConfirmMsg = "Fjern link til " . htmlspecialchars($r['filename'], ENT_QUOTES) . "? (Filen bevares)";
-				print "<a href='documents.php?$params&unlinkDoc=$docId' onclick=\"event.stopPropagation(); return confirm('$deleteConfirmMsg');\" style='margin: 0 4px; padding: 4px 8px; background-color: #fd7e14; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;' title='Fjerner kun linket, ikke filen'>Fjern link</a>";
+			$isEditable = ($locked == 0 || (date('U') - $r['timestamp'] < 86400)); // 86400 seconds = 24 hours
+
+			if ($isEditable) {
+				// Delete button - for linked docs, only removes database reference
+				if ($isLinkedDoc) {
+					$deleteConfirmMsg = "Fjern link til " . htmlspecialchars($r['filename'], ENT_QUOTES) . "? (Filen bevares)";
+					print "<a href='documents.php?$params&unlinkDoc=$docId' onclick=\"event.stopPropagation(); return confirm('$deleteConfirmMsg');\" style='margin: 0 4px; padding: 4px 8px; background-color: #fd7e14; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;' title='Fjerner kun linket, ikke filen'>Fjern link</a>";
+				} else {
+					print "<a href='documents.php?$params&deleteDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Slet ".htmlspecialchars($r['filename'], ENT_QUOTES)."?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Slet</a>";
+				}
+				
+				// Move to pool button - disabled for linked docs
+				if ($isLinkedDoc) {
+					print "<span style='margin: 0 4px; padding: 4px 8px; background-color: #ccc; color: #666; border: none; border-radius: 4px; font-size: 11px; display: inline-block; cursor: not-allowed;' title='Kan ikke flytte linket bilag'>Flyt til pulje</span>";
+				} else {
+					print "<a href='documents.php?$params&moveDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Flyt ".htmlspecialchars($r['filename'], ENT_QUOTES)." til pulje?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Flyt til pulje</a>";
+				}
 			} else {
-				print "<a href='documents.php?$params&deleteDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Slet ".htmlspecialchars($r['filename'], ENT_QUOTES)."?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Slet</a>";
-			}
-			
-			// Move to pool button - disabled for linked docs
-			if ($isLinkedDoc) {
-				print "<span style='margin: 0 4px; padding: 4px 8px; background-color: #ccc; color: #666; border: none; border-radius: 4px; font-size: 11px; display: inline-block; cursor: not-allowed;' title='Kan ikke flytte linket bilag'>Flyt til pulje</span>";
-			} else {
-				print "<a href='documents.php?$params&moveDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Flyt ".htmlspecialchars($r['filename'], ENT_QUOTES)." til pulje?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Flyt til pulje</a>";
+				print "<span style='color: #999; font-size: 11px; font-style: italic;'>Låst</span>";
 			}
 			
 			print "</td>";
@@ -198,18 +217,7 @@ if ($inFlexboxLayout) {
 } else {
 	print "<tr><td valign='top' align = 'center'><hr width = '90%'></td></tr>";
 }
-$locked = 0;
-if ($source == 'creditor') {
-	$qtxt = "select status from ordrer where id = '$sourceId'";
-	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
-	($r['art'] >= '3')?$locked='1':$locked='0'; 
-} elseif ($source == 'kassekladde') {
-	if ($kladde_id) {
-		$qtxt = "select bogfort from kladdeliste where id = '$kladde_id'";
-		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		($r['bogfort'] == 'V')?$locked='1':$locked='0';
-	}
-}
+// $locked calculation moved top top
 if ($sourceId || $sourceId == 0) {
 	if (!isset($sourceId) || $sourceId === '') {
 		alert("no files to show");
