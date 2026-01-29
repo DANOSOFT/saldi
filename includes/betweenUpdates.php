@@ -25,7 +25,6 @@
 // ----------------------------------------------------------------------
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 
-
 // Change the column type to VARCHAR(20)
 $qtxt_change_size = "ALTER TABLE datatables ALTER COLUMN tabel_id TYPE VARCHAR(20)";
 db_modify($qtxt_change_size, __FILE__ . " linje " . __LINE__);
@@ -120,6 +119,10 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify("update tekster set tekst = '' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 }
 
+$qtxt = "Select id from tekster where tekst_id = '342' and tekst like 'balance team'";
+if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	db_modify("update tekster set tekst = '' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
+}
 
 
 

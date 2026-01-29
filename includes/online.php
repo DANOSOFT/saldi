@@ -79,41 +79,36 @@ if (isset($_COOKIE['timezone'])) { #20190110
 } else {
 	date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
-	$r = db_fetch_array(db_select("select lukket,version from regnskab where id='1' and db = '$sqdb'", __FILE__ . " linje " . __LINE__)); # 20210930
-	$qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name = 'settings'";
-	(db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))?$useSettings=1:$useSettings=0;
-	if ($useSettings) {
-		$r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
-		if ($r['var_value']) {
-			$timezone = $r['var_value'];
-		} else {
-			$timezone = 'Europe/Copenhagen';
-			if ($r['id']) $qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
-			else {
-				$qtxt = "insert into settings (var_name,var_value,var_description)";
-				$qtxt .= " values ";
-				$qtxt .= "('timezone','$timezone','Generel tidszone. Anvendes hvis der ikke er sat tidszone i det enkelte regnskab')";
-			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	$r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
+	if ($r['var_value']) {
+		$timezone = $r['var_value'];
+	} else {
+		$timezone = 'Europe/Copenhagen';
+		if ($r['id']) $qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
+		else {
+			$qtxt = "insert into settings (var_name,var_value,var_description)";
+			$qtxt .= " values ";
+			$qtxt .= "('timezone','$timezone','Generel tidszone. Anvendes hvis der ikke er sat tidszone i det enkelte regnskab')";
 		}
-		$qtxt = "select var_value from settings where var_name='alertText'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$r ? $customAlertText = $r['var_value'] : $customAlertText = NULL; #20211018
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
-		$r ? $ps2pdf = $r['var_value'] : $ps2pdf = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
-		$r ? $pdftk = $r['var_value'] : $pdftk = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='ftp'", __FILE__ . " linje " . __LINE__));
-		$r ? $ftp = $r['var_value'] : $ftp = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='dbdump'", __FILE__ . " linje " . __LINE__));
-		$r ? $dbdump = $r['var_value'] : $dbdump = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='tar'", __FILE__ . " linje " . __LINE__));
-		$r ? $tar = $r['var_value'] : $tar = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='zip'", __FILE__ . " linje " . __LINE__));
-		$r ? $zip = $r['var_value'] : $zip = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'", __FILE__ . " linje " . __LINE__));
-		$r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
+	$qtxt = "select var_value from settings where var_name='alertText'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$r ? $customAlertText = $r['var_value'] : $customAlertText = NULL; #20211018
+	$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
+	$r ? $ps2pdf = $r['var_value'] : $ps2pdf = NULL;
+	$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
+	$r ? $pdftk = $r['var_value'] : $pdftk = NULL;
+	$r = db_fetch_array(db_select("select var_value from settings where var_name='ftp'", __FILE__ . " linje " . __LINE__));
+	$r ? $ftp = $r['var_value'] : $ftp = NULL;
+	$r = db_fetch_array(db_select("select var_value from settings where var_name='dbdump'", __FILE__ . " linje " . __LINE__));
+	$r ? $dbdump = $r['var_value'] : $dbdump = NULL;
+	$r = db_fetch_array(db_select("select var_value from settings where var_name='tar'", __FILE__ . " linje " . __LINE__));
+	$r ? $tar = $r['var_value'] : $tar = NULL;
+	$r = db_fetch_array(db_select("select var_value from settings where var_name='zip'", __FILE__ . " linje " . __LINE__));
+	$r ? $zip = $r['var_value'] : $zip = NULL;
+	$r = db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'", __FILE__ . " linje " . __LINE__));
+	$r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
 }
 
 if (!isset($meta_returside)) $meta_returside = NULL;
@@ -146,8 +141,7 @@ if ($r = db_fetch_array($q)) {
 } elseif ($title != 'login' && $title != 'opdat' && $title != 'logud' && $title != 'Aaben regnskab') {
 	if ($webservice) return ('Session expired');
 	else {
-		if (!isset($nextver))
-			$nextver = NULL;
+		if (!isset($nextver)) $nextver = NULL;
 		if (!$nextver) { # 20150125
 			// check if std_func exists in the includes folder
 			include($relativePath . "includes/std_func.php");
@@ -183,8 +177,8 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 
 if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	$menu=NULL;
-	if (!isset($nextver)) { # 20150104
-		if ($version > $db_ver) {
+	if (!$nextver) { # 20150104
+#		if ($version > $db_ver) {
 			if ($db_type == 'mysql') {
 				if (!mysql_select_db($db))
 					die("Unable to connect to MySQL");
@@ -193,26 +187,27 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				if (!mysqli_select_db($connection, $db))
 					die("Unable to connect to MySQLi");
 			} else {
-				$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+					$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
 				if (!$connection)
 					die("Unable to connect to PostgreSQL");
 			}
-			if (tbl_exists('grupper')) {
-				$r = db_fetch_array(db_select("select box1 from grupper where art='VE'", __FILE__ . " linje " . __LINE__));
-				include("../includes/connect.php");
-				if ($r['box1'] > $db_ver) {
+#				if (tbl_exists('grupper')) {
+				$qtxt = "select box1 from grupper where art='VE'";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				if ($r['box1'] < $db_ver) {
 					$db_ver = $r['box1'];
+					include("../includes/connect.php");
 					db_modify("update regnskab set version = '$db_ver' where id = '$db_id'", __FILE__ . " linje " . __LINE__);
-				}
+#				}
 				if ($version > $db_ver && $title != 'Aaben regnskab') {
 					include("../includes/tjek4opdat.php");
 					tjek4opdat($db_ver, $version);
 				}
-			} else {
-				echo "stopper her";
-				exit;
+#			} else {
+#				echo "stopper her";
+#				exit;
 			}
-		}
+#			}
 	}
 	if ($db_type == 'mysql') {
 		if (!mysql_select_db($db))
@@ -225,12 +220,12 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		if (!$connection)
 			die("Unable to connect to PostgreSQL");
 	}
-
-	$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
-	if ($useSettings && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$baseCurrency = $r['var_value'];
+	if ($db_ver > '3.7.4') {
+		$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$baseCurrency = $r['var_value'];
+		} else $baseCurrency = 'DKK';
 	} else $baseCurrency = 'DKK';
-
 	if (!$revisor) {
 		if ($lukket) {
 			echo "regnskabet er lukket";
@@ -279,29 +274,27 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				db_modify("update grupper set box1='$jsvars' where  art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__);
 			}
 		}
-		$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-		if ($useSettings && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$buttonColor = "#$r[var_value]";
-		} else {
-			$buttonColor = '#114691'; // Default button color
-		}
-		$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-		if ($useSettings && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$buttonTxtColor = "#$r[var_value]";
-		} else {
-			$buttonTxtColor = '#ffffff'; // Default button text color
+		if ($db_ver > '3.7.4') {
+			$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$buttonColor = "#$r[var_value]";
+			} else {
+				$buttonColor = '#114691'; // Default button color
+			}
+			$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+			if ($useSettings && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$buttonTxtColor = "#$r[var_value]";
+			} else {
+				$buttonTxtColor = '#ffffff'; // Default button text color
+			}
 		}
 		$textcolor = "#000077";
 		$textcolor2 = "#009900";
 		$textcolor3 = "#6666aa"; # Svagere tekst til det som er mindre vigtigt
-		if (!isset($bgcolor))
-			$bgcolor = "#eeeef0"; #alm baggrund
-		if (!isset($bgcolor2))
-			$bgcolor2 = "#BEBCCE"; #top & bundlinjer
-		if (!isset($bgcolor3))
-			$bgcolor3 = "#cccccc";
-		if (!isset($bgcolor4))
-			$bgcolor4 = "#d0d0f0";
+		if (!isset($bgcolor))  $bgcolor = "#eeeef0"; #alm baggrund
+		if (!isset($bgcolor2)) $bgcolor2 = "#BEBCCE"; #top & bundlinjer
+		if (!isset($bgcolor3)) $bgcolor3 = "#cccccc";
+		if (!isset($bgcolor4)) $bgcolor4 = "#d0d0f0";
 		if (!isset($bgcolor5)) {
 			$bgcolor5 = NULL;
 			for ($x = 1; $x <= 5; $x = $x + 2) {
@@ -314,8 +307,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			}
 			# $bgcolor5="#e0e0f0";
 		}
-		if (!isset($bgnuance1))
-			$bgnuance1 = "+01+01-55"; # Aendring af nuancen til gult ved skiftende linjer
+		if (!isset($bgnuance1)) $bgnuance1 = "+01+01-55"; # Aendring af nuancen til gult ved skiftende linjer
 	}
 	if ($menu == 'T') {
 		$header = 'nix';
