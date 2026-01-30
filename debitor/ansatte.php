@@ -34,11 +34,11 @@ include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 
  if ($_GET){
- 	 $id = $_GET['id'];
- 	 $returside= $_GET['returside'];
- 	 $ordre_id = $_GET['ordre_id'];
- 	 $fokus = $_GET['fokus'];
- 	$konto_id=$_GET['konto_id'];
+ 	 $id = isset($_GET['id']) ? $_GET['id'] : 0;
+ 	 $returside= isset($_GET['returside']) ? $_GET['returside'] : '';
+ 	 $ordre_id = isset($_GET['ordre_id']) ? $_GET['ordre_id'] : '';
+ 	 $fokus = isset($_GET['fokus']) ? $_GET['fokus'] : '';
+ 	$konto_id= isset($_GET['konto_id']) ? $_GET['konto_id'] : '';
 	$_private = if_isset($_GET,NULL,'privat');
 	$_business = if_isset($_GET, NULL, 'erhverv');
  }

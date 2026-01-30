@@ -185,7 +185,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		$vis_lev_addr = db_escape_string(if_isset($_POST['vis_lev_addr'], NULL));
 		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
-		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
+		$lukket = db_escape_string(if_isset($_POST, NULL, 'lukket'));
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
 		list($gruppe) = explode(':', $_POST['gruppe']);
@@ -200,14 +200,14 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		$ordre_id = $_POST['ordre_id'];
 		$returside = $_POST['returside'];
 		$fokus = $_POST['fokus'];
-		$posnr = if_isset($_POST['posnr'], array());
+		$posnr = if_isset($_POST, array(), 'posnr');
 		(isset($_POST['ans_id'])) ? $ans_id = $_POST['ans_id'] : $ans_id = 0;
 		$ans_ant = $_POST['ans_ant'];
 
-		$cat_id          = if_isset($_POST['cat_id'], array());
-		$cat_valg        = if_isset($_POST['cat_valg'], array());
-		$cat_beskrivelse = if_isset($_POST['cat_beskrivelse'], array());
-		$newCatName      = if_isset($_POST['newCatName'], NULL);
+		$cat_id          = if_isset($_POST, array(), 'cat_id');
+		$cat_valg        = if_isset($_POST, array(), 'cat_valg');
+		$cat_beskrivelse = if_isset($_POST, array(), 'cat_beskrivelse');
+		$newCatName      = if_isset($_POST, NULL, 'newCatName');
 		$rename_category = isset($_POST['rename_category']) ? $_POST['rename_category'] : NULL;
 
 		$status = db_escape_string(trim($_POST['status']));
@@ -215,7 +215,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		$status_id = $_POST['status_id'];
 		$status_beskrivelse = $_POST['status_beskrivelse'];
 		$status_antal = count($status_id);
-		$rename_status = if_isset($_POST['rename_status']);
+		$rename_status = if_isset($_POST, NULL, 'rename_status');
 
 		if ($gl_kontotype == 'privat') {
 			$firmanavn = trim($fornavn . " " . $efternavn);
@@ -532,7 +532,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 			#######	
 			$q1 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 			$ar = db_fetch_array($q1);
-			$a_id = $ar['id'];
+			$a_id = $ar ? $ar['id'] : null;
 			#######
 
 
@@ -1386,7 +1386,7 @@ print "<tr><td colspan=6></td></tr>\n";
 
 $z2 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 $y2 = db_fetch_array($z2);
-$an_id = $y2['id'];
+$an_id = $y2 ? $y2['id'] : null;
 
 ###########
 
@@ -1420,7 +1420,7 @@ if ($kontotype == 'erhverv') {
 	if ($id) {
 
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td title=\"" . findtekst('393|Positionsnummer. Primær kontakt har nummer 1', $sprog_id) . "\"><!--tekst 393-->" . findtekst('394|Pos.', $sprog_id) . "<!--tekst 394--></td><td>" . findtekst('398|Kontakt', $sprog_id) . "<!--tekst 398--></td><td title=\"" . findtekst('399|Direkte telefonnummer eller lokalnummer', $sprog_id) . "\"><!--tekst 399-->" . findtekst('400|Direkte/lokal', $sprog_id) . "<!--tekst 400--></td><td>" . findtekst('401|Mobil', $sprog_id) . "<!--tekst 401--></td><td>" . findtekst('402|E-mail', $sprog_id) . "<!--tekst 402--></td><td><a href='ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id'><button class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></button></a></td></tr>\n";
+		print "<tr bgcolor=$bg><td title=\"" . findtekst('393|Positionsnummer. Primær kontakt har nummer 1', $sprog_id) . "\"><!--tekst 393-->" . findtekst('394|Pos.', $sprog_id) . "<!--tekst 394--></td><td>" . findtekst('398|Kontakt', $sprog_id) . "<!--tekst 398--></td><td title=\"" . findtekst('399|Direkte telefonnummer eller lokalnummer', $sprog_id) . "\"><!--tekst 399-->" . findtekst('400|Direkte/lokal', $sprog_id) . "<!--tekst 400--></td><td>" . findtekst('401|Mobil', $sprog_id) . "<!--tekst 401--></td><td>" . findtekst('402|E-mail', $sprog_id) . "<!--tekst 402--></td><td><a href='ansatte.php?returside=" . urlencode($returside) . "&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id'><button type='button' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></button></a></td></tr>\n";
 		$x = 0;
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
@@ -1429,7 +1429,7 @@ if ($kontotype == 'erhverv') {
 			$x++;
 			($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 			print "<tr bgcolor=$bg>\n";
-			print "<td width=10><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\"></td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
+			print "<td width=10><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\"></td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href='ansatte.php?returside=" . urlencode($returside) . "&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]'>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
 			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td></td><td></td></tr>\n";
 			print "<input class='inpPasswordutbox' type=hidden name=ans_id[$x] value=$r[id]>\n";
 			if ($x == 1) {
