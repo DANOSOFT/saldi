@@ -3412,6 +3412,7 @@ function ordreside($id, $regnskab)
 		print "<input type=\"hidden\" name=\"betalingsdage\" value=\"$betalingsdage\">";
 		print "<input type=\"hidden\" name=\"betalings_id\" value=\"$betalings_id\">";
 		print "<input type=\"hidden\" name=\"momssats\" value=\"" . dkdecimal($momssats, 2) . "\">";
+		print "<input type=\"hidden\" name=\"incl_moms\" value=\"$incl_moms\">";
 		print "<input type=\"hidden\" name=\"procenttillag\" value=\"" . dkdecimal($procenttillag, 2) . "\">";
 		print "<input type=\"hidden\" name=\"ref\" value=\"$ref\">";
 		print "<input type=\"hidden\" name=\"fakturanr\" value=\"$fakturanr\">";
