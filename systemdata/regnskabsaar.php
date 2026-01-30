@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 5.0.0 --- 2026-01-26 --
+// --- systemdata/regnskabsaar.php --- ver 5.0.0 --- 2026-01-30 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 // 20240524 PHR - Fiscal year can now be deleted.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250903 PHR	Changed 5 year calculation to include months.
+// 20260130 PHR - Improved check for empty fiscal year before deletion and used ICONSVG icons.
 
 @session_start();
 $s_id = session_id();
@@ -83,16 +84,14 @@ if ($deleteEmptyYear) {
 	$yearData = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 	if ($yearData) {
-		// Build start and end dates from box1 (start month), box2 (start year), box3 (end month), box4 (end year)
 		$startDate = $yearData['box2'] . '-' . str_pad($yearData['box1'], 2, '0', STR_PAD_LEFT) . '-01';
 		$endMonth = $yearData['box3'];
 		$endYear = $yearData['box4'];
 		// Get last day of end month
 		$lastDay = date('t', strtotime("$endYear-$endMonth-01"));
 		$endDate = $endYear . '-' . str_pad($endMonth, 2, '0', STR_PAD_LEFT) . '-' . $lastDay;
-		// Check if transactions exists
-		$qtxt = "SELECT id FROM transaktioner WHERE transdate >= '$startDate' AND transdate <= '$endDate' LIMIT 1";
 
+		$qtxt = "SELECT id FROM transaktioner WHERE transdate >= '$startDate' AND transdate <= '$endDate' LIMIT 1";
 		$transactionData = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		
 		if (!db_fetch_array($transactionData)) {
@@ -149,22 +148,62 @@ while ($r = db_fetch_array($q)) {
 		$set_alle = 1;
 }
 
+// $delete_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc3545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+
+$delete_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc3545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+
+$trash_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc3545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+
 $x = 0;
 $deleted = array();
 $isEmpty = array(); // Track if fiscal year has no transactions
+$fiscalYears = array();
+
 $query = db_select("SELECT * FROM grupper WHERE art = 'RA' ORDER BY box2, box1", __FILE__ . " linje " . __LINE__);
-while ($row = db_fetch_array($query)) {
-	$x++;
-	// Check if fiscal year has any transactions in the transaktioner table
+
+while($row = db_fetch_array($query)) {
+	$fiscalYears[] = $row;
+}
+
+// TODO: Only delete newest empty fiscal year, Once deletd then you can delete the next one.
+
+foreach($fiscalYears as $index => $row){
+	$x = $index + 1;
+
+	// Check if current fiscal year has transactions
 	$startDate = $row['box2'] . '-' . str_pad($row['box1'], 2, '0', STR_PAD_LEFT) . '-01';
 	$endMonth = $row['box3'];
 	$endYear = $row['box4'];
 	$lastDay = date('t', strtotime("$endYear-$endMonth-01"));
 	$endDate = $endYear . '-' . str_pad($endMonth, 2, '0', STR_PAD_LEFT) . '-' . $lastDay;
-	
-	$qtxt = "SELECT id FROM transaktioner WHERE transdate >= '$startDate' AND transdate <= '$endDate' LIMIT 1";
+
+	$qtxt = "SELECT id from transaktioner WHERE transdate >= '$startDate' AND transdate <= '$endDate' LIMIT 1";
 	$transactionData = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	$isEmpty[$x] = !db_fetch_array($transactionData);
+	$hasNoTransactions = !db_fetch_array($transactionData);
+
+	// Check if Following fiscal years haev transactions
+	$followingYearsEmpty = true;
+	for ($i = $index + 1; $i < count($fiscalYears); $i++){
+		$nextYear = $fiscalYears[$i];
+
+		$nextStartDate = $nextYear['box2'] . '-' . str_pad($nextYear['box1'], 2, '0', STR_PAD_LEFT) . '-01';
+		$nextEndMonth = $nextYear['box3'];
+		$nextEndYear = $nextYear['box4'];
+		$nextLastDay = date('t', strtotime("$nextEndYear-$nextEndMonth-01"));
+		$nextEndDate = $nextEndYear . '-' . str_pad($nextEndMonth, 2, '0', STR_PAD_LEFT) . '-' . $nextLastDay;
+
+		$qtxt = "SELECT id from transaktioner WHERE transdate >= '$nextStartDate' AND transdate <= '$nextEndDate' LIMIT 1";
+		$nextTransactionData = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+
+		// $followingYearsEmpty = $followingYearsEmpty && !db_fetch_array($nextTransactionData);
+
+		if(db_fetch_array($nextTransactionData)){
+			$followingYearsEmpty = false;
+			break;
+		}
+	}
+
+	$isEmpty[$x] = $hasNoTransactions && $followingYearsEmpty;
 	
 	if ($row['box10'] == '' && $row['box4'] < date('Y')-5) {
 		$qtxt = "select id from kontoplan where regnskabsaar = '$x'";
@@ -197,6 +236,7 @@ while ($row = db_fetch_array($query)) {
 	print "<td> $row[box3]<br></td>";
 	print "<td> $row[box4]<br></td>";
 	(date('Ym') - $row['box4'].$row['box3'] > 500)?$showDelete=1:$showDelete=0;
+
 	if ($deleted[$x]) {
 		print "<td> Slettet</td><td>$deleteDate[$x]<br></td><td></td>";
 	} elseif ($row['kodenr'] != $regnaar && $row['box5'] == 'on') {
@@ -206,7 +246,12 @@ while ($row = db_fetch_array($query)) {
 			$deleteTitle = ($sprog_id == 2) ? "Delete empty fiscal year" : "Slet tomt regnskabsår";
 			$deleteConfirm = ($sprog_id == 2) ? "Are you sure you want to delete this empty fiscal year?" : "Er du sikker på at du vil slette dette tomme regnskabsår?";
 			$emptyText = ($sprog_id == 2) ? "(Empty)" : "(Tom)";
-			print "<td> <span style='color:#999; font-size:11px; margin-right:5px;'> $emptyText </span> <a href='regnskabsaar.php?deleteEmptyYear=$row[kodenr]' title='$deleteTitle' onclick=\"return confirm('$deleteConfirm')\" style='color:#dc3545; font-size:18px; font-weight:bold; text-decoration:none;'> &otimes; </a> </td>";
+			print "<td style='border:none; display:flex; justify-content:center; align-items:center;'>
+			 			<span style='color:#999; font-size:11px; margin-right:5px;'> $emptyText </span> 
+						<a href='regnskabsaar.php?deleteEmptyYear=$row[kodenr]' title='$deleteTitle' onclick=\"return confirm('$deleteConfirm')\" style='font-weight:bold; text-decoration:none; cursor: pointer;'> 
+							 $trash_icon
+						</a> 
+				   </td>";
 		} else {
 			print "<td></td>";
 		}
@@ -226,7 +271,12 @@ while ($row = db_fetch_array($query)) {
 			$deleteTitle = ($sprog_id == 2) ? "Delete empty fiscal year" : "Slet tomt regnskabsår";
 			$deleteConfirm = ($sprog_id == 2) ? "Are you sure you want to delete this empty fiscal year?" : "Er du sikker på at du vil slette dette tomme regnskabsår?";
 			$emptyText = ($sprog_id == 2) ? "(Empty)" : "(Tom)";
-			print "<td> <span style='color:#999; font-size:11px; margin-right:5px;'> $emptyText</span><a href='regnskabsaar.php?deleteEmptyYear=$row[kodenr]' title='$deleteTitle' onclick=\"return confirm('$deleteConfirm')\" style='color:#dc3545; font-size:18px; font-weight:bold; text-decoration:none;'> &otimes; </a></td>";
+			print "<td style='border:none; display:flex; justify-content:center; align-items:center;'> 
+						<span style='color:#999; font-size:11px; margin-right:5px;'> $emptyText</span>
+						<a href='regnskabsaar.php?deleteEmptyYear=$row[kodenr]' title='$deleteTitle' onclick=\"return confirm('$deleteConfirm')\" style='font-weight:bold; text-decoration:none;'> 
+							$trash_icon
+						 </a>
+				   </td>";
 		} else {
 			print "<td></td>";
 		}
@@ -243,7 +293,12 @@ while ($row = db_fetch_array($query)) {
 			$deleteTitle = ($sprog_id == 2) ? "Delete empty fiscal year" : "Slet tomt regnskabsår";
 			$deleteConfirm = ($sprog_id == 2) ? "Are you sure you want to delete this empty fiscal year?" : "Er du sikker på at du vil slette dette tomme regnskabsår?";
 			$emptyText = ($sprog_id == 2) ? "(Empty)" : "(Tom)";
-			print "<td> <span style='color:#999; font-size:11px; margin-right:5px;'> $emptyText </span> <a href='regnskabsaar.php?deleteEmptyYear=$row[kodenr]' title='$deleteTitle' onclick=\"return confirm('$deleteConfirm')\" style='color:#dc3545; font-size:18px; font-weight:bold; text-decoration:none;'> &otimes; </a> </td>";
+			print "<td style='border:none; display:flex; justify-content:center; align-items:center;'> 
+						<span style='color:#999; font-size:11px; margin-right:5px;'> $emptyText </span>
+						<a href='regnskabsaar.php?deleteEmptyYear=$row[kodenr]' title='$deleteTitle' onclick=\"return confirm('$deleteConfirm')\" style='font-weight:bold; text-decoration:none;'> 
+							$trash_icon 
+						</a>
+				   </td>";
 		} else {
 			print "<td></td>";
 		}
