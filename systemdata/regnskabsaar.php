@@ -165,7 +165,7 @@ while($row = db_fetch_array($query)) {
 	$fiscalYears[] = $row;
 }
 
-// TODO: Only delete newest empty fiscal year, Once deletd then you can delete the next one.
+// TODO: Only delete newest empty fiscal year, Once deleted then you can delete the next one.
 
 foreach($fiscalYears as $index => $row){
 	$x = $index + 1;
