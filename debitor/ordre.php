@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2026-01-21 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-01-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,154 +24,6 @@
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 20120822 Tilrettet til NETS leverandørservice - søg 20120822
-// 20121213 Fejl i kostpris hvis køb er fordelt over flere ordrer. Søg 20121213
-// 20130227 Fejl i kostpris hvis køb er fordelt over flere ordrer. Søg 20130227
-// 20130320 Tilføjet mulighed for fravalg af logo på udskrift. Søg "PDF-tekst"
-// 20130506 Tilføjet kontrol for om det er tilføjet varenúmmer uden at gemme inden fakturering. Søg 20130506
-// 20130816 Projekt kommer ikke med ved kopiering af ordrer. Søg 20130816
-// 20130820 Div tekstændringer ved kreditnota.
-// 20130906 Varepris ved indsættelse af ny varelinje v. indtast af varenummer er nu '' istedet for 0.00. # søg 20130906
-//  Bunder i ændring af funktionen opret_ordrelinje som nu ikke trækker pris fra varetabel hvis pris er sat til anden end '' 
-// 20131004 Indsat afrunding da fakturering ikke kunne foretages grindet diff på meget lille brøk (php fejl) Søg  20131004
-// 20131004 Addslashes erstattet med db_escape_string & stripslashes erstattet med HtmlEntities overalt. 
-// 20131017 Indsat opslag på ekstrafelter v. opreoprettelse m. kontonummer skrever i stedet for opslag.Søg 20131017
-// 20140112 Tilføjet individuelle mailemner/tekster og vedhæftning af bilag Søg mail_subject
-// 20140112 Tilføjet mulighed for at ændre debitor ved opslag søg 20140112
-// 20140112 Visning af kostpris forkert grundet ombytning af 100 & $valutakurs. Kun visning på ordre. Søg 20140116
-// 20140130 Omskrevet kostprisberegningen grundet risiko for fejl ved køb i en fremmed valuta og salg i en anden fremmed valuta, når 
-//            salg gennemføres før bogføring af købsordre 
-// 20140324 Ændring på query til visning af notes fra adresser, så <tr> ikke vises med mindre der er note fra kundekort.Søg 20142403-1
-// 20140324 lavet variable til meta-tag og placeret det i head-tag. Se ordrefunc.php function sidehoved. Søg 20142403-2
-// 20140403 Momssats sættes til hvis ingen momsgruppe istedet for fejlmelding. 20140403
-// 20140414 PHR - Fjernet udkommentering af javascript.
-// 20140424 PHR - Rabat blev ikke fratrukket ved db beregning. 20140424
-// 20140424 PHR - Mail bilag felt skal kun vises på udvikling og ssl3.
-// 20140428 PHR - Formularsprog sættes før kald til opret_ordrelinje v. vareindsættelse fra opslag. Søg 20140428
-// 20140502 PK - Diverse html rettelser i faktura. Søg 20140502
-// 20140502 PK - Udkommenteret javascript er flyttet til 'top_header.php', 'top_header_sager.php' og 'online.php'
-// 20140505 PHR - sag_id,sagsnr,tilbudnr,datotid,nr&returside medtages ved kopiering og kreditering af ordre. Søg Sagsnr eller sag_id 
-// 20140505 PHR - Indsat $posnr,$varenr,$dkantal,$enhed,$dkpris,$dkprocent,$serienr,$varemomssats i kald til var2str så der kan anvendes variabler på ordrelinjer. Søg var2str
-// 20140507 PK - Tilføjet 'input type hidden' med sag_id, så det kommer med i submit. Søg 20140507-1
-// 20140507 PK - Indsat returside under slet, hvis der er sag_id: Søg 20140507-2
-// 20140515 PK - rettet colspan='10' til colspan='12' i Tabel 4.5.1, så det passer i bredden.
-// 20140716 PK - Tilbud bliver kopieret når det godkendes til ordrebekræftelse. Art i ordrer.php bliver lavet om til 'OT'. Søg 20140716
-// 20140730 PK - Oprettet en ny funktion 'opret_ordre_kopi' i ordrefunc.php. Søg 20140730
-// 20140826 PK - Kunde-kontakt kan vælges med dropdown eller skrives. Søg 20140826
-// 20141002 PHR - Tilføjet omvendt betalingspligt - Søg omvbet, omkunde og omvare.
-// 20141023 PHR - Fejl i kostprisberegning ved afsluttet ordre. Kostpris blev ganget med antal for at finde snitpris, men ikke divideret igen
-// 20141211 PHR- Negativt antal i kreditnotaer er nu tilladt.
-// 20150122 PHR - Tilføjet sætpriser -Søg saetpris & $saet.
-// 20150130 PHR - Rettet moms og sum sammentælling til 3 decimaler for større nøjagtighed. 20150130
-// 20150131 PHR - Mange rettelser til saetpriser.
-// 20150222 PHR - Flere rettelser i forb. med sætpriser
-// 20150302 PHR - En ordre må ikke kunne godkendes hvis der ikke er sat debitor på. 
-//    Samtidig er der ikke moms på priser når der ikke er debitor på selvom der er momssats på ordren. 20150302
-// 20150302 PHR - Afd blev nulsstillet ved ændring af debitor. : 20150302
-// 20150304 PHR - Fejl hvis intet ordre id : 20150304
-// 20150313 PHR - Advarsel ved fakturering hvis betalingsbet er netto eller lb.mb og der er betalt med kort eller kontant. 20150313
-// 20150307 PHR - Ændret søgning efter varenr 'R' til $rvnr, insdat mulighed for nulstilling af rabat ved at sætte samlet pris til '-'
-//             og ændret 'if (!$samlevare) $ny_pos++' til 'if (!$saet || !$samlevare) $ny_pos++' da den ellers slettede samlevarer som ikke indgik i sæt #20150317
-// 20150318 PHR - Samlet rabat fungerer nu også på momsfrie ordrer.
-// 20150407 PHR - Ved indsættelse fra vareopslag skrives antal, beskrivelse & pris som "placeholder" 20150407
-// 20150409 PK - Ved indsættelse af flere linjetekster til tilbud, laves nyt posnr til hver linje.
-// 20150412 PHR - Der kan tilføjes tekstlinjer på afsluttede ordrer. Søg 20150412
-// 20150424 PHR - Tilføjet: "and posnr >= 0" 20150524
-// 20150602 PHR - Udfaset oioxml - Søg oioxml
-// 20150602 PHR - Returside skal kun hentes fra tabel hvis den ikke er sat. 20150602 
-// 20150829 PHR - Tilføjet $incl_moms til opret_saet.
-// 20150829 PHR - Tilføjet $brugsamletpris så sætfunktion kan bruges uden sammenhæng med butik.
-// 20150914 PHR - Kommentarer blev lagt i bund hvis brugsamletpris var slået til. 20150914
-// 20150917 PHR - Linjepriser blev vist incl. moms på faktureredet ordrer med samlevare. indsat $incl_moms i if sætning. 
-// 20151019 PHR - Ved indsættelse af varenummer hopper cursor nu til antal og hvis pris=0 til pris, ellers til varenummer på ny linje 20151019
-// 20160112 PHR - Lidt designrettelser vedr vis_projekt og kdo på ordrelinjer. Tak til Asbjørn, Musalk.
-// 20160129 PK  - Har tilføjet kontakt_tlf. Tlf hentes fra kontakt ved valg fra select, ellers indtastes tlf i felt. Søg. #20160129
-// 20160217 PHR - Fejl v. kreditering hvis kundes kontonr er blevet ændret. Søg #20160217
-// 20160303 PK - Har ændret E-mail til dropdown + textfield. E-mail fra kunde vises stadig, mens e-mails fra kundekontakter vises i dropdown. Kan stadig skrive e-mail i textfield. Søg. #20160303
-// 20160913 PHR - Efter indsættelse af vare med følgevare fik næste vare samme antal som vare med følgevare. Søg 20160913.
-// 20160913 PHR - OIOUBL blev danne som PDF vet fakturering Søg 20160913
-// 20160915 PHR - Fokus fungerede ikke med følgevarer på ordrer da der var flere forekomster af name='anta0' Søg 20160915
-// 20161011 PHR - Tilføjet hidden varenr - er tidligere blevet fjernet, ved ikke hvorfor men det ødelægger 'samlet pris' 21061011
-// 20170103 PHR - Funktion find_nextfakt flyttet til ../includes/ordrefunc.php
-// 20170307 PHR - Diverse rettelser i forhold til flerlagerstyring. søg $lagernr.
-// 20170308 PHR - Hvis lagernavn er på et tegn vises dette i stedet for lagernr.
-// 20170318 PHR - En del ændreinger i visning or sortering af sæt. 20170318
-// 20170323 PHR - Integreret kortbetaling. Søg $terminal_ip
-// 20170419 PHR - Sælger (Vor ref)) skal vælges hvis vis_saet 20170419
-// 20170421 PHR - $terminal_ip sættes kun hvis der er der er terminal i afdelingen. 20170421
-// 20170501 PHR - Automatisk genkendelse af kort ved integreret terminal. Søg 'kortnavn'
-// 20170627 PHR - Tilføjet lager[0] til opret_saet. Søg 20170627
-// 20170703 PHR - Kostpriser opdateres løbende ved åbne ordrer. Søg 20170703
-// 20170907 PHR - Ovenstående rettet så den kun gælder ved % kostpriser da der ellers ødelægger mulighed for ændring af kostpris ved at skrive ny kostpris i parantes efter pris.
-// 20171004 PHR - En del rettelser omkring betailngskort - primært styres betalingsbet nu fra valg af betalingsmåde når vis_saet er aktiv.
-// 20171009 PHR - GLS funktion ændret - skal tilrettes så gls værdier kan sættes under ordrerelaterede valg- søg $gls_user
-// 20171026 PHR - $db ændret til $dkb(dækningsbidrag) da $db bruges til databaseinfo. 
-// 20180116 PHR - Mulighed for at medsende standardbilag. Søg std_bilag & mail_bilag
-// 20180302 PHR - Betalings_id vises nu hvis feltet er udfyldt - Søg betalings_id
-// 20180305 PHR - htmlentities foran beskrivelse og varenr. 20180305
-// 20180316 PHR - Kasse kan nu være andet end afd -- 20180316'.
-// 20180725 PHR - $sum += flyttet til over 'if ($incl_moms)' da ex_moms sum blev reduceret med m_rabat incl moms. 20180725
-// 20180822 PHR - Ændret valg af betalingsbet ved kreditering / vis_saet  20180822
-// 20180913 PHR - Tilføjet mulighed for at trække levering tilbage ved at sætte negativt antal i 'lever' på ordre 20180913.
-// 20181216 PHR - dkdecimal på felt 1 & 2 da beløb blev forkerte ved kopiering eller kreditering når vis_saet er aktiveret. 20181216
-// 20181217 PHR - Tilføjet knap 'Skift' v. debitor kontonr. Søg swap_account
-// 20181218 PHR - Rettet fejl i valg af betalingsbet ved kontosalg. 20181218
-// 20181221 MSC - Rettet isset fejl
-// 20190104 PHR - Customer can now be created from customerorder. seek create_debtor.
-// 20190110 PHR - '$reseveret' was defined as both slngle variable og array - changed to array only 
-// 20190212 MSC - Rettet db_modify fejl og rettet topmenu design til
-// 20190213 MSC - Rettet topmenu design til
-// 20190416 PHR - Added localPrint for printing through local webserver (raspberry) 
-// 20190502 PHR - Changed GLS label to include invoice att if delivery att not set.   
-// 20190520 PHR - Changed GLS label to include Contact ID. $gls_ctId
-// 20190521 PHR - Adde extra control to aviod faulty registration when submitting invoice #20190521
-// 20190703 PHR - EAN can now be changed after invoice creation.
-// 20191004 PHR - Field 1-5 will not be copied if the order copied from is a 'POS' order as it disturbs'endofday' counting 20191004 
-// 20191104 PHR - Added possibility to delete orderline if non stock item is delivered. 20191104
-// 20191105 PHR - Added quantity field to add more items at a time. $insetQty.
-// 20200211 PHR - Check for valid VAT no format 20200211
-// 20200308 PHR - Added copy option for status < 3.
-// 20200317 PHR - Changed bordercolor for tables where border='1'.
-// 20200407 PHR - Added id lookup by $_GET['kunderordnr'] 20200407
-// 20200917 PHR - Added missing email in create_debtor
-// 20201115 PHR - Added weights and measures and adjusted GLS & Fedex | $tGrossWeight etc.
-// 20201116 PHR - Added missing fields in call to function 'opret_ordrelinje' 20201116
-// 20201120 PHR - Somehow a line 'db_modify("update ordrelinjer set lev_varenr ......' was deleted in 20201116 update.???
-// 20201215 PHR - $restordre now set to 0 if not set. 20201215 
-// 20210302 PHR - Added phone and cleaned for notices. 
-// 20210303 CA  - Added reservation of consignment for Danske Fragtmænd - search dfm_
-// 20210305 CA  - Added the selection to use debtor number as phone number in orders - search div2
-// 20210305 CA  - Changed the phone field so it can be changed also when status is invoice or credit note
-// 20210310 PHR - If '@' in $phone and email is empty $phonevalue is moved to email. Find strpos($phone,'@')
-// 20210312 PHR - Removed '#' in front of line - don't why it was set. 20210312
-// 20210503 PHR - Qty now red if stock below minimum stock 20210503
-// 20210506 PHR - Phone set to account no if not set when sending to 'DFM' 20210506
-// 20210510 PHR - Added '?id=$id&tabel=ordrer' to luk.php 20210510
-// 20210629 LOE - Translated some of these texts from Danish to English and Norsk
-// 20210630 LOE - Set the width of these button to auto as given width was covering texts.
-// 20210715 LOE - Fixed a bug of  A non-numeric value encountered for $rabatvare_id, and also for $sag_id, for $ref text translation for titles
-// 20210719 LOE - Translated confirm texts, $tidspkt is set with some more variables,$posnr_ny[$x] is converted to integer
-// 20210801 CA  - Added the selection to use order notes in ordre_valg - search orderNoteEnabled
-// 20210806 LOE - Translated some texts.
-// 20210809 LOE - Translated alert texts
-// 20210816 CA  - Order note also for invoiced orders
-// 20210817 MSC - Implementing new design
-// 20211021 PHR/MSC orderNote hidden until link clicked
-// 20211028 PHR - Corrected some text errors in 'Danske Fragtmænd'
-// 20211028 PHR - Changed 'text id 924 & 1465 to 1062 & 1063'
-// 20211118 MSC - Implementing new design
-// 20211124 PHR - Changed Vat check as NL has a B as digit 10. 
-// 20211129 PHR - When making a creditnote from an order with variants, the variant id was not transferred. 
-// 20220119 PHR - $id was not set when returning from create debtor???
-// 20220301 PHR - Minor change in order locking
-// 20220630 MSC - Implementing new design
-// 20220706 MSC - Implementing new design
-// 20220712 MSC - Implementing new design
-// 20230505 PHR - php8
-// 20230612 PBLM - Added functionality to handle the new 'EasyUBL' module (peppol)
-// 20230719 LOE - Minor modifications; it was throwing error when kontonr not set
-// 20230829 MSC - Copy pasted new design into code
-// 20231215 PBLM - Made some adjustments to EasyUBL  
 // 20240201 PBLM - Made some adjustments to EasyUBL
 // 20240303 PHR - Changed $rabat decimal precision from 3 to 5 
 // 20240416 LOE - $std_txt initialized to null
@@ -200,6 +52,7 @@
 // 20250819 LOE $afd checked strictly before usage
 // 20250903 LOE Enabled order to still work with account lookup when 'Offer' is active
 // 20260121 LOE formularsprog synched with existing language template
+// 20260130 LOE Added javascript to sycn the felt_2 to total amount and fixed double creditor note field.
 @session_start();
 $s_id = session_id();
 
@@ -5403,8 +5256,6 @@ function ordreside($id, $regnskab)
 				print "<td style='background:#f9f9f9;'></td>"; // Empty cell for input row
 				print "<td valign='top'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='posn0' value='$posnr[0]'></td>\n";
 				if ($art == 'DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"readonly\" size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td>\n";
-
-				if ($art == 'DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"readonly\" size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td>\n";
 				else  print "<td valign = 'top'><input class = 'inputbox' style=\"padding:2px;\" type = 'text' size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"" . $varenr[0] . "\"></td>\n"; #20180305
 				print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px\" name=\"dkan0\" placeholder=\"$antal[0]\"></td>\n";
 				print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee\" readonly=\"readonly\" size=\"4px\"></td>\n"; #enhed0
@@ -6429,7 +6280,7 @@ if ($menu == 'T') {
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
 <script src="../javascript/tablenav.js"></script>
 <script src="../javascript/ordreAutocomplete.js"></script>
-
+<script src ="orderIncludes/syncFieldsWithTsum.js"></script>
 
 
 <link rel="stylesheet" href="orderIncludes/ordre_dragdrop.css">
