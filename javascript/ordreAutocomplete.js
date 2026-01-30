@@ -153,6 +153,15 @@
         switch (type) {
             case 'item':
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value);
+                // Add VAT parameters from the form - look for hidden inputs
+                const inclMomsInput = document.querySelector('input[name="incl_moms"]');
+                const momssatsInput = document.querySelector('input[name="momssats"]');
+                if (inclMomsInput && inclMomsInput.value) {
+                    url += '&incl_moms=' + encodeURIComponent(inclMomsInput.value);
+                }
+                if (momssatsInput && momssatsInput.value) {
+                    url += '&momssats=' + encodeURIComponent(momssatsInput.value);
+                }
                 break;
             case 'customer':
                 url = kassePath + 'accountSearch.php?type=debitor&search=' + encodeURIComponent(value);

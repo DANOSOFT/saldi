@@ -23,9 +23,28 @@ $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $limit = 50;
 $offset = ($page - 1) * $limit;
 
+// VAT parameters for price display
+$incl_moms = isset($_GET['incl_moms']) ? $_GET['incl_moms'] : '';
+$momssats = isset($_GET['momssats']) ? floatval(str_replace(',', '.', $_GET['momssats'])) : 25;
+
+// If incl_moms is not provided via GET, check the system setting for VAT on orders
+if ($incl_moms === '' || $incl_moms === null) {
+    $vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
+    if ($vatPrivateCustomers === 'on') {
+        $incl_moms = 'on';
+    }
+}
+
 if (!isset($regnaar) || empty($regnaar)) {
     echo json_encode(array('error' => 'Session expired'));
     exit;
+}
+
+// Get VAT-free product groups
+$momsfri_grupper = array();
+$q = db_select("SELECT kodenr FROM grupper WHERE art='VG' AND box7 = 'on' AND fiscal_year = '$regnaar'", __FILE__ . " line " . __LINE__);
+while ($r = db_fetch_array($q)) {
+    $momsfri_grupper[] = $r['kodenr'];
 }
 
 $results = array();
@@ -49,7 +68,8 @@ if ($countQuery) {
     $totalCount = intval($countRow['cnt']);
 }
 
-$qtxt = "SELECT id, varenr, beskrivelse, salgspris, kostpris, enhed, beholdning 
+// Include gruppe (product group) in query for VAT-free check
+$qtxt = "SELECT id, varenr, beskrivelse, salgspris, kostpris, enhed, beholdning, gruppe 
          FROM varer 
          WHERE $baseWhere
          ORDER BY varenr LIMIT $limit OFFSET $offset";
@@ -58,11 +78,21 @@ $query = db_select($qtxt, __FILE__ . " line " . __LINE__);
 
 if ($query) {
     while ($row = db_fetch_array($query)) {
+        $salgspris = floatval($row['salgspris']);
+        
+        // Calculate price with VAT if incl_moms is enabled and product is not VAT-free
+        if ($incl_moms && $incl_moms !== '' && $incl_moms !== '0') {
+            $gruppe = $row['gruppe'];
+            if (!in_array($gruppe, $momsfri_grupper)) {
+                $salgspris = $salgspris + ($salgspris * $momssats / 100);
+            }
+        }
+        
         $results[] = array(
             'id' => $row['id'],
             'varenr' => trim($row['varenr']),
             'beskrivelse' => trim(stripslashes($row['beskrivelse'])),
-            'salgspris' => floatval($row['salgspris']),
+            'salgspris' => $salgspris,
             'kostpris' => floatval($row['kostpris']),
             'enhed' => trim($row['enhed']),
             'beholdning' => floatval($row['beholdning'])
