@@ -161,6 +161,10 @@ $qtxt = "Select id from tekster where sprog_id = '1' and tekst_id = '635' and te
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
 }
+$qtxt = "Select id from tekster where sprog_id = '1' and tekst_id = '1001' and tekst = 'Kredit'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
+}
 db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
 
 
