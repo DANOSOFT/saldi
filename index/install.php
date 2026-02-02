@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 5.0.0---2026-01-27--- 
+//------------index/install.php----lap 5.0.0---2026-02-02--- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,7 +36,7 @@
 // 20250428 LOE Set default storage engine to InnoDB for MySQL 5.7+ (replaces 'storage_engine')+$current_year
 // 20260120 PHR Removed an echo.
 // 20260127 LOE Added findtextinst() for language selection management.
-// 
+// 20260302 PHR Added missing columns in  create brugere & regnskab
 
 session_start();
 ob_start(); //Starter output buffering
@@ -267,7 +267,7 @@ if (isset($_POST['opret'])){
 	}
 	transaktion("begin");
 
-	db_modify("CREATE TABLE brugere(id serial NOT NULL, brugernavn text, kode text, status boolean, regnskabsaar integer, rettigheder text, PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE brugere(id serial NOT NULL, brugernavn text, kode text, status boolean, regnskabsaar integer, rettigheder text,popup text, PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("INSERT INTO brugere (brugernavn, kode, rettigheder) values ('$adm_navn' ,'$adm_password', '11111111111111111111')",__FILE__ . " linje " . __LINE__);
 	$r=db_fetch_array(db_select("SELECT id FROM brugere where brugernavn='$adm_navn'",__FILE__ . " linje " . __LINE__));	
 	$adm_password=saldikrypt($r['id'],$adm_password);
@@ -285,7 +285,8 @@ if (isset($_POST['opret'])){
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE kundedata (id serial NOT NULL, firmanavn text, addr1 text, addr2 text, postnr varchar(10), ";
 	$qtxt.= "bynavn text, kontakt text, email text, cvrnr text, regnskab text, regnskab_id integer,brugernavn text, ";
-	$qtxt.= "kodeord text, kontrol_id text, aktiv int, logtime text,slettet varchar(2),PRIMARY KEY (id))";
+	$qtxt.= "kodeord text, kontrol_id text, aktiv int, logtime text,slettet varchar(2),tlf text,affiliate text, ";
+	$qtxt.= "referer text, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE tekster (id serial NOT NULL, sprog_id integer, tekst_id integer, tekst text, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
