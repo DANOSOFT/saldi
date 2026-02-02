@@ -1863,8 +1863,38 @@ if ($background_file && file_exists($background_file)) {
 						$skriv = 1; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
 					#				if ($saet[$x] && $samlevare[$x]) $skriv=0; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
 					if ($skriv) {
-					
-						for ($z = 1; $z <= $var_antal; $z++) {
+				
+					// Pre-check: Calculate if description will wrap and if it will fit on current page
+					// If not, move entire order line to next page before writing any fields
+					$beskriv_z = 0;
+					for ($z_tmp = 1; $z_tmp <= $var_antal; $z_tmp++) {
+						if ($variabel[$z_tmp] == "beskrivelse") {
+							$beskriv_z = $z_tmp;
+							break;
+						}
+					}
+					if ($beskriv_z && isset($laengde[$beskriv_z]) && $laengde[$beskriv_z] > 0) {
+						// Get the description text (handle tab-separated lokation/vare_note)
+						$check_tekst = $beskrivelse[$x];
+						if (strpos($check_tekst, chr(9)) !== false) {
+							list($check_tekst) = explode(chr(9), $check_tekst);
+						}
+						$wrappedText = wordwrap($check_tekst, $laengde[$beskriv_z], "\n", true);
+						$descLines = count(explode("\n", $wrappedText));
+						$totalHeightNeeded = ($descLines - 1) * $linjeafstand;
+						
+						// DEBUG: Log to file
+						file_put_contents("../temp/debug_pagebreak.txt", "DEBUG line $x: y=$y, Opkt=$Opkt, descLines=$descLines, totalHeight=$totalHeightNeeded, laengde=".$laengde[$beskriv_z].", check=".($y - $totalHeightNeeded)."\n", FILE_APPEND);
+						
+						// If description would spill to next page, move entire line to next page first
+						if ($descLines > 1 && ($y - $totalHeightNeeded) <= $Opkt && $y >= $Opkt) {
+							file_put_contents("../temp/debug_pagebreak.txt", "FORCING PAGE BREAK for line $x\n", FILE_APPEND);
+							// Force a page break before writing any fields
+							$y = skriv($id, "$str[$beskriv_z]", "$fed[$beskriv_z]", "$kursiv[$beskriv_z]", "$color[$beskriv_z]", "", "ordrelinjer_" . $Opkt, "$xa[$beskriv_z]", $Opkt - 1, "$justering[$beskriv_z]", "$form_font[$beskriv_z]", "$formular", __LINE__);
+						}
+					}
+				
+					for ($z = 1; $z <= $var_antal; $z++) {
 							if (substr($variabel[$z], 0, 8) == "fritekst") {
 								$tmp = substr($variabel[$z], 9);
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$tmp", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
