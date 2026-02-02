@@ -40,6 +40,14 @@ include("../../includes/std_func.php");
 include("../../includes/stdFunc/dkDecimal.php");
 include("../../includes/stdFunc/usDecimal.php");
 
+$logentry = "--------------------------------------------------------\n";
+$logentry .= "Date: " . date("Y-m-d H:i:s") . "\n";
+$logentry .= "vibrant.php called with:\n";
+foreach ($_GET as $key => $value) {
+    $logentry .= "  $key = $value\n";
+}
+file_put_contents("../../temp/$db/vibrant.log", $logentry, FILE_APPEND);
+
 $raw_amount = (float) usdecimal(if_isset($_GET['amount'], 0));
 $pretty_amount = dkdecimal($raw_amount, 2);
 $ordre_id = if_isset($_GET['id'], 0);
@@ -102,12 +110,28 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
   var count = 40 - 1
   var paused = false
   var receipt_id = 'None'
+  var db = '<?php print $db; ?>'; // Pass db to JS
+
+  function logToServer(msg) {
+    const timestamp = new Date().toISOString();
+    console.log(`[LOG] ${timestamp} ${msg}`);
+    fetch('log_vibrant.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ db: db, message: msg })
+    }).catch(err => console.error('Logging failed:', err));
+  }
+
+  logToServer(`Page loaded. Amount: <?php print $amount; ?>, Type: <?php print $type; ?>, OrdreID: <?php print $ordre_id; ?>`);
+
   const successed = (event) => {
+    logToServer(`Successed called. CardScheme: ${cardScheme}`);
     console.log(cardScheme);
     window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&receipt_id=${receipt_id}&payment_id=${payment_id}`);
   }
 
   const failed = (event) => {
+    logToServer(`Failed called.`);
     console.log('Failed click');
     window.location.replace('../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=afvist')
   }
@@ -199,7 +223,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       
       setTimeout(async () => {
         try {
-          console.log('Making API request to check refund status...');
+          logToServer(`Checking refund status for ${refundId}`);
           var res = await fetch(
             `https://pos.api.vibrant.app/pos/v1/refunds/${refundId}`,
             {
@@ -209,6 +233,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
               }
             }
           );
+          logToServer(`Refund status response: ${res.status}`);
           
           if (!res.ok) {
             paused = true;
@@ -342,6 +367,8 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
         console.log('Endpoint:', `https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/process_refund`);
         console.log('Request body:', JSON.stringify(refundData, null, 2));
         
+        logToServer(`Initiating refund request to terminal ${"<?php print $terminal_id; ?>"}`);
+        var start = Date.now();
         var res = await fetch(
           'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/process_refund',
           {
@@ -353,6 +380,8 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
             body: JSON.stringify(refundData),
           }
         );
+        var duration = Date.now() - start;
+        logToServer(`Refund request completed in ${duration}ms. Status: ${res.status}`);
         
         console.log('=== REFUND REQUEST RESPONSE ===');
         console.log('Response status:', res.status);
@@ -442,6 +471,8 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
     async function get_payment_update(pid) {
         payment_id = pid; // Store the payment intent ID
       setTimeout(async () => {
+        logToServer(`Checking payment status for ${pid}`);
+        var pStart = Date.now();
         var res = await fetch(
           `https://pos.api.vibrant.app/pos/v1/payment_intents/${pid}`,
           {
@@ -451,6 +482,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
             }
           }
         )
+        logToServer(`Payment status check took ${Date.now() - pStart}ms. Status: ${res.status}`);
 
         if (!res.ok) {
           paused = true;
@@ -546,6 +578,8 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
 
       try {
+        logToServer(`Sending transaction to terminal ${"<?php print $terminal_id; ?>"} (${"<?php print $type; ?>"})`);
+        var txStart = Date.now();
         var res = await fetch(
           'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/<?php print $type; ?>',
           {
@@ -557,6 +591,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
             body: JSON.stringify(data),
           }
         )
+        logToServer(`Transaction request took ${Date.now() - txStart}ms. Status: ${res.status}`);
         console.log(res);
         if (!res.ok) {
           paused = true;
