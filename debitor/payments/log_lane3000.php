@@ -6,7 +6,7 @@ include ("../../includes/connect.php");
 $input = json_decode(file_get_contents('php://input'), true);
 
 if ($input) {
-    $logFile = 'lane3000.log';
+    $logFile = '../../temp/'.$input['db'].'/lane3000.log';
     $timestamp = date('Y-m-d H:i:s');
     $level = $input['level'] ?? 'INFO';
     $message = $input['message'] ?? 'No message';

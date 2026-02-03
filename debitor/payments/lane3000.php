@@ -47,7 +47,8 @@ include ("../../includes/stdFunc/usDecimal.php");
 
 // Add logging function
 function writeLog($message, $level = 'INFO') {
-    $logFile = 'lane3000_debug.log';
+    global $db;
+    $logFile = '../../temp/'.$db.'/lane3000_debug.log';
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] [$level] $message" . PHP_EOL;
     file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
@@ -58,7 +59,7 @@ $pretty_amount = dkdecimal($raw_amount, 2);
 $ordre_id    = if_isset($_GET['id'], 0);
 $indbetaling = if_isset($_GET['indbetaling'], 0);
 $return_url = if_isset($_GET['return_url'], 'pos_ordre.php');
-$kasse = $_COOKIE['saldi_pos'];
+$kasse = if_isset($_GET["kasse"], $_COOKIE['saldi_pos']);
 
 // Build the return URL base with all parameters except cardscheme (which is added in JS)
 $return_url_base = '../' . $return_url;
@@ -132,7 +133,8 @@ function logToServer(message, level = 'INFO') {
             message: message,
             level: level,
             timestamp: new Date().toISOString(),
-            ordre_id: '<?php print $ordre_id; ?>'
+            ordre_id: '<?php print $ordre_id; ?>',
+            db: '<?php print $db; ?>'
         })
     }).catch(err => console.error('Logging failed:', err));
 }
