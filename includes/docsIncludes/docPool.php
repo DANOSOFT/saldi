@@ -37,6 +37,15 @@
 function syncPuljeFilesToDatabase($docFolder, $db) {
 	$puljePath = "$docFolder/$db/pulje";
 	
+	$skip = get_settings_value("skip_sync", "docs", 0);
+	$logFile = __DIR__ . "/../../temp/sync_debug.log";
+	file_put_contents($logFile, date('Y-m-d H:i:s') . " - skip_sync value is " . var_export($skip, true) . "\n", FILE_APPEND);
+	
+	if ($skip) {
+		file_put_contents($logFile, date('Y-m-d H:i:s') . " - Skipping sync because skip_sync is set\n", FILE_APPEND);
+		return;
+	}
+	file_put_contents($logFile, date('Y-m-d H:i:s') . " - Proceeding with sync (SLOW OPERATION)\n", FILE_APPEND);
 	// Always clean up .info files if directory exists (do this before any early returns)
 	if (is_dir($puljePath)) {
 		$infoFiles = glob("$puljePath/*.info");
@@ -153,9 +162,14 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
+	update_settings_value("skip_sync", "docs", 1, "Skip pool sync after initial run");
 }
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
+	$startTime = microtime(true);
+	$perfLog = __DIR__ . "/../../temp/perf_debug.log";
+	file_put_contents($perfLog, date('Y-m-d H:i:s') . " - START docPool\n", FILE_APPEND);
+
 	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
 	
@@ -163,12 +177,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 	// Sync missing files from pulje directory to database once on page load
 	syncPuljeFilesToDatabase($docFolder, $db);
+	file_put_contents($perfLog, sprintf("Time: %.4f - After syncPuljeFilesToDatabase\n", microtime(true) - $startTime), FILE_APPEND);
 
 	((isset($_POST['unlink']) && $_POST['unlink']) || (isset($_GET['unlink']) && $_GET['unlink']))?$unlink=1:$unlink=0;
 	$cleanupOrphans = if_isset($_GET, NULL, 'cleanupOrphans');
 	$cleanup = get_settings_value("cleanup", "docs", 0);
 
-		if ($cleanupOrphans && !$cleanup) {
+	if ($cleanupOrphans && !$cleanup) {
 		$puljePath = "$docFolder/$db/pulje";
 		if (is_dir($puljePath)) {
 			$files = scandir($puljePath);
@@ -211,6 +226,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1\">";
 		exit;
 	}
+
+	file_put_contents($perfLog, sprintf("Time: %.4f - After cleanup block\n", microtime(true) - $startTime), FILE_APPEND);
 
 	(isset($_POST['rename']) && $_POST['rename'])?$rename=1:$rename=0;
 	(isset($_POST['unlinkFile']) && $_POST['unlinkFile'])?$unlinkFile=$_POST['unlinkFile']:((isset($_GET['unlinkFile']) && $_GET['unlinkFile'])?$unlinkFile=$_GET['unlinkFile']:$unlinkFile=NULL);
@@ -1002,6 +1019,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		}
 	</style>";
 
+	file_put_contents($perfLog, sprintf("Time: %.4f - Before HTML output\n", microtime(true) - $startTime), FILE_APPEND);
+	
 	print "<form name=\"gennemse\" action=\"documents.php?$params&$poolParams\" method=\"post\">\n";
 	print "<input type='hidden' id='hiddenSubject' name='newSubject' value=''>\n";
 	print "<input type='hidden' id='hiddenAccount' name='newAccount' value=''>\n";
@@ -1031,6 +1050,7 @@ $svgFile = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="curren
 $svgScan = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>';
 
 print "<div id='docPoolContainer'>";
+print "<script>console.time('docPoolRender');</script>";
 print "<div id='leftPanel'>";
 
 // Display kassekladde information if inserting to existing entry (just above the list)
@@ -4223,6 +4243,7 @@ HTML;
 	print "</script>";
 	}
 
+	file_put_contents($perfLog, sprintf("Time: %.4f - End of PHP execution\n", microtime(true) - $startTime), FILE_APPEND);
 	exit;
 
 
