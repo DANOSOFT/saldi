@@ -180,7 +180,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$curlError = curl_error($ch);
 	curl_close($ch);
 
-	file_put_contents('response.json', $response);
+	// file_put_contents('response.json', $response);
 	// Check for cURL errors
 	if ($curlError) {
 		error_log("cURL error calling invoice extraction API: $curlError");

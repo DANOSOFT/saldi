@@ -28,12 +28,141 @@
 // 20250824 LOE _docPoolData.php added to this file for improved data handling, also checks that file is .pdf before setting default. Update .info subject 
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
+// 20260202 Added syncPuljeFilesToDatabase to sync files once on page load.
+
+/**
+ * Sync files from pulje directory to pool_files database table.
+ * This runs once on page load and adds any missing PDF files to the database.
+ */
+function syncPuljeFilesToDatabase($docFolder, $db) {
+	$puljePath = "$docFolder/$db/pulje";
+	
+	// Always clean up .info files if directory exists (do this before any early returns)
+	if (is_dir($puljePath)) {
+		$infoFiles = glob("$puljePath/*.info");
+		if ($infoFiles) {
+			foreach ($infoFiles as $infoFile) {
+				if (is_file($infoFile)) {
+					unlink($infoFile);
+					error_log("syncPuljeFilesToDatabase: Deleted info file: $infoFile");
+				}
+			}
+		}
+	}
+	
+	// Check if directory exists
+	if (!is_dir($puljePath)) {
+		return;
+	}
+	
+	// Ensure pool_files table exists
+	$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+		// Create table (use IF NOT EXISTS to prevent race condition errors)
+		$qtxt = "CREATE TABLE IF NOT EXISTS pool_files (
+			id serial NOT NULL,
+			filename varchar(255) NOT NULL,
+			subject text,
+			account varchar(50),
+			amount varchar(50),
+			file_date varchar(50),
+			invoice_number varchar(100),
+			description text,
+			updated timestamp DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			UNIQUE(filename)
+		)";
+		db_modify($qtxt, __FILE__ . " line " . __LINE__);
+	} else {
+		// Table exists, check for missing columns and add them
+		$qtxt = "SELECT column_name FROM information_schema.columns 
+				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'invoice_number'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+			@db_modify("ALTER TABLE pool_files ADD COLUMN invoice_number varchar(100)", __FILE__ . " line " . __LINE__);
+		}
+		
+		$qtxt = "SELECT column_name FROM information_schema.columns 
+				 WHERE table_schema = 'public' AND table_name = 'pool_files' AND column_name = 'description'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+			@db_modify("ALTER TABLE pool_files ADD COLUMN description text", __FILE__ . " line " . __LINE__);
+		}
+	}
+	
+	// Get all PDF files from the pulje directory
+	$pdfFiles = [];
+	$files = scandir($puljePath);
+	foreach ($files as $file) {
+		if ($file === '.' || $file === '..') continue;
+		if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'pdf') {
+			$pdfFiles[] = $file;
+		}
+	}
+	
+	if (empty($pdfFiles)) {
+		return;
+	}
+	
+	// Get existing filenames from database in one query
+	$escapedFiles = array_map(function($f) { return "'" . db_escape_string($f) . "'"; }, $pdfFiles);
+	$inClause = implode(',', $escapedFiles);
+	$qtxt = "SELECT filename FROM pool_files WHERE filename IN ($inClause)";
+	$result = db_select($qtxt, __FILE__ . " line " . __LINE__);
+	
+	$existingFiles = [];
+	while ($row = db_fetch_array($result)) {
+		$existingFiles[$row['filename']] = true;
+	}
+	
+	// Insert missing files
+	foreach ($pdfFiles as $file) {
+		if (!isset($existingFiles[$file])) {
+			$fullPath = "$puljePath/$file";
+			$baseName = pathinfo($file, PATHINFO_FILENAME);
+			$fileDate = date("Y-m-d H:i:s", filemtime($fullPath));
+			
+			// Check for .info file for additional data
+			$infoFile = "$puljePath/$baseName.info";
+			$subject = $baseName;
+			$account = '';
+			$amount = '';
+			$invoiceNumber = '';
+			$description = '';
+			
+			if (file_exists($infoFile)) {
+				$lines = file($infoFile, FILE_IGNORE_NEW_LINES);
+				$subject = (isset($lines[0]) && trim($lines[0]) !== '') ? trim($lines[0]) : $baseName;
+				$account = isset($lines[1]) ? trim($lines[1]) : '';
+				$amount = isset($lines[2]) ? trim($lines[2]) : '';
+				if (isset($lines[3]) && trim($lines[3]) !== '') {
+					$fileDate = trim($lines[3]);
+				}
+				$invoiceNumber = isset($lines[4]) ? trim($lines[4]) : '';
+				$description = isset($lines[5]) ? trim($lines[5]) : '';
+			}
+			
+			// Insert into database
+			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+				'" . db_escape_string($file) . "',
+				'" . db_escape_string($subject) . "',
+				'" . db_escape_string($account) . "',
+				'" . db_escape_string($amount) . "',
+				'" . db_escape_string($fileDate) . "',
+				'" . db_escape_string($invoiceNumber) . "',
+				'" . db_escape_string($description) . "'
+			)";
+			db_modify($qtxt, __FILE__ . " line " . __LINE__);
+		}
+	}
+}
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
 	
 	$afd =  $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
+
+	// Sync missing files from pulje directory to database once on page load
+	syncPuljeFilesToDatabase($docFolder, $db);
 
 	((isset($_POST['unlink']) && $_POST['unlink']) || (isset($_GET['unlink']) && $_GET['unlink']))?$unlink=1:$unlink=0;
 	$cleanupOrphans = if_isset($_GET, NULL, 'cleanupOrphans');
@@ -62,7 +191,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							error_log("Cleanup: Removed orphaned info file: $file");
 							
 							// Cleanup database
-							$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+							$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
 							if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 								$dbFilename = $baseName . '.pdf';
 								$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($dbFilename) ."'";
@@ -95,6 +224,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$newDate	   = if_isset($_POST,NULL,'newDate');
 	$newInvoiceNumber = if_isset($_POST,NULL,'newInvoiceNumber');
 	$newInvoiceDescription = if_isset($_POST,NULL,'newInvoiceDescription');
+	
+	// Override $poolFile from POST if it's set (for AJAX edit operations)
+	if (isset($_POST['poolFile']) && $_POST['poolFile']) {
+		$poolFile = $_POST['poolFile'];
+	}
 
 	$afd         = if_isset($_POST,NULL,'afd');
 	$bilag       = if_isset($_POST,NULL,'bilag');
@@ -193,7 +327,34 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		
 		if (!empty($poolFiles)) {
 			// If date/amount wasn't passed from JavaScript, try to read from .info file of first selected file
-			if (!$sourceId && empty($newDate) && !empty($poolFiles)) {
+			// Check database first for file information
+			$filename = reset($poolFiles);
+			$qtxt = "SELECT * FROM pool_files WHERE filename = '" . db_escape_string($filename) . "'";
+			$poolData = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+
+			if ($poolData) {
+				if (!$sourceId && empty($newDate) && $poolData['file_date']) {
+					// format date from Y-m-d H:i:s to d-m-Y
+					$ts = strtotime($poolData['file_date']);
+					if ($ts !== false && $ts > 0) {
+						$_POST['dato'] = date("d-m-Y", $ts);
+						error_log("docPool INSERT - Got date from DB: " . $poolData['file_date']);
+					}
+				}
+				if (!$sourceId && empty($newAmount) && $poolData['amount']) {
+					$_POST['sum'] = $poolData['amount'];
+					error_log("docPool INSERT - Got amount from DB: " . $poolData['amount']);
+				}
+				if (!$sourceId && empty($newInvoiceNumber) && $poolData['invoice_number']) {
+					$_POST['fakturanr'] = $poolData['invoice_number'];
+					error_log("docPool INSERT - Got invoice_number from DB: " . $poolData['invoice_number']);
+				}
+				if (!$sourceId && empty($newInvoiceDescription) && $poolData['description']) {
+					$_POST['beskrivelse'] = $poolData['description'];
+					error_log("docPool INSERT - Got description from DB: " . $poolData['description']);
+				}
+			} elseif (!$sourceId && empty($newDate) && !empty($poolFiles)) {
+				// Fallback to .info file if not in DB
 				$firstPoolFile = reset($poolFiles);
 				$baseName = pathinfo($firstPoolFile, PATHINFO_FILENAME);
 				$infoFile = "$docFolder/$db/pulje/$baseName.info";
@@ -401,7 +562,22 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		}
 	}
 
-	if ($rename && $newFileName && $newFileName != $poolFile || ($rename &&($newAccount||$newAmount||$newSubject))) {
+	// Debug logging for edit operations
+	if ($rename) {
+		$logFile = "../temp/docpool_edit_debug.log";
+		$logMsg = date('Y-m-d H:i:s') . " - docPool EDIT - rename=$rename, poolFile=$poolFile, newFileName=$newFileName\n";
+		$logMsg .= date('Y-m-d H:i:s') . " - docPool EDIT - newSubject=$newSubject, newAccount=$newAccount, newAmount=$newAmount\n";
+		$logMsg .= date('Y-m-d H:i:s') . " - docPool EDIT - newDate=$newDate, newInvoiceNumber=$newInvoiceNumber, newInvoiceDescription=$newInvoiceDescription\n";
+		file_put_contents($logFile, $logMsg, FILE_APPEND);
+	}
+
+	$conditionPart1 = ($rename && $newFileName && $newFileName != $poolFile);
+	$conditionPart2 = ($rename && ($newAccount||$newAmount||$newSubject||$newDate||$newInvoiceNumber||$newInvoiceDescription));
+	$logFile = "../temp/docpool_edit_debug.log";
+	file_put_contents($logFile, date('Y-m-d H:i:s') . " - Condition check: part1=$conditionPart1, part2=$conditionPart2\n", FILE_APPEND);
+	
+	if ($rename && $newFileName && $newFileName != $poolFile || ($rename && ($newAccount||$newAmount||$newSubject||$newDate||$newInvoiceNumber||$newInvoiceDescription))) {
+		file_put_contents($logFile, date('Y-m-d H:i:s') . " - ENTERED rename block\n", FILE_APPEND);
 	$legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
 		array_push($legalChars,'0','1','2','3','4','5','6','7','8','9','_','-','.','(',')');
 		$nfn = trim($newFileName);
@@ -453,17 +629,16 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 				// Define the pulje directory path
 				$puljePath = "$docFolder/$db/pulje";
-				
-
-				$renamedPoolFile = $poolFile;
 
 				if (!is_dir($puljePath)) {
 					error_log("Directory does not exist: $puljePath");
 				} else {
 					$allFiles = scandir($puljePath);
+					$renamedPdf = false;
+					
+					// First pass: perform file renames
 					foreach ($allFiles as $file) {
 						if (in_array($file, ['.', '..'])) continue;
-						if(!in_array($newExt, ['pdf', 'info'])) continue;
 						$fileBase = pathinfo($file, PATHINFO_FILENAME);
 						$fileExt  = pathinfo($file, PATHINFO_EXTENSION);
 						
@@ -472,213 +647,151 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							$oldPath = "$puljePath/$file";
 							$newPath = "$puljePath/$newBase.$fileExt";
 
-							if (!file_exists($oldPath)) {
-								error_log(" Skipped missing file: $oldPath");
+							// Skip if file doesn't exist
+							if (!file_exists($oldPath)) continue;
+
+							// Check if destination exists
+							if (file_exists($newPath) && $oldPath !== $newPath) {
+								error_log("Target file exists, skipping: $newPath");
 								continue;
 							}
 
-							if (!is_writable(dirname($newPath))) {
-								error_log(" Cannot write to: " . dirname($newPath)); 
-								continue;
-							}
-
-							// Rename the file
-							#if($oldPath != $newPath){
-								if (rename($oldPath, $newPath)) {
-									error_log("++*++ Renamed: $oldPath → $newPath");
-
-									// Update the poolFile variable
-									if ($file === $poolFile) {
-										$renamedPoolFile = "$newBase.$fileExt";
+							if (rename($oldPath, $newPath)) {
+								error_log("Renamed: $oldPath -> $newPath");
+								if (strtolower($fileExt) === 'pdf') {
+									$renamedPdf = true;
+									// Update poolFile variable to new name
+									if ($poolFile === $file) {
+										$poolFile = "$newBase.$fileExt";
 									}
-									// ✅ If this is the .info file, update subject, account, and amount
-										if (strtolower($fileExt) === 'info') {
-										// Set subject to newBase if it's empty
-														if (empty($newSubject)) {
-															$newSubject = $newBase; 
-														}
-		
-											// Build new contents 
-											$infoLines = [
-												$newSubject ?? '',
-												$newAccount ?? '',
-												$newAmount ?? '',
-												$newDate ?? '',
-												$newInvoiceNumber ?? '',
-												$newInvoiceDescription ?? ''
-											]; 
-
-											// Write to the file
-											if (file_put_contents($newPath, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
-												// Save to database
-												// Check if pool_files table exists, create if not
-												$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
-												if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-													$qtxt = "CREATE TABLE pool_files (
-														id serial NOT NULL,
-														filename varchar(255) NOT NULL,
-														subject text,
-														account varchar(50),
-														amount varchar(50),
-														file_date varchar(50),
-														updated timestamp DEFAULT CURRENT_TIMESTAMP,
-														PRIMARY KEY (id),
-														UNIQUE(filename)
-													)";
-													db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-												}
-												
-												// Save or update in database
-												$filename = $newBase . '.pdf';
-												$qtxt = "SELECT id FROM pool_files WHERE filename = '". db_escape_string($filename) ."'";
-												$existing = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-												
-												if ($existing) {
-													// Update existing record
-													$qtxt = "UPDATE pool_files SET 
-														subject = '". db_escape_string($newSubject ?? '') ."',
-														account = '". db_escape_string($newAccount ?? '') ."',
-														amount = '". db_escape_string($newAmount ?? '') ."',
-														file_date = '". db_escape_string($newDate ?? '') ."',
-														updated = CURRENT_TIMESTAMP
-														WHERE filename = '". db_escape_string($filename) ."'";
-													db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-												} else {
-													// Insert new record
-													$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date) VALUES (
-														'". db_escape_string($filename) ."',
-														'". db_escape_string($newSubject ?? '') ."',
-														'". db_escape_string($newAccount ?? '') ."',
-														'". db_escape_string($newAmount ?? '') ."',
-														'". db_escape_string($newDate ?? '') ."'
-													)";
-													db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-												}
-											} else {
-												error_log("Failed to update .info file: $newPath");
-											}
-										}
-									//
-								} else {
-									error_log("Rename failed: $oldPath → $newPath");
 								}
-						    #}
-						}
-					}
-
-					// ✅ Example: Check if PDF exists before further use 
-					$pdfPath = "$puljePath/$newBase.pdf";
-					if (!file_exists($pdfPath)) {
-						#error_log("⚠️ PDF file does not exist after renaming: $pdfPath");
-					} else {
-						// e.g. copy to saldibilag if needed
-						$targetPath = str_replace('/bilag/', '/saldibilag/', $pdfPath); 
-						
-						//Remove only the first occurrence of '..'
-						$targetPath = preg_replace('/\.\./', '', $targetPath, 1); 
-						
-						if (!file_exists($targetPath)) {
-							if (copy($pdfPath, $targetPath)) {
-								#error_log("✅ Copied PDF to: $targetPath");
 							} else {
-								error_log("Failed to copy PDF to: $targetPath");
+								error_log("Failed to rename: $oldPath -> $newPath");
 							}
-						}else{
-							#error_log("File already exists: $targetPath"); 
 						}
 					}
-
-					// ✅ Safe file deletion (instead of `rm '*'`)
-					/*
-					$cleanupFiles = glob("$puljePath/tmp_*"); // example pattern
-					foreach ($cleanupFiles as $fileToRemove) {
-						if (is_file($fileToRemove)) {
-							unlink($fileToRemove);
-							error_log("🗑️ Deleted: $fileToRemove");
-						}
-					}
-					*/
-
-					// Update poolFile to reflect renamed main file
-					$poolFile = $renamedPoolFile;
-				}
-				
-				// Handle case where we're updating metadata without renaming
-				// If rename is set but filename hasn't changed, still update .info and database
-				if ($rename && ($newAccount || $newAmount || $newSubject || $newDate) && $poolFile) {
-					$puljePath = "$docFolder/$db/pulje";
-					$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
-					$infoFile = "$puljePath/$baseName.info";
 					
-					if (file_exists($infoFile)) {
-						// Update .info file
-						$infoSubject = $newSubject ?? '';
-						if (empty($infoSubject)) {
-							$infoSubject = $baseName;
-						}
-						$infoLines = [
-							$infoSubject,
-							$newAccount ?? '',
-							$newAmount ?? '',
-							$newDate ?? '',
-							$newInvoiceNumber ?? '',
-							$newInvoiceDescription ?? ''
-						];
+					// Update Database - Do this cleanly after renames
+					if ($renamedPdf) {
+						$oldFilename = $origBase . '.pdf';
+						$newFilename = $newBase . '.pdf';
 						
-						if (file_put_contents($infoFile, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
-							// Save to database
-							$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
-							if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-								$qtxt = "CREATE TABLE pool_files (
-									id serial NOT NULL,
-									filename varchar(255) NOT NULL,
-									subject text,
-									account varchar(50),
-									amount varchar(50),
-									file_date varchar(50),
-									updated timestamp DEFAULT CURRENT_TIMESTAMP,
-									PRIMARY KEY (id),
-									UNIQUE(filename)
-								)";
-								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-							}
-							
-							// Save or update in database
-							$qtxt = "SELECT id FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
-							$existing = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-							
-							if ($existing) {
-								// Update existing record
-								$qtxt = "UPDATE pool_files SET 
-									subject = '". db_escape_string($infoSubject) ."',
-									account = '". db_escape_string($newAccount ?? '') ."',
-									amount = '". db_escape_string($newAmount ?? '') ."',
-									file_date = '". db_escape_string($newDate ?? '') ."',
-									updated = CURRENT_TIMESTAMP
-									WHERE filename = '". db_escape_string($poolFile) ."'";
-								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-							} else {
-								// Insert new record
-								$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date) VALUES (
-									'". db_escape_string($poolFile) ."',
-									'". db_escape_string($infoSubject) ."',
-									'". db_escape_string($newAccount ?? '') ."',
-									'". db_escape_string($newAmount ?? '') ."',
-									'". db_escape_string($newDate ?? '') ."'
-								)";
-								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-							}
+						// Ensure table exists
+						$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
+						if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+							// Create logic if needed, but assuming it exists or created by _docPoolData
+							$qtxt = "CREATE TABLE IF NOT EXISTS pool_files (
+								id serial NOT NULL,
+								filename varchar(255) NOT NULL,
+								subject text,
+								account varchar(50),
+								amount varchar(50),
+								file_date varchar(50),
+								invoice_number varchar(100),
+								description text,
+								updated timestamp DEFAULT CURRENT_TIMESTAMP,
+								PRIMARY KEY (id),
+								UNIQUE(filename)
+							)";
+							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						}
-					}
-				}
-
-				// ✅ Prevent undefined variable warnings
-				$modDate = $modDate ?? '';
-
-
-
-		###############
+						
+						// Check if old record exists
+						$qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($oldFilename) . "'";
+						$existing = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						
+						if ($existing) {
+							// Update filename and metadata of existing record
+							$qtxt = "UPDATE pool_files SET 
+								filename = '" . db_escape_string($newFilename) . "',
+								subject = '" . db_escape_string($newSubject ?: $newBase) . "',
+								updated = CURRENT_TIMESTAMP";
+								
+							if ($newAccount) $qtxt .= ", account = '" . db_escape_string($newAccount) . "'";
+							if ($newAmount) $qtxt .= ", amount = '" . db_escape_string($newAmount) . "'";
+							if ($newDate) $qtxt .= ", file_date = '" . db_escape_string($newDate) . "'";
+							if ($newInvoiceNumber) $qtxt .= ", invoice_number = '" . db_escape_string($newInvoiceNumber) . "'";
+							if ($newInvoiceDescription) $qtxt .= ", description = '" . db_escape_string($newInvoiceDescription) . "'";
+							
+							$qtxt .= " WHERE id = '" . $existing['id'] . "'";
+							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						} else {
+							// Insert new record if old didn't exist
+							$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+								'" . db_escape_string($newFilename) . "',
+								'" . db_escape_string($newSubject ?: $newBase) . "',
+								'" . db_escape_string($newAccount ?: '') . "',
+								'" . db_escape_string($newAmount ?: '') . "',
+								'" . db_escape_string($newDate ?: '') . "',
+								'" . db_escape_string($newInvoiceNumber ?: '') . "',
+								'" . db_escape_string($newInvoiceDescription ?: '') . "'
+							)";
+							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						}
+						
+				// Update documents table if exists
+						$qtxt = "UPDATE documents SET filename = '" . db_escape_string($newFilename) . "', 
+								filepath = '" . db_escape_string("$puljePath/$newFilename") . "' 
+								WHERE source = 'pulje' AND filename = '" . db_escape_string($oldFilename) . "'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						}
+				
+				// Note: We are no longer writing to .info files, but we leave existing ones (renamed)
+				// Future cleanup can remove them.
+			}
 	}
+	
+	// Handle case where we're updating metadata without renaming
+	$logFile = "../temp/docpool_edit_debug.log";
+	file_put_contents($logFile, date('Y-m-d H:i:s') . " - Before metadata update check: rename=$rename, poolFile=$poolFile\n", FILE_APPEND);
+	file_put_contents($logFile, date('Y-m-d H:i:s') . " - Fields: newAccount='$newAccount', newAmount='$newAmount', newSubject='$newSubject'\n", FILE_APPEND);
+	file_put_contents($logFile, date('Y-m-d H:i:s') . " - Fields: newDate='$newDate', newInvoiceNumber='$newInvoiceNumber', newInvoiceDescription='$newInvoiceDescription'\n", FILE_APPEND);
+		
+	if ($rename && ($newAccount || $newAmount || $newSubject || $newDate || $newInvoiceNumber || $newInvoiceDescription) && $poolFile) {
+		// Direct Database Update
+		$qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($poolFile) . "'";
+		$existing = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		
+		if ($existing) {
+			// Update existing
+			$logFile = "../temp/docpool_edit_debug.log";
+			file_put_contents($logFile, date('Y-m-d H:i:s') . " - docPool EDIT - Updating database for poolFile=$poolFile, id=" . $existing['id'] . "\n", FILE_APPEND);
+			$qtxt = "UPDATE pool_files SET updated = CURRENT_TIMESTAMP";
+			if ($newSubject) $qtxt .= ", subject = '" . db_escape_string($newSubject) . "'";
+			if ($newAccount) $qtxt .= ", account = '" . db_escape_string($newAccount) . "'";
+			if ($newAmount) $qtxt .= ", amount = '" . db_escape_string($newAmount) . "'";
+			if ($newDate) $qtxt .= ", file_date = '" . db_escape_string($newDate) . "'";
+			if ($newInvoiceNumber) $qtxt .= ", invoice_number = '" . db_escape_string($newInvoiceNumber) . "'";
+			if ($newInvoiceDescription) $qtxt .= ", description = '" . db_escape_string($newInvoiceDescription) . "'";
+			
+			$qtxt .= " WHERE id = '" . $existing['id'] . "'";
+			$logFile = "../temp/docpool_edit_debug.log";
+			file_put_contents($logFile, date('Y-m-d H:i:s') . " - docPool EDIT - SQL: $qtxt\n", FILE_APPEND);
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		} else {
+			// Insert if missing (shouldn't happen usually)
+			$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
+			$subject = $newSubject ?: $baseName;
+			
+			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+				'" . db_escape_string($poolFile) . "',
+				'" . db_escape_string($subject) . "',
+				'" . db_escape_string($newAccount ?: '') . "',
+				'" . db_escape_string($newAmount ?: '') . "',
+				'" . db_escape_string($newDate ?: '') . "',
+				'" . db_escape_string($newInvoiceNumber ?: '') . "',
+				'" . db_escape_string($newInvoiceDescription ?: '') . "'
+			)";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+	}
+
+	// ✅ Prevent undefined variable warnings
+	$modDate = $modDate ?? '';
+
+
+
+	###############
 	if ($unlink && $unlinkFile) {
 		
 		#if ($descFile) unlink("../".$docFolder."/$db/pulje/$descFile");
@@ -705,12 +818,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				}
 				
 				// Remove from database
-				$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
-				if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					$filename = $unlinkFile;
-					$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($filename) ."'";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
+				// Remove from database
+				$filename = $unlinkFile;
+				$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($filename) ."'";
+				// We execute directly because the table should exist (synced on load) and schema checks might be unreliable
+				@db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 
 		}elseif (isset($_POST['poolFile'])) {
@@ -766,7 +878,23 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$latestTime = 0;
 	// Don't auto-select latest file when coming from kassekladde - let user choose
 	if (!$poolFile && $source != 'kassekladde') {
-		if (is_dir($dir)) {
+		// Optimization: Try DB first to find latest file
+		// Check table existence first to avoid errors during migration
+		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+		$hasTable = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		
+		$foundInDb = false;
+		if ($hasTable) {
+			$qtxt = "SELECT filename FROM pool_files ORDER BY file_date DESC, updated DESC LIMIT 1";
+			$latestRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			
+			if ($latestRow) {
+				$poolFile = $latestRow['filename'];
+				$foundInDb = true;
+			}
+		}
+		
+		if (!$foundInDb && is_dir($dir)) {
 			if ($dh = opendir($dir)) {
 				while (($file = readdir($dh)) !== false) {
 					// Check for .pdf file (case-insensitive), skip hidden files
@@ -2643,6 +2771,8 @@ window.extractAllPoolFiles = async function() {
 					if (extracted.amount) saveData.append('newAmount', extracted.amount);
 					if (extracted.date) saveData.append('newDate', extracted.date);
 					if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
+					if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
+					if (extracted.description) saveData.append('newDescription', extracted.description);
 					
 					const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
 						method: 'POST',
@@ -3158,10 +3288,40 @@ JS;
 							}
 						});
 					})
-					.then(function(data) {
+					.then(async function(data) {
 						if (data && data.success) {
 							uploadedCount++;
 							lastUploadedFilename = data.filename;
+
+							// Auto-extract and save information from API
+							try {
+								const extractFormData = new FormData();
+								extractFormData.append('action', 'extract');
+								extractFormData.append('poolFile', data.filename);
+								extractFormData.append('db', '$db');
+								extractFormData.append('docFolder', '$docFolder');
+								
+								const extRes = await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: extractFormData });
+								const extData = await extRes.json();
+								
+								if (extData.success && extData.data) {
+									const svData = new FormData();
+									svData.append('action', 'save');
+									svData.append('poolFile', data.filename);
+									svData.append('db', '$db');
+									
+									const d = extData.data;
+									if(d.amount) svData.append('newAmount', d.amount);
+									if(d.date) svData.append('newDate', d.date);
+									if(d.vendor) svData.append('newSubject', d.vendor);
+									if(d.invoiceNumber) svData.append('newInvoiceNumber', d.invoiceNumber);
+									if(d.description) svData.append('newDescription', d.description);
+									
+									await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: svData });
+								}
+							} catch(e) { 
+								console.error('Auto-extract failed', e); 
+							}
 						} else {
 							failedCount++;
 							console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
@@ -4041,8 +4201,6 @@ print <<<HTML
 			// Always update filename's basename with the subject's value when subject changes
 			// TRIM the subject value to avoid trailing spaces becoming underscores
 			fileInput.value = subjectInput.value.trim() + extension;
-		}
-	}
 		}
 	}
 	</script>

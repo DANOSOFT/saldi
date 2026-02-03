@@ -27,6 +27,20 @@ if (!preg_match('/^[a-zA-Z0-9_]+$/', $db)) {
 	exit;
 }
 
+// Connect to the specific database
+if ($db) {
+	global $sqhost, $squser, $sqpass;
+	// Close previous connection if exists (optional but good practice)
+	// pg_close($connection); // db_connect usually handles new connection, but we just overwrite variable
+	$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
+	
+	if (!$connection) {
+		ob_end_clean();
+		echo json_encode(['success' => false, 'error' => 'Kunne ikke forbinde til database: ' . $db]);
+		exit;
+	}
+}
+
 // Include the extraction API
 include_once("invoiceExtractionApi.php");
 
@@ -52,9 +66,6 @@ $puljePath = "../" . $docFolder . "/$db/pulje";
 
 // Normalize the path to handle potential double-slashes
 $puljePath = preg_replace('#/+#', '/', $puljePath);
-
-// Debug: log the constructed paths
-error_log("extractInvoiceHandler: docFolder=$docFolder, db=$db, puljePath=$puljePath, poolFile=$poolFile");
 
 $filePath = "$puljePath/$poolFile";
 
@@ -110,7 +121,7 @@ if ($action === 'extract') {
 	exit;
 }
 
-// Action: save - Save extracted data to the .info file
+// Action: save - Save extracted data to the database
 if ($action === 'save') {
 	$newAmount = isset($_POST['newAmount']) ? $_POST['newAmount'] : '';
 	$newDate = isset($_POST['newDate']) ? $_POST['newDate'] : '';
@@ -120,14 +131,8 @@ if ($action === 'save') {
 	$newDescription = isset($_POST['newDescription']) ? $_POST['newDescription'] : '';
 	
 	$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
-	$infoFile = "$puljePath/$baseName.info";
 	
-	// Debug log
-	error_log("extractInvoiceHandler SAVE: poolFile=$poolFile, baseName=$baseName, infoFile=$infoFile");
-	error_log("extractInvoiceHandler SAVE: newAmount=$newAmount, newDate=$newDate, newSubject=$newSubject");
-	error_log("extractInvoiceHandler SAVE: newInvoiceNumber=$newInvoiceNumber, newDescription=$newDescription");
-	
-	// Read existing .info file if it exists
+	// Read existing data from database
 	$existingSubject = '';
 	$existingAccount = '';
 	$existingAmount = '';
@@ -135,22 +140,33 @@ if ($action === 'save') {
 	$existingInvoiceNumber = '';
 	$existingDescription = '';
 	
-	if (file_exists($infoFile)) {
-		$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
-		// Check if file() returned false (read failure)
-		if ($infoLines !== false && is_array($infoLines)) {
-			$existingSubject = isset($infoLines[0]) ? trim($infoLines[0]) : '';
-			$existingAccount = isset($infoLines[1]) ? trim($infoLines[1]) : '';
-			$existingAmount = isset($infoLines[2]) ? trim($infoLines[2]) : '';
-			$existingDate = isset($infoLines[3]) ? trim($infoLines[3]) : '';
-			$existingInvoiceNumber = isset($infoLines[4]) ? trim($infoLines[4]) : '';
-			$existingDescription = isset($infoLines[5]) ? trim($infoLines[5]) : '';
-			error_log("extractInvoiceHandler SAVE: Read existing - subject=$existingSubject, account=$existingAccount, amount=$existingAmount, date=$existingDate, invoiceNumber=$existingInvoiceNumber, description=$existingDescription");
-		} else {
-			error_log("extractInvoiceHandler SAVE: file() failed or returned non-array for $infoFile");
-		}
+	$qtxt = "SELECT * FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
+	$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	
+	if ($existingRow) {
+		$existingSubject = $existingRow['subject'] ?? '';
+		$existingAccount = $existingRow['account'] ?? '';
+		$existingAmount = $existingRow['amount'] ?? '';
+		$existingDate = $existingRow['file_date'] ?? '';
+		$existingInvoiceNumber = $existingRow['invoice_number'] ?? '';
+		$existingDescription = $existingRow['description'] ?? '';
+		
+		// If date in DB is in Y-m-d H:i:s format, we might want to standardize, but let's keep it as is
+		// logic below handles newDate overrides
 	} else {
-		error_log("extractInvoiceHandler SAVE: Info file does not exist: $infoFile");
+		// Fallback to .info file ONLY if not in DB (migration path)
+		$infoFile = "$puljePath/$baseName.info";
+		if (file_exists($infoFile)) {
+			$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
+			if ($infoLines !== false && is_array($infoLines)) {
+				$existingSubject = isset($infoLines[0]) ? trim($infoLines[0]) : '';
+				$existingAccount = isset($infoLines[1]) ? trim($infoLines[1]) : '';
+				$existingAmount = isset($infoLines[2]) ? trim($infoLines[2]) : '';
+				$existingDate = isset($infoLines[3]) ? trim($infoLines[3]) : '';
+				$existingInvoiceNumber = isset($infoLines[4]) ? trim($infoLines[4]) : '';
+				$existingDescription = isset($infoLines[5]) ? trim($infoLines[5]) : '';
+			}
+		}
 	}
 	
 	// Use new values if provided, otherwise keep existing
@@ -172,56 +188,32 @@ if ($action === 'save') {
 		}
 	}
 	
-	error_log("extractInvoiceHandler SAVE: Final values - subject=$finalSubject, account=$finalAccount, amount=$finalAmount, date=$finalDate, invoiceNumber=$finalInvoiceNumber, description=$finalDescription");
-	
-	// Write to .info file
-	$infoLinesToWrite = [
-		$finalSubject,
-		$finalAccount,
-		$finalAmount,
-		$finalDate,
-		$finalInvoiceNumber,
-		$finalDescription
-	];
-	
-	if (file_put_contents($infoFile, implode(PHP_EOL, $infoLinesToWrite) . PHP_EOL) !== false) {
-		// Also update the database if pool_files table exists
-		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
-		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$filename = $poolFile;
-			$qtxt = "SELECT id FROM pool_files WHERE filename = '". db_escape_string($filename) ."'";
-			$existing = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			
-			if ($existing) {
-				$qtxt = "UPDATE pool_files SET 
-					subject = '". db_escape_string($finalSubject) ."',
-					account = '". db_escape_string($finalAccount) ."',
-					amount = '". db_escape_string($finalAmount) ."',
-					invoice_number = '". db_escape_string($finalInvoiceNumber) ."',
-					description = '". db_escape_string($finalDescription) ."',
-					file_date = '". db_escape_string($finalDate) ."',
-					updated = CURRENT_TIMESTAMP
-					WHERE filename = '". db_escape_string($filename) ."'";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			} else {
-				$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
-					'". db_escape_string($filename) ."',
-					'". db_escape_string($finalSubject) ."',
-					'". db_escape_string($finalAccount) ."',
-					'". db_escape_string($finalAmount) ."',
-					'". db_escape_string($finalDate) ."',
-					'". db_escape_string($finalInvoiceNumber) ."',
-					'". db_escape_string($finalDescription) ."'
-				)";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-		}
-		
-		echo json_encode(['success' => true]);
+	// Update or Insert into Database
+	if ($existingRow) {
+		$qtxt = "UPDATE pool_files SET 
+			subject = '". db_escape_string($finalSubject) ."',
+			account = '". db_escape_string($finalAccount) ."',
+			amount = '". db_escape_string($finalAmount) ."',
+			invoice_number = '". db_escape_string($finalInvoiceNumber) ."',
+			description = '". db_escape_string($finalDescription) ."',
+			file_date = '". db_escape_string($finalDate) ."',
+			updated = CURRENT_TIMESTAMP
+			WHERE filename = '". db_escape_string($poolFile) ."'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	} else {
-		error_log("extractInvoiceHandler SAVE: file_put_contents failed for $infoFile");
-		echo json_encode(['success' => false, 'error' => 'Kunne ikke gemme til .info fil']);
+		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+			'". db_escape_string($poolFile) ."',
+			'". db_escape_string($finalSubject) ."',
+			'". db_escape_string($finalAccount) ."',
+			'". db_escape_string($finalAmount) ."',
+			'". db_escape_string($finalDate) ."',
+			'". db_escape_string($finalInvoiceNumber) ."',
+			'". db_escape_string($finalDescription) ."'
+		)";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
+	
+	echo json_encode(['success' => true]);
 	exit;
 }
 
@@ -258,7 +250,7 @@ if ($action === 'delete') {
 	}
 	
 	// Remove from database if pool_files table exists
-	$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+	$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
 	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
