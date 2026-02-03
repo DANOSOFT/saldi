@@ -1720,7 +1720,6 @@ print '<style>
         /* Reset sticky and fixed positioning */
         .kassekladde-thead {
             position: static !important;
-            background-color: transparent !important;
         }
         
         * {
@@ -3793,10 +3792,10 @@ document.addEventListener('DOMContentLoaded', function() {
     position: sticky;
     top: 0;
     z-index: 10;
-	background-color: <?php echo $bgColor; ?> !important;
+	background-color: <?php echo $bgcolor; ?> !important;
 }
 .datatable thead tr, .datatable thead th{
-	background-color: <?php echo $bgColor; ?> !important;
+	background-color: <?php echo $bgcolor; ?> !important;
 }
 
 /* Sticky footer outside the scroll container */
