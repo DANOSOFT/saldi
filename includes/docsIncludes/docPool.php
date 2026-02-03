@@ -1010,6 +1010,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		}
 	</style>";
 
+	$perfLog = "../temp/docpool_perf.log";
+	if (!isset($startTime)) $startTime = microtime(true);
 	file_put_contents($perfLog, sprintf("Time: %.4f - Before HTML output\n", microtime(true) - $startTime), FILE_APPEND);
 	
 	print "<form name=\"gennemse\" action=\"documents.php?$params&$poolParams\" method=\"post\">\n";
