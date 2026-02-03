@@ -42,10 +42,6 @@ include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
-$docStartTime = microtime(true);
-$perfLog = __DIR__ . "/../temp/perf_debug.log";
-file_put_contents($perfLog, date('Y-m-d H:i:s') . " - START documents.php\n", FILE_APPEND);
-
 $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=$unlinkDoc=null;
 if (!isset($menu)) $menu = null;
 
@@ -1219,7 +1215,6 @@ if ($openPool) {
 				$skipCleanup = get_settings_value("skip_sync", "docs", 0);
 				
 				if (is_dir($finalDestination) && !$skipCleanup) {
-					file_put_contents($perfLog, sprintf("Time: %.4f - documents.php: Starting cleanup scan (lines 1215+)\n", microtime(true) - $docStartTime), FILE_APPEND);
 					################start convert all .png, jpeg, jpg to .pdf and create .info file for them
 							$allowedImageExts = ['jpg', 'jpeg', 'png'];
 							$files = scandir($finalDestination);
@@ -1317,7 +1312,6 @@ if ($openPool) {
 				error_log("Directory does not exist: $dbFolder");
 			}
 		} 
-		file_put_contents($perfLog, sprintf("Time: %.4f - documents.php: Finished cleanup scan\n", microtime(true) - $docStartTime), FILE_APPEND);
 
 	// Include docPool directly without any table structure
 	// if folder bilag/$db/pulje dosent exist, create it
