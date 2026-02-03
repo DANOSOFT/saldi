@@ -398,7 +398,6 @@ setInterval(checkRefreshCookie, 500);
   <div id="desc-line">
     <a href="#" onclick="window.frames['iframe_a'].focus();
                            window.frames['iframe_a'].print();">Print</a>
-    <p><a href="menu.php?useMain=off"><?php echo findtekst('2680|Gl. design', $sprog_id);?></a></p>
     <p title="DB nummer <?php print $db; ?>">Saldi version <?php print $version; ?></p>
   </div>
 </div>

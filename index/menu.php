@@ -56,12 +56,10 @@ $modulnr=0;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-if (isset($_GET['useMain']))	 {
-	($_GET['useMain'] == 'on')?$menu = 'S':$menu = '';
-	$qtxt = "update grupper set box3 ='$menu' where  art = 'USET' and kodenr = '$bruger_id'"; 
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$_SESSION['UserName'] = $brugernavn;
-}
+$menu = 'S';
+$qtxt = "update grupper set box3 ='$menu' where  art = 'USET' and kodenr = '$bruger_id'"; 
+db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+$_SESSION['UserName'] = $brugernavn;
 if ($menu == 'S') {
 	$_SESSION['UserName'] = $brugernavn;
 	print "<script>try {parent.location.href = '../index/main.php'} catch {window.location.href = '../index/main.php'}</script>";
