@@ -1833,10 +1833,11 @@ SCRIPT;
  */
 
 function render_ajax_search_script($id) {
-    global $o_art, $fokus, $bgcolor, $bgcolor5;
+    global $o_art_global, $fokus, $bgcolor, $bgcolor5, $ordre_id;
     
     // Determine the correct href based on order type
-    $href = ($o_art === 'PO' || $o_art == 'KO') ? "pos_ordre.php" : "ordre.php";
+    $href = ($o_art_global === 'PO' || $o_art_global == 'KO') ? "pos_ordre.php" : "ordre.php";
+
     
     echo <<<SCRIPT
     <script>
@@ -1949,7 +1950,7 @@ function render_ajax_search_script($id) {
                     if (field === 'kontonr') {
                         // Use row.id for konto_id parameter (this is the account ID from database)
                         var link = $('<a>')
-                            .attr('href', '$href?fokus=$fokus&konto_id=' + (row.id || ''))
+                            .attr('href', '$href?id=$ordre_id&fokus=$fokus&konto_id=' + (row.id || ''))
                             .text(row[field] || '')
                             .css('color', 'inherit')
                             .css('text-decoration', 'none')
@@ -1971,7 +1972,7 @@ function render_ajax_search_script($id) {
                     if (!$(e.target).is('a') && !$(e.target).parents('a').length) {
                        
                         // Use row.id for konto_id parameter
-                        var redirectUrl = '$href?fokus=$fokus&konto_id=' + (row.id || '');
+                        var redirectUrl = '$href?id=$ordre_id&fokus=$fokus&konto_id=' + (row.id || '');
                         
                         window.location.href = redirectUrl;
                     }
