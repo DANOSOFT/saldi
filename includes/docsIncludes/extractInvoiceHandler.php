@@ -47,6 +47,83 @@ include_once("invoiceExtractionApi.php");
 // Discard any buffered output from includes
 ob_end_clean();
 
+/**
+ * Normalize date format from various formats to Y-m-d
+ * Handles Danish month names like "januar", "februar", etc.
+ * Also handles formats like "17.oktober.2025", "17-10-2025", "2025-10-17", etc.
+ */
+function normalizeDateFormat($dateStr) {
+	if (empty($dateStr)) {
+		return '';
+	}
+	
+	// Danish month names to numbers
+	$danishMonths = [
+		'januar' => '01', 'jan' => '01',
+		'februar' => '02', 'feb' => '02',
+		'marts' => '03', 'mar' => '03',
+		'april' => '04', 'apr' => '04',
+		'maj' => '05',
+		'juni' => '06', 'jun' => '06',
+		'juli' => '07', 'jul' => '07',
+		'august' => '08', 'aug' => '08',
+		'september' => '09', 'sep' => '09', 'sept' => '09',
+		'oktober' => '10', 'okt' => '10', 'oct' => '10',
+		'november' => '11', 'nov' => '11',
+		'december' => '12', 'dec' => '12'
+	];
+	
+	// Clean up the date string
+	$dateStr = trim($dateStr);
+	$originalDate = $dateStr;
+	
+	// Convert to lowercase for matching
+	$lowerDate = strtolower($dateStr);
+	
+	// Replace Danish month names with numbers
+	foreach ($danishMonths as $monthName => $monthNum) {
+		if (stripos($lowerDate, $monthName) !== false) {
+			// Found a Danish month name, try to parse
+			// Pattern: day.monthname.year or day monthname year
+			if (preg_match('/(\d{1,2})[.\s\-]+' . preg_quote($monthName, '/') . '[.\s\-]+(\d{4}|\d{2})/i', $dateStr, $matches)) {
+				$day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+				$year = $matches[2];
+				// Handle 2-digit year
+				if (strlen($year) == 2) {
+					$year = ($year > 50 ? '19' : '20') . $year;
+				}
+				return $year . '-' . $monthNum . '-' . $day;
+			}
+		}
+	}
+	
+	// Try standard formats
+	// Format: dd.mm.yyyy or dd-mm-yyyy or dd/mm/yyyy
+	if (preg_match('/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{4})$/', $dateStr, $matches)) {
+		$day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+		$month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+		$year = $matches[3];
+		return $year . '-' . $month . '-' . $day;
+	}
+	
+	// Format: yyyy-mm-dd (already correct)
+	if (preg_match('/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})$/', $dateStr, $matches)) {
+		$year = $matches[1];
+		$month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+		$day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+		return $year . '-' . $month . '-' . $day;
+	}
+	
+	// Try PHP's strtotime as fallback
+	$timestamp = strtotime($dateStr);
+	if ($timestamp !== false && $timestamp > 0) {
+		return date('Y-m-d', $timestamp);
+	}
+	
+	// Return original if nothing worked
+	return $originalDate;
+}
+
 // Get action and poolFile from POST
 $action = isset($_POST['action']) ? $_POST['action'] : '';
 $poolFile = isset($_POST['poolFile']) ? $_POST['poolFile'] : '';
@@ -105,11 +182,14 @@ if ($action === 'extract') {
 	$result = extractInvoiceData($filePath, $invoiceId);
 	
 	if ($result !== null) {
+		// Normalize date format (handles Danish months like "17.oktober.2025")
+		$normalizedDate = isset($result['date']) ? normalizeDateFormat($result['date']) : null;
+		
 		echo json_encode([
 			'success' => true,
 			'data' => [
 				'amount' => $result['amount'] ?? null,
-				'date' => $result['date'] ?? null,
+				'date' => $normalizedDate,
 				'vendor' => $result['vendor'] ?? null,
 				'invoiceNumber' => $result['invoiceNumber'] ?? null,
 				'description' => $result['description'] ?? null
@@ -176,17 +256,9 @@ if ($action === 'save') {
 	$finalInvoiceNumber = !empty($newInvoiceNumber) ? $newInvoiceNumber : $existingInvoiceNumber;
 	$finalDescription = !empty($newDescription) ? $newDescription : $existingDescription;
 	
-	// Format date to yyyy-mm-dd if provided
+	// Format date using the normalization function (handles Danish months, etc.)
 	$dateToUse = !empty($newDate) ? $newDate : $existingDate;
-	$finalDate = '';
-	if (!empty($dateToUse)) {
-		$timestamp = strtotime($dateToUse);
-		if ($timestamp !== false && $timestamp > 0) {
-			$finalDate = date('Y-m-d', $timestamp);
-		} else {
-			$finalDate = $dateToUse; // Keep original if parsing fails
-		}
-	}
+	$finalDate = normalizeDateFormat($dateToUse);
 	
 	// Update or Insert into Database
 	if ($existingRow) {

@@ -76,7 +76,132 @@ if ($moveDoc) {
 	$new.= "/$tmpA[$x]";
 	$new = str_replace(' ','',$new);
 	
-	// Delete from database
+	// Move the actual file to pulje
+	if (file_exists($moveDoc) && !file_exists($new)) {
+		$moveResult = rename($moveDoc, $new);
+		if (!$moveResult) {
+			echo '<script type="text/javascript">';
+			echo "alert('Kunne ikke flytte filen til pulje.');";
+			echo "window.history.back();";
+			echo '</script>';
+			exit;
+		}
+	} elseif (file_exists($new)) {
+		// File already exists in pulje
+		echo '<script type="text/javascript">';
+		echo "alert('Filen findes allerede i pulje.');";
+		echo "window.history.back();";
+		echo '</script>';
+		exit;
+	}
+	
+	// Insert into pool_files database table
+	$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
+	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+		$fileDate = date("Y-m-d H:i:s");
+		
+		// Check if entry already exists
+		$qtxt = "SELECT id FROM pool_files WHERE filename = '". db_escape_string($fileName) ."'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+				'". db_escape_string($fileName) ."',
+				'". db_escape_string($baseName) ."',
+				'',
+				'',
+				'". db_escape_string($fileDate) ."',
+				'',
+				''
+			)";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+	}
+	
+	// Call the extraction API to get invoice data
+	$extractionSuccess = false;
+	$puljePath = dirname($new);
+	$extractFilePath = $new;
+	
+	if (file_exists($extractFilePath) && strtolower(pathinfo($fileName, PATHINFO_EXTENSION)) === 'pdf') {
+		// Include the extraction API
+		include_once("docsIncludes/invoiceExtractionApi.php");
+		
+		if (function_exists('extractInvoiceData')) {
+			$invoiceId = 'move-' . pathinfo($fileName, PATHINFO_FILENAME) . '-' . time();
+			$extractResult = extractInvoiceData($extractFilePath, $invoiceId);
+			
+			if ($extractResult !== null) {
+				// Update pool_files with extracted data
+				$updateFields = [];
+				if (!empty($extractResult['amount'])) {
+					$updateFields[] = "amount = '". db_escape_string($extractResult['amount']) ."'";
+				}
+				if (!empty($extractResult['date'])) {
+					// Normalize date format (handles Danish months like "17.oktober.2025")
+					$dateStr = $extractResult['date'];
+					$danishMonths = [
+						'januar' => '01', 'jan' => '01',
+						'februar' => '02', 'feb' => '02',
+						'marts' => '03', 'mar' => '03',
+						'april' => '04', 'apr' => '04',
+						'maj' => '05',
+						'juni' => '06', 'jun' => '06',
+						'juli' => '07', 'jul' => '07',
+						'august' => '08', 'aug' => '08',
+						'september' => '09', 'sep' => '09', 'sept' => '09',
+						'oktober' => '10', 'okt' => '10', 'oct' => '10',
+						'november' => '11', 'nov' => '11',
+						'december' => '12', 'dec' => '12'
+					];
+					$lowerDate = strtolower($dateStr);
+					$foundMonth = false;
+					foreach ($danishMonths as $monthName => $monthNum) {
+						if (stripos($lowerDate, $monthName) !== false) {
+							if (preg_match('/(\d{1,2})[.\s\-]+' . preg_quote($monthName, '/') . '[.\s\-]+(\d{4}|\d{2})/i', $dateStr, $matches)) {
+								$day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+								$year = $matches[2];
+								if (strlen($year) == 2) {
+									$year = ($year > 50 ? '19' : '20') . $year;
+								}
+								$dateStr = $year . '-' . $monthNum . '-' . $day;
+								$foundMonth = true;
+								break;
+							}
+						}
+					}
+					if (!$foundMonth) {
+						// Try dd.mm.yyyy format
+						if (preg_match('/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{4})$/', $dateStr, $matches)) {
+							$dateStr = $matches[3] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+						} else {
+							$timestamp = strtotime($dateStr);
+							if ($timestamp !== false && $timestamp > 0) {
+								$dateStr = date('Y-m-d', $timestamp);
+							}
+						}
+					}
+					$updateFields[] = "file_date = '". db_escape_string($dateStr) ."'";
+				}
+				if (!empty($extractResult['vendor'])) {
+					$updateFields[] = "subject = '". db_escape_string($extractResult['vendor']) ."'";
+				}
+				if (!empty($extractResult['invoiceNumber'])) {
+					$updateFields[] = "invoice_number = '". db_escape_string($extractResult['invoiceNumber']) ."'";
+				}
+				if (!empty($extractResult['description'])) {
+					$updateFields[] = "description = '". db_escape_string($extractResult['description']) ."'";
+				}
+				
+				if (!empty($updateFields)) {
+					$qtxt = "UPDATE pool_files SET ". implode(", ", $updateFields) .", updated = CURRENT_TIMESTAMP WHERE filename = '". db_escape_string($fileName) ."'";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					$extractionSuccess = true;
+				}
+			}
+		}
+	}
+	
+	// Delete from documents database
 	$qtxt = "delete from documents where source = '$source' and source_id = '$sourceId' ";
 	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);

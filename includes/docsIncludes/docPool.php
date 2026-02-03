@@ -2564,7 +2564,7 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 
 	// Store original values and actions
 	const cells = row.querySelectorAll('td');
-	const originalActions = cells.length >= 6 ? cells[5].innerHTML : '';
+	const originalActions = cells.length >= 8 ? cells[7].innerHTML : '';
 	 // Store original values
 	 console.log(subject, account, amount, date, invoiceNumber, description);
     row.dataset.originalValues = JSON.stringify({ 
