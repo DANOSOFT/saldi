@@ -210,12 +210,12 @@ else {
 }
 print "</tbody></table></td>";
 print "<td align=center><table border = '0' cellpadding= '0' cellspacing= '0'>";
-print "<tr><td colspan='2' ><button type='button' class='button gray medium' style='width:100%; $buttonStyle' onclick=\"window.location.href='orderIncludes/dropshipping.php?id=$id'\">".findtekst('554|Leveringsadresse', $sprog_id)."</button></td></tr>\n";
+print "<tr><td colspan='2' ><button type='button' class='button gray medium' style='width:100%; cursor: pointer; $buttonStyle' onclick=\"window.location.href='orderIncludes/dropshipping.php?id=$id'\">".findtekst('554|Leveringsadresse', $sprog_id)."</button></td></tr>\n";
 print "<tr><td colspan='2' align=center><hr></td></tr>\n";
 print "<tr><td>".findtekst('360|Firmanavn', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_navn value='$lev_navn' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr1 value='$lev_addr1' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td></td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr2 value='$lev_addr2' onchange='javascript:docChange = true;'></td></tr>\n";
-print "<tr><td>".findtekst('549|Postnr, by', $sprog_id)."</td><td><input class='inputbox' type='text' size=4 name=lev_postnr value='$lev_postnr' onchange='javascript:docChange = true;'><input class='inputbox' type='text' size=19 name=lev_bynavn value='$lev_bynavn' onchange='javascript:docChange = true;'></td></tr>\n";
+print "<tr><td>".findtekst('549|Postnr, by', $sprog_id)."</td><td><input class='inputbox' type='text' size=4 name=lev_postnr value='$lev_postnr' onchange='javascript:docChange = true;'>&nbsp;<input class='inputbox' type='text' size=16 name=lev_bynavn value='$lev_bynavn' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>Att.:</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_kontakt value='$lev_kontakt' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst('2129|Rekv. nr.', $sprog_id).":</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='kundeordnr' value='$kundeordnr' onchange='javascript:docChange = true;'></td></tr>\n"; #20221104
 print "</td></tr></tbody></table></td>";
