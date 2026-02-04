@@ -37,12 +37,12 @@
 function syncPuljeFilesToDatabase($docFolder, $db) {
 	$puljePath = "$docFolder/$db/pulje";
 	
-	$skip = get_settings_value("skip_sync", "docs", 0);
-	$skip = get_settings_value("skip_sync", "docs", 0);
+/* 	$skip = get_settings_value("skip_sync", "docs", 0);
+
 	
 	if ($skip) {
 		return;
-	}
+	} */
 	// Always clean up .info files if directory exists (do this before any early returns)
 	if (is_dir($puljePath)) {
 		$infoFiles = glob("$puljePath/*.info");
@@ -159,7 +159,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
-	update_settings_value("skip_sync", "docs", 1, "Skip pool sync after initial run");
+	/* update_settings_value("skip_sync", "docs", 1, "Skip pool sync after initial run"); */
 }
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
