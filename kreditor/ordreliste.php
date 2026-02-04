@@ -29,6 +29,7 @@
 // 20240510 LOE fixed Undefined array key 1...file. Added a condition to list call on $firma
 // 20250415 LOE Updated some variables using if_isset and some clean up
 // 20251118 LOE Added datagrid for better performance and more features
+// 20260204 Saul Added more fields  in edit column for kreditor/order
 
 ob_start();
 @session_start();
