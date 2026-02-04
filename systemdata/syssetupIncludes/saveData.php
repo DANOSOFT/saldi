@@ -303,7 +303,7 @@ if ($_POST){
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
 				} elseif ($art[$x]=='SM'||$art[$x]=='KM'||$art[$x]=='YM'||$art[$x]=='EM') {
-					$qtxt = "SELECT kodenr FROM grupper WHERE id=$id[$x]<br>";
+					$qtxt = "SELECT kodenr FROM grupper WHERE id=$id[$x]";
 					$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 					$tmp=substr($art[$x],0,1).$r1['kodenr'];
 					if ($r1=db_fetch_array(db_select("SELECT id FROM kontoplan WHERE moms='$tmp' and regnskabsaar = $regnaar",__FILE__ . " linje " . __LINE__))) print "<BODY onLoad=\"javascript:alert('Der er referencer til $tmp i kontoplanen. $tmp ikke slettet!')\">";
