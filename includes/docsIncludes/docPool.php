@@ -1405,7 +1405,6 @@ print <<<JS
 							<span>&#9660;</span>
 						</div>
 					</th>
-
 					<th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>Beløb</span>
@@ -1418,7 +1417,6 @@ print <<<JS
 							<span>&#9660;</span>
 						</div>
 					</th>
-
 					<th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>Dato</span>
@@ -1732,10 +1730,8 @@ print <<<JS
 				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
 					"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
-
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.invoiceNumber) + "'>" + invoiceNumberCell + "</td>" +
-
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
 					"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
 					"</tr>";
@@ -1761,7 +1757,7 @@ print <<<JS
 		if (hasPerfectMatches && perfectMatchRows) {
 			const perfectFilesJson = JSON.stringify(perfectMatches).replace(/'/g, "&#39;");
 			perfectMatchHeader = "<tr style='background-color: #007bff; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + perfectFilesJson + ")' title='Klik for at vælge alle bilag med perfekt match'>" +
-				"<td colspan='8' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #007bff;'>" +
+				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #007bff;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.star + "</span>" +
 				"Perfekt match (beløb: " + escapeHTML(totalSum) + " + dato: " + escapeHTML(targetDate) + ") - " + perfectMatches.length + " fundet" +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
@@ -1773,7 +1769,7 @@ print <<<JS
 		if (hasAmountToMatch && exactMatches.length > 0 && matchingAmountRows) {
 			const exactFilesJson = JSON.stringify(exactMatches).replace(/'/g, "&#39;");
 			matchingHeader = "<tr style='background-color: #28a745; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + exactFilesJson + ")' title='Klik for at vælge alle bilag med beløb match'>" +
-				"<td colspan='8' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #28a745;'>" +
+				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #28a745;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.check + "</span>" +
 				"Beløb match (beløb: " + escapeHTML(totalSum) + ") - " + exactMatches.length + " fundet" +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
@@ -1785,7 +1781,7 @@ print <<<JS
 		if (hasDateOnlyMatches && dateMatchRows) {
 			const dateFilesJson = JSON.stringify(dateOnlyMatches).replace(/'/g, "&#39;");
 			dateMatchHeader = "<tr style='background-color: #17a2b8; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + dateFilesJson + ")' title='Klik for at vælge alle bilag med dato match'>" +
-				"<td colspan='8' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #17a2b8;'>" +
+				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #17a2b8;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.calendar + "</span>" +
 				"Dato match (" + escapeHTML(targetDate) + ") - " + dateOnlyMatches.length + " fundet" +
 				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
@@ -2416,6 +2412,7 @@ print <<<JS
 			} else {
 				console.log('Could not find file in docData. Available filenames:', docData.map(d => d.filename));
 			}
+		}
 		
 		// Always read beskrivelse from the editable input field (both new and existing entries)
 		const beskrivelseInputNew = document.getElementById('newEntryBeskrivelse');
