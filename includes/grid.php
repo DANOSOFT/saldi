@@ -301,7 +301,8 @@ function create_datagrid($id, $grid_data) {
      $rowCId = if_isset($rowC1,NULL,$id);
      $rowCdb = if_isset($r, NULL,"rowcount"); //properly use the if_isset to prevent too many error logs
      #$selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
-    $selectedrowcount = if_isset($rowCId, if_isset($rowCdb, 100));
+    $defaultRowCount = if_isset($grid_data, 100, 'defaultRowCount');
+    $selectedrowcount = if_isset($rowCId, if_isset($rowCdb, $defaultRowCount));
   
     // Use isset to avoid zero triggering if
     $offset =   isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
