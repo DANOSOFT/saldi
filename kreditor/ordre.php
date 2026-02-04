@@ -895,7 +895,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 					if ($status==2) $status=1;
 				}
 			}
-			if($submit != 'lookup'){
+			if($submit != 'lookup' && $submit != 'split'){
 				$query = db_select("select tidspkt from ordrer where id=$id and hvem='$brugernavn'",__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {
 					$qtxt="update ordrer set firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',postnr='$postnr',";
