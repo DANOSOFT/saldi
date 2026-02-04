@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-10-07--------------
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-02-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,143 +21,9 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
-// 2013-03-10 - Tilføjet mulighed for at give rabat på varer uden pris ved at skrive "r" efter prisen. Søg 20130310
-// 2013.05.07 - Tilføjet visning af kostpris v. mus over pris.
-// 2013.08.24 - Rettet i bogføringsrutine for funktion posbogfor så optælling af primosaldo kun fra start af aktivt regnskabsår,
-//	alternativt henter kasseprimo fra grupper (sættes under diverse > POS valg).
-// 2013.08.24	-	Rettet i funktion kassebeholdning så salg på kort nu ikke tæller fra alle kassers salg. (Tilføjet kasse_nr i transaktioner)
-// 2013.08.27	-	Fejl i funktion pos_txt_print "dkdecimal($dkkmodtaget2)" rettet til dkdecimal($modtaget2)
-// 2013.10.15	-	Manglende momsberegning v. mængderabat. Søg	20131015
-// 2013.12.05 -	En række tilretning vedr kasseintegration og afrunding til hele 50 ører. 
-// 2013.12.10	- Betalingsterminal aktiveres kun hvis kort er afmærket som betalingskort under diverse/pos_valg. Søg 20131210
-// 2014.01.29 - Indsat automatisk genkendelse af registrerede betalingskort, (Kun med integreret betalingsterminal) Søg 20140129, $kortnavn eller 'Betalingskort'
-// 2014.03.18 - Omdøbt funktion opret_ordre + div. kald til opret_posordre grundet konflikt med opret_ordre fra sagssystem
-// 2014.04.26 - Indsat vare id foran varenr i kald til opret_ordrelinje grundet ændring i funktionen (PHR - Danosoft) Søg 20140426 
-// 2014.05.08 - Indsat diverse til bordhåndtering, bruger nr fra ordrer til bordnummer (PHR - Danosoft) Søg 20140508 eller $bordnr 
-// 2014.05.26 - Indsat hentning af momssats fra ordre hvis den ikke er sat inden indsættelse af ordrelinje (PHR - Danosoft) Søg 20140526
-// 2014.05.27 - Flyttet hentning af momssats til under "opret_posordre" (PHR - Danosoft) Søg 20140527
-// 2014.06.03 - Tilføjet afd_navn til skærmtekst samme med kassenr (PHR - Danosoft) Søg 20140603
-// 2014.06.10	-	Tilføjet bordplan (PHR - Danosoft) - søg bordplan.
-// 2014.06.12	-	Lidt designændringer på bordplan (PHR - Danosoft) - søg bordplan.
-// 2014.06.12	-	Bordknapper disables hvis der er indsat varenummer i inputfelt fra pos knap eller vareopslag (PHR - Danosoft) - søg disabled og bord.
-// 2014.06.13 - Bogføring blev ikke afbrudt ved diff i posteringssum. 20140613
-// 2014.06.13 - Ordre kunne ikke afsluttes med ørediff aktiv. 20140613
-// 2014.06.13 - Div småting relateret til pos_ordrer - bl. a. momsdiff ved salg til kr. 27,12 og betaling med Dankort +100. 20140613+$retur
-// 2014.06.16 - Mange ændringer i kasseoptælling og afslutings funktion. Bla. bogføring af kasse -> bank
-// 2014.06.24 - Mulighed for at redigere i i pos linjer. (PHR - Danosoft) - søg $ret og _old.
-// 2014.07.02 - Ovenstående gav fejl v scanning efter scanning uden enter  - pris fra vare 1 blev hængende
-//		samt fejl v. menuklig efter scanning - vare forsvandt (PHR - Danosoft) - søg 20140702
-// 2014.07.04	-	For visse varer ligger prisen i stregkoden. Det kan vi nu også. - søg 20140704
-// 2014.07.08 - Ændret $bon til $tmp da den ellers ikke selv hopper videre til ny kunde.  - søg 20140708
-// 2014.07.09	- Rettet kasseoptællingsrutine så differencer og 'udtages' bogføres når optælassist godkendes. 20140709
-// 2014.08.11	- Rettet kald til kortterminal så den også fungerer på ekstern box. søg 'saldibox'
-// 2014.08.14 - Diverse rettelser af ændring fra 20140624. Ved klik på pris eller rabat blev antal sat til 1 og ikke taget fra $antal_old mm. # 20140814
-// 2014.08.14 - usdecimal sat foran 'rabat' ved 'opret_ordrelinje' da rabat ellers blev afrundet til heltal.
-// 2014.08.14 - Funktion find_kasse - tjekker nu for om den kasse som hentes fra cookie eksisterer
-// 2014.08.21 - Tilføjet knap for køkkenprint & kald til samme, Søg koekken.
-// 2014.08.28 - Indsat strlen( da det undertiden gav fejl ved bordvalg.
-// 2014.08.28 - Ved * efter rabat sættes rabatten på alle varer hvor rabat=0 PHR -- 20140828-2
-// 2014.08.29 - Tilføjet "udskriv" knap ved siden af "køkken". Fungerer kun for restauranter. PHR 
-// 2014.09.25 - Rettet $bord=NULL til $koekkenprinter=NULL. PHR 20140925
-// 2014.10.25 - Mængrerabatter blev ikke medtaget på foreløbig udskrift -20141025
-// 2014.11.12 - Mange designændringer. Søg efter find_stil
-// 2014.11.13 - Leveret antal blev nulstillet ved "Ret" så køkkenprint foreslog det fulde antal.Søg $leveret
-// 2014.12.09 - Bord blev ikke markeret som optaget ved deling til eksisterende tom ordre.
-// 2015.01.01 - Betalinger lægges nu i tabellen pos_betalinger.php så samme bon kan betales af et ubegrænset antal kort. Søg "pos_betalinger"
-// 2015.01.02 - Funktionen "Find_bon" finder nu bon med højeste bon nr i stedet for bon med højeste ID
-// 2015.01.11 - Tilføjet sætpriser - søg $saet.
-// 2015.01.12 - Tilføjet "gem som tilbud som ændrer art til 'DO' og finder højeste ordrenr. Søg "gem".
-// 2015.01.21 - function "afslut" Skrivning til pos_betaliger flyttet til efter bogføring så der ikke skrives hvis bogføring ikke sker. 20150121a 
-// 2015.01.21 - function "find_kassesalg" Det skal kun søges i transaktioner hvis det anvendes "straksbogfor" søges kun  20150121b 
-// 2015.01.21 - function "afslut" ref opdaters med brugernavn ved afskutning. Søg $brugernavn i funktion afslut 
-// 2015.01.31 - Mange rettelset til sætpriser. 
-// 2015.02.14 -	Afrunder hver sæt lijne for at undgå øreafvigelser
-// 2015.03.02 -	Afd blev ikke gemt ved "gem som tilbud" 20150302
-// 2015.03.05 - Matcher brugernavn med bordnavn ved ny ordre, 20150305
-// 2015.03.06 - Tilføjet  "or betalingsbet='Forud'" - 20150306
-// 2015.03.10 - Fjernet søgning efter betalingsbet da alt skal bogføres gennem pos 20150310
-// 2015.04.24	-	Sætter cookie for bordnr - søg cookie & bordnr
-// 2015.05.05	-	rettet	"if ($nettosum" til "if (($nettosum || $nettosum == 0)" da 0 bon ellers ikke kunne afsluttes. Søg 20150505
-// 2015.05.05	- Flyttet "$bordnr=$_COOKIE['saldi_bordnr'];" så den kun sættes hvis der ikke er brugerskift. Søg 20150505-2
-// 2015.05.19	- Indbetalinger bogføres med det samme og gav derfor differ ved kasseoptælling Dette tages der nu højde for. 20150519
-// 2015.05.20 - Diverse småfejl vedr indbetalinger.
-// 2015.05.20 - Fjernet "and kontonr = '$kassekonti[$k]'" da den medtog tidligere kortsalg, hvis der ikke kavde været kassesalg. 20150520
-// 2015.05.20 - Ændret "order by logdate desc, logtime desc" til "order by id desc" da det giver lige så god mening. 20150520
-// 2015.05.22 - Ændret '&& $afslut=="Afslut"' til '&& ($afslut=="Afslut" || $betaling)' så der er mulighed for at "trække over" v. nulbon. 20150522
-// 2015.05.27	- Der skal aldrig føres 2 x i pos_betalinger. Det skete ved indbetalinger hvor saldo blev ført som betaling og gav diff dagen efter. 
-// 2015.06.01 - Fejl hvis ingen tidligere transaktioner. 20150601 
-// 2015.06.13 - Køkkenknap bliver nu rød hvid det mangler bestillinger til køkken og grøn når alt er bestilt. Søg $kstil & 20150613
-// 2015.08.12 - Småbeløb blev ikke afrundet ved 0 bon. 
-// 2015.11.03	-	Indsat return confirm v.optælling for at sikre mod dobbelklik #20151103
-// 2016.01.16	-	Udeladt 'and kasse_nr'.... ved kasseoptælling#20160116
-// 2016.01.21 -	'på beløb' tog hele beløbet selvom der var delbetalt. # 20150121
-// 2016.01.31	- Understøttelse af knapperne, kontoudtog,stamkunder & udskriv sidste. Udskriv udskriver nu sidste hvis intet id. 
-// 2016.02.08	- 'stamkunder' reagerer nu også på "$_GET"
-// 2016.02.11	-	Diverse tilretninger vedr. indbetaling (til støvlen);
-// 2016.02.11 - Skuffe åbnes hvis det ikke er kontokøb og print er fravalgt.
-// 2016.02.15 - Fjernet sidste katakter fra $sum hvis denne ikke er numerisk - årsag skal undersøges nærmere. Søg 20160215 
-// 2016.02.15 -	Indbetalinger kom ikke med i beholdninger ved fast morgenbeholdning. Søg 20160215-2
-// 2016.02.20	- Variantvarer blev ikke fundet. 20160220
-// 2016.02.20	- Ved indbetaling og der blev skrevet et mindre beløb i i modtaget end betaling og det blev klikket betalingsform gik det galt "20160220-2 
-// 2016.02.20	- Indbetalinger kom ikke med ved årets 1. kasseoptælling. 20160220-3
-// 2016.02.23 - ændret "%" til " - kassenr: $kasse" da alle kasser valgte fra datoen for sidste optælling for alle kasser. Søg 20160223
-// 2016.04.18 - Fejl ved indbetaling hvis cursor i modtaget og fokus i betalt. Søg 20160418  
-// 2016.04.18 - "Tilbage" fungerer ikke under indbetaling. Søg 20160418-2
-// 2016.06.07	-	Indført valuta - mange ændringer. 
-// 2016.06.11 - Indsat '&& sum > 0' da man ellers ikke kunne tage varer retur. 20160611 
-// 2016.06.12 -	Udtages fra kasse blev ført for hver betalingsform hvilket gav store kassediffer 20160612 
-// 2016.08.12	-	Ved m_rabat på momsfri varer blev der ført moms på rabatten, hvis rabatvaren ikke var momsfri. 20160812
-// 2016.08.17 - Delbetaling fungerede ikke efter indførelse af valuta. derfor dette hack. 20160817
-// 2016.08.24	-	Fejlhåndtering for manglende valutakonti 20160824
-// 2016.09.02 -	Tilføjet $indbetaling da den ellers ikke ville acceptere negativ indbetaling 
-// 2016.10.01 - En del ændringer som muliggør kontantbetaling mm selvom der er en kundekonto på ordren hvis kundens betalingsbet er kontant.
-// 2016.10.10 - Valuta i pos_betalinger sættes til DKK hvis NULL eller ''. 20161010
-// 2016.10.12 - Tilføjet $rest af hensyn til sæt.
-// 2016.10.13 - tilføjet $pris_ny ellers fungerer rabat ikke med 0 pris 20161013 
-// 2016.10.14 - PHR ($betalt && is_numeric($betalt)) rettet til ($afslut=='on' && is_numeric($betalt)) da det ellers ikke er muligt at afslutte en bon hvor der er delbetalt og sum derefter er reduceret 20161014
-// 2016.10.14 - PHR fjernet 3 linjer da den forhindrer delbetaling efter tilføjelse af "$rest=if_isset($_POST['rest']); #20161014-2
-// 2016.10.14 - PHR Tilføjet elseif (!$id && $varenr_ny=='a') Så det kan hæves på kort uden køb og fejl 'varenumer ikke fundet' undgås #20161014-3
-// 2016.10.14 - PHR Tilføjet || (!$id && $_POST['afslut']) Så der oprettes ordre inden der hæves på kort. #20161014-4
-// 2016.10.17 - PHR $afslut=='on' rettet til ($betalt || ($afslut=='on') da man ellers ikke kan afskutte kontokøb
-// 2016.11.10 - PHR ved kassopgørelse skrives en linje i transakioner med kontonr = '0' for entydig identifikation af tidspkt.
-// 2016.11.16 - PHR tilføjet kladde_id != '0' or" så rettelser bogført efter sidste afstemning kommer med. 20161116 
-// 2016.12.05 - PHR tilføjet modtaget = indbetaling hvis modtaget ikke sat da den ellers ikke kom videre efter 'enter' på indbetaling. #20161205
-// 2016.12.14	- PHR Ved delbetaling med forskellige kort blev alle kortbetalinger registreret på samme kort. 20161214
-// 2017.01.02-	PHR	Ved årets 1. kasseopgørelse blev morgenbeholdning øget med dagens indbetalingeer. 20170102
-// 2017.01.07-	PHR	Delbatalinger på kort blev bogført uden betaling ved integreret kortterminal. 20170107
-// 2017.01.09 - PHR Fejl på delbet vi ikke integreret kort. 20171019
-// 2017 02.17 - PHR Tilføjet individuelt lager pr ordrelinje. Søg $lager
-// 2017.02.23	- PHR logtime blev sat 2 x i samme funktion, hvilket kunne give forkert morgenbeholdning. #20170223 
-// 2017.03.14 - PHR Tilføjet mulighed for at sætte 'udtages fra kasse' til 0 som default.
-// 2017.03.17 - PHR Sum for "andre kort" blev ikke vist på kasseoptælling. #20170317
-// 2017.03.18	-	PHR Samlet pris Nulstilles hvis der indsættes ny vare. Søg 20170318 
-// 2017.03.27	-	PHR Initierer box12 i grupper/POSBUT fjernes 20170401 - Søg 20170104
-// 2017.03.27 - PHR Kundedisplay viser nu linjesum (pris*antal i stedet for stykpris). Søg kundedisplay
-// 2017.04.12	-	PHR Indsat parameter 2 på alle forekomster af dkdecimal & usdecimal
-// 2017.04.17	-	PHR	Ved valg af Ekspedient sættes ID til 0 hvis status er >=3 således at der startes en ny ordre. 20170417
-// 2017.06.22	-	PHR	Fejl på 'samlet pris' v kreditering at ordre med 'samlet pris'.  Søg 20170622-1  
-// 2017.06.22	-	PHR	Følgevarer ikke på skærm og fejl på bon ved status >= 3.  Søg 20170622-2  
-// 2017.07.19	-	PHR	Ved ordrer med samlet pris hvor der blev solgt og taget retur på samme bon blev rabatterne extreme men resultat korrekt. Søg $over0 & $under0 
-// 2017.07.21	-	PHR Afrunding ændret fra 2 til 3 decimaler. 20170721.
-// 2017.08.16	-	PHR Tilføjet strtolower i function find_kassesalg i så alle kort med samme navn køres på korrekt konto - Søg 20170816
-// 2017.09.14 - PHR Tilføjet && !strpos($betaling,'på beløb') da 'på beløb' ikke fungerede #20170914
-// 2017.10.10 - PHR	Tilføjet individuel font size. Søg $pfs (PosFontSize) 
-// 2017.11.23 - PHR Tilføjet afd='$afd',felt_5='$kasse' (før blev det først skrevet i db ved afslutning ) søg 20171123
-// 2018.01.26	-	PHR Tilføjet $vare_id[$x]=$r['vare_id']; & $varepris[$x]=$r['pris']; til brug for pos_print_						194 (udsalgstekst) 20180126
-// 2018.03.13	-	PHR Kontoopslag ændret til debitorposlag og kreditoropslag tilføjet.
-// 2018.03.14	-	PHR Kundedisplay hentes nu fra grupper art = 'POS' kodenr = '3'
-// 2018.05.02	- PHR	Hack for at scanner skipper det 1. 0 hvis 13 EAN stregkode starter med 00. Søg efter '0$varenr'
-// 2018.06.28 - PHR Ekstra kontrol for om kortbetaling er gennemført ved integreret termimal. Søg pos_bet_id.
-// 2018.07.04 - PHR Forfra afviser hvis der er betalt på ordren. #20180704 
-// 2018.07.25 - PHR Trækker nu nyeste ordre med status > 3 ved bordvalg for at undgå at den trækker gammel uafsluttet.  #20180725 
-// 2018.08.16 - PHR Styrket log af kortbetalinger. 20180816
-// 2018.08.22 -	PHR Kontrol for at der ikke er ændret i kasseoptælling hvis der godkendes uden der er klikket beregn. # 20180822
-// 2018.09.29 -	PHR Vejledning til kasseoptælling. vejl_kasseopt.html
-// 2018.10.24 -	PHR Sikring mod dobbelt ordreoprettelse ved dobbeltklik 20181024
-// 2018-12-10 - CA  Gavekortfunktioner indlæses ved opstart 20181210
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
 // 2019-01-11 - PHR Decimalfejl i $udtages.   
@@ -224,6 +90,7 @@
 // 20250806 PHR php8 issue in sizeof($_POST)
 // 20250816 PHR Compared and merged changes from ssl7
 // 20251007 PHR Changed "$_POST['proforma'] == 'Proforma')" to "$_POST['proforma'])" 
+// 20260204 PHR Back button did not work ifg focus was 'Modtaget'
 
 @session_start();
 $s_id = session_id();
@@ -1415,16 +1282,14 @@ if ($vare_id) {
 	} elseif (isset($_POST['voucherstatus'])) {
 		voucherstatus($id, $konto_id);
 	}
-
 	if ($indbetaling) {
+		if (substr($indbetaling, -1) == 't' || substr($modtaget, -1) == 't') { #20160418-2
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
+			exit;
+		}
 		$indbetaling = str_replace("a", "", $indbetaling);
 		if ($fokus == 'indbetaling') { #20160220-2
 			if (!is_numeric(str_replace(",", "", $indbetaling))) {
-				$b = substr($indbetaling, -1);
-				if ($b == 't') { #20160418-2
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
-					exit;
-				}
 				$i = str_replace($b, '', $indbetaling);
 				$usi = (str_replace(".", "", $i));
 				$usi = (str_replace(",", ".", $usi));
@@ -1453,10 +1318,6 @@ if ($vare_id) {
 				$modtaget = $indbetaling; #20161205
 			if (!is_numeric(str_replace(",", "", $modtaget))) {
 				$b = substr($modtaget, -1);
-				if ($b == 't') { #20160418-2
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
-					exit;
-				}
 				$m = str_replace($b, '', $modtaget);
 				$usm = (str_replace(".", "", $m));
 				$usm = (str_replace(",", ".", $usm)); # 20151205 rettet usi til usm
