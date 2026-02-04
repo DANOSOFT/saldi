@@ -90,7 +90,7 @@
 // 20250806 PHR php8 issue in sizeof($_POST)
 // 20250816 PHR Compared and merged changes from ssl7
 // 20251007 PHR Changed "$_POST['proforma'] == 'Proforma')" to "$_POST['proforma'])" 
-// 20260204 PHR Back button did not work ifg focus was 'Modtaget'
+// 20260204 PHR Back button did not work if focus was 'Modtaget'
 
 @session_start();
 $s_id = session_id();
@@ -1283,7 +1283,7 @@ if ($vare_id) {
 		voucherstatus($id, $konto_id);
 	}
 	if ($indbetaling) {
-		if (substr($indbetaling, -1) == 't' || substr($modtaget, -1) == 't') { #20160418-2
+		if (substr($indbetaling, -1) == 't' || substr($modtaget, -1) == 't') { #20260204
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
 			exit;
 		}
