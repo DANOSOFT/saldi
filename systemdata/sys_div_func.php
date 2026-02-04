@@ -1778,6 +1778,10 @@ function ordre_valg() {
 	$debitoripad = get_settings_value("debitoripad", "ordre", "off");
 	$showDB = get_settings_value("showDB", "ordre", "");
 	$showDG = get_settings_value("showDG", "ordre", "");
+	$lockPayment = get_settings_value("lockedInvoiceButton", "debitor", "");
+	if($lockPayment === "on"){
+		$lockPayment = "checked";
+	}
 	if ($showDB === "on") {
 		$showDB = "checked";
 	}
@@ -1816,6 +1820,7 @@ function ordre_valg() {
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</u></b></td></tr>";
 	print "<tr><td colspan='6'><br></td></tr>";
 	print "<input type=hidden name=id value='$id'>";
+		print "<tr><td title='Låser fakturere knappen hvis den ikke er betalt'>Lås fakutrer knappen hvis ordren ikke er betalt</td><td><input type='checkbox' class='checkbox' name='lockPayment' $lockPayment><td></tr>";
 	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (private kunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatPrivateCustomers $incl_moms_private></td></tr>";
 	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (erhvervskunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatBusinessCustomers $incl_moms_business></td></tr>";
 	print "<tr><td title='".findtekst('188|Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler', $sprog_id)."'>".findtekst('164|Medtag kommentarer på følgesedler', $sprog_id)."</td><td><INPUT title='".findtekst('188|Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name=box3 $folge_s_tekst></td></tr>";

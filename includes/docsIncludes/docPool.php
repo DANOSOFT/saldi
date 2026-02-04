@@ -314,19 +314,12 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		// Set invoice number from pool file if sourceId is empty (new entry) and newInvoiceNumber is set
 		if (!$sourceId && $newInvoiceNumber) {
 			$_POST['fakturanr'] = $newInvoiceNumber;
-			error_log("docPool INSERT - Setting fakturanr from pool file: newInvoiceNumber=$newInvoiceNumber");
 		}
 		
 		// Set description from pool file if sourceId is empty (new entry) and newInvoiceDescription is set
 		if (!$sourceId && $newInvoiceDescription) {
 			$_POST['beskrivelse'] = $newInvoiceDescription;
-			error_log("docPool INSERT - Setting beskrivelse from pool file: newInvoiceDescription=$newInvoiceDescription");
 		}
-		
-		// Debug logging - log what we receive
-		error_log("docPool INSERT - POST poolFiles: " . (isset($_POST['poolFiles']) ? $_POST['poolFiles'] : 'NOT SET'));
-		error_log("docPool INSERT - POST poolFile: " . (isset($_POST['poolFile']) ? (is_array($_POST['poolFile']) ? implode(',', $_POST['poolFile']) : $_POST['poolFile']) : 'NOT SET'));
-		error_log("docPool INSERT - Function param poolFile: " . ($poolFile ?? 'NOT SET'));
 		
 		// Handle multiple poolFiles - prioritize POST data for insert operations
 		// IMPORTANT: Do NOT use $poolFile function parameter here - it contains the 
@@ -337,35 +330,25 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if (isset($_POST['poolFiles']) && !empty($_POST['poolFiles'])) {
 			$poolFiles = explode(',', $_POST['poolFiles']);
 			$poolFiles = array_map('trim', $poolFiles);
-			error_log("docPool INSERT - Using POST poolFiles (comma-separated): " . implode(',', $poolFiles));
 		// Second priority: poolFile[] as array from POST
 		} elseif (isset($_POST['poolFile']) && is_array($_POST['poolFile'])) {
 			$poolFiles = $_POST['poolFile'];
-			error_log("docPool INSERT - Using POST poolFile[] array: " . implode(',', $poolFiles));
 		// Third priority: Single poolFile from POST (string)
 		} elseif (isset($_POST['poolFile']) && !empty($_POST['poolFile']) && is_string($_POST['poolFile'])) {
 			$poolFiles = array($_POST['poolFile']);
-			error_log("docPool INSERT - Using POST poolFile string: " . $_POST['poolFile']);
 		// Fourth priority: GET array (URL params from JavaScript)
 		} elseif (isset($_GET['poolFile']) && is_array($_GET['poolFile'])) {
 			$poolFiles = $_GET['poolFile'];
-			error_log("docPool INSERT - Using GET poolFile[] array: " . implode(',', $poolFiles));
 		// Fifth priority: GET comma-separated
 		} elseif (isset($_GET['poolFiles']) && !empty($_GET['poolFiles'])) {
 			$poolFiles = explode(',', $_GET['poolFiles']);
 			$poolFiles = array_map('trim', $poolFiles);
-			error_log("docPool INSERT - Using GET poolFiles: " . implode(',', $poolFiles));
 		// Sixth priority: Single GET poolFile
 		} elseif (isset($_GET['poolFile']) && !empty($_GET['poolFile']) && is_string($_GET['poolFile'])) {
 			$poolFiles = array($_GET['poolFile']);
-			error_log("docPool INSERT - Using GET poolFile string: " . $_GET['poolFile']);
-		} else {
-			error_log("docPool INSERT - NO poolFiles found from any source!");
 		}
 		// NOTE: We intentionally do NOT fall back to $poolFile (function parameter)
 		// because that contains the currently viewed file, not the file to insert
-		
-		error_log("docPool INSERT - Final poolFiles to process: " . implode(',', $poolFiles));
 		
 		// Remove empty values
 		$poolFiles = array_filter($poolFiles);
@@ -383,27 +366,22 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					$ts = strtotime($poolData['file_date']);
 					if ($ts !== false && $ts > 0) {
 						$_POST['dato'] = date("d-m-Y", $ts);
-						error_log("docPool INSERT - Got date from DB: " . $poolData['file_date']);
 					}
 				}
 				if (!$sourceId && empty($newAmount) && $poolData['amount']) {
 					$_POST['sum'] = $poolData['amount'];
-					error_log("docPool INSERT - Got amount from DB: " . $poolData['amount']);
 				}
 				if (!$sourceId && empty($newInvoiceNumber) && $poolData['invoice_number']) {
 					$_POST['fakturanr'] = $poolData['invoice_number'];
-					error_log("docPool INSERT - Got invoice_number from DB: " . $poolData['invoice_number']);
 				}
 				if (!$sourceId && empty($newInvoiceDescription) && $poolData['description']) {
 					$_POST['beskrivelse'] = $poolData['description'];
-					error_log("docPool INSERT - Got description from DB: " . $poolData['description']);
 				}
 			} elseif (!$sourceId && empty($newDate) && !empty($poolFiles)) {
 				// Fallback to .info file if not in DB
 				$firstPoolFile = reset($poolFiles);
 				$baseName = pathinfo($firstPoolFile, PATHINFO_FILENAME);
 				$infoFile = "$docFolder/$db/pulje/$baseName.info";
-				error_log("docPool INSERT - Trying to read .info file: $infoFile");
 				
 				if (file_exists($infoFile)) {
 					$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
@@ -415,25 +393,19 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						if ($timestamp !== false && $timestamp > 0) {
 							$formattedDate = date("d-m-Y", $timestamp);
 							$_POST['dato'] = $formattedDate;
-							error_log("docPool INSERT - Got date from .info file: $infoDate -> $formattedDate");
 						}
 					}
 					if (isset($infoLines[2]) && !empty(trim($infoLines[2])) && empty($newAmount)) {
 						$_POST['sum'] = trim($infoLines[2]);
-						error_log("docPool INSERT - Got amount from .info file: " . $_POST['sum']);
 					}
 					// Get invoice_number from line 4
 					if (isset($infoLines[4]) && !empty(trim($infoLines[4]))) {
 						$_POST['fakturanr'] = trim($infoLines[4]);
-						error_log("docPool INSERT - Got invoice_number from .info file: " . $_POST['fakturanr']);
 					}
 					// Get invoice_description from line 5
 					if (isset($infoLines[5]) && !empty(trim($infoLines[5]))) {
 						$_POST['beskrivelse'] = trim($infoLines[5]);
-						error_log("docPool INSERT - Got invoice_description from .info file: " . $_POST['beskrivelse']);
 					}
-				} else {
-					error_log("docPool INSERT - .info file not found: $infoFile");
 				}
 			}
 			
@@ -1104,7 +1076,8 @@ if ($source == 'kassekladde' && $sourceId) {
 		print "<tr><td style=\"background-color: " . (isset($bgcolor5) ? $bgcolor5 : '#ffffff') . "; padding: 8px; border: 1px solid #ddd; border-top: none;\">";
 		print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"4\" style=\"font-family: Arial, sans-serif; font-size: 12px;\">";
 		if ($displayDato) print "<tr><td width=\"20%\" style=\"font-weight: bold;\">Dato:</td><td>" . htmlspecialchars($displayDato) . "</td></tr>";
-		if ($displayBeskrivelse) print "<tr><td style=\"font-weight: bold;\">Beskrivelse:</td><td>" . $displayBeskrivelse . "</td></tr>";
+		// Beskrivelse is always editable
+		print "<tr><td style=\"font-weight: bold;\">Beskrivelse:</td><td><input type=\"text\" name=\"beskrivelse\" id=\"existingEntryBeskrivelse\" value=\"" . $displayBeskrivelse . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast beskrivelse...\"></td></tr>";
 		if ($displayDebet) print "<tr><td style=\"font-weight: bold;\">Debet:</td><td>" . htmlspecialchars($displayDebet) . "</td></tr>";
 		if ($displayKredit) print "<tr><td style=\"font-weight: bold;\">Kredit:</td><td>" . htmlspecialchars($displayKredit) . "</td></tr>";
 		if ($displayFaktura) print "<tr><td style=\"font-weight: bold;\">Fakturanr:</td><td>" . $displayFaktura . "</td></tr>";
@@ -1113,12 +1086,29 @@ if ($source == 'kassekladde' && $sourceId) {
 		print "</td></tr>";
 		print "</tbody></table>";
 	}
-} elseif ($source == 'kassekladde' && !$sourceId && $bilag) {
-	// Show bilag number if creating new entry
+} elseif ($source == 'kassekladde' && empty($sourceId)) {
+	// Show editable fields if creating new entry (sourceId is 0 or empty)
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
 	print "<tr>";
 	print "<td style=\"background-color: $buttonColor; color: $buttonTxtColor; padding: 8px; border: 1px solid #ddd;\">";
-	print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Nyt bilag #" . htmlspecialchars($bilag) . "</font>";
+	if ($bilag) {
+		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Nyt bilag #" . htmlspecialchars($bilag) . "</font>";
+	} else {
+		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Ny linje</font>";
+	}
+	print "</td></tr>";
+	print "<tr><td style=\"background-color: " . (isset($bgcolor5) ? $bgcolor5 : '#ffffff') . "; padding: 8px; border: 1px solid #ddd; border-top: none;\">";
+	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"4\" style=\"font-family: Arial, sans-serif; font-size: 12px;\">";
+	// Beskrivelse (description) - editable
+	print "<tr><td width=\"20%\" style=\"font-weight: bold;\">Beskrivelse:</td>";
+	print "<td><input type=\"text\" name=\"beskrivelse\" id=\"newEntryBeskrivelse\" value=\"" . htmlspecialchars($beskrivelse ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast beskrivelse...\"></td></tr>";
+	// Debitor konto (debet) - editable
+	print "<tr><td style=\"font-weight: bold;\">Debitor konto:</td>";
+	print "<td><input type=\"text\" name=\"debet\" id=\"newEntryDebet\" value=\"" . htmlspecialchars($debet ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast debitor konto...\"></td></tr>";
+	// Kreditor konto (kredit) - editable
+	print "<tr><td style=\"font-weight: bold;\">Kreditor konto:</td>";
+	print "<td><input type=\"text\" name=\"kredit\" id=\"newEntryKredit\" value=\"" . htmlspecialchars($kredit ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast kreditor konto...\"></td></tr>";
+	print "</table>";
 	print "</td></tr>";
 	print "</tbody></table>";
 }
@@ -1415,12 +1405,7 @@ print <<<JS
 							<span>&#9660;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('account')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
-						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Kontonr</span>
-							<span>&#9660;</span>
-						</div>
-					</th>
+
 					<th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>Beløb</span>
@@ -1433,12 +1418,7 @@ print <<<JS
 							<span>&#9660;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('description')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
-						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Beskrivelse</span>
-							<span>&#9660;</span>
-						</div>
-					</th>
+
 					<th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>Dato</span>
@@ -1752,10 +1732,10 @@ print <<<JS
 				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
 					"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
-					"<td style='padding:6px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.account) + "'>" + accountCell + "</td>" +
+
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.invoiceNumber) + "'>" + invoiceNumberCell + "</td>" +
-					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.description) + "'>" + descriptionCell + "</td>" +
+
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
 					"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
 					"</tr>";
@@ -2436,8 +2416,32 @@ print <<<JS
 			} else {
 				console.log('Could not find file in docData. Available filenames:', docData.map(d => d.filename));
 			}
+		
+		// Always read beskrivelse from the editable input field (both new and existing entries)
+		const beskrivelseInputNew = document.getElementById('newEntryBeskrivelse');
+		const beskrivelseInputExisting = document.getElementById('existingEntryBeskrivelse');
+		const beskrivelseValue = (beskrivelseInputNew && beskrivelseInputNew.value.trim()) ? beskrivelseInputNew.value.trim() : 
+								 (beskrivelseInputExisting && beskrivelseInputExisting.value.trim()) ? beskrivelseInputExisting.value.trim() : '';
+		
+		if (beskrivelseValue) {
+			formData.append('beskrivelse', beskrivelseValue);
+			console.log('Using beskrivelse from input field:', beskrivelseValue);
 		}
 		
+		// Read debet/kredit only for new entries (when sourceId is empty)
+		if (!sourceId || sourceId === '0' || sourceId === '') {
+			const debetInput = document.getElementById('newEntryDebet');
+			const kreditInput = document.getElementById('newEntryKredit');
+			
+			if (debetInput && debetInput.value.trim()) {
+				formData.append('debet', debetInput.value.trim());
+				console.log('Using debet from input field:', debetInput.value.trim());
+			}
+			if (kreditInput && kreditInput.value.trim()) {
+				formData.append('kredit', kreditInput.value.trim());
+				console.log('Using kredit from input field:', kreditInput.value.trim());
+			}
+		}
 		// Debug: log what we're sending
 		console.log('FormData poolFiles:', formData.get('poolFiles'));
 		console.log('FormData poolFile[]:', formData.getAll('poolFile[]'));
@@ -2593,14 +2597,12 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 			// Restore original values (skip checkbox column which is cells[0])
 			const originalData = row.dataset.originalValues ? JSON.parse(row.dataset.originalValues) : {};
 			cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
-			cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
-			cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
-			cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.invoiceNumber || '') + "</span>";
-			cells[5].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.description || '') + "</span>";
-			cells[6].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
+			cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
+			cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.invoiceNumber || '') + "</span>";
+			cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
 			// Restore original actions
 			if (row.dataset.originalActions) {
-				cells[7].innerHTML = row.dataset.originalActions;
+				cells[5].innerHTML = row.dataset.originalActions;
 			}
 			row.removeAttribute('data-editing');
 			delete row.dataset.originalValues;
@@ -2614,7 +2616,7 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 
 	// Store original values and actions
 	const cells = row.querySelectorAll('td');
-	const originalActions = cells.length >= 8 ? cells[7].innerHTML : '';
+	const originalActions = cells.length >= 6 ? cells[5].innerHTML : '';
 	 // Store original values
 	 console.log(subject, account, amount, date, invoiceNumber, description);
     row.dataset.originalValues = JSON.stringify({ 
@@ -2630,21 +2632,19 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 	row.setAttribute('data-editing', 'true');
 	row.setAttribute('data-pool-file', poolFile);
 
-	// Make cells editable (update to handle all 8 columns)
-    if (cells.length >= 8) {
+	// Make cells editable (update to handle 6 columns: checkbox, fil, beløb, fakturanr, dato, handlinger)
+    if (cells.length >= 6) {
         const dateFormatted = date.split(' ')[0] || date;
         const stopPropagation = "event.stopPropagation();";
         const inputEvents = "onclick='" + stopPropagation + "' onmousedown='" + stopPropagation + "' onmouseup='" + stopPropagation + "' onmousemove='" + stopPropagation + "'";
         
         cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-        cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(account) + "' data-field='account' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-        cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-        cells[4].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber || '') + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-        cells[5].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(description || '') + "' data-field='description' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-        cells[6].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' " + inputEvents + ">";
+        cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber || '') + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' " + inputEvents + ">";
         
         // Update actions column
-        cells[7].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
+        cells[5].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
             "<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;' title='Gem'>" + svgIcons.save + "</button>" +
             "<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;' title='Annuller'>" + svgIcons.x + "</button>" +
             "</div>";
@@ -2660,17 +2660,15 @@ const row = button.closest('tr[data-editing="true"]');
     if (!row) return;
     
     const cells = row.querySelectorAll('td');
-    if (cells.length >= 8) {
+    if (cells.length >= 6) {
         const originalData = row.dataset.originalValues ? JSON.parse(row.dataset.originalValues) : {};
         cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
-        cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
-        cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
-        cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.invoiceNumber || '') + "</span>";
-        cells[5].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.description || '') + "</span>";
-        cells[6].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
+        cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
+        cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.invoiceNumber || '') + "</span>";
+        cells[4].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
         
         if (row.dataset.originalActions) {
-            cells[7].innerHTML = row.dataset.originalActions;
+            cells[5].innerHTML = row.dataset.originalActions;
         }
         row.removeAttribute('data-editing');
         delete row.dataset.originalValues;
@@ -3063,11 +3061,9 @@ window.saveRowData = function(input) {
 			// Update cells (skip checkbox column which is nth-child(1))
 			// Update cells (skip checkbox column which is nth-child(1))
 			row.querySelector('td:nth-child(2)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newSubject) + "</span>";
-			row.querySelector('td:nth-child(3)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newAccount) + "</span>";
-			row.querySelector('td:nth-child(4)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newAmount) + "</span>";
-			row.querySelector('td:nth-child(5)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newInvoiceNumber || '') + "</span>";
-			row.querySelector('td:nth-child(6)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newInvoiceDescription || '') + "</span>";
-			row.querySelector('td:nth-child(7)').innerHTML = "<span class='cell-content'>" + dateFormatted + "</span>";
+			row.querySelector('td:nth-child(3)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newAmount) + "</span>";
+			row.querySelector('td:nth-child(4)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newInvoiceNumber || '') + "</span>";
+			row.querySelector('td:nth-child(5)').innerHTML = "<span class='cell-content'>" + dateFormatted + "</span>";
 			
 			// Restore actions column with updated values
 			const poolFileFromRow = row.getAttribute('data-pool-file');
@@ -3080,7 +3076,7 @@ window.saveRowData = function(input) {
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='Udtræk fakturadata'>" + svgIcons.scan + "</button>" +
 				"</div>";
 			
-			row.querySelector('td:nth-child(8)').innerHTML = actionsCell;
+			row.querySelector('td:nth-child(6)').innerHTML = actionsCell;
 			
 			// Remove edit mode
 			row.removeAttribute('data-editing');
