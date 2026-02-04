@@ -382,7 +382,7 @@ $fejl=0;
 							$qtxt = "select * from serienr where salgslinje_id <0 and vare_id=$vare_id[$x]";
 						$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						while ($row = db_fetch_array($q)) {
-							db_modify("update serienr set salgslinje_id=0 where id = '$row[id]'", __FILE__ . " linje " . __LINE__);
+							db_modify("insert into serienr (vare_id,kobslinje_id,salgslinje_id,batch_kob_id,batch_salg_id,serienr) values ('$vare_id[$x]','$kred_linje_id[$x]','0','0','0','$row[serienr]')", __FILE__ . " linje " . __LINE__);
 							$sn_antal[$x]++;
 						}
 						if ($leveres[$x] + $sn_antal[$x] != 0) {
