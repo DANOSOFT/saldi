@@ -37,12 +37,12 @@
 function syncPuljeFilesToDatabase($docFolder, $db) {
 	$puljePath = "$docFolder/$db/pulje";
 	
-/* 	$skip = get_settings_value("skip_sync", "docs", 0);
+	$skip = get_settings_value("skip_sync", "docs", 0);
 
 	
 	if ($skip) {
 		return;
-	} */
+	}
 	// Always clean up .info files if directory exists (do this before any early returns)
 	if (is_dir($puljePath)) {
 		$infoFiles = glob("$puljePath/*.info");
@@ -145,7 +145,9 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 				$invoiceNumber = isset($lines[4]) ? trim($lines[4]) : '';
 				$description = isset($lines[5]) ? trim($lines[5]) : '';
 			}
-			
+			// get date from file
+			$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
+
 			// Insert into database
 			$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
 				'" . db_escape_string($file) . "',
@@ -159,8 +161,43 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
-	/* update_settings_value("skip_sync", "docs", 1, "Skip pool sync after initial run"); */
+	update_settings_value("skip_sync", "docs", 1, "Skip pool sync after initial run");
 }
+
+function checkIfAllPoolFilesAreInDatabase() {
+	$skip = get_settings_value("skip_sync", "docs", 0);
+
+	
+	if (!$skip) {
+		return;
+	}
+	global $db, $docFolder;
+	$puljePath = "$docFolder/$db/pulje";
+	$files = glob("$puljePath/*.pdf");
+	if (!$files) {
+		return;
+	}
+	// select all files from db - must loop through all rows
+	$dbFiles = [];
+	$result = db_select("SELECT filename FROM pool_files", __FILE__ . " line " . __LINE__);
+	while ($row = db_fetch_array($result)) {
+		$dbFiles[$row['filename']] = true;
+	}
+	// add missing files to db
+	foreach ($files as $file) {
+		$file = basename($file);
+
+		if (isset($dbFiles[$file])) {
+			continue;
+		}
+		// get date from file
+		$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
+		$query = "INSERT INTO pool_files (filename, file_date) VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "')";
+		db_modify($query, __FILE__ . " line " . __LINE__);
+	}
+}
+
+checkIfAllPoolFilesAreInDatabase();
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 
