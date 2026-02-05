@@ -2,7 +2,6 @@
 // ../includes/orderFuncIncludes/accountLookup.php
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
-  
     ?>
     <style>
     /* Remove scrollbars */
@@ -80,12 +79,13 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     if ($o_art == 'DO' || $o_art == 'DK') {
         sidehoved($id, "../debitor/ordre.php", "../debitor/debitorkort.php", $fokus, "$kundeordre $id - Kontoopslag");
         $href = "ordre.php";
-    } elseif ($o_art == 'PO' || $o_art == 'KO') {
-        sidehoved($id, "../debitor/pos_ordre.php", "../debitor/debitorkort.php", $fokus, "POS ordre $id - Kontoopslag");
-        $href = "pos_ordre.php";
+    } elseif ($o_art == 'PO') {
         $find = "";
         $fokus = "kontonr";
+        sidehoved($id, "../debitor/pos_ordre.php", "../debitor/debitorkort.php", $fokus, "POS ordre $id - Kontoopslag");
+        $href = "pos_ordre.php";
     }
+    echo $fokus;
     file_put_contents("../temp/accountLookup.txt", "$href \n", FILE_APPEND);
 
     // Include the grid system
@@ -127,14 +127,11 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 	} else {
 		file_put_contents("../temp/accountLookup.txt", "accountLookup: find is empty or invalid - find='$find'\n", FILE_APPEND);
 	}
-	 
-    // Determine account type
-    ($o_art == 'KO') ? $art = 'K' : $art = 'D';
     
     // Base query
     $base_query = "SELECT id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, tlf 
                    FROM adresser 
-                   WHERE art = '$art' AND lukket != 'on'";
+                   WHERE art = 'D' AND lukket != 'on'";
 
     // Define columns for the grid
     $columns = [
@@ -227,12 +224,8 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     foreach ($columns as &$column) {
         $column['render'] = function ($value, $row, $column) use ($href, $id, $o_art) {
             $style = "text-align: {$column['align']}; cursor: pointer;";
-            if($o_art == 'KO') {
-                $fokus = 'lev_kontonr';
-            } else {
-                $fokus = 'kontonr';
-            }
-            
+            $fokus = 'kontonr';
+
             // Make the entire row clickable to select the account
             $onclick = "selectAccount{$id}( '" . $fokus . "', '{$row['id']}')";
             
@@ -252,10 +245,11 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     // account selection JavaScript
     echo <<<HTML
     <script>
-    function selectAccount{$id}(fokus , konto_id) {
+/*     function selectAccount{$id}(fokus , konto_id) {
+        console.log(fokus);
         // Navigate back to order page with selected account
-         window.location.href = '$href?id=$id&fokus=' + fokus + '&konto_id=' + konto_id;
-    }
+        window.location.href = "$href?id=$id&fokus=" + fokus + "&konto_id=" + konto_id;
+    } */
     
    
     </script>

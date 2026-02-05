@@ -1272,7 +1272,7 @@ if ($vare_id) {
 			pos_kontoopslag('PO', "", $fokus, $id, "", "", "");
 	} elseif (isset($_POST['debitoropslag']) || isset($_POST['kreditoropslag'])) {
 		(isset($_POST['debitoropslag'])) ? $tmp = 'PO' : $tmp = 'KO';
-		kontoopslag($tmp, "", "varenr_ny", $id, "", "", "", "", "", "", "", "", "", "", "", "", "");
+		kontoopslag($tmp, "", "kontonr", $id, "", "", "", "", "", "", "", "", "", "", "", "", "");
 	} elseif (isset($_POST['stamkunder']) || isset($_GET['stamkunder'])) {
 		stamkunder('PO', "", "varenr_ny", $id, "", "", "", "", "", "", "", $sum);
 	} elseif (isset($_POST['kontoudtog'])) {
