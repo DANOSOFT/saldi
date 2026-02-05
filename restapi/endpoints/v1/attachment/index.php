@@ -124,7 +124,7 @@ class AttachmentEndpoint extends BaseEndpoint
             }
             
             // Validate required fields
-            if (!$totalAmount) {
+/*             if (!$totalAmount) {
                 $this->sendResponse(false, null, 'Missing required field: extracted_data.total_amount', 400);
                 return;
             }
@@ -132,7 +132,7 @@ class AttachmentEndpoint extends BaseEndpoint
             if (!$invoiceDate) {
                 $this->sendResponse(false, null, 'Missing required field: extracted_data.invoice_date', 400);
                 return;
-            }
+            } */
             
             // Remove data URI prefix if present (e.g., "data:image/png;base64,")
             if (preg_match('/^data:([^;]+);base64,/', $base64Data, $matches)) {
