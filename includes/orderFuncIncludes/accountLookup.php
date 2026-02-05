@@ -85,8 +85,6 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
         sidehoved($id, "../debitor/pos_ordre.php", "../debitor/debitorkort.php", $fokus, "POS ordre $id - Kontoopslag");
         $href = "pos_ordre.php";
     }
-    echo $fokus;
-    file_put_contents("../temp/accountLookup.txt", "$href \n", FILE_APPEND);
 
     // Include the grid system
     require_once '../includes/orderFuncIncludes/grid_account_lookup.php';
@@ -97,10 +95,6 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 
     
 	if(!$fokus){ $fokus='kontonr'; }
-	
-	// Pre-populate search field with the initial search value ($find)
-	// Debug: Log the values being passed
-	file_put_contents("../temp/accountLookup.txt", "accountLookup: fokus=$fokus, firmanavn=$firmanavn, find=$find, grid_id=$grid_id\n", FILE_APPEND);
 	
 	// Map fokus field to grid field name (firmanavn in ordre.php maps to firmanavn column in grid)
 	if ($find && $find != '%' && $find != '0') {
@@ -121,11 +115,8 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 			// Set the search parameter
 			if (!isset($_GET['search'][$grid_id][$searchField]) || empty($_GET['search'][$grid_id][$searchField])) {
 				$_GET['search'][$grid_id][$searchField] = $cleanFind;
-				file_put_contents("../temp/accountLookup.txt", "accountLookup: Set search[$grid_id][$searchField] = $cleanFind\n", FILE_APPEND);
 			}
 		}
-	} else {
-		file_put_contents("../temp/accountLookup.txt", "accountLookup: find is empty or invalid - find='$find'\n", FILE_APPEND);
 	}
     
     // Base query
