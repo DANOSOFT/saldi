@@ -52,8 +52,21 @@ abstract class BaseEndpoint
 
     protected function getLogDb()
     {
+        // Try JWT tenant database first (for new authentication)
+        try {
+            $tenantDb = JWTAuth::getTenantDatabase();
+            if ($tenantDb) {
+                return $tenantDb;
+            }
+        } catch (Exception $e) {
+            // JWT validation failed, continue to fallback
+        } catch (Error $e) {
+            // PHP error, continue to fallback
+        }
+        
+        // Fall back to legacy x-db header or X-Tenant-ID header
         $headers = array_change_key_case(getallheaders(), CASE_LOWER);
-        return $headers['x-db'] ?? 'api';
+        return $headers['x-db'] ?? $headers['x-tenant-id'] ?? 'api';
     }
 
     public function handleRequestMethod()

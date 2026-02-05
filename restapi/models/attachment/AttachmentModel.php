@@ -9,9 +9,31 @@ class AttachmentModel
     private $uploadDate;
     private $metadata;
     private $lastError = null;
-    private static $baseUploadDir = '/var/www/html/pblm/bilag/';
+    private static $baseUploadDir = null;
     private static $db = null;
-    private static $logFile = '/var/www/html/pblm/bilag/attachment_debug.log';
+    private static $logFile = null;
+    
+    /**
+     * Get the base upload directory (dynamic based on file location)
+     */
+    private static function getBaseUploadDir()
+    {
+        if (self::$baseUploadDir === null) {
+            self::$baseUploadDir = dirname(__FILE__, 4) . '/bilag/';
+        }
+        return self::$baseUploadDir;
+    }
+    
+    /**
+     * Get the log file path (dynamic based on file location)
+     */
+    private static function getLogFilePath()
+    {
+        if (self::$logFile === null) {
+            self::$logFile = dirname(__FILE__, 4) . '/bilag/attachment_debug.log';
+        }
+        return self::$logFile;
+    }
     
     /**
      * Log debug message to file
@@ -27,7 +49,7 @@ class AttachmentModel
             $logMessage .= " | Data: " . print_r($data, true);
         }
         $logMessage .= "\n";
-        file_put_contents(self::$logFile, $logMessage, FILE_APPEND);
+        file_put_contents(self::getLogFilePath(), $logMessage, FILE_APPEND);
     }
     
     /**
@@ -75,7 +97,7 @@ class AttachmentModel
             }
         }
         
-        return self::$baseUploadDir . (self::$db ?: 'default') . '/pulje/';
+        return self::getBaseUploadDir() . (self::$db ?: 'default') . '/pulje/';
     }
     
     /**
