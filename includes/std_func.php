@@ -2204,14 +2204,15 @@ if (!function_exists('get_next_invoice_number')) {
 				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
 				
 				// Get the maximum invoice number for the given art type
-				// Use NULLIF to handle empty strings and cast to integer for proper MAX comparison
-				$qtxt = "SELECT MAX(NULLIF(fakturanr, '')::integer) as max_fakturanr FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr ~ '^[0-9]+$'";
+				// Use MAX with CAST to properly find the highest numeric invoice number
+				// This queries ALL records, not just recent ones, to avoid missing higher numbers
+				$qtxt = "SELECT MAX(CAST(fakturanr AS INTEGER)) as max_fakturanr FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr != '' AND fakturanr IS NOT NULL AND fakturanr ~ '^[0-9]+$'";
 				if ($id) {
 					$qtxt .= " AND id != '$id'";
 				}
 				
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$fakturanr = ($r && $r['max_fakturanr']) ? (int)$r['max_fakturanr'] + 1 : 1;
+				$fakturanr = ($r['max_fakturanr'] ? (int)$r['max_fakturanr'] : 0) + 1;
 				
 				// Double-check that this invoice number doesn't exist (extra safety)
 				$qtxt = "SELECT id FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr = '$fakturanr'";
@@ -2220,7 +2221,7 @@ if (!function_exists('get_next_invoice_number')) {
 				}
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				
-				if (!$check_r || !$check_r['id']) {
+				if (!$check_r['id']) {
 					// Check minimum invoice number from settings
 					$r = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'RB' AND kodenr='1'", __FILE__ . " linje " . __LINE__));
 					if ($r && $fakturanr < (int)$r['box1']) {
@@ -2256,6 +2257,7 @@ if (!function_exists('get_next_invoice_number')) {
 		}
 	}
 }
+
 
 if (!function_exists('barcode')) {
 	function barcode($stregkode)
