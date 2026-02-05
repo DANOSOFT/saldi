@@ -148,13 +148,17 @@ class AttachmentEndpoint extends BaseEndpoint
             }
             
             // Get custom filename if provided (from id field or filename)
-            // create random string for end of filename
+            // create random string for end of filename (before extension)
             $randomString = bin2hex(random_bytes(8));
             $customFilename = null;
             if (isset($data->id)) {
                 $customFilename = $data->id;
             } elseif (isset($data->filename)) {
-                $customFilename = $data->filename . '_' . $randomString;
+                // Insert random string before the file extension
+                $pathInfo = pathinfo($data->filename);
+                $baseName = $pathInfo['filename'];
+                $extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
+                $customFilename = $baseName . '_' . $randomString . $extension;
             }
             
             // Extract metadata (accountnr, invoiceNumber, and invoiceDescription are optional for now)

@@ -432,9 +432,8 @@ class AttachmentModel
                 'mimeType' => $this->mimeType
             ]);
             
-            // Save metadata to JSON file if provided
+            // Store metadata in object
             if ($metadata !== null && is_array($metadata)) {
-                $this->saveMetadata($filepath, $metadata);
                 $this->metadata = $metadata;
             }
             
@@ -460,40 +459,6 @@ class AttachmentModel
         }
     }
     
-    /**
-     * Save metadata to text file alongside the main file
-     * Format: filename (without ext), account, amount, date (one per line)
-     * 
-     * @param string $filepath Path to the main file
-     * @param array $metadata Metadata to save
-     * @return bool Success status
-     */
-    private function saveMetadata($filepath, $metadata)
-    {
-        // Get filename without extension and directory
-        $pathInfo = pathinfo($filepath);
-        $filenameWithoutExt = $pathInfo['filename'];
-        $directory = isset($pathInfo['dirname']) ? $pathInfo['dirname'] . '/' : '';
-        
-        // Create metadata path as filename.info (without the file extension)
-        $metadataPath = $directory . $filenameWithoutExt . '.info';
-        
-        // Extract values from metadata array
-        $account = isset($metadata['accountnr']) ? $metadata['accountnr'] : '';
-        $amount = isset($metadata['amount']) ? $metadata['amount'] : '';
-        $date = isset($metadata['date']) ? $metadata['date'] : '';
-        $invoiceNumber = isset($metadata['invoiceNumber']) ? $metadata['invoiceNumber'] : '';
-        $invoiceDescription = isset($metadata['invoiceDescription']) ? $metadata['invoiceDescription'] : '';
-        
-        // Create content: filename, account, amount, date, invoiceNumber, invoiceDescription (one per line)
-        $content = $filenameWithoutExt . "\n" . $account . "\n" . $amount . "\n" . $date . "\n" . $invoiceNumber . "\n" . $invoiceDescription . "\n";
-        
-        if (file_put_contents($metadataPath, $content) === false) {
-            return false;
-        }
-        
-        return true;
-    }
     
     /**
      * Insert file record into pool_files database table
@@ -511,6 +476,19 @@ class AttachmentModel
         }
         
         try {
+            // Ensure we are connected to the correct tenant database
+            if (self::$db !== null) {
+                global $sqhost, $squser, $sqpass;
+                $conn = db_connect($sqhost, $squser, $sqpass, self::$db, __FILE__ . " line " . __LINE__);
+                if (!$conn) {
+                    self::debugLog('insertToPoolFiles: Failed to connect to database', self::$db);
+                    return false;
+                }
+                self::debugLog('insertToPoolFiles: Connected to database', self::$db);
+            } else {
+                self::debugLog('insertToPoolFiles: No database set, using default connection');
+            }
+            
             // Ensure pool_files table exists
             $qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
             if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
@@ -619,17 +597,6 @@ class AttachmentModel
     public function delete()
     {
         if ($this->filepath && file_exists($this->filepath)) {
-            // Also delete metadata file if it exists
-            // Get filename without extension and directory
-            $pathInfo = pathinfo($this->filepath);
-            $filenameWithoutExt = $pathInfo['filename'];
-            $directory = isset($pathInfo['dirname']) ? $pathInfo['dirname'] . '/' : '';
-            
-            // Create metadata path as filename.info (without the file extension)
-            $metadataPath = $directory . $filenameWithoutExt . '.info';
-            if (file_exists($metadataPath)) {
-                @unlink($metadataPath);
-            }
             if (!unlink($this->filepath)) {
                 $this->lastError = 'Failed to delete file: ' . $this->filepath;
                 return false;
