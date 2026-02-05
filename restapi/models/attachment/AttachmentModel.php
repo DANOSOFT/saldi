@@ -8,6 +8,7 @@ class AttachmentModel
     private $mimeType;
     private $uploadDate;
     private $metadata;
+    private $lastError = null;
     private static $baseUploadDir = '/var/www/html/pblm/bilag/';
     private static $db = null;
     private static $logFile = '/var/www/html/pblm/bilag/attachment_debug.log';
@@ -195,6 +196,7 @@ class AttachmentModel
         
         if (!isset($uploadedFile['tmp_name']) || !is_uploaded_file($uploadedFile['tmp_name'])) {
             self::debugLog('ERROR: Invalid uploaded file - tmp_name missing or not uploaded file');
+            $this->lastError = 'Invalid uploaded file - tmp_name missing or not a valid uploaded file';
             return false;
         }
         
@@ -204,12 +206,14 @@ class AttachmentModel
         // Ensure upload directory exists with better error handling
         if (!is_dir($uploadDir)) {
             if (!mkdir($uploadDir, 0755, true)) {
+                $this->lastError = 'Failed to create upload directory: ' . $uploadDir;
                 return false;
             }
         }
         
         // Double-check that directory was created and is writable
         if (!is_dir($uploadDir) || !is_writable($uploadDir)) {
+            $this->lastError = 'Upload directory does not exist or is not writable: ' . $uploadDir;
             return false;
         }
         
@@ -290,6 +294,7 @@ class AttachmentModel
             if ($convertedFile && file_exists($convertedFile)) {
                 @unlink($convertedFile);
             }
+            $this->lastError = 'Failed to save file to destination: ' . $filepath;
             return false;
         }
     }
@@ -314,6 +319,7 @@ class AttachmentModel
         
         if (empty($fileContent)) {
             self::debugLog('ERROR: Empty file content');
+            $this->lastError = 'Empty file content provided';
             return false;
         }
         
@@ -322,24 +328,28 @@ class AttachmentModel
         // Ensure upload directory exists
         if (!is_dir($uploadDir)) {
             if (!mkdir($uploadDir, 0755, true)) {
+                $this->lastError = 'Failed to create upload directory: ' . $uploadDir;
                 return false;
             }
         }
         
         // Double-check that directory was created and is writable
         if (!is_dir($uploadDir) || !is_writable($uploadDir)) {
+            $this->lastError = 'Upload directory does not exist or is not writable: ' . $uploadDir;
             return false;
         }
         
         // Create temporary file to process the content
         $tempFile = tempnam(sys_get_temp_dir(), 'base64_upload_');
         if ($tempFile === false) {
+            $this->lastError = 'Failed to create temporary file';
             return false;
         }
         
         // Write content to temporary file
         if (file_put_contents($tempFile, $fileContent) === false) {
             @unlink($tempFile);
+            $this->lastError = 'Failed to write content to temporary file';
             return false;
         }
         
@@ -428,6 +438,9 @@ class AttachmentModel
                 $this->metadata = $metadata;
             }
             
+            // Insert into pool_files database table (same as docPool.php)
+            $this->insertToPoolFiles($filename, $metadata);
+            
             // Clean up temporary files
             @unlink($tempFile);
             if ($convertedFile && file_exists($convertedFile)) {
@@ -442,6 +455,7 @@ class AttachmentModel
             if ($convertedFile && file_exists($convertedFile)) {
                 @unlink($convertedFile);
             }
+            $this->lastError = 'Failed to save file to destination: ' . $filepath;
             return false;
         }
     }
@@ -479,6 +493,94 @@ class AttachmentModel
         }
         
         return true;
+    }
+    
+    /**
+     * Insert file record into pool_files database table
+     * This matches the same insert that docPool.php does
+     * 
+     * @param string $filename The filename to insert
+     * @param array|null $metadata Optional metadata (accountnr, amount, date, invoiceNumber, invoiceDescription)
+     * @return bool Success status
+     */
+    private function insertToPoolFiles($filename, $metadata = null)
+    {
+        // Only insert PDF files to match docPool.php behavior
+        if (strtolower(pathinfo($filename, PATHINFO_EXTENSION)) !== 'pdf') {
+            return true; // Not a PDF, skip silently
+        }
+        
+        try {
+            // Ensure pool_files table exists
+            $qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
+            if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+                // Create table if it doesn't exist
+                $qtxt = "CREATE TABLE IF NOT EXISTS pool_files (
+                    id serial NOT NULL,
+                    filename varchar(255) NOT NULL,
+                    subject text,
+                    account varchar(50),
+                    amount varchar(50),
+                    file_date varchar(50),
+                    invoice_number varchar(100),
+                    description text,
+                    updated timestamp DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    UNIQUE(filename)
+                )";
+                db_modify($qtxt, __FILE__ . " line " . __LINE__);
+            }
+            
+            // Check if file already exists in database
+            $qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($filename) . "'";
+            if (db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+                // File already exists, skip insert
+                self::debugLog('insertToPoolFiles: File already exists in database', $filename);
+                return true;
+            }
+            
+            // Extract metadata values
+            $baseName = pathinfo($filename, PATHINFO_FILENAME);
+            $subject = $baseName;
+            $account = '';
+            $amount = '';
+            $fileDate = date('Y-m-d H:i:s');
+            $invoiceNumber = '';
+            $description = '';
+            
+            if ($metadata !== null && is_array($metadata)) {
+                $subject = isset($metadata['subject']) && $metadata['subject'] ? $metadata['subject'] : $baseName;
+                $account = isset($metadata['accountnr']) ? $metadata['accountnr'] : '';
+                $amount = isset($metadata['amount']) ? $metadata['amount'] : '';
+                $fileDate = isset($metadata['date']) && $metadata['date'] ? $metadata['date'] : $fileDate;
+                $invoiceNumber = isset($metadata['invoiceNumber']) ? $metadata['invoiceNumber'] : '';
+                $description = isset($metadata['invoiceDescription']) ? $metadata['invoiceDescription'] : '';
+            }
+            
+            // Insert into database
+            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+                '" . db_escape_string($filename) . "',
+                '" . db_escape_string($subject) . "',
+                '" . db_escape_string($account) . "',
+                '" . db_escape_string($amount) . "',
+                '" . db_escape_string($fileDate) . "',
+                '" . db_escape_string($invoiceNumber) . "',
+                '" . db_escape_string($description) . "'
+            )";
+            db_modify($qtxt, __FILE__ . " line " . __LINE__);
+            
+            self::debugLog('insertToPoolFiles SUCCESS', [
+                'filename' => $filename,
+                'subject' => $subject,
+                'account' => $account,
+                'amount' => $amount
+            ]);
+            
+            return true;
+        } catch (Exception $e) {
+            self::debugLog('insertToPoolFiles FAILED', $e->getMessage());
+            return false;
+        }
     }
     
     /**
@@ -528,9 +630,45 @@ class AttachmentModel
             if (file_exists($metadataPath)) {
                 @unlink($metadataPath);
             }
-            return unlink($this->filepath);
+            if (!unlink($this->filepath)) {
+                $this->lastError = 'Failed to delete file: ' . $this->filepath;
+                return false;
+            }
+            
+            // Delete from pool_files database table
+            $this->deleteFromPoolFiles($this->filename);
+            
+            return true;
         }
+        $this->lastError = 'File does not exist or filepath is not set';
         return false;
+    }
+    
+    /**
+     * Delete file record from pool_files database table
+     * 
+     * @param string $filename The filename to delete
+     * @return bool Success status
+     */
+    private function deleteFromPoolFiles($filename)
+    {
+        try {
+            // Check if pool_files table exists
+            $qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
+            if (!db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__))) {
+                return true; // Table doesn't exist, nothing to delete
+            }
+            
+            // Delete the record
+            $qtxt = "DELETE FROM pool_files WHERE filename = '" . db_escape_string($filename) . "'";
+            db_modify($qtxt, __FILE__ . " line " . __LINE__);
+            
+            self::debugLog('deleteFromPoolFiles SUCCESS', $filename);
+            return true;
+        } catch (Exception $e) {
+            self::debugLog('deleteFromPoolFiles FAILED', $e->getMessage());
+            return false;
+        }
     }
     
     /**
@@ -874,6 +1012,7 @@ class AttachmentModel
     public function getSize() { return $this->size; }
     public function getMimeType() { return $this->mimeType; }
     public function getUploadDate() { return $this->uploadDate; }
+    public function getLastError() { return $this->lastError; }
     
     // Setter methods
     public function setFilename($filename) { $this->filename = $filename; }
