@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 4.1.1 --- 2025-11-24 --- 
+// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-02-06 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,31 +20,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 
-// 20121023 ID slettes fra pbs_kunder hvis pbs ikke afmærket, søg 20121023
-// 20121024 Annulleret ændringer fra 2012.10.23 !!
-// 20131004 Indsat ENT_COMPAT,$charset); Søg 20131004
-// 20140507 Indsat db_escabe_string #20140507
-// 20150123 Indhente virksomhedsdata fra CVR via CVRapi - tak Niels Rune https://github.com/nielsrune
-// 20160412 PHR Indsat link til labelprint
-// 20190213 MSC - Rettet topmenu design til
-// 20190412 MSC - Rettet isset fejl
-// 20190423 PHR - Flyttet fejlmeddelse om 'Kontonr eksisterer' over 'firmanavn skal udfyldes'
-// 20200316 PHR - Some design update (Removed borders)
-// 20210523 PHR Added my sale password.
-// 20210702 LOE Translated these texts with findtekst() function 
-// 20210706 LOE Commented out for future modification
-// 20211006 PHR added 'anonymize'
-// 20221229 PHR some cleanup
-// 20230223 PHR repaired 'anonymize' after translalation error and renamed kategori to katString where is string
-// 20230925 PHR php8
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
 // 20250911 LOE Create a contact employee if none exists for erhverv accounts 
 // 20250917 LOE Position methods for contacts updated for ansatte table and related queries
-// 20251122 LOE - Modified icons to SVG format and buttons to fit the new design
+// 20251122 LOE Modified icons to SVG format and buttons to fit the new design
+// 20260204 LOE Added grid for displaying orders; related to the debitor SD-245
+// 20260205 LOE Fixed a bug where newly created accounts loads new form when save is clicked SD-321
 
 @session_start();
 $s_id = session_id();
@@ -62,6 +47,12 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include("../includes/grid.php");
+# >> Date picker scripts 
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
+print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
 $qtxt = "select id from settings where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -132,13 +123,19 @@ if ($id) {
 }
 
 ############
+$is_grid_submission = (
+    isset($_GET['page']) || 
+    isset($_GET['sort']) || 
+    (isset($_GET['search']) && is_array($_GET['search']))
+);
 
-if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
+if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn']))) {
 	$submit = if_isset($_POST['submit'], NULL);
+	$DelEt = findtekst('1099|Slet', $sprog_id);
 	$id     = $_POST['id'];
 	if (isset($_POST['anonymize']) && $id) {
 		include('anonymize.php');
-	} elseif ($submit != "Slet") {
+	} elseif ($submit != $DelEt) {
 		$notes = $_POST['notes'];
 		$firmanavn = db_escape_string(trim($_POST['firmanavn']));
 		$addr1 = db_escape_string(trim($_POST['addr1']));
@@ -185,7 +182,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		$vis_lev_addr = db_escape_string(if_isset($_POST['vis_lev_addr'], NULL));
 		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
-		$lukket = db_escape_string(if_isset($_POST, NULL, 'lukket'));
+		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
 		list($gruppe) = explode(':', $_POST['gruppe']);
@@ -200,14 +197,14 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		$ordre_id = $_POST['ordre_id'];
 		$returside = $_POST['returside'];
 		$fokus = $_POST['fokus'];
-		$posnr = if_isset($_POST, array(), 'posnr');
+		$posnr = if_isset($_POST['posnr'], array());
 		(isset($_POST['ans_id'])) ? $ans_id = $_POST['ans_id'] : $ans_id = 0;
 		$ans_ant = $_POST['ans_ant'];
 
-		$cat_id          = if_isset($_POST, array(), 'cat_id');
-		$cat_valg        = if_isset($_POST, array(), 'cat_valg');
-		$cat_beskrivelse = if_isset($_POST, array(), 'cat_beskrivelse');
-		$newCatName      = if_isset($_POST, NULL, 'newCatName');
+		$cat_id          = if_isset($_POST['cat_id'], array());
+		$cat_valg        = if_isset($_POST['cat_valg'], array());
+		$cat_beskrivelse = if_isset($_POST['cat_beskrivelse'], array());
+		$newCatName      = if_isset($_POST['newCatName'], NULL);
 		$rename_category = isset($_POST['rename_category']) ? $_POST['rename_category'] : NULL;
 
 		$status = db_escape_string(trim($_POST['status']));
@@ -215,7 +212,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		$status_id = $_POST['status_id'];
 		$status_beskrivelse = $_POST['status_beskrivelse'];
 		$status_antal = count($status_id);
-		$rename_status = if_isset($_POST, NULL, 'rename_status');
+		$rename_status = if_isset($_POST['rename_status']);
 
 		if ($gl_kontotype == 'privat') {
 			$firmanavn = trim($fornavn . " " . $efternavn);
@@ -338,40 +335,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 
 		######### Status
 
-		/*
-		for ($x=0;$x<count($status_valg);$x++) {
-			if ($status_valg[$x] || $status_valg[$x] == '0') {
-				($status)?$status.=chr(9).$status_id[$x]:$status=$status_id[$x];
-			}
-		}
-		if ($ny_status) {
-			if (!$rename_status && in_array($ny_status,$status_beskrivelse)) {
-				$alerttekst=findtekst('344|Kategorien $ny_kategori eksisterer allerede', $sprog_id);
-			} else {
-				if (!$rename_status) {
-					$x=1;
-					while(in_array($x,$status_id)) $x++; #finder laveste ledige vaerdi
-					$status=$x;
-					$status_id[$status_antal]=$x;
-					$status_beskrivelse[$status_antal]=$ny_status;
-					$status_antal++;
-				}
-				$box3=NULL;$box4=NULL;
-			}
-		}
-		for ($x=0;$x<$status_antal;$x++) {
-			if ($status_id[$x]==$rename_status) $status_beskrivelse[$x]=$ny_status;
-			if ($status_id[$x] != $status && !$r=db_fetch_array($q=db_select("select id from adresser where status='$status_id[$x]'",__FILE__ . " linje " . __LINE__))) {
-				$status_id[$x]=NULL;
-				$status_beskrivelse[$x]=NULL;
-			} else {
-				($box3)?$box3.=chr(9).$status_id[$x]:$box3=$status_id[$x];
-				($box4)?$box4.=chr(9).$status_beskrivelse[$x]:$box4=$status_beskrivelse[$x];
-			}
-		}
-		$rename_status=0;
-		db_modify("update grupper set box3='$box3',box4='$box4' where art = 'DebInfo'",__FILE__ . " linje " . __LINE__);  
-		*/
+		
 
 		// Helper function to append values with tabs
 		function appendWithTab(&$target, $value)
@@ -454,8 +418,8 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		if (!$id && $ny_kontonr) {
 			$qtxt = "select id from adresser where kontonr = '$ny_kontonr' and art = 'D'";
 			if ($ny_kontonr && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$alerttekst = findtekst('350|Der findes allerede en debitor med Kontonr: $ny_kontonr', $sprog_id);
-				$alerttekst = str_replace('$ny_kontonr', $ny_kontonr, $alerttekst);
+				$alerttekst = findtekst('350|Der findes allerede en debitor med Kontonr', $sprog_id);
+				$alerttekst = $alerttekst.': '.$ny_kontonr;
 				print "<BODY onLoad=\"javascript:alert('$alerttekst')\">"; #<!--tekst 350-->\n";
 				$ny_kontonr = '!';
 			}
@@ -528,11 +492,14 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 			$r = db_fetch_array($q);
 			$id = $r['id'];
 			if ($kontakt) db_modify("insert into ansatte(konto_id, navn) values ('$id', '$kontakt')", __FILE__ . " linje " . __LINE__);
+			
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?tjek_id=$id&id=$id&returside=$returside\">\n";
+			exit;
 		} elseif ($id > 0) {
 			#######	
 			$q1 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 			$ar = db_fetch_array($q1);
-			$a_id = $ar ? $ar['id'] : null;
+			$a_id = $ar['id'];
 			#######
 
 
@@ -737,9 +704,11 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 			}
 		}
 	} else {
+		
 		db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from shop_adresser where saldi_id = $id", __FILE__ . " linje " . __LINE__);
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitor.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">\n";
+	   exit;
 	}
 }
 
@@ -934,7 +903,7 @@ if ($menu == 'T') {
 	print "<div class='content-noside'>";
 	print  "<table border='0' cellspacing='1' class='dataTableForm' width='100%'>";
 } elseif ($menu == 'S') {
-	############################
+	############################ 
 	$icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 	$help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
 	$add_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
@@ -992,7 +961,7 @@ if ($menu == 'T') {
 }
 
 print "<div class='outer-datatable-wrapper'>";
-print "<div class='datatable-wrapper'>";
+print "<div class='form-wrapper'>"; // CHANGED: specific class for form area
 if ($menu != 'T') {
 	// START A NEW TABLE with the same properties:
 	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" width=\"100%\"><tbody>\n"; # NEW TABEL 1.2 ->
@@ -1386,7 +1355,7 @@ print "<tr><td colspan=6></td></tr>\n";
 
 $z2 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 $y2 = db_fetch_array($z2);
-$an_id = $y2 ? $y2['id'] : null;
+$an_id = $y2['id'];
 
 ###########
 
@@ -1420,7 +1389,7 @@ if ($kontotype == 'erhverv') {
 	if ($id) {
 
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td title=\"" . findtekst('393|Positionsnummer. Primær kontakt har nummer 1', $sprog_id) . "\"><!--tekst 393-->" . findtekst('394|Pos.', $sprog_id) . "<!--tekst 394--></td><td>" . findtekst('398|Kontakt', $sprog_id) . "<!--tekst 398--></td><td title=\"" . findtekst('399|Direkte telefonnummer eller lokalnummer', $sprog_id) . "\"><!--tekst 399-->" . findtekst('400|Direkte/lokal', $sprog_id) . "<!--tekst 400--></td><td>" . findtekst('401|Mobil', $sprog_id) . "<!--tekst 401--></td><td>" . findtekst('402|E-mail', $sprog_id) . "<!--tekst 402--></td><td><a href='ansatte.php?returside=" . urlencode($returside) . "&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id'><button type='button' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></button></a></td></tr>\n";
+		print "<tr bgcolor=$bg><td title=\"" . findtekst('393|Positionsnummer. Primær kontakt har nummer 1', $sprog_id) . "\"><!--tekst 393-->" . findtekst('394|Pos.', $sprog_id) . "<!--tekst 394--></td><td>" . findtekst('398|Kontakt', $sprog_id) . "<!--tekst 398--></td><td title=\"" . findtekst('399|Direkte telefonnummer eller lokalnummer', $sprog_id) . "\"><!--tekst 399-->" . findtekst('400|Direkte/lokal', $sprog_id) . "<!--tekst 400--></td><td>" . findtekst('401|Mobil', $sprog_id) . "<!--tekst 401--></td><td>" . findtekst('402|E-mail', $sprog_id) . "<!--tekst 402--></td><td><a href='ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id'><button type='button' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></button></a></td>\n"; 
 		$x = 0;
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
@@ -1429,7 +1398,7 @@ if ($kontotype == 'erhverv') {
 			$x++;
 			($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 			print "<tr bgcolor=$bg>\n";
-			print "<td width=10><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\"></td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href='ansatte.php?returside=" . urlencode($returside) . "&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]'>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
+			print "<td width=10><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\"></td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
 			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td></td><td></td></tr>\n";
 			print "<input class='inpPasswordutbox' type=hidden name=ans_id[$x] value=$r[id]>\n";
 			if ($x == 1) {
@@ -1472,13 +1441,15 @@ if ($slet == "NO") {
 	print "</td>";
 	print "<td align='center' width='30%'>";
 	print "<input class='button rosy medium' style='border-radius:4px;' type='submit' accesskey='s'";
-	print "value='" . findtekst('1099|Slet', $sprog_id) . "' name='submit' onclick='return confirm('" . findtekst('1099|Slet', $sprog_id) . " $firmanavn?')'>";
+	print "value='" . findtekst('1099|Slet', $sprog_id) . "' 
+	name='submit' 
+	onclick=\"return confirm('" . findtekst('1099|Slet', $sprog_id) . " $firmanavn?');\"";
+
 	print "</td>";
-	print "<td colspan='2' width='20%'><br></td>";
+	print "<td colspan='2' width='20%'><br></td>"; 
 }
 print "</tr>";
 print "</form>\n";
-
 
 #print "<tr><td colspan=5><hr></td></tr>\n";
 print "</tbody></table></td></tr>"; # <- TABEL 1.2.4.3
@@ -1486,88 +1457,64 @@ print "</tbody></table></td></tr>"; # <- TABEL 1.2.4
 
 print "</tbody></table></td></tr>"; # <- TABEL 1.2
 
-print "</div>"; //datatable-wrapper
-print "</div>"; //outer-datatable-wrapper
+print "</div>"; // Close form-wrapper
 
 print "<tr><td align = 'center' valign = 'bottom'>\n";
 if ($menu == 'T') {
 } elseif ($menu == 'S') {
 
-	print "<div class='footer-box'>";
-	print "<table class='footer-box-table' width='50%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>";
-	print "<tr>";
+##############
 
-	$tekst = findtekst('130|Vis historik.', $sprog_id);
-	if ($popup) {
-		print "<td width='10%' onClick=\"javascript:historik=window.open('historikkort.php?id=$id&returside=../includes/luk.php', title='$tekst'>
-			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></td>\n";
-	} elseif ($returside != "historikkort.php") {
-		print "<td width='10%' title='$tekst'><a href='historikkort.php?id=$id&returside=debitorkort.php'>
-				<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></a></td>\n";
-	} else {
-		print "<td width='10%' title='$tekst'><a href='historikkort.php?id=$id'>
-				<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></a></td>\n";
-	}
+ 
+// Store button HTML in a JavaScript variable
+$tekst_historik = findtekst('130|Vis historik.', $sprog_id);
+$tekst_kontokort = findtekst('132|Vis Kontokort.', $sprog_id);
+$tekst_faktura = findtekst('129|Vis fakturaliste.', $sprog_id);
+$tekst_jobliste = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id);
 
-	$tekst = findtekst('132|Vis Kontokort.', $sprog_id);
-	print "<td width='10%' title='$tekst'>
-			<a href='rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id'>
-			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('133|Kontokort', $sprog_id) . "</button></a></td>\n";
+$jobkort = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__))['box7'];
 
-	$tekst = findtekst('129|Vis fakturaliste.', $sprog_id);
-	if (substr($rettigheder, 5, 1) == '1') {
-		print "<td width='10%' title='$tekst'>
-				<a href='ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id'>
-				<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('134|Fakturaliste', $sprog_id) . "</button></a></td>\n";
-	} else {
-		print "<td width='10%' align='center' style='$topStyle'><span style=\"color:#999;\">" . findtekst('134|Fakturaliste', $sprog_id) . "</span></td>\n";
-	}
+// Build buttons HTML
+$buttons_html = "<div class='sticky-custom-buttons' style='display: flex; justify-content: center; align-items: center; gap: 10px; padding: 10px 0; width: 100%; background: #f4f4f4; border-top: 2px solid #ddd;'>";
 
-	$r = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
-	$jobkort = $r['box7'];
-	if ($jobkort) {
-		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id);
-		print "<td width='10%' title='$tekst'><a href='jobliste.php?konto_id=$id&returside=../debitor/debitorkort.php?id=$id'> 
-			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('38|Stillingsliste', $sprog_id) . "</button></a></td>\n";
-	} else {
-		print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>" . findtekst('38|Stillingsliste', $sprog_id) . "</span></td>\n";
-	}
+// Historik button
+if ($popup) {
+    $buttons_html .= "<button type='button' onclick=\"window.open('historikkort.php?id=$id&amp;returside=../includes/luk.php', 'historik')\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
+} elseif ($returside != "historikkort.php") {
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id&amp;returside=debitorkort.php'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
+} else {
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
+}
 
-	print "</tr>";
-	print "</tbody></table>";
-	print "</div>";
-?>
+// Kontokort button
+$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
 
-	<style>
-		.footer-box {
-			position: sticky;
-			bottom: 0;
-			z-index: 1;
-			background-color: #f4f4f4;
-			border-top: 2px solid #ddd;
-			padding: 10px 0;
-		}
+// Fakturaliste button
+if (substr($rettigheder, 5, 1) == '1') {
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='ordreliste.php?konto_id=$id&amp;valg=faktura&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_faktura'>" . findtekst('134|Fakturaliste', $sprog_id) . "</button>";
+} else {
+    $buttons_html .= "<button style='$buttonStyle; padding: 8px 16px; opacity: 0.5; cursor: not-allowed;' disabled>" . findtekst('134|Fakturaliste', $sprog_id) . "</button>";
+}
 
-		.footer-box-table {
-			width: 50%;
-			border-collapse: collapse;
-		}
+// Stillingsliste button
+if ($jobkort) {
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='jobliste.php?konto_id=$id&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_jobliste'>" . findtekst('38|Stillingsliste', $sprog_id) . "</button>";
+} else {
+    $buttons_html .= "<button style='$buttonStyle; padding: 8px 16px; opacity: 0.5; cursor: not-allowed;' disabled>" . findtekst('38|Stillingsliste', $sprog_id) . "</button>";
+}
 
-		.footer-box-table td {
+// Print button
+$print_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 0 24 24" width="18px" fill="#FFFFFF" style="vertical-align: middle; margin-right: 5px;"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>';
+$buttons_html .= "<button type='button' onclick='printPurchaseHistory()' style='$buttonStyle; padding: 8px 16px; cursor: pointer; display: flex; align-items: center;' title='Print købshistorik'>" . $print_icon . "Print</button>";
 
-			vertical-align: middle;
-		}
+$buttons_html .= "</div>";
 
-		.footer-box-table button {
-			transition: all 0.2s ease;
-		}
+// Escape for JavaScript
+$buttons_html_escaped = str_replace("'", "\\'", $buttons_html);
+$buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 
-		.footer-box-table button:hover {
-			opacity: 0.8;
-			transform: translateY(-1px);
-		}
-	</style>
-<?php
+
+
 } else {
 	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
 	print "<td width='25%' $top_bund>&nbsp;</td>\n";
@@ -1622,7 +1569,178 @@ if (!$id) {
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
 }
 
+##################
 
+################## PURCHASE HISTORY GRID ##################
+
+
+if ($id > 0) {
+    // Start purchase history wrapper - separate from form
+    echo "<div class='purchase-history-wrapper'>";
+    
+    
+    
+$purchase_columns = [
+    [
+        'field' => 'varenr',
+        'headerName' => 'Varenr.',
+        'type' => 'text',
+        'width' => '1',
+        'sortable' => true,
+        'searchable' => true,
+        'align' => 'left',
+        'sqlOverride' => 'varenr' 
+    ],
+    [
+        'field' => 'varenavn',
+        'headerName' => 'Varenavn',
+        'type' => 'text',
+        'width' => '3',
+        'sortable' => true,
+        'searchable' => true,
+        'align' => 'left',
+        'sqlOverride' => 'varenavn' 
+    ],
+    [
+        'field' => 'antal',
+        'headerName' => 'Antal',
+        'type' => 'number',
+        'width' => '1',
+        'sortable' => true,
+        'searchable' => true,
+        'align' => 'right',
+        'decimalPrecision' => 2,
+        'sqlOverride' => 'ordrelinjer.antal'
+    ],
+    [
+        'field' => 'salgspris',
+        'headerName' => 'Salgspris',
+        'type' => 'number',
+        'width' => '1',
+        'sortable' => true,
+        'searchable' => true,
+        'align' => 'right',
+        'decimalPrecision' => 2,
+        'sqlOverride' => 'ordrelinjer.pris'
+    ],
+    [
+        'field' => 'dato',
+        'headerName' => 'Dato',
+        'type' => 'text',
+        'width' => '1',
+        'sortable' => true,
+        'searchable' => true,
+        'align' => 'left',
+        'sqlOverride' => "dato"
+    ],
+    [
+        'field' => 'rabat',
+        'headerName' => 'Rabat %',
+        'type' => 'number',
+        'width' => '1',
+        'sortable' => true,
+        'searchable' => true,
+        'align' => 'right',
+        'decimalPrecision' => 2,
+        'sqlOverride' => 'rabat'
+    ]
+];
+
+// Get the month filter from URL or default to 'all'
+$month_filter = if_isset($_GET, 'all', 'months');
+
+// Build the date filter condition
+$date_condition = "1=1";
+if ($month_filter != 'all' && is_numeric($month_filter)) {
+    $months_ago = date('Y-m-d', strtotime("-$month_filter months"));
+    $date_condition = "ordrer.ordredate >= '$months_ago'";
+}
+
+##########
+// Handle date range search
+$date_where = "";
+if (isset($_GET['search']['purchase_history']['dato'])) {
+    $date_search = $_GET['search']['purchase_history']['dato'];
+    
+    if (strpos($date_search, ' : ') !== false) {
+        // It's a range
+        list($start, $end) = explode(' : ', $date_search);
+        $start_obj = DateTime::createFromFormat('d-m-Y', trim($start));
+        $end_obj = DateTime::createFromFormat('d-m-Y', trim($end));
+        
+        if ($start_obj && $end_obj) {
+            $date_where = "ordrer.ordredate BETWEEN '" . $start_obj->format('Y-m-d') . "' 
+                          AND '" . $end_obj->format('Y-m-d') . "'";
+        }
+    } else {
+        // Single date
+        $date_obj = DateTime::createFromFormat('d-m-Y', trim($date_search));
+        if ($date_obj) {
+            $date_where = "ordrer.ordredate = '" . $date_obj->format('Y-m-d') . "'";
+        }
+    }
+    
+    // Remove the date from GET so grid doesn't try to filter it again
+    unset($_GET['search']['purchase_history']['dato']);
+}
+
+// Add to your date_condition
+if ($date_where) {
+    $date_condition .= " AND " . $date_where;
+}
+########
+
+// Define the grid data with PROPERLY QUALIFIED column names in the subquery
+$purchase_grid = [
+    'query' => "
+        SELECT 
+            varenr,
+            varenavn,
+            antal,
+            salgspris,
+            dato,
+            rabat
+        FROM (
+            SELECT 
+                varer.varenr AS varenr,
+                varer.beskrivelse AS varenavn,
+                SUM(ordrelinjer.antal) AS antal,
+                ordrelinjer.pris AS salgspris,
+                TO_CHAR(ordrer.ordredate, 'DD-MM-YYYY') AS dato,
+                ordrelinjer.rabat AS rabat
+            FROM ordrelinjer
+            INNER JOIN ordrer ON ordrelinjer.ordre_id = ordrer.id
+            INNER JOIN varer ON ordrelinjer.vare_id = varer.id
+            WHERE ordrer.konto_id = '$id' 
+            AND $date_condition
+            GROUP BY varer.varenr, varer.beskrivelse, ordrelinjer.pris, ordrer.ordredate, ordrelinjer.rabat
+        ) AS purchase_history
+        WHERE {{WHERE}}
+        ORDER BY {{SORT}}
+    ",
+    'columns' => $purchase_columns,
+    'filters' => []
+];
+		
+
+    
+
+    // Render the purchase history grid
+	
+    create_datagrid('purchase_history', $purchase_grid);
+    
+    echo "</div>"; // Close purchase-history-wrapper  
+}else{
+	error_log("Invalid customer ID for purchase history grid: " . htmlspecialchars($id));
+}
+
+echo "</div>"; // Close outer-datatable-wrapper
+
+################## END PURCHASE HISTORY GRID ##################
+
+
+
+##################
 
 if ($menu == 'T') {
 	include_once '../includes/topmenu/footer.php';
@@ -1668,13 +1786,383 @@ include(__DIR__ . "/../includes/tutorial.php");
 create_tutorial("debkort", $steps);
 ?>
 
+<?php
+// Get background color for styling
+if (preg_match('/background-color:([a-fA-F0-9#]+)/', $topStyle, $matches)) {
+    $backgroundColor = $matches[1];
+} else {
+    $backgroundColor = '#114691';
+}
+?>
+
 <style>
-	.footer-box-table td {
-		padding-left: 10px;
-		padding-right: 10px;
-	}
+.daterangepicker .ranges li.active {
+    background-color: <?= htmlspecialchars($backgroundColor) ?> !important;
+}
+.daterangepicker td.active{
+     background-color: <?= htmlspecialchars($backgroundColor) ?> !important;
+}
+</style>
+
+<style>
+.daterangepicker {
+    font-size: 12px !important;
+    width: auto !important;
+}
+
+.daterangepicker .calendar-table {
+    font-size: 11px !important;
+}
+
+.daterangepicker td, 
+.daterangepicker th {
+    min-width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+    padding: 2px !important;
+}
+
+.daterangepicker .calendar-table .next span, 
+.daterangepicker .calendar-table .prev span {
+    border-width: 0 2px 2px 0 !important;
+    padding: 3px !important;
+}
+
+.daterangepicker select.monthselect, 
+.daterangepicker select.yearselect {
+    font-size: 11px !important;
+    padding: 2px !important;
+    height: 26px !important;
+}
+
+.daterangepicker .ranges {
+    width: 140px !important;
+    font-size: 11px !important;
+}
+
+.daterangepicker .ranges li {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+}
+
+.daterangepicker .drp-buttons {
+    padding: 6px !important;
+}
+
+.daterangepicker .drp-buttons .btn {
+    font-size: 11px !important;
+    padding: 4px 12px !important;
+}
+
+.daterangepicker .drp-calendar {
+    max-width: 250px !important;
+    padding: 6px !important;
+}
+
+.daterangepicker.show-calendar .drp-calendar.left {
+    padding: 6px !important;
+}
+
+.daterangepicker.show-calendar .drp-calendar.right {
+    padding: 6px !important;
+}
+
+/* Reduce month/year header size */
+.daterangepicker .calendar-table thead tr:first-child th {
+    padding: 4px 0 !important;
+}
+
+/* Adjust overall container */
+.daterangepicker.drop-up {
+    margin-bottom: 5px !important;
+}
+
+.daterangepicker .ranges li.active {
+    background-color: <?= htmlspecialchars($backgroundColor) ?> !important;
+}
+
+.daterangepicker td.active{
+     background-color: <?= htmlspecialchars($backgroundColor) ?> !important;
+}
+</style>
 
 
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var bruger_id = <?php echo json_encode($bruger_id); ?>;
+    
+    // Target the date input in the purchase history grid
+    const dateInput = document.querySelector("input[name='search[purchase_history][dato]']");
+    
+    if (!dateInput) {
+        console.log('Date input not found');
+        return;
+    }
+    
+    // Add autocomplete="off" to prevent browser history dropdown
+    dateInput.setAttribute('autocomplete', 'off');
+    dateInput.setAttribute('autocapitalize', 'off');
+    dateInput.setAttribute('autocorrect', 'off');
+    dateInput.setAttribute('spellcheck', 'false');
+    
+    var gridId = 'purchase_history';
+    var field = 'dato';
+    
+    // Initialize variables
+    var savedPreference = null;
+    var startDate = moment();
+    var endDate = moment();
+    var chosenLabel = null;
+    
+    // Function to load saved preference from database
+    function loadSavedPreference(callback) {
+        $.ajax({
+            url: 'save_date_settings.php',
+            type: 'POST',
+            data: {
+                action: 'get_date_preference',
+                grid_id: gridId,
+                field: field,
+                bruger_id: bruger_id
+            },
+            success: function(response) {
+                try {
+                    if (response && typeof response === 'string') {
+                        response = JSON.parse(response);
+                    }
+                    
+                    if (response && response.date_value !== undefined && response.date_value !== null && response.date_value !== '') {
+                        if (callback) callback(response);
+                    } else {
+                        if (callback) callback(null);
+                    }
+                } catch(e) {
+                    console.log('Error parsing response:', e);
+                    if (callback) callback(null);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.log('Error loading date preference:', error);
+                if (callback) callback(null);
+            }
+        });
+    }
+    
+    // Load saved preference BEFORE initializing picker
+    loadSavedPreference(function(preference) {
+        if (preference) {
+            savedPreference = preference;
+            chosenLabel = preference.range_type;
+            
+            // Parse the saved date value
+            var dateValue = preference.date_value;
+            if (dateValue.includes(' : ') || dateValue.includes(' - ')) {
+                var separator = dateValue.includes(' : ') ? ' : ' : ' - ';
+                var dates = dateValue.split(separator);
+                
+                if (dates.length >= 2) {
+                    var parsedStart = moment(dates[0].trim(), 'DD-MM-YYYY', true);
+                    var parsedEnd = moment(dates[1].trim(), 'DD-MM-YYYY', true);
+                    
+                    if (parsedStart.isValid() && parsedEnd.isValid()) {
+                        startDate = parsedStart;
+                        endDate = parsedEnd;
+                    }
+                }
+            } else {
+                var parsed = moment(dateValue, 'DD-MM-YYYY', true);
+                if (parsed.isValid()) {
+                    startDate = parsed;
+                    endDate = parsed;
+                }
+            }
+            
+            // Set input value from saved preference
+            var urlParams = new URLSearchParams(window.location.search);
+            var searchKey = 'search[' + gridId + '][' + field + ']';
+            var urlSearchValue = urlParams.get(searchKey);
+            
+            if (urlSearchValue && urlSearchValue.trim() !== '') {
+                dateInput.value = urlSearchValue;
+            } else {
+                dateInput.value = '';
+            }
+        }
+        
+        initializePicker();
+    });
+    
+    function initializePicker() {
+        // Initialize daterangepicker
+        $(dateInput).daterangepicker({
+		    drops: 'up',
+            singleDatePicker: false,
+            showDropdowns: true,
+            autoUpdateInput: false,
+            autoApply: false,
+            linkedCalendars: false,
+            startDate: startDate,
+            endDate: endDate,
+            minYear: 1900,
+            maxYear: parseInt(moment().format('YYYY'), 10) + 10,
+            alwaysShowCalendars: true,
+            showCustomRangeLabel: true,
+            ranges: {
+                'Clear': [],
+                'I dag': [moment(), moment()],
+                'I går': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                'Sidste 7 dage': [moment().subtract(6, 'days'), moment()],
+                'Sidste 30 dage': [moment().subtract(29, 'days'), moment()],
+                'Denne måned': [moment().startOf('month'), moment().endOf('month')],
+                'Sidste måned': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                'Sidste 3 måneder': [moment().subtract(3, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                'Sidste 6 måneder': [moment().subtract(6, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                'Sidste 12 måneder': [moment().subtract(12, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                'Dette år': [moment().startOf('year'), moment().endOf('year')],
+                'Sidste år': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
+            },
+            locale: {
+                format: 'DD-MM-YYYY',
+                separator: ' : ',
+                applyLabel: 'Søg',
+                cancelLabel: 'Ryd',
+                fromLabel: 'Fra',
+                toLabel: 'Til',
+                customRangeLabel: 'Brugerdefineret',
+                daysOfWeek: ['Sø', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø'],
+                monthNames: ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
+                    'Juli', 'August', 'September', 'Oktober', 'November', 'December'
+                ],
+                firstDay: 1
+            }
+        });
+        
+        var picker = $(dateInput).data('daterangepicker');
+        
+        // Set the chosenLabel AFTER initialization
+        if (savedPreference && chosenLabel !== null && chosenLabel !== undefined && chosenLabel !== 'Clear') {
+            setTimeout(function() {
+                if (picker) {
+                    picker.chosenLabel = chosenLabel;
+                    
+                    if (chosenLabel in picker.ranges) {
+                        picker.setStartDate(picker.ranges[chosenLabel][0]);
+                        picker.setEndDate(picker.ranges[chosenLabel][1]);
+                    }
+                    
+                    picker.updateCalendars();
+                    picker.updateView();
+                }
+            }, 100);
+        }
+        
+        // When user clicks "Søg" (Apply) button
+        $(dateInput).on('apply.daterangepicker', function(ev, picker) {
+            if (picker.chosenLabel === 'Clear') {
+                $(this).val('');
+                var form = $(this).closest('form');
+                if (form.length > 0) {
+                    form.submit();
+                }
+                picker.hide();
+                return;
+            }
+            
+            var selectedStartDate = picker.startDate.format('DD-MM-YYYY');
+            var selectedEndDate = picker.endDate.format('DD-MM-YYYY');
+            
+            var displayValue;
+            if (selectedStartDate === selectedEndDate) {
+                displayValue = selectedStartDate;
+            } else {
+                displayValue = selectedStartDate + ' : ' + selectedEndDate;
+            }
+            
+            $(this).val(displayValue);
+            
+            var rangeTypeToSave = picker.chosenLabel;
+            if (!rangeTypeToSave || rangeTypeToSave === 'Custom Range' || rangeTypeToSave === 'Brugerdefineret') {
+                rangeTypeToSave = 'Custom';
+            }
+            
+            // Save preference
+            $.ajax({
+                url: 'save_date_settings.php',
+                type: 'POST',
+                data: {
+                    action: 'save_date_preference',
+                    grid_id: gridId,
+                    field: field,
+                    range_type: rangeTypeToSave,
+                    date_value: displayValue,
+                    bruger_id: bruger_id
+                },
+                success: function(response) {
+                    var form = $(dateInput).closest('form');
+                    if (form.length > 0) {
+                        form.submit();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error saving date preference:', error);
+                }
+            });
+        });
+        
+        // When user clicks "Ryd" (Cancel) button
+        $(dateInput).on('cancel.daterangepicker', function(ev, picker) {
+            $(this).val('');
+            var form = $(this).closest('form');
+            if (form.length > 0) {
+                form.submit();
+            }
+        });
+    }
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait for grid to be fully rendered
+    setTimeout(function() {
+        var gridForm = document.querySelector('#datatable-wrapper-purchase_history form');
+        
+        if (gridForm) {
+            // Get current URL parameters we want to preserve
+            var currentId = <?php echo json_encode($id); ?>;
+            var returside = <?php echo json_encode($returside); ?>;
+            
+            // Add hidden inputs to preserve these parameters
+            var hiddenInputs = [
+                { name: 'tjek', value: currentId },
+                { name: 'id', value: currentId },
+                { name: 'returside', value: returside }
+            ];
+            
+            hiddenInputs.forEach(function(input) {
+                // Check if input already exists
+                var existingInput = gridForm.querySelector('input[name="' + input.name + '"]');
+                if (!existingInput) {
+                    var hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = input.name;
+                    hiddenInput.value = input.value;
+                    gridForm.appendChild(hiddenInput);
+                }
+            });
+            
+            console.log('Grid form parameters added:', hiddenInputs);
+        } else {
+            console.log('Grid form not found');
+        }
+    }, 200);
+});
+</script>
+
+<style>
 	body {
 		padding: 0;
 		height: 100vh;
@@ -1687,28 +2175,262 @@ create_tutorial("debkort", $steps);
 		width: 100%;
 		flex: 1;
 		overflow: hidden;
-	}
-
-	.datatable-wrapper {
-		margin-bottom: 5px;
-		overflow-x: auto;
-		overflow-y: auto;
-		height: 100%;
-		width: 100%;
-	}
-
-	.footer-box {
-		align-items: center;
-		justify-content: flex-end;
 		display: flex;
-		gap: 10px;
+		flex-direction: column;
 	}
 
-	.tbody {
-		min-height: auto;
+	.form-wrapper {
+		flex-shrink: 0;
+		overflow-y: auto;
+		overflow-x: hidden;
+		max-height: 50vh;
+		border-bottom: 2px solid #ddd;
+		padding-bottom: 10px;
+	}
+
+	.purchase-history-wrapper {
+		flex: 1;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		min-height: 200px;
+		padding-top: 10px;
+	}
+
+	#datatable-wrapper-purchase_history {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		overflow: auto;
+	}
+
+	/* THIS is where the scroll should be */
+	#datatable-wrapper-purchase_history .datatable-search-wrapper {
+		flex: 1;
+		/* overflow-y: auto;
+		overflow-x: auto; */
+		position: relative;
+	}
+
+	/* Ensure table takes full width */
+	#datatable-wrapper-purchase_history table.datatable {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	/* Custom buttons container (not sticky, just at bottom) */
+	.sticky-custom-buttons {
+		position: sticky;
+		bottom: 20px;
+		flex-shrink: 0;
+		background-color: #f4f4f4;
+		border-top: 2px solid #ddd;
+		padding: 10px 0;
+		z-index: 500;
+
+	}
+
+	.sticky-custom-buttons button {
+		transition: all 0.2s ease;
+		min-width: 120px;
+	}
+
+	.sticky-custom-buttons button:hover:not(:disabled) {
+		opacity: 0.8;
+		transform: translateY(-1px);
 	}
 
 	a:link {
 		text-decoration: none;
 	}
+	.dropdown{
+		display:none !important;
+	}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait a moment for the grid to render
+    setTimeout(function() {
+        var tfoot = document.querySelector('#datatable-wrapper-purchase_history tfoot');
+        if (tfoot) {
+            // Create a new row
+            var row = document.createElement('tr');
+            var cell = document.createElement('td');
+            cell.colSpan = 100;
+            cell.style.padding = '0';
+            cell.style.margin = '0';
+            
+            // Insert the translated buttons (directly from PHP)
+            cell.innerHTML = '<?php echo $buttons_html_escaped; ?>';
+            
+            // Fix any styling on the buttons container
+            var buttonsDiv = cell.querySelector('.sticky-custom-buttons');
+            if (buttonsDiv) {
+                buttonsDiv.style.position = 'static';
+                buttonsDiv.style.margin = '0';
+                buttonsDiv.style.padding = '10px 0';
+            }
+            
+            row.appendChild(cell);
+            tfoot.appendChild(row);
+            
+            // Add inline style to remove gaps
+            var style = document.createElement('style');
+            style.textContent = '#datatable-wrapper-purchase_history tfoot tr:last-child { border-spacing: 0 !important; margin: 0 !important; }';
+            document.head.appendChild(style);
+        }
+    }, 500);
+});
+</script>
+
+<script>
+function printPurchaseHistory() {
+    // Get the datatable wrapper
+    var datatableWrapper = document.querySelector('#datatable-wrapper-purchase_history');
+    
+    if (!datatableWrapper) {
+        alert('Could not find purchase history table');
+        return;
+    }
+    
+    // Clone the wrapper to manipulate it
+    var clonedWrapper = datatableWrapper.cloneNode(true);
+    
+    // Remove footer-box by ID
+    var footerBox = clonedWrapper.querySelector('#footer-box');
+    if (footerBox) {
+        footerBox.remove();
+    }
+    
+    // Remove all elements with class "dropdown"
+    var dropdowns = clonedWrapper.querySelectorAll('.dropdown');
+    dropdowns.forEach(function(dropdown) {
+        dropdown.remove();
+    });
+
+    var customButtons = clonedWrapper.querySelectorAll('.sticky-custom-buttons');
+    customButtons.forEach(function(buttons) {
+        buttons.remove();
+    });
+
+    // Remove the second tr from thead
+    var thead = clonedWrapper.querySelector('thead');
+    if (thead) {
+        var rows = thead.querySelectorAll('tr');
+        if (rows.length > 1) {
+            rows[1].remove();
+        }
+    }
+    
+    // Get the table
+    var table = clonedWrapper.querySelector('table.datatable#datatable-purchase_history');
+    
+    if (!table) {
+        alert('Could not find datatable');
+        return;
+    }
+    
+    // Get customer info
+    var firmanavn = <?php echo json_encode($firmanavn ?? ''); ?>;
+    var kontonr = <?php echo json_encode($kontonr ?? ''); ?>;
+    
+    // Get the background color from PHP
+    var backgroundColor = <?php echo json_encode($backgroundColor); ?>;
+    
+    // Create print window
+    var printWindow = window.open('', 'PrintPurchaseHistory', 'width=900,height=700');
+    
+    // Build the print content
+    var printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Purchase History - ${firmanavn}</title>
+            <style>
+                @media print {
+                    @page {
+                        size: A4 landscape;
+                        margin: 1cm;
+                    }
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 12px;
+                    margin: 20px;
+                }
+                h1 {
+                    font-size: 18px;
+                    margin-bottom: 5px;
+                }
+                h2 {
+                    font-size: 14px;
+                    margin-top: 0;
+                    color: #666;
+                }
+                table.datatable {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 20px;
+                }
+                table.datatable th {
+                    background-color: ${backgroundColor} !important;
+                    color: white !important;
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    text-align: left;
+                    font-weight: bold;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+                table.datatable td {
+                    border: 1px solid #ddd;
+                    padding: 6px;
+                }
+                table.datatable tr:nth-child(even) {
+                    background-color: #f9f9f9;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+                .print-date {
+                    text-align: right;
+                    font-size: 10px;
+                    color: #666;
+                    margin-bottom: 20px;
+                }
+                /* Hide any remaining unwanted elements */
+                .dropdown {
+                    display: none !important;
+                }
+                #footer-box {
+                    display: none !important;
+                }
+                /* Ensure background colors print */
+                * {
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Purchase History</h1>
+            <h2>${firmanavn} (Customer No.: ${kontonr})</h2>
+            <div class="print-date">
+                Printed: ${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB')}
+            </div>
+            ${table.outerHTML}
+        </body>
+        </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for content to load, then print
+    printWindow.onload = function() {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    };
+}
+</script>

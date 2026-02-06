@@ -1,5 +1,7 @@
 <?php
 //..includes/orderFuncIncludes/grid_order.php
+// 20260203 @LOE Updated build_query to return exact searches first before related matches.
+
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -749,11 +751,11 @@ function get_default_sort($columns) {
  * @param int $rowCount The number of rows to return.
  * @param int $offset The starting point for the result set (used for pagination).
  * @return string The final SQL query with all conditions applied.
+ *
  */
 function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $sort, $rowCount, $offset) {
     $query = $grid_data['query'];
     
-
     $filterstring = "";
     $i=0;
     foreach ($filters as $filter) {
@@ -788,7 +790,6 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
             return if_isset($col['searchable'], false);
         });
         
-
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
@@ -809,10 +810,62 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         $query = str_replace("{{WHERE}}", $filterstring == "" ? "1=1" : $filterstring, $query);
     }
 
-    # Is always set due to get_default_sort
-    $query = str_replace("{{SORT}}", $sort, $query);
+    
+    // EXACT MATCH PRIORITIZATION - Added for better search relevance
+    
+    $exactMatchOrdering = "";
+    if (!empty($searchTerms)) {
+        $searchableColumns = array_filter($columns, function ($col) {
+            return if_isset($col['searchable'], false);
+        });
+        
+        $orderCases = array();
+        foreach ($searchableColumns as $column) {
+            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+                $term = addslashes($searchTerms[$column['field']]);
+                $field = $column['sqlOverride'] == '' ? $column['field'] : $column['sqlOverride'];
+                
+                if ($term === '' && $term !== '0') {
+                    continue;
+                }
+                
+                if ($column["type"] == "text") {
+                    $orderCases[] = "CASE 
+                        WHEN LOWER($field) = LOWER('$term') THEN 1
+                        WHEN LOWER($field) LIKE LOWER('$term%') THEN 2
+                        WHEN LOWER($field) LIKE LOWER('%$term%') THEN 3
+                        ELSE 4
+                    END";
+                } 
+                elseif ($column["type"] == "number") {
+                    $orderCases[] = "CASE 
+                        WHEN $field::text = '$term' THEN 1
+                        WHEN $field::text LIKE '$term%' THEN 2
+                        WHEN $field::text LIKE '%$term%' THEN 3
+                        ELSE 4
+                    END";
+                }
+                elseif ($column["type"] == "dropdown") {
+                    $orderCases[] = "CASE 
+                        WHEN LOWER($field) = LOWER('$term') THEN 1
+                        WHEN LOWER($field) LIKE LOWER('$term%') THEN 2
+                        WHEN LOWER($field) LIKE LOWER('%$term%') THEN 3
+                        ELSE 4
+                    END";
+                }
+            }
+        }
+        
+        if (!empty($orderCases)) {
+            $exactMatchOrdering = implode(", ", $orderCases) . ", ";
+        }
+    }
+    
+    $finalSort = $exactMatchOrdering . $sort;
+    $query = str_replace("{{SORT}}", $finalSort, $query);
+    // ========================================================================
 
-    $query .= " LIMIT $rowCount OFFSET $offset"; // Add limit for performance
+    $query .= " LIMIT $rowCount OFFSET $offset";
 
     return $query;
 }
@@ -1180,96 +1233,17 @@ HTML;
  *
  * @return void Outputs the HTML structure of the table footer, including row count options, pagination controls, and page status.
  */
-// function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
-//     // Define the possible row count options
-//     $rowCounts = [50, 100, 250, 500, 1000, 5000, 999999999];
 
-//     // Build the options dynamically
-//     $options = '';
-//     foreach ($rowCounts as $count) {
-//         $selected = ($selectedrowcount == $count) ? 'selected' : '';
-//         $label = ($count == 999999999) ? 'Alle' : $count; // Use "Alle" for the max value
-//         $options .= "<option value=\"$count\" $selected>$label</option>";
-//     }
-
-//     // Calculate pagination details
-//     $currentPage = floor($offset / $selectedrowcount) + 1;
-//     $totalPages = ceil($totalItems / $selectedrowcount);
-//     $offsetFrom = $offset + 1;
-//     $offsetTo = min(array($totalItems, $selectedrowcount + $offset));
-//     $nextpage = min(array($totalItems, $offset + $selectedrowcount));
-//     $lastpage = max(array(0, $offset - $selectedrowcount));
-
-//     $nextpagestatus = $nextpage == $totalItems ? 'disabled' : '';
-//     $lastpagestatus = $offset == 0 ? 'disabled' : '';
-
-//     // Generate a subset of page links
-//     $pageLinks = '';
-//     $pageRange = 2; // Number of pages to show around the current page
-//     $startPage = max(1, $currentPage - $pageRange);
-//     $endPage = min($totalPages, $currentPage + $pageRange);
-
-//     if ($startPage > 1) {
-//         $pageLinks .= "<button class='navbutton' type='button' onclick='setOffset$id(0)'>1</button>";
-//         if ($startPage > 2) {
-//             $pageLinks .= "<span>...</span>";
-//         }
-//     }
-
-//     for ($i = $startPage; $i <= $endPage; $i++) {
-//         $pageOffset = ($i - 1) * $selectedrowcount;
-//         $isActiveStyle = ($i == $currentPage) ? "style='text-decoration: underline;'" : "";
-//         $pageLinks .= "<button type='button' onclick='setOffset$id($pageOffset)' $isActiveStyle class='navbutton'>$i</button>";
-//     }
-
-//     if ($endPage < $totalPages) {
-//         if ($endPage < $totalPages - 1) {
-//             $pageLinks .= "<span>...</span>";
-//         }
-//         $lastPageOffset = ($totalPages - 1) * $selectedrowcount;
-//         $pageLinks .= "<button type='button' onclick='setOffset$id($lastPageOffset)' class='navbutton'>$totalPages</button>";
-//     }
-
-//     // Output the footer with dynamic options
-//     echo <<<HTML
-//             <tr>
-//                 <td colspan=100>
-//                     <input type='hidden' name="offset[$id]" value="$offset" size='4'>
-//                     <div id='footer-box'>
-//                         <span style='display: flex' id='page-status'>
-//                             $offsetFrom-$offsetTo&nbsp;af&nbsp;$totalItems
-//                         </span>
-//                         |
-//                         <span>Linjer pr. side 
-//                             <select name="rowcount[$id]" onchange="this.form.submit()">
-//                                 $options
-//                             </select> 
-//                         </span>
-//                         |
-//                         <span id='navbuttons'>
-//                             <button type='button' onclick="setOffset$id($lastpage)" $lastpagestatus>
-//                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
-//                             </button>
-//                             $pageLinks
-//                             <button type='button' onclick="setOffset$id($nextpage)" $nextpagestatus>
-//                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
-//                             </button>
-//                         </span>
-//                     </div>
-//                 </td>
-//             </tr>
-// HTML;
-// }
 ############################
 function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
     // Define the possible row count options
-    $rowCounts = [50, 100, 250, 500, 1000, 5000, 999999999];
+    $rowCounts = [50, 100, 250, 500, 1000];
 
     // Build the options dynamically
     $options = '';
     foreach ($rowCounts as $count) {
         $selected = ($selectedrowcount == $count) ? 'selected' : '';
-        $label = ($count == 999999999) ? 'Alle' : $count;
+        $label = ($count == 1000) ? 'Alle' : $count;
         $options .= "<option value=\"$count\" $selected>$label</option>";
     }
 
