@@ -1843,7 +1843,7 @@ if (!function_exists('sync_shop_vare')) {
 				$itemNoAlias = $r['varenr_alias'];
 				$costPrice = $r['kostpris'];
 			} #$stock=$itemNo=NULL; #20210225
-			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$vare_id'";
+			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$vare_id' AND lager='$lager'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$totalStock = $r['total_stock'];
 			}
