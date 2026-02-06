@@ -809,6 +809,57 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         $query = str_replace("{{WHERE}}", $filterstring == "" ? "1=1" : $filterstring, $query);
     }
 
+    
+    // EXACT MATCH PRIORITIZATION - Added for better search relevance
+    
+    $exactMatchOrdering = "";
+    if (!empty($searchTerms)) {
+        $searchableColumns = array_filter($columns, function ($col) {
+            return if_isset($col['searchable'], false);
+        });
+        
+        $orderCases = array();
+        foreach ($searchableColumns as $column) {
+            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+                $term = addslashes($searchTerms[$column['field']]);
+                $field = $column['sqlOverride'] == '' ? $column['field'] : $column['sqlOverride'];
+                
+                if ($term === '' && $term !== '0') {
+                    continue;
+                }
+                
+                if ($column["type"] == "text") {
+                    $orderCases[] = "CASE 
+                        WHEN LOWER($field) = LOWER('$term') THEN 1
+                        WHEN LOWER($field) LIKE LOWER('$term%') THEN 2
+                        WHEN LOWER($field) LIKE LOWER('%$term%') THEN 3
+                        ELSE 4
+                    END";
+                } 
+                elseif ($column["type"] == "number") {
+                    $orderCases[] = "CASE 
+                        WHEN $field::text = '$term' THEN 1
+                        WHEN $field::text LIKE '$term%' THEN 2
+                        WHEN $field::text LIKE '%$term%' THEN 3
+                        ELSE 4
+                    END";
+                }
+                elseif ($column["type"] == "dropdown") {
+                    $orderCases[] = "CASE 
+                        WHEN LOWER($field) = LOWER('$term') THEN 1
+                        WHEN LOWER($field) LIKE LOWER('$term%') THEN 2
+                        WHEN LOWER($field) LIKE LOWER('%$term%') THEN 3
+                        ELSE 4
+                    END";
+                }
+            }
+        }
+        
+        if (!empty($orderCases)) {
+            $exactMatchOrdering = implode(", ", $orderCases) . ", ";
+        }
+    }
+    
     # Is always set due to get_default_sort
     # Translate sort field to sqlOverride if one exists for proper sorting (e.g., for varchar columns that need numeric sorting)
     $sortParts = preg_split('/\s+/', trim($sort), 2);
@@ -822,7 +873,9 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         }
     }
     
-    $query = str_replace("{{SORT}}", $sort, $query);
+    $finalSort = $exactMatchOrdering . $sort;
+    $query = str_replace("{{SORT}}", $finalSort, $query);
+    // ========================================================================
 
     $query .= " LIMIT $rowCount OFFSET $offset"; // Add limit for performance
 
