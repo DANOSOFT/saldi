@@ -810,6 +810,18 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
     }
 
     # Is always set due to get_default_sort
+    # Translate sort field to sqlOverride if one exists for proper sorting (e.g., for varchar columns that need numeric sorting)
+    $sortParts = preg_split('/\s+/', trim($sort), 2);
+    $sortField = $sortParts[0];
+    $sortDirection = isset($sortParts[1]) ? ' ' . $sortParts[1] : '';
+    
+    foreach ($columns as $column) {
+        if ($column['field'] === $sortField && !empty($column['sqlOverride'])) {
+            $sort = $column['sqlOverride'] . $sortDirection;
+            break;
+        }
+    }
+    
     $query = str_replace("{{SORT}}", $sort, $query);
 
     $query .= " LIMIT $rowCount OFFSET $offset"; // Add limit for performance

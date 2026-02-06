@@ -595,6 +595,25 @@ $custom_columns = array(
         "defaultSort" => true,
         "defaultSortDirection" => "desc",
         "searchable" => true,
+        "generateSearch" => function ($column, $term) {
+            $term = db_escape_string(trim($term, "'"));
+            if (empty($term)) {
+                return "1=1";
+            }
+            // Handle range search (e.g., "100:200")
+            if (strpos($term, ':') !== false) {
+                list($from, $to) = explode(':', $term, 2);
+                $from = intval($from);
+                $to = intval($to);
+                return "(o.ordrenr >= $from AND o.ordrenr <= $to)";
+            }
+            // Partial match - search for orders containing the number
+            return "(CAST(o.ordrenr AS TEXT) ILIKE '%$term%')";
+        },
+        "valueGetter" => function ($value, $row, $column) {
+            // Return raw value without decimal formatting
+            return $value;
+        },
         "render" => function ($value, $row, $column) {
             global $brugernavn;
             $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=" . urlencode($_SERVER["REQUEST_URI"]);
@@ -663,8 +682,30 @@ $custom_columns = array(
         "headerName" => findtekst('882|Fakt. nr.', $sprog_id),
         "width" => "0.8",
         "align" => "right",
+        "type" => "number",
+        "sortable" => true,
         "searchable" => true,
         "hidden" => ($valg != "faktura"),
+        "sqlOverride" => "CAST(NULLIF(o.fakturanr, '') AS INTEGER)",
+        "generateSearch" => function ($column, $term) {
+            $term = db_escape_string(trim($term, "'"));
+            if (empty($term)) {
+                return "1=1";
+            }
+            // Handle range search (e.g., "10000:20000")
+            if (strpos($term, ':') !== false) {
+                list($from, $to) = explode(':', $term, 2);
+                $from = intval($from);
+                $to = intval($to);
+                return "(CAST(NULLIF(o.fakturanr, '') AS INTEGER) >= $from AND CAST(NULLIF(o.fakturanr, '') AS INTEGER) <= $to)";
+            }
+            // Partial match - search for invoices containing the number
+            return "(o.fakturanr ILIKE '%$term%')";
+        },
+        "valueGetter" => function ($value, $row, $column) {
+            // Return raw value without decimal formatting
+            return $value;
+        },
         "render" => function ($value, $row, $column) {
             return "<td align='$column[align]'>$value</td>";
         }
@@ -988,6 +1029,21 @@ foreach ($all_db_columns as $field_name => $data_type) {
         };
         
         // render: Escape HTML
+        $column_def['render'] = function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+        };
+    }elseif (in_array($field_name, ['ordrenr', 'fakturanr', 'kontonr', 'kundeordnr', 'cvrnr'])) {
+        // These "nr" fields should be displayed as plain text/integers without decimal formatting
+        $column_def['type'] = 'number';
+        $column_def['align'] = 'right';
+        $column_def['decimalPrecision'] = 0;
+        
+        // valueGetter: Return the raw value
+        $column_def['valueGetter'] = function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        };
+        
+        // render: Display as plain text (no dkdecimal formatting)
         $column_def['render'] = function ($value, $row, $column) {
             return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
         };
