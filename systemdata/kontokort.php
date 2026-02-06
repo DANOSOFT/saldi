@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----patch 4.1.1 ----2025-06-19------
+// --- systemdata/kontokort.php -----patch 5.0.0 ----2026-02-06------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 2013.02.10 Break ændret til break 1
@@ -34,6 +34,7 @@
 // 20220605 MSC - Implementing new design
 // 20220605 PHR - php8
 // 20250619 PHR - Somebody broke the code by omitting || in several if statements
+// 20260206	PHR	- discal_year
 
 @session_start();
 $s_id = session_id();
@@ -493,7 +494,8 @@ if ($kontotype == 'D' || $kontotype == 'S') {
   print "<tr><td>" . findtekst('1095|Momssats', $sprog_id) . ":</td><td><br></td>";
 	print "<td colspan=2><SELECT NAME = 'moms' style = 'width:70px'>";
 	print "<OPTION>$moms</OPTION>\n";
-	$qtxt = "select kode, kodenr from grupper where art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM'";
+	$qtxt = "select kode, kodenr from grupper ";
+	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar'";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($moms)
 		print "<OPTION></OPTION>\n";
