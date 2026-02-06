@@ -233,7 +233,7 @@ if ($_GET['ordreliste']) {
 			$qtxt.= "email='$email[$x]',udskriv_til='$udskriv_til[$x]',mail_fakt='$mail_fakt[$x]',projekt='$projekt[$x]',";
 			$qtxt.= "betalingsbet='$betalingsbet[$x]',betalingsdage='$betalingsdage[$x]',procenttillag='$procenttillag[$x]'";
 			$qtxt.= "where id='$ordreliste[$x]'";
-if ($x < 3) echo __line__." $qtxt<br>";
+#if ($x < 3) echo __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($nextfakt<=$fakturadate) $fejltekst="Genfaktureringsdato skal v&aelig;re efter fakturadato ($firmanavn[$x])";
 			if (!$fejltekst && strstr($udskriv_til[$x],'PBS')) {
@@ -331,7 +331,7 @@ if ($x < 3) echo __line__." $qtxt<br>";
 						$fp=fopen("../temp/$db/$printfilnavn","w");
 						fwrite($fp,oioubldoc_faktura($ordreliste[$x],'faktura',NULL));
 						fclose($fp);
-#echo "'oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars'<br>";
+#cho "'oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars'<br>";
 #						print "<BODY onLoad=\"JavaScript:window.open('oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars');\">\n";
 						$r=db_fetch_array(db_select("select box8 from grupper where art = 'DIV' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
 						if ($r['box8']) {
@@ -353,11 +353,11 @@ if ($x < 3) echo __line__." $qtxt<br>";
 								if ($fp) fwrite ($fp, "set confirm-close no\nget $printfilnavn\nbye\n");
 								fclose($fp);
 								$kommando="cd ../temp/$db\n$exec_path/ncftp ftp://".$oiobruger.":".$oiokode."@".$oiourl." < oioftpscript2.$ordreliste[$x] >> oioftplog.$ordreliste[$x]\n";
-#								echo "<br>B ".str_replace("\n","<br>",$kommando)."<br>";
+#cho "<br>B ".str_replace("\n","<br>",$kommando)."<br>";
 								system ($kommando);
 								if (file_exists("../temp/$db/$printfilnavn")) {
 									unlink("../temp/$db/$printfilnavn"); 
-									#echo 'unlink(\"../temp/$db/$printfilnavn\")';
+#cho 'unlink(\"../temp/$db/$printfilnavn\")';
 									print "<tr><td>$printfilnavn overført til $oiourl</td></tr>";
 								} else {
 									print "<BODY onLoad=\"javascript:alert('Afsendelse af $printfilnavn fejlet tjek brugernavn og adgangskode til ftp hos ebConnect')\">";
@@ -636,7 +636,7 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	print "</tr>";
 	if ($procenttillag[$x]) {
 		$tillag=$ordresum*$procenttillag[$x]/100;
-#echo htmlentities($procentbeskr)." -> $procenttillag[$x]<br>";
+#cho htmlentities($procentbeskr)." -> $procenttillag[$x]<br>";
 		$pctbesk=str_replace('$procenttillæg;',dkdecimal($procenttillag[$x]),$procentbeskr);
 		print "<tr>";
 		print "<td></td>";
