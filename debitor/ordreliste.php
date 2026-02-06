@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-06--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-01-27--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,8 +35,7 @@
 // 14082025 Sawaneh Fix invoicelist for english language
 // 20251016 MS Changed "$confirm1" and "confirm('$confirm1 $valg?')" to allow complete translation
 // 20251104 LOE General 0verhaul of this file to fit the new grid framework.
-// 20260127 LOE Selected calender type now saved for the user.  
-
+// 20260127 LOE Selected calender type now saved for the user.
 @session_start();
 $s_id = session_id();
 
@@ -389,7 +388,7 @@ if ($r = db_fetch_array(db_select("select distinct id from ordrer where projekt 
 if ($menu == 'T') include_once 'ordLstIncludes/topMenu.php';
 elseif ($menu == 'S') include_once 'ordLstIncludes/topLine.php';
 else include_once 'ordLstIncludes/oldTopLine.php';
-include(get_relative() . "includes/orderFuncIncludes/grid_order.php"); 
+include(get_relative() . "includes/orderFuncIncludes/grid_order.php");
 
 
 
@@ -473,17 +472,16 @@ if (isset($_GET['konto_id']) && $_GET['konto_id']) {
     // Only pre-populate if search fields are empty
     if (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
         $konto_id_from_get = db_escape_string($_GET['konto_id']);
-        // $qtxt = "SELECT firmanavn, kontonr FROM adresser WHERE id = '$konto_id_from_get'";
-         $qtxt = "SELECT  kontonr FROM adresser WHERE id = '$konto_id_from_get'";
+        $qtxt = "SELECT firmanavn kontonr FROM adresser WHERE id = '$konto_id_from_get'";
         $debug_log[] = "Query to fetch customer: $qtxt";
 
         if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
             $debug_log[] = "Customer found: " . json_encode($r);
 
-            // if (!empty($r['firmanavn'])) {
-            //     $_GET['search'][$grid_id]['firmanavn'] = $r['firmanavn'];
-            //     $debug_log[] = "Set firmanavn search: " . $r['firmanavn'];
-            // }
+            if (!empty($r['firmanavn'])) {
+                $_GET['search'][$grid_id]['firmanavn'] = $r['firmanavn'];
+                $debug_log[] = "Set firmanavn search: " . $r['firmanavn'];
+            }
             if (!empty($r['kontonr'])) {
                 $_GET['search'][$grid_id]['kontonr'] = $r['kontonr'];
                 $debug_log[] = "Set kontonr search: " . $r['kontonr'];
@@ -597,6 +595,25 @@ $custom_columns = array(
         "defaultSort" => true,
         "defaultSortDirection" => "desc",
         "searchable" => true,
+        "generateSearch" => function ($column, $term) {
+            $term = db_escape_string(trim($term, "'"));
+            if (empty($term)) {
+                return "1=1";
+            }
+            // Handle range search (e.g., "100:200")
+            if (strpos($term, ':') !== false) {
+                list($from, $to) = explode(':', $term, 2);
+                $from = intval($from);
+                $to = intval($to);
+                return "(o.ordrenr >= $from AND o.ordrenr <= $to)";
+            }
+            // Partial match - search for orders containing the number
+            return "(CAST(o.ordrenr AS TEXT) ILIKE '%$term%')";
+        },
+        "valueGetter" => function ($value, $row, $column) {
+            // Return raw value without decimal formatting
+            return $value;
+        },
         "render" => function ($value, $row, $column) {
             global $brugernavn;
             $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=" . urlencode($_SERVER["REQUEST_URI"]);
@@ -665,8 +682,30 @@ $custom_columns = array(
         "headerName" => findtekst('882|Fakt. nr.', $sprog_id),
         "width" => "0.8",
         "align" => "right",
+        "type" => "number",
+        "sortable" => true,
         "searchable" => true,
         "hidden" => ($valg != "faktura"),
+        "sqlOverride" => "CAST(NULLIF(o.fakturanr, '') AS INTEGER)",
+        "generateSearch" => function ($column, $term) {
+            $term = db_escape_string(trim($term, "'"));
+            if (empty($term)) {
+                return "1=1";
+            }
+            // Handle range search (e.g., "10000:20000")
+            if (strpos($term, ':') !== false) {
+                list($from, $to) = explode(':', $term, 2);
+                $from = intval($from);
+                $to = intval($to);
+                return "(CAST(NULLIF(o.fakturanr, '') AS INTEGER) >= $from AND CAST(NULLIF(o.fakturanr, '') AS INTEGER) <= $to)";
+            }
+            // Partial match - search for invoices containing the number
+            return "(o.fakturanr ILIKE '%$term%')";
+        },
+        "valueGetter" => function ($value, $row, $column) {
+            // Return raw value without decimal formatting
+            return $value;
+        },
         "render" => function ($value, $row, $column) {
             return "<td align='$column[align]'>$value</td>";
         }
@@ -990,6 +1029,21 @@ foreach ($all_db_columns as $field_name => $data_type) {
         };
         
         // render: Escape HTML
+        $column_def['render'] = function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+        };
+    }elseif (in_array($field_name, ['ordrenr', 'fakturanr', 'kontonr', 'kundeordnr', 'cvrnr'])) {
+        // These "nr" fields should be displayed as plain text/integers without decimal formatting
+        $column_def['type'] = 'number';
+        $column_def['align'] = 'right';
+        $column_def['decimalPrecision'] = 0;
+        
+        // valueGetter: Return the raw value
+        $column_def['valueGetter'] = function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        };
+        
+        // render: Display as plain text (no dkdecimal formatting)
         $column_def['render'] = function ($value, $row, $column) {
             return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
         };

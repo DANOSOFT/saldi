@@ -304,15 +304,53 @@ function create_datagrid($id, $grid_data) {
     $defaultRowCount = if_isset($grid_data, 100, 'defaultRowCount');
     $selectedrowcount = if_isset($rowCId, if_isset($rowCdb, $defaultRowCount));
   
+    // Check if search has actually changed (not just submitted)
+    // Decode stored search for proper comparison
+    $stored_search_array = json_decode(if_isset($r, '{}', 'search_setup'), true);
+    if (!is_array($stored_search_array)) {
+        $stored_search_array = array();
+    }
+    $current_search_array = isset($_GET["search"][$id]) ? $_GET["search"][$id] : $stored_search_array;
+    if (!is_array($current_search_array)) {
+        $current_search_array = array();
+    }
+    
+    // Compare arrays - search changed if any value is different
+    $search_actually_changed = false;
+    if (isset($_GET["search"][$id])) {
+        // Check if any search term is different from stored
+        foreach ($current_search_array as $field => $value) {
+            $stored_value = isset($stored_search_array[$field]) ? $stored_search_array[$field] : '';
+            if ($value != $stored_value) {
+                $search_actually_changed = true;
+                break;
+            }
+        }
+        // Also check if any stored term was removed
+        if (!$search_actually_changed) {
+            foreach ($stored_search_array as $field => $value) {
+                $current_value = isset($current_search_array[$field]) ? $current_search_array[$field] : '';
+                if ($value != $current_value) {
+                    $search_actually_changed = true;
+                    break;
+                }
+            }
+        }
+    }
+    
     // Use isset to avoid zero triggering if
-    $offset =   isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
-                isset($r["offset"]) ? $r["offset"] : 
-                0
-                );
+    // Reset offset to 0 ONLY when search has actually changed
+    if ($search_actually_changed) {
+        $offset = 0;
+    } else {
+        $offset = isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
+                  isset($r["offset"]) ? $r["offset"] : 
+                  0
+                  );
+    }
 
     // Reset scroll position if search parameters changed
-    if (isset($_GET["search"][$id]) && 
-        ($r["search_setup"] != $search_json || $r["offset"] != $offset || $r["sort"] != $sort || $r["rowcount"] != $selectedrowcount)) {
+    if ($search_actually_changed) {
         print "
         <script>
             var scrollKey = 'scrollpos-datatable-$id';
@@ -1233,14 +1271,14 @@ function render_table_row($columns, $row, $searchTerms) {
             ? $column['valueGetter']($rawValue, $row, $column)
             : $rawValue;
 
-        // Optimize text search and highlighting
-        if ($column["type"] == "text" && $term !== '' && mb_stripos($value, $term, 0, 'UTF-8') !== false) {
+        // Optimize text search and highlighting - also highlight number fields with partial matching
+        if (($column["type"] == "text" || $column["type"] == "number") && $term !== '' && mb_stripos((string)$value, $term, 0, 'UTF-8') !== false) {
             $value = preg_replace_callback(
                 '/' . preg_quote($term, '/') . '/iu',
                 function ($match) {
                     return '<span style="background-color:#FF0">' . $match[0] . '</span>';
                 },
-                $value
+                (string)$value
             );
         }
 
