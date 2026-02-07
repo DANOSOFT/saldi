@@ -43,7 +43,7 @@ if (strpos($backUrl, 'debitor/debitorkort.php') !== false) {
 }
 // Simplified tab links - just pass valg, session handles the rest
 if ($btkort) {
-	print "<td width='10%'>
+	print "<td width='200px'>
 		<a href=\"$returside\" accesskey=L>
 		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		. $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
@@ -74,12 +74,12 @@ if ($btkort) {
 if ($btkort) {
 	if ($valg == "faktura") {
 		print "<td width='200px' align='center'>";
-		print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:50%' onMouseOver=\"this.style.cursor='pointer'\">";
+		print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 		print "$invoice_icon" . findtekst('1777|Fakturaer', $sprog_id) . "</button></td>";
 	} else {
 		print "<td width='200px' align='center'>";
 		print "<a href='ordreliste.php?valg=faktura'>";
-		print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:50%' onMouseOver=\"this.style.cursor='pointer'\">";
+		print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 		print "$invoice_icon" . findtekst('1777|Fakturaer', $sprog_id) . "</button></a></td>";
 	}
 }else{
