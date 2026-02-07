@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-01-27--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-07--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,7 @@
 // 20251016 MS Changed "$confirm1" and "confirm('$confirm1 $valg?')" to allow complete translation
 // 20251104 LOE General 0verhaul of this file to fit the new grid framework.
 // 20260127 LOE Selected calender type now saved for the user.
+// 20260207 LOE Fixed a bug created by git merge
 @session_start();
 $s_id = session_id();
 
@@ -388,7 +389,7 @@ if ($r = db_fetch_array(db_select("select distinct id from ordrer where projekt 
 if ($menu == 'T') include_once 'ordLstIncludes/topMenu.php';
 elseif ($menu == 'S') include_once 'ordLstIncludes/topLine.php';
 else include_once 'ordLstIncludes/oldTopLine.php';
-include(get_relative() . "includes/orderFuncIncludes/grid_order.php");
+include(get_relative() . "includes/orderFuncIncludes/grid_order.php"); 
 
 
 
@@ -472,16 +473,17 @@ if (isset($_GET['konto_id']) && $_GET['konto_id']) {
     // Only pre-populate if search fields are empty
     if (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
         $konto_id_from_get = db_escape_string($_GET['konto_id']);
-        $qtxt = "SELECT firmanavn kontonr FROM adresser WHERE id = '$konto_id_from_get'";
+        // $qtxt = "SELECT firmanavn, kontonr FROM adresser WHERE id = '$konto_id_from_get'";
+         $qtxt = "SELECT  kontonr FROM adresser WHERE id = '$konto_id_from_get'";
         $debug_log[] = "Query to fetch customer: $qtxt";
 
         if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
             $debug_log[] = "Customer found: " . json_encode($r);
 
-            if (!empty($r['firmanavn'])) {
-                $_GET['search'][$grid_id]['firmanavn'] = $r['firmanavn'];
-                $debug_log[] = "Set firmanavn search: " . $r['firmanavn'];
-            }
+            // if (!empty($r['firmanavn'])) {
+            //     $_GET['search'][$grid_id]['firmanavn'] = $r['firmanavn'];
+            //     $debug_log[] = "Set firmanavn search: " . $r['firmanavn'];
+            // }
             if (!empty($r['kontonr'])) {
                 $_GET['search'][$grid_id]['kontonr'] = $r['kontonr'];
                 $debug_log[] = "Set kontonr search: " . $r['kontonr'];
