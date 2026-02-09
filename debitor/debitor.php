@@ -479,6 +479,101 @@ include_once '../includes/oldDesign/footer.php';
         $columns[] = $column;
     }
 
+    // Add extra columns that are not in the default view but available in the database
+    // These will be hidden by default
+    $extra_fields = array(
+        'cvrnr' => 'CVR nr.',
+        'ean' => 'EAN nr.',
+        'email' => 'Email',
+        'web' => 'Web',
+        'land' => 'Land',
+        'fax' => 'Fax',
+        'kreditmax' => 'Kreditmax',
+        'betalingsdage' => 'Betalingsdage',
+        'oprettet' => 'Oprettet',
+        'lev_firmanavn' => 'Levering navn',
+        'lev_addr1' => 'Levering adresse',
+        'lev_addr2' => 'Levering adresse 2',
+        'lev_postnr' => 'Levering postnr',
+        'lev_bynavn' => 'Levering by',
+        'kontoansvarlig' => 'Kontoansvarlig',
+        'tlf' => 'Telefon' // Ensure tlf is available if not already
+    );
+
+    // Get list of already added fields to avoid duplicates
+    $added_fields = array_column($columns, 'field');
+
+    foreach ($extra_fields as $field => $headerName) {
+        if (in_array($field, $added_fields)) continue;
+
+        $width = 1;
+        $align = 'left';
+        
+        $column = array(
+            "field" => $field,
+            "headerName" => $headerName,
+            "width" => $width,
+            "align" => $align,
+            "sortable" => true,
+            "searchable" => true,
+            "sqlOverride" => "a.$field",
+            "hidden" => true // Hidden by default
+        );
+
+        // Determine field type
+        if (in_array($field, array('kreditmax', 'betalingsdage', 'ean', 'cvrnr'))) {
+            $column["type"] = "number";
+            //$column["align"] = "right"; // Keep left align for better readability for identifiers like CVR/EAN? No, standard is right for numbers.
+            // But CVR and EAN are often treated as text. Let's stick to text for identifiers if they might have leading zeros (though CVR/EAN usually don't).
+            // Actually, in `numfelter` array line 251: kreditmax, betalingsdage are properly numeric.
+            if (in_array($field, array('kreditmax', 'betalingsdage'))) {
+                 $column["align"] = "right";
+            } else {
+                 $column["type"] = "text"; // Treat CVR/EAN as text to be safe with formatting/search
+            }
+        } elseif ($field == 'oprettet') {
+            $column["type"] = "date";
+        } else {
+            $column["type"] = "text";
+        }
+
+        // Special renderers
+        if ($field == 'kontoansvarlig') {
+            $column["render"] = function ($value, $row, $column) use ($ansat_id, $ansat_init, $ansatantal) {
+                $display = '';
+                for ($y=1;$y<=$ansatantal;$y++) {
+                    if (isset($ansat_id[$y]) && $ansat_id[$y]==$value) {
+                        $display = stripslashes($ansat_init[$y]);
+                        break;
+                    }
+                }
+                return "<td align='{$column['align']}'>$display</td>";
+            };
+        } elseif ($field == 'oprettet') {
+            $column["render"] = function ($value, $row, $column) {
+                if ($value=='1970-01-01' || !$value) return "<td align='{$column['align']}'></td>";
+                return "<td align='{$column['align']}'>".dkdato($value)."</td>";
+            };
+        }
+
+        // Add search generators if needed (mostly covered by default text/number/date)
+        if (in_array($field, array('kreditmax', 'betalingsdage'))) {
+             $column["generateSearch"] = function ($column, $term) {
+                $field = $column['sqlOverride'];
+                $term = db_escape_string($term);
+                if (strstr($term, ':')) {
+                    list($num1, $num2) = explode(":", $term, 2);
+                    return "$field >= '".usdecimal($num1)."' AND $field <= '".usdecimal($num2)."'";
+                } else {
+                    $term = usdecimal($term);
+                    return "$field >= $term AND $field <= $term";
+                }
+            };
+        }
+
+        $columns[] = $column;
+    }
+
     // Add clickable row renderer for all columns (whole row is clickable)
     foreach ($columns as &$column) {
         $originalRender = isset($column['render']) ? $column['render'] : null;
