@@ -1390,11 +1390,12 @@ if ($background_file && file_exists($background_file)) {
 	 
 
 
-			######################
+
 			$query = db_select("select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__);
 			$found = false;
 			while ($row = db_fetch_array($query)) {
 				$found = true;
+
 				if ($row['beskrivelse'] == 'generelt') {
 					$antal_ordrelinjer = $row['xa'];
 					$ya = $row['ya'];
@@ -1414,6 +1415,62 @@ if ($background_file && file_exists($background_file)) {
 					$form_font[$x] = $row['font'];
 				}
 				$var_antal = $x;
+			}
+			# Fallback for plukliste (formular 9) to use følgeseddel (formular 3) if not found OR if no field definitions
+			if ((!$found || $var_antal == 0) && $formular == 9) {
+
+				
+				// Try with current language
+				$query = db_select("select * from formularer where formular = '3' and art = '3' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__);
+				while ($row = db_fetch_array($query)) {
+					$found = true;
+					if ($row['beskrivelse'] == 'generelt') {
+						$antal_ordrelinjer = $row['xa'];
+						$ya = $row['ya'];
+						$linjeafstand = $row['xb'];
+						#		$Opkt=$y-($antal_ordrelinjer*$linjeafstand);
+					} else {
+						$x++;
+						$variabel[$x] = $row['beskrivelse'];
+
+						$justering[$x] = $row['justering'];
+						$xa[$x] = $row['xa'];
+						$str[$x] = $row['str'];
+						$laengde[$x] = $row['xb'];
+						$color[$x] = $row['color'];
+						$fed[$x] = $row['fed'];
+						$kursiv[$x] = $row['kursiv'];
+						$form_font[$x] = $row['font'];
+					}
+					$var_antal = $x;
+				}
+				
+				// If still not found or still no field definitions, try 'dansk'
+				if (!$found || $var_antal == 0) {
+
+					$query = db_select("select * from formularer where formular = '3' and art = '3' and lower(sprog)='dansk'", __FILE__ . " linje " . __LINE__);
+					while ($row = db_fetch_array($query)) {
+						$found = true;
+						if ($row['beskrivelse'] == 'generelt') {
+							$antal_ordrelinjer = $row['xa'];
+							$ya = $row['ya'];
+							$linjeafstand = $row['xb'];
+						} else {
+							$x++;
+							$variabel[$x] = $row['beskrivelse'];
+
+							$justering[$x] = $row['justering'];
+							$xa[$x] = $row['xa'];
+							$str[$x] = $row['str'];
+							$laengde[$x] = $row['xb'];
+							$color[$x] = $row['color'];
+							$fed[$x] = $row['fed'];
+							$kursiv[$x] = $row['kursiv'];
+							$form_font[$x] = $row['font'];
+						}
+						$var_antal = $x;
+					}
+				}
 			}
 			if (!$found) {
 				
@@ -1577,7 +1634,10 @@ if ($background_file && file_exists($background_file)) {
 					// 20190115 herover: tilføjet ,id til 'order by' -- herunder: tilføjet  || $row['folgevare']
 					// grundet manglende varenr 9494600512 på fakt 4193 i saldi_401
 					
+
+
 					while ($row = db_fetch_array($q)) {
+
 						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!in_array($row['posnr'], $posnr) || $row['folgevare'])) {
 							$x++;
 							$posnr[$x] = trim($row['posnr']);
@@ -1586,6 +1646,7 @@ if ($background_file && file_exists($background_file)) {
 							$projekt[$x] = ($row['projekt']);
 							$beskrivelse[$x] = trim($row['beskrivelse']);
 							$enhed[$x] = trim($row['enhed']);
+
 							$linje_id[$x] = $row['id'];
 							$linjesum[$x] = 0;
 							$pris[$x] = $procent[$x] = $rabat[$x] = $saet[$x] = $samlevare[$x] = $lager[$x] = $varemomssats[$x] = NULL;
@@ -1717,8 +1778,10 @@ if ($background_file && file_exists($background_file)) {
 							);
 							if ($formular == 3 && $skjul_nul_lin && !$lev_antal[$x])
 								$varenr[$x] = NULL; #
-						} else
+						} else {
+
 							$dkantal[$x] = NULL;
+						}
 						if ($saet[$x]) {
 							if ($lev_varenr[$x]) {
 								list($linjesum[$x]) = explode("|", $lev_varenr[$x], 2);
@@ -1863,6 +1926,7 @@ if ($background_file && file_exists($background_file)) {
 						$skriv = 1; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
 					#				if ($saet[$x] && $samlevare[$x]) $skriv=0; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
 					if ($skriv) {
+
 				
 					// Pre-check: Calculate if description will wrap and if it will fit on current page
 					// If not, move entire order line to next page before writing any fields
