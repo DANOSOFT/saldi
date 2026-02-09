@@ -635,7 +635,7 @@ if (!$id && $konto_id && $kontonr) {
 	$ordrenr = get_next_order_number('DO');
 	if (strlen($phone) > 15) $phone = substr($phone, 0, 15);
 	$ordredate = date("Y-m-d");
-	($lev_firmanavn) ? $vis_lev_addr = 'on' : $vis_lev_addr = '';
+	$vis_lev_addr = '';
 	$afd = (int)$afd;
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
 	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,hvem,tidspkt,ref,";
@@ -1479,7 +1479,7 @@ if ($status < 3 && $b_submit) {
 			$lev_kontakt = db_escape_string($row['lev_kontakt']);
 			$lev_email = db_escape_string($row['lev_email']);
 
-			($lev_firmanavn) ? $vis_lev_addr = 'on' : $vis_lev_addr = NULL; # <- 20190618
+			$vis_lev_addr = NULL; # <- 20190618
 
 			(findtekst('244|Ordrefelt 1', $sprog_id) == findtekst('255|Ekstrafelt 1', $sprog_id)) ? $felt_1 = db_escape_string($row['felt_1']) : $felt_1 = '';
 			(findtekst('245|Ordrefelt 2', $sprog_id) == findtekst('256|Ekstrafelt 2', $sprog_id)) ? $felt_2 = db_escape_string($row['felt_2']) : $felt_2 = '';
