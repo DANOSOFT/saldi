@@ -344,7 +344,7 @@ if ($menu == 'T') {
 	print "<div class='headerbtnRght headLink'></div>";
 	print "</div>";
 	print "<div class='content-noside'>";
-} elseif ($source == 'kassekladde') {
+} elseif ($source == 'kassekladde' || $source == 'creditorOrder') {
 	// Don't render header here - docPool.php handles it for non-modern layouts
 } elseif ($menu == 'S') {
 	// Sidebar menu - use topLineDocuments.php matching the grid framework structure
@@ -411,7 +411,7 @@ elseif (file_exists('../bilag')) $docFolder = '../bilag';
 elseif (file_exists('../documents')) $docFolder = '../documents';
 
 
-if ($source === 'kassekladde' && empty($docFolder)) {  
+if (($source === 'kassekladde' || $source === 'creditorOrder') && empty($docFolder)) {  
     $docFolder = "../bilag";
     
     if (!file_exists($docFolder)) {
@@ -485,7 +485,7 @@ if ($dokument) {
 
 // ---------- Left table start ---------
 // Only print old table structure if not using modern kassekladde layout or docpool
-$isModernLayout = ($source == 'kassekladde' || $openPool || $openPoolRequested);
+$isModernLayout = (in_array($source, array('kassekladde', 'creditorOrder')) || $openPool || $openPoolRequested);
 if (!$isModernLayout) {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 }
@@ -908,10 +908,11 @@ if ($linkBilag && $source == 'kassekladde') {
 
 
 $openPoolRequested = (isset($_GET['openPool']) && $_GET['openPool'] == '1') || $openPool;
-if ($source == 'kassekladde' && $sourceId) { 
+$modernSources = array('kassekladde', 'creditorOrder');
+if (in_array($source, $modernSources) && $sourceId) { 
 
 	// Check if there are any documents for this sourceId
-	$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$sourceId' order by id limit 1";
+	$qtxt = "select id,filename,filepath from documents where source = '$source' and source_id = '$sourceId' order by id limit 1";
 	$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 	
@@ -941,10 +942,16 @@ global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownSt
 		include("docsIncludes/topLineDocuments.php");
 	} else {
 		// Determine back URL
-		$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+		if ($source == "creditorOrder") {
+			$backUrl = "../kreditor/ordre.php?id=$sourceId&fokus=$fokus";
+		} elseif ($source == "debitorOrdrer") {
+			$backUrl = "../debitor/ordre.php?id=$sourceId&fokus=$fokus";
+		} else {
+			$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+		}
 		print "<tr>";
 		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L' style='cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</a></font></td>";
-		print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Kassebilag', $sprog_id)."</font></td>";
+		print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Dokumenter', $sprog_id)."</font></td>";
 		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></font></td>";
 		print "</tr>";
 	}
@@ -1167,7 +1174,7 @@ global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownSt
 	
 	// Add link to docpool to add more bilag
 	// Get bilag number from kassekladde if not set
-	if (empty($bilag) && $sourceId) {
+	if ($source == 'kassekladde' && empty($bilag) && $sourceId) {
 		$qtxt_bilag = "SELECT bilag FROM kassekladde WHERE id = '$sourceId'";
 		$bilag_row = db_fetch_array(db_select($qtxt_bilag, __FILE__ . " linje " . __LINE__));
 		if ($bilag_row) $bilag = $bilag_row['bilag'];
@@ -1178,9 +1185,11 @@ global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownSt
 	print "<a href='$poolUrl' style='display: inline-block; padding: 10px 20px; background-color: $buttonColor; color: $buttonTxtColor; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
 	print "<i class='fa fa-plus'></i>Dokumentpulje";
 	print "</a>";
-	print "<a href='$linkUrl' style='display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
-	print "<i class='fa fa-link'></i> Link bilag fra anden linje";
-	print "</a>";
+	if ($source == 'kassekladde') {
+		print "<a href='$linkUrl' style='display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
+		print "<i class='fa fa-link'></i> Link bilag fra anden linje";
+		print "</a>";
+	}
 	print "</div>";
 	
 	print "</div>"; // leftPanelContent
@@ -1194,14 +1203,14 @@ global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownSt
 	print "</body></html>";
 	exit;
 	} // End if ($docRow || $showDoc)
-} // End if ($source == 'kassekladde' && $sourceId)
+} // End if (in_array($source, $modernSources) && $sourceId)
 
 // Check for openPool BEFORE printing any table structure
 // Make sure we check both the variable and the GET parameter
 $openPool = $openPool || (isset($_GET['openPool']) && ($_GET['openPool'] == '1' || $_GET['openPool'] == 1));
 
-// For kassekladde, default to openPool if no documents exist and no document is selected
-if ($source == 'kassekladde' && !$showDoc && (!isset($docRow) || !$docRow)) {
+// For modern sources, default to openPool if no documents exist and no document is selected
+if (in_array($source, array('kassekladde', 'creditorOrder')) && !$showDoc && (!isset($docRow) || !$docRow)) {
 	$openPool = true;
 }
 
