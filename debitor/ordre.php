@@ -941,6 +941,7 @@ if ($b_submit) {
 	$projekt        = if_isset($_POST, NULL, 'projekt');
 	if (!isset($projekt[0])) $projekt[0] = 0;
 	$formularsprog   = if_isset($_POST, NULL, 'sprog');
+	
 	$lev_adr         = trim(if_isset($_POST, NULL, 'lev_adr'));
 	$sum             = if_isset($_POST, NULL, 'sum');
 
@@ -1495,6 +1496,7 @@ if ($status < 3 && $b_submit) {
 				$std_rabat = (float)$r['box6'];
 				if (!$gl_id) { # valuta & sprog skal beholdes v. ordrekopiering.
 					$formularsprog = $r['box4'];
+					
 					$valuta = $r['box3'];
 				}
 				$qtxt = "select box2 from grupper where art='SM' and kodenr='$tmp' and fiscal_year = '$regnaar'";
@@ -2772,6 +2774,7 @@ function ordreside($id, $regnskab)
 	global $menu;
 	global $fast_db;
 	global $formularsprog;
+	
 
 
 	if ($menu == 'T') {
@@ -5166,6 +5169,7 @@ function ordreside($id, $regnskab)
 						list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($hv_idx, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', $r['id'], '0', '', $r['varenr'], $r['beskrivelse'], '', $r['lager'], $display_price, '0', 'percent', '100', '1', '0', '0', $r['vare_id'], '', '0', '0', '0', '', 'on', '', '', '', '', '', '', '', '', '', '', '0', '', $saet[$x], $saetnr, $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));
 					}
 					$saetnr = 0;
+					$saetpris = 0;
 				}
 			}
 		}
