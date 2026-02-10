@@ -523,7 +523,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	else $udvaelg=$udvaelg." and";
 	$x=0;
 	$id=array();
-	if ($straksbogfor) $qtxt="select * from ordrer $udvaelg art = 'PO' order by $sort limit 10000";
+	if ($straksbogfor) $qtxt="select * from ordrer $udvaelg (art = 'PO' or art = 'DO') order by $sort limit 10000";
 	else $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -737,3 +737,4 @@ if ($menu=='T') {
 }
 
 ?>
+
