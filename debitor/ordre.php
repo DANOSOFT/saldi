@@ -5865,9 +5865,9 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$min_lager = $r['min_lager'];
 				$gruppe = $r['gruppe'];
-				// Get stock quantity - handle multiple warehouses
+				// Get stock quantity - sum across ALL warehouses for the title display
 				if ($lagerantal > 1 && $lager) {
-					$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id' and lager = '$lager'";
+					$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id'";
 					($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $stockQty = $r2['qty'] : $stockQty = 0;
 				} else {
 					$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id'";
