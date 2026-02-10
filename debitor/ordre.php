@@ -5769,7 +5769,8 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			$ialt *= $procent / 100;
 		} else $procent = 100;
 		$ialt = afrund($ialt, 3); # 20150130 rettet til 3 decimaler
-		$sum += $ialt;
+		# Hovedvaren (samlevare='on') is display-only for sæt collections - sub-items already add to $sum
+		if ($samlevare != 'on') $sum += $ialt;
 
 		$dkpris = dkdecimal($pris, 2);
 		$dkrabat = dkdecimal($rabat, 5);
@@ -5778,7 +5779,8 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		if ((substr($dkrabat, -1) == ','))  $dkrabat = trim($dkrabat, ',');
 		$dkprocent = dkdecimal($procent, 2);
 		if ($momsfri != 'on') {
-			$moms += afrund($ialt * $varemomssats / 100, 3); # 20150130 rettet til 3 decimaler
+			# Hovedvaren (samlevare='on') should not add moms - sub-items already handle their own moms
+			if ($samlevare != 'on') $moms += afrund($ialt * $varemomssats / 100, 3); # 20150130 rettet til 3 decimaler
 			if ($varemomssats != $momssats) $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 			if ($incl_moms) $dkpris = dkdecimal($pris + $pris * $varemomssats / 100, 2);
 		} else $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
