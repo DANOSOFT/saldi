@@ -3320,7 +3320,7 @@ function ordreside($id, $regnskab)
 		print "<tr class='tableTexting'><td><b>$txt666</b></td><td>$postnr $bynavn</td></tr>\n";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('47|Land', $sprog_id) . "</b></td><td>$land</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('2530|Att.', $sprog_id) . "</b></td><td>$kontakt</td></tr>\n";
-		print "<tr class='tableTexting2'><td><b>" . findtekst('500|Ordrenr.', $sprog_id) . "</b></td><td>$kundeordnr</td></tr>\n";
+		print "<tr class='tableTexting2'><td><b>" . findtekst('500|Ordrenr.', $sprog_id) . "</b></td><td>" . (is_numeric($kundeordnr) ? intval($kundeordnr) : $kundeordnr) . "</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('48|CVR-nr.', $sprog_id) . "</b></td><td>$cvrnr</td></tr>\n";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('379|EAN-nr.', $sprog_id) . "</b></td><td>$ean</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('55|Institution', $sprog_id) . "</b></td><td>$institution</td></tr>\n";
@@ -3792,7 +3792,7 @@ function ordreside($id, $regnskab)
 		}
 		# 20150412
 		if ($brugsamletpris) {
-			print "<tr><td></td><td></td><td></td><td></td><td> <td></td>";
+			print "<tr><td></td><td></td><td></td><td></td><td>";
 			if ($lagerantal > 1) print "</td><td>";
 			print "<textarea class=\"autosize inputbox ordreText comment\" id=\"comment\" rows=\"1\" cols=\"58\" ";
 			print "name=\"ekstratekst\" onfocus=\"document.forms[0].fokus.value=this.name; var val=this.value; this.value=''; this.value= val;\">";
@@ -4103,9 +4103,10 @@ function ordreside($id, $regnskab)
 						</script>\n";
 		}
 		if (!$kundeordnr) $kundeordnr = '';
+		$kundeordnr_display = (is_numeric($kundeordnr) ? intval($kundeordnr) : $kundeordnr);
 		print "<tr><td title=\"" . findtekst('1464|Kundens ordrenummer som refererence', $sprog_id) . "\">" . findtekst('1092|Kundeordre', $sprog_id) . "</td>";
 		print "<td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"kundeordnr\" ";
-		print "onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kundeordnr\" ";
+		print "onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kundeordnr_display\" ";
 		print "onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		if ($cvrnr != $k_cvrnr || $ean != $k_ean || ($email != $k_email && substr($email, 0, 11) != "debitoripad") || $institution != $k_institution) $ret = 1;
 		if ($ret) {
@@ -5655,13 +5656,13 @@ function ordreside($id, $regnskab)
 		if ($dfm_row = db_fetch_array($dfm_q)) $confignmentnr = $dfm_row['consignmentid'];
 		if (strlen($confignmentnr) > 1) {  // Confignment number exists
 			print "<tr><td align=\"center\">\n";
-			print "<span style='font-weight:bold; font-size: 16px;'>" . findtekst('1057|Danske Fragtmænd', $sprog_id) . "</span><!--Danske Fragtmænd--><br />\n";
-			print "\n\n<p>";
+			print "<p style='font-weight:bold; font-size: 16px; text-align: center;'>" . findtekst('1057|Danske Fragtmænd', $sprog_id) . "</p><!--Danske Fragtmænd--><br />\n";
+			print "\n\n<p style='text-align: center;'>";
 			print findtekst('1037|Fragtbrev', $sprog_id) . ": " . $confignmentnr;
 			print "</p>\n\n";
 		} else {
 			print "<tr><td align=\"center\">\n";
-			print "<span style='font-weight:bold; font-size: 16px;'>" . findtekst('1057|Danske Fragtmænd', $sprog_id) . "</span><!--Danske Fragtmænd--><br />\n";
+			print "<p style='font-weight:bold; font-size: 16px; text-align: center;'>" . findtekst('1057|Danske Fragtmænd', $sprog_id) . "</p><!--Danske Fragtmænd--><br />\n";
 
 			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);

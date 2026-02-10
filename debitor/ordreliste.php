@@ -937,6 +937,27 @@ $custom_columns = array(
             return "<td align='$column[align]'>$formatted</td>";
         }
     ),
+    
+    "kundeordnr" => array(
+        "field" => "kundeordnr",
+        "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "width" => "1",
+        "type" => "number",
+        "align" => "right",
+        "decimalPrecision" => 0,
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.kundeordnr",
+        "valueGetter" => function ($value, $row, $column) {
+            // Return raw value without decimal formatting
+            return $value;
+        },
+        "render" => function ($value, $row, $column) {
+            $display = (is_numeric($value) && $value !== '') ? intval($value) : htmlspecialchars($value);
+            return "<td align='{$column['align']}'>$display</td>";
+        }
+    ),
 );
 
 // Build the FINAL $columns array dynamically
@@ -1040,7 +1061,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         $column_def['align'] = 'right';
         $column_def['decimalPrecision'] = 0;
         
-        // valueGetter: Return the raw value
+        // valueGetter: Return as integer (strip decimals) for numeric values
         $column_def['valueGetter'] = function ($value, $row, $column) {
             return $value !== null ? $value : '';
         };
