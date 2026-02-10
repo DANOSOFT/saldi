@@ -37,7 +37,7 @@ if (!isset($bgcolor5)) $bgcolor5 = '#f9f9f9';
 print "<link href='https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css' rel='stylesheet'>\n";
 
 // Check if we're in the new flexbox layout (docPool-style)
-$inFlexboxLayout = (isset($showDoc) && isset($source) && $source == 'kassekladde');
+$inFlexboxLayout = (isset($showDoc) && isset($source) && in_array($source, array('kassekladde', 'creditorOrder')));
 
 if ($inFlexboxLayout) {
 	// Get button color for styling
