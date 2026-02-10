@@ -4745,7 +4745,7 @@ function ordreside($id, $regnskab)
 						$qtxt = "SELECT * FROM settings WHERE var_grp = 'move3500' and pos_id = $afd";
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						($r['id']) ? $useLane3000 = 1 : $useLane3000 = 0;
-						if ($useLane3000) $href = "payments/lane3000.php?amount=$dkfelt_2&id=$id&return_url=ordre.php&kasse=$afd&";
+						if ($useLane3000) $href = "payments/lane3000-test.php?amount=$dkfelt_2&id=$id&return_url=ordre.php&kasse=$afd&";
 						else $href = "http://" . $terminal_ip[$felt_5 - 1] . "/pointd/kvittering.php?url=$url&id=$id&&kommando=kortbetaling&";
 						$href .= "belob=$dkfelt_2&betaling=&modtaget=$dkfelt_2&modtaget2=0&indbetaling=&tidspkt=" . date("U");
 						if (isset($_GET['indbetaling'])) {
@@ -5003,7 +5003,7 @@ function ordreside($id, $regnskab)
 				$linjesum = $pris[$x] * $antal[$x];
 				$linjesum -= $linjesum * $rabat[$x] / 100;
 				$linjesum += $linjesum * $varemomssats[$x] / 100;
-				$saetpris += afrund($linjesum, 3);
+				$saetpris += round($linjesum);
 				$saetnr = $saet[$x];
 			} elseif ($saetnr) { #udeladt 21070318  
 				#      $r=db_fetch_array(db_select("select beskrivelse from ordrelinjer where saet = '$saetnr' and ordre_id='$id' and samlevare='on'",__FILE__ . " linje " . __LINE__));
@@ -5160,8 +5160,10 @@ function ordreside($id, $regnskab)
 					$r = db_fetch_array(db_select("select id,varenr,beskrivelse,lager,vare_id,pris,antal from ordrelinjer where saet = '$saet[$x]' and ordre_id='$id' and samlevare='on'", __FILE__ . " linje " . __LINE__));
 					if ($r) { # Render even if varenr is empty (ordrelinjer now handles this for collections)
 						# Use saetpris if available, otherwise use hovedvaren's own price * antal
-						$display_price = $saetpris > 0 ? $saetpris : ($r['pris'] * ($r['antal'] ?: 1));
-						list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', $r['id'], '0', '', $r['varenr'], $r['beskrivelse'], '', $r['lager'], $display_price, '0', 'percent', '100', '1', '0', '0', $r['vare_id'], '', '0', '0', '0', '', 'on', '', '', '', '', '', '', '', '', '', '', '0', '', $saet[$x], $saetnr, $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));
+						$display_price = $saetpris > 0 ? round($saetpris) : round($r['pris'] * ($r['antal'] ?: 1));
+						# Use a unique index for the hlavovaren to prevent its hidden inputs from overwriting the last sub-item's form fields
+						$hv_idx = 'hv_' . $saet[$x];
+						list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($hv_idx, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', $r['id'], '0', '', $r['varenr'], $r['beskrivelse'], '', $r['lager'], $display_price, '0', 'percent', '100', '1', '0', '0', $r['vare_id'], '', '0', '0', '0', '', 'on', '', '', '', '', '', '', '', '', '', '', '0', '', $saet[$x], $saetnr, $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));
 					}
 					$saetnr = 0;
 				}
@@ -5463,13 +5465,10 @@ function ordreside($id, $regnskab)
 						if (!$betalt && $vis_betalingslink) $disabled = 'disabled';
 					}
 					// Made for Havemøbelshoppen
-					$disabled='';
-
-					$lockPayment = get_settings_value("lockedInvoiceButton", "debitor", "");
-					if(!$betalt && $vis_betalingslink && $lockPayment == "on"){
-						$disabled = "disabled";
+					if ($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant" || $afd_navn == "Webshop") {
+						$disabled = '';
 					}
-
+					$disabled = '';
 					$txt = findtekst('2374|Fakturér', $sprog_id);
 					$disabled_style = ($disabled) ? "opacity:0.6; cursor:not-allowed; background-color:#cccccc;" : "";
 					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px; border-radius: 4px; $disabled_style' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
@@ -5769,15 +5768,18 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			$ialt *= $procent / 100;
 		} else $procent = 100;
 		$ialt = afrund($ialt, 3); # 20150130 rettet til 3 decimaler
+
+
 		# Hovedvaren (samlevare='on') is display-only for sæt collections - sub-items already add to $sum
 		if ($samlevare != 'on') $sum += $ialt;
-
 		$dkpris = dkdecimal($pris, 2);
 		$dkrabat = dkdecimal($rabat, 5);
 		while (substr($dkrabat, -1) == '0') $dkrabat = trim($dkrabat, '0');
 		if ((substr($dkrabat, 0, 1) == ','))  $dkrabat = '0' . $dkrabat;
 		if ((substr($dkrabat, -1) == ','))  $dkrabat = trim($dkrabat, ',');
 		$dkprocent = dkdecimal($procent, 2);
+
+
 		if ($momsfri != 'on') {
 			# Hovedvaren (samlevare='on') should not add moms - sub-items already handle their own moms
 			if ($samlevare != 'on') $moms += afrund($ialt * $varemomssats / 100, 3); # 20150130 rettet til 3 decimaler
@@ -5825,7 +5827,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$hidden_inputs .= "<input type=\"hidden\" name=\"raba$x\" value=\"$dkrabat\">\n";
 	$hidden_inputs .= "<input type=\"hidden\" name=\"vare$x\" value=\"$varenr\">\n"; #Tilføjet 20161011 Hvis fjernes fungerer "samlet pris ikke"
 	$hidden_inputs .= "<input type=\"hidden\" name=\"posn$x\" value=\"$ny_pos\">\n";
-	if ($saet && $samlevare) {
+	if ($saet) {
 		$hidden_inputs .= "<input type=\"hidden\" name=\"dkan$x\" value=\"$dkantal\">\n";
 	}
 	if ($fokus == 'dkan' . $x) { #20151019
