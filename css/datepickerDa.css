@@ -54,6 +54,51 @@
     color: #ffffff;
 }
 
+/* Month/Year selector dropdowns in header */
+.dp-title-selectors {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dp-month-select,
+.dp-year-select {
+    padding: 3px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+}
+
+.dp-month-select {
+    min-width: 100px;
+}
+
+.dp-year-select {
+    min-width: 70px;
+}
+
+.dp-month-select:hover,
+.dp-year-select:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.dp-month-select:focus,
+.dp-year-select:focus {
+    border-color: rgba(255, 255, 255, 0.7);
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.dp-month-select option,
+.dp-year-select option {
+    background: #114691;
+    color: #ffffff;
+}
+
 /* Calendar table */
 .dp-calendar {
     width: 100%;
