@@ -3,7 +3,7 @@
 include "saldiinfo.php";
 if(isset($_GET["put_new_orders"])){
     // 2 week ago
-    $weekAgo = date('Y-m-d', strtotime('-1 days'));
+    $weekAgo = date('Y-m-d', strtotime('-4 days'));
 
     // tommorow
     $now = date('Y-m-d', strtotime('+1 day'));
@@ -461,7 +461,6 @@ if(isset($_GET["salesPrice"])){
 
 if(isset($_GET["costPrice"])){
         // use patch to update costPrice
-        $sku = $_GET["itemNo"];
         $costPrice = $_GET["costPrice"];
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "https://www.direkteimport.dk/admin/WebAPI/v2/products/$sku"); // Replace with your actual API endpoint
