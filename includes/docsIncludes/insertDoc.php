@@ -176,33 +176,31 @@ if ($docFolder && $source == 'creditorOrder') {
 }
 
 // Debug logging
-$logFile = "../temp/insertDoc_debug.log";
-$logData = date('Y-m-d H:i:s') . " - insertDoc.php called\n";
-$logData .= "  insertFile: " . ($insertFile ?? 'NOT SET') . "\n";
-$logData .= "  poolFile: " . ($poolFile ?? 'NOT SET') . "\n";
-$logData .= "  fileName: " . ($fileName ?? 'NOT SET') . "\n";
-$logData .= "  docFolder: " . ($docFolder ?? 'NOT SET') . "\n";
-$logData .= "  source: " . ($source ?? 'NOT SET') . "\n";
-$logData .= "  sourceId: " . ($sourceId ?? 'NOT SET') . "\n";
-$logData .= "  showDoc: " . ($showDoc ?? 'NOT SET') . "\n";
-$logData .= "  pulje path: $docFolder/pulje/$fileName\n";
-$logData .= "  pulje exists: " . (file_exists("$docFolder/pulje/$fileName") ? 'YES' : 'NO') . "\n";
-$logData .= "  showDoc exists: " . (isset($showDoc) && file_exists($showDoc) ? 'YES' : 'NO') . "\n";
-file_put_contents($logFile, $logData, FILE_APPEND);
+docPoolLog("insertDoc.php called");
+docPoolLog("  insertFile: " . ($insertFile ?? 'NOT SET'));
+docPoolLog("  poolFile: " . ($poolFile ?? 'NOT SET'));
+docPoolLog("  fileName: " . ($fileName ?? 'NOT SET'));
+docPoolLog("  docFolder: " . ($docFolder ?? 'NOT SET'));
+docPoolLog("  source: " . ($source ?? 'NOT SET'));
+docPoolLog("  sourceId: " . ($sourceId ?? 'NOT SET'));
+docPoolLog("  showDoc: " . ($showDoc ?? 'NOT SET'));
+docPoolLog("  pulje path: $docFolder/pulje/$fileName");
+docPoolLog("  pulje exists: " . (file_exists("$docFolder/pulje/$fileName") ? 'YES' : 'NO'));
+docPoolLog("  showDoc exists: " . (isset($showDoc) && file_exists($showDoc) ? 'YES' : 'NO'));
 
 if (!file_exists($showDoc)) {
-	file_put_contents($logFile, date('Y-m-d H:i:s') . " - showDoc does not exist, proceeding with move/upload\n", FILE_APPEND);
+	docPoolLog("showDoc does not exist, proceeding with move/upload");
 	
 	if ($insertFile && file_exists("$docFolder/pulje/$fileName")) {
 		$renameResult = rename("$docFolder/pulje/$fileName",$showDoc);
-		file_put_contents($logFile, date('Y-m-d H:i:s') . " - rename result: " . ($renameResult ? 'SUCCESS' : 'FAILED') . "\n", FILE_APPEND);
+		docPoolLog("rename result: " . ($renameResult ? 'SUCCESS' : 'FAILED'));
 	} else {
-		file_put_contents($logFile, date('Y-m-d H:i:s') . " - trying move_uploaded_file\n", FILE_APPEND);
+		docPoolLog("trying move_uploaded_file");
 		move_uploaded_file($_FILES['uploadedFile']['tmp_name'],"$showDoc");
 	}
 	
 	if(file_exists($showDoc)) {
-		file_put_contents($logFile, date('Y-m-d H:i:s') . " - showDoc now exists, inserting into documents table\n", FILE_APPEND);
+		docPoolLog("showDoc now exists, inserting into documents table");
 		if (!$sourceId) {
 			if ($source == 'kassekladde') {
 				$qtxt = "insert into kassekladde (kladde_id) values ('$kladde_id')";
@@ -211,29 +209,29 @@ if (!file_exists($showDoc)) {
 		$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
 		$qtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','$source','$sourceId','". date('U') ."','$userId')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		file_put_contents($logFile, date('Y-m-d H:i:s') . " - document inserted successfully\n", FILE_APPEND);
+		docPoolLog("document inserted successfully");
 
 		// Clean up pool_files database entry after successful move from pulje
 		if ($insertFile && $fileName) {
 			$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($fileName) ."'";
 			@db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			file_put_contents($logFile, date('Y-m-d H:i:s') . " - deleted from pool_files: $fileName\n", FILE_APPEND);
+			docPoolLog("deleted from pool_files: $fileName");
 			
 			// Also delete any orphaned .info file
 			$baseName = pathinfo($fileName, PATHINFO_FILENAME);
 			$infoFile = "$docFolder/pulje/$baseName.info";
 			if (file_exists($infoFile)) {
 				@unlink($infoFile);
-				file_put_contents($logFile, date('Y-m-d H:i:s') . " - deleted info file: $infoFile\n", FILE_APPEND);
+				docPoolLog("deleted info file: $infoFile");
 			}
 		}
 
 		} else {
-			file_put_contents($logFile, date('Y-m-d H:i:s') . " - ERROR: Move from pool Failed\n", FILE_APPEND);
+			docPoolLog("ERROR: Move from pool Failed");
 			alert("Move from pool Failed");
 		}
 	} else {
-		file_put_contents($logFile, date('Y-m-d H:i:s') . " - ERROR: showDoc already exists\n", FILE_APPEND);
+		docPoolLog("ERROR: showDoc already exists");
 	 alert("$showDoc allready exists");
 }
 if (file_exists($showDoc)) {
