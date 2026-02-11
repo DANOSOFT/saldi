@@ -4995,6 +4995,8 @@ function ordreside($id, $regnskab)
 		$ny_pos = 0;
 		$saetnr = 0;
 		$saetpris = 0;
+		$saet_sum_before = 0;
+		$saet_moms_before = 0;
 		for ($x = 1; $x <= $linjeantal; $x++) {
 			if ($saet[$x]) {
 				if ($saetnr && $saetnr != $saet[$x]) { # tilføjer linjen for sætpris # udeladt 20170318
@@ -5003,11 +5005,15 @@ function ordreside($id, $regnskab)
 					#        list($sum,$dbsum,$blandet_moms,$moms)=explode(chr(9),ordrelinjer($x,$sum,$dbsum,$blandet_moms,$moms,$antal_ialt,'0','0','0','0',$linje_id[$x],'0','','',$r['beskrivelse'],'',$r['lager'],$saetpris,$rabat[$x],'percent','100','1','0',$vare_id[$x],'','0','0',$momssats,'','on','','','','','','','','','','','0','','0',$saetnr,__LINE__));
 					$saetpris = 0;
 				}
-				if (!$saetpris)  print "<tr><td><br></td></tr>";
+				if (!$saetpris) {
+					$saet_sum_before = $sum;
+					$saet_moms_before = $moms;
+					print "<tr><td><br></td></tr>";
+				}
 				$linjesum = $pris[$x] * $antal[$x];
 				$linjesum -= $linjesum * $rabat[$x] / 100;
 				$linjesum += $linjesum * $varemomssats[$x] / 100;
-				$saetpris += round($linjesum);
+				$saetpris += afrund($linjesum,3);
 				$saetnr = $saet[$x];
 			} elseif ($saetnr) { #udeladt 21070318  
 				#      $r=db_fetch_array(db_select("select beskrivelse from ordrelinjer where saet = '$saetnr' and ordre_id='$id' and samlevare='on'",__FILE__ . " linje " . __LINE__));
@@ -5168,6 +5174,13 @@ function ordreside($id, $regnskab)
 						# Use a unique index for the hlavovaren to prevent its hidden inputs from overwriting the last sub-item's form fields
 						$hv_idx = 'hv_' . $saet[$x];
 						list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($hv_idx, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', $r['id'], '0', '', $r['varenr'], $r['beskrivelse'], '', $r['lager'], $display_price, '0', 'percent', '100', '1', '0', '0', $r['vare_id'], '', '0', '0', '0', '', 'on', '', '', '', '', '', '', '', '', '', '', '0', '', $saet[$x], $saetnr, $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));
+						# Correct rounding: saetpris includes VAT rounded per-item, but sum+moms
+						# are accumulated separately causing small discrepancies (e.g. 0.02)
+						$saet_sub_total = ($sum - $saet_sum_before) + ($moms - $saet_moms_before);
+						$saet_correction = $display_price - $saet_sub_total;
+						if (abs($saet_correction) > 0 && abs($saet_correction) < 1) {
+							$moms += $saet_correction;
+						}
 					}
 					$saetnr = 0;
 					$saetpris = 0;
@@ -5788,7 +5801,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		if ($momsfri != 'on') {
 			# Hovedvaren (samlevare='on') should not add moms - sub-items already handle their own moms
 			if ($samlevare != 'on') $moms += afrund($ialt * $varemomssats / 100, 3); # 20150130 rettet til 3 decimaler
-			if ($varemomssats != $momssats) $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
+			if ($samlevare != 'on' && $varemomssats != $momssats) $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 			if ($incl_moms) $dkpris = dkdecimal($pris + $pris * $varemomssats / 100, 2);
 		} else $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 		if ($antal) {
