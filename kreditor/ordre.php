@@ -917,10 +917,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}else {
 					$query = db_select("select hvem from ordrer where id=$id",__FILE__ . " linje " . __LINE__);
-					$row = db_fetch_array($query);
-					if ($row['hvem'] != "") {
-						print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">";
-					}
+					if ($row = db_fetch_array($query)) {print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">";}
 					if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 					else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
 				}
