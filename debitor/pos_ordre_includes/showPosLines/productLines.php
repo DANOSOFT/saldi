@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/showPosLines/productLines.php -- lap 4.1.1 --- 2024.09.09 ---
+// --- debitor/pos_ordre_includes/showPosLines/productLines.php -- lap 5.0.0 --- 2026.02.10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2024 saldi.dk aps
+// Copyright (c) 2019-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20190508	LN Move function vis-pos_linjer here
@@ -42,9 +42,11 @@
 // 20231009 PHR Groupdiscount was handled as always as amount
 // 20240729 PHR Various translations
 // 20240909 PHR Added m_rabat to customerDisplay;
+// 20260210 PHR $kasse = (int)$kasse;
 
 	print "<!-- ---------- start productLines.php ---------- -->\n";
 	$customerDisplay = NULL;
+	$kasse = (int)$kasse;
 	$qtxt = "update settings set pos_id = '0' where var_name = 'customerDisplay' and pos_id is NULL";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "select var_value from settings where var_name = 'customerDisplay'";
