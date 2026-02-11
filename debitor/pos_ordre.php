@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-02-04 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-02-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,6 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-//
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
 // 2019-01-11 - PHR Decimalfejl i $udtages.   
@@ -91,6 +90,7 @@
 // 20250816 PHR Compared and merged changes from ssl7
 // 20251007 PHR Changed "$_POST['proforma'] == 'Proforma')" to "$_POST['proforma'])" 
 // 20260204 PHR Back button did not work if focus was 'Modtaget'
+// 20260211 PHR Updated cashCount 
 
 @session_start();
 $s_id = session_id();
@@ -1282,6 +1282,7 @@ if ($vare_id) {
 	} elseif (isset($_POST['voucherstatus'])) {
 		voucherstatus($id, $konto_id);
 	}
+
 	if ($indbetaling) {
 		if (substr($indbetaling, -1) == 't' || substr($modtaget, -1) == 't') { #20260204
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
@@ -2941,8 +2942,6 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 function kasseoptalling(
 	$kasse,
 	$optalt,
-	$ore_10,
-	$ore_20,
 	$ore_50,
 	$kr_1,
 	$kr_2,
@@ -3161,7 +3160,7 @@ function kasseoptalling(
 				print "<input type=\"hidden\" name=\"ValutaByttePenge[$x]\" value=\"$byttepenge\">\n";
 				print "<input type=\"hidden\" name=\"ValutaTilgang[$x]\" value=\"$tilgang\">\n";
 				print "<b>--- $valuta[$x] ---</b></td></tr>\n";
-				print "<tr><td colspan=\"2\"><b>Morgenbeholdning</b></td><td align=\"right\"><b>" . dkdecimal($byttepenge, 2) . "</b> $valuta[$x]</td></tr>\n";
+				print "<tr><td colspan=\"2\"><b>xMorgenbeholdning</b></td><td align=\"right\"><b>" . dkdecimal($byttepenge, 2) . "</b> $valuta[$x]</td></tr>\n";
 				print "<tr><td colspan=\"2\"><b>Dagens tilgang</b></td><td align=\"right\"><b>" . dkdecimal($tilgang, 2) . "</b> $valuta[$x]</td></tr>\n";
 				print "<tr><td colspan=\"2\"><b>Forventet beholdning</b></td><td align=\"right\"><b>" . dkdecimal($byttepenge + $tilgang, 2) . "</b> $valuta[$x]</td></tr>\n";
 				print "<tr><td colspan=\"2\"><b>Optalt beholdning</b></td><td align=\"right\"><b>" . dkdecimal($optval[$x], 2) . "</b> $valuta[$x]</td></tr>\n";

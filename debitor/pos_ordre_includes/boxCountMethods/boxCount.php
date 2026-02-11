@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 4.1.1 - 2025.08.13 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026.02.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190215 Make function to count the box when submitting
@@ -38,8 +38,7 @@
 // 20250428 PHR Added fiscal_year / $regnaar
 // 20250812 PHR Changed DKK to $baseCurrency
 // 20250813 PHR Compared and merged changes from ssl7
-
-
+// 20260211 PHR Updated cashCount
 
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
@@ -229,7 +228,7 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 	file_put_contents($logfil,"$expInv $forventet\n",FILE_APPEND);
 	file_put_contents($logfil,"$countInv $optalt $curr\n",FILE_APPEND);
 	file_put_contents($logfil,"$diff ".$optalt-($byttepenge+$tilgang),FILE_APPEND);
-	$count = if_isset($_POST['optael'],NULL);
+	$count = if_isset($_POST['calculate'],NULL);
 	if ($count) {
 		(afrund($kassediff,2)*1)?$color='red':$color='black'; #20200111
 		if ($kassediff) {

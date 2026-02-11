@@ -1,4 +1,6 @@
 <?php
+// 20260211 PHR Updated cashCount 
+
 function cashBalance ($kasse,$optalt,$godkendt,$cookievalue) {
 	global $bruger_id,$brugernavn;
 	global $db,$db_encode,$FromCharset,$ToCharset;
@@ -19,24 +21,27 @@ function cashBalance ($kasse,$optalt,$godkendt,$cookievalue) {
 	
 	if (!$cookievalue) $cookievalue=if_isset($_COOKIE['saldi_kasseoptael'],NULL);
 	$tmparray=explode(chr(9),$cookievalue);
-	$ore_50       = if_isset($tmparray[0],0);
-	$kr_1         = if_isset($tmparray[1],0);
-	$kr_2         = if_isset($tmparray[2],0);
-	$kr_5         = if_isset($tmparray[3],0);
-	$kr_10        = if_isset($tmparray[4],0);
-	$kr_20        = if_isset($tmparray[5],0);
-	$kr_50        = if_isset($tmparray[6],0);
-	$kr_100       = if_isset($tmparray[7],0);
-	$kr_200       = if_isset($tmparray[8],0);
-	$kr_500       = if_isset($tmparray[9],0);
-	$kr_1000      = if_isset($tmparray[10],0);
-	$kr_andet     = if_isset($tmparray[11],0);
-	$fiveRappen   = if_isset($tmparray[12],0);
-	$tenRappen    = if_isset($tmparray[13],0);
-	$twentyRappen = if_isset($tmparray[14],0);
-	for ($x=15;$x<count($tmparray);$x++) {
-		$optval[$x-15] = if_isset($tmparray[$x],0);
-	}
+	$ore_20       = if_isset($tmparray[2],0);
+	$ore_50       = if_isset($tmparray[3],0);
+	$kr_1         = if_isset($tmparray[4],0);
+	$kr_2         = if_isset($tmparray[5],0);
+	$kr_5         = if_isset($tmparray[6],0);
+	$kr_10        = if_isset($tmparray[7],0);
+	$kr_20        = if_isset($tmparray[8],0);
+	$kr_50        = if_isset($tmparray[9],0);
+	$kr_100       = if_isset($tmparray[10],0);
+	$kr_200       = if_isset($tmparray[11],0);
+	$kr_500       = if_isset($tmparray[12],0);
+	$kr_1000      = if_isset($tmparray[13],0);
+	$kr_andet     = if_isset($tmparray[14],0);
+	$fiveRappen   = if_isset($tmparray[15],0);
+	$tenRappen    = if_isset($tmparray[16],0);
+	$twentyRappen = if_isset($tmparray[17],0);
+	/*
+	 *	for ($x=15;$x<count($tmparray);$x++) {
+	 *		$optval[$x-15] = if_isset($tmparray[$x],0);
+}
+*/
 	$qtxt = "select var_value from settings where var_name = 'change_cardvalue' limit 1";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$change_cardvalue = if_isset($r['var_value'],NULL);
@@ -62,7 +67,7 @@ function cashBalance ($kasse,$optalt,$godkendt,$cookievalue) {
 			$printpopup=1;
 		}
 	} else $printpopup=1;
-	if (!$godkendt && $optalassist) kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval, $fiveRappen, $tenRappen, $twentyRappen);
+	if (!$godkendt && $optalassist) kasseoptalling ($kasse,$optalt,$ore_20,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval, $fiveRappen, $tenRappen, $twentyRappen);
 	$r=db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	$startmd=$r['box1'];
 	$startaar=$r['box2'];
