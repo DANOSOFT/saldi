@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-01-30 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,7 @@
 // 20250903 LOE Enabled order to still work with account lookup when 'Offer' is active
 // 20260121 LOE formularsprog synched with existing language template
 // 20260130 LOE Added javascript to sycn the felt_2 to total amount and fixed double creditor note field.
+// 20260209 LOE Updated $txt2130 text. and $kontonr casting to int removed for search operations to prevent breaking search functionality. 
 @session_start();
 $s_id = session_id();
 
@@ -856,7 +857,7 @@ if ($b_submit) {
 	$ordrenr = $_POST['ordrenr'];
 	$kred_ord_id = $_POST['kred_ord_id'];
 	$art = $_POST['art'];
-	$kontonr = (int)if_isset($_POST['kontonr'], 0);
+	$kontonr = if_isset($_POST, 0, 'kontonr'); //don't cast to int, until tables are all updated such that no values like; 002343, 0048322, etc. which are currently valid, but would be changed if cast to int.
 	$rb = if_isset($_POST, 0, 'konto_id');
 	$konto_id = (int)$rb; #20210719
 	if ($id && $kontonr && !$konto_id) { #20150222
@@ -6120,7 +6121,13 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	#      if ($samlevare=='on') print "<td align=\"center\" onClick=\"stykliste($vare_id)\" title=\"Vis stykliste\"><img alt=\"Stykliste\" src=\"../ikoner/ stykliste.png\"></td>\n";
 	if (!$saetnr) {
 		$delBtn = "<svg xmlns='http://www.w3.org/2000/svg ' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#d0021b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg> ";
-		$txt2130 = findtekst('2130|Slet ordrelinje', $sprog_id);
+		if (abs($antal) == abs($tidl_lev)) {
+			# Fully delivered
+			$txt2130 = "Do you want to delete this item and return it to stock?";
+		} else {
+			# Not fully delivered
+			$txt2130 = findtekst('2130|Slet ordrelinje', $sprog_id);
+		}
 		print "<td valign = 'top' align='right' title='$txt2130'>";
 		print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
 		print "onclick=\"if (confirm('Slet linje $x?')) { document.getElementsByName('posn$x')[1].value='-'; ";
