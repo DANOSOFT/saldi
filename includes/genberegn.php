@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------lap 3.7.7------2019.03.05---
+// ------includes/genberegn.php-------lap 5.0.0------2026.02.10---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,12 +23,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2019 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 
 // 20130210 Break ændret til break 1
 // 20181126 - PHR Definition af div. variabler mm.
 // 20190321 PHR Added function equalizeMatchingRecords.
+// 20260210 PHR PHP8
 
 @session_start();
 $s_id=session_id();
@@ -127,6 +128,7 @@ if (!function_exists('equalizeMatchingRecords')) {
 function equalizeMatchingRecords () {
 // This function matches open records and equalize those that match accountId, invoicenumber and amount.
 
+	$konto_id = array();
 	$x=0;
 	$qtxt="select distinct(konto_id) from openpost where udlignet='0'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
