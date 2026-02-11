@@ -125,13 +125,13 @@ if ($valg == 'pbs') {
 		   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 		   print"$help_icon".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	if ($popup) {
-		print "<td width=5% style='$buttonStyle' onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php&konto_id=$konto_id','ordre','scrollbars=1,resizable=1');ordre.focus();\">
+		print "<td width=5% style='$buttonStyle' onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php','ordre','scrollbars=1,resizable=1');ordre.focus();\">
 			   <a accesskey=N href='".$_SERVER['PHP_SELF'] . "'>
 			  <button class='center-btn' style='$buttonStyle; width:100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">";
 			   print "$add_icon".findtekst('39|Ny', $sprog_id)."</button></a></td>\n";
 	} else {
 		print "<td width=5% style='$buttonStyle'>
-			   <a href=ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id>";
+			   <a href=ordre.php?returside=ordreliste.php>";
 			   print "<button class='center-btn' style='$buttonStyle; width:100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">";
 			   print "$add_icon".findtekst('39|Ny', $sprog_id)."</button></a></td>\n";
 	}

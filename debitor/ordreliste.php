@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-07--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-09--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -781,15 +781,11 @@ $custom_columns = array(
         "width" => "1",
         "type" => "date",
         "searchable" => true,
-        "hidden" => ($valg != "faktura" && $valg != "ordrer"),
-         "sqlOverride" => "o.ordredate", //override default query
-        "generateSearch" => function ($column, $term) {
-            return generateDateRangeSearch($column, $term);
-        },
+        "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . ($value ? dkdato($value) : '') . "</td>";
+            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
         }
-    ),
+    ), 
     
     "kontonr" => array(
         "field" => "kontonr",
