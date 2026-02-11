@@ -175,7 +175,7 @@ if ($docFolder && $source == 'creditorOrder') {
 	$filePath = "/finance/$kladde_id/$sourceId";
 }
 
-// Debug logging
+/* // Debug logging
 docPoolLog("insertDoc.php called");
 docPoolLog("  insertFile: " . ($insertFile ?? 'NOT SET'));
 docPoolLog("  poolFile: " . ($poolFile ?? 'NOT SET'));
@@ -186,21 +186,21 @@ docPoolLog("  sourceId: " . ($sourceId ?? 'NOT SET'));
 docPoolLog("  showDoc: " . ($showDoc ?? 'NOT SET'));
 docPoolLog("  pulje path: $docFolder/pulje/$fileName");
 docPoolLog("  pulje exists: " . (file_exists("$docFolder/pulje/$fileName") ? 'YES' : 'NO'));
-docPoolLog("  showDoc exists: " . (isset($showDoc) && file_exists($showDoc) ? 'YES' : 'NO'));
+docPoolLog("  showDoc exists: " . (isset($showDoc) && file_exists($showDoc) ? 'YES' : 'NO')); */
 
 if (!file_exists($showDoc)) {
-	docPoolLog("showDoc does not exist, proceeding with move/upload");
+	/* docPoolLog("showDoc does not exist, proceeding with move/upload"); */
 	
 	if ($insertFile && file_exists("$docFolder/pulje/$fileName")) {
 		$renameResult = rename("$docFolder/pulje/$fileName",$showDoc);
-		docPoolLog("rename result: " . ($renameResult ? 'SUCCESS' : 'FAILED'));
+		/* docPoolLog("rename result: " . ($renameResult ? 'SUCCESS' : 'FAILED')); */
 	} else {
-		docPoolLog("trying move_uploaded_file");
+		/* docPoolLog("trying move_uploaded_file"); */
 		move_uploaded_file($_FILES['uploadedFile']['tmp_name'],"$showDoc");
 	}
 	
 	if(file_exists($showDoc)) {
-		docPoolLog("showDoc now exists, inserting into documents table");
+		/* docPoolLog("showDoc now exists, inserting into documents table"); */
 		if (!$sourceId) {
 			if ($source == 'kassekladde') {
 				$qtxt = "insert into kassekladde (kladde_id) values ('$kladde_id')";
@@ -209,29 +209,29 @@ if (!file_exists($showDoc)) {
 		$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
 		$qtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','$source','$sourceId','". date('U') ."','$userId')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		docPoolLog("document inserted successfully");
+		/* docPoolLog("document inserted successfully"); */
 
 		// Clean up pool_files database entry after successful move from pulje
 		if ($insertFile && $fileName) {
 			$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($fileName) ."'";
 			@db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			docPoolLog("deleted from pool_files: $fileName");
+			/* docPoolLog("deleted from pool_files: $fileName"); */
 			
 			// Also delete any orphaned .info file
 			$baseName = pathinfo($fileName, PATHINFO_FILENAME);
 			$infoFile = "$docFolder/pulje/$baseName.info";
 			if (file_exists($infoFile)) {
 				@unlink($infoFile);
-				docPoolLog("deleted info file: $infoFile");
+				/* docPoolLog("deleted info file: $infoFile"); */
 			}
 		}
 
 		} else {
-			docPoolLog("ERROR: Move from pool Failed");
+			/* docPoolLog("ERROR: Move from pool Failed"); */
 			alert("Move from pool Failed");
 		}
 	} else {
-		docPoolLog("ERROR: showDoc already exists");
+		/* docPoolLog("ERROR: showDoc already exists"); */
 	 alert("$showDoc allready exists");
 }
 if (file_exists($showDoc)) {
