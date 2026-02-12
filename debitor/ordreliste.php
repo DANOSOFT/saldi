@@ -83,7 +83,7 @@ $sprog_id = if_isset($sprog_id, 1);
 */
 ?>
 <script>
-    function checkPopupBlocked() {
+  /*   function checkPopupBlocked() {
         var popup = window.open('', 'test', 'width=1,height=1');
 
         if (!popup || popup.closed || typeof popup.closed == 'undefined') {
@@ -103,7 +103,7 @@ $sprog_id = if_isset($sprog_id, 1);
     } else {
         // Proceed with the report functionality
         console.log("Pop-up allowed, proceeding with report functionality.");
-    }
+    } */
 </script>
 <?php
 
