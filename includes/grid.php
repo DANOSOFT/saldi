@@ -252,6 +252,16 @@ function create_datagrid($id, $grid_data) {
     global $bruger_id;
     global $db;
 
+    // If clear_grid is requested for this grid, delete the user's datatable entry to reset everything
+    if (isset($_GET['clear_grid']) && $_GET['clear_grid'] === $id) {
+        db_modify("DELETE FROM datatables WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
+        // Redirect to the base URL without the clear_grid parameter
+        $url = strtok($_SERVER['REQUEST_URI'], '?');
+        header("Location: $url");
+        exit;
+    }
+
+
     // Normalize columns with default values
     $columns = normalize_columns($grid_data['columns'], $defaultValues);
     
@@ -1923,16 +1933,8 @@ function render_dropdown_script($id, $query) {
                 tbody.innerHTML += '<b><a href="' + window.location.href.split('?')[0] + '">back</a></b>';
 
             } else if (action === 'clear') {
-                 // Select all input fields matching the name pattern `search[test][...]`
-                const searchFields = document.querySelectorAll('input[name^="search[$id]"]');
-                console.log(searchFields);
-
-                // Loop through each field and clear its value
-                searchFields.forEach(field => {
-                    field.value = "";
-                });
-
-                searchFields[0].form.submit();
+                // Redirect to the base URL with clear_grid parameter to delete the datatable entry
+                window.location.href = window.location.href.split('?')[0] + '?clear_grid=$id';
 
             } else if (action === 'exportCSV') {
                 // Get the table element

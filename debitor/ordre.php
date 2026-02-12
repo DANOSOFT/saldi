@@ -574,7 +574,7 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 
 	if ($ansat_navn) $ref = $ansat_navn;
 
-	$afd *= 1;
+	$afd = (int)$afd;
 
 	if ($gruppe) {
 		$r = db_fetch_array(db_select("select box1,box3,box4,box6,box8,box9 from grupper where art='DG' and kodenr='$gruppe'", __FILE__ . " linje " . __LINE__));
@@ -1242,6 +1242,7 @@ if ($b_submit) {
 			}
 		}
 	}
+
 	for ($x = 0; $x <= $linjeantal; $x++) {
 		if (!isset($antal[$x]))        $antal[$x]   = 0;
 		if (!isset($tidl_lev[$x]))     $tidl_lev[$x] = 0;
@@ -1268,7 +1269,16 @@ if ($b_submit) {
 		#    if (!$x && !$varenr[$x])$y="vare_".$x;
 		#    $varenr[$x]=db_escape_string(trim(if_isset($_POST[$y])));
 		$y = "dkan" . $x;
-		$dkantal[$x] = trim(isset($_POST[$y]) ? $_POST[$y] : 0);
+		
+		if (isset($_POST[$y])) {
+			$dkantal[$x] = trim($_POST[$y]);
+		} else {
+			// Input is disabled/missing, preserve existing quantity
+			$val = $antal[$x];
+			if ($art == 'DK') $val = $val * -1;
+			$dkantal[$x] = dkdecimal($val, 2); 
+		}
+
 		if ($x == 0 && $dkantal[$x] == '') $antal[$x] = 1; #20160913
 		if ($dkantal[$x] || $dkantal[$x] == '0') {
 			if (strstr($dkantal[$x], ":")) $dkantal[$x] = tid2decimal($dkantal[$x], "t");
@@ -1572,7 +1582,7 @@ if ($status < 3 && $b_submit) {
 		$sum = 0;
 		for ($x = 1; $x <= $linjeantal; $x++) {
 			#      $antal[$x]*=1;
-			$vare_id[$x] *= 1;
+			$vare_id[$x] = (int)$vare_id;
 			if ($lagerantal > 1) {
 				$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id[$x]' and lager = '$lager[$x]'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -4627,6 +4637,9 @@ function ordreside($id, $regnskab)
 				$tmp = (int)$felt_5 - 1;
 				if (!isset($pos_afd[$tmp])) $pos_afd[$tmp] = 0;
 				($pos_afd[$tmp] == $afd) ? $terminal_ip = explode(chr(9), $r['box4']) : $terminal_ip = NULL;
+				/* if($bruger_id == -1){
+					var_dump($terminal_ip);
+				} */
 				$betalingskort = explode(chr(9), $r['box5']);
 				$div_kort_kto = trim($r['box6']);
 				(isset($felt_2)) ? $felt_2 = (float)$felt_2 : $felt_2 = 0;
@@ -4662,11 +4675,12 @@ function ordreside($id, $regnskab)
 				}
 				#          if (!in_array($felt_1,$korttyper) && $felt_1 != 'Betalingskort' && $terminal_ip[$felt_5-1]) $felt_1=NULL;
 				#          elseif (!in_array($felt_1,$korttyper) && !$terminal_ip[$felt_5-1]) $felt_1=NULL;
+				
 				if ($terminal_ip[(int)$felt_5 - 1]) {
 					// #            if ($felt_1) print "<option value='$felt_1'>$felt_1</option>";
-					if ($felt_1 != 'Betalingskort') print "<option value='Betalingskort'>" . findtekst('710|Betalingskort', $sprog_id) . "</option>";
+					/* if ($felt_1 != 'Betalingskort') print "<option value='Betalingskort'>" . findtekst('710|Betalingskort', $sprog_id) . "</option>"; */
 					for ($x = 0; $x < $kortantal; $x++) {
-						if ($felt_1 != $korttyper[$x] && $card_enabled[$x] && !$betalingskort[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</option>";
+						if ($felt_1 != $korttyper[$x] && $card_enabled[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</option>";
 					}
 				} else {
 					if ($felt_1) print "<option value='$felt_1'>$felt_1</option>";
@@ -4745,6 +4759,7 @@ function ordreside($id, $regnskab)
 						}
 						#if($felt_1 == 'Betalingskort') $vis_betalingslink=1;
 					}
+					/* echo $vis_betalingslink; */
 					if ($vis_betalingslink) {
 						$qtxt = "SELECT * FROM settings WHERE var_grp = 'move3500' and pos_id = $afd";
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
