@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-09--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-12--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20251104 LOE General 0verhaul of this file to fit the new grid framework.
 // 20260127 LOE Selected calender type now saved for the user.
 // 20260207 LOE Fixed a bug created by git merge
+// 20260212 PHR Disabled popup checker
 @session_start();
 $s_id = session_id();
 
@@ -79,7 +80,6 @@ include("../includes/row-hover-style-with-links.js.php");
 $sprog_id = if_isset($sprog_id, 1);
 /* 
 * check for popup blocker 
-*/
 ?>
 <script>
     function checkPopupBlocked() {
@@ -105,7 +105,6 @@ $sprog_id = if_isset($sprog_id, 1);
     }
 </script>
 <?php
-/* 
 * end check for popup blocker 
 */
 
