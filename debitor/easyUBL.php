@@ -152,8 +152,9 @@
                     <title>Faktura notification</title>
                 </head>
                 <body>
-                    <h2>Du har modtaget en ny faktura</h2>
-                    <p>Der er modtaget en ny faktura i systemet.</p>
+                    <h2>Du har modtaget en ny elektronisk faktura</h2>
+                    <p>Du kan se den i din dokument pulje</p>
+                    <p>Du finder dokument puljen under kassekladder -> gå ind på en kladde -> papirklips ikonet</p>
                     <p>Tidspunkt: " . date('Y-m-d H:i:s') . "</p>
                 </body>
                 </html>
