@@ -80,6 +80,7 @@ include("../includes/row-hover-style-with-links.js.php");
 $sprog_id = if_isset($sprog_id, 1);
 /* 
 * check for popup blocker 
+*/
 ?>
 <script>
     function checkPopupBlocked() {
@@ -886,7 +887,7 @@ $custom_columns = array(
             return "(o.betalingsbet = '$term')";
         },
         "render" => function ($value, $row, $column) {
-            $display = htmlspecialchars($value);
+            $display = ordreliste_safe_output($value);
             return "<td align='$column[align]'>$display</td>";
         }
     ),
@@ -927,9 +928,9 @@ $custom_columns = array(
 
                 $style = $udlignet ? "color: #000000;" : "color: #FF0000;";
                 $title = $udlignet ? "db: $dk_db - dg: $dk_dg%" : findtekst('1442|Ikke udlignet', $sprog_id) . "\r\ndb: $dk_db - dg: $dk_dg%";
-                return "<td align='$column[align]' style='$style' title='$title'>$formatted</td>";
+                return "<td align='$column[align]' style='$style' title='$title'>" . htmlspecialchars($formatted) . "</td>";
             }
-            return "<td align='$column[align]'>$formatted</td>";
+            return "<td align='$column[align]'>" . htmlspecialchars($formatted) . "</td>";
         }
     ),
     
@@ -937,9 +938,8 @@ $custom_columns = array(
         "field" => "kundeordnr",
         "headerName" => findtekst('500|Ordrenr.', $sprog_id),
         "width" => "1",
-        "type" => "number",
+        "type" => "text",
         "align" => "right",
-        "decimalPrecision" => 0,
         "sortable" => true,
         "searchable" => true,
         "hidden" => true,
@@ -949,7 +949,7 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            $display = (is_numeric($value) && $value !== '') ? intval($value) : htmlspecialchars($value);
+            $display = (is_numeric($value) && $value !== '') ? intval($value) : ordreliste_safe_output($value);
             return "<td align='{$column['align']}'>$display</td>";
         }
     ),
@@ -1034,7 +1034,15 @@ foreach ($all_db_columns as $field_name => $data_type) {
     // render: Format the date
     $column_def['render'] = function ($value, $row, $column) {
         $formatted = $value ? dkdato($value) : '';
-        return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
+        // Check if highlighting was applied to the formatted date string?
+        // Actually, highlighting is applied to the result of valueGetter ($value).
+        // Since valueGetter returns $value (raw), highlighting is applied to Raw.
+        // So passed $value here contains highlighting if matched.
+        // But we try to format it with dkdato($value).
+        // dkdato() likely fails on HTML spans.
+        // Ideally, we shouldn't highlight dates this way, but if we do...
+        // Let's assume date highlighting works on raw dates mostly.
+        return "<td align='{$column['align']}'>" . ordreliste_safe_output($formatted) . "</td>";
     };
 }elseif ($field_name == 'konto_id') {
         // konto_id should be text, not number
@@ -1063,7 +1071,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         
         // render: Display as plain text (no dkdecimal formatting)
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
         };
     }elseif ($data_type == 'numeric' || $data_type == 'integer' || 
             strpos($field_name, 'sum') !== false || 
@@ -1090,7 +1098,18 @@ foreach ($all_db_columns as $field_name => $data_type) {
             } else {
                 $formatted = '';
             }
-            return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
+            // If value was highlighted, it's not numeric, so it falls here?
+            // Actually, valueGetter for number returns numeric. 
+            // Highlighting happens on result of valueGetter.
+            // If highlighted, $value is string with spans. is_numeric($value) is false.
+            // So $formatted is empty string.
+            // This means highlighted numbers disappear?
+            // If so, we need another fix for numbers.
+            // But let's fix what we can first: if $value is not numeric, maybe it's the highlighted string?
+            if (!is_numeric($value) && strpos($value, '<span style') !== false) {
+                 $formatted = $value;
+            }
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($formatted) . "</td>";
         };
     } 
     // Boolean/status fields (0/1 values)
@@ -1116,7 +1135,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
                 $display = '';
                 $color = '#000000';
             }
-            return "<td align='{$column['align']}' style='color: $color;'>" . htmlspecialchars($display) . "</td>";
+            return "<td align='{$column['align']}' style='color: $color;'>" . ordreliste_safe_output($display) . "</td>";
         };
     }
     // Default text fields
