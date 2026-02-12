@@ -106,9 +106,6 @@ $sprog_id = if_isset($sprog_id, 1);
     }
 </script>
 <?php
-* end check for popup blocker 
-*/
-
 
 # >> Date picker scripts <<
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
