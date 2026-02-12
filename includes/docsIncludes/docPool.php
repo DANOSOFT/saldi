@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 4.1.1 --- 2025-10-09 --- 
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-02-12 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20250510 PHR Added 'w' to $legalChars
 // 20250519 PHR '&' replaced by '_' in filenames 
@@ -29,6 +29,7 @@
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
 // 20260202 Added syncPuljeFilesToDatabase to sync files once on page load.
+// 20260212 PHR Added: if (date('U') - $skip > 600) $skip = 0;
 
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -74,7 +75,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	$puljePath = "$docFolder/$db/pulje";
 	
 	$skip = get_settings_value("skip_sync", "docs", 0);
-
+	if (date('U') - $skip > 600) $skip = 0;
 	
 	if ($skip) {
 		return;
@@ -197,12 +198,12 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
-	update_settings_value("skip_sync", "docs", 1, "Skip pool sync after initial run");
+	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
 }
 
 function checkIfAllPoolFilesAreInDatabase() {
 	$skip = get_settings_value("skip_sync", "docs", 0);
-
+	if (date('U') - $skip > 600) $skip = 0;
 	
 	if (!$skip) {
 		return;
