@@ -884,8 +884,7 @@ $custom_columns = array(
             return "(o.betalingsbet = '$term')";
         },
         "render" => function ($value, $row, $column) {
-            $display = ordreliste_safe_output($value);
-            return "<td align='$column[align]'>$display</td>";
+            return "<td align='$column[align]'>$value</td>";
         }
     ),
     
@@ -946,7 +945,7 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            $display = (is_numeric($value) && $value !== '') ? intval($value) : ordreliste_safe_output($value);
+            $display = (is_numeric($value) && $value !== '') ? intval($value) : $value;
             return "<td align='{$column['align']}'>$display</td>";
         }
     ),
@@ -1068,7 +1067,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         
         // render: Display as plain text (no dkdecimal formatting)
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
+            return "<td align='{$column['align']}'>" . $value . "</td>";
         };
     }elseif ($data_type == 'numeric' || $data_type == 'integer' || 
             strpos($field_name, 'sum') !== false || 
@@ -1106,7 +1105,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
             if (!is_numeric($value) && strpos($value, '<span style') !== false) {
                  $formatted = $value;
             }
-            return "<td align='{$column['align']}'>" . ordreliste_safe_output($formatted) . "</td>";
+            return "<td align='{$column['align']}'>" . $formatted . "</td>";
         };
     } 
     // Boolean/status fields (0/1 values)
@@ -1132,7 +1131,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
                 $display = '';
                 $color = '#000000';
             }
-            return "<td align='{$column['align']}' style='color: $color;'>" . ordreliste_safe_output($display) . "</td>";
+            return "<td align='{$column['align']}' style='color: $color;'>" . $display . "</td>";
         };
     }
     // Default text fields
