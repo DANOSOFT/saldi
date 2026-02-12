@@ -609,7 +609,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("showDB", "ordre", $showDB, "Weather or not to show the DB on the order page");
 		update_settings_value("showDG", "ordre", $showDG, "Weather or not to show the DG on the order page");
 		update_settings_value("lockedInvoiceButton", "debitor", $lockPayment, "Locks the invoice button until payment has occured");
-		update_settings_value("ordreAutocomplete", "ordre", $ordreAutocomplete, "Enable or disable autocomplete search on order pages");
+		update_settings_value("ordreAutocomplete", "ordre", $ordreAutocomplete, "Enable or disable autocomplete search on order pages", $bruger_id);
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
 		} elseif ($box2) {

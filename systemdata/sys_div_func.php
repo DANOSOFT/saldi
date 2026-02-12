@@ -1726,6 +1726,7 @@ function ordre_valg() {
 	global $bgcolor;
 	global $bgcolor5;
 	global $regnaar;
+	global $bruger_id;
 
 	$hurtigfakt = $incl_moms_private = $incl_moms_business = $folge_s_tekst = $negativt_lager = $straks_bogf = $vis_nul_lev = $orderNoteEnabled = NULL;
 
@@ -1794,7 +1795,7 @@ function ordre_valg() {
 	}
 
 	$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
-	$ordreAutocomplete = get_settings_value("ordreAutocomplete", "ordre", "on");
+	$ordreAutocomplete = get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id);
 	if ($ordreAutocomplete === "on") {
 		$ordreAutocomplete = "checked";
 	}

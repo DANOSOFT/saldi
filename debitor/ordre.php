@@ -6334,7 +6334,7 @@ if ($menu == 'T') {
 ?>
 <!--  -->
 
-<?php if (get_settings_value("ordreAutocomplete", "ordre", "on") === "on") { ?>
+<?php if (get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on") { ?>
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
 <script src="../javascript/ordreAutocomplete.js"></script>
 <?php } ?>
