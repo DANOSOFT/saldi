@@ -654,7 +654,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	if ($samlevare && $samlevare == 'on') {
 		fwrite($log,__line__." Samlevare = $samlevare\n");
 		fwrite($log,__line__." opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,on,$lager)\n");
-		opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,on,$lager);
+		opret_saet($ordre_id,$vare_id,$pris*1.25,25,$antal,'on',$lager);
 	} elseif($vare_id) {
 		fwrite ($log,__line__." Antal: $antal\n");
 		fwrite ($log,__line__." Beskrivelse: $beskrivelse\n");
