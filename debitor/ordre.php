@@ -1934,6 +1934,17 @@ if ($status < 3 && $b_submit) {
 				}
 			}
 			if ($varenr[0]) {
+			// Check if varenr[0] is an exact match — if not, redirect to product lookup (opslag)
+			$exact_match_check = db_fetch_array(db_select("SELECT id FROM varer WHERE varenr = '$varenr[0]' OR varenr_alias = '$varenr[0]' OR stregkode = '$varenr[0]'", __FILE__ . " linje " . __LINE__));
+			if (!$exact_match_check) {
+				// Not an exact match — redirect to product lookup with the entered value as search term
+				$find_param = urlencode($varenr[0]);
+				$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
+				$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=$find_param$bordnr_param";
+				if (isset($afd_lager)) $url .= "&lager=$afd_lager";
+				header("Location: $url");
+				exit;
+			}
 				$samlevare[0] = '';
 				if ($brugsamletpris) {
 					$r = db_fetch_array(db_select("SELECT id,samlevare,salgspris FROM varer WHERE varenr = '$varenr[0]' or varenr_alias = '$varenr[0]' or stregkode = '$varenr[0]'", __FILE__ . " linje " . __LINE__));
@@ -6323,9 +6334,11 @@ if ($menu == 'T') {
 ?>
 <!--  -->
 
+<?php if (get_settings_value("ordreAutocomplete", "ordre", "on") === "on") { ?>
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
-<script src="../javascript/tablenav.js"></script>
 <script src="../javascript/ordreAutocomplete.js"></script>
+<?php } ?>
+<script src="../javascript/tablenav.js"></script>
 <script src ="orderIncludes/syncFieldsWithTsum.js"></script>
 
 

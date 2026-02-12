@@ -547,6 +547,16 @@ print "<script type=\"text/javascript\">
                 form.append('<input type=\"hidden\" name=\"bordnr\" value=\"' + orderContext.bordnr + '\">');
             }
         }
+        // Auto-search if 'find' parameter is present (e.g. from varenr non-exact-match redirect)
+        var findParam = '" . addslashes($find) . "';
+        if (findParam) {
+            var searchInput = $('input[name=\"search[productLookup" . $id . "][varenr]\"]');
+            if (searchInput.length && !searchInput.val()) {
+                searchInput.val(findParam);
+                // Auto-submit the form to trigger the search
+                searchInput.closest('form').submit();
+            }
+        }
     });
 </script>";
 ?>
