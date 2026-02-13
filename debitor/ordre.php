@@ -4775,7 +4775,7 @@ function ordreside($id, $regnskab)
 						$qtxt = "SELECT * FROM settings WHERE var_grp = 'move3500' and pos_id = $afd";
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						($r['id']) ? $useLane3000 = 1 : $useLane3000 = 0;
-						if ($useLane3000) $href = "payments/lane3000-test.php?amount=$dkfelt_2&id=$id&return_url=ordre.php&kasse=$afd&";
+						if ($useLane3000) $href = "payments/lane3000.php?amount=$dkfelt_2&id=$id&return_url=ordre.php&kasse=$afd&";
 						else $href = "http://" . $terminal_ip[$felt_5 - 1] . "/pointd/kvittering.php?url=$url&id=$id&&kommando=kortbetaling&";
 						$href .= "belob=$dkfelt_2&betaling=&modtaget=$dkfelt_2&modtaget2=0&indbetaling=&tidspkt=" . date("U");
 						if (isset($_GET['indbetaling'])) {

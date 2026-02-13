@@ -51,7 +51,7 @@ if(isset($_GET["put_new_orders"])){
             writeLog("Order " . $order->Id . " is not completed (status: " . $order->Status . "), skipping");
             continue;
         }
-        $priceWithVat = $order->Total + ($order->Total * ($order->Vat / 100));
+        $priceWithVat = $order->Total + ($order->Total * $order->Vat);
         $vatPrice = $order->Total * $order->Vat;
         
         // Extract transaction data for up to 2 cards
@@ -111,7 +111,7 @@ if(isset($_GET["put_new_orders"])){
         $url .= "&lev_bynavn=".urlencode($order->Customer->ShippingCity);
         $url .= "&lev_land=".urlencode($order->Customer->ShippingCountry);
         $url .= "&lev_kontakt=".urlencode($order->Customer->ShippingFirstname . " " . $order->Customer->ShippingLastname);
-        $url .= "&betalingsbet=netto";
+        $url .= "&betalingsbet=Netto";
         $url .= "&betalingsdage=0&shop_fakturanr=".$order->Id;
         $url .= "&ordredate=" . (!empty($order->DateDelivered) ? urlencode($order->DateDelivered) : date('Y-m-d'));
         $url .= "&lev_date=";
