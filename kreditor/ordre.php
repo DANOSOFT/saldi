@@ -171,9 +171,16 @@ elseif (if_isset($_POST, NULL, 'split'))   $submit = 'split';
 $lager = if_isset($_GET, NULL, 'lager');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
 
-if (!$id && $konto_id) {
+if ((!$id || $id === 'null') && $konto_id) {
 	include_once('orderIncludes/insertAccount.php');
 	$id = insertAccount(0, $konto_id);
+	if ($id) {
+		$params = $_GET;
+		$params['id'] = $id;
+		$url = "ordre.php?" . http_build_query($params);
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$url\">";
+		exit;
+	}
 }
 if ( !empty($kontakt) && $id ) {
 	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
