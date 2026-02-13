@@ -198,7 +198,17 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            global $brugernavn;
+            $in_use = '<span>';
+            
+            // Match the locking logic from ordre.php (snippet provided)
+            $orderTime = isset($row['tidspkt']) ? (int)$row['tidspkt'] : 0;
+            $tidspkt = time();
+            
+            if ($row['status'] < 3 && ($tidspkt - $orderTime) < 3600 && !empty($row['hvem']) && $row['hvem'] != $brugernavn) {
+                $in_use = " <span class='fa fa-user' style='color: red; cursor: help;' title='I brug af: " . htmlspecialchars($row['hvem']) . "'>";
+            }
+            return "<td align='$column[align]'>$in_use$value</span></td>";
         }
     ),
     
