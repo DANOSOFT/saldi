@@ -182,25 +182,10 @@ if ($menu=='T') {
 	}
 if (!file_exists("../logolib")) mkdir("../logolib",0777); 
 
-// Create department directories if they don't exist - FIXED: now creates language_department directories
-foreach ($departments as $dept_id => $dept_name) {
-    // Get all languages
-    $languages = array('Dansk'); // Start with default
-    $q = db_select("SELECT DISTINCT sprog FROM formularer WHERE sprog != 'Dansk' ORDER BY sprog", __FILE__ . " linje " . __LINE__);
-    while ($r = db_fetch_array($q)) {
-        if (!in_array($r['sprog'], $languages)) {
-            $languages[] = $r['sprog'];
-        }
-    }
-    
-    // Create directory for each language and department combination
-    foreach ($languages as $language) {
-        $dir_name = strtolower(str_replace(' ', '_', $language)) . "_" . $dept_id;
-        $dept_dir = "../logolib/" . $dir_name;
-        if (!file_exists($dept_dir)) {
-            mkdir($dept_dir, 0777, true);
-        }
-    }
+// Create database-specific directory if it doesn't exist
+$dest_dir = "../logolib/$db_id";
+if (!file_exists($dest_dir)) {
+    mkdir($dest_dir, 0777, true);
 }
 
 if (isset($_GET['slet_bilag'])) {
@@ -222,9 +207,8 @@ if (isset($_GET['slet_bilag'])) {
     error_log("Current sprog is : $current_sprog");
     error_log("Selected sprog is : $selected_sprog");
     
-    // FIXED: Use language_department directory structure
-    $language_dir_name = strtolower(str_replace(' ', '_', $current_sprog)) . "_" . $delete_department;
-    $file_path = "../logolib/" . $language_dir_name . "/" . $slet_bilag;
+    // FIXED: Use db_id directory structure
+    $file_path = "../logolib/$db_id/" . $slet_bilag;
     error_log("Deleting file: $file_path (User is admin: " . ($is_admin ? 'Yes' : 'No') . ", Selected department: $selected_department, Language: $current_sprog)");
     if (file_exists($file_path)) {
         unlink($file_path);
@@ -290,9 +274,8 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 			exit;
 		}
 		
-		// FIXED: Use language_department directory structure
-		$language_dir_name = strtolower(str_replace(' ', '_', $sprog_valg)) . "_" . $department;
-		$dest_dir = "../logolib/" . $language_dir_name . "/";
+		// FIXED: Use db_id directory structure
+		$dest_dir = "../logolib/$db_id/";
 		if (!file_exists($dest_dir)) {
 			mkdir($dest_dir, 0777, true);
 		}
@@ -344,11 +327,10 @@ function upload(){
     global $user_assigned_department;
     global $is_admin;
 
-    // Function to check for files in department directory - FIXED: Use language_department directory structure
+    // Function to check for files in department directory - FIXED: Use db_id directory structure
     function check_file_exists($language, $file_type, $department) {
-        // Convert language to lowercase and replace spaces with underscores for directory name
-        $language_dir_name = strtolower(str_replace(' ', '_', $language)) . "_" . $department;
-        $dept_dir = "../logolib/" . $language_dir_name . "/";
+        global $db_id;
+        $dept_dir = "../logolib/$db_id/";
         $file_path = $dept_dir . $file_type . ".pdf";
         
         if (file_exists($file_path)) {
