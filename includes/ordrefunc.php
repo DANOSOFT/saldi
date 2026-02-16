@@ -1674,6 +1674,13 @@ function momsupdat($id)
 			$linjesum *= $r['procent'] / 100;
 
 		$sum += afrund($linjesum, 3);#20150227
+		# Skip hlavovaren (sæt correction line) from moms calculation - its diff is already
+		# in $sum but moms for the sæt is covered by sub-items. Prevent global recalculation
+		# so the corrected moms from the order display is preserved.
+		if ($r['samlevare'] == 'on' && $r['saet']) {
+			$antal_diff_moms++;
+			continue;
+		}
 		if ($r['vare_id'] && $r['momsfri'] != 'on' && !$r['omvbet']) {
 			if ($r['momssats'] > 0 && $r['momssats'] < $momssats)
 				$varemomssats = $r['momssats'];

@@ -54,50 +54,9 @@ if (isset($_GET['id']) && $_GET['id']){
     // Check if there's a department parameter in the URL
     $department = isset($_GET['department']) ? (int)$_GET['department'] : $order_department;
 
-    $form_type = '';
-    switch ($formular) {
-        case 1: $form_type = 'tilbud'; break;
-        case 2: $form_type = 'ordrer'; break;
-        case 4: $form_type = 'faktura'; break;
-        default: $form_type = 'bg'; // fallback
-    }
-
-    // Convert language to directory format: lowercase and replace spaces with underscores
-    $lang_dir_name = strtolower(str_replace(' ', '_', $sprog));
-
-    // Build the background file paths to check
-    // Check new structure first (language_department), then fall back to old structures if needed
-    $backgrounds = [];
-
-    //  language_department directory
-    if ($department > 0) {
-        // Form-specific background in language_department directory
-        $backgrounds[] = "../logolib/{$lang_dir_name}_{$department}/{$form_type}_bg.pdf";
-        // Generic background in language_department directory
-        $backgrounds[] = "../logolib/{$lang_dir_name}_{$department}/bg.pdf";
-    }
-
-    // Old structure: afd$department directory (for backward compatibility)
-    if ($department > 0) {
-        $backgrounds[] = "../logolib/afd{$department}/{$form_type}_bg.pdf";
-        $backgrounds[] = "../logolib/afd{$department}/bg.pdf";
-    }
-
-    // Old global directory structure (for backward compatibility)
-    global $db_id;
-    if (!isset($db_id)) {
-        $db_id = isset($_SESSION['db_id']) ? $_SESSION['db_id'] : 'default';
-    }
-    $backgrounds[] = "../logolib/{$db_id}/{$form_type}_bg.pdf";
-    $backgrounds[] = "../logolib/{$db_id}/bg.pdf";
-
+    // Background handling is now done internally in formfunk.php's formularprint function
+    // ensuring consistent support for departments and languages.
     $background_file = null;
-    foreach ($backgrounds as $bg) {
-        if (file_exists($bg)) {
-            $background_file = $bg;
-            break;
-        }
-    }
 
     if ($udskriv_til=='ingen') $svar='OK';
     else $svar=formularprint($id, $formular, $lev_nr, $charset, $udskriv_til, $background_file);
