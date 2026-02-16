@@ -5634,14 +5634,29 @@ function ordreside($id, $regnskab)
 		$q = db_select("select gls_label, fedex_label from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 
-		$gls_stil = $r["gls_label"] == "t" ? "background-color: #6bff92; border: 1px #8f8f9d solid; border-radius: 4px;" : "border-radius: 4px;";
+		// Button is always blue by default, turns green only after successful download
+		$gls_stil = "background-color: #4a90d9; border: 1px #8f8f9d solid; border-radius: 4px; color: white;";
 		$fedex_stil = $r["fedex_label"] == "t" ? "background-color: #6bff92; border: 1px #8f8f9d solid; border-radius: 4px;" : "border-radius: 4px;";
 
 		//print "<form name=\"form\" action=\"http://api.gls.dk/ws/\"  method=\"POST\">".
 		print "<div style='text-align: center;'>";
-		print "<form name=\"GLS\"  method=\"POST\">";
+
+		print "<iframe id='gls_download_frame' name='gls_download_frame' style='display:none;'></iframe>";
+
+		print "<form name=\"GLS\" id=\"gls_form\" method=\"POST\" target=\"gls_download_frame\">";
 		print "<input type=\"hidden\" name=\"tGrossWeight\" value=\"$tGrossWeight\">\n";
-		print "\n<input type=\"submit\" name=\"gls_go\" value=\"GLS Label\" style='$gls_stil' onclick=\"this.style.color = 'gray'\"></form>";
+		print "\n<input type=\"submit\" id=\"gls_btn\" name=\"gls_go\" value=\"GLS Label\" style='$gls_stil'></form>";
+		
+		print "<script>
+		document.getElementById('gls_btn').addEventListener('click', function(e) {
+			var btn = this;
+			btn.style.setProperty('color', 'gray', 'important');
+			setTimeout(function() {
+				btn.style.setProperty('background-color', '#38ca5e', 'important');
+				btn.style.setProperty('color', 'white', 'important');
+			}, 2000);
+		});
+		</script>";
 		/* GLS knap slut */
 		print "<div style='margin-top: 10px;'></div>";
 		print "<form name=\"fedexlabel_form\" action=\"https://www.fedex.com/shipping/shipEntryAction.do\" target=\"_blank\" method=\"POST\">";
