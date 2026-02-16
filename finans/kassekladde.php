@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-01-29 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-02-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20251024 LOE - Static Headers, footer and pagination applied.
 // 20260126 PHR - Moved "</tr>" down to include $saldo
 // 20260128 LOE - Fixed the debit and kredit titles relating to the new grid system.
+// 20260216 PHR - *1 -> (int)
 
 ob_start(); //Starter output buffering
 
@@ -3327,11 +3328,11 @@ print "</form>";
 				$momsfri = trim($r['momsfri']);
 				$debet = (int) $r['debet'];
 				$kredit = (int) $r['kredit'];
-				(!$kredit) ? $kredit = 0 : $kredit *= 1;
+				(!$kredit) ? $kredit = 0 : $kredit *= (int)$kredit;
 				$d_type = trim($r['d_type']);
 				$k_type = trim($r['k_type']);
 				$afd = trim($r['afd']);
-				(!$afd) ? $afd = 0 : $afd *= 1;
+				(!$afd) ? $afd = 0 : $afd = (int)$afd;
 				$ansat = strtolower($r['ansat']);
 				$faktura = db_escape_string(if_isset($r['faktura'], ''));
 				if ($egen_kto_id && $ansat) {

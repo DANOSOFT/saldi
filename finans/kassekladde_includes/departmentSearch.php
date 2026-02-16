@@ -1,5 +1,6 @@
 <?php
 
+// 20260216 PHR - *1 -> (int)
 
 ob_start();
 
@@ -31,11 +32,12 @@ $results = array();
 $qtxt = "SELECT kodenr, beskrivelse 
          FROM grupper 
          WHERE art = 'AFD'";
-
+/*
 if ($search !== '') {
-    $qtxt .= " AND (kodenr ILIKE '%$search%' OR beskrivelse ILIKE '%$search%')";
+    if is_integer($search) $qtxt .= " AND kodenr = '$search'";
+    $qtxt .= " AND beskrivelse ILIKE '%$search%'";
 }
-
+*/
 $qtxt .= " ORDER BY kodenr LIMIT 50";
 
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);

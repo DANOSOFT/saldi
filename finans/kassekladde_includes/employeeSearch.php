@@ -1,5 +1,7 @@
 <?php
 
+// 20260216 PHR - *1 -> (int)
+
 
 ob_start();
 
@@ -28,7 +30,7 @@ $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $search = db_escape_string($search);
 
 $r = db_fetch_array(db_select("SELECT id FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__));
-$egen_kto_id = $r['id'] * 1;
+$egen_kto_id = (int)$r['id'];
 
 $results = array();
 
