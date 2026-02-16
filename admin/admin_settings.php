@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------- admin/admin_settings.php --- patch 4.1.1 --- 2025.05.03 ---
+// --------------- admin/admin_settings.php --- patch 5.0.0 --- 2026.02.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20190411 PHR Added alertText
@@ -28,6 +28,7 @@
 // 20210921 Added this block of code to set language
 // 20240522 MMK Newssnippet
 // 20250503 LOE Updated files with new if_isset function implementation to prevent exessive error logs
+// 20260212 PHR pdfmerge replaced by pdftk and some errors
 
 @session_start();
 $s_id=session_id();
@@ -37,13 +38,15 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
+$languages = array();
+
 if (isset($_POST['gem'])) {
 	$ps2pdfId = if_isset($_POST, NULL, 'ps2pdfId');
 	$ps2pdf = if_isset($_POST, NULL, 'ps2pdf');
 	$html2pdfId = if_isset($_POST, NULL, 'html2pdfId');
 	$html2pdf = if_isset($_POST, NULL, 'html2pdf');
-	$pdfmergeId = if_isset($_POST, NULL, 'pdfmergeId');
-	$pdfmerge = if_isset($_POST, NULL, 'pdfmerge');
+	$pdftkId = if_isset($_POST, NULL, 'pdftkId');
+	$pdftk = if_isset($_POST, NULL, 'pdftk');
 	$ftpId = if_isset($_POST, NULL, 'ftpId');
 	$ftp = if_isset($_POST, NULL, 'ftp');
 	$dbdumpId = if_isset($_POST, NULL, 'dbdumpId');
@@ -57,9 +60,9 @@ if (isset($_POST['gem'])) {
 	$alertTextId = if_isset($_POST, NULL, 'alertTextId');
 	$alertText = if_isset($_POST, NULL, 'alertText');
 	$lang = if_isset($_POST, NULL, 'LanguageName'); //20210920
-	$languageId = if_isset($_POST, NULL, 'LanguageId'); //20210920
+	$languageId = (int)if_isset($_POST, 0, 'LanguageId'); //20210920
 	$newssnippet = if_isset($_POST, NULL, 'newssnippet');	
-	$sprog_id = $languageId;
+	$sprog_id = (int)$languageId;
 /*
 	    $qtxt="select * from online where sprog ='$lang'and brugernavn = '$brugernavn'";  #20210921
 		if (!$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
@@ -73,8 +76,8 @@ if (isset($_POST['gem'])) {
 	if ($html2pdfId) $qtxt="update settings set var_value='$html2pdf' where id='$html2pdfId'";
 	else $qtxt="insert into settings (var_name,var_value,var_description) values ('html2pdf','$html2pdf','Program til konvertering af HTML til PDF')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($pdfmergeId) $qtxt="update settings set var_value='$pdfmerge' where id='$pdfmergeId'";
-	else $qtxt="insert into settings (var_name,var_value,var_description) values ('pdfmerge','$pdfmerge','Program til sammenlægning af PDF filer')";
+	if ($pdftkId) $qtxt="update settings set var_value='$pdftk' where id='$pdftkId'";
+	else $qtxt="insert into settings (var_name,var_value,var_description) values ('pdftk','$pdftk','Program til sammenlægning af PDF filer')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	if ($ftpId) $qtxt="update settings set var_value='$ftp' where id='$ftpId'";
 	else $qtxt="insert into settings (var_name,var_value,var_description) values ('ftp','$ftp','Program til FTP')";
@@ -107,8 +110,8 @@ if (isset($_POST['gem'])) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	
 } else {
-	$ps2pdf=$html2pdf=$pdfmerge=$ftp=$dbdump=$zip=$unzip=$tar=$alertText=NULL;
-	$ps2pdfId=$html2pdfId=$pdfmergeId=$ftpId=$dbdumpId=$zipId=$unzipId=$tarId=$alertTextId=NULL;
+	$ps2pdf=$html2pdf=$pdftk=$ftp=$dbdump=$zip=$unzip=$tar=$alertText=NULL;
+	$ps2pdfId=$html2pdfId=$pdftkId=$ftpId=$dbdumpId=$zipId=$unzipId=$tarId=$alertTextId=NULL;
 }
 
 if ($db != $sqdb) {
@@ -133,9 +136,9 @@ while ($r=db_fetch_array($q)) {
 	} elseif ($r['var_name']=='html2pdf') {
 		$html2pdfId=$r['id'];
 		$html2pdf=$r['var_value'];
-	} elseif ($r['var_name']=='pdfmerge') {
-		$pdfmergeId=$r['id'];
-		$pdfmerge=$r['var_value'];
+	} elseif ($r['var_name']=='pdftk') {
+		$pdftkId=$r['id'];
+		$pdftk=$r['var_value'];
 	} elseif ($r['var_name']=='ftp') {
 		$ftpId=$r['id'];
 		$ftp=$r['var_value'];
@@ -174,7 +177,7 @@ $td=" align=\"center\" height=\"35\"";
 $txt = findtekst('1926|ikke fundet!', $sprog_id); #20210917
 if ($ps2pdf && !file_exists($ps2pdf)) echo "$ps2pdf $txt";
 if ($html2pdf && !file_exists($html2pdf)) echo "$html2pdf $txt";
-if ($pdfmerge && !file_exists($pdfmerge)) echo "$pdfmerge $txt";
+if ($pdftk && !file_exists($pdftk)) echo "$pdftk $txt";
 if ($ftp && !file_exists($ftp)) echo "$ftp $txt";
 if ($dbdump && !file_exists($dbdump)) echo "$dbdump $txt";
 if ($zip && !file_exists($zip)) echo "$zip $txt";
@@ -183,7 +186,7 @@ if ($tar && !file_exists($tar)) echo "$tar $txt";
 
 if (!$ps2pdf) $ps2pdf=system("which ps2pdf");
 if (!$html2pdf) $html2pdf=system("which weasyprint");
-if (!$pdfmerge) $pdfmerge=system("which pdftk");
+if (!$pdftk) $pdftk=system("which pdftk");
 if (!$ftp) $ftp=system("which ncftp");
 if (!$dbdump) {
 	if ($db_type=='postgresql') $dbdump=system("which pg_dump");
@@ -199,7 +202,7 @@ $newssnippet = get_settings_value("nyhed", "dashboard", "");
 print "<form name='admin_settings' action='admin_settings.php' method='post'>";
 print "<input type='hidden' name='ps2pdfId' value='$ps2pdfId'>";
 print "<input type='hidden' name='html2pdfId' value='$html2pdfId'>";
-print "<input type='hidden' name='pdfmergeId' value='$pdfmergeId'>";
+print "<input type='hidden' name='pdftkId' value='$pdftkId'>";
 print "<input type='hidden' name='ftpId' value='$ftpId'>";
 print "<input type='hidden' name='dbdumpId' value='$dbdumpId'>";
 print "<input type='hidden' name='zipId' value='$zipId'>";
@@ -212,23 +215,23 @@ print "<big<big><big><b>SALDI</b></big></big></big></td></tr>";
 print "<tr><td  colspan=\"2\" height=\"35\" align=\"center\"><b><big>".findtekst('122|Indstillinger', $sprog_id)."</big></b></td></tr>";
 print "<tr><td>".findtekst('1917|Program til konvertering af PostScript til PDF', $sprog_id)."</td><td><input style='width:400px' name='ps2pdf' value='$ps2pdf'></td></tr>"; 
 print "<tr><td>".findtekst('1918|Program til konvertering af HTML til PDF', $sprog_id)."</td><td><input style='width:400px' name='html2pdf' value='$html2pdf'></td></tr>"; 
-print "<tr><td>".findtekst('1919|Program til sammenlægning af PDF filer', $sprog_id)."</td><td><input style='width:400px' name='pdfmerge' value='$pdfmerge'></td></tr>"; 
+print "<tr><td>".findtekst('1919|Program til sammenlægning af PDF filer', $sprog_id)."</td><td><input style='width:400px' name='pdftk' value='$pdftk'></td></tr>";
 print "<tr><td>".findtekst('1920|Program til FTP', $sprog_id)."</td><td><input style='width:400px' name='ftp' value='$ftp'></td></tr>"; 
 print "<tr><td>".findtekst('1921|Program til databasedump', $sprog_id)."</td><td><input style='width:400px' name='dbdump' value='$dbdump'></td></tr>";
 print "<tr><td>".findtekst('1922|Program til komprimering af filer', $sprog_id)."</td><td><input style='width:400px' name='zip' value='$zip'></td></tr>";
 print "<tr><td>".findtekst('1923|Program til dekomprimering af filer', $sprog_id)."</td><td><input style='width:400px' name='unzip' value='$unzip'></td></tr>";
 print "<tr><td>".findtekst('1924|Program til pakning af filer', $sprog_id)."</td><td><input style='width:400px' name='tar' value='$tar'></td></tr>";
 print "<tr><td>".findtekst('1925|Tekst ved \'uforudset hændelse\'', $sprog_id)."</td><td><input style='width:400px' name='alertText' value='$alertText'></td></tr>";
-print "<tr><td>".findtekst('1099|Slet', $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
+print "<tr><td>".findtekst('2882|Infotekst på dashboard', $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
 
 ##################### #20210920
+/*
 print "<tr><td title='".findtekst('2|Vælg aktivt sprog', $sprog_id)."'>".findtekst('436|Skift', $sprog_id)." ".lcfirst(findtekst('801|Sprog', $sprog_id))."</td>";
 print"<td> <SELECT class ='inputbox' NAME = 'LanguageId' title=''>";
 /*
 foreach ($languages as $k => $v) {
 	print "<option  value='$v'>$v</option>";
 }
-*/
 
 for ($l=1;$l<count($languages);$l++) {
 	if ($languageId == $l) print "<option  value='$l'>$languages[$l]</option>";
@@ -237,6 +240,7 @@ for ($l=1;$l<count($languages);$l++) {
 	if ($languageId != $l) print "<option value='$l'>$languages[$l]</option>";
 }
 print "</SELECT></td></tr>";
+*/
 #####################
 print "<tr><td colspan=\"2\" height=\"35\" align=\"center\"><input type='submit' name='gem' value='".findtekst('3|Gem', $sprog_id)."'></b></td></tr>";
 print "</tbody></table>";
