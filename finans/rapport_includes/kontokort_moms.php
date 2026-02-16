@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 4.0.8 -- 2023-09-08 --
-// 								LICENSE
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-02-10 --
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026Saldi.dk ApS
 // ------------------------------------------------------------------------------
 //
 // 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0' 
@@ -30,8 +30,7 @@
 // 20210125 PHR Added csv option.
 // 20210211 PHR some cleanup
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-
-function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering,$lagerbev) {
+// 20260210 PHR Miscalculating when simulating
 
 	global $afd_navn,$ansatte,$ansatte_id;
 	global $bgcolor,$bgcolor4,$bgcolor5;
@@ -128,37 +127,35 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	if ($momsq) $momsq.=")";
 	$momsantal=$x;
 
-#	print "  <a accesskey=L href=\"rapport.php?rapportart=Kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&afd=$afd\">Luk</a><br><br>";
-	if ($menu=='T') {
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">"; 
-		print "<div class=\"headerbtnLft headLink\"><a href=rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev accesskey=L title='Klik her for at komme tilbage til rapporter'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-		print "<div class=\"headerTxt\">$title</div>";     
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-		print "</div>";
-		print "<div class='content-noside'>";
-			print  "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
-#	} elseif ($menu=='S') {
-#		include("../includes/sidemenu.php");
-	} else {
-		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
-		print "<tr><td colspan=\"6\" height=\"8\">";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
-		print "<td width=\"80%\" $top_bund> Rapport - kontokort med moms</td>";
-		print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
-		print "</tbody></table>"; #B slut
-		print "</td></tr>";
-		print "<tr><td colspan=\"3\"><big><big><big>".findtekst(516,$sprog_id)."</big></big></big></td>";
-	}
-	if (!isset ($sprog_id)) $sprog_id = NULL;
 
-	if ($menu=='T') {
-		print "<tr>";
-	} else {
-		print "";
-	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
+	print "<tr><td colspan=\"6\" height=\"8\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+	print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
+	print "<td width=\"80%\" $top_bund> Rapport - kontokort med moms</td>";
+	print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
+	print "</tbody></table>"; #B slut
+	print "</td></tr>";
+	print "<tr><td colspan=\"3\"><big><big><big>".findtekst(516,$sprog_id)."</big></big></big></td>";
+	if (!isset ($sprog_id)) $sprog_id = NULL;
+	print "";
 	print "<td colspan='4' align = 'right'><b>Regnskabs&aring;r </b>$regnaar : ";
 	## Finder start og slut paa regnskabsaar
 	if ($startdato < 10) $startdato="0".$startdato*1;	
@@ -219,7 +216,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	while ($row = db_fetch_array($q)){
 		if (!in_array($row['kontonr'],$kontonr) && (trim($row['moms']) || $simulering)) {
 			$x++;
-			$kontonr[$x]=$row['kontonr']*1;
+			$kontonr[$x]=(int)$row['kontonr'];
 			$kontobeskrivelse[$x]=$row['beskrivelse'];
 			$kontomoms[$x]=$row['moms'];
 			$kontovaluta[$x]=$row['valuta'];
@@ -237,18 +234,6 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 		}
 	}
 	$kontoantal=$x;
-/*
-	$fejltxt='';
-	$qtxt = "select distinct(kontonr) from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' ";
-	$qtxt.= "and kontonr>='$konto_fra' and kontonr<='$konto_til' and (debet != 0 or kredit != 0) $dim order by kontonr";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)){
-		if ($r['kontonr'] && !in_array($r['kontonr'],$kontonr)) {
-			$fejltxt.='kontonummer :'. $r['kontonr'] .' findes ikke i kontoplanen!<br>';
-		}
-	}
-	if ($fejltxt) print tekstboks($fejltxt);
-*/
 	$ktonr=array();
 	$x=0;
 	$qtxt = "select kontonr,projekt from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' order by transdate,bilag,id";
@@ -259,40 +244,47 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 			$ktonr[$x]=$r['kontonr'];
 		}
 	}
-	$qtxt = "select kontonr from simulering where transdate>='$regnaarstart' and transdate<'$regnslut' order by transdate,bilag,id";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)){
-		if (!in_array($r['kontonr'],$ktonr)) {
-			$x++;
-			$ktonr[$x]=$r['kontonr'];
+	if ($simulering) {
+		$qtxt = "select kontonr from simulering where transdate>='$regnaarstart' and transdate<'$regnslut' order by transdate,bilag,id";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)){
+			if (!in_array($r['kontonr'],$ktonr)) {
+				$x++;
+				$ktonr[$x]=$r['kontonr'];
+			}
 		}
 	}
-	
 	$kontosum=0;
 
 	$founddate=false;
+	
 	print "<tr><td colspan=6><hr></td></tr>";
 	print "<tr><td width=\"100px\">Dato</td><td width=\"60px\">Bilag</td><td>Tekst</td>";
 	print "<td width=\"100px\" align=\"right\">Bel&oslash;b</td><td width=\"80px\" align=\"right\"> Moms</td>";
 	print "<td width=\"100px\" align=\"right\">Incl. moms</td></tr>";
-	fwrite($csv, "\"Dato\";\"Bilag\";\"Tekst\";\"". mb_convert_encoding('Beløb', 'ISO-8859-1', 'UTF-8') ."\";\"Moms\";\"Incl. moms\"\n");
+	fwrite($csv, "Dato;Bilag;Tekst;". mb_convert_encoding('Beløb', 'ISO-8859-1', 'UTF-8') .";Moms;Incl. moms\n");
+
 	for ($x=1; $x<=$kontoantal; $x++){
 		$linjebg=$bgcolor5;
 		if (in_array($kontonr[$x],$ktonr) || $primo[$x]){
 			print "<tr><td colspan=6><hr></td></tr>";
 			print "<tr bgcolor=\"$bgcolor5\"><td></td><td></td><td colspan=4>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</tr>";
-			fwrite($csv, "\"\";\"\";\"". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') ."\";\"\";\"\"\n");
+			fwrite($csv, ";;". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') ."\n");
 			print "<tr><td colspan=6><hr></td></tr>";
-			$kontosum=$primo[$x];
+	#		fwrite($csv, ";;;;;;;");
 			$xMomsSum=$momsSum=0;
 			$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)){
 			 	$kontosum+=afrund($row['debet'],2)-afrund($row['kredit'],2);
 			}
-			$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
-			while ($row = db_fetch_array($query)){
-			 	$kontosum+=afrund($row['debet'],2)-afrund($row['kredit'],2);
-			}
+
+// From here simulation is calculated			
+			
+			if ($simulering) {
+				$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' 	and transdate<'$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
+				while ($row = db_fetch_array($query)){
+					$kontosum+=afrund($row['debet'],2)-afrund($row['kredit'],2);
+				}
 #			$tmp=dkdecimal($kontosum);
 #			if (!$dim) print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>$tmp </td></tr>";
 			$print=1;
@@ -310,15 +302,21 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 				$sim_debet[$sim]=$r['debet'];
 				$sim_kredit[$sim]=$r['kredit'];
 				$sim++;
-				if ($kontovaluta[$x]) {
-					for ($y=0;$y<=count($valkode);$y++){
-						if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $sim_transdate[$tr]) {
-							$sim_transkurs[$tr]=$valkurs[$y];
-							break 1;
+					if ($kontovaluta[$x]) {
+						for ($y=0;$y<=count($valkode);$y++){
+							if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $sim_transdate[$tr]) {
+								$sim_transkurs[$tr]=$valkurs[$y];
+								break 1;
+							}
 						}
-					}
-				} else $sim_transkurs[$tr]=100; 
-			}	
+					} else $sim_transkurs[$tr]=100; 
+				}
+			}
+			
+// To here simulation is calculated.			
+			
+			
+			
 			$tr=0;$transdate=array();
 			$qtxt = "select * from transaktioner where kontonr='$kontonr[$x]' and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -343,20 +341,29 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 				} else $transkurs[$tr]=100; 
 				$tr++;
 			}
-
+			
+			
+			
 			if (!isset ($jsvars)) $jsvars = NULL;
 			if (!isset ($sim_kontonr)) $sim_kontonr = array();;
 
+// From here simulation is printed
 			if (!count($transdate) && in_array($kontonr[$x],$sim_kontonr)) {
 				for ($sim=0;$sim<count($sim_transdate);$sim++) {
 					if ($sim_kontonr[$sim] == $kontonr[$x]) {
 					print "<tr bgcolor=\"$linjebg\"><td>  ".dkdato($sim_transdate[$sim])." </td>";
-				 if ($sim_kladde_id[$sim]) {
+					fwrite($csv, __line__.dkdato($sim_transdate[$sim]).";");
+					if ($sim_kladde_id[$sim]) {
 						print "<td onMouseOver=\"this.style.cursor = 'pointer'\"; ";
 						print "onClick=\"javascript:kassekladde=window.open('kassekladde.php?kladde_id=$sim_kladde_id[$sim]&returside=../includes/luk.php',";
 						print "'kassekladde','$jsvars')\">$sim_bilag[$sim]</td>";
-					} else print "<td></td>";
+						fwrite($csv, "$sim_bilag[$sim];");
+					} else {
+						print "<td></td>";
+						fwrite($csv, ";");
+					}
 					print "<td>$sim_kontonr[$sim] : $sim_beskrivelse[$sim] (simuleret) </td>";
+					fwrite($csv, "". mb_convert_encoding("$sim_kontonr[$sim] : $sim_beskrivelse[$sim] (simuleret)", 'ISO-8859-1', 'UTF-8').";");
 					$xmoms=$sim_debet[$sim]-$sim_kredit[$sim];
 					$xMomsSum+=$xmoms;
 					if ($kontovaluta[$x]) {
@@ -367,8 +374,9 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 						$tmp=$sim_debet[$sim]-$sim_kredit[$sim];
 						$title=NULL;
 					}
-					$xMomsSum+=$tmp;
+#					$xMomsSum+=$tmp;
 					print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp,2)."</td>";
+					fwrite($csv, "\"".dkdecimal($tmp,2)."\";");
 					if ($kontovaluta[$x]) {
 						$tmp=$sim_moms[$sim]*100/$sim_transkurs[$sim];
 						$title="DKK ".dkdecimal($sim_kredit[$sim]*1,2)." Kurs: ".dkdecimal($sim_transkurs[$sim],2);
@@ -378,28 +386,33 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 					}
 					$momsSum+=$tmp;
 					print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp,2)."</td>";
-					$kontosum=$kontosum+afrund($sim_debet[$sim],2)-afrund($sim_kredit[$sim],2);
+					fwrite($csv, "\"".dkdecimal($tmp,2)."\";");
+					$kontosum = afrund($sim_debet[$sim],2)-afrund($sim_kredit[$sim],2);
 					if ($kontovaluta[$x]) {
 						$tmp=$kontosum*100/$sim_transkurs[$sim];
 						$title="DKK ".dkdecimal($kontosum*1,2)." Kurs: ".dkdecimal($sim_transkurs[$sim],2);
 					}	else {
-						$tmp=$kontosum;
+						$tmp=$kontosum+$sim_moms[$sim];
 						$title=NULL;
 					}
 					print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp,2)."</td>";
+					fwrite($csv, "\"".dkdecimal($tmp,2)."\";\n");
 				}
 			}}
 			
+// To here simulation is printed
+			
+			
 			for ($tr=0;$tr<count($transdate);$tr++) {		
 				($linjebg!=$bgcolor5)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-				print "<tr bgcolor=\"$linjebg\"><td>  ".dkdato($transdate[$tr])."</td>";
+				print "<tr bgcolor=\"$linjebg\"><td>".dkdato($transdate[$tr])."</td>";
 				if ($kladde_id[$tr]) {
 					print "<td onMouseOver=\"this.style.cursor = 'pointer'\"; ";
 					print "onClick=\"javascript:kassekladde=window.open('kassekladde.php?kladde_id=$kladde_id[$tr]&returside=../includes/luk.php',";
 					print "'kassekladde','$jsvars')\">$bilag[$tr]</td>";
 				} else print "<td></td>";
 				print "<td>$kontonr[$x] : $beskrivelse[$tr]</td>";
-				fwrite($csv, "\"". dkdato($transdate[$tr]) ."\";\"\";\"". mb_convert_encoding("$kontonr[$x] : $beskrivelse[$tr]", 'ISO-8859-1', 'UTF-8'). "\";");
+				fwrite($csv, dkdato($transdate[$tr]) .";$bilag[$tr];". mb_convert_encoding("$kontonr[$x] : $beskrivelse[$tr]", 'ISO-8859-1', 'UTF-8'). "\";");
 				$xmoms=$debet[$tr]-$kredit[$tr];
 				$xMomsSum+=$xmoms;
 				print "<td align=right>".dkdecimal($xmoms,2)."</td>";
@@ -426,16 +439,20 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 					for ($sim=0;$sim<count($sim_kontonr);$sim++) {
 						if ($kontonr[$x]==$sim_kontonr[$sim] && $transdate[$tr] == $sim_transdate[$sim]) {
 							print "<tr bgcolor=\"$linjebg\"><td>  ".dkdato($sim_transdate[$sim])." </td><td>$sim_bilag[$sim] </td><td>$sim_kontonr[$sim] : $sim_beskrivelse[$sim] (simuleret) </td>";
+							fwrite($csv, dkdato($sim_transdate[$sim]).";$sim_bilag[$sim];$sim_kontonr[$sim] : $sim_beskrivelse[$sim] (simuleret);");
 							if ($kontovaluta[$x]) {
 								if ($transvaluta[$tr]=='-1') $tmp=0;
-								else $tmp=$sim_debet[$sim]*100/$transkurs[$tr];
-								$title="DKK ".dkdecimal($sim_debet[$sim]*1,2)." Kurs: ".dkdecimal($transkurs[$tr],2);
+								else $tmp=$sim_debet[$sim]*100/$transkurs[$tr]-$sim_kredit[$sim]*100/$transkurs[$tr];
+								$title="DKK ".dkdecimal(($sim_debet[$sim]-$sim_kredit[$sim])*1,2)." Kurs: ".dkdecimal($transkurs[$tr],2);
 							}	else {
-								$tmp=$sim_debet[$sim];
+								$tmp=$sim_debet[$sim]-$sim_kredit[$sim];
 								$title=NULL;
 							}
 							$xMomsSum+=$tmp;
 							print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp,2)."</td>";
+							fwrite($csv, dkdecimal($tmp,2).";");
+
+/*
 							if ($kontovaluta[$x]) {
 								if ($transvaluta[$tr]=='-1') $tmp=0;
 								else $tmp=$sim_kredit[$sim]*100/$transkurs[$tr];
@@ -444,32 +461,38 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 								$tmp=$sim_kredit[$sim];
 								$title=NULL;
 							}
+*/
+							$tmp = $sim_moms[$sim];
 							$momsSum+=$tmp;
 							print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp,2)."</td>";
-							$kontosum=$kontosum+afrund($sim_debet[$sim],2)-afrund($sim_kredit[$sim],2);
+							fwrite($csv, dkdecimal($tmp,2).";");
+							$kontosum=afrund($sim_debet[$sim],2)-afrund($sim_kredit[$sim],2);
 							if ($kontovaluta[$x]) {
 								if ($transvaluta[$tr]=='-1') $tmp=0;
 								else $tmp=$kontosum*100/$transkurs[$tr];
 								$title="DKK ".dkdecimal($kontosum*1,2)." Kurs: ".dkdecimal($transkurs[$tr],2);
 							}	else {
-								$tmp=$kontosum;
+								$tmp=$kontosum+$sim_moms[$sim];
 								$title=NULL;
 							}
 							print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp,2)."</td>";
+							fwrite($csv, dkdecimal($tmp,2).";\n");
 						}
 					}
 				}
 			}
+#cho __line__." $xMomsSum<br>";			
 			print "<tr><td colspan='2'></td><td><b>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</b></td>";
-			fwrite($csv, "\"Sum\";\"\";\"". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') ."\";");
+			fwrite($csv, "Sum;;". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') .";");
 			print "<td align='right'><b>". dkdecimal($xMomsSum,2) ."</b></td>";
-			fwrite($csv, "\"".dkdecimal($xMomsSum,2)."\";");
+			fwrite($csv, "".dkdecimal($xMomsSum,2).";");
 			print "<td align='right'><b>". dkdecimal($momsSum,2) ."</b></td>";
-			fwrite($csv, "\"".dkdecimal($momsSum,2)."\";");
+			fwrite($csv, "".dkdecimal($momsSum,2).";");
 			print "<td align='right'><b>". dkdecimal($xMomsSum+$momsSum,2) ."</b></td>";
-			fwrite($csv, "\"".dkdecimal($xMomsSum+$momsSum,2)."\"\n\n");
+			fwrite($csv, "".dkdecimal($xMomsSum+$momsSum,2)."\n\n");
 			print "</tr>";
 		}
+#if ($kontonr[$x] == 1010) exit;
 	}
 	print "<tr><td colspan=6><hr></td></tr>";
 	print "</tbody></table>";

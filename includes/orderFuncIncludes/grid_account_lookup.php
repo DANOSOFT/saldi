@@ -1837,7 +1837,11 @@ function render_ajax_search_script($id) {
     
     // Determine the correct href based on order type
     $href = ($o_art_global === 'PO' || $o_art_global == 'KO') ? "pos_ordre.php" : "ordre.php";
-
+    
+    // For POS orders, always set fokus to 'kontonr' when selecting an account
+    if ($o_art_global === 'PO') {
+        $fokus = 'kontonr';
+    }
     
     echo <<<SCRIPT
     <script>

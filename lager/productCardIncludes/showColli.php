@@ -8,4 +8,6 @@
     print "<tr><td height=20%>".findtekst(2032,$sprog_id)."</td><td><input class=\"inputbox\" type=text style=text-align:right size=8 name=open_colli_price value=\"$tmp\" onchange=\"javascript:docChange = true;\"></td></tr>";
     $tmp=dkdecimal($outer_colli_price,2);
     print "<tr><td height=20%>".findtekst(950,$sprog_id)."</td><td><input class=\"inputbox\" type=text style=text-align:right size=8 name=outer_colli_price value=\"$tmp\" onchange=\"javascript:docChange = true;\"></td></tr>";
+    $tmp=dkdecimal($colli_webfragt,2);
+    print "<tr><td height=20%>".findtekst(2145,$sprog_id)."</td><td><input class=\"inputbox\" type=text style=text-align:right size=8 name=colli_webfragt value=\"$tmp\" onchange=\"javascript:docChange = true;\"></td></tr>";
 ?>

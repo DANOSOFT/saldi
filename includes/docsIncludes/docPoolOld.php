@@ -1515,7 +1515,7 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 		cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' onclick='event.stopPropagation();'>";
 		cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(account) + "' data-field='account' onkeydown='handleEnterKey(event, this)' onclick='event.stopPropagation();'>";
 		cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' onclick='event.stopPropagation();'>";
-		cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' onclick='event.stopPropagation();'>";
+		cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onclick='event.stopPropagation();'>";
 		
 		// Update actions column with only save (green) and cancel (red) buttons when editing
 		cells[5].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +

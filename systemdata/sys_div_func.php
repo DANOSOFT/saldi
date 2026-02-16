@@ -1726,6 +1726,7 @@ function ordre_valg() {
 	global $bgcolor;
 	global $bgcolor5;
 	global $regnaar;
+	global $bruger_id;
 
 	$hurtigfakt = $incl_moms_private = $incl_moms_business = $folge_s_tekst = $negativt_lager = $straks_bogf = $vis_nul_lev = $orderNoteEnabled = NULL;
 
@@ -1794,6 +1795,10 @@ function ordre_valg() {
 	}
 
 	$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+	$ordreAutocomplete = get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id);
+	if ($ordreAutocomplete === "on") {
+		$ordreAutocomplete = "checked";
+	}
 
 	$rabatvarenr = NULL;
 	if ($rabatvareid) {
@@ -1863,6 +1868,7 @@ function ordre_valg() {
 	print "<tr><td title='Dette felt deaktiverer visning af DB på ordre siden'>Skjul dækningsbidrag</td><td><INPUT title='Dette felt deaktiverer visning af DB på ordre siden', class='inputbox' type='checkbox' name='showDB' $showDB></td></tr>";
 	print "<tr><td title='Dette felt deaktiverer visning af DG på ordre siden'>Skjul dækningsgrad</td><td><INPUT title='Dette felt deaktiverer visning af DG på ordre siden', class='inputbox' type='checkbox' name='showDG' $showDG></td></tr>";
 	print "<tr><td title='Angiv en e-mail adresse til modtagelse af pluklister'>Plukliste email</td><td><INPUT title='E-mail adresse til at sende pluklister til' class='inputbox' type='email' style='width:200px;' name='pluklisteEmail' value='$pluklisteEmail'></td></tr>";
+	print "<tr><td title='Aktiverer autosøgning/autocomplete på ordresider'>Anvend autosøgning på ordrer</td><td><INPUT title='Aktiverer autosøgning/autocomplete på ordresider' class='inputbox' type='checkbox' name='ordreAutocomplete' $ordreAutocomplete></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";

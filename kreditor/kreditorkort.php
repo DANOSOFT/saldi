@@ -508,7 +508,7 @@ if ($menu == 'T') {
 	if (substr($rettigheder, 5, 1) == '1') {
 		$tekst = findtekst(129, $sprog_id);
 		print "<td width='50%' title='$tekst'>
-			   <a href=ordreliste.php?kontonumre=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>
+			   <a href=ordreliste.php?search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>
 			   " . findtekst(134, $sprog_id) . "</a></td>\n";
 	} else {
 		print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>" . findtekst(134, $sprog_id) . "</span></td>\n";
@@ -523,8 +523,8 @@ if ($menu == 'T') {
 	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id>" . findtekst(133, $sprog_id) . "</td>\n";
 	if (substr($rettigheder, 5, 1) == '1') {
 		$tekst = findtekst(129, $sprog_id);
-		if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?kontonumre=$kontonr&valg=faktura','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst(134, $sprog_id) . "</td>\n";
-		else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><a href=ordreliste.php?kontonumre=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id>" . findtekst(134, $sprog_id) . "</td>\n";
+	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst(134, $sprog_id) . "</td>\n";
+		else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><a href=ordreliste.php?search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id>" . findtekst(134, $sprog_id) . "</td>\n";
 	} else print "<td width=\"10%\" $stor_knap_bg><span style=\"color:#999;\">" . findtekst(134, $sprog_id) . "</span></td>\n";
 	print "<td width=\"40%\" $top_bund>&nbsp;</td>";
 }

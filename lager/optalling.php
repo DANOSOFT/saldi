@@ -823,8 +823,8 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 							$qtxt .= "($vare_id[$v],'0','$transdate','$transdate','0','$tmp','$kostpris[$v]','$tmp','$lager','$variant_id[$v]')";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 						} else {
-							$y = 0;
-							$restsum = 0;
+							$bk_id = array();
+							$restsum = $y = 0;
 							$qtxt = "select id,rest from batch_kob where vare_id='$vare_id[$v]' and variant_id='$variant_id[$v]'  and kobsdate <= '$transdate' and rest > '0' and lager='$lager' ";
 							$qtxt .= "order by kobsdate";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);

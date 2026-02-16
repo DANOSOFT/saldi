@@ -347,7 +347,7 @@
 347	Kundeansvarlig ikke valgt!	Customer manager not selected!	Kundesjef ikke valgt!
 348	Debitorgruppe ikke valgt!	Debtor group not selected!	Gjeldegruppe ikke valgt!
 349	Kontonummer $ny_kontonr tildelt automatisk!	Account number $ new_account number assigned automatically!	Kontonummer $ new_account number tildeles automatisk!
-350	Der findes allerede en debitor med Kontonr: $ny_kontonr	There is already a debtor with Account no .: $ new_account no	Det er allerede en skyldner med kontonr.: $ New_account no
+350	Der findes allerede en debitor med Kontonr	There is already a debtor with Account no	Det er allerede en skyldner med kontonr
 351	Kontonummer findes allerede	not changed	Kontonummer eksisterer allerede
 352	Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson	Hint! You must set a - (minus) as item no to delete a contact	Hint! Du må sette et - (minus) som varenr for å slette en kontakt
 353	Privat	Private	Privat
@@ -2878,7 +2878,7 @@
 2878	Vil du slette denne opgave	Do you want to delete this task	Vil du slette denne oppgaven
 2879	Ændr eksisterende kunde på sagen	Change existing customer on the project	Endre eksisterende kunde på prosjektet
 2880	Kontaktpersoner til sagen	Contact persons for the project	Kontaktpersoner for prosjektet
-2881	Notat	Note	Notat
+2881	Notat	Note	Notat 
 2882	
 2883	
 2884	

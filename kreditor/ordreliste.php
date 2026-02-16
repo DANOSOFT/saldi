@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----patch 4.1.1 ----2025-12-05---------
+// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-02-11---------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2014.03.19 addslashes erstattet med db_escape_string
 // 2104.09.16   Tilføjet oioublimport i bunden
@@ -30,6 +30,7 @@
 // 20250415 LOE Updated some variables using if_isset and some clean up
 // 20251118 LOE Added datagrid for better performance and more features
 // 20260204 Saul Added more fields  in edit column for kreditor/order
+// 20260211 LOE Added tjek back to url. 
 
 ob_start();
 @session_start();
@@ -197,7 +198,17 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            global $brugernavn;
+            $in_use = '<span>';
+            
+            // Match the locking logic from ordre.php (snippet provided)
+            $orderTime = isset($row['tidspkt']) ? (int)$row['tidspkt'] : 0;
+            $tidspkt = time();
+            
+            if ($row['status'] < 3 && ($tidspkt - $orderTime) < 3600 && !empty($row['hvem']) && $row['hvem'] != $brugernavn) {
+                $in_use = " <span class='fa fa-user' style='color: red; cursor: help;' title='I brug af: " . htmlspecialchars($row['hvem']) . "'>";
+            }
+            return "<td align='$column[align]'>$in_use$value</span></td>";
         }
     ),
     
@@ -630,7 +641,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get the order ID from the data
             const orderId = row.dataset.orderId;
             if (orderId) {
-                window.location.href = 'ordre.php?id=' + orderId + '&returside=ordreliste.php';
+                window.location.href = 'ordre.php?tjek='+orderId+'&id='+orderId+'&returside=ordreliste.php';
             }
         });
     });

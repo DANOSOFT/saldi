@@ -438,7 +438,7 @@ lager_totals AS (
     FROM lagerstatus
     GROUP BY vare_id
 )
-SELECT 
+SELECT DISTINCT
     v.id AS id,                     
     v.varenr AS varenr,
     v.varenr_alias AS varenr_alias,

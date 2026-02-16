@@ -305,7 +305,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<div class=\"headerbtnLft\">";
     print "<a class='button blue small' class=\"button red small left\" href=\"formular_indlaes_std.php\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</a> &nbsp;";
     print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">".findtekst('801|Sprog', $sprog_id)."</a> &nbsp;";
-    print "<a title=\"Email indstillinger for sprog\" class='button blue small' href=\"email_settings.php\" accesskey=\"e\">Email Settings</a></div>\n";
+    print "<a title=\"Email indstillinger for sprog\" class='button blue small' href=\"email_settings.php\" accesskey=\"e\">Email</a></div>\n";
 	print "<span class=\"headerTxt\"></span>\n";     
 	print "<div class=\"headerbtnRght\"><a title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\" class='button blue small' href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></div>";    
 	print "</div><!-- end of header -->";
@@ -334,7 +334,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('801|Sprog', $sprog_id)."</button></a></span></td>\n";
 
 	print "<td width='6%'><span title='Email indstillinger for sprog'><a href=email_settings.php accesskey='e'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email Settings</button></a></span></td>\n";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></a></span></td>\n";
 
 	print "<td width='6%'><span title='".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."'><a href=logoupload.php?upload=yes accesskey='u'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></span></td>\n";#20210804

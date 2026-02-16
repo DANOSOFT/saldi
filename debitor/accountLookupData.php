@@ -100,11 +100,8 @@ try {
     foreach ($validColumns as $col) {
         if (!empty($searchParams[$col])) {
             $value = db_escape_string($searchParams[$col]);
-            if ($col === 'kontonr') {
-                $whereClauses[] = "$col = '$value'";
-            } else {
-                $whereClauses[] = "$col ILIKE '%$value%'";
-            }
+            // Use ILIKE for partial matching on all columns including kontonr
+            $whereClauses[] = "CAST($col AS TEXT) ILIKE '%$value%'";
         }
     }
 
@@ -112,11 +109,8 @@ try {
     foreach ($validColumns as $col) {
         if (!empty($_REQUEST[$col]) && empty($searchParams[$col])) {
             $value = db_escape_string($_REQUEST[$col]);
-            if ($col === 'kontonr') {
-                $whereClauses[] = "$col = '$value'";
-            } else {
-                $whereClauses[] = "$col ILIKE '%$value%'";
-            }
+            // Use ILIKE for partial matching on all columns including kontonr
+            $whereClauses[] = "CAST($col AS TEXT) ILIKE '%$value%'";
         }
     }
 

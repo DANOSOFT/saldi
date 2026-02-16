@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- lap 4.1.1 --- 2025-12-09 ----
+// -----------------lager/lagerstatus.php--- lap 5.0.0 --- 2026-02-06 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20140128 Ved søgning på modtaget / leveret tjekkes ikke for dato hvis angivet dato = dags dato da det gav forkert lagerantal for 
 //          leverancer med leveringsdato > dd. Søg 20140128   
@@ -35,6 +35,7 @@
 // 20240910 PHR 'lagervalg' was omitted in CSV
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20251209 PHR closed products in now hidden by default
+// 20260206 PHR	fiscal_year
 
 @session_start();
 $s_id=session_id();
@@ -99,7 +100,8 @@ $dato=dkdato($date);
 if ($date != $dd) $zStock = 'on';
 
 $x=0;
-$q1= db_select("select kodenr, box9 from grupper where art = 'VG' and box8 = 'on'",__FILE__ . " linje " . __LINE__);
+$qtxt = "select kodenr, box9 from grupper where art = 'VG' and box8 = 'on' and fiscal_year = '$regnaar'";
+$q1= db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r1=db_fetch_array($q1)) {
 	$x++;
 	$lagervare[$x]=$r1['kodenr'];
@@ -108,7 +110,8 @@ while ($r1=db_fetch_array($q1)) {
 $lager[1]=1;
 $lagernavn[1]='';
 $x=0;
-$q1= db_select("select kodenr,beskrivelse from grupper where art = 'LG' order by kodenr",__FILE__ . " linje " . __LINE__);
+$qtxt = "select kodenr,beskrivelse from grupper where art = 'LG' and fiscal_year = '$regnaar' order by kodenr";
+$q1= db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r1=db_fetch_array($q1)) {
 	$x++;
 	$lager[$x]=$r1['kodenr'];
@@ -212,7 +215,8 @@ if (count($lager)) {
 print "&nbsp;".findtekst('429|Varegruppe', $sprog_id).": <select class=\"inputbox\" name=\"varegruppe\">";
 if ($varegruppe) print "<option>$varegruppe</option>";
 if ($varegruppe!="0:Alle") print "<option>0:Alle</option>";
-$q = db_select("select * from grupper where art = 'VG' order by kodenr",__FILE__ . " linje " . __LINE__);
+$qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
+$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($q)){
 	if ($varegruppe!=$row['kodenr'].":".$row['beskrivelse']) {print "<option>$row[kodenr]:$row[beskrivelse]</option>";}
 }

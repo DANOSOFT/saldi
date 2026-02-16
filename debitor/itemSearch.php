@@ -49,8 +49,26 @@ while ($r = db_fetch_array($q)) {
 
 $results = array();
 $totalCount = 0;
+$sql_error = null;
 
 $search_escaped = db_escape_string($search);
+
+// Check if beskrivelse_alias column exists, create if not
+$has_beskrivelse_alias = false;
+$colCheck = db_select("SELECT column_name FROM information_schema.columns WHERE table_name='varer' AND column_name='beskrivelse_alias'", __FILE__ . " line " . __LINE__);
+if ($colCheck && db_fetch_array($colCheck)) {
+    $has_beskrivelse_alias = true;
+} else {
+    // Try to create the column
+    db_modify("ALTER table varer ADD column beskrivelse_alias VARCHAR(255)", __FILE__ . " line " . __LINE__);
+    $has_beskrivelse_alias = true;
+}
+
+// Also check varenr_alias column
+$colCheck2 = db_select("SELECT column_name FROM information_schema.columns WHERE table_name='varer' AND column_name='varenr_alias'", __FILE__ . " line " . __LINE__);
+if (!$colCheck2 || !db_fetch_array($colCheck2)) {
+    db_modify("ALTER table varer ADD column varenr_alias VARCHAR(255)", __FILE__ . " line " . __LINE__);
+}
 
 $baseWhere = "(lukket IS NULL OR lukket != '1')";
 
@@ -58,7 +76,11 @@ if ($search !== '') {
     $words = explode(' ', $search_escaped);
     foreach ($words as $word) {
         if (trim($word) === '') continue;
-        $baseWhere .= " AND (varenr ILIKE '%$word%' OR varenr_alias ILIKE '%$word%' OR beskrivelse ILIKE '%$word%' OR stregkode ILIKE '%$word%' OR trademark ILIKE '%$word%')";
+        $searchCondition = "(varenr ILIKE '%$word%' OR COALESCE(varenr_alias,'') ILIKE '%$word%' OR beskrivelse ILIKE '%$word%' OR COALESCE(stregkode,'') ILIKE '%$word%' OR COALESCE(trademark,'') ILIKE '%$word%')";
+        if ($has_beskrivelse_alias) {
+            $searchCondition = "(varenr ILIKE '%$word%' OR COALESCE(varenr_alias,'') ILIKE '%$word%' OR beskrivelse ILIKE '%$word%' OR COALESCE(beskrivelse_alias,'') ILIKE '%$word%' OR COALESCE(stregkode,'') ILIKE '%$word%' OR COALESCE(trademark,'') ILIKE '%$word%')";
+        }
+        $baseWhere .= " AND " . $searchCondition;
     }
 }
 
@@ -72,7 +94,7 @@ if ($countQuery) {
 $qtxt = "SELECT id, varenr, beskrivelse, salgspris, kostpris, enhed, beholdning, gruppe 
          FROM varer 
          WHERE $baseWhere
-         ORDER BY varenr LIMIT $limit OFFSET $offset";
+         ORDER BY varenr ASC LIMIT $limit OFFSET $offset";
 
 $query = db_select($qtxt, __FILE__ . " line " . __LINE__);
 

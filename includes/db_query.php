@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 4.1.1 ----2025-08-08--------------
+// --- includes/db_query.php ---patch 5.0.0 ----2026-02-13--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,24 +21,15 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-// 20121222 Tilføjet db_escape_string
-// 20130210 Break ændret til break 1
-// 20151005 Funktion injecttjek tjekker om der sker forsøg på at lave sql injektion
-// 20170124 PHR split erstattet af explode
-// 20170321 E.Viuff, Funktion injecttjek - Tilføjet $brugernavn til global og rettet db_query til db_modify.
-// 20170501	Tilføjet understøttelse af mysqli.
-// 20190412 customAlertText hentes nu fra tabellen settings.
-// 20190704 RG (Rune Grysbæk) Mysqli implementering 20190704
-// 20200225 PHR some changes regarding MySQLi
-// 20200308 PHR addded function db_create, db_exists & tbl_exists.
-// 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20230730 LOE - Minor modification, abolute path to std_func
 // 20250121 connection as first parameter in pg_*
 // 20250510 LOE Replaced mysql_query() with mysqli_query() to adjust for php7&above
 // 20250510 LOE Added check for empty database and added error message if database is empty
 // 20050808 PHR replaced if_isset by if(isset()
+// 20050808 PHR Added to function db_escape_string: $qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
+
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -401,10 +392,13 @@ if (!function_exists('db_escape_string')) {
 	function db_escape_string($qtext) {
 		global $db_type;
 		global $connection; #20190704
-		
-		if ($db_type=="mysql") return mysql_real_escape_string($qtext);
-		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, $qtext); #20190704
-		else return pg_escape_string($connection, $qtext);
+		$qtext = str_replace("\0", "", $qtext);
+		if (!mb_check_encoding($qtext, 'UTF-8')) {
+			$qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
+		}
+		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
+		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
+		else return pg_escape_string($connection, "$qtext");
 	}
 }
 

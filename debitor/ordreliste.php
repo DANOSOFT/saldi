@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-01-27--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-12--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,8 @@
 // 20251016 MS Changed "$confirm1" and "confirm('$confirm1 $valg?')" to allow complete translation
 // 20251104 LOE General 0verhaul of this file to fit the new grid framework.
 // 20260127 LOE Selected calender type now saved for the user.
+// 20260207 LOE Fixed a bug created by git merge
+// 20260212 PHR Disabled popup checker
 @session_start();
 $s_id = session_id();
 
@@ -81,7 +83,7 @@ $sprog_id = if_isset($sprog_id, 1);
 */
 ?>
 <script>
-    function checkPopupBlocked() {
+  /*   function checkPopupBlocked() {
         var popup = window.open('', 'test', 'width=1,height=1');
 
         if (!popup || popup.closed || typeof popup.closed == 'undefined') {
@@ -101,13 +103,9 @@ $sprog_id = if_isset($sprog_id, 1);
     } else {
         // Proceed with the report functionality
         console.log("Pop-up allowed, proceeding with report functionality.");
-    }
+    } */
 </script>
 <?php
-/* 
-* end check for popup blocker 
-*/
-
 
 # >> Date picker scripts <<
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
@@ -388,7 +386,7 @@ if ($r = db_fetch_array(db_select("select distinct id from ordrer where projekt 
 if ($menu == 'T') include_once 'ordLstIncludes/topMenu.php';
 elseif ($menu == 'S') include_once 'ordLstIncludes/topLine.php';
 else include_once 'ordLstIncludes/oldTopLine.php';
-include(get_relative() . "includes/orderFuncIncludes/grid_order.php");
+include(get_relative() . "includes/orderFuncIncludes/grid_order.php"); 
 
 
 
@@ -472,16 +470,17 @@ if (isset($_GET['konto_id']) && $_GET['konto_id']) {
     // Only pre-populate if search fields are empty
     if (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
         $konto_id_from_get = db_escape_string($_GET['konto_id']);
-        $qtxt = "SELECT firmanavn kontonr FROM adresser WHERE id = '$konto_id_from_get'";
+        // $qtxt = "SELECT firmanavn, kontonr FROM adresser WHERE id = '$konto_id_from_get'";
+         $qtxt = "SELECT  kontonr FROM adresser WHERE id = '$konto_id_from_get'";
         $debug_log[] = "Query to fetch customer: $qtxt";
 
         if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
             $debug_log[] = "Customer found: " . json_encode($r);
 
-            if (!empty($r['firmanavn'])) {
-                $_GET['search'][$grid_id]['firmanavn'] = $r['firmanavn'];
-                $debug_log[] = "Set firmanavn search: " . $r['firmanavn'];
-            }
+            // if (!empty($r['firmanavn'])) {
+            //     $_GET['search'][$grid_id]['firmanavn'] = $r['firmanavn'];
+            //     $debug_log[] = "Set firmanavn search: " . $r['firmanavn'];
+            // }
             if (!empty($r['kontonr'])) {
                 $_GET['search'][$grid_id]['kontonr'] = $r['kontonr'];
                 $debug_log[] = "Set kontonr search: " . $r['kontonr'];
@@ -595,6 +594,25 @@ $custom_columns = array(
         "defaultSort" => true,
         "defaultSortDirection" => "desc",
         "searchable" => true,
+        "generateSearch" => function ($column, $term) {
+            $term = db_escape_string(trim($term, "'"));
+            if (empty($term)) {
+                return "1=1";
+            }
+            // Handle range search (e.g., "100:200")
+            if (strpos($term, ':') !== false) {
+                list($from, $to) = explode(':', $term, 2);
+                $from = intval($from);
+                $to = intval($to);
+                return "(o.ordrenr >= $from AND o.ordrenr <= $to)";
+            }
+            // Partial match - search for orders containing the number
+            return "(CAST(o.ordrenr AS TEXT) ILIKE '%$term%')";
+        },
+        "valueGetter" => function ($value, $row, $column) {
+            // Return raw value without decimal formatting
+            return $value;
+        },
         "render" => function ($value, $row, $column) {
             global $brugernavn;
             $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=" . urlencode($_SERVER["REQUEST_URI"]);
@@ -663,8 +681,30 @@ $custom_columns = array(
         "headerName" => findtekst('882|Fakt. nr.', $sprog_id),
         "width" => "0.8",
         "align" => "right",
+        "type" => "number",
+        "sortable" => true,
         "searchable" => true,
         "hidden" => ($valg != "faktura"),
+        "sqlOverride" => "CAST(NULLIF(o.fakturanr, '') AS INTEGER)",
+        "generateSearch" => function ($column, $term) {
+            $term = db_escape_string(trim($term, "'"));
+            if (empty($term)) {
+                return "1=1";
+            }
+            // Handle range search (e.g., "10000:20000")
+            if (strpos($term, ':') !== false) {
+                list($from, $to) = explode(':', $term, 2);
+                $from = intval($from);
+                $to = intval($to);
+                return "(CAST(NULLIF(o.fakturanr, '') AS INTEGER) >= $from AND CAST(NULLIF(o.fakturanr, '') AS INTEGER) <= $to)";
+            }
+            // Partial match - search for invoices containing the number
+            return "(o.fakturanr ILIKE '%$term%')";
+        },
+        "valueGetter" => function ($value, $row, $column) {
+            // Return raw value without decimal formatting
+            return $value;
+        },
         "render" => function ($value, $row, $column) {
             return "<td align='$column[align]'>$value</td>";
         }
@@ -738,15 +778,11 @@ $custom_columns = array(
         "width" => "1",
         "type" => "date",
         "searchable" => true,
-        "hidden" => ($valg != "faktura" && $valg != "ordrer"),
-         "sqlOverride" => "o.ordredate", //override default query
-        "generateSearch" => function ($column, $term) {
-            return generateDateRangeSearch($column, $term);
-        },
+        "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . ($value ? dkdato($value) : '') . "</td>";
+            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
         }
-    ),
+    ), 
     
     "kontonr" => array(
         "field" => "kontonr",
@@ -848,8 +884,7 @@ $custom_columns = array(
             return "(o.betalingsbet = '$term')";
         },
         "render" => function ($value, $row, $column) {
-            $display = htmlspecialchars($value);
-            return "<td align='$column[align]'>$display</td>";
+            return "<td align='$column[align]'>$value</td>";
         }
     ),
     
@@ -889,9 +924,29 @@ $custom_columns = array(
 
                 $style = $udlignet ? "color: #000000;" : "color: #FF0000;";
                 $title = $udlignet ? "db: $dk_db - dg: $dk_dg%" : findtekst('1442|Ikke udlignet', $sprog_id) . "\r\ndb: $dk_db - dg: $dk_dg%";
-                return "<td align='$column[align]' style='$style' title='$title'>$formatted</td>";
+                return "<td align='$column[align]' style='$style' title='$title'>" . htmlspecialchars($formatted) . "</td>";
             }
-            return "<td align='$column[align]'>$formatted</td>";
+            return "<td align='$column[align]'>" . htmlspecialchars($formatted) . "</td>";
+        }
+    ),
+    
+    "kundeordnr" => array(
+        "field" => "kundeordnr",
+        "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "width" => "1",
+        "type" => "text",
+        "align" => "right",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.kundeordnr",
+        "valueGetter" => function ($value, $row, $column) {
+            // Return raw value without decimal formatting
+            return $value;
+        },
+        "render" => function ($value, $row, $column) {
+            $display = (is_numeric($value) && $value !== '') ? intval($value) : $value;
+            return "<td align='{$column['align']}'>$display</td>";
         }
     ),
 );
@@ -975,7 +1030,15 @@ foreach ($all_db_columns as $field_name => $data_type) {
     // render: Format the date
     $column_def['render'] = function ($value, $row, $column) {
         $formatted = $value ? dkdato($value) : '';
-        return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
+        // Check if highlighting was applied to the formatted date string?
+        // Actually, highlighting is applied to the result of valueGetter ($value).
+        // Since valueGetter returns $value (raw), highlighting is applied to Raw.
+        // So passed $value here contains highlighting if matched.
+        // But we try to format it with dkdato($value).
+        // dkdato() likely fails on HTML spans.
+        // Ideally, we shouldn't highlight dates this way, but if we do...
+        // Let's assume date highlighting works on raw dates mostly.
+        return "<td align='{$column['align']}'>" . ordreliste_safe_output($formatted) . "</td>";
     };
 }elseif ($field_name == 'konto_id') {
         // konto_id should be text, not number
@@ -990,6 +1053,21 @@ foreach ($all_db_columns as $field_name => $data_type) {
         // render: Escape HTML
         $column_def['render'] = function ($value, $row, $column) {
             return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+        };
+    }elseif (in_array($field_name, ['ordrenr', 'fakturanr', 'kontonr', 'kundeordnr', 'cvrnr'])) {
+        // These "nr" fields should be displayed as plain text/integers without decimal formatting
+        $column_def['type'] = 'number';
+        $column_def['align'] = 'right';
+        $column_def['decimalPrecision'] = 0;
+        
+        // valueGetter: Return as integer (strip decimals) for numeric values
+        $column_def['valueGetter'] = function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        };
+        
+        // render: Display as plain text (no dkdecimal formatting)
+        $column_def['render'] = function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . $value . "</td>";
         };
     }elseif ($data_type == 'numeric' || $data_type == 'integer' || 
             strpos($field_name, 'sum') !== false || 
@@ -1016,7 +1094,18 @@ foreach ($all_db_columns as $field_name => $data_type) {
             } else {
                 $formatted = '';
             }
-            return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
+            // If value was highlighted, it's not numeric, so it falls here?
+            // Actually, valueGetter for number returns numeric. 
+            // Highlighting happens on result of valueGetter.
+            // If highlighted, $value is string with spans. is_numeric($value) is false.
+            // So $formatted is empty string.
+            // This means highlighted numbers disappear?
+            // If so, we need another fix for numbers.
+            // But let's fix what we can first: if $value is not numeric, maybe it's the highlighted string?
+            if (!is_numeric($value) && strpos($value, '<span style') !== false) {
+                 $formatted = $value;
+            }
+            return "<td align='{$column['align']}'>" . $formatted . "</td>";
         };
     } 
     // Boolean/status fields (0/1 values)
@@ -1042,7 +1131,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
                 $display = '';
                 $color = '#000000';
             }
-            return "<td align='{$column['align']}' style='color: $color;'>" . htmlspecialchars($display) . "</td>";
+            return "<td align='{$column['align']}' style='color: $color;'>" . $display . "</td>";
         };
     }
     // Default text fields

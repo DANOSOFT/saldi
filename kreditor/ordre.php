@@ -171,9 +171,16 @@ elseif (if_isset($_POST, NULL, 'split'))   $submit = 'split';
 $lager = if_isset($_GET, NULL, 'lager');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
 
-if (!$id && $konto_id) {
+if ((!$id || $id === 'null') && $konto_id) {
 	include_once('orderIncludes/insertAccount.php');
 	$id = insertAccount(0, $konto_id);
+	if ($id) {
+		$params = $_GET;
+		$params['id'] = $id;
+		$url = "ordre.php?" . http_build_query($params);
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$url\">";
+		exit;
+	}
 }
 if ( !empty($kontakt) && $id ) {
 	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
@@ -917,10 +924,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}else {
 					$query = db_select("select hvem from ordrer where id=$id",__FILE__ . " linje " . __LINE__);
-					$row = db_fetch_array($query);
-					if ($row['hvem'] != "") {
-						print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">";
-					}
+					if ($row = db_fetch_array($query)) {print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">";}
 					if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 					else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
 				}
@@ -1503,8 +1507,10 @@ if ($menu=='T') {
 
 ?>
 
+<?php if (get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on") { ?>
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
 <script src="../javascript/kreditorOrdreAutocomplete.js"></script>
+<?php } ?>
 
 <style>
 .ordreform { 

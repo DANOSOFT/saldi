@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 4.1.1 --- 2025-10-09 --- 
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-02-12 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20250510 PHR Added 'w' to $legalChars
 // 20250519 PHR '&' replaced by '_' in filenames 
@@ -29,6 +29,43 @@
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
 // 20260202 Added syncPuljeFilesToDatabase to sync files once on page load.
+// 20260212 PHR Added: if (date('U') - $skip > 600) $skip = 0;
+
+/**
+ * Log message to a file in temp/$db/docPool.log
+ */
+if (!function_exists('docPoolLog')) {
+	function docPoolLog($message) {
+		global $db;
+		// Define custom log file path
+		$logDir = __DIR__ . '/../../temp/' . ($db ?? 'unknown_db');
+		if (!file_exists($logDir)) {
+			if (!@mkdir($logDir, 0777, true) && !is_dir($logDir)) {
+				// Fallback to error_log if directory creation fails
+				error_log("docPoolLog: Failed to create $logDir - " . $message);
+				return;
+			}
+		}
+		$logFile = $logDir . '/docPool.log';
+		
+		// Add timestamp if not present and not a special header
+		if (strpos($message, '===') === false) {
+			$time = date('Y-m-d H:i:s');
+			// Check if message already starts with a timestamp-like pattern
+			if (!preg_match('/^\d{4}-\d{2}-\d{2}/', $message)) {
+				$message = "$time $message";
+			}
+		}
+		
+		// Add newline if not present
+		if (substr($message, -1) !== "\n") {
+			$message .= "\n";
+		}
+		
+		error_log($message, 3, $logFile);
+	}
+}
+
 
 /**
  * Sync files from pulje directory to pool_files database table.
@@ -38,7 +75,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 	$puljePath = "$docFolder/$db/pulje";
 	
 	$skip = get_settings_value("skip_sync", "docs", 0);
-
+	if (date('U') - $skip > 600) $skip = 0;
 	
 	if ($skip) {
 		return;
@@ -50,7 +87,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			foreach ($infoFiles as $infoFile) {
 				if (is_file($infoFile)) {
 					unlink($infoFile);
-					error_log("syncPuljeFilesToDatabase: Deleted info file: $infoFile");
+					docPoolLog("syncPuljeFilesToDatabase: Deleted info file: $infoFile");
 				}
 			}
 		}
@@ -161,12 +198,12 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
-	update_settings_value("skip_sync", "docs", 1, "Skip pool sync after initial run");
+	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
 }
 
 function checkIfAllPoolFilesAreInDatabase() {
 	$skip = get_settings_value("skip_sync", "docs", 0);
-
+	if (date('U') - $skip > 600) $skip = 0;
 	
 	if (!$skip) {
 		return;
@@ -233,7 +270,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						$infoFile = "$puljePath/$file";
 						if (unlink($infoFile)) {
 							$count++;
-							error_log("Cleanup: Removed orphaned info file: $file");
+							docPoolLog("Cleanup: Removed orphaned info file: $file");
 							
 							// Cleanup database
 							$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
@@ -287,28 +324,44 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$sum         = if_isset($_POST,NULL,'sum');
 
 	if ($insertFile) {
+		// Log when user tries to add a bilag to a line
+		$logPoolFiles = isset($_POST['poolFiles']) ? $_POST['poolFiles'] : (isset($_POST['poolFile']) ? (is_array($_POST['poolFile']) ? implode(',', $_POST['poolFile']) : $_POST['poolFile']) : 'NONE');
+		
+		$logMessage = "=== BILAG ADD ATTEMPT === " .
+			"User: " . ($bruger_id ?? 'unknown') . " | " .
+			"Time: " . date('Y-m-d H:i:s') . " | " .
+			"Source: " . ($source ?? 'NOT SET') . " | " .
+			"SourceId: " . ($sourceId ?? 'NOT SET') . " | " .
+			"KladdeId: " . ($kladde_id ?? 'NOT SET') . " | " .
+			"Bilag: " . ($bilag ?? 'NOT SET') . " | " .
+			"PoolFile(s): " . $logPoolFiles . " | " .
+			"DB: " . ($db ?? 'NOT SET');
+			
+		docPoolLog($logMessage);
+
 		// Debug: Log all POST values we receive
-		error_log("docPool INSERT - sourceId: " . ($sourceId ?? 'NOT SET'));
-		error_log("docPool INSERT - newDate: " . ($newDate ?? 'NOT SET'));
-		error_log("docPool INSERT - newAmount: " . ($newAmount ?? 'NOT SET'));
+		$postDebugMsg = "docPool INSERT - sourceId: " . ($sourceId ?? 'NOT SET') . "\n" .
+			"docPool INSERT - newDate: " . ($newDate ?? 'NOT SET') . "\n" .
+			"docPool INSERT - newAmount: " . ($newAmount ?? 'NOT SET');
+		docPoolLog($postDebugMsg);
 		
 		// Only set date from pool file if sourceId is empty (new entry) and newDate is valid
 		if (!$sourceId && $newDate && strtotime($newDate) !== false && strtotime($newDate) > 0) {
 			$formattedDate = date("d-m-Y", strtotime($newDate));
 			$dato = $formattedDate;
 			$_POST['dato'] = $dato;
-			error_log("docPool INSERT - Setting date from pool file: newDate=$newDate, formatted=$formattedDate");
+			docPoolLog("docPool INSERT - Setting date from pool file: newDate=$newDate, formatted=$formattedDate");
 		} else {
-			error_log("docPool INSERT - NOT setting date. sourceId=$sourceId, newDate=$newDate, strtotime result=" . (strtotime($newDate ?? '') ?: 'false'));
+			docPoolLog("docPool INSERT - NOT setting date. sourceId=$sourceId, newDate=$newDate, strtotime result=" . (strtotime($newDate ?? '') ?: 'false'));
 		}
 		
 		// Only set amount from pool file if sourceId is empty (new entry) and newAmount is set
 		if (!$sourceId && $newAmount) {
 			$sum = $newAmount;
 			$_POST['sum'] = $sum;
-			error_log("docPool INSERT - Setting amount from pool file: newAmount=$newAmount");
+			docPoolLog("docPool INSERT - Setting amount from pool file: newAmount=$newAmount");
 		} else {
-			error_log("docPool INSERT - NOT setting amount. sourceId=$sourceId, newAmount=$newAmount");
+			docPoolLog("docPool INSERT - NOT setting amount. sourceId=$sourceId, newAmount=$newAmount");
 		}
 		
 		// Set invoice number from pool file if sourceId is empty (new entry) and newInvoiceNumber is set
@@ -479,7 +532,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							$qtxt = "select id from kassekladde where id = '$fileSourceId'";
 							$kladdeEntry = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							if (!$kladdeEntry) {
-								error_log("Multiple insert: kassekladde entry not found for sourceId=$fileSourceId, poolFile=$currentPoolFile");
+								docPoolLog("Multiple insert: kassekladde entry not found for sourceId=$fileSourceId, poolFile=$currentPoolFile");
 								$fileProcessed = false;
 							}
 						}
@@ -502,12 +555,12 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 									}
 								}
 								if (!$fileProcessed) {
-									error_log("Multiple insert: No document entry found for source=$source, sourceId=$fileSourceId, filename=$fileFileName (expected: $expectedFileName), poolFile=$currentPoolFile");
+									docPoolLog("Multiple insert: No document entry found for source=$source, sourceId=$fileSourceId, filename=$fileFileName (expected: $expectedFileName), poolFile=$currentPoolFile");
 								}
 							}
 						}
 					} else {
-						error_log("Multiple insert: sourceId not set after processing file: $currentPoolFile, source=$source");
+						docPoolLog("Multiple insert: sourceId not set after processing file: $currentPoolFile, source=$source");
 					}
 					
 					if (!$fileProcessed) {
@@ -648,7 +701,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				$puljePath = "$docFolder/$db/pulje";
 
 				if (!is_dir($puljePath)) {
-					error_log("Directory does not exist: $puljePath");
+					docPoolLog("Directory does not exist: $puljePath");
 				} else {
 					$allFiles = scandir($puljePath);
 					$renamedPdf = false;
@@ -669,12 +722,12 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 							// Check if destination exists
 							if (file_exists($newPath) && $oldPath !== $newPath) {
-								error_log("Target file exists, skipping: $newPath");
+								docPoolLog("Target file exists, skipping: $newPath");
 								continue;
 							}
 
 							if (rename($oldPath, $newPath)) {
-								error_log("Renamed: $oldPath -> $newPath");
+								docPoolLog("Renamed: $oldPath -> $newPath");
 								if (strtolower($fileExt) === 'pdf') {
 									$renamedPdf = true;
 									// Update poolFile variable to new name
@@ -683,7 +736,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 									}
 								}
 							} else {
-								error_log("Failed to rename: $oldPath -> $newPath");
+								docPoolLog("Failed to rename: $oldPath -> $newPath");
 							}
 						}
 					}
@@ -827,10 +880,10 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						if (unlink($fileToDelete)) {
 							#error_log("Deleted: $fileToDelete");
 						} else {
-							error_log("Failed to delete: $fileToDelete");
+							docPoolLog("Failed to delete: $fileToDelete");
 						}
 					} else {
-						error_log("File not found: $fileToDelete");
+						docPoolLog("File not found: $fileToDelete");
 					}
 				}
 				
@@ -2638,7 +2691,7 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
         cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber || '') + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-        cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' " + inputEvents + ">";
+        cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         
         // Update actions column
         cells[5].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
@@ -3648,10 +3701,11 @@ JS;
 	// Skip processing if poolFile is empty or points to a directory
 	if (empty($poolFile) || is_dir($fullName)) {
 		// Log and skip - this is not a valid file
-		if (is_dir($fullName)) {
-			error_log("Skipping directory in poolFile: $fullName");
+		if (!empty($poolFile) && is_dir($fullName)) {
+			docPoolLog("Skipping directory in poolFile: $fullName");
 		}
 		$poolFile = '';
+		$fullName = ''; // Clear fullName to prevent further processing
 	}
 	
 #	cho __line__." $fullName<br>";
@@ -3760,9 +3814,17 @@ JS;
 			}
 		}
 	}
-	if (!file_exists($fullName) && file_exists("$docFolder/$db/pulje/$poolFile")) {
-		$fullName = "$docFolder/$db/pulje/$poolFile";
-		$corrected = '0';
+	// Check that we have a poolFile first!
+	if (!empty($poolFile) && !file_exists($fullName) && file_exists("$docFolder/$db/pulje/$poolFile")) {
+		$checkPath = "$docFolder/$db/pulje/$poolFile";
+		if (!is_dir($checkPath)) {
+			$fullName = $checkPath;
+			$corrected = '0';
+		} else {
+			// It was a directory, so don't use it
+			$poolFile = '';
+			$fullName = '';
+		}
 	}
 #	if ($bruger_id == '-1') {
 #		echo $corrected;
@@ -4127,7 +4189,7 @@ JS;
 
 			if (!file_exists($fullName)) {
 			// Log the issue but DON'T auto-select another file - this was causing wrong .info file operations
-			error_log("docPool: Selected file not found: $fullName. Clearing selection to prevent wrong file operations.");
+			docPoolLog("docPool: Selected file not found: $fullName. Clearing selection to prevent wrong file operations.");
 			
 			// Clear the selection to prevent operating on wrong file
 			// User will need to select a file manually
@@ -4168,7 +4230,7 @@ JS;
 				}
 			} 
 		} else {
-			error_log("Invalid file extension (expected .pdf): $fullName");
+			docPoolLog("Invalid file extension (expected .pdf): $fullName");
 		}
 	}
 
