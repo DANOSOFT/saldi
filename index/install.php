@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 5.0.0---2026-02-02--- 
+//------------index/install.php----lap 5.0.0---2026-02-16---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20260120 PHR Removed an echo.
 // 20260127 LOE Added findtextinst() for language selection management.
 // 20260302 PHR Added missing columns in  create brugere & regnskab
+// 20260212 PHR pdfmerge replaced by pdftk
 
 session_start();
 ob_start(); //Starter output buffering
@@ -308,7 +309,7 @@ if (isset($_POST['opret'])){
 	$qtxt.= "('html2pdf','globals','/usr/bin/weasyprint','Program for converting HTML to PDF','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
-	$qtxt.= "('pdfmerge','globals','/usr/bin/pdftk','Program for merging PDF files','0')";
+	$qtxt.= "('pdftk','globals','/usr/bin/pdftk','Program for merging PDF files','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
 	$qtxt.= "('ftp','globals','/usr/bin/ncftp','Program for handling FTP','0')";
