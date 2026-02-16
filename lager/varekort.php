@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- lap 4.1.1 --- 2025-05-12 ---
+// --- lager/varekort.php --- lap 5.0.0 --- 2026-02-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20131007 Kontrol for cirkulær reference indsat. Søg 20131007
@@ -96,7 +96,7 @@
 // 26062025 PBLM - Changed alert text to danish
 // 20250924 PBLM - Alert for saved product is disabled
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
-
+// 20260213 LOE  - Updated the back button for debitorkort reference.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -1177,13 +1177,31 @@ if ($menu == 'T') {
     print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
 
     $tmp = ($popup) ? "onClick=\"javascript=opener.location.reload();\"" : "";
-    if ($opener != 'varer.php') {
-        print "<td width=\"10%\">
-               <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>
-               <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
-    } else {
-        print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>
-               <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
+       $contains = false;
+
+    if (strpos($returside, 'debitorkort.php') !== false) {
+        $contains = true;
+    }
+
+    if ($contains) {
+        print "<td width='200px'>
+            <a href=\"$returside\" accesskey=L>
+            <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+            . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+            
+        print "<style>
+            a {
+                text-decoration: none !important;
+            } </style>";
+    }else{ 
+       if ($opener != 'varer.php') {
+            print "<td width=\"10%\">
+                <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>
+                <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
+        } else {
+            print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>
+                <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
+        }
     }
     print "<td align='center' style='$topStyle'>".findtekst('566|Varekort', $sprog_id)."</td>\n";
     // print "<td width='10%' align='center' style='$topStyle'><br></td>\n";

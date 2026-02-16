@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-02-06 --- 
+// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-02-16 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps 
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -30,7 +30,7 @@
 // 20251122 LOE Modified icons to SVG format and buttons to fit the new design
 // 20260204 LOE Added grid for displaying orders; related to the debitor SD-245
 // 20260205 LOE Fixed a bug where newly created accounts loads new form when save is clicked SD-321
-
+// 20260213 LOE  - Reordered the columns of datagrid, added Total field and clickable rows.
 @session_start();
 $s_id = session_id();
 
@@ -1571,78 +1571,147 @@ if (!$id) {
 
 ##################
 
+
 ################## PURCHASE HISTORY GRID ##################
-
-
 if ($id > 0) {
     // Start purchase history wrapper - separate from form
     echo "<div class='purchase-history-wrapper'>";
     
-    
-    
 $purchase_columns = [
     [
-        'field' => 'varenr',
-        'headerName' => 'Varenr.',
+        'field' => 'dato',
+        'headerName' => 'Date',
         'type' => 'text',
         'width' => '1',
         'sortable' => true,
         'searchable' => true,
         'align' => 'left',
-        'sqlOverride' => 'varenr' 
+        'sqlOverride' => "dato",
+        'render' => function($value, $row, $column) {
+            $vare_id = isset($row['vare_id']) ? $row['vare_id'] : '';
+            return "<td align='{$column['align']}' data-vare-id='{$vare_id}'>{$value}</td>";
+        }
+    ],
+    [
+        'field' => 'varenr',
+        'headerName' => 'Item No.',
+        'type' => 'text',
+        'width' => '1',
+        'sortable' => true,
+        'searchable' => true,
+        'align' => 'left',
+        'sqlOverride' => 'varenr',
+        'render' => function($value, $row, $column) {
+            $vare_id = isset($row['vare_id']) ? $row['vare_id'] : '';
+            return "<td align='{$column['align']}' data-vare-id='{$vare_id}'>{$value}</td>";
+        }
     ],
     [
         'field' => 'varenavn',
-        'headerName' => 'Varenavn',
+        'headerName' => 'Item Name',
         'type' => 'text',
         'width' => '3',
         'sortable' => true,
         'searchable' => true,
         'align' => 'left',
-        'sqlOverride' => 'varenavn' 
+        'sqlOverride' => 'varenavn',
+        'render' => function($value, $row, $column) {
+            $vare_id = isset($row['vare_id']) ? $row['vare_id'] : '';
+            return "<td align='{$column['align']}' data-vare-id='{$vare_id}'>{$value}</td>";
+        }
     ],
     [
         'field' => 'antal',
-        'headerName' => 'Antal',
+        'headerName' => 'Quantity',
         'type' => 'number',
-        'width' => '1',
-        'sortable' => true,
-        'searchable' => true,
-        'align' => 'right',
-        'decimalPrecision' => 2,
-        'sqlOverride' => 'ordrelinjer.antal'
-    ],
-    [
-        'field' => 'salgspris',
-        'headerName' => 'Salgspris',
-        'type' => 'number',
-        'width' => '1',
-        'sortable' => true,
-        'searchable' => true,
-        'align' => 'right',
-        'decimalPrecision' => 2,
-        'sqlOverride' => 'ordrelinjer.pris'
-    ],
-    [
-        'field' => 'dato',
-        'headerName' => 'Dato',
-        'type' => 'text',
         'width' => '1',
         'sortable' => true,
         'searchable' => true,
         'align' => 'left',
-        'sqlOverride' => "dato"
+        'decimalPrecision' => 2,
+        'sqlOverride' => 'antal',
+        'render' => function($value, $row, $column) {
+            $vare_id = isset($row['vare_id']) ? $row['vare_id'] : '';
+            $formatted_value = DEFAULT_VALUE_GETTER($value, $row, $column);
+            return "<td align='{$column['align']}' data-vare-id='{$vare_id}'>{$formatted_value}</td>";
+        },
+        'generateSearch' => function ($column, $term) {
+            $term = db_escape_string($term);
+            
+            if (strstr($term, ':')) {
+                list($num1, $num2) = explode(":", $term, 2);
+                return "round(antal::numeric, 2) >= '" . usdecimal($num1) . "' 
+                        AND 
+                        round(antal::numeric, 2) <= '" . usdecimal($num2) . "'";
+            } else {
+                $term = usdecimal($term);
+                return "round(antal::numeric, 2) >= $term 
+                        AND 
+                        round(antal::numeric, 2) <= $term";
+            }
+        }
     ],
     [
-        'field' => 'rabat',
-        'headerName' => 'Rabat %',
+        'field' => 'salgspris',
+        'headerName' => 'Sales Price',
         'type' => 'number',
         'width' => '1',
         'sortable' => true,
         'searchable' => true,
-        'align' => 'right',
+        'align' => 'left',
         'decimalPrecision' => 2,
-        'sqlOverride' => 'rabat'
+        'sqlOverride' => 'salgspris',
+        'render' => function($value, $row, $column) {
+            $vare_id = isset($row['vare_id']) ? $row['vare_id'] : '';
+            $formatted_value = DEFAULT_VALUE_GETTER($value, $row, $column);
+            return "<td align='{$column['align']}' data-vare-id='{$vare_id}'>{$formatted_value}</td>";
+        },
+        'generateSearch' => function ($column, $term) {
+            $term = db_escape_string($term);
+            
+            if (strstr($term, ':')) {
+                list($num1, $num2) = explode(":", $term, 2);
+                return "round(salgspris::numeric, 2) >= '" . usdecimal($num1) . "' 
+                        AND 
+                        round(salgspris::numeric, 2) <= '" . usdecimal($num2) . "'";
+            } else {
+                $term = usdecimal($term);
+                return "round(salgspris::numeric, 2) >= $term 
+                        AND 
+                        round(salgspris::numeric, 2) <= $term";
+            }
+        }
+    ],
+    [
+        'field' => 'total',
+        'headerName' => 'Total',
+        'type' => 'number',
+        'width' => '1',
+        'sortable' => true,
+        'searchable' => true,
+        'align' => 'left',
+        'decimalPrecision' => 2,
+        'sqlOverride' => 'total',
+        'render' => function($value, $row, $column) {
+            $vare_id = isset($row['vare_id']) ? $row['vare_id'] : '';
+            $formatted_value = DEFAULT_VALUE_GETTER($value, $row, $column);
+            return "<td align='{$column['align']}' data-vare-id='{$vare_id}'>{$formatted_value}</td>";
+        },
+        'generateSearch' => function ($column, $term) {
+            $term = db_escape_string($term);
+            
+            if (strstr($term, ':')) {
+                list($num1, $num2) = explode(":", $term, 2);
+                return "round(total::numeric, 2) >= '" . usdecimal($num1) . "' 
+                        AND 
+                        round(total::numeric, 2) <= '" . usdecimal($num2) . "'";
+            } else {
+                $term = usdecimal($term);
+                return "round(total::numeric, 2) >= $term 
+                        AND 
+                        round(total::numeric, 2) <= $term";
+            }
+        }
     ]
 ];
 
@@ -1656,14 +1725,12 @@ if ($month_filter != 'all' && is_numeric($month_filter)) {
     $date_condition = "ordrer.ordredate >= '$months_ago'";
 }
 
-##########
 // Handle date range search
 $date_where = "";
 if (isset($_GET['search']['purchase_history']['dato'])) {
     $date_search = $_GET['search']['purchase_history']['dato'];
     
     if (strpos($date_search, ' : ') !== false) {
-        // It's a range
         list($start, $end) = explode(' : ', $date_search);
         $start_obj = DateTime::createFromFormat('d-m-Y', trim($start));
         $end_obj = DateTime::createFromFormat('d-m-Y', trim($end));
@@ -1673,47 +1740,45 @@ if (isset($_GET['search']['purchase_history']['dato'])) {
                           AND '" . $end_obj->format('Y-m-d') . "'";
         }
     } else {
-        // Single date
         $date_obj = DateTime::createFromFormat('d-m-Y', trim($date_search));
         if ($date_obj) {
             $date_where = "ordrer.ordredate = '" . $date_obj->format('Y-m-d') . "'";
         }
     }
     
-    // Remove the date from GET so grid doesn't try to filter it again
     unset($_GET['search']['purchase_history']['dato']);
 }
 
-// Add to your date_condition
 if ($date_where) {
     $date_condition .= " AND " . $date_where;
 }
-########
 
-// Define the grid data with PROPERLY QUALIFIED column names in the subquery
+// Define the grid data
 $purchase_grid = [
     'query' => "
         SELECT 
+            dato,
             varenr,
             varenavn,
             antal,
             salgspris,
-            dato,
-            rabat
+            total,
+            vare_id
         FROM (
             SELECT 
+                TO_CHAR(ordrer.ordredate, 'DD-MM-YYYY') AS dato,
                 varer.varenr AS varenr,
+                varer.id AS vare_id,
                 varer.beskrivelse AS varenavn,
                 SUM(ordrelinjer.antal) AS antal,
                 ordrelinjer.pris AS salgspris,
-                TO_CHAR(ordrer.ordredate, 'DD-MM-YYYY') AS dato,
-                ordrelinjer.rabat AS rabat
+                (SUM(ordrelinjer.antal) * ordrelinjer.pris) AS total
             FROM ordrelinjer
             INNER JOIN ordrer ON ordrelinjer.ordre_id = ordrer.id
             INNER JOIN varer ON ordrelinjer.vare_id = varer.id
             WHERE ordrer.konto_id = '$id' 
             AND $date_condition
-            GROUP BY varer.varenr, varer.beskrivelse, ordrelinjer.pris, ordrer.ordredate, ordrelinjer.rabat
+            GROUP BY varer.varenr, varer.id, varer.beskrivelse, ordrelinjer.pris, ordrer.ordredate
         ) AS purchase_history
         WHERE {{WHERE}}
         ORDER BY {{SORT}}
@@ -1721,22 +1786,54 @@ $purchase_grid = [
     'columns' => $purchase_columns,
     'filters' => []
 ];
-		
-
-    
 
     // Render the purchase history grid
-	
     create_datagrid('purchase_history', $purchase_grid);
     
     echo "</div>"; // Close purchase-history-wrapper  
 }else{
-	error_log("Invalid customer ID for purchase history grid: " . htmlspecialchars($id));
+    error_log("Invalid customer ID for purchase history grid: " . htmlspecialchars($id));
 }
 
 echo "</div>"; // Close outer-datatable-wrapper
 
 ################## END PURCHASE HISTORY GRID ##################
+
+// Updated JavaScript for clickable rows - click anywhere in the row
+echo <<<SCRIPT
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        var gridTable = document.querySelector('#datatable-purchase_history tbody');
+        
+        if (gridTable) {
+            gridTable.addEventListener('click', function(e) {
+                var cell = e.target.closest('td');
+                
+                if (cell && cell.hasAttribute('data-vare-id')) {
+                    var vareId = cell.getAttribute('data-vare-id');
+                    
+                    if (vareId) {
+                        window.location.href = '../lager/varekort.php?id=' 
+                            + encodeURIComponent(vareId) 
+                            + '&returside=../debitor/debitorkort.php?id=$id';
+                    }
+                }
+            });
+            
+            // Add hover effect to all rows with data
+            var rows = gridTable.querySelectorAll('tr:not(.filler-row)');
+            rows.forEach(function(row) {
+                var cells = row.querySelectorAll('td[data-vare-id]');
+                if (cells.length > 0) {
+                    row.style.cursor = 'pointer';
+                }
+            });
+        }
+    }, 600);
+});
+</script>
+SCRIPT;
 
 
 
@@ -2201,24 +2298,38 @@ document.addEventListener('DOMContentLoaded', function() {
 		height: 100%;
 		display: flex;
 		flex-direction: column;
-		overflow: auto;
 	}
 
-	/* THIS is where the scroll should be */
+	/* Make the search wrapper fill available space */
 	#datatable-wrapper-purchase_history .datatable-search-wrapper {
 		flex: 1;
-		/* overflow-y: auto;
-		overflow-x: auto; */
+		overflow: auto;
 		position: relative;
+		display: flex;
+		flex-direction: column;
 	}
 
-	/* Ensure table takes full width */
+	/* Make the form fill its container */
+	#datatable-wrapper-purchase_history form {
+		display: flex;
+		flex-direction: column;
+		min-height: 100%;
+	}
+
+	/* Make the table fill and stretch */
 	#datatable-wrapper-purchase_history table.datatable {
 		width: 100%;
 		border-collapse: collapse;
+		flex: 1;
 	}
 
-	/* Custom buttons container (not sticky, just at bottom) */
+	/* The filler row should have height: 100% to expand */
+	#datatable-wrapper-purchase_history tbody tr.filler-row td {
+		height: 100%;
+		background: transparent;
+	}
+
+	/* Custom buttons container */
 	.sticky-custom-buttons {
 		position: sticky;
 		bottom: 20px;
@@ -2227,7 +2338,6 @@ document.addEventListener('DOMContentLoaded', function() {
 		border-top: 2px solid #ddd;
 		padding: 10px 0;
 		z-index: 500;
-
 	}
 
 	.sticky-custom-buttons button {
@@ -2243,6 +2353,7 @@ document.addEventListener('DOMContentLoaded', function() {
 	a:link {
 		text-decoration: none;
 	}
+	
 	.dropdown{
 		display:none !important;
 	}
