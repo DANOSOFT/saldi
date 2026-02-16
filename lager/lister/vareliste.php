@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.1 --- 2025.05.26 ---
+// ---- index/main.php --- lap 5.0.0 --- 2026.02.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2025 saldi.dk aps
+// Copyright (c) 2024-2026 saldi.dk aps 
 // ----------------------------------------------------------------------
-// 17042024 MMK  - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
-// 17102024 PBLM - Added link to booking
-// 26052025 LOE  - Sets v.lukket to '' instead of v.lukket.
-// 17062025 PBLM - Fixed bug where you could not search for leverandør in vareliste.
+// 20240417 MMK  - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
+// 20241017 PBLM - Added link to booking
+// 20250526 LOE  - Sets v.lukket to '' instead of v.lukket.
+// 20250617 PBLM - Fixed bug where you could not search for leverandør in vareliste.
+// 20260213 LOE  - Added returside as variable used in topLineVarer.php and optimized search with supplied varenr.
 
 @session_start();
 $s_id = session_id();
@@ -39,6 +40,7 @@ include("../../includes/online.php");
 include("../../includes/stdFunc/dkDecimal.php");
 
 $valg = "Vareliste";
+$returside = if_isset($_GET,  get_relative()."index/menu.php", "returside");
 include("topLineVarer.php");
 // Performance logging
 $start_time = microtime(true);
@@ -431,7 +433,7 @@ $data = array(
         vl.vare_id
 ),
 lager_totals AS (
-    -- Single calculation of lager totals
+    -- Single calculation of lager totals 
     SELECT 
         vare_id,
         SUM(beholdning) AS lager_total
@@ -504,7 +506,27 @@ ORDER BY {{SORT}}
 );
 
 log_performance("Data array configuration completed", $data_start);
+####################
+$initial_search = array();
+if (isset($_GET['varenr']) && !empty($_GET['varenr'])) {
+    $varenr_param = trim($_GET['varenr']);
+    $initial_search['varenr'] = $varenr_param;
+}
 
+// Merge with any existing search parameters
+if (isset($_GET['search']['varelst' . $vatOnItemCard])) {
+    $initial_search = array_merge(
+        $initial_search,
+        $_GET['search']['varelst' . $vatOnItemCard]
+    );
+}
+
+// Set the search parameter if we have initial search values
+if (!empty($initial_search)) {
+    $_GET['search']['varelst' . $vatOnItemCard] = $initial_search;
+}
+
+################
 $grid_render_start = microtime(true);
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid("varelst$vatOnItemCard", $data);
