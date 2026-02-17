@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-02-16 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-02-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 // 20260126 PHR - Moved "</tr>" down to include $saldo
 // 20260128 LOE - Fixed the debit and kredit titles relating to the new grid system.
 // 20260216 PHR - *1 -> (int)
+// 20260217 PHR Typo
 
 ob_start(); //Starter output buffering
 
@@ -3328,7 +3329,7 @@ print "</form>";
 				$momsfri = trim($r['momsfri']);
 				$debet = (int) $r['debet'];
 				$kredit = (int) $r['kredit'];
-				(!$kredit) ? $kredit = 0 : $kredit *= (int)$kredit;
+				(!$kredit) ? $kredit = 0 : $kredit = (int)$kredit;
 				$d_type = trim($r['d_type']);
 				$k_type = trim($r['k_type']);
 				$afd = trim($r['afd']);
@@ -3360,6 +3361,7 @@ print "</form>";
 					$d_type = $tmp;
 					$amount = $amount * -1;
 				}
+
 				if ($r['id'] && ($r['bilag'] || $r['bilag'] == '0')) {
 					if (!$transdate && isset($_GET['dato']))
 						$transdate = usdate($_GET['dato']);
