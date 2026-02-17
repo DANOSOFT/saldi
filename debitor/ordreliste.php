@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-12--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-16--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,10 +38,11 @@
 // 20260127 LOE Selected calender type now saved for the user.
 // 20260207 LOE Fixed a bug created by git merge
 // 20260212 PHR Disabled popup checker
+// 20260216 LOE Updated delivery note navigation behaviour.
 @session_start();
 $s_id = session_id();
 
-$css = "../css/std.css?v=24";
+$css = "../css/std.css?v=24"; 
 
 
 
@@ -339,7 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $ordre_id = if_isset($_POST, NULL, 'ordre_id');
     $checked = if_isset($_POST, NULL, 'checked');
 }
-if (isset($_POST['check']) || isset($_POST['uncheck'])) {
+if (isset($_POST['check']) || isset($_POST['uncheck'])) { 
     if (isset($_POST['check'])) $check_all = 'on';
     else $uncheck_all = 'on';
 }
@@ -1030,14 +1031,6 @@ foreach ($all_db_columns as $field_name => $data_type) {
     // render: Format the date
     $column_def['render'] = function ($value, $row, $column) {
         $formatted = $value ? dkdato($value) : '';
-        // Check if highlighting was applied to the formatted date string?
-        // Actually, highlighting is applied to the result of valueGetter ($value).
-        // Since valueGetter returns $value (raw), highlighting is applied to Raw.
-        // So passed $value here contains highlighting if matched.
-        // But we try to format it with dkdato($value).
-        // dkdato() likely fails on HTML spans.
-        // Ideally, we shouldn't highlight dates this way, but if we do...
-        // Let's assume date highlighting works on raw dates mostly.
         return "<td align='{$column['align']}'>" . ordreliste_safe_output($formatted) . "</td>";
     };
 }elseif ($field_name == 'konto_id') {
@@ -1094,14 +1087,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
             } else {
                 $formatted = '';
             }
-            // If value was highlighted, it's not numeric, so it falls here?
-            // Actually, valueGetter for number returns numeric. 
-            // Highlighting happens on result of valueGetter.
-            // If highlighted, $value is string with spans. is_numeric($value) is false.
-            // So $formatted is empty string.
-            // This means highlighted numbers disappear?
-            // If so, we need another fix for numbers.
-            // But let's fix what we can first: if $value is not numeric, maybe it's the highlighted string?
+           
             if (!is_numeric($value) && strpos($value, '<span style') !== false) {
                  $formatted = $value;
             }
@@ -1212,14 +1198,15 @@ $columns[] = array(
     "render" => function ($value, $row, $column) use ($valg, $sprog_id) {
         $actions = "<td align='center'><div style='display:flex;gap:5px;justify-content:center;'>";
 
+        $returside = urlencode($_SERVER["REQUEST_URI"]);
         if ($valg == "ordrer") {
-            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=9&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('574|Plukliste', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z'/></svg></a>";
-            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=2&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('575|Ordrebekræftelse', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z'/></svg></a>";
+            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=9&udskriv_til=PDF&returside={$returside}' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('574|Plukliste', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z'/></svg></a>";
+            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=2&udskriv_til=PDF&returside={$returside}' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('575|Ordrebekræftelse', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z'/></svg></a>";
         } elseif ($valg == "faktura") {
-            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=3&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('576|Følgeseddel', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z'/></svg></a>";
-            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=4&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('643|Faktura', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z'/></svg></a>";
+            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=3&udskriv_til=PDF&returside={$returside}' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('576|Følgeseddel', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z'/></svg></a>";
+            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=4&udskriv_til=PDF&returside={$returside}' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('643|Faktura', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z'/></svg></a>";
         } elseif ($valg == "tilbud") {
-            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=1&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('812|Tilbud', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z'/></svg></a>";
+            $actions .= "<a href='formularprint.php?id={$row['id']}&formular=1&udskriv_til=PDF&returside={$returside}' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('812|Tilbud', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z'/></svg></a>";
         }
 
         $actions .= "</div></td>";
@@ -1391,12 +1378,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!empty($selected_ids)) {
         $id_list = implode(',', $selected_ids);
 
+        $returside = urlencode($_SERVER["REQUEST_URI"]);
         if ($submit == findtekst('880|Udskriv', $sprog_id)) {
-            print "<script>window.open('formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=4&udskriv_til=PDF&returside=../includes/luk.php')</script>";
+            print "<script>window.location.href='formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=4&udskriv_til=PDF&returside=$returside'</script>";
         } elseif ($submit == "Send mails") {
-            print "<script>window.open('formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=4&udskriv_til=email')</script>";
+            print "<script>window.location.href='formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=4&udskriv_til=email&returside=$returside'</script>";
         } elseif ($submit == findtekst('576|Følgeseddel', $sprog_id)) {
-            print "<script>window.open('formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=3&udskriv_til=PDF&returside=../includes/luk.php')</script>";
+            print "<script>window.location.href='formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=3&udskriv_til=PDF&returside=$returside'</script>";
         } elseif ($slet_valgte == findtekst('1099|Slet', $sprog_id)) {
             include("../includes/ordrefunc.php");
             foreach ($selected_ids as $order_id) {
@@ -2427,7 +2415,7 @@ function select_valg($valg, $box)
     justify-content: space-between;
     align-items: center;
     padding: 10px;
-    z-index: 1000;
+    z-index: 1000; 
 }
 html, body{
     overflow: hidden;
