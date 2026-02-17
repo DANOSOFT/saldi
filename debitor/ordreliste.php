@@ -1033,7 +1033,23 @@ foreach ($all_db_columns as $field_name => $data_type) {
         $formatted = $value ? dkdato($value) : '';
         return "<td align='{$column['align']}'>" . ordreliste_safe_output($formatted) . "</td>";
     };
-}elseif ($field_name == 'konto_id') {
+}elseif ($field_name == 'betalings_id') {
+        // betalings_id (payment ID) should be displayed as plain text, not formatted as a number
+        $column_def['type'] = 'text';
+        $column_def['align'] = 'left';
+        
+        // valueGetter: Return the raw value as plain integer string, or empty if no value
+        $column_def['valueGetter'] = function ($value, $row, $column) {
+            if ($value === null || $value === '' || $value == 0 || $value == '0') return '';
+            return intval($value);
+        };
+        
+        // render: Display as plain text, empty if no value
+        $column_def['render'] = function ($value, $row, $column) {
+            if ($value === null || $value === '' || $value == 0 || $value === 0) return "<td align='{$column['align']}'></td>";
+            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+        };
+    }elseif ($field_name == 'konto_id') {
         // konto_id should be text, not number
         $column_def['type'] = 'text';
         $column_def['align'] = 'left';
