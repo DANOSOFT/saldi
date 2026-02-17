@@ -852,7 +852,12 @@ if (isset($_REQUEST['newAccountNo']) && $newAccountNo = $_REQUEST['newAccountNo'
 
 
 
+
+if (!$b_submit && if_isset($_POST, NULL, 'kontonr')) {
+	$b_submit = 'Opdater';
+}
 if ($b_submit) {
+
 	$fokus = if_isset($_POST['fokus']);
 	if (strstr($b_submit, "Del ordre")) $b_submit = "del_ordre";
 	$ordrenr = $_POST['ordrenr'];
