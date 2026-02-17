@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.1.1 --- 2026.01.22 ---
+// --- includes/udskriv.php --- lap 4.1.1 --- 2026.02.17 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -39,6 +39,7 @@
 // 2020.01.13 PHR - Print from 'genfakturer' returned to includes/ordreliste.php which does not exist. 20200113
 // 20230522 PHR php8
 // 20260102 LOE Added alert to install pdftk if not already done.
+// 20260217 LOE Updated the $href for 'DO' type.
 
 
 @session_start();
@@ -335,8 +336,16 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>";
-				if ($returside) $href="\"../debitor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
-				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
+				
+				if ($returside) {
+					if ($art == 'DO' && (strpos($returside, "ordreliste.php") !== false)) {
+						$href = "../debitor/ordreliste.php";
+					} else {
+						$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
+					}
+				} else {
+					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
+				}
 
 				print "<td width='10%'><a href=$href>
 					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
