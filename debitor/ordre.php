@@ -6364,7 +6364,8 @@ if ($menu == 'T') {
 
 <?php if (get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on") { ?>
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
-<script src="../javascript/ordreAutocomplete.js"></script>
+<script>console.log("PHP: ordreAutocomplete setting is ON");</script>
+<script src="../javascript/ordreAutocomplete.js?v=<?php echo time(); ?>"></script>
 <?php } ?>
 <script src="../javascript/tablenav.js"></script>
 <script src ="orderIncludes/syncFieldsWithTsum.js"></script>

@@ -1,6 +1,8 @@
 
+
 (function () {
     'use strict';
+    console.log('ordreAutocomplete.js loaded - version with logging');
 
     const CONFIG = {
         minSearchLength: 1,
@@ -74,6 +76,7 @@
     }
 
     function setupAutocomplete(input, type) {
+        console.log('setupAutocomplete called for:', input.name, type);
         const dropdown = document.createElement('div');
         dropdown.className = 'ordre-autocomplete-dropdown';
         dropdown.style.display = 'none';
@@ -315,10 +318,52 @@
         const value = selected.dataset.value;
         const id = selected.dataset.id;
 
+        console.log('=== ordreAutocomplete handleSelection ===');
+        console.log('type:', type);
+        console.log('selected value:', value);
+        console.log('selected id:', id);
+        console.log('input.name:', input.name);
+        console.log('window.location.href:', window.location.href);
+        console.log('window.location.search:', window.location.search);
+
         if (type === 'item') {
             const urlParams = new URLSearchParams(window.location.search);
-            const orderId = urlParams.get('id');
-            const kontoId = urlParams.get('konto_id');
+            let orderId = urlParams.get('id');
+            let kontoId = urlParams.get('konto_id');
+            console.log('orderId from URL:', orderId);
+            console.log('kontoId from URL:', kontoId);
+
+            // Fallback: read from form hidden inputs (page is often loaded via POST, so URL may not have these)
+            // Fallback: read from form hidden inputs
+            if (!orderId) {
+                // First try the form that the input belongs to (most reliable)
+                if (input.form) {
+                    const formIdInput = input.form.querySelector('input[name="id"]');
+                    console.log('Searching for ID in input.form:', input.form);
+                    console.log('Found in form?', formIdInput);
+                    if (formIdInput) orderId = formIdInput.value;
+                }
+
+                // If not found in form (or no form), try global scope
+                if (!orderId) {
+                    const idInput = document.querySelector('input[name="id"]');
+                    console.log('Searching for ID globally, found:', idInput);
+                    if (idInput) orderId = idInput.value;
+                }
+            }
+            if (!kontoId) {
+                const kontoInput = document.querySelector('input[name="konto_id"]');
+                console.log('kontoInput element:', kontoInput);
+                console.log('kontoInput value:', kontoInput ? kontoInput.value : 'NOT FOUND');
+                if (kontoInput) kontoId = kontoInput.value;
+            }
+
+            // Also log ALL hidden inputs with name="id" on the page
+            const allIdInputs = document.querySelectorAll('input[name="id"]');
+            console.log('All input[name="id"] on page:', allIdInputs.length);
+            allIdInputs.forEach((el, i) => {
+                console.log(`  [${i}] type=${el.type} value=${el.value} form=${el.form ? el.form.id || el.form.name || 'unnamed' : 'none'}`);
+            });
 
             let redirectUrl = 'ordre.php?';
             if (orderId) {
@@ -329,6 +374,7 @@
             }
             redirectUrl += `vare_id=${id}`;
 
+            console.log('FINAL redirectUrl:', redirectUrl);
             window.location.href = redirectUrl;
         } else if (type === 'customer') {
             const urlParams = new URLSearchParams(window.location.search);
