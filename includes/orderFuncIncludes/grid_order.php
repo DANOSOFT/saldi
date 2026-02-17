@@ -424,15 +424,48 @@ function create_datagrid($id, $grid_data) {
     $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
     $selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
 
-    // Use isset to avoid zero triggering if
-    $offset =   isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
-                isset($r["offset"]) ? $r["offset"] : 
-                0
-                );
+    // Check if search has actually changed compared to stored values
+    $stored_search_array = json_decode(if_isset($r, '{}', 'search_setup'), true);
+    if (!is_array($stored_search_array)) {
+        $stored_search_array = array();
+    }
+    $current_search_array = isset($_GET["search"][$id]) ? $_GET["search"][$id] : $stored_search_array;
+    if (!is_array($current_search_array)) {
+        $current_search_array = array();
+    }
+
+    $search_actually_changed = false;
+    if (isset($_GET["search"][$id])) {
+        foreach ($current_search_array as $field => $value) {
+            $stored_value = isset($stored_search_array[$field]) ? $stored_search_array[$field] : '';
+            if ($value != $stored_value) {
+                $search_actually_changed = true;
+                break;
+            }
+        }
+        if (!$search_actually_changed) {
+            foreach ($stored_search_array as $field => $value) {
+                $current_value = isset($current_search_array[$field]) ? $current_search_array[$field] : '';
+                if ($value != $current_value) {
+                    $search_actually_changed = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Reset offset to 0 only when search actually changed, otherwise respect pagination
+    if ($search_actually_changed) {
+        $offset = 0;
+    } else {
+        $offset = isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
+                  isset($r["offset"]) ? $r["offset"] : 
+                  0
+                  );
+    }
 
     // Reset scroll position if search parameters changed
-    if (isset($_GET["search"][$id]) && 
-        ($r["search_setup"] != $search_json || $r["offset"] != $offset || $r["sort"] != $sort || $r["rowcount"] != $selectedrowcount)) {
+    if ($search_actually_changed) {
         print "
         <script>
             var scrollKey = 'scrollpos-datatable-$id';
@@ -1181,7 +1214,7 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
                             <div class="dropdown">
                                 <svg id="turn-arrow" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                                 <div class="dropdown-content">
-                                    <button type="submit" class="dropdown-btn">
+                                    <button type="submit" class="dropdown-btn" onclick="document.getElementsByName('offset[$id]')[0].value='0';">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
                                         {$txt1}
                                     </button>
@@ -2277,6 +2310,19 @@ function render_dropdown_script($id, $query) {
             if (scrollpos && element) {
                 element.scrollTo(0, parseInt(scrollpos, 10));
             }
+            
+            // Reset offset to 0 when pressing Enter in search fields
+            var searchFields = document.querySelectorAll('input[name^="search[$id]"]');
+            searchFields.forEach(function(field) {
+                field.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        var offsetField = document.getElementsByName('offset[$id]')[0];
+                        if (offsetField) {
+                            offsetField.value = '0';
+                        }
+                    }
+                });
+            });
         });
 
 function saveScrollPosition() {

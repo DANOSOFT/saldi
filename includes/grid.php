@@ -349,7 +349,7 @@ function create_datagrid($id, $grid_data) {
     }
     
     // Use isset to avoid zero triggering if
-    // Reset offset to 0 ONLY when search has actually changed
+    // Reset offset to 0 only when search actually changed, otherwise respect pagination
     if ($search_actually_changed) {
         $offset = 0;
     } else {
