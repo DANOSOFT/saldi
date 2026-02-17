@@ -4169,6 +4169,45 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 #	$antal=NULL;
 } # endfunc opret_orderlinje
 ######################################################################################################################################
+/**
+ * If a serial number from a GS1 scan (AI 21) exists in the serienr table for this product
+ * and is currently unassigned, link it to the newly created order line.
+ *
+ * @param int    $vare_id   Product ID (varer.id)
+ * @param string $serial    Serial number value from GS1 AI 21
+ * @param int    $linje_id  The new ordrelinjer.id to assign to
+ * @return bool  True if a serienr row was updated, false if not found
+ */
+function gs1_assign_serienr(int $vare_id, string $serial, int $linje_id): bool
+{
+	$serial_esc = db_escape_string($serial);
+	$r = db_fetch_array(db_select(
+		"SELECT id FROM serienr WHERE vare_id = '$vare_id' AND serienr = '$serial_esc' AND (salgslinje_id IS NULL OR salgslinje_id = 0)",
+		__FILE__ . " linje " . __LINE__
+	));
+	if (!$r) return false;
+	db_modify(
+		"UPDATE serienr SET salgslinje_id = '$linje_id' WHERE id = '$r[id]'",
+		__FILE__ . " linje " . __LINE__
+	);
+	return true;
+}
+######################################################################################################################################
+/**
+ * Check whether a product has serial number tracking enabled.
+ *
+ * @param int $vare_id  Product ID (varer.id)
+ * @return bool  True if the product has serienr = 'on'
+ */
+function vare_is_serienr_item(int $vare_id): bool
+{
+	$r = db_fetch_array(db_select(
+		"SELECT serienr FROM varer WHERE id = '$vare_id'",
+		__FILE__ . " linje " . __LINE__
+	));
+	return isset($r['serienr']) && $r['serienr'] === 'on';
+}
+######################################################################################################################################
 function m_rabat($linje_id, $vare_id, $posnr, $antal, $ordre_id, $pris)
 {
 
