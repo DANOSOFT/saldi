@@ -2547,15 +2547,7 @@ if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && 
 		error_log("sortxxxxxxxxxxx: $sort...........fokus: $fokus and artmmmmmmmmm: $art, id: $id, status: $status");
 	}
 
-	/*    
-    if ((strstr($fokus,'firmanavn'))&&(!$id)) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
-    if ((strstr($fokus,'addr1'))&&(!$id)) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
-    if ((strstr($fokus,'addr2'))&&(!$id)) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
-    if ((strstr($fokus,'postnr'))&&(!$id)) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
-    if ((strstr($fokus,'bynavn'))&&(!$id)) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
-*/
 	if ((strstr($fokus, 'lev_navn')) && ($id)) kontoopslag("$art", "$sort", "$fokus", "$id", "$lev_navn", '', '', '', '', '');
-	#    elseif (strstr($fokus,'kontakt')) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
 	$q = db_select("select box2 from grupper where art = 'PL' AND box12='Yes'", __FILE__ . " linje " . __LINE__);
 	if ($s = db_fetch_array($q)) {
 		$option = if_isset($option, NULL) . ':' . $s[0];
@@ -2580,7 +2572,7 @@ if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && 
 	}
 	if (strstr($fokus, 'besk')) tekstopslag($sort, $id);
 	if ((strstr($fokus, 'kontakt')) && ($id)) ansatopslag($sort, $fokus, $id, $vis, $kontakt);
-} elseif ($b_submit && !$kontonr && $id) {
+} elseif ($b_submit && !$kontonr && $id && !strstr($b_submit, 'Gem') && !strstr($b_submit, 'Opdater') && !strstr($b_submit, 'doInvoice') && !strstr($b_submit, 'Kred') && !strstr($b_submit, 'Kopi') && !strstr($b_submit, 'Udskriv') && !strstr($b_submit, 'Send') && !strstr($b_submit, 'Lever') && $b_submit != 'del_ordre') {
 	error_log("ordre.php: Calling kontoopslag path 4 (existing order, no customer) - fokus=$fokus, firmanavn=$firmanavn");
 	kontoopslag($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage);
 	exit;
