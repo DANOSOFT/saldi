@@ -4903,16 +4903,24 @@ function ordreside($id, $regnskab)
 		print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
 		print "<input type=\"hidden\" name=\"id\" value=\"$id\">\n";
 
-		$x=0;
-		if (!$ordre_id) $ordre_id=0;
-		$kostpris[0]=$kostsum=0;$blandet_moms=$lagervarer=$tGrossWeight=$tNetWeight=$tVolume=0;
-		
-				$qtxt="select * from ordrelinjer where ordre_id = '$ordre_id' order by posnr";
-		#		$query = db_select("select * from ordrelinjer where ordre_id = '$ordre_id' order by posnr",__FILE__ . " linje " . __LINE__);
-		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-#		$query = db_select("select * from ordrelinjer where ordre_id = '$ordre_id' order by saet desc,samlevare,posnr,id",__FILE__ . " linje " . __LINE__);
-		while ($row = db_fetch_array($query)) {
-			if ($row['posnr']>0 && !is_numeric($row['samlevare']) && $row['samlevare'] <1 || $row['samlevare'] == 'on') {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
+$x = 0;
+		if (!$ordre_id) $ordre_id = 0;
+		$kostpris[0] = $kostsum = 0;
+		$blandet_moms = $lagervarer = $tGrossWeight = $tNetWeight = $tVolume = 0;
+
+		$qtxt = "select * from ordrelinjer where ordre_id = '$ordre_id' order by posnr";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$lines_found = 0;
+		$lines_with_posnr_gt_0 = 0;
+		$lines_with_numeric_samlevare = 0;
+		while ($row = db_fetch_array($q)) {
+			$lines_found++;
+			if ($row['posnr'] > 0) $lines_with_posnr_gt_0++;
+			if (is_numeric($row['samlevare'])) $lines_with_numeric_samlevare++;
+			# Fix for duplicate positions: If item has both saet AND samlevare='on', it's a huvudvaren in a saet collection
+			# and will be rendered separately at lines 5151-5152, so skip it here
+			$is_huvudvaren_in_saet = ($row['saet'] && $row['samlevare'] == 'on');
+			if ($row['posnr'] > 0 && !is_numeric($row['samlevare']) && !$is_huvudvaren_in_saet) {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
 				$x++;
 				$linje_id[$x]        = $row['id'];
 				$kred_linje_id[$x]   = $row['kred_linje_id'];
