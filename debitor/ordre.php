@@ -5515,11 +5515,17 @@ $x = 0;
 						}
 						if (!$betalt && $vis_betalingslink) $disabled = 'disabled';
 					}
+					$disabled = '';
+					
+					$lockPayment = get_settings_value("lockedInvoiceButton", "debitor", "");
+					if(!$betalt && $vis_betalingslink && $lockPayment == "on"){
+						$disabled = "disabled";
+					}
 					// Made for Havemøbelshoppen
 					if ($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant" || $afd_navn == "Webshop") {
 						$disabled = '';
 					}
-					$disabled = '';
+					
 					$txt = findtekst('2374|Fakturér', $sprog_id);
 					$disabled_style = ($disabled) ? "opacity:0.6; cursor:not-allowed; background-color:#cccccc;" : "";
 					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px; border-radius: 4px; $disabled_style' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
