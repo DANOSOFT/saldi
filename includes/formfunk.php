@@ -2003,7 +2003,7 @@ if ($background_file && file_exists($background_file)) {
 					if ($x > 1)
 						$transportsum = $transportsum + $l_sum[$x - 1];
 					$skriv = 0;
-					if ($kommentarprint || $formular != 3 || $varenr[$x])
+					if ($kommentarprint || $formular != 3 || $varenr[$x] || (isset($beskrivelse[$x]) && $beskrivelse[$x] !== ''))
 						$skriv = 1; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
 					#				if ($saet[$x] && $samlevare[$x]) $skriv=0; #Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint"; 
 					if ($skriv) {
