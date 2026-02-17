@@ -850,12 +850,6 @@ if (isset($_REQUEST['newAccountNo']) && $newAccountNo = $_REQUEST['newAccountNo'
 	}
 }
 
-
-
-
-if (!$b_submit && if_isset($_POST, NULL, 'kontonr')) {
-	$b_submit = 'Opdater';
-}
 if ($b_submit) {
 
 	$fokus = if_isset($_POST['fokus']);
@@ -2572,7 +2566,7 @@ if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && 
 	}
 	if (strstr($fokus, 'besk')) tekstopslag($sort, $id);
 	if ((strstr($fokus, 'kontakt')) && ($id)) ansatopslag($sort, $fokus, $id, $vis, $kontakt);
-} elseif ($b_submit && !$kontonr && $id && !strstr($b_submit, 'Gem') && !strstr($b_submit, 'Opdater') && !strstr($b_submit, 'doInvoice') && !strstr($b_submit, 'Kred') && !strstr($b_submit, 'Kopi') && !strstr($b_submit, 'Udskriv') && !strstr($b_submit, 'Send') && !strstr($b_submit, 'Lever') && $b_submit != 'del_ordre') {
+} elseif ($b_submit && !$kontonr && $id) {
 	error_log("ordre.php: Calling kontoopslag path 4 (existing order, no customer) - fokus=$fokus, firmanavn=$firmanavn");
 	kontoopslag($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage);
 	exit;
@@ -3973,6 +3967,7 @@ function ordreside($id, $regnskab)
 		print "<input type=\"hidden\" name=\"kred_ord_id\" value=\"$kred_ord_id\">\n";
 		print "<input type=\"hidden\" name=\"sag_id\" value=\"$sag_id\">\n"; #20140507-1
 		print "<input type=\"hidden\" name=\"afd_lager\" value=\"$afd_lager\">\n";
+		print "<input type=\"hidden\" name=\"konto_id\" value=\"$konto_id\">\n";
 		if ($art == 'OT') { // Når input fields er 'disabled' bliver de ikke opdateret, derfor tilføjes hidden fields #20140716
 			print "<input type=\"hidden\" name=\"kontonr\" value=\"$kontonr\">\n";
 			print "<input type=\"hidden\" name=\"ref\" value=\"$ref\">\n";
