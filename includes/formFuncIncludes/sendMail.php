@@ -317,10 +317,11 @@ print "<!--function send_mails start-->";
 	) 
 	);
 	$mail->CharSet = 'UTF-8';
-	$mail->IsSMTP();                                   // send via SMTP
-	$mail->SMTPDebug  = 2;
-	$mail->Host  = $smtp; // SMTP servers 
+	$mail->SMTPDebug  = 0;                              // 0=off, 2=verbose (use 2 only for debugging)
 	if ($smtp!='localhost') {
+		$mail->IsSMTP();                               // send via external SMTP server
+		$mail->Host  = $smtp;
+		$mail->Timeout    = 10;                        // 10 sec connect timeout (default 300 is too long)
 		if ($smtp_user) {
 			$mail->SMTPAuth = true;     // turn on SMTP authentication
 			$mail->Username = $smtp_user;  // SMTP username
@@ -328,7 +329,7 @@ print "<!--function send_mails start-->";
 			if ($smtp_enc) $mail->SMTPSecure = $smtp_enc; // SMTP kryptering
 		}
 	} else {
-		$mail->SMTPAuth = false;
+		$mail->IsMail();                               // use PHP mail() - fastest for localhost
 #	if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) $mail->Sender = 'mailer@saldi.dk';
 		if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121016
 			$from = $db.'@'.$_SERVER['SERVER_NAME'];
@@ -375,13 +376,18 @@ print "<!--function send_mails start-->";
 	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 	
 	print "<!--";
+	$send_start = microtime(true);
 	if(!$mail->Send()){
- 		$svar = "Mailer Error: " . $mail->ErrorInfo;
-		$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: EMAIL SEND FAILED\n";
+ 		$send_elapsed = round(microtime(true) - $send_start, 2);
+		$svar = "Mailer Error: " . $mail->ErrorInfo;
+		$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: EMAIL SEND FAILED ({$send_elapsed}s)\n";
 		$debug_msg .= "Error: " . $mail->ErrorInfo . "\n";
+		$debug_msg .= "SMTP Host: " . var_export($smtp, true) . "\n";
 		file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 	} else {
-		$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: EMAIL SENT SUCCESSFULLY\n";
+		$send_elapsed = round(microtime(true) - $send_start, 2);
+		$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: EMAIL SENT SUCCESSFULLY ({$send_elapsed}s)\n";
+		$debug_msg .= "SMTP Host: " . var_export($smtp, true) . "\n";
 		file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 	}
 	print "-->";
