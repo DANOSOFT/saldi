@@ -36,6 +36,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20251209 PHR closed products in now hidden by default
 // 20260206 PHR	fiscal_year
+// 20260217 PHR Removed fiscal_year from 'LG' serach
 
 @session_start();
 $s_id=session_id();
@@ -110,7 +111,7 @@ while ($r1=db_fetch_array($q1)) {
 $lager[1]=1;
 $lagernavn[1]='';
 $x=0;
-$qtxt = "select kodenr,beskrivelse from grupper where art = 'LG' and fiscal_year = '$regnaar' order by kodenr";
+$qtxt = "select kodenr,beskrivelse from grupper where art = 'LG' order by kodenr";
 $q1= db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r1=db_fetch_array($q1)) {
 	$x++;
@@ -204,11 +205,11 @@ print "<form action=lagerstatus.php method=post>";
 print "<tr><td colspan=\"7\" align=\"center\">";
 if (count($lager)) {
 	print findtekst('608|Lager', $sprog_id).": <select class=\"inputbox\" name=\"lagervalg\">";
-	for ($x=0;$x<=count($lager);$x++){
-		if ($lagervalg==$lager[$x]) print "<option value='$lager[$x]'>$lagernavn[$x]</option>";
+	for ($x=0;$x<count($lager);$x++){
+		if ($lagervalg==$lager[$x]) print "<option value='$lager[$x]'>$lager[$x] : $lagernavn[$x]</option>";
 	}
-	for ($x=0;$x<=count($lager);$x++){
-		if ($lagervalg!=$lager[$x]) print "<option value='$lager[$x]'>$lagernavn[$x]</option>";
+	for ($x=0;$x<count($lager);$x++){
+		if ($lagervalg!=$lager[$x]) print "<option value='$lager[$x]'>$lager[$x] : $lagernavn[$x]</option>";
 	}
 	print "</select>";
 }
