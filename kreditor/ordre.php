@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.1 --- 2025-12-11---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-02-17---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,23 +21,9 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 20120814 søg 20120814
-// 20130618 Tilføjet udskrivning af indkøbsforslag, rekvisition & lev-faktura
-// 20130624 Rettet bug - Blank side ved kreditering...
-// 20130816 Rettet bug - Blank side ved kopiering... 20130816
-// 20130919 Alle forekomster af round ændret til afrund
-// 20140319 addslashes erstattet med db_escape_string
-// 20141005 Div i forbindelse med omvendt betalingspligt, samt nogle generelle ændringer således at varereturnering nu bogføres
-//	som negativt køb og ikke som salg.
-// 20141104 Varemomssats indsættes ved oprettelse af ordrelinjer, søg varemomssats.
-// 20141107 Momsats var ikke sat, så vǘaremomssats kunne ikke sættes.
-// 20150209 Ved negativt lager var det ikke muligt at hjemkøbe mindre en det antal det manglede på lager.  20150209
-// 20150415	Omvbet på ordrelinje forsvandt ved gem # 201504015
-// 20170505 Mange småforbedringer samt tilføjelse af afdeling og lager.
-// 20180305 htmlentities foran beskrivelse og varenr. 20180305 
 // 20200827 PHR Added protection against delete if items recieved. 20200827
 // 20201002	PHR Orderline will no be created if no id.
 // 20201021 changed from '=substr($fokus,4)' to '=0' as $focus is 'varenr'?;
@@ -69,6 +55,7 @@
 // 20251124 LOE Readded session_start which was removed causing page to request login again and again
 // 20251203 LOE Moved S menu's top table to ../includes/kreditorOrderFuncIncludes/topLine_S.php
 // 20251210 LOE vareopslag function moved to productLookup.php
+// 20260217 PHR kundeordrnr
 @session_start();
 $s_id=session_id();
 
@@ -335,52 +322,49 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$postnr = trim(if_isset($_POST, NULL, 'postnr'));
 		$bynavn = trim(if_isset($_POST, NULL, 'bynavn'));
 		
-			if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
-			$land = db_escape_string(trim(if_isset($_POST, NULL, 'land')));
-			$kontakt = db_escape_string(trim(if_isset($_POST, NULL, 'kontakt')));
-			$lev_navn = db_escape_string(trim(if_isset($_POST, NULL, 'lev_navn')));
-			$lev_addr1 = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr1')));
-			$lev_addr2 = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr2')));
-			$lev_postnr = if_isset($_POST, NULL, 'lev_postnr');
-			$lev_bynavn = trim(if_isset($_POST, NULL, 'lev_bynavn'));
-
-			if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
-
-			$lev_kontakt = db_escape_string(trim(if_isset($_POST, NULL, 'lev_kontakt')));
-			$ordredate = usdate(if_isset($_POST, NULL, 'ordredato'));
-			$levdate = usdate(trim(if_isset($_POST, NULL, 'levdato')));
-			$cvrnr = trim(if_isset($_POST, NULL, 'cvrnr'));
-			$betalingsbet = if_isset($_POST, NULL, 'betalingsbet');
-			// $betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
-			$betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
-if ($betalingsdage === null || $betalingsdage === '') {
-    $betalingsdage = 1; // default fallback
-}
-
-			$valuta = if_isset($_POST, NULL, 'valuta');
-			$projekt = if_isset($_POST, NULL, 'projekt');
-			$lev_adr = trim(if_isset($_POST, NULL, 'lev_adr'));
-			$sum = if_isset($_POST, NULL, 'sum');
-			$linjeantal = if_isset($_POST, NULL, 'linjeantal');
-			$linje_id = if_isset($_POST, NULL, 'linje_id');
-			$kred_linje_id = if_isset($_POST, NULL, 'kred_linje_id');
-			$vare_id = if_isset($_POST, NULL, 'vare_id');
-			$posnr = if_isset($_POST, NULL, 'posnr');
-			$status = if_isset($_POST, NULL, 'status');
-			$godkend = if_isset($_POST, NULL, 'godkend');
-			$kreditnota = if_isset($_POST, NULL, 'kreditnota');
-			$ref = trim(if_isset($_POST, NULL, 'ref'));
-			$lager = trim(if_isset($_POST, 0, 'lager'));
-			$fakturanr = db_escape_string(trim(if_isset($_POST, NULL, 'fakturanr')));
-			$momssats = if_isset($_POST, NULL, 'momssats');
-			$lev_varenr = if_isset($_POST, NULL, 'lev_varenr');
-			$momsfri = if_isset($_POST, NULL, 'momsfri');
-			$serienr = if_isset($_POST, NULL, 'serienr');
-			$omvbet = if_isset($_POST, NULL, 'omvbet');
-			$omlev = if_isset($_POST, NULL, 'omlev');
-			$email = db_escape_string(trim(if_isset($_POST, NULL, 'email')));
-			$udskriv_til = trim(if_isset($_POST, NULL, 'udskriv_til'));
-
+		if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
+		$land = db_escape_string(trim(if_isset($_POST, NULL, 'land')));
+		$kontakt = db_escape_string(trim(if_isset($_POST, NULL, 'kontakt')));
+		$lev_navn = db_escape_string(trim(if_isset($_POST, NULL, 'lev_navn')));
+		$lev_addr1 = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr1')));
+		$lev_addr2 = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr2')));
+		$lev_postnr = if_isset($_POST, NULL, 'lev_postnr');
+		$lev_bynavn = trim(if_isset($_POST, NULL, 'lev_bynavn'));
+		if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
+		$lev_kontakt = db_escape_string(trim(if_isset($_POST, NULL, 'lev_kontakt')));
+		$kundeordnr = if_isset($_POST, NULL, 'kundeordnr');
+		$ordredate = usdate(if_isset($_POST, NULL, 'ordredato'));
+		$levdate = usdate(trim(if_isset($_POST, NULL, 'levdato')));
+		$cvrnr = trim(if_isset($_POST, NULL, 'cvrnr'));
+		$betalingsbet = if_isset($_POST, NULL, 'betalingsbet');
+		// $betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
+		$betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
+		if ($betalingsdage === null || $betalingsdage === '') {
+			$betalingsdage = 1; // default fallback
+		}
+		$valuta = if_isset($_POST, NULL, 'valuta');
+		$projekt = if_isset($_POST, NULL, 'projekt');
+		$lev_adr = trim(if_isset($_POST, NULL, 'lev_adr'));
+		$sum = if_isset($_POST, NULL, 'sum');
+		$linjeantal = if_isset($_POST, NULL, 'linjeantal');
+		$linje_id = if_isset($_POST, NULL, 'linje_id');
+		$kred_linje_id = if_isset($_POST, NULL, 'kred_linje_id');
+		$vare_id = if_isset($_POST, NULL, 'vare_id');
+		$posnr = if_isset($_POST, NULL, 'posnr');
+		$status = if_isset($_POST, NULL, 'status');
+		$godkend = if_isset($_POST, NULL, 'godkend');
+		$kreditnota = if_isset($_POST, NULL, 'kreditnota');
+		$ref = trim(if_isset($_POST, NULL, 'ref'));
+		$lager = trim(if_isset($_POST, 0, 'lager'));
+		$fakturanr = db_escape_string(trim(if_isset($_POST, NULL, 'fakturanr')));
+		$momssats = if_isset($_POST, NULL, 'momssats');
+		$lev_varenr = if_isset($_POST, NULL, 'lev_varenr');
+		$momsfri = if_isset($_POST, NULL, 'momsfri');
+		$serienr = if_isset($_POST, NULL, 'serienr');
+		$omvbet = if_isset($_POST, NULL, 'omvbet');
+		$omlev = if_isset($_POST, NULL, 'omlev');
+		$email = db_escape_string(trim(if_isset($_POST, NULL, 'email')));
+		$udskriv_til = trim(if_isset($_POST, NULL, 'udskriv_til'));
 		$mail_subj   = db_escape_string(if_isset($_POST,NULL,'mail_subj')); #20230105
 		$mail_text   = db_escape_string(str_replace("\n","<br>",if_isset($_POST,NULL,'mail_text'))); #20230105
 		$varemomssats= if_isset($_POST,NULL,'$varemomssats'); #20141106
@@ -388,8 +372,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 		if ($betalingsdage === null || $betalingsdage === '') {
 			$betalingsdage = 1;
 		}
-		
-		if (!$momssats)       $momssats = 0;
+		if (!$momssats) $momssats = 0;
 		$momssats = usdecimal($momssats);
 		if(!isset($sletslut)){ $sletslut=null;}
 		if(!isset($sletstart)){ $sletstart=null;}   #20210716
@@ -918,7 +901,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 	*/
 					$qtxt.="hvem = '$brugernavn',tidspkt='$tidspkt',valuta='$valuta',valutakurs='$valutakurs',";
 					$qtxt.="email='$email', udskriv_til='$udskriv_til', projekt='$projekt[0]', ";
-					$qtxt.="mail_subj='$mail_subj',mail_text='$mail_text' ";
+					$qtxt.="mail_subj='$mail_subj',mail_text='$mail_text',kundeordnr='$kundeordnr' ";
 					$qtxt.="where id=$id";
 	#				exit;
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
