@@ -4178,7 +4178,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
  * @param int    $linje_id  The new ordrelinjer.id to assign to
  * @return bool  True if a serienr row was updated, false if not found
  */
-function gs1_assign_serienr(int $vare_id, string $serial, int $linje_id): bool
+function gs1_assign_serienr($vare_id, $serial, $linje_id)
 {
 	$serial_esc = db_escape_string($serial);
 	$r = db_fetch_array(db_select(
@@ -4199,7 +4199,7 @@ function gs1_assign_serienr(int $vare_id, string $serial, int $linje_id): bool
  * @param int $vare_id  Product ID (varer.id)
  * @return bool  True if the product has serienr = 'on'
  */
-function vare_is_serienr_item(int $vare_id): bool
+function vare_is_serienr_item($vare_id)
 {
 	$r = db_fetch_array(db_select(
 		"SELECT serienr FROM varer WHERE id = '$vare_id'",

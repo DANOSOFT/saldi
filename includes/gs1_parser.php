@@ -17,7 +17,7 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
@@ -34,62 +34,62 @@
  * @param string $barcode Raw GS1 string
  * @return array [ ['ai' => '01', 'label' => 'GTIN', 'value' => '...'], ... ]
  */
-function parseGS1(string $barcode): array
+function parseGS1($barcode)
 {
     $fnc1 = chr(29);
 
     // Normalise alternative FNC1/GS representations to chr(29)
-    $barcode = str_replace(['^', '{GS}'], $fnc1, $barcode);
+    $barcode = str_replace(array('^', '{GS}'), $fnc1, $barcode);
 
     // AI definitions: ai => [ai_length, fixed_data_length|null, max_data_length, label]
-    $aiDefs = [
+    $aiDefs = array(
         // 2-char AIs
-        '00'  => [2, 18, 18,  'SSCC'],
-        '01'  => [2, 14, 14,  'GTIN'],
-        '02'  => [2, 14, 14,  'CONTENT'],
-        '03'  => [2, 14, 14,  'MTO GTIN'],
-        '10'  => [2, null, 20, 'BATCH/LOT'],
-        '11'  => [2, 6, 6,    'PROD DATE'],
-        '12'  => [2, 6, 6,    'DUE DATE'],
-        '13'  => [2, 6, 6,    'PACK DATE'],
-        '15'  => [2, 6, 6,    'BEST BEFORE'],
-        '16'  => [2, 6, 6,    'SELL BY'],
-        '17'  => [2, 6, 6,    'USE BY'],
-        '20'  => [2, 2, 2,    'VARIANT'],
-        '21'  => [2, null, 20, 'SERIAL'],
-        '22'  => [2, null, 20, 'CPV'],
-        '30'  => [2, null, 8,  'COUNT'],
-        '37'  => [2, null, 8,  'COUNT OF TRADE ITEMS'],
+        '00'  => array(2, 18, 18,  'SSCC'),
+        '01'  => array(2, 14, 14,  'GTIN'),
+        '02'  => array(2, 14, 14,  'CONTENT'),
+        '03'  => array(2, 14, 14,  'MTO GTIN'),
+        '10'  => array(2, null, 20, 'BATCH/LOT'),
+        '11'  => array(2, 6, 6,    'PROD DATE'),
+        '12'  => array(2, 6, 6,    'DUE DATE'),
+        '13'  => array(2, 6, 6,    'PACK DATE'),
+        '15'  => array(2, 6, 6,    'BEST BEFORE'),
+        '16'  => array(2, 6, 6,    'SELL BY'),
+        '17'  => array(2, 6, 6,    'USE BY'),
+        '20'  => array(2, 2, 2,    'VARIANT'),
+        '21'  => array(2, null, 20, 'SERIAL'),
+        '22'  => array(2, null, 20, 'CPV'),
+        '30'  => array(2, null, 8,  'COUNT'),
+        '37'  => array(2, null, 8,  'COUNT OF TRADE ITEMS'),
         // 3-char AIs
-        '235' => [3, null, 28, 'TPX'],
-        '240' => [3, null, 30, 'ADDITIONAL ID'],
-        '241' => [3, null, 30, 'CUST. PART No.'],
-        '242' => [3, null, 6,  'MTO VARIANT'],
-        '243' => [3, null, 20, 'PCN'],
-        '250' => [3, null, 30, 'SECONDARY SERIAL'],
-        '251' => [3, null, 30, 'REF. TO SOURCE'],
-        '400' => [3, null, 30, 'CUSTOMER PO No.'],
-        '401' => [3, null, 30, 'CONSIGNMENT No.'],
-        '410' => [3, 13, 13,  'SHIP TO'],
-        '411' => [3, 13, 13,  'BILL TO'],
-        '412' => [3, 13, 13,  'PURCHASE FROM'],
-        '413' => [3, 13, 13,  'SHIP FOR'],
-        '414' => [3, 13, 13,  'IDENTIFICATION'],
-        '415' => [3, 13, 13,  'PAY TO'],
-        '416' => [3, 13, 13,  'PROD/SERV LOC'],
-        '420' => [3, null, 20, 'SHIP TO POST'],
-        '421' => [3, null, 12, 'SHIP TO POST ISO'],
-        '422' => [3, 3, 3,    'ORIGIN'],
-        '423' => [3, null, 15, 'COUNTRY INITIAL PROCESS'],
-        '424' => [3, 3, 3,    'COUNTRY PROCESS'],
-        '425' => [3, null, 15, 'COUNTRY DISASSEMBLY'],
-        '426' => [3, 3, 3,    'COUNTRY FULL PROCESS'],
-    ];
+        '235' => array(3, null, 28, 'TPX'),
+        '240' => array(3, null, 30, 'ADDITIONAL ID'),
+        '241' => array(3, null, 30, 'CUST. PART No.'),
+        '242' => array(3, null, 6,  'MTO VARIANT'),
+        '243' => array(3, null, 20, 'PCN'),
+        '250' => array(3, null, 30, 'SECONDARY SERIAL'),
+        '251' => array(3, null, 30, 'REF. TO SOURCE'),
+        '400' => array(3, null, 30, 'CUSTOMER PO No.'),
+        '401' => array(3, null, 30, 'CONSIGNMENT No.'),
+        '410' => array(3, 13, 13,  'SHIP TO'),
+        '411' => array(3, 13, 13,  'BILL TO'),
+        '412' => array(3, 13, 13,  'PURCHASE FROM'),
+        '413' => array(3, 13, 13,  'SHIP FOR'),
+        '414' => array(3, 13, 13,  'IDENTIFICATION'),
+        '415' => array(3, 13, 13,  'PAY TO'),
+        '416' => array(3, 13, 13,  'PROD/SERV LOC'),
+        '420' => array(3, null, 20, 'SHIP TO POST'),
+        '421' => array(3, null, 12, 'SHIP TO POST ISO'),
+        '422' => array(3, 3, 3,    'ORIGIN'),
+        '423' => array(3, null, 15, 'COUNTRY INITIAL PROCESS'),
+        '424' => array(3, 3, 3,    'COUNTRY PROCESS'),
+        '425' => array(3, null, 15, 'COUNTRY DISASSEMBLY'),
+        '426' => array(3, 3, 3,    'COUNTRY FULL PROCESS'),
+    );
 
     // 4-char measurement AIs (3xxx): last digit = implied decimal places (0-9), data always 6 digits fixed.
     // 310x-316x: metric weight/dimensions; 320x-329x: imperial weight/dimensions;
     // 330x-337x: gross metric; 340x-349x: gross imperial; 350x-357x: area; 360x-369x: volume.
-    $measure4 = [
+    $measure4 = array(
         '310' => 'NET WEIGHT (kg)',    '311' => 'LENGTH (m)',
         '312' => 'WIDTH (m)',          '313' => 'HEIGHT (m)',
         '314' => 'AREA (m2)',          '315' => 'NET VOLUME (l)',
@@ -116,39 +116,40 @@ function parseGS1(string $barcode): array
         '364' => 'VOLUME (in3)',       '365' => 'VOLUME (ft3)',
         '366' => 'VOLUME (yd3)',       '367' => 'VOLUME (in3) LOG',
         '368' => 'VOLUME (ft3) LOG',  '369' => 'VOLUME (yd3) LOG',
-    ];
+    );
     foreach ($measure4 as $prefix => $label) {
         for ($d = 0; $d <= 9; $d++) {
-            $aiDefs["{$prefix}{$d}"] = [4, 6, 6, $label];
+            $aiDefs["{$prefix}{$d}"] = array(4, 6, 6, $label);
         }
     }
 
-    // 4-char price/amount AIs (390x–395x): last digit = implied decimal places (0-9)
-    $price4 = [
-        '390' => [null, 15, 'AMOUNT'],
-        '391' => [null, 18, 'AMOUNT ISO'],
-        '392' => [null, 15, 'PRICE'],
-        '393' => [null, 18, 'PRICE ISO'],
-        '394' => [4,    4,  'PCT OFF'],
-        '395' => [6,    6,  'PRICE PER UNIT'],
-    ];
-    foreach ($price4 as $prefix => [$fixedLen, $maxLen, $label]) {
+    // 4-char price/amount AIs (390x-395x): last digit = implied decimal places (0-9)
+    $price4 = array(
+        '390' => array(null, 15, 'AMOUNT'),
+        '391' => array(null, 18, 'AMOUNT ISO'),
+        '392' => array(null, 15, 'PRICE'),
+        '393' => array(null, 18, 'PRICE ISO'),
+        '394' => array(4,    4,  'PCT OFF'),
+        '395' => array(6,    6,  'PRICE PER UNIT'),
+    );
+    foreach ($price4 as $prefix => $price4def) {
+        list($fixedLen, $maxLen, $label) = $price4def;
         for ($d = 0; $d <= 9; $d++) {
-            $aiDefs["{$prefix}{$d}"] = [4, $fixedLen, $maxLen, $label];
+            $aiDefs["{$prefix}{$d}"] = array(4, $fixedLen, $maxLen, $label);
         }
     }
 
     // Sort by AI length descending so longer prefixes match first
-    uksort($aiDefs, fn($a, $b) => strlen($b) <=> strlen($a));
+    uksort($aiDefs, function($a, $b) { return strlen((string)$b) - strlen((string)$a); });
 
     // Detect parenthesized format
-    $hasParens = str_contains($barcode, '(');
+    $hasParens = strpos($barcode, '(') !== false;
 
     if ($hasParens) {
         // Extract AI/value pairs directly from parens
         preg_match_all('/\((\d{2,4})\)([^(]*)/', $barcode, $matches, PREG_SET_ORDER);
 
-        $results = [];
+        $results = array();
         foreach ($matches as $m) {
             $ai = $m[1];
             $value = str_replace($fnc1, '', $m[2]);
@@ -158,17 +159,17 @@ function parseGS1(string $barcode): array
                 $label = $aiDefs[$ai][3];
             }
 
-            $results[] = [
+            $results[] = array(
                 'ai'    => $ai,
                 'label' => $label,
                 'value' => $value,
-            ];
+            );
         }
         return $results;
     }
 
     // Raw format parsing (no parentheses, FNC1/GS delimited)
-    $results = [];
+    $results = array();
     $pos = 0;
     $len = strlen($barcode);
 
@@ -181,7 +182,7 @@ function parseGS1(string $barcode): array
         $matched = false;
 
         foreach ($aiDefs as $ai => $def) {
-            [$aiLen, $fixedLen, $maxLen, $label] = $def;
+            list($aiLen, $fixedLen, $maxLen, $label) = $def;
 
             if (substr($barcode, $pos, $aiLen) === (string)$ai) {
                 $dataStart = $pos + $aiLen;
@@ -207,11 +208,11 @@ function parseGS1(string $barcode): array
                     $pos = $endPos;
                 }
 
-                $results[] = [
-                    'ai'    => $ai,
+                $results[] = array(
+                    'ai'    => (string)$ai,
                     'label' => $label,
                     'value' => $value,
-                ];
+                );
 
                 $matched = true;
                 break;
@@ -227,7 +228,7 @@ function parseGS1(string $barcode): array
 }
 
 // --- Example usage ---
-if (php_sapi_name() === 'cli' || basename($_SERVER['SCRIPT_FILENAME'] ?? '') === basename(__FILE__)) {
+if (php_sapi_name() === 'cli' || basename(isset($_SERVER['SCRIPT_FILENAME']) ? $_SERVER['SCRIPT_FILENAME'] : '') === basename(__FILE__)) {
     $fnc1 = chr(29);
 
     $testBarcode = '(01)40192155942545(10)A8CEFB(21)11222233';
@@ -255,9 +256,9 @@ if (php_sapi_name() === 'cli' || basename($_SERVER['SCRIPT_FILENAME'] ?? '') ===
 }
 // --- Example Output ---
 /*
-* php gs1_parser.php 
+* php gs1_parser.php
 * Input: (01)40192155942545(10)A8CEFB(21)11222233
-* 
+*
 * AI (01) GTIN: 40192155942545
 * AI (10) BATCH/LOT: A8CEFB
 * AI (21) SERIAL: 11222233
