@@ -2206,7 +2206,7 @@ if (!function_exists('get_next_invoice_number')) {
 				// Get the maximum invoice number for the given art type
 				// Use MAX with CAST to properly find the highest numeric invoice number
 				// This queries ALL records, not just recent ones, to avoid missing higher numbers
-				$qtxt = "SELECT MAX(CAST(fakturanr AS INTEGER)) as max_fakturanr FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr != '' AND fakturanr IS NOT NULL AND fakturanr ~ '^[0-9]+$'";
+				$qtxt = "SELECT MAX(CAST(fakturanr AS INTEGER)) as max_fakturanr FROM ordrer WHERE (art = '$art' OR art = 'DK' OR art = 'DO') AND fakturanr != '' AND fakturanr IS NOT NULL AND fakturanr ~ '^[0-9]+$'";
 				if ($id) {
 					$qtxt .= " AND id != '$id'";
 				}
@@ -2215,7 +2215,7 @@ if (!function_exists('get_next_invoice_number')) {
 				$fakturanr = ($r['max_fakturanr'] ? (int)$r['max_fakturanr'] : 0) + 1;
 				
 				// Double-check that this invoice number doesn't exist (extra safety)
-				$qtxt = "SELECT id FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr = '$fakturanr'";
+				$qtxt = "SELECT id FROM ordrer WHERE (art = '$art' OR art = 'DK' OR art = 'DO') AND fakturanr = '$fakturanr'";
 				if ($id) {
 					$qtxt .= " AND id != '$id'";
 				}
