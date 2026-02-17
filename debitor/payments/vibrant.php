@@ -40,6 +40,18 @@ include("../../includes/std_func.php");
 include("../../includes/stdFunc/dkDecimal.php");
 include("../../includes/stdFunc/usDecimal.php");
 
+$log_file = "/var/www/html/pos/temp/$db/vibrant_debug.log";
+function vibrant_log($msg) {
+    global $log_file;
+    $timestamp = date("Y-m-d H:i:s");
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $sid = session_id();
+    $entry = "[$timestamp] [SERVER] [$ip] [$sid] $msg" . PHP_EOL;
+    file_put_contents($log_file, $entry, FILE_APPEND);
+}
+
+vibrant_log("Script started");
+
 $logentry = "--------------------------------------------------------\n";
 $logentry .= "Date: " . date("Y-m-d H:i:s") . "\n";
 $logentry .= "vibrant.php called with:\n";
@@ -55,11 +67,15 @@ $kasse = $_COOKIE['saldi_pos'];
 $indbetaling = if_isset($_GET['indbetaling'], 0);
 
 # Get printserver
+vibrant_log("Fetching printserver...");
+$measure_start = microtime(true);
 $qtxt = "select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 $x = $kasse - 1;
 $tmp = explode(chr(9), $r['box3']);
 $printserver = trim($tmp[$x]);
+$duration = microtime(true) - $measure_start;
+vibrant_log("Printserver fetched in " . round($duration, 4) . "s: $printserver");
 
 print '<meta name="viewport" content="width=device-width, initial-scale=1">';
 
@@ -78,6 +94,7 @@ $type = ($raw_amount < 0) ? "process_refund" : "process_payment_intent";
 $amount = abs($raw_amount) * 100;
 
 if($type == "process_refund") {
+  vibrant_log("Processing refund setup...");
   $query = db_select("SELECT betalings_id FROM ordrer WHERE id = $ordre_id", __FILE__ . " linje " . __LINE__);
   $row = db_fetch_array($query);
   $payment_id = $row['betalings_id'];
@@ -86,10 +103,16 @@ if($type == "process_refund") {
   $charge_id = ($receipt_parts[0]) ? $receipt_parts[0] : '';
 }
 # Get settings
+vibrant_log("Fetching API Settings...");
+$measure_start = microtime(true);
 $q = db_select("select var_value from settings where var_name = 'vibrant_auth'", __FILE__ . " linje " . __LINE__);
 $APIKEY = db_fetch_array($q)[0];
+$duration = microtime(true) - $measure_start;
+vibrant_log("API Key fetched in " . round($duration, 4) . "s");
 
 # $q=db_select("SELECT name, terminal_id FROM vibrant_terms WHERE pos_id=$kasse",__FILE__ . " linje " . __LINE__);
+vibrant_log("Fetching Terminal ID...");
+$measure_start = microtime(true);
 $q = db_select("SELECT var_value FROM settings WHERE pos_id=$kasse AND var_grp='vibrant_terms'", __FILE__ . " linje " . __LINE__);
 $terminal_id = db_fetch_array($q)["var_value"];
 
@@ -98,6 +121,8 @@ if (!$terminal_id) {
   $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
   $terminal_id = explode(chr(9), db_fetch_array($q)[0])[$kasse - 1];
 }
+$duration = microtime(true) - $measure_start;
+vibrant_log("Terminal ID fetched in " . round($duration, 4) . "s: $terminal_id");
 
 if (file_exists("../../temp/$db/receipt_$kasse.txt"))
   unlink("../../temp/$db/receipt_$kasse.txt");
@@ -107,6 +132,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 ?>
 
 <script>
+  const pageStart = Date.now();
   var count = 40 - 1
   var paused = false
   var receipt_id = 'None'
@@ -114,15 +140,17 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
   function logToServer(msg) {
     const timestamp = new Date().toISOString();
-    console.log(`[LOG] ${timestamp} ${msg}`);
+    const elapsed = Date.now() - pageStart;
+    const msgWithTime = `${msg} (Elapsed: ${elapsed}ms)`;
+    console.log(`[LOG] ${timestamp} ${msgWithTime}`);
     fetch('log_vibrant.php', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ db: db, message: msg })
+      body: JSON.stringify({ db: db, message: msgWithTime })
     }).catch(err => console.error('Logging failed:', err));
   }
 
-  logToServer(`Page loaded. Amount: <?php print $amount; ?>, Type: <?php print $type; ?>, OrdreID: <?php print $ordre_id; ?>`);
+  logToServer(`Page loaded (JS start). Amount: <?php print $amount; ?>, Type: <?php print $type; ?>, OrdreID: <?php print $ordre_id; ?>`);
 
   const successed = (event) => {
     logToServer(`Successed called. CardScheme: ${cardScheme}`);
@@ -223,7 +251,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       
       setTimeout(async () => {
         try {
-          logToServer(`Checking refund status for ${refundId}`);
+          // logToServer(`Checking refund status for ${refundId}`);
           var res = await fetch(
             `https://pos.api.vibrant.app/pos/v1/refunds/${refundId}`,
             {
@@ -233,7 +261,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
               }
             }
           );
-          logToServer(`Refund status response: ${res.status}`);
+          // logToServer(`Refund status response: ${res.status}`);
           
           if (!res.ok) {
             paused = true;
@@ -257,6 +285,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
             elm.innerText = 'Refund gennemført og bekræftet';
             
             try {
+              var rsStart = Date.now();
               var receiptResponse = await fetch(
                 'save_receipt.php',
                 {
@@ -271,6 +300,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
                   })
                 }
               );
+              logToServer(`Refund receipt saved in ${Date.now() - rsStart}ms`);
               console.log('Receipt save response status:', receiptResponse.status);
               if (!receiptResponse.ok) {
                 console.error('Failed to save receipt:', receiptResponse.statusText);
@@ -497,8 +527,10 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
         var json_data = await res.json();
         if (json_data['status'] == 'succeeded') {
+            logToServer(`Payment succeeded. Fetching charges...`);
 
           // Get the cardtype
+          var cStart = Date.now();
           var charge = await fetch(
             `https://pos.api.vibrant.app/pos/v1/charges/${json_data['latestCharge']}`,
             {
@@ -508,8 +540,11 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
               }
             }
           );
+          var cDuration = Date.now() - cStart;
+          logToServer(`Charges fetched in ${cDuration}ms`);
           var charge_json = await charge.json();
 
+          var sStart = Date.now();
           await fetch(
             'save_receipt.php',
             {
@@ -524,6 +559,8 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
               })
             }
           );
+          logToServer(`Receipt saved in ${Date.now() - sStart}ms`);
+          
           window.open("<?php print ($printserver == 'android' ? "saldiprint://" : "http://$printserver"); ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100")
           receipt_id = `${charge_json.id}-${charge_json.paymentIntent}`;
 

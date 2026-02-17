@@ -221,7 +221,7 @@ if ($brugsamletpris) {
 	$r = db_fetch_array(db_SELECT("select box8 from grupper where art = 'DIV' and kodenr = '5'", __FILE__ . " linje " . __LINE__));
 	$svid = $r['box8'] * 1;
 	$r = db_fetch_array(db_SELECT("select varenr from varer where id = '$svid'", __FILE__ . " linje " . __LINE__));
-	$svnr = $r['varenr'];
+	$svnr = ($r) ? $r['varenr'] : NULL;
 } else $svnr = NULL;
 if ($rabatvare_id) { #20150317
 	$query = db_select("select varenr from varer where id = '$rabatvare_id'", __FILE__ . " linje " . __LINE__);
@@ -733,6 +733,7 @@ if ($b_submit == 'Credit') $b_submit = 'Krediter';
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$id = $_POST['id'];
 	$sum = if_isset($_POST, NULL, 'sum');
+	file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." === NEW REQUEST === b_submit=$b_submit id=$id status=".if_isset($_POST,0,'status')." linjeantal=".if_isset($_POST,0,'linjeantal')."\n", FILE_APPEND);
 
 	$phone = trim($_POST['phone']);
 	$phone = str_replace(' ', '', $phone);
@@ -1012,7 +1013,10 @@ if ($b_submit) {
 		}
 	}
 	if (!isset($momsfri[0])) $momsfri[0] = '';
-	if (strstr($b_submit, "Kred") && $status < 3) $b_submit = "doInvoice";
+	if (strstr($b_submit, "Kred") && $status < 3) {
+		file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1015: Kred+status<3 => doInvoice (status=$status)\n", FILE_APPEND);
+		$b_submit = "doInvoice";
+	}
 	if (strstr($b_submit, 'Modtag')) $b_submit = "Lever";
 	if ($art == 'PO' && $status < 3) {
 		$art = 'DO';
@@ -1580,9 +1584,12 @@ if ($status < 3 && $b_submit) {
 		}
 	} elseif (($kontonr) && ($status < 3)) {
 		$sum = 0;
+		$db_lines = db_fetch_array(db_select("select count(*) as cnt from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__));
+		file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1581: SAVE LOOP start id=$id art=$art linjeantal=$linjeantal db_lines=".$db_lines['cnt']." b_submit=$b_submit\n", FILE_APPEND);
 		for ($x = 1; $x <= $linjeantal; $x++) {
+			file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1583: x=$x varenr=$varenr[$x] vare_id=$vare_id[$x] antal=$antal[$x] saet=$saet[$x] samlevare=$samlevare[$x] linje_id=$linje_id[$x]\n", FILE_APPEND);
 			#      $antal[$x]*=1;
-			$vare_id[$x] = (int)$vare_id;
+			$vare_id[$x] = (int)$vare_id[$x];
 			if ($lagerantal > 1) {
 				$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id[$x]' and lager = '$lager[$x]'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2651,6 +2658,8 @@ if ($b_submit == 'del_ordre') {
 }
 ########################## FAKTURER   - SKAL VAERE PLACERET EFTER "del_ordre" ################################
 if ($b_submit == 'doInvoice' && $status < 3) {
+	$db_lines2 = db_fetch_array(db_select("select count(*) as cnt from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__));
+	file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L2697: doInvoice id=$id art=$art linjeantal=$linjeantal db_lines=".$db_lines2['cnt']." hurtigfakt=$hurtigfakt\n", FILE_APPEND);
 	if (!$fakturadate) {
 		$fakturadate = date("Y-m-d");
 		db_modify("update ordrer set fakturadate='$fakturadate' where id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -2671,7 +2680,7 @@ if ($b_submit == 'doInvoice' && $status < 3) {
 		$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (!$row['linjeantal']) {
 			print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
-		} elseif ($row['linjeantal'] == $linjeantal) { #20130506
+		} elseif ($row['linjeantal'] >= $linjeantal) { #20130506
 			for ($x = 1; $x <= $linjeantal; $x++) {
 				$tmp = $linje_id[$x] * -1;
 				if ($linje_id[$x] && $leveres[$x] && $folgevare[$x] > 0 && !in_array($tmp, $folgevare)) {
@@ -3783,7 +3792,7 @@ function ordreside($id, $regnskab)
 							$tmp = $antal[$x] * ($pris[$x] + $pris[$x] * $momssats / 100);
 						}
 					}
-					if ($art == 'DK') $tmp *= -1;
+					if ($art == 'DK' && is_numeric($tmp) && $samlevare[$x] != 'on') $tmp *= -1;
 					$tmp = dkdecimal($tmp, 2);
 				}
 				print "<td align=\"right\" title=\"Kostpris $dk_lineCost[$x] * db: $dk_db[$x] * dg: $dk_dg[$x]%\">" . $tmp . "</td>\n";
@@ -4903,8 +4912,7 @@ function ordreside($id, $regnskab)
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 #		$query = db_select("select * from ordrelinjer where ordre_id = '$ordre_id' order by saet desc,samlevare,posnr,id",__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
-			if ($row['posnr']>0 && !is_numeric($row['samlevare']) && ($row['samlevare'] <1 || $row['samlevare'] == 'on')) {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
-#if ($bruger_id == -1) echo __line__."<br>";
+			if ($row['posnr']>0 && !is_numeric($row['samlevare']) && $row['samlevare'] <1 || $row['samlevare'] == 'on') {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
 				$x++;
 				$linje_id[$x]        = $row['id'];
 				$kred_linje_id[$x]   = $row['kred_linje_id'];
@@ -5102,13 +5110,13 @@ function ordreside($id, $regnskab)
 				$q = db_select("select * from ordrelinjer where ordre_id = '$ordre_id' and samlevare = '$linje_id[$x]' order by id", __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					$antal_ialt += $r['antal'];
-					if ($r['antal'] > 0) {
+					if ($r['antal'] != 0) {
 						$tmp = 0;
 						$q2 = db_select("select antal from batch_salg where linje_id = '$r[id]' and ordre_id='$id' and vare_id = '$r[vare_id]'", __FILE__ . " linje " . __LINE__);
 						while ($r2 = db_fetch_array($q2)) {
 							$tmp = $tmp + $r2['antal'];
 						}
-						if ($art == 'DK') $dkantal = dkdecimal($r['antal'] * -1, 2);
+						if ($art == 'DK') $dkantal = dkdecimal(abs($r['antal']), 2);
 						else $dkantal = dkdecimal($r['antal'], 2);
 						if (substr($dkantal, -1) == '0') $dkantal = substr($dkantal, 0, -1);
 						if (substr($dkantal, -1) == '0') $dkantal = substr($dkantal, 0, -2);
@@ -5195,7 +5203,7 @@ function ordreside($id, $regnskab)
 						$sum += $hlavovaren_diff;
 
 						# Use saetpris if available, otherwise use hovedvaren's own price * antal
-						$display_price = $saetpris > 0 ? round($saetpris) : round($r['pris'] * ($r['antal'] ?: 1));
+						$display_price = $saetpris != 0 ? round($saetpris) : round($r['pris'] * ($r['antal'] ?: 1));
 						# Use a unique index for the hlavovaren to prevent its hidden inputs from overwriting the last sub-item's form fields
 						$hv_idx = 'hv_' . $saet[$x];
 						list($sum, $dbsum, $blandet_moms, $moms) = explode(chr(9), ordrelinjer($hv_idx, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, '0', '0', '0', '0', $r['id'], '0', '', $r['varenr'], $r['beskrivelse'], '', $r['lager'], $display_price, '0', 'percent', '100', '1', '0', '0', $r['vare_id'], '', '0', '0', '0', '', 'on', '', '', '', '', '', '', '', '', '', '', '0', '', $saet[$x], $saetnr, $grossWeight[$x], $netWeight[$x], $itemLength[$x], $itemWidth[$x], $itemHeight[$x], $volume[$x], __LINE__));

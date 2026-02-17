@@ -49,15 +49,42 @@ function find_background_file($db_id, $baggrund, $current_sprog, $department = n
         return $baggrund;
     }
     
-    // Convert language to directory format: lowercase and replace spaces with underscores
-    $lang_dir_name = strtolower(str_replace(' ', '_', $current_sprog));
+    // Normalize language
+    $lang_lower = strtolower($current_sprog);
+    $is_default_lang = ($lang_lower == 'dansk' || $lang_lower == 'danish');
     
-    // Check language_department directory if department is specified
-    if ($department) {
-        $dept_path = "../logolib/{$lang_dir_name}_{$department}/{$baggrund}.pdf";
+    // Check db_id directory with department if specified
+    if ($department && $department > 0) {
+        // 1. Check Department + Language Specific (if not Default)
+        if (!$is_default_lang) {
+             $lang_suffix = "_" . $lang_lower;
+             $dept_path_lang = "../logolib/$db_id/$department/{$baggrund}{$lang_suffix}.pdf";
+             if (file_exists($dept_path_lang)) {
+                 return $dept_path_lang;
+             }
+        }
+        
+        // 2. Check Department + Default
+        $dept_path = "../logolib/$db_id/$department/{$baggrund}.pdf";
         if (file_exists($dept_path)) {
             return $dept_path;
         }
+    }
+
+    // Check db_id directory (default/main)
+    // 3. Check Global + Language Specific (if not Default)
+    if (!$is_default_lang) {
+         $lang_suffix = "_" . $lang_lower;
+         $db_path_lang = "../logolib/$db_id/{$baggrund}{$lang_suffix}.pdf";
+         if (file_exists($db_path_lang)) {
+             return $db_path_lang;
+         }
+    }
+    
+    // 4. Check Global + Default
+    $db_path = "../logolib/$db_id/{$baggrund}.pdf";
+    if (file_exists($db_path)) {
+        return $db_path;
     }
     
     return false;

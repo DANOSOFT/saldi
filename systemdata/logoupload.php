@@ -207,9 +207,11 @@ if (isset($_GET['slet_bilag'])) {
     error_log("Current sprog is : $current_sprog");
     error_log("Selected sprog is : $selected_sprog");
     
-    // FIXED: Use db_id directory structure
-    $file_path = "../logolib/$db_id/" . $slet_bilag;
-    error_log("Deleting file: $file_path (User is admin: " . ($is_admin ? 'Yes' : 'No') . ", Selected department: $selected_department, Language: $current_sprog)");
+    // Use db_id directory structure with optional department
+    $department_dir = ($delete_department > 0) ? "$db_id/$delete_department" : "$db_id";
+    $file_path = "../logolib/$department_dir/" . $slet_bilag;
+    
+    error_log("Deleting file: $file_path (User is admin: " . ($is_admin ? 'Yes' : 'No') . ", Department: $delete_department, Language: $current_sprog)");
     if (file_exists($file_path)) {
         unlink($file_path);
     }
@@ -256,11 +258,21 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 	$fil_stoerrelse = $_FILES["uploadedfile"]["size"];
 	
 	// Build filename - FIXED: No language prefix in filename since it's in the directory structure
+	// BUT we need suffix if language is not Dansk
 	$valg = '';
 	if ($bg_valg) {
 		$valg = $bg_valg;
 	} else {
 		$valg = $bilag_valg;
+	}
+	
+	// Append language suffix if not Dansk or Danish
+	$lang_lower = strtolower($sprog_valg);
+	$is_default_lang = ($lang_lower == 'dansk' || $lang_lower == 'danish');
+	
+	if (!$is_default_lang) {
+		$lang_suffix = "_" . $lang_lower;
+		$valg .= $lang_suffix;
 	}
 
 	if ((strpos($filetype,'pdf'))||(strpos($fileName,'.PDF'))||(strpos($fileName,'pdf'))) {
@@ -274,8 +286,10 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 			exit;
 		}
 		
-		// FIXED: Use db_id directory structure
-		$dest_dir = "../logolib/$db_id/";
+		// Use db_id directory structure with optional department
+		$department_dir = ($department > 0) ? "$db_id/$department/" : "$db_id/";
+		$dest_dir = "../logolib/$department_dir";
+		
 		if (!file_exists($dest_dir)) {
 			mkdir($dest_dir, 0777, true);
 		}
@@ -330,11 +344,30 @@ function upload(){
     // Function to check for files in department directory - FIXED: Use db_id directory structure
     function check_file_exists($language, $file_type, $department) {
         global $db_id;
-        $dept_dir = "../logolib/$db_id/";
+        
+        $department_dir = ($department > 0) ? "$db_id/$department/" : "$db_id/";
+        $dept_dir = "../logolib/$department_dir";
+        
+        // 1. Check for language specific file (if not Default)
+        $lang_lower = strtolower($language);
+        $is_default_lang = ($lang_lower == 'dansk' || $lang_lower == 'danish');
+        
+        if (!$is_default_lang) {
+             $lang_suffix = "_" . $lang_lower;
+             $file_path_lang = $dept_dir . $file_type . $lang_suffix . ".pdf";
+             if (file_exists($file_path_lang)) {
+                return array('file' => $file_path_lang, 'name' => $file_type . $lang_suffix, 'department' => $department, 'language' => $language);
+             }
+        }
+        
+        // 2. Check for default file (Dansk/No suffix)
         $file_path = $dept_dir . $file_type . ".pdf";
         
         if (file_exists($file_path)) {
-            return array('file' => $file_path, 'name' => $file_type, 'department' => $department, 'language' => $language);
+            // If checking for a specific language other than Dansk, but only found default, 
+            // we return it but note the language is actually Dansk/Default
+            $found_lang = ($language == 'Dansk') ? 'Dansk' : 'Dansk (Default)';
+            return array('file' => $file_path, 'name' => $file_type, 'department' => $department, 'language' => $found_lang);
         }
         return false;
     }
