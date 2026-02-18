@@ -463,6 +463,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 
 function sagsliste() {
 	global $brugernavn;
+	global $sprog_id;
 	
 	$notat_id=if_isset($_GET['notat_id']);
 	$retstatus=$_SESSION['retstatus'];
@@ -842,7 +843,7 @@ function sagsliste() {
 							<th width=\"100\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
 							<th width=\"225\">".findtekst('35|Kunde', $sprog_id)."</th>
 							<th width=\"385\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</th>
-							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=on\">".findtekst('2821|Avanceret søgning', $sprog_id)."&nbsp;</a></th>
+							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=on\">".findtekst('2821|Avanceret søgning', $sprog_id)."</a></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -990,6 +991,7 @@ function sagsliste() {
 }
 
 function opret_sag() {
+	global $sprog_id;
 
 	$sortstyle=array();
 	$nysortstyle=if_isset($_GET['nysortstyle']);
@@ -1184,6 +1186,7 @@ function ret_kunde() {
 function vis_sag() {
 	global $brugernavn;
 	global $db;
+	global $sprog_id;
 	
 	$ansatte_id = 0;
 	$ansatte_navn = $ansatte_tlf = $ansatte_email = NULL;
@@ -1709,7 +1712,7 @@ function vis_sag() {
 	print "<table border=\"1\" style=\"width:100%\">
 						<tr>
 							<th>Sag id</th>
-							<th>".findtekst('675|Beskrivelse', $sprog_id)."</th>
+							<th>".findtekst('914|Beskrivelse', $sprog_id)."</th>
 							<th>Gruppe</th> 
 							<th>".findtekst('916|Antal', $sprog_id)."</th>
 							<th>Procent</th>
@@ -2192,7 +2195,7 @@ function vis_sag() {
 				print "<tr><td colspan=\"9\"><p><b>".findtekst('671|Bilag', $sprog_id).":</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
 					<td colspan=\"1\"><p>".findtekst('2706|Filnavn', $sprog_id)."</p></td>
-					<td colspan=\"1\"><p>".findtekst('675|Beskrivelse', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('914|Beskrivelse', $sprog_id)."</p></td>
 					<td colspan=\"1\"><p>".findtekst('2836|Fase', $sprog_id)."</p></td>
 					<td colspan=\"1\"><p>".findtekst('2837|Kategori', $sprog_id)."</p></td>
 					<td colspan=\"1\"><p>".findtekst('438|Dato', $sprog_id)."</p></td>
@@ -2298,7 +2301,7 @@ function vis_sag() {
 		print "<tr><td colspan=\"9\"><p><b>".findtekst('2869|Opgaver', $sprog_id).":</b></p></td></tr>\n";
 		print "<tr class=\"tableSagerHead\">
 						<td colspan=\"1\"><p>".findtekst('2850|Opgavenavn', $sprog_id)."</p></td>
-						<td colspan=\"3\"><p>".findtekst('675|Beskrivelse', $sprog_id)."</p></td>
+						<td colspan=\"3\"><p>".findtekst('914|Beskrivelse', $sprog_id)."</p></td>
 						<td colspan=\"2\"><p>".findtekst('494|Status', $sprog_id)."</p></td>
 						<td colspan=\"3\"><p>".findtekst('958|Oprettet af', $sprog_id)."</p></td>
 					</tr>";
@@ -2320,6 +2323,7 @@ function vis_sag() {
 function ret_opgave($sag_id) {
 	global $brugernavn;
 	global $db;
+	global $sprog_id;
 
 	$opgave_id=(int)if_isset($_GET['opgave_id']);
 	$konto_id=if_isset($_GET['konto_id']);
@@ -2475,7 +2479,7 @@ function ret_opgave($sag_id) {
 		print "<form method=\"post\" action=\"sager.php?konto_id=$konto_id&amp;sag_id=$sag_id&amp;opgave_id=$opgave_id&amp;funktion=ret_opgave\">";
 		print "<input type=\"hidden\" name=\"opgave_nr\" value=\"$opgave_nr\">";	
 		print "<div style=\"float:left; width:828px;\">
-					<h3>Sag: $sag_nr $sag_adresse ($sag_firma)</h3>
+					<h3>".findtekst('2792|Sag', $sprog_id).": $sag_nr $sag_adresse ($sag_firma)</h3>
 					</div><!-- end of full container -->
 				<div class=\"clear\"></div>
 			<div style=\"float:left; margin-right:70px; width:379px;\">
@@ -2498,7 +2502,7 @@ function ret_opgave($sag_id) {
 			</div>";
 			}
 			print "<div class=\"row\">
-					<div class=\"left\">".findtekst('675|Beskrivelse', $sprog_id).":</div> 
+					<div class=\"left\">".findtekst('914|Beskrivelse', $sprog_id).":</div> 
 					<div class=\"right\"><input class=\"text\" type=\"text\" name=\"opgave_beskrivelse\" value=\"$opgave_beskrivelse\"></div>
 					<div class=\"clear\"></div>
 			</div>
@@ -2595,7 +2599,7 @@ function ret_opgave($sag_id) {
 		<div class=\"contentAB\">
 		
 			<!--<div class=\"row\">
-					<div class=\"left\">".findtekst('675|Beskrivelse', $sprog_id).":</div> 
+					<div class=\"left\">".findtekst('914|Beskrivelse', $sprog_id).":</div> 
 					<div class=\"right\"><input style=\"width:350px\" type=\"text\" name=\"del_opgave_beskrivelse\" value=\"\"></div>
 					<div class=\"clear\"></div>
 			</div>-->";
@@ -2709,7 +2713,7 @@ function ret_opgave($sag_id) {
 
 function ret_sag() {
 	global $brugernavn;
-	global $db,$sprog_id;
+	global $db, $sprog_id;
 
 	$id=if_isset($_GET['sag_id']);
 	$konto_id=if_isset($_GET['konto_id']);
@@ -3050,7 +3054,7 @@ function ret_sag() {
 				</div>
 			</div>
 			<div class=\"row\">
-				<div class=\"left\">".findtekst('675|Beskrivelse', $sprog_id)."</div>
+				<div class=\"left\">".findtekst('914|Beskrivelse', $sprog_id)."</div>
 				<div class=\"right\"><input type=\"text\" class=\"text textIndent printSagInfoText\" id=\"beregn_beskrivelse\" name=\"beregn_beskrivelse\" value=\"$beregn_beskrivelse\"/></div>
 				<div class=\"clear\"></div>
 			</div>
@@ -3491,6 +3495,7 @@ function kontrolskema() {
 
 function kopi_ordre() {
 	global $brugernavn;
+	global $sprog_id;
 
 	//$konto_id=$_GET['konto_id'];
 	$id=$_GET['sag_id'];
@@ -3714,6 +3719,7 @@ function kopi_ordre() {
 function sag_kontakt() {
 
 	global $charset;
+	global $sprog_id;
 	
 	$id=if_isset($_GET['sag_id']);
 	$ansat_id=if_isset($_GET['ansat_id']);
@@ -3825,6 +3831,7 @@ function sag_kontakt() {
 function akkordliste() {
 
 	global $regnaar;
+	global $sprog_id;
 
 	$id=if_isset($_GET['sag_id']);
 	$opg_id=if_isset($_POST['opg_id'])*1;
@@ -4163,7 +4170,7 @@ function akkordliste() {
 							<td><p><b>".findtekst('2508|Op', $sprog_id)."</b></p></td>
 							<td><p><b>".findtekst('2509|Ned', $sprog_id)."</b></p></td>
 							<td><p><b>".findtekst('2947|Diff.', $sprog_id)."</b></p></td>
-							<td><p><b>".findtekst('675|Beskrivelse', $sprog_id)."</b></p></td>
+							<td><p><b>".findtekst('914|Beskrivelse', $sprog_id)."</b></p></td>
 						</tr>
 					</tbody>\n";
 					print "<tbody class=\"tableAkkordlisteZebra\">\n";
@@ -4199,6 +4206,8 @@ function akkordliste() {
 }
 
 function ny_kunde() {
+
+	global $sprog_id;
 
 	$id=if_isset($_GET['sag_id']);
 	$gml_konto_id=if_isset($_GET['konto_id']);

@@ -145,7 +145,7 @@
 145	Klik her for at sortere på by.	Click here to sort by city.	Klikk her for å sortere etter by.
 146	By	City	By
 147	Klik her for at sortere på kontaktperson.	Click here to sort by contact person.	Klikk her for å sortere etter kontaktperson.
-148	Kontaktperson	Contact Person	Kontaktperson
+148	Kontaktperson	Contact person	Kontaktperson
 149	Klik her for at sortere på telefonnummer.	Click here to sort by phone number.	Klikk her for å sortere etter telefonnummer.
 150	Telefon.	Telephone.	Telefon.
 151	Kundeansvarlig - Klik her for at sortere på dette felt	Customer Manager - Click here to sort in this field	Customer Manager - Klikk her for å sortere i dette feltet
@@ -2850,7 +2850,7 @@
 2850	Opgavenavn	Task name	Oppgavenavn
 2851	Hurtigsøgning	Quick search	Hurtigsøk
 2852	Find kunde	Find customer	Finn kunde
-2853	Opret ny, eller vælg eksisterende kunde til sag her!	Create new, or select existing customer for project here!	Opprett ny, eller velg eksisterende kunde for sak her!
+2853	Opret ny, eller vælg eksisterende kunde til sag her!	Create new, or select existing customer for the project here!	Opprett ny, eller velg eksisterende kunde for sak her!
 2854	Ingen beskrivelse	No description	Ingen beskrivelse
 2855	Ingen ansvarlig	No responsible person	Ingen ansvarlig
 2856	Intet telefonnummer	No phone number	Intet telefonnummer
