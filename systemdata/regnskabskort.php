@@ -347,8 +347,10 @@ if ($id > 0) {
 		$aaben       = 'on';
 	}
 
-	if ($x==0) year1($id, 1, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager);
-	else {
+	if ($x==0) {
+		include_once("fiscalYearInc/year1.php");
+		year1($id, 1, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager);
+	} else {
 		include_once("fiscalYearInc/yearX.php");
 		yearX($id, $x, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager);
 	}
