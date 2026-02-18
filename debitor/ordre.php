@@ -5923,7 +5923,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	print "<tr class='ordrelinje' $rowStyle data-line-id='$x'>\n";
 	print "<td style='display:none;'>$hidden_inputs</td>\n";
 	
-	print "<td class='drag-handle' style='cursor:move; text-align:center; vertical-align:middle; width:30px; background:#f5f5f5;'>⋮⋮</td>";
+	print "<td class='drag-handle' style='cursor:drag; text-align:center; vertical-align:middle; width:30px; background:#f5f5f5;'>⋮⋮</td>";
 
 	$txtColor = 'black';
 	$qtyTitle = '';
