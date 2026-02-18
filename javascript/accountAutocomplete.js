@@ -380,6 +380,8 @@
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/accountSearch.php';
+        } else if (window.location.pathname.includes('/includes/')) {
+            basePath = '../finans/kassekladde_includes/accountSearch.php';
         } else {
             basePath = 'finans/kassekladde_includes/accountSearch.php';
         }
@@ -446,6 +448,8 @@
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/invoiceSearch.php';
+        } else if (window.location.pathname.includes('/includes/')) {
+            basePath = '../finans/kassekladde_includes/invoiceSearch.php';
         } else {
             basePath = 'finans/kassekladde_includes/invoiceSearch.php';
         }
@@ -487,6 +491,8 @@
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/departmentSearch.php';
+        } else if (window.location.pathname.includes('/includes/')) {
+            basePath = '../finans/kassekladde_includes/departmentSearch.php';
         } else {
             basePath = 'finans/kassekladde_includes/departmentSearch.php';
         }
@@ -520,6 +526,8 @@
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/employeeSearch.php';
+        } else if (window.location.pathname.includes('/includes/')) {
+            basePath = '../finans/kassekladde_includes/employeeSearch.php';
         } else {
             basePath = 'finans/kassekladde_includes/employeeSearch.php';
         }
@@ -551,6 +559,8 @@
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/currencySearch.php';
+        } else if (window.location.pathname.includes('/includes/')) {
+            basePath = '../finans/kassekladde_includes/currencySearch.php';
         } else {
             basePath = 'finans/kassekladde_includes/currencySearch.php';
         }
@@ -615,6 +625,8 @@
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/amountSearch.php';
+        } else if (window.location.pathname.includes('/includes/')) {
+            basePath = '../finans/kassekladde_includes/amountSearch.php';
         } else {
             basePath = 'finans/kassekladde_includes/amountSearch.php';
         }

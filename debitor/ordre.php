@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-11 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,7 @@
 // 20260130 LOE Added javascript to sycn the felt_2 to total amount and fixed double creditor note field.
 // 20260209 LOE Updated $txt2130 text. and $kontonr casting to int removed for search operations to prevent breaking search functionality. 
 // 20260217 MMK Added GS1 parsing to ordrelinje creation logic
+// 20260218 PHR Adding vare_id if missing #20260218
 @session_start();
 $s_id = session_id();
 
@@ -6148,7 +6149,11 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	#       }
 	#      else print "<td></td>";
 	if ($status >= 1 && $hurtigfakt != 'on') {
-		if ($vare_id || $varenr) {
+		if ($varenr && !$vare_id) { #20260218
+			$qtxt = "select id from varer where varenr = $vare_id";
+			($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $vare_id = $r['id'] : $vare_id = 0;
+ 		}
+		if ($vare_id) {
 			$batch = "?";
 			#          print "<td title=\"kostpris\">Projekt</span></td>\n";
 			$tidl_lev = 0;
@@ -6159,11 +6164,11 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 				$stockQty = $r['qty'];
 			}
 			$qtxt = "select gruppe,beholdning from varer where id = $vare_id";
-			$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			$row = db_fetch_array($query);
-			$beholdning = $row['beholdning'];
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$beholdning = $r['beholdning'];
 			if ($lagerantal > 1) $beholdning = $stockQty;
-			$query = db_select("select box6,box8,box9 from grupper where art='VG' and kodenr='$row[gruppe]'", __FILE__ . " linje " . __LINE__);
+			$qtxt = "select box6,box8,box9 from grupper where art='VG' and kodenr='$r[gruppe]'";
+			$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			$row = db_fetch_array($query);
 			($row['box6'] == 'on') ? $omvare = 1 : $omvare = 0; # vare som er omfattet af omvendt betalingspligt 
 			($row['box8'] == 'on') ? $lagervare = 1 : $lagervare = 0;

@@ -113,7 +113,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 				}
 		</style>
 		<![endif]-->
-		<title>Stillads</title>
+		<title>".findtekst('2783|Stillads', $sprog_id)."</title>
 		
 	</head>
 	<body>
@@ -137,8 +137,8 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 			<form name=\"retstatus\" action=\"sager.php\" method=\"post\">
 				<ul id=\"breadcrumb\">
 					<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-					else print "<a href=\"\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+					else print "<a href=\"\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 					print "</li>\n";
 					if ($returside=='ordre') {
 						$r=db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
@@ -151,20 +151,20 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 						$r=db_fetch_array(db_select("select * from ordrer where id='$ordre_id'",__FILE__ . " linje " . __LINE__));
 						$nr=$r['nr'];
 						
-						print "<li><a href=\"../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"Sag: $sagsnr, $beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">Tilbage til sag $sagsnr</a></li>
-						<li><a href=\"../debitor/ordre.php?sag_id=$sag_id&amp;konto_id=$konto_id&amp;tjek=$ordre_id&amp;id=$ordre_id&amp;returside=sager\" title=\"Tilbage til tilbud\">Original tilbud $nr</a></li>
-						<li>Kopi til sag</li>";
+						print "<li><a href=\"../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"".findtekst('2792|Sag', $sprog_id).": $sagsnr, $beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">".findtekst('2813|Tilbage til sag', $sprog_id)." $sagsnr</a></li>
+						<li><a href=\"../debitor/ordre.php?sag_id=$sag_id&amp;konto_id=$konto_id&amp;tjek=$ordre_id&amp;id=$ordre_id&amp;returside=sager\" title=\"".findtekst('2814|Tilbage til tilbud', $sprog_id)."\">".findtekst('1101|Originalt tilbud', $sprog_id)." $nr</a></li>
+						<li>".findtekst('2815|Kopi til sag', $sprog_id)."</li>";
 					} else {
 					print "
 						<!--<li><a href=\"#\" title=\"Sample page 3\">Sample page 3</a></li>
 						<li>Current page</li>-->
-						<li>Sager</li>\n";
+						<li>".findtekst('2774|Sager', $sprog_id)."</li>\n";
 					}
 					if ($funktion=='akkordliste') {
-						print "<li style=\"float:right;\"><a href=\"#\" title=\"Print akkordliste\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"Print akkordliste\" class=\"printIcon\" /></a></li>";
+						print "<li style=\"float:right;\"><a href=\"#\" title=\"".findtekst('2816|Print akkordliste', $sprog_id)."\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"".findtekst('2816|Print akkordliste', $sprog_id)."\" class=\"printIcon\" /></a></li>";
 					}
 					if ($funktion=='ret_sag') {
-						print "<li style=\"float:right;\"><a href=\"#\" title=\"Print sags information\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"Print akkordliste\" class=\"printIcon\" /></a></li>";
+						print "<li style=\"float:right;\"><a href=\"#\" title=\"".findtekst('2817|Sagsinformation', $sprog_id)."\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"".findtekst('2817|Sagsinformation', $sprog_id)."\" class=\"printIcon\" /></a></li>";
 					}
 					if (!$sag_id) {
 						print "<li style=\"float:right;\">
@@ -177,7 +177,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 								</label>
 						</div>
 						</li>
-						<li style=\"float: right;font-size: 12px;color: #444;\">Ret status</li>\n";
+						<li style=\"float: right;font-size: 12px;color: #444;\">".findtekst('2818|Ret status', $sprog_id)."</li>\n";
 					}
 					print "
 				</ul>
@@ -413,7 +413,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 						showOtherMonths: true,
 						selectOtherMonths: true,
 						showButtonPanel: true,
-						closeText: 'Slet',
+						closeText: '<?php print findtekst(\"1099|Slet\", $sprog_id)?>',
 						defaultDate: $(\"#akkordfra1\").val(),
 						minDate: $(\"#akkordfra1\").val(),
 						maxDate: $(\"#akkordtil1\").val(),
@@ -436,7 +436,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 						showOtherMonths: true,
 						selectOtherMonths: true,
 						showButtonPanel: true,
-						closeText: 'Slet',
+						closeText: '<?php print findtekst(\"1099|Slet\", $sprog_id)?>',
 						minDate: $(\"#akkordfra2\").val(),
 						maxDate: $(\"#akkordtil2\").val(),
 						beforeShowDay: highLight,
@@ -761,8 +761,8 @@ function sagsliste() {
 			<table border=\"0\" cellspacing=\"0\" width=\"778\">
 				<thead>
 					<tr>
-						<th width=\"100\">Sagsnr</th>
-						<th width=\"560\">Opstillings adresse</th>
+						<th width=\"100\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
+						<th width=\"560\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</th>
 						<th colspan=\"2\">&nbsp;</th>
 					</tr>
 				</thead>
@@ -771,7 +771,7 @@ function sagsliste() {
 						<td><input class=\"textinput sagsagsnr\" type=\"text\" value=\"\" id=\"sagsagsnr\" name=\"sagsagsnr\" tabindex=\"1\"/></td>
 						<td><input class=\"textinput sagadresse\" type=\"text\" value=\"\" id=\"sagadresse\" name=\"sagadresse\" tabindex=\"2\"/></td>
 						<td style=\"padding:0px;\"><input type=\"hidden\" class=\"id\" value=\"\" name=\"sag_id\"></td>   
-						<td align=\"center\"><input type=\"submit\" value=\"Find sag\" name=\"findsag\" class=\"button gray small\" tabindex=\"3\"></td>
+						<td align=\"center\"><input type=\"submit\" value=\"".findtekst('2822|Find sag', $sprog_id)."\" name=\"findsag\" class=\"button gray small\" tabindex=\"3\"></td>
 					</tr>
 				</tbody>
 			</table>
@@ -780,20 +780,21 @@ function sagsliste() {
 		*/
 		print "
 		<div class=\"contentsoeg\">\n";
+		#Claude foreslår at ændre Adresse (792) til Opstillingsadresse for konsistens med linje 843 og 895
 		if($asoeg=='on') {
 			print "
 			<form name=\"kundesoeg\" action=\"sager.php\" method=\"post\">
 				<table border=\"0\" cellspacing=\"0\" width=\"828\">
 					<thead>
 						<tr>
-							<th width=\"70\">Sagsnr</th>
-							<th width=\"150\">Kunde</th>
-							<th width=\"200\">Adresse</th>
-							<th width=\"70\">Postnr</th>
-							<th width=\"100\">By</th>
-							<th width=\"80\">Ansvarlig</th>
-							<th width=\"80\">Status</th>
-							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=off\">Hurtig&nbsp;søg</a></th>
+							<th width=\"70\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
+							<th width=\"150\">".findtekst('35|Kunde', $sprog_id)."</th>
+							<th width=\"200\">".findtekst('140|Adresse', $sprog_id)."</th>
+							<th width=\"70\">".findtekst('36|Postnr.', $sprog_id)."</th>
+							<th width=\"100\">".findtekst('46|By', $sprog_id)."</th>
+							<th width=\"80\">".findtekst('2793|Ansvarlig', $sprog_id)."</th>
+							<th width=\"80\">".findtekst('494|Status', $sprog_id)."</th>
+							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=off\">".findtekst('2851|Hurtigsøgning', $sprog_id)."&nbsp;</a></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -826,7 +827,7 @@ function sagsliste() {
 							if ($ss_status) print "<option value=\"\">&nbsp;</option>\n";
 							print "</select>
 							<!-- <td style=\"padding:0px;\"><input type=\"hidden\" class=\"id\" value=\"\" name=\"sag_id\"><input type=\"hidden\"  value=\"vis_sag\" name=\"funktion\"></td> -->  
-							<td align=\"center\"><input type=\"submit\" value=\"Søg\" name=\"soeg\" class=\"button gray small\" tabindex=\"8\"></td>
+							<td align=\"center\"><input type=\"submit\" value=\"".findtekst('913|Søg', $sprog_id)."\" name=\"soeg\" class=\"button gray small\" tabindex=\"8\"></td>
 							
 						</tr>
 					</tbody>
@@ -838,10 +839,10 @@ function sagsliste() {
 				<table border=\"0\" cellspacing=\"0\" width=\"828\">
 					<thead>
 						<tr>
-							<th width=\"100\">Sagsnr</th>
-							<th width=\"225\">Kunde</th>
-							<th width=\"385\">Opstillings adresse</th>
-							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=on\">Avanceret&nbsp;søg</a></th>
+							<th width=\"100\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
+							<th width=\"225\">".findtekst('35|Kunde', $sprog_id)."</th>
+							<th width=\"385\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</th>
+							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=on\">".findtekst('2821|Avanceret søgning', $sprog_id)."&nbsp;</a></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -851,7 +852,7 @@ function sagsliste() {
 							<td><input class=\"textinput sagfirmanavn\" type=\"text\" value=\"\" id=\"sagfirmanavn\" name=\"sagfirmanavn\" tabindex=\"2\"/></td>
 							<td><input class=\"textinput sagadresse\" type=\"text\" value=\"\" id=\"sagadresse\" name=\"sagadresse\" tabindex=\"3\"/></td>
 							<td style=\"padding:0px;\"><input type=\"hidden\" class=\"id\" value=\"\" name=\"sag_id\"><input type=\"hidden\"  value=\"vis_sag\" name=\"funktion\"></td>   
-							<td align=\"center\"><input type=\"submit\" value=\"Find sag\" name=\"findsag\" class=\"button gray small\" tabindex=\"4\"></td>
+							<td align=\"center\"><input type=\"submit\" value=\"".findtekst('2822|Find sag', $sprog_id)."\" name=\"findsag\" class=\"button gray small\" tabindex=\"4\"></td>
 							
 						</tr>
 					</tbody>
@@ -861,11 +862,11 @@ function sagsliste() {
 			print "
 			<form name=\"sagliste\" action=\"sager.php?funktion=sagsliste\" method=\"post\">
 				<div style=\"height:25px;padding:10px 12px 0 12px;#background-color:#f2f2f2;\">
-					<span style=\"float:left;width:260px;\"><a href=\"sager.php?funktion=sagsliste&amp;unsetsort=unset\" class=\"button gray small\">Slet sortering</a></span>\n";
+					<span style=\"float:left;width:260px;\"><a href=\"sager.php?funktion=sagsliste&amp;unsetsort=unset\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>\n";
 					($antal_sager_ialt<=500)?$display="display:none;":$display=NULL;
 					print "
 					<div style=\"float:right;$display\">
-						<p style=\"float:left;\">Vælg antal viste linjer:&nbsp;</p>
+						<p style=\"float:left;\">".findtekst('2797|Vælg antal viste linjer', $sprog_id).":&nbsp;</p>
 						<select name=\"sag_limit\" class=\"selectinputloen\" style=\"width:76px;\" onchange=\"this.form.submit()\">\n";
 						
 							for ($i=0;$i<count($limitarray);$i++) {
@@ -890,11 +891,11 @@ function sagsliste() {
 		print "<div class=\"contentkundehead\">
 			<ul id=\"sort\">
 					<li>
-							<a href=\"sager.php?funktion=sagsliste&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:65px\">Sagsnr</a>
-							<a href=\"sager.php?funktion=sagsliste&amp;nysort=firmanavn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:205px\">Kunde</a>
-							<a href=\"sager.php?funktion=sagsliste&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:315px\">Opstillings adresse</a>
-							<a href=\"sager.php?funktion=sagsliste&amp;nysort=ref&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:145px\">Ansvarlig</a>
-							<a href=\"sager.php?funktion=sagsliste&amp;nysort=status&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:75px;$retstatusstyle\">Status</a>
+							<a href=\"sager.php?funktion=sagsliste&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=sagsliste&amp;nysort=firmanavn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:205px\">".findtekst('35|Kunde', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=sagsliste&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:315px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=sagsliste&amp;nysort=ref&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:145px\">".findtekst('2793|Ansvarlig', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=sagsliste&amp;nysort=status&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:75px;$retstatusstyle\">".findtekst('494|Status', $sprog_id)."</a>
 					</li>
 			</ul>
 		</div><!-- end of contentkundehead -->
@@ -955,29 +956,29 @@ function sagsliste() {
 		print "<div class=\"contentlist\">";
 			if ($notat_id) $href="notat.php?id=$notat_id&sag_id=$sag_id[$x]&sag_fase=$status[$x]";
 			else $href="sager.php?funktion=vis_sag&amp;sag_id=$sag_id[$x]";
-			print "<h4><a href=\"$href\">Sag: $sag_nr[$x], $sag_beskrivelse[$x], $udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]</a></h4>
+			print "<h4><a href=\"$href\">".findtekst('2792|Sag', $sprog_id).": $sag_nr[$x], $sag_beskrivelse[$x], $udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]</a></h4>
 			<hr>
 			<table border=\"0\" cellspacing=\"0\" width=\"780\">
 				<tr>
-					<td width=\"72\"><p><b>Kunde:</b></p></td>
+					<td width=\"72\"><p><b>".findtekst('35|Kunde', $sprog_id).":</b></p></td>
 					<td colspan=\"5\"><p><b>$sag_firmanavn[$x]</b></p></td>
-					<td width=\"75\" align=\"center\"><p><b>Status:</b></p></td>
+					<td width=\"75\" align=\"center\"><p><b>".findtekst('494|Status', $sprog_id).":</b></p></td>
 				</tr>
 				<tr>
-					<td valign=\"top\"><p><b>Omfang:</b></p></td>
+					<td valign=\"top\"><p><b>".findtekst('2874|Omfang', $sprog_id).":</b></p></td>
 					<td colspan=\"5\"><p>$sag_omfang[$x]&nbsp;</p></td>
 					<!--<td rowspan=\"2\" align=\"center\" valign=\"top\"><p class=\"staclrgreen\" title=\"tilbud\"></p></td>-->";
-					if ($status[$x]<=1) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">Tilbud</td>";
-					if ($status[$x]==2) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">Opstart</td>";
-					if ($status[$x]==3) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">Aflevering</td>";
-					if ($status[$x]==4) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">Kontrol</td>";
-					if ($status[$x]==5) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">Nedtagning</td>";
-					if ($status[$x]==6) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">Afsluttet</td>";
+					if ($status[$x]<=1) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">".findtekst('812|Tilbud', $sprog_id)."</td>";
+					if ($status[$x]==2) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">".findtekst('2852|Opstart', $sprog_id)."</td>";
+					if ($status[$x]==3) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">".findtekst('2853|Aflevering', $sprog_id)."</td>";
+					if ($status[$x]==4) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">".findtekst('2823|Kontrol', $sprog_id)."</td>";
+					if ($status[$x]==5) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">".findtekst('2854|Nedtagning', $sprog_id)."</td>";
+					if ($status[$x]==6) print "<td rowspan=\"2\" align=\"center\" valign=\"top\">".findtekst('2855|Afsluttet', $sprog_id)."</td>";
 				print "</tr>
 				<tr>
-					<td><p><b>Ansvarlig:</b></p></td>
+					<td><p><b>".findtekst('2793|Ansvarlig', $sprog_id).":</b></p></td>
 					<td><p>$sag_ansvarlig[$x]&nbsp;</p></td>
-					<td width=\"70\"><p><b>Indtastet:</b></p></td>
+					<td width=\"70\"><p><b>".findtekst('2129|Indtastet', $sprog_id).":</b></p></td>
 					<td><p>d.$dato[$x] kl. $tid[$x]</p></td>
 					<td width=\"25\"><p><b>Af:</b></p></td>
 					<td><p>$oprettet_af[$x]</p></td>
@@ -1072,9 +1073,9 @@ function opret_sag() {
 			<table border=\"0\" cellspacing=\"0\" width=\"778\">
 				<thead>
 					<tr>
-						<th width=\"100\">Kontonr</th>
-						<th width=\"130\">Firmanavn</th>
-						<th width=\"200\">Adresse</th>
+						<th width=\"100\">".findtekst('43|Kontonr.', $sprog_id)."</th>
+						<th width=\"130\">".findtekst('28|Firmanavn', $sprog_id)."</th>
+						<th width=\"200\">".findtekst('140|Adresse', $sprog_id)."</th>
 						<th width=\"230\">Fritekst</th>
 						<th>&nbsp;</th>
 					</tr>
@@ -1085,7 +1086,7 @@ function opret_sag() {
 						<td><input class=\"textinput\" type=\"text\" id=\"firmanavn\" name=\"firmanavn\" tabindex=\"2\"/></td>
 						<td><input class=\"textinput\" type=\"text\" id=\"adresse\" name=\"adresse\" tabindex=\"3\"/></td>
 						<td><input class=\"textinput\" type=\"text\" id=\"fritext\" name=\"fritext\" tabindex=\"4\"/></td>   
-						<td align=\"center\"><input type=\"submit\" value=\"Find kunde\" class=\"button gray small\" tabindex=\"5\"></td>
+						<td align=\"center\"><input type=\"submit\" value=\"".findtekst('2852|Find kunde', $sprog_id)."\" class=\"button gray small\" tabindex=\"5\"></td>
 					</tr>
 				</tbody>
 			</table>
@@ -1096,9 +1097,9 @@ function opret_sag() {
 			<table border=\"0\" cellspacing=\"0\" width=\"828\">
 				<thead>
 					<tr>
-						<th width=\"100\">Kundenr</th>
-						<th width=\"225\">Firmanavn</th>
-						<th width=\"385\">Adresse</th>
+						<th width=\"100\">".findtekst('357|Kundenr.', $sprog_id)."</th>
+						<th width=\"225\">".findtekst('28|Firmanavn', $sprog_id)."</th>
+						<th width=\"385\">".findtekst('140|Adresse', $sprog_id)."</th>
 						<th colspan=\"2\">&nbsp;</th>
 					</tr>
 				</thead>
@@ -1109,15 +1110,15 @@ function opret_sag() {
 						<td><input class=\"textinput firmanavn\" type=\"text\" value=\"\" id=\"firmanavn\" name=\"firmanavn\" tabindex=\"2\"/></td>
 						<td><input class=\"textinput firmaadresse\" type=\"text\" value=\"\" id=\"adresse\" name=\"adresse\" tabindex=\"3\"/></td>
 						<td style=\"padding:0px;\"><input type=\"hidden\" class=\"id\" value=\"\" name=\"konto_id\"></td>   
-						<td align=\"center\"><input type=\"submit\" value=\"Find kunde\" name=\"findkunde\" class=\"button gray small\" tabindex=\"4\"></td>
+						<td align=\"center\"><input type=\"submit\" value=\"".findtekst('2852|Find kunde', $sprog_id)."\" name=\"findkunde\" class=\"button gray small\" tabindex=\"4\"></td>
 						
 					</tr>
 				</tbody>
 			</table>
 			</form>
 			<div style=\"height:25px;padding:10px 12px 0 12px;#background-color:#f2f2f2;\">
-					<span style=\"float:left;width:200px;\"><a href=\"sager.php?funktion=opret_sag&amp;unsetsort=unset\" class=\"button gray small\">Slet sortering</a></span>
-					<span style=\"#text-align:center;font-size: 14px;\"><i><b>Opret ny, eller vælg eksisterende kunde til sag her!</b></i></span>
+					<span style=\"float:left;width:200px;\"><a href=\"sager.php?funktion=opret_sag&amp;unsetsort=unset\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>
+					<span style=\"#text-align:center;font-size: 14px;\"><i><b>".findtekst('2853|Opret ny, eller vælg eksisterende kunde til sag her!', $sprog_id)."</b></i></span>
 			</div>
 		</div><!-- end of contentsoeg -->";
 		(count($konto_id)<=50)?$abortlist="abort_small_list":$abortlist=NULL; // tallet sættes til det samme som 'items_per_page' i jquery.sager.js, under pagination
@@ -1127,13 +1128,13 @@ function opret_sag() {
 		<div class=\"contentkundehead\">
 			<ul id=\"sort\">
 					<li>
-							<a href=\"sager.php?funktion=opret_sag&amp;nysort=kontonr&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:72px\">Kundenr</a>
-							<a href=\"sager.php?funktion=opret_sag&amp;nysort=firmanavn&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:175px\">Navn</a>
-							<a href=\"sager.php?funktion=opret_sag&amp;nysort=addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:180px\">Addresse</a>
-							<a href=\"sager.php?funktion=opret_sag&amp;nysort=postnr&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:60px\">Postnr</a>
-							<a href=\"sager.php?funktion=opret_sag&amp;nysort=bynavn&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:105px\">By</a>       
-							<a href=\"sager.php?funktion=opret_sag&amp;nysort=kontakt&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:120px\">Kontaktperson</a>
-							<a href=\"sager.php?funktion=opret_sag&amp;nysort=tlf&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt07 $sortstyle[6]\" style=\"width:85px\">Telefon</a>
+							<a href=\"sager.php?funktion=opret_sag&amp;nysort=kontonr&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:72px\">".findtekst('357|Kundenr.', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=opret_sag&amp;nysort=firmanavn&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:175px\">".findtekst('138|Navn', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=opret_sag&amp;nysort=addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:180px\">".findtekst('140|Adresse', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=opret_sag&amp;nysort=postnr&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:60px\">".findtekst('36|Postnr.', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=opret_sag&amp;nysort=bynavn&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:105px\">".findtekst('46|By', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=opret_sag&amp;nysort=kontakt&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:120px\">".findtekst('148|Kontaktperson', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=opret_sag&amp;nysort=tlf&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt07 $sortstyle[6]\" style=\"width:85px\">".findtekst('37|Telefon', $sprog_id)."</a>
 					</li>
 			</ul>
 		</div><!-- end of contentkundehead -->
@@ -1174,7 +1175,7 @@ function ret_kunde() {
 	print "		</tbody></table></td><tr><tr><td colspan=\"3\"><table><tbody>";
 	include "../debitor/debkort_4.php";
 	print "		</tbody></table></td><tr><tr><td colspan=\"3\" align = \"center\">
-							<input type=\"submit\" accesskey=\"g\" value=\"Gem / opdat&eacute;r\" name=\"submit\" onclick=\"javascript:docChange = false;\">
+							<input type=\"submit\" accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"submit\" onclick=\"javascript:docChange = false;\">
 						</td></tr></tbody></table>";
 	print "	</form>";
 	print "</div>";
@@ -1243,13 +1244,13 @@ function vis_sag() {
 	$kontakt=htmlspecialchars($r['kontakt']);
 	$beskrivelse=htmlspecialchars($r['beskrivelse']);
 	$omfang=htmlspecialchars($r['omfang']);
-	(!$omfang)?$omfang='<i>Ingen beskrivelse</i>':$omfang;
+	(!$omfang)?$omfang='<i>'.findtekst('2854|Ingen beskrivelse', $sprog_id).'</i>':$omfang;
 	$udf_firmanavn=htmlspecialchars($r['udf_firmanavn']);
 	$udf_addr1=htmlspecialchars($r['udf_addr1']);
 	$udf_postnr=$r['udf_postnr'];
 	$udf_bynavn=htmlspecialchars($r['udf_bynavn']);
 	$ref=htmlspecialchars($r['ref']);
-	(!$ref)?$ref='<i>Ingen ansvarlig</i>':$ref;
+	(!$ref)?$ref='<i>'.findtekst('2855|Ingen ansvarlig', $sprog_id).'</i>':$ref;
 	$oprettet_af=htmlspecialchars($r['oprettet_af']);
 	$dato=date("d-m-y",$r['tidspkt']);
 	$tid=date("H:i",$r['tidspkt']);
@@ -1273,8 +1274,8 @@ function vis_sag() {
 	$k_kontonr=$r['kontonr'];
 	$kunde_tlf=$r['tlf'];
 	$kunde_email=$r['email'];
-	(!$kunde_tlf)?$kunde_tlf='<i>Ingen telefonnummer</i>':$kunde_tlf;
-	(!$kunde_email)?$kunde_email='<i>Ingen emailadresse</i>':$kunde_email;
+	(!$kunde_tlf)?$kunde_tlf='<i>'.findtekst('2856|Intet telefonnummer', $sprog_id).'</i>':$kunde_tlf;
+	(!$kunde_email)?$kunde_email='<i>'.findtekst('2857|Ingen e-mailadresse', $sprog_id).'</i>':$kunde_email;
 	
 	// Her opdater jeg kunde-oplysninger hvis der er ændringer #20160926
 	if ($firmanavn != $k_firmanavn || $addr1 != $k_addr1 || $addr2 != $k_addr2 || $postnr != $k_postnr || $bynavn != $k_bynavn || $kontonr != $k_kontonr) {
@@ -1289,8 +1290,8 @@ function vis_sag() {
 		$ansatte_navn=$r['navn'];
 		$ansatte_tlf=$r['mobil'];
 		$ansatte_email=$r['email'];
-		(!$ansatte_tlf)?$ansatte_tlf='<i>Ingen telefonnummer</i>':$ansatte_tlf;
-		(!$ansatte_email)?$ansatte_email='<i>Ingen emailadresse</i>':$ansatte_email;
+		(!$ansatte_tlf)?$ansatte_tlf='<i>'.findtekst('2856|Intet telefonnummer', $sprog_id).'</i>':$ansatte_tlf;
+		(!$ansatte_email)?$ansatte_email='<i>'.findtekst('2857|Ingen e-mailadresse', $sprog_id).'</i>':$ansatte_email;
 	}
 	$x=0;
 	$q=db_select("select * from opgaver where assign_id='$id' order by nr",__FILE__ . " linje " . __LINE__);
@@ -1426,12 +1427,12 @@ function vis_sag() {
 		$ordrer_art[$x]=$r['art'];
 		$ordrer_status[$x]=$r['status'];
 		$ordrer_kred_id[$x]=$r['kred_ord_id'];
-		if ($ordrer_status[$x] == '0') $opgstatus[$x] = "Tilbud";
-		if ($ordrer_status[$x] == '1') $opgstatus[$x] = "Ordrebekræftelse";
-		if ($ordrer_status[$x] == '2') $opgstatus[$x] = "Levering";
-		if ($ordrer_status[$x] == '0' && $ordrer_kred_id[$x] > '0') $opgstatus[$x] = "Kreditnota";
-		if ($ordrer_status[$x] == '1' && $ordrer_kred_id[$x] > '0') $opgstatus[$x] = "Kreditnota bekræftelse";
-		if ($ordrer_status[$x] == '2' && $ordrer_kred_id[$x] > '0') $opgstatus[$x] = "Kreditnota modtag";
+		if ($ordrer_status[$x] == '0') $opgstatus[$x] = findtekst('812|Tilbud', $sprog_id);
+		if ($ordrer_status[$x] == '1') $opgstatus[$x] = findtekst('575|Ordrebekræftelse', $sprog_id);
+		if ($ordrer_status[$x] == '2') $opgstatus[$x] = findtekst('1148|Levering', $sprog_id);
+		if ($ordrer_status[$x] == '0' && $ordrer_kred_id[$x] > '0') $opgstatus[$x] = findtekst('577|Kreditnota', $sprog_id);
+		if ($ordrer_status[$x] == '1' && $ordrer_kred_id[$x] > '0') $opgstatus[$x] = findtekst('2941|Kreditnotabekræftelse', $sprog_id);
+		if ($ordrer_status[$x] == '2' && $ordrer_kred_id[$x] > '0') $opgstatus[$x] = findtekst('2942|Kreditnota modtaget', $sprog_id);
 		//if ($ordrer_art[$x] == 'OT' && $ordrer_status[$x] == '0') {$opgstatus[$x] = "Original tilbud";$ordrer_color[$x] = "color:black;";}
 		$x++;
 	}
@@ -1472,7 +1473,7 @@ function vis_sag() {
 		//if ($ordrer_status[$x] == '0') $opgstatus[$x] = "Tilbud";
 		//if ($ordrer_status[$x] == '1') $opgstatus[$x] = "Ordrebekræftelse";
 		//if ($ordrer_status[$x] == '2') $opgstatus[$x] = "Levering";
-		if ($faktura_status[$x] >= '3') $faktstatus[$x] = "Fakture";
+		if ($faktura_status[$x] >= '3') $faktstatus[$x] = "Faktura";
 		$x++;
 	}
 	
@@ -1708,9 +1709,9 @@ function vis_sag() {
 	print "<table border=\"1\" style=\"width:100%\">
 						<tr>
 							<th>Sag id</th>
-							<th>Beskrivelse</th>
+							<th>".findtekst('675|Beskrivelse', $sprog_id)."</th>
 							<th>Gruppe</th> 
-							<th>Antal</th>
+							<th>".findtekst('916|Antal', $sprog_id)."</th>
 							<th>Procent</th>
 							<th>Ordrelinje pris</th>
 							<th>Samlet pris</th>
@@ -1762,7 +1763,7 @@ function vis_sag() {
 	
 	if (!$udf_addr1||!$udf_postnr||!$udf_bynavn) $ret_sag=1;
 	print "<div class=\"content\">\n";
-	print "<div class=\"vissaghoved\"><a href=\"sager.php?konto_id=$konto_id&amp;sag_id=$id&amp;funktion=ret_sag\" title=\"Ret oplysninger og status til sagen her!\"><span class=\"tableSagerEllipsis\" style=\"width:828px;\">Sag: $sagsnr - $beskrivelse - $udf_addr1, $udf_postnr $udf_bynavn</span></a></div>\n";
+	print "<div class=\"vissaghoved\"><a href=\"sager.php?konto_id=$konto_id&amp;sag_id=$id&amp;funktion=ret_sag\" title=\"".findtekst('2930|Ret oplysninger og status til sagen her', $sprog_id)."!\"><span class=\"tableSagerEllipsis\" style=\"width:828px;\">".findtekst('2792|Sag', $sprog_id).": $sagsnr - $beskrivelse - $udf_addr1, $udf_postnr $udf_bynavn</span></a></div>\n";
 	print "<!--<hr>-->
 	<table border=\"0\" cellspacing=\"0\" width=\"828\" class=\"tableSager\">
 	<colgroup>
@@ -1791,43 +1792,43 @@ function vis_sag() {
   </tbody>
 	<tbody>
 	<tr>
-		<td><p><b>Kunde:</b></p></td>
+		<td><p><b>".findtekst('35|Kunde', $sprog_id).":</b></p></td>
 		<td colspan=\"5\"><h4 style=\"color:#111;\">$firmanavn</h4></td>
-		<td colspan=\"3\"><span class=\"floatright\"><a class=\"button gray small\" title=\"Gå til kundekortet her!\" href=\"kunder.php?funktion=ret_kunde&amp;konto_id=$konto_id&amp;sag_id=$id\">Til kunde</a></span></td>
+		<td colspan=\"3\"><span class=\"floatright\"><a class=\"button gray small\" title=\"".findtekst('2908|Gå til kundekortet her', $sprog_id)."!\" href=\"kunder.php?funktion=ret_kunde&amp;konto_id=$konto_id&amp;sag_id=$id\">".findtekst('2909|Til kunde', $sprog_id)."</a></span></td>
 	</tr>\n";
 	if ($ansatte_id) {
 	print "
 	<tr>
 		<td>&nbsp;</td>
-		<td><p><b>Kontakt:</b> $ansatte_navn</p></td>
-		<td colspan=\"2\"><p><b>Tlf:</b> $ansatte_tlf</p></td>
-		<td colspan=\"5\"><p><b>Email:</b> $ansatte_email</p></td>
+		<td><p><b>".findtekst('398|Kontakt', $sprog_id).":</b> $ansatte_navn</p></td>
+		<td colspan=\"2\"><p><b>".findtekst('49|Tlf.', $sprog_id).":</b> $ansatte_tlf</p></td>
+		<td colspan=\"5\"><p><b>".findtekst('52|E-mail', $sprog_id).":</b> $ansatte_email</p></td>
 	</tr>\n";
 	} else {
 	print "
 	<tr>
 		<td>&nbsp;</td>
-		<td colspan=\"1\"><p><b>Tlf:</b> $kunde_tlf</p></td>
-		<td colspan=\"7\"><p><b>Email:</b> $kunde_email</p></td>
+		<td colspan=\"1\"><p><b>".findtekst('49|Tlf.', $sprog_id).":</b> $kunde_tlf</p></td>
+		<td colspan=\"7\"><p><b>".findtekst('52|E-mail', $sprog_id).":</b> $kunde_email</p></td>
 	</tr>\n";
 	}
 	print "
 	<!--<tr class=\"sagheader\"><td colspan=\"9\"><hr></td></tr>-->
 	<tr style=\"background-color:#f2f2f2;\">
-		<td valign=\"top\"><p style=\"margin:10px 0 10px 0;\"><b>Generelt for sagen:</b></p></td>
+		<td valign=\"top\"><p style=\"margin:10px 0 10px 0;\"><b>".findtekst('2916|Generelt for sagen', $sprog_id).":</b></p></td>
 		<td colspan=\"8\"><p style=\"margin:10px 0 10px 0;\">$omfang</p></td>
 	</tr>
 	<!--<tr class=\"sagheader\"><td colspan=\"9\"><hr></td></tr>-->
 	<tr>
-		<td><p><b>Ansvarlig:</b></p></td>
+		<td><p><b>".findtekst('2793|Ansvarlig', $sprog_id).":</b></p></td>
 		<td colspan=\"4\"><p>$ref&nbsp;</p></td>
-		<td rowspan=\"2\"><p><b>Status:</b></p></td>
+		<td rowspan=\"2\"><p><b>".findtekst('494|Status', $sprog_id).":</b></p></td>
 		<td rowspan=\"2\" colspan=\"3\"><p style=\"$statcolor\"><b>$status&nbsp;</b></p></td>
 	</tr>
 	<tr>
-		<td><p><b>Indtastet af:</b></p></td>
+		<td><p><b>".findtekst('2917|Indtastet af', $sprog_id).":</b></p></td>
 		<td><p>$oprettet_af&nbsp;</p></td>
-		<td colspan=\"3\"><p><b>Den:</b> $dato <b>kl.</b> $tid</p></td>
+		<td colspan=\"3\"><p><b>".findtekst('2918|Den', $sprog_id).":</b> $dato <b>".findtekst('2883|kl.', $sprog_id)."</b> $tid</p></td>
 		
 	</tr>\n";
 	
@@ -1840,8 +1841,8 @@ function vis_sag() {
 	$lonudgifter = "<span style=\"color:red;#font-size:13px;\">".dkdecimal($lonsum)."</span>";
 	$lonudgifterialt = "<span style=\"color:red;#font-size:13px;\">".dkdecimal($lonsumsocial)."</span>";
 	/*if ($fakturasum == 0) { #20161125
-		$daekningsgrad = "<i>ingen dækningsgrad</i>";
-		$daekningsbidrag = "<i>ingen dækningsbidrag</i>";
+		$daekningsgrad = "<i>".findtekst('2890|Ingen dækningsgrad', $sprog_id)."</i>";
+		$daekningsbidrag = "<i>".findtekst('2891|Ingen dækningsbidrag', $sprog_id)."</i>";
 	} else {*/
 		$daekningsbidragsum = $fakturasum-$lonsumsocial; // Dækningsbidrag beregnes
 		if ($daekningsbidragsum < 0) {
@@ -1860,7 +1861,7 @@ function vis_sag() {
 	//}
 	
 	print "<tr class=\"sagensomkostninger\">
-		<td colspan=\"9\"><a href=\"#\">Sagens omkostninger:</a></td> <!-- sagomkostning.php?sag_id=$id&amp;konto_id=$konto_id -->
+		<td colspan=\"9\"><a href=\"#\">".findtekst('2858|Sagens omkostninger', $sprog_id).":</a></td> <!-- sagomkostning.php?sag_id=$id&amp;konto_id=$konto_id -->
 	</tr>
 	<tr>
 		<td colspan=\"9\" align=\"center\">\n";
@@ -1876,7 +1877,7 @@ function vis_sag() {
 							
 		print "<table border=\"0\" cellspacing=\"0\" class=\"tableOmkostninger02\">
 						<tr>
-							<th colspan=\"2\">Tilbudspris</th>
+							<th colspan=\"2\">".findtekst('2859|Tilbudspris', $sprog_id)."</th>
 						</tr>";
 	for ($z=0;$z<$temp_tilbud_antal;$z++) {
 		print "<tr>
@@ -1886,16 +1887,16 @@ function vis_sag() {
 	}
 	if ($allrisk > 0) {
 		print "<tr>
-							<td>Allrisk</td>
+							<td>".findtekst('2860|Allrisk', $sprog_id)."</td>
 							<td style=\"text-align: right;\">".dkdecimal($allrisk)."</td>
 						</tr>";
 	}
 		print "<tr>
-							<td class=\"tableOmkostningerBorder\">Tilbudspris u. moms</td>
+							<td class=\"tableOmkostningerBorder\">".findtekst('2861|Tilbudspris u. moms', $sprog_id)."</td>
 							<td class=\"tableOmkostningerBorder\" style=\"text-align: right;\">$tilbudspris</td>
 						</tr>
 						<tr>
-							<td>Tilbudspris m. moms</td>
+							<td>".findtekst('2862|Tilbudspris m. moms', $sprog_id)."</td>
 							<td style=\"text-align: right;\">$tilbudsprismoms</td>
 						</tr>
 					</table>";
@@ -1905,7 +1906,7 @@ function vis_sag() {
 					
 		print "<table border=\"0\" cellspacing=\"0\" class=\"tableOmkostninger02\">
 						<tr>
-							<th colspan=\"2\">Faktureret</th>
+							<th colspan=\"2\">".findtekst('1264|Faktureret', $sprog_id)."</th>
 						</tr>";
 	
 	
@@ -1916,7 +1917,7 @@ function vis_sag() {
 					</tr>";
 	}
 		print "<tr>
-							<td class=\"tableOmkostningerBorder\">Faktureret ialt</td>
+							<td class=\"tableOmkostningerBorder\">".findtekst('2863|Faktureret i alt', $sprog_id)."</td>
 							<td class=\"tableOmkostningerBorder\" style=\"text-align: right;\">$faktureret</td>
 					</tr>";
 	print "</table>";
@@ -1926,14 +1927,14 @@ function vis_sag() {
 	
 	print "<table border=\"0\" cellspacing=\"0\" class=\"tableOmkostninger02\">
 						<tr>
-							<th colspan=\"2\">Lønudgifter</th>
+							<th colspan=\"2\">".findtekst('2864|Lønudgifter', $sprog_id)."</th>
 						</tr>
 						<tr>
-							<td>Lønudgifter u. sociale</td>
+							<td>".findtekst('2865|Lønudgifter u. sociale', $sprog_id)."</td>
 							<td style=\"text-align: right;\">$lonudgifter</td>
 						</tr>
 						<tr>
-							<td>Lønudgifter m. sociale</td>
+							<td>".findtekst('2866|Lønudgifter m. sociale', $sprog_id)."</td>
 							<td style=\"text-align: right;\">$lonudgifterialt</td>
 						</tr>
 					</table>";
@@ -1950,14 +1951,14 @@ function vis_sag() {
 					</colgroup>
 						<tr>
 							<td>&nbsp;</td>
-							<td style=\"text-align: center;\">Dækningsbidrag: $daekningsbidrag</td>
-							<td style=\"text-align: center;\">Dækningsgrad: $daekningsgrad</td>
+							<td style=\"text-align: center;\">".findtekst('2537|Dækningsbidrag', $sprog_id).": $daekningsbidrag</td>
+							<td style=\"text-align: center;\">".findtekst('2538|Dækningsgrad', $sprog_id).": $daekningsgrad</td>
 						</tr>
 					</table>";
 					
 	print "<table border=\"0\" cellspacing=\"0\" class=\"tableSagerBorder\" style=\"width:100%;\">
 						<tr>
-							<td><a class=\"button gray small\" title=\"klik her for at se den samlede akkordliste på sagen!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">Vis akkordlister</a></td>
+							<td><a class=\"button gray small\" title=\"".findtekst('2914|klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
 						</tr>
 					</table>";
 					
@@ -1965,20 +1966,20 @@ function vis_sag() {
 	print "<table border=\"0\" cellspacing=\"0\" width=\"100%\">
 				<tbody>
 					<tr>
-						<td align=\"left\"><p style=\"margin:10px 0 10px 0;\"><b>Tilbudspris u. moms: $tilbudspris kr.</b></p></td>
+						<td align=\"left\"><p style=\"margin:10px 0 10px 0;\"><b>".findtekst('2861|Tilbudspris u. moms', $sprog_id).": $tilbudspris kr.</b></p></td>
 						<td>&nbsp;</td>
-						<td align=\"right\"><p style=\"margin:10px 0 10px 0;\"><b>Lønudgifter u. sociale: $lonudgifter kr.</b></p></td>
+						<td align=\"right\"><p style=\"margin:10px 0 10px 0;\"><b>".findtekst('2865|Lønudgifter u. sociale', $sprog_id).": $lonudgifter kr.</b></p></td>
 					</tr>
 					<tr>
-						<td align=\"left\"><p style=\"margin:10px 0 10px 0;\"><b>Tilbudspris m. moms: $tilbudsprismoms kr.</b></p></td>
-						<td align=\"center\"><p style=\"margin:10px 0 10px 0;\"><b>Faktureret ialt: $faktureret kr.</b></p></td>
+						<td align=\"left\"><p style=\"margin:10px 0 10px 0;\"><b>".findtekst('2862|Tilbudspris m. moms', $sprog_id).": $tilbudsprismoms kr.</b></p></td>
+						<td align=\"center\"><p style=\"margin:10px 0 10px 0;\"><b>".findtekst('2863|Faktureret i alt', $sprog_id).": $faktureret kr.</b></p></td>
 						
-						<td align=\"right\"><p style=\"margin:10px 0 10px 0;\"><b>Lønudgifter m. sociale: $lonudgifterialt kr.</b></p></td>
+						<td align=\"right\"><p style=\"margin:10px 0 10px 0;\"><b>".findtekst('2866|Lønudgifter m. sociale', $sprog_id).": $lonudgifterialt kr.</b></p></td>
 					</tr>
 				</tbody>
 				<tbody>
 					<tr>
-						<td colspan=\"3\"><a class=\"button gray small\" title=\"klik her for at se den samlede akkordliste på sagen!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">Vis akkordlister</a></td>
+						<td colspan=\"3\"><a class=\"button gray small\" title=\"".findtekst('2914|klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
 					</tr>
 				</tbody>
 			</table>
@@ -1988,9 +1989,9 @@ function vis_sag() {
 	
 	/* // visning uden table
 	print "<tr>
-		<td colspan=\"2\"><p style=\"margin:10px 0 10px 0;\"><b>Tilbudspris: $tilbudspris kr.</b></p></td>
-		<td colspan=\"3\"><p style=\"margin:10px 0 10px 0;\"><b>Faktureret: $faktureret kr.</b></p></td>
-		<td colspan=\"4\"><p style=\"margin:10px 0 10px 0;\"><b>Lønudgifter: $lonudgifter kr.</b></p></td>
+		<td colspan=\"2\"><p style=\"margin:10px 0 10px 0;\"><b>".findtekst('2859|Tilbudspris', $sprog_id).": $tilbudspris kr.</b></p></td>
+		<td colspan=\"3\"><p style=\"margin:10px 0 10px 0;\"><b>".findtekst('1264|Faktureret', $sprog_id).": $faktureret kr.</b></p></td>
+		<td colspan=\"4\"><p style=\"margin:10px 0 10px 0;\"><b>".findtekst('2864|Lønudgifter', $sprog_id).": $lonudgifter kr.</b></p></td>
 	</tr>\n";
 	*/
 	if (!$kontrol_id[0]) print "<tr><td colspan=\"9\"><hr></td></tr>\n";
@@ -1999,13 +2000,13 @@ function vis_sag() {
 	//Her skal liste med kontrolskemaer vises
 	if ($kontrol_id[0]) {
 	print "<tbody><tr><td colspan=\"9\"><hr></td></tr>\n";
-	print "<tr><td colspan=\"9\"><p><b>Kontrol:</b></p></td></tr>"; 
+	print "<tr><td colspan=\"9\"><p><b>".findtekst('2823|Kontrol', $sprog_id).":</b></p></td></tr>"; 
 	print "<tr class=\"tableSagerHead\">
-						<td colspan=\"1\"><p>Skema</p></td>
-						<td colspan=\"3\"><p>Opgave</p></td>
-						<td colspan=\"1\"><p>Dato</p></td>
-						<td colspan=\"1\"><p>Tid</p></td>
-						<td colspan=\"3\"><p>Kontrolleret af</p></td>
+						<td colspan=\"1\"><p>".findtekst('2824|Skema', $sprog_id)."</p></td>
+						<td colspan=\"3\"><p>".findtekst('2800|Opgave', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('438|Dato', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('2825|Tid', $sprog_id)."</p></td>
+						<td colspan=\"3\"><p>".findtekst('2826|Kontrolleret af', $sprog_id)."</p></td>
 					</tr></tbody>";
 	print "<tbody class=\"tableSagerZebra\">";
 					
@@ -2028,15 +2029,15 @@ function vis_sag() {
 				}
 	print "<tbody>\n";
 	if (!$kontrol_id) {
-	print "<tr><td colspan=\"9\"><p><i><b>Opret skema til sagen her:</b></i></p></tr>\n";
-	print "<tr><td colspan=\"9\"><a class=\"button blue small\" title=\"klik her for at oprette kontrolskema til sagen\" href=\"kontrol_sager.php?sag_id=$id&amp;konto_id=$konto_id\">Opret skema</a></td></tr>\n";
+	print "<tr><td colspan=\"9\"><p><i><b>".findtekst('2827|Opret skema til sagen her', $sprog_id).":</b></i></p></tr>\n";
+	print "<tr><td colspan=\"9\"><a class=\"button blue small\" title=\"".findtekst('2931|Klik her for at oprette kontrolskema til sagen', $sprog_id)."\" href=\"kontrol_sager.php?sag_id=$id&amp;konto_id=$konto_id\">".findtekst('2828|Opret skema', $sprog_id)."</a></td></tr>\n";
 	} else {
-	print "<tr><td colspan=\"9\" class=\"tableSagerBorder\"><a class=\"button blue small\" title=\"klik her for at oprette et nyt kontrolskema til sagen\" href=\"kontrol_sager.php?sag_id=$id&amp;konto_id=$konto_id\">Nyt skema</a></td></tr>\n";
+	print "<tr><td colspan=\"9\" class=\"tableSagerBorder\"><a class=\"button blue small\" title=\"".findtekst('2932|Klik her for at oprette et nyt kontrolskema til sagen', $sprog_id)."\" href=\"kontrol_sager.php?sag_id=$id&amp;konto_id=$konto_id\">".findtekst('2829|Nyt skema', $sprog_id)."</a></td></tr>\n";
 	}
 	
 	
 	/*
-	print "<td  colspan=\"2\" align=\"right\"><p><b>Status:</b>
+	print "<td  colspan=\"2\" align=\"right\"><p><b>".findtekst('494|Status', $sprog_id).":</b>
 		<select name=\"status\">";
 		for($x=0;$x<count($tjek_id);$x++) {
 			if ($status==$tjek_fase[$x]) print "<option value=\"$tjek_fase[$x]\">$tjek_punkt[$x]</option>";
@@ -2047,7 +2048,7 @@ function vis_sag() {
 		print "</select></p></td> -->
 	</tr>
 <!--	<tr>
-		<td valign=\"top\"><p><a href=\"tilbud.php?konto_id=$konto_id&sag_id=$id\"><b>Tilbud:</b></a></p></td>
+		<td valign=\"top\"><p><a href=\"tilbud.php?konto_id=$konto_id&sag_id=$id\"><b>".findtekst('812|Tilbud', $sprog_id).":</b></a></p></td>
 	</tr> -->";
 */
 	
@@ -2064,28 +2065,28 @@ function vis_sag() {
 #		if ($status==$x || (is_numeric($vis_fase) && $vis_fase==$x)) {
 			//print "<tr><td><a href=\"sager.php?sag_id=$id&amp;funktion=kontrolskema&amp;sag_fase=$x\"><b>Kontrolskema</b></a></td></tr>"; # sag_fase i kontrolskema??
 			if ($ordrer_id[0]) { 
-				print "<tbody><tr><td colspan=\"9\"><p><b>Tilbud:</b></p></td></tr>";
+				print "<tbody><tr><td colspan=\"9\"><p><b>".findtekst('812|Tilbud', $sprog_id).":</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
-						<td colspan=\"1\"><p>Nummer</p></td>
-						<td colspan=\"1\"><p>Tilbuds nr</p></td>
-						<td colspan=\"2\"><p>Status</p></td>
-						<td colspan=\"1\"><p>Dato</p></td>
-						<td colspan=\"1\"><p>Tid</p></td>
-						<td colspan=\"3\"><p>Skrevet af</p></td>
+						<td colspan=\"1\"><p>".findtekst('2548|Nummer', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('2868|Tilbudsnr.', $sprog_id)."</p></td>
+						<td colspan=\"2\"><p>".findtekst('494|Status', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('438|Dato', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('2825|Tid', $sprog_id)."</p></td>
+						<td colspan=\"3\"><p>".findtekst('2830|Skrevet af', $sprog_id)."</p></td>
 					</tr></tbody>";
 					print "<tbody class=\"tableSagerZebra\">";
 					for ($y=0;$y<count($ordrer_id);$y++) {
 						$kopi = NULL;
 						if ($r=db_fetch_array(db_select("select * from ordrer where sag_id='$id' and status >= '3' and tilbudnr = '$ordrer_tilbudnr[$y]'",__FILE__ . " linje " . __LINE__))) { # Her tjekker vi om der er en faktura på det samme tilbudsnr
 							if ($r['tilbudnr'] && ($ordrer_art[$y]!='OT')) {
-								$kopi = "- <i>Kopi</i>";
+								$kopi = "- <i>".findtekst('2831|Kopi', $sprog_id)."</i>";
 								$ordrer_color[$y] = "color:green;";
 							} else {
 								$kopi = NULL;
 							}
 						}
 							print "<tr>
-								<td colspan=\"1\"><p><a href=\"../debitor/ordre.php?sag_id=$id&amp;konto_id=$ordrer_konto_id[$y]&amp;tjek=$ordrer_id[$y]&amp;id=$ordrer_id[$y]&amp;returside=sager\">Tilbud $ordrer_nr[$y]</a></p></td>
+								<td colspan=\"1\"><p><a href=\"../debitor/ordre.php?sag_id=$id&amp;konto_id=$ordrer_konto_id[$y]&amp;tjek=$ordrer_id[$y]&amp;id=$ordrer_id[$y]&amp;returside=sager\">".findtekst('812|Tilbud', $sprog_id)." $ordrer_nr[$y]</a></p></td>
 								<td colspan=\"1\"><p style=\"$ordrer_color[$y]\">$ordrer_tilbudnr[$y] $kopi</p></td>
 								<td colspan=\"2\"><p style=\"$ordrer_color[$y]\">$opgstatus[$y]</p></td>
 								<td colspan=\"1\"><p style=\"$ordrer_color[$y]\">$ordrer_dato[$y]</p></td>
@@ -2097,28 +2098,28 @@ function vis_sag() {
 				}
 				print "<tbody>\n";
 			if (!$ordrer_id[0]) {
-			print "<tr><td colspan=\"9\"><p><i><b>Opret tilbud til sagen her:</b></i></p></tr>\n";
-			print "<tr><td colspan=\"9\"><a class=\"button green small\" title=\"klik her for at oprette et tilbud til sagen\" href=\"../debitor/ordre.php?funktion=opret_ordre&amp;sag_id=$id&amp;konto_id=$konto_id&amp;returside=sager\">Opret Tilbud</a></td></tr>\n";
+			print "<tr><td colspan=\"9\"><p><i><b>".findtekst('2832|Opret tilbud til sagen her', $sprog_id).":</b></i></p></tr>\n";
+			print "<tr><td colspan=\"9\"><a class=\"button green small\" title=\"".findtekst('2933|Klik her for at oprette et tilbud til sagen', $sprog_id)."\" href=\"../debitor/ordre.php?funktion=opret_ordre&amp;sag_id=$id&amp;konto_id=$konto_id&amp;returside=sager\">".findtekst('2833|Opret Tilbud', $sprog_id)."</a></td></tr>\n";
 			} else {
-			print "<tr><td class=\"tableSagerBorder\" colspan=\"9\"><a class=\"button green small\" title=\"klik her for at oprette et nyt tilbud til sagen\" href=\"../debitor/ordre.php?funktion=opret_ordre&amp;sag_id=$id&amp;konto_id=$konto_id&amp;returside=sager\">Nyt Tilbud</a></td></tr>\n";
+			print "<tr><td class=\"tableSagerBorder\" colspan=\"9\"><a class=\"button green small\" title=\"".findtekst('2934|Klik her for at oprette et nyt tilbud til sagen', $sprog_id)."\" href=\"../debitor/ordre.php?funktion=opret_ordre&amp;sag_id=$id&amp;konto_id=$konto_id&amp;returside=sager\">".findtekst('2834|Nyt Tilbud', $sprog_id)."</a></td></tr>\n";
 			}
 			
 			print "<tr><td colspan=\"9\"><hr></td></tr>\n";
 			print "</tbody>\n";
 			if ($ot_id[0]) {
-				print "<tbody><tr><td colspan=\"9\"><p><b>Original tilbud:</b></p></td></tr>";
+				print "<tbody><tr><td colspan=\"9\"><p><b>".findtekst('1101|Originalt tilbud', $sprog_id).":</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
-						<td colspan=\"1\"><p>Nummer</p></td>
-						<td colspan=\"1\"><p>Tilbuds nr</p></td>
-						<td colspan=\"2\"><p>Status</p></td>
-						<td colspan=\"1\"><p>Dato</p></td>
-						<td colspan=\"1\"><p>Tid</p></td>
-						<td colspan=\"3\"><p>Skrevet af</p></td>
+						<td colspan=\"1\"><p>".findtekst('2548|Nummer', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('2868|Tilbudsnr.', $sprog_id)."</p></td>
+						<td colspan=\"2\"><p>".findtekst('494|Status', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('438|Dato', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('2825|Tid', $sprog_id)."</p></td>
+						<td colspan=\"3\"><p>".findtekst('2830|Skrevet af', $sprog_id)."</p></td>
 					</tr></tbody>";
 					print "<tbody class=\"tableSagerZebra\">";
 					for ($y=0;$y<count($ot_id);$y++) {
 							print "<tr>
-								<td colspan=\"1\"><p><a href=\"../debitor/ordre.php?sag_id=$id&amp;konto_id=$ot_konto_id[$y]&amp;tjek=$ot_id[$y]&amp;id=$ot_id[$y]&amp;returside=sager\">Original tilbud $ot_nr[$y]</a></p></td>
+								<td colspan=\"1\"><p><a href=\"../debitor/ordre.php?sag_id=$id&amp;konto_id=$ot_konto_id[$y]&amp;tjek=$ot_id[$y]&amp;id=$ot_id[$y]&amp;returside=sager\">".findtekst('1101|Originalt tilbud', $sprog_id)." $ot_nr[$y]</a></p></td>
 								<td colspan=\"1\"><p>$ot_tilbudnr[$y]</p></td>
 								<td colspan=\"2\"><p>$otstatus[$y]</p></td>
 								<td colspan=\"1\"><p>$ot_dato[$y]</p></td>
@@ -2133,20 +2134,20 @@ function vis_sag() {
 					print "</tbody>\n";
 			}
 			if ($faktura_id[0]) {
-				print "<tbody><tr><td colspan=\"9\"><p><b>Faktura:</b></p></td></tr>";
+				print "<tbody><tr><td colspan=\"9\"><p><b>".findtekst('643|Faktura', $sprog_id).":</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
-						<td colspan=\"1\"><p>Nummer</p></td>
-						<td colspan=\"1\"><p>Ordre nr</p></td>
-						<td colspan=\"2\"><p>Status</p></td>
-						<td colspan=\"1\"><p>Dato</p></td>
+						<td colspan=\"1\"><p>".findtekst('2548|Nummer', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('500|Ordrenr.', $sprog_id)."</p></td>
+						<td colspan=\"2\"><p>".findtekst('494|Status', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('438|Dato', $sprog_id)."</p></td>
 						<td colspan=\"1\"><p>&nbsp;</p></td>
-						<td colspan=\"3\"><p>Skrevet af</p></td>
+						<td colspan=\"3\"><p>".findtekst('2830|Skrevet af', $sprog_id)."</p></td>
 					</tr></tbody>";
 					print "<tbody class=\"tableSagerZebra\">";
 					for ($y=0;$y<count($faktura_id);$y++) {
 							print "<tr>
-								<td colspan=\"1\"><p><a href=\"../debitor/ordre.php?sag_id=$id&amp;konto_id=$faktura_konto_id[$y]&amp;tjek=$faktura_id[$y]&amp;id=$faktura_id[$y]&amp;returside=sager\">Faktura $faktura_fakturanr[$y]</a></p></td>
-								<td colspan=\"1\"><p>$faktura_tilbudnr[$y] - <i>fra Tilbud $faktura_tilbud_nr[$y]</i></p></td>
+								<td colspan=\"1\"><p><a href=\"../debitor/ordre.php?sag_id=$id&amp;konto_id=$faktura_konto_id[$y]&amp;tjek=$faktura_id[$y]&amp;id=$faktura_id[$y]&amp;returside=sager\">".findtekst('643|Faktura', $sprog_id)." $faktura_fakturanr[$y]</a></p></td>
+								<td colspan=\"1\"><p>$faktura_tilbudnr[$y] - <i>".findtekst('2835|fra Tilbud', $sprog_id)." $faktura_tilbud_nr[$y]</i></p></td>
 								<td colspan=\"2\"><p>$faktstatus[$y]</p></td>
 								<td colspan=\"1\"><p>$faktura_dato[$y]</p></td>
 								<td colspan=\"1\"><p>&nbsp;</p></td>
@@ -2160,20 +2161,20 @@ function vis_sag() {
 					print "</tbody>\n";
 			}
 			if ($kreditnota_id[0]) {
-				print "<tbody><tr><td colspan=\"9\"><p><b>Kreditnota:</b></p></td></tr>";
+				print "<tbody><tr><td colspan=\"9\"><p><b>".findtekst('577|Kreditnota', $sprog_id).":</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
-						<td colspan=\"1\"><p>Nummer</p></td>
-						<td colspan=\"1\"><p>Ordre nr</p></td>
-						<td colspan=\"2\"><p>Status</p></td>
-						<td colspan=\"1\"><p>Dato</p></td>
+						<td colspan=\"1\"><p>".findtekst('2548|Nummer', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('500|Ordrenr.', $sprog_id)."</p></td>
+						<td colspan=\"2\"><p>".findtekst('494|Status', $sprog_id)."</p></td>
+						<td colspan=\"1\"><p>".findtekst('438|Dato', $sprog_id)."</p></td>
 						<td colspan=\"1\"><p>&nbsp;</p></td>
-						<td colspan=\"3\"><p>Skrevet af</p></td>
+						<td colspan=\"3\"><p>".findtekst('2830|Skrevet af', $sprog_id)."</p></td>
 					</tr></tbody>";
 					print "<tbody class=\"tableSagerZebra\">";
 					for ($y=0;$y<count($kreditnota_id);$y++) {
 							print "<tr>
-								<td colspan=\"1\"><p><a href=\"../debitor/ordre.php?sag_id=$id&amp;konto_id=$konto_id&amp;tjek=$kreditnota_id[$y]&amp;id=$kreditnota_id[$y]&amp;returside=sager\">Kreditnota $kreditnota_fakturanr[$y]</a></p></td>
-								<td colspan=\"1\"><p>$kreditnota_tilbudnr[$y] - <i>fra Tilbud $kreditnota_tilbud_nr[$y]</i></p></td>
+								<td colspan=\"1\"><p><a href=\"../debitor/ordre.php?sag_id=$id&amp;konto_id=$konto_id&amp;tjek=$kreditnota_id[$y]&amp;id=$kreditnota_id[$y]&amp;returside=sager\">".findtekst('577|Kreditnota', $sprog_id)." $kreditnota_fakturanr[$y]</a></p></td>
+								<td colspan=\"1\"><p>$kreditnota_tilbudnr[$y] - <i>".findtekst('2835|fra Tilbud', $sprog_id)." $kreditnota_tilbud_nr[$y]</i></p></td>
 								<td colspan=\"2\"><p>$kreditnotastatus[$y]</p></td>
 								<td colspan=\"1\"><p>$kreditnota_dato[$y]</p></td>
 								<td colspan=\"1\"><p>&nbsp;</p></td>
@@ -2188,15 +2189,15 @@ function vis_sag() {
 			}
 			if ($bilag_id) {
 				print "<tbody>\n";
-				print "<tr><td colspan=\"9\"><p><b>Bilag:</b></p></td></tr>";
+				print "<tr><td colspan=\"9\"><p><b>".findtekst('671|Bilag', $sprog_id).":</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
-					<td colspan=\"1\"><p>Filnavn</p></td>
-					<td colspan=\"1\"><p>Beskrivelse</p></td>
-					<td colspan=\"1\"><p>Fase</p></td>
-					<td colspan=\"1\"><p>Kategori</p></td>
-					<td colspan=\"1\"><p>Dato</p></td>
-					<td colspan=\"1\"><p>Tid</p></td>
-					<td colspan=\"3\"><p>Tilf&oslash;jet af</p></td>
+					<td colspan=\"1\"><p>".findtekst('2706|Filnavn', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('675|Beskrivelse', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('2836|Fase', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('2837|Kategori', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('438|Dato', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('2825|Tid', $sprog_id)."</p></td>
+					<td colspan=\"3\"><p>".findtekst('2838|Tilføjet af', $sprog_id)."</p></td>
 				</tr>";
 				print "</tbody>\n";
 				print "<tbody class=\"tableSagerZebra\">\n";
@@ -2210,10 +2211,10 @@ function vis_sag() {
 							<td colspan=\"1\"><p>".date("d-m-Y",$bilag_datotid[$y])."</p></td>
 							<td colspan=\"1\"><p>$bilag_tidspkt[$y]</p></td>
 							<td colspan=\"1\" title=\"$bilag_hvem[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:80px;\">$bilag_hvem[$y]&nbsp;</p></td>";
-							print "<td colspan=\"1\" title=\"Ret fase, kategori og tilknyt bilag til kontrolskema\"><a href=\"bilag_sager.php?kilde=sager&amp;sag_id=$id&amp;konto_id=$konto_id&amp;kilde_id=$id&amp;bilag_id=$bilag_id[$y]\" class=\"cross\"></a></td>\n";
+							print "<td colspan=\"1\" title=\"".findtekst('2841|Ret fase, kategori og tilknyt bilag til kontrolskema', $sprog_id)."\"><a href=\"bilag_sager.php?kilde=sager&amp;sag_id=$id&amp;konto_id=$konto_id&amp;kilde_id=$id&amp;bilag_id=$bilag_id[$y]\" class=\"cross\"></a></td>\n";
 							//if (($bilag_datotid[$y]+3600>date("U") && $bilag_hvem[$y]==$brugernavn) || $bilag_hvem[$y]=='') {
-								print "<td colspan=\"1\" title=\"Klik her for at slette dette bilag\">
-								<a href=\"sager.php?funktion=vis_sag&amp;sag_id=$id&amp;slet_bilag=$bilag_id[$y]\" class=\"xmark\" onclick=\"return confirm('Vil du slette bilag: $bilag_beskrivelse[$y]?')\"></a>
+								print "<td colspan=\"1\" title=\"".findtekst('2839|Klik her for at slette dette bilag', $sprog_id)."\">
+								<a href=\"sager.php?funktion=vis_sag&amp;sag_id=$id&amp;slet_bilag=$bilag_id[$y]\" class=\"xmark\" onclick=\"return confirm('".findtekst('2840|Vil du slette bilag', $sprog_id).": $bilag_beskrivelse[$y]?')\"></a>
 								</td>";
 							//} else {
 								//print "<td colspan=\"1\" width=\"18\">&nbsp;</td>";
@@ -2227,24 +2228,24 @@ function vis_sag() {
 			}
 			print "<tbody>\n";
 			if (!$bilag_id) {
-			print "<tr><td colspan=\"9\"><p><i><b>Opret bilag til sagen her:</b></i></p></tr>\n";
-			print "<tr><td colspan=\"9\"><a class=\"button blue small\" title=\"klik her for at vedh&aelig;fte et bilag\" href=\"bilag_sager.php?kilde=sager&amp;ny=ja&amp;kilde_id=$id&amp;sag_id=$id&amp;konto_id=$konto_id&amp;fase=$x\">Opret bilag</a></td></tr>\n";
+			print "<tr><td colspan=\"9\"><p><i><b>".findtekst('2842|Opret bilag til sagen her', $sprog_id).":</b></i></p></tr>\n";
+			print "<tr><td colspan=\"9\"><a class=\"button blue small\" title=\"".findtekst('1455|Klik her for at vedhæfte et bilag', $sprog_id)."\" href=\"bilag_sager.php?kilde=sager&amp;ny=ja&amp;kilde_id=$id&amp;sag_id=$id&amp;konto_id=$konto_id&amp;fase=$x\">".findtekst('2843|Opret bilag', $sprog_id)."</a></td></tr>\n";
 			} else {
-			print "<tr><td class=\"tableSagerBorder\" colspan=\"9\"><a class=\"button blue small\" title=\"klik her for at vedh&aelig;fte et bilag\" href=\"bilag_sager.php?kilde=sager&amp;ny=ja&amp;kilde_id=$id&amp;sag_id=$id&amp;konto_id=$konto_id&amp;fase=$x\">Nyt bilag</a>
-			<a class=\"button gray small textSpaceSmall\" title=\"klik her for at se alle bilag fra sagen\" href=\"view_bilag_sager.php?sag_id=$id\" target=\"blank\">Vis alle</a></td></tr>\n";
+			print "<tr><td class=\"tableSagerBorder\" colspan=\"9\"><a class=\"button blue small\" title=\"".findtekst('1455|Klik her for at vedhæfte et bilag', $sprog_id)."\" href=\"bilag_sager.php?kilde=sager&amp;ny=ja&amp;kilde_id=$id&amp;sag_id=$id&amp;konto_id=$konto_id&amp;fase=$x\">".findtekst('2844|Nyt bilag', $sprog_id)."</a>
+			<a class=\"button gray small textSpaceSmall\" title=\"".findtekst('2915|Klik her for at se alle bilag fra sagen', $sprog_id)."\" href=\"view_bilag_sager.php?sag_id=$id\" target=\"blank\">".findtekst('636|Vis alle', $sprog_id)."</a></td></tr>\n";
 			}
 			print "<tr><td colspan=\"9\"><hr></td></tr></tbody>\n";
 			if ($notat_id[0]) {
-				print "<tbody><tr><td colspan=\"9\"><p><b>Noter:</b></p></td></tr>\n";
+				print "<tbody><tr><td colspan=\"9\"><p><b>".ucfirst(findtekst('1888|noter', $sprog_id)).":</b></p></td></tr>\n";
 				print "<tr style=\"background:lightgray;\">
-					<td colspan=\"1\"><p>Overskrift</p></td>
-					<td colspan=\"1\"><p>Status</p></td>
-					<td colspan=\"1\"><p>Fase</p></td>
-					<td colspan=\"1\"><p>Kategori</p></td>
-					<td colspan=\"1\"><p>Dato</p></td>
-					<td colspan=\"1\"><p>Tid</p></td>
-					<td colspan=\"3\"><p>Skrevet af</p></td>
-					<!--<td colspan=\"1\"><p>Notat</p></td>-->
+					<td colspan=\"1\"><p>".findtekst('1195|Overskrift', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('494|Status', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('2836|Fase', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('2837|Kategori', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('438|Dato', $sprog_id)."</p></td>
+					<td colspan=\"1\"><p>".findtekst('2825|Tid', $sprog_id)."</p></td>
+					<td colspan=\"3\"><p>".findtekst('2830|Skrevet af', $sprog_id)."</p></td>
+					<!--<td colspan=\"1\"><p>".findtekst('2881|Notat', $sprog_id)."</p></td>-->
 				</tr>\n";
 				print "</tbody>\n";
 				print "<tbody class=\"tableSagerZebra\">";
@@ -2252,8 +2253,8 @@ function vis_sag() {
 	#cho "$notat_fase[$y]==$x<br>";
 	#				if ($notat_fase[$y]==$x) {
 					$stat = "";
-					if (!$notat_status[$y]) $stat = "Kladde";
-					elseif (!$notat_status[$y]==1) $stat = "Afventer læsning";
+					if (!$notat_status[$y]) $stat = findtekst('1087|Kladde', $sprog_id);
+					elseif (!$notat_status[$y]==1) $stat = findtekst('2910|Ulæst', $sprog_id);
 					else $stat = "OK";
 						print "<tr>
 							<td colspan=\"1\" title=\"$notat_title[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:120px;\"><a href=\"notat.php?id=$notat_id[$y]&amp;konto_id=$konto_id\">$notat_beskrivelse[$y]</a></p></td>
@@ -2265,12 +2266,12 @@ function vis_sag() {
 							<td colspan=\"1\" title=\"$notat_hvem[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:80px;\">$notat_hvem[$y]</p></td>
 							<td colspan=\"1\">&nbsp;</td>\n";
 							if ($notat_datotid[$y]+3600>date("U") && $notat_status[$y]==1) {
-							print "<td colspan=\"1\" title=\"Klik her for at slette notatet fra sagen\">
-								<a href=\"sager.php?funktion=vis_sag&amp;sag_id=$id&amp;unlink_notat=$notat_id[$y]\" class=\"xmark\" onclick=\"return confirm('Vil du slette notatet fra sagen?')\"></a>
+							print "<td colspan=\"1\" title=\"".findtekst('2845|Klik her for at slette notatet fra sagen', $sprog_id)."\">
+								<a href=\"sager.php?funktion=vis_sag&amp;sag_id=$id&amp;unlink_notat=$notat_id[$y]\" class=\"xmark\" onclick=\"return confirm('".findtekst('2846|Vil du slette notatet fra sagen', $sprog_id)."?')\"></a>
 								</td>\n";
 							} elseif (!$notat_status[$y]) {
-							print "<td colspan=\"1\" title=\"Klik her for at slette notatet fra sagen\">
-								<a href=\"sager.php?funktion=vis_sag&amp;sag_id=$id&amp;unlink_notat=$notat_id[$y]\" class=\"xmark\" onclick=\"return confirm('Vil du slette notatet fra sagen?')\"></a>
+							print "<td colspan=\"1\" title=\"".findtekst('2845|Klik her for at slette notatet fra sagen', $sprog_id)."\">
+								<a href=\"sager.php?funktion=vis_sag&amp;sag_id=$id&amp;unlink_notat=$notat_id[$y]\" class=\"xmark\" onclick=\"return confirm('".findtekst('2846|Vil du slette notatet fra sagen', $sprog_id)."?')\"></a>
 								</td>\n";
 							} else {
 								print "<td colspan=\"1\">&nbsp;</td>";
@@ -2283,10 +2284,10 @@ function vis_sag() {
 			}
 			print "<tbody>\n";
 			if (!$notat_id[0]) {
-			print "<tr><td colspan=\"9\"><p><i><b>Opret notat til sagen her:</b></i></p></tr>\n";
-			print "<tr><td colspan=\"9\"><a class=\"button blue small\" title=\"klik her for at oprettet et notat til sagen\" href=\"../sager/notat.php?sag_id=$id&amp;sag_fase=$x&amp;konto_id=$konto_id\">Opret notat</a></td></tr>\n";
+			print "<tr><td colspan=\"9\"><p><i><b>".findtekst('2847|Opret notat til sagen her', $sprog_id).":</b></i></p></tr>\n";
+			print "<tr><td colspan=\"9\"><a class=\"button blue small\" title=\"".findtekst('2935|Klik her for at oprette et notat til sagen', $sprog_id)."\" href=\"../sager/notat.php?sag_id=$id&amp;sag_fase=$x&amp;konto_id=$konto_id\">".findtekst('2848|Opret notat', $sprog_id)."</a></td></tr>\n";
 			} else {
-			print "<tr><td class=\"tableSagerBorder\" colspan=\"9\"><a class=\"button blue small\" title=\"klik her for at oprettet et notat til sagen\" href=\"../sager/notat.php?sag_id=$id&amp;sag_fase=$x&amp;konto_id=$konto_id\">Nyt notat</a></td></tr>\n";
+			print "<tr><td class=\"tableSagerBorder\" colspan=\"9\"><a class=\"button blue small\" title=\"".findtekst('2935|Klik her for at oprette et notat til sagen', $sprog_id)."\" href=\"../sager/notat.php?sag_id=$id&amp;sag_fase=$x&amp;konto_id=$konto_id\">".findtekst('2849|Nyt notat', $sprog_id)."</a></td></tr>\n";
 			}
 			print "</tbody>\n";
 #		} 
@@ -2294,18 +2295,18 @@ function vis_sag() {
 	if ($opgave_id[0]) {
 		print "<tbody>\n";
 		print "<tr><td colspan=\"9\"><hr></td></tr>\n";
-		print "<tr><td colspan=\"9\"><p><b>Opgaver:</b></p></td></tr>\n";
+		print "<tr><td colspan=\"9\"><p><b>".findtekst('2869|Opgaver', $sprog_id).":</b></p></td></tr>\n";
 		print "<tr class=\"tableSagerHead\">
-						<td colspan=\"1\"><p>Opgave navn</p></td>
-						<td colspan=\"3\"><p>Beskrivelse</p></td>
-						<td colspan=\"2\"><p>Status</p></td>
-						<td colspan=\"3\"><p>Oprettet af</p></td>
+						<td colspan=\"1\"><p>".findtekst('2850|Opgavenavn', $sprog_id)."</p></td>
+						<td colspan=\"3\"><p>".findtekst('675|Beskrivelse', $sprog_id)."</p></td>
+						<td colspan=\"2\"><p>".findtekst('494|Status', $sprog_id)."</p></td>
+						<td colspan=\"3\"><p>".findtekst('958|Oprettet af', $sprog_id)."</p></td>
 					</tr>";
 		print "</tbody>\n";
 		
 		print "<tbody class=\"tableSagerZebra\">\n";
 	for ($x=0;$x<count($opgave_id);$x++) {
-		print "<tr><td colspan=\"1\"><p><a href=\"sager.php?sag_id=$id&amp;opgave_id=$opgave_id[$x]&amp;konto_id=$konto_id&amp;funktion=ret_opgave\">Opgave $opgave_nr[$x]</a></p></td>\n";
+		print "<tr><td colspan=\"1\"><p><a href=\"sager.php?sag_id=$id&amp;opgave_id=$opgave_id[$x]&amp;konto_id=$konto_id&amp;funktion=ret_opgave\">".findtekst('2800|Opgave', $sprog_id)." $opgave_nr[$x]</a></p></td>\n";
 		print "<td colspan=\"3\" title=\"$opgave_beskrivelse[$x]\"><p class=\"tableSagerEllipsis\" style=\"max-width:418px;\">$opgave_beskrivelse[$x]</p></td>\n";
 		print "<td colspan=\"2\"><p style=\"$opgcolor[$x]\">$opgave_status[$x]&nbsp;</p></td>\n";
 		print "<td colspan=\"3\" title=\"$opgave_oprettet_af[$x]\"><p class=\"tableSagerEllipsis\" style=\"max-width:118px;\">$opgave_oprettet_af[$x]&nbsp;</p></td>\n";
@@ -2421,8 +2422,8 @@ function ret_opgave($sag_id) {
 	$kontakt_id=$r['id'];
 	$kontakt_telefon=$r['mobil'];
 	$kontakt_email=$r['email'];
-	(!$kontakt_telefon)?$kontakt_telefon='<i>Ingen telefonnummer</i>':$kontakt_telefon;
-	(!$kontakt_email)?$kontakt_email='<i>Ingen emailadresse</i>':$kontakt_email;
+	(!$kontakt_telefon)?$kontakt_telefon='<i>'.findtekst('2856|Intet telefonnummer', $sprog_id).'</i>':$kontakt_telefon;
+	(!$kontakt_email)?$kontakt_email='<i>'.findtekst('2857|Ingen e-mailadresse', $sprog_id).'</i>':$kontakt_email;
 	
 	// Query til status
 	$x=0;
@@ -2480,24 +2481,24 @@ function ret_opgave($sag_id) {
 			<div style=\"float:left; margin-right:70px; width:379px;\">
 			<div class=\"contentA\">
 			<div class=\"row\">
-					<div class=\"left\">Opgave nr:</div>
+					<div class=\"left\">".findtekst('2870|Opgavenr.', $sprog_id).":</div>
 					<div class=\"right\"><b>$opgave_nr</b></div>
 					<div class=\"clear\"></div>
 			</div>";
 			if($opgave_id) {
 			print "<div class=\"row\">
-					<div class=\"left\">Oprettet:</div>
+					<div class=\"left\">".findtekst('65|Oprettet', $sprog_id).":</div>
 					<div class=\"right\">d.$opgave_dato kl. $opgave_tid</div>
 					<div class=\"clear\"></div>
 			</div>
 			<div class=\"row\">
-					<div class=\"left\">Oprettet af:</div>
+					<div class=\"left\">".findtekst('2884|Oprettet af', $sprog_id).":</div>
 					<div class=\"right\">$opgave_oprettet_af</div>
 					<div class=\"clear\"></div>
 			</div>";
 			}
 			print "<div class=\"row\">
-					<div class=\"left\">Beskrivelse:</div> 
+					<div class=\"left\">".findtekst('675|Beskrivelse', $sprog_id).":</div> 
 					<div class=\"right\"><input class=\"text\" type=\"text\" name=\"opgave_beskrivelse\" value=\"$opgave_beskrivelse\"></div>
 					<div class=\"clear\"></div>
 			</div>
@@ -2506,7 +2507,7 @@ function ret_opgave($sag_id) {
 		<div style=\"float:left; width:379px;\">
 			<div class=\"contentA\">
 			<div class=\"row\">
-					<div class=\"left\">Status</div>
+					<div class=\"left\">".findtekst('494|Status', $sprog_id)."</div>
 					<div class=\"right\"><select onchange=\"this.className=this.options[this.selectedIndex].className\" style=\"width:194px;\" class=\"$statcolor\" name=\"opgave_status\">";
 		for($y=0;$y<=count($opg_status);$y++) {
 			if ($opgave_status==$opg_status[$y]) print "<option class=\"$color[$y]\" value=\"$opg_status[$y]\">$opg_status[$y]</option>";
@@ -2524,26 +2525,26 @@ function ret_opgave($sag_id) {
 		<div class=\"clear\"></div>
 		<hr>
 		<div style=\"float:left; width:828px;\">
-			<h3>Planlægnings information til opgave:</h3>
+			<h3>".findtekst('2885|Planlægningsinformation til opgave', $sprog_id).":</h3>
 		</div><!-- end of full container -->
 		<div class=\"clear\"></div>
 		<div style=\"float:left; margin-right:70px; width:379px;\">
 			<div class=\"contentA\">
-				<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>Her tastes den planlagte start og slut dato for opgaven, som vises i planlægningsskemaet</i></p></div>
+				<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>".findtekst('2886|Her tastes den planlagte start- og slutdato for opgaven, som vises i planlægningsskemaet', $sprog_id)."</i></p></div>
 			</div><!-- end of contentA -->
 			<div class=\"clear\"></div>
 			<div class=\"contentA\">
 				<div class=\"row\">
-					<div class=\"left\">Start / Slut: </div>
+					<div class=\"left\">".findtekst('2871|Start / Slut', $sprog_id).": </div>
 					<div class=\"rightSmall\"><input name=\"opgave_planfra\" id=\"opgave_planfra\" type=\"text\" class=\"textMedium\" value=\"$opgave_planfra\"/></div>
 					<div class=\"rightSmall\"><input name=\"opgave_plantil\" id=\"opgave_plantil\" type=\"text\" class=\"textMedium\" value=\"$opgave_plantil\"/></div>
 					<div class=\"clear\"></div>
 				</div>
 				<div class=\"row\">
-					<div class=\"left\">Vis som:</div>
-					<div class=\"right\"><input type=\"radio\" name=\"opgave_tilknyttil\" value=\"montage\" checked><span style=\"color:#09B109;vertical-align:top;padding:0 25px 0 5px;\">Montage</span><input type=\"radio\" name=\"opgave_tilknyttil\" value=\"demontage\" $checked1><span style=\"color:#DE0C0C;vertical-align:top;padding:0 0 0 5px\">Demontage</span></div>
+					<div class=\"left\">".findtekst('2887|Vis som', $sprog_id).":</div>
+					<div class=\"right\"><input type=\"radio\" name=\"opgave_tilknyttil\" value=\"montage\" checked><span style=\"color:#09B109;vertical-align:top;padding:0 25px 0 5px;\">".findtekst('2872|Montage', $sprog_id)."</span><input type=\"radio\" name=\"opgave_tilknyttil\" value=\"demontage\" $checked1><span style=\"color:#DE0C0C;vertical-align:top;padding:0 0 0 5px\">".findtekst('2873|Demontage', $sprog_id)."</span></div>
 					<div class=\"left\">&nbsp;</div>
-					<div class=\"right\"><input type=\"radio\" name=\"opgave_tilknyttil\" value=\"andet\" $checked2><span style=\"color:#DE6B0C;vertical-align:top;padding:0 25px 0 5px;\">Andet</span></div>
+					<div class=\"right\"><input type=\"radio\" name=\"opgave_tilknyttil\" value=\"andet\" $checked2><span style=\"color:#DE6B0C;vertical-align:top;padding:0 25px 0 5px;\">".findtekst('630|Andet', $sprog_id)."</span></div>
 					<div class=\"clear\"></div>
 				</div>
 			</div><!-- end of contentA -->
@@ -2552,8 +2553,8 @@ function ret_opgave($sag_id) {
 			print "<div style=\"float:left; width:379px;\">
 				<div class=\"contentA\">
 					<div class=\"row\">
-						<div style=\"float:left; padding:5px 0px 0px 7px;\"><p>Den planlagte dato for sagen er:</p></div>
-						<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;\">Start: <span style=\"color:#cd3300;\">$sag_planfraop</span> - Slut: <span style=\"color:#cd3300;\">$sag_plantilop</span></p><br></div>
+						<div style=\"float:left; padding:5px 0px 0px 7px;\"><p>".findtekst('2888|Den planlagte dato for sagen er', $sprog_id).":</p></div>
+						<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;\">".findtekst('2493|Start', $sprog_id).": <span style=\"color:#cd3300;\">$sag_planfraop</span> - ".findtekst('2494|Slut', $sprog_id).": <span style=\"color:#cd3300;\">$sag_plantilop</span></p><br></div>
 						<div class=\"clear\"></div>
 					</div>
 				</div><!-- end of contentA -->
@@ -2562,7 +2563,7 @@ function ret_opgave($sag_id) {
 			print "<div style=\"float:left; width:379px;\">
 				<div class=\"contentA\">
 					<div class=\"row\">
-						<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>Der er ingen planlagt start og slut dato for sagen</i></p></div>
+						<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>".findtekst('2889|Der er ingen planlagt start- og slutdato for sagen', $sprog_id)."</i></p></div>
 						<div class=\"clear\"></div>
 					</div>
 				</div><!-- end of contentA -->
@@ -2572,9 +2573,9 @@ function ret_opgave($sag_id) {
 			<div class=\"contentA\">
 				<div class=\"row\">
 					<div style=\"float:left; padding:5px 0px 0px 7px;\"><p>Den planlagte dato for montage er:</p></div>
-					<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;\">Start: <span style=\"color:#cd3300;\">$sag_planfraop</span> - Slut: <span style=\"color:#cd3300;\">$sag_plantilop</span></p><br></div>
+					<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;\">".findtekst('2493|Start', $sprog_id).": <span style=\"color:#cd3300;\">$sag_planfraop</span> - ".findtekst('2494|Slut', $sprog_id).": <span style=\"color:#cd3300;\">$sag_plantilop</span></p><br></div>
 					<div style=\"float:left; padding:5px 0px 0px 7px;\"><p>Den planlagte dato for demontage er:</p></div>
-					<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;\">Start: <span style=\"color:#cd3300;\">$sag_planfraned</span> - Slut: <span style=\"color:#cd3300;\">$sag_plantilned</span></p></div>
+					<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;\">".findtekst('2493|Start', $sprog_id).": <span style=\"color:#cd3300;\">$sag_planfraned</span> - ".findtekst('2494|Slut', $sprog_id).": <span style=\"color:#cd3300;\">$sag_plantilned</span></p></div>
 					<div class=\"clear\"></div>
 				</div>
 			</div><!-- end of contentA -->
@@ -2594,14 +2595,14 @@ function ret_opgave($sag_id) {
 		<div class=\"contentAB\">
 		
 			<!--<div class=\"row\">
-					<div class=\"left\">Beskrivelse:</div> 
+					<div class=\"left\">".findtekst('675|Beskrivelse', $sprog_id).":</div> 
 					<div class=\"right\"><input style=\"width:350px\" type=\"text\" name=\"del_opgave_beskrivelse\" value=\"\"></div>
 					<div class=\"clear\"></div>
 			</div>-->";
 			
 			// Skal være dynamisk. Skal kunne oprette nye omfang med priser og start/slut dato
 			print "<div class=\"row\">
-				<div class=\"left\">Omfang:</div>
+				<div class=\"left\">".findtekst('2874|Omfang', $sprog_id).":</div>
 				<div class=\"right\"><textarea cols=\"78\" rows=\"3\" style=\"min-width:679px;max-width:679px;\" name=\"opgave_omfang\">$opgave_omfang</textarea></div>
 				<div class=\"clear\"></div>
 			</div>
@@ -2618,7 +2619,7 @@ function ret_opgave($sag_id) {
 			</div>-->
 			
 			<div class=\"row\">
-				<div class=\"left\">Kontakt:</div>"; 
+				<div class=\"left\">".findtekst('398|Kontakt', $sprog_id).":</div>"; 
 				print "<div class=\"right\"><select style=\"width:194px;\" id=\"opgave_kontakt\" name=\"opgave_kontakt\">\n";
 					for ($x=0;$x<count($k_kontakt);$x++) {
 						if ($opgave_kontakt==$k_kontakt[$x]) print "<option value=\"$k_kontakt[$x]\">$k_kontakt[$x]&nbsp;</option>\n";	
@@ -2633,7 +2634,7 @@ function ret_opgave($sag_id) {
 			if($kontakt_id){
 			print "
 			<div class=\"row\">
-				<div class=\"left\">Kontakt Tlf:</div>
+				<div class=\"left\">".findtekst('2875|Kontakt tlf.', $sprog_id).":</div>
 				<div class=\"right\">$kontakt_telefon</div>
 				<div class=\"clear\"></div>
 			</div>
@@ -2647,7 +2648,7 @@ function ret_opgave($sag_id) {
 				<div class=\"clear\"></div>
 			</div>
 			<div class=\"row\">
-				<div class=\"left\">Kontakt email:</div>
+				<div class=\"left\">".findtekst('2876|Kontakt e-mail', $sprog_id).":</div>
 				<div class=\"right\">$kontakt_email</div>
 				<div class=\"clear\"></div>
 			</div>";
@@ -2659,7 +2660,7 @@ function ret_opgave($sag_id) {
 		/*if ($opgave_id) {
 			print "<hr>\n";
 			if ($tilbud_id) {
-				print "<p><b>Opgave tilbud:</b></p>\n";
+				print "<p><b>".findtekst('2912|Opgavetilbud', $sprog_id).":</b></p>\n";
 			}
 			print "<div class=\"contentA\">\n";
 			print "<table border=\"0\" cellspacing=\"0\" width=\"808\">\n";
@@ -2667,10 +2668,10 @@ function ret_opgave($sag_id) {
 					
 					print "<tr class=\"tableSagerHead\">
 							<td colspan=\"1\"><p>Overskrift</p></td>
-							<td colspan=\"1\"><p>Tilbuds nr</p></td>
-							<td colspan=\"1\" width=\"75\"><p>Dato</p></td>
-							<td colspan=\"1\"><p>Tid</p></td>
-							<td colspan=\"1\"><p>Skrevet af</p></td>
+							<td colspan=\"1\"><p>".findtekst('2868|Tilbudsnr.', $sprog_id)."</p></td>
+							<td colspan=\"1\" width=\"75\"><p>".findtekst('438|Dato', $sprog_id)."</p></td>
+							<td colspan=\"1\"><p>".findtekst('2825|Tid', $sprog_id)."</p></td>
+							<td colspan=\"1\"><p>".findtekst('2830|Skrevet af', $sprog_id)."</p></td>
 							<td colspan=\"1\">&nbsp;</td>
 						</tr>";
 						print "<tbody class=\"tableSagerZebra\">";
@@ -2687,10 +2688,10 @@ function ret_opgave($sag_id) {
 					}
 					print "<tbody>\n";
 				if (!$tilbud_id) {
-				print "<tr><td colspan=\"6\"><p><i><b>Opret tilbud til opgaven her:</b></i></p></tr>\n";
-				print "<tr><td colspan=\"6\" title=\"klik her for at oprette et tilbud til opgaven\"><p><a class=\"button green small\" href=\"../sager/tilbud.php?sag_id=$sag_id&amp;konto_id=$konto_id&amp;opgave_id=$opgave_id\">Opret Tilbud</a></p></td></tr>\n";
+				print "<tr><td colspan=\"6\"><p><i><b>".findtekst('2913|Opret tilbud til opgaven her', $sprog_id).":</b></i></p></tr>\n";
+				print "<tr><td colspan=\"6\" title=\"klik her for at oprette et tilbud til opgaven\"><p><a class=\"button green small\" href=\"../sager/tilbud.php?sag_id=$sag_id&amp;konto_id=$konto_id&amp;opgave_id=$opgave_id\">".findtekst('2833|Opret Tilbud', $sprog_id)."</a></p></td></tr>\n";
 				} else {
-				print "<tr><td class=\"tableSagerBorder\" colspan=\"6\" title=\"klik her for at oprette et nyt tilbud til opgaven\"><p><a class=\"button green small\" href=\"../sager/tilbud.php?sag_id=$sag_id&amp;konto_id=$konto_id&amp;opgave_id=$opgave_id&amp;nyt_tilbud=0\">Nyt Tilbud</a></p></td></tr>\n";
+				print "<tr><td class=\"tableSagerBorder\" colspan=\"6\" title=\"klik her for at oprette et nyt tilbud til opgaven\"><p><a class=\"button green small\" href=\"../sager/tilbud.php?sag_id=$sag_id&amp;konto_id=$konto_id&amp;opgave_id=$opgave_id&amp;nyt_tilbud=0\">".findtekst('2834|Nyt Tilbud', $sprog_id)."</a></p></td></tr>\n";
 				}
 			print "</tbody></table>\n";
 			print "</div><!-- end of contentA -->\n";
@@ -2698,8 +2699,9 @@ function ret_opgave($sag_id) {
 			}*/
 		print "<hr>
 		<div class=\"contentA\">
-			<input class=\"button gray medium\" type=\"submit\" name=\"opdater\" value=\"Opdater\">";
-			print "<input class=\"button rosy medium\" style=\"float:right\" type=\"submit\" name=\"slet_opgave\" value=\"Slet opgave\" onclick=\"return confirm('Vil du slette denne opgave?');\">
+			<input class=\"button gray medium\" type=\"submit\" name=\"opdater\" value=\"".findtekst('898|Opdatér', $sprog_id)."\">";
+#			<input class=\"button gray medium\" type=\"submit\" name=\"opdater\" value=".findtekst('898|Opdatér', $sprog_id).">";
+			print "<input class=\"button rosy medium\" style=\"float:right\" type=\"submit\" name=\"slet_opgave\" value=\"".findtekst('2877|Slet opgave', $sprog_id)."\" onclick=\"return confirm('".findtekst('2878|Vil du slette denne opgave', $sprog_id)."?');\">
 		</div><!-- end of contentA -->";
 	print "</form>\n";
 	print "</div><!-- end of content -->\n";
@@ -2771,9 +2773,9 @@ function ret_sag() {
 		*/
 		if (!is_numeric($sagsnr))
 		{
-			$messages = "Skal være et tal";
+			$messages = findtekst('2911|Skal være et tal', $sprog_id);
 		} elseif ($r=db_fetch_array(db_select("SELECT id FROM sager WHERE sagsnr='$sagsnr' AND id != '$id'",__FILE__ . " linje " . __LINE__))){
-			$messages = "Sagsnummer eksisterer i forvejen ";
+			$messages = findtekst('2943|Sagsnummer eksisterer i forvejen', $sprog_id)." ";
 		} else {
 			if ($udf_postnr && !$udf_bynavn) $udf_bynavn=bynavn($udf_postnr);	
 			db_modify("update sager set sagsnr='$sagsnr',beskrivelse='$beskrivelse',omfang='$omfang',udf_firmanavn='$udf_firmanavn',udf_addr1='$udf_addr1',udf_addr2='$udf_addr2',udf_postnr='$udf_postnr',udf_bynavn='$udf_bynavn',kontakt='$kontakt',status='$status',ref='$ref',kunde_ref_nr='$kunde_ref_nr',planfraop='$planfraop',plantilop='$plantilop',planfraned='$planfraned',plantilned='$plantilned',beregn_opret='$beregnopret',beregn_tilbud='$beregntilbud',beregner='$beregner',beregn_beskrivelse='$beregn_beskrivelse' where id = '$id'",__FILE__ . " linje " . __LINE__);
@@ -2884,8 +2886,8 @@ function ret_sag() {
 	$kontakt_id=$r['id'];
 	$kontakt_telefon=$r['mobil'];
 	$kontakt_email=$r['email'];
-	(!$kontakt_telefon)?$kontakt_telefon='<i>Ingen telefonnummer</i>':$kontakt_telefon;
-	(!$kontakt_email)?$kontakt_email='<i>Ingen emailadresse</i>':$kontakt_email;
+	(!$kontakt_telefon)?$kontakt_telefon='<i>'.findtekst('2856|Intet telefonnummer', $sprog_id).'</i>':$kontakt_telefon;
+	(!$kontakt_email)?$kontakt_email='<i>'.findtekst('2857|Ingen e-mailadresse', $sprog_id).'</i>':$kontakt_email;
 	
 	// Query til ansvarlig
 	$x=0;
@@ -2912,8 +2914,8 @@ function ret_sag() {
 	$kunde_email=$r['email'];
 	$kunde_tlf_chk=$r['tlf'];
 	$kunde_email_chk=$r['email'];
-	(!$kunde_tlf)?$kunde_tlf='<i>Ingen telefonnummer</i>':$kunde_tlf;
-	(!$kunde_email)?$kunde_email='<i>Ingen emailadresse</i>':$kunde_email;
+	(!$kunde_tlf)?$kunde_tlf='<i>'.findtekst('2856|Intet telefonnummer', $sprog_id).'</i>':$kunde_tlf;
+	(!$kunde_email)?$kunde_email='<i>'.findtekst('2857|Ingen e-mailadresse', $sprog_id).'</i>':$kunde_email;
 	
 	/*
 	// Query til status
@@ -2967,21 +2969,21 @@ function ret_sag() {
 	//echo "Status $sag_status[$x]";
 	print "
 	<div style=\"float:left; margin-right:70px; width:379px;\" class=\"printSagsnrBox\">
-		<h3 class=\"printHeadlineSagInfo\" >Sags information:</h3>
+		<h3 class=\"printHeadlineSagInfo\" >".findtekst('2817|Sagsinformation', $sprog_id).":</h3>
 		<div class=\"contentA\">
 			<div class=\"row printDisplayNone\">
-				<div class=\"left \">Sagsnr</div>
+				<div class=\"left \">".findtekst('2819|Sagsnr.', $sprog_id)."</div>
 				<div class=\"right \"><input type=\"text\" class=\"text textIndent\" id=\"sagsnr\" name=\"sagsnr\" value=\"$sagsnr\"/><i style=\"color:red;\">$messages&nbsp;</i></div>
 				<div class=\"clear\"></div>
 			</div>
-			<div class=\"contentNone printSagsnr\">Sagsnr: <span class=\"printSagsnrTxt\">$sagsnr</span></div>
+			<div class=\"contentNone printSagsnr\">".findtekst('2819|Sagsnr.', $sprog_id).": <span class=\"printSagsnrTxt\">$sagsnr</span></div>
 		</div><!-- end of contentA -->
 	</div><!-- end of left container -->
 	<div style=\"float:left; width:379px;\">
 		<h3>&nbsp;</h3>
 		<div class=\"contentA\">
 			<div class=\"row\">
-				<div class=\"left\">Ansvarlig</div>";
+				<div class=\"left\">".findtekst('2793|Ansvarlig', $sprog_id)."</div>";
 							print "<div class=\"right\"><select style=\"width:194px;\" id=\"ref\" name=\"ref\" class=\"printSelect3 printSagInfoBg\">\n";
 							for ($x=0;$x<=count($ansvarlig);$x++) {
 								if ($ref==$ansvarlig[$x]) print "<option value=\"$ansvarlig[$x]\">$ansvarlig[$x]&nbsp;</option>\n";	
@@ -2993,7 +2995,7 @@ function ret_sag() {
 				</div>
 			</div>
 			<div class=\"row\">
-				<div class=\"left\">Status</div>";
+				<div class=\"left\">".findtekst('494|Status', $sprog_id)."</div>";
 							print "<div class=\"right\"><select onchange=\"this.className=this.options[this.selectedIndex].className\" style=\"width:194px;\" class=\"$statcolor printSelect3\" id=\"status\" name=\"status\">\n";
 							for($y=0;$y<count($sag_status);$y++) {
 								if ($status==$sag_status[$y]) print "<option class=\"$color[$y]\" value=\"$sag_status[$y]\">$sag_status[$y]</option>\n";
@@ -3013,21 +3015,21 @@ function ret_sag() {
 	<div class=\"clear\"></div>
 	<hr>
 	<div style=\"float:left; width:828px;\">
-		<h3>Planlægnings information:</h3>
+		<h3>".findtekst('2892|Planlægningsinformation', $sprog_id).":</h3>
 		<div class=\"contentA\">
-			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>Her tastes informationer til beregning, som vises under planlægning</i></p></div>
+			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>".findtekst('2893|Her tastes informationer til beregning, som vises under planlægning', $sprog_id)."</i></p></div>
 		</div><!-- end of contentA -->
 	</div><!-- end of full container -->
 	<div class=\"clear\"></div>
 	<div style=\"float:left; margin-right:70px; width:379px;\">
 		<div class=\"contentA\">
 			<div class=\"row\">
-				<div class=\"left\">Sag oprettet: </div>
+				<div class=\"left\">".findtekst('2919|Sag oprettet', $sprog_id).": </div>
 				<div class=\"rightSmall\"><input name=\"beregn_opret\" id=\"beregn_opret\" type=\"text\" class=\"textMedium textIndent printSagInfoText\" value=\"$beregn_opret\"/></div>
 				<div class=\"clear\"></div>
 			</div>
 			<div class=\"row\">
-				<div class=\"left\">Tilbud gives:</div>
+				<div class=\"left\">".findtekst('2920|Tilbud gives', $sprog_id).":</div>
 				<div class=\"rightSmall\"><input name=\"beregn_tilbud\" id=\"beregn_tilbud\" type=\"text\" class=\"textMedium textIndent printSagInfoText\" value=\"$beregn_tilbud\"/></div>
 				<div class=\"clear\"></div>
 			</div>
@@ -3036,7 +3038,7 @@ function ret_sag() {
 	<div style=\"float:left; width:379px;\">
 		<div class=\"contentA\">
 			<div class=\"row\">
-				<div class=\"left\">Beregner</div>";
+				<div class=\"left\">".findtekst('2921|Beregner', $sprog_id)."</div>";
 							print "<div class=\"right\"><select style=\"width:194px;\" id=\"beregner\" name=\"beregner\" class=\"printSelect3\">\n";
 							for ($x=0;$x<=count($ansvarlig);$x++) {
 								if ($beregner==$ansvarlig[$x]) print "<option value=\"$ansvarlig[$x]\">$ansvarlig[$x]&nbsp;</option>\n";	
@@ -3048,7 +3050,7 @@ function ret_sag() {
 				</div>
 			</div>
 			<div class=\"row\">
-				<div class=\"left\">Beskrivelse</div>
+				<div class=\"left\">".findtekst('675|Beskrivelse', $sprog_id)."</div>
 				<div class=\"right\"><input type=\"text\" class=\"text textIndent printSagInfoText\" id=\"beregn_beskrivelse\" name=\"beregn_beskrivelse\" value=\"$beregn_beskrivelse\"/></div>
 				<div class=\"clear\"></div>
 			</div>
@@ -3056,7 +3058,7 @@ function ret_sag() {
 	</div><!-- end of right container -->";
 		if ($beregn_opret) {
 			print "<div class=\"contentA printDisplayNone\" style=\"float:right;\">
-				<a href=\"planlaeg_beregning.php\" class=\"button gray small\">Planlæg beregning</a>
+				<a href=\"planlaeg_beregning.php\" class=\"button gray small\">".findtekst('2894|Planlæg beregning', $sprog_id)."</a>
 			</div><!-- end of full container -->\n";
 		}
 		print "<input type=\"hidden\" name=\"planfraop\" value=\"$planfraop\"><input type=\"hidden\" name=\"plantilop\" value=\"$plantilop\">"; // fra planlaeg_sager
@@ -3066,21 +3068,21 @@ function ret_sag() {
 	<div class=\"clear\"></div>
 	<hr>
 	<div style=\"float:left; width:828px;\">
-		<h3>Planlægnings information:</h3>
+		<h3>".findtekst('2892|Planlægningsinformation', $sprog_id).":</h3>
 		<div class=\"contentA\">
-			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>Her tastes den planlagte start og slut dato for sagen, som vises under planlægning</i></p></div>
+			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>".findtekst('2886|Her tastes den planlagte start- og slut dato for sagen, som vises under planlægning', $sprog_id)."</i></p></div>
 		</div><!-- end of contentA -->
 	</div><!-- end of full container -->
 	<div class=\"clear\"></div>
 	<div style=\"float:left; margin-right:70px; width:379px;\">
 		<div class=\"contentA\">
 			<div class=\"left\"></div>
-			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;color:#cd3300;\">Løbetid for hele sagen</p></div>
+			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;color:#cd3300;\">".findtekst('2896|Løbetid for hele sagen', $sprog_id)."</p></div>
 		</div><!-- end of contentA -->
 		<div class=\"clear\"></div>
 		<div class=\"contentA\">
 			<div class=\"row\">
-				<div class=\"left\">Start / Slut: </div>
+				<div class=\"left\">".findtekst('2871|Start / Slut', $sprog_id).": </div>
 				<div class=\"rightSmall\"><input name=\"planfraop\" id=\"planfraop\" type=\"text\" class=\"textMedium textIndent printSagInfoText\" value=\"$planfraop\"/></div>
 				<div class=\"rightSmall\"><input name=\"plantilop\" id=\"plantilop\" type=\"text\" class=\"textMedium textIndent printSagInfoText\" value=\"$plantilop\"/></div>
 				<div class=\"clear\"></div>
@@ -3090,7 +3092,7 @@ function ret_sag() {
 		if ($planfraop) {
 			print "<div style=\"float:left; width:379px;\">
 				<div class=\"contentA printDisplayNone\" style=\"float:right;padding-top:55px;\">
-					<a href=\"planlaeg_sager.php\" class=\"button gray small\">Planlæg sager</a>
+					<a href=\"planlaeg_sager.php\" class=\"button gray small\">".findtekst('2897|Planlæg sager', $sprog_id)."</a>
 				</div><!-- end of contentA -->
 			</div><!-- end of right container -->\n";
 		}
@@ -3113,7 +3115,7 @@ function ret_sag() {
 		<div class=\"clear\"></div>
 		<div class=\"contentA\">
 			<div class=\"row\">
-				<div class=\"left\">Start / Slut: </div>
+				<div class=\"left\">".findtekst('2871|Start / Slut', $sprog_id).": </div>
 				<div class=\"rightSmall\"><input name=\"planfraned\" id=\"planfraned\" type=\"text\" class=\"textMedium\" value=\"$planfraned\"/></div>
 				<div class=\"rightSmall\"><input name=\"plantilned\" id=\"plantilned\" type=\"text\" class=\"textMedium\" value=\"$plantilned\"/></div>
 				<div class=\"clear\"></div>
@@ -3124,21 +3126,21 @@ function ret_sag() {
 	<div class=\"clear\"></div>
 	<hr>
 	<div style=\"float:left; width:828px;\">
-		<h3>Planlægnings information:</h3>
+		<h3>".findtekst('2892|Planlægningsinformation', $sprog_id).":</h3>
 		<div class=\"contentA\">
-			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>Her tastes den planlagte start og slut dato for montage og demontage af stilladset, som vises i planlægningsskemaet</i></p></div>
+			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>".findtekst('2898|Her tastes den planlagte start- og slut dato for montage og demontage af stilladset, som vises i planlægningsskemaet', $sprog_id)."</i></p></div>
 		</div><!-- end of contentA -->
 	</div><!-- end of full container -->
 	<div class=\"clear\"></div>
 	<div style=\"float:left; margin-right:70px; width:379px;\">
 		<div class=\"contentA\">
 			<div class=\"left\"></div>
-			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;color:#cd3300;\">Montage</p></div>
+			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p style=\"font-size:14px;color:#cd3300;\">".findtekst('2872|Montage', $sprog_id)."</p></div>
 		</div><!-- end of contentA -->
 		<div class=\"clear\"></div>
 		<div class=\"contentA\">
 			<div class=\"row\">
-				<div class=\"left\">Start / Slut: </div>
+				<div class=\"left\">".findtekst('2871|Start / Slut', $sprog_id).": </div>
 				<div class=\"rightSmall\"><input name=\"planfraop\" id=\"planfraop\" type=\"text\" class=\"textMedium\" value=\"$planfraop\"/></div>
 				<div class=\"rightSmall\"><input name=\"plantilop\" id=\"plantilop\" type=\"text\" class=\"textMedium\" value=\"$plantilop\"/></div>
 				<div class=\"clear\"></div>
@@ -3153,7 +3155,7 @@ function ret_sag() {
 		<div class=\"clear\"></div>
 		<div class=\"contentA\">
 			<div class=\"row\">
-				<div class=\"left\">Start / Slut: </div>
+				<div class=\"left\">".findtekst('2871|Start / Slut', $sprog_id).": </div>
 				<div class=\"rightSmall\"><input name=\"planfraned\" id=\"planfraned\" type=\"text\" class=\"textMedium\" value=\"$planfraned\"/></div>
 				<div class=\"rightSmall\"><input name=\"plantilned\" id=\"plantilned\" type=\"text\" class=\"textMedium\" value=\"$plantilned\"/></div>
 				<div class=\"clear\"></div>
@@ -3165,10 +3167,10 @@ function ret_sag() {
 	<div class=\"clear\"></div>
 	<hr>";
 	print "<div style=\"float:left; margin-right:70px; width:379px;#background-color:lightgreen;\">
-		<h3>Opstillings information:</h3>
+		<h3>".findtekst('2922|Opstillingsinformation', $sprog_id).":</h3>
 		<div class=\"contentA\">
 				<div class=\"row\">
-						<div class=\"left\">Stilladstype</div>";
+						<div class=\"left\">".findtekst('2923|Stilladstype', $sprog_id)."</div>";
 							print "<div class=\"right\"><select style=\"width:194px;\" id=\"beskrivelse\" name=\"beskrivelse\" class=\"printSelect3\">\n";
 							for ($x=0;$x<count($sTypes);$x++) {
 								if ($beskrivelse==$sTypes[$x]) print "<option value=\"$sTypes[$x]\">$sTypes[$x]&nbsp;</option>\n";
@@ -3182,22 +3184,22 @@ function ret_sag() {
 						print "<div class=\"clear\"></div>
 				</div>
 				<!--<div class=\"row\">
-						<div class=\"left\">Firmanavn</div>
+						<div class=\"left\">".findtekst('28|Firmanavn', $sprog_id)."</div>
 						<div class=\"right\"><input type=\"text\" class=\"text\" id=\"udf_firmanavn\" name=\"udf_firmanavn\" value=\"$udf_firmanavn\"/></div>
 						<div class=\"clear\"></div>
 				</div>-->
 				<div class=\"row\">
-						<div class=\"left\">Adresse</div>
+						<div class=\"left\">".findtekst('140|Adresse', $sprog_id)."</div>
 						<div class=\"right\"><input type=\"text\" class=\"text textIndent printSagInfoText\" id=\"udf_addr1\" name=\"udf_addr1\" value=\"$udf_addr1\"/></div>
 						<div class=\"clear\"></div>
 				</div>
 				<div class=\"row\">
-						<div class=\"left\">Adresse 2</div>
+						<div class=\"left\">".findtekst('649|Adresse 2', $sprog_id)."</div>
 						<div class=\"right\"><input type=\"text\" class=\"text textIndent printSagInfoText\" id=\"udf_addr2\" name=\"udf_addr2\" value=\"$udf_addr2\"/></div>
 						<div class=\"clear\"></div>
 				</div>
 				<div class=\"row\">
-						<div class=\"left\">Postnr. &amp; by</div>
+						<div class=\"left\">".findtekst('666|Postnr. & by', $sprog_id)."</div>
 						<div class=\"right\"><input type=\"text\" class=\"textSmall textIndent printSagInfoText\" id=\"udf_postnr\" name=\"udf_postnr\" value=\"$udf_postnr\"/><input type=\"text\" class=\"textMediumLarge textSpace textIndent printSagInfoText\" id=\"udf_bynavn\" name=\"udf_bynavn\" value=\"$udf_bynavn\"/></div>
 						<div class=\"clear\"></div>
 				</div>
@@ -3206,17 +3208,17 @@ function ret_sag() {
 <div class=\"clear\"></div>";
 print "<hr>
 	<div style=\"float:left; margin-right:70px; width:379px;\">
-		<h3>Kunde information:</h3>
+		<h3>".findtekst('2924|Kundeinformation', $sprog_id).":</h3>
 		<div class=\"contentAB\" style=\"#background-color:lightblue;\">
 				<div class=\"row\">
-						<div class=\"left\">Kunde:</div>
+						<div class=\"left\">".findtekst('35|Kunde', $sprog_id).":</div>
 						<div class=\"right printSagInfoIndent\"><b>$firmanavn</b></div>
 						<div class=\"clear\"></div>
 				</div>";
 				if($kunde_tlf_chk || $kunde_email_chk) {
 				print "
 				<div class=\"row\">
-						<div class=\"left\">Kunde Tlf:</div>
+						<div class=\"left\">".findtekst('2925|Kunde tlf.', $sprog_id).":</div>
 						<div class=\"right printSagInfoIndent\">$kunde_tlf</div>
 						<div class=\"clear\"></div>
 				</div>";
@@ -3228,14 +3230,14 @@ print "<hr>
 		<h3>&nbsp;</h3>
 		<div class=\"contentAB\">
 				<div class=\"row\">
-					<div class=\"left\">Kunde ref. nr.</div>
+					<div class=\"left\">".findtekst('2926|Kunde ref. nr.', $sprog_id)."</div>
 					<div class=\"right\"><input type=\"text\" class=\"text textIndent printSagInfoText\" id=\"kunde_ref_nr\" name=\"kunde_ref_nr\" value=\"$kunde_ref_nr\"/></div>
 					<div class=\"clear\"></div>
 				</div>";
 				if($kunde_tlf_chk || $kunde_email_chk) {
 				print "
 				<div class=\"row\">
-						<div class=\"left\">Kunde email:</div>
+						<div class=\"left\">".findtekst('2927|Kunde e-mail', $sprog_id).":</div>
 						<div class=\"right printSagInfoIndent\">$kunde_email</div>
 						<div class=\"clear\"></div>
 				</div>";
@@ -3246,7 +3248,7 @@ print "<hr>
 	<div style=\"float:left; width:828px;\">
 		<div class=\"contentAA\" style=\"width: 808px;#background-color:red;\">
 				<div class=\"row\">
-						<div class=\"left\">Generelt for sagen:</div>
+						<div class=\"left\">".findtekst('2916|Generelt for sagen', $sprog_id).":</div>
 						<div class=\"right\"><textarea rows=\"3\" cols=\"76\" style=\"min-width:681px;max-width:681px;\" class=\"textArea printSagInfoTextArea\" name=\"omfang\">$omfang</textarea></div>
 						<div class=\"clear\"></div>
 				</div>
@@ -3255,7 +3257,7 @@ print "<hr>
 	<div style=\"float:left; margin-right:70px; width:379px;\">
 		<div class=\"contentBA\">
 				<div class=\"row\">
-						<div class=\"left\">Kontakt:</div>";
+						<div class=\"left\">".findtekst('398|Kontakt', $sprog_id).":</div>";
 						print "<div class=\"right\"><select style=\"width:194px;\" id=\"kontakt\" name=\"kontakt\" class=\"printSelect3\">\n";
 						for ($x=0;$x<=count($k_kontakt);$x++) {
 							if ($kontakt==$k_kontakt[$x]) print "<option value=\"$k_kontakt[$x]\">$k_kontakt[$x]&nbsp;</option>\n";	
@@ -3272,7 +3274,7 @@ print "<hr>
 				if($kontakt_id){
 			print "
 			<div class=\"row\">
-				<div class=\"left\">Kontakt Tlf:</div>
+				<div class=\"left\">".findtekst('2875|Kontakt tlf.', $sprog_id).":</div>
 				<div class=\"right printSagInfoIndent\">$kontakt_telefon</div>
 				<div class=\"clear\"></div>
 			</div>
@@ -3286,7 +3288,7 @@ print "<hr>
 				<div class=\"clear\"></div>
 			</div>
 			<div class=\"row\">
-				<div class=\"left\">Kontakt email:</div>
+				<div class=\"left\">".findtekst('2876|Kontakt e-mail', $sprog_id).":</div>
 				<div class=\"right printSagInfoIndent\">$kontakt_email</div>
 				<div class=\"clear\"></div>
 			</div>\n";
@@ -3299,14 +3301,14 @@ print "<hr>
 		$r=db_fetch_array(db_select("SELECT * FROM ansatte WHERE sag_id = '$id'",__FILE__ . " linje " . __LINE__));#  WHERE sag_id = '$id'
 		$check_ansat_id=$r['id'];
 		if ($check_ansat_id) {
-			print "<h3>Kontaktpersoner til sagen</h3>
+			print "<h3>".findtekst('2880|Kontaktpersoner til sagen', $sprog_id)."</h3>
 			<div class=\"contentkontakt\">
 			<ul><li>
-				<span class=\"pos\" title=\"\"><b>Pos.</b></span>
-				<span class=\"kontakt\"><b>Kontakt</b></span>
-				<span class=\"lokal\" title=\"\"><b>Direkte/lokal</b></span>
-				<span class=\"mobil\"><b>Mobil</b></span>
-				<span class=\"email\"><b>E-mail</b></span>
+				<span class=\"pos\" title=\"\"><b>".findtekst('394|Pos.', $sprog_id)."</b></span>
+				<span class=\"kontakt\"><b>".findtekst('398|Kontakt', $sprog_id)."</b></span>
+				<span class=\"lokal\" title=\"\"><b>".findtekst('400|Direkte/lokal', $sprog_id)."</b></span>
+				<span class=\"mobil\"><b>".findtekst('401|Mobil', $sprog_id)."</b></span>
+				<span class=\"email\"><b>".findtekst('52|E-mail', $sprog_id)."</b></span>
 			</li></ul>
 			<ul class=\"contentkontaktbody contentkontaktborder printSagInfo\">\n";
 			$x=0;
@@ -3337,7 +3339,7 @@ print "<hr>
 			print "$href".findtekst(669,$sprog_id)."<!--tekst 669--></a>\n";
 			print "</div>\n";
 		} else {
-			print "<h3 class=\"printDisplayNone\">Opret kontaktperson her</h3>\n";
+			print "<h3 class=\"printDisplayNone\">".findtekst('2928|Opret kontaktperson her', $sprog_id)."</h3>\n";
 			print "<div class=\"contentA\" style=\"float:left;\">\n";
 			//if (strpos($_SERVER['PHP_SELF'],"kunder.php")) $href="<a href=\"kunder.php?konto_id=$id&amp;ansat_id=0&amp;funktion=ret_kunde_ansat\" class=\"button blue small\">";
 			$href="<a href=\"sager.php?konto_id=$konto_id&amp;sag_id=$id&amp;funktion=sag_kontakt\" class=\"button blue small printDisplayNone\">";
@@ -3348,9 +3350,9 @@ print "<hr>
 	print "<div class=\"clear\"></div>
 	<hr class=\"printDisplayNone\">
 	<div class=\"contentA\">
-		<input class=\"button gray medium printDisplayNone\" type=\"submit\" name=\"opdater\" value=\"Opdater\">";
+		<input class=\"button gray medium printDisplayNone\" type=\"submit\" name=\"opdater\" value=\"".findtekst('898|Opdatér', $sprog_id)."\">";
 	if (!$noter && !$tjekpunkter && !$bilag) { #skal laves om. flere ting er på en sag nu f. eks opgaver, ordre...
-		print "<input class=\"button rosy medium printDisplayNone\" style=\"float:right\" type=\"submit\" name=\"slet_sag\" value=\"Slet sag\" onclick=\"return confirm('Vil du slette denne sag?');\">
+		print "<input class=\"button rosy medium printDisplayNone\" style=\"float:right\" type=\"submit\" name=\"slet_sag\" value=\"".findtekst('2953|Slet sag', $sprog_id)."\" onclick=\"return confirm('".findtekst('2899|Vil du slette denne sag', $sprog_id)."?');\">
 		</div><!-- end of contentA -->";
 	} else {
 		print "</div><!-- end of contentA -->\n";
@@ -3623,9 +3625,9 @@ function kopi_ordre() {
 			<table border=\"0\" cellspacing=\"0\" width=\"828\">
 				<thead>
 					<tr>
-						<th width=\"100\">Sagsnr</th>
-						<th width=\"225\">Kunde</th>
-						<th width=\"385\">Opstillings adresse</th>
+						<th width=\"100\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
+						<th width=\"225\">".findtekst('35|Kunde', $sprog_id)."</th>
+						<th width=\"385\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</th>
 						<th colspan=\"3\">&nbsp;</th>
 					</tr>
 				</thead>
@@ -3637,7 +3639,7 @@ function kopi_ordre() {
 						<td><input class=\"textinput ordre_kopi_adresse\" type=\"text\" value=\"\" id=\"ordre_kopi_adresse\" name=\"ordre_kopi_adresse\" tabindex=\"3\"/></td>
 						<td style=\"padding:0px;\"><input type=\"hidden\" class=\"id\" value=\"\" name=\"sag_id\"></td>
 						<td style=\"padding:0px;\"><input type=\"hidden\" class=\"konto_id\" value=\"\" name=\"konto_id\"><input type=\"hidden\" value=\"opret_ordre_kopi\" name=\"funktion\"><input type=\"hidden\"  value=\"$ordre_id\" name=\"ordre_id\"></td>   
-						<td align=\"center\"><input type=\"submit\" value=\"Kopi til sag\" name=\"findsag\" class=\"button gray small\" tabindex=\"4\"></td>
+						<td align=\"center\"><input type=\"submit\" value=\"".findtekst('2815|Kopi til sag', $sprog_id)."\" name=\"findsag\" class=\"button gray small\" tabindex=\"4\"></td>
 						
 					</tr>
 				</tbody>
@@ -3645,12 +3647,12 @@ function kopi_ordre() {
 			</form>
 			<form name=\"sagliste\" action=\"sager.php?funktion=kopi_ordre\" method=\"post\">
 				<div style=\"height:25px;padding:10px 12px 0 12px;#background-color:#f2f2f2;\">
-					<span style=\"float:left;width:260px;\"><a href=\"sager.php?funktion=kopi_ordre&amp;unsetsort=unset&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"button gray small\">Slet sortering</a></span>
-					<span style=\"#text-align:center;\"><h3><i><b>Vælg sag som tilbud skal kopieres til!</b></i></h3></span>\n";
+					<span style=\"float:left;width:260px;\"><a href=\"sager.php?funktion=kopi_ordre&amp;unsetsort=unset&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>
+					<span style=\"#text-align:center;\"><h3><i><b>".findtekst('2900|Vælg sag som tilbud skal kopieres til', $sprog_id)."!</b></i></h3></span>\n";
 					($antal_sager_ialt<=500)?$display="display:none;":$display=NULL;
 					print "
 					<div style=\"float:right;$display\">
-						<p style=\"float:left;\">Vælg antal viste linjer:&nbsp;</p>
+						<p style=\"float:left;\">".findtekst('2797|Vælg antal viste linjer', $sprog_id).":&nbsp;</p>
 						<select name=\"kopi_ordre_limit\" class=\"selectinputloen\" style=\"width:76px;\" onchange=\"this.form.submit()\">\n";
 						
 							for ($i=0;$i<count($limitarray);$i++) {
@@ -3674,11 +3676,11 @@ function kopi_ordre() {
 		print "<div class=\"contentkundehead\">
 			<ul id=\"sort\">
 					<li>
-							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt01 $sortstyle[0]\" style=\"width:65px\">Sagsnr</a>
-							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=firmanavn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt02 $sortstyle[1]\" style=\"width:205px\">Kunde</a>
-							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt03 $sortstyle[2]\" style=\"width:315px\">Opstillings adresse</a>
-							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=ref&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt04 $sortstyle[3]\" style=\"width:145px\">Ansvarlig</a>
-							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=status&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt05 $sortstyle[4]\" style=\"width:75px;$retstatusstyle\">Status</a>
+							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt01 $sortstyle[0]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=firmanavn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt02 $sortstyle[1]\" style=\"width:205px\">".findtekst('35|Kunde', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt03 $sortstyle[2]\" style=\"width:315px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=ref&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt04 $sortstyle[3]\" style=\"width:145px\">".findtekst('2793|Ansvarlig', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=kopi_ordre&amp;nysort=status&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]&amp;returside=ordre&amp;sag_id=$id&amp;ordre_id=$ordre_id\" class=\"felt05 $sortstyle[4]\" style=\"width:75px;$retstatusstyle\">".findtekst('494|Status', $sprog_id)."</a>
 					</li>
 			</ul>
 		</div><!-- end of contentkundehead -->
@@ -3743,7 +3745,7 @@ function sag_kontakt() {
 		*/
 	
 		if (empty($navn)) {
-			$nameErr = "<span style=\"color:red;\">Navn er p&aring;kr&aelig;vet</span>";
+			$nameErr = "<span style=\"color:red;\">".findtekst('2944|Navn er påkrævet', $sprog_id)."</span>";
 		} else {
 
 			if ($ansat_id ) {
@@ -3788,32 +3790,32 @@ function sag_kontakt() {
 	print "<div class=\"content\">\n";
 	print "<form name=\"ansatte\" action=\"sager.php?funktion=sag_kontakt&amp;ansat_id=$ansat_id&amp;sag_id=$id\" method=\"post\">\n";
 	print "<div style=\"float:left; margin-right:70px; width:379px;\">\n";
-	print "<h3>Kontaktperson til sag</h3>\n";
+	print "<h3>".findtekst('2929|Kontaktperson til sag', $sprog_id)."</h3>\n";
 	print "<div class=\"contentA\">\n";
-	print "<div class=\"row\"><div class=\"left\">Navn</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"navn\" value=\"$navn\">$nameErr</div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">Adresse</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"addr1\" value=\"$addr1\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">Adresse2</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"addr2\" value=\"$addr2\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">Postnr. &amp; by</div><div class=\"right\"><input class=\"textSmall\" type=\"text\" name=\"postnr\" value=\"$postnr\"><input class=\"textMediumLarge textSpace\" type=\"text\" name=\"bynavn\" value=\"$bynavn\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('138|Navn', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"navn\" value=\"$navn\">$nameErr</div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('140|Adresse', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"addr1\" value=\"$addr1\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('649|Adresse 2', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"addr2\" value=\"$addr2\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('666|Postnr. & by', $sprog_id)."</div><div class=\"right\"><input class=\"textSmall\" type=\"text\" name=\"postnr\" value=\"$postnr\"><input class=\"textMediumLarge textSpace\" type=\"text\" name=\"bynavn\" value=\"$bynavn\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of left container -->\n";
 	print "<div style=\"float:left; width:379px;\">\n";
 	print "<h3>&nbsp;</h3>\n";
 	print "<div class=\"contentA\">\n";
-	print "<div class=\"row\"><div class=\"left\">E-mail</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"email\" value=\"$email\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">Mobil</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"mobil\" value=\"$mobil\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">Lokalnr.</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"tlf\" value=\"$tlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">Lokal fax</div><div class=\"right\"><input type=\"text\" class=\"text\" name=\"fax\" value=\"$fax\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('52|E-mail', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"email\" value=\"$email\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('401|Mobil', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"mobil\" value=\"$mobil\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('654|Lokalnr.', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"tlf\" value=\"$tlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal fax', $sprog_id)."</div><div class=\"right\"><input type=\"text\" class=\"text\" name=\"fax\" value=\"$fax\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of right container -->\n";
 	print "<div style=\"float:left; width:828px;\">\n";
 	print "<div class=\"contentA\" style=\"width:808px;;\">\n";
-	print "<div class=\"row\"><div class=\"left\">Bem&aelig;rkning</div><div class=\"right\"><textarea style=\"width:679px\" name=\"notes\" rows=\"3\" cols=\"76\">$notes</textarea><input type=\"hidden\" name=\"posnr\" value=\"$posnr\"><input type=\"hidden\" name=\"konto_id\" value=\"$konto_id\"><input type=\"hidden\" name=\"sag_id\" value=\"$id\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('391|Bemærkning', $sprog_id).":</div><div class=\"right\"><textarea style=\"width:679px\" name=\"notes\" rows=\"3\" cols=\"76\">$notes</textarea><input type=\"hidden\" name=\"posnr\" value=\"$posnr\"><input type=\"hidden\" name=\"konto_id\" value=\"$konto_id\"><input type=\"hidden\" name=\"sag_id\" value=\"$id\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of full container -->\n";
 	print "<div class=\"clear\"></div>\n";
 	print "<hr>\n";
 	print "<div class=\"contentA\" style=\"text-align:center;\">\n";
-	print "<input type=\"submit\" class=\"button gray medium\" value=\"Gem\" name=\"submit\"><input type=\"submit\" class=\"button rosy medium textSpaceLarge\" value=\"Slet\" onclick=\"return confirm('Er du sikker på du vil slette denne kontakt?');\" name=\"slet\">\n";
+	print "<input type=\"submit\" class=\"button gray medium\" value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"submit\"><input type=\"submit\" class=\"button rosy medium textSpaceLarge\" value=\"".findtekst('1099|Slet', $sprog_id)."\" onclick=\"return confirm('".findtekst('2901|Er du sikker på du vil slette denne kontakt', $sprog_id)."?');\" name=\"slet\">\n";
 	print "</div><!-- end of contentA -->\n";
 	print "	</form>\n";
 	print "</div><!-- end of content -->\n";
@@ -4051,35 +4053,35 @@ function akkordliste() {
 	print "<table border=\"0\" cellspacing=\"0\" width=\"595\">\n";
 	print "<tbody>\n";
 	print "<tr style=\"height:35px;\">\n";
-	print "<td align=\"right\"><p>Vælg den opgave som skal vises:</p></td><td><select name=\"opg_id\" onchange=\"this.form.submit()\">\n";
+	print "<td align=\"right\"><p>".findtekst('2902|Vælg den opgave som skal vises', $sprog_id).":</p></td><td><select name=\"opg_id\" onchange=\"this.form.submit()\">\n";
 					for ($x=0;$x<count($opgave_id);$x++) {
 						if ($opg_id==$opgave_id[$x]) print "<option value=\"$opgave_id[$x]\">$opgave_nr[$x]: $opgave_beskrivelse[$x]</option>\n"; 
 					}
-					if (!$opg_id) print "<option value=\"0\">Alle opgaver</option>\n";
+					if (!$opg_id) print "<option value=\"0\">".findtekst('2949|Alle opgaver', $sprog_id)."</option>\n";
 					for ($x=0;$x<count($opgave_id);$x++) {
 						if ($opg_id!=$opgave_id[$x]) print "<option value=\"$opgave_id[$x]\">$opgave_nr[$x]: $opgave_beskrivelse[$x]</option>\n"; 
 					}
-					if ($opg_id) print "<option value=\"0\">Alle opgaver</option>\n";
+					if ($opg_id) print "<option value=\"0\">".findtekst('2949|Alle opgaver', $sprog_id)."</option>\n";
 	print "</select></td>\n";
 	print "</tr>\n";
 	print "<tr style=\"height:35px;\">\n";
 	if ($opg_id && (count($opgave_id) > 1)) {
-		print "<td align=\"right\"><p>Vælg opgave som skal vises med:</p></td><td><select name=\"opg_id2\" onchange=\"this.form.submit()\">\n";
+		print "<td align=\"right\"><p>".findtekst('2903|Vælg opgave som skal vises med', $sprog_id).":</p></td><td><select name=\"opg_id2\" onchange=\"this.form.submit()\">\n";
 					for ($x=0;$x<count($opgave_id2);$x++) {
 						if ($opg_id2==$opgave_id2[$x]) print "<option value=\"$opgave_id2[$x]\">$opgave_nr2[$x]: $opgave_beskrivelse2[$x]</option>\n"; 
 					}
-					if (!$opg_id2) print "<option value=\"0\">Ingen opgave</option>\n";
+					if (!$opg_id2) print "<option value=\"0\">".findtekst('2950|Ingen opgave', $sprog_id)."</option>\n";
 					for ($x=0;$x<count($opgave_id2);$x++) {
 						if ($opg_id2!=$opgave_id2[$x]) print "<option value=\"$opgave_id2[$x]\">$opgave_nr2[$x]: $opgave_beskrivelse2[$x]</option>\n"; 
 					}
-					if ($opg_id2) print "<option value=\"0\">Ingen opgave</option>\n";
+					if ($opg_id2) print "<option value=\"0\">".findtekst('2950|Ingen opgave', $sprog_id)."</option>\n";
 		print "</select></td>\n";
 	} else {
 		print "<td>&nbsp;</td><td>&nbsp;</td>\n";
 	}
 	print "</tr>\n";
 	print "<tr style=\"height:35px;\">\n";
-	print "<td align=\"right\"><p>Vælg fra/til dato for akkordlister som skal vises:</p></td><td><span style=\"#padding: 5px;\"><input id=\"akkordfraSoeg\" name=\"akkordfraSoeg\" type=\"text\" class=\"textMedium textIndent\" value=\"$akkordfraSoeg\"/></span>
+	print "<td align=\"right\"><p>".findtekst('2904|Vælg fra/til dato for akkordlister som skal vises', $sprog_id).":</p></td><td><span style=\"#padding: 5px;\"><input id=\"akkordfraSoeg\" name=\"akkordfraSoeg\" type=\"text\" class=\"textMedium textIndent\" value=\"$akkordfraSoeg\"/></span>
 				<span style=\"padding: 0px 5px 0px 5px;\"><input id=\"akkordtilSoeg\" name=\"akkordtilSoeg\" type=\"text\" class=\"textMedium textIndent\" value=\"$akkordtilSoeg\"/></span>
 				<input id=\"akkordfra1\" type=\"hidden\" value=\"$akkordfra1\"/>
 				<input id=\"akkordtil1\" type=\"hidden\" value=\"$akkordtil1\"/>
@@ -4091,34 +4093,34 @@ function akkordliste() {
 	print "</tbody>\n";
 	print "</table>\n";
 	/*
-	print "<div style=\"#background-color:lightblue;#height:40px;padding:5px 0 5px 0;\"><p>Vælg den opgave som skal vises:&nbsp;\n"; // Vælg opgave som skal vises
+	print "<div style=\"#background-color:lightblue;#height:40px;padding:5px 0 5px 0;\"><p>".findtekst('2902|Vælg den opgave som skal vises', $sprog_id).":&nbsp;\n"; // Vælg opgave som skal vises
 	print "<select name=\"opg_id\" onchange=\"this.form.submit()\">\n";
 					for ($x=0;$x<count($opgave_id);$x++) {
 						if ($opg_id==$opgave_id[$x]) print "<option value=\"$opgave_id[$x]\">$opgave_nr[$x]: $opgave_beskrivelse[$x]</option>\n"; 
 					}
-					if (!$opg_id) print "<option value=\"0\">Alle opgaver</option>\n";
+					if (!$opg_id) print "<option value=\"0\">".findtekst('2949|Alle opgaver', $sprog_id)."</option>\n";
 					for ($x=0;$x<count($opgave_id);$x++) {
 						if ($opg_id!=$opgave_id[$x]) print "<option value=\"$opgave_id[$x]\">$opgave_nr[$x]: $opgave_beskrivelse[$x]</option>\n"; 
 					}
-					if ($opg_id) print "<option value=\"0\">Alle opgaver</option>\n";
+					if ($opg_id) print "<option value=\"0\">".findtekst('2949|Alle opgaver', $sprog_id)."</option>\n";
 	print "</select></p></div>\n";
 	
 	if ($opg_id && (count($opgave_id) > 1)) {
-		print "<div style=\"#background-color:lightgreen;height:35px;padding-top:5px;\"><p>Vælg opgave som skal vises med:&nbsp;\n"; // Vælg opgave som skal vises med
+		print "<div style=\"#background-color:lightgreen;height:35px;padding-top:5px;\"><p>".findtekst('2903|Vælg opgave som skal vises med', $sprog_id).":&nbsp;\n"; // Vælg opgave som skal vises med
 		print "<select name=\"opg_id2\" onchange=\"this.form.submit()\">\n";
 						for ($x=0;$x<count($opgave_id2);$x++) {
 							if ($opg_id2==$opgave_id2[$x]) print "<option value=\"$opgave_id2[$x]\">$opgave_nr2[$x]: $opgave_beskrivelse2[$x]</option>\n"; 
 						}
-						if (!$opg_id2) print "<option value=\"0\">Ingen opgave</option>\n";
+						if (!$opg_id2) print "<option value=\"0\">".findtekst('2950|Ingen opgave', $sprog_id)."</option>\n";
 						for ($x=0;$x<count($opgave_id2);$x++) {
 							if ($opg_id2!=$opgave_id2[$x]) print "<option value=\"$opgave_id2[$x]\">$opgave_nr2[$x]: $opgave_beskrivelse2[$x]</option>\n"; 
 						}
-						if ($opg_id2) print "<option value=\"0\">Ingen opgave</option>\n";
+						if ($opg_id2) print "<option value=\"0\">".findtekst('2950|Ingen opgave', $sprog_id)."</option>\n";
 		print "</select></p></div>\n";
 	} else {
 		print "<div style=\"#background-color:lightgreen;height:35px;padding-top:5px;\"></div>\n";
 	}
-	print "<div style=\"#background-color:lightblue;height:35px;padding-top:5px;\"><p>Vælg fra/til dato for akkordlister som skal vises:&nbsp;
+	print "<div style=\"#background-color:lightblue;height:35px;padding-top:5px;\"><p>".findtekst('2904|Vælg fra/til dato for akkordlister som skal vises', $sprog_id).":&nbsp;
 				<span style=\"#padding: 5px;\"><input id=\"akkordfraSoeg\" name=\"akkordfraSoeg\" type=\"text\" class=\"textMedium textIndent\" value=\"$akkordfraSoeg\"/></span>
 				<span style=\"padding: 0px 5px 0px 5px;\"><input id=\"akkordtilSoeg\" name=\"akkordtilSoeg\" type=\"text\" class=\"textMedium textIndent\" value=\"$akkordtilSoeg\"/></span>
 				<input id=\"akkordfra1\" type=\"hidden\" value=\"$akkordfra1\"/>
@@ -4130,17 +4132,17 @@ function akkordliste() {
 	print "</p></div>\n";
 	*/
 	print "<div id=\"printableArea\">\n";
-	($opg_beskrivelse)?$opg='Opgave&nbsp;<b>'.$opg_nr.':'.$opg_beskrivelse.'</b>':$opg=NULL;
-	($opg_beskrivelse2)?$opg2='og&nbsp;<b>'.$opg_nr2.':'.$opg_beskrivelse2.'</b>':$opg2=NULL;
-	($akkordfraSoeg && !$akkordtilSoeg)?$akkDato='Akkordliste dato&nbsp;<b>'.$akkordfraSoeg.'</b>':$akkDato=NULL;
-	($akkordtilSoeg && $akkordtilSoeg)?$akkFraTilDato='Akkordliste dato fra&nbsp;<b>'.$akkordfraSoeg.'</b>&nbsp;til&nbsp;<b>'.$akkordtilSoeg.'</b>':$akkFraTilDato=NULL;
-	print "<h3 class=\"printHeadLineAkkordliste\">Akkordlister på sagen</h3>\n";
+	($opg_beskrivelse)?$opg=findtekst('2800|Opgave', $sprog_id).'&nbsp;<b>'.$opg_nr.':'.$opg_beskrivelse.'</b>':$opg=NULL;
+	($opg_beskrivelse2)?$opg2=lcfirst(findtekst('2481|Og', $sprog_id)).'&nbsp;<b>'.$opg_nr2.':'.$opg_beskrivelse2.'</b>':$opg2=NULL;
+	($akkordfraSoeg && !$akkordtilSoeg)?$akkDato=findtekst('2951|Akkordliste dato', $sprog_id).'&nbsp;<b>'.$akkordfraSoeg.'</b>':$akkDato=NULL;
+	($akkordtilSoeg && $akkordtilSoeg)?$akkFraTilDato=findtekst('2951|Akkordliste dato', $sprog_id).' '.findtekst('903|fra', $sprog_id).'&nbsp;<b>'.$akkordfraSoeg.'</b>&nbsp;'.findtekst('904|til', $sprog_id).'&nbsp;<b>'.$akkordtilSoeg.'</b>':$akkFraTilDato=NULL;
+	print "<h3 class=\"printHeadLineAkkordliste\">".findtekst('2905|Akkordlister på sagen', $sprog_id)."</h3>\n";
 	print "<p class=\"printOpgAkkordliste\">&nbsp;$opg&nbsp;$opg2</p>\n";
 	print "<p class=\"printOpgAkkordliste\">&nbsp;$akkDato&nbsp;$akkFraTilDato</p>\n";
 	print "<table border=\"0\" cellspacing=\"0\" width=\"595\" class=\"tableAkkordliste printAkkordliste\">\n";
 	print "<tbody>
 					<tr>
-						<td colspan=\"3\"><p>Samlede antal timer:<b> ".dkdecimal($alletimersum)."</b></p></td><td><p>Lønudgifter ialt:<span style=\"color:red;\"><b> ".dkdecimal($lonsum)."</b> </span> <span style=\"float:right;\">Sagsnr: <b>$sagsnr</b></span></p></td>
+						<td colspan=\"3\"><p>".findtekst('2945|Samlede antal timer', $sprog_id).":<b> ".dkdecimal($alletimersum)."</b></p></td><td><p>".findtekst('2946|Lønudgifter i alt', $sprog_id).":<span style=\"color:red;\"><b> ".dkdecimal($lonsum)."</b> </span> <span style=\"float:right;\">".findtekst('2819|Sagsnr.', $sprog_id).": <b>$sagsnr</b></span></p></td>
 					</tr>
 				</tbody>\n";
 	print "<tbody><tr><td class=\"tableAkkordlisteBorder\" colspan=\"4\">&nbsp;</td></tr></tbody>\n";
@@ -4158,10 +4160,10 @@ function akkordliste() {
 					print "<tbody>
 					<tr><td colspan=\"4\"><p><b>$cat_navn[$x]</b></p></td></tr>
 						<tr class=\"tableAkkordlisteHead\">
-							<td><p><b>Op</b></p></td>
-							<td><p><b>Ned</b></p></td>
-							<td><p><b>Diff.</b></p></td>
-							<td><p><b>Beskrivelse</b></p></td>
+							<td><p><b>".findtekst('2508|Op', $sprog_id)."</b></p></td>
+							<td><p><b>".findtekst('2509|Ned', $sprog_id)."</b></p></td>
+							<td><p><b>".findtekst('2947|Diff.', $sprog_id)."</b></p></td>
+							<td><p><b>".findtekst('675|Beskrivelse', $sprog_id)."</b></p></td>
 						</tr>
 					</tbody>\n";
 					print "<tbody class=\"tableAkkordlisteZebra\">\n";
@@ -4182,7 +4184,7 @@ function akkordliste() {
 				
 			}
 		} else {
-			print "<tbody><tr><td colspan=\"4\"><p><i>Ingen akkordliste</i></p></td></tr>";
+			print "<tbody><tr><td colspan=\"4\"><p><i>".findtekst('2948|Ingen akkordliste', $sprog_id)."</i></p></td></tr>";
 		}
 	
 	print "</tbody>\n";
@@ -4299,9 +4301,9 @@ function ny_kunde() {
 			<table border=\"0\" cellspacing=\"0\" width=\"778\">
 				<thead>
 					<tr>
-						<th width=\"100\">Kontonr</th>
-						<th width=\"130\">Firmanavn</th>
-						<th width=\"200\">Adresse</th>
+						<th width=\"100\">".findtekst('43|Kontonr.', $sprog_id)."</th>
+						<th width=\"130\">".findtekst('28|Firmanavn', $sprog_id)."</th>
+						<th width=\"200\">".findtekst('140|Adresse', $sprog_id)."</th>
 						<th width=\"230\">Fritekst</th>
 						<th>&nbsp;</th>
 					</tr>
@@ -4312,7 +4314,7 @@ function ny_kunde() {
 						<td><input class=\"textinput\" type=\"text\" id=\"firmanavn\" name=\"firmanavn\" tabindex=\"2\"/></td>
 						<td><input class=\"textinput\" type=\"text\" id=\"adresse\" name=\"adresse\" tabindex=\"3\"/></td>
 						<td><input class=\"textinput\" type=\"text\" id=\"fritext\" name=\"fritext\" tabindex=\"4\"/></td>   
-						<td align=\"center\"><input type=\"submit\" value=\"Find kunde\" class=\"button gray small\" tabindex=\"5\"></td>
+						<td align=\"center\"><input type=\"submit\" value=\"".findtekst('2852|Find kunde', $sprog_id)."\" class=\"button gray small\" tabindex=\"5\"></td>
 					</tr>
 				</tbody>
 			</table>
@@ -4323,9 +4325,9 @@ function ny_kunde() {
 			<table border=\"0\" cellspacing=\"0\" width=\"828\">
 				<thead>
 					<tr>
-						<th width=\"100\">Kundenr</th>
-						<th width=\"225\">Firmanavn</th>
-						<th width=\"385\">Adresse</th>
+						<th width=\"100\">".findtekst('357|Kundenr.', $sprog_id)."</th>
+						<th width=\"225\">".findtekst('28|Firmanavn', $sprog_id)."</th>
+						<th width=\"385\">".findtekst('140|Adresse', $sprog_id)."</th>
 						<th colspan=\"2\">&nbsp;</th>
 					</tr>
 				</thead>
@@ -4336,15 +4338,15 @@ function ny_kunde() {
 						<td><input class=\"textinput firmanavn\" type=\"text\" value=\"\" id=\"firmanavn\" name=\"firmanavn\" tabindex=\"2\"/></td>
 						<td><input class=\"textinput firmaadresse\" type=\"text\" value=\"\" id=\"adresse\" name=\"adresse\" tabindex=\"3\"/></td>
 						<td style=\"padding:0px;\"><input type=\"hidden\" class=\"id\" value=\"\" name=\"ny_konto_id\"></td>   
-						<td align=\"center\"><input type=\"submit\" value=\"Ny kunde\" name=\"nykunde\" class=\"button gray small\" tabindex=\"4\" onclick=\"if(!this.form.ny_konto_id.value){alert('Der er ikke valgt en kunde!');return false}else{return confirm('Vil du ændre kunde på denne sag?');}\"></td>
+						<td align=\"center\"><input type=\"submit\" value=\"".findtekst('2262|Ny kunde', $sprog_id)."\" name=\"nykunde\" class=\"button gray small\" tabindex=\"4\" onclick=\"if(!this.form.ny_konto_id.value){alert('".findtekst('2906|Der er ikke valgt en kunde', $sprog_id)."!');return false}else{return confirm('".findtekst('2907|Vil du ændre kunde på denne sag', $sprog_id)."?');}\"></td>
 						
 					</tr>
 				</tbody>
 			</table>
 			</form>
 			<div style=\"height:25px;padding:10px 12px 0 12px;#background-color:#f2f2f2;\">
-					<span style=\"float:left;width:200px;\"><a href=\"sager.php?funktion=ny_kunde&amp;konto_id=$gml_konto_id&amp;sag_id=$id&amp;unsetsort=unset\" class=\"button gray small\">Slet sortering</a></span>
-					<span style=\"#text-align:center;font-size: 14px;\"><i><b>Ændre eksisterende kunde på sagen!</b></i></span>
+					<span style=\"float:left;width:200px;\"><a href=\"sager.php?funktion=ny_kunde&amp;konto_id=$gml_konto_id&amp;sag_id=$id&amp;unsetsort=unset\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>
+					<span style=\"#text-align:center;font-size: 14px;\"><i><b>".findtekst('2879|Ændr eksisterende kunde på sagen', $sprog_id)."!</b></i></span>
 			</div>
 		</div><!-- end of contentsoeg -->"; 
 		(count($konto_id)<=50)?$abortlist="abort_small_list":$abortlist=NULL; // tallet sættes til det samme som 'items_per_page' i jquery.sager.js, under pagination
@@ -4354,20 +4356,20 @@ function ny_kunde() {
 		<div class=\"contentkundehead\">
 			<ul id=\"sort\">
 					<li>
-							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=kontonr&amp;sort=$sort&amp;nysortstyle=$sortarray[0]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt01 $sortstyle[0]\" style=\"width:72px\">Kundenr</a>
-							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=firmanavn&amp;sort=$sort&amp;nysortstyle=$sortarray[1]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt02 $sortstyle[1]\" style=\"width:175px\">Navn</a>
-							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt03 $sortstyle[2]\" style=\"width:180px\">Addresse</a>
-							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=postnr&amp;sort=$sort&amp;nysortstyle=$sortarray[3]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt04 $sortstyle[3]\" style=\"width:60px\">Postnr</a>
-							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=bynavn&amp;sort=$sort&amp;nysortstyle=$sortarray[4]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt05 $sortstyle[4]\" style=\"width:105px\">By</a>       
-							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=kontakt&amp;sort=$sort&amp;nysortstyle=$sortarray[5]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt06 $sortstyle[5]\" style=\"width:120px\">Kontaktperson</a>
-							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=tlf&amp;sort=$sort&amp;nysortstyle=$sortarray[6]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt07 $sortstyle[6]\" style=\"width:85px\">Telefon</a>
+							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=kontonr&amp;sort=$sort&amp;nysortstyle=$sortarray[0]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt01 $sortstyle[0]\" style=\"width:72px\">".findtekst('357|Kundenr.', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=firmanavn&amp;sort=$sort&amp;nysortstyle=$sortarray[1]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt02 $sortstyle[1]\" style=\"width:175px\">".findtekst('138|Navn', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt03 $sortstyle[2]\" style=\"width:180px\">".findtekst('140|Adresse', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=postnr&amp;sort=$sort&amp;nysortstyle=$sortarray[3]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt04 $sortstyle[3]\" style=\"width:60px\">".findtekst('36|Postnr.', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=bynavn&amp;sort=$sort&amp;nysortstyle=$sortarray[4]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt05 $sortstyle[4]\" style=\"width:105px\">".findtekst('46|By', $sprog_id)."</a>       
+							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=kontakt&amp;sort=$sort&amp;nysortstyle=$sortarray[5]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt06 $sortstyle[5]\" style=\"width:120px\">".findtekst('148|Kontaktperson', $sprog_id)."</a>
+							<a href=\"sager.php?funktion=ny_kunde&amp;nysort=tlf&amp;sort=$sort&amp;nysortstyle=$sortarray[6]&amp;konto_id=$gml_konto_id&amp;sag_id=$id\" class=\"felt07 $sortstyle[6]\" style=\"width:85px\">".findtekst('37|Telefon', $sprog_id)."</a>
 					</li>
 			</ul>
 		</div><!-- end of contentkundehead -->
 		<div class=\"contentkunde\"> 
 			<ul id=\"things\" class=\"paging_content\">";
 				for ($x=1;$x<=$antal_adresser;$x++) {
-					print "<li><a href=\"sager.php?funktion=ny_kunde&amp;ny_konto_id=$konto_id[$x]&amp;sag_id=$id\" onclick=\"return confirm('Vil du ændre kunde på denne sag?');\">
+					print "<li><a href=\"sager.php?funktion=ny_kunde&amp;ny_konto_id=$konto_id[$x]&amp;sag_id=$id\" onclick=\"return confirm('".findtekst('2907|Vil du ændre kunde på denne sag', $sprog_id)."?');\">
 						<span class=\"felt01\" style=\"width:72px\">$kontonr[$x]&nbsp;</span>
 						<span class=\"felt02\" style=\"width:175px\" title=\"$firmanavn[$x]\">$firmanavn[$x]&nbsp;</span>
 						<span class=\"felt03\" style=\"width:180px\" title=\"$addr1[$x]\">$addr1[$x]&nbsp;</span>
@@ -4383,4 +4385,3 @@ function ny_kunde() {
 		</div><!-- end of pagin_content -->";
 }
 ?>
-
