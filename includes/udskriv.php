@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.1.1 --- 2026.01.22 ---
+// --- includes/udskriv.php --- lap 4.1.1 --- 2026.02.18 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -39,6 +39,7 @@
 // 2020.01.13 PHR - Print from 'genfakturer' returned to includes/ordreliste.php which does not exist. 20200113
 // 20230522 PHR php8
 // 20260102 LOE Added alert to install pdftk if not already done.
+// 20260217 LOE Updated the $href for 'DO' type.
 
 
 @session_start();
@@ -70,13 +71,12 @@ $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
 
-
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
+	
 	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
 	elseif (!$returside) $returside = '../debitor/ordreliste.php';
     $pdftk_check = shell_exec("which pdftk");
 		$pdftk_check = trim($pdftk_check);
-
 
     // If pdftk is not installed, alert the user and redirect
     if (!$pdftk_check) {
@@ -92,7 +92,6 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
         exit();
     }
 }
-
 
 if ($returside=='ordreliste.php') { #20200113
 	if ($art=='KO' || $art=='KK') $returside="../kreditor/ordreliste.php";
@@ -337,10 +336,16 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>";
 				if ($returside) {
-					if (substr($art,0,1)=='K') $href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
-					else $href="\"../debitor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
-				} else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-
+				 if (substr($art,0,1)=='K'){ 
+					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
+				 }elseif ($art == 'DO' && (strpos($returside, "ordreliste.php") !== false)) {
+					$href = "../debitor/ordreliste.php";
+				 } else {
+					$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
+				 }
+				} else {
+					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
+				} 
 				print "<td width='10%'><a href=$href>
 					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
