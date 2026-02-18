@@ -2537,7 +2537,7 @@ function printPurchaseHistory() {
     printWindow.document.write(printContent);
     printWindow.document.close();
     
-    // Wait for content to load, then print
+     // Wait for content to load, then print
     printWindow.onload = function() {
         printWindow.focus();
         printWindow.print();

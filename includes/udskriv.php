@@ -78,7 +78,6 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
     $pdftk_check = shell_exec("which pdftk");
 		$pdftk_check = trim($pdftk_check);
 
-
     // If pdftk is not installed, alert the user and redirect
     if (!$pdftk_check) {
         error_log("ERROR: pdftk is not installed. Please install pdftk first.");
