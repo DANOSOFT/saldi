@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-02-16 --- 
+// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-02-17 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -2395,64 +2395,110 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+
 <script>
 function printPurchaseHistory() {
-    // Get the datatable wrapper
-    var datatableWrapper = document.querySelector('#datatable-wrapper-purchase_history');
-    
-    if (!datatableWrapper) {
+    var liveTable = document.querySelector('table.datatable#datatable-purchase_history');
+
+    if (!liveTable) {
         alert('Could not find purchase history table');
         return;
     }
-    
-    // Clone the wrapper to manipulate it
-    var clonedWrapper = datatableWrapper.cloneNode(true);
-    
-    // Remove footer-box by ID
-    var footerBox = clonedWrapper.querySelector('#footer-box');
-    if (footerBox) {
-        footerBox.remove();
-    }
-    
-    // Remove all elements with class "dropdown"
-    var dropdowns = clonedWrapper.querySelectorAll('.dropdown');
-    dropdowns.forEach(function(dropdown) {
-        dropdown.remove();
+
+    var headerCells = [];
+    var ths = liveTable.querySelectorAll('thead tr:first-child th');
+    ths.forEach(function(th) {
+        var text = th.innerText.trim();
+        if (text !== '') headerCells.push(text);
     });
 
-    var customButtons = clonedWrapper.querySelectorAll('.sticky-custom-buttons');
-    customButtons.forEach(function(buttons) {
-        buttons.remove();
-    });
+    var dataRows = [];
+    var tbodyRows = liveTable.querySelectorAll('tbody tr');
+    tbodyRows.forEach(function(tr) {
+        if (tr.classList.contains('filler-row')) return;
+        var tds = tr.querySelectorAll('td');
+        if (tds.length === 0) return;
 
-    // Remove the second tr from thead
-    var thead = clonedWrapper.querySelector('thead');
-    if (thead) {
-        var rows = thead.querySelectorAll('tr');
-        if (rows.length > 1) {
-            rows[1].remove();
+        var cells = [];
+        var hasContent = false;
+        for (var i = 0; i < headerCells.length; i++) {
+            var text = tds[i] ? tds[i].innerText.trim() : '';
+            cells.push(text);
+            if (text !== '') hasContent = true;
         }
-    }
+        if (hasContent) dataRows.push(cells);
+    });
+
+   
+    var colWidths = ['14%', '18%', '35%', '10%', '12%', '11%']; 
+
     
-    // Get the table
-    var table = clonedWrapper.querySelector('table.datatable#datatable-purchase_history');
-    
-    if (!table) {
-        alert('Could not find datatable');
-        return;
-    }
-    
-    // Get customer info
+    var colgroupHTML = '<colgroup>';
+    headerCells.forEach(function(h, i) {
+        colgroupHTML += '<col style="width:' + (colWidths[i] || 'auto') + '">';
+    });
+    colgroupHTML += '</colgroup>';
+
+    var theadHTML = '<thead><tr>';
+    headerCells.forEach(function(h) {
+        theadHTML += '<th>' + h + '</th>';
+    });
+    theadHTML += '</tr></thead>';
+
+    var tbodyHTML = '<tbody>';
+    dataRows.forEach(function(row, idx) {
+        tbodyHTML += '<tr class="' + (idx % 2 === 0 ? 'even' : 'odd') + '">';
+        row.forEach(function(cell) {
+            tbodyHTML += '<td>' + cell + '</td>';
+        });
+        tbodyHTML += '</tr>';
+    });
+    tbodyHTML += '</tbody>';
+
+    // *** CHANGED: colgroupHTML inserted into table ***
+    var cleanTableHTML = '<table class="print-table">' + colgroupHTML + theadHTML + tbodyHTML + '</table>';
+
     var firmanavn = <?php echo json_encode($firmanavn ?? ''); ?>;
-    var kontonr = <?php echo json_encode($kontonr ?? ''); ?>;
-    
-    // Get the background color from PHP
+    var kontonr   = <?php echo json_encode($kontonr ?? ''); ?>;
+    var addr1     = <?php echo json_encode($addr1 ?? ''); ?>;
+    var addr2     = <?php echo json_encode($addr2 ?? ''); ?>;
+    var postnr    = <?php echo json_encode($postnr ?? ''); ?>;
+    var bynavn    = <?php echo json_encode($bynavn ?? ''); ?>;
+    var land      = <?php echo json_encode($land ?? ''); ?>;
+    var email     = <?php echo json_encode($email ?? ''); ?>;
+    var cvrnr     = <?php echo json_encode($cvrnr ?? ''); ?>;
+    var tlf       = <?php echo json_encode($tlf ?? ''); ?>;
+    var ean       = <?php echo json_encode($ean ?? ''); ?>;
+    var notes     = <?php echo json_encode(strip_tags($notes ?? '')); ?>;
+    var kontakt   = <?php echo json_encode($kontakt ?? ''); ?>;
+
     var backgroundColor = <?php echo json_encode($backgroundColor); ?>;
-    
-    // Create print window
+
+    function infoRow(label, value) {
+        if (!value || value.trim() === '') return '';
+        return '<tr><td class="info-label">' + label + '</td>'
+             + '<td class="info-value">' + value + '</td></tr>';
+    }
+
+    var zipCity = [postnr, bynavn].filter(Boolean).join(' ');
+
+    var customerInfoHTML = '<table class="customer-info"><tbody>'
+        + infoRow('Customer No.',  kontonr)
+        + infoRow('Company',       firmanavn)
+        + infoRow('Address',       addr1)
+        + (addr2 ? infoRow('Address 2', addr2) : '')
+        + infoRow('Zip / City',    zipCity)
+        + infoRow('Country',       land)
+        + infoRow('E-mail',        email)
+        + infoRow('VAT No.',       cvrnr)
+        + infoRow('Telephone',     tlf)
+        + infoRow('EAN No.',       ean)
+        + infoRow('Contact',       kontakt)
+        + (notes ? infoRow('Note', notes) : '')
+        + '</tbody></table>';
+
     var printWindow = window.open('', 'PrintPurchaseHistory', 'width=900,height=700');
-    
-    // Build the print content
+
     var printContent = `
         <!DOCTYPE html>
         <html>
@@ -2460,84 +2506,92 @@ function printPurchaseHistory() {
             <title>Purchase History - ${firmanavn}</title>
             <style>
                 @media print {
-                    @page {
-                        size: A4 landscape;
-                        margin: 1cm;
-                    }
+                    @page { size: A4 portrait; margin: 1cm; }
                 }
                 body {
                     font-family: Arial, sans-serif;
                     font-size: 12px;
                     margin: 20px;
                 }
-                h1 {
-                    font-size: 18px;
-                    margin-bottom: 5px;
-                }
-                h2 {
-                    font-size: 14px;
-                    margin-top: 0;
-                    color: #666;
-                }
-                table.datatable {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 20px;
-                }
-                table.datatable th {
-                    background-color: ${backgroundColor} !important;
-                    color: white !important;
-                    border: 1px solid #ddd;
-                    padding: 8px;
-                    text-align: left;
-                    font-weight: bold;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
-                table.datatable td {
-                    border: 1px solid #ddd;
-                    padding: 6px;
-                }
-                table.datatable tr:nth-child(even) {
-                    background-color: #f9f9f9;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
+                h1 { font-size: 18px; margin-bottom: 4px; }
                 .print-date {
                     text-align: right;
                     font-size: 10px;
                     color: #666;
+                    margin-bottom: 14px;
+                }
+                .customer-info {
+                    border-collapse: collapse;
                     margin-bottom: 20px;
+                    width: 100%;
                 }
-                /* Hide any remaining unwanted elements */
-                .dropdown {
-                    display: none !important;
+                .customer-info td {
+                    padding: 3px 10px 3px 0;
+                    vertical-align: top;
+                    border: none;
+                    font-size: 12px;
                 }
-                #footer-box {
-                    display: none !important;
+                .customer-info .info-label {
+                    font-weight: bold;
+                    color: #444;
+                    white-space: nowrap;
+                    padding-right: 14px;
+                    text-align: left;
+                    width: 40%;
                 }
-                /* Ensure background colors print */
-                * {
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
+                .customer-info .info-value {
+                    color: #111;
+                    text-align: right;
+                    width: 60%;
                 }
+                table.print-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 10px;
+                    table-layout: fixed;
+                    box-sizing: border-box;
+                }
+                table.print-table th {
+					background-color: ${backgroundColor} !important;
+					color: white !important;
+					border: 1px solid #bbb;
+					padding: 7px 10px;
+					text-align: left;
+					font-weight: bold;
+
+					white-space: nowrap;
+					word-break: normal;
+					overflow-wrap: normal;
+
+					-webkit-print-color-adjust: exact;
+					print-color-adjust: exact;
+				}
+
+                table.print-table td {
+                    border: 1px solid #ccc;
+                    padding: 5px 10px;
+                    white-space: normal;
+                    word-break: break-word;
+                    overflow-wrap: break-word;
+                }
+                table.print-table tr.even td { background-color: #f9f9f9; }
+                table.print-table tr.odd  td { background-color: #ffffff; }
             </style>
         </head>
         <body>
             <h1>Purchase History</h1>
-            <h2>${firmanavn} (Customer No.: ${kontonr})</h2>
             <div class="print-date">
                 Printed: ${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB')}
             </div>
-            ${table.outerHTML}
+            ${customerInfoHTML}
+            ${cleanTableHTML}
         </body>
         </html>
     `;
-    
+
     printWindow.document.write(printContent);
     printWindow.document.close();
-    
-     // Wait for content to load, then print
+
     printWindow.onload = function() {
         printWindow.focus();
         printWindow.print();
@@ -2545,3 +2599,5 @@ function printPurchaseHistory() {
     };
 }
 </script>
+
+

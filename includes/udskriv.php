@@ -71,8 +71,8 @@ $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
 
-
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
+	
 	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
 	elseif (!$returside) $returside = '../debitor/ordreliste.php';
     $pdftk_check = shell_exec("which pdftk");
@@ -92,7 +92,6 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
         exit();
     }
 }
-
 
 if ($returside=='ordreliste.php') { #20200113
 	if ($art=='KO' || $art=='KK') $returside="../kreditor/ordreliste.php";
@@ -336,18 +335,17 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>";
-
 				if ($returside) {
-					if (substr($art,0,1)=='K'){ 
-					   $href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
-				    }elseif ($art == 'DO' && (strpos($returside, "ordreliste.php") !== false)) {
-						$href = "../debitor/ordreliste.php";
-					} else {
-						$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
-					}
+				 if (substr($art,0,1)=='K'){ 
+					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
+				 }elseif ($art == 'DO' && (strpos($returside, "ordreliste.php") !== false)) {
+					$href = "../debitor/ordreliste.php";
+				 } else {
+					$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
+				 }
 				} else {
 					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-				}
+				} 
 				print "<td width='10%'><a href=$href>
 					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
