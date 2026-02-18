@@ -314,6 +314,7 @@ if ($id > 0) {
 		}
 	}
 } else {
+	// Create a new fical year
 #	Print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 #	print "<BODY onLoad=\"javascript:velkommen=window.open('velkommen.html','velkommen','".$jsvars."';) velkommen.focus();\";"
 	print "<BODY onLoad=\"javascript:docChange = true;\">";
@@ -324,6 +325,7 @@ if ($id > 0) {
 	}
 	$query = db_select("select * from grupper where art = 'RA' and kodenr='$x'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
+		// Create the next fiscal year using last year as month values
 		$x++;
 		if ($row['box3']==12) {
 			$startmd  = 1;
@@ -336,6 +338,7 @@ if ($id > 0) {
 		$slutaar = $row['box4']+1;
 		$deleted = $row['box10'];
 	} else {
+		// Create the first year with sensable defaults
 		$beskrivelse = date('Y');
 		$startaar    = date('Y');
 		$startmd     = '01';
