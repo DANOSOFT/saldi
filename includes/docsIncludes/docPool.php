@@ -131,12 +131,13 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 		}
 	}
 	
-	// Get all PDF files from the pulje directory
+	// Get all PDF and XML files from the pulje directory
 	$pdfFiles = [];
 	$files = scandir($puljePath);
 	foreach ($files as $file) {
 		if ($file === '.' || $file === '..') continue;
-		if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'pdf') {
+		$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+		if ($ext === 'pdf' || $ext === 'xml') {
 			$pdfFiles[] = $file;
 		}
 	}
@@ -210,7 +211,7 @@ function checkIfAllPoolFilesAreInDatabase() {
 	}
 	global $db, $docFolder;
 	$puljePath = "$docFolder/$db/pulje";
-	$files = glob("$puljePath/*.pdf");
+	$files = array_merge(glob("$puljePath/*.pdf") ?: [], glob("$puljePath/*.xml") ?: []);
 	if (!$files) {
 		return;
 	}
@@ -872,7 +873,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 				
 				// Define the extensions you want to delete
-				$extensionsToDelete = ['pdf', 'info'];
+				$extensionsToDelete = ['pdf', 'xml', 'info'];
 
 				foreach ($extensionsToDelete as $ext) {
 					$fileToDelete = "$puljePath/$origBase.$ext";
@@ -967,8 +968,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if (!$foundInDb && is_dir($dir)) {
 			if ($dh = opendir($dir)) {
 				while (($file = readdir($dh)) !== false) {
-					// Check for .pdf file (case-insensitive), skip hidden files
-					if (substr($file, 0, 1) != '.' && preg_match('/\.pdf$/i', $file)) {
+					// Check for .pdf or .xml file (case-insensitive), skip hidden files
+					if (substr($file, 0, 1) != '.' && preg_match('/\.(pdf|xml)$/i', $file)) {
 						$filePath = rtrim($dir, '/') . '/' . $file;
 						#clearstatcache(); 
 						$modTime = filemtime($filePath);
@@ -1355,6 +1356,8 @@ print <<<JS
 						content.innerHTML = '<embed src=\"' + filepath + '#pagemode=none\" type=\"application/pdf\" style=\"width:480px;height:550px;\">';
 					} else if (['jpg', 'jpeg', 'png', 'gif'].indexOf(ext) !== -1) {
 						content.innerHTML = '<img src=\"' + filepath + '\" style=\"max-width:480px;max-height:550px;display:block;margin:0 auto;\">';
+					} else if (ext === 'xml') {
+						content.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:480px;height:550px;background:#f0f8ff;color:#004085;font-size:14px;gap:12px;"><svg style="width:48px;height:48px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 13l2 2-2 2"></path><path d="M16 13l-2 2 2 2"></path></svg><strong>XML-dokument</strong><span style="font-size:12px;color:#666;">Klik for at se dokumentet i panelet</span></div>';
 					} else {
 						content.innerHTML = '<div style=\"display:flex;align-items:center;justify-content:center;width:480px;height:550px;background:#f5f5f5;color:#666;font-size:14px;\">Forhåndsvisning ikke tilgængelig</div>';
 					}
@@ -2132,9 +2135,14 @@ print <<<JS
 				html += '<input type="checkbox" class="file-checkbox" value="' + escapeHTML(filename) + '"' + checkedAttr + ' onchange="saveCheckboxState(); updateBulkButton();" onclick="event.stopPropagation();" style="width: 20px; height: 20px; cursor: pointer;">';
 				html += '</div>';
 				
-				// Icon
+				// Icon - different for XML vs PDF
+				const fileExt = filename.split('.').pop().toLowerCase();
 				html += '<div style="flex-shrink: 0; color: ' + buttonColor + ';">';
-				html += '<svg class="icon-svg" style="width: 32px; height: 32px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+				if (fileExt === 'xml') {
+					html += '<svg class="icon-svg" style="width: 32px; height: 32px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 13l2 2-2 2"></path><path d="M16 13l-2 2 2 2"></path></svg>';
+				} else {
+					html += '<svg class="icon-svg" style="width: 32px; height: 32px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+				}
 				html += '</div>';
 				
 				// Content
@@ -3834,11 +3842,76 @@ JS;
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1&poolFile=$poolFile\">";
 	}
 			if ($poolFile) {
-		if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
-		else $src=$tmp;
+		$poolFileExt = strtolower(pathinfo($poolFile, PATHINFO_EXTENSION));
 		
-		print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullName#pagemode=none\" frameborder=\"0\">";
-		print "</iframe>";
+		if ($poolFileExt === 'xml') {
+			// XML file: convert to human-readable HTML via EasyUBL API
+			$xmlContent = file_get_contents($fullName);
+			if ($xmlContent !== false) {
+				$base64Xml = base64_encode($xmlContent);
+				include "connect.php";
+				// Get the API key from settings
+				$apiKeyQuery = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+				$apiKeyRow = db_fetch_array($apiKeyQuery);
+				$easyUblApiKey = $apiKeyRow ? $apiKeyRow['var_value'] : '';
+				session_start();
+				$s_id=session_id();
+				include "online.php";
+				
+				if ($easyUblApiKey) {
+					$postData = json_encode([
+						"language" => "",
+						"base64EncodedDocumentXml" => $base64Xml
+					]);
+					
+					$ch = curl_init();
+					curl_setopt($ch, CURLOPT_URL, 'https://easyubl.net/api/HumanReadable/HTMLDocument');
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+					curl_setopt($ch, CURLOPT_POST, 1);
+					curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+					curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: " . $easyUblApiKey));
+					curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+					
+					$htmlResult = curl_exec($ch);
+					$curlError = curl_error($ch);
+					curl_close($ch);
+					
+					if ($htmlResult && !$curlError) {
+						// Save the HTML to a temp file for display in iframe
+						$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
+						file_put_contents($htmlTempFile, $htmlResult);
+						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempFile\" frameborder=\"0\">";
+						print "</iframe>";
+					} else {
+						docPoolLog("XML to HTML conversion failed for $poolFile: $curlError");
+						print "<div style='padding: 20px; font-family: Arial, sans-serif;'>";
+						print "<h3 style='color: #dc3545;'>Kunne ikke konvertere XML-dokument</h3>";
+						print "<p>Fejl: " . htmlspecialchars($curlError ?: 'Ukendt fejl') . "</p>";
+						print "<p>Filen: " . htmlspecialchars($poolFile) . "</p>";
+						print "</div>";
+					}
+				} else {
+					// No API key - show raw XML in a styled container
+					print "<div style='padding: 20px; font-family: Arial, sans-serif;'>";
+					print "<h3 style='color: #856404;'>XML-dokument (rå visning)</h3>";
+					print "<p style='color: #856404;'>EasyUBL API-nøgle mangler. kontakt saldi support 4690 2208</p>";
+					print "<pre style='background: #f8f9fa; padding: 15px; border-radius: 6px; overflow: auto; max-height: 90%; font-size: 12px;'>" . htmlspecialchars($xmlContent) . "</pre>";
+					print "</div>";
+				}
+			} else {
+				print "<div style='padding: 20px; font-family: Arial, sans-serif;'>";
+				print "<h3 style='color: #dc3545;'>Kunne ikke læse XML-filen</h3>";
+				print "<p>Filen: " . htmlspecialchars($poolFile) . "</p>";
+				print "</div>";
+			}
+		} else {
+			// PDF or other file: display in iframe as before
+			if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
+			else $src=$tmp;
+			
+			print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullName#pagemode=none\" frameborder=\"0\">";
+			print "</iframe>";
+		}
 	}
 	print "</div>"; // documentViewer
 	print "</div>"; // rightPanel
