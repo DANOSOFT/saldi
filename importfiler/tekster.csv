@@ -46,7 +46,7 @@
 46	By	City	By
 47	Land	Country	Land
 48	CVR-nr.	VAT no.	MVA-nr.
-49	Tlf	Phone	Tlf
+49	Tlf.	Phone	Tlf.
 50	Fax	Fax	Faks
 51	Web	Web	Internett
 52	E-mail	Email	E-post
@@ -407,7 +407,7 @@
 407	Kontakt by	Contact by	Kontakt innen
 408	Kontakt telefon	Contact telephone	Kontakt telefon
 409	Kontakt telefax	Contact fax	Kontakt faks
-410	Kontakt e-mail	Contact email	Kontakt Epost
+410	Kontakt e-mail	Contact email	Kontakt e-post
 411	Kontakt bemærkning	Contact note	Kontaktnotat
 412	Husnr.	House no.	Husnr.
 413	Etage	Floor	Gulv
@@ -1169,8 +1169,8 @@
 1169	Kreditor	Creditor	Kreditor
 1170	Tilføj ny valuta	Add new currency	Legg til ny valuta
 1171	Valutaer	Currencies	Valutaer
-1172	Valutabetegnelse - f.eks. USD	Currency designation - e.g. USD	Valutabetegnelse - f.eks. USD
-1173	Valutabeskrivelse - f.eks. Amerikanske dollar	Currency description - e.g. US dollars	Valutabeskrivelse - f.eks. Amerikanske dollar
+1172	Valutabetegnelse - f.eks. USD	Currency designation - e.g. USD	Valutabetegnelse - f.eks. USD
+1173	Valutabeskrivelse - f.eks. Amerikanske dollar	Currency description - e.g. US dollars	Valutabeskrivelse - f.eks. Amerikanske dollar
 1174	Kontonummer for valutakursdifferanser og avrunding av øret	Account number for exchange rate differences and year rounding	Kontonummer for valutakursdifferanser og avrunding av øret
 1175	Tilføj	Add	Legg til
 1176	Leverandørnr.	Supplier no.	Leverandørnr.
@@ -1192,7 +1192,7 @@
 1192	Kontotype	Account type	Kontotype
 1193	Sideskift	Page change	Sideskift
 1194	Drift	Operation	Drift
-1195	Overskrift	Headline	Overscrift
+1195	Overskrift	Headline	Overskrift
 1196	Specifikation for	Specification for	Spesifikasjon for
 1197	Kladdenr	Draft no	Utkast nr
 1198	Afd. nr	Dept. no	Gjeld. Nei
@@ -1388,7 +1388,7 @@
 1388	Opdater eksisterende	Update existing	Oppdater eksisterende
 1389	Angiv hvilket skilletegn der anvendes til opdeling af kolonner	Specify which delimiter is used to split columns	Spesifiser hvilken avgrenser som skal brukes til å dele kolonner
 1390	Vælg	Select	Velg
-1391	Bankimport 	Bank import 	Bankimport 
+1391	Bankimport	Bank import	Bankimport
 1392	Klik her for at indlæse filen nedefra	Click here to load the file from below	Klikk her for å laste filen nedenfra
 1393	Vælges afdeling lægges alle poster på denne afd.	If a department is chosen, all items are placed on this department.	Hvis en avdeling velges, plasseres alle elementene på denne avdelingen.
 1394	Angiv valuta	Enter currency	Angiv valuta
@@ -2057,7 +2057,7 @@
 2057	E-mail tekst:	Email text:	E-posttekst:
 2058	Du kan bruge $navn som navn på modtager,$kontonr som kontonr $sum som det beløb der overføres,<br>$antal som antal solgte enheder samt $start og $slut som hhv start og slutdato	You can use $name as the name of the recipient, $account as the account number $sum as the amount transferred,<br>$qty as the number of units sold and $start and $end as the start and end date respectively	Du kan bruke $navn som navn på mottaker, $kontonummer som kontonummer $sum som overført beløp,<br>$antal som antall solgte enheter og $start og $slut som henholdsvis start- og sluttdato
 2059	Tilbage til betalingsliste	Return to payment list	Tilbake til betalingslisten
-2060	Opdatér	Update	Uppdatera
+2060	Opdatér	Update	Oppdater
 2061	alle varer	all products	alla varor
 2062	kun eksisterende varer	only existing products	endast befintliga objekt
 2063	Beregn salgspris efter købspris plus	Calculate Sales price from purchase price plus	Beräkna försäljningspris med inköpspris plus
@@ -2259,7 +2259,7 @@
 2259	Del bord	Split table	Del bord
 2260	Flyt bord	Move table	Flytt bord
 2261	Kasseoptælling	Cash count	Kasseoptelling
-2262	Ny kunde	New costumer	Ny kunde
+2262	Ny kunde	New customer	Ny kunde
 2263	Korrektion	Correction	Korreksjon
 2264	Hent bestilling	Retrieve order	Hent bestilling
 2265	Gem bestilling	Save order	Lagre bestilling
@@ -2771,7 +2771,7 @@
 2771	POS-muligheder	POS options	POS-muligheter
 2772	db / dg (ekskl. moms)	db / dg (excl. VAT)	db / dg (ekskl. MVA)
 2773	I dag	Today	I dag
-2774	Sager	Projects	Prosjekter
+2774	Sager	Projects	Saker
 2775	Planlægning	Planning	Planlegging
 2776	Dagbog	Daily Log	Dagbok
 2777	Certificering	Certification	Sertifisering
@@ -2789,14 +2789,14 @@
 2789	Løndato	Wage date	Lønnsdato
 2790	Overført	Transferred	Overført
 2791	Godk/Afv	Appr/Rej	Godk/Avv
-2792	Sag	Project	Prosjekt
+2792	Sag	Project	Sak
 2793	Ansvarlig	Responsible	Ansvarlig
 2794	Medarb.	Empl.	Medarb.
 2795	Sum	Total	Sum
 2796	Slet sortering	Clear sorting	Slett sortering
 2797	Vælg antal viste linjer	Select number of displayed lines	Velg antall viste linjer
 2798	Ingen resultat	No results	Ingen resultat
-2799	Ved søgning efter opgave i sag, tastes opgavenummer efter sagsnummer adskilt med '-'. F.eks. 12345-1	When searching for a task in a project, enter the task number after the project number separated by '-'. E.g. 12345-1	Ved søk etter oppgave i prosjekt, skriv inn oppgavenummer etter prosjektnummer adskilt med '-'. F.eks. 12345-1
+2799	Ved søgning efter opgave i sag, tastes opgavenummer efter sagsnummer adskilt med '-'. F.eks. 12345-1	When searching for a task in a project, enter the task number after the project number separated by '-'. E.g. 12345-1	Ved søk etter oppgave i sak, skriv inn oppgavenummer etter saksnummer adskilt med '-'. F.eks. 12345-1
 2800	Opgave	Task	Oppgave
 2801	Timepris&comma; Akkord	Hourly rate&comma; Piecework	Timepris&comma; Akkord
 2802	Timeløn	Hourly wage	Timelønn
@@ -2810,26 +2810,26 @@
 2810	Akkord afregning	Piecework settlement	Akkordoppgjør
 2811	Akkord med dyrtid	Piecework with premium time	Akkord med dyrtid
 2812	Plads	Site	Plass
-2813	Tilbage til sag	Back to project	Tilbake til prosjekt
+2813	Tilbage til sag	Back to project	Tilbake til sak
 2814	Tilbage til tilbud	Back to offer	Tilbake til tilbud
-2815	Kopi til sag	Copy to project	Kopi til prosjekt
+2815	Kopi til sag	Copy to project	Kopi til sak
 2816	Print akkordliste	Print piecework list	Skriv ut akkordliste
-2817	Sagsinformation	Project information	Prosjektinformasjon
+2817	Sagsinformation	Project information	Saksinformasjon
 2818	Ret status	Edit status	Rediger status
-2819	Sagsnr.	Project no.	Prosjektnr.
+2819	Sagsnr.	Project no.	Saksnr.
 2820	Opstillingsadresse	Installation address	Monteringsadresse
 2821	Avanceret søgning	Advanced search	Avansert søk
-2822	Find sag	Find project	Finn prosjekt
+2822	Find sag	Find project	Finn sak
 2823	Kontrol	Inspection	Kontroll
 2824	Skema	Form	Skjema
 2825	Tid	Time	Tid
 2826	Kontrolleret af	Inspected by	Kontrollert av
-2827	Opret skema til sagen her	Create form for the project here	Opprett skjema for prosjektet her
+2827	Opret skema til sagen her	Create form for the project here	Opprett skjema for saken her
 2828	Opret skema	Create form	Opprett skjema
 2829	Nyt skema	New form	Nytt skjema
 2830	Skrevet af	Written by	Skrevet av
 2831	Kopi	Copy	Kopi
-2832	Opret tilbud til sagen her	Create offer for the project here	Opprett tilbud for prosjektet her
+2832	Opret tilbud til sagen her	Create offer for the project here	Opprett tilbud for saken her
 2833	Opret Tilbud	Create Offer	Opprett Tilbud
 2834	Nyt Tilbud	New Offer	Nytt Tilbud
 2835	fra Tilbud	from Offer	fra Tilbud
@@ -2839,23 +2839,23 @@
 2839	Klik her for at slette dette bilag	Click here to delete this attachment	Klikk her for å slette dette vedlegget
 2840	Vil du slette bilag	Do you want to delete attachment	Vil du slette vedlegg
 2841	Ret fase, kategori og tilknyt bilag til kontrolskema	Edit phase, category and attach document to inspection form	Rediger fase, kategori og knytt vedlegg til kontrollskjema
-2842	Opret bilag til sagen her	Create attachment for the project here	Opprett vedlegg for prosjektet her
+2842	Opret bilag til sagen her	Create attachment for the project here	Opprett vedlegg for saken her
 2843	Opret bilag	Create attachment	Opprett vedlegg
 2844	Nyt bilag	New attachment	Nytt vedlegg
-2845	Klik her for at slette notatet fra sagen	Click here to delete the note from the project	Klikk her for å slette notatet fra prosjektet
-2846	Vil du slette notatet fra sagen	Do you want to delete the note from the project	Vil du slette notatet fra prosjektet
-2847	Opret notat til sagen her	Create note for the project here	Opprett notat for prosjektet her
+2845	Klik her for at slette notatet fra sagen	Click here to delete the note from the project	Klikk her for å slette notatet fra saken
+2846	Vil du slette notatet fra sagen	Do you want to delete the note from the project	Vil du slette notatet fra saken
+2847	Opret notat til sagen her	Create note for the project here	Opprett notat for saken her
 2848	Opret notat	Create note	Opprett notat
 2849	Nyt notat	New note	Nytt notat
 2850	Opgavenavn	Task name	Oppgavenavn
 2851	Hurtigsøgning	Quick search	Hurtigsøk
 2852	Find kunde	Find customer	Finn kunde
-2853	Opret ny, eller vælg eksisterende kunde til sag her!	Create new, or select existing customer for project here!	Opprett ny, eller velg eksisterende kunde for prosjekt her!
+2853	Opret ny, eller vælg eksisterende kunde til sag her!	Create new, or select existing customer for project here!	Opprett ny, eller velg eksisterende kunde for sak her!
 2854	Ingen beskrivelse	No description	Ingen beskrivelse
 2855	Ingen ansvarlig	No responsible person	Ingen ansvarlig
 2856	Intet telefonnummer	No phone number	Intet telefonnummer
 2857	Ingen e-mailadresse	No email address	Ingen e-postadresse
-2858	Sagens omkostninger	Project costs	Prosjektets kostnader
+2858	Sagens omkostninger	Project costs	Sakens kostnader
 2859	Tilbudspris	Offer price	Tilbudspris
 2860	Allrisk	All-risk	Allrisk
 2861	Tilbudspris u. moms	Offer price excl. VAT	Tilbudspris u. mva.
@@ -2876,81 +2876,81 @@
 2876	Kontakt e-mail	Contact email	Kontakt e-post
 2877	Slet opgave	Delete task	Slett oppgave
 2878	Vil du slette denne opgave	Do you want to delete this task	Vil du slette denne oppgaven
-2879	Ændr eksisterende kunde på sagen	Change existing customer on the project	Endre eksisterende kunde på prosjektet
-2880	Kontaktpersoner til sagen	Contact persons for the project	Kontaktpersoner for prosjektet
-2881	Notat	Note	Notat 
-2882	Infotekst på Dashboard	Info text at Dashboard	Infotekst på Dashboard
-2883	
-2884	
-2885	
-2886	
-2887	
-2888	
-2889	
-2890	
-2891	
-2892	
-2893	
-2894	
-2895	
-2896	
-2897	
-2898	
-2899	
-2900	
-2901	
-2902	
-2903	
-2904	
-2905	
-2906	
-2907	
-2908	
-2909	
-2910	
-2911	
-2912	
-2913	
-2914	
-2915	
-2916	
-2917	
-2918	
-2919	
-2920	
-2921	
-2922	
-2923	
-2924	
-2925	
-2926	
-2927	
-2928	
-2929	
-2930	
-2931	
-2932	
-2933	
-2934	
-2935	
-2936	
-2937	
-2938	
-2939	
-2940	
-2941	
-2942	
-2943	
-2944	
-2945	
-2946	
-2947	
-2948	
-2949	
-2950	
-2951	
-2952	
-2953	
+2879	Ændr eksisterende kunde på sagen	Change existing customer for the project	Endre eksisterende kunde på saken
+2880	Kontaktpersoner til sagen	Contact persons for the project	Kontaktpersoner for saken
+2881	Notat	Note	Notat
+2882	d.		d.
+2883	kl.	at	kl.
+2884	Oprettet af	Created by	Opprettet av
+2885	Planlægningsinformation til opgave	Planning information for task	Planleggingsinformasjon for oppgave
+2886	Her tastes den planlagte start- og slut dato for opgaven, som vises i planlægningsskemaet	Enter the planned start and end date for the task, which is shown in the planning schedule	Skriv inn planlagt start- og sluttdato for oppgaven, som vises i planleggingsskjemaet
+2887	Vis som	Show as	Vis som
+2888	Den planlagte dato for sagen er	The planned date for the project is	Den planlagte datoen for saken er
+2889	Der er ingen planlagt start- og slut dato for sagen	There is no planned start and end date for the project	Det er ingen planlagt start- og sluttdato for saken
+2890	Ingen dækningsgrad	No coverage ratio	Ingen dekningsgrad
+2891	Ingen dækningsbidrag	No contribution margin	Ingen dekningsbidrag
+2892	Planlægningsinformation	Planning information	Planleggingsinformasjon
+2893	Her tastes informationer til beregning, som vises under planlægning	Enter calculation information to be displayed during planning	Her legger du inn beregningsinformasjon som vises under planlegging
+2894	Planlæg beregning	Schedule calculation	Planlegg beregning
+2895	Her tastes den planlagte start- og slut dato for sagen, som vises under planlægning	Enter the planned start and end date for the project, displayed during planning	Her legger du inn planlagt start- og sluttdato for saken, som vises under planlegging
+2896	Løbetid for hele sagen	Duration for the entire project	Varighet for hele saken
+2897	Planlæg sager	Schedule projects	Planlegg saker
+2898	Her tastes den planlagte start- og slut dato for montage og demontage af stilladset, som vises i planlægningsskemaet	Enter the planned start and end date for scaffolding assembly and disassembly, displayed in the planning schedule	Her legger du inn planlagt start- og sluttdato for montering og demontering av stillaset, som vises i planleggingsskjemaet
+2899	Vil du slette denne sag	Do you want to delete this project	Vil du slette dette saken
+2900	Vælg sag som tilbud skal kopieres til	Select project to copy offer to	Velg sak som tilbudet skal kopieres til
+2901	Er du sikker på du vil slette denne kontakt	Are you sure you want to delete this contact	Er du sikker på at du vil slette denne kontakten
+2902	Vælg den opgave som skal vises	Select the task to display	Velg oppgaven som skal vises
+2903	Vælg opgave som skal vises med	Select task to display with	Velg oppgave som skal vises med
+2904	Vælg fra/til dato for akkordlister som skal vises	Select from/to date for piecework lists to display	Velg fra/til dato for akkordlister som skal vises
+2905	Akkordlister på sagen	Piecework lists for the project	Akkordlister på saken
+2906	Der er ikke valgt en kunde	No customer has been selected	Ingen kunde er valgt
+2907	Vil du ændre kunde på denne sag	Do you want to change customer for this project	Vil du endre kunde på dette saken
+2908	Gå til kundekortet her	Go to customer card here	Gå til kundekortet her
+2909	Til kunde	To customer	Til kunde
+2910	Ulæst	Unread	Ulest
+2911	Skal være et tal	Must be a number	Må være et tall
+2912	Opgavetilbud	Task offer	Oppgavetilbud
+2913	Opret tilbud til opgaven her	Create offer for task here	Opprett tilbud for oppgaven her
+2914	Klik her for at se den samlede akkordliste på sagen	Click here to see the complete piecework list for the project	Klikk her for å se den fullstendige akkordlisten for saken
+2915	Klik her for at se alle bilag fra sagen	Click here to see all attachments for the project	Klikk her for å se alle vedlegg for saken
+2916	Generelt for sagen	General project information	Generelt for saken
+2917	Indtastet af	Entered by	Tastet inn av
+2918	Den	Date	Den
+2919	Sag oprettet	Project created	Sak opprettet
+2920	Tilbud gives	Offer provided	Tilbud gis
+2921	Beregner	Calculator	Beregner
+2922	Opstillingsinformation	Installation information	Opstillingsinformasjon
+2923	Stilladstype	Scaffolding type	Stillastype
+2924	Kundeinformation	Customer information	Kundeinformasjon
+2925	Kunde tlf.	Customer phone	Kunde tlf.
+2926	Kunde ref. nr.	Customer ref. no.	Kunde ref. nr.
+2927	Kunde e-mail	Customer email	Kunde e-post
+2928	Opret kontaktperson her	Create contact person here	Opprett kontaktperson her
+2929	Kontaktperson til sag	Contact person for project	Kontaktperson for sak
+2930	Ret oplysninger og status til sagen her	Edit information and status for the project here	Rediger informasjon og status for saken her
+2931	Klik her for at oprette kontrolskema til sagen	Click here to create inspection form for the project	Klikk her for å opprette kontrollskjema for saken
+2932	Klik her for at oprette et nyt kontrolskema til sagen	Click here to create a new inspection form for the project	Klikk her for å opprette et nytt kontrollskjema for saken
+2933	Klik her for at oprette et tilbud til sagen	Click here to create an offer for the project	Klikk her for å opprette et tilbud for saken
+2934	Klik her for at oprette et nyt tilbud til sagen	Click here to create a new offer for the project	Klikk her for å opprette et nytt tilbud for saken
+2935	Klik her for at oprette et notat til sagen	Click here to create a note for the project	Klikk her for å opprette et notat for saken
+2936	Beregning	Calculation	Beregning
+2937	Godkendt	Approved	Godkjent
+2938	Afmeldt	Deregistered	Avmeldt
+2939	Drivgods	Surplus materials	Drivgods
+2940	Afsluttet	Completed	Avsluttet
+2941	Kreditnotabekræftelse	Credit note confirmation	Kreditnotabekreftelse
+2942	Kreditnota modtaget	Credit note received	Kreditnota mottatt
+2943	Sagsnummer eksisterer i forvejen	Project number already exists	Saksnummer eksisterer allerede
+2944	Navn er påkrævet	Name is required	Navn er påkrevd
+2945	Samlede antal timer	Total number of hours	Samlet antall timer
+2946	Lønudgifter i alt	Total wage expenses	Lønnsutgifter totalt
+2947	Diff.	Diff.	Diff.
+2948	Ingen akkordliste	No piecework list	Ingen akkordliste
+2949	Alle opgaver	All tasks	Alle oppgaver
+2950	Ingen opgave	No task	Ingen oppgave
+2951	Akkordliste dato	Piecework list date	Akkordliste dato
+2952	Infotekst på Dashboard	Info text on Dashboard	Infotekst på Dashboard
+2953	Slet sag	Delete project	Slett sak
 2954	
 2955	
 2956	
