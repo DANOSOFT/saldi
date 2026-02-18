@@ -336,10 +336,10 @@ if ($id > 0) {
 		$slutaar = $row['box4']+1;
 		$deleted = $row['box10'];
 	} else {
-		$beskrivelse = date(Y);
-		$startaar    = date(Y);
+		$beskrivelse = date('Y');
+		$startaar    = date('Y');
 		$startmd     = '01';
-		$slutaar     = date(Y);
+		$slutaar     = date('Y');
 		$slutmd      = '12';
 		$aaben       = 'on';
 	}
