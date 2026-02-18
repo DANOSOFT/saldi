@@ -79,6 +79,13 @@ textarea.autosize {
 
 .drag-handle::before { content: ''; }
 
+.drag-handle:active,
+.ordrelinje.dragging .drag-handle,
+body.is-dragging,
+body.is-dragging * {
+  cursor: grabbing;
+}
+
 /* @media (max-width: 900px) {
   .varenr-spacing { width: 100px; }
   .besk-spacing { display: block; width: 100%; }
