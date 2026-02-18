@@ -30,7 +30,7 @@ tbody, thead { font-size: 12px; }
 } */
 
 .drag-handle {
-  cursor: move;
+  cursor: grab;
   text-align: center;
   vertical-align: middle;
   width: 30px;
@@ -78,6 +78,13 @@ textarea.autosize {
 /* body, .page, .content { background: transparent; } */
 
 .drag-handle::before { content: ''; }
+
+.drag-handle:active,
+.ordrelinje.dragging .drag-handle,
+body.is-dragging,
+body.is-dragging * {
+  cursor: grabbing !important;
+}
 
 /* @media (max-width: 900px) {
   .varenr-spacing { width: 100px; }
