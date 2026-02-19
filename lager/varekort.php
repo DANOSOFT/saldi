@@ -2225,32 +2225,57 @@ document.varekort.$fokus.focus();
 </script>";
 ?>
 <script>
-    const bool = "<?php echo $confirmDescriptionChange; ?>";
-    if (bool != "") {
-        const salgspris = document.querySelector("input[name=salgspris]");
+    const salgspris = document.querySelector("input[name=salgspris]");
+    if (salgspris) {
         const oldPrice = salgspris.value;
-        salgspris.addEventListener("change", (e) => {
-            if (confirm("Er du sikker på du vil ændre salgsprisen?") == true) {
-                salgspris.value = e.target.value;
-                const form = document.querySelector("[name=saveItem]");
-                form.click()
-            } else {
-                salgspris.value = oldPrice;
-            }
-        })
-        const kostpris = document.querySelector("#costPrice");
+        // Only verify if old price was not 0 or empty
+        if (oldPrice != "" && parseFloat(oldPrice.replace(',','.')) !== 0) { 
+            salgspris.addEventListener("change", (e) => {
+                if (confirm("Er du sikker på du vil ændre salgsprisen?") == true) {
+                    salgspris.value = e.target.value;
+                    const form = document.querySelector("[name=saveItem]");
+                    form.click()
+                } else {
+                    salgspris.value = oldPrice;
+                }
+            })
+        }
+    }
+
+    const kostpris = document.querySelector("#costPrice");
+    if (kostpris) {
         const oldCost = kostpris.value;
-        kostpris.addEventListener("change", (e) => {
-            if (confirm("Er du sikker på du vil ændre kostprisen?") == true) {
-                kostpris.value = e.target.value;
-                const form = document.querySelector("[name=saveItem]");
-                form.click()
-            } else {
-                kostpris.value = oldCost;
-                const form = document.querySelector("[name=saveItem]");
-                form.click()
-            }
-        })
+        // Only verify if old cost was not 0 or empty
+        if (oldCost != "" && parseFloat(oldCost.replace(',','.')) !== 0) {
+            kostpris.addEventListener("change", (e) => {
+                if (confirm("Er du sikker på du vil ændre kostprisen?") == true) {
+                    kostpris.value = e.target.value;
+                    const form = document.querySelector("[name=saveItem]");
+                    form.click()
+                } else {
+                    kostpris.value = oldCost;
+                    const form = document.querySelector("[name=saveItem]");
+                    form.click()
+                }
+            })
+        }
+    }
+
+    const beskrivelse = document.querySelector("input[name=beskrivelse0]");
+    if (beskrivelse) {
+        const oldDescription = beskrivelse.value;
+        // Only verify if old description was not empty
+        if (oldDescription != "") {
+            beskrivelse.addEventListener("change", (e) => {
+                if (confirm("Er du sikker på du vil ændre beskrivelsen?") == true) {
+                    beskrivelse.value = e.target.value;
+                    const form = document.querySelector("[name=saveItem]");
+                    form.click()
+                } else {
+                    beskrivelse.value = oldDescription;
+                }
+            })
+        }
     }
     function getCookie(cname) {
         let name = cname + "=";
