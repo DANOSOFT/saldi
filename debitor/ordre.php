@@ -54,6 +54,7 @@
 // 20260121 LOE formularsprog synched with existing language template
 // 20260130 LOE Added javascript to sycn the felt_2 to total amount and fixed double creditor note field.
 // 20260209 LOE Updated $txt2130 text. and $kontonr casting to int removed for search operations to prevent breaking search functionality. 
+// 20260217 MMK Added GS1 parsing to ordrelinje creation logic
 // 20260218 PHR Adding vare_id if missing #20260218
 @session_start();
 $s_id = session_id();
@@ -90,6 +91,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
+include(__DIR__ . "/../includes/gs1_parser.php");  # Absolute import
 include("../includes/tid2decimal.php");
 
 
@@ -1924,7 +1926,9 @@ if ($status < 3 && $b_submit) {
 				if ((strpos($posnr_ny[$x], '+')) && ($id)) indsaet_linjer($id, $linje_id[$x], $posnr_ny[$x]);
 			}
 		}
+		// User clicked 'Opslag'
 		if (($posnr_ny[0]) && (!strstr($b_submit, 'Opslag'))) {
+			// Varenr is not set
 			if (!$varenr[0] && $beskrivelse[0] && $pris[0]) {
 				$i = $tmp = 0;
 				$qtxt = "select varenr from varer limit 2";
@@ -1940,18 +1944,67 @@ if ($status < 3 && $b_submit) {
 					if (!$antal[0]) $antal[0] = 1;
 				}
 			}
+			// Varenr is set
 			if ($varenr[0]) {
-			// Check if varenr[0] is an exact match — if not, redirect to product lookup (opslag)
-			$exact_match_check = db_fetch_array(db_select("SELECT id FROM varer WHERE varenr = '$varenr[0]' OR varenr_alias = '$varenr[0]' OR stregkode = '$varenr[0]'", __FILE__ . " linje " . __LINE__));
-			if (!$exact_match_check) {
-				// Not an exact match — redirect to product lookup with the entered value as search term
-				$find_param = urlencode($varenr[0]);
-				$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
-				$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=$find_param$bordnr_param";
-				if (isset($afd_lager)) $url .= "&lager=$afd_lager";
-				header("Location: $url");
-				exit;
-			}
+				// Check if varenr[0] is an exact match - if not, try GS1 parsing before falling back to product lookup (opslag)
+				$gs1serial = null;
+				$varenr0_original = $varenr[0];
+				$exact_match_check = db_fetch_array(db_select("SELECT id, beskrivelse FROM varer WHERE varenr = '$varenr[0]' OR varenr_alias = '$varenr[0]' OR stregkode = '$varenr[0]'", __FILE__ . " linje " . __LINE__));
+				if (!$exact_match_check) {
+					// No direct match from raw input - try to extract GTIN from a GS1 barcode and retry
+					// GS1 is a barcode / datamatrix standard to encode stuff like 
+					// expirey dates, batch numbers and serial numbers often used in logistics
+					$gs1parsed = parseGS1($varenr[0]);  // See /includes/gs1_parser.php
+					$gs1gtin = null;
+					// Find GTIN (01) for fetching the item (varenr)
+					foreach ($gs1parsed as $gs1element) {
+						if ($gs1element['ai'] === '01' && $gs1element['value'] !== '') {
+							$gs1gtin = $gs1element['value'];
+							break;
+						}
+					}
+					if ($gs1gtin !== null) {
+						$gs1varenr = db_escape_string($gs1gtin);
+						$gs1match = db_fetch_array(db_select("SELECT id, beskrivelse FROM varer WHERE varenr = '$gs1varenr' OR varenr_alias = '$gs1varenr' OR stregkode = '$gs1varenr'", __FILE__ . " linje " . __LINE__));
+						if ($gs1match) {
+							// GTIN matched - use it and append any extra GS1 fields to the description
+							$varenr[0] = $gs1gtin;
+							$exact_match_check = $gs1match;
+
+							// Prepare suffix for item description with GS1 field data
+							$gs1suffix = '';
+							foreach ($gs1parsed as $gs1element) {
+								// GTIN (already extracted)
+								if ($gs1element['ai'] === '01') continue;
+								// Serial number (saved for later). For future ref: (10) is batchnumber
+								if ($gs1element['ai'] === '21' && $gs1element['value'] !== '') {
+									$gs1serial = $gs1element['value'];
+								}
+								$gs1suffix .= ' ' . $gs1element['label'] . ': ' . $gs1element['value'];
+							}
+							if ($gs1suffix !== '') {
+								// Update item description suffixed with GS1 data
+								$gs1suffix_escaped = db_escape_string("\n" . trim($gs1suffix));
+								if ($beskrivelse[0] !== '') {
+									// $beskrivelse[0] is already escaped (done at line 1318)
+									$beskrivelse[0] .= $gs1suffix_escaped;
+								} else {
+									$beskrivelse[0] = db_escape_string(trim($gs1match['beskrivelse'])) . $gs1suffix_escaped;
+								}
+							}
+						}
+						// If GTIN had no match, leave $varenr[0] as original and fall through to product lookup
+					}
+				}
+				if (!$exact_match_check) {
+					// Not an exact match - redirect to product lookup with the entered value as search term
+					$find_param = urlencode($varenr0_original);
+					$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
+					$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=$find_param$bordnr_param";
+					if (isset($afd_lager)) $url .= "&lager=$afd_lager";
+					header("Location: $url");
+					exit;
+				}
 				$samlevare[0] = '';
 				if ($brugsamletpris) {
 					$r = db_fetch_array(db_select("SELECT id,samlevare,salgspris FROM varer WHERE varenr = '$varenr[0]' or varenr_alias = '$varenr[0]' or stregkode = '$varenr[0]'", __FILE__ . " linje " . __LINE__));
@@ -1961,9 +2014,20 @@ if ($status < 3 && $b_submit) {
 					if ($incl_moms) $salgspris[0] = $r['salgspris'] + $r['salgspris'] * $momssats / 100;
 					opret_saet($id, $r['id'], $salgspris[0], $momssats, $antal[0], $incl_moms, $lager[0]); #20170627
 				} else {
+					// Create the orderlinje using opret_ordrelinje
 					$svar = opret_ordrelinje($id, "", $varenr[0], $antal[0], $beskrivelse[0], $pris[0], $rabat[0], $procent[0], $art, $momsfri[0], $posnr_ny[0], 0, $incl_moms, "", "", 0, "", "", "", $lager[0], __LINE__);
 
+					// If the order is created with an error display
 					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
+					// Else link serial from GS1 barcode
+					else {
+						// Check the serial number was detected by GS1 parsing and the item is a serial number dependent item
+						if ($gs1serial !== null && $exact_match_check['id'] && vare_is_serienr_item((int)$exact_match_check['id'])) {
+							// Assign the registered serial number to the newly created orderlinje
+							$new_linje = db_fetch_array(db_select("SELECT id FROM ordrelinjer WHERE ordre_id = '$id' ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__));
+							if ($new_linje['id']) gs1_assign_serienr((int)$exact_match_check['id'], $gs1serial, (int)$new_linje['id']);
+						}
+					}
 					if (!$antal[0] && !isset($_POST['indsat'])) { #20151019
 						$fokus = 'dkan' . $x;
 					}
@@ -1972,6 +2036,7 @@ if ($status < 3 && $b_submit) {
 				db_modify("insert into ordrelinjer (ordre_id,posnr,beskrivelse,lager) values ('$id','$posnr_ny[0]','$beskrivelse[0]','$lager[0]')", __FILE__ . " linje " . __LINE__);
 			}
 		}
+
 		if ($id) {
 			$timestamp = $who = NULL;
 			$qtxt = "select tidspkt,hvem from ordrer where status < 3 and id = $id and hvem != '$brugernavn'";
