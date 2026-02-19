@@ -5782,24 +5782,41 @@ $x = 0;
 			print "<td><input type = 'text' name=\"form_gooddes\" value=\"$form_gooddes\">";
 			print "</td>\n</tr>\n";
 			
-			// Pickup address selector (only show if there are multiple addresses)
-			if (count($dfm_pickup_options) > 0) {
-				print "<tr>\n<td>Afhentningsadresse: </td>\n";
-				print "<td><select name=\"dfm_pickup_group_id\" class=\"inputbox\">\n";
-				print "<option value=\"0\">Brug hovedadresse</option>\n";
-				foreach ($dfm_pickup_options as $gid => $addr) {
-					$label = htmlspecialchars($addr['name1']);
-					if ($addr['zipcode'] || $addr['town']) {
-						$label .= " (" . htmlspecialchars($addr['zipcode'] . " " . $addr['town']) . ")";
-					}
-					print "<option value=\"$gid\">$label</option>\n";
-				}
-				print "</select></td>\n</tr>\n";
-			}
-			
 			print "</table></center>\n";
 			print "<input type=\"hidden\" name=\"tGrossWeight\" value=\"$tGrossWeight\">\n";
-			print "<center><br><input type=\"submit\" name=\"dfm_go\" value=\"Opret fragtbrev til Danske Fragtmænd\"></center></form>";;
+			print "<input type=\"hidden\" name=\"dfm_pickup_group_id\" id=\"dfm_pickup_group_id\" value=\"0\">\n";
+			
+			// Pickup address buttons (instead of dropdown, for dyslexic-friendly UI)
+			print "<center><br>\n";
+			print "<div style=\"display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding:10px 0;\">\n";
+			if (count($dfm_pickup_options) > 0) {
+				// Button for main/head address
+				print "<button type=\"submit\" name=\"dfm_go\" value=\"Opret fragtbrev til Danske Fragtmænd\" ";
+				print "style=\"padding:6px 14px; cursor:pointer;\" ";
+				print "onclick=\"document.getElementById('dfm_pickup_group_id').value='0';\">Opret fragtbrev til Danske Fragtmænd</button>\n";
+				// One button per pickup address
+				foreach ($dfm_pickup_options as $gid => $addr) {
+					$town = htmlspecialchars(trim($addr['town']));
+					$name1 = htmlspecialchars(trim($addr['name1']));
+					if ($town) {
+						$locationLabel = $town;
+					} elseif ($name1) {
+						$locationLabel = $name1;
+					} else {
+						$locationLabel = "#$gid";
+					}
+					$btnValue = "Opret fragtbrev til Danske Fragtmænd $locationLabel";
+					print "<button type=\"submit\" name=\"dfm_go\" value=\"$btnValue\" ";
+					print "style=\"padding:6px 14px; cursor:pointer;\" ";
+					print "onclick=\"document.getElementById('dfm_pickup_group_id').value='$gid';\">Opret fragtbrev til Danske Fragtmænd <b>$locationLabel</b></button>\n";
+				}
+			} else {
+				// No extra pickup addresses, just show single button
+				print "<button type=\"submit\" name=\"dfm_go\" value=\"Opret fragtbrev til Danske Fragtmænd\" ";
+				print "style=\"padding:6px 14px; cursor:pointer;\">Opret fragtbrev til Danske Fragtmænd</button>\n";
+			}
+			print "</div>\n";
+			print "</center></form>";;
 		}
 	}
 	if (($gls_user) || (($dfm_user) && ($status >= 3))) print "</tr></td>\n";
