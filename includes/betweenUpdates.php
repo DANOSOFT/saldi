@@ -25,9 +25,10 @@
 // ----------------------------------------------------------------------
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 
+
 // Change the column type to VARCHAR(20)
-$qtxt_change_size = "ALTER TABLE datatables ALTER COLUMN tabel_id TYPE VARCHAR(20)";
-db_modify($qtxt_change_size, __FILE__ . " linje " . __LINE__);
+$qtxt = "ALTER TABLE datatables ALTER COLUMN tabel_id TYPE TEXT";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 
 

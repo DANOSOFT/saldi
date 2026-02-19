@@ -1,6 +1,6 @@
 <?php
-// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-02-11---------
-//                           LICENSE
+// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-02-19---------
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -31,6 +31,7 @@
 // 20251118 LOE Added datagrid for better performance and more features
 // 20260204 Saul Added more fields  in edit column for kreditor/order
 // 20260211 LOE Added tjek back to url. 
+// 20260219 PHR if ($row['valutakurs'] && $row['valutakurs'] != 100) changed to ($sum && $row['valutakurs'] && $row['valutakurs'] != 100)
 
 ob_start();
 @session_start();
@@ -347,8 +348,8 @@ $custom_columns = array(
         "searchable" => true,
         "valueGetter" => function($value, $row, $column) {
             $sum = $value;
-            if ($row['valutakurs'] && $row['valutakurs'] != 100) {
-                $sum = $sum * $row['valutakurs'] / 100;
+            if ($sum && $row['valutakurs'] && $row['valutakurs'] != 100) {
+                $sum*= (float)$row['valutakurs'] / 100;
             }
             return dkdecimal($sum);
         },
