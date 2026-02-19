@@ -828,7 +828,11 @@ if (isset($_REQUEST['newAccountNo']) && $newAccountNo = $_REQUEST['newAccountNo'
 		} elseif ($r = db_fetch_array(db_select($qtxt2, __FILE__ . " linje " . __LINE__))) {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?fokus=kontonr&id=$id&konto_id=$r[id]\">\n";
 			exit;
-		} else kontoopslag('DO', 'kontonr', 'kontonr', $id, $newAccountNo, '', '', '', '', '', '', '', '', '', '', '', '');
+		} else {
+			// Account number does not exist - redirect to create new customer with the account number pre-filled
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=../debitor/ordre.php&ordre_id=$id&fokus=kontonr&kontonr=" . urlencode($newAccountNo) . "\">\n";
+			exit;
+		}
 	} elseif ($newAccountNo) {
 		$x = 0;
 		$qtxt = "select id from adresser where art='D' ";
@@ -2520,17 +2524,31 @@ if ($swap_account) {
 */
 
 if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && (!$id)) {
-	error_log("ordre.php kontoopslag block: b_submit=$b_submit, fokus=$fokus, id=$id, firmanavn=$firmanavn");
 	
 	if (!$id && ($fokus == 'kontakt' || $fokus == 'kontonr' || $fokus == 'firmanavn' || $fokus == 'addr1' || $fokus == 'addr2' || $fokus == 'postnr' || $fokus == 'bynavn' || $fokus == 'land' || $fokus == 'cvrnr' || $fokus == 'ean' || $fokus == 'betalingsdage')) {
-		error_log("ordre.php: Calling kontoopslag path 1 with firmanavn='$firmanavn'");
+		// Check if a numeric account number was entered that doesn't exist - redirect to create new customer
+		if ($fokus == 'kontonr' && $kontonr && is_numeric($kontonr)) {
+			$qtxt_check = "select id from adresser where art='D' and kontonr='" . db_escape_string($kontonr) . "' ";
+			$qtxt_check2 = "select id from adresser where art='D' and tlf='" . db_escape_string($kontonr) . "' ";
+			if ($r_check = db_fetch_array(db_select($qtxt_check, __FILE__ . " linje " . __LINE__))) {
+				// Account exists - redirect to order with this customer
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?fokus=kontonr&id=$id&konto_id=$r_check[id]\">\n";
+				exit;
+			} elseif ($r_check = db_fetch_array(db_select($qtxt_check2, __FILE__ . " linje " . __LINE__))) {
+				// Phone number exists - redirect to order with this customer
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?fokus=kontonr&id=$id&konto_id=$r_check[id]\">\n";
+				exit;
+			} else {
+				// Account number does not exist - redirect to create new customer with the account number pre-filled
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=../debitor/ordre.php&ordre_id=$id&fokus=kontonr&kontonr=" . urlencode($kontonr) . "\">\n";
+				exit;
+			}
+		}
 		kontoopslag($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage);
 	} elseif ((strstr($fokus, 'kontonr')) && (!$status || $hurtigfakt || $swap_account)) {
-		error_log("ordre.php: Calling kontoopslag path 2 (empty firmanavn) - fokus=$fokus");
 		kontoopslag($art, $sort, $fokus, $id, '', '', '', '', '', '', '', '', '', '', '', '', '');
 		// }elseif(!$hurtigfakt){
 	} elseif ((strstr($fokus, 'kontonr')) && ($status >= 1 && $status <= 3) && $art == 'DO') {
-		error_log("ordre.php: Calling kontoopslag path 3 (empty firmanavn) - fokus=$fokus");
 		kontoopslag($art, $sort, $fokus, $id, '', '', '', '', '', '', '', '', '', '', '', '', '');
 		// echo "<script>
 		// 		alert('At least quick invoice is required Go to: System->Settings->Miscellaneous->Order related choices->Use fast invoices');
@@ -2567,7 +2585,6 @@ if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && 
 	if (strstr($fokus, 'besk')) tekstopslag($sort, $id);
 	if ((strstr($fokus, 'kontakt')) && ($id)) ansatopslag($sort, $fokus, $id, $vis, $kontakt);
 } elseif ($b_submit && !$kontonr && $id) {
-	error_log("ordre.php: Calling kontoopslag path 4 (existing order, no customer) - fokus=$fokus, firmanavn=$firmanavn");
 	kontoopslag($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage);
 	exit;
 }
