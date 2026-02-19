@@ -1031,7 +1031,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/accountAutocomplete.css\">\n";
-    print '<link rel="stylesheet" type=\"text/css\" href="../css/datepickerDa.css">';
+    print '<link rel="stylesheet" type="text/css" href="../css/datepickerDa.css">';
     print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
 	print '<script src="../javascript/accountAutocomplete.js"></script>';
     print '<script src="../javascript/datepickerDa.js"></script>';
@@ -1112,6 +1112,20 @@ $svgLink = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="curren
 $svgFile = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
 $svgScan = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>';
 
+// Calculate absolute path to insertDoc.php for AJAX
+// We use $_SERVER['DOCUMENT_ROOT'] to construct a root-relative path
+$currentFile = str_replace('\\', '/', __FILE__);
+$docRoot = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
+// Ensure docRoot has no trailing slash for consistent calculation
+$docRoot = rtrim($docRoot, '/');
+if (strpos($currentFile, $docRoot) === 0) {
+    $relPath = substr($currentFile, strlen($docRoot));
+    $insertDocPath = dirname($relPath) . '/insertDoc.php';
+} else {
+    // Fallback if document root mismatch (e.g. symlinks), alias to common location
+    $insertDocPath = '/pblm/includes/docsIncludes/insertDoc.php';
+}
+
 print "<div id='docPoolContainer'>";
 print "<script>console.time('docPoolRender');</script>";
 print "<div id='leftPanel'>";
@@ -1143,28 +1157,10 @@ if ($source == 'kassekladde' && $sourceId) {
 		$displayAmount = $kladdeInfo['amount'] ? dkdecimal($kladdeInfo['amount']) : '';
 		
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
-		print "<tr>";
-		print "<td style=\"background-color: $buttonColor; color: $buttonTxtColor; padding: 8px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;\">";
-        
-        // Previous Button
-        if ($prevId) {
-            $prevUrl = "?source=kassekladde&sourceId=$prevId&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
-            print "<a href=\"docPool.php$prevUrl\" title=\"Forrige linje\" style=\"color: $buttonTxtColor; text-decoration: none; display: flex; align-items: center;\">$svgChevronLeft</a>";
-        } else {
-            print "<span style=\"opacity: 0.3; display: flex; align-items: center;\">$svgChevronLeft</span>";
-        }
-
-		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Bilag #" . htmlspecialchars($displayBilag) . "</font>";
-        
-        // Next Button
-        if ($nextId) {
-            $nextUrl = "?source=kassekladde&sourceId=$nextId&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
-            print "<a href=\"docPool.php$nextUrl\" title=\"Næste linje\" style=\"color: $buttonTxtColor; text-decoration: none; display: flex; align-items: center;\">$svgChevronRight</a>";
-        } else {
-            print "<span style=\"opacity: 0.3; display: flex; align-items: center;\">$svgChevronRight</span>";
-        }
-        
-		print "</td></tr>";
+	print "<tr>";
+	print "<td style=\"background-color: $buttonColor; color: $buttonTxtColor; padding: 8px; border: 1px solid #ddd;\">";
+	print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\"><span id=\"entryTitle\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Bilag #" . htmlspecialchars($displayBilag) . "</span></font>";
+	print "</td></tr>";
 		print "<tr><td style=\"background-color: " . (isset($bgcolor5) ? $bgcolor5 : '#ffffff') . "; padding: 8px; border: 1px solid #ddd; border-top: none;\">";
 		print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"4\" style=\"font-family: Arial, sans-serif; font-size: 12px;\">";
 		print "<tr><td width=\"20%\" style=\"font-weight: bold;\">Dato:</td><td><input type=\"text\" name=\"dato\" id=\"existingEntryDato\" value=\"" . htmlspecialchars($displayDato) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"dd-mm-yyyy\"></td></tr>";
@@ -1174,25 +1170,69 @@ if ($source == 'kassekladde' && $sourceId) {
 		print "<tr><td style=\"font-weight: bold;\">Kredit:</td><td><input type=\"text\" name=\"kredit\" id=\"existingEntryKredit\" value=\"" . htmlspecialchars($displayKredit) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Kredit konto\"></td></tr>";
 		print "<tr><td style=\"font-weight: bold;\">Fakturanr:</td><td><input type=\"text\" name=\"fakturanr\" id=\"existingEntryFaktura\" value=\"" . $displayFaktura . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Fakturanr\"></td></tr>";
 		print "<tr><td style=\"font-weight: bold;\">Beløb:</td><td><input type=\"text\" name=\"sum\" id=\"existingEntryAmount\" value=\"" . htmlspecialchars($displayAmount) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Beløb\"></td></tr>";
-		print "</table>";
-		print "</td></tr>";
-		print "</tbody></table>";
+	print "</table>";
+    
+    // Buttons in grey area
+    print "<div style=\"display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #ccc;\">";
+    
+    // Style for buttons
+    $btnStyle = "color: $buttonTxtColor; text-decoration: none; display: flex; align-items: center; background-color: $buttonColor; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px;";
+    $btnStyleDisabled = "color: #999; text-decoration: none; display: flex; align-items: center; background-color: #eee; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px; border: 1px solid #ccc;";
+
+    // Previous Button
+    if ($prevId) {
+        $prevUrl = "?source=kassekladde&kladde_id=$currentKladdeId&sourceId=$prevId&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
+        print "<a href=\"documents.php$prevUrl\" title=\"Forrige linje\" style=\"$btnStyle\">$svgChevronLeft Forrige</a>";
+    } else {
+        print "<span style=\"$btnStyleDisabled\">$svgChevronLeft Forrige</span>";
+    }
+
+    // Save Button
+    print "<a href=\"#\" onclick=\"saveEntry(); return false;\"  title=\"Gem ændringer\" style=\"$btnStyle\">$svgSave &nbsp;Gem</a>";
+
+    // Next Button
+    if ($nextId) {
+        $nextUrl = "?source=kassekladde&kladde_id=$currentKladdeId&sourceId=$nextId&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
+        print "<a href=\"documents.php$nextUrl\" title=\"Næste linje\" style=\"$btnStyle\">Næste $svgChevronRight</a>";
+    } else {
+         // If no next ID, link to create new line
+         $nextUrl = "?source=kassekladde&kladde_id=$currentKladdeId&sourceId=0&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
+         print "<a href=\"documents.php$nextUrl\" title=\"Ny linje\" style=\"$btnStyle\">Ny linje $svgChevronRight</a>";
+    }
+    
+    print "</div>";
+
+	print "</td></tr>";
+	print "</tbody></table>";
 	}
 } elseif ($source == 'kassekladde' && empty($sourceId)) {
 	// Show editable fields if creating new entry (sourceId is 0 or empty)
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
 	print "<tr>";
 	print "<td style=\"background-color: $buttonColor; color: $buttonTxtColor; padding: 8px; border: 1px solid #ddd;\">";
+    
+    // Find previous ID (last ID in the kladde)
+    $prevId = 0;
+    $currentKladdeId = isset($_GET['kladde_id']) ? (int)$_GET['kladde_id'] : 0;
+    if ($currentKladdeId) {
+         $qPrev = db_select("select id from kassekladde where kladde_id = '$currentKladdeId' order by id desc limit 1", __FILE__ . " linje " . __LINE__);
+         if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
+    }
+
 	if ($bilag) {
-		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Nyt bilag #" . htmlspecialchars($bilag) . "</font>";
+		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\"><span id=\"entryTitle\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Nyt bilag #" . htmlspecialchars($bilag) . "</span></font>";
 	} else {
-		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Ny linje</font>";
+		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\"><span id=\"entryTitle\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Ny linje</span></font>";
 	}
+    
 	print "</td></tr>";
 	print "<tr><td style=\"background-color: " . (isset($bgcolor5) ? $bgcolor5 : '#ffffff') . "; padding: 8px; border: 1px solid #ddd; border-top: none;\">";
 	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"4\" style=\"font-family: Arial, sans-serif; font-size: 12px;\">";
+	// Dato (date) - editable
+	print "<tr><td width=\"20%\" style=\"font-weight: bold;\">Dato:</td>";
+	print "<td><input type=\"text\" name=\"dato\" id=\"newEntryDato\" value=\"" . htmlspecialchars($dato ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"dd-mm-yyyy\"></td></tr>";
 	// Beskrivelse (description) - editable
-	print "<tr><td width=\"20%\" style=\"font-weight: bold;\">Beskrivelse:</td>";
+	print "<tr><td style=\"font-weight: bold;\">Beskrivelse:</td>";
 	print "<td><input type=\"text\" name=\"beskrivelse\" id=\"newEntryBeskrivelse\" value=\"" . htmlspecialchars($beskrivelse ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast beskrivelse...\"></td></tr>";
 	// Debitor konto (debet) - editable
 	print "<tr><td style=\"font-weight: bold;\">Debitor konto:</td>";
@@ -1201,62 +1241,35 @@ if ($source == 'kassekladde' && $sourceId) {
 	print "<tr><td style=\"font-weight: bold;\">Kreditor konto:</td>";
 	print "<td><input type=\"text\" name=\"kredit\" id=\"newEntryKredit\" value=\"" . htmlspecialchars($kredit ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast kreditor konto...\"></td></tr>";
 	print "</table>";
+
+    // Buttons in grey area
+    print "<div style=\"display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #ccc;\">";
+    
+    // Style for buttons
+    $btnStyle = "color: $buttonTxtColor; text-decoration: none; display: flex; align-items: center; background-color: $buttonColor; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px;";
+    $btnStyleDisabled = "color: #999; text-decoration: none; display: flex; align-items: center; background-color: #eee; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px; border: 1px solid #ccc;";
+
+    // Previous Button
+    if ($prevId) {
+        $prevUrl = "?source=kassekladde&kladde_id=$currentKladdeId&sourceId=$prevId&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
+        print "<a href=\"documents.php$prevUrl\" title=\"Forrige linje\" style=\"$btnStyle\">$svgChevronLeft Forrige</a>";
+    } else {
+        print "<span style=\"$btnStyleDisabled\">$svgChevronLeft Forrige</span>";
+    }
+
+    // Save Button
+    print "<a href=\"#\" onclick=\"saveEntry(); return false;\"  title=\"Gem ændringer\" style=\"$btnStyle\">$svgSave &nbsp;Gem</a>";
+
+    // Next Button (Always disabled on new line)
+    print "<span style=\"$btnStyleDisabled\">Næste $svgChevronRight</span>";
+    
+    print "</div>";
+
 	print "</td></tr>";
 	print "</tbody></table>";
-	
-	$langId = !empty($sprog_id) ? intval($sprog_id) : 1;
-	print '<script>
-	window.saldiLanguage = ' . $langId . ';
-	window.saldiTranslations = {
-		selectAccount: "' . findtekst('586', $langId) . ' ' . findtekst('592', $langId) . '",
-		selectDebtor: "' . findtekst('586', $langId) . ' Debitor",
-		selectCreditor: "' . findtekst('586', $langId) . ' Kreditor",
-		selectDepartment: "' . findtekst('586', $langId) . ' ' . findtekst('274', $langId) . '",
-		selectEmployee: "' . findtekst('586', $langId) . ' Medarbejder",
-		selectCurrency: "' . findtekst('586', $langId) . ' ' . findtekst('776', $langId) . '",
-		selectAmount: "' . findtekst('586', $langId) . ' ' . findtekst('934', $langId) . '",
-		openItems: "Åbne Poster",
-		close: "' . findtekst('2172', $langId) . '",
-		search: "' . findtekst('913', $langId) . '...",
-		searchAccount: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('43', $langId)) . ' / ' . strtolower(findtekst('914', $langId)) . '...",
-		searchInvoice: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('643', $langId)) . ' / ' . strtolower(findtekst('138', $langId)) . '...",
-		noResults: "Ingen resultater",
-		code: "Kode",
-		description: "' . findtekst('914', $langId) . '",
-		initials: "' . findtekst('647', $langId) . '",
-		name: "' . findtekst('138', $langId) . '",
-		companyName: "' . findtekst('28', $langId) . '",
-		accountNo: "' . findtekst('43', $langId) . '",
-		invoiceNo: "' . findtekst('643', $langId) . '",
-		date: "' . findtekst('635', $langId) . '",
-		amount: "' . findtekst('934', $langId) . '",
-		vat: "' . findtekst('770', $langId) . '",
-		shortcut: "' . findtekst('1191', $langId) . '",
-		balance: "Saldo",
-		showing: "Viser",
-		of: "af",
-		previous: "' . findtekst('2598', $langId) . '",
-		next: "' . findtekst('1200', $langId) . '",
-		today: "' . findtekst('2773', $langId) . '",
-		week: "' . findtekst('2669', $langId) . '"
-	};
-	
-	// Initialize autocomplete when document is ready
-	document.addEventListener("DOMContentLoaded", function() {
-		if (typeof initAccountAutocomplete === "function") {
-			initAccountAutocomplete();
-		}
-        
-        // Initialize datepicker
-        if (window.jQuery && typeof window.jQuery.fn.datepickerDa === "function") {
-            jQuery("#existingEntryDato").datepickerDa();
-        }
-		
-		// Also re-init when inputs are added dynamically if needed
-		// For now just basic init
-	});
-	</script>';
 }
+
+	$langId = !empty($sprog_id) ? intval($sprog_id) : 1;
 
 // View mode toggle and search box
 print "<div id='docPoolToolbar' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 6px;'>";
@@ -4518,6 +4531,177 @@ HTML;
 	print "</script>";
 	}
 
+	// Script moved to end of file to ensure global scope availability
+	$langId = !empty($sprog_id) ? intval($sprog_id) : 1;
+	print '<script>
+	console.log("Loading docPool scripts...");
+	
+	window.saldiLanguage = ' . $langId . ';
+	window.saldiTranslations = {
+		selectAccount: "' . findtekst('586', $langId) . ' ' . findtekst('592', $langId) . '",
+		selectDebtor: "' . findtekst('586', $langId) . ' Debitor",
+		selectCreditor: "' . findtekst('586', $langId) . ' Kreditor",
+		selectDepartment: "' . findtekst('586', $langId) . ' ' . findtekst('274', $langId) . '",
+		selectEmployee: "' . findtekst('586', $langId) . ' Medarbejder",
+		selectCurrency: "' . findtekst('586', $langId) . ' ' . findtekst('776', $langId) . '",
+		selectAmount: "' . findtekst('586', $langId) . ' ' . findtekst('934', $langId) . '",
+		openItems: "Åbne Poster",
+		close: "' . findtekst('2172', $langId) . '",
+		search: "' . findtekst('913', $langId) . '...",
+		searchAccount: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('43', $langId)) . ' / ' . strtolower(findtekst('914', $langId)) . '...",
+		searchInvoice: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('643', $langId)) . ' / ' . strtolower(findtekst('138', $langId)) . '...",
+		noResults: "Ingen resultater",
+		code: "Kode",
+		description: "' . findtekst('914', $langId) . '",
+		initials: "' . findtekst('647', $langId) . '",
+		name: "' . findtekst('138', $langId) . '",
+		companyName: "' . findtekst('28', $langId) . '",
+		accountNo: "' . findtekst('43', $langId) . '",
+		invoiceNo: "' . findtekst('643', $langId) . '",
+		date: "' . findtekst('635', $langId) . '",
+		amount: "' . findtekst('934', $langId) . '",
+		vat: "' . findtekst('770', $langId) . '",
+		shortcut: "' . findtekst('1191', $langId) . '",
+		balance: "Saldo",
+		showing: "Viser",
+		of: "af",
+		previous: "' . findtekst('2598', $langId) . '",
+		next: "' . findtekst('1200', $langId) . '",
+		today: "' . findtekst('2773', $langId) . '",
+		week: "' . findtekst('2669', $langId) . '"
+	};
+	
+	document.addEventListener("DOMContentLoaded", function() {
+		console.log("docPool DOMContentLoaded");
+		if (typeof initAccountAutocomplete === "function") {
+			initAccountAutocomplete();
+		}
+        if (window.jQuery && typeof window.jQuery.fn.datepickerDa === "function") {
+            jQuery("#existingEntryDato").datepickerDa();
+            jQuery("#newEntryDato").datepickerDa();
+        }
+	});
+    
+
+	</script>';
+	?>
+	<script>
+		    // Global Save function
+    function saveEntry() {
+        var currentSourceId = window.currentSourceId || <?php echo $sourceId ? (int)$sourceId : '0' ?>;
+        var kladdeId = <?php echo !empty($currentKladdeId) ? (int)$currentKladdeId : '0' ?>;
+        var bilag = <?php echo !empty($bilag) ? (int)$bilag : '0' ?>;
+        
+        var dato = document.getElementById("existingEntryDato") ? document.getElementById("existingEntryDato").value : "";
+        var beskrivelse = document.getElementById("existingEntryBeskrivelse") ? document.getElementById("existingEntryBeskrivelse").value : "";
+        var debet = document.getElementById("existingEntryDebet") ? document.getElementById("existingEntryDebet").value : "";
+        var kredit = document.getElementById("existingEntryKredit") ? document.getElementById("existingEntryKredit").value : "";
+        var fakturanr = document.getElementById("existingEntryFaktura") ? document.getElementById("existingEntryFaktura").value : "";
+        var amount = document.getElementById("existingEntryAmount") ? document.getElementById("existingEntryAmount").value : (document.getElementById("newEntryAmount") ? document.getElementById("newEntryAmount").value : "");
+        
+        if (!dato && document.getElementById("newEntryDato")) dato = document.getElementById("newEntryDato").value;
+        if (!beskrivelse && document.getElementById("newEntryBeskrivelse")) beskrivelse = document.getElementById("newEntryBeskrivelse").value;
+        if (!debet && document.getElementById("newEntryDebet")) debet = document.getElementById("newEntryDebet").value;
+        if (!kredit && document.getElementById("newEntryKredit")) kredit = document.getElementById("newEntryKredit").value;
+        if (!fakturanr && document.getElementById("newEntryFaktura")) fakturanr = document.getElementById("newEntryFaktura").value;
+        
+        var formData = new FormData();
+        formData.append("action", "updateOnly");
+        formData.append("ajax", "1");
+        formData.append("source", "kassekladde");
+        if (currentSourceId) formData.append("sourceId", currentSourceId);
+        if (kladdeId) formData.append("kladde_id", kladdeId);
+        if (bilag) formData.append("bilag", bilag);
+        
+        formData.append("dato", dato);
+        formData.append("beskrivelse", beskrivelse);
+        formData.append("debet", debet);
+        formData.append("kredit", kredit);
+        formData.append("fakturanr", fakturanr);
+        formData.append("sum", amount);
+        
+        var saveBtns = document.querySelectorAll('a[title="Gem ændringer"]');
+        saveBtns.forEach(btn => {
+            btn.innerHTML = 'Gemmer...';
+            btn.style.opacity = '0.7';
+            btn.style.pointerEvents = 'none';
+        });
+
+        fetch("<?php echo $insertDocPath ?>" + "?docFolder=" + encodeURIComponent("<?php echo addslashes($_GET['docFolder'] ?? '') ?>") + "&poolFile=" + encodeURIComponent("<?php echo addslashes($_GET['poolFile'] ?? '') ?>"), {
+            method: "POST",
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.sourceId) {
+                    var wasNew = !window.currentSourceId || window.currentSourceId == 0;
+                    window.currentSourceId = data.sourceId;
+                    
+                    var newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set("sourceId", data.sourceId);
+                    window.history.pushState({path: newUrl.href}, "", newUrl.href);
+                    
+                    if (wasNew) {
+                         var titleElem = document.getElementById("entryTitle");
+                         if (titleElem && data.bilag) {
+                             var txt = titleElem.innerText;
+                             if (txt.indexOf("-") > -1) {
+                                 titleElem.innerText = txt.split("-")[0] + "- Bilag #" + data.bilag;
+                             } else {
+                                titleElem.innerText += " - Bilag #" + data.bilag;
+                             }
+                         }
+                         var allLinks = document.querySelectorAll("div > a, div > span");
+                         allLinks.forEach(el => {
+                             if (el.innerText.indexOf("Næste") > -1) {
+                                 if (el.tagName === "SPAN") {
+                                     var newLink = document.createElement("a");
+                                     newLink.href = "documents.php?source=kassekladde&kladde_id=" + kladdeId + "&sourceId=0&docFolder=" + encodeURIComponent("<?php echo addslashes($_GET['docFolder'] ?? '') ?>") + "&poolFile=" + encodeURIComponent("<?php echo addslashes($_GET['poolFile'] ?? '') ?>");
+                                     newLink.title = "Ny linje";
+                                     newLink.className = el.className;
+                                     newLink.style.cssText = "color: <?php echo addslashes($buttonTxtColor) ?>; text-decoration: none; display: flex; align-items: center; background-color: <?php echo addslashes($buttonColor) ?>; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px;";
+                                     newLink.innerHTML = "Ny linje <?php echo addslashes($svgChevronRight) ?>";
+                                     el.parentNode.replaceChild(newLink, el);
+                                 }
+                             }
+                         });
+                    }
+                }
+
+                saveBtns.forEach(btn => {
+                    btn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gemt!";
+                    setTimeout(() => {
+                        btn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem";
+                        btn.style.opacity = "1";
+                        btn.style.pointerEvents = "auto";
+                    }, 2000);
+                });
+            } else {
+                alert("Fejl ved gemning: " + (data.message || "Ukendt fejl"));
+                resetBtns();
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("Der opstod en fejl ved gemning.");
+            resetBtns();
+        });
+
+        function resetBtns() {
+            saveBtns.forEach(btn => {
+                btn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem";
+                btn.style.opacity = "1";
+                btn.style.pointerEvents = "auto";
+            });
+        }
+    };
+    
+    // Ensure saveEntry is on window object
+    window.saveEntry = saveEntry;
+    console.log("saveEntry defined");
+	</script>
+	<?php
 	file_put_contents($perfLog, sprintf("Time: %.4f - End of PHP execution\n", microtime(true) - $startTime), FILE_APPEND);
 	exit;
 

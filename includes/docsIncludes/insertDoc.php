@@ -30,15 +30,138 @@
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
+// Bootstrap database connection when called directly via AJAX (not included from documents.php)
+if (!function_exists('db_fetch_array')) {
+	ob_start(); // Buffer any HTML output from includes (they output page headers)
+	@session_start();
+	$s_id = session_id();
+	include($sth . "/includes/connect.php");
+	include($sth . "/includes/online.php");
+	include($sth . "/includes/std_func.php");
+	ob_end_clean(); // Discard the HTML output from includes
+}
+
 isset($_GET['bilag_id'])? $bilag_id = $_GET['bilag_id']: $bilag_id = null;
 isset($_GET['bilag'])? $bilag = $_GET['bilag']: $bilag = null;
+$sourceId = isset($_REQUEST['sourceId']) ? $_REQUEST['sourceId'] : (isset($sourceId) ? $sourceId : null);
 if(!isset($globalId)) $globalId =1;
 $qtxt = "select var_value from settings where var_name = 'globalId'";
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $globalId = $r['var_value'];
 else alert ('Missing global ID');
 
+// Extract variables from REQUEST if not already set (for AJAX/POST support without register_globals)
+$source = isset($_REQUEST['source']) ? $_REQUEST['source'] : (isset($source) ? $source : null);
+$kladde_id = isset($_REQUEST['kladde_id']) ? $_REQUEST['kladde_id'] : (isset($kladde_id) ? $kladde_id : null);
+$docFolder = isset($_REQUEST['docFolder']) ? $_REQUEST['docFolder'] : (isset($docFolder) ? $docFolder : null);
+$poolFile = isset($_REQUEST['poolFile']) ? $_REQUEST['poolFile'] : (isset($poolFile) ? $poolFile : null);
+if (isset($_REQUEST['db'])) $db = $_REQUEST['db']; // Ensure db is set if passed
+
+// Debug logging
+file_put_contents('/tmp/debug_insert.log', date('Y-m-d H:i:s') . " - Request: " . print_r($_REQUEST, true) . "\n", FILE_APPEND);
+
 $docFolder.= "/$db";
 if ($poolFile && !$fileName) $fileName = $poolFile;
+
+// Handle updateOnly action (Save button) — early return, no file handling needed
+if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
+    // If source is kassekladde and no sourceId, create a new entry first
+    if ($source == 'kassekladde' && !$sourceId) {
+        if (!$kladde_id) {
+            if (isset($_POST['ajax']) && $_POST['ajax']) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Ingen aktiv kassekladde']);
+                exit;
+            }
+            alert("Ingen aktiv kassekladde");
+            exit;
+        }
+        include_once("../includes/stdFunc/fiscalYear.php");
+        if (!$bilag) {
+            $bilag = 1;
+            if (isset($_POST['bilag']) && $_POST['bilag']) $bilag = (int)$_POST['bilag'];
+            else {
+                list($regnstart, $regnslut) = explode(":", fiscalYear($regnaar));
+                $qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+                $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+                if ($row = db_fetch_array($q)) $bilag = $row['bilag'] + 1;
+            }
+        }
+
+        $transdate_for_insert = (isset($_POST['dato']) && $_POST['dato']) ? usdate($_POST['dato']) : date("Y-m-d");
+
+        // Calculate next pos
+        $pos_qtxt = "SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag'";
+        $pos_result = db_fetch_array(db_select($pos_qtxt, __FILE__ . " linje " . __LINE__));
+        $next_pos = $pos_result ? $pos_result['next_pos'] : 1;
+
+        $qtxt = "insert into kassekladde (bilag,kladde_id,transdate,d_type,k_type,amount,pos) values ";
+        $qtxt .= "('$bilag','$kladde_id','$transdate_for_insert','F','F','0','$next_pos')";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+        $qtxt = "select max(id) as id from kassekladde where kladde_id = '$kladde_id' and bilag = '$bilag'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $sourceId = $r['id'];
+        }
+    }
+
+    // Update kassekladde fields if we have a sourceId
+    if ($sourceId) {
+        if (isset($_POST['dato']) && $_POST['dato']) {
+            $qtxt = "update kassekladde set transdate = '" . usdate($_POST['dato']) . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['beskrivelse']) && $_POST['beskrivelse']) {
+            $qtxt = "update kassekladde set beskrivelse = '" . db_escape_string($_POST['beskrivelse']) . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['debet']) && $_POST['debet']) {
+            if (!is_numeric(substr($_POST['debet'], 0, 1))) {
+                $qtxt = "update kassekladde set d_type = '" . substr($_POST['debet'], 0, 1) . "', ";
+                $qtxt .= "debet = '" . (int)substr($_POST['debet'], 1) . "' where id = '$sourceId'";
+                db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            } else {
+                $qtxt = "update kassekladde set debet = '" . (int)$_POST['debet'] . "' where id = '$sourceId'";
+                db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            }
+        }
+        if (isset($_POST['kredit']) && $_POST['kredit']) {
+            if (!is_numeric(substr($_POST['kredit'], 0, 1))) {
+                $qtxt = "update kassekladde set k_type = '" . substr($_POST['kredit'], 0, 1) . "', ";
+                $qtxt .= "kredit = '" . (int)substr($_POST['kredit'], 1) . "' where id = '$sourceId'";
+                db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            } else {
+                $qtxt = "update kassekladde set kredit = '" . (int)$_POST['kredit'] . "' where id = '$sourceId'";
+                db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            }
+        }
+        if (isset($_POST['sum']) && $_POST['sum']) {
+            $qtxt = "update kassekladde set amount = '" . usdecimal($_POST['sum']) . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['fakturanr']) && $_POST['fakturanr']) {
+            $qtxt = "update kassekladde set faktura = '" . db_escape_string($_POST['fakturanr']) . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+    }
+
+    // Return response
+    if (isset($_POST['ajax']) && $_POST['ajax']) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => (bool)$sourceId, 'sourceId' => $sourceId, 'bilag' => $bilag, 'message' => $sourceId ? 'Saved' : 'Bilaget kunne ikke indsættes']);
+        exit;
+    }
+
+    // Non-AJAX fallback redirect
+    $redirectUrl = "docPool.php?source=$source&sourceId=$sourceId&kladde_id=$kladde_id&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
+    echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Redirecting...</title></head><body>';
+    echo '<script type="text/javascript">';
+    echo "window.location.replace('" . addslashes($redirectUrl) . "');";
+    echo '</script>';
+    echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirectUrl) . '"></noscript>';
+    echo '</body></html>';
+    exit;
+}
+
 if ($docFolder && $source == 'creditorOrder') {
 	
 	if (!file_exists("$docFolder"))                 mkdir ("$docFolder/",0777);
@@ -115,7 +238,7 @@ if ($docFolder && $source == 'creditorOrder') {
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$sourceId = $r['id'];
 		}
-	}  
+	}
 	if ($sourceId) {
 		if ($_POST['dato']) {
 			$qtxt = "update kassekladde set transdate = '". usdate($_POST['dato']) ."' where id = '$sourceId'";
@@ -157,6 +280,9 @@ if ($docFolder && $source == 'creditorOrder') {
 	} else {
 		alert("Bilaget kunne ikke indsættes");
 	}
+    
+
+
 	$path = "../bilag/$db/finance/$kladde_id/$sourceId/";
 	$showDoc = $path.$fileName;
 	if(!file_exists("../bilag/$db")) 							mkdir ("../bilag/$db",0777);

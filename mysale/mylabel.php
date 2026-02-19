@@ -483,7 +483,7 @@ include_once("sidemenu.php");
 if ($showForSale) $vareLimit = 99999;
 print "<html lang='da-dk'><body>";
 print "<div class='flex-container'>";
-print "<div class='container'>";
+/* print "<div class='container'>";
 print "<div class='kundeNavn'>$custName • ";
 if ($condition == 'new') print findtekst('1951|Nye varer', $sprog_id)."</div><br>";
 else print findtekst('1952|Brugte varer', $sprog_id)."</div>";
@@ -657,7 +657,7 @@ for ($a=1;$a<=$rows;$a++) {
 	print "</form>";
 	print "</div>\n";
 	print "</div>\n";
-}
+} */
 
 include ('../includes/connect.php');
 $qtxt = "delete from online where session_id='$s_id' and brugernavn='$account' and db='$db'";
