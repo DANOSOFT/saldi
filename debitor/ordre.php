@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-18 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,6 +56,7 @@
 // 20260209 LOE Updated $txt2130 text. and $kontonr casting to int removed for search operations to prevent breaking search functionality. 
 // 20260217 MMK Added GS1 parsing to ordrelinje creation logic
 // 20260218 PHR Adding vare_id if missing #20260218
+// 20260219 PHR	Fixed AFD (Department)
 @session_start();
 $s_id = session_id();
 
@@ -549,7 +550,7 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		(findtekst('248|Ordrefelt 5', $sprog_id) == findtekst('259|Ekstrafelt 5', $sprog_id)) ? $felt_5 = db_escape_string($r['felt_5']) : $felt_5 = '';
 	}
 
-	if (!isset($afd)) $afd = NULL;
+	if (!isset($afd)) $afd = 0;
 	if (!isset($ansat_navn)) $ansat_navn = NULL;
 	if (!$afd && $id) { #20150302+04
 		$r = db_fetch_array(db_select("select afd,ref from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
@@ -967,6 +968,7 @@ if ($b_submit) {
 	$omdan_t_fakt = if_isset($_POST, NULL, 'omdan_t_fakt');
 	$kreditnota   = if_isset($_POST, NULL, 'kreditnota');
 	$ref          = trim(if_isset($_POST, NULL, 'ref'));
+	$oldRef       = trim(if_isset($_POST, NULL, 'oldRef'));
 	$extAfd       = if_isset($_POST, NULL, 'extAfd');
 	$afd          = if_isset($_POST, NULL, 'afd');
 	$afd_lager    = if_isset($_POST, NULL, 'afd_lager');
@@ -999,6 +1001,11 @@ if ($b_submit) {
 	$ordresum  = if_isset($_POST, NULL, 'ordresum');
 	$lager     = if_isset($_POST, NULL, 'lager');
 
+	if ($ref && $oldRef && $ref != $oldRef) {
+		$qtxt = "select afd from ansatte where navn = '$ref'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$afd = if_isset($r['afd']);
+	}
 
 	if ($extAfd && $afd && $extAfd != $afd) {
 		$qtxt = "select var_value from settings where var_name = 'maxDepVatRate_" . $afd . "'";
@@ -3238,13 +3245,16 @@ function ordreside($id, $regnskab)
 			elseif (substr($fokus, 0, 4) != 'dkan' && substr($fokus, 0, 4) != 'pris') $fokus = 'vare0'; #20151019
 		} else $fokus = 'vare0';
 	} else {
-		$r = db_fetch_array(db_select("select ansatte.navn as ref,ansatte.afd as afd from ansatte,brugere where ansatte.id = " . nr_cast("brugere.ansat_id") . " and brugere.brugernavn='$brugernavn'", __FILE__ . " linje " . __LINE__));
+		$qtxt = "select ansatte.navn as ref,ansatte.afd as afd from ansatte,brugere ";
+		$qtxt.= "where ansatte.id = brugere.ansat_id and brugere.brugernavn='$brugernavn'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$ref = if_isset($r['ref']); #20210719 error thrown here when they are not set
 		$afd = if_isset($r['afd']);
 	}
-	$afd *= 1;
+	$afd = (int)$afd;
 	$afd_navn = NULL;
-	if ($r = db_fetch_array(db_select("select beskrivelse,box1 from grupper where art = 'AFD' and kodenr = '$afd'", __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "select beskrivelse,box1 from grupper where art = 'AFD' and kodenr = '$afd'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$afd_navn = $r['beskrivelse'];
 		$afd_lager = $r['box1'];
 	}
@@ -4584,7 +4594,7 @@ function ordreside($id, $regnskab)
 				$r=db_fetch_array(db_select("select ansatte.navn from ansatte,brugere where brugere.brugernavn='$ref' and ansatte.id=".nr_cast('brugere.ansat_id')."",__FILE__ . " linje " . __LINE__));
 				if (!empty($r['navn'])) $ref=$r['navn']; #20210715
 			}
-			
+			print "<INPUT TYPE = 'hidden' NAME = 'oldRef' VALUE = \"$ref\">";
 			for ($x=0;$x<count($ansat);$x++) {
 				if (!$x) {
 				print "<tr><td>".findtekst(1097,$sprog_id)."</td>\n";
@@ -5909,7 +5919,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 
 
 		# Hovedvaren (samlevare='on') is display-only for sæt collections - sub-items already add to $sum
-		if ($samlevare != 'on') $sum += $ialt;
+		if (!$saet || $samlevare != 'on') $sum += $ialt;
 		$dkpris = dkdecimal($pris, 2);
 		$dkrabat = dkdecimal($rabat, 5);
 		while (substr($dkrabat, -1) == '0') $dkrabat = trim($dkrabat, '0');
@@ -6150,7 +6160,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	#      else print "<td></td>";
 	if ($status >= 1 && $hurtigfakt != 'on') {
 		if ($varenr && !$vare_id) { #20260218
-			$qtxt = "select id from varer where varenr = $vare_id";
+			$qtxt = "select id from varer where varenr = '$varenr'";
 			($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $vare_id = $r['id'] : $vare_id = 0;
  		}
 		if ($vare_id) {
