@@ -5790,11 +5790,8 @@ $x = 0;
 			print "<center><br>\n";
 			print "<div style=\"display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding:10px 0;\">\n";
 			if (count($dfm_pickup_options) > 0) {
-				// Button for main/head address
-				print "<button type=\"submit\" name=\"dfm_go\" value=\"Opret fragtbrev til Danske Fragtmænd\" ";
-				print "style=\"padding:6px 14px; cursor:pointer;\" ";
-				print "onclick=\"document.getElementById('dfm_pickup_group_id').value='0';\">Opret fragtbrev til Danske Fragtmænd</button>\n";
-				// One button per pickup address
+				// SD-338: If alternative pickup addresses exist, only show those buttons.
+				// The default address button is only shown if NO alternative pickup addresses have been created.
 				foreach ($dfm_pickup_options as $gid => $addr) {
 					$town = htmlspecialchars(trim($addr['town']));
 					$name1 = htmlspecialchars(trim($addr['name1']));
@@ -5811,7 +5808,7 @@ $x = 0;
 					print "onclick=\"document.getElementById('dfm_pickup_group_id').value='$gid';\">Opret fragtbrev til Danske Fragtmænd <b>$locationLabel</b></button>\n";
 				}
 			} else {
-				// No extra pickup addresses, just show single button
+				// No alternative pickup addresses — show default button only
 				print "<button type=\"submit\" name=\"dfm_go\" value=\"Opret fragtbrev til Danske Fragtmænd\" ";
 				print "style=\"padding:6px 14px; cursor:pointer;\">Opret fragtbrev til Danske Fragtmænd</button>\n";
 			}

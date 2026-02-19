@@ -246,9 +246,31 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     </script>
 HTML;
 
-    // ============ Create new customer form (SD-338) ============
-    // This form is shown/hidden by the JS in _accountLookupHelper.php
-    // via the noResultsForm element when AJAX search returns no results.
+    // ============ SD-338: Create new customer form ============
+    // Old form (commented out for reference - from f31c650f):
+    // print "<tr id='noResultsForm' style='display:none;'><td colspan='9' style='text-align: right; vertical-align: top;'>";
+    // print "<form name=\"create_debtor\" action=\"ordre.php?id=$id&sag_id=$sag_id&returside=$returside\" method=\"post\">\n";
+    // print "<tr><td colspan='9' align='center' valign='top'><table><tbody>";
+    // print "<tr><td colspan = '2' align = 'center'><big><b>$txt2118</b></big></td></tr>";
+    // print "<tr><td colspan = '2'><hr></td></tr>";
+    // print "<tr><td>$txt357</td><td><input style='width:150px;' type='text' name='kontonr' value=\"$kontonr\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt646</td><td><input style='width:150px;' type='text' name='firmanavn' value=\"$firmanavn\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt648</td><td><input style='width:150px;' type='text' name='addr1' value=\"$addr1\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt648</td><td><input style='width:150px;' type='text' name='addr2' value=\"$addr2\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt650</td><td><input style='width:150px;' type='text' name='postnr' value=\"$postnr\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt651</td><td><input style='width:150px;' type='text' name='bynavn' value=\"$bynavn\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt377</td><td><input style='width:150px;' type='text' name='tlf' value=\"\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt398</td><td><input style='width:150px;' type='text' name='kontakt' value=\"$kontakt\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt402</td><td><input style='width:150px;' type='text' name='email' value=\"$email\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt48</td><td><input style='width:150px;' type='text' name='$txt48' value=\"$cvrnr\"></td></tr>";
+    // print "<tr><td style='width:100px;'>Ean</td><td><input style='width:150px;' type='text' name='ean' value=\"$ean\"></td></tr>";
+    // print "<tr><td style='width:100px;'>$txt56</td><td><select style='width:125px;' name='betalingsbet'>...</select><input style='width:25px;text-align:right;' type='text' name='betalingsdage' value=\"$defaultPdays\">";
+    // print "<tr><td>$txt63</td><td><select style='width:150px;' name='grp'>...</select></td></tr>";
+    // print "<tr><td colspan='2' align='center'><input style='width:250px;' type='submit' name=create_debtor value=\"$txt1232\"></td></tr>";
+    // print "</tbody></table></td></tr>";
+
+    // New form (SD-338) - clean table-based UI matching debtor card style
+    // Shown/hidden by JS in _accountLookupHelper.php via noResultsForm element
 
     // Get next available account number
     if (!$kontonr)
@@ -341,30 +363,74 @@ HTML;
     $defaultPdays_safe = htmlspecialchars($defaultPdays);
 
     // Render the create customer form (hidden by default, shown when no results)
-    print "<div id='noResultsForm' style='display:none;'>";
-    print "<div style='display:flex; justify-content:center; padding:20px 0;'>";
-    print "<form name='create_debtor' action='ordre.php?id=$id&sag_id=$sag_id&returside=$returside' method='post'>";
-    print "<table cellpadding='4' cellspacing='0' border='1' style='border-collapse:collapse; border-color:#ccc;'>";
-    print "<tr><td colspan='2' style='text-align:center; padding:10px; font-size:16px;'><b>$txt2118</b></td></tr>";
-    print "<tr><td colspan='2' style='padding:0;'><hr style='margin:0; border:0; border-top:1px solid #ccc;'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt357</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='kontonr' value='$kontonr_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt646</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='firmanavn' value='$firmanavn_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt648</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='addr1' value='$addr1_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt648</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='addr2' value='$addr2_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt650</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='postnr' value='$postnr_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt651</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='bynavn' value='$bynavn_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt377</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='phone' value=''></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt398</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='kontakt' value='$kontakt_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt402</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='email' value='$email_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt48</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='cvrnr' value='$cvrnr_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>Ean</td><td style='padding:4px 8px;'><input style='width:150px;' type='text' name='ean' value='$ean_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt56</td><td style='padding:4px 8px;'><select style='width:125px;' name='betalingsbet'>$payOptions</select> <input style='width:25px; text-align:right;' type='text' name='betalingsdage' value='$defaultPdays_safe'></td></tr>";
-    print "<tr><td style='padding:4px 8px;'>$txt63</td><td style='padding:4px 8px;'><select style='width:150px;' name='grp'>$grpOptions</select></td></tr>";
-    print "<tr><td colspan='2' style='text-align:center; padding:8px;'><input style='width:150px;' type='submit' name='create_debtor' value='$txt1232'></td></tr>";
-    print "</table>";
-    print "</form>";
-    print "</div>";
-    print "</div>";
+    print <<<CREATEFORM
+<div id='noResultsForm' style='display:none; padding: 20px 0;'>
+  <form name="create_debtor" action="ordre.php?id=$id&sag_id=$sag_id&returside=$returside" method="post">
+    <table align="center" cellpadding="3" cellspacing="0" style="border-collapse:collapse;">
+      <tr>
+        <td colspan="2" align="center" style="padding-bottom:8px;">
+          <big><b>$txt2118</b></big>
+        </td>
+      </tr>
+      <tr><td colspan="2"><hr></td></tr>
+      <tr bgcolor="#f5f5f5">
+        <td style="width:120px;">$txt357</td>
+        <td><input class="inputbox" style="width:200px;" type="text" name="kontonr" value="$kontonr_safe"></td>
+      </tr>
+      <tr>
+        <td>$txt646</td>
+        <td><input class="inputbox" style="width:200px;" type="text" name="firmanavn" value="$firmanavn_safe"></td>
+      </tr>
+      <tr bgcolor="#f5f5f5">
+        <td>$txt648</td>
+        <td><input class="inputbox" style="width:200px;" type="text" name="addr1" value="$addr1_safe"></td>
+      </tr>
+      <tr>
+        <td>$txt648</td>
+        <td><input class="inputbox" style="width:200px;" type="text" name="addr2" value="$addr2_safe"></td>
+      </tr>
+      <tr bgcolor="#f5f5f5">
+        <td>$txt650</td>
+        <td><input class="inputbox" style="width:80px;" type="text" name="postnr" value="$postnr_safe"> <input class="inputbox" style="width:112px;" type="text" name="bynavn" value="$bynavn_safe"></td>
+      </tr>
+      <tr>
+        <td>$txt377</td>
+        <td><input class="inputbox" style="width:200px;" type="text" name="phone" value=""></td>
+      </tr>
+      <tr bgcolor="#f5f5f5">
+        <td>$txt398</td>
+        <td><input class="inputbox" style="width:200px;" type="text" name="kontakt" value="$kontakt_safe"></td>
+      </tr>
+      <tr>
+        <td>$txt402</td>
+        <td><input class="inputbox" style="width:200px;" type="text" name="email" value="$email_safe"></td>
+      </tr>
+      <tr bgcolor="#f5f5f5">
+        <td>$txt48</td>
+        <td><input class="inputbox" style="width:200px;" type="text" name="cvrnr" value="$cvrnr_safe"></td>
+      </tr>
+      <tr>
+        <td>Ean</td>
+        <td><input class="inputbox" style="width:200px;" type="text" name="ean" value="$ean_safe"></td>
+      </tr>
+      <tr bgcolor="#f5f5f5">
+        <td>$txt56</td>
+        <td><select class="inputbox" style="width:130px;" name="betalingsbet">$payOptions</select> <input class="inputbox" style="width:40px; text-align:right;" type="text" name="betalingsdage" value="$defaultPdays_safe"></td>
+      </tr>
+      <tr>
+        <td>$txt63</td>
+        <td><select class="inputbox" style="width:200px;" name="grp">$grpOptions</select></td>
+      </tr>
+      <tr><td colspan="2"><hr></td></tr>
+      <tr>
+        <td colspan="2" align="center" style="padding-top:8px;">
+          <input style="width:200px;" type="submit" name="create_debtor" value="$txt1232">
+        </td>
+      </tr>
+    </table>
+  </form>
+</div>
+CREATEFORM;
     // ============ End of create new customer form ============
 
     if ($o_art == 'PO')
