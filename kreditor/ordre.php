@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-02-17---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-02-19---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,6 +56,7 @@
 // 20251203 LOE Moved S menu's top table to ../includes/kreditorOrderFuncIncludes/topLine_S.php
 // 20251210 LOE vareopslag function moved to productLookup.php
 // 20260217 PHR kundeordrnr
+// 20260219 PHR if ($leveres[$x] < $antal[$x] + $tidl_lev[$x]) changed to if ($leveres[$x] && $leveres[$x] < $antal[$x] + $tidl_lev[$x])
 @session_start();
 $s_id=session_id();
 
@@ -738,7 +739,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 									print "<BODY onLoad=\"javascript:alert('Varenr. $varenr[$x]: antal &aelig;ndret fra $antal[$x] til $tidl_lev[$x]!')\">";
 									$antal[$x]=$tidl_lev[$x]; $submit = 'save'; $status=1;
 								}
-								if ($leveres[$x] < $antal[$x] + $tidl_lev[$x]) {
+								if ($leveres[$x] && $leveres[$x] < $antal[$x] + $tidl_lev[$x]) {
 									$tmp1=$leveres[$x]*-1;
 									$tmp2=abs($antal[$x]+$tidl_lev[$x]);
 
