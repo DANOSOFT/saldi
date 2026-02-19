@@ -616,6 +616,7 @@ $custom_columns = array(
         },
         "render" => function ($value, $row, $column) {
             global $brugernavn;
+            global $vis_lagerstatus, $ls_vgr, $sprog_id;
             $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=" . urlencode($_SERVER["REQUEST_URI"]);
             
             $timestamp = $row['tidspkt'];
@@ -645,6 +646,50 @@ $custom_columns = array(
                 $display = "(R)&nbsp;$value";
             } else {
                 $display = $value;
+            }
+
+            // vis_lagerstatus: wrap display in overlib span with stock details tooltip
+            if ($vis_lagerstatus && $row['art'] != 'DK' && $row['restordre'] != '1') {
+                $id = $row['id'];
+                $spantxt = "<table><tbody>";
+                $spantxt .= "<tr><td>Varenr</td><td>" . findtekst('948|Beholdning', $sprog_id) . "</td><td>" . findtekst('916|Antal', $sprog_id) . "</td><td>" . findtekst('1190|Leveret', $sprog_id) . "</td><td>" . findtekst('1428|Bestilt', $sprog_id) . "</td><td>" . findtekst('1429|Reserveret', $sprog_id) . "</td><td>" . findtekst('1430|I bestilling', $sprog_id) . "</td><td>" . findtekst('976|Disponibel', $sprog_id) . "</td></tr>";
+                $q_ls = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
+                if ($q_ls) while ($r_ls = db_fetch_array($q_ls)) {
+                    if (!$r_ls['vare_id']) continue;
+                    $q2_ls = db_select("select beholdning, gruppe from varer where id='{$r_ls['vare_id']}'", __FILE__ . " linje " . __LINE__);
+                    if (!$q2_ls) continue;
+                    $r2_ls = db_fetch_array($q2_ls);
+                    if (!$r2_ls) continue;
+                    $tmp_ls = find_beholdning($r_ls['vare_id'], NULL);
+                    $beholdning = $r2_ls['beholdning'];
+                    $antal = $r_ls['antal'];
+                    $leveret = $r_ls['leveret'];
+                    $needed = $antal - $leveret;
+                    $is_lagerfrt = in_array($r2_ls['gruppe'], $ls_vgr);
+
+                    if ($beholdning - $needed < 0 && $beholdning + $tmp_ls[4] - $needed >= 0 && $is_lagerfrt) {
+                        $spanbg = '#FFFF66';
+                    } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
+                        $spanbg = '#FF4D4D';
+                    } elseif ($antal != $leveret) {
+                        $spanbg = '#66FF66';
+                    } else {
+                        $spanbg = '#FF33FF';
+                    }
+
+                    if ($spanbg != '#FF33FF' && $spanbg != '#66FF66') {
+                        $spantxt .= "<tr bgcolor=$spanbg><td>$r_ls[varenr]</td><td align=right>" . dkdecimal($beholdning * 1, 0) . "</td>";
+                        $spantxt .= "<td align=right>" . dkdecimal($antal * 1, 0) . "</td><td align=right>" . dkdecimal($leveret * 1, 0) . "</td>";
+                        $spantxt .= "<td align=right>$tmp_ls[1]</td><td align=right>$tmp_ls[2]</td><td align=right>$tmp_ls[3]</td><td align=right>$tmp_ls[4]</td></tr>";
+                    }
+                }
+                $spantxt .= "<tr><td colspan=100><hr></td></tr>";
+                $spantxt .= "<tr><td>Magenta</td><td colspan=7>" . findtekst('2403|Alt leveret', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr><td>Grøn</td><td colspan=7>" . findtekst('1431|På lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr><td>Gul</td><td colspan=7>" . findtekst('1432|Delvist på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr><td>Rød</td><td colspan=7>" . findtekst('1433|Ikke på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "</tbody></table>";
+                $display = "<span onmouseover=\"return overlib('" . $spantxt . "', WIDTH=800);\" onmouseout=\"return nd();\">" . $display . "</span>";
             }
             
             return "<td align='$column[align]' style='$style' $onclick title='$title'>$display</td>";
@@ -1326,6 +1371,16 @@ $select_fields .= ", CASE
         ELSE 'Intet'
     END as levstatus";
 
+// vis_lagerstatus: Load lagerførte varegrupper (VG groups with box8='on')
+$ls_vgr = array();
+if ($vis_lagerstatus) {
+    $qtxt = "select kodenr from grupper where art='VG' and box8='on'";
+    $q_vgr = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    while ($r_vgr = db_fetch_array($q_vgr)) {
+        $ls_vgr[] = $r_vgr['kodenr'];
+    }
+}
+
 $data = array(
     "table_name" => "ordrer",
     "query" => "SELECT 
@@ -1337,8 +1392,47 @@ $data = array(
     AND {{WHERE}}
     ORDER BY {{SORT}}",
 
-    "rowStyle" => function ($row) use ($valg) {
-        return "";
+    "rowStyle" => function ($row) use ($valg, $vis_lagerstatus, $ls_vgr, $sprog_id) {
+        if (!$vis_lagerstatus) return "";
+
+        $id = $row['id'];
+        $linjebg = null;
+
+        // Fetch order lines with non-zero quantities
+        $q = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
+        if (!$q) return "";
+        while ($r = db_fetch_array($q)) {
+            if (!$r['vare_id']) continue;
+            $q2 = db_select("select beholdning, gruppe from varer where id='{$r['vare_id']}'", __FILE__ . " linje " . __LINE__);
+            if (!$q2) continue;
+            $r2 = db_fetch_array($q2);
+            if (!$r2) continue;
+
+            $tmp = find_beholdning($r['vare_id'], NULL);
+            $beholdning = $r2['beholdning'];
+            $antal = $r['antal'];
+            $leveret = $r['leveret'];
+            $needed = $antal - $leveret;
+            $is_lagerfrt = in_array($r2['gruppe'], $ls_vgr);
+
+            if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
+                // Yellow: Low stock but sufficient with pending
+                if ($linjebg === null || $linjebg === '#66FF66') {
+                    $linjebg = '#FFFF66';
+                }
+            } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
+                // Red: Insufficient stock - overrides yellow/green
+                if ($linjebg === null || $linjebg === '#FFFF66' || $linjebg === '#FF33FF' || $linjebg === '#66FF66') {
+                    $linjebg = '#FF4D4D';
+                }
+            } elseif ($antal != $leveret && $linjebg === null) {
+                // Green: In stock, not yet delivered
+                $linjebg = '#66FF66';
+            }
+        }
+
+        if (!$linjebg) $linjebg = '#FF33FF'; // Magenta: All delivered / sufficient
+        return "background-color: $linjebg;";
     },
     "columns" => $columns,
     "filters" => $filters,
