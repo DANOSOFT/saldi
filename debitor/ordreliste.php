@@ -173,6 +173,12 @@ if (empty($start)) {
     $start = 0;
 } #20210817
 $vis_lagerstatus = if_isset($_GET, NULL, 'vis_lagerstatus');
+
+// Lagerstatus colors
+define('LS_IN_STOCK',   '#B5DDB7'); // In stock, not yet delivered
+define('LS_ITEMS_ORDERED',  '#F2DFA0'); // Low stock, no purchase order covering shortage
+define('LS_OUT_OF_STOCK',     '#E8A0A0'); // Out of stock
+define('LS_SEND_ORDER', '#DDB0DD'); // Needs a send order / all delivered
 $gem = if_isset($_GET, NULL, 'gem');
 $gem_id = if_isset($_GET, NULL, 'gem_id');
 $download = if_isset($_GET, NULL, 'download');
@@ -646,8 +652,10 @@ $custom_columns = array(
             }
 
             // vis_lagerstatus: wrap display in overlib span with stock details tooltip
-            if ($vis_lagerstatus && $row['art'] != 'DK' && $row['restordre'] != '1') {
+            // 2026-02-20 MMK: Removed check that it is not restordre, does not make sense not not include stock detials on restordre?
+            if ($vis_lagerstatus && $row['art'] != 'DK') {
                 $id = $row['id'];
+                $overall_bg = null;
                 $spantxt = "<table><tbody>";
                 $spantxt .= "<tr><td>Varenr</td><td>" . findtekst('948|Beholdning', $sprog_id) . "</td><td>" . findtekst('916|Antal', $sprog_id) . "</td><td>" . findtekst('1190|Leveret', $sprog_id) . "</td><td>" . findtekst('1428|Bestilt', $sprog_id) . "</td><td>" . findtekst('1429|Reserveret', $sprog_id) . "</td><td>" . findtekst('1430|I bestilling', $sprog_id) . "</td><td>" . findtekst('976|Disponibel', $sprog_id) . "</td></tr>";
                 $q_ls = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
@@ -665,31 +673,52 @@ $custom_columns = array(
                     $is_lagerfrt = in_array($r2_ls['gruppe'], $ls_vgr);
 
                     if ($beholdning - $needed < 0 && $beholdning + $tmp_ls[4] - $needed >= 0 && $is_lagerfrt) {
-                        $spanbg = '#FFFF66';
+                        $spanbg = LS_ITEMS_ORDERED;
                     } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
-                        $spanbg = '#FF4D4D';
+                        $spanbg = LS_OUT_OF_STOCK;
                     } elseif ($antal != $leveret) {
-                        $spanbg = '#66FF66';
+                        $spanbg = LS_IN_STOCK;
                     } else {
-                        $spanbg = '#FF33FF';
+                        $spanbg = LS_SEND_ORDER;
                     }
 
-                    if ($spanbg != '#FF33FF' && $spanbg != '#66FF66') {
+                    // Track worst overall status (red > yellow > green > magenta)
+                    if ($overall_bg === null) {
+                        $overall_bg = $spanbg;
+                    } elseif ($spanbg === LS_OUT_OF_STOCK) {
+                        $overall_bg = LS_OUT_OF_STOCK;
+                    } elseif ($spanbg === LS_ITEMS_ORDERED && $overall_bg !== LS_OUT_OF_STOCK) {
+                        $overall_bg = LS_ITEMS_ORDERED;
+                    } elseif ($spanbg === LS_IN_STOCK && $overall_bg === LS_SEND_ORDER) {
+                        $overall_bg = LS_IN_STOCK;
+                    }
+
+                    if ($spanbg != LS_SEND_ORDER && $spanbg != LS_IN_STOCK) {
                         $spantxt .= "<tr bgcolor=$spanbg><td>$r_ls[varenr]</td><td align=right>" . dkdecimal($beholdning * 1, 0) . "</td>";
                         $spantxt .= "<td align=right>" . dkdecimal($antal * 1, 0) . "</td><td align=right>" . dkdecimal($leveret * 1, 0) . "</td>";
                         $spantxt .= "<td align=right>$tmp_ls[1]</td><td align=right>$tmp_ls[2]</td><td align=right>$tmp_ls[3]</td><td align=right>$tmp_ls[4]</td></tr>";
                     }
                 }
+                if (!$overall_bg) $overall_bg = LS_SEND_ORDER;
+                $icon_map = [
+                    LS_IN_STOCK => '../ikoner/in-stock.svg',
+                    LS_ITEMS_ORDERED => '../ikoner/item-pending.svg',
+                    LS_OUT_OF_STOCK => '../ikoner/no-stock.svg',
+                    LS_SEND_ORDER => '../ikoner/send-order.svg',
+                ];
+                if (isset($icon_map[$overall_bg])) {
+                    $display = $display . "<img src='{$icon_map[$overall_bg]}' style='width:20px;height:20px;vertical-align:middle;margin-left:4px;'>";
+                }
                 $spantxt .= "<tr><td colspan=100><hr></td></tr>";
-                $spantxt .= "<tr><td>Magenta</td><td colspan=7>" . findtekst('2403|Alt leveret', $sprog_id) . "</td></tr>";
-                $spantxt .= "<tr><td>Grøn</td><td colspan=7>" . findtekst('1431|På lager', $sprog_id) . "</td></tr>";
-                $spantxt .= "<tr><td>Gul</td><td colspan=7>" . findtekst('1432|Delvist på lager', $sprog_id) . "</td></tr>";
-                $spantxt .= "<tr><td>Rød</td><td colspan=7>" . findtekst('1433|Ikke på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_OUT_OF_STOCK  ? " bgcolor=" . LS_OUT_OF_STOCK  : "") . "><td>Rød</td><td colspan=7>"   . findtekst('1433|Ikke på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_ITEMS_ORDERED ? " bgcolor=" . LS_ITEMS_ORDERED : "") . "><td>Gul</td><td colspan=7>"     . findtekst('1432|Delvist på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_IN_STOCK      ? " bgcolor=" . LS_IN_STOCK      : "") . "><td>Grøn</td><td colspan=7>"    . findtekst('1431|På lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr" . ($overall_bg == LS_SEND_ORDER    ? " bgcolor=" . LS_SEND_ORDER    : "") . "><td>Magenta</td><td colspan=7>" . findtekst('1425|Alt leveret', $sprog_id) . "</td></tr>";
                 $spantxt .= "</tbody></table>";
                 $display = "<span onmouseover=\"return overlib('" . $spantxt . "', WIDTH=800);\" onmouseout=\"return nd();\">" . $display . "</span>";
             }
             
-            return "<td align='$column[align]' style='$style' $onclick title='$title'>$display</td>";
+            return "<td align='$column[align]' style='$style' $onclick>$display</td>";
         }
     ),
     
@@ -1414,21 +1443,21 @@ $data = array(
 
             if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
                 // Yellow: Low stock but sufficient with pending
-                if ($linjebg === null || $linjebg === '#66FF66') {
-                    $linjebg = '#FFFF66';
+                if ($linjebg === null || $linjebg === LS_IN_STOCK) {
+                    $linjebg = LS_ITEMS_ORDERED;
                 }
             } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
                 // Red: Insufficient stock - overrides yellow/green
-                if ($linjebg === null || $linjebg === '#FFFF66' || $linjebg === '#FF33FF' || $linjebg === '#66FF66') {
-                    $linjebg = '#FF4D4D';
+                if ($linjebg === null || $linjebg === LS_ITEMS_ORDERED || $linjebg === LS_SEND_ORDER || $linjebg === LS_IN_STOCK) {
+                    $linjebg = LS_OUT_OF_STOCK;
                 }
             } elseif ($antal != $leveret && $linjebg === null) {
                 // Green: In stock, not yet delivered
-                $linjebg = '#66FF66';
+                $linjebg = LS_IN_STOCK;
             }
         }
 
-        if (!$linjebg) $linjebg = '#FF33FF'; // Magenta: All delivered / sufficient
+        if (!$linjebg) $linjebg = LS_SEND_ORDER; // Magenta: All delivered / sufficient
         return "background-color: $linjebg;";
     },
     "columns" => $columns,
@@ -2065,8 +2094,13 @@ print "<div id='top-control-bar'>";
 print "<div id='left-controls' >";
 
 if ($valg == "ordrer" && !$vis_lagerstatus) {
-    print "<a href='ordreliste.php?vis_lagerstatus=on&valg=$valg'>"
-          . findtekst('810|Vis lagerstatus', $sprog_id) . "</a>  ";
+    print "<button type='button' class='button blue small' style='cursor: pointer' onclick=\"location.href='ordreliste.php?vis_lagerstatus=on&valg=$valg'\">"
+          . findtekst('810|Vis lagerstatus', $sprog_id) . "</button>  ";
+}
+
+if ($valg == "ordrer" && $vis_lagerstatus) {
+    print "<button type='button' class='button blue small' style='cursor: pointer' onclick=\"location.href='ordreliste.php?valg=$valg'\">"
+          . findtekst('30|Tilbage', $sprog_id) . "</button>  ";
 }
 
 if ($valg == "ordrer") {
