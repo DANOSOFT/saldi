@@ -1347,7 +1347,8 @@ if ($b_submit) {
 		}
 		$y = "raba" . $x;
 		$rabat[$x] = usdecimal(if_isset($_POST[$y]), 5);
-		if (($x > 0) && (!$rabat[$x])) $rabat = 0;
+		if (($x > 0) && (!$rabat[$x])) $rabat[$x] = 0;
+		if ($x > 0) { file_put_contents('../temp/debug_rabat.txt', date('H:i:s')." Loop1: x=$x rabat_post=".(isset($_POST[$y])?$_POST[$y]:'n/a')." rabat_val=".$rabat[$x]."\n", FILE_APPEND); }
 		$y = "proc" . $x;
 		$procent[$x] = usdecimal(if_isset($_POST[$y]), 2);
 		if (($x > 0) && (!$procent[$x])) $procent[$x] = 100;
@@ -1838,6 +1839,7 @@ if ($status < 3 && $b_submit) {
 					} else {
 						$rabat[$x] = (float)$rabat[$x];
 					}
+					file_put_contents('../temp/debug_rabat.txt', date('H:i:s')." SAVE loop: x=$x linje_id=".$linje_id[$x]." final_rabat=".$rabat[$x]."\n", FILE_APPEND);
 					if (!isset($leveres[$x]) || $leveres[$x] === '') {
 						$leveres[$x] = 0;
 					} else {
@@ -1884,10 +1886,8 @@ if ($status < 3 && $b_submit) {
 						// Allow lager to be updated even for samlesæt items
 						// BUT: This should also update antal, pris, rabat if they are being changed!
 						$qtxt = "update ordrelinjer set leveres='$leveres[$x]',lager='$lager[$x]'";
-						// Add antal, pris, rabat if they are being updated (not just for samlesæt hovedvaren)
-						if (!$samlevare[$x] || $samlevare[$x] != 'on') {
-							$qtxt .= ",antal=$antal[$x],pris='$pris[$x]',rabat='$rabat[$x]'";
-						}
+						// Add antal, pris, rabat for all items including samlesæt
+						$qtxt .= ",antal=$antal[$x],pris='$pris[$x]',rabat='$rabat[$x]'";
 						$qtxt .= " where id='$linje_id[$x]'";
 					} else {
 						$qtxt = "update ordrelinjer set varenr='$varenr[$x]',antal=$antal[$x],beskrivelse='$beskrivelse[$x]',leveres='$leveres[$x]',";
@@ -1896,6 +1896,7 @@ if ($status < 3 && $b_submit) {
 					}
 
 					if ($antal[$x] < 100000000000) {
+						file_put_contents('../temp/debug_rabat.txt', date('H:i:s')." SQL update: ".$qtxt."\n", FILE_APPEND);
 						$result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 						// Mark this linje_id as updated to avoid duplicate updates
