@@ -5463,6 +5463,7 @@ $x = 0;
 
 			$r = db_fetch_array(db_select("select sum(antal) as total from ordrelinjer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__));
 
+
 			print "<tr><td colspan='12'><table bordercolor='#FFFFFF' border='1' cellspacing='0' cellpadding='0' width='100%'><tbody>\n"; # Tabel 4.5.1 ->
 			print "<tr>\n";
 			print "<td width=\"14.2%\" align=\"center\">Nt/Bt " . number_format($tNetWeight, 1, ',', '.') . "/";
@@ -5922,7 +5923,8 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 
 
 		# Hovedvaren (samlevare='on') is display-only for sæt collections - sub-items already add to $sum
-		if (!$saet || $samlevare != 'on') $sum += $ialt;
+		# Wait, the comment says sub-items already add to $sum, but for "samlevare=on", the user's issue implies the total is wrong because these items are NOT adding to the sum, and the sub-items are missing or not calculating. The debug log shows saet=0, so it's NOT a saet, but just an item with samlevare=on. In that case, we MUST add to $sum!
+		if (!$saet || $samlevare != 'on' || $saet == 0) $sum += $ialt;
 		$dkpris = dkdecimal($pris, 2);
 		$dkrabat = dkdecimal($rabat, 5);
 		while (substr($dkrabat, -1) == '0') $dkrabat = trim($dkrabat, '0');
@@ -5932,9 +5934,8 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 
 
 		if ($momsfri != 'on') {
-			# Hovedvaren (samlevare='on') should not add moms - sub-items already handle their own moms
-			if ($samlevare != 'on') $moms += afrund($ialt * $varemomssats / 100, 3); # 20150130 rettet til 3 decimaler
-			if ($samlevare != 'on' && $varemomssats != $momssats) $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
+			$moms += afrund($ialt * $varemomssats / 100, 3); # 20150130 rettet til 3 decimaler
+			if ($varemomssats != $momssats) $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 			if ($incl_moms) $dkpris = dkdecimal($pris + $pris * $varemomssats / 100, 2);
 		} else $blandet_moms = 1; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 		if ($antal) {
@@ -6320,6 +6321,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$antal_ialt = $antal_ialt + $antal; #10.10.2007
 	$leveres_ialt = $leveres_ialt + abs($leveres); #abs tilfoejet 2009.01.26 grundet manglende lev_mulighed med ens antal positive og negative leveringer i ordre 98 i saldi_104
 	$tidl_lev_ialt = $tidl_lev_ialt + $tidl_lev; #10.10.2007
+	
 	return ($sum . chr(9) . $dbsum . chr(9) . $blandet_moms . chr(9) . $moms . chr(9) . $antal_ialt . chr(9) . $leveres_ialt . chr(9) . $tidl_lev_ialt . chr(9) . $tidl_lev . chr(9) . $levdiff);
 	print "<!--function ordrelinjer slut-->";
 } # endfunc ordrelinjer;
