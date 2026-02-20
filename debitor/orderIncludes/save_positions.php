@@ -9,7 +9,7 @@ ini_set('log_errors', 1);
 
 $bg = "nix";
 $header = 'nix';
-//$modulnr = 0;
+$modulnr = 0;
 
 header('Content-Type: application/json');
 
