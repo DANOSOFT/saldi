@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-16--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-20--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,14 +38,11 @@
 // 20260127 LOE Selected calender type now saved for the user.
 // 20260207 LOE Fixed a bug created by git merge
 // 20260212 PHR Disabled popup checker
-// 20260216 LOE Updated delivery note navigation behaviour.
+// 20260216 LOE Updated delivery note navigation behaviour. 20260220 + locat
 @session_start();
 $s_id = session_id();
 
 $css = "../css/std.css?v=24"; 
-
-
-
 
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>";
 
@@ -1494,7 +1491,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } elseif ($submit == "Send mails") {
             print "<script>window.location.href='formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=4&udskriv_til=email&returside=$returside'</script>";
         } elseif ($submit == findtekst('576|Følgeseddel', $sprog_id)) {
-            print "<script>window.location.href='formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=3&udskriv_til=PDF&returside=$returside'</script>";
+            print "<script>window.location.href='formularprint.php?locat=1&id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=3&udskriv_til=PDF&returside=$returside'</script>";
         } elseif ($slet_valgte == findtekst('1099|Slet', $sprog_id)) {
             include("../includes/ordrefunc.php");
             foreach ($selected_ids as $order_id) {

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-19 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,7 +56,8 @@
 // 20260209 LOE Updated $txt2130 text. and $kontonr casting to int removed for search operations to prevent breaking search functionality. 
 // 20260217 MMK Added GS1 parsing to ordrelinje creation logic
 // 20260218 PHR Adding vare_id if missing #20260218
-// 20260219 PHR	Fixed AFD (Department)
+// 20260219 LOE removed setting sprog(background) from tekster.csv to formularsprog as they both refer to different things.
+// 20260219 PHR	Fixed AFD (Department) 
 @session_start();
 $s_id = session_id();
 
@@ -331,6 +332,7 @@ $sort = if_isset($_GET, NULL, 'sort');
 $fokus     = if_isset($_GET, NULL, 'fokus');
 $b_submit  = if_isset($_GET, NULL, 'funktion');
 $vis_kost  = if_isset($_GET, NULL, 'vis_kost');
+$formularsprog = if_isset($_POST, NULL, 'sprog');
 if ($sort && $fokus && $b_submit == 'vareOpslag') {
 	$qtxt = "update settings set var_value='$sort' where var_name='vareOpslag' and var_grp='deb_ordre' and user_id='$bruger_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -344,15 +346,17 @@ if ($sort && $fokus && $b_submit == 'vareOpslag') {
 	sidehoved($id, "ordre.php", "", "", "Kontoopslag");
 	kontoopslag($art, $sort, $fokus, $id, $vis_kost, $ref, 0);
 }
-$bogfor = 1;
+$bogfor = 1; 
 
 $gruppe = 0;
 if ($id && is_numeric($id)) {
 	$r = db_fetch_array(db_select("SELECT adresser.gruppe,ordrer.status,ordrer.sprog FROM ordrer,adresser WHERE ordrer.id = '$id' AND adresser.id=ordrer.konto_id", __FILE__ . " linje " . __LINE__));
 	$status = if_isset($r, 0, 'status');
 	$gruppe = if_isset($r, 0, 'gruppe');
+
 	$formularsprog = if_isset($r, 'Dansk', 'sprog');
 }
+
 // Check customer type from kontotype field
 if ($id) {
 	$qtxt = "SELECT adresser.kontotype FROM ordrer,adresser WHERE ordrer.id = '$id' AND adresser.id=ordrer.konto_id";
@@ -776,7 +780,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		setcookie('localPrint', 'off', time() + 10, '/', 'saldi.dk');
 		$localPrint = NULL;
 	}
-	$formularsprog = if_isset($_POST, NULL, 'sprog'); # 2022113 Tilføjet 'sprog
+	$formularsprog = if_isset($_POST, 'Dansk', 'sprog'); # 2022113 Tilføjet 'sprog
 	$mail_bilag = if_isset($_POST, NULL, 'mail_bilag'); # 20131122 Tilføjet 'mail_bilag'
 	$genfakt = if_isset($_POST, NULL, 'genfakt');
 	if ($genfakt == '') $genfakt = '-';
@@ -947,7 +951,7 @@ if ($b_submit) {
 	$ny_valuta      = if_isset($_POST, NULL, 'ny_valuta');
 	$projekt        = if_isset($_POST, NULL, 'projekt');
 	if (!isset($projekt[0])) $projekt[0] = 0;
-	$formularsprog   = if_isset($_POST, NULL, 'sprog');
+	$formularsprog   = if_isset($_POST, 'Dansk', 'sprog');
 	
 	$lev_adr         = trim(if_isset($_POST, NULL, 'lev_adr'));
 	$sum             = if_isset($_POST, NULL, 'sum');
@@ -2967,7 +2971,7 @@ function ordreside($id, $regnskab)
 		$valutakurs = if_isset($row, NULL, 'valutakurs') * 1;
 		if (!$valutakurs) $valutakurs = 100;
 		$projekt[0] = if_isset($row, NULL, 'projekt');
-		$formularsprog = if_isset($row, NULL, 'sprog');
+		$formularsprog = if_isset($row, 'Dansk', 'sprog');
 		$pbs = if_isset($row, NULL, 'pbs');
 		$afd = if_isset($row, NULL, 'afd');
 		$sum = if_isset($row, NULL, 'sum');
@@ -3313,13 +3317,11 @@ function ordreside($id, $regnskab)
 		else sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 	}
 	if (!$status)  $status = 0;
-
+    $formularsprog = if_isset($formularsprog, 'Dansk');
 
 	if ($status >= 3) {
 		print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
 		$actionUrl = "ordre.php?id=$id";
-
-
 
 		if ($b_submit == 'Kopier' || isset($_POST['copy'])) {
 			$formAction = "ordre.php?sag_id=$sag_id&amp;returside=$returside";
@@ -3436,12 +3438,21 @@ function ordreside($id, $regnskab)
 		print "<td style='width:60px'><b>" . findtekst('52|E-mail', $sprog_id) . "</b> </td><td style='width:130px'><input class='inputbox' type='text' name='email' style='width:130px' value='$email' onchange='javascript:this.form.submit()'></td></tr>\n";
 		print "<tr><td style='color:$tekstcolor;'><b>EAN</b></td><td><input class='inputbox' type='text' style='width:130px' name='ean' value='$ean' onchange='javascript:this.form.submit()' $disabled></td>";
 		if (db_fetch_array(db_select("select distinct sprog from formularer where sprog != 'Dansk'", __FILE__ . " linje " . __LINE__))) {
-			print "<td title=\"" . findtekst('1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.', $sprog_id) . "\"><b>" . findtekst('801|Sprog', $sprog_id) . "</b></span></td>\n";
-			print "<td><select class = 'inputbox' style=\"width:130px\" name=\"sprog\" onchange='this.form.submit()'>\n";
-			print "<option>$formularsprog</option>\n";
+			print "<td title=\"" . findtekst('1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.', $sprog_id) . "\"><b>" . findtekst('571|Baggrund', $sprog_id) . "</b></span></td>\n";
+			print "<td><select class='inputbox' style=\"width:130px\" name=\"sprog\" onchange='this.form.submit()'>\n";
 			$q = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) print "<option>$r[sprog]</option>\n";
-			print "</SELECT></td></tr>";
+			$found = false;
+			// Check if $formularsprog is in the available options
+			while ($r = db_fetch_array($q)) {
+				if ($r['sprog'] == $formularsprog && !$found) {
+					print "<option selected>$r[sprog]</option>\n";
+					$found = true;  // Mark that $formularsprog is already inserted
+				} else {
+					print "<option>$r[sprog]</option>\n";
+				}
+			}
+			print "</select></td></tr>";
+
 		} else{
 			error_log("!!!! only Danish language forms set");
 			print "</td></tr>";
@@ -4307,123 +4318,25 @@ function ordreside($id, $regnskab)
 			}
 		}
 		print "</SELECT></td></tr>\n";
-			####################******************
-			//##########
-			// Get values from tekster.csv 
-			$fp = fopen("../importfiler/tekster.csv","r");
-			if ($linje = trim(fgets($fp))) {
-				$a = explode("\t", $linje);
-			}
-			// remove first element in a 
-			array_shift($a);
-			fclose($fp);
-			###############
-				if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sprog'])) {
-					
-					  $language2 = $_POST['sprog']; // e.g. "Dansk"
-                     $sprog_id1 = array_search($language2, $a, true);
-                     $sprog_id1 = ($sprog_id1 !== false) ? $sprog_id1 + 1 : 1;
-					if($sprog_id1 != $sprog_id){
-						
+		if (db_fetch_array(db_select("select distinct sprog from formularer where sprog != 'Dansk'", __FILE__ . " linje " . __LINE__))) {
+			print "<tr><td title=\"" . findtekst('1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.', $sprog_id) . "\">" . findtekst('571|Baggrund', $sprog_id) . "</span></td>\n";
+			print "<td><select class='inputbox' style=\"width:130px\" name=\"sprog\">\n";
 
-						if ($sprog_id1 !== '') {
-							include("../includes/connect.php");
-							// Save to database here
-							global $s_id;
-							$unixtime = time();
-							$qtxt = "UPDATE online SET logtime='$unixtime', language_id='$sprog_id1' WHERE session_id='$s_id'";
-							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			$q = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
+			$found = false;
 
-							$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-							$url12 = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-							header("Location: $url12");
-							exit;
-
-						}
-					}
-				}
-				###########
-
-			//########
-
-			// CSV-based mapping
-			// $sprog_id is 1-based; array is 0-based
-			$gac = $a[$sprog_id - 1] ;
-		
-			$language2 = $a[$sprog_id - 1] ?? $a[0];
-			
-			$formularsprog = get_settings_value('sprog', 'brugerSprog', $language2, $bruger_id);
-	
-			if (!$formularsprog) {
-
-				$qtxt = "
-					SELECT var_value
-					FROM settings
-					WHERE var_name = 'sprog'
-					AND var_grp  = 'brugerSprog'
-					AND user_id = '$bruger_id'
-					LIMIT 1
-				";
-
-				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-
-					// Value exists
-					$formularsprog = $r['var_value'];
-
+			while ($r = db_fetch_array($q)) {
+				if ($r['sprog'] == $formularsprog && !$found) {
+					print "<option selected>$r[sprog]</option>\n";
+					$found = true; 
 				} else {
-                   error_log("Inserting default language value for user $bruger_id");
-					// Not set → insert default value
-					
-
-					$itxt = "
-						INSERT INTO settings
-						(var_name, var_grp, var_value, user_id)
-						VALUES
-						('sprog', 'brugerSprog', '$formularsprog', '$bruger_id')
-					";
-					db_modify($itxt, __FILE__ . " linje " . __LINE__);
-					$formularsprog = $language2;
+					print "<option>$r[sprog]</option>\n";
 				}
-			}elseif($language2 != $formularsprog){
-				error_log("User setting formularsprog is different from language2 - ".$formularsprog." vs ".$language2);
-				// update user setting
-				$utxt = "
-					UPDATE settings
-					SET var_value = '$language2'
-					WHERE var_name = 'sprog'
-					AND var_grp  = 'brugerSprog'
-					AND user_id = '$bruger_id'
-				";
-				db_modify($utxt, __FILE__ . " linje " . __LINE__);
-				$formularsprog = $language2;
 			}
-			############################************
-			if (db_fetch_array(db_select(
-				"select distinct sprog from formularer where sprog != 'Dansk'",
-				__FILE__ . " linje " . __LINE__
-			))) {
 
-				print "<tr><td title=\"" .
-					findtekst(
-						'1468|Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.',
-						$sprog_id
-					) . "\">" .
-					findtekst('801|Sprog', $sprog_id) .
-					"</span></td>\n";
+			print "</select></td>";
 
-				//Select now built from CSV, values are 1-based
-				print "<td><select class='inputbox' style='width:130px' name='sprog'>\n";
-               error_log("Formularsprog is  $formularsprog and lang is ; ".print_r($a, true)."and sprog id is $sprog_id");
-				foreach ($a as $lang) {
-                   $selected = ($lang === $formularsprog) ? "selected" : "";
-                   print "<option value=\"$lang\" $selected>$lang</option>\n";
-                }      
-
-				print "</SELECT></td>";
-			}else{ 
-				error_log("####>>> >> # Only Danish language set in formularer table ####");
-				print "<tr><td colspan=\"2\"></td>";
-			}
+		} else print "<tr><td colspan=\"2\"></td>";
 
 		print "<tr><td>" . findtekst('1095|Momssats', $sprog_id) . "</td><td>";
 		print "<input class='inputbox' style='text-align:right;width:60px' type='text' name='momssats' ";

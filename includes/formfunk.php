@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 4.1.1 --- 2026-01-03 ---
+// --- includes/formfunk.php --- patch 4.1.1 --- 2026-02-19 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -91,7 +91,8 @@
 // 20241002 PHR 'Kontant' in texts replaced by text ID 370
 // 20250630 PHR Somebody has removed brackets in line 2285 & 2289 - Why !!!
 // 20250925 LOE Kilde added to kontoprint function and used to determine which records to print 
-// 20251231 LOE Adding department supported path for background uploads
+// 20251231 LOE Adding department supported path for background uploads 
+// 20260219 LOE some cleanup to work with or without department
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
 
@@ -130,6 +131,7 @@ if (!function_exists('skriv')) {
 		global $slutbig;
 		global $slutsmall;
 		global $slutitalic;
+		global $locat;
 
 		$x1 = 0;
 		$Opkt = 0;
@@ -1021,7 +1023,7 @@ if (!function_exists('formularprint')) {
 		global $s_id, $side, $sprog_id, $subtotal, $sum;
 		global $transportsum;
 		global $vis_saet;
-		global $y, $ya;
+		global $y, $ya, $locat;
 		$bgr = $psfp1 = $htmfp1 = $kommentarprint = $rvnr = $serienr = $skjul_nul_lin = NULL;
 		$folgeseddel = $mailantal = $nomailantal = 0;
 		$side_x = 210;
@@ -1031,6 +1033,7 @@ if (!function_exists('formularprint')) {
 		$side_y = afrund($side_y * 2.86, 0);
 
 		$preview = NULL;
+		if(!$returside) $returside = if_isset($_GET, NULL, 'returside');
 		$ps_ini = "%!\n%%Creator: Saldi\n%%Pages: 1\n%%BoundingBox: 0 0 $side_x $side_y\n%%EndComments\n<< /PageSize [$side_x $side_y] >> setpagedevice\n";
 		#$ps_ini="%!\n%%Creator: Saldi\n%%Pages: 1\n%%EndComments\n";
 
@@ -1304,9 +1307,9 @@ if ($background_file && file_exists($background_file)) {
     
     // Helper to check for file existence and set path
     $found = false;
-    
+	
     // Normalize language
-    $lang_lower = strtolower($lang);
+    $lang_lower = strtolower($formularsprog);
     $is_default_lang = ($lang_lower == 'dansk' || $lang_lower == 'danish');
 
     // 1. Check Department + Language Specific (if not Default)
@@ -1373,7 +1376,7 @@ if ($background_file && file_exists($background_file)) {
     }
     
     // 7. Check Global + Generic + Language Specific (if not Default)
-    if (!$found && !$is_default_lang) {
+    if (!$found && !$is_default_lang) { 
         $lang_suffix = "_" . $lang_lower;
         $check_path = "../logolib/$db_id/bg{$lang_suffix}.pdf";
         if (file_exists($check_path)) {
@@ -1470,9 +1473,9 @@ if ($background_file && file_exists($background_file)) {
 			########################
 	 
 
-
-
 			$query = db_select("select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__);
+			//log query
+			#error_log("Querying formularer for form $formular, art 3, language $formularsprog: select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'");
 			$found = false;
 			while ($row = db_fetch_array($query)) {
 				$found = true;
@@ -1553,12 +1556,13 @@ if ($background_file && file_exists($background_file)) {
 					}
 				}
 			}
+			
 			if (!$found) {
 				
-				echo "<script>alert('Background not set for this language');</script>";
+				echo "<script>alert('Background values not set for this form');</script>";
 				echo "<button onclick='window.history.go(-3)'>Go Back</button>";
 				exit;
-			}
+			} 
 
 			if ($formular == 3 && !$lev_nr) {
 				$qtxt = "select MAX(lev_nr) as lev_nr from batch_salg where ordre_id = $ordre_id[$o]";
@@ -2192,7 +2196,7 @@ if ($background_file && file_exists($background_file)) {
 		} elseif ($nomailantal > 0) {
 			print "<big><b>Vent - Udskrift genereres</b></big><br>";
 			$mappe = str_replace('../temp/', '', $mappe);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=$returside\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?locat=$locat&ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=$returside\">";
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		#else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
@@ -2824,7 +2828,7 @@ if (!function_exists('kontoprint')) {
 						if ($bruger_id == '-1')
 							echo "Currency lookup query: $qtxt<br>";
 						$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						$valutakode = $r1['kodenr'];
+						$valutakode = $r1['kodenr']; 
 						
 						if ($bruger_id == '-1') {
 							echo "Currency: $kontovaluta, Valutakode: $valutakode<br>";
