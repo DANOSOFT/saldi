@@ -6369,7 +6369,7 @@ if ($menu == 'T') {
 
 
 <link rel="stylesheet" href="orderIncludes/ordre_dragdrop.css">
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="../javascript/Sortable.min.js"></script>
 <script src="orderIncludes/ordre_dragdrop.js"></script>
 <!-- <script src ="orderIncludes/invoice_dragdrop.js"></script> -->
 <style>

@@ -151,7 +151,7 @@ print "<script>
 		that.style.backgroundColor = bgcolor; 
 	}
 </script>";
-print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
+print '<script src="../javascript/Sortable.min.js"></script>';
 include("kassekladde_includes/moveButton.php");
 include("kassekladde_includes/moveButtonStyle.php");
 ########################

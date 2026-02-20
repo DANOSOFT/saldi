@@ -1784,6 +1784,7 @@ if (!$varenr) {
             $be_af_enhed[$x] = $row2['enhed'];
             $be_af_ant[$x] = $row['antal'];
             $be_af_id[$x] = $row2['id'];
+            $be_af_stykliste_id[$x] = $row['id'];
             $be_af_kostpris[$x] = $row2['kostpris'];
             $be_af_sum += $be_af_kostpris[$x] * $be_af_ant[$x];
             print "<input type = 'hidden' name=be_af_id[$x] value='$row[id]'>";
@@ -1831,27 +1832,24 @@ if (!$varenr) {
         ($beholdning) ? $readonly = 'readonly' : $readonly = '';
         print "<tr><td valign=top><table width=20%><tbody><tr><td> <a href=stykliste.php?id=$id>Stykliste</a></td></tr>";
         print "</tbody></table></td>";
-        print "<td></td><td><table border=0 width=80%><tbody>";
-        print "<tr><td> Pos.</td><td width=80> V.nr.</td><td width=300> Beskrivelse</td><td> Antal</td></tr>";
+        print "<td></td><td><table border=0 width=80%><tbody id='stykliste-tbody'>";
+        print "<tr><td width=20></td><td> Pos.</td><td width=80> V.nr.</td><td width=300> Beskrivelse</td><td> Antal</td></tr>";
         for ($x = 1; $x <= $ant_be_af; $x++) {
             $dkantal = dkdecimal($be_af_ant[$x], 2);
             if (substr($dkantal, -1) == '0')
                 $dkantal = substr($dkantal, 0, -1);
             if (substr($dkantal, -1) == '0')
                 $dkantal = substr($dkantal, 0, -2);
-            print "<tr>";
+            print "<tr class='stykliste-row' data-stykliste-id='$be_af_stykliste_id[$x]' data-vare-id='$id'>";
+            print "<td class='stykliste-drag-handle'><b>⋮⋮</b></td>";
             print "<td><input class=\"inputbox\" type=\"text\" size=2 style=\"text-align:right\" name=\"be_af_pos[$x]\" value=\"$x\" $readonly></td>";
             print "<td><a href='?opener=&id=$be_af_id[$x]&returside=varer.php&vis_samlevarer=on'>$be_af_vnr[$x]</a></td><td>$be_af_beskrivelse[$x]</td>";
             print "<td><input class=\"inputbox\" type=\"text\" size=\"2\" style=\"text-align:right\" name=\"be_af_ant[$x]\" value=\"$dkantal\" $readonly>&nbsp;$be_af_enhed[$x]</td>";
-            if ($x === $ant_be_af) {
-                print "<td align='right' title='Varens kostpris' style='border-bottom: 1px #151515 solid'>" . dkdecimal($be_af_kostpris[$x] * $be_af_ant[$x], 2) . "</td>";
-            } else {
-                print "<td align='right' title='Varens kostpris'>" . dkdecimal($be_af_kostpris[$x] * $be_af_ant[$x], 2) . "</td>";
-            }
+            print "<td align='right' title='Varens kostpris'>" . dkdecimal($be_af_kostpris[$x] * $be_af_ant[$x], 2) . "</td>";
             print "</tr>";
         }
-        print "<tr><td colspan='3'></td><td>Kostpris i alt:</td>";
-        print "<td align='right'>" . dkdecimal($be_af_sum, 2) . "</td><tr>";
+        print "<tr><td colspan='4'></td><td>Kostpris i alt:</td>";
+        print "<td align='right' style='border-top: 1px #151515 solid'>" . dkdecimal($be_af_sum, 2) . "</td><tr>";
         $be_af_pos[0] = $ant_be_af + 1;
         print "</tr>";
         print "</tr></tbody></table></td></tr>";
@@ -2293,3 +2291,22 @@ document.varekort.$fokus.focus();
         return "";
     }
 </script>
+<script src="../javascript/Sortable.min.js"></script>
+<script src="../javascript/stykliste_dragdrop.js"></script>
+<style>
+.stykliste-drag-handle {
+    cursor: grab;
+    text-align: center;
+    vertical-align: middle;
+    width: 20px;
+    color: #666;
+    font-size: 14px;
+    user-select: none;
+}
+.stykliste-drag-handle:active,
+body.is-dragging .stykliste-drag-handle {
+    cursor: grabbing;
+}
+.stykliste-row.sortable-ghost { opacity: 0.4; }
+.stykliste-row.sortable-chosen { background-color: #f0f0f0; }
+</style>
