@@ -6461,3 +6461,22 @@ if ($menu == 'T') {
 		height: calc(100vh - 50px);
 	}
 </style>
+
+<script>
+let isSubmitting = false;
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("form[name='ordre']");
+    if (form) {
+        form.addEventListener("submit", function () {
+            isSubmitting = true;
+        });
+    }
+});
+window.addEventListener("beforeunload", function (e) {
+    if (!isSubmitting) {
+        let fd = new FormData();
+        fd.append("id", "<?php echo (int)$id; ?>");
+        navigator.sendBeacon("../includes/unlock_order.php", fd);
+    }
+});
+</script>

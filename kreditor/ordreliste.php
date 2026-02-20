@@ -135,6 +135,11 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $hurtigfakt = 'on';
 }
 
+if (!$popup) {
+    $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'K%' and status < '3'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 ob_end_flush();
 
 // Render header
