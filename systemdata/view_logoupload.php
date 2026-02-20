@@ -30,7 +30,7 @@ $s_id=session_id();
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");
+include("../includes/std_func.php"); 
 
 global $db_id;
 $current_sprog = isset($_GET['sprog']) ? $_GET['sprog'] : 'Dansk';
@@ -100,7 +100,7 @@ if ($actual_file && file_exists($actual_file)) {
 } else {
     $usefile = false;
 }
-
+error_log("Looking for background file: $baggrund, language: $current_sprog, department: $department. Found: " . ($usefile ? $usefile : "No file found"));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 print "<td width=\"10%\" $top_bund height=\"1%\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"logoupload.php?sprog=$current_sprog" . ($department ? "&department=$department" : "") . "\">Close</a></td>";
 print "<td width=\"80%\" $top_bund align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Print</td>";
@@ -108,6 +108,7 @@ print "<td width=\"10%\" $top_bund align = \"right\"><font face=\"Helvetica, Ari
 print "<tr><td width=\"100%\" height=\"100%\" align=\"center\" valign=\"top\" colspan=\"3\">";
 
 if ($usefile && file_exists($usefile)) {
+    error_log("Displaying file: $usefile");
     print "<div style=\"height:100%;\">
     <iframe style=\"width:100%;height:100%;\" src=\"$usefile#toolbar=0&navpanes=0&scrollbar=0\">
         <p>Your browser cannot display this file. <a href=\"$usefile\">Download PDF</a></p>
