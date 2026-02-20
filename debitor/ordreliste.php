@@ -2065,8 +2065,13 @@ print "<div id='top-control-bar'>";
 print "<div id='left-controls' >";
 
 if ($valg == "ordrer" && !$vis_lagerstatus) {
-    print "<a href='ordreliste.php?vis_lagerstatus=on&valg=$valg'>"
-          . findtekst('810|Vis lagerstatus', $sprog_id) . "</a>  ";
+    print "<button type='button' class='button blue small' style='cursor: pointer' onclick=\"location.href='ordreliste.php?vis_lagerstatus=on&valg=$valg'\">"
+          . findtekst('810|Vis lagerstatus', $sprog_id) . "</button>  ";
+}
+
+if ($valg == "ordrer" && $vis_lagerstatus) {
+    print "<button type='button' class='button blue small' style='cursor: pointer' onclick=\"location.href='ordreliste.php?valg=$valg'\">"
+          . findtekst('30|Tilbage', $sprog_id) . "</button>  ";
 }
 
 if ($valg == "ordrer") {
