@@ -1,5 +1,6 @@
 <?php
 @session_start();
+$s_id = session_id();
 include("../includes/connect.php");
 include("../includes/online.php");
 

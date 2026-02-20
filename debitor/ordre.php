@@ -322,7 +322,9 @@ if ($tjek = if_isset($_GET, NULL, 'tjek')) {
 		} else {
 			db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
 		}
-	}
+	} else {
+        db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
+    }
 }
 if (!$id) $id = if_isset($_GET['ordre_id']);
 $sort = if_isset($_GET, NULL, 'sort');
@@ -6456,27 +6458,38 @@ if ($menu == 'T') {
 <script src="orderIncludes/ordre_dragdrop.js"></script>
 <!-- <script src ="orderIncludes/invoice_dragdrop.js"></script> -->
 <style>
-	.ordreform {
-		overflow-x: auto;
-		height: calc(100vh - 50px);
-	}
+        .ordreform {
+                overflow-x: auto;
+                height: calc(100vh - 50px);
+        }
 </style>
 
 <script>
 let isSubmitting = false;
 document.addEventListener("DOMContentLoaded", function () {
-    const form = document.querySelector("form[name='ordre']");
-    if (form) {
+    const forms = document.querySelectorAll("form");
+    forms.forEach(form => {
         form.addEventListener("submit", function () {
             isSubmitting = true;
         });
-    }
+    });
 });
-window.addEventListener("beforeunload", function (e) {
-    if (!isSubmitting) {
-        let fd = new FormData();
-        fd.append("id", "<?php echo (int)$id; ?>");
-        navigator.sendBeacon("../includes/unlock_order.php", fd);
+function unlockOrderBeacon(evtName) {
+    if (!isSubmitting && !window.orderUnlocked) {
+        window.orderUnlocked = true;
+        let data = new URLSearchParams();
+        data.append("id", "<?php echo (int)$id; ?>");
+        data.append("event", evtName);
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon("../includes/unlock_order.php", data);
+        } else {
+            let xhr = new XMLHttpRequest();
+            xhr.open('POST', '../includes/unlock_order.php', false);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.send(data.toString());
+        }
     }
-});
+}
+window.addEventListener("beforeunload", function() { unlockOrderBeacon('beforeunload'); });
+window.addEventListener("pagehide", function() { unlockOrderBeacon('pagehide'); });
 </script>
