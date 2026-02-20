@@ -382,6 +382,7 @@ function create_datagrid($id, $grid_data) {
     $rowStyleFn = if_isset($grid_data, NULL,'rowStyle');
     $metaColumnFn = if_isset($grid_data,NULL,'metaColumn');
     $metaColumnHeaders = if_isset($grid_data, NULL,'metaColumnHeaders');
+    $extraParams = if_isset($grid_data, [],'extraParams');
     $totalWidth = calculate_total_width($columns_updated);
     $menuData = if_isset($_GET, [], 'menu');
     $menu = if_isset($menuData, "main", $id);// ['main', 'kolonner', 'filtre']
@@ -408,20 +409,21 @@ function create_datagrid($id, $grid_data) {
         // Render the data grid
         render_datagrid(
             $id,
-            $columns_updated, 
-            $rows, 
-            $totalWidth, 
-            $searchTerms, 
-            $rowStyleFn, 
+            $columns_updated,
+            $rows,
+            $totalWidth,
+            $searchTerms,
+            $rowStyleFn,
             $metaColumnFn,
             $metaColumnHeaders,
-            $query, 
+            $query,
             $sort,
             $selectedrowcount,
             $totalItems,
             $totalRows,
             $offset,
-            $menu
+            $menu,
+            $extraParams
         );
 
         // Render additional styles and scripts
@@ -855,23 +857,31 @@ function calculate_total_width($columns) {
  * @param callable|null $rowStyleFn A callback function to define dynamic styles for each row. Receives a row and returns a style string.
  * @param callable|null $metaColumnFn A callback function to render metadata for each row. Receives a row and returns an HTML string.
  * @param array|null $metaColumnHeaders An array of header names for meta columns (e.g., ['Aktiv', 'Inviter']).
- * @param array $query The query parameters used for filtering and sorting the table data. Typically includes search, sort, and pagination data.
+ * @param string $query The SQL query string used to fetch the data.
  * @param string $sort The current sorting criteria, e.g., the column and direction (e.g., 'column_name ASC').
  * @param int $selectedrowcount The total number of rows selected by the user for some action (e.g., bulk action).
  * @param int $totalItems The total number of items in the data set, used for pagination.
  * @param int $rowCount The number of rows to display per page.
  * @param int $offset The current page offset, which determines which set of rows to display.
  * @param string $menu The current menu option selected in the data grid, used to handle different menu actions.
+ * @param array $extraParams Additional key-value pairs to include as hidden form inputs, preserving extra GET parameters across grid interactions.
  *
  * @return void Outputs the full HTML structure of the datagrid, including a table and necessary form fields for interaction.
  */
-function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $metaColumnHeaders, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
+function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $metaColumnHeaders, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu, $extraParams = []) {
+    $extraParamsHtml = '';
+    foreach ($extraParams as $name => $value) {
+        $escapedName = htmlspecialchars($name, ENT_QUOTES);
+        $escapedValue = htmlspecialchars($value, ENT_QUOTES);
+        $extraParamsHtml .= "<input type=\"hidden\" name=\"{$escapedName}\" value=\"{$escapedValue}\">\n            ";
+    }
     // Start table wrapper and form
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="GET" action="">
             <input type="hidden" name='sort[{$id}]', value='$sort'>
             <input type="hidden" name='menu[{$id}]', value='$menu'>
+            $extraParamsHtml
             <div class="datatable-search-wrapper">
                 <table class="datatable" id="datatable-$id" style="width: 100%;">
                     <thead>
