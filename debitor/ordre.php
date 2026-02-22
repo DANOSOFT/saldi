@@ -1964,9 +1964,9 @@ if ($status < 3 && $b_submit) {
 				$gs1serial = null;
 				$varenr0_original = $varenr[0];
 				$exact_match_check = db_fetch_array(db_select("SELECT id, beskrivelse FROM varer WHERE varenr = '$varenr[0]' OR varenr_alias = '$varenr[0]' OR stregkode = '$varenr[0]'", __FILE__ . " linje " . __LINE__));
-				if (!$exact_match_check) {
+				if (!$exact_match_check && get_settings_value("gs1_parsing", "ordre", "off") === "on") {
 					// No direct match from raw input - try to extract GTIN from a GS1 barcode and retry
-					// GS1 is a barcode / datamatrix standard to encode stuff like 
+					// GS1 is a barcode / datamatrix standard to encode stuff like
 					// expirey dates, batch numbers and serial numbers often used in logistics
 					$gs1parsed = parseGS1($varenr[0]);  // See /includes/gs1_parser.php
 					$gs1gtin = null;
