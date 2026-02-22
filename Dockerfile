@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
         pdftk-java \
         ghostscript \
         imagemagick \
+        barcode \
         msmtp \
         msmtp-mta \
     && docker-php-ext-install pgsql pdo_pgsql \
