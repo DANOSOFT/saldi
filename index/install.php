@@ -360,14 +360,14 @@ if (isset($_POST['opret'])){
 		exit;
 	}		
 } else {
-	$db_encode    = if_isset($_SESSION['db_encode']);
-	$db_type      = if_isset($_SESSION['db_type']);
-	$db_host      = if_isset($_SESSION['db_host']);
-	$db_navn      = if_isset($_SESSION['db_navn']);
-	$db_bruger    = if_isset($_SESSION['db_bruger']);
-	$db_password  = if_isset($_SESSION['db_password']);
-	$adm_navn     = if_isset($_SESSION['adm_navn']);
-	$adm_password = if_isset($_SESSION['adm_password']);
+	$db_encode    = if_isset($_SESSION, '', 'db_encode');
+	$db_type      = if_isset($_SESSION, '', 'db_type');
+	$db_host      = if_isset($_SESSION, '', 'db_host');
+	$db_navn      = if_isset($_SESSION, '', 'db_navn');
+	$db_bruger    = if_isset($_SESSION, '', 'db_bruger');
+	$db_password  = if_isset($_SESSION, '', 'db_password');
+	$adm_navn     = if_isset($_SESSION, '', 'adm_navn');
+	$adm_password = if_isset($_SESSION, '', 'adm_password');
 	if(!if_isset($sprog_id,1));
 	if(isset( $_SESSION['language'])){
 		$sprog_id = $_SESSION['language'];
