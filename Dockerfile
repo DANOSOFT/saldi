@@ -23,7 +23,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Suppress PHP warnings/notices from being rendered in the browser
 RUN echo "display_errors = Off" > /usr/local/etc/php/conf.d/suppress-errors.ini \
- && printf "upload_max_filesize = 512M\npost_max_size = 512M\nmemory_limit = 512M\nmax_execution_time = 300\n" > /usr/local/etc/php/conf.d/uploads.ini \
+ && printf "upload_max_filesize = 512M\npost_max_size = 512M\nmemory_limit = 512M\nmax_execution_time = 300\noutput_buffering = 4096\n" > /usr/local/etc/php/conf.d/uploads.ini \
  && printf "log_errors = On\nerror_log = /dev/stderr\n" > /usr/local/etc/php/conf.d/logging.ini
 
 # Suppress Apache ServerName warning
