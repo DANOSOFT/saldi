@@ -91,7 +91,7 @@
   /* File Upload */
   --docpool-upload-zone-border: 2px dashed;
   --docpool-upload-zone-bg: rgba(0, 0, 0, 0.02);
-  --docpool-upload-zone-bg-hover: rgba(0, 0, 0, 0.05);
+  --docpool-upload-zone-bg-hover: #f0f0f0;
 
   /* Grid/Datatable specific variables */
   --grid-wrapper-bg: var(--docpool-bg-main);

@@ -1163,13 +1163,30 @@ if ($source == 'kassekladde' && $sourceId) {
 	print "</td></tr>";
 		print "<tr><td style=\"background-color: " . (isset($bgcolor5) ? $bgcolor5 : '#ffffff') . "; padding: 8px; border: 1px solid #ddd; border-top: none;\">";
 		print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"4\" style=\"font-family: Arial, sans-serif; font-size: 12px;\">";
-		print "<tr><td width=\"20%\" style=\"font-weight: bold;\">Dato:</td><td><input type=\"text\" name=\"dato\" id=\"existingEntryDato\" value=\"" . htmlspecialchars($displayDato) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"dd-mm-yyyy\"></td></tr>";
-		// Beskrivelse is always editable
-		print "<tr><td style=\"font-weight: bold;\">Beskrivelse:</td><td><input type=\"text\" name=\"beskrivelse\" id=\"existingEntryBeskrivelse\" value=\"" . $displayBeskrivelse . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast beskrivelse...\"></td></tr>";
-		print "<tr><td style=\"font-weight: bold;\">Debet:</td><td><input type=\"text\" name=\"debet\" id=\"existingEntryDebet\" value=\"" . htmlspecialchars($displayDebet) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Debet konto\"></td></tr>";
-		print "<tr><td style=\"font-weight: bold;\">Kredit:</td><td><input type=\"text\" name=\"kredit\" id=\"existingEntryKredit\" value=\"" . htmlspecialchars($displayKredit) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Kredit konto\"></td></tr>";
-		print "<tr><td style=\"font-weight: bold;\">Fakturanr:</td><td><input type=\"text\" name=\"fakturanr\" id=\"existingEntryFaktura\" value=\"" . $displayFaktura . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Fakturanr\"></td></tr>";
-		print "<tr><td style=\"font-weight: bold;\">Beløb:</td><td><input type=\"text\" name=\"sum\" id=\"existingEntryAmount\" value=\"" . htmlspecialchars($displayAmount) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Beløb\"></td></tr>";
+		// Row 1: Dato + Fakturanr
+		print "<tr>";
+		print "<td width=\"12%\" style=\"font-weight: bold;\">Dato:</td>";
+		print "<td width=\"30%\"><input type=\"text\" name=\"dato\" id=\"existingEntryDato\" value=\"" . htmlspecialchars($displayDato) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"dd-mm-yyyy\"></td>";
+		print "<td width=\"12%\" style=\"font-weight: bold; padding-left: 10px;\">Fakturanr:</td>";
+		print "<td><input type=\"text\" name=\"fakturanr\" id=\"existingEntryFaktura\" value=\"" . $displayFaktura . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Fakturanr\"></td>";
+		print "</tr>";
+		// Row 2: Beskrivelse
+		print "<tr>";
+		print "<td style=\"font-weight: bold;\">Beskrivelse:</td>";
+		print "<td colspan=\"3\"><input type=\"text\" name=\"beskrivelse\" id=\"existingEntryBeskrivelse\" value=\"" . $displayBeskrivelse . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast beskrivelse...\"></td>";
+		print "</tr>";
+		// Row 3: Debet + Kredit
+		print "<tr>";
+		print "<td style=\"font-weight: bold;\">Debet:</td>";
+		print "<td><input type=\"text\" name=\"debet\" id=\"existingEntryDebet\" value=\"" . htmlspecialchars($displayDebet) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Debet konto\"></td>";
+		print "<td style=\"font-weight: bold; padding-left: 10px;\">Kredit:</td>";
+		print "<td><input type=\"text\" name=\"kredit\" id=\"existingEntryKredit\" value=\"" . htmlspecialchars($displayKredit) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Kredit konto\"></td>";
+		print "</tr>";
+		// Row 4: Beløb
+		print "<tr>";
+		print "<td style=\"font-weight: bold;\">Beløb:</td>";
+		print "<td colspan=\"3\"><input type=\"text\" name=\"sum\" id=\"existingEntryAmount\" value=\"" . htmlspecialchars($displayAmount) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Beløb\"></td>";
+		print "</tr>";
 	print "</table>";
     
     // Buttons in grey area
@@ -1228,18 +1245,30 @@ if ($source == 'kassekladde' && $sourceId) {
 	print "</td></tr>";
 	print "<tr><td style=\"background-color: " . (isset($bgcolor5) ? $bgcolor5 : '#ffffff') . "; padding: 8px; border: 1px solid #ddd; border-top: none;\">";
 	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"4\" style=\"font-family: Arial, sans-serif; font-size: 12px;\">";
-	// Dato (date) - editable
-	print "<tr><td width=\"20%\" style=\"font-weight: bold;\">Dato:</td>";
-	print "<td><input type=\"text\" name=\"dato\" id=\"newEntryDato\" value=\"" . htmlspecialchars($dato ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"dd-mm-yyyy\"></td></tr>";
-	// Beskrivelse (description) - editable
-	print "<tr><td style=\"font-weight: bold;\">Beskrivelse:</td>";
-	print "<td><input type=\"text\" name=\"beskrivelse\" id=\"newEntryBeskrivelse\" value=\"" . htmlspecialchars($beskrivelse ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast beskrivelse...\"></td></tr>";
-	// Debitor konto (debet) - editable
-	print "<tr><td style=\"font-weight: bold;\">Debitor konto:</td>";
-	print "<td><input type=\"text\" name=\"debet\" id=\"newEntryDebet\" value=\"" . htmlspecialchars($debet ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast debitor konto...\"></td></tr>";
-	// Kreditor konto (kredit) - editable
-	print "<tr><td style=\"font-weight: bold;\">Kreditor konto:</td>";
-	print "<td><input type=\"text\" name=\"kredit\" id=\"newEntryKredit\" value=\"" . htmlspecialchars($kredit ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast kreditor konto...\"></td></tr>";
+	// Row 1: Dato + Fakturanr
+	print "<tr>";
+	print "<td width=\"12%\" style=\"font-weight: bold;\">Dato:</td>";
+	print "<td width=\"30%\"><input type=\"text\" name=\"dato\" id=\"newEntryDato\" value=\"" . htmlspecialchars($dato ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"dd-mm-yyyy\"></td>";
+	print "<td width=\"12%\" style=\"font-weight: bold; padding-left: 10px;\">Fakturanr:</td>";
+	print "<td><input type=\"text\" name=\"fakturanr\" id=\"newEntryFaktura\" value=\"" . htmlspecialchars($fakturanr ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Fakturanr\"></td>";
+	print "</tr>";
+	// Row 2: Beskrivelse
+	print "<tr>";
+	print "<td style=\"font-weight: bold;\">Beskrivelse:</td>";
+	print "<td colspan=\"3\"><input type=\"text\" name=\"beskrivelse\" id=\"newEntryBeskrivelse\" value=\"" . htmlspecialchars($beskrivelse ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast beskrivelse...\"></td>";
+	print "</tr>";
+	// Row 3: Debet + Kredit
+	print "<tr>";
+	print "<td style=\"font-weight: bold;\">Debet:</td>";
+	print "<td><input type=\"text\" name=\"debet\" id=\"newEntryDebet\" value=\"" . htmlspecialchars($debet ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Debet konto\"></td>";
+	print "<td style=\"font-weight: bold; padding-left: 10px;\">Kredit:</td>";
+	print "<td><input type=\"text\" name=\"kredit\" id=\"newEntryKredit\" value=\"" . htmlspecialchars($kredit ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Kredit konto\"></td>";
+	print "</tr>";
+	// Row 4: Beløb
+	print "<tr>";
+	print "<td style=\"font-weight: bold;\">Beløb:</td>";
+	print "<td colspan=\"3\"><input type=\"text\" name=\"sum\" id=\"newEntryAmount\" value=\"" . htmlspecialchars($sum ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Beløb\"></td>";
+	print "</tr>";
 	print "</table>";
 
     // Buttons in grey area
@@ -3383,287 +3412,111 @@ JS;
 	// Close the gennemse form before the upload form (forms cannot be nested)
 	print "</form>";
 	
-	print "<div id='fixedBottom' style='position: relative; width: 100%; padding: 16px; box-sizing: border-box; z-index: 1000;'>";
+	print "<div id='fixedBottom' style='position: relative; width: 100%; padding: 12px 5px 0 0; box-sizing: border-box; z-index: 1000;'>";
 	
 	// Toggle header for upload section
-	print "<div id='uploadToggleHeader' onclick='toggleUploadSection()' style='display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background-color: $buttonColor; color: $buttonTxtColor; border-radius: 8px; cursor: pointer; margin-bottom: 10px; user-select: none;'>";
+	print "<div id='uploadToggleHeader' onclick='toggleUploadSection()' style='display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background-color: $buttonColor; color: $buttonTxtColor; border-radius: 8px 8px 0 0; cursor: pointer; user-select: none;'>";
 	print "<span style='font-weight: 600; font-size: 13px;'><span style='margin-right: 6px;'>$svgUpload</span>".findtekst(1414, $sprog_id)."</span>";
-	print "<span id='uploadToggleIcon' style='transition: transform 0.3s;'>$svgChevronDown</span>";
+	print "<span style='font-size: 11px; opacity: 0.85; text-align: right; line-height: 1.4;'>";
+	print "<div style='display: flex;'>";
+	print "<div style='margin-right: 10px;'>";
+	print "<span style='display: block; font-weight: 400;'>".findtekst('2591|Bilag kan sendes til', $sprog_id)."</span>";
+	print "<a href='mailto:bilag_".$db."@".$_SERVER['SERVER_NAME']."' onclick='event.stopPropagation();' style='color: $buttonTxtColor; text-decoration: underline; font-weight: 600; word-break: break-all;'>bilag_".$db."@".$_SERVER['SERVER_NAME']."</a>";
+	print "</span>";
+	print "</div>";
+	print "<span id='uploadToggleIcon' style='transition: transform 0.3s; margin-left: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;'>$svgChevronDown</span>";
+	print "</div>";
+	print "</div>";
+
+	// Collapsible upload content
+	print "<div id='uploadContent' style='overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease; background-color: #e0e0e0; border-radius: 0 0 8px 8px;'>";
+	print "<div style='padding: 12px;'>";
+	
+	// Unified upload zone (click to select or drag and drop)
+	print "<input id='fileUploadInput' type='file' name='uploadedFile[]' accept='.pdf,.jpg,.jpeg,.png' multiple style='display:none'>";
+	print "<div id='dropZone' ondrop='handleDrop(event)' ondragover='handleDragOver(event)' onclick='document.getElementById(\"fileUploadInput\").click()' style='width: 100%; border: 2px dashed #bbb; border-radius: 10px; padding: 90px 16px; background-color: #f8f8f8; cursor: pointer; transition: all 0.3s ease; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;'>";
+	print "<div id='dropText' style='display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; text-align: center;'>";
+	print "<svg viewBox='0 0 24 24' fill='none' stroke='#7ab3d4' stroke-width='1.5' width='44' height='44'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg>";
+	print "<span style='font-size: 13px; font-weight: 600; color: #444;'>".findtekst('2593|Træk og slip PDF-fil her', $sprog_id)."</span>";
+	print "<span style='font-size: 11px; color: #aaa;'>eller</span>";
+	print "<button type='button' onclick='event.stopPropagation(); document.getElementById(\"fileUploadInput\").click();' style='margin-top: 2px; padding: 6px 18px; background: #fff; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; color: #555; cursor: pointer; pointer-events: auto; transition: border-color 0.2s, color 0.2s;' onmouseover='this.style.borderColor=\"#999\"; this.style.color=\"#333\";' onmouseout='this.style.borderColor=\"#ccc\"; this.style.color=\"#555\";'>Vælg fra enhed</button>";
+	print "</div>";
 	print "</div>";
 	
-	// Collapsible upload content
-	print "<div id='uploadContent' style='overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease;'>";
-	
-	// Upload form (independent form, not nested) - uses AJAX like drag and drop
-	print "<form id='fileUploadForm' enctype='multipart/form-data' action='documents.php?$uploadParams' method='POST' style='margin: 0; padding: 0;'>";
-	print "<input type='hidden' name='MAX_FILE_SIZE' value='100000000'>";
-	print "<input type='hidden' name='openPool' value='1'>";
-	print "<label for='fileUploadInput' style='display: block; width: 100%; margin-bottom: 12px; cursor: pointer;'>";
-	print "<input id='fileUploadInput' class='inputbox' name='uploadedFile[]' type='file' accept='.pdf,.jpg,.jpeg,.png' multiple style='width: 100%; height: auto; min-height: 40px; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 12px; box-sizing: border-box; overflow: visible; background-color: #ffffff; transition: all 0.3s ease; pointer-events: auto; position: relative; z-index: 10; cursor: pointer;'>";
-	print "</label>";
-	print "<button type='submit' id='fileUploadSubmit' style='width: 100%; padding: 10px; margin-bottom: 12px; background-color: $buttonColor; color: $buttonTxtColor; border: 2px solid $buttonColor; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; box-sizing: border-box; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.2);'>".findtekst(1078, $sprog_id)."</button>";
-	print "</form>";
-	
-	// JavaScript to handle form submission via AJAX (same as drag and drop)
+	// Combined upload JavaScript (drag and drop + click to select)
 	print "<script>
-	document.addEventListener('DOMContentLoaded', function() {
-		var uploadForm = document.getElementById('fileUploadForm');
-		var fileInput = document.getElementById('fileUploadInput');
-		var submitBtn = document.getElementById('fileUploadSubmit');
-		
-		if (uploadForm) {
-			uploadForm.addEventListener('submit', function(e) {
-				e.preventDefault();
-				
-				if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-					alert('Please select at least one file.');
-					return;
-				}
-				
-				var files = Array.from(fileInput.files);
-				var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
-				
-				// Validate all files first
-				for (var i = 0; i < files.length; i++) {
-					var fileName = files[i].name.toLowerCase();
-					var isAllowed = allowedExtensions.some(function(ext) {
-						return fileName.endsWith(ext);
-					});
-					if (!isAllowed) {
-						alert('File ' + files[i].name + ' is not allowed. Please select only PDF or image files (jpg, png).');
-						return;
-					}
-				}
-				
-				// Show loading state
-				var originalBtnText = submitBtn.innerHTML;
-				var totalFiles = files.length;
-				var uploadedCount = 0;
-				var failedCount = 0;
-				var lastUploadedFilename = null;
-				
-				function updateProgress() {
-					submitBtn.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> Uploader ' + (uploadedCount + failedCount + 1) + ' af ' + totalFiles + '...';
-				}
-				
-				submitBtn.disabled = true;
-				submitBtn.style.opacity = '0.7';
-				fileInput.disabled = true;
-				updateProgress();
-				
-				// Determine URL
-				var currentPath = window.location.pathname;
-				var uploadUrl = currentPath.indexOf('/includes/') !== -1 ? 'documents.php' : '../includes/documents.php';
-				
-				// Upload files sequentially
-				function uploadFile(index) {
-					if (index >= files.length) {
-						// All files processed
-						submitBtn.innerHTML = originalBtnText;
-						submitBtn.disabled = false;
-						submitBtn.style.opacity = '1';
-						fileInput.disabled = false;
-						fileInput.value = '';
-						
-						var message = '✓ Upload complete!\\n';
-						message += uploadedCount + ' file(s) uploaded successfully';
-						if (failedCount > 0) {
-							message += '\\n' + failedCount + ' file(s) failed';
-						}
-						alert(message);
-						
-						// Redirect to focus on the last uploaded file
-						if (lastUploadedFilename) {
-							var currentUrl = new URL(window.location.href);
-							currentUrl.searchParams.set('poolFile', lastUploadedFilename);
-							currentUrl.searchParams.set('openPool', '1');
-							window.location.href = currentUrl.toString();
-						} else {
-							window.location.reload();
-						}
-						return;
-					}
-					
-					var file = files[index];
-					updateProgress();
-					
-					// Create FormData for this file
-					var formData = new FormData();
-					formData.append('uploadedFile', file);
-					formData.append('openPool', '1');
-					
-					// Add clipVariables if available
-					if (typeof clipVariables !== 'undefined') {
-						for (var key in clipVariables) {
-							if (clipVariables.hasOwnProperty(key)) {
-								formData.append(key, clipVariables[key]);
-							}
-						}
-					}
-					
-					fetch(uploadUrl, {
-						method: 'POST',
-						body: formData
-					})
-					.then(function(response) {
-						return response.text().then(function(text) {
-							try {
-								return JSON.parse(text);
-							} catch(e) {
-								if (text.indexOf('\"success\":true') !== -1) {
-									var filenameMatch = text.match(/\"filename\"\\s*:\\s*\"([^\"]+)\"/);
-									return {
-										success: true,
-										filename: filenameMatch ? filenameMatch[1] : file.name,
-										message: 'File uploaded successfully'
-									};
-								}
-								throw new Error('Invalid response from server');
-							}
-						});
-					})
-					.then(async function(data) {
-						if (data && data.success) {
-							uploadedCount++;
-							lastUploadedFilename = data.filename;
-
-							// Auto-extract and save information from API
-							try {
-								const extractFormData = new FormData();
-								extractFormData.append('action', 'extract');
-								extractFormData.append('poolFile', data.filename);
-								extractFormData.append('db', '$db');
-								extractFormData.append('docFolder', '$docFolder');
-								
-								const extRes = await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: extractFormData });
-								const extData = await extRes.json();
-								
-								if (extData.success && extData.data) {
-									const svData = new FormData();
-									svData.append('action', 'save');
-									svData.append('poolFile', data.filename);
-									svData.append('db', '$db');
-									
-									const d = extData.data;
-									if(d.amount) svData.append('newAmount', d.amount);
-									if(d.date) svData.append('newDate', d.date);
-									if(d.vendor) svData.append('newSubject', d.vendor);
-									if(d.invoiceNumber) svData.append('newInvoiceNumber', d.invoiceNumber);
-									if(d.description) svData.append('newDescription', d.description);
-									
-									await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: svData });
-								}
-							} catch(e) { 
-								console.error('Auto-extract failed', e); 
-							}
-						} else {
-							failedCount++;
-							console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
-						}
-						// Continue to next file
-						uploadFile(index + 1);
-					})
-					.catch(function(error) {
-						failedCount++;
-						console.error('Upload error for ' + file.name + ':', error);
-						// Continue to next file
-						uploadFile(index + 1);
-					});
-				}
-				
-				// Start uploading from first file
-				uploadFile(0);
-			});
-		}
-	});
-	</script>";
-
-	// JavaScript for drag and drop functionality - define handleDrop and handleDragOver functions
-	print "<script>
-	// Global functions for drag and drop (must be global for inline event handlers)
 	function handleDragOver(e) {
 		e.preventDefault();
 		e.stopPropagation();
 		var dropZone = document.getElementById('dropZone');
 		if (dropZone) {
-			dropZone.style.borderColor = '$buttonColor';
-			dropZone.style.backgroundColor = 'rgba(0,0,0,0.08)';
+			dropZone.style.backgroundColor = '#f0f0f0';
+			dropZone.style.borderColor = '#7ab3d4';
 			dropZone.style.transform = 'scale(1.02)';
 		}
 	}
-	
+
 	function handleDrop(e) {
 		e.preventDefault();
 		e.stopPropagation();
-		
 		var dropZone = document.getElementById('dropZone');
 		if (dropZone) {
-			dropZone.style.borderColor = '$buttonColor';
-			dropZone.style.backgroundColor = 'rgba(0,0,0,0.02)';
+			dropZone.style.backgroundColor = '#f8f8f8';
+			dropZone.style.borderColor = '#bbb';
 			dropZone.style.transform = 'scale(1)';
 		}
-		
 		var files = e.dataTransfer.files;
-		if (!files || files.length === 0) {
-			console.log('No files dropped');
-			return;
-		}
-		
-		// Validate file types
+		if (!files || files.length === 0) return;
+		uploadFiles(Array.from(files));
+	}
+
+	function uploadFiles(files) {
 		var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
 		var validFiles = [];
 		for (var i = 0; i < files.length; i++) {
 			var fileName = files[i].name.toLowerCase();
-			var isAllowed = allowedExtensions.some(function(ext) {
-				return fileName.endsWith(ext);
-			});
+			var isAllowed = allowedExtensions.some(function(ext) { return fileName.endsWith(ext); });
 			if (isAllowed) {
 				validFiles.push(files[i]);
 			} else {
 				alert('File ' + files[i].name + ' is not allowed. Please select only PDF or image files (jpg, png).');
 			}
 		}
-		
-		if (validFiles.length === 0) {
-			return;
-		}
-		
-		// Show loading state on drop zone
+		if (validFiles.length === 0) return;
+
+		var dropZone = document.getElementById('dropZone');
 		var dropText = document.getElementById('dropText');
 		var originalDropText = dropText ? dropText.innerHTML : '';
 		var totalFiles = validFiles.length;
 		var uploadedCount = 0;
 		var failedCount = 0;
 		var lastUploadedFilename = null;
-		
-		function updateDropProgress() {
+
+		if (dropZone) { dropZone.style.pointerEvents = 'none'; dropZone.style.opacity = '0.7'; }
+
+		function updateProgress() {
 			if (dropText) {
 				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> Uploader ' + (uploadedCount + failedCount + 1) + ' af ' + totalFiles + '...';
 			}
 		}
-		
-		updateDropProgress();
-		
-		// Determine URL
+
+		updateProgress();
+
 		var currentPath = window.location.pathname;
 		var uploadUrl = currentPath.indexOf('/includes/') !== -1 ? 'documents.php' : '../includes/documents.php';
-		
-		// Upload files sequentially
+
 		function uploadFile(index) {
 			if (index >= validFiles.length) {
-				// All files processed
-				if (dropText) {
-					dropText.innerHTML = originalDropText;
-				}
-				
+				if (dropZone) { dropZone.style.pointerEvents = ''; dropZone.style.opacity = '1'; }
+				if (dropText) dropText.innerHTML = originalDropText;
+				var fileInput = document.getElementById('fileUploadInput');
+				if (fileInput) fileInput.value = '';
+
 				var message = '✓ Upload complete!\\n';
 				message += uploadedCount + ' file(s) uploaded successfully';
-				if (failedCount > 0) {
-					message += '\\n' + failedCount + ' file(s) failed';
-				}
+				if (failedCount > 0) message += '\\n' + failedCount + ' file(s) failed';
 				alert(message);
-				
-				// Redirect to focus on the last uploaded file
+
 				if (lastUploadedFilename) {
 					var currentUrl = new URL(window.location.href);
 					currentUrl.searchParams.set('poolFile', lastUploadedFilename);
@@ -3674,16 +3527,14 @@ JS;
 				}
 				return;
 			}
-			
+
 			var file = validFiles[index];
-			updateDropProgress();
-			
-			// Create FormData for this file
+			updateProgress();
+
 			var formData = new FormData();
 			formData.append('uploadedFile', file);
 			formData.append('openPool', '1');
-			
-			// Add clipVariables if available
+
 			if (typeof clipVariables !== 'undefined') {
 				for (var key in clipVariables) {
 					if (clipVariables.hasOwnProperty(key)) {
@@ -3691,11 +3542,8 @@ JS;
 					}
 				}
 			}
-			
-			fetch(uploadUrl, {
-				method: 'POST',
-				body: formData
-			})
+
+			fetch(uploadUrl, { method: 'POST', body: formData })
 			.then(function(response) {
 				return response.text().then(function(text) {
 					try {
@@ -3703,54 +3551,65 @@ JS;
 					} catch(e) {
 						if (text.indexOf('\"success\":true') !== -1) {
 							var filenameMatch = text.match(/\"filename\"\\s*:\\s*\"([^\"]+)\"/);
-							return {
-								success: true,
-								filename: filenameMatch ? filenameMatch[1] : file.name,
-								message: 'File uploaded successfully'
-							};
+							return { success: true, filename: filenameMatch ? filenameMatch[1] : file.name, message: 'File uploaded successfully' };
 						}
 						throw new Error('Invalid response from server');
 					}
 				});
 			})
-			.then(function(data) {
+			.then(async function(data) {
 				if (data && data.success) {
 					uploadedCount++;
 					lastUploadedFilename = data.filename;
+					try {
+						const extractFormData = new FormData();
+						extractFormData.append('action', 'extract');
+						extractFormData.append('poolFile', data.filename);
+						extractFormData.append('db', '$db');
+						extractFormData.append('docFolder', '$docFolder');
+						const extRes = await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: extractFormData });
+						const extData = await extRes.json();
+						if (extData.success && extData.data) {
+							const svData = new FormData();
+							svData.append('action', 'save');
+							svData.append('poolFile', data.filename);
+							svData.append('db', '$db');
+							const d = extData.data;
+							if(d.amount) svData.append('newAmount', d.amount);
+							if(d.date) svData.append('newDate', d.date);
+							if(d.vendor) svData.append('newSubject', d.vendor);
+							if(d.invoiceNumber) svData.append('newInvoiceNumber', d.invoiceNumber);
+							if(d.description) svData.append('newDescription', d.description);
+							await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: svData });
+						}
+					} catch(e) { console.error('Auto-extract failed', e); }
 				} else {
 					failedCount++;
 					console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
 				}
-				// Continue to next file
 				uploadFile(index + 1);
 			})
 			.catch(function(error) {
 				failedCount++;
 				console.error('Upload error for ' + file.name + ':', error);
-				// Continue to next file
 				uploadFile(index + 1);
 			});
 		}
-		
-		// Start uploading from first file
+
 		uploadFile(0);
 	}
+
+	document.addEventListener('DOMContentLoaded', function() {
+		var fileInput = document.getElementById('fileUploadInput');
+		if (fileInput) {
+			fileInput.addEventListener('change', function() {
+				if (this.files && this.files.length > 0) {
+					uploadFiles(Array.from(this.files));
+				}
+			});
+		}
+	});
 	</script>";
-
-	// Add drag and drop zone - use buttonColor with opacity for background
-	$dropZone = "<div id='dropZone' ondrop='handleDrop(event)' ondragover='handleDragOver(event)' style='width: 100%; height: 70px; border: 2px dashed $buttonColor; border-radius: 8px; padding: 12px; background-color: rgba(0,0,0,0.02); cursor: pointer; transition: all 0.3s ease; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin: 0 auto;'>";
-	$dropZone .= "<span id='dropText' style='font-size: 12px; color: $buttonColor; text-align: center; font-weight: 500;'>".findtekst('2593|Træk og slip PDF-fil her', $sprog_id)."</span>";
-	$dropZone .= "</div>";
-	print "<div class='clip-image drop-zone-container' title='Drag and Drop the file here' style='display: block; width: 100%; margin: 0; padding: 0;'>";
-	print $dropZone;
-	print "</div>";
-
-	// Add email text for sending bilag
-	print "<div style='margin-top: 14px; padding: 12px; background-color: $buttonColor; border-radius: 8px; text-align: center;'>";
-	print "<div style='font-size: 11px; color: $buttonTxtColor; margin-bottom: 6px; font-weight: 500;'>".findtekst('2591|Bilag kan sendes til', $sprog_id)."</div>";
-	print "<a href='mailto:bilag_".$db."@".$_SERVER['SERVER_NAME']."' style='font-size: 11px; color: $buttonTxtColor; text-decoration: none; word-break: break-all; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: color 0.2s;' onmouseover='this.style.color=\"#f0f0f0\"' onmouseout='this.style.color=\"$buttonTxtColor\"'>";
-	print "bilag_".$db."@".$_SERVER['SERVER_NAME']."</a>";
-	print "</div>";
 
 	// Add "Link bilag fra anden linje" button for kassekladde
 	if ($source == 'kassekladde') {
@@ -3762,6 +3621,7 @@ JS;
 		print "</div>";
 	}
 	
+	print "</div>"; // inner padding wrapper
 	// Close uploadContent div
 	print "</div>"; // uploadContent
 
@@ -3781,7 +3641,7 @@ JS;
 		const content = document.getElementById('uploadContent');
 		const icon = document.getElementById('uploadToggleIcon');
 		const isHidden = localStorage.getItem('docPoolUploadHidden') === 'true';
-		
+
 		if (isHidden) {
 			// Show
 			content.style.maxHeight = content.scrollHeight + 'px';
@@ -3803,13 +3663,13 @@ JS;
 			localStorage.setItem('docPoolUploadHidden', 'true');
 		}
 	};
-	
+
 	// Initialize upload section state on page load
 	document.addEventListener('DOMContentLoaded', function() {
 		const content = document.getElementById('uploadContent');
 		const icon = document.getElementById('uploadToggleIcon');
 		const isHidden = localStorage.getItem('docPoolUploadHidden') === 'true';
-		
+
 		if (isHidden && content && icon) {
 			content.style.maxHeight = '0';
 			content.style.opacity = '0';
@@ -4119,16 +3979,10 @@ JS;
 				if (dropZone) {
 					dropZone.addEventListener('dragover', function(e) {
 						e.preventDefault();
-						this.style.borderColor = buttonColor;
-						this.style.backgroundColor = 'rgba(0,0,0,0.05)';
-						const dropText = this.querySelector('#dropText');
-						if (dropText) dropText.style.color = buttonColor;
+						this.style.backgroundColor = '#f0f0f0';
 					});
 					dropZone.addEventListener('dragleave', function(e) {
-						this.style.borderColor = buttonColor;
-						this.style.backgroundColor = 'rgba(0,0,0,0.02)';
-						const dropText = this.querySelector('#dropText');
-						if (dropText) dropText.style.color = buttonColor;
+						this.style.backgroundColor = '#f8f8f8';
 					});
 				}
 				
