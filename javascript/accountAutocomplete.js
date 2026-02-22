@@ -1076,17 +1076,22 @@
             console.error('Input is not connected to form!', input.name);
         }
 
-        const form = input.form;
-        if (form) {
-            const inputs = Array.from(form.querySelectorAll('input, select, textarea'));
-            const currentIndex = inputs.indexOf(input);
-            if (currentIndex > -1 && currentIndex < inputs.length - 1) {
-                inputs[currentIndex + 1].focus();
-            }
+        let nextInput = null;
+        // If input.form is null use document
+        const scope = input.form || document;
+        const inputs = Array.from(scope.querySelectorAll('input, select, textarea'));
+        const currentIndex = inputs.indexOf(input);
+        if (currentIndex > -1 && currentIndex < inputs.length - 1) {
+            nextInput = inputs[currentIndex + 1];
+            nextInput.focus();
         }
 
         setTimeout(function () {
             selectionMade = false;
+            // Open autocomplete on the next field now that selectionMade is cleared
+            if (nextInput && nextInput.autocompleteInitialized && document.activeElement === nextInput) {
+                handleInputWithValue(nextInput, nextInput.value);
+            }
         }, 100);
     }
 
