@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2024 saldi.dk aps
+// Copyright (c) 2016-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20180307 Tilføjet 'pos_betaling' i 'fakturer_ordre' 
 // 20180316 Tilføjet 'lagerstatus' i '$allowed_tables' i funktion 'fetch_from_table'
