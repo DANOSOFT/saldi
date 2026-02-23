@@ -1844,14 +1844,18 @@ print <<<JS
 				rowStyle = "border-bottom:1px solid #ddd; background-color:#fff3cd !important;";
 			}
 
+			// Format amount to Danish format for display
+			let parsedAmt = parseFloat(row.amount);
+			let formattedAmount = (!isNaN(parsedAmt) && row.amount) ? parsedAmt.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : (row.amount || '');
+
 			// Format amount with match indicator
-			let amountDisplay = escapeHTML(row.amount);
+			let amountDisplay = escapeHTML(formattedAmount);
 			if (isPerfectMatch) {
-				amountDisplay = "<span style='color: #004085; font-weight: bold;'><span style='margin-right: 4px; color: #007bff;'>" + svgIcons.star + "</span>" + escapeHTML(row.amount) + "</span>";
+				amountDisplay = "<span style='color: #004085; font-weight: bold;'><span style='margin-right: 4px; color: #007bff;'>" + svgIcons.star + "</span>" + escapeHTML(formattedAmount) + "</span>";
 			} else if (isAmountMatch) {
-				amountDisplay = "<span style='color: #155724; font-weight: bold;'><span style='margin-right: 4px; color: #28a745;'>" + svgIcons.check + "</span>" + escapeHTML(row.amount) + "</span>";
+				amountDisplay = "<span style='color: #155724; font-weight: bold;'><span style='margin-right: 4px; color: #28a745;'>" + svgIcons.check + "</span>" + escapeHTML(formattedAmount) + "</span>";
 			} else if (isCombinationMatch) {
-				amountDisplay = "<span style='color: #856404; font-weight: bold;'><span style='margin-right: 4px; color: #ffc107;'>" + svgIcons.plus + "</span>" + escapeHTML(row.amount) + "</span>";
+				amountDisplay = "<span style='color: #856404; font-weight: bold;'><span style='margin-right: 4px; color: #ffc107;'>" + svgIcons.plus + "</span>" + escapeHTML(formattedAmount) + "</span>";
 			}
 			
 			// Format date with match indicator
@@ -2191,6 +2195,8 @@ print <<<JS
 				const subject = row.subject || filename;
 				const account = row.account || '';
 				const amount = row.amount || '';
+				const parsedAmt = parseFloat(amount);
+				const formattedAmount = (!isNaN(parsedAmt) && amount) ? parsedAmt.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : amount;
 				const dateFormatted = (row.date || '').split(' ')[0];
 				
 				// Apply search filter
@@ -2257,13 +2263,13 @@ print <<<JS
 				if (amount) {
 					let amountHtml = '<span><strong>Beløb:</strong> ';
 					if (isPerfectMatch) {
-						amountHtml += '<span style="color: #007bff;">' + svgIcons.star + ' ' + escapeHTML(amount) + '</span>';
+						amountHtml += '<span style="color: #007bff;">' + svgIcons.star + ' ' + escapeHTML(formattedAmount) + '</span>';
 					} else if (isAmountMatch) {
-						amountHtml += '<span style="color: #28a745;">' + svgIcons.check + ' ' + escapeHTML(amount) + '</span>';
+						amountHtml += '<span style="color: #28a745;">' + svgIcons.check + ' ' + escapeHTML(formattedAmount) + '</span>';
 					} else if (isCombinationMatch) {
-						amountHtml += '<span style="color: #ffc107;">' + svgIcons.plus + ' ' + escapeHTML(amount) + '</span>';
+						amountHtml += '<span style="color: #ffc107;">' + svgIcons.plus + ' ' + escapeHTML(formattedAmount) + '</span>';
 					} else {
-						amountHtml += escapeHTML(amount);
+						amountHtml += escapeHTML(formattedAmount);
 					}
 					amountHtml += '</span>';
 					html += amountHtml;
@@ -2826,8 +2832,11 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
         const stopPropagation = "event.stopPropagation();";
         const inputEvents = "onclick='" + stopPropagation + "' onmousedown='" + stopPropagation + "' onmouseup='" + stopPropagation + "' onmousemove='" + stopPropagation + "'";
         
+        // Show amount in Danish format in the input field
+        const displayAmount = amount ? amount.toString().replace(/\./g, 'TEMP_DOT').replace(/,/g, '.').replace(/TEMP_DOT/g, ',') : '';
+        
         cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-        cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(displayAmount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber || '') + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         
@@ -3175,7 +3184,14 @@ window.saveRowData = function(input) {
         const field = input.getAttribute('data-field');
         if (field === 'subject') data.newSubject = input.value;
         else if (field === 'account') data.newAccount = input.value;
-        else if (field === 'amount') data.newAmount = input.value;
+        else if (field === 'amount') {
+            let val = input.value;
+            // Convert back to US format
+            if (val) {
+                val = val.toString().replace(/\./g, 'TEMP_DOT').replace(/,/g, '.').replace(/TEMP_DOT/g, ',');
+            }
+            data.newAmount = val;
+        }
         else if (field === 'date') data.newDate = input.value;
         else if (field === 'invoiceNumber') data.newInvoiceNumber = input.value;
         else if (field === 'description') data.newInvoiceDescription = input.value;
