@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-20--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-23--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,7 +38,9 @@
 // 20260127 LOE Selected calender type now saved for the user.
 // 20260207 LOE Fixed a bug created by git merge
 // 20260212 PHR Disabled popup checker
-// 20260216 LOE Updated delivery note navigation behaviour. 20260220 + locat
+// 20260216 LOE Updated delivery note navigation behaviour. 20260220 + location
+// 20260223 AJ Updated Revenue and cover ratio to match
+
 @session_start();
 $s_id = session_id();
 
@@ -1327,6 +1329,21 @@ if ($valg == "tilbud") {
     $base_where_conditions = "(o.status = 1 OR o.status = 2)";
 }
 
+
+$totals_query = "SELECT 
+    COALESCE(SUM(o.sum::numeric), 0) as total_sum,
+    COALESCE(SUM(o.sum::numeric + o.moms::numeric), 0) as total_sum_m_moms,
+    COALESCE(SUM(o.kostpris::numeric), 0) as total_kostpris
+FROM ordrer o
+WHERE (o.art = 'DO' OR o.art = 'DK' OR (o.art = 'PO' AND o.konto_id > '0')) 
+AND $base_where_conditions";
+
+$totals_result = db_fetch_array(db_select($totals_query, __FILE__ . " linje " . __LINE__));
+
+$ialt_total = floatval($totals_result['total_sum']);
+$ialt_m_moms_total = floatval($totals_result['total_sum_m_moms']);
+$ialt_kostpris_total = floatval($totals_result['total_kostpris']);
+
 $debug_log[] = "base_where_conditions: $base_where_conditions";
 
 // IMPORTANT: Update the SQL query to include ALL columns dynamically
@@ -2028,7 +2045,7 @@ print "<script>
 document.addEventListener('DOMContentLoaded', function() {
     var bulkForm = document.getElementById('bulkActionForm');
     var checkboxes = document.querySelectorAll('input.deliveryNoteSelect');
-    
+        
     checkboxes.forEach(function(checkbox) {
         // Clone checkbox to bulk form
         var clone = checkbox.cloneNode(true);
@@ -2045,15 +2062,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ########
 
-// Calculate and display turnover summary
-$dk_db = dkdecimal($ialt - $ialt_kostpris, 2);
-if ($ialt != 0) {
-    $dk_dg = dkdecimal(($ialt - $ialt_kostpris) * 100 / $ialt, 2);
+// Calculate and display turnover summary using TOTAL values (all matching orders, not just rendered rows)
+$dk_db = dkdecimal($ialt_total - $ialt_kostpris_total, 2);
+if ($ialt_total != 0) {
+    $dk_dg = dkdecimal(($ialt_total - $ialt_kostpris_total) * 100 / $ialt_total, 2);
 } else {
     $dk_dg = '0,00';
 }
-$ialt_formatted = dkdecimal($ialt, 2);
-$ialt_m_moms_formatted = dkdecimal($ialt_m_moms, 2);
+$ialt_formatted = dkdecimal($ialt_total, 2);
+$ialt_m_moms_formatted = dkdecimal($ialt_m_moms_total, 2);
 
 // NEW unified top control bar
 print "<div id='top-control-bar'>";
@@ -2100,7 +2117,7 @@ print "</div>";  // END LEFT
 // CENTER — Turnover Summary
 // ------------------------------------------------------------
 
-
+// TODO: Here
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
 print "<div>";
