@@ -3253,7 +3253,7 @@ function ordreside($id, $regnskab)
 		} else $fokus = 'vare0';
 	} else {
 		$qtxt = "select ansatte.navn as ref,ansatte.afd as afd from ansatte,brugere ";
-		$qtxt.= "where ansatte.id = brugere.ansat_id and brugere.brugernavn='$brugernavn'";
+		$qtxt.= "where ansatte.id::text = brugere.ansat_id::text and brugere.brugernavn='$brugernavn'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$ref = if_isset($r['ref']); #20210719 error thrown here when they are not set
 		$afd = if_isset($r['afd']);

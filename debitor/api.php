@@ -194,6 +194,14 @@
     // Sending the invoice to the recipient through easyUBL
     function getInvoicesOrder($data, $url, $orderId) {
         global $bruger_id, $db, $apiKey;
+        $query = db_select("SELECT var_value FROM settings WHERE var_name = 'updatedCompany' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+        if(db_num_rows($query) == 0){
+            $query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+            if(db_num_rows($query) > 0){
+                updateCompany();
+                $query = db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('updatedCompany', 'easyUBL', 'true')", __FILE__ . " linje " . __LINE__);
+            }
+        }
         $companyID = getCompanyID();
         if($companyID == "error"){
             die("Der er sket en fejl. Kontakt support.");
