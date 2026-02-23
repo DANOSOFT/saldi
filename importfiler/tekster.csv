@@ -3123,4 +3123,6 @@
 3123	
 3124	
 3125	
-3126	
+3126
+3127	Knap navn	Button name	Knappnavn
+3128	Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.	Enter the name to display on the button on the order page. If empty, company name or city is used.	Angi navnet som skal vises på knappen på ordresiden. Hvis tom, brukes firmanavn eller bynavn.	

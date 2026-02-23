@@ -23,6 +23,7 @@
 // Copyright (c) 2003-2021 Saldi.DK ApS
 // -----------------------------------------------------------------------
 // 20210302 CA  Function to handle consignment for Danske Fragtmænd (dfm)
+// 20260223 Sawaneh SD-335 fixed duplicate prefix on pickup variable names
 
 
 if (!function_exists('dfm_consignment')) {
@@ -63,13 +64,13 @@ function dfm_consignment(
 	$dfm_delrem=trim_utf8(html_entity_decode($dfm_delrem, ENT_QUOTES, 'UTF-8'));        
 	$dfm_gooddes=trim_utf8(html_entity_decode($dfm_gooddes, ENT_QUOTES, 'UTF-8'));        
 
-	$dfm_dfm_pickup_addr=trim_utf8(html_entity_decode($dfm_dfm_pickup_addr, ENT_QUOTES, 'UTF-8'));        
-	$dfm_dfm_pickup_name1=trim_utf8(html_entity_decode($dfm_dfm_pickup_name1, ENT_QUOTES, 'UTF-8'));        
-	$dfm_dfm_pickup_name2=trim_utf8(html_entity_decode($dfm_dfm_pickup_name2, ENT_QUOTES, 'UTF-8'));        
-	$dfm_dfm_pickup_street1=trim_utf8(html_entity_decode($dfm_dfm_pickup_street1, ENT_QUOTES, 'UTF-8'));        
-	$dfm_dfm_pickup_street2=trim_utf8(html_entity_decode($dfm_dfm_pickup_street2, ENT_QUOTES, 'UTF-8'));        
-	$dfm_dfm_pickup_town=trim_utf8(html_entity_decode($dfm_dfm_pickup_town, ENT_QUOTES, 'UTF-8'));        
-	$dfm_dfm_pickup_zipcode=trim_utf8(html_entity_decode($dfm_dfm_pickup_zipcode, ENT_QUOTES, 'UTF-8'));        
+	$dfm_pickup_addr=trim_utf8(html_entity_decode($dfm_pickup_addr, ENT_QUOTES, 'UTF-8'));        
+	$dfm_pickup_name1=trim_utf8(html_entity_decode($dfm_pickup_name1, ENT_QUOTES, 'UTF-8'));        
+	$dfm_pickup_name2=trim_utf8(html_entity_decode($dfm_pickup_name2, ENT_QUOTES, 'UTF-8'));        
+	$dfm_pickup_street1=trim_utf8(html_entity_decode($dfm_pickup_street1, ENT_QUOTES, 'UTF-8'));        
+	$dfm_pickup_street2=trim_utf8(html_entity_decode($dfm_pickup_street2, ENT_QUOTES, 'UTF-8'));        
+	$dfm_pickup_town=trim_utf8(html_entity_decode($dfm_pickup_town, ENT_QUOTES, 'UTF-8'));        
+	$dfm_pickup_zipcode=trim_utf8(html_entity_decode($dfm_pickup_zipcode, ENT_QUOTES, 'UTF-8'));        
 
 #	if ( empty($deb_phone) ) {
 #		$dfm_q = db_select("select phone from ordrer where fakturanr = '$fakturanr'",__FILE__ . " linje " . __LINE__); 

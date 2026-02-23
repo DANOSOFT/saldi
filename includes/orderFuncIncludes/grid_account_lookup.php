@@ -1925,10 +1925,13 @@ function render_ajax_search_script($id) {
             if (!data || data.length === 0) {
                 tbody.html('<tr><td colspan="100" style="text-align:center; padding:20px;">No results found</td></tr>');
                 updatePaginationInfo(gridId, 0, totalRows, offset, rowsPerPage);
+                // Show create customer form when no results
+                if (typeof toggleCreateForm === 'function') toggleCreateForm(true);
                 return;
             }
             
-         
+            // Hide create customer form when results exist
+            if (typeof toggleCreateForm === 'function') toggleCreateForm(false);
             
             // Build rows from data
             $.each(data, function(index, row) {
@@ -2249,19 +2252,23 @@ function render_pagination_script($id) {
                 
                 if (!data || data.length === 0) {
                     html = '<tr><td colspan="100" style="text-align:center; padding:20px;">No results found</td></tr>';
+                    // Show create customer form when no results
+                    if (typeof toggleCreateForm === 'function') toggleCreateForm(true);
                 } else {
+                    // Hide create customer form when results exist
+                    if (typeof toggleCreateForm === 'function') toggleCreateForm(false);
                     // Build table rows from raw data
                     data.forEach((row, index) => {
                         const rowColor = (index % 2 === 0) ? '#ffffff' : '#e0e0f0';
-                        html += `<tr style="background-color: ${rowColor}">`;
+                        const redirectUrl = '$href?id=$ordre_id&fokus=$fokus&konto_id=' + (row.id || '');
+                        html += '<tr style="background-color: ' + rowColor + '; cursor:pointer;" onclick="window.location.href=\'' + redirectUrl + '\'" onmouseover="this.style.backgroundColor=\'#f5f5f5\'" onmouseout="this.style.backgroundColor=\'' + rowColor + '\'">';
                         
                         const columns = ['kontonr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'land', 'kontakt', 'tlf'];
                         columns.forEach(field => {
-                            // Your existing cell rendering logic here
-                            html += '<td>' + (row[field] || '') + '</td>';
+                            html += '<td style="padding:4px;text-align:left;">' + (row[field] || '') + '</td>';
                         });
                         
-                        html += `<td class="filler-row"></td></tr>`;
+                        html += '<td class="filler-row"></td></tr>';
                     });
                 }
                 

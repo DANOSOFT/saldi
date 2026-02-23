@@ -2,17 +2,18 @@
 // ../includes/orderFuncIncludes/accountLookup.php
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
-    ?>
-    <style>
-    /* Remove scrollbars */
-        html, body {
-            overflow: hidden;
-        
-        }
-        </style>
-    <?php
-  
+    // Store original kontonr before casting (to check if user searched for something)
+    $original_kontonr = $kontonr;
     $kontonr = (int) $kontonr;
+    
+    // Check if this kontonr already exists in the database
+    $kontonr_exists = false;
+    if ($kontonr > 0) {
+        $check_q = db_select("SELECT id FROM adresser WHERE art='D' AND kontonr='" . db_escape_string($kontonr) . "'", __FILE__ . " linje " . __LINE__);
+        if (db_fetch_array($check_q)) {
+            $kontonr_exists = true;
+        }
+    }
 
     global $bgcolor, $bgcolor5, $land, $regnaar, $returside, $sag_id, $sprog_id,$bruger_id;
     global $ordre_id; // Order ID for AJAX search script
@@ -85,6 +86,13 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
         sidehoved($id, "../debitor/pos_ordre.php", "../debitor/debitorkort.php", $fokus, "POS ordre $id - Kontoopslag");
         $href = "pos_ordre.php";
     }
+
+        // Fix double scrollbar: visually hide the html scrollbar, keep scrolling functional
+    // The datatable-wrapper has its own scrollbar, so we only need one visible scrollbar
+    echo '<style>
+        html { scrollbar-width: none; -ms-overflow-style: none; }
+        html::-webkit-scrollbar { display: none; }
+    </style>';
 
     // Include the grid system
     require_once '../includes/orderFuncIncludes/grid_account_lookup.php';
@@ -230,206 +238,267 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
         'filters' => []
     ];
 
+    // Define toggleCreateForm BEFORE the grid so AJAX can use it
+    echo <<<TOGGLESCRIPT
+    <script>
+    // Toggle form visibility based on search results via AJAX
+    function toggleCreateForm(show) {
+        var form = document.getElementById('createCustomerForm');
+        var backdrop = document.getElementById('createCustomerBackdrop');
+        if (backdrop) {
+            backdrop.style.display = show ? 'block' : 'none';
+        }
+        if (form) {
+            form.style.display = show ? 'block' : 'none';
+        }
+    }
+    </script>
+TOGGLESCRIPT;
+
     // Create the datagrid
     $rows = create_datagrid($grid_id, $grid_data);
 
     // account selection JavaScript
     echo <<<HTML
     <script>
-/*     function selectAccount{$id}(fokus , konto_id) {
-        console.log(fokus);
-        // Navigate back to order page with selected account
+    function selectAccount{$id}(fokus, konto_id) {
         window.location.href = "$href?id=$id&fokus=" + fokus + "&konto_id=" + konto_id;
-    } */
-    
-   
+    }
     </script>
 HTML;
 
     // ============ SD-338: Create new customer form ============
-    // Old form (commented out for reference - from f31c650f):
-    // print "<tr id='noResultsForm' style='display:none;'><td colspan='9' style='text-align: right; vertical-align: top;'>";
-    // print "<form name=\"create_debtor\" action=\"ordre.php?id=$id&sag_id=$sag_id&returside=$returside\" method=\"post\">\n";
-    // print "<tr><td colspan='9' align='center' valign='top'><table><tbody>";
-    // print "<tr><td colspan = '2' align = 'center'><big><b>$txt2118</b></big></td></tr>";
-    // print "<tr><td colspan = '2'><hr></td></tr>";
-    // print "<tr><td>$txt357</td><td><input style='width:150px;' type='text' name='kontonr' value=\"$kontonr\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt646</td><td><input style='width:150px;' type='text' name='firmanavn' value=\"$firmanavn\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt648</td><td><input style='width:150px;' type='text' name='addr1' value=\"$addr1\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt648</td><td><input style='width:150px;' type='text' name='addr2' value=\"$addr2\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt650</td><td><input style='width:150px;' type='text' name='postnr' value=\"$postnr\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt651</td><td><input style='width:150px;' type='text' name='bynavn' value=\"$bynavn\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt377</td><td><input style='width:150px;' type='text' name='tlf' value=\"\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt398</td><td><input style='width:150px;' type='text' name='kontakt' value=\"$kontakt\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt402</td><td><input style='width:150px;' type='text' name='email' value=\"$email\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt48</td><td><input style='width:150px;' type='text' name='$txt48' value=\"$cvrnr\"></td></tr>";
-    // print "<tr><td style='width:100px;'>Ean</td><td><input style='width:150px;' type='text' name='ean' value=\"$ean\"></td></tr>";
-    // print "<tr><td style='width:100px;'>$txt56</td><td><select style='width:125px;' name='betalingsbet'>...</select><input style='width:25px;text-align:right;' type='text' name='betalingsdage' value=\"$defaultPdays\">";
-    // print "<tr><td>$txt63</td><td><select style='width:150px;' name='grp'>...</select></td></tr>";
-    // print "<tr><td colspan='2' align='center'><input style='width:250px;' type='submit' name=create_debtor value=\"$txt1232\"></td></tr>";
-    // print "</tbody></table></td></tr>";
-
-    // New form (SD-338) - clean table-based UI matching debtor card style
-    // Shown/hidden by JS in _accountLookupHelper.php via noResultsForm element
-
-    // Get next available account number
+    // Store searched kontonr before we potentially replace it
+    $searched_kontonr = $kontonr;
+    $user_searched_for_kontonr = ($searched_kontonr > 0);
+    
+    // Get next available account number if not provided
     if (!$kontonr)
         $kontonr = get_next_number('adresser', 'D');
 
-    // Fetch debtor groups
-    $x = 0;
-    $grp_nr = array();
-    $grp_name = array();
+    // Fetch debtor groups for dropdown
+    $grp_options = '';
     $qtxt = "select * from grupper where art='DG' and fiscal_year = '$regnaar' order by kodenr";
     $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     while ($r = db_fetch_array($q)) {
-        $grp_nr[$x] = $r['kodenr'];
-        $grp_name[$x] = $r['beskrivelse'];
-        $x++;
+        $grp_nr = htmlspecialchars($r['kodenr']);
+        $grp_name = htmlspecialchars($r['beskrivelse']);
+        $grp_options .= "<option value='$grp_nr'>$grp_nr : $grp_name</option>";
     }
 
-    // Determine most common payment terms from last 100 debtors
-    $pMax = $x = 0;
-    $pterms = array();
-    $pcount = array();
-    $defaultPterm = '';
-    $defaultPdays = '';
-    $qtxt = "select betalingsbet,betalingsdage from adresser where art='D' order by id desc limit 100";
-    $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-    while ($r = db_fetch_array($q)) {
-        $tmp = $r['betalingsbet'] . "|" . $r['betalingsdage'];
-        if (in_array($tmp, $pterms)) {
-            for ($y = 0; $y < count($pterms); $y++) {
-                if ($pterms[$y] == $tmp) {
-                    $pcount[$y]++;
-                    if ($pMax < $pcount[$y]) {
-                        $pMax = $pcount[$y];
-                        $defaultPterm = $r['betalingsbet'];
-                        $defaultPdays = $r['betalingsdage'];
-                    }
-                }
-            }
-        } else {
-            $pterms[$x] = $tmp;
-            $pcount[$x] = 1;
-            if ($pMax < $pcount[$x]) {
-                $pMax = $pcount[$x];
-                $defaultPterm = $r['betalingsbet'];
-                $defaultPdays = $r['betalingsdage'];
-            }
-            $x++;
-        }
-    }
-    $pay_terms = array('Kontant', 'Netto', 'Lb. md.', 'Forud');
-    $ptName[0] = findtekst(370, $sprog_id); // Kontant
-    $ptName[1] = findtekst(372, $sprog_id); // Netto
-    $ptName[2] = findtekst(373, $sprog_id); // Lb. md.
-    $ptName[3] = findtekst(369, $sprog_id); // Forud
-
-    if (!$defaultPterm) $defaultPterm = 'Netto';
-    if (!$defaultPdays) $defaultPdays = '8';
-
-    // Build payment terms options (default first)
-    $payOptions = '';
-    for ($x = 0; $x < count($pay_terms); $x++) {
-        if ($defaultPterm == $pay_terms[$x])
-            $payOptions .= "<option value='" . htmlspecialchars($pay_terms[$x]) . "'>" . htmlspecialchars($ptName[$x]) . "</option>";
-    }
-    for ($x = 0; $x < count($pay_terms); $x++) {
-        if ($defaultPterm != $pay_terms[$x])
-            $payOptions .= "<option value='" . htmlspecialchars($pay_terms[$x]) . "'>" . htmlspecialchars($ptName[$x]) . "</option>";
+    // Determine default payment terms
+    $defaultPterm = 'Kontant';
+    $defaultPdays = '8';
+    $qtxt = "select betalingsbet, betalingsdage, count(*) as cnt from adresser where art='D' group by betalingsbet, betalingsdage order by cnt desc limit 1";
+    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+        if ($r['betalingsbet']) $defaultPterm = $r['betalingsbet'];
+        if ($r['betalingsdage']) $defaultPdays = $r['betalingsdage'];
     }
 
-    // Build group options
-    $grpOptions = '';
-    if (!empty($grp_nr) && is_array($grp_nr) && is_array($grp_name)) {
-        for ($x = 0; $x < count($grp_nr); $x++) {
-            $nr = htmlspecialchars($grp_nr[$x]);
-            $name = htmlspecialchars($grp_name[$x] ?? '');
-            $grpOptions .= "<option value='$nr'>$nr : $name</option>";
-        }
+    // Payment terms dropdown
+    $pay_options = '';
+    $pay_terms = array(
+        'Kontant' => findtekst('370|Kontant', $sprog_id),
+        'Netto' => findtekst('372|Netto', $sprog_id),
+        'Lb. md.' => findtekst('373|Lb. md.', $sprog_id),
+        'Forud' => findtekst('369|Forud', $sprog_id)
+    );
+    foreach ($pay_terms as $val => $label) {
+        $selected = ($val == $defaultPterm) ? 'selected' : '';
+        $pay_options .= "<option value='" . htmlspecialchars($val) . "' $selected>" . htmlspecialchars($label) . "</option>";
     }
 
     $kontonr_safe = htmlspecialchars($kontonr);
-    $firmanavn_safe = htmlspecialchars($firmanavn);
-    $addr1_safe = htmlspecialchars($addr1);
-    $addr2_safe = htmlspecialchars($addr2);
-    $postnr_safe = htmlspecialchars($postnr);
-    $bynavn_safe = htmlspecialchars($bynavn);
-    $kontakt_safe = htmlspecialchars($kontakt);
-    $email_safe = htmlspecialchars($email);
-    $cvrnr_safe = htmlspecialchars($cvrnr);
-    $ean_safe = htmlspecialchars($ean);
     $defaultPdays_safe = htmlspecialchars($defaultPdays);
 
-    // Render the create customer form (hidden by default, shown when no results)
+    // Labels
+    $lbl_create = findtekst('2118|Opret ny kunde', $sprog_id);
+    $lbl_name = findtekst('646|Navn', $sprog_id);
+    $lbl_address = findtekst('648|Adresse', $sprog_id);
+    $lbl_zipcode = findtekst('650|Postnr', $sprog_id);
+    $lbl_city = findtekst('910|By', $sprog_id);
+    $lbl_telephone = findtekst('377|Telefon', $sprog_id);
+    $lbl_contact = findtekst('398|Kontakt', $sprog_id);
+    $lbl_email = findtekst('402|E-mail', $sprog_id);
+    $lbl_vat = findtekst('48|Cvr nr.', $sprog_id);
+    $lbl_payterms = findtekst('56|Betalingsbet.', $sprog_id);
+    $lbl_group = findtekst('63|Gruppe', $sprog_id);
+    $lbl_submit = findtekst('1232|Opret', $sprog_id);
+
+    // Show create form if user searched for a kontonr that doesn't exist
+    // Form starts hidden, AJAX will show it when no results are found
+    $showForm = 'none';
+    
+    // Check if the grid has results - if $rows is empty, show the form
+    if (empty($rows) || count($rows) == 0) {
+        $showForm = 'block';
+    }
+    // Also show if user searched for a kontonr that doesn't exist
+    if ($user_searched_for_kontonr && !$kontonr_exists) {
+        $showForm = 'block';
+    }
+
     print <<<CREATEFORM
-<div id='noResultsForm' style='display:none; padding: 20px 0;'>
-  <form name="create_debtor" action="ordre.php?id=$id&sag_id=$sag_id&returside=$returside" method="post">
-    <table align="center" cellpadding="3" cellspacing="0" style="border-collapse:collapse;">
+<style>
+.create-customer-backdrop {
+    display: $showForm;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 999;
+}
+.create-customer-overlay {
+    display: $showForm;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 20px 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    min-width: 320px;
+}
+.create-customer-overlay h3 {
+    margin: 0 0 15px 0;
+    text-align: center;
+    font-size: 14px;
+    font-weight: normal;
+    color: #333;
+}
+.create-customer-overlay table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.create-customer-overlay td {
+    padding: 3px 5px;
+    vertical-align: middle;
+}
+.create-customer-overlay td:first-child {
+    text-align: right;
+    padding-right: 10px;
+    white-space: nowrap;
+    font-size: 12px;
+    color: #333;
+}
+.create-customer-overlay input[type="text"],
+.create-customer-overlay select {
+    width: 150px;
+    padding: 3px 5px;
+    border: 1px solid #ccc;
+    font-size: 12px;
+}
+.create-customer-overlay input[type="text"].small {
+    width: 40px;
+    text-align: right;
+}
+.create-customer-overlay .btn-row {
+    text-align: center;
+    padding-top: 10px;
+}
+.create-customer-overlay input[type="submit"] {
+    width: 150px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+.create-customer-overlay .close-btn {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #666;
+    cursor: pointer;
+    line-height: 1;
+}
+.create-customer-overlay .close-btn:hover {
+    color: #000;
+}
+</style>
+
+<div class="create-customer-backdrop" id="createCustomerBackdrop" onclick="toggleCreateForm(false)"></div>
+<div class="create-customer-overlay" id="createCustomerForm">
+  <span class="close-btn" onclick="toggleCreateForm(false)" title="Close">&times;</span>
+  <h3>$lbl_create</h3>
+  <form name="create_debtor" action="ordre.php?id=$id&sag_id=$sag_id&returside=$returside" method="post" onsubmit="return validateCreateCustomer()">
+    <table>
       <tr>
-        <td colspan="2" align="center" style="padding-bottom:8px;">
-          <big><b>$txt2118</b></big>
-        </td>
-      </tr>
-      <tr><td colspan="2"><hr></td></tr>
-      <tr bgcolor="#f5f5f5">
-        <td style="width:120px;">$txt357</td>
-        <td><input class="inputbox" style="width:200px;" type="text" name="kontonr" value="$kontonr_safe"></td>
+        <td></td>
+        <td><input type="text" name="kontonr" value="$kontonr_safe"></td>
       </tr>
       <tr>
-        <td>$txt646</td>
-        <td><input class="inputbox" style="width:200px;" type="text" name="firmanavn" value="$firmanavn_safe"></td>
-      </tr>
-      <tr bgcolor="#f5f5f5">
-        <td>$txt648</td>
-        <td><input class="inputbox" style="width:200px;" type="text" name="addr1" value="$addr1_safe"></td>
+        <td>$lbl_name <span style="color:red">*</span></td>
+        <td><input type="text" name="firmanavn" id="create_firmanavn" value=""></td>
       </tr>
       <tr>
-        <td>$txt648</td>
-        <td><input class="inputbox" style="width:200px;" type="text" name="addr2" value="$addr2_safe"></td>
-      </tr>
-      <tr bgcolor="#f5f5f5">
-        <td>$txt650</td>
-        <td><input class="inputbox" style="width:80px;" type="text" name="postnr" value="$postnr_safe"> <input class="inputbox" style="width:112px;" type="text" name="bynavn" value="$bynavn_safe"></td>
+        <td>$lbl_address</td>
+        <td><input type="text" name="addr1" value=""></td>
       </tr>
       <tr>
-        <td>$txt377</td>
-        <td><input class="inputbox" style="width:200px;" type="text" name="phone" value=""></td>
-      </tr>
-      <tr bgcolor="#f5f5f5">
-        <td>$txt398</td>
-        <td><input class="inputbox" style="width:200px;" type="text" name="kontakt" value="$kontakt_safe"></td>
+        <td>$lbl_address</td>
+        <td><input type="text" name="addr2" value=""></td>
       </tr>
       <tr>
-        <td>$txt402</td>
-        <td><input class="inputbox" style="width:200px;" type="text" name="email" value="$email_safe"></td>
+        <td>$lbl_zipcode</td>
+        <td><input type="text" name="postnr" value=""></td>
       </tr>
-      <tr bgcolor="#f5f5f5">
-        <td>$txt48</td>
-        <td><input class="inputbox" style="width:200px;" type="text" name="cvrnr" value="$cvrnr_safe"></td>
+      <tr>
+        <td>$lbl_city</td>
+        <td><input type="text" name="bynavn" value=""></td>
+      </tr>
+      <tr>
+        <td>$lbl_telephone</td>
+        <td><input type="text" name="phone" value=""></td>
+      </tr>
+      <tr>
+        <td>$lbl_contact</td>
+        <td><input type="text" name="kontakt" value=""></td>
+      </tr>
+      <tr>
+        <td>$lbl_email</td>
+        <td><input type="text" name="email" value=""></td>
+      </tr>
+      <tr>
+        <td>$lbl_vat</td>
+        <td><input type="text" name="cvrnr" value=""></td>
       </tr>
       <tr>
         <td>Ean</td>
-        <td><input class="inputbox" style="width:200px;" type="text" name="ean" value="$ean_safe"></td>
-      </tr>
-      <tr bgcolor="#f5f5f5">
-        <td>$txt56</td>
-        <td><select class="inputbox" style="width:130px;" name="betalingsbet">$payOptions</select> <input class="inputbox" style="width:40px; text-align:right;" type="text" name="betalingsdage" value="$defaultPdays_safe"></td>
+        <td><input type="text" name="ean" value=""></td>
       </tr>
       <tr>
-        <td>$txt63</td>
-        <td><select class="inputbox" style="width:200px;" name="grp">$grpOptions</select></td>
+        <td>$lbl_payterms</td>
+        <td><select name="betalingsbet">$pay_options</select> <input type="text" name="betalingsdage" value="$defaultPdays_safe" class="small"></td>
       </tr>
-      <tr><td colspan="2"><hr></td></tr>
       <tr>
-        <td colspan="2" align="center" style="padding-top:8px;">
-          <input style="width:200px;" type="submit" name="create_debtor" value="$txt1232">
+        <td>$lbl_group</td>
+        <td><select name="grp">$grp_options</select></td>
+      </tr>
+      <tr>
+        <td colspan="2" class="btn-row">
+          <input type="submit" name="create_debtor" value="$lbl_submit">
         </td>
       </tr>
     </table>
   </form>
 </div>
+
+<script>
+function validateCreateCustomer() {
+    var name = document.getElementById('create_firmanavn').value.trim();
+    if (name === '') {
+        alert('Navn er påkrævet / Name is required');
+        document.getElementById('create_firmanavn').focus();
+        return false;
+    }
+    return true;
+}
+</script>
 CREATEFORM;
     // ============ End of create new customer form ============
 
