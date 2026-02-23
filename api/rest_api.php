@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 4.0.5 --- 2024-12-03 ---
+// --- api/rest_api.php --- lap 5.0.0 --- 2026-02-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,7 @@
 // 08/01/2025 PBLM change some *1 to (int)
 // 04-02-2025 PBLM added discountType to insert_shop_orderline
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20230223 PHR Fixed currency error (Valutakurs)
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -419,8 +420,11 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	} else {
 		$qtxt="select box2 from grupper where art='VK' and box1 = '$valuta'";
 		fwrite($log,__line__." $qtxt\n");
-		if ($r=db_fetch_array(db_modify($qtxt,__FILE__ . " linje " . __LINE__))) $valutakurs=$r['box2']*1;
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $valutakurs=$r['box2']; #20260223
 		else $valutakurs=100;
+		fwrite($log,__line__." Valutakurs $valutakurs\n");
+		if (strpos($valutakurs,',')) $valutakurs = usdecimal($valutakurs);
+		$valutakurs = (float)$valutakurs;
 	}
 	if (strtolower($betalingsbet) == 'kreditkort') $betalingsbet = 'Kreditkort';
 	fwrite($log,__line__." afd $afd\n");
@@ -1090,12 +1094,13 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$saldi_kontonr = str_replace('+','',$saldi_kontonr);
 			$saldi_kontonr = str_replace(' ','',$saldi_kontonr);
 			fwrite($log,__line__." Saldi kontonr $saldi_kontonr\n");
-			fwrite($log,__line__." Afd $afd Ekstra5 $ekstra5");
+			fwrite($log,__line__." Afd $afd Ekstra5 $ekstra5\n");
 			$params = "$brugernavn,$shopOrderId,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvr,$ean,";
 			$params.= "$institution,$tlf,$email,$udskriv_til";
 			$params.= "$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,";
 			$params.= "$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,";
 			$params.= "$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$pos_betaling,$shop_status,$notes,$sprog";
+			fwrite($log,__line__." insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog\n");
 			fclose ($log);
 			$value = insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog);
 ##############################################
