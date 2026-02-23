@@ -4571,9 +4571,12 @@ function ordreside($id, $regnskab)
 		}
 		print "</td>";
 		// Ensure afd is set from user settings for new orders before rendering dropdown
-		if (!$id && !$afd) {
-			$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
-		}
+		/* Do not enable - does nor work !!!
+		 *		if (!$id) {
+		 *			$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
+		 *
+	}
+	*/
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr) > 1) {
 			print "</td><td></td>\n";

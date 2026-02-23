@@ -27,30 +27,38 @@
 
 
 // Change the column type to VARCHAR(20)
-$qtxt = "ALTER TABLE datatables ALTER COLUMN tabel_id TYPE TEXT";
-db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+$qtxt = "select id from settings where var_grp = 'colors' and var_value = '#' limit 1";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "delete from settings where var_grp = 'colors'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' limit 1";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'table_id' and data_type != 'TEXT'";
+	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$qtxt = "ALTER TABLE datatables ALTER COLUMN tabel_id TYPE TEXT";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'date_range_meta'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$qtxt = "ALTER TABLE datatables ADD COLUMN date_range_meta TEXT";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+} else {
+	$qtxt = "CREATE TABLE datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id TEXT, column_setup TEXT, search_setup TEXT, ";
+	$qtxt.= "filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, sort TEXT, date_range_meta TEXT)";
+	db_modify($qtxt, __FILE__ . " line " . __LINE__);
+}
 
 db_modify("ALTER TABLE brugere ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45) NULL", __FILE__ . " linje " . __LINE__);
 
-
-
 // Check if the column already exists
-$qtxt = "SELECT column_name 
-         FROM information_schema.columns 
-         WHERE table_name = 'brugere' AND column_name = 'ip_address'";
-
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'brugere' AND column_name = 'ip_address'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-    // Column doesn't exist, so alter table
-    if ($db_type == 'mysql' || $db_type == 'mysqli') {
-        $alter = "ALTER TABLE brugere ADD COLUMN ip_address VARCHAR(45) NULL";   
-    } else {
-     $alter = "ALTER TABLE brugere ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)";
-	}
-    if (!empty($alter)) {
-        db_modify($alter, __FILE__ . " linje " . __LINE__);
-    }
+	$qtxt = "ALTER TABLE brugere ADD COLUMN ip_address VARCHAR(45)";   
+  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='lev_email'";
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
