@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/brugere.php-----patch 5.0.0 ----2026-01-27-----
+// --------------systemdata/brugere.php-----patch 5.0.0 ----2026-02-19-----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20220514 MSC - Implementing new design
 // 20230316 PHR Replaced *1 by (int)
 // 20260127 PHR update settings value
+// 20260219 PHR Added employeeInitials
 
 @session_start();
 $s_id=session_id();

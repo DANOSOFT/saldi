@@ -308,7 +308,12 @@
 
         if (type === 'item') {
             const urlParams = new URLSearchParams(window.location.search);
-            const orderId = urlParams.get('id');
+            let orderId = urlParams.get('id');
+            // Fallback: read from form hidden input (page is often loaded via POST, so URL may not have the id)
+            if (!orderId) {
+                const idInput = document.querySelector('input[name="id"]');
+                if (idInput) orderId = idInput.value;
+            }
             window.location.href = `ordre.php?id=${orderId}&vare_id=${id}`;
         } else if (type === 'customer') {
             const urlParams = new URLSearchParams(window.location.search);

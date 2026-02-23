@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/creditorIncludes/openOrders.php --- lap 4.0.5 --- 2025.05.03 ---
+// --- kreditor/creditorIncludes/openOrderData.php --- lap 5.0.0 --- 2025.02.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,22 +29,24 @@
 // 20230105 MLH added mail_text and mail_subj
 // 20250415 LOE Some variables initialized and others checked before using.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
-
+// 20260217 PHR Added 'kundeordrnr'
+/*
 $attachId    = null;
 $email       = null;
 $kundeordnr  = null;
 $projekt[0]  = null;
 $udskriv_til = null;
-
+*/
 include '../includes/topline_settings.php';
-
+print "<!-- BEGIN orderIncludes/openOrderData.php -->";
+/*
 $attachId    = if_isset($attachId,NULL);
 $email       = if_isset($email,NULL);
 $kundeordnr  = if_isset($kundeordnr,NULL);
 $projekt[0]  = if_isset($projekt[0],NULL);
 $ref         = if_isset($ref,NULL);
 $udskriv_til = if_isset($udskriv_til,'PDF');
-
+*/
 print "<tr><td><table cellpadding='0' cellspacing='0' border='0'style='width:355px' >";
 print "<tr><td style='width:100px'>".findtekst(276,$sprog_id)."</td><td style='width:250px'>";
 if (trim($kontonr)) {
@@ -78,7 +80,7 @@ if (!$id) {
 #20221104 BEGIN
 print "<tr><td>".findtekst(402,$sprog_id)."</td>";
 print "<td><input class='inputbox' type='text' style='width:110px;' name='email' value='$email' onchange='javascript:docChange = true;'></td>";
-print "<td>".findtekst(2306,$sprog_id)."</td><td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='this.form.submit()'>\n";
+print "<td>".findtekst(2306,$sprog_id)."</td><td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='javascript:docChange = true;'>\n";  #onchange='this.form.submit()'
 print "<option value='PDF' ".((!$email || $udskriv_til=="PDF")?"selected='selected'":"").">PDF</option>\n";
 print "<option value='email' ".(($email && $udskriv_til=="email")?"selected='selected'":"")." title=\"".findtekst(1450, $sprog_id)."\">".findtekst(652, $sprog_id)."</option>\n";
 print "</SELECT></td></tr>\n";
@@ -273,5 +275,7 @@ else {
 if ($omlev) print "<td title ='".findtekst(1512, $sprog_id)."'>O/B</td>";
 
 print "</tr>\n";
+print "<!-- END orderIncludes/openOrderData.php -->";
+
 ?>
 	

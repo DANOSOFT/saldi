@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.1.1 --- 2026.02.17 ---
+// --- includes/udskriv.php --- lap 4.1.1 --- 2026.02.19 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -70,13 +70,14 @@ $art           = if_isset($_GET, NULL, 'art');
 $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
-
-
+$locat      = if_isset($_GET, NULL, 'locat');
+error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
-    if (!$returside) $returside = '../debitor/ordreliste.php';
+	
+	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
+	elseif (!$returside) $returside = '../debitor/ordreliste.php';
     $pdftk_check = shell_exec("which pdftk");
-	$pdftk_check = trim($pdftk_check); 
-
+		$pdftk_check = trim($pdftk_check);
 
     // If pdftk is not installed, alert the user and redirect
     if (!$pdftk_check) {
@@ -92,7 +93,6 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
         exit();
     }
 }
-
 
 if ($returside=='ordreliste.php') { #20200113
 	if ($art=='KO' || $art=='KK') $returside="../kreditor/ordreliste.php";
@@ -278,15 +278,17 @@ if (file_exists("../temp/$ps_fil.pdf")) {
     elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
     elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
 			print "<!-- kommentar for at skjule uddata til siden \n";
-			if (system("which pdftk") && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
-				$out="../temp/".$ps_fil."x.pdf";
-				fwrite($log,__line__." $out=\"../temp/".$ps_fil."x.pdf\"\n");
-				system ("$exec_path/pdftk ../temp/$ps_fil.pdf background $bg_fil output $out");
-				fwrite($log,__line__." system (\"$exec_path/pdftk ../temp/$ps_fil.pdf background $bg_fil output $out\")\n");
-				unlink ("../temp/$ps_fil.pdf");
-				fwrite($log,__line__." unlink (\"../temp/$ps_fil.pdf\")\n");
-				system  ("mv $out ../temp/$ps_fil.pdf");
-				fwrite($log,__line__." system  (\"mv $out ../temp/$ps_fil.pdf\")\n");
+			$pdftk_bin = trim(shell_exec("which pdftk") ?? '');
+			error_log("DIAG: pdftk_bin=$pdftk_bin");
+
+			if ($pdftk_bin && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+				$out = "../temp/" . $ps_fil . "x.pdf";
+				system("$pdftk_bin ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
+				error_log("DIAG: pdftk rc=$rc, out_exists=" . (file_exists($out) ? 'YES' : 'NO'));
+				if (file_exists($out)) {
+					unlink("../temp/$ps_fil.pdf");
+					rename($out, "../temp/$ps_fil.pdf");
+				}
 			}
 			print "--> \n";
 			
@@ -335,18 +337,18 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			include("../includes/topline_settings.php");
 
 			if ($menu == 'S') {
-				print "<table width=100% height=100%><tbody>";
-				
+				print "<table width=100% height=100%><tbody>"; 
 				if ($returside) {
-					if ($art == 'DO' && (strpos($returside, "ordreliste.php") !== false)) {
-						$href = "../debitor/ordreliste.php";
-					} else {
-						$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
-					}
-				} else {
+				 if (substr($art,0,1)=='K'){  
+					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
+				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
+					$href = "../debitor/ordreliste.php";
+				 } else {
+					$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
+				 }  
+				} else { 
 					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-				}
-
+				} 
 				print "<td width='10%'><a href=$href>
 					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 

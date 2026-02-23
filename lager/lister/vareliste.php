@@ -247,7 +247,7 @@ $lagere = array();
 $q = db_select($query, __FILE__ . " line " . __LINE__);
 while ($row = db_fetch_array($q)) {
     $SQLLagerFetch .= "COALESCE(ls$row[kodenr].beholdning, 0) AS lager$row[kodenr],\n";
-    $SQLLagerJoin .= "LEFT JOIN lagerstatus ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
+    $SQLLagerJoin .= "LEFT JOIN lagerstatus_grouped ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
     $lagere[] = "lager" . $row['kodenr'];
 
     $columns[] = array(
@@ -439,6 +439,15 @@ lager_totals AS (
         SUM(beholdning) AS lager_total
     FROM lagerstatus
     GROUP BY vare_id
+),
+lagerstatus_grouped AS (
+    -- Group lagerstatus by vare_id and lager to avoid duplicates
+    SELECT 
+        vare_id, 
+        lager, 
+        SUM(beholdning) AS beholdning
+    FROM lagerstatus
+    GROUP BY vare_id, lager
 )
 SELECT DISTINCT
     v.id AS id,                     

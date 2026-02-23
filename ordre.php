@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-02-19---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-02-17---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,7 +56,6 @@
 // 20251203 LOE Moved S menu's top table to ../includes/kreditorOrderFuncIncludes/topLine_S.php
 // 20251210 LOE vareopslag function moved to productLookup.php
 // 20260217 PHR kundeordrnr
-// 20260219 PHR if ($leveres[$x] < $antal[$x] + $tidl_lev[$x]) changed to if ($leveres[$x] && $leveres[$x] < $antal[$x] + $tidl_lev[$x])
 @session_start();
 $s_id=session_id();
 
@@ -124,13 +123,9 @@ if (isset($_GET['tjek']) && $tjek=$_GET['tjek'])	{
 			if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 			else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
 		}
-		else {
-            db_modify("update ordrer set hvem = '$brugernavn', tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);
-        }
+		else {db_modify("update ordrer set hvem = '$brugernavn', tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);}
 	}
-	else {
-        db_modify("update ordrer set hvem = '$brugernavn', tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);
-    }
+	else {db_modify("update ordrer set hvem = '$brugernavn', tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);}
 }
 
 $qtxt = "select box4 from grupper where art = 'DIV' and kodenr = '2'";
@@ -475,6 +470,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
 			$projekt[$x] = if_isset($projekt, NULL,$x);
 		}
+		$leveres[$x] = (float)$leveres[$x];
 		if ($sletstart && $sletslut && $sletstart<$sletslut) {
 			for ($x=$sletstart; $x<=$sletslut; $x++) {
 				$posnr_ny[$x]="-";
@@ -743,11 +739,12 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 									print "<BODY onLoad=\"javascript:alert('Varenr. $varenr[$x]: antal &aelig;ndret fra $antal[$x] til $tidl_lev[$x]!')\">";
 									$antal[$x]=$tidl_lev[$x]; $submit = 'save'; $status=1;
 								}
-								if ($leveres[$x] && $leveres[$x] < $antal[$x] + $tidl_lev[$x]) {
-									$tmp1=$leveres[$x]*-1;
-									$tmp2=abs($antal[$x]+$tidl_lev[$x]);
-
-									print "<BODY onLoad=\"javascript:alert('Posnr $posnr_ny[$x] :return&eacute;r &aelig;ndret fra $tmp1 til $tmp2!')\">";
+								if ($leveres[$x] < $antal[$x] + $tidl_lev[$x]) {
+									$tmp1 = $leveres[$x]*-1;
+									$tmp2 = abs($antal[$x]+$tidl_lev[$x]);
+									if (abs(round($tmp1-$tmp2,2))>0.1) {
+										print "<BODY onLoad=\"javascript:alert('Posnr $posnr_ny[$x] :return&eacute;r &aelig;ndret fra $tmp1 til $tmp2!')\">";
+									}
 									$leveres[$x]=$antal[$x]+$tidl_lev[$x]; $submit = 'save'; $status=1;
 								}
 								elseif ($leveres[$x] > 0) {
@@ -1502,37 +1499,7 @@ if ($menu=='T') {
 
 <style>
 .ordreform { 
-        overflow-x: auto;
-        height: calc(100vh - 50px);
+	overflow-x: auto;
+	height: calc(100vh - 50px);
 }
 </style>
-
-<script>
-let isSubmitting = false;
-document.addEventListener("DOMContentLoaded", function () {
-    const forms = document.querySelectorAll("form");
-    forms.forEach(form => {
-        form.addEventListener("submit", function () {
-            isSubmitting = true;
-        });
-    });
-});
-function unlockOrderBeacon(evtName) {
-    if (!isSubmitting && !window.orderUnlocked) {
-        window.orderUnlocked = true;
-        let data = new URLSearchParams();
-        data.append("id", "<?php echo (int)$id; ?>");
-        data.append("event", evtName);
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon("../includes/unlock_order.php", data);
-        } else {
-            let xhr = new XMLHttpRequest();
-            xhr.open('POST', '../includes/unlock_order.php', false);
-            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-            xhr.send(data.toString());
-        }
-    }
-}
-window.addEventListener("beforeunload", function() { unlockOrderBeacon('beforeunload'); });
-window.addEventListener("pagehide", function() { unlockOrderBeacon('pagehide'); });
-</script>

@@ -1,6 +1,23 @@
 <?php
 
 #..includes/grid.php
+######################### >>>>>>>Notice before editing this file<<<<<<###############
+
+// This file contains the core logic for creating and managing data grids on Saldi.
+// If you have a specific logic or feature you want to implement just for a single file, please consider the following before making changes:
+// 1. If the logic is specific to a single page, consider implementing it directly in that page's PHP file instead of here.
+// 2. If the logic is related to data manipulation or retrieval, consider creating a separate function in a relevant file and then calling that function from the page where it's needed.   
+// This approach helps keep the grid.php file focused on its core responsibility of managing data grids, while allowing for flexibility and separation of concerns in the application.
+#P.S If you are very sure the logic you want to implement is generic and can be reused across multiple pages, then you can consider adding it here, but please ensure to properly document it and ensure it does not introduce unnecessary complexity to the grid management logic.
+//ensure to test it on these pages after implementation: 
+/*
+debitor/debitor.php, debitor/productLookup.php, debitor/debitor_kommission.php, debitor/debitorkort.php, debitor/debitor_historik.php
+lager/lister/indkøb.php, lager/lister/vareliste.php, lager/lister/ordrestatus.php, lager/lister/serialnumber.php
+includes/grid.php, finans/kontospec.php, finans/kassekladde.php, finans/regnskab.php, finans/budget.php
+finans/kladdeliste.php, systemdata/kontoplan.php, kreditor/kreditor.php, kreditor/productLookup.php, kreditor/orderIncludes/dropshipping.php, etc.
+Regards:) 20260220 LOE
+*/
+######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -1081,7 +1098,7 @@ HTML;
  */
 function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
     // Define the possible row count options
-    $rowCounts = [50, 100, 250, 500, 1000];
+    $rowCounts = [50, 100, 250, 500, 1000, 999999999];
 
     // Build the options dynamically
     $options = '';
@@ -1933,8 +1950,19 @@ function render_dropdown_script($id, $query) {
                 tbody.innerHTML += '<b><a href="' + window.location.href.split('?')[0] + '">back</a></b>';
 
             } else if (action === 'clear') {
-                // Redirect to the base URL with clear_grid parameter to delete the datatable entry
-                window.location.href = window.location.href.split('?')[0] + '?clear_grid=$id';
+              // Redirect to the base URL with clear_grid parameter to delete the datatable entry
+               // window.location.href = window.location.href.split('?')[0] + '?clear_grid=$id';
+                 
+                 // Select all input fields matching the name pattern `search[test][...]`
+                const searchFields = document.querySelectorAll('input[name^="search[$id]"]');
+                console.log(searchFields);
+
+                // Loop through each field and clear its value
+                searchFields.forEach(field => {
+                    field.value = "";
+                });
+
+                searchFields[0].form.submit();
 
             } else if (action === 'exportCSV') {
                 // Get the table element

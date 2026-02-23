@@ -95,6 +95,7 @@ if (isset($_POST['kommission']) && $_POST['debId']) {
 			for ($x=0;$x<strlen($txt);$x++) {
 				$lnk[$i].=dechex(ord(substr($txt,$x,1)));
 			}
+			echo "<script>console.log('link: $lnk[i]\n')</script>";
 		}
 	}
 	include("../includes/connect.php");
@@ -464,6 +465,7 @@ $folder=trim($_SERVER['PHP_SELF'],'/');
 $folder=str_replace('debitor/debitor_kommission.php','',$folder);
 $myLink="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
 $myLink=str_replace('bizsys','mysale',$myLink);
+echo "<script>console.log('link: $myLink\n')</script>";
 
 // Add clickable row renderer for all columns (whole row is clickable)
 foreach ($columns as &$column) {
@@ -477,7 +479,7 @@ foreach ($columns as &$column) {
 			// Handle kommission links: if mysale is enabled, open MySale link, otherwise go to debitorkort
 			if (isset($row['mysale']) && $row['mysale']) {
 				// Build MySale link with encoded customer data
-				$txt = $row['id'] .'|'. $value .'@'. $db .'@'. $_SERVER['HTTP_HOST'];
+				$txt = $row['id'] .'|'. $row['kontonr'] .'@'. $db .'@'. $_SERVER['HTTP_HOST'];
 				$lnk = $myLink;
 				for ($x=0;$x<strlen($txt);$x++) {
 					$lnk.=dechex(ord(substr($txt,$x,1)));

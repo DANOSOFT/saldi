@@ -1,6 +1,6 @@
 <?php
-// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-02-11---------
-//                           LICENSE
+// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-02-19---------
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -12,7 +12,7 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
@@ -30,11 +30,13 @@
 // 20250415 LOE Updated some variables using if_isset and some clean up
 // 20251118 LOE Added datagrid for better performance and more features
 // 20260204 Saul Added more fields  in edit column for kreditor/order
-// 20260211 LOE Added tjek back to url. 
+// 20260211 LOE Added tjek back to url.
+// 20260219 PHR if ($row['valutakurs'] && $row['valutakurs'] != 100) changed to ($sum && $row['valutakurs'] && $row['valutakurs'] != 100)
+// 20260219 PHR orders with status 0 was not listet if $hurtigfakt was selected;
 
 ob_start();
 @session_start();
-$s_id = session_id(); 
+$s_id = session_id();
 
 $css = "../css/std.css";
 $modulnr = 5;
@@ -50,10 +52,10 @@ $valg = if_isset($_GET, 'ordrer','valg');
 
 // Fetch ALL columns from the ordrer table (same as debitor/ordreliste.php)
 $all_db_columns = array();
-$qtxt = "SELECT column_name, data_type 
-         FROM information_schema.columns 
-         WHERE table_schema = 'public' 
-           AND table_name = 'ordrer' 
+$qtxt = "SELECT column_name, data_type
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'ordrer'
          ORDER BY ordinal_position";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
@@ -133,6 +135,11 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $hurtigfakt = 'on';
 }
 
+if (!$popup) {
+    $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'K%' and status < '3'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 ob_end_flush();
 
 // Render header
@@ -176,6 +183,8 @@ if ($valg == "forslag") {
     $status = "status = 0";
 } elseif ($valg == "faktura") {
     $status = "status >= 3";
+} elseif ($hurtigfakt) {
+    $status = "status < 3";
 } else {
     $status = "(status = 1 OR status = 2)";
 }
@@ -200,18 +209,18 @@ $custom_columns = array(
         "render" => function ($value, $row, $column) {
             global $brugernavn;
             $in_use = '<span>';
-            
+
             // Match the locking logic from ordre.php (snippet provided)
             $orderTime = isset($row['tidspkt']) ? (int)$row['tidspkt'] : 0;
             $tidspkt = time();
-            
+
             if ($row['status'] < 3 && ($tidspkt - $orderTime) < 3600 && !empty($row['hvem']) && $row['hvem'] != $brugernavn) {
                 $in_use = " <span class='fa fa-user' style='color: red; cursor: help;' title='I brug af: " . htmlspecialchars($row['hvem']) . "'>";
             }
             return "<td align='$column[align]'>$in_use$value</span></td>";
         }
     ),
-    
+
     "ordredate" => array(
         "field" => "ordredate",
         "headerName" => ($valg == "forslag") ? findtekst('889|Tilbudsdato', $sprog_id) : findtekst('881|Ordredato', $sprog_id),
@@ -226,7 +235,7 @@ $custom_columns = array(
             return "<td align='$column[align]'>" . $value . "</td>";
         }
     ),
-    
+
     "levdate" => array(
         "field" => "levdate",
         "headerName" => findtekst('941|Modt.dato', $sprog_id),
@@ -240,7 +249,7 @@ $custom_columns = array(
             return "<td align='$column[align]'>" . $value . "</td>";
         }
     ),
-    
+
     "modtagelse" => array(
         "field" => "modtagelse",
         "headerName" => findtekst('940|Modt.nr.', $sprog_id),
@@ -257,7 +266,7 @@ $custom_columns = array(
             return "<td align='$column[align]'>$value</td>";
         }
     ),
-    
+
     "fakturanr" => array(
         "field" => "fakturanr",
         "headerName" => findtekst('882|Fakt.nr.', $sprog_id),
@@ -270,7 +279,7 @@ $custom_columns = array(
             return "<td align='$column[align]'>$value</td>";
         }
     ),
-    
+
     "fakturadate" => array(
         "field" => "fakturadate",
         "headerName" => findtekst('883|Fakt.dato', $sprog_id),
@@ -285,7 +294,7 @@ $custom_columns = array(
             return "<td align='$column[align]'>" . $value . "</td>";
         }
     ),
-    
+
     "kontonr" => array(
         "field" => "kontonr",
         "headerName" => findtekst('804|Kontonr.', $sprog_id),
@@ -302,7 +311,7 @@ $custom_columns = array(
             return "<td align='$column[align]'>$value</td>";
         }
     ),
-    
+
     "firmanavn" => array(
         "field" => "firmanavn",
         "headerName" => findtekst('360|Firmanavn', $sprog_id),
@@ -314,7 +323,7 @@ $custom_columns = array(
             return "<td align='$column[align]'>$value</td>";
         }
     ),
-    
+
     "lev_navn" => array(
         "field" => "lev_navn",
         "headerName" => findtekst('814|Leveres til', $sprog_id),
@@ -325,7 +334,7 @@ $custom_columns = array(
             return "<td align='$column[align]'>$value</td>";
         }
     ),
-    
+
     "ref" => array(
         "field" => "ref",
         "headerName" => findtekst('884|Sælger', $sprog_id),
@@ -336,7 +345,7 @@ $custom_columns = array(
             return "<td align='$column[align]'>$value</td>";
         }
     ),
-    
+
     "sum" => array(
         "field" => "sum",
         "headerName" => ($valg == "faktura") ? findtekst('885|Fakturasum', $sprog_id) : (($valg == "forslag") ? findtekst('826|Forslagssum', $sprog_id) : findtekst('887|Ordresum', $sprog_id)),
@@ -347,8 +356,8 @@ $custom_columns = array(
         "searchable" => true,
         "valueGetter" => function($value, $row, $column) {
             $sum = $value;
-            if ($row['valutakurs'] && $row['valutakurs'] != 100) {
-                $sum = $sum * $row['valutakurs'] / 100;
+            if ($sum && $row['valutakurs'] && $row['valutakurs'] != 100) {
+                $sum*= (float)$row['valutakurs'] / 100;
             }
             return dkdecimal($sum);
         },
@@ -400,7 +409,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
     if (in_array($field_name, $skip_fields) || isset($custom_columns[$field_name])) {
         continue;
     }
-    
+
     // Create automatic definition
     $column_def = array(
         "field" => $field_name,
@@ -411,21 +420,21 @@ foreach ($all_db_columns as $field_name => $data_type) {
         "sortable" => true,
         "searchable" => true,
         "hidden" => !in_array($field_name, $active_column_names),
-        "sqlOverride" => "ordrer.$field_name", 
+        "sqlOverride" => "ordrer.$field_name",
     );
-    
+
     // AUTO-DETECT TYPE AND ADD BOTH valueGetter AND render FUNCTIONS
     // Date fields
-    if (strpos($field_name, 'date') !== false || 
+    if (strpos($field_name, 'date') !== false ||
         in_array($field_name, ['ordredate', 'levdate', 'fakturadate', 'nextfakt', 'due_date', 'datotid', 'settletime'])) {
-        
+
         $column_def['type'] = 'date';
         $column_def['align'] = 'left';
-        
+
         $column_def['valueGetter'] = function ($value, $row, $column) {
             return $value;
         };
-        
+
         $column_def['render'] = function ($value, $row, $column) {
             $formatted = $value ? dkdato($value) : '';
             return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
@@ -435,30 +444,30 @@ foreach ($all_db_columns as $field_name => $data_type) {
     elseif ($field_name == 'konto_id') {
         $column_def['type'] = 'text';
         $column_def['align'] = 'left';
-        
+
         $column_def['valueGetter'] = function ($value, $row, $column) {
             return $value !== null ? $value : '';
         };
-        
+
         $column_def['render'] = function ($value, $row, $column) {
             return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
         };
     }
     // Numeric fields
-    elseif ($data_type == 'numeric' || $data_type == 'integer' || 
-            strpos($field_name, 'sum') !== false || 
+    elseif ($data_type == 'numeric' || $data_type == 'integer' ||
+            strpos($field_name, 'sum') !== false ||
             strpos($field_name, 'nr') !== false ||
             strpos($field_name, 'id') !== false ||
             in_array($field_name, ['kostpris', 'moms', 'procenttillag', 'netweight', 'grossweight', 'valutakurs', 'betalingsdage', 'kontakt_tlf', 'phone', 'report_number'])) {
-        
+
         $column_def['type'] = 'number';
         $column_def['align'] = 'right';
         $column_def['decimalPrecision'] = ($data_type == 'integer') ? 0 : 2;
-        
+
         $column_def['valueGetter'] = function ($value, $row, $column) {
             return is_numeric($value) ? $value : 0;
         };
-        
+
         $column_def['render'] = function ($value, $row, $column) {
             if (is_numeric($value)) {
                 $precision = isset($column['decimalPrecision']) ? $column['decimalPrecision'] : 2;
@@ -468,17 +477,17 @@ foreach ($all_db_columns as $field_name => $data_type) {
             }
             return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
         };
-    } 
+    }
     // Boolean/status fields (0/1 values)
     elseif (in_array($field_name, ['betalt', 'restordre', 'vis_lev_addr', 'pbs', 'mail_fakt', 'omvbet'])) {
-        
+
         $column_def['type'] = 'dropdown';
         $column_def['align'] = 'center';
-        
+
         $column_def['valueGetter'] = function ($value, $row, $column) {
             return $value;
         };
-        
+
         $column_def['render'] = function ($value, $row, $column) {
             if ($value == '1' || $value === true) {
                 $display = '✓';
@@ -498,29 +507,31 @@ foreach ($all_db_columns as $field_name => $data_type) {
         $column_def['valueGetter'] = function ($value, $row, $column) {
             return $value !== null ? $value : '';
         };
-        
+
         $column_def['render'] = function ($value, $row, $column) {
             return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
         };
     }
-    
+
     // Add dropdown options for specific fields
     if (in_array($field_name, ['status', 'valuta', 'sprog', 'art', 'udskriv_til', 'betalt', 'restordre', 'shop_status', 'digital_status'])) {
         $column_def['type'] = 'dropdown';
         $column_def['dropdownOptions'] = function() use ($field_name, $valg) {
             $options = array();
-            
+
             if ($valg == "forslag") {
                 $status_condition = "status < 1";
             } elseif ($valg == "faktura") {
                 $status_condition = "status >= 3";
+            } elseif ($hurtigfakt) {
+                $status_condition = "status <= 2";
             } else {
                 $status_condition = "(status = 1 OR status = 2)";
             }
-            
-            $qtxt = "SELECT DISTINCT $field_name FROM ordrer 
-                     WHERE $field_name IS NOT NULL 
-                     AND trim($field_name::text) != '' 
+
+            $qtxt = "SELECT DISTINCT $field_name FROM ordrer
+                     WHERE $field_name IS NOT NULL
+                     AND trim($field_name::text) != ''
                      AND (art = 'KO' OR art = 'KK')
                      AND $status_condition
                      ORDER BY $field_name";
@@ -533,7 +544,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
             return $options;
         };
     }
-    
+
     $columns[] = $column_def;
 }
 
@@ -546,7 +557,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
 }
 
 $query = "SELECT $select_fields
-          FROM ordrer 
+          FROM ordrer
           WHERE (art = 'KO' OR art = 'KK') AND $status AND {{WHERE}}
           ORDER BY {{SORT}}";
 
@@ -609,16 +620,15 @@ $rowStyle = function($row) {
 $rowAttributes = function($row) {
     return "data-order-id='{$row['id']}'";
 };
-
 // Create grid configuration
 $grid_data = [
     'columns' => $columns,
     'query' => $query,
-    'filters' => [], 
+    'filters' => [],
     'metaColumn' => $metaColumn,
     'metaColumnHeaders' => $metaColumnHeaders,
     'rowStyle' =>  $rowStyle,
-    'rowAttributes' => $rowAttributes  
+    'rowAttributes' => $rowAttributes
 ];
 
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
@@ -637,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
         row.addEventListener('click', function(e) {
             // Don't navigate if clicking on action buttons
             if (e.target.closest('a')) return;
-            
+
             // Get the order ID from the data
             const orderId = row.dataset.orderId;
             if (orderId) {
@@ -678,7 +688,7 @@ SCRIPT;
 if ($menu == 'T') {
     include_once '../includes/topmenu/footer.php';
 } else {
-    include_once '../includes/oldDesign/footer.php'; 
+    include_once '../includes/oldDesign/footer.php';
 }
 ?>
 
@@ -806,7 +816,7 @@ if (!valgParam) {
 function addValgToForms() {
     if (valgParam) {
         const forms = document.querySelectorAll('.datatable-wrapper form');
-        
+
         forms.forEach(form => {
             let valgInput = form.querySelector('input[name="valg"]');
             if (!valgInput) {

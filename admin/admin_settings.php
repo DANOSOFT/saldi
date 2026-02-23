@@ -222,7 +222,7 @@ print "<tr><td>".findtekst('1922|Program til komprimering af filer', $sprog_id).
 print "<tr><td>".findtekst('1923|Program til dekomprimering af filer', $sprog_id)."</td><td><input style='width:400px' name='unzip' value='$unzip'></td></tr>";
 print "<tr><td>".findtekst('1924|Program til pakning af filer', $sprog_id)."</td><td><input style='width:400px' name='tar' value='$tar'></td></tr>";
 print "<tr><td>".findtekst('1925|Tekst ved \'uforudset hændelse\'', $sprog_id)."</td><td><input style='width:400px' name='alertText' value='$alertText'></td></tr>";
-print "<tr><td>".findtekst('2882|Infotekst på dashboard', $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
+print "<tr><td>".findtekst('2952|Infotekst på dashboard', $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
 
 ##################### #20210920
 /*

@@ -135,10 +135,12 @@ document.addEventListener('DOMContentLoaded', function () {
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
         animation: 150,
+        forceFallback: true,
 
         onStart(evt) {
             isDragging = true;
             evt.item.classList.add('dragging');
+            document.body.classList.add('is-dragging');
             console.log('=== DRAG STARTED ===');
 
             // Highlight all items in the same collection
@@ -156,6 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
         onEnd(evt) {
             isDragging = false;
             evt.item.classList.remove('dragging');
+            document.body.classList.remove('is-dragging');
             console.log('=== DRAG ENDED ===');
 
             // Remove collection highlighting

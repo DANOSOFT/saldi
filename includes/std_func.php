@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-01-28 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-02-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -52,6 +52,8 @@
 // 20251106 LOE Added z-index to tekstboks function
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
 // 20260127 PHR corrected error in function get_next_order_number
+// 20260217 PHR added "(float)$tal" in function afrund
+
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -363,7 +365,8 @@ if (!function_exists('afrund')) {
 		 * @return float - The number rounded to the specified number of decimal places.
 		 */
 		# Korrigerer afrundingsfejl i php 
-		$decimaler = $decimaler * 1;
+		$tal       = (float)$tal;
+		$decimaler = (int)$decimaler;
 		$tmp = 0.001;
 		for ($x = 1; $x < $decimaler; $x++) {
 			$tmp = $tmp / 10;

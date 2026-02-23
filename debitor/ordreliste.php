@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-16--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-23--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,14 +38,13 @@
 // 20260127 LOE Selected calender type now saved for the user.
 // 20260207 LOE Fixed a bug created by git merge
 // 20260212 PHR Disabled popup checker
-// 20260216 LOE Updated delivery note navigation behaviour.
+// 20260216 LOE Updated delivery note navigation behaviour. 20260220 + location
+// 20260223 AJ Updated Revenue and cover ratio to match
+
 @session_start();
 $s_id = session_id();
 
 $css = "../css/std.css?v=24"; 
-
-
-
 
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>";
 
@@ -616,6 +615,7 @@ $custom_columns = array(
         },
         "render" => function ($value, $row, $column) {
             global $brugernavn;
+            global $vis_lagerstatus, $ls_vgr, $sprog_id;
             $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=" . urlencode($_SERVER["REQUEST_URI"]);
             
             $timestamp = $row['tidspkt'];
@@ -645,6 +645,50 @@ $custom_columns = array(
                 $display = "(R)&nbsp;$value";
             } else {
                 $display = $value;
+            }
+
+            // vis_lagerstatus: wrap display in overlib span with stock details tooltip
+            if ($vis_lagerstatus && $row['art'] != 'DK' && $row['restordre'] != '1') {
+                $id = $row['id'];
+                $spantxt = "<table><tbody>";
+                $spantxt .= "<tr><td>Varenr</td><td>" . findtekst('948|Beholdning', $sprog_id) . "</td><td>" . findtekst('916|Antal', $sprog_id) . "</td><td>" . findtekst('1190|Leveret', $sprog_id) . "</td><td>" . findtekst('1428|Bestilt', $sprog_id) . "</td><td>" . findtekst('1429|Reserveret', $sprog_id) . "</td><td>" . findtekst('1430|I bestilling', $sprog_id) . "</td><td>" . findtekst('976|Disponibel', $sprog_id) . "</td></tr>";
+                $q_ls = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
+                if ($q_ls) while ($r_ls = db_fetch_array($q_ls)) {
+                    if (!$r_ls['vare_id']) continue;
+                    $q2_ls = db_select("select beholdning, gruppe from varer where id='{$r_ls['vare_id']}'", __FILE__ . " linje " . __LINE__);
+                    if (!$q2_ls) continue;
+                    $r2_ls = db_fetch_array($q2_ls);
+                    if (!$r2_ls) continue;
+                    $tmp_ls = find_beholdning($r_ls['vare_id'], NULL);
+                    $beholdning = $r2_ls['beholdning'];
+                    $antal = $r_ls['antal'];
+                    $leveret = $r_ls['leveret'];
+                    $needed = $antal - $leveret;
+                    $is_lagerfrt = in_array($r2_ls['gruppe'], $ls_vgr);
+
+                    if ($beholdning - $needed < 0 && $beholdning + $tmp_ls[4] - $needed >= 0 && $is_lagerfrt) {
+                        $spanbg = '#FFFF66';
+                    } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
+                        $spanbg = '#FF4D4D';
+                    } elseif ($antal != $leveret) {
+                        $spanbg = '#66FF66';
+                    } else {
+                        $spanbg = '#FF33FF';
+                    }
+
+                    if ($spanbg != '#FF33FF' && $spanbg != '#66FF66') {
+                        $spantxt .= "<tr bgcolor=$spanbg><td>$r_ls[varenr]</td><td align=right>" . dkdecimal($beholdning * 1, 0) . "</td>";
+                        $spantxt .= "<td align=right>" . dkdecimal($antal * 1, 0) . "</td><td align=right>" . dkdecimal($leveret * 1, 0) . "</td>";
+                        $spantxt .= "<td align=right>$tmp_ls[1]</td><td align=right>$tmp_ls[2]</td><td align=right>$tmp_ls[3]</td><td align=right>$tmp_ls[4]</td></tr>";
+                    }
+                }
+                $spantxt .= "<tr><td colspan=100><hr></td></tr>";
+                $spantxt .= "<tr><td>Magenta</td><td colspan=7>" . findtekst('2403|Alt leveret', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr><td>Grøn</td><td colspan=7>" . findtekst('1431|På lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr><td>Gul</td><td colspan=7>" . findtekst('1432|Delvist på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "<tr><td>Rød</td><td colspan=7>" . findtekst('1433|Ikke på lager', $sprog_id) . "</td></tr>";
+                $spantxt .= "</tbody></table>";
+                $display = "<span onmouseover=\"return overlib('" . $spantxt . "', WIDTH=800);\" onmouseout=\"return nd();\">" . $display . "</span>";
             }
             
             return "<td align='$column[align]' style='$style' $onclick title='$title'>$display</td>";
@@ -1285,6 +1329,21 @@ if ($valg == "tilbud") {
     $base_where_conditions = "(o.status = 1 OR o.status = 2)";
 }
 
+
+$totals_query = "SELECT 
+    COALESCE(SUM(o.sum::numeric), 0) as total_sum,
+    COALESCE(SUM(o.sum::numeric + o.moms::numeric), 0) as total_sum_m_moms,
+    COALESCE(SUM(o.kostpris::numeric), 0) as total_kostpris
+FROM ordrer o
+WHERE (o.art = 'DO' OR o.art = 'DK' OR (o.art = 'PO' AND o.konto_id > '0')) 
+AND $base_where_conditions";
+
+$totals_result = db_fetch_array(db_select($totals_query, __FILE__ . " linje " . __LINE__));
+
+$ialt_total = floatval($totals_result['total_sum']);
+$ialt_m_moms_total = floatval($totals_result['total_sum_m_moms']);
+$ialt_kostpris_total = floatval($totals_result['total_kostpris']);
+
 $debug_log[] = "base_where_conditions: $base_where_conditions";
 
 // IMPORTANT: Update the SQL query to include ALL columns dynamically
@@ -1326,6 +1385,16 @@ $select_fields .= ", CASE
         ELSE 'Intet'
     END as levstatus";
 
+// vis_lagerstatus: Load lagerførte varegrupper (VG groups with box8='on')
+$ls_vgr = array();
+if ($vis_lagerstatus) {
+    $qtxt = "select kodenr from grupper where art='VG' and box8='on'";
+    $q_vgr = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    while ($r_vgr = db_fetch_array($q_vgr)) {
+        $ls_vgr[] = $r_vgr['kodenr'];
+    }
+}
+
 $data = array(
     "table_name" => "ordrer",
     "query" => "SELECT 
@@ -1337,8 +1406,47 @@ $data = array(
     AND {{WHERE}}
     ORDER BY {{SORT}}",
 
-    "rowStyle" => function ($row) use ($valg) {
-        return "";
+    "rowStyle" => function ($row) use ($valg, $vis_lagerstatus, $ls_vgr, $sprog_id) {
+        if (!$vis_lagerstatus) return "";
+
+        $id = $row['id'];
+        $linjebg = null;
+
+        // Fetch order lines with non-zero quantities
+        $q = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
+        if (!$q) return "";
+        while ($r = db_fetch_array($q)) {
+            if (!$r['vare_id']) continue;
+            $q2 = db_select("select beholdning, gruppe from varer where id='{$r['vare_id']}'", __FILE__ . " linje " . __LINE__);
+            if (!$q2) continue;
+            $r2 = db_fetch_array($q2);
+            if (!$r2) continue;
+
+            $tmp = find_beholdning($r['vare_id'], NULL);
+            $beholdning = $r2['beholdning'];
+            $antal = $r['antal'];
+            $leveret = $r['leveret'];
+            $needed = $antal - $leveret;
+            $is_lagerfrt = in_array($r2['gruppe'], $ls_vgr);
+
+            if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
+                // Yellow: Low stock but sufficient with pending
+                if ($linjebg === null || $linjebg === '#66FF66') {
+                    $linjebg = '#FFFF66';
+                }
+            } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
+                // Red: Insufficient stock - overrides yellow/green
+                if ($linjebg === null || $linjebg === '#FFFF66' || $linjebg === '#FF33FF' || $linjebg === '#66FF66') {
+                    $linjebg = '#FF4D4D';
+                }
+            } elseif ($antal != $leveret && $linjebg === null) {
+                // Green: In stock, not yet delivered
+                $linjebg = '#66FF66';
+            }
+        }
+
+        if (!$linjebg) $linjebg = '#FF33FF'; // Magenta: All delivered / sufficient
+        return "background-color: $linjebg;";
     },
     "columns" => $columns,
     "filters" => $filters,
@@ -1400,7 +1508,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } elseif ($submit == "Send mails") {
             print "<script>window.location.href='formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=4&udskriv_til=email&returside=$returside'</script>";
         } elseif ($submit == findtekst('576|Følgeseddel', $sprog_id)) {
-            print "<script>window.location.href='formularprint.php?id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=3&udskriv_til=PDF&returside=$returside'</script>";
+            print "<script>window.location.href='formularprint.php?locat=1&id=-1&ordre_antal=" . count($selected_ids) . "&skriv=$id_list&formular=3&udskriv_til=PDF&returside=$returside'</script>";
         } elseif ($slet_valgte == findtekst('1099|Slet', $sprog_id)) {
             include("../includes/ordrefunc.php");
             foreach ($selected_ids as $order_id) {
@@ -1937,7 +2045,7 @@ print "<script>
 document.addEventListener('DOMContentLoaded', function() {
     var bulkForm = document.getElementById('bulkActionForm');
     var checkboxes = document.querySelectorAll('input.deliveryNoteSelect');
-    
+        
     checkboxes.forEach(function(checkbox) {
         // Clone checkbox to bulk form
         var clone = checkbox.cloneNode(true);
@@ -1954,15 +2062,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ########
 
-// Calculate and display turnover summary
-$dk_db = dkdecimal($ialt - $ialt_kostpris, 2);
-if ($ialt != 0) {
-    $dk_dg = dkdecimal(($ialt - $ialt_kostpris) * 100 / $ialt, 2);
+// Calculate and display turnover summary using TOTAL values (all matching orders, not just rendered rows)
+$dk_db = dkdecimal($ialt_total - $ialt_kostpris_total, 2);
+if ($ialt_total != 0) {
+    $dk_dg = dkdecimal(($ialt_total - $ialt_kostpris_total) * 100 / $ialt_total, 2);
 } else {
     $dk_dg = '0,00';
 }
-$ialt_formatted = dkdecimal($ialt, 2);
-$ialt_m_moms_formatted = dkdecimal($ialt_m_moms, 2);
+$ialt_formatted = dkdecimal($ialt_total, 2);
+$ialt_m_moms_formatted = dkdecimal($ialt_m_moms_total, 2);
 
 // NEW unified top control bar
 print "<div id='top-control-bar'>";
@@ -2008,8 +2116,6 @@ print "</div>";  // END LEFT
 // ------------------------------------------------------------
 // CENTER — Turnover Summary
 // ------------------------------------------------------------
-
-
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
 print "<div>";

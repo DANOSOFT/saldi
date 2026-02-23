@@ -39,14 +39,17 @@ document.addEventListener('DOMContentLoaded', function () {
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
         animation: 150,
+        forceFallback: true,
 
         onStart(evt) {
             evt.item.classList.add('dragging');
+            document.body.classList.add('is-dragging');
             console.log('=== INVOICE DRAG STARTED ===');
         },
 
         onEnd(evt) {
             evt.item.classList.remove('dragging');
+            document.body.classList.remove('is-dragging');
             console.log('=== INVOICE DRAG ENDED ===');
             updateInvoicePositions();
             const success = submitInvoiceForm();

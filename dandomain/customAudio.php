@@ -53,6 +53,16 @@ if(isset($_GET["put_new_orders"])){
         }
         $priceWithVat = $order->Total + ($order->Total * $order->Vat);
         $vatPrice = $order->Total * $order->Vat;
+
+        // Include delivery cost in totals so they match the sum of all order lines
+        // (FRAGT is added as a separate order line later)
+        $deliveryPrice = isset($order->Delivery->Price) ? (float)$order->Delivery->Price : 0;
+        $deliveryVat = 0;
+        if ($deliveryPrice > 0 && isset($order->Delivery->Vat) && $order->Delivery->Vat) {
+            $deliveryVat = $deliveryPrice * $order->Vat;
+        }
+        $nettosum = $order->Total + $deliveryPrice;
+        $momssum = $vatPrice + $deliveryVat;
         
         // Extract transaction data for up to 2 cards
         // ekstra1 = card type 1, ekstra2 = amount paid with card 1
@@ -104,8 +114,8 @@ if(isset($_GET["put_new_orders"])){
             $url .= "&tlf=".urlencode($order->Customer->Mobile);
         }
         $url .= "&email=".urlencode($order->Customer->Email)."&ref=Dandomain";
-        $url .= "&shop_status=".urlencode($order->Status)."&nettosum=".urlencode($order->Total);
-        $url .= "&momssum=".urlencode($vatPrice)."&kontakt=".urlencode($order->Customer->Firstname . " " . $order->Customer->Lastname);
+        $url .= "&shop_status=".urlencode($order->Status)."&nettosum=".urlencode($nettosum);
+        $url .= "&momssum=".urlencode($momssum)."&kontakt=".urlencode($order->Customer->Firstname . " " . $order->Customer->Lastname);
         $url .= "&lev_firmanavn=".urlencode($order->Customer->ShippingCompany)."&lev_addr1=".urlencode($order->Customer->ShippingAddress);
         $url .= "&lev_postnr=".urlencode($order->Customer->ShippingZip);
         $url .= "&lev_bynavn=".urlencode($order->Customer->ShippingCity);
