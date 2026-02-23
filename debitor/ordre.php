@@ -1330,6 +1330,9 @@ if ($b_submit) {
 			}
 		}
 		$lager[$x] = (int)$lager[$x];
+		if (!$varenr[$x] || trim($varenr[$x]) === '') {
+			$lager[$x] = 0;
+		}
 		$y = "leve" . $x;
 		if ($hurtigfakt == 'on') $leveres[$x] = $antal[$x];
 		else {

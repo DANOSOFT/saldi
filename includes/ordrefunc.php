@@ -3750,6 +3750,10 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			$lager = 0;
 	}
 
+	if (!$varenr || trim($varenr) === '') {
+		$lager = 0;
+	}
+
 	if (!$art)
 		$art = $r['art']; #20140424b
 	if ($status >= 3) { #20131015
