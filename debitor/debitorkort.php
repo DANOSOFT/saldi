@@ -81,7 +81,11 @@ if ($_GET['returside']) {
 	$returside = $_GET['returside'];
 	$ordre_id = $_GET['ordre_id'];
 	$fokus = $_GET['fokus'];
-	$returside .= '?ordre_id=' . $ordre_id;
+	// Only append ordre_id if it's not already in the returside URL
+	if (strpos($returside, 'ordre_id=') === false) {
+		$sep = (strpos($returside, '?') !== false) ? '&' : '?';
+		$returside .= $sep . 'ordre_id=' . $ordre_id;
+	}
 } else {
 	if ($popup) $returside = "../includes/luk.php";
 	else $returside = "debitor.php";
@@ -493,7 +497,13 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$id = $r['id'];
 			if ($kontakt) db_modify("insert into ansatte(konto_id, navn) values ('$id', '$kontakt')", __FILE__ . " linje " . __LINE__);
 			
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?tjek_id=$id&id=$id&returside=$returside\">\n";
+			// If coming from an order, redirect directly back to the order with the new customer
+			if (strpos($returside, 'ordre.php') !== false) {
+				$sep = (strpos($returside, '?') !== false) ? '&' : '?';
+				print "<meta http-equiv=\"refresh\" content=\"0;URL={$returside}{$sep}fokus=kontonr&konto_id=$id\">\n";
+				exit;
+			}
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?tjek_id=$id&id=$id&returside=" . urlencode($returside) . "\">\n";
 			exit;
 		} elseif ($id > 0) {
 			#######	
@@ -875,12 +885,13 @@ if (!isset($felt_5)) $felt_5 = NULL;
 if (!isset($kontonr)) $kontonr = NULL;
 
 $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
+$backSep = (strpos($returside, '?') !== false) ? '&' : '?';
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
 	## add onClick=\"JavaScript:opener.location.reload();\" but still get style from headlink MALENE
-	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a>";
+	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($returside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a>";
 	if ($jobkort) {
 		print "&nbsp;&nbsp;";
 	} else {
@@ -948,8 +959,8 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
 	print "<tr><td align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
-	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
-	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
+	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($returside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
+	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($returside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
 	print "<td width=\"80%\"$top_bund>" . findtekst('356|Debitorkort', $sprog_id) . "<!--tekst 356--></td>\n";
 	print "<td width=\"10%\"$top_bund><a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N><!--tekst 154-->" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></a></td>\n";
 	print "</tbody></table>"; # <- TABEL 1.1
@@ -967,7 +978,34 @@ if ($menu != 'T') {
 	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" width=\"100%\"><tbody>\n"; # NEW TABEL 1.2 ->
 }
 
-print "<form name=debitorkort action=debitorkort.php method=post>\n";
+// JavaScript validation to prevent form submit (and page reload) when required fields are empty
+$js_alert_name = findtekst('346|Navn skal angives', $sprog_id);
+print "<script type=\"text/javascript\">
+function validateDebitorkort(form) {
+	var kontotype = form.gl_kontotype ? form.gl_kontotype.value : (form.kontotype ? form.kontotype.value : '');
+	var name = '';
+	if (kontotype == 'privat') {
+		var fn = form.fornavn ? form.fornavn.value.trim() : '';
+		var en = form.efternavn ? form.efternavn.value.trim() : '';
+		name = (fn + ' ' + en).trim();
+	} else {
+		name = form.firmanavn ? form.firmanavn.value.trim() : '';
+	}
+	if (!name) {
+		alert('$js_alert_name');
+		if (kontotype == 'privat' && form.fornavn) {
+			form.fornavn.focus();
+		} else if (form.firmanavn) {
+			form.firmanavn.focus();
+		}
+		return false;
+	}
+	docChange = false;
+	return true;
+}
+</script>\n";
+
+print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 if ($vis_addr == "on") {
 	print "<input type=hidden name=\"felt_1\" value='$felt_1'>\n";
@@ -995,7 +1033,7 @@ if (!isset($pbs_date)) $pbs_date = NULL;
 print "<input type=hidden name=id value='$id'>\n";
 print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";
-print "<input type=hidden name=returside value='$returside'>\n";
+print "<input type=hidden name=returside value=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\">\n";
 print "<input type=hidden name=fokus value='$fokus'>\n";
 print "<input type=hidden name=kontakt value='$kontakt'>\n";
 print "<input type=hidden name=pbs_date value='$pbs_date'>\n";

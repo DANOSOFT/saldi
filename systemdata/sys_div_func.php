@@ -95,6 +95,7 @@
 // 20250526 PHR 'nyt_navn' changed to 'newName' 
 // 20250911 LOE modified text 3023 to 2324
 // 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
+// 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address UI
 
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
@@ -792,7 +793,8 @@ function div_valg() {
 		if (!isset($dfm_pickup_addresses[$gid])) {
 			$dfm_pickup_addresses[$gid] = array(
 				'addr' => '', 'name1' => '', 'name2' => '', 
-				'street1' => '', 'street2' => '', 'town' => '', 'zipcode' => ''
+				'street1' => '', 'street2' => '', 'town' => '', 'zipcode' => '',
+				'buttonname' => ''
 			);
 		}
 		$field = str_replace('dfm_pickup_', '', $r['var_name']);
@@ -820,7 +822,8 @@ function div_valg() {
 		$dfm_pickup_addresses[0] = array(
 			'addr' => $dfm_pickup_addr, 'name1' => $dfm_pickup_name1, 'name2' => $dfm_pickup_name2,
 			'street1' => $dfm_pickup_street1, 'street2' => $dfm_pickup_street2, 
-			'town' => $dfm_pickup_town, 'zipcode' => $dfm_pickup_zipcode
+			'town' => $dfm_pickup_town, 'zipcode' => $dfm_pickup_zipcode,
+			'buttonname' => ''
 		);
 	}
 	
@@ -1132,6 +1135,8 @@ function div_valg() {
 		$title_postnr = findtekst('1054|Angiv postnummeret for afhentningstedet', $sprog_id);
 		$txt_by = findtekst('1055|By', $sprog_id);
 		$title_by = findtekst('1056|Angiv bynavn eller postdistrikt for afhentningsstedet', $sprog_id);
+		$txt_knap_navn = findtekst('3127|Knap navn', $sprog_id);
+		$title_knap_navn = findtekst('3128|Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.', $sprog_id);
 		$txt_slet = 'Slet';
 		
 		// Display existing pickup addresses
@@ -1150,6 +1155,7 @@ function div_valg() {
 				print "<tr><td title='$title_ekstra_addr'>$txt_ekstra_addr</td><td><input name='dfm_pickup_street2[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['street2']) . "'></td></tr>\n";
 				print "<tr><td title='$title_postnr'>$txt_postnr</td><td><input name='dfm_pickup_zipcode[$pickup_idx]' class='inputbox' style='width:100px;' type='text' value='" . htmlspecialchars($addr['zipcode']) . "'></td></tr>\n";
 				print "<tr><td title='$title_by'>$txt_by</td><td><input name='dfm_pickup_town[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['town']) . "'></td></tr>\n";
+				print "<tr><td title='$title_knap_navn'>$txt_knap_navn</td><td><input name='dfm_pickup_buttonname[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['buttonname'] ?? '') . "' placeholder='" . htmlspecialchars($addr['name1'] ?: $addr['town']) . "'></td></tr>\n";
 				print "</table>\n";
 				print "</div>\n";
 				$pickup_idx++;
@@ -1171,7 +1177,8 @@ var dfmPickupLabels = {
 	ekstraAddr: '" . addslashes($txt_ekstra_addr) . "',
 	postnr: '" . addslashes($txt_postnr) . "',
 	by: '" . addslashes($txt_by) . "',
-	slet: '" . addslashes($txt_slet) . "'
+	slet: '" . addslashes($txt_slet) . "',
+	knapNavn: '" . addslashes($txt_knap_navn) . "'
 };
 
 function addDfmPickup() {
@@ -1209,6 +1216,7 @@ function addDfmPickup() {
 	html += '<tr><td>' + dfmPickupLabels.ekstraAddr + '</td><td><input form=\"diverse\" name=\"dfm_pickup_street2[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>' + dfmPickupLabels.postnr + '</td><td><input form=\"diverse\" name=\"dfm_pickup_zipcode[' + idx + ']\" class=\"inputbox\" style=\"width:100px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>' + dfmPickupLabels.by + '</td><td><input form=\"diverse\" name=\"dfm_pickup_town[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.knapNavn + '</td><td><input form=\"diverse\" name=\"dfm_pickup_buttonname[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '</table></div>';
 	
 	container.insertAdjacentHTML('beforeend', html);

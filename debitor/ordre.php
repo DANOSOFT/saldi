@@ -54,10 +54,15 @@
 // 20260121 LOE formularsprog synched with existing language template
 // 20260130 LOE Added javascript to sycn the felt_2 to total amount and fixed double creditor note field.
 // 20260209 LOE Updated $txt2130 text. and $kontonr casting to int removed for search operations to prevent breaking search functionality. 
+// 20260209 Sawaneh fixed the  account lookup redirect 
 // 20260217 MMK Added GS1 parsing to ordrelinje creation logic
 // 20260218 PHR Adding vare_id if missing #20260218
 // 20260219 LOE removed setting sprog(background) from tekster.csv to formularsprog as they both refer to different things.
 // 20260219 PHR	Fixed AFD (Department) 
+// 20260223 Sawaneh SD-338 account lookup: create customer overlay with backdrop, selectAccount fix, AJAX row click handlers
+// 20260223 Sawaneh SD-335 fixed bynavn POST using wrong field ($_POST['tlf'] -> $_POST['bynavn'])
+// 20260223 Sawaneh SD-335 fixed SQL bug: lev_land/lev_email missing column names in UPDATE query
+// 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address buttons (buttonname -> name1 -> town fallback)
 @session_start();
 $s_id = session_id();
 
@@ -146,7 +151,7 @@ if (isset($_POST['create_debtor'])) {
 	$addr1 = if_isset($_POST['addr1']);
 	$addr2 = if_isset($_POST['addr2']);
 	$postnr = if_isset($_POST['postnr']);
-	$bynavn = if_isset($_POST['tlf']);
+	$bynavn = if_isset($_POST['bynavn']);
 	$email = if_isset($_POST['email']);
 	$phone = if_isset($_POST['phone']);
 	if (substr($email, 0, 11) == "debitoripad") {
@@ -692,7 +697,7 @@ if (!$id && $konto_id && $kontonr) {
 			if (!$restordre) $restordre = 0; # 20201215
 			$qtxt = "update ordrer set kontonr='$kontonr',kundeordnr='$kundeordnr',firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',";
 			$qtxt .= "postnr='$postnr',bynavn='$bynavn',land='$land',lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',";
-			$qtxt .= "lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt','$lev_land','$lev_email',vis_lev_addr='$vis_lev_addr',";
+			$qtxt .= "lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt',lev_land='$lev_land',lev_email='$lev_email',vis_lev_addr='$vis_lev_addr',";
 			$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',betalingsdage='$betalingsdage',";
 			$qtxt .= "betalingsbet='$betalingsbet',cvrnr='$cvrnr',ean='$ean',momssats='$momssats',institution='$institution',email='$email',";
 			$qtxt .= "mail_fakt='$mail_fakt',phone='$phone',udskriv_til='$udskriv_til',notes='$notes',hvem = '$brugernavn',tidspkt='$tidspkt',";
@@ -851,7 +856,11 @@ if (isset($_REQUEST['newAccountNo']) && $newAccountNo = $_REQUEST['newAccountNo'
 		} elseif ($r = db_fetch_array(db_select($qtxt2, __FILE__ . " linje " . __LINE__))) {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?fokus=kontonr&id=$id&konto_id=$r[id]\">\n";
 			exit;
-		} else kontoopslag('DO', 'kontonr', 'kontonr', $id, $newAccountNo, '', '', '', '', '', '', '', '', '', '', '', '');
+		} else {
+			// SD-338: Account number does not exist - go to kontoopslag to show create customer form
+			kontoopslag('DO', 'kontonr', 'kontonr', $id, $newAccountNo, '', '', '', '', '', '', '', '', '', '', '', '');
+			exit;
+		}
 	} elseif ($newAccountNo) {
 		$x = 0;
 		$qtxt = "select id from adresser where art='D' ";
@@ -2616,17 +2625,31 @@ if ($swap_account) {
 */
 
 if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && (!$id)) {
-	error_log("ordre.php kontoopslag block: b_submit=$b_submit, fokus=$fokus, id=$id, firmanavn=$firmanavn");
 	
 	if (!$id && ($fokus == 'kontakt' || $fokus == 'kontonr' || $fokus == 'firmanavn' || $fokus == 'addr1' || $fokus == 'addr2' || $fokus == 'postnr' || $fokus == 'bynavn' || $fokus == 'land' || $fokus == 'cvrnr' || $fokus == 'ean' || $fokus == 'betalingsdage')) {
-		error_log("ordre.php: Calling kontoopslag path 1 with firmanavn='$firmanavn'");
+		// Check if a numeric account number was entered that doesn't exist - redirect to create new customer
+		if ($fokus == 'kontonr' && $kontonr && is_numeric($kontonr)) {
+			$qtxt_check = "select id from adresser where art='D' and kontonr='" . db_escape_string($kontonr) . "' ";
+			$qtxt_check2 = "select id from adresser where art='D' and tlf='" . db_escape_string($kontonr) . "' ";
+			if ($r_check = db_fetch_array(db_select($qtxt_check, __FILE__ . " linje " . __LINE__))) {
+				// Account exists - redirect to order with this customer
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?fokus=kontonr&id=$id&konto_id=$r_check[id]\">\n";
+				exit;
+			} elseif ($r_check = db_fetch_array(db_select($qtxt_check2, __FILE__ . " linje " . __LINE__))) {
+				// Phone number exists - redirect to order with this customer
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?fokus=kontonr&id=$id&konto_id=$r_check[id]\">\n";
+				exit;
+			} else {
+				// SD-338: Account number does not exist - go to kontoopslag to show create customer form
+				kontoopslag($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage);
+				exit;
+			}
+		}
 		kontoopslag($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage);
 	} elseif ((strstr($fokus, 'kontonr')) && (!$status || $hurtigfakt || $swap_account)) {
-		error_log("ordre.php: Calling kontoopslag path 2 (empty firmanavn) - fokus=$fokus");
 		kontoopslag($art, $sort, $fokus, $id, '', '', '', '', '', '', '', '', '', '', '', '', '');
 		// }elseif(!$hurtigfakt){
 	} elseif ((strstr($fokus, 'kontonr')) && ($status >= 1 && $status <= 3) && $art == 'DO') {
-		error_log("ordre.php: Calling kontoopslag path 3 (empty firmanavn) - fokus=$fokus");
 		kontoopslag($art, $sort, $fokus, $id, '', '', '', '', '', '', '', '', '', '', '', '', '');
 		// echo "<script>
 		// 		alert('At least quick invoice is required Go to: System->Settings->Miscellaneous->Order related choices->Use fast invoices');
@@ -2663,7 +2686,6 @@ if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && 
 	if (strstr($fokus, 'besk')) tekstopslag($sort, $id);
 	if ((strstr($fokus, 'kontakt')) && ($id)) ansatopslag($sort, $fokus, $id, $vis, $kontakt);
 } elseif ($b_submit && !$kontonr && $id) {
-	error_log("ordre.php: Calling kontoopslag path 4 (existing order, no customer) - fokus=$fokus, firmanavn=$firmanavn");
 	kontoopslag($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage);
 	exit;
 }
@@ -5756,7 +5778,7 @@ $x = 0;
 			while ($r = db_fetch_array($q)) {
 				$gid = $r['group_id'] ?: 0;
 				if (!isset($dfm_pickup_options[$gid])) {
-					$dfm_pickup_options[$gid] = array('name1' => '', 'town' => '', 'zipcode' => '');
+					$dfm_pickup_options[$gid] = array('name1' => '', 'town' => '', 'zipcode' => '', 'buttonname' => '');
 				}
 				$field = str_replace('dfm_pickup_', '', $r['var_name']);
 				if (isset($dfm_pickup_options[$gid][$field])) {
@@ -5779,24 +5801,41 @@ $x = 0;
 			print "<td><input type = 'text' name=\"form_gooddes\" value=\"$form_gooddes\">";
 			print "</td>\n</tr>\n";
 			
-			// Pickup address selector (only show if there are multiple addresses)
-			if (count($dfm_pickup_options) > 0) {
-				print "<tr>\n<td>Afhentningsadresse: </td>\n";
-				print "<td><select name=\"dfm_pickup_group_id\" class=\"inputbox\">\n";
-				print "<option value=\"0\">Brug hovedadresse</option>\n";
-				foreach ($dfm_pickup_options as $gid => $addr) {
-					$label = htmlspecialchars($addr['name1']);
-					if ($addr['zipcode'] || $addr['town']) {
-						$label .= " (" . htmlspecialchars($addr['zipcode'] . " " . $addr['town']) . ")";
-					}
-					print "<option value=\"$gid\">$label</option>\n";
-				}
-				print "</select></td>\n</tr>\n";
-			}
-			
 			print "</table></center>\n";
 			print "<input type=\"hidden\" name=\"tGrossWeight\" value=\"$tGrossWeight\">\n";
-			print "<center><br><input type=\"submit\" name=\"dfm_go\" value=\"Opret fragtbrev til Danske Fragtmænd\"></center></form>";;
+			print "<input type=\"hidden\" name=\"dfm_pickup_group_id\" id=\"dfm_pickup_group_id\" value=\"0\">\n";
+			
+			// Pickup address buttons (instead of dropdown, for dyslexic-friendly UI)
+			print "<center><br>\n";
+			print "<div style=\"display:flex; flex-wrap:wrap; gap:10px; justify-content:center; padding:10px 0;\">\n";
+			if (count($dfm_pickup_options) > 0) {
+				// Alternative pickup addresses exist - only show buttons for those (not the default)
+				foreach ($dfm_pickup_options as $gid => $addr) {
+					$town = htmlspecialchars(trim($addr['town']));
+					$name1 = htmlspecialchars(trim($addr['name1']));
+					$buttonname = htmlspecialchars(trim($addr['buttonname']));
+					// Priority: buttonname first, then name1, then town, then fallback to #gid
+					if ($buttonname) {
+						$locationLabel = $buttonname;
+					} elseif ($name1) {
+						$locationLabel = $name1;
+					} elseif ($town) {
+						$locationLabel = $town;
+					} else {
+						$locationLabel = "#$gid";
+					}
+					$btnValue = "Opret fragtbrev til Danske Fragtmænd $locationLabel";
+					print "<button type=\"submit\" name=\"dfm_go\" value=\"$btnValue\" ";
+					print "style=\"padding:6px 14px; cursor:pointer;\" ";
+					print "onclick=\"document.getElementById('dfm_pickup_group_id').value='$gid';\">Opret fragtbrev til Danske Fragtmænd <b>$locationLabel</b></button>\n";
+				}
+			} else {
+				// No extra pickup addresses, just show single button for default
+				print "<button type=\"submit\" name=\"dfm_go\" value=\"Opret fragtbrev til Danske Fragtmænd\" ";
+				print "style=\"padding:6px 14px; cursor:pointer;\">Opret fragtbrev til Danske Fragtmænd</button>\n";
+			}
+			print "</div>\n";
+			print "</center></form>";;
 		}
 	}
 	if (($gls_user) || (($dfm_user) && ($status >= 3))) print "</tr></td>\n";

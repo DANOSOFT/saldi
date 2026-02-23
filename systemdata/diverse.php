@@ -87,6 +87,7 @@
 // 20250513 Sawaneh add max user update in kontoindstillinger()
 // 20250526 PHR 'nyt_navn' changed to 'newName'
 // 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
+// 20260223 Sawaneh SD-335 added buttonname field to DFM pickup addresses
 
 
 @session_start();
@@ -244,6 +245,13 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 	#######################################################################################
 	} elseif ($sektion == 'div_valg') {
+		// DEBUG: Log POST data for pickup addresses
+		$debug_log = "/tmp/saldi_debug_pickup.log";
+		file_put_contents($debug_log, date('Y-m-d H:i:s') . " POST data:\n", FILE_APPEND);
+		file_put_contents($debug_log, "dfm_pickup_group_id: " . print_r(isset($_POST['dfm_pickup_group_id']) ? $_POST['dfm_pickup_group_id'] : 'NOT SET', true) . "\n", FILE_APPEND);
+		file_put_contents($debug_log, "dfm_pickup_name1: " . print_r(isset($_POST['dfm_pickup_name1']) ? $_POST['dfm_pickup_name1'] : 'NOT SET', true) . "\n", FILE_APPEND);
+		file_put_contents($debug_log, "dfm_pickup_buttonname: " . print_r(isset($_POST['dfm_pickup_buttonname']) ? $_POST['dfm_pickup_buttonname'] : 'NOT SET', true) . "\n", FILE_APPEND);
+		file_put_contents($debug_log, "---\n", FILE_APPEND);
 		$id      = (int) $_POST['id'];
 		$box1    = $_POST['box1']; #gruppevalg
 		$box2    = $_POST['box2']; #kuansvalg
@@ -283,6 +291,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$dfm_pickup_street2s  = isset($_POST['dfm_pickup_street2']) && is_array($_POST['dfm_pickup_street2']) ? $_POST['dfm_pickup_street2'] : array();
 		$dfm_pickup_towns     = isset($_POST['dfm_pickup_town']) && is_array($_POST['dfm_pickup_town']) ? $_POST['dfm_pickup_town'] : array();
 		$dfm_pickup_zipcodes  = isset($_POST['dfm_pickup_zipcode']) && is_array($_POST['dfm_pickup_zipcode']) ? $_POST['dfm_pickup_zipcode'] : array();
+		$dfm_pickup_buttonnames = isset($_POST['dfm_pickup_buttonname']) && is_array($_POST['dfm_pickup_buttonname']) ? $_POST['dfm_pickup_buttonname'] : array();
 		$mySale             = if_isset($_POST['mySale']);
 		$mySaleLabel        = if_isset($_POST['mySaleLabel']);
 		$paperflow          = if_isset($_POST['paperflow']);
@@ -480,7 +489,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					'dfm_pickup_street1' => isset($dfm_pickup_street1s[$idx]) ? $dfm_pickup_street1s[$idx] : '',
 					'dfm_pickup_street2' => isset($dfm_pickup_street2s[$idx]) ? $dfm_pickup_street2s[$idx] : '',
 					'dfm_pickup_town' => isset($dfm_pickup_towns[$idx]) ? $dfm_pickup_towns[$idx] : '',
-					'dfm_pickup_zipcode' => isset($dfm_pickup_zipcodes[$idx]) ? $dfm_pickup_zipcodes[$idx] : ''
+					'dfm_pickup_zipcode' => isset($dfm_pickup_zipcodes[$idx]) ? $dfm_pickup_zipcodes[$idx] : '',
+					'dfm_pickup_buttonname' => isset($dfm_pickup_buttonnames[$idx]) ? $dfm_pickup_buttonnames[$idx] : ''
 				);
 				
 				foreach ($pickup_fields as $field_name => $field_value) {
