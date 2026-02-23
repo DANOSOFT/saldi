@@ -564,21 +564,34 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		if (!$afd) error_log("afd is not set for ordre ");
 	}
 
+	$current_user_afd = 0;
+	$current_user_navn = '';
+	$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if ($r && if_isset($r, NULL, 'ansat_id')) {
+		$r2 = db_fetch_array(db_select("select navn,afd from ansatte where id = '" . $r['ansat_id'] . "'", __FILE__ . " linje " . __LINE__));
+		if ($r2) {
+			$current_user_navn = $r2['navn'];
+			$current_user_afd = $r2['afd'];
+		}
+	} else {
+		error_log("ansat_id is not set in the database for brugernavn: $brugernavn");
+	}
+
+	if (!isset($ansat_navn) || !$ansat_navn) {
+		$ansat_navn = $current_user_navn ? $current_user_navn : $brugernavn;
+	}
+
+	if (!$afd && $current_user_afd) {
+		$afd = $current_user_afd;
+	}
+
 	if ($kontoansvarlig) {
 		$query = db_select("select navn,afd from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
-		$ansat_navn = $row['navn'];
-		if (!$afd) $afd = $row['afd'];
-	} else {
-		$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && if_isset($r, NULL, 'ansat_id')) {
-
-			$r = db_fetch_array(db_select("select navn,afd from ansatte where id = '$r[ansat_id]'", __FILE__ . " linje " . __LINE__));
+		if ($row) {
 			$ansat_navn = $row['navn'];
 			if (!$afd) $afd = $row['afd'];
-		} else {
-			$ansat_navn = $brugernavn; #20250528
-			error_log("ansat_id is not set in the database for brugernavn: $brugernavn");
 		}
 	}
 
@@ -4533,9 +4546,8 @@ function ordreside($id, $regnskab)
 		}
 		print "</td>";
 		// Ensure afd is set from user settings for new orders before rendering dropdown
-		if (!$id) {
+		if (!$id && !$afd) {
 			$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
-				
 		}
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr) > 1) {
