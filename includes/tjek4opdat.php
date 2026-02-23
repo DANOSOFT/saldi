@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/tjek4opdat.php --- lap 5.0.0 --- 2026-02-06---
+// --- includes/tjek4opdat.php --- lap 5.0.0 --- 2026-02-23---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -33,7 +33,7 @@
 // 2017.11.14 Indsat $b==7{ osv. PHR Søg 20171114
 // 2019.06.06 PHR added $b==8{ etc. 20190606
 // 20260206 PHR opdat_4.1
-
+// 20260223 PHR Fixed opdat_4_1
 if (!function_exists('tjek4opdat')) {
 	function tjek4opdat($dbver,$version) {
 		if ($dbver<$version) {
@@ -133,7 +133,7 @@ if (!function_exists('tjek4opdat')) {
 				}
 				if ($b==1) {
 					include("../includes/opdat_4.1.php");
-					opdat_4_1($b,$c);
+					opdat_4_1($a,$b,$c);
 					$b=2;$c=0;
 				}
 			}
