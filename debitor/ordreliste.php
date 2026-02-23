@@ -2116,8 +2116,6 @@ print "</div>";  // END LEFT
 // ------------------------------------------------------------
 // CENTER — Turnover Summary
 // ------------------------------------------------------------
-
-// TODO: Here
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
 print "<div>";
