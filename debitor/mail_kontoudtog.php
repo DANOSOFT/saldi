@@ -137,13 +137,18 @@ $current_kilde = $_GET['kilde'] ?? ''; # For dropdown/select
 // $AllAcount = ($current_kilde === 'show_all') ? 'on' : '';
 // $OpenPost = ($current_kilde === 'openpost') ? 'on' : '';
 if ($send_mails) {
-	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	$sent_emails = send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
 	print "<div style='text-align:center; margin:20px; padding:15px; background-color:#d4edda; border:1px solid #c3e6cb; border-radius:5px; color:#155724; font-size:16px;'>";
 	print "<strong>" . findtekst('2700|Send mail(s)', $sprog_id) . "</strong><br>";
-	print findtekst('2703|Mail er sendt', $sprog_id) . "</div>";
+	print findtekst('2703|Mail er sendt', $sprog_id);
+	if (!empty($sent_emails) && is_array($sent_emails)) {
+		print "<br><small>" . implode(', ', $sent_emails) . "</small>";
+	}
+	print "</div>";
 	print "<form name=luk action=../includes/luk.php method=post>";	
 	print "<div style='text-align: center;'><br><input type=submit value='".findtekst('2172|Luk', $sprog_id)."' name='luk'>";
 	print "</form></div>";
+	print "<script>alert('".findtekst('2703|Mail er sendt', $sprog_id)."');</script>";
 	exit;	
 } elseif ($send_pdfs) {
 	$sent_emails = array();
@@ -164,6 +169,7 @@ if ($send_mails) {
 	print "<form name=luk action=../includes/luk.php method=post>";	
 	print "<div style='text-align: center;'><br><input type=submit value='".findtekst('2172|Luk', $sprog_id)."' name='luk'>";
 	print "</form></div>";
+	print "<script>alert('".findtekst('2703|Mail er sendt', $sprog_id)."');</script>";
 	exit;
 }
 #xit;
@@ -558,6 +564,8 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	global $subjekt;
 	global $sprog_id;
 
+	$sent_emails = array();
+
 	if (file_exists("../../vendor/autoload.php")) {
 		require_once "../../vendor/autoload.php"; //PHPMailer Object
 		$mail = new  PHPMailer\PHPMailer\PHPMailer();
@@ -823,7 +831,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
   		 		exit;
 			} 
 			echo "-->";
-			echo "Kontoudtog sendt til $email[$x]<br>";
+			$sent_emails[] = $email[$x];
 #			sleep(2);
 		}	
 	}
@@ -833,6 +841,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	}
 	#	unlink("$tmpmappe/kontoudtog.html");
 	rmdir($tmpmappe);
+	return $sent_emails;
 }
 ?>
 

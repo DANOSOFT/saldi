@@ -1357,6 +1357,14 @@ if ($b_submit) {
 		else {
 			$leveres[$x] = trim(if_isset($_POST[$y]));
 			if ($leveres[$x]) {
+				// If user typed dot as decimal separator (e.g. "4.02"), convert to comma for Danish format
+				if (strpos($leveres[$x], ',') === false && substr_count($leveres[$x], '.') === 1) {
+					$dot_pos = strpos($leveres[$x], '.');
+					$after_dot = strlen($leveres[$x]) - $dot_pos - 1;
+					if ($after_dot !== 3) {
+						$leveres[$x] = str_replace('.', ',', $leveres[$x]);
+					}
+				}
 				$leveres[$x] = usdecimal($leveres[$x], 2);
 				if ($art == 'DK') {
 					$leveres[$x] = $leveres[$x] * -1;
@@ -1884,7 +1892,18 @@ if ($status < 3 && $b_submit) {
 					if (!isset($leveres[$x]) || $leveres[$x] === '') {
 						$leveres[$x] = 0;
 					} else {
-						$leveres[$x] = usdecimal($leveres[$x]);
+						if (is_string($leveres[$x]) && strpos($leveres[$x], ',') === false && substr_count($leveres[$x], '.') === 1) {
+							$dot_pos = strpos($leveres[$x], '.');
+							$after_dot = strlen($leveres[$x]) - $dot_pos - 1;
+							if ($after_dot !== 3) {
+								$leveres[$x] = str_replace('.', ',', $leveres[$x]);
+							}
+						}
+						if (is_string($leveres[$x]) && (strpos($leveres[$x], ',') !== false || (strpos($leveres[$x], '.') !== false && substr_count($leveres[$x], '.') > 1))) {
+							$leveres[$x] = usdecimal($leveres[$x]);
+						} else {
+							$leveres[$x] = (float)$leveres[$x];
+						}
 					}
 					$sum = $sum + ($pris[$x] - ($pris[$x] / 100 * $rabat[$x])) * $antal[$x];
 					if (!$leveres[$x]) $leveres[$x] = 0;
