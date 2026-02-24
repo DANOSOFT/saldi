@@ -138,19 +138,31 @@ $current_kilde = $_GET['kilde'] ?? ''; # For dropdown/select
 // $OpenPost = ($current_kilde === 'openpost') ? 'on' : '';
 if ($send_mails) {
 	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	print "<div style='text-align:center; margin:20px; padding:15px; background-color:#d4edda; border:1px solid #c3e6cb; border-radius:5px; color:#155724; font-size:16px;'>";
+	print "<strong>" . findtekst('2700|Send mail(s)', $sprog_id) . "</strong><br>";
+	print findtekst('2703|Mail er sendt', $sprog_id) . "</div>";
 	print "<form name=luk action=../includes/luk.php method=post>";	
-	print "<div style='text-align: center;'><br><br><input type=submit value='".findtekst('2172|Luk', $sprog_id)."' name='luk'>";
+	print "<div style='text-align: center;'><br><input type=submit value='".findtekst('2172|Luk', $sprog_id)."' name='luk'>";
 	print "</form></div>";
 	exit;	
 } elseif ($send_pdfs) {
+	$sent_emails = array();
 	for ($x=1;$x<=count($konto_id);$x++) {
 		$qtxt="select kontonr,art from adresser where id='$konto_id[$x]'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 #		echo "kontoprint($r[kontonr],$r[kontonr],$fra[$x],$til[$x],$r[art],$email[$x])<br>";
 		$svar=kontoprint($r['kontonr'],$r['kontonr'],$fra[$x],$til[$x],$r['art'],$email[$x]);
+		if ($email[$x]) $sent_emails[] = $email[$x];
 	}
+	print "<div style='text-align:center; margin:20px; padding:15px; background-color:#d4edda; border:1px solid #c3e6cb; border-radius:5px; color:#155724; font-size:16px;'>";
+	print "<strong>" . findtekst('2701|Send som PDF', $sprog_id) . "</strong><br>";
+	print findtekst('2703|Mail er sendt', $sprog_id);
+	if (count($sent_emails) > 0) {
+		print "<br><small>" . implode(', ', $sent_emails) . "</small>";
+	}
+	print "</div>";
 	print "<form name=luk action=../includes/luk.php method=post>";	
-	print "<div style='text-align: center;'><br><br><input type=submit value='".findtekst('2172|Luk', $sprog_id)."' name='luk'>";
+	print "<div style='text-align: center;'><br><input type=submit value='".findtekst('2172|Luk', $sprog_id)."' name='luk'>";
 	print "</form></div>";
 	exit;
 }
