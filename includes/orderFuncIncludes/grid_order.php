@@ -510,7 +510,7 @@ function create_datagrid($id, $grid_data) {
         log_grid_performance("Main SQL query execution", $main_query_start);
         
         $fetch_rows_start = microtime(true);
-        $rows = fetch_rows_from_query($sqlquery);
+        $rows = $sqlquery ? fetch_rows_from_query($sqlquery) : [];
         log_grid_performance("Fetching rows from query", $fetch_rows_start);
 
         // Fetch total row count
@@ -520,7 +520,7 @@ function create_datagrid($id, $grid_data) {
         log_grid_performance("Built count query with length: {$count_query_length} characters");
         
         $countResult = db_select($countQuery, __FILE__ . " line " . __LINE__);
-        $totalItems = db_fetch_array($countResult)["total_items"];
+        $totalItems = $countResult ? db_fetch_array($countResult)["total_items"] : 0;
         $totalRows = count($rows);
         log_grid_performance("Count query execution", $count_query_start);
 
