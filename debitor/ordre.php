@@ -1641,7 +1641,7 @@ if ($status < 3 && $b_submit) {
 				}
 			}
 		}
-	} elseif (($kontonr) && ($status < 3)) {
+	} elseif ($id && ($kontonr) && ($status < 3)) {
 		$sum = 0;
 		$db_lines = db_fetch_array(db_select("select count(*) as cnt from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__));
 		file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1581: SAVE LOOP start id=$id art=$art linjeantal=$linjeantal db_lines=".$db_lines['cnt']." b_submit=$b_submit\n", FILE_APPEND);
@@ -2190,27 +2190,10 @@ if ($status < 3 && $b_submit) {
 ########################## KOPIER #################################
 if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 	if (strstr($b_submit, "Kred")) {
-		$art = 'DK';
-		$query = db_select("select id from ordrer where kred_ord_id = $id", __FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) {
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$row[id]\">\n";
-			exit;
-		} elseif ($kred_ord_id) {
-			$id = '';
-			$status = 0;
-		} else {
-			$kred_ord_id = $id;
-			$id = '';
-			$status = 0;
-		}
 		if ($vis_saet) {
 			$felt_2 *= -1;
 			$felt_4 *= -1;
 		}
-	} elseif (strstr($b_submit, "Kopi")) {
-		$gl_id = $id;
-		$id = '';
-		$status = 0;
 	}
 	if ((!$id) && ($konto_id)) {
 		$qtxt = "select kontonr from adresser where id='$konto_id'"; #20160217
@@ -2232,8 +2215,8 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$qtxt .= "($ordrenr,'$konto_id','$kontonr','$kundeordnr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt',";
 		$qtxt .= "'$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$lev_email','$lev_land','$betalingsdage','$betalingsbet',";
 		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','$ref','$lev_adr',";
-		$qtxt .= "'$valuta','$projekt[0]','$formularsprog','$pbs','$afd','0','$procenttillag','$sag_id','$sagsnr','$tilbudnr','$datotid',";
-		$qtxt .= "'$nr','$returside','$omkunde',";
+		$qtxt .= "'$valuta','$projekt[0]','$formularsprog','$pbs',".($afd==""?"NULL":"'$afd'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'$datotid',";
+		$qtxt .= "".($nr==""?"NULL":"'$nr'").",'$returside','$omkunde',";
 		($art == 'PO') ? $qtxt .= "'','','','','')" : $qtxt .= "'$felt_1','$felt_2','$felt_3','$felt_4','$felt_5')"; #20191004
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc";
