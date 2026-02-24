@@ -385,7 +385,7 @@ if (isset($_POST['submit']) || $rapportart) {
 #if ($dato_til) $dato_til=find_maaned_nr($dato_til); 
 
 if ($udlign = if_isset($_GET['udlign']))
-	echo "dada"; #autoudlign($udlign);
+	autoudlign($udlign);
 if (strstr($rapportart, "ben post"))
 	$rapportart = "openpost";
 if (!isset($submit))
