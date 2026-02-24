@@ -853,6 +853,7 @@ $custom_columns = array(
         "field" => "kontonr",
         "headerName" => findtekst('804|Kontonr.', $sprog_id),
         "width" => "1",
+        "type" => "number",
         "sqlOverride" => "o.kontonr",
         "render" => function ($value, $row, $column) {
             return "<td align='$column[align]'>$value</td>";
