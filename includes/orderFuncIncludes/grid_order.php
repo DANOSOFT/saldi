@@ -1483,8 +1483,8 @@ function render_table_row($columns, $row, $searchTerms) {
             ? $column['valueGetter']($rawValue, $row, $column)
             : $rawValue;
 
-        // Optimize text search and highlighting
-        if ($column["type"] == "text" && $term !== '' && mb_stripos($value, $term, 0, 'UTF-8') !== false) {
+        // Highlight search terms in all column types (not just text)
+        if ($term !== '' && is_string($value) && $value !== '' && mb_stripos($value, $term, 0, 'UTF-8') !== false) {
             $value = preg_replace_callback(
                 '/' . preg_quote($term, '/') . '/iu',
                 function ($match) {

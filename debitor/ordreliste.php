@@ -73,6 +73,26 @@ $find = array(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 $padding2 = $padding = $padding1_5 = null; #20211018
 include("../includes/connect.php");
 include("../includes/std_func.php");
+
+// Helper function: escapes HTML but preserves search term highlight spans
+function ordreliste_safe_output($value) {
+    if (strpos($value, '<span style="background-color:#FF0">') !== false) {
+        // Value contains search highlighting - escape everything except the highlight spans
+        $value = str_replace(
+            array('<span style="background-color:#FF0">', '</span>'),
+            array('__HIGHLIGHT_OPEN__', '__HIGHLIGHT_CLOSE__'),
+            $value
+        );
+        $value = htmlspecialchars($value);
+        $value = str_replace(
+            array('__HIGHLIGHT_OPEN__', '__HIGHLIGHT_CLOSE__'),
+            array('<span style="background-color:#FF0">', '</span>'),
+            $value
+        );
+        return $value;
+    }
+    return htmlspecialchars($value);
+}
 $title = findtekst('1201|Ordreliste • Kunder', $sprog_id);
 include("../includes/online.php");
 include("../includes/udvaelg.php");
@@ -1091,7 +1111,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         // render: Display as plain text, empty if no value
         $column_def['render'] = function ($value, $row, $column) {
             if ($value === null || $value === '' || $value == 0 || $value === 0) return "<td align='{$column['align']}'></td>";
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
         };
     }elseif ($field_name == 'konto_id') {
         // konto_id should be text, not number
@@ -1105,7 +1125,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         
         // render: Escape HTML
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
         };
     }elseif (in_array($field_name, ['ordrenr', 'fakturanr', 'kontonr', 'kundeordnr', 'cvrnr'])) {
         // These "nr" fields should be displayed as plain text/integers without decimal formatting
@@ -1189,7 +1209,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         
         // render: Escape HTML
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
         };
     }
     
