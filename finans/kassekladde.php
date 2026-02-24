@@ -2434,7 +2434,7 @@ $dropAttr = "";
 		}
 		echo "<script>console.log('bilag[$y]: " . $bilag[$y] . "');</script>";
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'></td>";
-		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
+		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$y' $de_fok value =\"$beskrivelse[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='d_ty$y' $de_fok value =\"$d_type[$y]\" onchange='javascript:docChange = true;'></td>";
 		if (($k_type[$y] == 'D' || $k_type[$y] == 'K') && $kredit[$y] && !$debet[$y]) {
@@ -2475,11 +2475,11 @@ $dropAttr = "";
 		if ($vis_valuta)
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:40px;' name='valu$y' $de_fok value =\"$valuta[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if ($k_type[$y] == 'K' || $d_type[$y] == 'D') {
-			print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name='forf$y' $de_fok value =\"$forfaldsdato[$y]\" onchange='javascript:docChange = true;'></td>\n";
+			print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='forf$y' $de_fok value =\"$forfaldsdato[$y]\" onchange='javascript:docChange = true;'></td>\n";
 			if ($vis_bet_id)
 				print "<td><input class='inputbox' type='text' style='text-align:left;width:100px;' name='b_id$y' $de_fok value =\"$betal_id[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		} elseif ($vis_forfald) {
-			print "<td><input class='inputbox' style='text-align:left;width:75px;' readonly='readonly'></td>\n";
+			print "<td><input class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
 				print "<td><input class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
@@ -2689,7 +2689,7 @@ $dropAttr = "";
 		
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' 
+		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' 
 		name='dato$x' $de_fok value =\"$dato[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' 
 		name='besk$x' $de_fok value =\"$beskrivelse[$x]\" onchange='javascript:docChange = true;'></td>\n";
@@ -2724,12 +2724,12 @@ $dropAttr = "";
 		if (!isset($k_type[$y])) $k_type[$y] = NULL;
 		if (!isset($d_type[$y])) $d_type[$y] = NULL;
 		if ($k_type[$y] == 'K' || $d_type[$y] == 'D') {
-			print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' 
+			print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' 
 			name='forf$x' $de_fok value =\"$forfaldsdato[$x]\" onchange='javascript:docChange = true;'></td>\n";
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' 
 			name='b_id$x' $de_fok value =\"$betal_id[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		} elseif ($vis_forfald) {
-			print "<td><input  class='inputbox' style='text-align:left;width:75px;' readonly='readonly'></td>\n";
+			print "<td><input  class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
 				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
@@ -2775,7 +2775,7 @@ $dropAttr = "";
 			print "<td><br></td>\n";
 
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;' name='bila$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name='dato$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
+		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='d_ty$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
@@ -2794,7 +2794,7 @@ $dropAttr = "";
 		#		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=forf$z $de_fok onchange='javascript:docChange = true;'></td>\n";
 #		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=b_id$z $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_forfald) {
-			print "<td><input  class='inputbox' style='text-align:left;width:75px;' readonly='readonly'></td>\n";
+			print "<td><input  class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
 				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
