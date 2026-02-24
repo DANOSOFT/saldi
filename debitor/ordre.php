@@ -1313,6 +1313,16 @@ if ($b_submit) {
 		
 		if (isset($_POST[$y])) {
 			$dkantal[$x] = trim($_POST[$y]);
+			// If user typed dot as decimal separator (e.g. "4.5"), convert to comma for Danish format
+			// Only convert if: no comma present AND dot is not a thousands separator (e.g. "1.000")
+			if (strpos($dkantal[$x], ',') === false && substr_count($dkantal[$x], '.') === 1) {
+				$dot_pos = strpos($dkantal[$x], '.');
+				$after_dot = strlen($dkantal[$x]) - $dot_pos - 1;
+				// A thousands separator has exactly 3 digits after the dot; a decimal separator does not
+				if ($after_dot !== 3) {
+					$dkantal[$x] = str_replace('.', ',', $dkantal[$x]);
+				}
+			}
 		} else {
 			// Input is disabled/missing, preserve existing quantity
 			$val = $antal[$x];
