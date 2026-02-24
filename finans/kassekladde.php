@@ -1424,7 +1424,7 @@ array(
        'defaultSort' => true,
 		"sqlOverride" => "k.amount",
 		"valueGetter" => function ($value, $row, $column) {
-			return $value;
+			return is_numeric($value) ? dkdecimal($value, 2) : $value;
 		},
 		"generateSearch" => function ($column, $term) {
 			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
