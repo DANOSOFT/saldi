@@ -936,7 +936,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$query = db_select("select id from ordrer where ordrenr='$ordrenr' order by id desc",__FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($query);
-				$ny_id=$row[id];
+				$ny_id=$row['id'];
 				$ny_sum=0;
 				for($x=1; $x<=$linjeantal; $x++) {
 					if ($antal[$x]!=$tidl_lev[$x]) {
