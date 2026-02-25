@@ -280,13 +280,13 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 		$valg = $bilag_valg;
 	}
 	
-	// Handle background: if "All", no suffix; otherwise add suffix for non-Danish
+	// Handle background: if "All", no prefix; otherwise add language prefix for non-Danish
 	if ($sprog_valg !== 'All') {
         $lang_lower = strtolower($sprog_valg);
         $is_default_lang = ($lang_lower == 'dansk' || $lang_lower == 'danish');
         if (!$is_default_lang) {
-            $lang_suffix = "_" . $lang_lower;
-            $valg .= $lang_suffix;
+            $lang_prefix = $lang_lower . "_";
+            $valg = $lang_prefix . $valg;
         }
     }
 
@@ -366,10 +366,10 @@ function upload(){
         
         // Check department-specific, background-specific
         if ($background !== 'Dansk' && $background !== 'Danish') {
-            $lang_suffix = "_" . strtolower($background);
-            $file_path = $dept_dir . $file_type . $lang_suffix . ".pdf";
+            $lang_prefix = strtolower($background) . "_";
+            $file_path = $dept_dir . $lang_prefix . $file_type . ".pdf";
             if (file_exists($file_path)) {
-                return array('file' => $file_path, 'name' => $file_type . $lang_suffix, 'department' => $department, 'background' => $background);
+                return array('file' => $file_path, 'name' => $lang_prefix . $file_type, 'department' => $department, 'background' => $background);
             }
         } else {
             // For Dansk, no suffix
@@ -387,10 +387,10 @@ function upload(){
         
         // Check base (department 0), background-specific
         if ($background !== 'Dansk' && $background !== 'Danish') {
-            $lang_suffix = "_" . strtolower($background);
-            $file_path_base = $base_dir . $file_type . $lang_suffix . ".pdf";
+            $lang_prefix = strtolower($background) . "_";
+            $file_path_base = $base_dir . $lang_prefix . $file_type . ".pdf";
             if (file_exists($file_path_base)) {
-                return array('file' => $file_path_base, 'name' => $file_type . $lang_suffix, 'department' => 0, 'background' => $background);
+                return array('file' => $file_path_base, 'name' => $lang_prefix . $file_type, 'department' => 0, 'background' => $background);
             }
         } else {
             $file_path_base = $base_dir . $file_type . ".pdf";
