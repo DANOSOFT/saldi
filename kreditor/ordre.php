@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-02-23---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-02-25---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@
 // 20260217 PHR kundeordrnr
 // 20260219 PHR if ($leveres[$x] < $antal[$x] + $tidl_lev[$x]) changed to if ($leveres[$x] && $leveres[$x] < $antal[$x] + $tidl_lev[$x])
 // 20260223 LOE Fixed SD-350-creditor-order-lookup-does-not-work-on-new-supplier-order
+// 20250225 PHR Order taken by ---
 @session_start();
 $s_id=session_id();
 
@@ -913,9 +914,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}else {
 					$query = db_select("select hvem from ordrer where id=$id and hvem != '' and hvem != '$brugernavn'",__FILE__ . " linje " . __LINE__);
-					if ($row = db_fetch_array($query)) {print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">";
-						if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-						else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+					if ($row = db_fetch_array($query)) {
+						print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">";
+						print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
 					}
 				}
 			}

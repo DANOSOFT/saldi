@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-20 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,8 @@
 // 20260223 Sawaneh SD-335 fixed bynavn POST using wrong field ($_POST['tlf'] -> $_POST['bynavn'])
 // 20260223 Sawaneh SD-335 fixed SQL bug: lev_land/lev_email missing column names in UPDATE query
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address buttons (buttonname -> name1 -> town fallback)
+// 20250225 PHR Order taken by ---
+
 @session_start();
 $s_id = session_id();
 
@@ -705,7 +707,7 @@ if (!$id && $konto_id && $kontonr) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 	} else {
-		$query = db_select("select hvem from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
+		$query = db_select("select hvem from ordrer where id='$id' and hvem != '' and hvem != '$brugernavn'", __FILE__ . " linje " . __LINE__);
 		$alert = findtekst('1823|Ordren er overtaget af', $sprog_id);
 		if ($row = db_fetch_array($query) && $row['hvem']) {
 			print "<BODY onLoad=\"javascript:alert('$alert $row[hvem]')\">\n";
@@ -2109,7 +2111,7 @@ if ($status < 3 && $b_submit) {
 
 		if ($id) {
 			$timestamp = $who = NULL;
-			$qtxt = "select tidspkt,hvem from ordrer where status < 3 and id = $id and hvem != '$brugernavn'";
+			$qtxt = "select tidspkt,hvem from ordrer where status < 3 and id = '$id' and hvem != '' and hvem != '$brugernavn'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$timestamp = trim($r['tidspkt']);
 				$who       = $row['hvem'];
