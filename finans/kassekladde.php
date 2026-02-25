@@ -40,6 +40,7 @@
 // 20260128 LOE - Fixed the debit and kredit titles relating to the new grid system.
 // 20260216 PHR - *1 -> (int)
 // 20260217 PHR Typo
+// 20260223 Sawaneh Added drag-and-drop file upload to clip icons for direct voucher attachment
 
 ob_start(); //Starter output buffering
 
@@ -1216,8 +1217,8 @@ $columns = array(
         
         $txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
         return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
-            <a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L' $dragAttr>
-            <img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></a>
+            <span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>
+            <img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
         </td>";
     }
 ),
@@ -2406,9 +2407,9 @@ $dropAttr = "";
 			
 			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			print "<a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L' $dragAttr>";
+			print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>";
 #			print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
-			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></a></td>\n";
+			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
 		}
 		if (!isset($dub_bilag[$y]))
 			$dub_bilag[$y] = 0;
@@ -2651,13 +2652,13 @@ $dropAttr = "";
 					$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
 				}
 				$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-				print "<td title='$titletxt'>";
-				print "<a href=\"javascript:confirmClose('../includes/documents.php?source=kassekladde";
+				print "<td class='clip-cell' data-source-id='" . if_isset($id[$x],0) . "' data-bilag='" . htmlspecialchars($bilag[$x]) . "' title='$titletxt'>";
+				print "<span onclick=\"confirmClose('../includes/documents.php?source=kassekladde";
 				print "&ny=ja&sourceId=". if_isset($id[$x],0) ."&kladde_id=$kladde_id&bilag=$bilag[$x]";
-				print "&bilag_id=". if_isset($id[$x],0) ."&fokus=bila$y','$txt')\" accesskey='L'>";
+				print "&bilag_id=". if_isset($id[$x],0) ."&fokus=bila$y','$txt')\" style='cursor:pointer;display:inline-block;'>";
 #				print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=" . if_isset($id[$y],0); 
 #				print "&kladde_id=$kladde_id&bilag=$bilag[$x]&bilag_id=" . if_isset($id[$y],0) ."&fokus=bila$y' onclick='this.form.submit()'>";
-				print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
+				print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
 
 
 				// print "</tr>";
@@ -4229,11 +4230,22 @@ print "
 /* Clip drag and drop styles */
 .clip-cell {
 	/* transition: all 0.2s ease; Removed to prevent drag flicker */
+	padding: 2px 4px;
+	min-width: 28px;
+	min-height: 28px;
+}
+.clip-cell span {
+	pointer-events: auto;
+	display: inline-block;
 }
 .clip-cell.drag-over {
 	background-color: #d4edda !important;
 	box-shadow: inset 0 0 8px rgba(40, 167, 69, 0.5);
 	/* transform: scale(1.1); Removed to prevent drag flicker */
+}
+.clip-cell.drag-over-file {
+	background-color: #cce5ff !important;
+	box-shadow: inset 0 0 8px rgba(0, 123, 255, 0.5);
 }
 .clip-cell.drag-over-invalid {
 	background-color: #f8d7da !important;
@@ -4247,10 +4259,37 @@ print "
 .clip-icon.dragging {
 	opacity: 0.5;
 }
+/* File upload overlay on clip cell */
+.clip-cell.drag-over-file .clip-icon {
+	opacity: 0.4;
+}
+/* Upload progress indicator */
+.clip-cell.uploading {
+	position: relative;
+}
+.clip-cell.uploading::after {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 16px;
+	height: 16px;
+	margin: -8px 0 0 -8px;
+	border: 2px solid #007bff;
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: clip-spin 0.8s linear infinite;
+}
+@keyframes clip-spin {
+	to { transform: rotate(360deg); }
+}
 </style>
+";
+?>
 
 <script>
 // Clip drag and drop for linking documents between kassekladde lines
+const clipKladdeId = <?php echo json_encode($kladde_id); ?>;
 let clipDragSourceId = null;
 let clipDragSourceBilag = null;
 
@@ -4287,21 +4326,33 @@ function clipDragStart(event, sourceId, sourceBilag) {
 
 function clipDragOver(event) {
 	event.preventDefault();
-	event.dataTransfer.dropEffect = 'link';
 	
 	// Find the clip cell
 	const cell = event.target.closest('.clip-cell');
 	if (cell) {
 		const targetId = cell.dataset.sourceId;
 		const targetBilag = cell.dataset.bilag;
-		console.log('clipDragOver - targetId:', targetId, 'targetBilag:', targetBilag, 'sourceId:', clipDragSourceId);
-		// Don't allow dropping on itself
-		if (targetId == clipDragSourceId) {
-			cell.classList.add('drag-over-invalid');
-			cell.classList.remove('drag-over');
+		
+		// Check if this is a file being dragged from the OS
+		const hasFiles = event.dataTransfer.types.includes('Files');
+		
+		if (hasFiles && !clipDragSourceId) {
+			// File drag from OS - always allow, show file-specific highlight
+			event.dataTransfer.dropEffect = 'copy';
+			cell.classList.add('drag-over-file');
+			cell.classList.remove('drag-over', 'drag-over-invalid');
 		} else {
-			cell.classList.add('drag-over');
-			cell.classList.remove('drag-over-invalid');
+			// Clip-to-clip drag
+			event.dataTransfer.dropEffect = 'link';
+			console.log('clipDragOver - targetId:', targetId, 'targetBilag:', targetBilag, 'sourceId:', clipDragSourceId);
+			// Don't allow dropping on itself
+			if (targetId == clipDragSourceId) {
+				cell.classList.add('drag-over-invalid');
+				cell.classList.remove('drag-over', 'drag-over-file');
+			} else {
+				cell.classList.add('drag-over');
+				cell.classList.remove('drag-over-invalid', 'drag-over-file');
+			}
 		}
 	}
 }
@@ -4314,7 +4365,7 @@ function clipDragLeave(event) {
 			return;
 		}
 		console.log('clipDragLeave - leaving cell:', cell.dataset.sourceId);
-		cell.classList.remove('drag-over', 'drag-over-invalid');
+		cell.classList.remove('drag-over', 'drag-over-invalid', 'drag-over-file');
 	}
 }
 
@@ -4324,7 +4375,14 @@ function clipDrop(event, targetSourceId, targetBilag) {
 	
 	const cell = event.target.closest('.clip-cell');
 	if (cell) {
-		cell.classList.remove('drag-over', 'drag-over-invalid');
+		cell.classList.remove('drag-over', 'drag-over-invalid', 'drag-over-file');
+	}
+	
+	// Check if files are being dropped from the OS file system
+	if (event.dataTransfer.files && event.dataTransfer.files.length > 0 && !clipDragSourceId) {
+		console.log('clipDrop - FILE DROP detected, files:', event.dataTransfer.files.length);
+		uploadFileToClip(event.dataTransfer.files[0], targetSourceId, targetBilag, cell);
+		return;
 	}
 	
 	let sourceId = null;
@@ -4412,6 +4470,69 @@ console.log('Linking:', fromSourceId, 'to', toSourceId);
 	});
 }
 
+// Upload a file from OS drag-and-drop directly to a kassekladde line clip
+function uploadFileToClip(file, targetSourceId, targetBilag, cell) {
+	console.log('uploadFileToClip - file:', file.name, 'size:', file.size, 'type:', file.type, 'targetSourceId:', targetSourceId, 'targetBilag:', targetBilag);
+	
+	// Validate file type
+	const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+	const allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
+	const fileExt = file.name.split('.').pop().toLowerCase();
+	
+	if (!allowedTypes.includes(file.type) && !allowedExts.includes(fileExt)) {
+		alert('Filtypen er ikke tilladt. Tilladte typer: PDF, JPG, PNG');
+		return;
+	}
+	
+	// Validate file size (max 100MB)
+	if (file.size > 100 * 1024 * 1024) {
+		alert('Filen er for stor. Maks. 100 MB.');
+		return;
+	}
+	
+	// Show uploading indicator on the cell
+	if (cell) {
+		cell.classList.add('uploading');
+	}
+	
+	// Get kladde_id from the page context
+	const pageKladdeId = clipKladdeId || '';
+	
+	if (!pageKladdeId) {
+		alert('Fejl: Ingen aktiv kassekladde fundet.');
+		if (cell) cell.classList.remove('uploading');
+		return;
+	}
+	
+	const formData = new FormData();
+	formData.append('uploadedFile', file);
+	formData.append('sourceId', targetSourceId);
+	formData.append('kladde_id', pageKladdeId);
+	formData.append('bilag', targetBilag || '');
+	
+	fetch('../includes/docsIncludes/uploadToClipApi.php', {
+		method: 'POST',
+		body: formData
+	})
+	.then(response => response.json())
+	.then(data => {
+		if (cell) cell.classList.remove('uploading');
+		
+		if (data.success) {
+			console.log('uploadFileToClip - success:', data);
+			// Refresh the page to show the updated clip icon (paper.png instead of clip.png)
+			location.reload();
+		} else {
+			alert('Fejl ved upload: ' + (data.message || 'Ukendt fejl'));
+		}
+	})
+	.catch(error => {
+		if (cell) cell.classList.remove('uploading');
+		console.error('Error uploading file to clip:', error);
+		alert('Fejl ved upload af fil: ' + error.message);
+	});
+}
+
 // Add dragend handler to clean up
 document.addEventListener('dragend', function(event) {
 	if (event.target.classList) {
@@ -4419,7 +4540,7 @@ document.addEventListener('dragend', function(event) {
 	}
 	// Remove all drag-over classes
 	document.querySelectorAll('.clip-cell').forEach(cell => {
-		cell.classList.remove('drag-over', 'drag-over-invalid');
+		cell.classList.remove('drag-over', 'drag-over-invalid', 'drag-over-file');
 	});
 	
 	// Delay cleanup to ensure drop handler has time to read the values
@@ -4431,37 +4552,42 @@ document.addEventListener('dragend', function(event) {
 
 // Setup drag and drop event listeners programmatically (works better in Chrome than inline handlers)
 document.addEventListener('DOMContentLoaded', function() {
-	// Use event delegation for better performance with dynamic content
+	// Use CAPTURING phase (third param = true) to intercept events BEFORE the <a> tag handles them
 	document.addEventListener('dragover', function(e) {
 		const cell = e.target.closest('.clip-cell');
 		if (cell) {
 			e.preventDefault(); // MUST be here for drop to work in Chrome
 			e.stopPropagation();
+			e.stopImmediatePropagation();
 			clipDragOver(e);
-		}
-	});
-	
-	document.addEventListener('drop', function(e) {
-		console.log('DROP EVENT CAPTURED at document level - target:', e.target);
-		const cell = e.target.closest('.clip-cell');
-		console.log('DROP - closest clip-cell:', cell);
-		if (cell) {
-			const targetId = cell.dataset.sourceId;
-			const targetBilag = cell.dataset.bilag;
-			console.log('DROP - calling clipDrop with targetId:', targetId, 'targetBilag:', targetBilag);
-			clipDrop(e, targetId, targetBilag);
-		} else {
-			console.log('DROP - no clip-cell found, preventing default anyway');
+			return false;
+		} else if (e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.indexOf('Files') !== -1) {
+			// Prevent default for file drags anywhere to avoid browser opening the file
 			e.preventDefault();
 		}
-	});
+	}, true); // <-- CAPTURING phase
+	
+	document.addEventListener('drop', function(e) {
+		const cell = e.target.closest('.clip-cell');
+		if (cell) {
+			e.preventDefault();
+			e.stopPropagation();
+			e.stopImmediatePropagation();
+			const targetId = cell.dataset.sourceId;
+			const targetBilag = cell.dataset.bilag;
+			clipDrop(e, targetId, targetBilag);
+			return false;
+		} else {
+			e.preventDefault();
+		}
+	}, true); // <-- CAPTURING phase
 	
 	document.addEventListener('dragleave', function(e) {
 		const cell = e.target.closest('.clip-cell');
 		if (cell) {
 			clipDragLeave(e);
 		}
-	});
+	}, true); // <-- CAPTURING phase
 	
 	// Initialize account autocomplete after page is fully loaded
 	if (typeof window.initAccountAutocomplete === 'function') {
@@ -4470,13 +4596,13 @@ document.addEventListener('DOMContentLoaded', function() {
 	}
 	
 	// Initialize datepicker on all date fields
-	$('input[name^=\"dato\"]').datepickerDa();
+	$('input[name^="dato"]').datepickerDa();
 	// Initialize datepicker on Due Date fields
-	$('input[name^=\"forf\"]').datepickerDa();
+	$('input[name^="forf"]').datepickerDa();
 });
 </script>
-";
 
+<?php
 	?>
 
 
