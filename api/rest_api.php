@@ -506,10 +506,12 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
 	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$discountType)\n");
 	if ($ordre_id && is_numeric($ordre_id)) {
-		$qtxt="select status,momssats from ordrer where id='$ordre_id'";
+		$qtxt="select status,momssats,valutakurs from ordrer where id='$ordre_id'";
 		fwrite($log,__line__." ".$qtxt."\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$momssats=$r['momssats'];
+		$ordre_valutakurs=$r['valutakurs']*1;
+		if (!$ordre_valutakurs) $ordre_valutakurs=100;
 		fwrite($log,__line__." Momssats $momssats\n");
 		if ($r['status'] > 2) {
 			fwrite($log,__line__." Order ID $ordre_id allready invoiced\n");
@@ -666,6 +668,14 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		fwrite ($log,__line__." Beskrivelse: $beskrivelse\n");
 		fwrite ($log,__line__." Lager: $lager\n");
 		fwrite ($log,__line__." Vnr: $varenr\n");
+		
+		// 20260225 PBLM Convert shop price from order currency to DKK before opret_ordrelinje
+		// opret_ordrelinje will convert it back from DKK to order currency using valutakurs
+		$shop_pris = $pris;
+		if ($ordre_valutakurs && $ordre_valutakurs != 100) {
+			$pris = $pris * $ordre_valutakurs / 100;
+			fwrite($log,__line__." Converted price from order currency to DKK: $shop_pris -> $pris (valutakurs=$ordre_valutakurs)\n");
+		}
 		
 		fwrite($log,__line__." opret_ordrelinje($ordre_id,$vare_id,".db_escape_string(chk4utf8($varenr)).",$antal,".db_escape_string(chk4utf8($beskrivelse)).",$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','','','0','','','','','',$lager,".__line__.")\n");
 		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','',$discountType,'0','','','','','',$lager,__LINE__);
@@ -1026,9 +1036,6 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$addr1         = if_isset($_GET['addr1']);
 			$addr2         = if_isset($_GET['addr2']);
 			$afd           = (int)if_isset($_GET['afd']);
-			if ($_SERVER['REMOTE_ADDR'] == '172.105.246.144') $afd = $ekstra5 = 4;
-			if ($_SERVER['REMOTE_ADDR'] == '185.145.13.108') $afd=6;
-			if ($_SERVER['REMOTE_ADDR'] == '94.143.8.109') $afd=7;
 			$betalings_id  = if_isset($_GET['betalings_id']);
 			$betalingsbet  = if_isset($_GET['betalingsbet']);
 			$betalingsdage = if_isset($_GET['betalingsdage']);
@@ -1080,10 +1087,6 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$saldi_kontonr  = if_isset($_GET['saldi_kontonr']);
 			$pos_betaling   = if_isset($_GET['pos_betaling']);
 			$shop_status    = if_isset($_GET['shop_status']);
-
-			if ($_SERVER['REMOTE_ADDR'] == '172.105.246.144') $afd = $ekstra5 = 4;
-			if ($_SERVER['REMOTE_ADDR'] == '185.145.13.108')  $afd = $ekstra5 = 6;
-			if ($_SERVER['REMOTE_ADDR'] == '94.143.8.109')    $afd = $ekstra5 = 7;
 
 			$fil = fopen('../temp/addr1.php','w');
 			fwrite($fil,"<?php $"."addr1='$addr1' ?>\n");
