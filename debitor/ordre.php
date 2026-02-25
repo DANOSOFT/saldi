@@ -1488,8 +1488,10 @@ if ($status < 3 && $b_submit) {
 	}
 	if (strstr($b_submit, "Kred")) {
 		$art = 'DK';
+
 		$query = db_select("select id from ordrer where kred_ord_id = $id", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
+
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$row[id]\">\n";
 			exit;
 		} elseif ($kred_ord_id) {
@@ -2190,11 +2192,26 @@ if ($status < 3 && $b_submit) {
 ########################## KOPIER #################################
 if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 	if (strstr($b_submit, "Kred")) {
+		# For posted orders (status>=3), the Kred setup at L1489 is inside `status<3` guard and gets skipped.
+		# We need to do the setup here: set art, kred_ord_id, clear id, reset status.
+		if ($id && $art != 'DK') {
+			$art = 'DK';
+			$query = db_select("select id from ordrer where kred_ord_id = $id", __FILE__ . " linje " . __LINE__);
+			if ($row = db_fetch_array($query)) {
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$row[id]\">\n";
+				exit;
+			} elseif (!$kred_ord_id) {
+				$kred_ord_id = $id;
+				$id = '';
+				$status = 0;
+			}
+		}
 		if ($vis_saet) {
 			$felt_2 *= -1;
 			$felt_4 *= -1;
 		}
 	}
+
 	if ((!$id) && ($konto_id)) {
 		$qtxt = "select kontonr from adresser where id='$konto_id'"; #20160217
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2222,6 +2239,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$qtxt = "select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];
+
 			if ($gl_id) {
 				$qtxt = "select levdate,ordredate,fakturadate,nextfakt from ordrer where id='$gl_id'";
 				$r = (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)));
@@ -2232,9 +2250,11 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 				}
 			}
 		}
+	} else {
 	}
 	if ($id && strstr($b_submit, 'Kred') && $kred_ord_id) {
 		db_modify("update ordrer set kred_ord_id='$kred_ord_id' where id='$id'", __FILE__ . " linje " . __LINE__);
+
 	}
 	for ($x = 1; $x <= $linjeantal; $x++) {
 		if (!$vare_id[$x] && $antal[$x] && $varenr[$x]) {
@@ -2260,6 +2280,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 			if ($procenttillag && $procentvare && $varenr[$x] == $procentvare) {
 				$tmp = NULL; # der skal bare stå et eller andet :-)
 			} elseif ((!$kdo[$x] || strstr($b_submit, 'Kred')) && (!$folgevare[$x] || $folgevare[$x] >= 0)) {
+
 				$svar = opret_ordrelinje(
 					$id,
 					"$vare_id[$x]",
@@ -2283,6 +2304,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 					$lager[$x],
 					__LINE__
 				);
+
 				if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
 				elseif ($vare_id[$x] && ($folgevare[$x] || $projekt[$x] || $fast_db[$x])) {
 					$r = db_fetch_array(db_select("select max(id) as id from ordrelinjer where ordre_id='$id' and vare_id = '$vare_id[$x]'", __FILE__ . " linje " . __LINE__));

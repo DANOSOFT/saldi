@@ -1236,10 +1236,10 @@ if (!function_exists('formularprint')) {
 			// elseif (file_exists("../logolib/$db_id/bg.pdf"))
 			// 	$bgr = "bg";
 			// <?php
-			if ($background_file && file_exists($background_file)) {
+/* 			if ($background_file && file_exists($background_file)) {
 				$bgr = basename($background_file, '.pdf'); // e.g. 'English_ordrer_bg'
 				$background_pdf_path = $background_file;
-			} else {
+			} else { */
 				// Determine background type based on formular type
 				$bg_type = 'bg';
 				if ($formular == 5) $bg_type = "kreditnota_bg";
@@ -1260,8 +1260,8 @@ if (!function_exists('formularprint')) {
 
 				// 1. Check Department + Language Specific (if not Default)
 				if ($afd > 0 && !$is_default_lang) {
-					$lang_suffix = "_" . $lang_lower;
-					$check_path = "../logolib/$db_id/$afd/{$bg_type}{$lang_suffix}.pdf";
+					$lang_suffix = $lang_lower . "_";
+					$check_path = "../logolib/$db_id/$afd/{$lang_suffix}{$bg_type}.pdf";
 					if (file_exists($check_path)) {
 						$bgr = $bg_type . $lang_suffix;
 						$background_pdf_path = $check_path;
@@ -1281,8 +1281,8 @@ if (!function_exists('formularprint')) {
 
 				// 3. Check Department + Generic + Language Specific (if not Default)
 				if (!$found && $afd > 0 && !$is_default_lang) {
-					$lang_suffix = "_" . $lang_lower;
-					$check_path = "../logolib/$db_id/$afd/bg{$lang_suffix}.pdf";
+					$lang_suffix = $lang_lower . "_";
+					$check_path = "../logolib/$db_id/$afd/{$lang_suffix}bg.pdf";
 					if (file_exists($check_path)) {
 						$bgr = "bg" . $lang_suffix;
 						$background_pdf_path = $check_path;
@@ -1302,8 +1302,8 @@ if (!function_exists('formularprint')) {
 
 				// 5. Check Global + Language Specific (if not Default)
 				if (!$found && !$is_default_lang) {
-					$lang_suffix = "_" . $lang_lower;
-					$check_path = "../logolib/$db_id/{$bg_type}{$lang_suffix}.pdf";
+					$lang_suffix = $lang_lower . "_";
+					$check_path = "../logolib/$db_id/{$lang_suffix}{$bg_type}.pdf";
 					if (file_exists($check_path)) {
 						$bgr = $bg_type . $lang_suffix;
 						$background_pdf_path = $check_path;
@@ -1323,8 +1323,8 @@ if (!function_exists('formularprint')) {
 
 				// 7. Check Global + Generic + Language Specific (if not Default)
 				if (!$found && !$is_default_lang) {
-					$lang_suffix = "_" . $lang_lower;
-					$check_path = "../logolib/$db_id/bg{$lang_suffix}.pdf";
+					$lang_suffix = $lang_lower . "_";
+					$check_path = "../logolib/$db_id/{$lang_suffix}bg.pdf";
 					if (file_exists($check_path)) {
 						$bgr = "bg" . $lang_suffix;
 						$background_pdf_path = $check_path;
@@ -1342,7 +1342,7 @@ if (!function_exists('formularprint')) {
 					}
 				}
 
-			}
+			/* } */
 			print "<!-- kommentar for at skjule uddata til siden \n";
 			if (!file_exists("../logolib/$db_id"))
 				mkdir("../logolib/$db_id");
