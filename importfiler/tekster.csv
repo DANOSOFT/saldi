@@ -2933,7 +2933,7 @@
 2933	Klik her for at oprette et tilbud til sagen	Click here to create an offer for the project	Klikk her for å opprette et tilbud for saken
 2934	Klik her for at oprette et nyt tilbud til sagen	Click here to create a new offer for the project	Klikk her for å opprette et nytt tilbud for saken
 2935	Klik her for at oprette et notat til sagen	Click here to create a note for the project	Klikk her for å opprette et notat for saken
-2936	Beregning	Calculation	Beregning
+2936	Beregning	Estimate	Beregning
 2937	Godkendt	Approved	Godkjent
 2938	Afmeldt	Deregistered	Avmeldt
 2939	Drivgods	Surplus materials	Drivgods
@@ -2968,19 +2968,19 @@
 2968	Brugergrupper	User groups	Brukergrupper
 2969	Tilret stamkort	Edit information card	Tilrett stamkort
 2970	Skemaliste	Form list	Skjemaliste
-2971	lønseddel	pay slip	lønnsseddel
+2971	Lønseddel	Pay slip	Lønnsseddel
 2972	Overførte	Transferred	Overførte
 2973	Sedler	Slips	Sedler
 2974	Afviste	Rejected	Avviste
-2975	Udbetalte	Paid out	Utbetalte
+2975	Udbetalte	Paid	Utbetalte
 2976	Udbetaling	Payment	Utbetaling
 2977	Aktive	Active	Aktive
 2978	Afsluttede	Completed	Avsluttede
 2979	Lønopgørelse	Wage statement	Lønnsoppgave
 2980	Timer	Hours	Timer
 2981	Mm.	Etc.	Mm.
-2982	
-2983	
+2982	Beregning	Estimates	Beregning
+2983	Planlægning af sag	Project planning	Planlegging av sak
 2984	
 2985	
 2986	
@@ -3123,6 +3123,6 @@
 3123	
 3124	
 3125	
-3126
+3126	
 3127	Knap navn	Button name	Knappnavn
-3128	Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.	Enter the name to display on the button on the order page. If empty, company name or city is used.	Angi navnet som skal vises på knappen på ordresiden. Hvis tom, brukes firmanavn eller bynavn.	
+3128	Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.	Enter the name to display on the button on the order page. If empty, company name or city is used.	Angi navnet som skal vises på knappen på ordresiden. Hvis tom, brukes firmanavn eller bynavn.
