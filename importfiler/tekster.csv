@@ -587,7 +587,7 @@
 587	formularskabelon	form template	skjemamal
 588	Pos. Kontakt	Pos. Contact	Pos. Ta kontakt med
 589	Ansat	Employee	Ansatt
-590	Vis fratrådte	Show resigned	Show trakk seg
+590	Vis fratrådte	Show resigned	Vis fratrådte
 591	Kreditornr.	Creditor no.	Kreditornr.
 592	Konto	Account	Konto
 593	Lande	Countries	Land
@@ -901,7 +901,7 @@
 901	Konto (til)	Account (to)	Konto (til)
 902	Medtag lagerbevægelser	Include stock movements	Inkluder lagerbevegelser
 903	fra	from	fra
-904	til	to	till
+904	til	to	til
 905	Kontrolspor	Control Track	Kontrollspor
 906	Provisionsrapport	Provisions report	Kommisjonens rapport
 907	Historik	History	Historie
@@ -1229,7 +1229,7 @@
 1229	Primo	First	Først
 1230	Lås lagerværdi	Lock stock value	Lås aksjeverdi
 1231	Primotal for	Initial figures for	Primotal for
-1232	Opret	Create	Skape
+1232	Opret	Create	Opprett
 1233	Der er foretaget	There has been made	Det er laget
 1234	posteringer de sidste 12 mdr.	postings the last 12 months.	posteringer de siste 12 månedene.
 1235	Vælg den tidszone der skal gælde for dette regnskab	Select the time zone to apply to these accounts	Velg tidssonen som skal brukes på disse kontoene
@@ -2346,7 +2346,7 @@
 2346	For at generere en SAF-T fil skal nedenstående kontonummer mappes til <u>standard kontonummer</u>.	To generate a SAF-T file, the account number below must be mapped to <u>standard account number</u>	For å generere en SAF-T-fil, må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>
 2347	For at generere en SAF-T fil skal de	To generate a SAF-T file, the	For å generere en SAF-T-fil, må de
 2348	Her kan du oprette en SAF-T Finansrapport:	Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansrapport:
-2349	Opret	Create	Skape
+2349	Opret	Create	Opprett
 2350	Vis XML-fil	Show XML file	Vis XML-fil
 2351	Luk XML-fil	Close XML file	Lukk XML-fil
 2352	er blevet oprettet.	has been created.	er opprettet.
@@ -2790,7 +2790,7 @@
 2790	Overført	Transferred	Overført
 2791	Godk/Afv	Appr/Rej	Godk/Avv
 2792	Sag	Project	Sak
-2793	Ansvarlig	Responsible	Ansvarlig
+2793	Ansvarlig	Assigned	Ansvarlig
 2794	Medarb.	Empl.	Medarb.
 2795	Sum	Total	Sum
 2796	Slet sortering	Clear sorting	Slett sortering
@@ -2951,34 +2951,34 @@
 2951	Akkordliste dato	Piecework list date	Akkordliste dato
 2952	Infotekst på Dashboard	Info text on Dashboard	Infotekst på Dashboard
 2953	Slet sag	Delete project	Slett sak
-2954	
-2955	
-2956	
-2957	
-2958	
-2959	
-2960	
-2961	
-2962	
-2963	
-2964	
-2965	
-2966	
-2967	
-2968	
-2969	
-2970	
-2971	
-2972	
-2973	
-2974	
-2975	
-2976	
-2977	
-2978	
-2979	
-2980	
-2981	
+2954	Viser	Showing	Viser
+2955	Sagsliste	Project list	Saksliste
+2956	Retur	Return	Retur
+2957	Ændr	Change	Endre
+2958	Akkordsedler	Piecework slips	Akkordsedler
+2959	Akkordlister	Piecework lists	Akkordlister
+2960	Sagsinfo	Project info	Saksinfo
+2961	Kundekort	Customer card	Kundekort
+2962	Notater	Notes	Notater
+2963	Mine	My	Mine
+2964	Notatliste	Note list	Notatliste
+2965	Kundeliste	Customer list	Kundeliste
+2966	Medarbejder	Employee	Medarbeider
+2967	Medarbejderliste	Employee list	Medarbeiderliste
+2968	Brugergrupper	User groups	Brukergrupper
+2969	Tilret stamkort	Edit information card	Tilrett stamkort
+2970	Skemaliste	Form list	Skjemaliste
+2971	lønseddel	pay slip	lønnsseddel
+2972	Overførte	Transferred	Overførte
+2973	Sedler	Slips	Sedler
+2974	Afviste	Rejected	Avviste
+2975	Udbetalte	Paid out	Utbetalte
+2976	Udbetaling	Payment	Utbetaling
+2977	Aktive	Active	Aktive
+2978	Afsluttede	Completed	Avsluttede
+2979	Lønopgørelse	Wage statement	Lønnsoppgave
+2980	Timer	Hours	Timer
+2981	Mm.	Etc.	Mm.
 2982	
 2983	
 2984	

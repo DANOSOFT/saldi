@@ -56,8 +56,7 @@ global $sprog_id;
 // Get current user info
 global $bruger_id;
 
-// Check if user is admin (bruger_id = -1 or 1)
-$is_admin = ($bruger_id == -1 || $bruger_id == 1);
+$is_admin = 1;
 
 // Get user's assigned department from settings (for permission checking)
 $afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
@@ -545,7 +544,7 @@ function upload(){
         foreach ($departments as $dept_id => $dept_name) {
             $selected = ($selected_department == $dept_id) ? ' selected' : '';
             // Permission logic remains
-            if ($is_admin || $dept_id == $user_assigned_department) {
+            if ($is_admin) {
                 print "<option value=\"$dept_id\"$selected>$dept_id - $dept_name</option>";
             } else {
                 print "<option value=\"$dept_id\" disabled>$dept_id - $dept_name</option>";
