@@ -39,6 +39,7 @@
 // 20250812 PHR Changed DKK to $baseCurrency
 // 20250813 PHR Compared and merged changes from ssl7
 // 20260211 PHR Updated cashCount
+// 20260225 PHR Updated cashCount
 
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
@@ -50,7 +51,7 @@ function setSpecifiedCashText() {
 		"turnover" => findtekst('2373|Dagens omsætning',$sprog_id), "headline" => findtekst('2387|Optæl kassebeholdning for kasse',$sprog_id),
 		"subline" => "(". findtekst('2388|Antal mønter/sedler af hver slags',$sprog_id) .")"];
 	} else {
-		return ["half" => "50 øre", "one" => "1 kr", "two" => "2 kr", "five" => "5 kr", "ten" => "10 kr",
+		return ["tenth" => "10 øre", "fiveth" => "20 øre", "half" => "50 øre", "one" => "1 kr", "two" => "2 kr", "five" => "5 kr", "ten" => "10 kr",
 		"twenty" => "20 kr", "fifty" => "50 kr", "hundred" => "100 kr", "twoHundred" => "200 kr",
 		"fiveHundred" => "500 kr", "thousand" => "1000 kr", "other" => "Andet",
 		"turnover" => "Dagens omsætning", "headline" => "Optæl kassebeholdning for kasse ",
@@ -74,7 +75,7 @@ function setSpecifiedCashText() {
 		echo "<!-- setCashCountText End -->\n";
   }
 
-function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $fiveRappen = 0, $tenRappen = 0, $twentyRappen = 0) {
+function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet) {
 	global $baseCurrency,$db;
 
 	$txt = setSpecifiedCashText();
@@ -127,7 +128,7 @@ function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_
 	$temp = $txt['fiveHundred'];
 	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_500' value='$kr_500'></td></tr>\n";
 	$temp = $txt['thousand'];
-	if ($baseCurrency =='EUR') {
+	if ($baseCurrency =='EUR' | $baseCurrency =='DKK') {
 		print "<input type = 'hidden' name='kr_1000' value='$kr_1000'>";
 	} else {
 		print "<tr><td align='right'>$temp</td><td> </td> <td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_1000' value='$kr_1000'></td></tr>\n";

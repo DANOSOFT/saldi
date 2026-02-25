@@ -91,6 +91,7 @@
 // 20251007 PHR Changed "$_POST['proforma'] == 'Proforma')" to "$_POST['proforma'])" 
 // 20260204 PHR Back button did not work if focus was 'Modtaget'
 // 20260211 PHR Updated cashCount 
+// 20260225 PHR Updated cashCount
 
 @session_start();
 $s_id = session_id();
@@ -605,11 +606,11 @@ $kassebeholdning = if_isset($_GET['kassebeholdning']);
 if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 	$calc = findtekst('2390|Beregn',$sprog_id);
 	if (isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id))) {
-		$cookievalue = (int)$_POST['ore_10'] . chr(9) . (int)$_POST['ore_20'] . chr(9) . $_POST['ore_50'] . chr(9) . $_POST['kr_1'] . chr(9) . $_POST['kr_2'] . chr(9) . $_POST['kr_5'] .
-			chr(9) . $_POST['kr_10'] . chr(9) . $_POST['kr_20'] . chr(9) . $_POST['kr_50'] . chr(9) . $_POST['kr_100'] .
-			chr(9) . $_POST['kr_200'] . chr(9) . $_POST['kr_500'] . chr(9) . $_POST['kr_1000'] .
-			chr(9) . usdecimal($_POST['kr_andet'], 2) . chr(9) . if_isset($_POST['rappen_5'], 0) .
-			chr(9) . if_isset($_POST['rappen_10'], 0) . chr(9) . if_isset($_POST['rappen_20'], 0);
+		$cookievalue = (int)$_POST['ore_10'] . chr(9) . (int)$_POST['ore_20'] . chr(9) . (int)$_POST['ore_50'] . chr(9) . (int)$_POST['kr_1'] .
+		chr(9) . (int)$_POST['kr_2'] . chr(9) . (int)$_POST['kr_5'] . chr(9) . (int)$_POST['kr_10'] . chr(9) . (int)$_POST['kr_20'] .
+		chr(9) . (int)$_POST['kr_50'] . chr(9) . (int)$_POST['kr_100'] . chr(9) . (int)$_POST['kr_200'] . chr(9) . (int)$_POST['kr_500'] .
+		chr(9) . $_POST['kr_1000'] . chr(9) . usdecimal($_POST['kr_andet'], 2) . chr(9) . if_isset($_POST['rappen_5'], 0) .
+		chr(9) . if_isset($_POST['rappen_10'], 0) . chr(9) . if_isset($_POST['rappen_20'], 0);
 		$optval = if_isset($_POST['optval'], array());
 		$reportNumber = if_isset($_POST['reportNumber']);
 		if (count($optval)) {
@@ -2942,6 +2943,8 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 function kasseoptalling(
 	$kasse,
 	$optalt,
+	$ore_10,
+	$ore_20,
 	$ore_50,
 	$kr_1,
 	$kr_2,
@@ -3130,6 +3133,7 @@ function kasseoptalling(
 
 	$forventet = $byttepenge + $tilgang + $kortdiff;
 	(isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'])) ? $ny_morgen = $optalt - $udtages : $ny_morgen = 0; #20200112
+
 	specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet); #, $fiveRappen, $tenRappen, $twentyRappen
 	if ($valuta[0]) {
 		for ($x = 0; $x < count($valuta); $x++) {

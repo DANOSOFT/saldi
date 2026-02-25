@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/cashInventory/cashBoxCountFunc.php --- rel 4.1.1----2025.08.13 ---
+// --- debitor/pos_ordre_includes/cashInventory/cashBoxCountFunc.php --- rel 5.0.0----2026.02.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,13 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS) 2004-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Saldi.dk ApS) 2004-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // LN 20190310 LN Set the function kasseoptalling here
 // 20250813 PHr Added findtekst 440 
+// 20260225 PHR Updated cashCount
 
-function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval, $fiveRappen = 0, $tenRappen = 0, $twentyRappen = 0) {
+function kasseoptalling ($kasse,$optalt,$ore_10, $ore_20, $ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval, $fiveRappen = 0, $tenRappen = 0, $twentyRappen = 0) {
 	echo "<!-- function kasseoptalling in cashBoxCountFunc.php Begin -->\n";
 	
 	
@@ -124,7 +125,7 @@ function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,
 	$kassediff-=$kortdiff;
 
 	if (!$optalt) {
-		$optalt=$ore_50*0.5+$kr_1+$kr_2*2+$kr_5*5+$kr_10*10+$kr_20*20+$kr_50*50+$kr_100*100+$kr_200*200+$kr_500*500+$kr_1000*1000+$kr_andet + $fiveRappen*0.05 + $tenRappen*0.1 + $twentyRappen*0.2;
+		$optalt=$ore_10*0.1+$ore_20*0.2+$ore_50*0.5+$kr_1+$kr_2*2+$kr_5*5+$kr_10*10+$kr_20*20+$kr_50*50+$kr_100*100+$kr_200*200+$kr_500*500+$kr_1000*1000+$kr_andet + $fiveRappen*0.05 + $tenRappen*0.1 + $twentyRappen*0.2;
 	}
 	if ((!$optalt && $optalt!='0')  || $optalt != $tidl_optalt) {
 		($udtag0)?$udtages=0:$udtages=$tilgang+$kassediff;
@@ -136,7 +137,7 @@ function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,
 	$forventet=$byttepenge+$tilgang+$kortdiff;
 	($optalt)?$ny_morgen=$optalt-$udtages:$ny_morgen=0;
 
-	specifyAmount($omsatning, $kassediff, $optalt, $$db, $kasse, $log, $ifs, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $fiveRappen, $tenRappen, $twentyRappen);
+	specifyAmount($omsatning, $kassediff, $optalt, $$db, $kasse, $log, $ifs, $ore_10 $ore_20 $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $fiveRappen, $tenRappen, $twentyRappen);
 	if ($valuta[0]) {
 		for ($x=0;$x<count($valuta);$x++) {
 			print "<tr><td align=\"right\">$valuta[$x]</td><td></td><td align=\"right\">";
