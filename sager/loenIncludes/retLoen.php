@@ -1158,7 +1158,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					print "</div><!-- end of contentA -->";
 
 				if ($oprettet) {
-						print "<table border=\"0\" cellspacing=\"0\" width=\"780\">
+						print "<table border=\"0\" cellspacing=\"0\" width=\"780\" style=\"font-size: 12px\">
 						<tr>
 							<td><b>Oprettet:</b></td><td>d.".date("d-m-Y",$oprettet)." kl. ".date("H:i",$oprettet)."</td>
 							<td><b>af:</b> $oprettet_af</td>

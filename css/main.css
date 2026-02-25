@@ -1036,6 +1036,7 @@ span.notatstatus {display: inline-block; width: 160px; #background-color: lightc
     /*border:1px solid #ccc;*/
     /*border-collapse:collapse;*/ /* Virker ikke med 'border-radius', undtaget IE9?? */
     border-spacing:0px; /* Bruges i stedet for 'border-collapse:colapse' */
+    font-size: 12px;
 }
 
 .contentsoeg table th 
@@ -1755,15 +1756,17 @@ span.email {display: inline-block; width: 250px; #background-color: lightgreen; 
     border-width: 1px;
     border-spacing: 0px;
     border-collapse: collapse;
-		margin-top: 8px;
+	margin-top: 8px;
+    font-size: 12px;
 }
 .akkordTableListe
 {
-		width: 100%;
+	width: 100%;
     border-width: 1px;
     border-spacing: 0px;
     border-collapse: collapse;
-		margin-top: 8px;
+	margin-top: 8px;
+    font-size: 12px;
 }
 .akkordTableListeBody tr td {padding: 1px 2px;}
 .akkordListeHead th {padding: 0px 2px;border-right: 1px solid #fff;}
