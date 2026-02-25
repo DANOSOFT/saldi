@@ -1417,7 +1417,7 @@ if ($b_submit) {
 		for ($x = $sletstart; $x <= $sletslut; $x++) $posnr_ny[$x] = "-";
 	}
 }
-if ($status < 3 && $b_submit) {
+if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $b_submit) {
 	$rabatsats = 0;
 	if (isset($kontonr)) {
 		$qtxt = "select gruppe from adresser,grupper where kontonr='$kontonr' ";
