@@ -566,35 +566,21 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 
 	$sent_emails = array();
 
-	if (file_exists("../../vendor/autoload.php")) {
-		require_once "../../vendor/autoload.php"; //PHPMailer Object
-		$mail = new  PHPMailer\PHPMailer\PHPMailer();
-			$mail->SMTPOptions = array( 
-			'ssl' => array( 
-				'verify_peer' => false, 
-				'verify_peer_name' => false, 
-				'allow_self_signed' => true 
-			) 
-		);
-	} elseif (file_exists("../phpmailer")) {
-		ini_set("include_path", "../phpmailer");
-		require("class.phpmailer.php");
-		$mail = new PHPMailer();
-	}
-	$mail->CharSet = 'UTF-8';
-	$tmpmappe="../temp/$db/".str_replace(" ","_",$brugernavn);
-	if (!file_exists($tmpmappe)) mkdir($tmpmappe);
 	$r = db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
 	$afsendermail=$r['email'];
 	$afsendernavn=$r['firmanavn'];
 	$from=$afsendermail;
-	($r['felt_1'])?$smtp=$r['felt_1']:$smtp='localhost';
-	($r['felt_2'])?$smtp_user=$r['felt_2']:$smtp_user=NULL;
-	($r['felt_3'])?$smtp_pwd=$r['felt_3']:$smtp_pwd=NULL;
-	($r['felt_4'])?$smtp_enc=$r['felt_4']:$smtp_enc=NULL;
+
+	// Determine from address for saldi.dk hosted servers
+	if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) {
+		if ($_SERVER['SERVER_NAME']=='ssl.saldi.dk') $from = $db.'@ssl.saldi.dk';
+		elseif ($_SERVER['SERVER_NAME']=='ssl2.saldi.dk') $from = $db.'@ssl2.saldi.dk';
+		elseif ($_SERVER['SERVER_NAME']=='ssl3.saldi.dk') $from = $db.'@ssl3.saldi.dk';
+		else $from = 'kanikkebesvares@saldi.dk';
+		$from=str_replace('bizsys_','post_',$from);
+	}
 
 	for($x=1; $x<=$kontoantal; $x++) {
-		if (!file_exists("$tmpmappe/$x")) mkdir("$tmpmappe/$x");
 		if (($konto_id[$x])&&($email[$x])&&($fra[$x])&&($til[$x])&&(strpos($email[$x], '@'))) {
 			$fromdate[$x]= usdate($fra[$x]);
 			$todate[$x]=usdate($til[$x]);
@@ -676,7 +662,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 					if ($primoprint==0) {
 						$tmp=dkdecimal($kontosum,2);
 						$linjebg=$bgcolor5; $color='#000000';
-						$mailtext .= "<tr bgcolor='$linjebg'><td colspan='3'></td><td>".findtekst('1165|Primosaldo', $sprog_id)."</td><td colspan='3'></td><td align=right> $tmp</td></tr>\n"; #20210805
+						$mailtext .= "<tr bgcolor='$linjebg'><td colspan='3'></td><td>".findtekst('1165|Primosaldo', $sprog_id)."</td><td colspan='3'></td><td align=right> $tmp</td></tr>\n";
 						$primoprint=1;
 					}
 				    	if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
@@ -738,60 +724,19 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			$afsendernavn=$r['firmanavn'];
 
 			if ($charset=="UTF-8") {
-				$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
 				$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
 				$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
 				$afsendermail=mb_convert_encoding($afsendermail, 'ISO-8859-1', 'UTF-8');
 			}
-			$from = $afsendermail;
-			$fp=fopen("$tmpmappe/$x/kontoudtog.html","w");
-			fwrite($fp,$mailtext);
-			fclose ($fp);
 
-			$mail->IsSMTP();                                   // send via SMTP
-			$mail->CharSet = "$charset";
-			$mail->SMTPDebug  = 2;
-			$mail->Host  = $smtp; // SMTP servers 
-			if ($smtp!='localhost') {
-				if ($smtp_user) {
-					$mail->SMTPAuth = true;     // turn on SMTP authentication
-					$mail->Username = $smtp_user;  // SMTP username
-					$mail->Password = $smtp_pwd; // SMTP password
-					if ($smtp_enc) $mail->SMTPSecure = $smtp_enc; // SMTP kryptering
-				}
-			} else {
-				$mail->SMTPAuth = false;
-				if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121016
-					if ($_SERVER['SERVER_NAME']=='ssl.saldi.dk') $from = $db.'@ssl.saldi.dk'; #20130731
-					elseif ($_SERVER['SERVER_NAME']=='ssl2.saldi.dk') $from = $db.'@ssl2.saldi.dk'; #20130731
-					else $from = 'kanikkebesvares@saldi.dk';
-					$from=str_replace('bizsys_','post_',$from);
-				}  
-			}
-			$mail->From = $from;
-			$mail->FromName = $afsendernavn;
-			$splitter=NULL;
-			if (strpos($email[$x],";")) $splitter=';';
-			elseif (strpos($email[$x],",")) $splitter=',';
-			if ($splitter) { #20150305-2 + 20161114
-				$tmp=array();
-				$tmp=explode($splitter,$email[$x]);
-				for ($i=0;$i<count($tmp);$i++) {
-					if (strpos($tmp[$i],"@")) $mail->AddAddress($tmp[$i]); 
-				}
-			} else $mail->AddAddress($email[$x]);
-			$mail->AddBCC($afsendermail); 
-			$mail->AddReplyTo($afsendermail,$afsendernavn);
+			// Build MIME multipart email with attachment using php mail()
+			$boundary = md5(uniqid(time()));
+			$attachment_content = $mailtext;
 
-			$mail->WordWrap = 50;                              // set word wrap
-			$mail->AddAttachment("$tmpmappe/$x/kontoudtog.html");      // attachment
-			$mail->IsHTML(true);                               // send as HTML
-
-			$mail->Subject  =  "Kontoudtog fra $afsendernavn";
-			
+			// Build mail body (inline HTML)
 			$mailbody = "<html><body>\n";
-                        $mailbody .= "<p>Hermed fremsendes kontoudtog fra ".$afsendernavn.".</p>\n";
-                        $mailbody .= "<p>Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
+			$mailbody .= "<p>Hermed fremsendes kontoudtog fra ".$afsendernavn.".</p>\n";
+			$mailbody .= "<p>Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
 			$mailbody .= "ved at dobbeltklikke p&aring; den.</p>\n";
 			$mailbody .= "<hr />\n<p>";
 			$mailbody .= $r['firmanavn']."<br />\n";
@@ -803,44 +748,52 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['cvrnr'] ) $mailbody .= " * cvr ".$r['cvrnr'];
 			$mailbody .= "</p></body></html>";
 
-			$mailaltbody = "Hermed fremsendes kontoudtog fra ".$afsendernavn.".\n\n";
-                        $mailaltbody .= "Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
-			$mailaltbody .= "ved at dobbeltklikke på den.\n";
-			$mailaltbody .= "-- \n";
-			$mailaltbody .= $r['firmanavn']."\n";
-			if ( $r['addr1'] ) $mailaltbody .= $r['addr1']."\n";
-			if ( $r['addr2'] ) $mailaltbody .= $r['addr2']."\n";
-			if ( $r['postnr'] ) $mailaltbody .= $r['postnr']." ".$r['bynavn']."\n";
-			if ( $r['tlf'] ) $mailaltbody .= "tlf ".$r['tlf'];
-			if ( $r['fax'] ) $mailaltbody .= " * fax ".$r['fax'];
-			if ( $r['cvrnr'] ) $mailaltbody .= " * cvr ".$r['cvrnr'];
-			
 			if ($charset=="UTF-8"){
 				$mailbody=mb_convert_encoding($mailbody, 'ISO-8859-1', 'UTF-8');
-				$mailaltbody=mb_convert_encoding($mailaltbody, 'ISO-8859-1', 'UTF-8');
 			}
 
+			// Build MIME message with HTML body + HTML file attachment
+			$mime_body = "--$boundary\r\n";
+			$mime_body .= "Content-Type: text/html; charset=ISO-8859-1\r\n";
+			$mime_body .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
+			$mime_body .= $mailbody . "\r\n\r\n";
+			$mime_body .= "--$boundary\r\n";
+			$mime_body .= "Content-Type: text/html; charset=ISO-8859-1; name=\"kontoudtog.html\"\r\n";
+			$mime_body .= "Content-Transfer-Encoding: base64\r\n";
+			$mime_body .= "Content-Disposition: attachment; filename=\"kontoudtog.html\"\r\n\r\n";
+			$mime_body .= chunk_split(base64_encode($attachment_content)) . "\r\n";
+			$mime_body .= "--$boundary--\r\n";
 
-			$mail->Body     =  $mailbody;
-			$mail->AltBody  =  $mailaltbody;
-			echo "<!--";
-			if(!$mail->Send()){
-				echo "-->";
- 				 echo "Fejl i afsendelse til $email[$x]<p>";
-   				echo "Mailer Error: " . $mail->ErrorInfo;
-  		 		exit;
-			} 
-			echo "-->";
+			// Build recipients list
+			$to_addresses = array();
+			$splitter=NULL;
+			if (strpos($email[$x],";")) $splitter=';';
+			elseif (strpos($email[$x],",")) $splitter=',';
+			if ($splitter) {
+				$tmp=explode($splitter,$email[$x]);
+				for ($i=0;$i<count($tmp);$i++) {
+					if (strpos($tmp[$i],"@")) $to_addresses[] = trim($tmp[$i]);
+				}
+			} else {
+				$to_addresses[] = $email[$x];
+			}
+			$to = implode(', ', $to_addresses);
+
+			// Build headers
+			$mail_subject = "Kontoudtog fra $afsendernavn";
+			$headers = "From: $afsendernavn <$from>\r\n";
+			$headers .= "Reply-To: $afsendermail\r\n";
+			$headers .= "Bcc: $afsendermail\r\n";
+			$headers .= "MIME-Version: 1.0\r\n";
+			$headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
+
+			if(!mail($to, $mail_subject, $mime_body, $headers)){
+				echo "Fejl i afsendelse til $email[$x]<p>";
+				exit;
+			}
 			$sent_emails[] = $email[$x];
-#			sleep(2);
 		}	
 	}
-	for($x=1; $x<=$kontoantal; $x++) {
-		unlink("$tmpmappe/$x/kontoudtog.html");
-		rmdir("$tmpmappe/$x");
-	}
-	#	unlink("$tmpmappe/kontoudtog.html");
-	rmdir($tmpmappe);
 	return $sent_emails;
 }
 ?>
