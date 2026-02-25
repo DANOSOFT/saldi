@@ -40,7 +40,7 @@
 // 20260128 LOE - Fixed the debit and kredit titles relating to the new grid system.
 // 20260216 PHR - *1 -> (int)
 // 20260217 PHR Typo
-// 20260223 LOE Added drag-and-drop file upload to clip icons for direct voucher attachment
+// 20260223 Sawaneh Added drag-and-drop file upload to clip icons for direct voucher attachment
 
 ob_start(); //Starter output buffering
 
