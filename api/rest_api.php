@@ -496,6 +496,11 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	global $webservice;
 	global $regnaar;
 	
+	// havemøbelland
+	if($db == "pos_50"){
+		$lager = 10;
+	}
+
 	$varenr = NULL;
 	$linje_id = $ordresum = 0;
 	$shop_varenr = trim($shop_varenr);
