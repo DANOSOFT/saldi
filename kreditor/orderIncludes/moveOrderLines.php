@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php --- lap 4.0.7 --- 2023-02-06 ---
+// --- kreditor/orderIncludes/moveOrderLines.php --- lap 5.0.0 --- 2026-02-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2008-2023 Saldi.dk ApS
+// Copyright (c) 2008-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20230118 PHR Added '$mSQt[$x] !=	 0 && ' as orders with some qty less than 0 could not split. 
 // 20230206 PHR id_seq id now updated after inserting new orderlines.
+// 20260226 PHR Changed posnr=posnr+1000000 to posnr=posnr+1000 as posnr is smallint
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
@@ -66,7 +67,7 @@ else {
 	# Loop over each orderline
 	for ($x = 1; $x <= count($linje_id); $x++) {
 		if ($mQt[$x] && $antal[$x] == $mQt[$x]) {
-			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=posnr+100000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "UPDATE batch_kob SET ordre_id = '$newId' WHERE linje_id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -84,7 +85,7 @@ else {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			if (!$antal[$x]) $antal[$x] = 0;
 			if ($mQt[$x]) $antal[$x] = $antal[$x] - $mQt[$x];
-			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=posnr+100000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "UPDATE ordrelinjer SET antal = '$mQt[$x]', ordre_id = '$newId' WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -92,7 +93,7 @@ else {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		if ($mSQt[$x] && $antal[$x] == $mSQt[$x]) {
-			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=posnr+100000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "UPDATE batch_kob SET ordre_id = '$newId' WHERE linje_id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -110,7 +111,7 @@ else {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$antal[$x] = $antal[$x] - $mSQt[$x];
 			$leveret[$x] = $leveret[$x] - $mSQt[$x];
-			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=posnr+100000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "UPDATE ordrelinjer SET antal = '$mSQt[$x]', ordre_id = '$newId' WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
