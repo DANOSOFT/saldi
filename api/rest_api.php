@@ -566,7 +566,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$samlevare=$r['samlevare'];
-		fwrite($log,__line__." Vare_id $vare_id - Samlevare $samlevare\n");
+		if (!$varenr) $varenr=$r['varenr'];
+		fwrite($log,__line__." Vare_id $vare_id - Samlevare $samlevare - Varenr $varenr\n");
 		if ($saldi_variant) {
 			$qtxt="select variant_stregkode FROM variant_varer where id='$saldi_variant'";
 			fwrite($log,__line__." $qtxt\n");
@@ -683,8 +684,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			fwrite($log,__line__." Converted price from order currency to DKK: $shop_pris -> $pris (valutakurs=$ordre_valutakurs)\n");
 		}
 		
-		fwrite($log,__line__." opret_ordrelinje($ordre_id,$vare_id,".db_escape_string(chk4utf8($varenr)).",$antal,".db_escape_string(chk4utf8($beskrivelse)).",$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','',$discountType,'0','','',$lager,".__line__.")\n");
-		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','',$discountType,'0','','',$lager,__LINE__);
+		fwrite($log,__line__." opret_ordrelinje($ordre_id,$vare_id,".db_escape_string(chk4utf8($varenr)).",$antal,".db_escape_string(chk4utf8($beskrivelse)).",$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,".__line__.")\n");
+		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,__LINE__);
 		
 		fwrite($log,__line__." LineSum =  $lineSum\n");
 		$qtxt = "select max(id) as id from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '$vare_id'"; 
