@@ -2991,68 +2991,68 @@
 2991	Mentor	Mentor	Mentor
 2992	Skole	School	Skole
 2993	Afregn	Settle	Avregn
-2994	
-2995	
-2996	
-2997	
-2998	
-2999	
-3000	
-3001	
-3002	
-3003	
-3004	
-3005	
-3006	
-3007	
-3008	
-3009	
-3010	
-3011	
-3012	
-3013	
-3014	
-3015	
-3016	
-3017	
-3018	
-3019	
-3020	
-3021	
-3022	
-3023	
-3024	
-3025	
-3026	
-3027	
-3028	
-3029	
-3030	
-3031	
-3032	
-3033	
-3034	
-3035	
-3036	
-3037	
-3038	
-3039	
-3040	
-3041	
-3042	
-3043	
-3044	
-3045	
-3046	
-3047	
-3048	
-3049	
-3050	
-3051	
-3052	
-3053	
-3054	
-3055	
+2994	Løntype	Wage type	Lønnstype
+2995	Type	Type	Type
+2996	Km	Km	Km
+2997	Timetillæg	Hourly supplement	Timetillegg
+2998	Aconto	On account	Akonto
+2999	Kontorarbejde	Office work	Kontorarbeid
+3000	Regulering	Adjustment	Regulering
+3001	Betegnelse	Description	Betegnelse
+3002	Pris op	Price up	Pris opp
+3003	Pris ned	Price down	Pris ned
+3004	Stk.	Qty.	Stk.
+3005	Stykpris	Unit price	Stykkpris
+3006	Lønlinjer ialt	Pay lines&comma; total	Lønnslinjer i alt
+3007	Andet ialt	Other&comma; total	Annet i alt
+3008	Akkord ialt	Piecework&comma; total	Akkord i alt
+3009	Til fordeling	For distribution	Til fordeling
+3010	Afvis	Reject	Avvis
+3011	Afvist	Rejected	Avvist
+3012	Bekræft overførsel	Confirm transfer	Bekreft overføring
+3013	Bekræft godkendelse	Confirm approval	Bekreft godkjenning
+3014	Bekræft afvisning	Confirm rejection	Bekreft avvisning
+3015	Vil du afvise denne godkendte seddel?	Do you want to reject this approved slip?	Vil du avvise denne godkjente seddelen?
+3016	Sedlen er godkendt	The slip has been approved	Seddelen er godkjent
+3017	Sedlen er slettet	The slip has been deleted	Seddelen er slettet
+3018	Skriv årsag til afvisning og klik afvis igen	Enter reason for rejection and click reject again	Skriv begrunnelse for avvisning og klikk avvis igjen
+3019	Dato ikke udfyldt	Date not filled in	Dato ikke utfylt
+3020	Sagsnr. ikke valgt	Project no. not selected	Saksnr. ikke valgt
+3021	Opgave ikke valgt	Task not selected	Oppgave ikke valgt
+3022	Ferie fra-dato er ikke valgt	Holiday from-date is not selected	Ferie fra-dato er ikke valgt
+3023	Ferie til-dato er ikke valgt	Holiday to-date is not selected	Ferie til-dato er ikke valgt
+3024	Ferie fra- og til-dato er ikke valgt	Holiday from- and to-date are not selected	Ferie fra- og til-dato er ikke valgt
+3025	&apos;Udført&apos; er ikke udfyldt	&apos;Performed&apos; is not filled in	&apos;Utført&apos; er ikke utfylt
+3026	Afventer godk.	Awaiting appr.	Avventer godk.
+3027	Under indtast.	Being entered	Under registrering
+3028	Udført	Performed	Utført
+3029	Årsag til afvisning	Reason for rejection	Begrunnelse for avvisning
+3030	Afvist pga.	Rejected due to	Avvist pga.
+3031	Fra / Til	From / To	Fra / Til
+3032	Vis akkordliste	Show piecework list	Vis akkordliste
+3033	Under oplæring	In training	Under opplæring
+3034	Afr. på	Settled on	Avr. på
+3035	Aconto beløb	On account amount	Akonto beløp
+3036	Bekræft sletning	Confirm deletion	Bekreft sletting
+3037	Denne seddel er afvist af	This slip has been rejected by	Denne seddelen er avvist av
+3038	Der eksisterer allerede en uafsluttet akkordseddel	An unfinished piecework slip already exists	Det eksisterer allerede en uavsluttet akkordseddel
+3039	for den	for	for den
+3040	på sag nr.	on project no.	på sak nr.
+3041	opgave nr.	task no.	oppgave nr.
+3042	Der eksisterer allerede en uafsluttet akkordtimeseddel	An unfinished piecework hour slip already exists	Det eksisterer allerede en uavsluttet akkordtimeseddel
+3043	Der er allerede registreret skur	Site cabin already registered	Skur er allerede registrert
+3044	for medarb. nr.	for employee no.	for medarb. nr.
+3045	på seddel	on slip	på seddel
+3046	Anvendes hvis en anden sats end medarbejderens timeløn benyttes	Used when a rate other than the employee hourly wage is applied	Brukes når en annen sats enn medarbeiderens timelønn benyttes
+3047	Skur lav sats	Site cabin low rate	Skur lav sats
+3048	Skur høj sats	Site cabin high rate	Skur høy sats
+3049	Mentortillæg	Mentor supplement	Mentortillegg
+3050	Akkord seddel nr.	Piecework slip no.	Akkordseddel nr.
+3051	Fratrukket	Deducted	Fratrukket
+3052	Kilometer	Kilometres	Kilometer
+3053	Sagsadresse	Project address	Saksadresse
+3054	Med. nr.	Emp. no.	Med. nr.
+3055	Medarbejder navn	Employee name	Medarbeider navn
 3056	
 3057	
 3058	
