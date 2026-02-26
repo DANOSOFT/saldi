@@ -3390,10 +3390,11 @@ print "</form>";
 						$next_pos_query = db_select("SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 						$next_pos_row = db_fetch_array($next_pos_query);
 						$next_pos = $next_pos_row['next_pos'];
+						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
 						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id,forfaldsdate,betal_id, pos)";
 						$qtxt .= "values ";
-						$qtxt .= "('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
+						$qtxt .= "('$insert_bilag', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
 						$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', ";
 						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')";
 					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
@@ -3401,10 +3402,11 @@ print "</form>";
 						$next_pos_query = db_select("SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 						$next_pos_row = db_fetch_array($next_pos_query);
 						$next_pos = $next_pos_row['next_pos'];
+						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
 						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id, pos)";
 						$qtxt .= " values ";
-						$qtxt .= "('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
+						$qtxt .= "('$insert_bilag', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
 						$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', '$kladde_id', '$next_pos')";
 					}
 					if ($qtxt) {

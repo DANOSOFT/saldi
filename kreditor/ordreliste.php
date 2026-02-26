@@ -183,7 +183,7 @@ if ($valg == "forslag") {
     $status = "status = 0";
 } elseif ($valg == "faktura") {
     $status = "status >= 3";
-} elseif ($hurtigfakt) {
+} elseif ($hurtigfakt && $hurtigfakt == 'on') {
     $status = "status < 3";
 } else {
     $status = "(status = 1 OR status = 2)";
