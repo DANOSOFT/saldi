@@ -3808,7 +3808,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		if (!is_numeric($m_antal))
 			$m_antal = 0;
 		if (!$varegruppe) {
-			return ("Varenr $varenr et ikke tilknyttet en varegruppe!");
+			return ("Varenr $varenr er ikke tilknyttet en varegruppe!");
 		}
 		if (!$variant_id && in_array($vare_id, $variant_varer)) { //20181223
 			return ('Brug stregkode ved variant_varer');

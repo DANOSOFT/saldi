@@ -1107,7 +1107,6 @@ if ($b_submit) {
 	}
 	if (($godkend == "on") && ($status == 0) && ($art == 'DO' || $art == 'DK') && $sag_id) { # Kopi af original Tilbud. 20140716
 		$r = db_fetch_array(db_select("select tilbudnr from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
-		//cho "tilbudnr: $r[tilbudnr]"; exit();
 
 		$x = 0;
 		$q = db_select("select art from ordrer where tilbudnr = '$r[tilbudnr]'", __FILE__ . " linje " . __LINE__);
@@ -1115,7 +1114,7 @@ if ($b_submit) {
 			$art_tjk[$x] = $r['art'];
 			$x++;
 		}
-		//print_r ($art_tjk); exit();
+		
 		if (!$konto_id) { #20150302
 			if ($incl_moms) {
 				$qtxt = "grupper.box1 from grupper,adresser where";
@@ -1231,7 +1230,6 @@ if ($b_submit) {
 
 			for ($x = 1; $x <= $ordrelinjeantal; $x++) {
 				if ($ordrelinje_id[$x]) {
-					//print_r($ordrelinje_id);exit();
 					if ($pris_OT[$x] != NULL) {
 						$pris_tbl[$x] = "pris,";
 						$pris_value[$x] = "'$pris_OT[$x]',";
@@ -1324,7 +1322,6 @@ if ($b_submit) {
 						$folgevare_value[$x] = NULL;
 					}
 					db_modify("insert into ordrelinjer (varenr,beskrivelse,enhed,posnr,$pris_tbl[$x] $rabat_tbl[$x] lev_varenr,ordre_id,serienr,$vare_id_tbl[$x] $antal_tbl[$x] $leveres_tbl[$x] $leveret_tbl[$x] $bogf_konto_tbl[$x] oprettet_af,bogfort_af,hvem,tidspkt,$kred_linje_id_tbl[$x] momsfri,$momssats_tbl[$x] $kostpris_tbl[$x] samlevare,projekt,$m_rabat_tbl[$x] $rabatgruppe_tbl[$x] $folgevare_tbl[$x] kdo,rabatart,variant_id,procent) values ('$varenr_OT[$x]','$beskrivelse_OT[$x]','$enhed_OT[$x]','$posnr_OT[$x]',$pris_value[$x] $rabat_value[$x] '$lev_varenr_OT[$x]','$ordre_id','$serienr_OT[$x]',$vare_id_value[$x] $antal_value[$x] $leveres_value[$x] $leveret_value[$x] $bogf_konto_value[$x] '$oprettet_af_OT[$x]','$bogfort_af_OT[$x]','$hvem_OT[$x]','$tidspkt_OT[$x]',$kred_linje_id_value[$x] '$momsfri_OT[$x]',$momssats_value[$x] $kostpris_value[$x] '$samlevare_OT[$x]','$projekt_OT[$x]',$m_rabat_value[$x] $rabatgruppe_value[$x] $folgevare_value[$x] '$kdo_OT[$x]','$rabatart_OT[$x]','$variant_id_OT[$x]','$procent_OT[$x]')", __FILE__ . " linje " . __LINE__);
-					//db_modify("insert into ordrelinjer (varenr,beskrivelse,enhed,posnr,pris,rabat,lev_varenr,ordre_id,serienr,vare_id,antal,leveres,leveret,bogf_konto,oprettet_af,bogfort_af,hvem,tidspkt,kred_linje_id,momsfri,momssats,kostpris,samlevare,projekt,m_rabat,rabatgruppe,folgevare,kdo,rabatart,variant_id,procent) values ('$varenr[$x]','$beskrivelse[$x]','$enhed[$x]','$posnr[$x]','$pris[$x]','$rabat[$x]','$lev_varenr[$x]','$ordre_id','$serienr[$x]','$vare_id[$x]','$antal[$x]','$leveres[$x]','$leveret[$x]','$bogf_konto[$x]','$oprettet_af[$x]','$bogfort_af[$x]','$hvem[$x]','$tidspkt[$x]','$kred_linje_id[$x]','$momsfri[$x]','$momssats[$x]','$kostpris[$x]','$samlevare[$x]','$projekt[$x]','$m_rabat[$x]','$rabatgruppe[$x]','$folgevare[$x]','$kdo[$x]','$rabatart[$x]','$variant_id[$x]','$procent[$x]')",__FILE__ . " linje " . __LINE__);
 				}
 			}
 		}
@@ -1344,7 +1341,7 @@ if ($b_submit) {
 		#$posnr_ny[$x]=trim(if_isset($_POST[$y])); 
 		$rb = trim(if_isset($_POST[$y]));
 		$posnr_ny[$x] = (int)$rb; #20210719
-*/
+		*/
 		$posnr_ny[$x] = trim(if_isset($_POST[$y], 0));
 		if ($posnr_ny[$x] != "-" && $posnr_ny[$x] != "->" && $posnr_ny[$x] != "<-" && !strpos($posnr_ny[$x], '+')) {
 			if ($posnr_ny[$x] == '0') $posnr_ny[$x] = "0,01";
@@ -1480,11 +1477,11 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$qtxt = "select box6 from grupper where art='DG' and kodenr='$grp'";
 			($kontonr && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $rabatsats = $r['box6'] : $rabatsats == 0;
 		}
-#	} else {
-#		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
-#		// Reload the current page.
-#		header("Refresh:0");
-#		exit;
+	#	} else {
+	#		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
+	#		// Reload the current page.
+	#		header("Refresh:0");
+	#		exit;
 	}
 	if (strstr($b_submit, 'Slet')) {
 		slet_ordre($id);
@@ -1722,11 +1719,6 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$pris[$x] = 0;
 				$rabat[$x] = 0;
 			}
-			# -> udkommenteret 20180913	
-			#      elseif ((($antal[$x]>=0)&&($leveres[$x]<0))||(($antal[$x]<=0)&&($leveres[$x]>0))) {
-			#        print "<BODY onLoad=\"javascript:alert('Der skal v&aelig;re samme fortegen i antal og l&eacute;ver! (Position $posnr_ny[$x] nulstillet)')\">\n";
-			#        $leveres[$x]=0;
-			#      } 
 			elseif ($vare_id[$x] || isset($_GET['varenr'])) { #20241229
 				if ($art == 'DK') { # DK = Kreditnota
 					#          if ($antal[$x]>0) {
@@ -1760,7 +1752,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
 				}
 				if (
-					!$negativt_lager && $leveres[$x] > $beholdning[$x] && (!$hurtigfakt || $b_submit == "doInvoice") && $leveres[$x] > $beholdning[$x] && $leveres[$x] > 0 &&
+					!$negativt_lager && $leveres[$x] > $beholdning[$x] && (!$hurtigfakt || $b_submit == "doInvoice") && $leveres[$x] > 0 &&
 					db_fetch_array(db_select("select id from grupper where kodenr='$vare_grp[$x]' and art='VG' and box8='on' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__))
 				) {
 					if ($beholdning[$x] <= 0) $leveres[$x] = 0;
@@ -1835,7 +1827,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					$lagerfort = $r['box8'];
 				}
 				if ($lagerfort) {
-					$query = db_select("select * from batch_kob where linje_id = $linje_id[$x] and antal != 0", __FILE__ . " linje " . __LINE__);
+					$query = db_select("select 1 from batch_kob where linje_id = $linje_id[$x] and antal != 0 LIMIT 1", __FILE__ . " linje " . __LINE__); // SELECT 1 is more effective than select * for existance checks
 					if ($row = db_fetch_array($query)) {
 						$txt = findtekst('1839|Du kan ikke slette en varelinje, når der ér modtaget', $sprog_id) . $row['antal'] . ' varer fra linjen.';
 						alert("$txt");
@@ -1963,7 +1955,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 						}
 					}
 					$sum = $sum + ($pris[$x] - ($pris[$x] / 100 * $rabat[$x])) * $antal[$x];
-					if (!$leveres[$x]) $leveres[$x] = 0;
+					if (!isset($leveres[$x])) $leveres[$x] = 0;
 					elseif ($antal[$x] > 0 && $leveres[$x] > $antal[$x]) {
 						$leveres[$x] = $antal[$x];
 					} elseif ($leveres[$x] < 0) {
