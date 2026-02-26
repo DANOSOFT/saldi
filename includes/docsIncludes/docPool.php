@@ -3432,16 +3432,12 @@ JS;
 	
 	// Toggle header for upload section
 	print "<div id='uploadToggleHeader' onclick='toggleUploadSection()' style='display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background-color: $buttonColor; color: $buttonTxtColor; border-radius: 8px 8px 0 0; cursor: pointer; user-select: none;'>";
-	print "<span style='font-weight: 600; font-size: 13px;'><span style='margin-right: 6px;'>$svgUpload</span>".findtekst(1414, $sprog_id)."</span>";
-	print "<span style='font-size: 11px; opacity: 0.85; text-align: right; line-height: 1.4;'>";
-	print "<div style='display: flex;'>";
-	print "<div style='margin-right: 10px;'>";
+	print "<span style='font-weight: 600; font-size: 13px; flex-shrink: 0;'><span style='margin-right: 6px;'>$svgUpload</span>".findtekst(1414, $sprog_id)."</span>";
+	print "<span id='uploadToggleIcon' style='transition: transform 0.3s; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' width='28' height='28'><polyline points='6 9 12 15 18 9'></polyline></svg></span>";
+	print "<span style='font-size: 11px; opacity: 0.85; text-align: right; line-height: 1.4; flex-shrink: 0;'>";
 	print "<span style='display: block; font-weight: 400;'>".findtekst('2591|Bilag kan sendes til', $sprog_id)."</span>";
 	print "<a href='mailto:bilag_".$db."@".$_SERVER['SERVER_NAME']."' onclick='event.stopPropagation();' style='color: $buttonTxtColor; text-decoration: underline; font-weight: 600; word-break: break-all;'>bilag_".$db."@".$_SERVER['SERVER_NAME']."</a>";
 	print "</span>";
-	print "</div>";
-	print "<span id='uploadToggleIcon' style='transition: transform 0.3s; margin-left: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;'>$svgChevronDown</span>";
-	print "</div>";
 	print "</div>";
 
 	// Collapsible upload content
@@ -3662,7 +3658,7 @@ JS;
 			// Show
 			content.style.maxHeight = content.scrollHeight + 'px';
 			content.style.opacity = '1';
-			if (icon) icon.style.transform = 'rotate(0deg)';
+			if (icon) icon.style.transform = 'rotate(0deg)'; // pointing down when open
 			localStorage.setItem('docPoolUploadHidden', 'false');
 			// After animation, set to auto for dynamic content
 			setTimeout(function() {
@@ -3675,7 +3671,7 @@ JS;
 				content.style.maxHeight = '0';
 			}, 10);
 			content.style.opacity = '0';
-			if (icon) icon.style.transform = 'rotate(-90deg)';
+			if (icon) icon.style.transform = 'rotate(180deg)'; // pointing up when closed
 			localStorage.setItem('docPoolUploadHidden', 'true');
 		}
 	};
@@ -3689,7 +3685,7 @@ JS;
 		if (isHidden && content && icon) {
 			content.style.maxHeight = '0';
 			content.style.opacity = '0';
-			icon.style.transform = 'rotate(-90deg)';
+			icon.style.transform = 'rotate(180deg)'; // pointing up when closed
 		} else if (content) {
 			content.style.maxHeight = 'none';
 			content.style.opacity = '1';
