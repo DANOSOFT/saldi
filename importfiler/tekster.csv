@@ -3053,7 +3053,7 @@
 3053	Sagsadresse	Project address	Saksadresse
 3054	Med. nr.	Emp. no.	Med. nr.
 3055	Medarbejdernavn	Employee name	Medarbeidernavn
-3056	Transport	Transport	Transport
+3056	Transport	Transport	TransportLagerhistorik	Inventory history	Lagerhistorikk
 3057	Sum inkl. transport	Total incl. transport	Sum inkl. transport
 3058	Telttillæg	Tent surcharge	Telttillegg
 3059	Skjul lønsatser	Hide wage rates	Skjul lønnssatser
