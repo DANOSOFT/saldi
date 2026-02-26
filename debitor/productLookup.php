@@ -31,6 +31,10 @@ $find = if_isset($_GET, NULL, 'find');
 $bordnr = if_isset($_GET, NULL, 'bordnr');
 $afd_lager = if_isset($_GET, NULL, 'lager');
 
+// Get VAT settings from settings table
+$vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
+$vatBusinessCustomers = get_settings_value("vatBusinessCustomers", "ordre", "");
+
 // Handle product selection - redirect back to order
 if (isset($_GET['vare_id'])) {
     $vare_id = $_GET['vare_id'];
@@ -84,6 +88,23 @@ if (!$ref) {
     $ref = $brugernavn;
 }
 
+// Load order/customer VAT context if possible
+$kontotype = NULL;
+if ($id) {
+    $order_qtxt = "SELECT o.art, o.ref, o.momssats, a.kontotype
+                   FROM ordrer o
+                   LEFT JOIN adresser a ON a.id = o.konto_id
+                   WHERE o.id = '$id'";
+    if ($r = db_fetch_array(db_select($order_qtxt, __FILE__ . " linje " . __LINE__))) {
+        if (!$art) $art = $r['art'];
+        if (!$ref) $ref = $r['ref'];
+        if (!isset($momssats) || $momssats === '' || $momssats === NULL) {
+            $momssats = $r['momssats'];
+        }
+        $kontotype = $r['kontotype'];
+    }
+}
+
 // Get department and warehouse info
 $afd = 0;
 if (!$afd && $ref) {
@@ -120,6 +141,25 @@ if ($art == 'PO' && !strpos($_SERVER['PHP_SELF'], 'pos_ordre')) {
     $art = 'DO';
 }
 
+// Set VAT behavior and rate for lookup display
+if ($art == 'PO') {
+    $incl_moms = 'on';
+} else {
+    if ($kontotype == 'erhverv') {
+        $incl_moms = $vatBusinessCustomers;
+    } else {
+        $incl_moms = $vatPrivateCustomers;
+    }
+}
+if (!isset($momssats) || $momssats === '' || $momssats === NULL) {
+    if ($id) {
+        $momssats = find_momssats($id, NULL);
+    }
+}
+if ($momssats === '' || $momssats === NULL) {
+    $momssats = 25; // Fallback VAT rate
+}
+
 // Determine href for return links
 if ($art == 'DO' || $art == 'DK') {
     $href = "ordre.php";
@@ -150,14 +190,6 @@ $q = db_select("select kodenr from grupper where art='VG' and box7 = 'on' and fi
 while ($r = db_fetch_array($q)) {
     $momsfri[$x] = $r['kodenr'];
     $x++;
-}
-
-// Initialize variables
-if (!isset($incl_moms)) {
-    $incl_moms = ($art == 'PO') ? 'on' : '';
-}
-if (!isset($momssats)) {
-    $momssats = 25; // Default VAT rate, should be fetched from settings
 }
 
 // Get warehouses - use GROUP BY to ensure unique warehouse numbers
@@ -257,15 +289,19 @@ $columns[] = array(
     "align" => "right",
     "width" => "0.5",
     "sqlOverride" => "v.salgspris",
+    "valueGetter" => function ($value, $row, $column) {
+        return $value;
+    },
     "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager, $incl_moms, $momssats, $momsfri) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
         $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
         $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+        $basePrice = is_numeric($value) ? (float) $value : (float) str_replace(',', '.', $value);
         if ($incl_moms && !in_array($row['gruppe'], $momsfri)) {
-            $salgspris = $value + $value * $momssats / 100;
+            $salgspris = $basePrice + $basePrice * $momssats / 100;
         } else {
-            $salgspris = $value;
+            $salgspris = $basePrice;
         }
         $formatted = dkdecimal($salgspris, 2);
         return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$formatted</td>";
@@ -560,4 +596,3 @@ print "<script type=\"text/javascript\">
     });
 </script>";
 ?>
-
