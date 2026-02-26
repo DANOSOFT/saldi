@@ -292,6 +292,17 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$dfm_pickup_towns     = isset($_POST['dfm_pickup_town']) && is_array($_POST['dfm_pickup_town']) ? $_POST['dfm_pickup_town'] : array();
 		$dfm_pickup_zipcodes  = isset($_POST['dfm_pickup_zipcode']) && is_array($_POST['dfm_pickup_zipcode']) ? $_POST['dfm_pickup_zipcode'] : array();
 		$dfm_pickup_buttonnames = isset($_POST['dfm_pickup_buttonname']) && is_array($_POST['dfm_pickup_buttonname']) ? $_POST['dfm_pickup_buttonname'] : array();
+		
+		$dfm_pickup_ids = isset($_POST['dfm_pickup_id']) && is_array($_POST['dfm_pickup_id']) ? $_POST['dfm_pickup_id'] : array();
+		$dfm_pickup_users = isset($_POST['dfm_pickup_user']) && is_array($_POST['dfm_pickup_user']) ? $_POST['dfm_pickup_user'] : array();
+		$dfm_pickup_passes = isset($_POST['dfm_pickup_pass']) && is_array($_POST['dfm_pickup_pass']) ? $_POST['dfm_pickup_pass'] : array();
+		$dfm_pickup_agrees = isset($_POST['dfm_pickup_agree']) && is_array($_POST['dfm_pickup_agree']) ? $_POST['dfm_pickup_agree'] : array();
+		$dfm_pickup_hubs = isset($_POST['dfm_pickup_hub']) && is_array($_POST['dfm_pickup_hub']) ? $_POST['dfm_pickup_hub'] : array();
+		$dfm_pickup_ships = isset($_POST['dfm_pickup_ship']) && is_array($_POST['dfm_pickup_ship']) ? $_POST['dfm_pickup_ship'] : array();
+		$dfm_pickup_goods = isset($_POST['dfm_pickup_good']) && is_array($_POST['dfm_pickup_good']) ? $_POST['dfm_pickup_good'] : array();
+		$dfm_pickup_pays = isset($_POST['dfm_pickup_pay']) && is_array($_POST['dfm_pickup_pay']) ? $_POST['dfm_pickup_pay'] : array();
+		$dfm_pickup_sercodes = isset($_POST['dfm_pickup_sercode']) && is_array($_POST['dfm_pickup_sercode']) ? $_POST['dfm_pickup_sercode'] : array();
+		
 		$mySale             = if_isset($_POST['mySale']);
 		$mySaleLabel        = if_isset($_POST['mySaleLabel']);
 		$paperflow          = if_isset($_POST['paperflow']);
@@ -490,7 +501,16 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					'dfm_pickup_street2' => isset($dfm_pickup_street2s[$idx]) ? $dfm_pickup_street2s[$idx] : '',
 					'dfm_pickup_town' => isset($dfm_pickup_towns[$idx]) ? $dfm_pickup_towns[$idx] : '',
 					'dfm_pickup_zipcode' => isset($dfm_pickup_zipcodes[$idx]) ? $dfm_pickup_zipcodes[$idx] : '',
-					'dfm_pickup_buttonname' => isset($dfm_pickup_buttonnames[$idx]) ? $dfm_pickup_buttonnames[$idx] : ''
+					'dfm_pickup_buttonname' => isset($dfm_pickup_buttonnames[$idx]) ? $dfm_pickup_buttonnames[$idx] : '',
+					'dfm_id' => isset($dfm_pickup_ids[$idx]) ? $dfm_pickup_ids[$idx] : '',
+					'dfm_user' => isset($dfm_pickup_users[$idx]) ? $dfm_pickup_users[$idx] : '',
+					'dfm_pass' => isset($dfm_pickup_passes[$idx]) ? $dfm_pickup_passes[$idx] : '',
+					'dfm_agree' => isset($dfm_pickup_agrees[$idx]) ? $dfm_pickup_agrees[$idx] : '',
+					'dfm_hub' => isset($dfm_pickup_hubs[$idx]) ? $dfm_pickup_hubs[$idx] : '',
+					'dfm_ship' => isset($dfm_pickup_ships[$idx]) ? $dfm_pickup_ships[$idx] : '',
+					'dfm_good' => isset($dfm_pickup_goods[$idx]) ? $dfm_pickup_goods[$idx] : '',
+					'dfm_pay' => isset($dfm_pickup_pays[$idx]) ? $dfm_pickup_pays[$idx] : '',
+					'dfm_sercode' => isset($dfm_pickup_sercodes[$idx]) ? $dfm_pickup_sercodes[$idx] : ''
 				);
 				
 				foreach ($pickup_fields as $field_name => $field_value) {

@@ -3186,59 +3186,51 @@ function ordreside($id, $regnskab)
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					switch ($r['var_name']) {
-						case 'dfm_pickup_addr':
-							$dfm_pickup_addr     = $r['var_value'];
-							break;
-						case 'dfm_pickup_name1':
-							$dfm_pickup_name1    = $r['var_value'];
-							break;
-						case 'dfm_pickup_name2':
-							$dfm_pickup_name2    = $r['var_value'];
-							break;
-						case 'dfm_pickup_street1':
-							$dfm_pickup_street1  = $r['var_value'];
-							break;
-						case 'dfm_pickup_street2':
-							$dfm_pickup_street2  = $r['var_value'];
-							break;
-						case 'dfm_pickup_town':
-							$dfm_pickup_town     = $r['var_value'];
-							break;
-						case 'dfm_pickup_zipcode':
-							$dfm_pickup_zipcode  = $r['var_value'];
-							break;
+						case 'dfm_pickup_addr':     $dfm_pickup_addr     = $r['var_value']; break;
+						case 'dfm_pickup_name1':    $dfm_pickup_name1    = $r['var_value']; break;
+						case 'dfm_pickup_name2':    $dfm_pickup_name2    = $r['var_value']; break;
+						case 'dfm_pickup_street1':  $dfm_pickup_street1  = $r['var_value']; break;
+						case 'dfm_pickup_street2':  $dfm_pickup_street2  = $r['var_value']; break;
+						case 'dfm_pickup_town':     $dfm_pickup_town     = $r['var_value']; break;
+						case 'dfm_pickup_zipcode':  $dfm_pickup_zipcode  = $r['var_value']; break;
+						// Override global DFM credentials if specific ones exist for this pickup address
+						case 'dfm_id':      if (!empty($r['var_value'])) $dfm_id      = $r['var_value']; break;
+						case 'dfm_user':    if (!empty($r['var_value'])) $dfm_user    = $r['var_value']; break;
+						case 'dfm_pass':    if (!empty($r['var_value'])) $dfm_pass    = $r['var_value']; break;
+						case 'dfm_agree':   if (!empty($r['var_value'])) $dfm_agree   = $r['var_value']; break;
+						case 'dfm_hub':     if (!empty($r['var_value'])) $dfm_hub     = $r['var_value']; break;
+						case 'dfm_ship':    if (!empty($r['var_value'])) $dfm_ship    = $r['var_value']; break;
+						case 'dfm_good':    if (!empty($r['var_value'])) $dfm_good    = $r['var_value']; break;
+						case 'dfm_pay':     if (!empty($r['var_value'])) $dfm_pay     = $r['var_value']; break;
+						case 'dfm_sercode': if (!empty($r['var_value'])) $dfm_sercode = $r['var_value']; break;
 					}
 				}
 			} else {
 				// Fallback: try to get the first pickup address if no specific one selected
-				$qtxt = "select var_name, var_value, group_id from settings where var_grp='DFM_Pickup' order by group_id limit 7";
+				$qtxt = "select var_name, var_value, group_id from settings where var_grp='DFM_Pickup' order by group_id limit 17"; // Increased limit to grab credentials too potentially
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				$first_gid = null;
 				while ($r = db_fetch_array($q)) {
 					if ($first_gid === null) $first_gid = $r['group_id'];
 					if ($r['group_id'] != $first_gid) break; // Only get first group
 					switch ($r['var_name']) {
-						case 'dfm_pickup_addr':
-							$dfm_pickup_addr     = $r['var_value'];
-							break;
-						case 'dfm_pickup_name1':
-							$dfm_pickup_name1    = $r['var_value'];
-							break;
-						case 'dfm_pickup_name2':
-							$dfm_pickup_name2    = $r['var_value'];
-							break;
-						case 'dfm_pickup_street1':
-							$dfm_pickup_street1  = $r['var_value'];
-							break;
-						case 'dfm_pickup_street2':
-							$dfm_pickup_street2  = $r['var_value'];
-							break;
-						case 'dfm_pickup_town':
-							$dfm_pickup_town     = $r['var_value'];
-							break;
-						case 'dfm_pickup_zipcode':
-							$dfm_pickup_zipcode  = $r['var_value'];
-							break;
+						case 'dfm_pickup_addr':     $dfm_pickup_addr     = $r['var_value']; break;
+						case 'dfm_pickup_name1':    $dfm_pickup_name1    = $r['var_value']; break;
+						case 'dfm_pickup_name2':    $dfm_pickup_name2    = $r['var_value']; break;
+						case 'dfm_pickup_street1':  $dfm_pickup_street1  = $r['var_value']; break;
+						case 'dfm_pickup_street2':  $dfm_pickup_street2  = $r['var_value']; break;
+						case 'dfm_pickup_town':     $dfm_pickup_town     = $r['var_value']; break;
+						case 'dfm_pickup_zipcode':  $dfm_pickup_zipcode  = $r['var_value']; break;
+						// Override global DFM credentials if specific ones exist for this pickup address
+						case 'dfm_id':      if (!empty($r['var_value'])) $dfm_id      = $r['var_value']; break;
+						case 'dfm_user':    if (!empty($r['var_value'])) $dfm_user    = $r['var_value']; break;
+						case 'dfm_pass':    if (!empty($r['var_value'])) $dfm_pass    = $r['var_value']; break;
+						case 'dfm_agree':   if (!empty($r['var_value'])) $dfm_agree   = $r['var_value']; break;
+						case 'dfm_hub':     if (!empty($r['var_value'])) $dfm_hub     = $r['var_value']; break;
+						case 'dfm_ship':    if (!empty($r['var_value'])) $dfm_ship    = $r['var_value']; break;
+						case 'dfm_good':    if (!empty($r['var_value'])) $dfm_good    = $r['var_value']; break;
+						case 'dfm_pay':     if (!empty($r['var_value'])) $dfm_pay     = $r['var_value']; break;
+						case 'dfm_sercode': if (!empty($r['var_value'])) $dfm_sercode = $r['var_value']; break;
 					}
 				}
 			}
@@ -3264,6 +3256,15 @@ function ordreside($id, $regnskab)
 				$phone = $kontonr;
 				db_modify("update ordrer set phone = '$kontonr' where id = '$id'", __FILE__ . " linje " . __LINE__);
 			}
+			
+			// DEBUG: Log DFM credentials being used for this consignment
+			$debug_log = "/var/www/html/pblm/temp/debug_dfm_credentials.txt";
+			$log_msg = date('Y-m-d H:i:s') . " - Order ID: $id - Pickup Group: " . (isset($selected_pickup_group) ? $selected_pickup_group : 'Global/First') . "\n";
+			$log_msg .= "DFM ID: $dfm_id, User: $dfm_user, Pass: " . (!empty($dfm_pass) ? '***' : '') . ", Agree: $dfm_agree, Hub: $dfm_hub\n";
+			$log_msg .= "Pickup Addr: $dfm_pickup_addr, Name1: $dfm_pickup_name1, Town: $dfm_pickup_town\n";
+			$log_msg .= "--------------------------------------------------\n";
+			file_put_contents($debug_log, $log_msg, FILE_APPEND);
+
 			include "func/dfm_consignment.php";
 			$dfm_go = dfm_consignment(
 				$konto_id,

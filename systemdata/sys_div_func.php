@@ -794,7 +794,10 @@ function div_valg() {
 			$dfm_pickup_addresses[$gid] = array(
 				'addr' => '', 'name1' => '', 'name2' => '', 
 				'street1' => '', 'street2' => '', 'town' => '', 'zipcode' => '',
-				'buttonname' => ''
+				'buttonname' => '',
+				'dfm_id' => '', 'dfm_user' => '', 'dfm_pass' => '',
+				'dfm_agree' => '', 'dfm_hub' => '', 'dfm_ship' => '',
+				'dfm_good' => '', 'dfm_pay' => '', 'dfm_sercode' => ''
 			);
 		}
 		$field = str_replace('dfm_pickup_', '', $r['var_name']);
@@ -817,6 +820,7 @@ function div_valg() {
 		if ($r['var_name'] == 'dfm_pickup_town')    $dfm_pickup_town    = $r['var_value'];
 		if ($r['var_name'] == 'dfm_pickup_zipcode') $dfm_pickup_zipcode = $r['var_value'];
 	}
+
 	// If we have old-style data but no new-style, add it to the array
 	if ($has_old_style && empty($dfm_pickup_addresses) && $dfm_pickup_addr) {
 		$dfm_pickup_addresses[0] = array(
@@ -1156,6 +1160,16 @@ function div_valg() {
 				print "<tr><td title='$title_postnr'>$txt_postnr</td><td><input name='dfm_pickup_zipcode[$pickup_idx]' class='inputbox' style='width:100px;' type='text' value='" . htmlspecialchars($addr['zipcode']) . "'></td></tr>\n";
 				print "<tr><td title='$title_by'>$txt_by</td><td><input name='dfm_pickup_town[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['town']) . "'></td></tr>\n";
 				print "<tr><td title='$title_knap_navn'>$txt_knap_navn</td><td><input name='dfm_pickup_buttonname[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['buttonname'] ?? '') . "' placeholder='" . htmlspecialchars($addr['name1'] ?: $addr['town']) . "'></td></tr>\n";
+				print "<tr><td colspan='2' style='padding-top:10px;'><em>Specifikke DFM API-oplysninger for denne adresse (efterlad tom kasse for at bruge globale):</em></td></tr>\n";
+				print "<tr><td>DFM ClientID</td><td><input name='dfm_pickup_id[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_id'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM API-brugernavn</td><td><input name='dfm_pickup_user[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_user'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM API-password</td><td><input name='dfm_pickup_pass[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_pass'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM Aftalenummer</td><td><input name='dfm_pickup_agree[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_agree'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM Hub</td><td><input name='dfm_pickup_hub[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_hub'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Shippingtype (standard)</td><td><input name='dfm_pickup_ship[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_ship'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Godstype (standard)</td><td><input name='dfm_pickup_good[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_good'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Betalingmetode (standard)</td><td><input name='dfm_pickup_pay[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_pay'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Afleveringsmetode (standard)</td><td><input name='dfm_pickup_sercode[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_sercode'] ?? '') . "'></td></tr>\n";
 				print "</table>\n";
 				print "</div>\n";
 				$pickup_idx++;
@@ -1217,6 +1231,17 @@ function addDfmPickup() {
 	html += '<tr><td>' + dfmPickupLabels.postnr + '</td><td><input form=\"diverse\" name=\"dfm_pickup_zipcode[' + idx + ']\" class=\"inputbox\" style=\"width:100px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>' + dfmPickupLabels.by + '</td><td><input form=\"diverse\" name=\"dfm_pickup_town[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>' + dfmPickupLabels.knapNavn + '</td><td><input form=\"diverse\" name=\"dfm_pickup_buttonname[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td colspan=\"2\" style=\"padding-top:10px;\"><em>Specifikke DFM API-oplysninger for denne adresse (efterlad tom kasse for at bruge globale):</em></td></tr>';
+	html += '<tr><td>DFM ClientID</td><td><input form=\"diverse\" name=\"dfm_pickup_id[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM API-brugernavn</td><td><input form=\"diverse\" name=\"dfm_pickup_user[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM API-password</td><td><input form=\"diverse\" name=\"dfm_pickup_pass[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM Aftalenummer</td><td><input form=\"diverse\" name=\"dfm_pickup_agree[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM Hub</td><td><input form=\"diverse\" name=\"dfm_pickup_hub[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Shippingtype (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_ship[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Godstype (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_good[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Betalingmetode (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_pay[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Afleveringsmetode (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_sercode[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+
 	html += '</table></div>';
 	
 	container.insertAdjacentHTML('beforeend', html);
