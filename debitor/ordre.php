@@ -1998,6 +1998,41 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				if ((strpos($posnr_ny[$x], '+')) && ($id)) indsaet_linjer($id, $linje_id[$x], $posnr_ny[$x]);
 			}
 		}
+		// Handle lager changes from hovedvaren (samlevare='on') rendered with hv_* index
+		// The hovedvaren form fields use 'hv_X' prefix, so lager input is named 'lagrhv_X'
+		foreach ($_POST as $key => $val) {
+			if (strpos($key, 'lagrhv_') === 0 && $val !== '') {
+				$hv_saet = substr($key, 7); // Extract saet number from 'lagrhv_X'
+				$new_lager = $val;
+				// Convert lager name to number if needed
+				if (!is_numeric($new_lager)) {
+					for ($l = 0; $l < count($lagernr); $l++) {
+						if (strtolower($new_lager) == strtolower($lagernavn[$l])) {
+							$new_lager = $lagernr[$l];
+							break;
+						}
+					}
+				}
+				$new_lager = (int)$new_lager;
+				// Find the hovedvaren (samlevare='on') in this saet and update its lager
+				$qtxt = "SELECT id FROM ordrelinjer WHERE ordre_id='$id' AND saet='$hv_saet' AND samlevare='on' LIMIT 1";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				if ($r) {
+					$hv_linje_id = $r['id'];
+					db_modify("UPDATE ordrelinjer SET lager='$new_lager' WHERE id='$hv_linje_id'", __FILE__ . " linje " . __LINE__);
+					// Propagate lager to all underliggende varer (where samlevare = linje_id)
+					$q = db_select("SELECT id FROM ordrelinjer WHERE samlevare = '$hv_linje_id'", __FILE__ . " linje " . __LINE__);
+					while ($r2 = db_fetch_array($q)) {
+						db_modify("UPDATE ordrelinjer SET lager='$new_lager' WHERE id='$r2[id]'", __FILE__ . " linje " . __LINE__);
+					}
+					// Also propagate to all other items in the same saet (sub-items not linked by samlevare)
+					$q2 = db_select("SELECT id FROM ordrelinjer WHERE ordre_id='$id' AND saet='$hv_saet' AND id!='$hv_linje_id' AND (samlevare!='on' OR samlevare IS NULL OR samlevare='')", __FILE__ . " linje " . __LINE__);
+					while ($r3 = db_fetch_array($q2)) {
+						db_modify("UPDATE ordrelinjer SET lager='$new_lager' WHERE id='$r3[id]'", __FILE__ . " linje " . __LINE__);
+					}
+				}
+			}
+		}
 		// User clicked 'Opslag'
 		if (($posnr_ny[0]) && (!strstr($b_submit, 'Opslag'))) {
 			// Varenr is not set
