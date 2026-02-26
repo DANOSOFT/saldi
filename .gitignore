@@ -8,6 +8,8 @@ certs/*
 includes/connect.php
 testshop.php
 saldiinfo.php
+phpmailer
+vendor
 phpmailer/*
 */phpmailer/*
 includes/vendor/
@@ -16,6 +18,7 @@ bordplaner/bordplan_*
 debitor/pos_print/*_*.php
 helm/saldi/charts
 
+bilag
 bilag/
 includes/connect.php
 includes/temp/
