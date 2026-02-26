@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/insertAccount.php----patch 4.0.8 ----2024-06-26--
+// --- kreditor/ordreIncludes/insertAccount.php --- patch 5.0.0 --- 2026-02-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20230509 PHR php8
 // 20230718 LOE Minor modification
 // 20231207 PHR lock table while finding next ordrenr.
 // 20240626 PHR Added 'fiscal_year' in queries
+// 20270226 PHR $art set to 'KO' if empty
 
 if (!function_exists('insertAccount')) {
 function insertAccount($id, $konto_id) {
@@ -51,6 +52,7 @@ function insertAccount($id, $konto_id) {
 	if (!$lager)       $lager       = 0;
 	if (!$status)      $status      = 0;
 	if (!$sum)         $sum         = 0;
+	if (!$art)         $art         = 'KO';
 
 	$qtxt = "select * from adresser where id = '$konto_id'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
