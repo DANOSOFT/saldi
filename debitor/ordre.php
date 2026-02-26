@@ -63,6 +63,7 @@
 // 20260223 Sawaneh SD-335 fixed bynavn POST using wrong field ($_POST['tlf'] -> $_POST['bynavn'])
 // 20260223 Sawaneh SD-335 fixed SQL bug: lev_land/lev_email missing column names in UPDATE query
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address buttons (buttonname -> name1 -> town fallback)
+
 @session_start();
 $s_id = session_id();
 
