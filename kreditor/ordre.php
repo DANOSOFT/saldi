@@ -893,7 +893,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				}
 			}
 			if($submit != 'lookup' && $submit != 'split'){
-				$query = db_select("select tidspkt from ordrer where id=$id and hvem='$brugernavn'",__FILE__ . " linje " . __LINE__);
+				$query = db_select("select tidspkt from ordrer where id=$id and (hvem='$brugernavn' or hvem='' or hvem is null)",__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {
 					$qtxt="update ordrer set firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',postnr='$postnr',";
 					$qtxt.="bynavn='$bynavn',land='$land',kontakt='$kontakt',lev_navn='$lev_navn',";
@@ -915,7 +915,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				}else {
 					$query = db_select("select hvem from ordrer where id=$id and hvem != '' and hvem != '$brugernavn'",__FILE__ . " linje " . __LINE__);
 					if ($row = db_fetch_array($query)) {
-						print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">";
+						print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">"; 
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
 					}
 				}
