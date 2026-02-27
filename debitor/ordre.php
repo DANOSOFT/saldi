@@ -2307,7 +2307,8 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 			if ($variantId) {
 				$qtxt = "select variant_stregkode from variant_varer where id = '$variantId'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $vareNr = $r['variant_stregkode'];
-			} # <- 20211129 
+			} # <- 20211129
+			if (!$vareNr) $vareNr = $varenr[$x]; # Use original varenr if no variant stregkode
 			(strstr($b_submit, 'Kopi')) ? $tmp = $antal[$x] * 1 : $tmp = $antal[$x] * -1;
 			(strstr($b_submit, 'Kred')) ? $tmp2 = $linje_id[$x] : $tmp2 = '0';
 			if (!$momsfri[$x] && !$varemomssats[$x]) $varemomssats[$x] = $momssats;
