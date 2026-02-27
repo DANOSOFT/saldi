@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php -----patch 4.1.1 ----2025-09-03--------------
-//                           LICENSE
+// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-02-27 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20141119 PHR Tilføjet summer og bord
 // 20150305 PHR Tilføjet status.
@@ -48,6 +48,7 @@
 // 20230907 PHR PHP-8
 // 20243025 Sawaneh add rabat and gross profit columns
 // 20250903 PHR Added title for Bruttoavance
+// 20260226 PHR Kreditnota was not shown with 'straksbogfor'
 
 ob_start();
 @session_start();
@@ -523,7 +524,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	else $udvaelg=$udvaelg." and";
 	$x=0;
 	$id=array();
-	if ($straksbogfor) $qtxt="select * from ordrer $udvaelg (art = 'PO' or art = 'DO') order by $sort limit 10000";
+	if ($straksbogfor) $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
 	else $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
