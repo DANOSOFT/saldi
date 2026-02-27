@@ -3019,16 +3019,16 @@
 3019	Dato ikke udfyldt	Date not filled in	Dato ikke utfylt
 3020	Sagsnr. ikke valgt	Project no. not selected	Saksnr. ikke valgt
 3021	Opgave ikke valgt	Task not selected	Oppgave ikke valgt
-3022	Ferie fra-dato er ikke valgt	Holiday from-date is not selected	Ferie fra-dato er ikke valgt
-3023	Ferie til-dato er ikke valgt	Holiday to-date is not selected	Ferie til-dato er ikke valgt
-3024	Ferie fra- og til-dato er ikke valgt	Holiday from- and to-date are not selected	Ferie fra- og til-dato er ikke valgt
+3022	Ferie &apos;Fra&apos; er ikke valgt	Holiday &apos;From&apos; is not selected	Ferie &apos;Fra&apos; er ikke valgt
+3023	Ferie &apos;Til&apos; er ikke valgt	Holiday &apos;To&apos; is not selected	Ferie &apos;Til&apos; er ikke valgt
+3024	Ferie &apos;Fra&apos; og &apos;Til&apos; er ikke valgt	Holiday &apos;From&apos; and &apos;To&apos; are not selected	Ferie &apos;Fra&apos; og &apos;Til&apos; er ikke valgt
 3025	&apos;Udført&apos; er ikke udfyldt	&apos;Performed&apos; is not filled in	&apos;Utført&apos; er ikke utfylt
 3026	Afventer godk.	Awaiting appr.	Avventer godk.
 3027	Under indtast.	Being entered	Under registrering
 3028	Udført	Performed	Utført
 3029	Årsag til afvisning	Reason for rejection	Begrunnelse for avvisning
 3030	Afvist pga.	Rejected due to	Avvist pga.
-3031	Fra / Til	From / To	Fra / Til
+3031	Fra/Til	From/To	Fra/Til
 3032	Vis akkordliste	Show piecework list	Vis akkordliste
 3033	Under oplæring	In training	Under opplæring
 3034	Afr. på	Settled on	Avr. på
