@@ -478,7 +478,7 @@ function create_datagrid($id, $grid_data) {
 
     // Render dropdown script for interactions
     $dropdown_start = microtime(true);
-    render_dropdown_script($id, $query);
+   // render_dropdown_script($id, $query);
     log_grid_performance("Dropdown script rendering", $dropdown_start);
 
     // Final grid performance log
@@ -1066,13 +1066,13 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
  */
 function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
     // Define the possible row count options
-    $rowCounts = [50, 100, 250, 500, 1000, 5000, 999999999];
+    $rowCounts = [50, 100, 250, 500, 1200];
 
     // Build the options dynamically
     $options = '';
     foreach ($rowCounts as $count) {
         $selected = ($selectedrowcount == $count) ? 'selected' : '';
-        $label = ($count == 999999999) ? 'Alle' : $count; // Use "Alle" for the max value
+        $label = ($count == 1200) ? 'Alle' : $count; // Use "Alle" for the max value
         $options .= "<option value=\"$count\" $selected>$label</option>";
     }
 
@@ -1538,49 +1538,8 @@ STYLE;
 }
 
 
-/**
- * Outputs JavaScript code for handling various actions within the dropdown menu.
- *
- * This function generates a block of JavaScript code that provides functionalities
- * for different actions within a dropdown interface associated with a specific table.
- * It includes handling for showing SQL queries, clearing search fields, exporting
- * data to CSV and PDF, and managing the scroll position of the table.
- *
- * Supported actions:
- * - 'showSQL': Displays the SQL query in a table.
- * - 'clear': Clears the input fields matching the search pattern and submits the form.
- * - 'exportCSV': Exports the table data to a CSV file.
- * - 'exportPDF': Exports the table data to a PDF file.
- * - 'kolonner': Submits a form with the action to manage columns.
- * - 'filtre': Submits a form with the action to manage filters.
- *
- * Additionally, this function handles saving and restoring the scroll position
- * of the table to ensure a consistent user experience.
- *
- * @param string $id The unique identifier for the table, used to target specific elements in the DOM.
- * @param string $query The SQL query to display when the 'showSQL' action is triggered.
- * @return void Outputs the embedded JavaScript for handling dropdown actions and table behavior.
- */
-function render_dropdown_script($id, $query) {
-    echo <<<SCRIPT
-    <script>
-        function clearSearch{$id}() {
-            // Clear all search input values for this grid
-            document.querySelectorAll('input[name^="search[$id]"]').forEach(function(field) {
-                field.value = '';
-            });
 
-            // Trigger AJAX search with empty terms
-            if (typeof performAjaxSearch === 'function') {
-                performAjaxSearch('$id');
-            } else {
-                // Fallback: submit the form normally
-                document.querySelector('input[name^="search[$id]"]').form.submit();
-            }
-        }
-    </script>
-SCRIPT;
-}
+
 
 
 /**
@@ -1595,190 +1554,370 @@ SCRIPT;
 
 function render_ajax_search_script($id) {
     global $o_art_global, $fokus, $bgcolor, $bgcolor5, $ordre_id;
-    
-    $href = ($o_art_global === 'PO' || $o_art_global == 'KO') ? "pos_ordre.php" : "ordre.php";
-    
+
+    $href = ($o_art_global === 'PO' || $o_art_global === 'KO')
+        ? "pos_ordre.php"
+        : "ordre.php";
+
     if ($o_art_global === 'PO') {
         $fokus = 'kontonr';
     }
-    
+
     echo <<<SCRIPT
     <script>
-        // These are global so clearSearch can call performAjaxSearch
-        var currentRequest = null;
-        var isInitialDataLoaded = false;
+    // ── state ────────────────────────────────────────────────────────────────
+    var currentRequest_{$id} = null;
 
-        function getAllParameters(gridId) {
-            var params = {};
-            \$('form').first().find(
-                'input[name^="search[' + gridId + ']"], ' +
-                'input[name^="sort[' + gridId + ']"], ' +
-                'input[name^="offset[' + gridId + ']"], ' +
-                'input[name^="rowcount[' + gridId + ']"], ' +
-                'input[name^="menu[' + gridId + ']"]'
-            ).each(function() {
-                var name = \$(this).attr('name');
-                if (name) params[name] = \$(this).val();
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    /** Collect every grid-relevant parameter from the form */
+    function getAllParameters_{$id}() {
+        var params = {};
+
+        // Search inputs for THIS grid
+        document.querySelectorAll(
+            'input[name^="search[{$id}]"], ' +
+            'input[name^="sort[{$id}]"], ' +
+            'input[name^="offset[{$id}]"], ' +
+            'input[name^="menu[{$id}]"]'
+        ).forEach(function(el) {
+            params[el.name] = el.value;
+        });
+
+        // Row-count select
+        var rcSel = document.querySelector('select[name="rowcount[{$id}]"]');
+        if (rcSel) params['rowcount[{$id}]'] = rcSel.value;
+
+        return params;
+    }
+
+    /**
+     * Fully rebuilds the #navbuttons HTML and updates status text after every
+     * AJAX response.
+     *
+     * WHY: PHP renders footer buttons with HARDCODED onclick values, e.g.
+     *   onclick="setOffset_xxx(100)"
+     * Those never change after the initial render, so "next" was re-requesting
+     * the same page forever.  We must replace the button markup with fresh
+     * values based on the current offset returned by the server.
+     */
+    function updatePaginationInfo_{$id}(currentCount, totalRows, offset, rowsPerPage) {
+        offset      = parseInt(offset)      || 0;
+        rowsPerPage = parseInt(rowsPerPage) || 100;
+        totalRows   = parseInt(totalRows)   || 0;
+
+        var offsetFrom   = offset + 1;
+        var offsetTo     = Math.min(totalRows, offset + parseInt(currentCount));
+        var currentPage  = Math.floor(offset / rowsPerPage) + 1;
+        var totalPages   = Math.ceil(totalRows / rowsPerPage) || 1;
+        var prevOffset   = Math.max(0, offset - rowsPerPage);
+        var nextOffset   = offset + rowsPerPage;           // raw; clamped by disabled
+        var prevDisabled = (offset <= 0)                       ? 'disabled' : '';
+        var nextDisabled = (offset + rowsPerPage >= totalRows) ? 'disabled' : '';
+
+        // page-status text
+        var pageStatus = document.querySelector('#datatable-{$id} tfoot #page-status');
+        if (pageStatus) {
+            pageStatus.textContent = offsetFrom + '-' + offsetTo + ' af ' + totalRows;
+        }
+
+        // keep hidden offset field in sync
+        var offsetField = document.querySelector(
+            '#datatable-{$id} tfoot input[name="offset[{$id}]"]'
+        );
+        if (offsetField) offsetField.value = offset;
+
+        // rebuild navbuttons with live offset values so every click is correct
+        var navbuttons = document.querySelector('#datatable-{$id} tfoot #navbuttons');
+        if (!navbuttons) return;
+
+        var pageRange = 2;
+        var startPage = Math.max(1, currentPage - pageRange);
+        var endPage   = Math.min(totalPages, currentPage + pageRange);
+        var svgLeft   = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
+        var svgRight  = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
+
+        var html = '';
+
+        // prev arrow
+        html += '<button type="button" ' + prevDisabled +
+                ' onclick="setOffset{$id}(' + prevOffset + ')">' + svgLeft + '</button>';
+
+        // first-page shortcut
+        if (startPage > 1) {
+            html += '<button class="navbutton" type="button" onclick="setOffset{$id}(0)">1</button>';
+            if (startPage > 2) html += '<span>...</span>';
+        }
+
+        // numbered page buttons
+        for (var p = startPage; p <= endPage; p++) {
+            var pOffset = (p - 1) * rowsPerPage;
+            var active  = (p === currentPage) ? ' style="text-decoration:underline;"' : '';
+            html += '<button class="navbutton" type="button"' + active +
+                    ' onclick="setOffset{$id}(' + pOffset + ')">' + p + '</button>';
+        }
+
+        // last-page shortcut
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += '<span>...</span>';
+            var lastOffset = (totalPages - 1) * rowsPerPage;
+            html += '<button class="navbutton" type="button"' +
+                    ' onclick="setOffset{$id}(' + lastOffset + ')">' + totalPages + '</button>';
+        }
+
+        // next arrow
+        html += '<button type="button" ' + nextDisabled +
+                ' onclick="setOffset{$id}(' + nextOffset + ')">' + svgRight + '</button>';
+
+        navbuttons.innerHTML = html;
+    }
+
+    /**
+     * Mirrors PHP render_table_row()'s yellow highlight logic in JS.
+     * Reads the current value of search[{$id}][field] inputs so the
+     * highlighted term always matches what the user typed.
+     *
+     * @param {string} rawValue  - cell text (already HTML-escaped)
+     * @param {string} field     - column field name
+     * @returns {string} HTML with <span> wrappers around matched text
+     */
+    function highlightTerm_{$id}(rawValue, field) {
+        var input = document.querySelector('input[name="search[{$id}][' + field + ']"]');
+        if (!input) return rawValue;
+        var term = input.value.trim();
+        if (!term) return rawValue; 
+
+        
+     try {
+            var re = new RegExp(
+                term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'),
+                'gi'
+            );
+            return rawValue.replace(re, function(match) {
+                return '<span style="background-color:#FF0">' + match + '</span>';
             });
-            return params;
+        } catch (e) {
+            return rawValue;
+        }
+    }
+
+    /** Rebuild <tbody> from raw JSON rows */
+    function updateTableBody_{$id}(data, totalRows, offset, rowsPerPage) {
+        var tbody = document.querySelector('#datatable-{$id} tbody');
+        if (!tbody) return;
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML =
+                '<tr><td colspan="100" style="text-align:center;padding:20px;">' +
+                'No results found</td></tr>';
+
+            if (typeof toggleCreateForm === 'function') toggleCreateForm(true);
+            updatePaginationInfo_{$id}(0, totalRows, offset, rowsPerPage);
+            return;
         }
 
-        function updatePaginationButtons(gridId, offset, rowsPerPage, totalRows) {
-            var nextButton = \$('#datatable-' + gridId + ' tfoot button[onclick*="setOffset' + gridId + '"]').last();
-            var prevButton = \$('#datatable-' + gridId + ' tfoot button[onclick*="setOffset' + gridId + '"]').first();
-            
-            prevButton.prop('disabled', offset <= 0).css('opacity', offset <= 0 ? '0.5' : '1');
-            nextButton.prop('disabled', offset + rowsPerPage >= totalRows).css('opacity', offset + rowsPerPage >= totalRows ? '0.5' : '1');
-        }
+        if (typeof toggleCreateForm === 'function') toggleCreateForm(false);
 
-        function updatePaginationInfo(gridId, currentCount, totalRows, offset, rowsPerPage) {
-            var offsetFrom = parseInt(offset) + 1;
-            var offsetTo = Math.min(totalRows, parseInt(offset) + currentCount);
-            
-            var pageStatus = \$('#datatable-' + gridId + ' tfoot #page-status');
-            if (pageStatus.length) {
-                pageStatus.text(offsetFrom + '-' + offsetTo + ' af ' + totalRows);
+        var html = '';
+        data.forEach(function(row, index) {
+            var rowColor    = (index % 2 === 0) ? '{$bgcolor}' : '{$bgcolor5}';
+            var redirectUrl = '{$href}?id={$ordre_id}&fokus={$fokus}&konto_id=' + (row.id || '');
+
+            html += '<tr style="background-color:' + rowColor + ';cursor:pointer;"' +
+                    ' onclick="window.location.href=\'' + redirectUrl + '\'"' +
+                    ' onmouseover="this.style.backgroundColor=\'#f5f5f5\'"' +
+                    ' onmouseout="this.style.backgroundColor=\'' + rowColor + '\'">';
+
+            ['kontonr','firmanavn','addr1','addr2','postnr','bynavn','land','kontakt','tlf']
+            .forEach(function(field) {
+                // Escape first, then highlight so the highlight spans are not escaped
+                var safeVal = escapeHtml_{$id}(String(row[field] || ''));
+                var displayVal = highlightTerm_{$id}(safeVal, field);
+
+                if (field === 'kontonr') {
+                    html += '<td style="padding:4px;text-align:left;">' +
+                            '<a href="' + redirectUrl + '" style="color:inherit;text-decoration:none;display:block;">' +
+                            displayVal + '</a></td>';
+                } else {
+                    html += '<td style="padding:4px;text-align:left;">' +
+                            displayVal + '</td>';
+                }
+            });
+
+            html += '<td class="filler-row"></td></tr>';
+        });
+
+        // Filler rows to keep table height stable
+        var selectedRowCount = parseInt(
+            (document.querySelector('select[name="rowcount[{$id}]"]') || {value:100}).value
+        ) || 100;
+        if (selectedRowCount < 1000 && data.length < selectedRowCount) {
+            for (var i = 0; i < selectedRowCount - data.length; i++) {
+                html += '<tr style="background-color:unset;pointer-events:none;" class="filler-row">' +
+                        '<td colspan="100">-&nbsp;</td></tr>';
             }
-            
-            var offsetField = \$('#datatable-' + gridId + ' tfoot input[name="offset[' + gridId + ']"]');
-            if (offsetField.length) {
-                offsetField.val(offset);
-            }
-            
-            updatePaginationButtons(gridId, offset, rowsPerPage, totalRows);
         }
 
-        function updateTableBodyOnly(gridId, data, totalRows, offset, rowsPerPage) {
-            var tbody = \$('#datatable-' + gridId + ' tbody');
-            tbody.empty();
-            
-            if (!data || data.length === 0) {
-                tbody.html('<tr><td colspan="100" style="text-align:center; padding:20px;">No results found</td></tr>');
-                updatePaginationInfo(gridId, 0, totalRows, offset, rowsPerPage);
+        tbody.innerHTML = html;
+        updatePaginationInfo_{$id}(data.length, totalRows, offset, rowsPerPage);
+    }
+
+    function escapeHtml_{$id}(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // ── core AJAX function (called from everywhere) ───────────────────────────
+    function performAjaxSearch_{$id}(clearParam) {
+        // Abort any in-flight request
+        if (currentRequest_{$id} !== null) {
+            currentRequest_{$id}.abort();
+            currentRequest_{$id} = null;
+        }
+
+        var tbody = document.querySelector('#datatable-{$id} tbody');
+        if (tbody) {
+            tbody.innerHTML =
+                '<tr><td colspan="100" style="text-align:center;padding:20px;">' +
+                '<i>Loading...</i></td></tr>';
+        }
+
+        var params = getAllParameters_{$id}();
+        // Merge clearParam if provided
+        if (clearParam) {
+            for (var key in clearParam) {
+                params[key] = clearParam[key];
+            }
+        }
+        params['ajax']    = '1';
+        params['grid_id'] = '{$id}';
+
+        // Build query string
+        var qs = Object.keys(params).map(function(k) {
+            return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+        }).join('&');
+
+        var xhr = new XMLHttpRequest();
+        currentRequest_{$id} = xhr;
+
+        xhr.open('GET', '../debitor/accountLookupData.php?' + qs, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4) return;
+            currentRequest_{$id} = null;
+
+            if (xhr.status === 0) return; // aborted
+
+            if (xhr.status !== 200) {
+                if (tbody) tbody.innerHTML =
+                    '<tr><td colspan="100" style="text-align:center;padding:20px;color:red;">' +
+                    'Server error (' + xhr.status + ')</td></tr>';
                 return;
             }
-            
-            \$.each(data, function(index, row) {
-                var tr = \$('<tr>');
-                var rowColor = (index % 2 === 0) ? '$bgcolor' : '$bgcolor5';
-                tr.css('background-color', rowColor);
-                
-                var columns = ['kontonr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'land', 'kontakt', 'tlf'];
-                
-                \$.each(columns, function(i, field) {
-                    var td = \$('<td>').css({ 'cursor': 'pointer', 'padding': '4px', 'text-align': 'left' });
-                    
-                    if (field === 'kontonr') {
-                        var link = \$('<a>')
-                            .attr('href', '$href?id=$ordre_id&fokus=$fokus&konto_id=' + (row.id || ''))
-                            .text(row[field] || '')
-                            .css({ 'color': 'inherit', 'text-decoration': 'none', 'display': 'block' });
-                        td.append(link);
-                    } else {
-                        td.text(row[field] || '');
-                    }
-                    tr.append(td);
-                });
-                
-                tr.append(\$('<td>').addClass('filler-row'));
-                
-                tr.on('click', function(e) {
-                    if (!\$(e.target).is('a') && !\$(e.target).parents('a').length) {
-                        window.location.href = '$href?id=$ordre_id&fokus=$fokus&konto_id=' + (row.id || '');
-                    }
-                });
-                
-                tr.hover(
-                    function() { \$(this).css('background-color', '#f5f5f5'); },
-                    function() { \$(this).css('background-color', rowColor); }
-                );
-                
-                tbody.append(tr);
-            });
-            
-            var selectedRowCount = parseInt(\$('select[name="rowcount[' + gridId + ']"]').val()) || 100;
-            if (selectedRowCount < 1000 && data.length < selectedRowCount) {
-                for (var i = 0; i < selectedRowCount - data.length; i++) {
-                    var fillerRow = \$('<tr style="background-color: unset; pointer-events: none;" class="filler-row">');
-                    fillerRow.append(\$('<td colspan="100">').html('-&nbsp;'));
-                    tbody.append(fillerRow);
-                }
-            }
-            
-            updatePaginationInfo(gridId, data.length, totalRows, offset, rowsPerPage);
-        }
 
-        function performAjaxSearch(gridId) {
-            if (currentRequest !== null) {
-                currentRequest.abort();
-            }
-            
-            \$('#datatable-' + gridId + ' tbody').html('<tr><td colspan="100" style="text-align:center; padding:20px;"><i>Loading...</i></td></tr>');
-            
-            var allParams = getAllParameters(gridId);
-            allParams.ajax = '1';
-            allParams.grid_id = gridId;
-            
-            currentRequest = \$.ajax({
-                url: '../debitor/accountLookupData.php',
-                method: 'GET',
-                data: allParams,
-                dataType: 'json',
-                success: function(response) {
-                    currentRequest = null;
-                    if (response.success && response.data) {
-                        updateTableBodyOnly(gridId, response.data, response.totalRows, response.offset, response.rowsPerPage);
-                        isInitialDataLoaded = true;
-                    } else {
-                        \$('#datatable-' + gridId + ' tbody').html('<tr><td colspan="100" style="text-align:center; padding:20px; color:red;">No data found</td></tr>');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    currentRequest = null;
-                    if (status !== 'abort') {
-                        \$('#datatable-' + gridId + ' tbody').html('<tr><td colspan="100" style="text-align:center; padding:20px; color:red;">Search error: ' + error + '</td></tr>');
-                    }
+            try {
+                var response = JSON.parse(xhr.responseText);
+                if (response.success && response.data) {
+                    updateTableBody_{$id}(
+                        response.data,
+                        response.totalRows,
+                        response.offset,
+                        response.rowsPerPage
+                    );
+                } else {
+                    if (tbody) tbody.innerHTML =
+                        '<tr><td colspan="100" style="text-align:center;padding:20px;color:red;">' +
+                        'No data returned</td></tr>';
                 }
-            });
-        }
-
-        \$(document).ready(function() {
-            var searchTimeout;
-            var gridId = '$id';
-            
-            \$(document).on('input', 'input[name^="search[' + gridId + ']"]', function() {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(function() {
-                    performAjaxSearch(gridId);
-                }, 500);
-            });
-            
-            \$(document).on('keypress', 'input[name^="search[' + gridId + ']"]', function(e) {
-                if (e.which === 13) {
-                    e.preventDefault();
-                    clearTimeout(searchTimeout);
-                    performAjaxSearch(gridId);
-                }
-            });
-
-            // Override setOffset to use AJAX
-            var originalSetOffset = window['setOffset' + gridId];
-            if (originalSetOffset) {
-                window['setOffset' + gridId] = function(offset) {
-                    var offsetField = \$('input[name="offset[' + gridId + ']"]');
-                    if (offsetField.length) offsetField.val(offset);
-                    performAjaxSearch(gridId);
-                };
+            } catch (e) {
+                if (tbody) tbody.innerHTML =
+                    '<tr><td colspan="100" style="text-align:center;padding:20px;color:red;">' +
+                    'Parse error</td></tr>';
             }
-            
-            \$('select[name="rowcount[' + gridId + ']"]').off('change').on('change', function() {
-                \$('input[name="offset[' + gridId + ']"]').val(0);
-                performAjaxSearch(gridId);
-            });
+        };
+        xhr.send();
+    }
+
+    // Public alias used by clearSearch (called from render_dropdown_script)
+    function performAjaxSearch(gridId, clearParam) {
+        // if (gridId === '{$id}') performAjaxSearch_{$id}();
+        if (gridId === '{$id}') performAjaxSearch_{$id}(clearParam);
+    }
+
+    // ── clearSearch (also exported globally) ────────────────────────────────
+    function clearSearch{$id}() {
+        document.querySelectorAll('input[name^="search[{$id}]"]').forEach(function(el) {
+            el.value = '';
         });
+        // Reset to first page
+        var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+        if (offsetField) offsetField.value = 0;
+
+        performAjaxSearch_{$id}({ clear: 1 });
+    }
+
+    // ── setOffset: declared at SCRIPT SCOPE so onclick="setOffset{$id}(n)"
+    //    on footer buttons can call it the moment they fire, without waiting
+    //    for DOMContentLoaded.  render_pagination_script() must NOT also
+    //    declare this function (see replacement below).
+    function setOffset{$id}(offset) {
+        var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+        if (offsetField) offsetField.value = offset;
+        performAjaxSearch_{$id}();
+    }
+
+    // ── wire up events after DOM ready ───────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // Debounced search-as-you-type
+        var searchTimer_{$id};
+        document.addEventListener('input', function(e) {
+            var name = e.target && e.target.name;
+            if (!name || name.indexOf('search[{$id}]') === -1) return;
+
+            clearTimeout(searchTimer_{$id});
+            searchTimer_{$id} = setTimeout(function() {
+                var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+                if (offsetField) offsetField.value = 0;
+                performAjaxSearch_{$id}();
+            }, 400);
+        });
+
+        // Enter key fires immediately
+        document.addEventListener('keypress', function(e) {
+            var name = e.target && e.target.name;
+            if (!name || name.indexOf('search[{$id}]') === -1) return;
+            if (e.which === 13 || e.keyCode === 13) {
+                e.preventDefault();
+                clearTimeout(searchTimer_{$id});
+                var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+                if (offsetField) offsetField.value = 0;
+                performAjaxSearch_{$id}();
+            }
+        });
+
+        // Row-count select — clone to strip any leftover listeners from
+        // render_pagination_script's initializeRowCountHandler
+        var rcSel = document.querySelector('select[name="rowcount[{$id}]"]');
+        if (rcSel) {
+            var newSel = rcSel.cloneNode(true);
+            rcSel.parentNode.replaceChild(newSel, rcSel);
+            newSel.addEventListener('change', function() {
+                var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+                if (offsetField) offsetField.value = 0;
+                performAjaxSearch_{$id}();
+            });
+        }
+
+        // ── INITIAL LOAD ────────────────────────────────────────────────────
+        performAjaxSearch_{$id}();
+    });
     </script>
 SCRIPT;
 }
+
 
 /**
  * Outputs JavaScript code for setting the offset value in pagination.
@@ -1799,233 +1938,16 @@ SCRIPT;
 function render_pagination_script($id) {
     echo <<<SCRIPT
     <script>
-        function setOffset$id(offset) {
-            const offsetBox = document.getElementsByName('offset[$id]')[0];
-            if (offsetBox) {
-                offsetBox.value = offset;
-                submitGridForm$id();
+        // saveScrollPosition is still referenced in some inline onscroll handlers
+        function saveScrollPosition{$id}() {
+            var el = document.getElementById('datatable-wrapper-{$id}');
+            if (el) {
+                localStorage.setItem('scrollpos-datatable-{$id}', el.scrollTop);
             }
         }
-        
-        // Initialize event listeners when DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeRowCountHandler$id();
-        });
-        
-        function initializeRowCountHandler$id() {
-            const rowCountSelect = document.querySelector('select[name="rowcount[$id]"]');
-            if (rowCountSelect) {
-                // Store the current value before removing listeners
-                const currentValue = rowCountSelect.value;
-                
-                // Remove all existing event listeners by replacing the element
-                const newSelect = rowCountSelect.cloneNode(true);
-                rowCountSelect.parentNode.replaceChild(newSelect, rowCountSelect); 
-                
-                // Set the value on the new select element
-                newSelect.value = currentValue;
-                
-                // Add event listener to the new select
-                newSelect.addEventListener('change', function() {
-                     
-                    
-                    // Reset to first page when changing row count
-                    const offsetBox = document.getElementsByName('offset[$id]')[0];
-                    if (offsetBox) {
-                        offsetBox.value = 0;
-                    }
-                    
-                    // Submit via AJAX
-                    submitGridForm$id();
-                });
-                
-                
-            }
-        }
-        
-        function submitGridForm$id() {
-            const form = document.querySelector('#datatable-wrapper-$id form');
-            if (!form) {
-                
-                return;
-            }
-            
-            // Show loading indicator
-            showLoading$id(true);
-            
-            // Collect all form data
-            const formData = new FormData(form);
-            formData.append('ajax', '1');
-            formData.append('grid_id', '$id');
-            
-            // Add any additional parameters that might be in URL
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.forEach((value, key) => {
-                if (!formData.has(key)) {
-                    formData.append(key, value);
-                }
-            });
-            
-            // Send AJAX request
-            fetch('../debitor/accountLookupData.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    updateTableContent$id(data);
-                } else {
-                    
-                    // Fallback to regular form submission
-                    form.submit();
-                }
-            })
-            .catch(error => {
-                
-                // Fallback to regular form submission
-                form.submit();
-            })
-            .finally(() => {
-                showLoading$id(false);
-            });
-        }
-        
-        function showLoading$id(show) {
-            const wrapper = document.getElementById('datatable-wrapper-$id');
-            const tbody = document.querySelector('#datatable-$id tbody');
-            
-            if (show) {
-                // Add loading state
-                wrapper.classList.add('loading');
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="100" style="text-align:center; padding:20px;"><i>Loading...</i></td></tr>';
-                }
-            } else {
-                wrapper.classList.remove('loading');
-            }
-        }
-        
-       function updateTableContent$id(data) {
-            if (!data || !data.success) {
-                console.error('AJAX request failed:', data);
-                return;
-            }
-            
-            // Use the raw data to build HTML on the frontend
-            buildTableFromData$id(data.data, data.totalRows, data.offset, data.rowsPerPage);
-        }
-            ////////
-            function buildTableFromData$id(data, totalRows, offset, rowsPerPage) {
-                const tbody = document.querySelector('#datatable-$id tbody');
-                if (!tbody) return;
-                
-                let html = '';
-                
-                if (!data || data.length === 0) {
-                    html = '<tr><td colspan="100" style="text-align:center; padding:20px;">No results found</td></tr>';
-                    // Show create customer form when no results
-                    if (typeof toggleCreateForm === 'function') toggleCreateForm(true);
-                } else {
-                    // Hide create customer form when results exist
-                    if (typeof toggleCreateForm === 'function') toggleCreateForm(false);
-                    // Build table rows from raw data
-                    data.forEach((row, index) => {
-                        const rowColor = (index % 2 === 0) ? '#ffffff' : '#e0e0f0';
-                        const redirectUrl = '$href?id=$ordre_id&fokus=$fokus&konto_id=' + (row.id || '');
-                        html += '<tr style="background-color: ' + rowColor + '; cursor:pointer;" onclick="window.location.href=\'' + redirectUrl + '\'" onmouseover="this.style.backgroundColor=\'#f5f5f5\'" onmouseout="this.style.backgroundColor=\'' + rowColor + '\'">';
-                        
-                        const columns = ['kontonr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'land', 'kontakt', 'tlf'];
-                        columns.forEach(field => {
-                            html += '<td style="padding:4px;text-align:left;">' + (row[field] || '') + '</td>';
-                        });
-                        
-                        html += '<td class="filler-row"></td></tr>';
-                    });
-                }
-                
-                tbody.innerHTML = html;
-                updatePaginationInfo$id(data.length, totalRows, offset, rowsPerPage);
-            }
-
-            /// build table from data end
-        
-        function updatePaginationInfo$id(data) {
-            // Update the page status display
-            const offsetFrom = parseInt(data.offset) + 1;
-            const offsetTo = Math.min(data.totalRows, parseInt(data.offset) + data.rowsPerPage);
-            
-            const pageStatus = document.querySelector('#datatable-$id tfoot #page-status');
-            if (pageStatus) {
-                pageStatus.textContent = offsetFrom + '-' + offsetTo + ' af ' + data.totalRows;
-            }
-            
-            // Update pagination buttons state
-            updatePaginationButtons$id(data.offset, data.rowsPerPage, data.totalRows);
-        }
-        
-        function updatePaginationButtons$id(offset, rowsPerPage, totalRows) {
-            const currentPage = Math.floor(offset / rowsPerPage) + 1;
-            const totalPages = Math.ceil(totalRows / rowsPerPage);
-            
-            // Update next/previous button states
-            const nextButton = document.querySelector('#datatable-$id tfoot button:last-child');
-            const prevButton = document.querySelector('#datatable-$id tfoot button:first-child');
-            
-            if (prevButton) {
-                if (offset <= 0) {
-                    prevButton.disabled = true;
-                    prevButton.style.opacity = '0.5';
-                } else {
-                    prevButton.disabled = false;
-                    prevButton.style.opacity = '1';
-                }
-            }
-            
-            if (nextButton) {
-                if (offset + rowsPerPage >= totalRows) {
-                    nextButton.disabled = true;
-                    nextButton.style.opacity = '0.5';
-                } else {
-                    nextButton.disabled = false;
-                    nextButton.style.opacity = '1';
-                }
-            }
-        }
-        
-        function updateURL$id() {
-            // Update browser URL without reloading
-            if (history.pushState) {
-                const url = new URL(window.location);
-                const form = document.querySelector('#datatable-wrapper-$id form');
-                
-                if (form) {
-                    const formData = new FormData(form);
-                    
-                    // Update URL parameters for this grid
-                    for (let [key, value] of formData.entries()) {
-                        if (key.includes('[$id]')) {
-                            url.searchParams.set(key, value);
-                        }
-                    }
-                    
-                    history.pushState({}, '', url);
-                }
-            }
-        }
-        
-        function saveScrollPosition() {
-            var element = document.getElementById('datatable-wrapper-$id');
-            if (element) {
-                var scrollKey = 'scrollpos-datatable-$id';
-                localStorage.setItem(scrollKey, element.scrollTop);
-            }
-        }
+        // setOffset{$id} is intentionally NOT declared here.
+        // It is declared in render_ajax_search_script() at script scope
+        // so that footer button onclick="setOffset{$id}(n)" works immediately.
     </script>
 SCRIPT;
 }
@@ -2044,15 +1966,25 @@ SCRIPT;
 function render_sort_script($id) {
     echo <<<SCRIPT
     <script>
-        function setSort$id(header) {
-            const sortBox = document.getElementsByName('sort[$id]')[0];
-            if (sortBox.value !== header) {
-                sortBox.value=header;
-            } else if (sortBox.value === header) {
-                sortBox.value=header + " desc";
-            }
-            sortBox.form.submit();
+    function setSort{$id}(header) {
+        var sortBox = document.querySelector('input[name="sort[{$id}]"]');
+        if (!sortBox) return;
+
+        if (sortBox.value === header) {
+            sortBox.value = header + ' desc';
+        } else if (sortBox.value === header + ' desc') {
+            sortBox.value = header;
+        } else {
+            sortBox.value = header;
         }
+
+        var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+        if (offsetField) offsetField.value = 0;
+
+        if (typeof performAjaxSearch_{$id} === 'function') {
+            performAjaxSearch_{$id}();
+        }
+    }
     </script>
 SCRIPT;
 }
