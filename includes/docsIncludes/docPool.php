@@ -1348,6 +1348,24 @@ print <<<JS
 (() => {
     let docData = [];
     let currentSort = { field: 'date', asc: false };
+
+    // Helper: parse amount string to float, handling English format (1,000.00) correctly
+    function parseAmountToFloat(val) {
+        if (!val) return NaN;
+        var s = val.toString().trim();
+        // If it has both commas and dots, and the last dot comes after the last comma,
+        // it's English format (commas are thousands separators) - strip commas
+        var lastComma = s.lastIndexOf(',');
+        var lastDot = s.lastIndexOf('.');
+        if (lastComma !== -1 && lastDot !== -1 && lastDot > lastComma) {
+            // English format: 1,000.00 -> 1000.00
+            s = s.replace(/,/g, '');
+        } else if (lastComma !== -1 && lastDot === -1) {
+            // Only comma, could be Danish decimal: 1000,50 -> 1000.50
+            s = s.replace(',', '.');
+        }
+        return parseFloat(s);
+    }
     const containerId = 'fileListContainer';
 		// Get poolFile from URL if present (user clicked on a row), otherwise null (no auto-selection)
 		const urlParams = new URLSearchParams(window.location.search);
@@ -1680,7 +1698,7 @@ print <<<JS
 			const docsWithAmounts = [];
 			for (let i = 0; i < docData.length; i++) {
 				const row = docData[i];
-				const normalizedAmount = parseFloat(row.amount);
+				const normalizedAmount = parseAmountToFloat(row.amount);
 				const rowDate = normalizeDate(row.date);
 				const filename = row.filename || '';
 				
@@ -1842,7 +1860,7 @@ print <<<JS
 			}
 
 			// Check if this row's amount matches the target amount
-			const normalizedAmount = parseFloat(row.amount);
+			const normalizedAmount = parseAmountToFloat(row.amount);
 			const isAmountMatch = hasAmountToMatch && !isNaN(normalizedAmount) && Math.abs(normalizedAmount - normalizedTotal) < 0.01;
 			
 			// Check if this row's date matches the target date
@@ -1874,7 +1892,7 @@ print <<<JS
 			}
 
 			// Format amount to Danish format for display
-			let parsedAmt = parseFloat(row.amount);
+			let parsedAmt = parseAmountToFloat(row.amount);
 			let formattedAmount = (!isNaN(parsedAmt) && row.amount) ? parsedAmt.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : (row.amount || '');
 
 			// Format amount with match indicator
@@ -2115,7 +2133,7 @@ print <<<JS
 				const docsWithAmounts = [];
 				for (let i = 0; i < docData.length; i++) {
 					const row = docData[i];
-					const normalizedAmount = parseFloat(row.amount);
+					const normalizedAmount = parseAmountToFloat(row.amount);
 					const filename = row.filename || '';
 					
 					// Normalize row date
@@ -2862,7 +2880,8 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
         const inputEvents = "onclick='" + stopPropagation + "' onmousedown='" + stopPropagation + "' onmouseup='" + stopPropagation + "' onmousemove='" + stopPropagation + "'";
         
         // Show amount in Danish format in the input field
-        const displayAmount = amount ? amount.toString().replace(/\./g, 'TEMP_DOT').replace(/,/g, '.').replace(/TEMP_DOT/g, ',') : '';
+        var parsedDisplayAmt = parseAmountToFloat(amount);
+        const displayAmount = (!isNaN(parsedDisplayAmt) && amount) ? parsedDisplayAmt.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : (amount || '');
         
         cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(displayAmount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
