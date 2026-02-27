@@ -1917,8 +1917,10 @@ if ($varenr && $samlevare == 'on') {
 } elseif ($varenr) {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
     $txt2049 = findtekst('2049|Leverandøropslag', $sprog_id); //Leverandøropslag
+    $txt3056 = findtekst('2954|Lagerhistorik', $sprog_id); //Lagerhistorik
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;' $noEdit></td>";
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=button accesskey='o' value='$txt3056' name='stockHistory' onclick='javascript:docChange = false;location.href = \"productCardIncludes/stockLog.php?id=$id\"'></td>";
 }
 if ($id) {
     $txt1099 = findtekst('1099|Slet', $sprog_id); //Slet
