@@ -28,6 +28,15 @@
 
 // Change the column type to VARCHAR(20)
 
+$qtxt = "select id, ordredate from ordrer where art = ''";
+#cho "$qtxt<br>";
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+	if ($r['orderdate'] >= '2026-01-01') {
+		$qtxt = "update orders set art = 'KO' where id = '$r[id]'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+}
 $qtxt = "select id from settings where var_grp = 'colors' and var_value = '#' limit 1";
 if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "delete from settings where var_grp = 'colors'";
@@ -36,8 +45,9 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' limit 1";
 if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'table_id' and data_type != 'TEXT'";
-	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'table_id'";
+	$r=db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if (strtolower($r['data_type']) != 'text') {
 		$qtxt = "ALTER TABLE datatables ALTER COLUMN tabel_id TYPE TEXT";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
