@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- lap 4.1.1 --- 2025-03-24 ---
+// --- finans/rapport.php --- lap 5.0.0 --- 2026-02-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,37 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk ApS
+// Copyright (c) 2003-2026 saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 20120927 Hvis budgettal indsat og konto lukket blev konto alligevel vist under budget
-// 20130210 Break ændret til break 1
-// 20130918	Diverse tilretninger til simulering - Søg $simulering
-// 20130919	Fejl i søgefunktion ved opdelte projektnumre. Søg 20130919
-// 20140729 Listeangivelse ændret fra kvartal til måned - ca. Søg 20140729
-// 20140825 Resultatkonto viste årssaldo uanset om den var valgt periode. PHR Søg 20140825
-// 20140909 Resultat fra resultatkto kom ikke med i sum. PHR Søg 20140909
-// 20150104 Tilføjet dynamisk vagerværdi - Søg /*aut_lager*/
-// 20150125 Fejl i lagerberegning i statusrapport- lagetræk blev lagt til værdi, ombyttet + & - - Søg 20150125
-// 20150408 Fejl i lagerberegning i statusrapport- medtog sidste dag i foregående md - tilføjet 'start'/'slut' til find_lagervaerdi. Søg find_lagervaerdi
-// 20150825 Transaktioner med ens bilag, tekst og kontonummer blev samlet sammen til linje. Ved ikke hvorfor men det gør det svært at kontrollere bank
-// 20151001 Sat fast bredde på felter i overskrifter.
-// 20160116	Diverse i forbindelse med indførelse af valutakonti	Søg 'valuta'
-// 20160515 Oprydning dk- og uscecimal, indsat ',2'
-// 20170516 PHR Fakturadate ændret til kobsdate i søgning efter lagerbevægelser for bedre overensstemmelse med svar fra 'find_lagervaerdi' Søg 20170516
-// 20180226 PHR - Bortkommenteret if (!$dim) så primo vises på afdelinger.
-// 20180424 PHR - Tilføjet "regnskab" (Resultat + bufget i et).
-// 20181031 PHR - Tilføjet  "&& $kontotype[$x]=='D'" så den kun søger i driftskonti da der kan ligge budgettal i andre konti hvis kontoplan ændret. 20181031
-// 20181220 MSC - Rettet topmenu design til
-// 20181221 MSC - Rettet topmenu design til og rettet isset fejl
-// 20190207 MSC - Rettet array fejl (linje 815) - rettelse (linje 813)
-// 20190220 PHR tilføjet " || ($kontotype[$x] == 'Z' && $x==$kontoantal) " Da balancekonto ellers ikke vises hvis sum=0 - 20190220
-// 20190412 PHR Moved functions to 'rapport_includes' and added 'Resultat/Sidste år' 
-// 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0' 
 // 20210110 PHR some minor changes related til 'deferred financial year'
 // 20230611 +20230619 PHR php8
 // 20240403 PHR Changet bankReconcile to $[POST]
 // 20241018 LOE Checks that some variables are set before using and other minore modifications
+// 20260227 PHR Moved include("../includes/row-hover-style.js.php") down as it broke saf-t and other using header 
 
 @session_start();
 $s_id = session_id();
@@ -63,7 +40,6 @@ include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-include("../includes/row-hover-style.js.php");
 
 $aar_fra = "";
 $maaned_fra = "";
@@ -320,17 +296,16 @@ if (!$aar_fra || !$aar_til) {
 if ($submit == 'saft') {
 	header("Location: saft.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
-}
-if ($submit == 'regnskabbasis') {
+} elseif ($submit == 'regnskabbasis') {
 	header("Location: regnskabbasis.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
-}
-if (isset($bankReconcile) && $bankReconcile) {
+} elseif (isset($bankReconcile) && $bankReconcile) {
 	header("Location: bankReconcile.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
+} else {
+	include("../includes/row-hover-style.js.php");
+	include("rapport_includes/$submit.php");
 }
-include("rapport_includes/$submit.php");
-
 $submit($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev);
 #################################################################################################
 function kontobemaerkning($l_kontonavn)
