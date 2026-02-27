@@ -14,7 +14,6 @@ try {
     if (!function_exists('db_escape_string')) {
         throw new Exception('Database functions not loaded');
     }
-
     // Get grid ID from request - use $_REQUEST for both GET/POST
     $grid_id = $_REQUEST['grid_id'] ?? 'account_lookup';
 
@@ -30,8 +29,20 @@ try {
         'menu' => $_REQUEST['menu'][$grid_id] ?? 'main',
         'o_art' => $_REQUEST['o_art'] ?? null,
         'direction' => $_REQUEST['direction'] ?? 'ASC',
-        'ajax' => $_REQUEST['ajax'] ?? '0'
+        'ajax'  => $_REQUEST['ajax']  ?? '0',
+        'clear' => $_REQUEST['clear'] ?? '0',   
+        
     ];
+
+    $isClear = $requestParams['clear'] === '1';
+
+    if ($isClear) {
+            //  reset saved search in DB
+        db_modify("UPDATE datatables SET search_setup = '{}' 
+                WHERE tabel_id = '" . db_escape_string($grid_id) . "' 
+                AND user_id = '$bruger_id'",
+                __FILE__ . " linje " . __LINE__);
+    }
 
     // Check if this is a search action (has search parameters or is not just pagination)
     $hasSearchParams = !empty(array_filter($requestParams['search']));
@@ -56,6 +67,10 @@ try {
     // Handle rowcount - only update DB if it's a search action
     $rowcount = $requestParams['rowcount'];
     error_log("Rowcount from request: " . var_export($ss, true));
+    // check if rowcount is > 1200 and if so, set it to 1200
+    if (is_numeric($ss) && $ss > 1200) {
+        $rowcount = 1200; 
+    }
     if ($rowcount !== null) {
         $shouldModifyDatabase = true;
         // Only update database when there's a search action

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-23--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-25--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20260212 PHR Disabled popup checker
 // 20260216 LOE Updated delivery note navigation behaviour. 20260220 + location
 // 20260223 AJ Updated Revenue and cover ratio to match
+// 20260225 LOE Added initialized shop link  for shop pickup display
 
 @session_start();
 $s_id = session_id();
@@ -1553,7 +1554,7 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
     $api_fil=trim($r['box4']);
     $api_fil2=trim($r['box5']);
     $api_fil3=trim($r['box6']);
-    
+   $show_shop_link = true; 
     if (file_exists("../temp/$db/shoptidspkt.txt")) {
         $fp=fopen("../temp/$db/shoptidspkt.txt","r");
         $tidspkt=fgets($fp);
@@ -2126,7 +2127,7 @@ if ($valg == "ordrer") {
 
 // Add Shop Fetch Link if active 
 if ($show_shop_link) {
-    print "  <a href='ordreliste.php?sort=$sort&hent_nu=1&valg=$valg'>" . findtekst('879|Hent ordrer', $sprog_id) . "</a>";
+    print "  <a href='ordreliste.php?hent_nu=1&valg=$valg'>" . findtekst('879|Hent ordrer', $sprog_id) . "</a>";
 }
 
 print "</div>";  // END LEFT
