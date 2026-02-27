@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-25 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,7 @@
 // 20260223 Sawaneh SD-335 fixed SQL bug: lev_land/lev_email missing column names in UPDATE query
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address buttons (buttonname -> name1 -> town fallback)
 // 20250225 PHR Order taken by ---
+// 20250227 PHR if (isset($kontonr)) changet to if (isset($kontonr) && $kontonr)
 
 @session_start();
 $s_id = session_id();
@@ -1419,7 +1420,7 @@ if ($b_submit) {
 }
 if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $b_submit) {
 	$rabatsats = 0;
-	if (isset($kontonr)) {
+	if (isset($kontonr) && $kontonr) {
 		$qtxt = "select gruppe from adresser,grupper where kontonr='$kontonr' ";
 		$qtxt .= "and adresser.art='D'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2307,8 +2308,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 			if ($variantId) {
 				$qtxt = "select variant_stregkode from variant_varer where id = '$variantId'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $vareNr = $r['variant_stregkode'];
-			} # <- 20211129
-			if (!$vareNr) $vareNr = $varenr[$x]; # Use original varenr if no variant stregkode
+			} # <- 20211129 
 			(strstr($b_submit, 'Kopi')) ? $tmp = $antal[$x] * 1 : $tmp = $antal[$x] * -1;
 			(strstr($b_submit, 'Kred')) ? $tmp2 = $linje_id[$x] : $tmp2 = '0';
 			if (!$momsfri[$x] && !$varemomssats[$x]) $varemomssats[$x] = $momssats;
