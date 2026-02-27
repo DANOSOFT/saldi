@@ -252,7 +252,6 @@ if ($nysort == 'sum_m_moms') $nysort = 'sum';
 $sort = str_replace("ordrer.", "", $sort);
 if ($sort && $nysort == $sort) $sort = $sort . " desc";
 elseif ($nysort) $sort = $nysort;
-db_modify("update ordrer set betalt = '0' where betalt is NULL", __FILE__ . " linje " . __LINE__);
 
 $r2 = db_fetch_array(db_select("select max(id) as id from grupper", __FILE__ . " linje " . __LINE__));
 
