@@ -26,7 +26,7 @@ function satser() {
 		$km_sats         = usdecimal($_POST['km_sats']);
 		$km_fra          = usdecimal($_POST['km_fra']);
 		$overtid_50pct   = usdecimal($_POST['overtid_50pct']);
-		$overtid_100pct   = usdecimal($_POST['overtid_100pct']);
+		$overtid_100pct  = usdecimal($_POST['overtid_100pct']);
 		//barsel
 		
 		$qtxt = "select id from settings where var_name = 'hideSalary'";
@@ -108,91 +108,91 @@ function satser() {
 	print "<div class=\"content\">\n";
 		print "<form name=\"loensatser\" action=\"loen.php?funktion=satser\" method=\"post\">\n";
 			print "<div style=\"float:left; width:778px;\">\n";
-				print "<h3>Satser</h3>\n";
+				print "<h3>".findtekst('2782|Satser', $sprog_id)."</h3>\n";
 				print "<div style=\"float:left; width:389px;\">\n";
 					print "<div class=\"contentA\">\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">Skjul lønsatser</div>
+								<div class=\"leftLarge\">".findtekst('3059|Skjul lønsatser', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\">
 								<input type=\"checkbox\" class=\"textMediumLarge\" style=\"text-align:right;width:80px\" 
-								title=\"Skjuler lønsatser på lønseddel\" name=\"hideSalary\" $hideSalary></div>
+								title=\"".findtekst('3060|Skjuler lønsatser på lønseddel', $sprog_id)."\" name=\"hideSalary\" $hideSalary></div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">Skur - lav sats</div>
+								<div class=\"leftLarge\">".findtekst('3047|Skur - lav sats', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"skur1\" value=\"".dkdecimal($skur1,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">Skur - høj sats</div>
+								<div class=\"leftLarge\">".findtekst('3048|Skur - høj sats', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"skur2\" value=\"".dkdecimal($skur2,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">Sygdom, timesats</div>
+								<div class=\"leftLarge\">".findtekst('2806|Sygdom', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"sygdom\" value=\"".dkdecimal($sygdom,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">Skole, timesats</div>
+								<div class=\"leftLarge\">".findtekst('2992|Skole', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"skole\" value=\"".dkdecimal($skole,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">Plads, timesats</div>
+								<div class=\"leftLarge\">".findtekst('2812|Plads', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"plads\" value=\"".dkdecimal($plads,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\" title=\"Vælg dato for 1. dag i 1. lønperiode\">Periodestart</div>
+								<div class=\"leftLarge\" title=\"".findtekst('3062|Vælg dato for 1. dag i 1. lønperiode', $sprog_id)."\">".findtekst('2356|Periodestart', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"periode\" value=\"".dkdato($periode)."\"></div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\" title=\"Oplæringperiode for nye medarbejdere uden branchekendskab\">
-								Oplæringsperiode (mdr)</div>
+								<div class=\"leftLarge\" title=\"".findtekst('3064|Oplæringsperiode for nye medarbejdere uden branchekendskab', $sprog_id)."\">
+								".findtekst('3063|Oplæringsperiode (mdr)', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"traineemdr\" value=\"".dkdecimal($traineemdr,2)."\"> mdr.</div>
+								style=\"text-align:right;width:80px\" name=\"traineemdr\" value=\"".dkdecimal($traineemdr,2)."\"> ".lcfirst(findtekst('3070|Mdr.', $sprog_id))."</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\" title=\"Løn% i oplæringperiode\">Oplæringssats (%)</div>
+								<div class=\"leftLarge\" title=\"".findtekst('3066|Løn% i oplæringsperiode', $sprog_id)."\">".findtekst('3065|Oplæringssats', $sprog_id)." (%)</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"traineepct\" value=\"".dkdecimal($traineepct,2)."\"> %</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\" title=\"\">Kilometersats</div>
+								<div class=\"leftLarge\" title=\"\">".findtekst('3067|Kilometersats', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"km_sats\" value=\"".dkdecimal($km_sats,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\" title=\"\">Km beregnes efter</div>
+								<div class=\"leftLarge\" title=\"\">".findtekst('3068|Km beregnes efter', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"km_fra\" value=\"".dkdecimal($km_fra,2)."\"> km.</div>
+								style=\"text-align:right;width:80px\" name=\"km_fra\" value=\"".dkdecimal($km_fra,2)."\"> km</div>
 								<div class=\"clear\">
 							</div></div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">Overtidstillæg 50%</div>
+								<div class=\"leftLarge\">".findtekst('3069|Overtidstillæg', $sprog_id)." 50%</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"overtid_50pct\" value=\"".dkdecimal($overtid_50pct,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">Overtidstillæg 100%</div>
+								<div class=\"leftLarge\">".findtekst('3069|Overtidstillæg', $sprog_id)." 100%</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"overtid_100pct\" value=\"".dkdecimal($overtid_100pct,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">Mentor, timesats</div>
+								<div class=\"leftLarge\">".findtekst('2991|Mentor', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"mentorRate\" value=\"".dkdecimal($mentorRate,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
@@ -216,7 +216,7 @@ function satser() {
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<input type=\"hidden\" name=\"gruppe_id\" value='$gruppe_id'>\n";
-						print "<input type='submit' accesskey='g' value='Gem / opdat&eacute;r' class='button gray medium' name='submit' onclick='javascript:docChange = false;'>\n";
+						print "<input type='submit' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' class='button gray medium' name='submit' onclick='javascript:docChange = false;'>\n";
 					print "</div><!-- end of contentA -->\n";
 				print "</div>\n";
 			print "</div><!-- end of full container -->\n";
@@ -225,4 +225,4 @@ function satser() {
 		print "</form>\n";
 	print "</div>\n";
 }
-?> 
+?>

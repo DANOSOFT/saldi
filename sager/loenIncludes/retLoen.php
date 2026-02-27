@@ -1196,8 +1196,8 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						if ($loen_art=='akk_afr'||$loen_art=='akktimer'||$loen_art=='akkord'||$loen_art=='timer') {
 							print "<th>50%</th>
 							<th>100%</th>";
-							print "<th width='36' title='".findtekst('3047|Skur lav sats', $sprog_id)." (".dkdecimal($skur_sats1)."'>S(L)</th>";
-							print "<th width='36' title='".findtekst('3048|Skur høj sats', $sprog_id)." (".dkdecimal($skur_sats2)."'>S(H)</th>";
+							print "<th width='36' title='".findtekst('3047|Skur - lav sats', $sprog_id)." (".dkdecimal($skur_sats1)."'>S(L)</th>";
+							print "<th width='36' title='".findtekst('3048|Skur - høj sats', $sprog_id)." (".dkdecimal($skur_sats2)."'>S(H)</th>";
 							if ($loen_art!='timer') { //20231005
 								print "<th width='36' title='".findtekst('3049|Mentortillæg', $sprog_id)." (".dkdecimal($mentorRate).")'>".findtekst('2991|Mentor', $sprog_id)."</th>";
 								print "<th>".findtekst('2996|Km', $sprog_id)."</th>";

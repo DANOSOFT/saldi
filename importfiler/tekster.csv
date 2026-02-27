@@ -2353,7 +2353,7 @@
 2353	Filen er downloadet	The file has been downloaded	Filen er lastet ned
 2354	Import af XML SAF-T fil	Import of XML SAF-T file	Import av XML SAF-T-fil
 2355	Importer SAF-T XML fil til kassekladde.	Import SAF-T XML file to cash journal.	Importer SAF-T XML-fil til kassejournal.
-2356	Periode start:	Period start:	Periodestart:
+2356	Periodestart	Period start	Periodestart
 2357	Periode slut:	Period end:	Periodeslutt:
 2358	Indlæs data til kassekladde her:	Load data to cash journal here:	Last inn data til kassejournal her:
 2359	Filtypenavn ikke tilladt, vælg venligst en XML-fil.	File extension not allowed, please choose a XML file.	Filtypen er ikke tillatt, velg en XML-fil.
@@ -2370,7 +2370,7 @@
 2370	Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en e-mail på en ordre	This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer debitoripadsystemet hvor kundene dine selv kan skrive en e-post på en ordre
 2371	Rumfang	Volume	Volum
 2372	Nettosum	Net sum	Nettosum
-2373	I alt	Total	Totalt
+2373	I alt	Total	I alt
 2374	Fakturér	Invoice	Fakturer
 2375	Sæt	Set	Sett
 2376	Dagens omsætning	Today's turnover	Dagens omsetning
@@ -2879,7 +2879,7 @@
 2879	Ændr eksisterende kunde på sagen	Change existing customer for the project	Endre eksisterende kunde på saken
 2880	Kontaktpersoner til sagen	Contact persons for the project	Kontaktpersoner for saken
 2881	Notat	Note	Notat
-2882	d.		d.
+2882	d.	&nbsp;	d.
 2883	kl.	at	kl.
 2884	Oprettet af	Created by	Opprettet av
 2885	Planlægningsinformation til opgave	Planning information for task	Planleggingsinformasjon for oppgave
@@ -3044,8 +3044,8 @@
 3044	for medarb. nr.	for employee no.	for medarb. nr.
 3045	på seddel	on slip	på seddel
 3046	Anvendes hvis en anden sats end medarbejderens timeløn benyttes	Used when a rate other than the employee hourly wage is applied	Brukes når en annen sats enn medarbeiderens timelønn benyttes
-3047	Skur lav sats	Site cabin low rate	Skur lav sats
-3048	Skur høj sats	Site cabin high rate	Skur høy sats
+3047	Skur - lav sats	Site cabin - low rate	Skur - lav sats
+3048	Skur - høj sats	Site cabin - high rate	Skur - høy sats
 3049	Mentortillæg	Mentor supplement	Mentortillegg
 3050	Akkord seddel nr.	Piecework slip no.	Akkordseddel nr.
 3051	Fratrukket	Deducted	Fratrukket
@@ -3053,21 +3053,21 @@
 3053	Sagsadresse	Project address	Saksadresse
 3054	Med. nr.	Emp. no.	Med. nr.
 3055	Medarbejder navn	Employee name	Medarbeider navn
-3056	
-3057	
-3058	
-3059	
-3060	
-3061	
-3062	
-3063	
-3064	
-3065	
-3066	
-3067	
-3068	
-3069	
-3070	
+3056	Transport	Transport	Transport
+3057	Sum inkl. transport	Total incl. transport	Sum inkl. transport
+3058	Telttillæg	Tent surcharge	Telttillegg
+3059	Skjul lønsatser	Hide wage rates	Skjul lønnssatser
+3060	Skjuler lønsatser på lønseddel	Hides wage rates on pay slip	Skjuler lønnssatser på lønnsseddel
+3061	Timesats	Hourly rate	Timesats
+3062	Vælg dato for 1. dag i 1. lønperiode	Select date for 1st day of 1st pay period	Velg dato for 1. dag i 1. lønnsperiode
+3063	Oplæringsperiode (mdr)	Training period (months)	Opplæringsperiode (mnd)
+3064	Oplæringsperiode for nye medarbejdere uden branchekendskab	Training period for new employees without industry experience	Opplæringsperiode for nye medarbeidere uten bransjekjennskap
+3065	Oplæringssats	Training rate	Opplæringssats
+3066	Løn% i oplæringsperiode	Wage% during training period	Lønn% i opplæringsperiode
+3067	Kilometersats	Mileage rate	Kilometersats
+3068	Km beregnes efter	Km calculated from	Km beregnes etter
+3069	Overtidstillæg	Overtime supplement	Overtidstillegg
+3070	Mdr.	Months	Mnd.
 3071	
 3072	
 3073	
