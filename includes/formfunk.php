@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-02-24 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 // 20251231 LOE Adding department supported path for background uploads
 // 20260219 LOE some cleanup to work with or without department
 // 20260224 PHR Fixed missing $db_id after logolib
+// 20260302 PHR	Fixed locaton if location for stock points to another stock
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
 
@@ -1716,11 +1717,17 @@ if (!function_exists('formularprint')) {
 								if ($formular == 3 || $formular == 9) {
 									for ($z = 0; $z <= count($variabel ?? []); $z++) {
 										if (isset($variabel[$z]) && $variabel[$z] == 'lokation') {
-											$qtxt = "select lok1 as location from lagerstatus where vare_id = '$vare_id[$x]' and lager = '$lager[$x]'";
-											$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+											$qtxt="select lok1 as location from lagerstatus where vare_id = '$vare_id[$x]' and lager = '$lager[$x]'";
+											$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 											if ($r2['location']) {
-												$beskrivelse[$x] .= chr(9) . "Lok: " . $r2['location'];
+												if (substr($r2['location'],0,2) == '=L') {
+													$getLocation = substr($r2['location'],2);
+													$qtxt = "select lok1 as location from lagerstatus ";
+													$qtxt.= "where vare_id = '$vare_id[$x]' and lager = '$getLocation'";
+													$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+												}
 											}
+											if ($r2['location']) $beskrivelse[$x].=chr(9)."Lok: ".$r2['location'];
 										}
 										if (isset($variabel[$z]) && $variabel[$z] == 'vare_note') {
 											$qtxt = "select notes from varer where id='$vare_id[$x]'";
