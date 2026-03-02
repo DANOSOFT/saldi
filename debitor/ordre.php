@@ -64,7 +64,8 @@
 // 20260223 Sawaneh SD-335 fixed SQL bug: lev_land/lev_email missing column names in UPDATE query
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address buttons (buttonname -> name1 -> town fallback)
 // 20250225 PHR Order taken by ---
-// 20250227 PHR if (isset($kontonr)) changet to if (isset($kontonr) && $kontonr)
+// 20250227 PHR if (isset($kontonr)) changed to if (isset($kontonr) && $kontonr)
+// 20250227 PHR Scroll to bottom if focus is set to botom orderline   
 
 @session_start();
 $s_id = session_id();
@@ -1429,11 +1430,11 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$qtxt = "select box6 from grupper where art='DG' and kodenr='$grp'";
 			($kontonr && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $rabatsats = $r['box6'] : $rabatsats == 0;
 		}
-	} else {
-		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
-		// Reload the current page.
-		header("Refresh:0");
-		exit;
+#	} else {
+#		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
+#		// Reload the current page.
+#		header("Refresh:0");
+#		exit;
 	}
 	if (strstr($b_submit, 'Slet')) {
 		slet_ordre($id);
@@ -6473,11 +6474,51 @@ function indsaet_linjer($ordre_id, $linje_id, $posnr)
 }
 ##############################################################################
 if ($fokus) {
-	print "<script language=\"javascript\">
-	document.ordre.$fokus.focus();
-	</script>";
-}
-print "</tbody></table>";
+	print "<script>
+(function () {
+  var f = document.forms['ordre'];
+  if (!f) return;
+
+  var el = f.elements['$fokus'] || document.querySelector('[name=\"$fokus\"], #' + (window.CSS && CSS.escape ? CSS.escape('$fokus') : '$fokus'));
+  if (el && el.length) el = el[0];
+  if (!el) return;
+
+  el.focus();
+
+  function scrollInContainer() {
+    var container = document.querySelector('.ordreform');
+    var scroller = container || document.scrollingElement || document.documentElement;
+
+    // Hvis vi har .ordreform, scroll den – ellers scroll dokumentet
+    if (container) {
+      var cRect = container.getBoundingClientRect();
+      var eRect = el.getBoundingClientRect();
+
+      // elementets top/bund relativt til containerens scrollTop
+      var top    = (eRect.top - cRect.top) + container.scrollTop;
+      var bottom = top + eRect.height;
+
+      var margin = 24;
+
+      if (bottom > container.scrollTop + container.clientHeight - margin) {
+        container.scrollTop = bottom - container.clientHeight + margin;
+      } else if (top < container.scrollTop + margin) {
+        container.scrollTop = top - margin;
+      }
+    } else {
+      // fallback: almindelig scroll i dokumentet
+      if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      else scroller.scrollTop = el.offsetTop;
+    }
+  }
+
+  // Vent lige til browseren har flyttet fokus + renderet
+  requestAnimationFrame(function () {
+    requestAnimationFrame(scrollInContainer);
+  });
+})();
+</script>";
+}print "</tbody></table>";
 
 
 
@@ -6504,7 +6545,7 @@ if ($menu == 'T') {
 <!-- <script src ="orderIncludes/invoice_dragdrop.js"></script> -->
 <style>
         .ordreform {
-                overflow-x: auto;
+                overflow: auto;
                 height: calc(100vh - 50px);
         }
 </style>
@@ -6537,4 +6578,88 @@ function unlockOrderBeacon(evtName) {
 }
 window.addEventListener("beforeunload", function() { unlockOrderBeacon('beforeunload'); });
 window.addEventListener("pagehide", function() { unlockOrderBeacon('pagehide'); });
+</script>
+<script>
+document.addEventListener("focusin", function(e) {
+    var el = e.target;
+
+    if (!(el instanceof HTMLElement)) return;
+
+    // Kun inputfelter (så vi ikke scroller på alt muligt andet)
+    if (!el.matches("input, textarea, select")) return;
+
+    el.scrollIntoView({
+        behavior: "auto",   // skift til "smooth" hvis I vil have glidende scroll
+        block: "nearest",
+        inline: "nearest"
+    });
+});
+</script>
+<script>
+(function () {
+  function findField(name) {
+    var f = document.forms['ordre'];
+    if (f && f.elements && f.elements[name]) return f.elements[name];
+    return document.querySelector('[name="' + CSS.escape(name) + '"]') || document.getElementById(name);
+  }
+
+  function isScrollable(el) {
+    if (!el) return false;
+    var cs = getComputedStyle(el);
+    var oy = cs.overflowY;
+    return (oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight;
+  }
+
+  function getScrollParent(el) {
+    var p = el.parentElement;
+    while (p && p !== document.body) {
+      if (isScrollable(p)) return p;
+      p = p.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
+  function reveal(el) {
+    if (!el) return;
+
+    // Nogle felter kan være collections
+    if (el.length && el[0]) el = el[0];
+
+    try { el.focus(); } catch (e) {}
+
+    // Vent til alt er tegnet + evt. JS har flyttet ting
+    setTimeout(function () {
+      var sp = getScrollParent(el);
+
+      // Hvis vi scroller i et container-element
+      if (sp && sp !== document.scrollingElement && sp !== document.documentElement && sp !== document.body) {
+        var cRect = sp.getBoundingClientRect();
+        var eRect = el.getBoundingClientRect();
+        var top = (eRect.top - cRect.top) + sp.scrollTop;
+        var bottom = top + eRect.height;
+        var margin = 30;
+
+        if (bottom > sp.scrollTop + sp.clientHeight - margin) {
+          sp.scrollTop = bottom - sp.clientHeight + margin;
+        } else if (top < sp.scrollTop + margin) {
+          sp.scrollTop = top - margin;
+        }
+      } else {
+        // Scroll i dokumentet (iframe)
+        if (el.scrollIntoView) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+      }
+    }, 50);
+
+    // Ekstra “sikkerheds-scroll” lidt senere (nogle scripts justerer layout efter load)
+    setTimeout(function () {
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }, 200);
+  }
+
+  window.addEventListener('load', function () {
+    if (!window.__saldiFocus) return;
+    var el = findField(window.__saldiFocus);
+    reveal(el);
+  });
+})();
 </script>
