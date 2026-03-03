@@ -1,0 +1,68 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5000:80"
+    volumes:
+      - .:/var/www/html/saldi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-noreply@example.com}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_TLS: ${SMTP_TLS:-off}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-off}
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: saldi
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Allow the postgres superuser to connect without a password (needed for
+    # the backup/restore feature — see INSTALLATION.txt pg_hba.conf note).
+    command: >
+      postgres
+        -c hba_file=/etc/postgresql/pg_hba.conf
+    configs:
+      - source: pg_hba
+        target: /etc/postgresql/pg_hba.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d saldi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "5002:8025"   # web UI to inspect caught emails
+    restart: unless-stopped
+
+  adminer:
+    image: adminer
+    ports:
+      - "5001:8080"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+configs:
+  pg_hba:
+    content: |
+      # TYPE  DATABASE  USER      ADDRESS     METHOD
+      local   all       postgres              trust
+      local   all       all                   md5
+      host    all       all       0.0.0.0/0   scram-sha-256
+      host    all       all       ::/0        scram-sha-256
+
+volumes:
+  pgdata:
