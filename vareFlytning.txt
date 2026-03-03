@@ -1,3 +1,0 @@
-productAlign/productAlign.php
-systemdata/exporter_varer.php
-systemdata/exporter_variantvarer.php
