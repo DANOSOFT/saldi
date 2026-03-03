@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-03-02--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-03-03--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20260223 AJ Updated Revenue and cover ratio to match
 // 20260225 LOE Added initialized shop link  for shop pickup display  
 // 20260228 LOE Updated box1 in grupper to store the order of the orders for next/prev navigation in order details page.
+// 20260303 PHR Fixed revenue and cover ratio
 
 @session_start();
 $s_id = session_id();
@@ -100,6 +101,9 @@ include("../includes/online.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style-with-links.js.php");
 $sprog_id = if_isset($sprog_id, 1);
+
+if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) unlink("../temp/$db/ordrlst$bruger_id.txt");
+
 /* 
 * check for popup blocker 
 */
@@ -635,8 +639,11 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            global $brugernavn;
+             global $brugernavn,$bruger_id,$db;
             global $vis_lagerstatus, $ls_vgr, $sprog_id, $valg;
+
+            file_put_contents("../temp/$db/ordrlst$bruger_id.txt","$row[id];",FILE_APPEND);
+
             $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&valg=$valg&returside=" . urlencode($_SERVER["REQUEST_URI"]);
             
             $timestamp = $row['tidspkt'];
@@ -2100,6 +2107,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>";
+
+if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) {
+    $ialt_total = $ialt_m_moms_total = $ialt_kostpris_total = 0;
+    $ordrlst = explode(";",file_get_contents("../temp/$db/ordrlst$bruger_id.txt"));
+    for ($i=0;$i<count($ordrlst);$i++) {
+        if ($ordrlst[$i]) {
+            $qtxt = "SELECT sum,moms,kostpris FROM ordrer WHERE id = $ordrlst[$i]";
+            $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+            $ialt_total         += $r['sum'];
+            $ialt_m_moms_total  += $r['moms'];
+            $ialt_kostpris_total+= $r['kostpris'];
+        }
+    }
+}
 
 ########
 
