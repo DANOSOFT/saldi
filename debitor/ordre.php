@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-27 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-03-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,12 +60,11 @@
 // 20260219 LOE removed setting sprog(background) from tekster.csv to formularsprog as they both refer to different things.
 // 20260219 PHR	Fixed AFD (Department) 
 // 20260223 Sawaneh SD-338 account lookup: create customer overlay with backdrop, selectAccount fix, AJAX row click handlers
-// 20260223 Sawaneh SD-335 fixed bynavn POST using wrong field ($_POST['tlf'] -> $_POST['bynavn'])
-// 20260223 Sawaneh SD-335 fixed SQL bug: lev_land/lev_email missing column names in UPDATE query
-// 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address buttons (buttonname -> name1 -> town fallback)
-// 20250225 PHR Order taken by ---
-// 20250227 PHR if (isset($kontonr)) changed to if (isset($kontonr) && $kontonr)
-// 20250227 PHR Scroll to bottom if focus is set to botom orderline   
+// 20260223 Sawaneh SD-335: fixed bynavn POST using wrong field, fixed SQL bug , added buttonname field to DFM pickup address buttons and related fixes
+// 20260225 PHR Order taken by ---
+// 20260227 PHR if (isset($kontonr)) changed to if (isset($kontonr) && $kontonr)
+// 20260227 PHR Scroll to bottom if focus is set to botom orderline  
+// 20260302 LOE SD-368: Sets tmp to value_type if set for navigation 
 
 @session_start();
 $s_id = session_id();
@@ -3400,7 +3399,8 @@ function ordreside($id, $regnskab)
 	if ($status == 0) $tmp = "tilbud";
 	elseif ($status >= 3) $tmp = "faktura";
 	else $tmp = "ordrer";
-
+	$value_type = if_isset($_GET, 'ordrer', 'valg');
+	if($tpm != $value_type) $tmp = $value_type; 
 	$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
 	$ordreliste = explode(",", if_isset($r['box1']));
 	$x = 0;
