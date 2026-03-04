@@ -1360,6 +1360,9 @@ print <<<JS
         if (lastComma !== -1 && lastDot !== -1 && lastDot > lastComma) {
             // English format: 1,000.00 -> 1000.00
             s = s.replace(/,/g, '');
+        } else if (lastComma !== -1 && lastDot !== -1 && lastComma > lastDot) {
+            // Danish/European format: 1.000,50 -> 1000.50
+            s = s.replace(/\./g, '').replace(',', '.');
         } else if (lastComma !== -1 && lastDot === -1) {
             // Only comma, could be Danish decimal: 1000,50 -> 1000.50
             s = s.replace(',', '.');
@@ -3588,10 +3591,32 @@ JS;
 					}
 				});
 			})
-			.then(function(data) {
+			.then(async function(data) {
 				if (data && data.success) {
 					uploadedCount++;
 					lastUploadedFilename = data.filename;
+					try {
+						const extractFormData = new FormData();
+						extractFormData.append('action', 'extract');
+						extractFormData.append('poolFile', data.filename);
+						extractFormData.append('db', '$db');
+						extractFormData.append('docFolder', '$docFolder');
+						const extRes = await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: extractFormData });
+						const extData = await extRes.json();
+						if (extData.success && extData.data) {
+							const svData = new FormData();
+							svData.append('action', 'save');
+							svData.append('poolFile', data.filename);
+							svData.append('db', '$db');
+							const d = extData.data;
+							if(d.amount) svData.append('newAmount', d.amount);
+							if(d.date) svData.append('newDate', d.date);
+							if(d.vendor) svData.append('newSubject', d.vendor);
+							if(d.invoiceNumber) svData.append('newInvoiceNumber', d.invoiceNumber);
+							if(d.description) svData.append('newDescription', d.description);
+							await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: svData });
+						}
+					} catch(e) { console.error('Auto-extract failed', e); }
 				} else {
 					failedCount++;
 					console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
@@ -4567,6 +4592,9 @@ HTML;
 	<?php
 	file_put_contents($perfLog, sprintf("Time: %.4f - End of PHP execution\n", microtime(true) - $startTime), FILE_APPEND);
 	exit;
+
+
+	
 
 } # endfunc gennemse
 ?>
