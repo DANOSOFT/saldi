@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/vareIncludes/updateProductPrice.php --- lap 4.0.8 --- 2023-08-22 ---
+// --- lager/vareIncludes/updateProductPrice.php --- lap 5.0.0 --- 2026-03-04 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,21 +20,35 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
+// Costprices was insert several time at same day if same product was bought on more than one orederline..
 
 if (!function_exists('updateProductPrice')) {
 function updateProductPrice($productId,$newCost,$deliveryDate) {
 	$qtxt=NULL;
 	if (!$deliveryDate) $deliveryDate=date("Y-m-d");
-	$r=db_fetch_array(db_select("select id,kostpris,transdate from kostpriser where id='$productId' order by transdate desc limit 1",__FILE__ . " linje " . __LINE__));
+	$qtxt  = "select id,kostpris,transdate from kostpriser where vare_id='$productId' and transdate = '$deliveryDate' order by transdate desc limit 1";
+	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['transdate'] != $deliveryDate && $r['kostpris'] != $newCost) {
 		$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$productId','$newCost','$deliveryDate')";
+		echo "	$qtxt<br>";
+		db_modify("$qtxt",__FILE__ . " linje " . __LINE__);
 	} elseif ($r['transdate'] == $deliveryDate && $r['kostpris'] != $newCost) {
 		$qtxt="update kostpriser set kostpris='$newCost' where id = '$r[id]'";
+		echo "	$qtxt<br>";
+		db_modify("$qtxt",__FILE__ . " linje " . __LINE__);
+		$qtxt="delete from kostpriser where vare_id='$productId' and transdate = '$deliveryDate' and id != '$r[id]'";
+		echo "	$qtxt<br>";
+		db_modify("$qtxt",__FILE__ . " linje " . __LINE__);
 	}
-	if ($qtxt) db_modify("$qtxt",__FILE__ . " linje " . __LINE__);
-	db_modify("update varer set kostpris='$newCost' where id='$productId'",__FILE__ . " linje " . __LINE__);
+	$qtxt  = "select id from kostpriser where vare_id='$productId' and transdate > '$deliveryDate' order by transdate desc limit 1";
+	if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		return;
+		exit;
+	}
+	$qtxt = "update varer set kostpris='$newCost' where id='$productId'";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt="select * from varer where id='$productId'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$salesPrice_multiplier   = $r['salgspris_multiplier'];
@@ -70,7 +84,7 @@ function updateProductPrice($productId,$newCost,$deliveryDate) {
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 		}
-		}
+	}
 }}
 
 ?>
