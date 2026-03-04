@@ -66,6 +66,8 @@
 // 20250225 PHR Order taken by ---
 // 20250227 PHR if (isset($kontonr)) changed to if (isset($kontonr) && $kontonr)
 // 20250227 PHR Scroll to bottom if focus is set to botom orderline   
+// 20260304 Sawaneh SD-369 dfm_url override from pickup address
+
 
 @session_start();
 $s_id = session_id();
@@ -1512,7 +1514,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		$status = 0;
 	} elseif (!$art) $art = 'DO';
 	if (strlen($ordredate) < 6) $ordredate = date("Y-m-d");
-	if (($kontonr && !$firmanavn) || ($kontonr && $gl_id)) {
+	// For copies, keep header values from the order; only fall back to account card if missing.
+	if ($kontonr && !$firmanavn) {
 		$query = db_select("select * from adresser where kontonr = '$kontonr' and art='D'", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			if ($row['lukket'] == 'on') {
@@ -3200,6 +3203,7 @@ function ordreside($id, $regnskab)
 						case 'dfm_user':    if (!empty($r['var_value'])) $dfm_user    = $r['var_value']; break;
 						case 'dfm_pass':    if (!empty($r['var_value'])) $dfm_pass    = $r['var_value']; break;
 						case 'dfm_agree':   if (!empty($r['var_value'])) $dfm_agree   = $r['var_value']; break;
+						case 'dfm_url':     if (!empty($r['var_value'])) $dfm_url     = $r['var_value']; break;
 						case 'dfm_hub':     if (!empty($r['var_value'])) $dfm_hub     = $r['var_value']; break;
 						case 'dfm_ship':    if (!empty($r['var_value'])) $dfm_ship    = $r['var_value']; break;
 						case 'dfm_good':    if (!empty($r['var_value'])) $dfm_good    = $r['var_value']; break;
@@ -3228,6 +3232,7 @@ function ordreside($id, $regnskab)
 						case 'dfm_user':    if (!empty($r['var_value'])) $dfm_user    = $r['var_value']; break;
 						case 'dfm_pass':    if (!empty($r['var_value'])) $dfm_pass    = $r['var_value']; break;
 						case 'dfm_agree':   if (!empty($r['var_value'])) $dfm_agree   = $r['var_value']; break;
+						case 'dfm_url':     if (!empty($r['var_value'])) $dfm_url     = $r['var_value']; break;
 						case 'dfm_hub':     if (!empty($r['var_value'])) $dfm_hub     = $r['var_value']; break;
 						case 'dfm_ship':    if (!empty($r['var_value'])) $dfm_ship    = $r['var_value']; break;
 						case 'dfm_good':    if (!empty($r['var_value'])) $dfm_good    = $r['var_value']; break;

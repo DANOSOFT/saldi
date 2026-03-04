@@ -96,7 +96,7 @@
 // 20250911 LOE modified text 3023 to 2324
 // 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address UI
-
+// 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -797,7 +797,8 @@ function div_valg() {
 				'buttonname' => '',
 				'dfm_id' => '', 'dfm_user' => '', 'dfm_pass' => '',
 				'dfm_agree' => '', 'dfm_hub' => '', 'dfm_ship' => '',
-				'dfm_good' => '', 'dfm_pay' => '', 'dfm_sercode' => ''
+				'dfm_good' => '', 'dfm_pay' => '', 'dfm_sercode' => '',
+				'dfm_url' => ''
 			);
 		}
 		$field = str_replace('dfm_pickup_', '', $r['var_name']);
@@ -1071,9 +1072,9 @@ function div_valg() {
 		print "<!-- 1022 Hub -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_hub' class='inputbox' style='width:150px;' type='text' value='$dfm_hub'></td>\n</tr>\n";
-		$txt = findtekst('1020|Danske Fragtmænd aftalenummer', $sprog_id);
-		$title = findtekst('1031|URL for den API-server som skal benyttes til Danske Fragtmænd. Skal starte med https:// eller https:// og slutte uden skråstreg.', $sprog_id);
-		print "<!-- 1020 API-URL -->";
+		$txt = findtekst('3129|API URL', $sprog_id);
+		$title = findtekst('3130|URL for den API-server som skal benyttes til Danske Fragtmænd. Skal starte med https:// og slutte uden skråstreg.', $sprog_id);
+		print "<!-- 3129 API-URL -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_url' class='inputbox' style='width:150px;' type='text' value='$dfm_url'></td>\n</tr>\n";
 		$txt = findtekst('1014|ClientID til API', $sprog_id);
@@ -1165,6 +1166,7 @@ function div_valg() {
 				print "<tr><td>DFM API-brugernavn</td><td><input name='dfm_pickup_user[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_user'] ?? '') . "'></td></tr>\n";
 				print "<tr><td>DFM API-password</td><td><input name='dfm_pickup_pass[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_pass'] ?? '') . "'></td></tr>\n";
 				print "<tr><td>DFM Aftalenummer</td><td><input name='dfm_pickup_agree[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_agree'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM API URL</td><td><input name='dfm_pickup_url[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_url'] ?? '') . "'></td></tr>\n";
 				print "<tr><td>DFM Hub</td><td><input name='dfm_pickup_hub[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_hub'] ?? '') . "'></td></tr>\n";
 				print "<tr><td>Shippingtype (standard)</td><td><input name='dfm_pickup_ship[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_ship'] ?? '') . "'></td></tr>\n";
 				print "<tr><td>Godstype (standard)</td><td><input name='dfm_pickup_good[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_good'] ?? '') . "'></td></tr>\n";
@@ -1236,6 +1238,7 @@ function addDfmPickup() {
 	html += '<tr><td>DFM API-brugernavn</td><td><input form=\"diverse\" name=\"dfm_pickup_user[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>DFM API-password</td><td><input form=\"diverse\" name=\"dfm_pickup_pass[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>DFM Aftalenummer</td><td><input form=\"diverse\" name=\"dfm_pickup_agree[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM API URL</td><td><input form=\"diverse\" name=\"dfm_pickup_url[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>DFM Hub</td><td><input form=\"diverse\" name=\"dfm_pickup_hub[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>Shippingtype (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_ship[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>Godstype (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_good[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';

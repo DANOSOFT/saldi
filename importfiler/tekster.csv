@@ -3126,3 +3126,5 @@
 3126	
 3127	Knap navn	Button name	Knappnavn
 3128	Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.	Enter the name to display on the button on the order page. If empty, company name or city is used.	Angi navnet som skal vises på knappen på ordresiden. Hvis tom, brukes firmanavn eller bynavn.
+3129	API URL	API URL	API URL
+3130	URL for den API-server som skal benyttes til Danske Fragtmænd. Skal starte med https:// og slutte uden skråstreg.	URL for the API server to be used for Danske Fragtmænd. Must start with https:// and end without a slash.	URL for API-serveren som skal brukes for Danske Fragtmænd. Må starte med https:// og slutte uten skråstrek.

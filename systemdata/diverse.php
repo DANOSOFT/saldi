@@ -88,6 +88,7 @@
 // 20250526 PHR 'nyt_navn' changed to 'newName'
 // 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup addresses
+// 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 
 
 @session_start();
@@ -297,6 +298,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$dfm_pickup_users = isset($_POST['dfm_pickup_user']) && is_array($_POST['dfm_pickup_user']) ? $_POST['dfm_pickup_user'] : array();
 		$dfm_pickup_passes = isset($_POST['dfm_pickup_pass']) && is_array($_POST['dfm_pickup_pass']) ? $_POST['dfm_pickup_pass'] : array();
 		$dfm_pickup_agrees = isset($_POST['dfm_pickup_agree']) && is_array($_POST['dfm_pickup_agree']) ? $_POST['dfm_pickup_agree'] : array();
+		$dfm_pickup_urls = isset($_POST['dfm_pickup_url']) && is_array($_POST['dfm_pickup_url']) ? $_POST['dfm_pickup_url'] : array();
 		$dfm_pickup_hubs = isset($_POST['dfm_pickup_hub']) && is_array($_POST['dfm_pickup_hub']) ? $_POST['dfm_pickup_hub'] : array();
 		$dfm_pickup_ships = isset($_POST['dfm_pickup_ship']) && is_array($_POST['dfm_pickup_ship']) ? $_POST['dfm_pickup_ship'] : array();
 		$dfm_pickup_goods = isset($_POST['dfm_pickup_good']) && is_array($_POST['dfm_pickup_good']) ? $_POST['dfm_pickup_good'] : array();
@@ -506,6 +508,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					'dfm_user' => isset($dfm_pickup_users[$idx]) ? $dfm_pickup_users[$idx] : '',
 					'dfm_pass' => isset($dfm_pickup_passes[$idx]) ? $dfm_pickup_passes[$idx] : '',
 					'dfm_agree' => isset($dfm_pickup_agrees[$idx]) ? $dfm_pickup_agrees[$idx] : '',
+					'dfm_url' => isset($dfm_pickup_urls[$idx]) ? $dfm_pickup_urls[$idx] : '',
 					'dfm_hub' => isset($dfm_pickup_hubs[$idx]) ? $dfm_pickup_hubs[$idx] : '',
 					'dfm_ship' => isset($dfm_pickup_ships[$idx]) ? $dfm_pickup_ships[$idx] : '',
 					'dfm_good' => isset($dfm_pickup_goods[$idx]) ? $dfm_pickup_goods[$idx] : '',
