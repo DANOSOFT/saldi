@@ -527,7 +527,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "($id_column, var_name text, var_grp text, var_value text, var_description text, ";
 	$qtxt.= "user_id integer, group_id integer, pos_id integer, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	db_modify("CREATE TABLE shop_adresser ($id_column,saldi_id integer,shop_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE shop_adresser ($id_column,saldi_id integer,shop_id integer,afd integer DEFAULT 0,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE shop_varer ($id_column,saldi_id integer,saldi_variant integer,shop_id integer,shop_variant integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE shop_ordrer ($id_column,saldi_id integer,shop_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE varianter ($id_column,beskrivelse text,shop_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);

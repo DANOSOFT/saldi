@@ -224,6 +224,11 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		}
 	}
 	// <--
+	// Add afd column to shop_adresser if not exists (multi-shop support)
+	$qtxt = "select column_name from information_schema.columns where table_name = 'shop_adresser' and column_name = 'afd'";
+	if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE shop_adresser ADD COLUMN afd integer DEFAULT 0",__FILE__ . " linje " . __LINE__);
+	}
 	list($master,$db_skriv_id)=explode('_',$db);
 	$log=fopen("../temp/$db/rest_api.log","a");
 	fwrite($log,__line__." Ordredate: $ordredate\n");

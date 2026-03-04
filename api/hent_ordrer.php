@@ -223,7 +223,7 @@ function overfoer_data($shopurl,$shop_ordre_id){
 		return(0);
 		exit;
 	}
-	$r=db_fetch_array (db_select("select saldi_id from shop_adresser where shop_id='$shop_konto_id'",__FILE__ . " linje " . __LINE__));
+	$r=db_fetch_array (db_select("select saldi_id from shop_adresser where shop_id='$shop_konto_id' and afd='$afd'",__FILE__ . " linje " . __LINE__));
 	$saldi_id=$r['saldi_id'];
 	$qtxt="select id from shop_ordrer where shop_id='$shop_ordre_id'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -243,7 +243,7 @@ function overfoer_data($shopurl,$shop_ordre_id){
 			}
 		}
 		if ($saldi_id) {
-			db_modify("insert into shop_adresser(saldi_id,shop_id)values('$saldi_id','$shop_konto_id')",__FILE__ . " linje " . __LINE__);  
+			db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_id','$shop_konto_id','$afd')",__FILE__ . " linje " . __LINE__);  
 		} else {
 			if ($tlf && $num_tlf && !$r=db_fetch_array(db_select("select id from adresser where art = 'D' and kontonr='$num_tlf'",__FILE__ . " linje " . __LINE__))) {
 				$kontonr=$num_tlf;
@@ -261,7 +261,7 @@ function overfoer_data($shopurl,$shop_ordre_id){
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$r=db_fetch_array(db_select("select id from adresser where kontonr='$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__));
 			$saldi_id=$r['id'];
-			db_modify("insert into shop_adresser(saldi_id,shop_id)values('$saldi_id','$shop_konto_id')",__FILE__ . " linje " . __LINE__);  
+			db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_id','$shop_konto_id','$afd')",__FILE__ . " linje " . __LINE__);  
 		}
 	} else {
 		$r=db_fetch_array(db_select("select kontonr from adresser where id = '$saldi_id'",__FILE__ . " linje " . __LINE__));
