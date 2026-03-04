@@ -653,12 +653,12 @@
 653	Mobil	Mobile phone	Mobiltelefon
 654	Lokalnr.	Local no.	Lokalt nr.
 655	Lokal fax	Local fax	Lokal faks
-656	Privat tlf	Private tel	Privat tlf
+656	Privat tlf.	Private tel.	Privat tlf.
 657	Provision	Commission	Kommisjon
 658	Afdeling	Department	Avdeling
 659	Bemærkning	Remark	Bemerke
 660	Fratrådt	Resigned	Gikk av
-661	Cpr-nr	Social Security No	Social Security No
+661	CPR-nr.	CPR-no.	CPR-nr.
 662	Bank	Bank	Bank
 663	Tiltrådt	Joined	Ble med
 664	Løn	Pay	Lønn
@@ -3047,7 +3047,7 @@
 3047	Skur - lav sats	Site cabin - low rate	Skur - lav sats
 3048	Skur - høj sats	Site cabin - high rate	Skur - høy sats
 3049	Mentortillæg	Mentor supplement	Mentortillegg
-3050	Akkord seddel nr.	Piecework slip no.	Akkordseddel nr.
+3050	Akkordseddel nr.	Piecework slip no.	Akkordseddel nr.
 3051	Fratrukket	Deducted	Fratrukket
 3052	Kilometer	Kilometres	Kilometer
 3053	Sagsadresse	Project address	Saksadresse
@@ -3068,28 +3068,28 @@
 3068	Km beregnes efter	Km calculated from	Km beregnes etter
 3069	Overtidstillæg	Overtime supplement	Overtidstillegg
 3070	Mdr.	Months	Mnd.
-3071	
-3072	
-3073	
-3074	
-3075	
-3076	
-3077	
-3078	
-3079	
-3080	
-3081	
-3082	
-3083	
-3084	
-3085	
-3086	
-3087	
-3088	
-3089	
-3090	
-3091	
-3092	
+3071	Til ansatteliste	To employee list	Til ansattliste
+3072	Opret medarbejder	Create employee	Opprett medarbeider
+3073	Intet navn	No name	Intet navn
+3074	Stamkort	Information card	Stamkort
+3075	Find ansat	Find employee	Finn ansatt
+3076	MA-nr.	Emp. no.	MA-nr.
+3077	Kodeord skal angives	Password must be entered	Passord må oppgis
+3078	Kodeord ikke ens	Passwords do not match	Passord er ikke like
+3079	Login	Login	Innlogging
+3080	Brugergruppe	User group	Brukergruppe
+3081	Der er brugere tilknyttet denne gruppe - kan ikke slettes	Users are linked to this group - cannot be deleted	Det er brukere tilknyttet denne gruppen - kan ikke slettes
+3082	Gruppenavn	Group name	Gruppenavn
+3083	Opret/ret	Create/edit	Opprett/rediger
+3084	Akkordseddel	Piecework slip	Akkordseddel
+3085	Ny gruppe	New group	Ny gruppe
+3086	Feltnavn	Field name	Feltnavn
+3087	Felttype	Field type	Felttype
+3088	Tekstlinje	Text line	Tekstlinje
+3089	Valgfelt	Selection field	Valgfelt
+3090	Afmærkningsfelt	Checkbox	Avmerkingsfelt
+3091	Tekstfelt	Text area	Tekstfelt
+3092	Medarbejderinformation	Employee information	Medarbeiderinformasjon
 3093	
 3094	
 3095	

@@ -30,31 +30,31 @@ print "<input type=\"hidden\" name=\"returside\" value=\"$returside\">\n";
 print "<input type=\"hidden\" name=\"fokus\" value=\"$fokus\">\n";
 
 print "<div style=\"float:left; margin-right:70px; width:379px;\">\n";
-print "<h3>Medarbejderinformation</h3>\n";
+print "<h3>".findtekst('3092|Medarbejderinformation', $sprog_id)."</h3>\n";
 print "<div class=\"contentA\">\n";
-if (findtekst(645,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(645,$sprog_id)."<!--tekst 645--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"nummer\" value=\"$nummer\"><i style=\"color:red;\">$messages&nbsp;</i></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(646,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(646,$sprog_id)."<!--tekst 646--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"navn\" value=\"$navn\"><i style=\"color:red;\">$messages1&nbsp;</i></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(648,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(648,$sprog_id)."<!--tekst 648--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"addr1\" value=\"$addr1\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(649,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(649,$sprog_id)."<!--tekst 649--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"addr2\" value=\"$addr2\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(650,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(666,$sprog_id)."<!--tekst 666--></div><div class=\"right\"><input class=\"textSmall textIndent\" type=\"text\" name=\"postnr\" value=\"$postnr\"><input class=\"textMediumLarge textSpace textIndent\" type=\"text\" name=\"bynavn\" value=\"$bynavn\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(652,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(652,$sprog_id)."<!--tekst 652--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"email\" value=\"$email\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(654,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(654,$sprog_id)."<!--tekst 654--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"tlf\" value=\"$tlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(656,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(656,$sprog_id)."<!--tekst 656--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"privattlf\" value=\"$privattlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('645|Medarbejdernr.', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('645|Medarbejdernr.', $sprog_id)."<!--tekst 645--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"nummer\" value=\"$nummer\"><i style=\"color:red;\">$messages&nbsp;</i></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('646|Navn', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('646|Navn', $sprog_id)."<!--tekst 646--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"navn\" value=\"$navn\"><i style=\"color:red;\">$messages1&nbsp;</i></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('648|Adresse', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('648|Adresse', $sprog_id)."<!--tekst 648--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"addr1\" value=\"$addr1\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('649|Adresse 2', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('649|Adresse 2', $sprog_id)."<!--tekst 649--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"addr2\" value=\"$addr2\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('650|Postnr.', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('666|Postnr og by', $sprog_id)."<!--tekst 666--></div><div class=\"right\"><input class=\"textSmall textIndent\" type=\"text\" name=\"postnr\" value=\"$postnr\"><input class=\"textMediumLarge textSpace textIndent\" type=\"text\" name=\"bynavn\" value=\"$bynavn\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('652|E-mail', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('652|E-mail', $sprog_id)."<!--tekst 652--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"email\" value=\"$email\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('654|Lokalnr.', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('654|Lokalnr.', $sprog_id)."<!--tekst 654--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"tlf\" value=\"$tlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('656|Privat tlf.', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('656|Privat tlf.', $sprog_id)."<!--tekst 656--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"privattlf\" value=\"$privattlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 print "</div><!-- end of contentA -->\n";
 print "</div><!-- end of left container -->\n";
 
 print "<div style=\"float:left; width:379px;\">\n";
 print "<h3>&nbsp;</h3>\n";
 print "<div class=\"contentA\">\n";
-if (findtekst(661,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(661,$sprog_id)."<!--tekst 661--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"cprnr\" value=\"$cprnr\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(647,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(647,$sprog_id)."<!--tekst 647--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"initialer\" value=\"$initialer\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(653,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(653,$sprog_id)."<!--tekst 653--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"mobil\" value=\"$mobil\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(655,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(655,$sprog_id)."<!--tekst 655--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"fax\" value=\"$fax\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(662,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(662,$sprog_id)."<!--tekst 662--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"bank\" value=\"$bank\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(664,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(664,$sprog_id)."<!--tekst 664--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" style=\"text-align:right;\" name=\"loen\" value=\"$loen\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-if (findtekst(665,$sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst(665,$sprog_id)."<!--tekst 665--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" style=\"text-align:right;\" name=\"extraloen\" value=\"$extraloen\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('661|CPR-nr.', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('661|CPR-nr.', $sprog_id)."<!--tekst 661--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"cprnr\" value=\"$cprnr\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('647|Initialer', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('647|Initialer', $sprog_id)."<!--tekst 647--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"initialer\" value=\"$initialer\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('653|Mobil', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('653|Mobil', $sprog_id)."<!--tekst 653--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"mobil\" value=\"$mobil\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('655|Lokal fax', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal fax', $sprog_id)."<!--tekst 655--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"fax\" value=\"$fax\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('662|Bank', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('662|Bank', $sprog_id)."<!--tekst 662--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"bank\" value=\"$bank\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('664|Løn', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('664|Løn', $sprog_id)."<!--tekst 664--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" style=\"text-align:right;\" name=\"loen\" value=\"$loen\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+if (findtekst('665|Løntillæg', $sprog_id)) print "<div class=\"row\"><div class=\"left\">".findtekst('665|Løntillæg', $sprog_id)."<!--tekst 665--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" style=\"text-align:right;\" name=\"extraloen\" value=\"$extraloen\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 if ($afd)	{
-	print "<div class=\"row\"><div class=\"left\">".findtekst(658,$sprog_id)."<!--tekst 658--></div><div class=\"right\"><select name=\"afd\" style=\"width: 196px;\">\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('658|Afdeling', $sprog_id)."<!--tekst 658--></div><div class=\"right\"><select name=\"afd\" style=\"width: 196px;\">\n";
 	if ($afd) print "<option>$afd:$afdeling</option>";	
 	for ($x=1; $x<=$afd_antal; $x++) { 
 		print "<option value=\"$afd_nr[$x]\">$afd_nr[$x]:$afd_beskrivelse[$x]</option>";
@@ -66,27 +66,27 @@ print "</div><!-- end of right container -->\n";
 
 print "<div style=\"float:left; width:828px;\">\n";
 print "<div class=\"contentA\" style=\"808px;\">\n";
-print "<div class=\"row\"><div class=\"left\">".findtekst(659,$sprog_id)."<!--tekst 659--></div><div class=\"right\"><textarea name=\"notes\" rows=\"3\" cols=\"76\" style=\"min-width:681px;max-width:681px;\" class=\"textArea\">$notes</textarea></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('659|Bemærkning', $sprog_id)."<!--tekst 659--></div><div class=\"right\"><textarea name=\"notes\" rows=\"3\" cols=\"76\" style=\"min-width:681px;max-width:681px;\" class=\"textArea\">$notes</textarea></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 print "</div><!-- end of contentA -->\n";
 print "</div><!-- end of full container -->\n";
 if ($lukket && !$slutdate) { 
 	$lukket="checked";
 	print "<div style=\"float:left; margin-right:70px; width:379px;\">\n";
 	print "<div class=\"contentA\">\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst(660,$sprog_id)."<!--tekst 660--></div><div class=\"right\"><input class=\"textSpace\" type=\"checkbox\" name=\"lukket\" $lukket></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('660|Fratrådt', $sprog_id)."<!--tekst 660--></div><div class=\"right\"><input class=\"textSpace\" type=\"checkbox\" name=\"lukket\" $lukket></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of left container -->\n";
 } else {
 	print "<div style=\"float:left; margin-right:70px; width:379px;\">\n";
 	print "<div class=\"contentA\">\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst(663,$sprog_id)."<!--tekst 663--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"startdato\" value=\"".dkdato($startdate)."\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst(670,$sprog_id)."<!--tekst 670--></div><div class=\"right\"><input class=\"textSpace\" type=\"checkbox\" name=\"trainee\" $trainee></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('663|Tiltrådt', $sprog_id)."<!--tekst 663--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"startdato\" value=\"".dkdato($startdate)."\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('670|Trainee', $sprog_id)."<!--tekst 670--></div><div class=\"right\"><input class=\"textSpace\" type=\"checkbox\" name=\"trainee\" $trainee></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of left container -->\n";
 	
 	print "<div style=\"float:left; width:379px;\">\n";
 	print "<div class=\"contentA\">\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst(660,$sprog_id)."<!--tekst 660--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"slutdato\" value=\"".dkdato($slutdate)."\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('660|Fratrådt', $sprog_id)."<!--tekst 660--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"slutdato\" value=\"".dkdato($slutdate)."\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of left container -->\n";
 }
@@ -94,7 +94,7 @@ if (isset($box)&&count($box)) {
 	print "<div class=\"clear\"></div>\n";
 	print "<hr>";
 	print "<div style=\"float:left; width:828px;\">\n";
-	print "<h3>Stamkort</h3>\n";
+	print "<h3>".findtekst('3074|Stamkort', $sprog_id)."</h3>\n";
 	print "<div class=\"contentB\">\n";
 	print "<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"table-layout:fixed; width:100%; border:none;\">";
 	$kolonne=0;
