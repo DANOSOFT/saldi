@@ -643,11 +643,11 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 			$qtxt .= "udskriv_til='$udskriv_til',notes='$notes',tidspkt='$tidspkt',pbs='$pbs',afd='$afd',restordre='0' ";
 			$qtxt .= "where id='$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__); #20140112
-			if ($felt_1) db_modify("update ordrer set felt_1='$felt_1'", __FILE__ . " linje " . __LINE__);
-			if ($felt_2) db_modify("update ordrer set felt_2='$felt_2'", __FILE__ . " linje " . __LINE__);
-			if ($felt_3) db_modify("update ordrer set felt_3='$felt_3'", __FILE__ . " linje " . __LINE__);
-			if ($felt_4) db_modify("update ordrer set felt_4='$felt_4'", __FILE__ . " linje " . __LINE__);
-			if ($felt_5) db_modify("update ordrer set felt_5='$felt_5'", __FILE__ . " linje " . __LINE__);
+			if ($felt_1) db_modify("update ordrer set felt_1='$felt_1' where id = '$id'", __FILE__ . " linje " . __LINE__);
+			if ($felt_2) db_modify("update ordrer set felt_2='$felt_2' where id = '$id'", __FILE__ . " linje " . __LINE__);
+			if ($felt_3) db_modify("update ordrer set felt_3='$felt_3' where id = '$id'", __FILE__ . " linje " . __LINE__);
+			if ($felt_4) db_modify("update ordrer set felt_4='$felt_4' where id = '$id'", __FILE__ . " linje " . __LINE__);
+			if ($felt_5) db_modify("update ordrer set felt_5='$felt_5' where id = '$id'", __FILE__ . " linje " . __LINE__);
 		}
 	}
 } elseif (strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['konto_id']) && $id) { # <- 2011.03.29
@@ -3423,6 +3423,7 @@ function ordreside($id, $regnskab)
 	if($tpm != $value_type) $tmp = $value_type; 
 	#$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
 	#$ordreliste = explode(",", if_isset($r['box1']));
+	$ordrlst=array();
 	if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) {
 		$ordrlst = explode(";",file_get_contents("../temp/$db/ordrlst$bruger_id.txt"));
 	}
