@@ -3209,6 +3209,7 @@ function ordreside($id, $regnskab)
 						case 'dfm_hub':     if (!empty($r['var_value'])) $dfm_hub     = $r['var_value']; break;
 						case 'dfm_ship':    if (!empty($r['var_value'])) $dfm_ship    = $r['var_value']; break;
 						case 'dfm_good':    if (!empty($r['var_value'])) $dfm_good    = $r['var_value']; break;
+						case 'dfm_gooddes': if (!empty($r['var_value'])) $dfm_gooddes = $r['var_value']; break;
 						case 'dfm_pay':     if (!empty($r['var_value'])) $dfm_pay     = $r['var_value']; break;
 						case 'dfm_sercode': if (!empty($r['var_value'])) $dfm_sercode = $r['var_value']; break;
 					}
@@ -3238,6 +3239,7 @@ function ordreside($id, $regnskab)
 						case 'dfm_hub':     if (!empty($r['var_value'])) $dfm_hub     = $r['var_value']; break;
 						case 'dfm_ship':    if (!empty($r['var_value'])) $dfm_ship    = $r['var_value']; break;
 						case 'dfm_good':    if (!empty($r['var_value'])) $dfm_good    = $r['var_value']; break;
+						case 'dfm_gooddes': if (!empty($r['var_value'])) $dfm_gooddes = $r['var_value']; break;
 						case 'dfm_pay':     if (!empty($r['var_value'])) $dfm_pay     = $r['var_value']; break;
 						case 'dfm_sercode': if (!empty($r['var_value'])) $dfm_sercode = $r['var_value']; break;
 					}
