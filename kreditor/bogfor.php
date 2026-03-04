@@ -167,12 +167,14 @@ if (!$row['levdate']){
 			if ($valutakurs) $snitpris[$x]=afrund(($snitpris[$x]*$valutakurs/100),3); # Omregning til DKK.		
  		}
 		for ($x=1; $x<=$linjeantal; $x++) {
-			$query = db_select("select id, gruppe,beholdning,kostpris from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__); #rettet fra varenr til vare_id 20120612 grundet æøå problem i varenr.
+			$query = db_select("select id, gruppe,beholdning,kostpris,delvare,retail_price from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__); #rettet fra varenr til vare_id 20120612 grundet æøå problem i varenr.
 			$row = db_fetch_array($query);
 			$vare_id[$x]=$row['id'];
 			$gruppe[$x]=$row['gruppe'];
 			$beholdning[$x]=$row['beholdning'];
 			$gl_kostpris[$x]=$row['kostpris'];
+			$delvare[$x]=$row['delvare'];
+			$gl_retail_price[$x]=$row['retail_price'];
 		}
 		for ($x=1; $x<=$linjeantal; $x++) {
 			if (($vare_id[$x])&&($antal[$x]!=0)) {
@@ -292,6 +294,14 @@ if (!$row['levdate']){
 							if ($ny_kostpris!=$gl_kostpris[$x] && $art=="KO") {
 								include_once("../lager/productsIncludes/updateProductPrice.php");
 								updateProductPrice($vare_id[$x],$ny_kostpris,$levdate);
+								if ($delvare[$x] == 'on') {
+									$costDiff = $ny_kostpris - $gl_kostpris[$x];
+									$query = db_select("select retail_price from varer where id='$vare_id[$x]'", __FILE__ . " linje " . __LINE__);
+									$row = db_fetch_array($query);
+									$retailDiff = $row['retail_price'] - $gl_retail_price[$x];
+									include_once('../lager/productCardIncludes/updateParentPrice.php');
+									updateParentPrice($vare_id[$x], $costDiff, $retailDiff);
+								}
 							}
 						}	
 						$qtxt = "update vare_lev set kostpris='$snitpris[$x]' where vare_id='$vare_id[$x]' and lev_id='$konto_id'";
