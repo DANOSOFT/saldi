@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-02 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20260219 LOE some cleanup to work with or without department
 // 20260224 PHR Fixed missing $db_id after logolib
 // 20260302 PHR	Fixed locaton if location for stock points to another stock
+// 20260303 PHR removed call to old phpmailer
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
 
@@ -3017,10 +3018,6 @@ if (!function_exists('kontoprint')) {
 			else
 				$pdftk = "$exec_path/pdftk";
 			include("../includes/online.php");
-			if (!class_exists('phpmailer')) {
-				ini_set("include_path", ".:../phpmailer");
-				require_once("class.phpmailer.php");
-			}
 			for ($x = 1; $x <= $mailantal; $x++) {
 				#		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
 				system("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");

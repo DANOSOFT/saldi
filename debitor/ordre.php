@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-02-27 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-03-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -68,11 +68,13 @@
 // 20250227 PHR Scroll to bottom if focus is set to botom orderline   
 // 20260304 Sawaneh SD-369 dfm_url override from pickup address
 
+// 20260302 LOE SD-368: Sets tmp to value_type if set for navigation
+// 20260303 PHR Fixed ordrlst (arrows)
 
 @session_start();
 $s_id = session_id();
 
-$antal = $beskrivelse = $enhed = $lagernr = $ordreliste = $pris = $reserveret = $varenr = array();
+$antal = $beskrivelse = $enhed = $lagernr = $ordrlst = $pris = $reserveret = $varenr = array();
 $afd_lager = $antal[0] = $art = NULL;
 $brugernavn = NULL;
 $default_procenttillag = $digital = NULL;
@@ -3405,19 +3407,22 @@ function ordreside($id, $regnskab)
 	if ($status == 0) $tmp = "tilbud";
 	elseif ($status >= 3) $tmp = "faktura";
 	else $tmp = "ordrer";
-
-	$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
-	$ordreliste = explode(",", if_isset($r['box1']));
-	$x = 0;
+	$value_type = if_isset($_GET, 'ordrer', 'valg');
+	if($tpm != $value_type) $tmp = $value_type; 
+	#$r = db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'", __FILE__ . " linje " . __LINE__));
+	#$ordreliste = explode(",", if_isset($r['box1']));
+	if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) {
+		$ordrlst = explode(";",file_get_contents("../temp/$db/ordrlst$bruger_id.txt"));
+	}
+	$i = 0;
 	$next_id = 0;
-	while (isset($ordreliste[$x])) {
-		if ($ordreliste[$x] == $id) {
-			if (isset($ordreliste[$x - 1])) $prev_id = $ordreliste[$x - 1];
+	for ($i=0;$i<count($ordrlst);$i++) {
+		if ($ordrlst[$i] == $id) {
+			if ($ordrlst[$i - 1]) $prev_id = $ordrlst[$i - 1];
 			else $prev_id = NULL;
-			if (isset($ordreliste[$x + 1])) $next_id = $ordreliste[$x + 1];
+			if ($ordrlst[$i + 1]) $next_id = $ordrlst[$i + 1];
 			else $next_id = NULL;
 		}
-		$x++;
 	}
 	######### elip ##########
 	$kundeordre = findtekst('1092|Kundeordre', $sprog_id);

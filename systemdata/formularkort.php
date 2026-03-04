@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formularkort --- patch 4.1.1 --- 2026-02-20 --- 
-// 							LICENSE
+// --- systemdata/formularkort --- patch 5.0.0 --- 2026-03-03 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -53,6 +53,7 @@
 // 20231003 PHR Added ordre_valuta
 // 20260103 LOE User can now set language based on already defined languages
 // 20260220 LOE Background terms now used instead of language terms for clarity, as this is more accurate for what the settings do. The term 'language(sprog)' is still used in the database and code for backwards compatibility, but the user interface now refers to 'backgrounds' instead of 'languages'.
+// 20260303 PHP8
 @session_start();
 $s_id=session_id();
 
@@ -161,7 +162,8 @@ if (isset($_POST) && $_POST) {
 		} else {
 			$r=db_fetch_array($q=db_select("select max(kodenr) as kodenr from grupper where art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
 			$form_sprog_id=$r['kodenr']+1;
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1) values ('Formular og varesprog','$form_sprog_id','VSPR','$formularsprog')");
+			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1) values ('Formular og varesprog','$form_sprog_id','VSPR','$formularsprog')";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}else{
 		$form_sprog_id = 0;

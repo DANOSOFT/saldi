@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-25--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-03-03--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,7 +40,9 @@
 // 20260212 PHR Disabled popup checker
 // 20260216 LOE Updated delivery note navigation behaviour. 20260220 + location
 // 20260223 AJ Updated Revenue and cover ratio to match
-// 20260225 LOE Added initialized shop link  for shop pickup display
+// 20260225 LOE Added initialized shop link  for shop pickup display  
+// 20260228 LOE Updated box1 in grupper to store the order of the orders for next/prev navigation in order details page.
+// 20260303 PHR Fixed revenue and cover ratio
 
 @session_start();
 $s_id = session_id();
@@ -99,6 +101,9 @@ include("../includes/online.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style-with-links.js.php");
 $sprog_id = if_isset($sprog_id, 1);
+
+if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) unlink("../temp/$db/ordrlst$bruger_id.txt");
+
 /* 
 * check for popup blocker 
 */
@@ -634,9 +639,12 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            global $brugernavn;
-            global $vis_lagerstatus, $ls_vgr, $sprog_id;
-            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=" . urlencode($_SERVER["REQUEST_URI"]);
+             global $brugernavn,$bruger_id,$db;
+            global $vis_lagerstatus, $ls_vgr, $sprog_id, $valg;
+
+            file_put_contents("../temp/$db/ordrlst$bruger_id.txt","$row[id];",FILE_APPEND);
+
+            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&valg=$valg&returside=" . urlencode($_SERVER["REQUEST_URI"]);
             
             $timestamp = $row['tidspkt'];
             if (strpos($timestamp, ':')) {
@@ -1596,7 +1604,26 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
 
 // The grid will create its own form - no outer form needed
 // Create the grid first (it creates its own form for pagination/search)
-create_datagrid($grid_id, $data);
+$rows = create_datagrid($grid_id, $data);
+#######
+// Build ordreliste for box1 (used by other parts of the system)
+
+// Build ordreliste from the SAME rows the grid returned (respects all active search/filter)
+$ordreliste = "";
+foreach ($rows as $row) {
+    if (!empty($row['id'])) {
+        $ordreliste = $ordreliste ? $ordreliste . "," . $row['id'] : $row['id'];
+    }
+}
+
+// Update box1 in grupper with only the currently visible/filtered IDs
+$qtxt = "SELECT id FROM grupper WHERE art = 'OLV' AND kode = '$valg' AND kodenr = '$bruger_id'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    $qtxt = "UPDATE grupper SET box1 = '$ordreliste' WHERE id = '$r[id]'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+// End of ordreliste box1 update
+
 
 ########
 if (preg_match('/background-color:([a-fA-F0-9#]+)/', $topStyle, $matches)) {
@@ -2080,6 +2107,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>";
+
+if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) {
+    $ialt_total = $ialt_m_moms_total = $ialt_kostpris_total = 0;
+    $ordrlst = explode(";",file_get_contents("../temp/$db/ordrlst$bruger_id.txt"));
+    for ($i=0;$i<count($ordrlst);$i++) {
+        if ($ordrlst[$i]) {
+            $qtxt = "SELECT sum,moms,kostpris FROM ordrer WHERE id = $ordrlst[$i]";
+            $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+            $ialt_total         += $r['sum'];
+            $ialt_m_moms_total  += $r['moms'];
+            $ialt_kostpris_total+= $r['kostpris'];
+        }
+    }
+}
 
 ########
 
