@@ -451,7 +451,6 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 	# Kaldes fra funktionen levering - 
 
 	# echo "Linjeopdat: $antal - $id - $linje_id - $kred_linje_id<br>";
-
 	global $art;
 	global $db, $db_skriv_id;
 	global $fakturadate, $fp;
@@ -489,7 +488,6 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 		$qtxt = "select sum(antal) as leveret from batch_salg where linje_id='$linje_id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($r['leveret'] > 0 && $antal < 0) { #20180913
-			$qtxt = "select id,antal,batch_kob_id from batch_salg where linje_id='$linje_id' and antal > 0 order by lev_nr desc";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if ($r['antal'] && $r['antal'] + $antal <= 0) {
@@ -576,24 +574,21 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					$qtxt = "select antal,rest from batch_kob where id = '$bk_id'"; #20170507
 					$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					$tmp2 = $r2['antal'] - $r2['rest']; #$tmp2 er det antal det kan lægges tilbage på linjen.
-					$ny_rest = $r2['rest'];
-					if ($tmp && $tmp2) {
-						if ($tmp2 >= $tmp) { #Så kan alle være på samme linje
-							$ny_rest = $r2['rest'] + $tmp;
-							$tmp = 0;
-						} elseif ($tmp2) { #alle kan ikke være på samme linje så vi lægger det vi kan og går videre til næste linje.
-							$ny_rest = $r2['antal'];
-							$tmp -= $tmp2;
-						}
+					
+					$max_retur = min($tmp, $tmp2, $bs_antal);
+					
+					if ($max_retur > 0) {
+						$ny_rest = $r2['rest'] + $max_retur;
+						
 						if (!$kred_linje_id) {
 							$qtxt = "update batch_kob set rest='$ny_rest' where id = '$bk_id'";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-							if ($bs_antal - $tmp2 == 0)
-								$qtxt = "delete from batch_salg where id='$bs_id'";
-							else
-								$qtxt = "update batch_salg set antal=antal+$ny_rest where id = '$bs_id'";
+							
+							$qtxt = "update batch_salg set antal=antal-$max_retur where id = '$bs_id'";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+							db_modify("delete from batch_salg where id='$bs_id' and antal <= 0", __FILE__ . " linje " . __LINE__);
 						}
+						$tmp -= $max_retur;
 					}
 				}
 				if ($kred_linje_id) {
