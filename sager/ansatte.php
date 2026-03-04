@@ -134,6 +134,8 @@ $s_id=session_id();
 
 function ansatliste() {
 
+	global $sprog_id;
+
 	$sortstyle=array();
 	$nysortstyle=if_isset($_GET['nysortstyle']);
 	$sortarray=array('initialer','nummer','navn','addr1','postnr','bynavn','email','mobil');
