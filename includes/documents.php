@@ -178,9 +178,10 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 						error_log("documents.php (AJAX): API extraction returned null for file: $tempFile");
 					}
 					
+					
 					// Now convert to PDF
-					system("convert '$tempFile' '$targetFile'");
-					if (file_exists($targetFile)) {
+					exec("convert '$tempFile' '$targetFile'", $output, $return_var);
+					if ($return_var === 0 && file_exists($targetFile)) {
 						unlink($tempFile);
 					} else {
 						$targetFile = $tempFile; // Fallback to original if conversion fails
@@ -555,9 +556,10 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 					error_log("documents.php (block2): API extraction returned null for file: $tempFile");
 				}
 				
+				
 				// Now convert to PDF
-				system("convert '$tempFile' '$targetFile'");
-				if (file_exists($targetFile)) {
+				exec("convert '$tempFile' '$targetFile'", $output, $return_var);
+				if ($return_var === 0 && file_exists($targetFile)) {
 					unlink($tempFile);
 				} else {
 					$targetFile = $tempFile; // Fallback to original if conversion fails
