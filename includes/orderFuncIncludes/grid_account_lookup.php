@@ -1554,10 +1554,20 @@ STYLE;
 
 function render_ajax_search_script($id) {
     global $o_art_global, $fokus, $bgcolor, $bgcolor5, $ordre_id;
+    global $ajax_lookup_url; // Allow overriding the AJAX endpoint (e.g. for creditor lookup)
+    global $account_lookup_href; // Allow overriding the href for row click navigation
 
-    $href = ($o_art_global === 'PO' || $o_art_global === 'KO')
-        ? "pos_ordre.php"
-        : "ordre.php";
+    if (!$ajax_lookup_url) {
+        $ajax_lookup_url = '../debitor/accountLookupData.php';
+    }
+
+    if ($account_lookup_href) {
+        $href = $account_lookup_href;
+    } else {
+        $href = ($o_art_global === 'PO')
+            ? "pos_ordre.php"
+            : "ordre.php";
+    }
 
     if ($o_art_global === 'PO') {
         $fokus = 'kontonr';
@@ -1803,7 +1813,7 @@ function render_ajax_search_script($id) {
         var xhr = new XMLHttpRequest();
         currentRequest_{$id} = xhr;
 
-        xhr.open('GET', '../debitor/accountLookupData.php?' + qs, true);
+        xhr.open('GET', '{$ajax_lookup_url}?' + qs, true);
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== 4) return;
             currentRequest_{$id} = null;

@@ -302,6 +302,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$dfm_pickup_hubs = isset($_POST['dfm_pickup_hub']) && is_array($_POST['dfm_pickup_hub']) ? $_POST['dfm_pickup_hub'] : array();
 		$dfm_pickup_ships = isset($_POST['dfm_pickup_ship']) && is_array($_POST['dfm_pickup_ship']) ? $_POST['dfm_pickup_ship'] : array();
 		$dfm_pickup_goods = isset($_POST['dfm_pickup_good']) && is_array($_POST['dfm_pickup_good']) ? $_POST['dfm_pickup_good'] : array();
+		$dfm_pickup_gooddess = isset($_POST['dfm_pickup_gooddes']) && is_array($_POST['dfm_pickup_gooddes']) ? $_POST['dfm_pickup_gooddes'] : array();
 		$dfm_pickup_pays = isset($_POST['dfm_pickup_pay']) && is_array($_POST['dfm_pickup_pay']) ? $_POST['dfm_pickup_pay'] : array();
 		$dfm_pickup_sercodes = isset($_POST['dfm_pickup_sercode']) && is_array($_POST['dfm_pickup_sercode']) ? $_POST['dfm_pickup_sercode'] : array();
 		
@@ -512,6 +513,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					'dfm_hub' => isset($dfm_pickup_hubs[$idx]) ? $dfm_pickup_hubs[$idx] : '',
 					'dfm_ship' => isset($dfm_pickup_ships[$idx]) ? $dfm_pickup_ships[$idx] : '',
 					'dfm_good' => isset($dfm_pickup_goods[$idx]) ? $dfm_pickup_goods[$idx] : '',
+					'dfm_gooddes' => isset($dfm_pickup_gooddess[$idx]) ? $dfm_pickup_gooddess[$idx] : '',
 					'dfm_pay' => isset($dfm_pickup_pays[$idx]) ? $dfm_pickup_pays[$idx] : '',
 					'dfm_sercode' => isset($dfm_pickup_sercodes[$idx]) ? $dfm_pickup_sercodes[$idx] : ''
 				);

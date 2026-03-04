@@ -798,7 +798,7 @@ function div_valg() {
 				'dfm_id' => '', 'dfm_user' => '', 'dfm_pass' => '',
 				'dfm_agree' => '', 'dfm_hub' => '', 'dfm_ship' => '',
 				'dfm_good' => '', 'dfm_pay' => '', 'dfm_sercode' => '',
-				'dfm_url' => ''
+				'dfm_url' => '', 'dfm_gooddes' => ''
 			);
 		}
 		$field = str_replace('dfm_pickup_', '', $r['var_name']);
@@ -1170,6 +1170,7 @@ function div_valg() {
 				print "<tr><td>DFM Hub</td><td><input name='dfm_pickup_hub[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_hub'] ?? '') . "'></td></tr>\n";
 				print "<tr><td>Shippingtype (standard)</td><td><input name='dfm_pickup_ship[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_ship'] ?? '') . "'></td></tr>\n";
 				print "<tr><td>Godstype (standard)</td><td><input name='dfm_pickup_good[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_good'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Godsbeskrivelse (standard)</td><td><input name='dfm_pickup_gooddes[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_gooddes'] ?? '') . "'></td></tr>\n";
 				print "<tr><td>Betalingmetode (standard)</td><td><input name='dfm_pickup_pay[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_pay'] ?? '') . "'></td></tr>\n";
 				print "<tr><td>Afleveringsmetode (standard)</td><td><input name='dfm_pickup_sercode[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_sercode'] ?? '') . "'></td></tr>\n";
 				print "</table>\n";
@@ -1242,6 +1243,7 @@ function addDfmPickup() {
 	html += '<tr><td>DFM Hub</td><td><input form=\"diverse\" name=\"dfm_pickup_hub[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>Shippingtype (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_ship[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>Godstype (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_good[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Godsbeskrivelse (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_gooddes[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>Betalingmetode (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_pay[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 	html += '<tr><td>Afleveringsmetode (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_sercode[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
 
