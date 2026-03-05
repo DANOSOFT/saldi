@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-03-03 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-03-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,10 +66,10 @@
 // 20250225 PHR Order taken by ---
 // 20250227 PHR if (isset($kontonr)) changed to if (isset($kontonr) && $kontonr)
 // 20250227 PHR Scroll to bottom if focus is set to botom orderline   
-// 20260304 Sawaneh SD-369 dfm_url override from pickup address
-
 // 20260302 LOE SD-368: Sets tmp to value_type if set for navigation
 // 20260303 PHR Fixed ordrlst (arrows)
+// 20260304 Sawaneh SD-369 dfm_url override from pickup address
+// 20260305 PHR removed quickfix 20260304 as it made delivey when order was saved
 
 @session_start();
 $s_id = session_id();
@@ -2891,6 +2891,7 @@ if ($b_submit == 'doInvoice' && $status < 3) {
 ################### NEGATIVE LEVERES (subtract from delivered) ####
 // 20260304 When user enters negative leveres on a fully-delivered order and clicks Gem,
 // trigger the delivery flow to adjust batch_salg records and leveret.
+/*
 if ($b_submit == 'Gem' && $bogfor != 0 && $status < 3 && $id) {
 	$q_neg = db_select("select id from ordrelinjer where ordre_id = '$id' and leveres < 0", __FILE__ . " linje " . __LINE__);
 	if (db_fetch_array($q_neg)) {
@@ -2898,6 +2899,7 @@ if ($b_submit == 'Gem' && $bogfor != 0 && $status < 3 && $id) {
 		exit;
 	}
 }
+*/
 ############################ LEVER ################################
 
 if (strstr($b_submit, 'Lev') && $bogfor != 0 && $status < 3) {
