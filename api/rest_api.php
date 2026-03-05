@@ -325,7 +325,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			}
 		}
 	}
-	$qtxt="select saldi_id from shop_adresser where shop_id='$shop_addr_id'";
+	$qtxt="select saldi_id from shop_adresser where shop_id='$shop_addr_id' and afd='$afd'";
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$saldi_addr_id=$r['saldi_id'];
@@ -354,7 +354,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			}
 		}
 		if ($saldi_addr_id && $shop_addr_id) {
-			$qtxt="insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')";
+			$qtxt="insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_addr_id','$shop_addr_id','$afd')";
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
 		} elseif (!$saldi_addr_id) { #if ($shop_addr_id) {
@@ -400,7 +400,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			} 
 			if ($shop_addr_id) {
 				fwrite($log,__line__." insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')\n");
-				db_modify("insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')",__FILE__ . " linje " . __LINE__);  
+				db_modify("insert into shop_adresser(saldi_id,shop_id,afd)values('$saldi_addr_id','$shop_addr_id','$afd')",__FILE__ . " linje " . __LINE__);  
 			}
 	} else {
 		fwrite($log,__line__." select kontonr from adresser where id = '$saldi_addr_id'\n");
