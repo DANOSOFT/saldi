@@ -21,9 +21,9 @@ class LabelEndpointTest
         // Set your actual authorization headers
         $this->headers = [
             'Content-Type: application/json',
-            'Authorization: sioefjsofksodkf',
-            'X-SaldiUser: api',
-            'X-DB: test_16'
+            // TODO: Replace with JWT token from POST /auth/login
+            
+            // Headers will be set after login
         ];
     }
 
