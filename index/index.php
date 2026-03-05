@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php -----patch 5.0.0 ----2026-03-03--------------
+// --- index/index.php -----patch 5.0.0 ----2026-03-05--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 // 20250402 LOE Applied $nonce to javascript handling languageId form and other clean up
 // 20250426 LOE Set cookie path to '/' for languageId to make it accessible across all pages on the site; as used in restore file
 // 20260302 LOE Added eye icon to toggle password visibility and added the necessary JavaScript for that functionality.
+// 20260305 PHR Language Id counted one too many
 @session_start();
 
 if (!isset($_SESSION['nonce'])) {
@@ -216,7 +217,7 @@ $a = explode("\t",$linje);
 fclose($fp);
 
 if (!is_numeric($languageId)) $languageId = 1;
-for ($x=1; $x<=count($a); $x++){
+for ($x=1; $x<count($a); $x++){
 if ($x == $languageId){
 print "<option selected value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
 }
