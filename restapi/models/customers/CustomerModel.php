@@ -92,6 +92,7 @@ class CustomerModel
             $this->lev_email = $r['lev_email'];
             $this->lev_land = $r['lev_land'];
             $this->kontakt = $r['kontakt'];
+            $this->kontonr = $r['kontonr'];
 
             return true;
         }
@@ -184,6 +185,7 @@ class CustomerModel
             if ($this->lev_land !== null) $updateFields[] = "lev_land = '$lev_land'";
             if ($this->kontakt !== null) $updateFields[] = "kontakt = '$kontakt'";
             if ($this->gruppe !== null) $updateFields[] = "gruppe = $gruppe";
+            if ($this->kontonr !== null) $updateFields[] = "kontonr = '$kontonr'";
             
             // Only proceed if there are fields to update
             if (!empty($updateFields)) {
@@ -363,7 +365,9 @@ class CustomerModel
             'efternavn' => $this->efternavn,
             'kontakt' => $this->kontakt,
             'notes' => $this->notes,
-            'gruppe' => $this->gruppe
+            'gruppe' => $this->gruppe,
+            'kontonr' => $this->kontonr,
+            'kundenr' => $this->kontonr
         );
     }
 

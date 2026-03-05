@@ -10,24 +10,24 @@
  * GET /invoices/{id}/pdf - Hent PDF
  */
 
-require_once __DIR__ . '/../../../core/BaseEndpoint.php';
-require_once __DIR__ . '/../../../core/JWT.php';
-require_once __DIR__ . '/../../../core/JWTAuth.php';
-require_once __DIR__ . '/../../../models/orders/OrderModel.php';
-require_once __DIR__ . '/../../../models/orderlines/OrderLineModel.php';
-require_once __DIR__ . '/../../../services/OrderService.php';
-require_once __DIR__ . '/../../../core/logging.php';
+require_once __DIR__ . '/../../../../core/BaseEndpoint.php';
+require_once __DIR__ . '/../../../../core/JWT.php';
+require_once __DIR__ . '/../../../../core/JWTAuth.php';
+require_once __DIR__ . '/../../../../models/orders/OrderModel.php';
+require_once __DIR__ . '/../../../../models/orderlines/OrderLineModel.php';
+require_once __DIR__ . '/../../../../services/OrderService.php';
+require_once __DIR__ . '/../../../../core/logging.php';
 
-include_once __DIR__ . '/../../../../includes/db_query.php';
-include_once __DIR__ . '/../../../../includes/connect.php';
-include_once __DIR__ . '/../../../../includes/std_func.php';
-include_once __DIR__ . '/../../../../includes/ordrefunc.php';
+include_once __DIR__ . '/../../../../../includes/db_query.php';
+include_once __DIR__ . '/../../../../../includes/connect.php';
+include_once __DIR__ . '/../../../../../includes/std_func.php';
+include_once __DIR__ . '/../../../../../includes/ordrefunc.php';
 
 class InvoicesEndpoint extends BaseEndpoint
 {
-    private $userId;
-    private $username;
-    private $db;
+    protected $userId;
+    protected $username;
+    protected $db;
     
     public function __construct()
     {
@@ -94,6 +94,12 @@ class InvoicesEndpoint extends BaseEndpoint
             
             // Build query
             $qtxt = "SELECT id FROM ordrer WHERE art = 'DO'";
+            
+            // Filter by customer (konto_id)
+            if (isset($_GET['customer']) && is_numeric($_GET['customer'])) {
+                $customerId = (int)$_GET['customer'];
+                $qtxt .= " AND kontonr = $customerId";
+            }
             
             // Filter by status
             if ($status === 'draft') {

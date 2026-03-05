@@ -3568,7 +3568,7 @@ function kontoudtog($id)
 }
 ######################################################################################################################################
 
-	include_once('../includes/orderFuncIncludes/accountLookup.php');
+	include_once(__DIR__ . '/orderFuncIncludes/accountLookup.php');
 
 ######################################################################################################################################
 function ansatopslag($sort, $fokus, $id)
@@ -4471,7 +4471,7 @@ function grupperabat($antal, $rabatgruppe)
 } # endfunc grupperabat
 ######################################################################################################################################
 if (!function_exists('vareopslag')) {
-	include('../includes/orderFuncIncludes/productLookup.php');
+	include(__DIR__ . '/orderFuncIncludes/productLookup.php');
 }
 ######################################################################################################################################
 function tekstopslag($sort, $id)

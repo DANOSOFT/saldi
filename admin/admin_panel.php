@@ -28,6 +28,136 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
+// ---- REST API Configuration for ssl3.saldi.dk ----
+define('SALDI_API_BASE', 'https://ssl3.saldi.dk/finans/restapi/endpoints/v1');
+define('SALDI_API_USER', 'api');
+define('SALDI_API_PASS', 'Misko3023');
+define('SALDI_API_ACCOUNT', 'DANOSOFT');
+define('SALDI_API_TOKEN_FILE', '/tmp/saldi_api_token_admin.json');
+
+/**
+ * Get a cached or fresh JWT token from the Saldi REST API
+ */
+function get_saldi_api_token() {
+    // Check for cached token
+    if (file_exists(SALDI_API_TOKEN_FILE)) {
+        $cached = json_decode(file_get_contents(SALDI_API_TOKEN_FILE), true);
+        if ($cached && isset($cached['token']) && isset($cached['expires']) && $cached['expires'] > time()) {
+            return $cached['token'];
+        }
+    }
+    
+    $url = SALDI_API_BASE . '/auth/login.php';
+    $postData = json_encode([
+        'username' => SALDI_API_USER,
+        'password' => SALDI_API_PASS,
+        'account_name' => SALDI_API_ACCOUNT
+    ]);
+    
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $postData,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0
+    ]);
+    
+    $response = curl_exec($ch);
+    $curlError = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if (!$response || $httpCode !== 200) return null;
+    
+    $data = json_decode($response, true);
+    if (!$data || !$data['success'] || !isset($data['data']['access_token'])) return null;
+    
+    $token = $data['data']['access_token'];
+    
+    // Cache token (expires in 55 min to be safe)
+    file_put_contents(SALDI_API_TOKEN_FILE, json_encode([
+        'token' => $token,
+        'expires' => time() + 3300
+    ]));
+    
+    return $token;
+}
+
+/**
+ * Fetch data from the Saldi REST API
+ */
+function fetch_saldi_api($endpoint, $token, $params = []) {
+    $url = SALDI_API_BASE . $endpoint;
+    if ($params) $url .= '?' . http_build_query($params);
+    
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $token,
+            'Content-Type: application/json'
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200 || !$response) return null;
+    
+    $data = json_decode($response, true);
+    if (!$data || !$data['success']) return null;
+    
+    return $data['data'];
+}
+
+/**
+ * Fetch customer invoices from the Saldi API by searching for matching customer name
+ */
+function fetch_customer_invoices($regnskab_name) {
+    $token = get_saldi_api_token();
+    if (!$token) return ['error' => 'Kunne ikke logge ind på Saldi API'];
+    
+    // First, search for the customer by name
+    $customers = fetch_saldi_api('/debitor/customers/index.php', $token, [
+        'search' => $regnskab_name,
+        'limit' => 1
+    ]);
+    
+    if ($customers === null) {
+        return ['error' => 'Kunne ikke hente kunde fra API'];
+    }
+    
+    if (!is_array($customers) || count($customers) === 0 || !isset($customers[0]['kontonr'])) {
+        return ['error' => 'Ingen kunde fundet for "' . htmlspecialchars($regnskab_name) . '"'];
+    }
+    
+    $customer_id = $customers[0]['kontonr'];
+    
+    // Fetch recent invoices for this customer
+    $invoices = fetch_saldi_api('/debitor/invoices/index.php', $token, [
+        'customer' => $customer_id,
+        'limit' => 100,
+        'page' => 1
+    ]);
+    
+    if ($invoices === null) return ['error' => 'Kunne ikke hente fakturaer fra API'];
+    if (!is_array($invoices) || count($invoices) === 0) return ['error' => 'Ingen fakturaer fundet for "' . htmlspecialchars($regnskab_name) . '"'];
+    
+    // Sort by invoiceDate DESC
+    usort($invoices, function($a, $b) {
+        return strcmp($b['invoiceDate'] ?? '', $a['invoiceDate'] ?? '');
+    });
+    
+    return ['invoices' => $invoices];
+}
+
 // Security check
 if ($db != $sqdb) {
     print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at gøre her!')\">"; 
@@ -384,6 +514,61 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             background: #f7f9fc;
             border-radius: 8px;
         }
+        /* Payment card styles */
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .payment-table th {
+            text-align: left;
+            padding: 8px 10px;
+            background: #f7f9fc;
+            color: #666;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .payment-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+        }
+        .payment-table tr:last-child td { border-bottom: none; }
+        .payment-table tr:hover { background: #fafbfd; }
+        .badge-paid { background: #d4edda; color: #155724; }
+        .badge-unpaid { background: #fff3cd; color: #856404; }
+        .api-error {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .payment-highlight {
+            background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .payment-highlight .amount {
+            font-size: 24px;
+            font-weight: 700;
+            color: #16a34a;
+        }
+        .payment-highlight .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
@@ -574,6 +759,102 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                         <?php } ?>
                     </span>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Seneste Betaling (fra Saldi API) -->
+        <div class="card">
+            <div class="card-header">💳 Seneste Betaling</div>
+            <div class="card-body">
+                <?php
+                $payment_data = fetch_customer_invoices($reg['regnskab']);
+                
+                if (isset($payment_data['error'])) {
+                    echo "<div class='api-error'>⚠️ " . $payment_data['error'] . "</div>";
+                } else {
+                    $invoices = $payment_data['invoices'];
+                    $latest = $invoices[0];
+                    
+                    $latest_date = $latest['invoiceDate'] ? date('d-m-Y', strtotime($latest['invoiceDate'])) : '-';
+                    $latest_sum = number_format(($latest['economic']['sum'] ?? 0), 2, ',', '.');
+                    $latest_moms = number_format(($latest['economic']['vat'] ?? 0), 2, ',', '.');
+                    $latest_total = number_format(($latest['economic']['sum'] ?? 0) + ($latest['economic']['vat'] ?? 0), 2, ',', '.');
+                    $latest_paid = $latest['paid'] == '1' || $latest['paid'] === true;
+                    $latest_company = htmlspecialchars($latest['companyName'] ?? '-');
+                    $latest_ordrenr = $latest['orderNo'] ?? '-';
+                    ?>
+                    
+                    <div class="payment-highlight">
+                        <div class="label">Seneste faktura</div>
+                        <div class="amount"><?php echo $latest_total; ?> DKK</div>
+                        <div style="font-size: 13px; color: #666; margin-top: 4px;">
+                            Faktura #<?php echo $latest_ordrenr; ?> — <?php echo $latest_date; ?>
+                            &nbsp;
+                            <?php if ($latest_paid) { ?>
+                                <span class="badge badge-paid">✓ Betalt</span>
+                            <?php } else { ?>
+                                <span class="badge badge-unpaid">⏳ Ubetalt</span>
+                            <?php } ?>
+                        </div>
+                    </div>
+                    
+                    <div class="info-row">
+                        <span class="info-label">Firma</span>
+                        <span class="info-value"><?php echo $latest_company; ?></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Beløb ekskl. moms</span>
+                        <span class="info-value"><?php echo $latest_sum; ?></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Moms</span>
+                        <span class="info-value"><?php echo $latest_moms; ?></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Betalingsbetingelser</span>
+                        <span class="info-value"><?php echo htmlspecialchars($latest['paymentInfo']['paymentTerms'] ?? '-'); ?></span>
+                    </div>
+                    
+                    <?php if (count($invoices) > 1) { ?>
+                    <div style="margin-top: 16px;">
+                        <div style="font-weight: 600; font-size: 13px; color: #666; margin-bottom: 8px;">Seneste fakturaer</div>
+                        <table class="payment-table">
+                            <thead>
+                                <tr>
+                                    <th>Faktura #</th>
+                                    <th>Dato</th>
+                                    <th>Beløb</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $show_count = min(5, count($invoices));
+                                for ($i = 0; $i < $show_count; $i++) {
+                                    $inv = $invoices[$i];
+                                    $inv_date = $inv['invoiceDate'] ? date('d-m-Y', strtotime($inv['invoiceDate'])) : '-';
+                                    $inv_total = number_format(($inv['economic']['sum'] ?? 0) + ($inv['economic']['vat'] ?? 0), 2, ',', '.');
+                                    $inv_paid = $inv['paid'] == '1' || $inv['paid'] === true;
+                                    ?>
+                                    <tr>
+                                        <td><?php echo $inv['orderNo'] ?? '-'; ?></td>
+                                        <td><?php echo $inv_date; ?></td>
+                                        <td style="font-weight: 600;"><?php echo $inv_total; ?></td>
+                                        <td>
+                                            <?php if ($inv_paid) { ?>
+                                                <span class="badge badge-paid">Betalt</span>
+                                            <?php } else { ?>
+                                                <span class="badge badge-unpaid">Ubetalt</span>
+                                            <?php } ?>
+                                        </td>
+                                    </tr>
+                                <?php } ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php } ?>
+                    
+                <?php } ?>
             </div>
         </div>
         
