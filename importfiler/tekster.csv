@@ -3090,35 +3090,35 @@
 3090	Afmærkningsfelt	Checkbox	Avmerkingsfelt
 3091	Tekstfelt	Text area	Tekstfelt
 3092	Medarbejderinformation	Employee information	Medarbeiderinformasjon
-3093	
-3094	
-3095	
-3096	
-3097	
-3098	
-3099	
-3100	
-3101	
-3102	
-3103	
-3104	
-3105	
-3106	
-3107	
-3108	
-3109	
-3110	
-3111	
-3112	
-3113	
-3114	
-3115	
-3116	
-3117	
-3118	
-3119	
-3120	
-3121	
+3093	Medarbejdermappe menu	Employee folder menu	Medarbeidermappe meny
+3094	Vælg ansat	Select employee	Velg ansatt
+3095	Slet ansat	Remove employee	Slett ansatt
+3096	Fællesmappe	Shared folder	Fellesmappe
+3097	Gå til medarbejderhåndbog her	Go to employee handbook here	Gå til medarbeiderhåndbok her
+3098	Gå til medarbejdermappe her	Go to employee folder here	Gå til medarbeidermappe her
+3099	Arbejdssedler	Worksheets	Arbeidssedler
+3100	Gå til arbejdssedler her	Go to worksheets here	Gå til arbeidssedler her
+3101	Kontrolsedler	Inspection sheets	Kontrollsedler
+3102	Gå til kontrolsedler her	Go to inspection sheets here	Gå til kontrollsedler her
+3103	Mappe skal have en beskrivelse	Folder must have a description	Mappe må ha en beskrivelse
+3104	Ret mappe	Edit folder	Rediger mappe
+3105	Der er ingen mapper	There are no folders	Det er ingen mapper
+3106	Ret mappetekst	Edit folder text	Rediger mappetekst
+3107	Slet mappe og al indhold	Delete folder and all content	Slett mappe og alt innhold
+3108	Vil du slette denne mappe?\n\nADVARSEL!\n Al indhold i mappen vil også blive slettet	Do you want to delete this folder?\n\nWARNING!\nAll content in the folder will also be deleted	Vil du slette denne mappen? \n\nADVARSEL!\n Alt innhold i mappen vil også bli slettet
+3109	Ny mappe	New folder	Ny mappe
+3110	Hvis teksten skal være fed sættes <b> foran teksten og </b> efter teksten (F.eks. <b>Lorem ipsum</b>). Det samme gøres ved kursiv, bare med <i> og </i>.	To make text bold, place <b> before the text and </b> after it (e.g. <b>Lorem ipsum</b>). The same applies for italic, using <i> and </i>.	For å gjøre teksten fet, sett <b> foran teksten og </b> etter den (f.eks. <b>Lorem ipsum</b>). Det samme gjelder for kursiv, bare med <i> og </i>.
+3111	Fællesmappe liste	Shared folder list	Fellesmappeliste
+3112	Bilag skal have en beskrivelse	Attachment must have a description	Vedlegg må ha en beskrivelse
+3113	Ret bilagstekst	Edit attachment text	Rediger vedleggstekst
+3114	Ret mappeindhold	Edit folder content	Rediger mappeinnhold
+3115	Der er ingen bilag	There are no attachments	Det er ingen vedlegg
+3116	Uploadet af	Uploaded by	Lastet opp av
+3117	Slet bilag	Delete attachment	Slett vedlegg
+3118	Vil du slette dette bilag	Do you want to delete this attachment	Vil du slette dette vedlegget
+3119	Hent bilag til mappe her	Upload attachment to folder here	Last opp vedlegg til mappe her
+3120	Medarbejdermappe liste	Employee folder list	Medarbeidermappeliste
+3121	Mappenavn	Folder name	Mappenavn
 3122	
 3123	
 3124	

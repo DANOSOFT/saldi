@@ -1,20 +1,20 @@
 <?php
 @session_start();
-$s_id=session_id();
+$s_id                  = session_id();
 
-$bg="nix";
-$header='nix';
+$bg                    = "nix";
+$header                = 'nix';
 
-$menu_sager=NULL;
-$menu_planlaeg=NULL;
-$menu_dagbog=NULL;
-$menu_kunder=NULL;
-$menu_loen=NULL;
-$menu_ansatte=NULL;
-$menu_certificering=NULL;
-$menu_medarbejdermappe='id="menuActive"';
+$menu_sager            = NULL;
+$menu_planlaeg         = NULL;
+$menu_dagbog           = NULL;
+$menu_kunder           = NULL;
+$menu_loen             = NULL;
+$menu_ansatte          = NULL;
+$menu_certificering    = NULL;
+$menu_medarbejdermappe = 'id="menuActive"';
 
-$modulnr=0;
+$modulnr               = 0;
 		
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -23,8 +23,7 @@ include("../includes/std_func.php");
 //$sag_id=if_isset($_GET['sag_id']);
 //$konto_id=if_isset($_GET['konto_id']);
 $funktion=if_isset($_GET['funktion']);
-if (!$funktion) $funktion="medarbejdermappeliste";  
-
+if (!$funktion) $funktion="medarbejdermappeliste";
 	
 		global $brugernavn;
 		global $db;
@@ -44,19 +43,20 @@ if (!$funktion) $funktion="medarbejdermappeliste";
 function medarbejdermappeliste() {
 
 		global $sag_rettigheder;
+		global $sprog_id;
 		
-		$ans_id=if_isset($_GET['ans_id']);
-		$unsetans=if_isset($_GET['unsetans']);
+		$ans_id   = if_isset($_GET['ans_id']);
+		$unsetans = if_isset($_GET['unsetans']);
 		
 		if ($_GET['ans_id']) {
-			$_SESSION['ans_id']=$ans_id;
+			$_SESSION['ans_id'] = $ans_id;
 		} else {
-			$ans_id=$_SESSION['ans_id'];
+			$ans_id = $_SESSION['ans_id'];
 		}
 		
 		if ($unsetans) {
 			unset($_SESSION['ans_id']);
-			$ans_id = NULL;
+			$ans_id   = NULL;
 			$unsetans = NULL;
 		}
 		//echo "ansat_id: $ans_id<br>";
@@ -64,22 +64,22 @@ function medarbejdermappeliste() {
 		print "<div id=\"breadcrumbbar\">
 			<ul id=\"breadcrumb\">
 				<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-					else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+					else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 					print "</li>
-				<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>";
+				<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>";
 				
-				print "<li>Medarbejdermappe menu</li>
+				print "<li>".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</li>
 			</ul>
 		</div><!-- end of breadcrumbbar -->\n";
 
 		if (substr($sag_rettigheder,2,1)) {
 		
 			if ($ans_id) {
-				$r=db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
-				$ans_id=$r['id'];
-				$ans_navn=$r['navn'];
-				$ans_ini=$r['initialer'];
+				$r        = db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
+				$ans_id   = $r['id'];
+				$ans_navn = $r['navn'];
+				$ans_ini  = $r['initialer'];
 			}
 			
 			print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\">\n";
@@ -91,7 +91,7 @@ function medarbejdermappeliste() {
 				<table border=\"0\" cellspacing=\"0\" width=\"500\">
 					<thead>
 						<tr>
-							<th width=\"100%\">Medarbejder navn</th>
+							<th width=\"100%\">".findtekst('3055|Medarbejder navn', $sprog_id)."</th>
 							<th colspan=\"2\">&nbsp;</th>
 						</tr>
 					</thead>
@@ -99,7 +99,7 @@ function medarbejdermappeliste() {
 						<tr>
 							<td><input class=\"textinput mm_medarbejdernavn\" type=\"text\" value=\"\" id=\"mm_medarbejdernavn\" name=\"mm_medarbejdernavn\" tabindex=\"1\"/></td>
 							<td style=\"padding:0px;\"><input type=\"hidden\" class=\"ans_id\" value=\"\" name=\"ans_id\"></td>   
-							<td align=\"center\"><input type=\"submit\" value=\"Vælg ansat\" name=\"vaelgansat\" class=\"button gray small\" tabindex=\"2\"></td>
+							<td align=\"center\"><input type=\"submit\" value=\"".findtekst('3094|Vælg ansat', $sprog_id)."\" name=\"vaelgansat\" class=\"button gray small\" tabindex=\"2\"></td>
 						</tr>
 					</tbody>
 				</table>
@@ -108,12 +108,12 @@ function medarbejdermappeliste() {
 			print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
 			print "<tbody>\n";
 			//print "<tr><td>&nbsp;</td></tr>\n";
-			print "<tr><td align=\"left\"><a href=\"medarbejdermappe.php?funktion=medarbejdermappeliste&amp;unsetans=unset\" class=\"button gray small\">Slet ansat</a></td></tr>\n";
+			print "<tr><td align=\"left\"><a href=\"medarbejdermappe.php?funktion=medarbejdermappeliste&amp;unsetans=unset\" class=\"button gray small\">".findtekst('3095|Slet ansat', $sprog_id)."</a></td></tr>\n";
 			print "</tbody>\n";
 			print "</table>\n";
 			print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class=\"kontrolskema_liste\" >\n";
 			print "<tbody>\n";
-			print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>Medarbejdermappe menu</h4></td></tr>\n";
+			print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</h4></td></tr>\n";
 			if ($ans_id) {
 				print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\" style=\"color: green;\"><h4>($ans_ini) $ans_navn</h4></td></tr>\n";
 			} else {
@@ -121,10 +121,10 @@ function medarbejdermappeliste() {
 			}
 			print "</tbody>\n";
 			print "<tbody class=\"dataTableZebra dataTableTopBorder\">\n";
-			print "<tr><td>Fælles-mappe</td><td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"Gå til medarbejder-håndbog her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
-			print "<tr><td>Medarbejder-mappe</td><td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"Gå til medarbejder-mappe her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
-			print "<tr><td>Arbejdssedler</td><td class=\"alignRight\"><a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste\" title=\"Gå til arbejdssedler her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
-			print "<tr><td>Kontrolsedler</td><td class=\"alignRight\"><a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste\" title=\"Gå til kontrolsedler her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
+			print "<tr><td>".findtekst('3096|Fællesmappe', $sprog_id)."</td><td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"".findtekst('3097|Gå til medarbejderhåndbog her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
+			print "<tr><td>".findtekst('2779|Medarbejdermappe', $sprog_id)."</td><td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"".findtekst('3098|Gå til medarbejdermappe her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
+			print "<tr><td>".findtekst('3099|Arbejdssedler', $sprog_id)."</td><td class=\"alignRight\"><a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste\" title=\"".findtekst('3100|Gå til arbejdssedler her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
+			print "<tr><td>".findtekst('3101|Kontrolsedler', $sprog_id)."</td><td class=\"alignRight\"><a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste\" title=\"".findtekst('3102|Gå til kontrolsedler her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
 			print "</tbody>\n";
 			print "</table>\n";
 			print "</td></tr>\n";
@@ -137,14 +137,14 @@ function medarbejdermappeliste() {
 			//print "<p>medarbejder</p>";
 			print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class=\"kontrolskema_liste\" >\n";
 			print "<tbody>\n";
-			print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>Medarbejdermappe menu</h4></td></tr>\n";
+			print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</h4></td></tr>\n";
 			print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 			print "</tbody>\n";
 			print "<tbody class=\"dataTableZebra dataTableTopBorder\">\n";
-			print "<tr><td>Fælles-mappe</td><td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"Gå til medarbejder-håndbog her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
-			print "<tr><td>Medarbejder-mappe</td><td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"Gå til medarbejder-mappe her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
-			print "<tr><td>Arbejdssedler</td><td class=\"alignRight\"><a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste\" title=\"Gå til arbejdssedler her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
-			print "<tr><td>Kontrolsedler</td><td class=\"alignRight\"><a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste\" title=\"Gå til kontrolsedler her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
+			print "<tr><td>".findtekst('3096|Fællesmappe', $sprog_id)."</td><td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"".findtekst('3097|Gå til medarbejderhåndbog her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
+			print "<tr><td>".findtekst('2779|Medarbejdermappe', $sprog_id)."</td><td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"".findtekst('3098|Gå til medarbejdermappe her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
+			print "<tr><td>".findtekst('3099|Arbejdssedler', $sprog_id)."</td><td class=\"alignRight\"><a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste\" title=\"".findtekst('3100|Gå til arbejdssedler her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
+			print "<tr><td>".findtekst('3101|Kontrolsedler', $sprog_id)."</td><td class=\"alignRight\"><a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste\" title=\"".findtekst('3102|Gå til kontrolsedler her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
 			print "</tbody>\n";
 			print "</table>\n";
 			print "</td></tr>\n";
@@ -157,6 +157,7 @@ function faellesmappe() {
 
 		global $sag_rettigheder;
 		global $db;
+		global $sprog_id;
 		
 		$ans_id = $_SESSION['ans_id'];
 		//echo "ansat_id: $ans_id<br>";
@@ -189,7 +190,7 @@ function faellesmappe() {
 			$ny_mappe=db_escape_string($_POST['ny_mappe']);
 			
 			if (empty($ny_mappe)) {
-				$messages = "Mappe skal have en beskrivelse!";
+				$messages = findtekst('3103|Mappe skal have en beskrivelse', $sprog_id)."!";
 			}	else {
 			 //echo "insert: $ny_mappe"; exit();
 				db_modify("insert into mappe (beskrivelse) values ('$ny_mappe')",__FILE__ . " linje " . __LINE__);
@@ -216,12 +217,12 @@ function faellesmappe() {
 			<form name=\"retmappe\" action=\"medarbejdermappe.php?funktion=faellesmappe\" method=\"post\">
 				<ul id=\"breadcrumb\">
 					<li>";
-						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-						else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+						else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 						print "</li>
-					<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li><a href=\"medarbejdermappe.php\" title=\"Medarbejdermappe menu\">Medarbejdermappe menu</a></li>";
-					print "<li>Fælles-mappe</li>\n";
+					<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php\" title=\"".findtekst('3093|Medarbejdermappe menu', $sprog_id)."\">".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</a></li>";
+					print "<li>".findtekst('3096|Fællesmappe', $sprog_id)."</li>\n";
 					if (substr($sag_rettigheder,2,1)) {
 							print "<li style=\"float:right;\">
 							<div class=\"onoffswitch\">
@@ -233,7 +234,7 @@ function faellesmappe() {
 									</label>
 							</div>
 							</li>
-							<li style=\"float: right;font-size: 12px;color: #444;\">Ret mappe</li>\n";
+							<li style=\"float: right;font-size: 12px;color: #444;\">".findtekst('3104|Ret mappe', $sprog_id)."</li>\n";
 						}
 					print "
 				</ul>
@@ -249,7 +250,7 @@ function faellesmappe() {
 			print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"width:100%;\" class=\"ordretekstSort\">\n";
 			
 			if (!$r=db_fetch_array(db_select("select * from mappe",__FILE__ . " linje " . __LINE__))) {
-				print "<tbody><tr><td colspan=\"5\"><i>Der er ingen mapper!</i></td></tr>\n";
+				print "<tbody><tr><td colspan=\"5\"><i>".findtekst('3105|Der er ingen mapper', $sprog_id)."!</i></td></tr>\n";
 			} else {
 				print "<tbody class=\"dataTableZebra ordretekstListe\">\n";
 				$x=0;
@@ -259,16 +260,16 @@ function faellesmappe() {
 					print "<tr id=\"order_$r[id]\">\n";
 					print "<td class=\"dragHandle\">&nbsp;</td>\n";
 					print "<td align=\"left\" style=\"width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
-					print "<td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=vis_mappe&amp;mappe_id=$r[id]\" class=\"button blue small\">Vælg</a></td>\n";
-					print "<td title=\"Ret mappe-tekst\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_mappe&amp;mappe_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
-					print "<td title=\"Slet mappe og al indhold\" align=\"left\"><a href=\"medarbejdermappe.php?funktion=faellesmappe&amp;slet_mappe=$r[id]\" onclick=\"return confirm('Vil du slette denne mappe?\\n\\nADVARSEL!\\nAl indhold i mappen vil også\\nblive slettet')\"><span style=\"width:16px; display:block;\"><span class=\"xmark\">&nbsp;</span></span></a></td>\n";
+					print "<td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=vis_mappe&amp;mappe_id=$r[id]\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td>\n";
+					print "<td title=\"".findtekst('3106|Ret mappetekst', $sprog_id)."\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_mappe&amp;mappe_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
+					print "<td title=\"".findtekst('3107|Slet mappe og al indhold', $sprog_id)."\" align=\"left\"><a href=\"medarbejdermappe.php?funktion=faellesmappe&amp;slet_mappe=$r[id]\" onclick=\"return confirm('".str_replace("\n", "\\n", findtekst('3108|Vil du slette denne mappe? ADVARSEL! Al indhold i mappen vil også blive slettet', $sprog_id))."')\"><span style=\"width:16px; display:block;\"><span class=\"xmark\">&nbsp;</span></span></a></td>\n";
 					print "</tr>\n";
 				}
 			}
 			print "</tbody>\n";
 			print "<tbody class=\"dataTableTopBorderGray\">\n";//<input class=\"inputbox\" type=\"text\" title=\"Hvis teksten skal være fed sættes <b> foran teksten og </b> efter teksten (F.eks. <b>Lorem ipsum</b>). Det samme gøres ved Italic, bare med <i> og </i>.\" style=\"text-align:left;width:800px;\" name=\"ny_linjetekst\">
-			print "<tr><td valign=\"top\" colspan=\"1\"><span style=\"display:block;margin-top:3px;\">Ny&nbsp;mappe</span></td><td colspan=\"2\" style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ny_mappe\" rows=\"1\" cols=\"10\" style=\"height:16px;width:100%;\" title=\"Hvis teksten skal være fed sættes &lt;b&gt; foran teksten og &lt;/b&gt; efter teksten (F.eks. &lt;b&gt;Lorem ipsum&lt;/b&gt;). Det samme gøres ved Italic, bare med &lt;i&gt; og &lt;/i&gt;.\"></textarea></td>\n";
-			print "<td colspan=\"2\" valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"Opret\" name=\"opdater\" onclick=\"javascript:docChange = false;\"></td>\n";
+			print "<tr><td valign=\"top\" colspan=\"1\"><span style=\"display:block;margin-top:3px;\">".findtekst('3109|Ny mappe', $sprog_id)."</span></td><td colspan=\"2\" style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ny_mappe\" rows=\"1\" cols=\"10\" style=\"height:16px;width:100%;\" title=\"".findtekst('3110|Hvis teksten skal være fed sættes <b> foran teksten og </b> efter teksten (F.eks. <b>Lorem ipsum</b>). Det samme gøres ved kursiv, bare med <i> og </i>.', $sprog_id)."\"></textarea></td>\n";
+			print "<td colspan=\"2\" valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"".findtekst('1232|Opret', $sprog_id)."\" name=\"opdater\" onclick=\"javascript:docChange = false;\"></td>\n";
 			print "</tr>\n";
 			if ($messages) print "<tr><td colspan=\"1\">&nbsp;</td><td colspan=\"4\" align=\"left\"><i style=\"color:red;\">$messages</i></td></tr>\n";
 			print "</tbody></table></form>\n";
@@ -283,10 +284,10 @@ function faellesmappe() {
 				$x++;
 				print "<tr>\n";
 				print "<td align=\"left\" style=\"width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
-				print "<td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=vis_mappe&amp;mappe_id=$r[id]\" class=\"button blue small\">Vælg</a></td>\n";
+				print "<td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=vis_mappe&amp;mappe_id=$r[id]\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td>\n";
 				print "</tr>\n";
 			}
-			if (!$r=db_fetch_array(db_select("select * from mappe",__FILE__ . " linje " . __LINE__))) print "<tr><td style=\"width:100%;\"><i>Der er ingen mapper!</i></td></tr>";
+			if (!$r=db_fetch_array(db_select("select * from mappe",__FILE__ . " linje " . __LINE__))) print "<tr><td style=\"width:100%;\"><i>".findtekst('3105|Der er ingen mapper', $sprog_id)."!</i></td></tr>";
 			print "</tbody></table>\n";
 		}
 		
@@ -320,6 +321,7 @@ function faellesmappe() {
 function ret_mappe() {
 
 	global $sag_rettigheder;
+	global $sprog_id;
 	
 	$messages=NULL;
 	
@@ -329,7 +331,7 @@ function ret_mappe() {
 		$mappetekst=if_isset($_POST['mappetekst']);
 		
 		if (empty($mappetekst)) {
-			$messages = "Mappe skal have en beskrivelse!";
+			$messages = findtekst('3103|Mappe skal have en beskrivelse', $sprog_id)."!";
 		} else {
 			db_modify("update mappe set beskrivelse='$mappetekst' where id = '$mappe_id'",__FILE__ . " linje " . __LINE__);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/medarbejdermappe.php?funktion=faellesmappe\">";
@@ -343,13 +345,13 @@ function ret_mappe() {
 
 		<ul id=\"breadcrumb\">
 					<li>";
-						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-						else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+						else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 						print "</li>
-					<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li><a href=\"medarbejdermappe.php\" title=\"Medarbejdermappe menu\">Medarbejdermappe menu</a></li>
-					<li><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"Fælles-mappe liste\">Fælles-mappe</a></li>
-					<li>Ret mappe-tekst</li>
+					<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php\" title=\"".findtekst('3093|Medarbejdermappe menu', $sprog_id)."\">".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"".findtekst('3111|Fællesmappe liste', $sprog_id)."\">".findtekst('3096|Fællesmappe', $sprog_id)."</a></li>
+					<li>".findtekst('3106|Ret mappetekst', $sprog_id)."</li>
 		</ul>
 	</div><!-- end of breadcrumbbar -->\n";
 	
@@ -358,10 +360,10 @@ function ret_mappe() {
 	print "<form name=\"ret_mappe\" action=\"medarbejdermappe.php?funktion=ret_mappe&amp;mappe_id=$mappe_id\" method=\"post\">\n";
 	print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"width:100%;\">\n";
 	print "<tbody>\n";
-	print "<tr><td align=\"center\" colspan=\"3\" style=\"padding-bottom: 15px;\"><h4>Ret&nbsp;mappe-tekst</h4></td></tr>\n";
+	print "<tr><td align=\"center\" colspan=\"3\" style=\"padding-bottom: 15px;\"><h4>".findtekst('3106|Ret mappetekst', $sprog_id)."</h4></td></tr>\n";
 	print "<tr>\n";
-	print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">Beskrivelse</span></td><td style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"mappetekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:100%;\">".htmlspecialchars($mappetekst)."</textarea></td>\n";
-	print "<td valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"Gem/Opdater\" name=\"opdater\"></td>\n";
+	print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">".findtekst('914|Beskrivelse', $sprog_id)."</span></td><td style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"mappetekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:100%;\">".htmlspecialchars($mappetekst)."</textarea></td>\n";
+	print "<td valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"opdater\"></td>\n";
 	print "</tr>\n";
 	if ($messages) print "<tr><td colspan=\"1\">&nbsp;</td><td colspan=\"2\" align=\"left\"><i style=\"color:red;\">$messages</i></td></tr>\n";
 	print "</tbody></table></form></td></tr></tbody></table>\n";
@@ -371,6 +373,7 @@ function ret_mappe() {
 function ret_bilag() {
 
 	global $sag_rettigheder;
+	global $sprog_id;
 	
 	$messages=NULL;
 	
@@ -381,7 +384,7 @@ function ret_bilag() {
 		$bilagtekst=if_isset($_POST['bilagtekst']);
 		
 		if (empty($bilagtekst)) {
-			$messages = "Bilag skal have en beskrivelse!";
+			$messages = findtekst('3112|Bilag skal have en beskrivelse', $sprog_id)."!";
 		} else {
 			db_modify("update mappebilag set beskrivelse='$bilagtekst' where id = '$bilag_id'",__FILE__ . " linje " . __LINE__);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/medarbejdermappe.php?funktion=vis_mappe&amp;mappe_id=$mappe_id\">";
@@ -398,14 +401,14 @@ function ret_bilag() {
 
 		<ul id=\"breadcrumb\">
 					<li>";
-						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-						else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+						else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 						print "</li>
-					<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li><a href=\"medarbejdermappe.php\" title=\"Medarbejdermappe menu\">Medarbejdermappe menu</a></li>
-					<li><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"Fælles-mappe liste\">Fælles-mappe</a></li>
+					<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php\" title=\"".findtekst('3093|Medarbejdermappe menu', $sprog_id)."\">".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"".findtekst('3111|Fællesmappe liste', $sprog_id)."\">".findtekst('3096|Fællesmappe', $sprog_id)."</a></li>
 					<li title=\"$mappebeskrivelse\"><a href=\"medarbejdermappe.php?funktion=vis_mappe&amp;mappe_id=$mappe_id\" style=\"display:block;max-width:160px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;\">$mappebeskrivelse</a></li>
-					<li>Ret bilag-tekst</li>
+					<li>".findtekst('3113|Ret bilagstekst', $sprog_id)."</li>
 		</ul>
 	</div><!-- end of breadcrumbbar -->\n";
 	
@@ -414,10 +417,10 @@ function ret_bilag() {
 	print "<form name=\"ret_bilag\" action=\"medarbejdermappe.php?funktion=ret_bilag&amp;mappe_id=$mappe_id&amp;bilag_id=$bilag_id\" method=\"post\">\n";
 	print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"width:100%;\">\n";
 	print "<tbody>\n";
-	print "<tr><td align=\"center\" colspan=\"3\" style=\"padding-bottom: 15px;\"><h4>Ret&nbsp;bilag-tekst</h4></td></tr>\n";
+	print "<tr><td align=\"center\" colspan=\"3\" style=\"padding-bottom: 15px;\"><h4>".findtekst('3113|Ret bilagstekst', $sprog_id)."</h4></td></tr>\n";
 	print "<tr>\n";
-	print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">Beskrivelse</span></td><td style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"bilagtekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:100%;\">".htmlspecialchars($bilagtekst)."</textarea></td>\n";
-	print "<td valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"Gem/Opdater\" name=\"opdater\"></td>\n";
+	print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">".findtekst('914|Beskrivelse', $sprog_id)."</span></td><td style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"bilagtekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:100%;\">".htmlspecialchars($bilagtekst)."</textarea></td>\n";
+	print "<td valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"opdater\"></td>\n";
 	print "</tr>\n";
 	if ($messages) print "<tr><td colspan=\"1\">&nbsp;</td><td colspan=\"2\" align=\"left\"><i style=\"color:red;\">$messages</i></td></tr>\n";
 	print "</tbody></table></form></td></tr></tbody></table>\n";
@@ -428,6 +431,7 @@ function vis_mappe() {
 
 	global $sag_rettigheder;
 	global $db;
+	global $sprog_id;
 		
 	$mappe_id=if_isset($_GET['mappe_id']);
 		
@@ -477,12 +481,12 @@ function vis_mappe() {
 			<form name=\"retvismappe\" action=\"medarbejdermappe.php?funktion=vis_mappe&amp;mappe_id=$mappe_id\" method=\"post\">
 				<ul id=\"breadcrumb\">
 					<li>";
-						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-						else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+						else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 						print "</li>
-					<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li><a href=\"medarbejdermappe.php\" title=\"Medarbejdermappe menu\">Medarbejdermappe menu</a>
-					<li><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"Fælles-mappe\">Fælles-mappe</a></li>";
+					<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php\" title=\"".findtekst('3093|Medarbejdermappe menu', $sprog_id)."\">".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</a>
+					<li><a href=\"medarbejdermappe.php?funktion=faellesmappe\" title=\"".findtekst('3096|Fællesmappe', $sprog_id)."\">".findtekst('3096|Fællesmappe', $sprog_id)."</a></li>";
 					print "<li title=\"$beskrivelse\"><div style=\"width:160px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;\">$beskrivelse</div></li>\n";
 					if (substr($sag_rettigheder,2,1)) {
 							print "<li style=\"float:right;\">
@@ -495,7 +499,7 @@ function vis_mappe() {
 									</label>
 							</div>
 							</li>
-							<li style=\"float: right;font-size: 12px;color: #444;\">Ret mappe-indhold</li>\n";
+							<li style=\"float: right;font-size: 12px;color: #444;\">".findtekst('3114|Ret mappeindhold', $sprog_id)."</li>\n";
 						}
 					print "
 				</ul>
@@ -514,15 +518,15 @@ function vis_mappe() {
 			//print "<tr><td colspan=\"8\">&nbsp;</td></tr>\n";
 			print "</tbody>\n";
 			if (!$r=db_fetch_array(db_select("select * from mappebilag where assign_id = $mappe_id",__FILE__ . " linje " . __LINE__))) {
-				print "<tbody class=\"dataTableTopBorderGray\"><tr><td colspan=\"8\"><i>Der er ingen bilag!</i></td></tr>\n";
+				print "<tbody class=\"dataTableTopBorderGray\"><tr><td colspan=\"8\"><i>".findtekst('3115|Der er ingen bilag', $sprog_id)."!</i></td></tr>\n";
 			} else {
 				print "<tbody class=\"\">\n";
 				print "<tr class=\"dataTableHead\">\n";
 				print "<td>&nbsp;</td>\n";
-				print "<td><b>Beskrivelse</b></td>\n";
-				print "<td><b>Filnavn</b></td>\n";
-				print "<td><b>Dato</b></td>\n";
-				print "<td><b>uploadet&nbsp;af</b></td>\n";
+				print "<td><b>".findtekst('914|Beskrivelse', $sprog_id)."</b></td>\n";
+				print "<td><b>".findtekst('2706|Filnavn', $sprog_id)."</b></td>\n";
+				print "<td><b>".findtekst('438|Dato', $sprog_id)."</b></td>\n";
+				print "<td><b>".findtekst('3116|Uploadet af', $sprog_id)."</b></td>\n";
 				print "<td colspan=\"3\">&nbsp;</td>\n";
 				print "</tr>\n";
 				print "</tbody>\n";
@@ -537,16 +541,16 @@ function vis_mappe() {
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['navn']."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".date("d-m-Y",$r['datotid'])."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['hvem']."</td>\n";
-					print "<td class=\"alignRight\"><a href=\"../mappe/$db/$mappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">Vis</a></td>\n";
-					print "<td title=\"Ret bilag-tekst\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_bilag&amp;mappe_id=$mappe_id&amp;bilag_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
-					print "<td title=\"Slet bilag\" align=\"left\"><a href=\"medarbejdermappe.php?funktion=vis_mappe&amp;mappe_id=$mappe_id&amp;slet_bilag=$r[id]\" onclick=\"return confirm('Vil du slette dette bilag!')\"><span style=\"width:16px; display:block;\"><span class=\"xmark\">&nbsp;</span></span></a></td>\n";
+					print "<td class=\"alignRight\"><a href=\"../mappe/$db/$mappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></td>\n";
+					print "<td title=\"".findtekst('3113|Ret bilagstekst', $sprog_id)."\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_bilag&amp;mappe_id=$mappe_id&amp;bilag_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
+					print "<td title=\"".findtekst('3117|Slet bilag', $sprog_id)."\" align=\"left\"><a href=\"medarbejdermappe.php?funktion=vis_mappe&amp;mappe_id=$mappe_id&amp;slet_bilag=$r[id]\" onclick=\"return confirm('" .findtekst('3118|Vil du slette dette bilag', $sprog_id). "!')\"><span style=\"width:16px; display:block;\"><span class=\"xmark\">&nbsp;</span></span></a></td>\n";
 					print "</tr>\n";
 				}
 			}
 			print "</tbody>\n";
 			print "<tbody class=\"dataTableTopBorderGray\">\n";//<input class=\"inputbox\" type=\"text\" title=\"Hvis teksten skal være fed sættes <b> foran teksten og </b> efter teksten (F.eks. <b>Lorem ipsum</b>). Det samme gøres ved Italic, bare med <i> og </i>.\" style=\"text-align:left;width:800px;\" name=\"ny_linjetekst\">
-			print "<tr><td colspan=\"5\" style=\"width:100%;\"><span style=\"display:block;margin-top:3px;width:100%;\">Hent bilag til mappe her!</span></td>\n";
-			print "<td align=\"center\" colspan=\"3\"><a href=\"bilag_mappe.php?kilde=sager&amp;ny=ja&amp;kilde_id=$mappe_id&amp;mappe_id=$mappe_id\" class=\"button blue small\">Nyt&nbsp;bilag</a></td>\n";
+			print "<tr><td colspan=\"5\" style=\"width:100%;\"><span style=\"display:block;margin-top:3px;width:100%;\">".findtekst('3119|Hent bilag til mappe her', $sprog_id)."!</span></td>\n";
+			print "<td align=\"center\" colspan=\"3\"><a href=\"bilag_mappe.php?kilde=sager&amp;ny=ja&amp;kilde_id=$mappe_id&amp;mappe_id=$mappe_id\" class=\"button blue small\">".findtekst('2844|Nyt bilag', $sprog_id)."</a></td>\n";
 			print "</tr>\n";
 			print "</tbody></table></form>\n";
 			
@@ -557,7 +561,7 @@ function vis_mappe() {
 			print "<tr><td colspan=\"5\" style=\"padding-bottom: 15px;\"><h4>$beskrivelse</h4></td></tr>\n";
 			print "</tbody>\n";
 			if (!$r=db_fetch_array(db_select("select * from mappebilag where assign_id = $mappe_id",__FILE__ . " linje " . __LINE__))) {
-				print "<tbody class=\"dataTableTopBorderGray\"><tr><td colspan=\"5\" style=\"width:100%;\"><i>Der er ingen bilag!</i></td></tr>\n";
+				print "<tbody class=\"dataTableTopBorderGray\"><tr><td colspan=\"5\" style=\"width:100%;\"><i>".findtekst('3115|Der er ingen bilag', $sprog_id)."!</i></td></tr>\n";
 			} else {
 				print "<tbody class=\"dataTableZebra dataTableTopBorderGray\">\n";
 				$x=0;
@@ -566,7 +570,7 @@ function vis_mappe() {
 					$x++;
 					print "<tr>\n";
 					print "<td align=\"left\" style=\"width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
-					print "<td class=\"alignRight\"><a href=\"../mappe/$db/$mappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">Vis</a></td>\n";
+					print "<td class=\"alignRight\"><a href=\"../mappe/$db/$mappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></td>\n";
 					print "</tr>\n";
 				}
 			}
@@ -606,6 +610,7 @@ function medarbejdermappe() {
 		global $sag_rettigheder;
 		global $db;
 		global $ansat_id;
+		global $sprog_id;
 		
 		$ans_id = $_SESSION['ans_id'];
 		
@@ -641,7 +646,7 @@ function medarbejdermappe() {
 			//$ny_ans_id=db_escape_string($_POST['ny_ans_id']);
 			
 			if (empty($ny_ansatmappe)) {
-				$messages = "Mappe skal have en beskrivelse!";
+				$messages = findtekst('3103|Mappe skal have en beskrivelse', $sprog_id)."!";
 			}	else {
 			 //echo "insert: $ny_mappe"; exit();
 				db_modify("insert into ansatmappe (beskrivelse,ans_id) values ('$ny_ansatmappe','$ans_id')",__FILE__ . " linje " . __LINE__);
@@ -675,12 +680,12 @@ function medarbejdermappe() {
 			<form name=\"retansatmappe\" action=\"medarbejdermappe.php?funktion=medarbejdermappe\" method=\"post\">
 				<ul id=\"breadcrumb\">
 					<li>";
-						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-						else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+						else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 						print "</li>
-					<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li><a href=\"medarbejdermappe.php\" title=\"Medarbejdermappe menu\">Medarbejdermappe menu</a></li>";
-					print "<li>Medarbejder-mappe</li>\n";
+					<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php\" title=\"".findtekst('3093|Medarbejdermappe menu', $sprog_id)."\">".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</a></li>";
+					print "<li>".findtekst('2779|Medarbejdermappe', $sprog_id)."</li>\n";
 					if (substr($sag_rettigheder,2,1)) {
 							print "<li style=\"float:right;\">
 							<div class=\"onoffswitch\">
@@ -692,7 +697,7 @@ function medarbejdermappe() {
 									</label>
 							</div>
 							</li>
-							<li style=\"float: right;font-size: 12px;color: #444;\">Ret mappe</li>\n";
+							<li style=\"float: right;font-size: 12px;color: #444;\">".findtekst('3104|Ret mappe', $sprog_id)."</li>\n";
 						}
 					print "
 				</ul>
@@ -709,7 +714,7 @@ function medarbejdermappe() {
 			
 			if (!$r=db_fetch_array(db_select("select * from ansatmappe where ans_id=$ans_id",__FILE__ . " linje " . __LINE__))) {
 				print "<tbody><tr><td align=\"center\" colspan=\"5\" style=\"color: green;\"><h4>($ans_ini) $ans_navn</h4></td></tr></tbody>";
-				print "<tbody class=\"dataTableTopBorder\"><tr><td colspan=\"5\"><i>Der er ingen mapper!</i></td></tr>\n";
+				print "<tbody class=\"dataTableTopBorder\"><tr><td colspan=\"5\"><i>".findtekst('3105|Der er ingen mapper', $sprog_id)."!</i></td></tr>\n";
 			} else {
 				print "<tbody><tr><td align=\"center\" colspan=\"5\" style=\"color: green;\"><h4>($ans_ini) $ans_navn</h4></td></tr></tbody>\n";
 				print "<tbody class=\"dataTableZebra dataTableTopBorder ordretekstListe\">\n";
@@ -720,16 +725,16 @@ function medarbejdermappe() {
 					print "<tr id=\"order_$r[id]\">\n";
 					print "<td class=\"dragHandle\">&nbsp;</td>\n";
 					print "<td align=\"left\" style=\"width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
-					print "<td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$r[id]\" class=\"button blue small\">Vælg</a></td>\n";
-					print "<td title=\"Ret mappe-tekst\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_ansatmappe&amp;ansatmappe_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
-					print "<td title=\"Slet mappe og al indhold\" align=\"left\"><a href=\"medarbejdermappe.php?funktion=medarbejdermappe&amp;slet_ansatmappe=$r[id]\" onclick=\"return confirm('Vil du slette denne mappe?\\n\\nADVARSEL!\\nAl indhold i mappen vil også\\nblive slettet')\"><span style=\"width:16px; display:block;\"><span class=\"xmark\">&nbsp;</span></span></a></td>\n";
+					print "<td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$r[id]\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td>\n";
+					print "<td title=\"".findtekst('3106|Ret mappetekst', $sprog_id)."\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_ansatmappe&amp;ansatmappe_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
+					print "<td title=\"".findtekst('3107|Slet mappe og al indhold', $sprog_id)."\" align=\"left\"><a href=\"medarbejdermappe.php?funktion=medarbejdermappe&amp;slet_ansatmappe=$r[id]\" onclick=\"return confirm('".str_replace("\n", "\\n", findtekst('3108|Vil du slette denne mappe? ADVARSEL! Al indhold i mappen vil også blive slettet', $sprog_id))."')\"><span style=\"width:16px; display:block;\"><span class=\"xmark\">&nbsp;</span></span></a></td>\n";
 					print "</tr>\n";
 				}
 			}
 			print "</tbody>\n";
 			print "<tbody class=\"dataTableTopBorderGray\">\n";//<input class=\"inputbox\" type=\"text\" title=\"Hvis teksten skal være fed sættes <b> foran teksten og </b> efter teksten (F.eks. <b>Lorem ipsum</b>). Det samme gøres ved Italic, bare med <i> og </i>.\" style=\"text-align:left;width:800px;\" name=\"ny_linjetekst\">
-			print "<tr><td valign=\"top\" colspan=\"1\"><span style=\"display:block;margin-top:3px;\">Ny&nbsp;mappe</span></td><td colspan=\"2\" style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ny_ansatmappe\" rows=\"1\" cols=\"10\" style=\"height:16px;width:100%;\" title=\"Hvis teksten skal være fed sættes &lt;b&gt; foran teksten og &lt;/b&gt; efter teksten (F.eks. &lt;b&gt;Lorem ipsum&lt;/b&gt;). Det samme gøres ved Italic, bare med &lt;i&gt; og &lt;/i&gt;.\"></textarea></td>\n";
-			print "<td colspan=\"2\" valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"Opret\" name=\"opdater\" onclick=\"javascript:docChange = false;\"></td>\n";
+			print "<tr><td valign=\"top\" colspan=\"1\"><span style=\"display:block;margin-top:3px;\">".findtekst('3109|Ny mappe', $sprog_id)."</span></td><td colspan=\"2\" style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ny_ansatmappe\" rows=\"1\" cols=\"10\" style=\"height:16px;width:100%;\" title=\"".findtekst('3110|Hvis teksten skal være fed sættes <b> foran teksten og </b> efter teksten (F.eks. <b>Lorem ipsum</b>). Det samme gøres ved kursiv, bare med <i> og </i>.', $sprog_id)."\"></textarea></td>\n";
+			print "<td colspan=\"2\" valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"".findtekst('1232|Opret', $sprog_id)."\" name=\"opdater\" onclick=\"javascript:docChange = false;\"></td>\n";
 			print "</tr>\n";
 			if ($messages) print "<tr><td colspan=\"1\">&nbsp;</td><td colspan=\"4\" align=\"left\"><i style=\"color:red;\">$messages</i></td></tr>\n";
 			print "</tbody></table></form>\n";
@@ -739,7 +744,7 @@ function medarbejdermappe() {
 			print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"width:100%;\">\n";
 			if (!$r=db_fetch_array(db_select("select * from ansatmappe where ans_id=$ans_id",__FILE__ . " linje " . __LINE__))) {
 				print "<tbody><tr><td align=\"center\" colspan=\"5\" style=\"color: green;\"><h4>($ans_ini) $ans_navn</h4></td></tr></tbody>";
-				print "<tbody class=\"dataTableTopBorder\"><tr><td colspan=\"5\"><i>Der er ingen mapper!</i></td></tr>\n";
+				print "<tbody class=\"dataTableTopBorder\"><tr><td colspan=\"5\"><i>".findtekst('3105|Der er ingen mapper', $sprog_id)."!</i></td></tr>\n";
 			} else {
 				print "<tbody><tr><td align=\"center\" colspan=\"5\" style=\"color: green;\"><h4>($ans_ini) $ans_navn</h4></td></tr></tbody>";
 				print "<tbody class=\"dataTableZebra dataTableTopBorder\">\n";
@@ -749,7 +754,7 @@ function medarbejdermappe() {
 					$x++;
 					print "<tr>\n";
 					print "<td align=\"left\" style=\"width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
-					print "<td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$r[id]\" class=\"button blue small\">Vælg</a></td>\n";
+					print "<td class=\"alignRight\"><a href=\"medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$r[id]\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td>\n";
 					print "</tr>\n";
 				}
 			}
@@ -786,6 +791,7 @@ function medarbejdermappe() {
 function ret_ansatmappe() {
 
 	global $sag_rettigheder;
+	global $sprog_id;
 	global $ansat_id;
 		
 	$messages=NULL;
@@ -800,7 +806,7 @@ function ret_ansatmappe() {
 		$ansatmappetekst=if_isset($_POST['ansatmappetekst']);
 		
 		if (empty($ansatmappetekst)) {
-			$messages = "Mappe skal have en beskrivelse!";
+			$messages = findtekst('3103|Mappe skal have en beskrivelse', $sprog_id)."!";
 		} else {
 			db_modify("update ansatmappe set beskrivelse='$ansatmappetekst' where id = '$ansatmappe_id'",__FILE__ . " linje " . __LINE__);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/medarbejdermappe.php?funktion=medarbejdermappe\">";
@@ -821,13 +827,13 @@ function ret_ansatmappe() {
 
 		<ul id=\"breadcrumb\">
 					<li>";
-						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-						else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+						else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 						print "</li>
-					<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li><a href=\"medarbejdermappe.php\" title=\"Medarbejdermappe menu\">Medarbejdermappe menu</a></li>
-					<li><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"Medarbejder-mappe liste\">Medarbejder-mappe</a></li>
-					<li>Ret mappe-tekst</li>
+					<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php\" title=\"".findtekst('3093|Medarbejdermappe menu', $sprog_id)."\">".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"".findtekst('3120|Medarbejdermappe liste', $sprog_id)."\">".findtekst('2779|Medarbejdermappe', $sprog_id)."</a></li>
+					<li>".findtekst('3106|Ret mappetekst', $sprog_id)."</li>
 		</ul>
 	</div><!-- end of breadcrumbbar -->\n";
 	
@@ -837,10 +843,10 @@ function ret_ansatmappe() {
 	print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"width:100%;\">\n";
 	print "<tbody><tr><td align=\"center\" colspan=\"3\" style=\"color: green;\"><h4>($ans_ini) $ans_navn</h4></td></tr></tbody>\n";
 	print "<tbody class=\"dataTableTopBorder\">\n";
-	print "<tr><td align=\"center\" colspan=\"3\" style=\"#padding: 10px 0 0 0;\"><h4>Ret&nbsp;mappe-tekst</h4></td></tr>\n";
+	print "<tr><td align=\"center\" colspan=\"3\" style=\"#padding: 10px 0 0 0;\"><h4>".findtekst('3106|Ret mappetekst', $sprog_id)."</h4></td></tr>\n";
 	print "<tr>\n";
-	print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">Beskrivelse:</span></td><td style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ansatmappetekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:100%;\">".htmlspecialchars($ansatmappetekst)."</textarea></td>\n";
-	print "<td valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"Gem/Opdater\" name=\"opdater\"></td>\n";
+	print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">".findtekst('914|Beskrivelse', $sprog_id).":</span></td><td style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ansatmappetekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:100%;\">".htmlspecialchars($ansatmappetekst)."</textarea></td>\n";
+	print "<td valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"opdater\"></td>\n";
 	print "</tr>\n";
 	if ($messages) print "<tr><td colspan=\"1\">&nbsp;</td><td colspan=\"2\" align=\"left\"><i style=\"color:red;\">$messages</i></td></tr>\n";
 	print "</tbody></table></form></td></tr></tbody></table>\n";
@@ -851,6 +857,7 @@ function ret_ansatbilag() {
 /* SKAL RETTES TIL */
 	global $sag_rettigheder;
 	global $ansat_id;
+	global $sprog_id;
 	
 	$messages=NULL;
 	
@@ -865,7 +872,7 @@ function ret_ansatbilag() {
 		$ansatbilagtekst=if_isset($_POST['ansatbilagtekst']);
 		
 		if (empty($ansatbilagtekst)) {
-			$messages = "Bilag skal have en beskrivelse!";
+			$messages = findtekst('3112|Bilag skal have en beskrivelse', $sprog_id)."!";
 		} else {
 			db_modify("update ansatmappebilag set beskrivelse='$ansatbilagtekst' where id = '$ansatbilag_id'",__FILE__ . " linje " . __LINE__);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$ansatmappe_id\">";
@@ -890,14 +897,14 @@ function ret_ansatbilag() {
 
 		<ul id=\"breadcrumb\">
 					<li>";
-						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-						else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+						else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 						print "</li>
-					<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li><a href=\"medarbejdermappe.php\" title=\"Medarbejdermappe menu\">Medarbejdermappe menu</a></li>
-					<li><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"Medarbejder-mappe liste\">Medarbejder-mappe</a></li>
+					<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php\" title=\"".findtekst('3093|Medarbejdermappe menu', $sprog_id)."\">".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"".findtekst('3120|Medarbejdermappe liste', $sprog_id)."\">".findtekst('2779|Medarbejdermappe', $sprog_id)."</a></li>
 					<li title=\"$ansatmappebeskrivelse\"><a href=\"medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$ansatmappe_id\" style=\"display:block;max-width:160px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;\">$ansatmappebeskrivelse</a></li>
-					<li>Ret bilag-tekst</li>
+					<li>".findtekst('3113|Ret bilagstekst', $sprog_id)."</li>
 		</ul>
 	</div><!-- end of breadcrumbbar -->\n";
 	
@@ -907,16 +914,16 @@ function ret_ansatbilag() {
 	print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"width:100%;\">\n";
 	print "<tbody><tr><td align=\"center\" colspan=\"3\" style=\"color: green;\"><h4>($ans_ini) $ans_navn</h4></td></tr></tbody>\n";
 	print "<tbody class=\"dataTableTopBorder\">\n";
-	print "<tr><td align=\"center\" colspan=\"3\" style=\"padding-bottom: 15px;\"><h4>Ret&nbsp;bilag-tekst</h4></td></tr>\n";
+	print "<tr><td align=\"center\" colspan=\"3\" style=\"padding-bottom: 15px;\"><h4>".findtekst('3113|Ret bilagstekst', $sprog_id)."</h4></td></tr>\n";
 	print "</tbody>\n";
 	print "<tbody class=\"dataTableZebra dataTableTopBorderGray\">\n";
-	print "<tr><td>Mappe&nbsp;navn:</td><td colspan=\"2\"><b>$ansatmappebeskrivelse</b></td></tr>\n";
-	print "<tr><td>Filnavn:</td><td colspan=\"2\">$ansatbilagnavn</td></tr>\n";
+	print "<tr><td>".findtekst('3121|Mappenavn', $sprog_id).":</td><td colspan=\"2\"><b>$ansatmappebeskrivelse</b></td></tr>\n";
+	print "<tr><td>".findtekst('2706|Filnavn', $sprog_id).":</td><td colspan=\"2\">$ansatbilagnavn</td></tr>\n";
 	print "</tbody>\n";
 	print "<tbody class=\"dataTableTopBorderGray\">\n";
 	print "<tr>\n";
-	print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">Beskrivelse:</span></td><td style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ansatbilagtekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:100%;\">".htmlspecialchars($ansatbilagtekst)."</textarea></td>\n";
-	print "<td valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"Gem/Opdater\" name=\"opdater\"></td>\n";
+	print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">".findtekst('914|Beskrivelse', $sprog_id).":</span></td><td style=\"width:100%;\"><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ansatbilagtekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:100%;\">".htmlspecialchars($ansatbilagtekst)."</textarea></td>\n";
+	print "<td valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"opdater\"></td>\n";
 	print "</tr>\n";
 	if ($messages) print "<tr><td colspan=\"1\">&nbsp;</td><td colspan=\"2\" align=\"left\"><i style=\"color:red;\">$messages</i></td></tr>\n";
 	print "</tbody></table></form></td></tr></tbody></table>\n";
@@ -928,6 +935,7 @@ function vis_ansatmappe() {
 	global $sag_rettigheder;
 	global $db;
 	global $ansat_id;
+	global $sprog_id;
 		
 	$ans_id = $_SESSION['ans_id'];
 	$ansatmappe_id=if_isset($_GET['ansatmappe_id']);
@@ -988,12 +996,12 @@ function vis_ansatmappe() {
 			<form name=\"retvisansatmappe\" action=\"medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$ansatmappe_id\" method=\"post\">
 				<ul id=\"breadcrumb\">
 					<li>";
-						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-						else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+						if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+						else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 						print "</li>
-					<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li><a href=\"medarbejdermappe.php\" title=\"Medarbejdermappe menu\">Medarbejdermappe menu</a>
-					<li><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"Medarbejder-mappe\">Medarbejder-mappe</a></li>";
+					<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li><a href=\"medarbejdermappe.php\" title=\"".findtekst('3093|Medarbejdermappe menu', $sprog_id)."\">".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</a>
+					<li><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"".findtekst('2779|Medarbejdermappe', $sprog_id)."\">".findtekst('2779|Medarbejdermappe', $sprog_id)."</a></li>";
 					print "<li title=\"$beskrivelse\"><div style=\"width:160px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;\">$beskrivelse</div></li>\n";
 					if (substr($sag_rettigheder,2,1)) {
 							print "<li style=\"float:right;\">
@@ -1006,7 +1014,7 @@ function vis_ansatmappe() {
 									</label>
 							</div>
 							</li>
-							<li style=\"float: right;font-size: 12px;color: #444;\">Ret mappe-indhold</li>\n";
+							<li style=\"float: right;font-size: 12px;color: #444;\">".findtekst('3114|Ret mappeindhold', $sprog_id)."</li>\n";
 						}
 					print "
 				</ul>
@@ -1022,19 +1030,19 @@ function vis_ansatmappe() {
 			print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" class=\"ordretekstSort\" style=\"width:100%;\">\n";
 			print "<tbody><tr><td align=\"center\" colspan=\"8\" style=\"color: green;\"><h4>($ans_ini) $ans_navn</h4></td></tr></tbody>\n";
 			print "<tbody class=\"dataTableTopBorder\">\n";
-			print "<tr><td colspan=\"8\" style=\"#padding-bottom: 10px;\">Mappe navn: <b>$beskrivelse</b></td></tr>\n";
+			print "<tr><td colspan=\"8\" style=\"#padding-bottom: 10px;\">".findtekst('3121|Mappenavn', $sprog_id).": <b>$beskrivelse</b></td></tr>\n";
 			//print "<tr><td colspan=\"8\">&nbsp;</td></tr>\n";
 			print "</tbody>\n";
 			if (!$r=db_fetch_array(db_select("select * from ansatmappebilag where assign_id = $ansatmappe_id",__FILE__ . " linje " . __LINE__))) {
-				print "<tbody class=\"dataTableTopBorderGray\"><tr><td colspan=\"8\"><i>Der er ingen bilag!</i></td></tr>\n";
+				print "<tbody class=\"dataTableTopBorderGray\"><tr><td colspan=\"8\"><i>".findtekst('3115|Der er ingen bilag', $sprog_id)."!</i></td></tr>\n";
 			} else {
 				print "<tbody class=\"\">\n";
 				print "<tr class=\"dataTableHead\">\n";
 				print "<td>&nbsp;</td>\n";
-				print "<td><b>Beskrivelse</b></td>\n";
-				print "<td><b>Filnavn</b></td>\n";
-				print "<td><b>Dato</b></td>\n";
-				print "<td><b>uploadet&nbsp;af</b></td>\n";
+				print "<td><b>".findtekst('914|Beskrivelse', $sprog_id)."</b></td>\n";
+				print "<td><b>".findtekst('2706|Filnavn', $sprog_id)."</b></td>\n";
+				print "<td><b>".findtekst('438|Dato', $sprog_id)."</b></td>\n";
+				print "<td><b>".findtekst('3116|Uploadet af', $sprog_id)."</b></td>\n";
 				print "<td colspan=\"3\">&nbsp;</td>\n";
 				print "</tr>\n";
 				print "</tbody>\n";
@@ -1049,16 +1057,16 @@ function vis_ansatmappe() {
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['navn']."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".date("d-m-Y",$r['datotid'])."</td>\n";
 					print "<td align=\"left\" style=\"#width:100%;\">".$r['hvem']."</td>\n";
-					print "<td class=\"alignRight\"><a href=\"../ansatmappe/$db/$ans_id/$ansatmappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">Vis</a></td>\n";
-					print "<td title=\"Ret bilag-tekst\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_ansatbilag&amp;ansatmappe_id=$ansatmappe_id&amp;ansatbilag_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
-					print "<td title=\"Slet bilag\" align=\"left\"><a href=\"medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$ansatmappe_id&amp;slet_ansatbilag=$r[id]\" onclick=\"return confirm('Vil du slette dette bilag!')\"><span style=\"width:16px; display:block;\"><span class=\"xmark\">&nbsp;</span></span></a></td>\n";
+					print "<td class=\"alignRight\"><a href=\"../ansatmappe/$db/$ans_id/$ansatmappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></td>\n";
+					print "<td title=\"".findtekst('3113|Ret bilagstekst', $sprog_id)."\" align=\"right\"><a href=\"medarbejdermappe.php?funktion=ret_ansatbilag&amp;ansatmappe_id=$ansatmappe_id&amp;ansatbilag_id=$r[id]\"><span style=\"width:16px; display:block;\"><span class=\"checkmark\">&nbsp;</span></span></a></td>\n";
+					print "<td title=\"".findtekst('3117|Slet bilag', $sprog_id)."\" align=\"left\"><a href=\"medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$ansatmappe_id&amp;slet_ansatbilag=$r[id]\" onclick=\"return confirm('" .findtekst('3118|Vil du slette dette bilag', $sprog_id). "!')\"><span style=\"width:16px; display:block;\"><span class=\"xmark\">&nbsp;</span></span></a></td>\n";
 					print "</tr>\n";
 				}
 			}
 			print "</tbody>\n";
 			print "<tbody class=\"dataTableTopBorderGray\">\n";//<input class=\"inputbox\" type=\"text\" title=\"Hvis teksten skal være fed sættes <b> foran teksten og </b> efter teksten (F.eks. <b>Lorem ipsum</b>). Det samme gøres ved Italic, bare med <i> og </i>.\" style=\"text-align:left;width:800px;\" name=\"ny_linjetekst\">
-			print "<tr><td colspan=\"5\" style=\"width:100%;\"><span style=\"display:block;margin-top:3px;width:100%;\">Hent bilag til mappe her!</span></td>\n";
-			print "<td align=\"center\" colspan=\"3\"><a href=\"bilag_ansatmappe.php?kilde=sager&amp;ny=ja&amp;kilde_id=$ansatmappe_id&amp;ansatmappe_id=$ansatmappe_id\" class=\"button blue small\">Nyt&nbsp;bilag</a></td>\n";
+			print "<tr><td colspan=\"5\" style=\"width:100%;\"><span style=\"display:block;margin-top:3px;width:100%;\">".findtekst('3119|Hent bilag til mappe her', $sprog_id)."!</span></td>\n";
+			print "<td align=\"center\" colspan=\"3\"><a href=\"bilag_ansatmappe.php?kilde=sager&amp;ny=ja&amp;kilde_id=$ansatmappe_id&amp;ansatmappe_id=$ansatmappe_id\" class=\"button blue small\">".findtekst('2844|Nyt bilag', $sprog_id)."</a></td>\n";
 			print "</tr>\n";
 			print "</tbody></table></form>\n";
 			
@@ -1067,10 +1075,10 @@ function vis_ansatmappe() {
 			print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"width:100%;\">\n";
 			print "<tbody><tr><td align=\"center\" colspan=\"5\" style=\"color: green;\"><h4>($ans_ini) $ans_navn</h4></td></tr></tbody>\n";
 			print "<tbody class=\"dataTableTopBorder\">\n";
-			print "<tr><td colspan=\"5\" style=\"#padding-bottom: 10px;\">Mappe navn: <b>$beskrivelse</b></td></tr>\n";
+			print "<tr><td colspan=\"5\" style=\"#padding-bottom: 10px;\">".findtekst('3121|Mappenavn', $sprog_id).": <b>$beskrivelse</b></td></tr>\n";
 			print "</tbody>\n";
 			if (!$r=db_fetch_array(db_select("select * from ansatmappebilag where assign_id = $ansatmappe_id",__FILE__ . " linje " . __LINE__))) {
-				print "<tbody class=\"dataTableTopBorderGray\"><tr><td colspan=\"5\" style=\"width:100%;\"><i>Der er ingen bilag!</i></td></tr>\n";
+				print "<tbody class=\"dataTableTopBorderGray\"><tr><td colspan=\"5\" style=\"width:100%;\"><i>".findtekst('3115|Der er ingen bilag', $sprog_id)."!</i></td></tr>\n";
 			} else {
 				print "<tbody class=\"dataTableZebra dataTableTopBorderGray\">\n";
 				$x=0;
@@ -1079,7 +1087,7 @@ function vis_ansatmappe() {
 					$x++;
 					print "<tr>\n";
 					print "<td align=\"left\" style=\"width:100%;\">".nl2br($r['beskrivelse'])."</td>\n";
-					print "<td class=\"alignRight\"><a href=\"../ansatmappe/$db/$ans_id/$ansatmappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">Vis</a></td>\n";
+					print "<td class=\"alignRight\"><a href=\"../ansatmappe/$db/$ans_id/$ansatmappe_id/$r[id].$r[filtype]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></td>\n";
 					print "</tr>\n";
 				}
 			}
