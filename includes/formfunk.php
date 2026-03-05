@@ -1560,20 +1560,22 @@ if (!function_exists('formularprint')) {
 			} else {
 				$nomailantal++;
 				#		if ($ordre_antal<=1) { #mere sigeende navn til udskrifter.
+				$flgs_navn = $fakturanr ? "flgs{$fakturanr}_{$lev_nr}" : "flgs{$ordrenr}_{$lev_nr}";
 				$filnavne = [
 					1 => "tilbud$ordrenr",
 					2 => "ordrebek$ordrenr",
-					3 => "flgs{$ordrenr}_{$lev_nr}",
+					3 => $flgs_navn,
 					4 => "fakt$fakturanr",
 					5 => "kn$fakturanr",
 					9 => "plukliste$ordrenr"
 				];
 				if ($db == "saldi_1022") {
 					$dato = date('Y-m-d');
+					$flgs_navn_1022 = $fakturanr ? "{$fakturanr}_{$lev_nr}-flgs-$kontonr-$dato" : "{$ordrenr}_{$lev_nr}-flgs-$kontonr-$dato";
 					$filnavne = [
 						1 => "$ordrenr-tilbud-$kontonr-$dato",
 						2 => "$ordrenr-ordrebek-$kontonr-$dato",
-						3 => "{$ordrenr}_{$lev_nr}-flgs-$kontonr-$dato",
+						3 => $flgs_navn_1022,
 						4 => "$fakturanr-fakt-$kontonr-$dato",
 						5 => "$fakturanr-kn-$kontonr-$dato",
 						9 => "$ordrenr-plukliste-$kontonr-$dato"
