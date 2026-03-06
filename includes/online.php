@@ -60,8 +60,10 @@
 // 20260129 PHR More updates to make it work with very old releases.
 
 #include("../includes/connect.php"); #20211001
-if (!isset($buttonColor)) $buttonColor = '#114691';
+if (!isset($buttonColor))    $buttonColor = '#114691';
 if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
+if (!isset($nextver))        $nextver = 0;
+if (!isset($useSettings))    $useSettings = '';
 
 $url = $_SERVER['REQUEST_URI'];
 $questionMarkPos = strpos($url, '?');
@@ -142,7 +144,6 @@ if ($r = db_fetch_array($q)) {
 } elseif ($title != 'login' && $title != 'opdat' && $title != 'logud' && $title != 'Aaben regnskab') {
 	if ($webservice) return ('Session expired');
 	else {
-		if (!isset($nextver)) $nextver = NULL;
 		if (!$nextver) { # 20150125
 			// check if std_func exists in the includes folder
 			include($relativePath . "includes/std_func.php");
