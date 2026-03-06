@@ -19,6 +19,7 @@
     let selectionMade = false;
     let currentPage = 1;
     let currentSearchValue = '';
+    let focusViaKeyboardNav = false;
 
 
     function getDropdownContainer() {
@@ -104,6 +105,12 @@
         });
 
         document.addEventListener('keydown', function (e) {
+            // Track keyboard navigation that moves focus (Tab, Shift+Tab, Ctrl+Arrow)
+            // so the focus handler can suppress the dropdown opening
+            if (e.key === 'Tab' || (e.ctrlKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) {
+                focusViaKeyboardNav = true;
+            }
+
             if (activeDropdown) {
                 handleKeyboardNavigation(e);
             }
@@ -186,6 +193,11 @@
 
         input.addEventListener('focus', function (e) {
             if (selectionMade) {
+                return;
+            }
+            // Don't open dropdown when focus is gained via Tab, Shift+Tab, or Ctrl+Arrow navigation
+            if (focusViaKeyboardNav) {
+                focusViaKeyboardNav = false;
                 return;
             }
             // Show dropdown with current input value as search
@@ -733,9 +745,7 @@
 
         dropdown.innerHTML = html;
         positionDropdown(input, dropdown);
-        dropdown.style.display = 'flex';
-        activeDropdown = dropdown;
-        activeInput = input;
+        showDropdown(input, dropdown);
 
         // Keep focus on the original input field
         input.focus();
@@ -758,9 +768,7 @@
                     '</div>' +
                     '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 positionDropdown(input, dropdown);
-                dropdown.style.display = 'flex';
-                activeDropdown = dropdown;
-                activeInput = input;
+                showDropdown(input, dropdown);
                 // Keep focus on the original input field
                 input.focus();
                 return;
@@ -850,9 +858,7 @@
 
         positionDropdown(input, dropdown);
 
-        dropdown.style.display = 'flex';
-        activeDropdown = dropdown;
-        activeInput = input;
+        showDropdown(input, dropdown);
 
         // Keep focus on the original input field
         input.focus();
@@ -872,11 +878,9 @@
                     '<span class="account-autocomplete-header-title">' + trans.openItems + '</span>' +
                     '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
                     '</div>' +
-                    '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+                        '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 positionDropdown(input, dropdown);
-                dropdown.style.display = 'flex';
-                activeDropdown = dropdown;
-                activeInput = input;
+                showDropdown(input, dropdown);
                 // Keep focus on the original input field
                 input.focus();
                 return;
@@ -958,9 +962,7 @@
 
         positionDropdown(input, dropdown);
 
-        dropdown.style.display = 'flex';
-        activeDropdown = dropdown;
-        activeInput = input;
+        showDropdown(input, dropdown);
 
         // Keep focus on the original input field
         input.focus();
@@ -982,9 +984,7 @@
                 '</div>' +
                 '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
             positionDropdown(input, dropdown);
-            dropdown.style.display = 'flex';
-            activeDropdown = dropdown;
-            activeInput = input;
+            showDropdown(input, dropdown);
             // Keep focus on the original input field
             input.focus();
             return;
@@ -1043,9 +1043,7 @@
 
         positionDropdown(input, dropdown);
 
-        dropdown.style.display = 'flex';
-        activeDropdown = dropdown;
-        activeInput = input;
+        showDropdown(input, dropdown);
 
         // Keep focus on the original input field
         input.focus();
@@ -1327,11 +1325,30 @@
 
 
     function closeDropdown() {
+        // Hide ALL visible dropdowns in the container to prevent orphaned modals
+        if (dropdownContainer) {
+            const allDropdowns = dropdownContainer.querySelectorAll('.account-autocomplete-dropdown');
+            allDropdowns.forEach(function (dd) {
+                dd.style.display = 'none';
+            });
+        }
         if (activeDropdown) {
             activeDropdown.style.display = 'none';
-            activeDropdown = null;
-            activeInput = null;
         }
+        activeDropdown = null;
+        activeInput = null;
+    }
+
+    /**
+     * Close any previous dropdown, then show the given dropdown for the given input.
+     * This prevents orphaned/duplicate modals.
+     */
+    function showDropdown(input, dropdown) {
+        // Close any previously open dropdown first
+        closeDropdown();
+        dropdown.style.display = 'flex';
+        activeDropdown = dropdown;
+        activeInput = input;
     }
 
 
