@@ -782,9 +782,12 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                     $latest_paid = $latest['paid'] == '1' || $latest['paid'] === true;
                     $latest_company = htmlspecialchars($latest['companyName'] ?? '-');
                     $latest_ordrenr = $latest['orderNo'] ?? '-';
+                    
+                    $latest_terms = htmlspecialchars($latest['paymentInfo']['paymentTerms'] ?? '-');
+                    $latest_title = "Firma: $latest_company\nBeløb ekskl. moms: $latest_sum\nMoms: $latest_moms\nBetalingsbetingelser: $latest_terms";
                     ?>
                     
-                    <div class="payment-highlight">
+                    <div class="payment-highlight" title="<?php echo $latest_title; ?>">
                         <div class="label">Seneste faktura</div>
                         <div class="amount"><?php echo $latest_total; ?> DKK</div>
                         <div style="font-size: 13px; color: #666; margin-top: 4px;">
@@ -835,8 +838,14 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                                     $inv_date = $inv['invoiceDate'] ? date('d-m-Y', strtotime($inv['invoiceDate'])) : '-';
                                     $inv_total = number_format(($inv['economic']['sum'] ?? 0) + ($inv['economic']['vat'] ?? 0), 2, ',', '.');
                                     $inv_paid = $inv['paid'] == '1' || $inv['paid'] === true;
+                                    
+                                    $inv_sum = number_format($inv['economic']['sum'] ?? 0, 2, ',', '.');
+                                    $inv_vat = number_format($inv['economic']['vat'] ?? 0, 2, ',', '.');
+                                    $inv_company = htmlspecialchars($inv['companyName'] ?? '-');
+                                    $inv_terms = htmlspecialchars($inv['paymentInfo']['paymentTerms'] ?? '-');
+                                    $inv_title = "Firma: $inv_company\nBeløb ekskl. moms: $inv_sum\nMoms: $inv_vat\nBetalingsbetingelser: $inv_terms";
                                     ?>
-                                    <tr>
+                                    <tr title="<?php echo $inv_title; ?>">
                                         <td><?php echo $inv['orderNo'] ?? '-'; ?></td>
                                         <td><?php echo $inv_date; ?></td>
                                         <td style="font-weight: 600;"><?php echo $inv_total; ?></td>
