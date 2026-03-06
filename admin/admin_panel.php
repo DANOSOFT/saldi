@@ -143,7 +143,7 @@ function fetch_customer_invoices($regnskab_name) {
     // Fetch recent invoices for this customer
     $invoices = fetch_saldi_api('/debitor/invoices/index.php', $token, [
         'customer' => $customer_id,
-        'limit' => 100,
+        'limit' => 10,
         'page' => 1
     ]);
     

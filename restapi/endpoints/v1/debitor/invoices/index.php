@@ -95,10 +95,15 @@ class InvoicesEndpoint extends BaseEndpoint
             // Build query
             $qtxt = "SELECT id FROM ordrer WHERE art = 'DO'";
             
-            // Filter by customer (konto_id)
-            if (isset($_GET['customer']) && is_numeric($_GET['customer'])) {
-                $customerId = (int)$_GET['customer'];
-                $qtxt .= " AND kontonr = $customerId";
+            // Filter by customer (konto_id or kontonr)
+            if (isset($_GET['customer'])) {
+                $customerParam = db_escape_string($_GET['customer']);
+                if (is_numeric($customerParam)) {
+                    $customerId = (int)$customerParam;
+                    $qtxt .= " AND (konto_id = $customerId OR kontonr = '$customerParam')";
+                } else {
+                    $qtxt .= " AND kontonr = '$customerParam'";
+                }
             }
             
             // Filter by status
