@@ -1,5 +1,5 @@
 <?php
-// -----------systemdata/kontoplan.php-----patch 5.0.0 ----2026-02-04-------
+// -----------systemdata/kontoplan.php-----patch 5.0.0 ----2026-03-05-------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // 20210707 LOE Translated these texts with findtekst function 
 // 20220607 MSC Implementing new design
 // 20260204 LOE Updated design with grid design format
+// 20260306 PHR Fixed error in call to dkdecimal
 
 @session_start();
 $s_id=session_id();
@@ -246,7 +247,7 @@ $grid_data = [
 				if ($row['kontotype'] == 'H' || $row['kontotype'] == 'X') {
 					return '';
 				}
-				if ($row['valutakurs']) {
+				if ($value && $row['valutakurs']) { #20260306 added $value
 					return dkdecimal($value * 100 / $row['valutakurs'], 2);
 				}
 				return dkdecimal($value, 2);
