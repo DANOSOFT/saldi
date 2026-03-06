@@ -237,6 +237,11 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	else $tidspkt=(date('H:i')); 
 	$tidspkt=substr($tidspkt,0,5);
 */
+	// if ip is 172.105.246.144 set afd to 4
+	if ($_SERVER['REMOTE_ADDR'] == '172.105.246.144') {
+		$afd = 4;
+	}
+
 	if (strlen($ordredate)>10) { #20210107
 		$tidspkt=substr($ordredate,11); 
 		#list($ordredate,$tidspkt)=explode(' ',$ordredate);
