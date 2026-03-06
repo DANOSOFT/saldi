@@ -89,6 +89,7 @@
 // 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup addresses
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
+// 20260306 Sawaneh - Added Simple guides feature: sidebar overlay with hardcoded Finance + Scaffolding PDF links
 
 
 @session_start();
