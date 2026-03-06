@@ -43,6 +43,7 @@
 // 20260225 LOE Added initialized shop link  for shop pickup display  
 // 20260228 LOE Updated box1 in grupper to store the order of the orders for next/prev navigation in order details page.
 // 20260303 PHR Fixed revenue and cover ratio
+// 20260305 LOE Fixed pagination items not selecting because of screen sizes added more flexibility to account for smaller screens.
 
 @session_start();
 $s_id = session_id();
@@ -2145,7 +2146,7 @@ print "<div id='left-controls' >";
 
 if ($valg == "ordrer" && !$vis_lagerstatus) {
     print "<a href='ordreliste.php?vis_lagerstatus=on&valg=$valg'>"
-          . findtekst('810|Vis lagerstatus', $sprog_id) . "</a>  ";
+          . findtekst('810|Vis lagerstatus', $sprog_id) . "</a> | ";
 }
 
 if ($valg == "ordrer") {
@@ -2156,7 +2157,7 @@ if ($valg == "ordrer") {
 
     if ($r) {
         // print "<a href='csv2ordre.php' target='_blank'>CSV import</a>";
-         print "<a href='csv2ordre.php?valg=$valg'>CSV import</a>";
+         print "<a href='csv2ordre.php?valg=$valg'>CSV import</a> |";
 
         if ($r['box1'] && $ialt != '0,00') {
             $tekst = "Fakturér alt som kan leveres?";
@@ -2592,14 +2593,18 @@ function select_valg($valg, $box)
 
 #top-control-bar {
     position: fixed;
-    bottom: 10px;
+    bottom: 5px;
     left: 0;
     right: 0;
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; 
     align-items: center;
     padding: 10px;
     z-index: 1000; 
+    pointer-events: none;
+}
+#top-control-bar > * {
+    pointer-events: auto;
 }
 html, body{
     overflow: hidden;
@@ -2610,11 +2615,12 @@ body {
 
 #left-controls {
     display: flex;         
-    flex-direction: column; 
-    gap: 5px;              
-    align-items: flex-start; 
-    flex:1;
-    text-align:left;'
+    flex-direction: row;    
+    flex-wrap: wrap;        
+    gap: 8px;              
+    align-items: center; 
+    flex: 1;
+    text-align: left;
 }
 
 #toggleButton{
@@ -2623,5 +2629,52 @@ body {
 
 }
 
+.datatable tfoot {
+    z-index: 1001 !important;
+
+}
+
+@media (max-width: 900px) {
+    #top-control-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px;
+    }
+
+    #left-controls {
+        flex: unset;
+        width: 100%;
+        flex-direction: row;   
+        flex-wrap: wrap;       
+        gap: 8px;
+        align-items: center;
+    }
+
+    #center-turnover,
+    #center-turnover-f,
+    #right-bulk-actions {
+        flex: unset;
+        width: 100%;
+        text-align: left !important;
+    }
+    
+
+    #right-bulk-actions form,
+    .bulk-actions {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .datatable-wrapper {
+        height: calc(100vh - 160px) !important;
+    }
+
+    body {
+        padding-bottom: 200px;
+    }
+}
 
 </style>
