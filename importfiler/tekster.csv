@@ -3119,12 +3119,135 @@
 3119	Hent bilag til mappe her	Upload attachment to folder here	Last opp vedlegg til mappe her
 3120	Medarbejdermappe liste	Employee folder list	Medarbeidermappeliste
 3121	Mappenavn	Folder name	Mappenavn
-3122	
-3123	
-3124	
-3125	
-3126	
+3122	Find skema	Find form	Finn skjema
+3123	Sjak	Crew	Sjak
+3124	Fejl	Error	Feil
+3125	Kritisk	Critical	Kritisk
+3126	Liste med arbejdssedler	List of worksheets	Liste med arbeidssedler
 3127	Knap navn	Button name	Knappnavn
 3128	Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.	Enter the name to display on the button on the order page. If empty, company name or city is used.	Angi navnet som skal vises på knappen på ordresiden. Hvis tom, brukes firmanavn eller bynavn.
 3129	API URL	API URL	API URL
 3130	URL for den API-server som skal benyttes til Danske Fragtmænd. Skal starte med https:// og slutte uden skråstreg.	URL for the API server to be used for Danske Fragtmænd. Must start with https:// and end without a slash.	URL for API-serveren som skal brukes for Danske Fragtmænd. Må starte med https:// og slutte uten skråstrek.
+3131	til	for	til
+3132	Udførelsesdato	Execution date	Utførelsesdato
+3133	Konduktør	Foreman	Bas
+3134	Opgavebeskrivelse	Task description	Oppgavebeskrivelse
+3135	Manuel transport	Manual transport	Manuell transport
+3136	Print skema	Print form	Skriv ut skjema
+3137	Stillads til	Scaffolding for	Stillads til
+3138	Gange	Times	Ganger
+3139	Hvis mere end forventet, skal der ringes til ansvarlig konduktør	If more than expected, call the responsible foreman	Hvis mer enn forventet skal ansvarlig bas ringes
+3140	Husk hver dag at	Remember every day to	Husk hver dag å
+3141	Kontrollere bilen for fejl/mangler	Check the vehicle for defects/deficiencies	Kontrollere bilen for feil/mangler
+3142	Kontrollere eget udstyr og værktøj	Check own equipment and tools	Kontrollere eget utstyr og verktøy
+3143	Evt. tegning	Opt. drawing	Evt. tegning
+3144	Liste med kontrolsedler	List of inspection sheets	Liste med kontrollsedler
+3145	Opgavens art	Type of task	Oppgavens art
+3146	Vælg én eller flere filer der skal uploades	Select one or more files to upload	Velg én eller flere filer som skal lastes opp
+3147	Beskrivelse er ikke udfyldt	Description is not filled in	Beskrivelse er ikke utfylt
+3148	Der mangler både beskrivelse og filer	Both description and files are missing	Det mangler både beskrivelse og filer
+3149	Vedhæft bilag til mappe	Attach document to folder	Legg vedlegg til mappe
+3150	Vælg bilag	Select attachment	Velg vedlegg
+3151	Ret fase og kategori i bilag	Edit phase and category in attachment	Rediger fase og kategori i vedlegg
+3152	Der er sket en fejl under upload, prøv venligst igen	An error occurred during upload, please try again	Det oppsto en feil under opplastingen, prøv igjen
+3153	Medarbejderhåndbog	Employee handbook	Medarbeiderhåndbok
+3154	
+3155	
+3156	
+3157	
+3158	
+3159	
+3160	
+3161	
+3162	
+3163	
+3164	
+3165	
+3166	
+3167	
+3168	
+3169	
+3170	
+3171	
+3172	
+3173	
+3174	
+3175	
+3176	
+3177	
+3178	
+3179	
+3180	
+3181	
+3182	
+3183	
+3184	
+3185	
+3186	
+3187	
+3188	
+3189	
+3190	
+3191	
+3192	
+3193	
+3194	
+3195	
+3196	
+3197	
+3198	
+3199	
+3200	
+3201	
+3202	
+3203	
+3204	
+3205	
+3206	
+3207	
+3208	
+3209	
+3210	
+3211	
+3212	
+3213	
+3214	
+3215	
+3216	
+3217	
+3218	
+3219	
+3220	
+3221	
+3222	
+3223	
+3224	
+3225	
+3226	
+3227	
+3228	
+3229	
+3230	
+3231	
+3232	
+3233	
+3234	
+3235	
+3236	
+3237	
+3238	
+3239	
+3240	
+3241	
+3242	
+3243	
+3244	
+3245	
+3246	
+3247	
+3248	
+3249	
+3250	
+3251	
+3252	
+3253

@@ -76,7 +76,7 @@ $s_id=session_id();
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
 		<![endif]-->
-		<title>Stillads</title>
+		<title>".findtekst('2783|Stillads', $sprog_id)."</title>
 	</head>
 	<body>
 		<div id=\"wrapper\">";  
