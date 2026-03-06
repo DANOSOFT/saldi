@@ -43,9 +43,9 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' limit 1";
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'datatables' limit 1";
 if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'table_id'";
+	$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'tabel_id'";
 	$r=db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (strtolower($r['data_type']) != 'text') {
 		$qtxt = "ALTER TABLE datatables ALTER COLUMN tabel_id TYPE TEXT";
@@ -61,7 +61,6 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt.= "filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, sort TEXT, date_range_meta TEXT)";
 	db_modify($qtxt, __FILE__ . " line " . __LINE__);
 }
-
 db_modify("ALTER TABLE brugere ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45) NULL", __FILE__ . " linje " . __LINE__);
 
 // Check if the column already exists
