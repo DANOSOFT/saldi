@@ -4,6 +4,7 @@
 // 20220728 MSC - Edited leverandører faktura link from ?valg=fakture to ?valg=faktura
 // 20220912 MSC - Implementing new design
 // 20221011 MSC - Added link to feedback mail in systemdata
+// 20260306 Sawaneh - Added Simple guides link.
 
 $site = "";
 $subsite = "";
