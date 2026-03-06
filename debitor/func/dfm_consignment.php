@@ -172,14 +172,14 @@ $json_send = array(
   "HubAgreement" => $dfm_hub,
   "WhoPays" => $dfm_pay,
   "Sender" => array(
-    "Name" => $dfm_firmanavn,
+    "Name" => $dfm_pickup_name1,
     "Name2" => null,
     "Name3" => null,
     "Name4" => null,
-    "Street" => $dfm_addr1,
+    "Street" => $dfm_pickup_street1,
     "Street2" => $dfm_addr2,
-    "Town" => $dfm_bynavn,
-    "Zipcode" => $dfm_postnr,
+    "Town" => $dfm_pickup_town,
+    "Zipcode" => $dfm_pickup_zipcode,
     "Country" => "DK",
     "Phone" => $dfm_tlf,
     "Email" => $dfm_email,
@@ -204,14 +204,14 @@ $json_send = array(
     "ContactPersonEmail" => $dfm_lev_email
   ),
   "Initiator" => array(
-    "Name" => $dfm_firmanavn,
+    "Name" => $dfm_pickup_name1,
     "Name2" => null,
     "Name3" => null,
     "Name4" => null,
-    "Street" => $dfm_addr1,
+    "Street" => $dfm_pickup_street1,
     "Street2" => $dfm_addr2,
-    "Town" => $dfm_bynavn,
-    "Zipcode" => $dfm_postnr,
+    "Town" => $dfm_pickup_town,
+    "Zipcode" => $dfm_pickup_zipcode,
     "Country" => "DK",
     "Phone" => $dfm_tlf,
     "Email" => $dfm_email,
@@ -282,6 +282,7 @@ $json_send = array(
 
 $json_send=json_encode($json_send);
 
+file_put_contents("/var/www/html/pblm/temp/dfm_consignment.json", $json_send);
 
 if ( strtolower($dfm_gooddes)==="catest" ) {
 	print "\n\n<p style='font-size:80%'>".var_dump($json_send)."</p>\n\n";
