@@ -239,7 +239,7 @@ $columns[] = array(
 
 // Loop to generate lager fields (lager1, lager2, lager3, ...)
 $lager_query_start = microtime(true);
-$query = "SELECT kodenr, MAX(beskrivelse) as beskrivelse FROM grupper WHERE art='LG' GROUP BY kodenr ORDER BY kodenr";
+$query = "SELECT kodenr, beskrivelse FROM grupper WHERE art='LG' AND fiscal_year = $regnaar GROUP BY kodenr, beskrivelse ORDER BY kodenr";
 $SQLLagerFetch = "";
 $SQLLagerJoin = "";
 $lagere = array();
