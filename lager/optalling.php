@@ -303,6 +303,7 @@ if ($varenr = trim($varenr)) {
 		$beholdning -= $r2['antal'];
 
 		$l = 0;
+		$ls_id = array();
 		$q2 = db_select("select id from lagerstatus where vare_id='$r[id]' and lager='$lager' order by id", __FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 			$ls_id[$l] = $r2['id'];
@@ -311,7 +312,7 @@ if ($varenr = trim($varenr)) {
 		for ($l = 1; $l < count($ls_id); $l++) {
 			db_modify("delete from lagerstatus where id = '$ls_id[$l]'", __FILE__ . " linje " . __LINE__);
 		}
-		if ($ls_id[0])
+		if (isset($ls_id[0]) && $ls_id[0])
 			$qtxt = "update lagerstatus set beholdning='$beholdning' where id='$ls_id[0]'";
 		else
 			$qtxt = "insert into lagerstatus (vare_id,variant_id,beholdning,lager) values ('$r[id]','0','$beholdning','$lager')";
