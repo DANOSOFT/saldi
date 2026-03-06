@@ -234,7 +234,7 @@ if (isset($_GET['ajax_invoice_id'])) {
     
     // Fetch single invoice by passing 'id' as param
     $invoice_details = fetch_saldi_api('/debitor/invoices/index.php', $token, ['id' => $invoice_id]);
-    print_r($invoice_details);
+    
     if ($invoice_details === null) {
         echo json_encode(['error' => 'Invoice not fundet fra API']);
         exit;
