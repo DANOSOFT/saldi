@@ -1,4 +1,5 @@
 <?php
+ob_start();
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -218,6 +219,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $message = "Indstillinger opdateret!";
     }
+}
+
+// Handle AJAX Invoice fetch
+if (isset($_GET['ajax_invoice_id'])) {
+    while (ob_get_level()) { ob_end_clean(); } // Clean ANY previous output (notices etc)
+    header('Content-Type: application/json');
+    $invoice_id = (int)$_GET['ajax_invoice_id'];
+    $token = get_saldi_api_token();
+    if (!$token) {
+        echo json_encode(['error' => 'Kunne ikke logge ind på Saldi API']);
+        exit;
+    }
+    
+    // Fetch single invoice by passing 'id' as param
+    $invoice_details = fetch_saldi_api('/debitor/invoices/index.php', $token, ['id' => $invoice_id]);
+    print_r($invoice_details);
+    if ($invoice_details === null) {
+        echo json_encode(['error' => 'Invoice not fundet fra API']);
+        exit;
+    }
+    
+    echo json_encode(['invoice' => $invoice_details]);
+    exit;
 }
 
 // Get filter
@@ -569,6 +593,103 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        
+        /* Invoice Preview Modal */
+        .invoice-preview-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+            align-items: center; justify-content: center;
+        }
+        .invoice-preview-modal {
+            background: white;
+            border-radius: 12px;
+            width: 700px;
+            max-width: 90vw;
+            max-height: 85vh;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .invoice-preview-backdrop.visible { display: flex; }
+        .invoice-preview-backdrop.visible .invoice-preview-modal {
+            transform: translateY(0); opacity: 1;
+        }
+        
+        .inv-modal-header {
+            padding: 20px 24px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            display: flex; justify-content: space-between; align-items: flex-start;
+        }
+        .inv-modal-title { font-size: 20px; font-weight: 600; color: #333; margin: 0 0 4px 0; }
+        .inv-modal-info { color: #666; font-size: 14px; }
+        .inv-modal-close {
+            background: none; border: none; font-size: 24px; color: #999;
+            cursor: pointer; line-height: 1; min-width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; transition: 0.2s;
+        }
+        .inv-modal-close:hover { background: #eee; color: #333; }
+        
+        .inv-modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .inv-lines-table {
+            width: 100%; border-collapse: collapse; margin-bottom: 24px;
+        }
+        .inv-lines-table th {
+            text-align: left; padding: 10px;
+            border-bottom: 2px solid #ddd;
+            color: #555; font-size: 13px; text-transform: uppercase; font-weight: 600;
+        }
+        .inv-lines-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #efefef;
+            font-size: 14px; color: #333;
+        }
+        .inv-lines-table .num { text-align: right; }
+        .inv-totals {
+            width: 300px; margin-left: auto;
+            background: #f8f9fa;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .inv-totals-row {
+            display: flex; justify-content: space-between;
+            padding: 6px 0; font-size: 14px; color: #555;
+        }
+        .inv-totals-row.bold {
+            font-weight: 700; color: #333; font-size: 16px;
+            border-top: 2px solid #ddd; margin-top: 6px; padding-top: 10px;
+        }
+        
+        .inv-loading {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px; color: #777;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #f3f3f3;
+            border-top: 4px solid #114691; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 16px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .invoice-row-trigger { cursor: pointer; transition: background 0.15s; }
+        .invoice-row-trigger:hover { background: #eef2f7 !important; }
+        .payment-highlight.invoice-row-trigger:hover {
+            border-color: #4ade80; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -784,10 +905,9 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                     $latest_ordrenr = $latest['orderNo'] ?? '-';
                     
                     $latest_terms = htmlspecialchars($latest['paymentInfo']['paymentTerms'] ?? '-');
-                    $latest_title = "Firma: $latest_company\nBeløb ekskl. moms: $latest_sum\nMoms: $latest_moms\nBetalingsbetingelser: $latest_terms";
                     ?>
                     
-                    <div class="payment-highlight" title="<?php echo $latest_title; ?>">
+                    <div class="payment-highlight invoice-row-trigger" onclick="openInvoiceModal(<?php echo $latest['id']; ?>)">
                         <div class="label">Seneste faktura</div>
                         <div class="amount"><?php echo $latest_total; ?> DKK</div>
                         <div style="font-size: 13px; color: #666; margin-top: 4px;">
@@ -815,7 +935,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                     </div>
                     <div class="info-row">
                         <span class="info-label">Betalingsbetingelser</span>
-                        <span class="info-value"><?php echo htmlspecialchars($latest['paymentInfo']['paymentTerms'] ?? '-'); ?></span>
+                        <span class="info-value"><?php echo $latest_terms; ?></span>
                     </div>
                     
                     <?php if (count($invoices) > 1) { ?>
@@ -838,14 +958,8 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                                     $inv_date = $inv['invoiceDate'] ? date('d-m-Y', strtotime($inv['invoiceDate'])) : '-';
                                     $inv_total = number_format(($inv['economic']['sum'] ?? 0) + ($inv['economic']['vat'] ?? 0), 2, ',', '.');
                                     $inv_paid = $inv['paid'] == '1' || $inv['paid'] === true;
-                                    
-                                    $inv_sum = number_format($inv['economic']['sum'] ?? 0, 2, ',', '.');
-                                    $inv_vat = number_format($inv['economic']['vat'] ?? 0, 2, ',', '.');
-                                    $inv_company = htmlspecialchars($inv['companyName'] ?? '-');
-                                    $inv_terms = htmlspecialchars($inv['paymentInfo']['paymentTerms'] ?? '-');
-                                    $inv_title = "Firma: $inv_company\nBeløb ekskl. moms: $inv_sum\nMoms: $inv_vat\nBetalingsbetingelser: $inv_terms";
                                     ?>
-                                    <tr title="<?php echo $inv_title; ?>">
+                                    <tr class="invoice-row-trigger" onclick="openInvoiceModal(<?php echo $inv['id']; ?>)">
                                         <td><?php echo $inv['orderNo'] ?? '-'; ?></td>
                                         <td><?php echo $inv_date; ?></td>
                                         <td style="font-weight: 600;"><?php echo $inv_total; ?></td>
@@ -1070,6 +1184,154 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
 <?php } // end overview ?>
 
 </div>
+
+<!-- Invoice Preview Modal -->
+<div class="invoice-preview-backdrop" id="invoiceModalBackdrop">
+    <div class="invoice-preview-modal" id="invoiceModal">
+        <div class="inv-modal-header">
+            <div>
+                <h3 class="inv-modal-title" id="invModalCompany">Laster...</h3>
+                <div class="inv-modal-info" id="invModalMeta"></div>
+            </div>
+            <button class="inv-modal-close" onclick="closeInvoiceModal()">&times;</button>
+        </div>
+        <div class="inv-modal-body" id="invModalBody">
+            <div class="inv-loading">
+                <div class="spinner"></div>
+                <div>Henter fakturadetaljer...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function numberFormat(number) {
+    if(!number) return '0,00';
+    return parseFloat(number).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+function closeInvoiceModal() {
+    document.getElementById('invoiceModalBackdrop').classList.remove('visible');
+}
+
+// Close on backdrop click
+document.getElementById('invoiceModalBackdrop').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeInvoiceModal();
+    }
+});
+
+function openInvoiceModal(invoiceId) {
+    const backdrop = document.getElementById('invoiceModalBackdrop');
+    const body = document.getElementById('invModalBody');
+    const companyTitle = document.getElementById('invModalCompany');
+    const metaContainer = document.getElementById('invModalMeta');
+    
+    // Reset modal state
+    companyTitle.innerHTML = 'Henter...';
+    metaContainer.innerHTML = '';
+    body.innerHTML = `
+        <div class="inv-loading">
+            <div class="spinner"></div>
+            <div>Henter fakturadetaljer...</div>
+        </div>
+    `;
+    
+    backdrop.classList.add('visible');
+    
+    // Fetch data
+    fetch(`admin_panel.php?ajax_invoice_id=${invoiceId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                body.innerHTML = `<div style="padding: 20px; color: #dc3545; text-align: center;">Værdien kunne ikke hentes: ${data.error}</div>`;
+                companyTitle.innerHTML = 'Fejl';
+                return;
+            }
+            
+            const inv = data.invoice;
+            
+            // Header info
+            companyTitle.textContent = inv.companyName || 'Ukendt firma';
+            
+            let dateStr = '-';
+            if (inv.invoiceDate) {
+                const parts = inv.invoiceDate.split('-');
+                if(parts.length === 3) dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            
+            metaContainer.innerHTML = `Faktura #${inv.orderNo || '-'} &nbsp;&bull;&nbsp; Dato: ${dateStr}`;
+            
+            // Build lines table
+            let linesHtml = `
+                <table class="inv-lines-table">
+                    <thead>
+                        <tr>
+                            <th>Varenr</th>
+                            <th>Beskrivelse</th>
+                            <th class="num">Antal</th>
+                            <th class="num">Pris</th>
+                            <th class="num">I alt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            if (inv.lines && inv.lines.length > 0) {
+                inv.lines.forEach(line => {
+                    // Only show lines with actual items, or fallback for text lines
+                    if (!line.description && !line.itemNo) return;
+                    
+                    const qty = line.qty !== null && line.qty !== undefined ? line.qty : '';
+                    const price = line.price ? numberFormat(line.price) : '';
+                    const total = line.total ? numberFormat(line.total) : '';
+                    
+                    linesHtml += `
+                        <tr>
+                            <td style="width: 15%;">${line.itemNo || ''}</td>
+                            <td style="width: 40%;">${line.description || ''}</td>
+                            <td class="num" style="width: 15%;">${qty} ${line.unit || ''}</td>
+                            <td class="num" style="width: 15%;">${price}</td>
+                            <td class="num" style="width: 15%; font-weight: 500;">${total}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                linesHtml += `<tr><td colspan="5" style="text-align: center; color: #999;">Ingen linjer fundet</td></tr>`;
+            }
+            linesHtml += `</tbody></table>`;
+            
+            // Add totals
+            const sum = inv.economic && inv.economic.sum ? inv.economic.sum : 0;
+            const vat = inv.economic && inv.economic.vat ? inv.economic.vat : 0;
+            const total = parseFloat(sum) + parseFloat(vat);
+            
+            linesHtml += `
+                <div class="inv-totals">
+                    <div class="inv-totals-row">
+                        <span>Subtotal ekskl. moms</span>
+                        <span>${numberFormat(sum)} DKK</span>
+                    </div>
+                    <div class="inv-totals-row">
+                        <span>Moms</span>
+                        <span>${numberFormat(vat)} DKK</span>
+                    </div>
+                    <div class="inv-totals-row bold">
+                        <span>Total inkl. moms</span>
+                        <span>${numberFormat(total)} DKK</span>
+                    </div>
+                </div>
+            `;
+            
+            body.innerHTML = linesHtml;
+        })
+        .catch(error => {
+            console.error('Error fetching invoice:', error);
+            body.innerHTML = `<div style="padding: 20px; color: #dc3545; text-align: center;">Der opstod en fejl under hentning af fakturaen.</div>`;
+            companyTitle.innerHTML = 'Fejl';
+        });
+}
+</script>
 
 </body>
 </html>

@@ -18,24 +18,11 @@ class AttachmentEndpoint extends BaseEndpoint
     protected function checkAuthorization()
     {
         try {
-            $payload = JWTAuth::validateToken();
-            
-            if (!$payload) {
-                $this->sendResponse(false, null, 'Invalid or expired token', 401);
+            if (!parent::checkAuthorization()) {
                 return false;
             }
             
-            $this->userId = $payload['user_id'];
-            $this->username = $payload['username'];
-            
-            // Set database from tenant (from JWT token or X-Tenant-ID header)
-            $db = JWTAuth::getTenantDatabase();
-            if (!$db) {
-                $this->sendResponse(false, null, 'Tenant database not found. Provide database during login or set X-Tenant-ID header.', 400);
-                return false;
-            }
-            
-            AttachmentModel::setDatabase($db);
+            AttachmentModel::setDatabase($this->db);
             
             return true;
         } catch (Exception $e) {

@@ -34,28 +34,7 @@ class InvoicesEndpoint extends BaseEndpoint
         parent::__construct();
     }
     
-    protected function checkAuthorization()
-    {
-        $payload = JWTAuth::validateToken();
-        
-        if (!$payload) {
-            $this->sendResponse(false, null, 'Invalid or expired token', 401);
-            return false;
-        }
-        
-        $this->userId = $payload['user_id'];
-        $this->username = $payload['username'];
-        
-        // Get database from tenant
-        $this->db = JWTAuth::getTenantDatabase();
-        if (!$this->db) {
-            $this->sendResponse(false, null, 'Tenant database not found. Set X-Tenant-ID header.', 400);
-            return false;
-        }
-        
-        return true;
-    }
-    
+
     protected function handleGet($id = null)
     {
         $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -122,13 +101,7 @@ class InvoicesEndpoint extends BaseEndpoint
             
             $qtxt .= " ORDER BY fakturadate DESC, id DESC LIMIT $limit OFFSET $offset";
             
-            global $sqhost, $squser, $sqpass;
-            $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
-            
-            if (!$conn) {
-                $this->sendResponse(false, null, 'Database connection failed', 500);
-                return;
-            }
+
             
             $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
             $invoices = [];
