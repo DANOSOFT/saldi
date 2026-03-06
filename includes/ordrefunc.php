@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-05 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -81,6 +81,9 @@
 // 20251115 LOE Top line design for S menu moved to a different file.
 // 20260114 PHR Product search failed if another product had part of the productnumber in its productnumber. (function opret_ordrelinje)
 // 20260305 PHR Fix to make sure that cash sale is not acconted on account sale account.
+// 20260306 PHR Fixed Stock was always set to 0 when crediting an order.
+
+
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
 #cho "$id,$hurtigfakt,$genfakt,$webservice<br>";
@@ -3665,9 +3668,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			$lager = 0;
 	}
 
-	if (!$varenr || trim($varenr) === '') {
-		$lager = 0;
-	}
+	#20260306 Stock was always set to 0 !!
+	#if (!$varenr || trim($varenr) === '') $lager = 0;
+	$lager = (int)$lager;
 
 	if (!$art)
 		$art = $r['art']; #20140424b
