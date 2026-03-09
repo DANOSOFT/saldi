@@ -121,13 +121,13 @@ function fetch_saldi_api($endpoint, $token, $params = []) {
 /**
  * Fetch customer invoices from the Saldi API by searching for matching customer name
  */
-function fetch_customer_invoices($regnskab_name) {
+function fetch_customer_invoices($search_term) {
     $token = get_saldi_api_token();
     if (!$token) return ['error' => 'Kunne ikke logge ind på Saldi API'];
     
-    // First, search for the customer by name
+    // First, search for the customer
     $customers = fetch_saldi_api('/debitor/customers/index.php', $token, [
-        'search' => $regnskab_name,
+        'search' => $search_term,
         'limit' => 1
     ]);
     
@@ -136,7 +136,7 @@ function fetch_customer_invoices($regnskab_name) {
     }
     
     if (!is_array($customers) || count($customers) === 0 || !isset($customers[0]['kontonr'])) {
-        return ['error' => 'Ingen kunde fundet for "' . htmlspecialchars($regnskab_name) . '"'];
+        return ['error' => 'Ingen kunde fundet for "' . htmlspecialchars($search_term) . '"'];
     }
     
     $customer_id = $customers[0]['kontonr'];
@@ -149,7 +149,7 @@ function fetch_customer_invoices($regnskab_name) {
     ]);
     
     if ($invoices === null) return ['error' => 'Kunne ikke hente fakturaer fra API'];
-    if (!is_array($invoices) || count($invoices) === 0) return ['error' => 'Ingen fakturaer fundet for "' . htmlspecialchars($regnskab_name) . '"'];
+    if (!is_array($invoices) || count($invoices) === 0) return ['error' => 'Ingen fakturaer fundet for "' . htmlspecialchars($search_term) . '"'];
     
     // Sort by invoiceDate DESC
     usort($invoices, function($a, $b) {
@@ -219,6 +219,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $message = "Indstillinger opdateret!";
     }
+}
+
+// Handle AJAX License toggle
+if (isset($_GET['ajax_license_toggle']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    while (ob_get_level()) { ob_end_clean(); }
+    header('Content-Type: application/json');
+    $input = json_decode(file_get_contents('php://input'), true);
+    $reg_id = (int)($input['regnskab_id'] ?? 0);
+    $feature = if_isset($input['feature_key'], '');
+    
+    if (!$reg_id || !$feature) {
+        echo json_encode(['error' => 'Mangler parametre']);
+        exit;
+    }
+    
+    $qtxt = "SELECT id, enabled FROM license_features WHERE regnskab_id = $reg_id AND feature_key = '" . db_escape_string($feature) . "'";
+    $existing = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+    
+    if ($existing) {
+        $is_on = ($existing['enabled'] && $existing['enabled'] != 'f' && $existing['enabled'] != '0');
+        $new_state = $is_on ? 'false' : 'true';
+        $qtxt = "UPDATE license_features SET enabled = $new_state, updated_at = NOW() WHERE id = " . $existing['id'];
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        echo json_encode(['success' => true, 'new_state' => $new_state === 'true']);
+    } else {
+        $qtxt = "INSERT INTO license_features (regnskab_id, feature_key, enabled) VALUES ($reg_id, '" . db_escape_string($feature) . "', false)";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        echo json_encode(['success' => true, 'new_state' => false]);
+    }
+    exit;
 }
 
 // Handle AJAX Invoice fetch
@@ -1018,9 +1048,10 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             $licenses[$r['feature_key']] = $r;
         }
         
-        // Try to get actual user count and transaction count from client database
+        // Try to get actual user count, transaction count, and cvrnr from client database
         $actual_brugere = '?';
         $actual_transaktioner = '?';
+        $client_cvrnr = '';
         $client_db = $reg['db'];
         
         if ($client_db && $client_db != $sqdb) {
@@ -1044,6 +1075,15 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                 $qr = @db_select($qtxt, __FILE__ . " linje " . __LINE__);
                 if ($qr && $rr = db_fetch_array($qr)) {
                     $actual_transaktioner = $rr['cnt'] * 1;
+                }
+                
+                // Get cvrnr for API search
+                $qtxt = "SELECT cvrnr FROM adresser WHERE art='S' LIMIT 1";
+                $qr = @db_select($qtxt, __FILE__ . " linje " . __LINE__);
+                if ($qr && $rr = db_fetch_array($qr)) {
+                    $cvr = trim($rr['cvrnr']);
+                    $cvr = preg_replace('/^DK\s*/i', '', $cvr);
+                    $client_cvrnr = str_replace(' ', '', $cvr);
                 }
                 
                 // Re-connect to master
@@ -1210,7 +1250,8 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             <div class="card-header">💳 Seneste Betaling</div>
             <div class="card-body">
                 <?php
-                $payment_data = fetch_customer_invoices($reg['regnskab']);
+                $api_search = $client_cvrnr ? $client_cvrnr : $reg['regnskab'];
+                $payment_data = fetch_customer_invoices($api_search);
                 
                 if (isset($payment_data['error'])) {
                     echo "<div class='api-error'>⚠️ " . $payment_data['error'] . "</div>";
@@ -1511,7 +1552,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                         }
                     }
                     $short = strtoupper(substr($fk, 0, 1));
-                    echo "<span class='license-icon $status_class' title='" . htmlspecialchars($fn) . "'>$short</span>";
+                    echo "<span class='license-icon $status_class' title='" . htmlspecialchars($fn) . "' onclick='toggleLicense(this, $reg_id, \"$fk\")' style='cursor:pointer;'>$short</span>";
                 }
                 echo "</div></td>";
                 
@@ -1877,6 +1918,43 @@ function clearDatatables(id, username) {
 // Load users on page load
 if (REGNSKAB_ID) {
     document.addEventListener('DOMContentLoaded', loadUsers);
+}
+
+function toggleLicense(el, regId, featureKey) {
+    if (el.style.pointerEvents === 'none') return;
+    
+    // Add loading effect
+    el.style.opacity = '0.5';
+    el.style.pointerEvents = 'none';
+    
+    fetch('admin_panel.php?ajax_license_toggle=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regnskab_id: regId, feature_key: featureKey })
+    })
+    .then(r => r.json())
+    .then(data => {
+        el.style.opacity = '1';
+        el.style.pointerEvents = 'auto';
+        
+        if (data.error) {
+            alert('Fejl: ' + data.error);
+            return;
+        }
+        
+        if (data.new_state) {
+            el.classList.remove('license-off');
+            el.classList.add('license-on');
+        } else {
+            el.classList.remove('license-on');
+            el.classList.add('license-off');
+        }
+    })
+    .catch(err => {
+        el.style.opacity = '1';
+        el.style.pointerEvents = 'auto';
+        alert('Fejl ved opdatering af licens');
+    });
 }
 </script>
 
