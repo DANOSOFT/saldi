@@ -2117,7 +2117,7 @@ if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) {
             $qtxt = "SELECT sum,moms,kostpris FROM ordrer WHERE id = $ordrlst[$i]";
             $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
             $ialt_total         += $r['sum'];
-            $ialt_m_moms_total  += $r['moms'];
+            $ialt_m_moms_total  +=  $r['sum'] + $r['moms'];
             $ialt_kostpris_total+= $r['kostpris'];
         }
     }
