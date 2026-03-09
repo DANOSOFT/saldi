@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/productLookup.php --- patch 4.1.1 --- 2025-01-XX ---
-// Product lookup page using grid system for order entry
+// --- debitor/productLookup.php --- patch 4.1.1 --- 2026-03-09 ---
+// Product lookup page using grid system for order entry 
 // Based on vareliste.php grid implementation
 
 @session_start();
@@ -62,6 +62,9 @@ if (isset($_GET['insertItems']) && isset($_GET['vare_id']) && isset($_GET['antal
     header("Location: $url");
     exit;
 }
+
+// Clear old grid state
+db_modify("DELETE FROM datatables WHERE tabel_id='productLookup$id' AND user_id='$bruger_id'", __FILE__ . " linje " . __LINE__);
 
 // Set default values
 if (!$sort) {
