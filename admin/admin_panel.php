@@ -1154,7 +1154,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                     </div>
                 </div>
                 <div class="stats-item">
-                    <div class="stats-number"><?php echo number_format($posteret, 0, ',', '.'); ?><span style="font-size:16px;color:#999;"> / <?php echo number_format($max_posteringer, 0, ',', '.'); ?></span></div>
+                    <div class="stats-number"><?php echo number_format($posteret, 0, ',', '.'); ?><span style="font-size:16px;color:#999;"> / <?php echo $max_posteringer > 0 ? number_format($max_posteringer, 0, ',', '.') : '<span style="font-size: 1.5em; vertical-align: middle; line-height: 1;">&infin;</span>'; ?></span></div>
                     <div class="stats-label">Posteringer (brugt / maks)</div>
                     <div class="usage-bar-wrap" style="margin: 8px auto 0;">
                         <div class="usage-bar <?php echo bar_color($poster_pct); ?>" style="width: <?php echo $poster_pct; ?>%"></div>
@@ -1519,7 +1519,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                 echo "<td><strong>" . htmlspecialchars($reg['regnskab']) . "</strong></td>";
                 echo "<td style='color:#666; font-size:13px;'>" . htmlspecialchars($reg['db']) . "</td>";
                 echo "<td>" . ($reg['brugerantal'] * 1) . "</td>";
-                echo "<td>" . number_format($reg['posteringer'] * 1, 0, ',', '.') . "</td>";
+                echo "<td>" . ($reg['posteringer'] * 1 > 0 ? number_format($reg['posteringer'] * 1, 0, ',', '.') : '<span style="font-size: 1.5em; vertical-align: middle; line-height: 1;">&infin;</span>') . "</td>";
                 echo "<td>" . number_format($reg['posteret'] * 1, 0, ',', '.') . "</td>";
                 echo "<td style='font-size:13px;'>" . $sidst_val . "</td>";
                 
