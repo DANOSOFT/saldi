@@ -765,16 +765,21 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $i++;
         $tmp = "(";
         foreach ($filter["options"] as $filterItem) {
-            if ($filterItem["checked"] == "checked" && $filterItem["sqlOn"] != "") {
-                $tmp .= $filterItem["sqlOn"];
-                $tmp .= " " .$filter['joinOperator']. " ";
+            $sqlOn = isset($filterItem["sqlOn"]) ? $filterItem["sqlOn"] : "";
+            $sqlOff = isset($filterItem["sqlOff"]) ? $filterItem["sqlOff"] : "";
+            $joinOp = isset($filter['joinOperator']) ? $filter['joinOperator'] : "";
+            
+            if ($filterItem["checked"] == "checked" && $sqlOn != "") {
+                $tmp .= $sqlOn;
+                $tmp .= " " . $joinOp . " ";
             }
-            if ($filterItem["checked"] == "" && $filterItem["sqlOff"] != "") {
-                $tmp .= $filterItem["sqlOff"];
-                $tmp .= " " .$filter['joinOperator']. " ";
+            if ($filterItem["checked"] == "" && $sqlOff != "") {
+                $tmp .= $sqlOff;
+                $tmp .= " " . $joinOp . " ";
             }
         }
-        $tmp = rtrim($tmp, " " .$filter['joinOperator']. " ");
+        $joinOp = isset($filter['joinOperator']) ? $filter['joinOperator'] : "";
+        $tmp = rtrim($tmp, " " . $joinOp . " ");
         $tmp .= ")";
         if ($tmp != "()") {
             $filterstring .= $tmp;
