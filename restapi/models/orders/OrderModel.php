@@ -38,6 +38,7 @@ class OrderModel
     private $valutakurs;
     private $art;
     private $fakturadate;
+    private $fakturanr;
     /**
      * Constructor - can create an empty Order or load an existing one by ID
      * 
@@ -97,6 +98,7 @@ class OrderModel
             $this->ordrenr = (int)$r['ordrenr'];
             $this->valutakurs = (float)$r['valutakurs'];
             $this->fakturadate = $r['fakturadate'];
+            $this->fakturanr = $r['fakturanr'];
 
             return true;
         }
@@ -336,7 +338,8 @@ class OrderModel
             'accountNumber' => $this->kontonr,
             'reference' => $this->ref,
             'status' => $this->status,
-            'orderNo' => $this->ordrenr
+            'orderNo' => $this->ordrenr,
+            'invoiceNo' => $this->fakturanr
         );
     }
 
@@ -376,6 +379,7 @@ class OrderModel
     public function getEan() { return $this->ean; }
     public function getCvrnr() { return $this->cvrnr; }
     public function getFakturadate() { return $this->fakturadate; }
+    public function getFakturanr() { return $this->fakturanr; }
 
     // Setter methods - ALL REQUIRED SETTERS
     public function setKontoId($konto_id) { $this->konto_id = $konto_id; }

@@ -144,7 +144,7 @@ function fetch_customer_invoices($regnskab_name) {
     // Fetch recent invoices for this customer
     $invoices = fetch_saldi_api('/debitor/invoices/index.php', $token, [
         'customer' => $customer_id,
-        'limit' => 10,
+        'limit' => 50,
         'page' => 1
     ]);
     
@@ -838,6 +838,34 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             font-size: 14px;
         }
 
+        /* ─── Collapsible Card ─── */
+        .card-header-toggle {
+            cursor: pointer;
+            user-select: none;
+            justify-content: space-between;
+        }
+        .card-header-toggle:hover { background: #f7fafc; }
+        .card-header-chevron {
+            font-size: 12px; color: #a0aec0;
+            transition: transform 0.25s;
+        }
+        .card.collapsed .card-header-chevron { transform: rotate(-90deg); }
+        .card.collapsed .card-body-collapsible { display: none; }
+        .users-search {
+            padding: 12px 24px;
+            border-bottom: 1px solid #edf2f7;
+            background: #f7fafc;
+        }
+        .users-search input {
+            width: 100%; padding: 8px 14px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 13px; font-family: inherit;
+            background: #fff;
+            outline: none; transition: border-color 0.2s;
+        }
+        .users-search input:focus { border-color: #319795; }
+        .card.collapsed .users-search { display: none; }
+
         /* ─── Invoice Preview Modal (Chakra Modal) ─── */
         .invoice-preview-backdrop {
             display: none;
@@ -1183,7 +1211,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                     $latest_total = number_format(($latest['economic']['sum'] ?? 0) + ($latest['economic']['vat'] ?? 0), 2, ',', '.');
                     $latest_paid = $latest['paid'] == '1' || $latest['paid'] === true;
                     $latest_company = htmlspecialchars($latest['companyName'] ?? '-');
-                    $latest_ordrenr = $latest['orderNo'] ?? '-';
+                    $latest_ordrenr = $latest['invoiceNo'] ?? $latest['orderNo'] ?? '-';
                     
                     $latest_terms = htmlspecialchars($latest['paymentInfo']['paymentTerms'] ?? '-');
                     ?>
@@ -1233,17 +1261,18 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                             </thead>
                             <tbody>
                                 <?php 
-                                $show_count = min(5, count($invoices));
-                                for ($i = 0; $i < $show_count; $i++) {
+                                $total_invoices = count($invoices);
+                                for ($i = 0; $i < $total_invoices; $i++) {
                                     $inv = $invoices[$i];
                                     $inv_date = $inv['invoiceDate'] ? date('d-m-Y', strtotime($inv['invoiceDate'])) : '-';
                                     $inv_total = number_format(($inv['economic']['sum'] ?? 0) + ($inv['economic']['vat'] ?? 0), 2, ',', '.');
                                     $inv_paid = $inv['paid'] == '1' || $inv['paid'] === true;
+                                    $hidden = $i >= 5 ? ' class="invoice-row-extra" style="display:none;"' : '';
                                     ?>
-                                    <tr class="invoice-row-trigger" onclick="openInvoiceModal(<?php echo $inv['id']; ?>)">
-                                        <td><?php echo $inv['orderNo'] ?? '-'; ?></td>
-                                        <td><?php echo $inv_date; ?></td>
-                                        <td style="font-weight: 600;"><?php echo $inv_total; ?></td>
+                                    <tr<?php echo $hidden; ?>>
+                                        <td class="invoice-row-trigger" onclick="openInvoiceModal(<?php echo $inv['id']; ?>)"><?php echo $inv['invoiceNo'] ?? $inv['orderNo'] ?? '-'; ?></td>
+                                        <td class="invoice-row-trigger" onclick="openInvoiceModal(<?php echo $inv['id']; ?>)"><?php echo $inv_date; ?></td>
+                                        <td class="invoice-row-trigger" onclick="openInvoiceModal(<?php echo $inv['id']; ?>)" style="font-weight: 600;"><?php echo $inv_total; ?></td>
                                         <td>
                                             <?php if ($inv_paid) { ?>
                                                 <span class="badge badge-paid">Betalt</span>
@@ -1255,6 +1284,13 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                                 <?php } ?>
                             </tbody>
                         </table>
+                        <?php if ($total_invoices > 5) { ?>
+                        <div style="text-align:center; margin-top: 10px;">
+                            <button type="button" class="btn btn-small btn-outline" id="invoiceShowMoreBtn" onclick="toggleInvoiceRows()">
+                                Vis flere (<?php echo $total_invoices - 5; ?>)
+                            </button>
+                        </div>
+                        <?php } ?>
                     </div>
                     <?php } ?>
                     
@@ -1303,9 +1339,15 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         </div>
         
         <!-- Brugere (Users) -->
-        <div class="card card-full">
-            <div class="card-header">👥 Brugere</div>
-            <div class="card-body">
+        <div class="card card-full collapsed" id="usersCard">
+            <div class="card-header card-header-toggle" onclick="toggleUsersCard()">
+                👥 Brugere
+                <span class="card-header-chevron">▼</span>
+            </div>
+            <div class="users-search">
+                <input type="text" id="usersSearchInput" placeholder="Søg brugere..." oninput="filterUsers(this.value)">
+            </div>
+            <div class="card-body card-body-collapsible">
                 <div id="usersContainer">
                     <div class="inv-loading" id="usersLoading">
                         <div class="spinner"></div>
@@ -1515,6 +1557,14 @@ document.getElementById('invoiceModalBackdrop').addEventListener('click', functi
     }
 });
 
+function toggleInvoiceRows() {
+    const extras = document.querySelectorAll('.invoice-row-extra');
+    const btn = document.getElementById('invoiceShowMoreBtn');
+    const showing = extras.length > 0 && extras[0].style.display !== 'none';
+    extras.forEach(r => r.style.display = showing ? 'none' : '');
+    btn.textContent = showing ? 'Vis flere (' + extras.length + ')' : 'Vis færre';
+}
+
 function openInvoiceModal(invoiceId) {
     const backdrop = document.getElementById('invoiceModalBackdrop');
     const body = document.getElementById('invModalBody');
@@ -1554,7 +1604,7 @@ function openInvoiceModal(invoiceId) {
                 if(parts.length === 3) dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
             }
             
-            metaContainer.innerHTML = `Faktura #${inv.orderNo || '-'} &nbsp;&bull;&nbsp; Dato: ${dateStr}`;
+            metaContainer.innerHTML = `Faktura #${inv.invoiceNo || inv.orderNo || '-'} &nbsp;&bull;&nbsp; Dato: ${dateStr}`;
             
             // Build lines table
             let linesHtml = `
@@ -1574,19 +1624,19 @@ function openInvoiceModal(invoiceId) {
             if (inv.lines && inv.lines.length > 0) {
                 inv.lines.forEach(line => {
                     // Only show lines with actual items, or fallback for text lines
-                    if (!line.description && !line.itemNo) return;
+                    if (!line.description && !line.sku) return;
                     
-                    const qty = line.qty !== null && line.qty !== undefined ? line.qty : '';
+                    const qty = line.quantity !== null && line.quantity !== undefined ? line.quantity : '';
                     const price = line.price ? numberFormat(line.price) : '';
-                    const total = line.total ? numberFormat(line.total) : '';
+                    const lineTotal = (line.quantity && line.price) ? numberFormat(line.quantity * line.price) : '';
                     
                     linesHtml += `
                         <tr>
-                            <td style="width: 15%;">${line.itemNo || ''}</td>
+                            <td style="width: 15%;">${line.sku || ''}</td>
                             <td style="width: 40%;">${line.description || ''}</td>
                             <td class="num" style="width: 15%;">${qty} ${line.unit || ''}</td>
                             <td class="num" style="width: 15%;">${price}</td>
-                            <td class="num" style="width: 15%; font-weight: 500;">${total}</td>
+                            <td class="num" style="width: 15%; font-weight: 500;">${lineTotal}</td>
                         </tr>
                     `;
                 });
@@ -1712,6 +1762,21 @@ function renderUsers(users, container) {
     });
     html += '</div>';
     container.innerHTML = html;
+}
+
+function toggleUsersCard() {
+    const card = document.getElementById('usersCard');
+    card.classList.toggle('collapsed');
+}
+
+function filterUsers(query) {
+    const items = document.querySelectorAll('.user-item');
+    const q = query.toLowerCase();
+    items.forEach(item => {
+        const name = item.querySelector('.user-item-name');
+        const text = name ? name.textContent.toLowerCase() : '';
+        item.style.display = text.includes(q) ? '' : 'none';
+    });
 }
 
 function toggleUserItem(id) {
