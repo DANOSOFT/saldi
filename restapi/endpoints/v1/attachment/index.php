@@ -7,8 +7,8 @@ require_once __DIR__ . '/../../../core/JWTAuth.php';
 
 class AttachmentEndpoint extends BaseEndpoint
 {
-    private $userId;
-    private $username;
+    protected $userId;
+    protected $username;
     
     public function __construct()
     {
