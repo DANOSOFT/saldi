@@ -398,7 +398,7 @@ function create_datagrid($id, $grid_data) {
     list($columns_setup, $search_setup, $filter_setup) = fetch_grid_setup(
         $id,
         $columns_filtered,
-        if_isset($_GET["search"][$id], array()),
+        isset($_GET["search"][$id]) ? $_GET["search"][$id] : array(),
         $filters
     );
     log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
@@ -410,7 +410,7 @@ function create_datagrid($id, $grid_data) {
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
-    $searchTerms = if_isset($_GET["search"][$id], $search_setup);
+    $searchTerms = isset($_GET["search"][$id]) ? $_GET["search"][$id] : $search_setup;
     $search_json  = db_escape_string(json_encode($searchTerms));
     log_grid_performance("JSON processing and search setup", $setup_processing_start);
 
@@ -421,8 +421,8 @@ function create_datagrid($id, $grid_data) {
     log_grid_performance("Grid settings query", $grid_settings_start);
 
     // Determine sorting, row count, and offset
-    $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
-    $selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+    $sort = isset($_GET["sort"][$id]) ? $_GET["sort"][$id] : (isset($r["sort"]) ? $r["sort"] : get_default_sort($columns_updated));
+    $selectedrowcount = isset($_GET["rowcount"][$id]) ? $_GET["rowcount"][$id] : (isset($r["rowcount"]) ? $r["rowcount"] : 100);
 
     // Check if search has actually changed compared to stored values
     $stored_search_array = json_decode(if_isset($r, '{}', 'search_setup'), true);
@@ -484,10 +484,10 @@ function create_datagrid($id, $grid_data) {
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
-    $rowStyleFn = if_isset($grid_data['rowStyle'], null);
-    $metaColumnFn = if_isset($grid_data['metaColumn'], null);
+    $rowStyleFn = isset($grid_data['rowStyle']) ? $grid_data['rowStyle'] : null;
+    $metaColumnFn = isset($grid_data['metaColumn']) ? $grid_data['metaColumn'] : null;
     $totalWidth = calculate_total_width($columns_updated);
-    $menu = if_isset($_GET["menu"][$id], "main"); // ['main', 'kolonner', 'filtre']
+    $menu = isset($_GET["menu"][$id]) ? $_GET["menu"][$id] : "main"; // ['main', 'kolonner', 'filtre']
 
     $rows = array();
     $query = "";

@@ -460,8 +460,8 @@ $gem_fra = $gem_til = NULL;
 if (in_array('kundeordnr', $vis_felt)) {
     for ($i = 0; $i < count($vis_felt); $i++) {
         if ($vis_felt[$i] == 'kundeordnr') {
-            if (strpos($find[$i], ":")) list($gem_fra, $gem_til) = explode(":", $find[$i]);
-            elseif ($find) $gem_fra = $find[$i];
+            if (isset($find[$i]) && strpos($find[$i], ":")) list($gem_fra, $gem_til) = explode(":", $find[$i]);
+            elseif (!empty($find[$i])) $gem_fra = $find[$i];
         }
     }
     if ($gem_fra && $gem_til && $gem_til - $gem_fra > 10) $gem_fra = $gem_til = NULL;
@@ -521,11 +521,11 @@ if (isset($_GET['konto_id']) && $_GET['konto_id']) {
     $debug_log[] = "konto_id NOT in GET or empty";
 }
 
-$grid_search = if_isset($_GET['search'][$grid_id], array());
+$grid_search = isset($_GET['search'][$grid_id]) ? $_GET['search'][$grid_id] : array();
 
-$grid_offset = if_isset($_GET['offset'][$grid_id], 0);
-$grid_rowcount = if_isset($_GET['rowcount'][$grid_id], 100);
-$grid_sort = if_isset($_GET['sort'][$grid_id], '');
+$grid_offset = isset($_GET['offset'][$grid_id]) ? $_GET['offset'][$grid_id] : 0;
+$grid_rowcount = isset($_GET['rowcount'][$grid_id]) ? $_GET['rowcount'][$grid_id] : 100;
+$grid_sort = isset($_GET['sort'][$grid_id]) ? $_GET['sort'][$grid_id] : '';
 
 // Also check how many orders exist for this konto_id
 if ($konto_id) {
