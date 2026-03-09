@@ -331,6 +331,19 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         exit;
     }
     
+    if ($user_action === 'clear_datatables' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $user_id = (int)($input['user_id'] ?? 0);
+        if (!$user_id) { echo json_encode(['error' => 'Mangler bruger-ID']); exit; }
+        
+        db_modify("DELETE FROM datatables WHERE user_id = $user_id", __FILE__ . " linje " . __LINE__);
+        
+        // Reconnect master
+        include("../includes/connect.php");
+        echo json_encode(['success' => true]);
+        exit;
+    }
+    
     echo json_encode(['error' => 'Ukendt handling']);
     exit;
 }
@@ -1751,7 +1764,10 @@ function renderUsers(users, container) {
                     <label>Two-factor authentication</label>
                 </div>
                 <div class="user-edit-actions">
-                    <button class="btn-danger" onclick="deleteUser(${u.id}, '${(u.brugernavn || '').replace(/'/g, "\\'")}')">Slet bruger</button>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-danger" onclick="deleteUser(${u.id}, '${(u.brugernavn || '').replace(/'/g, "\\'")}')">Slet bruger</button>
+                        <button class="btn btn-small btn-outline" style="border-radius: 6px;" onclick="clearDatatables(${u.id}, '${(u.brugernavn || '').replace(/'/g, "\\'")}')">Nulstil tabeller</button>
+                    </div>
                     <div style="display:flex;align-items:center;gap:12px;">
                         <span class="user-success-msg" id="msg-${u.id}">✓ Gemt</span>
                         <button class="btn btn-small btn-success" onclick="saveUser(${u.id})">💾 Gem ændringer</button>
@@ -1837,6 +1853,25 @@ function deleteUser(id, username) {
         }
     })
     .catch(() => alert('Fejl ved sletning'));
+}
+
+function clearDatatables(id, username) {
+    if (!confirm('Er du sikker på at du vil nulstille alle tabelvisninger (datatables) for brugeren "' + username + '"? Dette kan ikke fortrydes.')) return;
+    
+    fetch(`admin_panel.php?ajax_users=1&regnskab_id=${REGNSKAB_ID}&user_action=clear_datatables`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: id})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            alert('Fejl: ' + data.error);
+            return;
+        }
+        alert('Tabelvisninger er blevet nulstillet for brugeren "' + username + '".');
+    })
+    .catch(() => alert('Fejl ved nulstilling'));
 }
 
 // Load users on page load
