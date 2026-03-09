@@ -682,16 +682,21 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         $i++;
         $tmp = "(";
         foreach ($filter["options"] as $filterItem) {
-            if ($filterItem["checked"] == "checked" && $filterItem["sqlOn"] != "") {
-                $tmp .= $filterItem["sqlOn"];
-                $tmp .= " " .$filter['joinOperator']. " ";
+            $sqlOn = isset($filterItem["sqlOn"]) ? $filterItem["sqlOn"] : "";
+            $sqlOff = isset($filterItem["sqlOff"]) ? $filterItem["sqlOff"] : "";
+            $joinOp = isset($filter['joinOperator']) ? $filter['joinOperator'] : "";
+            
+            if ($filterItem["checked"] == "checked" && $sqlOn != "") {
+                $tmp .= $sqlOn;
+                $tmp .= " " . $joinOp . " ";
             }
-            if ($filterItem["checked"] == "" && $filterItem["sqlOff"] != "") {
-                $tmp .= $filterItem["sqlOff"];
-                $tmp .= " " .$filter['joinOperator']. " ";
+            if ($filterItem["checked"] == "" && $sqlOff != "") {
+                $tmp .= $sqlOff;
+                $tmp .= " " . $joinOp . " ";
             }
         }
-        $tmp = rtrim($tmp, " " .$filter['joinOperator']. " ");
+        $joinOp = isset($filter['joinOperator']) ? $filter['joinOperator'] : "";
+        $tmp = rtrim($tmp, " " . $joinOp . " ");
         $tmp .= ")";
         if ($tmp != "()") {
             $filterstring .= $tmp;
@@ -714,7 +719,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+            if (!empty($searchTerms[$column['field']]) || (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] == '0')) {
                 $term = addslashes($searchTerms[$column['field']]);
                 // Convert both the column value and the search term to lowercase
                 if ($term) {
@@ -791,7 +796,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+            if (!empty($searchTerms[$column['field']]) || (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] == '0')) {
                 $term = addslashes($searchTerms[$column['field']]);
                 if ($term) {
                     $searchConditions[] = $column['generateSearch']($column, $term);
@@ -1000,11 +1005,12 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
     }
     print "<th class='filler-row'></th>";
     print "</tr>";
-    print "<tr style='background-color: $bgColor !important;'>";
+    $bgColorSafe = isset($bgColor) ? $bgColor : '';
+    print "<tr style='background-color: $bgColorSafe !important;'>";
     foreach ($columns as $column) {
         echo "<th class='$column[field]'>";
         if ($column["searchable"]) {
-            $columnSearchTerm = if_isset($searchTerms[$column['field']], '');
+            $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
             echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
         }
         echo "</th>";
