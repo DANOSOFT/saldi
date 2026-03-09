@@ -795,7 +795,7 @@ function sagsliste() {
 							<th width=\"100\">".findtekst('46|By', $sprog_id)."</th>
 							<th width=\"80\">".findtekst('2793|Ansvarlig', $sprog_id)."</th>
 							<th width=\"80\">".findtekst('494|Status', $sprog_id)."</th>
-							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=off\">".findtekst('2851|Hurtigsøgning', $sprog_id)."&nbsp;</a></th>
+							<th colspan=\"2\" class=\"link\"><a href=\"sager.php?funktion=sagsliste&amp;asoeg=off\">".findtekst('2851|Hurtigsøgning', $sprog_id)."</a></th>
 						</tr>
 					</thead>
 					<tbody>
