@@ -41,6 +41,7 @@
 // 20260216 PHR - *1 -> (int)
 // 20260217 PHR Typo
 // 20260223 Sawaneh Added drag-and-drop file upload to clip icons for direct voucher attachment
+// 20260306 Sawaneh Fixed bug: email usernames (e.g. hau@skjern-net.dk) broke posted cash journal grid. Changed $brugernavn to $bruger_id in datagrid ID.
 
 ob_start(); //Starter output buffering
 
@@ -1989,14 +1990,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
         print "</form>";
     }
 	print "<div style='width: 100%; height: calc(98vh - 34px - 18px);'>";
-		create_datagrid("kass_$brugernavn", $grid_data);
+		// 20260306 Sawaneh - Changed $brugernavn to $bruger_id to fix bug when username is an email (e.g. hau@skjern-net.dk). Special chars like @ and . break JS function names, CSS selectors and HTML IDs.
+		// OLD: create_datagrid("kass_$brugernavn", $grid_data);
+		create_datagrid("kass_$bruger_id", $grid_data);
 	print "</div>";
 	########
 	 // Add preserved parameters 
     echo <<<SCRIPT
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const form = document.querySelector('#datatable-wrapper-kass_$brugernavn form');
+        // OLD: const form = document.querySelector('#datatable-wrapper-kass_$brugernavn form');
+        const form = document.querySelector('#datatable-wrapper-kass_$bruger_id form');
         if (form) {
             // Add kladde_id
             const kladdeInput = document.createElement('input');
@@ -4132,13 +4136,16 @@ include("kassekladde_includes/unsavedWarning.php");
 ###############dropdown date select
 print "<script>
 document.addEventListener('DOMContentLoaded', function() {
-  const brugernavn = " . json_encode($brugernavn) . ";
+  // OLD: const brugernavn = " . json_encode($brugernavn) . ";
+  const brugerId = " . json_encode($bruger_id) . ";
   
   const kassekladdeInput = document.querySelector(
-    \"input[name='search[kass_\" + brugernavn + \"][transdate]']\"
+    // OLD: \"input[name='search[kass_\" + brugernavn + \"][transdate]']\"
+    \"input[name='search[kass_\" + brugerId + \"][transdate]']\"
   );
    const forfaldsdateInput = document.querySelector(
-    \"input[name='search[kass_\" + brugernavn + \"][forfaldsdate]']\"
+    // OLD: \"input[name='search[kass_\" + brugernavn + \"][forfaldsdate]']\"
+    \"input[name='search[kass_\" + brugerId + \"][forfaldsdate]']\"
   );
 
     // Function to initialize a single datepicker
