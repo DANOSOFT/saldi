@@ -467,6 +467,8 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             letter-spacing: 0.06em;
             border-bottom: 1px solid #e2e8f0;
         }
+        .data-table th a:hover { color: #319795 !important; }
+        .data-table th .sort-active { color: #319795 !important; }
         .data-table td {
             padding: 12px 16px;
             border-bottom: 1px solid #edf2f7;
@@ -1328,6 +1330,8 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             <span style="font-size:18px;">🔍</span>
             <input type="text" name="search" value="<?php echo htmlspecialchars(if_isset($_GET['search'], '')); ?>" 
                    placeholder="Søg efter regnskab, database...">
+            <input type="hidden" name="sort" value="<?php echo htmlspecialchars(if_isset($_GET['sort'], 'regnskab')); ?>">
+            <input type="hidden" name="dir" value="<?php echo htmlspecialchars(if_isset($_GET['dir'], 'asc')); ?>">
             <button type="submit" class="btn btn-small">Søg</button>
             <?php if (if_isset($_GET['search'], '')) { ?>
                 <a href="admin_panel.php" class="btn btn-small btn-outline">Nulstil</a>
@@ -1335,17 +1339,49 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         </form>
     </div>
     
+    <?php
+    // Sorting logic
+    $sort_col = if_isset($_GET['sort'], 'regnskab');
+    $sort_dir = strtolower(if_isset($_GET['dir'], 'asc')) === 'desc' ? 'desc' : 'asc';
+    
+    $allowed_sorts = [
+        'id' => 'id',
+        'regnskab' => 'regnskab',
+        'db' => 'db',
+        'brugerantal' => "COALESCE(NULLIF(brugerantal::text,''),'0')::integer",
+        'posteringer' => "COALESCE(NULLIF(posteringer::text,''),'0')::integer",
+        'posteret' => "COALESCE(NULLIF(posteret::text,''),'0')::integer",
+        'sidst' => "COALESCE(NULLIF(sidst::text,''),'0')::integer",
+        'lukket' => 'lukket'
+    ];
+    $order_column = isset($allowed_sorts[$sort_col]) ? $allowed_sorts[$sort_col] : 'regnskab';
+    
+    $search_param = htmlspecialchars(if_isset($_GET['search'], ''));
+    
+    function sort_link($col, $label, $current_sort, $current_dir, $search) {
+        $new_dir = ($col === $current_sort && $current_dir === 'asc') ? 'desc' : 'asc';
+        $arrow = '';
+        $active = '';
+        if ($col === $current_sort) {
+            $arrow = $current_dir === 'asc' ? ' ▲' : ' ▼';
+            $active = ' class="sort-active"';
+        }
+        $params = 'sort=' . $col . '&dir=' . $new_dir;
+        if ($search) $params .= '&search=' . urlencode($search);
+        return '<a href="admin_panel.php?' . $params . '"' . $active . ' style="color:inherit;text-decoration:none;display:flex;align-items:center;gap:4px;white-space:nowrap;">' . $label . '<span style="font-size:10px;opacity:0.7;">' . $arrow . '</span></a>';
+    }
+    ?>
     <table class="data-table">
         <thead>
             <tr>
-                <th>ID</th>
-                <th>Regnskab</th>
-                <th>Database</th>
-                <th>Brugere</th>
-                <th>Posteringer</th>
-                <th>Posteret</th>
-                <th>Sidst aktiv</th>
-                <th>Status</th>
+                <th><?php echo sort_link('id', 'ID', $sort_col, $sort_dir, $search_param); ?></th>
+                <th><?php echo sort_link('regnskab', 'Regnskab', $sort_col, $sort_dir, $search_param); ?></th>
+                <th><?php echo sort_link('db', 'Database', $sort_col, $sort_dir, $search_param); ?></th>
+                <th><?php echo sort_link('brugerantal', 'Brugere', $sort_col, $sort_dir, $search_param); ?></th>
+                <th><?php echo sort_link('posteringer', 'Posteringer', $sort_col, $sort_dir, $search_param); ?></th>
+                <th><?php echo sort_link('posteret', 'Posteret', $sort_col, $sort_dir, $search_param); ?></th>
+                <th><?php echo sort_link('sidst', 'Sidst aktiv', $sort_col, $sort_dir, $search_param); ?></th>
+                <th><?php echo sort_link('lukket', 'Status', $sort_col, $sort_dir, $search_param); ?></th>
                 <th>Licenser</th>
                 <th></th>
             </tr>
@@ -1358,7 +1394,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                 $where .= " AND (regnskab ILIKE '%$search%' OR db ILIKE '%$search%')";
             }
             
-            $qtxt = "SELECT * FROM regnskab $where ORDER BY regnskab";
+            $qtxt = "SELECT * FROM regnskab $where ORDER BY $order_column $sort_dir";
             $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
             
             // Preload all licenses
