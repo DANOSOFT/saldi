@@ -876,13 +876,22 @@ $custom_columns = array(
         "type" => "dropdown",
         "searchable" => true,
         "dropdownOptions" => function () use ($valg) {
+            global $hurtigfakt;
             $options = array();
-            if ($valg == "tilbud") {
-                $status_condition = "status < 1";
-            } elseif ($valg == "faktura") {
-                $status_condition = "status >= 3";
-            } else {
-                $status_condition = "(status = 1 OR status = 2)";
+            if($hurtigfakt){
+                if ($valg == "faktura") {
+                    $status_condition = "status >= 3";
+                } else {
+                    $status_condition = "status < 3";
+                }
+            }else{
+                if ($valg == "tilbud") {
+                    $status_condition = "status < 1";
+                } elseif ($valg == "faktura") {
+                    $status_condition = "status >= 3";
+                } else {
+                    $status_condition = "(status = 1 OR status = 2)";
+                }
             }
             $qtxt = "SELECT DISTINCT ref FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND ref IS NOT NULL AND ref != '' ORDER BY ref";
             $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
