@@ -250,9 +250,11 @@ if (!function_exists('skriv')) {
 								$qtxt = "select $variabel from ordrer where id=$id";
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "eget" || $tabel == "egen") {
-								$q2 = db_select("select $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
+								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+								$q2 = db_select("select $db_variabel as $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 							} elseif (($tabel == "adresser") || ($tabel == "adresser")) {
-								$q2 = db_select("select $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
+								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+								$q2 = db_select("select $db_variabel as $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "ansat" && $ref) {
 								$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
 								$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn = '$ref'", __FILE__ . " linje " . __LINE__);
@@ -602,7 +604,8 @@ if (!function_exists('find_form_tekst')) {
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						}
 					} elseif ($tabel == "eget" || $tabel == "egen") {
-						$q2 = db_select("select $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
+						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+						$q2 = db_select("select $db_variabel as $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "adresser" || $tabel == "konto") {
 						if ($variabel == 'valuta') {
 							$qtxt = "select gruppe from adresser where id='$id'";
@@ -611,10 +614,12 @@ if (!function_exists('find_form_tekst')) {
 							$qtxt .= "and fiscal_year = $regnaar";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						} else {
-							$q2 = db_select("select $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
+							$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+							$q2 = db_select("select $db_variabel as $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
 						}
 					} elseif ($tabel == "kunde") {
-						$q2 = db_select("select $variabel from adresser where art='D' and id=$id", __FILE__ . " linje " . __LINE__);
+						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+						$q2 = db_select("select $db_variabel as $variabel from adresser where art='D' and id=$id", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "levering") {
 						$q2 = db_select("select $variabel from batch_salg where ordre_id=$id and lev_nr=$lev_nr", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "ansat") {
