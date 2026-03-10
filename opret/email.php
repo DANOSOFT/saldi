@@ -472,63 +472,6 @@ $emailTemp = <<<EOD
   </tr>
   </tbody>
   </table>
-  <table align="center" border="0" cellpadding="0" cellspacing="0" class="row row-14" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; background-image: url('cid:groovepaper_1'); background-position: top center; background-repeat: repeat;" width="100%">
-  <tbody>
-  <tr>
-  <td>
-  <table align="center" border="0" cellpadding="0" cellspacing="0" class="row-content" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; background-color: #FFFFFF; color: #000000; width: 620px; margin: 0 auto;" width="620">
-  <tbody>
-  <tr>
-  <td class="column column-1" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; font-weight: 400; text-align: left; padding-top: 15px; vertical-align: top; border-top: 0px; border-right: 0px; border-bottom: 0px; border-left: 0px;" width="33.333333333333336%">
-  <table border="0" cellpadding="0" cellspacing="0" class="paragraph_block block-1" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; word-break: break-word;" width="100%">
-  <tr>
-  <td class="pad" style="padding-left:25px;padding-top:5px;">
-  <div style="color:#000;font-family:'Oxygen', 'Trebuchet MS', Helvetica, sans-serif;font-size:14px;line-height:120%;text-align:left;mso-line-height-alt:16.8px;">
-  <p style="margin: 0; word-break: break-word;">Betalings metode:</p>
-  </div>
-  </td>
-  </tr>
-  </table>
-  <table border="0" cellpadding="0" cellspacing="0" class="paragraph_block block-2" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; word-break: break-word;" width="100%">
-  <tr>
-  <td class="pad" style="padding-left:25px;">
-  <div style="color:#000;font-family:'Oxygen', 'Trebuchet MS', Helvetica, sans-serif;font-size:20px;line-height:120%;text-align:left;mso-line-height-alt:24px;">
-  <p style="margin: 0;">Kreditkort</p>
-  </div>
-  </td>
-  </tr>
-  </table>
-  </td>
-  <td class="column column-2" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; font-weight: 400; text-align: left; padding-top: 15px; vertical-align: top; border-top: 0px; border-right: 0px; border-bottom: 0px; border-left: 0px;" width="33.333333333333336%">
-  <table border="0" cellpadding="0" cellspacing="0" class="paragraph_block block-1" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; word-break: break-word;" width="100%">
-  <tbody><tr>
-  <td class="pad" style="padding-top:5px;">
-  <div style="text-align:center !important;color:#000;font-family:'Oxygen', 'Trebuchet MS', Helvetica, sans-serif;font-size:20px;line-height:120%;text-align:left;mso-line-height-alt:24px;">
-  <p style="margin: 0; word-break: break-word;">Betalings link:</p>
-  </div>
-  </td>
-  </tr>
-  </tbody></table>
-  </td>
-  <td class="column column-3" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; font-weight: 400; text-align: left; background-color: #2566ff; border-left: 1px solid #DFDFDF; padding-bottom: 5px; padding-top: 10px; vertical-align: top; border-top: 0px; border-right: 0px; border-bottom: 0px;" width="33.333333333333336%">
-  <div class="spacer_block block-1" style="height:20px;line-height:20px;font-size:1px;"> </div>
-  <table border="0" cellpadding="0" cellspacing="0" class="paragraph_block block-2" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; word-break: break-word;" width="100%">
-  <tr>
-  <td class="pad" style="padding-bottom:25px;padding-left:10px;padding-right:10px;">
-  <div style="color:#FFFFFF;font-family:'Oxygen', 'Trebuchet MS', Helvetica, sans-serif;font-size:18px;line-height:120%;text-align:center;mso-line-height-alt:21.599999999999998px;">
-  <p style="margin: 0; word-break: break-word;"><span><strong>$unitPrice kr.</strong></span></p>
-  </div>
-  </td>
-  </tr>
-  </table>
-  </td>
-  </tr>
-  </tbody>
-  </table>
-  </td>
-  </tr>
-  </tbody>
-  </table>
   <table align="center" border="0" cellpadding="0" cellspacing="0" class="row row-15" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; background-image: url('cid:groovepaper_1'); background-position: top center; background-repeat: repeat;" width="100%">
   <tbody>
   <tr>

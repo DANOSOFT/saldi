@@ -6239,7 +6239,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		if ($vare_id) {
 			$batch = "?";
 			#          print "<td title=\"kostpris\">Projekt</span></td>\n";
-			$tidl_lev = 0;
+						$tidl_lev = 0;
 			if ($lagerantal > 1) {
 				if (!$lagerId) $lagerId = 0;
 				$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id' and lager = '$lagerId'";
@@ -6248,14 +6248,15 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			}
 			$qtxt = "select gruppe,beholdning from varer where id = $vare_id";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$beholdning = $r['beholdning'];
+			$beholdning = isset($r['beholdning']) ? $r['beholdning'] : 0;
 			if ($lagerantal > 1) $beholdning = $stockQty;
-			$qtxt = "select box6,box8,box9 from grupper where art='VG' and kodenr='$r[gruppe]'";
+			$gruppe = isset($r['gruppe']) ? (int)$r['gruppe'] : 0;
+			$qtxt = "select box6,box8,box9 from grupper where art='VG' and kodenr='$gruppe'";
 			$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			$row = db_fetch_array($query);
-			($row['box6'] == 'on') ? $omvare = 1 : $omvare = 0; # vare som er omfattet af omvendt betalingspligt 
-			($row['box8'] == 'on') ? $lagervare = 1 : $lagervare = 0;
-			($row['box9'] == 'on') ? $batchvare = 1 : $batchvare = 0;
+			$row = $query ? db_fetch_array($query) : false;
+			(isset($row['box6']) && $row['box6'] == 'on') ? $omvare = 1 : $omvare = 0; # vare som er omfattet af omvendt betalingspligt 
+			(isset($row['box8']) && $row['box8'] == 'on') ? $lagervare = 1 : $lagervare = 0;
+			(isset($row['box9']) && $row['box9'] == 'on') ? $batchvare = 1 : $batchvare = 0;
 			$q = db_select("select * from batch_salg where linje_id = '$linje_id' and ordre_id=$id and vare_id = $vare_id", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$y++;

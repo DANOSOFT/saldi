@@ -30,10 +30,19 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 
 // ---- REST API Configuration for ssl3.saldi.dk ----
+/* db_modify("INSERT INTO settings (var_name, var_value, var_grp) values ('saldi_api_user', 'api', 'internal_api')", __FILE__ . " linje " . __LINE__);
+db_modify("INSERT INTO settings (var_name, var_value, var_grp) values ('saldi_api_pass', 'Misko3023', 'internal_api')", __FILE__ . " linje " . __LINE__);
+db_modify("INSERT INTO settings (var_name, var_value, var_grp) values ('saldi_api_account', 'DANOSOFT', 'internal_api')", __FILE__ . " linje " . __LINE__); */
+$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_user' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
+$saldi_api_user = $query['var_value'];
+$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_pass' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
+$saldi_api_pass = $query['var_value'];
+$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_account' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
+$saldi_api_account = $query['var_value'];
 define('SALDI_API_BASE', 'https://ssl3.saldi.dk/finans/restapi/endpoints/v1');
-define('SALDI_API_USER', 'api');
-define('SALDI_API_PASS', 'Misko3023');
-define('SALDI_API_ACCOUNT', 'DANOSOFT');
+define('SALDI_API_USER', $saldi_api_user);
+define('SALDI_API_PASS', $saldi_api_pass);
+define('SALDI_API_ACCOUNT', $saldi_api_account);
 define('SALDI_API_TOKEN_FILE', '/tmp/saldi_api_token_admin.json');
 
 /**

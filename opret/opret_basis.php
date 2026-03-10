@@ -75,11 +75,20 @@ textarea{height:80px;width:150px;}
 include "../includes/connect.php";
 include "../includes/db_query.php";
 include "../../vendor/autoload.php";
+ini_set('error_log', __DIR__ . '/../temp/opret_basis_error.log');
 
 // Import PHPMailer classes into the global namespace
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
-use PHPMailer\PHPMailer\Exception;
+if (file_exists("../../vendor/autoload.php")) {
+	require_once "../../vendor/autoload.php"; //PHPMailer Object
+	$mail = new  PHPMailer\PHPMailer\PHPMailer();
+	$mail->SMTPOptions = array(
+	'ssl' => array(
+	'verify_peer' => false,
+	'verify_peer_name' => false,
+	'allow_self_signed' => true
+	)
+	);
+}
 
 $pakke="0"; $returadresse="";
 $betaling_1=NULL;$betaling_2=NULL;$betaling_3=NULL;$betaling_4=NULL;
@@ -171,28 +180,90 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 		$sku = 'B' . $months;
 		$date = date('Y-m-d');
 		$unitPrice = 149*$months; // DKK per month
-		$apiBase = 'https://ssl12.saldi.dk/pblm/restapi/endpoint/v1';
-		$ordersUrl = $apiBase . '/debitor/orders/';
-		$orderLinesUrl = $apiBase . '/debitor/orderlines/';
+
+		$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_user' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
+		$saldi_api_user = $query['var_value'];
+		$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_pass' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
+		$saldi_api_pass = $query['var_value'];
+		$query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_account' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
+		$saldi_api_account = $query['var_value'];
+		if (!defined('SALDI_API_BASE')) {
+			define('SALDI_API_BASE', 'https://ssl3.saldi.dk/finans/restapi/endpoints/v1');
+		}
+		$saldi_api_token_file = __DIR__ . '/../temp/saldi_api_token_opret.json';
+
+		$token = null;
+		if (file_exists($saldi_api_token_file)) {
+			$cached = @json_decode(file_get_contents($saldi_api_token_file), true);
+			if ($cached && isset($cached['token']) && isset($cached['expires']) && $cached['expires'] > time()) {
+				$token = $cached['token'];
+			}
+		}
+
+		if (!$token) {
+			$url = SALDI_API_BASE . '/auth/login.php';
+			$postData = json_encode([
+				'username' => $saldi_api_user,
+				'password' => $saldi_api_pass,
+				'account_name' => $saldi_api_account
+			]);
+
+			$ch = curl_init($url);
+			curl_setopt_array($ch, [
+				CURLOPT_POST => true,
+				CURLOPT_POSTFIELDS => $postData,
+				CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_TIMEOUT => 10,
+				CURLOPT_SSL_VERIFYPEER => false,
+				CURLOPT_SSL_VERIFYHOST => 0
+			]);
+			$response = curl_exec($ch);
+			$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+			curl_close($ch);
+
+			if ($response && $httpCode === 200) {
+				$data = json_decode($response, true);
+				if ($data && isset($data['success']) && $data['success'] && isset($data['data']['access_token'])) {
+					$token = $data['data']['access_token'];
+					file_put_contents($saldi_api_token_file, json_encode([
+						'token' => $token,
+						'expires' => time() + 3300
+					]));
+                    error_log("opret_basis.php: API token obtained successfully.");
+				} else {
+                    error_log("opret_basis.php: Failed to get API token, invalid data: " . print_r($data, true));
+                }
+			} else {
+                error_log("opret_basis.php: Failed to get API token, httpCode: $httpCode, response: $response");
+            }
+		} else {
+            error_log("opret_basis.php: Using cached API token.");
+        }
+
+		$ordersUrl = SALDI_API_BASE . '/debitor/orders/index.php';
+		$orderLinesUrl = SALDI_API_BASE . '/debitor/orderlines/index.php';
 		$headers = [
 			'Content-Type: application/json',
-			'Authorization: 4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD',
-			'X-SaldiUser: api',
-			'X-DB: test_4'
+			'Authorization: Bearer ' . $token
 		];
 
-		function do_post($url, $headers, $payload) {
-			$ch = curl_init($url);
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-			curl_setopt($ch, CURLOPT_POST, true);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-			curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-			$res = curl_exec($ch);
-			$err = curl_error($ch);
-			$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-			curl_close($ch);
-			return [$code, $res, $err];
+		if (!function_exists('do_post')) {
+			function do_post($url, $headers, $payload) {
+				$ch = curl_init($url);
+				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+				curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+				curl_setopt($ch, CURLOPT_POST, true);
+				curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+				curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+				$res = curl_exec($ch);
+				$err = curl_error($ch);
+				$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+				curl_close($ch);
+				return [$code, $res, $err];
+			}
 		}
 
 		// 1) Create order (DO)
@@ -207,6 +278,7 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 			// optional address info if available
 		];
 		list($code1, $body1, $err1) = do_post($ordersUrl, $headers, $orderPayload);
+        error_log("opret_basis.php: Order creation API response: code=$code1, body=$body1, err=$err1");
 		$orderId = null;
 		if (!$err1 && $code1 >= 200 && $code1 < 300) {
 			$resp1 = json_decode($body1, true);
@@ -226,7 +298,10 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 				'vatFree' => 0
 			];
 			list($code2, $body2, $err2) = do_post($orderLinesUrl, $headers, $orderLinePayload);
-		}
+            error_log("opret_basis.php: Order line creation API response: code=$code2, body=$body2, err=$err2");
+		} else {
+            error_log("opret_basis.php: Failed to get orderId, skipping order line creation.");
+        }
 		
 		$linkadresse="https://".$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF']."?kontrol_id=".$kontrol_id;
 		$ordreLinjer = array("Standard regnskabspakke", "");
@@ -296,12 +371,14 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 #		$mail->AltBody  =  "Hermed fremsendes kontoudtog fra $afsendernavn";
 
 		if(!$mail->Send()){
+			error_log("opret_basis.php: Mailer Error to $to: " . $mail->ErrorInfo);
 			echo "Fejl i afsendelse til $to<p>";
   			echo "Mailer Error: " . $mail->ErrorInfo;
 	 		exit;
-		}
+		} else {
+            error_log("opret_basis.php: Mail successfully sent to $to");
+        }
 
-		db_modify("INSERT INTO create_temp (firmanavn,cvrnr,tlf,email,oprettet,kontrol_id,navn) values ('$firma','$cvr','$telefon' ,'$email','$dd','$kontrol_id','$navn')",__FILE__ . " linje " . __LINE__);
 		print "<p>Tak for din tilmelding.<br>Der er sendt en e-mail til $email</p>";
 #		print "<p>Hvis du ikke har modtaget din tilmeldingsmail inden for 15 minutter, kan du kontrollere om mailen er blever filtreret som uønsket post af dit mailprogram</p>";
 #		if ($returadresse == "null") $returadresse="https://".$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF']."?returadresse=null";

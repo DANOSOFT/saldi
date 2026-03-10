@@ -389,6 +389,7 @@ class OrderModel
     public function setMomssats($momssats) { $this->momssats = $momssats; }
     public function setRef($ref) { $this->ref = $ref; }
     public function setOrdrenr($ordrenr) { $this->ordrenr = $ordrenr; }
+    public function setStatus($status) { $this->status = $status; }
     public function setValutakurs($valutakurs) { $this->valutakurs = $valutakurs; }
     public function setValuta($valuta) { $this->valuta = $valuta; }
     public function setBetalingsbet($betalingsbet) { $this->betalingsbet = $betalingsbet; }
