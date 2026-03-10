@@ -1193,11 +1193,11 @@ span.notatstatus {display: inline-block; width: 160px; #background-color: lightc
 		display:block;
 }
 .tableOmkostninger {#border-bottom: 1px solid lightgray;border-collapse: collapse;width:100%;}
-.tableOmkostninger02 {border-collapse: collapse;width:100%;}
+.tableOmkostninger02 {border-collapse: collapse;width:100%;font-size: 12px;}
 .tableOmkostninger02 th {padding: 5px;border-bottom: 1px solid lightgray;}
 .tableOmkostninger02 td {padding: 5px;}
 .tableOmkostningerBorder {border-top: 1px solid black;}
-.tableOmkostninger03 {border-top: 1px solid lightgray;border-collapse: collapse;width:100%;}
+.tableOmkostninger03 {border-top: 1px solid lightgray;border-collapse: collapse;width:100%;font-size: 12px;}
 .tableOmkostninger03 td {padding: 5px;}
 
 .tableBilag {width:595px;border-collapse:collapse;}
