@@ -23,18 +23,17 @@
 // Copyright (c) 2003-2023 saldi.dk aps
 // ----------------------------------------------------------------------
 
-if (!function_exists('addToPriceFunc')) {
-function addToPriceFunc($newCost, $roundingMethod, $value, $CalculationMethod) {
-	$price = 0;
-	if ($CalculationMethod=="percentage") {
-		$price = $newCost + (($value * $newCost) / 100);
-	} elseif ($CalculationMethod=="amount") {
-		$price = $newCost + $value;
-	}
-	if ($price && $roundingMethod=="st_rounding") return round($price);
-	if ($price && $roundingMethod=="rounding_up") return ceil($price);
-	if ($price && $roundingMethod=="round_down") return floor($price);
-	return $price;
-}}
-
-?>
+	if (!function_exists('addToPriceFunc')) {
+	function addToPriceFunc($newCost, $roundingMethod, $value, $CalculationMethod) {
+		$price = 0;
+		if ($CalculationMethod=="percentage") {
+#			$price = $newCost + (($value * $newCost) / 100);
+			$price = $newCost / (1 - $value/100);		
+		} elseif ($CalculationMethod=="amount") {
+			$price = $newCost + $value;
+		}
+		if ($price && $roundingMethod=="std_rounding") return round($price,0);
+		if ($price && $roundingMethod=="rounding_up") return ceil($price);
+		if ($price && $roundingMethod=="round_down") return floor($price);
+		return $price;
+	}}
