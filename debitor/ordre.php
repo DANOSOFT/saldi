@@ -1041,6 +1041,13 @@ if ($b_submit) {
 		$qtxt = "select afd from ansatte where navn = '$ref'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$afd = if_isset($r['afd']);
+		// Update afd_lager when ref (Our ref.) changes so order lines use the correct stock
+		if ($afd) {
+			$r_afd = db_fetch_array(db_select("select box1 from grupper where kodenr='$afd' and art='AFD'", __FILE__ . " linje " . __LINE__));
+			if ($r_afd && $r_afd['box1']) {
+				$afd_lager = $r_afd['box1'];
+			}
+		}
 	}
 
 	if ($extAfd && $afd && $extAfd != $afd) {

@@ -2115,14 +2115,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Set input value from saved preference
+            // Set input value - prioritize URL search param, fallback to saved preference
             var urlParams = new URLSearchParams(window.location.search);
             var searchKey = 'search[' + gridId + '][' + field + ']';
             var urlSearchValue = urlParams.get(searchKey);
             
             if (urlSearchValue && urlSearchValue.trim() !== '') {
+                // URL has explicit search value - use it
                 dateInput.value = urlSearchValue;
+            } else if (preference && preference.date_value && preference.date_value.trim() !== '') {
+                // No URL search value, but we have a saved preference - restore it
+                dateInput.value = preference.date_value;
             } else {
+                // No URL search value and no saved preference
                 dateInput.value = '';
             }
         }

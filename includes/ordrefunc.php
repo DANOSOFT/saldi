@@ -4039,6 +4039,18 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			($omkunde && $omvare) ? $omvbet = 'on' : $omvbet = '';
 			$antal *= 1;
 			$leveres *= 1;
+			// 20260310 Check if the item exists in the department's stock; if not, find a stock that has it
+			if ($lager >= 1 && $vare_id && $lagerfort) {
+				$r_ls = db_fetch_array(db_select("select beholdning from lagerstatus where vare_id='$vare_id' and lager='$lager' and beholdning > 0", __FILE__ . " linje " . __LINE__));
+				if (!$r_ls) {
+					// Item not in department stock - find a stock that has the item
+					$r_alt = db_fetch_array(db_select("select lager from lagerstatus where vare_id='$vare_id' and beholdning > 0 order by beholdning desc limit 1", __FILE__ . " linje " . __LINE__));
+					if ($r_alt && $r_alt['lager']) {
+						$lager = (int)$r_alt['lager'];
+					}
+					// If no stock has it, keep the department stock as-is
+				}
+			}
 			if ($lager < 1)
 				$lager = 1;
 			$posnr = abs($posnr); #20200813

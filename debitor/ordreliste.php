@@ -1757,15 +1757,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 
-                // Set input value from saved preference ONLY if there's a search value in the URL
+                // Set input value - prioritize URL search param, fallback to saved preference
                 var urlParams = new URLSearchParams(window.location.search);
                 var searchKey = 'search[' + gridId + '][' + field + ']';
                 var urlSearchValue = urlParams.get(searchKey);
                 
                 if (urlSearchValue && urlSearchValue.trim() !== '') {
+                    // URL has explicit search value - use it
                     input.value = urlSearchValue;
+                } else if (preference && preference.date_value && preference.date_value.trim() !== '') {
+                    // No URL search value, but we have a saved preference - restore it
+                    input.value = preference.date_value;
                 } else {
-                    // URL has no search value (empty or cleared), so leave input empty
+                    // No URL search value and no saved preference
                     input.value = '';
                 }
             }
