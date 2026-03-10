@@ -76,7 +76,7 @@ $s_id=session_id();
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
 		<![endif]-->
-		<title>Stillads</title>
+		<title>".findtekst('2783|Stillads', $sprog_id)."</title>
 	</head>
 	<body>
 		<div id=\"wrapper\">";  
@@ -669,7 +669,7 @@ function stamkort($id) {
 	print "<form name=\"stamkort\" action=\"ansatte.php?funktion=stamkort\" method=post>\n";
 	print "<div class=\"content\">";
 	print "<div class=\"contentBorder stamkort\">";
-	print "<table border=\"0\" cellspacing=\"0\" width=\"826\"><thead>";
+	print "<table border=\"0\" cellspacing=\"0\" width=\"826\" style=\"font-size: 12px\"><thead>";
 	Print "<tr><th width=\"225\">".findtekst('3086|Feltnavn', $sprog_id)."</th><th width=\"170\">".findtekst('3087|Felttype', $sprog_id)."</th><th width=\"225\">".findtekst('3086|Feltnavn', $sprog_id)."</th><th width=\"170\">".findtekst('3087|Felttype', $sprog_id)."</th></tr></thead>"; 
 	print "<tbody>";
 	$i = 0;

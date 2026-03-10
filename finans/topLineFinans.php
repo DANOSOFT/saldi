@@ -1,7 +1,7 @@
 <?php
 	include("../includes/oldDesign/header.php");
 	include("../includes/topline_settings.php");
-	$returside = if_isset($returside, "../index/menu.php");
+	$returside = isset($returside) ? $returside : "../index/menu.php";
 
 	$border = 'border:1px';
 	$TableBG = "bgcolor=$bgcolor";

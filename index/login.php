@@ -452,9 +452,9 @@ if (isset ($brug_timestamp)) {
 	$up = db_escape_string($up);
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$brugernavn = $r['brugernavn'];
-	$accepted_ips = if_isset($r["ip_address"],NULL);
-	$ip_address = $_SERVER['REMOTE_ADDR'];
+	$brugernavn = isset($r['brugernavn']) ? $r['brugernavn'] : $brugernavn;
+	$accepted_ips = isset($r["ip_address"]) ? $r["ip_address"] : NULL;
+	$ip_address = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
 	if ($accepted_ips != null && $accepted_ips != '') {
 		$accepted_ips = explode(',', $accepted_ips);
 		if (!in_array($ip_address, $accepted_ips)) {
@@ -467,11 +467,12 @@ if (isset ($brug_timestamp)) {
 		}
 	}
 	$pw1  = md5($password);
-	$pw2  = saldikrypt($r['id'],$password);
-	if ($r['kode']==$pw1 || $r['kode']==$pw2) {
-		$userId      = $r['id'];
+	$pw2  = saldikrypt(isset($r['id']) ? $r['id'] : null, $password);
+	$rkode = isset($r['kode']) ? $r['kode'] : null;
+	if ($rkode && ($rkode == $pw1 || $rkode == $pw2)) {
+		$userId      = isset($r['id']) ? $r['id'] : null;
 		$rettigheder = trim(if_isset($r['rettigheder'], ''));
-		$regnskabsaar = $r['regnskabsaar'];
+		$regnskabsaar = isset($r['regnskabsaar']) ? $r['regnskabsaar'] : '';
 		$ansat_id = isset($r['ansat_id']) ? ($db != $sqdb ? $r['ansat_id'] * 1 : NULL) : NULL; #20250325	
 	}
 	if ($ansat_id && $db!=$sqdb) {
@@ -527,7 +528,7 @@ if ($userId) {
 		include("../includes/connect.php"); #20111105
 
 	# Get 2fa keys for SMS
-	if ($useSettingsd) {
+	if (!empty($useSettings)) {
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='nexmo_api_key' AND var_grp='2fa'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if(isset($r["var_value"])) $nexmo_api_key = $r["var_value"]; //20240502 Checks first that it is set before assigning it

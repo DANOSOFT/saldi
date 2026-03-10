@@ -34,26 +34,26 @@ include("../includes/std_func.php");
 //$konto_id=if_isset($_GET['konto_id']);
 
 
-		$bg="nix";
-		$header='nix';
+		$bg                    = "nix";
+		$header                = 'nix';
 
-		$menu_sager=NULL;
-		$menu_dagbog=NULL;
-		$menu_kunder=NULL;
-		$menu_loen=NULL;
-		$menu_ansatte=NULL;
-		$menu_certificering=NULL;
-		$menu_medarbejdermappe='id="menuActive"';
+		$menu_sager            = NULL;
+		$menu_dagbog           = NULL;
+		$menu_kunder           = NULL;
+		$menu_loen             = NULL;
+		$menu_ansatte          = NULL;
+		$menu_certificering    = NULL;
+		$menu_medarbejdermappe = 'id="menuActive"';
 		
-		$modulnr=0;
+		$modulnr = 0;
 		
 		global $brugernavn;
 		global $db;
 		global $ansat_navn;
 		global $ansat_id;
 		
-		$ans_id = $_SESSION['ans_id'];
-		$ansatmappe_id=if_isset($_GET['ansatmappe_id']);
+		$ans_id        = $_SESSION['ans_id'];
+		$ansatmappe_id = if_isset($_GET['ansatmappe_id']);
 		
 		if(!$ans_id) $ans_id=$ansat_id;
 	
@@ -79,14 +79,14 @@ include("../includes/std_func.php");
 
 			<ul id=\"breadcrumb\">
 				<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-					else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+					else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 					print "</li>
-				<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-				<li><a href=\"medarbejdermappe.php\" title=\"Medarbejdermappe menu\">Medarbejdermappe menu</a>
-				<li><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"Medarbejder-mappe\">Medarbejder-mappe</a></li>";
+				<li><a href=\"loen.php\" title=\"".findtekst('2787|Lønliste', $sprog_id)."\">".findtekst('2784|Løn', $sprog_id)."</a></li>
+				<li><a href=\"medarbejdermappe.php\" title=\"".findtekst('3093|Medarbejdermappe menu', $sprog_id)."\">".findtekst('3093|Medarbejdermappe menu', $sprog_id)."</a>
+				<li><a href=\"medarbejdermappe.php?funktion=medarbejdermappe\" title=\"".findtekst('2779|Medarbejdermappe', $sprog_id)."\">".findtekst('2779|Medarbejdermappe', $sprog_id)."</a></li>";
 				print "<li title=\"$ansatmappebeskrivelse\"><a href=\"medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$ansatmappe_id\" style=\"display:block;max-width:160px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;\">$ansatmappebeskrivelse</a></li>\n";
-				print "<li>Vedhæft bilag</li>
+				print "<li>".findtekst('1411|Vedhæft bilag', $sprog_id)."</li>
 			</ul>
 		</div><!-- end of breadcrumbbar -->\n";
 		
@@ -98,27 +98,27 @@ $filnavn = NULL;
 
 if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 	if ($_GET['kilde_id']) {
-		$kilde_id=if_isset($_GET['kilde_id']);
-		$kilde=if_isset($_GET['kilde']);
-		$bilag_id=if_isset($_GET['bilag_id']);
-		$bilag=if_isset($_GET['bilag']);
-		$fokus=if_isset($_GET['fokus']);
-		$ny=if_isset($_GET['ny']);
-		$vis=if_isset($_GET['vis']);
-		$filnavn=if_isset($_GET['filnavn']);
-		$fase=if_isset($_GET['fase']);
+		$kilde_id = if_isset($_GET['kilde_id']);
+		$kilde    = if_isset($_GET['kilde']);
+		$bilag_id = if_isset($_GET['bilag_id']);
+		$bilag    = if_isset($_GET['bilag']);
+		$fokus    = if_isset($_GET['fokus']);
+		$ny       = if_isset($_GET['ny']);
+		$vis      = if_isset($_GET['vis']);
+		$filnavn  = if_isset($_GET['filnavn']);
+		$fase     = if_isset($_GET['fase']);
 	} else {
-		$submit=$_POST['submit'];
-		$kilde_id=$_POST['kilde_id'];
-		$kilde=$_POST['kilde'];
-		$bilag_id=$_POST['bilag_id'];
-		$bilag=$_POST['bilag'];
-		$fokus=$_POST['fokus'];
-		$kategori=trim(if_isset($_POST['ny_kategori']));
-		if (!$kategori) $kategori=if_isset($_POST['kategori']);
-		$beskrivelse=if_isset($_POST['beskrivelse']);
-		$fase=if_isset($_POST['fase']);
-		$bilag_fase=if_isset($_POST['bilag_fase']);
+		$submit      = $_POST['submit'];
+		$kilde_id    = $_POST['kilde_id'];
+		$kilde       = $_POST['kilde'];
+		$bilag_id    = $_POST['bilag_id'];
+		$bilag       = $_POST['bilag'];
+		$fokus       = $_POST['fokus'];
+		$kategori    = trim(if_isset($_POST['ny_kategori']));
+		if (!$kategori) $kategori = if_isset($_POST['kategori']);
+		$beskrivelse = if_isset($_POST['beskrivelse']);
+		$fase        = if_isset($_POST['fase']);
+		$bilag_fase  = if_isset($_POST['bilag_fase']);
 	} 
 	
 	
@@ -135,13 +135,13 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 			//echo "beskrivelse: $beskrivelse";
 			//exit;
 			if ((empty($_FILES['uploadedfile']['name'][0])) && $beskrivelse){
-				$messages = "Vælg en eller flere filer der skal hentes";
+				$messages = findtekst('3146|Vælg én eller flere filer der skal uploades', $sprog_id);
 				upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse);
 			} elseif ((empty($beskrivelse)) && $_FILES['uploadedfile']['name'][0]){
-				$messages = "Beskrivelse er ikke udfyldt";
+				$messages = findtekst('3147|Beskrivelse er ikke udfyldt', $sprog_id);
 				upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse);
 			} elseif ((empty($_FILES['uploadedfile']['name'][0])) && (empty($beskrivelse))) {
-				$messages = "Der mangler både beskrivelse og filer!";
+				$messages = findtekst('3148|Der mangler både beskrivelse og filer', $sprog_id)."!";
 				upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse);
 			} else {
 			$count=count($_FILES['uploadedfile']['name']);
@@ -209,7 +209,7 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 					print "<meta http-equiv=\"refresh\" content=\"1;URL=medarbejdermappe.php?funktion=vis_ansatmappe&amp;ansatmappe_id=$kilde_id\">";
 					//$messages[] = $filnavn.' Uploaded."<br>"';
 				}	else {
-					$messages = "Der er sket en fejl under hentningen, pr&oslash;v venligst igen";
+					$messages = findtekst('3152|Der er sket en fejl under upload, prøv venligst igen', $sprog_id);
 					upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages);
 				}
 			}// her slutter løkke til opload 
@@ -231,6 +231,7 @@ function upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$message
 
 	global $charset;
 	global $ansat_id;
+	global $sprog_id;
 		
 	$ans_id = $_SESSION['ans_id'];
 	$ansatmappe_id=if_isset($_GET['ansatmappe_id']);
@@ -282,7 +283,7 @@ print "<tbody>\n";
 print "<tr><td width=\"100%\" align=\"center\">\n";
 print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid lightgray; #padding: 0pt 0pt 1px;\">\n";
 print "<tbody>\n";
-print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h3>Vedh&aelig;ft bilag til mappe</h3></td></tr>\n";
+print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h3>".findtekst('3149|Vedhæft bilag til mappe', $sprog_id)."</h3></td></tr>\n";
 print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 
 print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"100000000\">\n";
@@ -294,8 +295,8 @@ print "<input type=\"hidden\" name=\"fokus\" value=\"$fokus\">\n";
 print "<input type=\"hidden\" name=\"fase\" value=\"$fase\">\n";
 
 print "</td></tr>\n";
-print "<tr><td>Mappe&nbsp;navn:</td><td><b>$ansatmappebeskrivelse</b></td></tr>\n";
-print "<tr><td>Beskrivelse:</td><td><input style=\"width:380px\" type=\"text\" name=\"beskrivelse\" value=\"$beskrivelse\"></td></tr>\n";
+print "<tr><td>".findtekst('3121|Mappenavn', $sprog_id).":</td><td><b>$ansatmappebeskrivelse</b></td></tr>\n";
+print "<tr><td>".findtekst('914|Beskrivelse', $sprog_id).":</td><td><input style=\"width:380px\" type=\"text\" name=\"beskrivelse\" value=\"$beskrivelse\"></td></tr>\n";
 /*
 print "<tr><td>Fase</td><td><select style=\"width:400px\" name=\"bilag_fase\">\n";
 for($y=0;$y<=count($tjek_id);$y++) {
@@ -318,12 +319,12 @@ if ($sags_kat[1]) {
 print "<tr><td>Evt ny kategori</td><td><input style=\"width:400px\" type=\"text\" name=\"ny_kategori\"></td></tr>\n";
 */
 // Tilføj [] i name og multiple for at vælge flere filer til opload
-print "<tr><td>V&aelig;lg bilag:</td><td><input class=\"inputbox\" name=\"uploadedfile[]\" type=\"file\" multiple/><br /></td></tr>\n";
+print "<tr><td>".findtekst('3150|Vælg bilag', $sprog_id).":</td><td><input class=\"inputbox\" name=\"uploadedfile[]\" type=\"file\" multiple/><br /></td></tr>\n";
 print "<tr><td colspan=\"2\" align=\"center\"><i style=\"color:red;\">&nbsp;$messages</i></td></tr>\n";
 //print "<tr><td colspan=\"2\" align=\"center\"><i style=\"color:red;\">";
 //$count= count($messages); for ($i =0; $i < $count; $i++){echo $messages[$i]."<br>";}
 //print "</i></td></tr>\n";
-print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" class=\"button gray medium\" value=\"Hent\" /></td></tr>\n";
+print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" class=\"button gray medium\" value=\"".findtekst('1078|Hent', $sprog_id)."\" /></td></tr>\n";
 print "</tbody>\n";
 print "</table>\n";
 print "</td></tr>\n";
@@ -428,6 +429,7 @@ function vis_bilag($kilde_id,$kilde,$bilag_id,$fokus,$filnavn){
 
 function ret_bilag() {
 	global $charset;
+	global $sprog_id;
 	
 	$bilag_id=if_isset($_GET['bilag_id']);
 	$kilde=if_isset($_GET['kilde']);
@@ -470,7 +472,7 @@ print "<tbody>\n";
 print "<tr><td width=\"100%\" align=\"center\">\n";
 print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid lightgray; padding: 0pt 0pt 1px;\">\n";
 print "<tbody>\n";
-print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\">Ret fase &amp; katgori i bilag</td></tr>\n";
+print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\">".findtekst('3151|Ret fase og kategori i bilag', $sprog_id)."</td></tr>\n";
 print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 
 print "<input type=\"hidden\" name=\"kilde_id\" value=\"$kilde_id\">\n";
@@ -479,7 +481,7 @@ print "<input type=\"hidden\" name=\"bilag_id\" value=\"$bilag_id\">\n";
 
 print "</td></tr>\n";
 if ($kilde=='sager') {
-	print "<tr><td>Beskrivelse</td><td><input style=\"width:400px\" type=\"text\" name=\"beskrivelse\" value=\"$bilag_beskrivelse\"></td></tr>\n";
+	print "<tr><td>".findtekst('914|Beskrivelse', $sprog_id)."</td><td><input style=\"width:400px\" type=\"text\" name=\"beskrivelse\" value=\"$bilag_beskrivelse\"></td></tr>\n";
 	//print "<tr><td>Beskrivelse</td><td><b>$bilag_beskrivelse</b></td></tr>\n";
 	/*
 	print "<tr><td>Fase</td><td><select style=\"width:400px\" name=\"bilag_fase\">\n";
@@ -510,9 +512,9 @@ if ($kilde=='sager') {
 	*/
 }
 
-#print "<tr><td>V&aelig;lg bilag:</td><td><input class=\"inputbox\" name=\"uploadedfile\" type=\"file\" /><br /></td></tr>\n";
+#print "<tr><td>".findtekst('3150|Vælg bilag', $sprog_id).":</td><td><input class=\"inputbox\" name=\"uploadedfile\" type=\"file\" /><br /></td></tr>\n";
 print "<tr><td colspan=\"2\"><br></td></tr>\n";
-print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" name=\"ret_bilag\" class=\"button gray medium\" value=\"Gem\" /></td></tr>\n";
+print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" name=\"ret_bilag\" class=\"button gray medium\" value=\"".findtekst('3|Gem', $sprog_id)."\" /></td></tr>\n";
 print "</tbody>\n";
 print "</table>\n";
 print "</td></tr>\n";

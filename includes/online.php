@@ -494,8 +494,17 @@ $isApiCall = (
     isset($_POST['api'])
 );
 
+$pathParts = explode('/', trim($path, '/'));
+$firstFolder = '';
+if (isset($pathParts[0])) {
+    $firstFolder = $pathParts[1];
+}
+/* if($bruger_id == -1){
+	print_r($pathParts);
+	exit;
+} */
 // Wrap the style output in the API check:
-if (!$isApiCall && $title != "POS Ordre") {
+if (!$isApiCall && $title != "POS Ordre" && $firstFolder != "sager") {
 ?>
 <style>
 	/* type submit and type button */

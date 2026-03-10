@@ -1,10 +1,11 @@
+
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- lap 5.0.0 --- 2026-02-27 ---
+// --- finans/rapport.php --- lap 5.0.0 --- 2026-03-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,12 +24,12 @@
 // Copyright (c) 2003-2026 saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 20210110 PHR some minor changes related til 'deferred financial year'
+// 20210110 PHR some minor changes related til 'deferred financial year' 
 // 20230611 +20230619 PHR php8
 // 20240403 PHR Changet bankReconcile to $[POST]
 // 20241018 LOE Checks that some variables are set before using and other minore modifications
 // 20260227 PHR Moved include("../includes/row-hover-style.js.php") down as it broke saf-t and other using header 
-
+// 20260306 LOE Updated some variables with if_isset() to avoid excessive undefined variable notices in error logs.
 @session_start();
 $s_id = session_id();
 
@@ -78,31 +79,32 @@ if ($_POST) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=provisionsrapport.php\">";
 		exit;
 	}
-	$submit = str2low(trim($_POST['submit']));
-	$rapportart = if_isset($_POST['rapportart']);
-	$aar_fra = if_isset($_POST['aar_fra']);
-	$aar_til = if_isset($_POST['aar_til']);
-	$maaned_fra = trim(if_isset($_POST['maaned_fra']));
-	$maaned_til = trim(if_isset($_POST['maaned_til']));
+	$submit = str2low(trim(if_isset($_POST, NULL, 'submit')));
+	$rapportart = if_isset($_POST, NULL, 'rapportart');
+	$aar_fra = if_isset($_POST, NULL, 'aar_fra');
+	$aar_til = if_isset($_POST, NULL, 'aar_til');
+	$maaned_fra = trim(if_isset($_POST, NULL, 'maaned_fra'));
+	$maaned_til = trim(if_isset($_POST, NULL, 'maaned_til'));
 	if (strpos($maaned_fra, '|')) {
 		list($aar_fra, $maaned_fra) = explode('|', $maaned_fra);
 	}
 	if (strpos($maaned_til, '|')) {
 		list($aar_til, $maaned_til) = explode('|', $maaned_til);
 	}
-	$dato_fra = if_isset($_POST['dato_fra']);
-	$dato_til = if_isset($_POST['dato_til']);
-	$md = if_isset($_POST['md']);
-	$ansat_id = if_isset($_POST['ansat_id']);
-	$ansat_init = if_isset($_POST['ansat_init']);
-	$antal_ansatte = if_isset($_POST['antal_ansatte']);
-	$ansat_fra = if_isset($_POST['ansat_fra']);
-	$projekt_fra = if_isset($_POST['projekt_fra']);
-	$projekt_til = if_isset($_POST['projekt_til']);
-	$simulering = if_isset($_POST['simulering']);
-	$lagerbev = if_isset($_POST['lagerbev']);
 
-	$bankReconcile  = if_isset($_POST['bankReconcile']);
+	$dato_fra = if_isset($_POST, NULL, 'dato_fra');
+	$dato_til = if_isset($_POST, NULL, 'dato_til');
+	$md = if_isset($_POST, NULL, 'md');
+	$ansat_id = if_isset($_POST, NULL, 'ansat_id');
+	$ansat_init = if_isset($_POST, NULL, 'ansat_init');
+	$antal_ansatte = if_isset($_POST, NULL, 'antal_ansatte');
+	$ansat_fra = if_isset($_POST, NULL, 'ansat_fra');
+	$projekt_fra = if_isset($_POST, NULL, 'projekt_fra');
+	$projekt_til = if_isset($_POST, NULL, 'projekt_til');
+	$simulering = if_isset($_POST, NULL, 'simulering');
+	$lagerbev = if_isset($_POST, NULL, 'lagerbev');
+
+	$bankReconcile  = if_isset($_POST, NULL, 'bankReconcile');
 	
 	if (stristr($rapportart, "Listeangivelse")) {
 		$listeperiode = preg_replace('/[^0-9.]*/', '', $rapportart); # 20140729 afsnit 1
@@ -145,7 +147,7 @@ if ($_POST) {
 		list($afd, $afd_navn) = explode(":", $afd);
 		$afd = trim($afd);
 	}
-	$delprojekt = if_isset($_POST['delprojekt']);
+	$delprojekt = if_isset($_POST,NULL,'delprojekt');
 	if ($projekt_til)
 		$delprojekt = NULL;
 	elseif ($delprojekt) {
@@ -156,7 +158,7 @@ if ($_POST) {
 		}
 	}
 	if ($find) {
-		$prj_cfg = if_isset($_POST['prj_cfg']);
+		$prj_cfg = if_isset($_POST,NULL,'prj_cfg');
 		$prcfg = explode("|", $prj_cfg);
 		$b = count($delprojekt);
 		$projekt_fra = NULL;
@@ -171,12 +173,12 @@ if ($_POST) {
 		}
 		$projekt_til = $projekt_fra;
 	} else {
-		$projekt_fra = if_isset($_POST['projekt_fra']);
+		$projekt_fra = if_isset($_POST,NULL,'projekt_fra');
 		if (strpos($projekt_fra, ":")) {
 			list($projekt_fra, $prj_navn_fra) = explode(":", $projekt_fra);
 			$projekt_fra = trim($projekt_fra);
 		}
-		$projekt_til = if_isset($_POST['projekt_til']);
+		$projekt_til = if_isset($_POST,NULL,'projekt_til');
 		if (strpos($projekt_til, ":")) {
 			list($projekt_til, $prj_navn_til) = explode(":", $projekt_til);
 			$projekt_til = trim($projekt_til);
@@ -213,24 +215,29 @@ if ($_POST) {
 	#+
 }
 
-if (isset($_GET['rapportart']))  $rapportart = $_GET['rapportart'];
-if (isset($_GET['dato_fra']))    $dato_fra = $_GET['dato_fra'];
-if (isset($_GET['maaned_fra']))  $maaned_fra = $_GET['maaned_fra'];
-if (isset($_GET['aar_fra']))     $aar_fra = $_GET['aar_fra'];
-if (isset($_GET['konto_fra']))	 $konto_fra = $_GET['konto_fra'];
-if (isset($_GET['konto_fra2']) && $_GET['konto_fra2']) $konto_fra = $_GET['konto_fra2'];
-if (isset($_GET['ansat_fra']))   $ansat_fra = $_GET['ansat_fra'];
-if (isset($_GET['projekt_fra'])) $projekt_fra = $_GET['projekt_fra'];
-if (isset($_GET['dato_til']))    $dato_til = $_GET['dato_til'];
-if (isset($_GET['maaned_til']))  $maaned_til = $_GET['maaned_til'];
-if (isset($_GET['aar_til']))     $aar_til = $_GET['aar_til'];
-if (isset($_GET['konto_til']))   $konto_til = $_GET['konto_til'];
-if (isset($_GET['ansat_til']))   $ansat_til = $_GET['ansat_til'];
-if (isset($_GET['projekt_til'])) $projekt_til = $_GET['projekt_til'];
-if (isset($_GET['regnaar']))     $regnaar = $_GET['regnaar'];
-if (isset($_GET['afd']))         $afd = $_GET['afd'];
-if (isset($_GET['simulering']))  $simulering = $_GET['simulering'];
-if (isset($_GET['lagerbev']))    $lagerbev = $_GET['lagerbev'];
+
+
+################
+$rapportart   = if_isset($_GET, $rapportart, 'rapportart');
+$dato_fra     = if_isset($_GET, $dato_fra, 'dato_fra');
+$maaned_fra   = if_isset($_GET, $maaned_fra, 'maaned_fra');
+$aar_fra      = if_isset($_GET, $aar_fra, 'aar_fra');
+$konto_fra    = if_isset($_GET, $konto_fra, 'konto_fra');
+$konto_fra2   = if_isset($_GET, $konto_fra2, 'konto_fra2');
+if ($konto_fra2) $konto_fra = $konto_fra2;  
+$ansat_fra    = if_isset($_GET, $ansat_fra, 'ansat_fra');
+$projekt_fra  = if_isset($_GET, $projekt_fra, 'projekt_fra');
+$dato_til     = if_isset($_GET, $dato_til, 'dato_til');
+$maaned_til   = if_isset($_GET, $maaned_til, 'maaned_til');
+$aar_til      = if_isset($_GET, $aar_til, 'aar_til');
+$konto_til    = if_isset($_GET, $konto_til, 'konto_til');
+$ansat_til    = if_isset($_GET, $ansat_til, 'ansat_til');
+$projekt_til  = if_isset($_GET, $projekt_til, 'projekt_til');
+$regnaar      = if_isset($_GET, $regnaar, 'regnaar');
+$afd          = if_isset($_GET, $afd, 'afd');
+$simulering   = if_isset($_GET, $simulering, 'simulering');
+$lagerbev     = if_isset($_GET, $lagerbev, 'lagerbev');
+#############
 
 $regnaar = (int) $regnaar;
 $md[1] = "januar";
@@ -270,6 +277,7 @@ elseif ($rapportart) {
 		$submit = "regnskab";
 	} else $submit = str2low($rapportart);
 }
+
 /*
 elseif ($rapportart) {
 	if ($rapportart == "balance" || $rapportart == "resultat" || $rapportart == "budget" || $rapportart == "lastYear") {

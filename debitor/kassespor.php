@@ -353,7 +353,7 @@ print "<tr>";
 print "<td style=\"padding-top: 20px;width:30px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Status</b></td>\n";
 print "<td style=\"padding-top: 20px;width:60px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Id</b></td>\n";
 print "<th style='padding-top: 20px; width:110px; text-align:right'><b><a href='kassespor.php?nysort=fakturadate&sort=$sort&valg=$valg$hreftext'>" . findtekst(929, $sprog_id) . "</a></b></th>\n";
-print "<th style='padding-top: 20px; width:50px; text-align:right'><b>" . findtekst(930, $sprog_id) . "</b></th>\n";
+print "<th style='padding-top: 20px; width:50px; text-align:right'><b><a href='kassespor.php?nysort=tidspkt&sort=$sort&valg=$valg$hreftext'>" . findtekst(930, $sprog_id) . "</a></b></th>\n";
 print "<th style='padding-top: 20px; width:110px; text-align:right'><b><a href='kassespor.php?nysort=fakturanr&sort=$sort&valg=$valg$hreftext'>" . findtekst(928, $sprog_id) . "</a></b></th>\n";
 print "<th style='padding-top: 20px; width:50px; text-align:right'><b><a href='kassespor.php?nysort=felt_5&sort=$sort&valg=$valg$hreftext'>" . findtekst(931, $sprog_id) . "</a></b></th>\n";
 print "<th style='padding-top: 20px; width:50px; text-align:right'><b><a href='kassespor.php?nysort=nr&sort=$sort&valg=$valg$hreftext'>" . findtekst(932, $sprog_id) . "</a></b></th>\n";

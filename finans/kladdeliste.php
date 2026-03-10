@@ -198,7 +198,7 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></scr
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 
-$exitDraft = if_isset($_GET['exitDraft']);
+$exitDraft = isset($_GET['exitDraft']) ? $_GET['exitDraft'] : null;
 if ($exitDraft) {
 	$qtxt = "update kladdeliste set hvem = '', tidspkt = NULL where id = '$exitDraft'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);

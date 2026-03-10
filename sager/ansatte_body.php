@@ -96,7 +96,7 @@ if (isset($box)&&count($box)) {
 	print "<div style=\"float:left; width:828px;\">\n";
 	print "<h3>".findtekst('3074|Stamkort', $sprog_id)."</h3>\n";
 	print "<div class=\"contentB\">\n";
-	print "<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"table-layout:fixed; width:100%; border:none;\">";
+	print "<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"table-layout:fixed; width:100%; border:none; font-size: 12px;\">";
 	$kolonne=0;
 	for($x=1;$x<=28;$x++) {
 		if ($feltnavn[$x]) {
