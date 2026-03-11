@@ -24,7 +24,65 @@
 // ----------------------------------------------------------------------
 
 if (!function_exists('usdecimal')) {
+function usDecimal(mixed $value, ?int $decimals = null): ?string {
+	if ($value === null) {
+		return '';
+	}
+
+	$str = trim((string)$value);
+
+	if ($str === '') {
+		return $str;
+	}
+
+	// Fjern mellemrum og non-breaking spaces
+	$str = str_replace([" ", "\u{00A0}"], '', $str);
+
+	$hasComma = str_contains($str, ',');
+	$hasDot   = str_contains($str, '.');
+
+	if ($hasComma && $hasDot) {
+		// Den separator der står sidst antages at være decimal-separator
+		$lastComma = strrpos($str, ',');
+		$lastDot   = strrpos($str, '.');
+
+		if ($lastComma > $lastDot) {
+			// Eksempel: 1.234,56
+			$str = str_replace('.', '', $str);
+			$str = str_replace(',', '.', $str);
+		} else {
+			// Eksempel: 1,234.56
+			$str = str_replace(',', '', $str);
+		}
+	} elseif ($hasComma) {
+		// Kun komma
+		// Hvis mere end ét komma, antag tusindtalsseparatorer bortset fra sidste
+		if (substr_count($str, ',') > 1) {
+			$parts = explode(',', $str);
+			$decimal = array_pop($parts);
+			$str = implode('', $parts) . '.' . $decimal;
+		} else {
+			$str = str_replace(',', '.', $str);
+		}
+	} elseif ($hasDot) {
+		// Kun punktum
+		// Hvis mere end ét punktum, antag tusindtalsseparatorer bortset fra sidste
+		if (substr_count($str, '.') > 1) {
+			$parts = explode('.', $str);
+			$decimal = array_pop($parts);
+			$str = implode('', $parts) . '.' . $decimal;
+		}
+	}
+
+	// Tillad kun valideret numerisk format efter normalisering
+	if (!preg_match('/^[+-]?\d+(\.\d+)?$/', $str)) {
+		return '';
+	}
+	return $value;
+}
+/*
 function usdecimal($tal,$decimaler = NULL) {
+
 	$tal = trim($tal);
 	if (!$decimaler && $decimaler!='0') $decimaler=2;
 	if (!$tal){
@@ -49,5 +107,7 @@ function usdecimal($tal,$decimaler = NULL) {
 		}
 	}
 	return $tal;
-}}
+}
+*/
+}
 ?>

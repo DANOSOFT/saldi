@@ -521,10 +521,13 @@ if ($fp) {
 						if ($felt[$y]==0) $skriv_linje=0;
 						else $felt[$y]=dkdecimal($felt[$y]);
 					} elseif (nummertjek($felt[$y])=='DK') {
-						if (usdecimal($felt[$y])==0) $skriv_linje=0;
+						echo __line__." $skriv_linje";
+						if (usdecimal($felt[$y]) ==0 ) $skriv_linje=0;
+						echo __line__." $skriv_linje";
 					}	else {
 						$skriv_linje=0;
 					}
+					if (substr($felt[$y],-2,1) ==',') $felt[$y].='0';
 					if (!is_numeric(substr($felt[$y],-2))) $skriv_linje=0;
 				}
 				if ($feltnavn[$y]=='beskrivelse') { // 20220120
@@ -552,6 +555,7 @@ if ($fp) {
 					}
 				}
 			}
+
 			if ($skriv_linje==1){
 				print "<tr><td>$bilag</td>";
 				for ($y=0; $y<count($feltnavn); $y++) {

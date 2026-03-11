@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------debitor/formularprint-----patch 4.1.1---2026-02-19------
+// ---------debitor/formularprint-----patch 4.1.1---2026-03-09------
 // 							LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20150106 Indsat "returside"
 // 20170505 Ved $udskriv_til=='ingen' returneres uden udskrift.
 // 20260102 LOE Added department support for background files
+// 20260309 PHR Fixed error in $returside after printing
 
 session_start();
 $s_id=session_id();
@@ -138,7 +139,9 @@ if (isset($_GET['id']) && $_GET['id']){
 
 // Redirect after printing
 if ($returside) {
-    print "<meta http-equiv=\"refresh\" content=\"1;URL=$returside&locat=$locat\">";
+    if (strpos($returside,'?')) $url = "$returside&locat=$locat"; # 20260309
+    else "$returside?locat=$locat";
+    print "<meta http-equiv=\"refresh\" content=\"1;URL=$url\">";
     exit;
 } elseif ($popup) {
     print "<meta http-equiv=\"refresh\" content=\"1;URL=../includes/luk.php\">";

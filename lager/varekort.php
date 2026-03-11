@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- lap 5.0.0 --- 2026-02-13 ---
+// --- lager/varekort.php --- lap 4.1.1 --- 2024-10-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20131007 Kontrol for cirkulær reference indsat. Søg 20131007
@@ -90,19 +90,12 @@
 // 20231018 PHR - More changes in Variants - Must be totally rewritten
 // 20240105 PHR - Error in $ant_be_af
 // 20250815	PHR	- Languages
-// 20251025 PHR - Enabled call to updateProductPrice.php and added oldRetailPrice
-// 20250512 PHR - Corrected 'shopurl' fetch 	
-// 20250512 PHR - added feedback message after product creation 'shopurl' fetch 	
-// 26062025 PBLM - Changed alert text to danish
-// 20250924 PBLM - Alert for saved product is disabled
-// 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
-// 20260213 LOE  - Updated the back button for debitorkort reference.
+// 20251025 PHR - Enabled call to updateProductPrice.php and added oldRetailPrice	
+
 ob_start(); //Starts output buffering
 
 @session_start();
 $s_id = session_id();
-$_SESSION['product_success'] = "Varen er gemt.";
-$_SESSION['product_error'] = "Fejl ved gemning af varen.";
 
 $begin = 0;
 $folgevare = 0;
@@ -111,7 +104,7 @@ $styklister = 1;
 $title = "Varekort";
 
 $ant_indg_i = 0;
-$batchItem = $beholdning = $beskrivelse[0] = $betalingsdage = $betegnelse = $box8 = $beskrivelseAlias = NULL;
+$batchItem = $beholdning = $beskrivelse[0] = $betalingsdage = $betegnelse = $box8 = NULL;
 $commissionItem = $confirmDescriptionChange = $confirmStockChange = $copyId = $ean13 = $enhed = NULL;
 $fejl = $find = $fokus = $folgevarenr = NULL;
 $grossWeight = $gruppe = NULL;
@@ -186,10 +179,9 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
     $confirmStockChange = $r['var_value'];
 
 
-
-$qtxt = "select box4 from grupper where art = 'API'";
+$qtxt = "select box2 from grupper where art = 'DIV' and kodenr = '5'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-    $shopurl = trim($r['box4']);
+    $shopurl = trim($r['box2']);
 
 $qtxt = "select count(id) as stocks from grupper where art='LG'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
@@ -282,8 +274,7 @@ if ($saveItem || $submit = trim($submit)) {
     $id = if_isset($_POST['id']);
     $beskrivelse = if_isset($_POST['beskrivelse']);
     $beskrivelse[0] = trim(if_isset($_POST['beskrivelse0'])); # fordi fokus ikke fungerer på array navne
-    $grossWeight = usdecimal((isset($_POST['grossWeight']) ? $_POST['grossWeight'] : 0), 3);
-    $beskrivelseAlias = if_isset($_POST['beskrivelseAlias']);
+    $grossWeight = usdecimal((isset($_POST['grossWeight']) ? $_POST['grossWeigth'] : 0), 3);
     $grossWeightUnit = if_isset($_POST['grossWeightUnit'], '');
     $varenr = db_escape_string(trim(if_isset($_POST['varenr'])));
     $stregkode = db_escape_string(trim(if_isset($_POST['stregkode'])));
@@ -304,7 +295,7 @@ if ($saveItem || $submit = trim($submit)) {
     $length = usdecimal(if_isset($_POST['length'], 0), 0);
     $width = usdecimal(if_isset($_POST['width'], 0), 0);
     $height = usdecimal(if_isset($_POST['height'], 0), 0);
-    $indhold = usdecimal(if_isset($_POST['indhold'], 0), 2);
+    $indhold = usdecimal(if_isset(if_isset($_POST['indhold']), 0), 2);
     $provisionsfri = trim(if_isset($_POST['provisionsfri']));
     $publiceret = if_isset($_POST['publiceret']);
     $publ_pre = if_isset($_POST['publ_pre']);
@@ -406,7 +397,7 @@ if ($saveItem || $submit = trim($submit)) {
         $master = $cat[0];
     } else
         $master = NULL;
-    $tmp = findtekst('343|Skriv evt. ny kategori her', $sprog_id);
+    $tmp = findtekst(343, $sprog_id);
     $ny_kategori = trim($ny_kategori);
     $master = trim($master);
 
@@ -460,7 +451,7 @@ if ($saveItem || $submit = trim($submit)) {
         $r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__));
         #       $master_id=$r['id']*1;
         if (!$rename_category && $r = db_fetch_array($q = db_select("select id from grupper where art='V_CAT' and lower(box1) = '" . db_escape_string(strtolower($ny_kategori)) . "' and box2='$master'", __FILE__ . " linje " . __LINE__))) {
-            $alerttekst = findtekst('344|Kategorien $ny_kategori eksisterer allerede', $sprog_id);
+            $alerttekst = findtekst(344, $sprog_id);
             $alerttekst = str_replace('$ny_kategori', $ny_kategori, $alerttekst);
             print "<BODY onLoad=\"javascript:alert('$alerttekst')\">\n";
         } elseif ($rename_category) {
@@ -736,17 +727,10 @@ if ($saveItem || $submit = trim($submit)) {
             db_modify($qtxt, __FILE__ . " linje " . __LINE__);
     }
 
-    if (!$min_lager) {
-        $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
-        if (db_num_rows($query) > 0) {
-            $r = db_fetch_array($query);
-            $min_lager = (int) $r["var_value"];
-        } else {
-            $min_lager = 0;
-        }
-    } else {
+    if (!$min_lager)
+        $min_lager = '0';
+    else
         $min_lager = usdecimal($min_lager, 2);
-    }
     if (!$max_lager)
         $max_lager = '0';
     else
@@ -794,14 +778,7 @@ if ($saveItem || $submit = trim($submit)) {
                 $varenr = '';
                 $id = 0;
             } elseif ($varenr) {
-                $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
-                if (db_num_rows($query) > 0) {
-                    $r = db_fetch_array($query);
-                    $minBeholdning = (int) $r["var_value"];
-                    db_modify("insert into varer (varenr,lukket,salgspris,kostpris,min_lager) values ('$varenr','0','0','0',$minBeholdning)", __FILE__ . " linje " . __LINE__);
-                } else {
-                    db_modify("insert into varer (varenr,lukket,salgspris,kostpris) values ('$varenr','0','0','0')", __FILE__ . " linje " . __LINE__);
-                }
+                db_modify("insert into varer (varenr,lukket,salgspris,kostpris) values ('$varenr','0','0','0')", __FILE__ . " linje " . __LINE__);
                 $query = db_select("select id from varer where varenr = '$varenr'", __FILE__ . " linje " . __LINE__);
                 $row = db_fetch_array($query);
                 $id = $row['id'];
@@ -930,14 +907,14 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "salgspris_rounding='$salgspris_rounding',salgspris_multiplier='$salgspris_multiplier',";// 20221004
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
             $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision' where id = '$id'";
-         $saved  =  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             if ($submit == 'copy') {
                 $copyItemNo = "kopi_af_$varenr";
                 $r = db_fetch_array(db_select("select id from varer where varenr='$copyItemNo'", __FILE__ . " linje " . __LINE__));
                 if ($r['id'])
                     alert("ret varenr på kopi af `$varenr` først");
                 else {
-                   $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
+                    $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
                     string_agg(column_name, ', ') AS dest_columns,
                     string_agg(CASE WHEN column_name = 'varenr' THEN 'varenr || ''_copy''' ELSE column_name END, ', ') AS source_columns
                     FROM information_schema.columns 
@@ -945,12 +922,12 @@ if ($saveItem || $submit = trim($submit)) {
                     $row = db_fetch_array($query);
                     $dest_columns = $row['dest_columns'];
                     $source_columns = $row['source_columns'];
-                    $copyNr = $varenr . "_copy";
+                    $copyNr = $varenr."_copy";
                     // Next, build the INSERT query
                     $qtxt = "INSERT INTO varer ($dest_columns) SELECT $source_columns FROM varer WHERE id = $id";
-                    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-                    $r = db_fetch_array(db_select("select id from varer where varenr='$copyNr'", __FILE__ . " linje " . __LINE__));
-                    $copyId = $r['id'];
+                    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+                    $r=db_fetch_array(db_select("select id from varer where varenr='$copyNr'",__FILE__ . " linje " . __LINE__));
+                    $copyId=$r['id'];
 
                     $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
                     string_agg(CASE WHEN column_name = 'vare_id' THEN 'vare_id' ELSE column_name END, ', ') AS dest_columns,
@@ -966,9 +943,9 @@ if ($saveItem || $submit = trim($submit)) {
                     $qtxt = "INSERT INTO vare_lev ($dest_columns) SELECT $source_columns FROM vare_lev WHERE vare_id = $id";
 
                     // Execute the INSERT query
-                     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-                    if ($samlevare == "on"){
+                    if($samlevare == "on"){
                         $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
                         string_agg(CASE WHEN column_name = 'indgaar_i' THEN 'indgaar_i' ELSE column_name END, ', ') AS dest_columns,
                         string_agg(CASE WHEN column_name = 'indgaar_i' THEN '$copyId' ELSE column_name END, ', ') AS source_columns
@@ -1020,7 +997,7 @@ if ($saveItem || $submit = trim($submit)) {
                     if (($be_af_ant[$x] > 0) && ($be_af_pos[$x])) {
                         $be_af_pos[$x] = round($be_af_pos[$x]);
                         $qtxt = "update styklister set antal = $be_af_ant[$x], posnr = $be_af_pos[$x] where id = '$be_af_id[$x]'";
-                    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
                     } else {
                         db_modify("delete from styklister where id = '$be_af_id[$x]'", __FILE__ . " linje " . __LINE__);
                     }
@@ -1059,7 +1036,7 @@ if ($saveItem || $submit = trim($submit)) {
                     }
                 }
                 $kostpris[0] = (float) stykliste($id, 0, '');
-              db_modify("update varer set kostpris = '$kostpris[0]' where id = '$id'", __FILE__ . " linje " . __LINE__);
+                db_modify("update varer set kostpris = '$kostpris[0]' where id = '$id'", __FILE__ . " linje " . __LINE__);
 
             }
             /*
@@ -1087,21 +1064,15 @@ if ($saveItem || $submit = trim($submit)) {
         if ($leverandor) {
             $query = db_select("select id from adresser where kontonr='$leverandor' and art = 'K'", __FILE__ . " linje " . __LINE__);
             if ($row = db_fetch_array($query)) {
-              db_modify("insert into vare_lev (lev_id, vare_id) values ('$row[id]', '$id')", __FILE__ . " linje " . __LINE__);
+                db_modify("insert into vare_lev (lev_id, vare_id) values ('$row[id]', '$id')", __FILE__ . " linje " . __LINE__);
             }
         }
     }
     #   }
-    // alert for saved product is disabled
-/*     if ($saved) {
-        echo "<script>alert('" . $_SESSION['product_success'] . "');</script>";
-        $saved = false;
-    } */
-    
 } elseif ($id && isset($_POST['ChangeDescription']) && $_POST['ChangeDescription'] == 'Ja') {
     $newDecsription = db_escape_string($_POST['newDecsription']);
     $qtxt = "update varer set beskrivelse='$newDecsription' where id='$id'";
-  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 for ($x = 1; $x <= count($ny_lagerbeh); $x++) {
     $ny_beholdning += $ny_lagerbeh[$x];
@@ -1109,6 +1080,7 @@ for ($x = 1; $x <= count($ny_lagerbeh); $x++) {
 if ($confirmStockChange && !$changeStock && $ny_beholdning != $beholdning) {
     include("productCardIncludes/confirmStockChange.php");
 }
+if ($brugernavn == 'phr') echo "SI $stockItem<br>";
 if ($stockItem) {
     for ($x = 1; $x <= $numberOfStocks; $x++) {
         if ($ny_lagerbeh[$x] != $lagerbeh[$x]) {
@@ -1118,19 +1090,18 @@ if ($stockItem) {
             } elseif (!count($variant_vare_id)) { #20210208
                 lagerreguler($id, $ny_lagerbeh[$x], $kostpris[0], $x, date("Y-m-d"), '0');
             }
-        } elseif ($api_fil && !count($variant_vare_id) && $x == $numberOfStocks) { #20170210 - fixed typo
-            sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above 
+        } elseif ($api_fil && !count($variant_vare_id)) { #20170210
+if ($brugernavn == 'phr') echo "sync_shop_vare($id, 0, $x);<br>";
+            sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above
         }
     }
-} else {
-    sync_shop_price($id);
 }
 
 if ($popup && !$returside)
     $returside = "../includes/luk.php";
 elseif (!$returside)
     $returside = "varer.php";
-$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
+$tekst = findtekst(154, $sprog_id);
 
 if ($begin)
     transaktion('commit');
@@ -1143,18 +1114,12 @@ elseif (strstr($submit, "Vare")) {
         $fokus = "varenr";
     vareopslag($sort, $fokus, $id, $vis_kost, $ref, $find, "varekort.php");
 }
-
-if ($saveItem) {
-    $qtxt = "update varer set beskrivelse_alias = '" . db_escape_string($beskrivelseAlias) . "' where id= '$id'";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
 if ($saveItem && $beskrivelse[0] != $oldDescription) {
-    if ($confirmDescriptionChange && $oldDescription)
+    if ($confirmDescriptionChange)
         include("productCardIncludes/changeDescription.php");
     else {
         $qtxt = "update varer set beskrivelse = '" . db_escape_string($beskrivelse[0]) . "' where id= '$id'";
-         db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
     }
 }
 ################################################## OUTPUT ####################################################
@@ -1177,33 +1142,15 @@ if ($menu == 'T') {
     print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
 
     $tmp = ($popup) ? "onClick=\"javascript=opener.location.reload();\"" : "";
-       $contains = false;
-
-    if (strpos($returside, 'debitorkort.php') !== false) {
-        $contains = true;
+    if ($opener != 'varer.php') {
+        print "<td width=\"10%\">
+               <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>
+               <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>\n";
+    } else {
+        print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>
+               <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
     }
-
-    if ($contains) {
-        print "<td width='200px'>
-            <a href=\"$returside\" accesskey=L>
-            <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-            . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-            
-        print "<style>
-            a {
-                text-decoration: none !important;
-            } </style>";
-    }else{ 
-       if ($opener != 'varer.php') {
-            print "<td width=\"10%\">
-                <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>
-                <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
-        } else {
-            print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>
-                <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
-        }
-    }
-    print "<td align='center' style='$topStyle'>".findtekst('566|Varekort', $sprog_id)."</td>\n";
+    print "<td align='center' style='$topStyle'>" . findtekst(566, $sprog_id) . "</td>\n";
     // print "<td width='10%' align='center' style='$topStyle'><br></td>\n";
 
     # Open pos menus
@@ -1216,7 +1163,7 @@ if ($menu == 'T') {
         # Create new item
         print "<td width='10%' align='right'>
          <a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>
-         <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a><td>\n";
+         <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(39, $sprog_id) . "</button></a><td>\n";
     }
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
@@ -1227,10 +1174,10 @@ if ($menu == 'T') {
     print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
     $tmp = ($popup) ? "onClick=\"javascript=opener.location.reload();\"" : "";
     if ($opener != 'varer.php')
-        print "<td width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
+        print "<td width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>\n";
     else
         print "<td width=\"10%\" $tmp $top_bund> <a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>Luk</a></td>\n";
-    print "<td width=\"70%\" $top_bund align=\"center\">".findtekst('566|Varekort', $sprog_id)."</td>\n";
+    print "<td width=\"70%\" $top_bund align=\"center\">" . findtekst(566, $sprog_id) . "</td>\n";
 
     # Open pos menus
     if ($id)
@@ -1238,7 +1185,7 @@ if ($menu == 'T') {
 
     # Create new item
     if ($id)
-        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>\n";
+        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a>\n";
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
     print "<td align = center valign = center>\n";
@@ -1251,7 +1198,6 @@ if ($id > 0) {
     $varenr = $row['varenr'];
     $stregkode = $row['stregkode'];
     $beskrivelse[0] = $row['beskrivelse'];
-    $beskrivelseAlias = $row['beskrivelse_alias'];
     $enhed = $row['enhed'];
     $enhed2 = $row['enhed2'];
     $indhold = $row['indhold'];
@@ -1531,16 +1477,11 @@ for ($x = 1; $x <= $vare_sprogantal; $x++) {
 }
 
 ($noEdit) ? $href = NULL : $href = "ret_varenr.php?id=$id";
-$query = db_select("SELECT varenr_alias FROM varer WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-$varenrAlias = db_fetch_array($query)['varenr_alias'];
+
 if (substr($rettigheder,7,1) && $id) {
     print "<tr><td colspan=\"1\"></td>\n";
-    print "<td colspan=\"1\" align=\"center\"><b>".findtekst('917|Varenr.', $sprog_id).": <a href=\"$href\">$varenr</a></b>";
-    if($varenrAlias) { 
-        print "<b style='margin-left: 1rem;'>Varenr alias: <a href='ret_varenralias.php?id=$id' >$varenrAlias</a></b></td>";
-    }else{
-        print "<a href='ret_varenralias.php?id=$id' style='margin-left: 1rem;'><b>Tilføj varenr alias</b></a></td>";
-    }
+    print "<td colspan=\"1\" align=\"center\"><b>" . findtekst(917, $sprog_id) . ": <a href=\"$href\">$varenr</a></b></td>\n";
+
     $query = db_select("select * from vare_lev where vare_id='$id'", __FILE__ . " linje " . __LINE__);
     if (db_fetch_array($query)) {
         print "<td colspan=\"1\" align=\"right\">
@@ -1586,10 +1527,9 @@ if (substr($rettigheder,7,1) && $id) {
         </td>\n";
     }
 } else {
-    print "<tr><td colspan=\"3\" align=\"center\"><b>".findtekst('917|Varenr.', $sprog_id).": <a href=\"$href\">$varenr</a></b></td>\n";
+    print "<tr><td colspan=\"3\" align=\"center\"><b>" . findtekst(917, $sprog_id) . ": <a href=\"$href\">$varenr</a></b></td>\n";
 }
 
-print "</tr>";
 if (!$varenr) {
     ($db == 'saldi_735') ? $pattern = '[a-zA-Z0-9+._ -]+' : $pattern = '[a-zA-Z0-9+._-]+';
     $fokus = "varenr";
@@ -1597,7 +1537,7 @@ if (!$varenr) {
     print "<td colspan=\"3\" align=\"center\">\n";
     print "<input class=\"inputbox\" type=\"text\" size=\"25\" name=\"varenr\" value=\"$varenr\" pattern='" . $pattern . "' ";
     print "onchange=\"javascript:docChange = true;\"></td></tr>\n";
-    print "<tr><td align=center>".findtekst('2021|Tilladte tegn er: a-z A-Z 0-9 . + -_', $sprog_id)."</td>\n";
+    print "<tr><td align=center>" . findtekst(2021, $sprog_id) . "</td>\n";
     print "<tr><td align=center><a href='varescanimport.php?returside=varekort.php'><button type='button'>Masse vare scan</button></a></td></tr>\n";
 } else {
     print "<input type=\"hidden\" name=\"varenr\" value=\"$varenr\">\n";
@@ -1610,14 +1550,14 @@ if (!$varenr) {
     $showVariants = '1';
     if ($showVariants && count($variantVarerId)) { // Selected Variants is shown
         print "<tr><td colspan=\"2\"><hr></td></tr>\n";
-        print "<tr><td colspan=\"2\">".findtekst('472|Varianter', $sprog_id)."</td></tr>\n";
+        print "<tr><td colspan=\"2\">" . findtekst(472, $sprog_id) . "</td></tr>\n";
         print "<tr><td colspan=\"2\"><table border=\"0\"><tbody>\n";
         print "\n<!-- productCardIncludes/showVariantsInfo.php begin -->\n";
         include_once('productCardIncludes/showVariantsInfo.php');
         print "\n<!-- productCardIncludes/showVariantsInfo.php end -->\n";
         print "</tbody></table></td>\n";
     } else { // Inputfield for barcode is shown
-        print "<tr><td>".findtekst('2016|Stregkode', $sprog_id)."<!--Stregkode--></td><td><input class=\"inputbox\" type=\"text\" style=\"text-alig1n:left;width:400px;\" name=\"stregkode\" value=\"$stregkode\" onchange=\"javascript:docChange = true;\"></td>\n";
+        print "<tr><td>" . findtekst(2016, $sprog_id) . "<!--Stregkode--></td><td><input class=\"inputbox\" type=\"text\" style=\"text-alig1n:left;width:400px;\" name=\"stregkode\" value=\"$stregkode\" onchange=\"javascript:docChange = true;\"></td>\n";
     }
     print "</tbody></table></td>\n";
     #print "<tr><td>Varianter</td><td>\n";
@@ -1907,21 +1847,21 @@ print "<input type = 'hidden' name='oldRetailPrice' value='$retail_price'>";
 
 
 print "<tr><td align = center><input class='button green medium' style='width:150px;' type=submit accesskey=\"g\" ";
-print "value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"saveItem\" onclick=\"javascript:docChange = false;\" $noEdit></td>";
+print "value=\"" . findtekst(3, $sprog_id) . "\" name=\"saveItem\" onclick=\"javascript:docChange = false;\" $noEdit></td>";
 
 ($beholdning || $noEdit) ? $disabled = 'disabled' : $disabled = '';
 if ($varenr && $samlevare == 'on') {
-    $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
+    $txt1100 = findtekst(1100, $sprog_id); //Kopier
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit title='Inds&aelig;t varer i stykliste' accesskey=\"l\" value=\"Vareopslag\" name=\"submit\" onclick=\"javascript:docChange = false;\" $disabled></td>";
 } elseif ($varenr) {
-    $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
-    $txt2049 = findtekst('2049|Leverandøropslag', $sprog_id); //Leverandøropslag
+    $txt1100 = findtekst(1100, $sprog_id); //Kopier
+    $txt2049 = findtekst(2049, $sprog_id); //Leverandøropslag
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;' $noEdit></td>";
 }
 if ($id) {
-    $txt1099 = findtekst('1099|Slet', $sprog_id); //Slet
+    $txt1099 = findtekst(1099, $sprog_id); //Slet
     $q = db_select("select distinct(id) from ordrelinjer where vare_id = $id", __FILE__ . " linje " . __LINE__);
     if (!db_fetch_array($q) && $lev_ant < 1 && $ant_be_af < 1 && $ant_indg_i < 1) {
         print "<td align=center><input style='width:150px;' class='button red medium' type=submit ";
@@ -2030,11 +1970,11 @@ function kategorier($x, $id, $kat_niveau, $kategori_antal, $kat_id, $kategori, $
     print "$kat_master -> $kat_beskrivelse";
     #           if ($show_subcat!=$kat_id[$x]) print "&nbsp;<a href=\"varekort.php?id=$id&show_subcat=$kat_id[$x]\">&nbsp;-></a>";
     print "</td>\n";
-    $tekst = findtekst('395|Afmærk her for at knytte $firmanavn til denne kategori', $sprog_id);
+    $tekst = findtekst(395, $sprog_id);
     #               $tekst=str_replace('$firmanavn',$firmanavn,$tekst); 
     print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"kat_valg[$x]\" $checked></td>\n";
-    print "<td title=\"".findtekst('396|Klik her for at omdøbe denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&    =$kat_id\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
-    print "<td title=\"".findtekst('397|Klik her for at slette denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+    print "<td title=\"" . findtekst(396, $sprog_id) . "\"><!--tekst 396--><a href=\"varekort.php?id=$id&    =$kat_id\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
+    print "<td title=\"" . findtekst(397, $sprog_id) . "\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
     print "</tr>\n";
     print "<input type=\"hidden\" name=\"kat_id[$x]\" value=\"$kat_id\">\n";
 } # endfunc kategorier
@@ -2225,57 +2165,30 @@ document.varekort.$fokus.focus();
 </script>";
 ?>
 <script>
-    const salgspris = document.querySelector("input[name=salgspris]");
-    if (salgspris) {
+    const bool = "<?php echo $confirmDescriptionChange; ?>";
+    if (bool != "") {
+        const salgspris = document.querySelector("input[name=salgspris]");
         const oldPrice = salgspris.value;
-        // Only verify if old price was not 0 or empty
-        if (oldPrice != "" && parseFloat(oldPrice.replace(',','.')) !== 0) { 
-            salgspris.addEventListener("change", (e) => {
-                if (confirm("Er du sikker på du vil ændre salgsprisen?") == true) {
-                    salgspris.value = e.target.value;
-                    const form = document.querySelector("[name=saveItem]");
-                    form.click()
-                } else {
-                    salgspris.value = oldPrice;
-                }
-            })
-        }
-    }
-
-    const kostpris = document.querySelector("#costPrice");
-    if (kostpris) {
+        salgspris.addEventListener("change", (e) => {
+            if (confirm("Er du sikker på du vil ændre salgsprisen?") == true) {
+                salgspris.value = e.target.value;
+            } else {
+                salgspris.value = oldPrice;
+            }
+        })
+        const kostpris = document.querySelector("#costPrice");
         const oldCost = kostpris.value;
-        // Only verify if old cost was not 0 or empty
-        if (oldCost != "" && parseFloat(oldCost.replace(',','.')) !== 0) {
-            kostpris.addEventListener("change", (e) => {
-                if (confirm("Er du sikker på du vil ændre kostprisen?") == true) {
-                    kostpris.value = e.target.value;
-                    const form = document.querySelector("[name=saveItem]");
-                    form.click()
-                } else {
-                    kostpris.value = oldCost;
-                    const form = document.querySelector("[name=saveItem]");
-                    form.click()
-                }
-            })
-        }
-    }
-
-    const beskrivelse = document.querySelector("input[name=beskrivelse0]");
-    if (beskrivelse) {
-        const oldDescription = beskrivelse.value;
-        // Only verify if old description was not empty
-        if (oldDescription != "") {
-            beskrivelse.addEventListener("change", (e) => {
-                if (confirm("Er du sikker på du vil ændre beskrivelsen?") == true) {
-                    beskrivelse.value = e.target.value;
-                    const form = document.querySelector("[name=saveItem]");
-                    form.click()
-                } else {
-                    beskrivelse.value = oldDescription;
-                }
-            })
-        }
+        kostpris.addEventListener("change", (e) => {
+            if (confirm("Er du sikker på du vil ændre kostprisen?") == true) {
+                kostpris.value = e.target.value;
+                const form = document.querySelector("[name=saveItem]");
+                form.click()
+            }else{
+                kostpris.value = oldCost;
+                const form = document.querySelector("[name=saveItem]");
+                form.click()
+            }
+        })
     }
     function getCookie(cname) {
         let name = cname + "=";
