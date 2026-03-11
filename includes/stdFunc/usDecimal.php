@@ -78,7 +78,7 @@ function usDecimal(mixed $value, ?int $decimals = null): ?string {
 	if (!preg_match('/^[+-]?\d+(\.\d+)?$/', $str)) {
 		return '';
 	}
-	return $value;
+	return $str;
 }
 /*
 function usdecimal($tal,$decimaler = NULL) {
