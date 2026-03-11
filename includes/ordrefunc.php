@@ -84,7 +84,7 @@
 // 20260306 PHR Fixed Stock was always set to 0 when crediting an order.
 
 
-function levering($id,$hurtigfakt,$genfakt,$webservice) {
+function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */
 #cho "$id,$hurtigfakt,$genfakt,$webservice<br>";
 # Denne funktion kontrollerer levering of kalder funktioner som registrerer salget i tabellerne varer,batch_salg og ect batch_kob
@@ -1112,7 +1112,7 @@ function samlevare($id, $art, $linje_id, $v_id, $leveres)
 	#exit;
 } # endfunc samlevare
 ###############################################################
-function bogfor($id, $webservice)
+function bogfor($id, $webservice=false)
 {
 	/* print "<!--function bogfor start-->"; */
 

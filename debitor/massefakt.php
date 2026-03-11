@@ -38,7 +38,7 @@ $r=db_fetch_array(db_select("select box2, box3 from grupper where art='MFAKT' an
 $delfakturer=$r['box2'];
 $levfrist=$r['box3'];
 
-$tmp=date("U")-$levfrist*24*3600;
+$tmp=date("U") - (float)$levfrist * 24 * 3600;
 $dellevdate=date("Y-m-d",$tmp);	# hvis ordren er fra denne dato eller foer delleveres ordren.
 
 #if ($levfrist) {
@@ -135,7 +135,7 @@ if ($rest) {
 				$r2=db_fetch_array(db_select("select * from varer where id='$r[vare_id]'",__FILE__ . " linje " . __LINE__));
 				$antal[$y]=$r['antal'];
 				$varenr[$y]=$r2['varenr'];
-				$beholdning[$y]=$r2['beholdning']*1;
+				$beholdning[$y]=(int)$r2['beholdning'];
 				$gruppe[$y]=$r2['gruppe'];
 				}
 			for ($z=1;$z<=$y;$z++) { 
@@ -179,7 +179,7 @@ if ($rest) {
 				$x++;
 				$beskrivelse[$x]=db_escape_string($r['beskrivelse']);
 					$varenr[$x]=db_escape_string($r['varenr']);
-					$antal[$x]=$r['antal']*1;
+					$antal[$x]=(int)$r['antal'];
 					$q2=db_select("select modtagelser.antal as antal from modtageliste,modtagelser where modtageliste.modtagdate='$dd' and modtageliste.modtaget='V' and modtagelser.liste_id=modtageliste.id and modtagelser.varenr='$varenr[$x]'",__FILE__ . " linje " . __LINE__);
 					while($r2=db_fetch_array($q2)) $antal[$x]=$antal[$x]-$r['antal'];
 				}
@@ -284,18 +284,18 @@ if (!$drop && $fakturer && $delfakturer) {
 	$q=db_select("select * from ordrelinjer where ordre_id = '$ordre_id' order by id",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$x++;
-		$posnr[$x]=$r['posnr']*1;
+		$posnr[$x]=(int)$r['posnr'];
 		$varenr[$x]=db_escape_string($r['varenr']);
-		$vare_id[$x]=$r['vare_id']*1;
+		$vare_id[$x]=(int)$r['vare_id'];
 		$beskrivelse[$x]=db_escape_string($r['beskrivelse']);
 		$enhed[$x]=$r['enhed'];
-		$antal[$x]=$r['antal']*1;
-		$pris[$x]=$r['pris']*1;
-		$rabat[$x]=$r['rabat']*1;
+		$antal[$x]=(int)$r['antal'];
+		$pris[$x]=(float)$r['pris'];
+		$rabat[$x]=(float)$r['rabat'];
 		$serienr[$x]=$r['serienr'];
 		$momsfri[$x]=$r['momsfri'];
 		$samlevare[$x]=$r['samlevare'];
-		$kostpris[$x]=$r['kostpris']*1;
+		$kostpris[$x]=(float)$r['kostpris'];
 			$antal[$x]=$antal[$x]-$ny_antal[$x];
 			$linjesum=round(($antal[$x]*$pris[$x]-$antal[$x]*$pris[$x]*$rabat[$x]/100)+0.0001,3);
 			$sum=$sum+$linjesum;
@@ -383,15 +383,15 @@ function momsupdat($ordre_id){
 	$x=0;
 # echo "select status, projekt, momssats from ordrer where id='$ordre_id' and status < '4'<br>";	
 	if ($r=db_fetch_array(db_select("select status, projekt, momssats from ordrer where id='$ordre_id' and status < '4'",__FILE__ . " linje " . __LINE__))) {
-		$momssats=$r['momssats']*1;
-		$projekt[0]=$r['projekt']*1;
+		$momssats=(float)$r['momssats'];
+		$projekt[0]=(int)$r['projekt'];
 		$q=db_select("select * from ordrelinjer where ordre_id='$ordre_id'");
 		while ($r=db_fetch_array($q)) {
 			$x++;
 			$linje_id[$x]=$r['id'];
 			if ($r['bilag']>=0) {
 				if ($projekt[0]) $projekt[$x]=$projekt[0];
-				else $projekt[$x]=$r['projekt']*1;
+				else $projekt[$x]=(int)$r['projekt'];
 				$linjesum[$x]=round(($r['pris']*$r['antal']-($r['pris']*$r['antal']*$r['rabat']/100))+0.0001,2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
 				$ordresum+=$linjesum[$x];
 				if ($r['momsfri']!='on') {
