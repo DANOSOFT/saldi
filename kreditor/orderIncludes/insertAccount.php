@@ -63,6 +63,14 @@ function insertAccount($id, $konto_id) {
 	}
 	$afd = (int)$afd;
 
+	// Set lager based on afd if lager is not already set
+	if (!$lager && $afd) {
+		$r_afd_lg = db_fetch_array(db_select("select box1 from grupper where kodenr='$afd' and art = 'AFD'",__FILE__ . " linje " . __LINE__));
+		if ($r_afd_lg && $r_afd_lg['box1']) {
+			$lager = (int)$r_afd_lg['box1'];
+		}
+	}
+
 	$qtxt = "select * from adresser where id = '$konto_id'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($q))

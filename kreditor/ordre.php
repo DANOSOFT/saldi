@@ -362,6 +362,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$godkend = if_isset($_POST, NULL, 'godkend');
 		$kreditnota = if_isset($_POST, NULL, 'kreditnota');
 		$ref = trim(if_isset($_POST, NULL, 'ref'));
+		$afd = if_isset($_POST, 0, 'afd');
 		$lager = trim(if_isset($_POST, 0, 'lager'));
 		$fakturanr = db_escape_string(trim(if_isset($_POST, NULL, 'fakturanr')));
 		$momssats = if_isset($_POST, NULL, 'momssats');
@@ -469,7 +470,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if (($x!=0)||($_POST[$y])||($_POST[$y]=='0')) $pris[$x]=usdecimal($_POST[$y],2);
 			$y="raba".$x;
 			$rabat[$x]=usdecimal($_POST[$y],2);
-			if ($x>0 && !$rabat[$x]) $rabat=0;
+			if ($x>0 && !$rabat[$x]) $rabat[$x]=0;
 #			$y="ialt".$x;
 #			$ialt[$x]=if_isset($_POST[$y]);
 			if ($godkend == "on" && $status == 0) $leveres[$x]=$antal[$x];
@@ -779,7 +780,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						if (! $tidl_lev[$x]) $tidl_lev[$x]=0;
 						if ($omvbet[$x]) $omvbet[$x]='on';
-						$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
+					if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
+					$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
 						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager' where id='$linje_id[$x]'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -901,7 +903,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					$qtxt.="lev_kontakt='$lev_kontakt',betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',";
 					$qtxt.="cvrnr='$cvrnr',momssats='$momssats',notes='$notes',art='$art',ordredate='$ordredate',";
 					if (strlen($levdate)>=6)$qtxt.="levdate='$levdate',";
-					$qtxt.="status=$status,ref='$ref',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
+					$qtxt.="status=$status,ref='$ref',lager='$lager',afd='$afd',fakturanr='$fakturanr',lev_adr='$lev_adr',";
 	/* saul ??
 					$condition = prepareSearchTerm($fakturanr);
 					$qtxt = "select * from ordrer where fakturanr $condition";
@@ -931,10 +933,10 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$qtxt = "insert into ordrer ";
 				$qtxt.= "(ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, ";
 				$qtxt.= "lev_navn,	lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt, betalingsdage, ";
-				$qtxt.= "betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, sum, lev_adr, valuta) values ";
+				$qtxt.= "betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, sum, lev_adr, valuta, afd) values ";
 				$qtxt.= "($ordrenr, $konto_id, '$kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$kontakt', ";
 				$qtxt.= "'$lev_navn',	'$lev_addr1',	'$lev_addr2',	'$lev_postnr',	'$lev_bynavn', '$lev_kontakt', '$betalingsdage', ";
-				$qtxt.= "'$betalingsbet', '$cvrnr', '$notes', '$art', '$ordredate', '$momssats', 1, '$ref', '$sum', '$lev_adr', '$valuta')";
+				$qtxt.= "'$betalingsbet', '$cvrnr', '$notes', '$art', '$ordredate', '$momssats', 1, '$ref', '$sum', '$lev_adr', '$valuta', '$afd')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$query = db_select("select id from ordrer where ordrenr='$ordrenr' order by id desc",__FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($query);
@@ -1181,6 +1183,28 @@ function prepareSearchTerm($searchTerm) {
 		$modtagelse    = $r['modtagelse'];
 		$ref           = trim($r['ref']);
 		$lager         = $r['lager'];
+		$afd           = $r['afd'] ?? 0;
+
+		// If afd is not set on the order, look up from the current user
+		if (!$afd) {
+			$qtxt_afd = "select ansat_id from brugere where brugernavn = '$brugernavn'";
+			$r_afd = db_fetch_array(db_select($qtxt_afd, __FILE__ . " linje " . __LINE__));
+			if ($r_afd && $r_afd['ansat_id']) {
+				$r_ansat = db_fetch_array(db_select("select afd from ansatte where id = '" . $r_afd['ansat_id'] . "'", __FILE__ . " linje " . __LINE__));
+				if ($r_ansat) {
+					$afd = $r_ansat['afd'];
+				}
+			}
+		}
+		$afd = (int)$afd;
+
+		// Set lager based on afd if lager is not already set
+		if (!$lager && $afd) {
+			$r_afd_lager = db_fetch_array(db_select("select box1 from grupper where kodenr='$afd' and art = 'AFD'", __FILE__ . " linje " . __LINE__));
+			if ($r_afd_lager && $r_afd_lager['box1']) {
+				$lager = (int)$r_afd_lager['box1'];
+			}
+		}
 		$fakturanr     = $r['fakturanr'];
 		$lev_adr       = $r['lev_adr'];
 		$ordrenr       = $r['ordrenr'];
@@ -1253,6 +1277,7 @@ function prepareSearchTerm($searchTerm) {
 	print "<input type=\"hidden\" name=\"konto_id\" value=\"$konto_id\">";
 	print "<input type=\"hidden\" name=\"kred_ord_id\" value=\"$kred_ord_id\">";
 	print "<input type=\"hidden\" name=\"lager\" value=\"$lager\">";
+	print "<input type=\"hidden\" name=\"afd\" value=\"$afd\">";
 	print "<input type=\"hidden\" name=\"omlev\" value=\"$omlev\">";
 
 	if ($status>=3) {
