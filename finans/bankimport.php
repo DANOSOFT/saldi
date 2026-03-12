@@ -366,7 +366,7 @@ fclose ($fp);
 $fp=fopen($filnavn."2","w");
 if ($vend) {
  for ($y=$linjeantal;$y>=1;$y--) fwrite($fp,$ny_linje[$y]);
-} else { 
+} else {
 	for ($y=1;$y<=$linjeantal;$y++) fwrite($fp,$ny_linje[$y]);
 }
 fclose ($fp);
@@ -430,7 +430,7 @@ print "<tr><td colspan=$cols><hr></td></tr>\n";
 $splitter=chr(9);
 print "<tr><td><span title='".findtekst(1404, $sprog_id)."'><input type=text size=4 name=bilag value=$bilag></span></td>";
 $belob = $beskr = $dato = $kundenr = 0;
-for ($y=0; $y<$cols; $y++) {
+for ($y=0; $y<=$feltantal; $y++) {
 	if ($feltnavn[$y]=='dato' && $dato==1) {
 		$aalert = findtekst(1405, $sprog_id);
 		alert("$aalert");
