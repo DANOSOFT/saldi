@@ -756,6 +756,8 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ordre_land'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('47|Land', $sprog_id))."</option>";                                       #Ordre land
 		print "<option value = 'ordre_kontakt'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('398|Kontakt', $sprog_id))."</option>";                                #Ordre kontakt
 		print "<option value = 'ordre_cvrnr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('48|Cvr-nr.', $sprog_id))."</option>";                                   #Ordre cvr nr.
+		print "<option value = 'ordre_email'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                    #Ordre e-mail
+		print "<option value = 'ordre_tlf'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                         #Ordre tlf
 	}
 	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
 		print "<option value = 'ordre_ean'>".findtekst('605|Ordre', $sprog_id)." EAN</option>";                                                                                    #Ordre EAN

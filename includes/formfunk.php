@@ -247,6 +247,8 @@ if (!function_exists('skriv')) {
 								}
 								if ($variabel == "rykkerdate")
 									$variabel = "fakturadate";
+								if ($variabel == "tlf")
+									$variabel = "phone";
 								$qtxt = "select $variabel from ordrer where id=$id";
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "eget" || $tabel == "egen") {
@@ -599,6 +601,8 @@ if (!function_exists('find_form_tekst')) {
 							}
 						} elseif ($variabel == "rykkerdate")
 							$variabel = "fakturadate";
+						if ($variabel == "tlf")
+							$variabel = "phone";
 						if ($variabel) {
 							$qtxt = "select $variabel from ordrer where id=$id";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
