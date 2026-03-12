@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/creditorIncludes/openOrderData.php --- lap 5.0.0 --- 2025.02.17 ---
+// --- kreditor/creditorIncludes/openOrderData.php --- lap 5.0.0 --- 2026.03.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20221104 MLH added lookup function for the delivery address fields
@@ -30,6 +30,8 @@
 // 20250415 LOE Some variables initialized and others checked before using.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260217 PHR Added 'kundeordrnr'
+// 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
+
 /*
 $attachId    = null;
 $email       = null;
@@ -175,24 +177,47 @@ if ($id) {
 	print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></a>";
 }
 print "</td></tr>";
-if (!$ref) {
-	$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
-	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && if_isset($r,NULL,'ansat_id')) {
-		$r = db_fetch_array(db_select("select navn from ansatte where id = $r[ansat_id]",__FILE__ . " linje " . __LINE__));
-		if ($r['navn']) $ref=$r['navn'];
+
+$txt1097 = findtekst('1097|Vor ref.', $sprog_id);
+print "<tr><td>$txt1097</td>";
+#print "<td><input class='inputbox' style='width:110px;' name='ref' value='$ref' onfocus='document.forms[0].fokus.value=this.name;'></td>";
+print "<td>";
+print "<input type = 'hidden' name = 'oldRef' value = '$ref'>";
+if (count($employees)) {
+	print "<select class='inputbox' style='width:110px;'  name = 'ref'>";
+	for ($i=0;$i<count($employees);$i++) {
+		if ($ref == $employees[$i]) print "<option value='$employees[$i]'>$employees[$i]</option>";
 	}
-}
-	$txt1097 = findtekst('1097|Vor ref.', $sprog_id);
-	print "<tr><td>$txt1097</td>";
-	print "<td colspan=3><input class='inputbox' style='width:110px;' name='ref' value='$ref' onfocus='document.forms[0].fokus.value=this.name;'></td></tr>";
+	for ($i=0;$i<count($employees);$i++) {
+		if ($ref != $employees[$i]) print "<option value='$employees[$i]'>$employees[$i]</option>";
+	}
+	print "<select>";
+} else print $ref;
+print "</td>";
+print "<td>Afd</td>";
+#print "<td><input class='inputbox' style='width:110px;' name='adf' value='$afd' onfocus='document.forms[0].fokus.value=this.name;'></td>";
+print "<td>";
+print "<input type = 'hidden' name = 'oldDep' value = '$afd'>";
+if (count($depNumbers)) {
+	print "<select class='inputbox' style='width:110px;'  name = 'afd'>";
+	for ($i=0;$i<count($depNumbers);$i++) {
+		if ($afd == $depNumbers[$i]) print "<option value='$depNumbers[$i]'>$depNumbers[$i] : $depNames[$i]</option>";
+	}
+	for ($i=0;$i<count($depNumbers);$i++) {
+		if ($afd != $depNumbers[$i]) print "<option value='$depNumbers[$i]'>$depNumbers[$i] : $depNames[$i]</option>";
+	}
+	print "<select>";
+} else print $afd;
+
+print "</tr>";
 if (count($lager_nr)) {
 	print "<tr><td>Lager</td>";
 	print "<td colspan='1'><select style='text-align:right;width:110px;' class='inputbox' name='lager'>";
 	for ($x=0;$x<count($lager_nr);$x++) {
-if ($lager==$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
+		if ($lager==$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
 	}
 	for ($x=0;$x<count($lager_nr);$x++) {
-if ($lager!=$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
+		if ($lager!=$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
 	}
 	print "</td></tr>";
 }
