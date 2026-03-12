@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 4.1.1 --- 2025.11.06 ---
+// --- finans/bankimport.php --- patch 5.0.0 --- 2026.03.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 
 // 20121110 Indsat mulighed for valutavalg ved import - søg: valuta
@@ -67,6 +67,7 @@
 // 20250918 PHR	More check for lineshift in description
 // 20251012 PHR Added Currency
 // 20251106 PHR Corrected date error
+// 20260311 PHR Corrected decimal error
 
 ini_set("auto_detect_line_endings", true);
 
@@ -220,6 +221,7 @@ print "</td></tr>";
 function vis_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$currencyCode,$afd){
 global $baseCurrency,$bruger_id,$charset,$sprog_id;
 
+#if (!count($feltnavn)) $feltnavn=array('','','','','','','','');
 $bankName = '';
 $komma = $punktum = $semikolon = $tabulator = $x = 0;
 $currencyAlert = $valuta = array();
@@ -428,7 +430,7 @@ print "<tr><td colspan=$cols><hr></td></tr>\n";
 $splitter=chr(9);
 print "<tr><td><span title='".findtekst(1404, $sprog_id)."'><input type=text size=4 name=bilag value=$bilag></span></td>";
 $belob = $beskr = $dato = $kundenr = 0;
-for ($y=0; $y<count($feltnavn); $y++) {
+for ($y=0; $y<$cols; $y++) {
 	if ($feltnavn[$y]=='dato' && $dato==1) {
 		$aalert = findtekst(1405, $sprog_id);
 		alert("$aalert");
@@ -668,8 +670,10 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						if ($bankName == 'Sparebanken Vest' && $felt[1] == 'Betaling') $felt[$y] = '-'.$felt[$y]; 
 						$felt[$y]=str_replace(chr(194).chr(160),"",$felt[$y]); // 20220120 Weired dot?
 						$felt[$y]=str_replace(" ","",$felt[$y]);
+echo __line__." $felt[$y] -> ". nummertjek($felt[$y]);
 						if (nummertjek($felt[$y])=='US') $felt[$y]=dkdecimal($felt[$y]);
 						elseif (nummertjek($felt[$y])!='DK') $skriv_linje=0;		
+echo " | $felt[$y]<br>";
 					}
 					if ($feltnavn[$y]=='beskrivelse') { // 20220120
 						$felt[$y]=str_replace("%c3%a6","æ",$felt[$y]);
@@ -706,6 +710,7 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 					elseif ($feltnavn[$y]=='saldo')           $saldo           = usdecimal($felt[$y]);
 					elseif ($feltnavn[$y]=='currency')        $currency        = db_escape_string($felt[$y]);
 				}
+echo __line__." $amount<br>";
 				$qtxt=NULL;
 				$beskrivelse = trim($beskrivelse);
 				$saldo = (float)$saldo;
@@ -826,6 +831,7 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$qtxt.= " values ";
 						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','$k_type','$kredit','$faktura','$amount','$kladde_id',";
 						$qtxt.= "'$currencyCode','$afd','$saldo')";
+echo $qtxt;
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$bilag++; #20170630 Flyttet fra over db_mod...
 					}
