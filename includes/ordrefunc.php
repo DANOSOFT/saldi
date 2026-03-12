@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-06 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -82,7 +82,7 @@
 // 20260114 PHR Product search failed if another product had part of the productnumber in its productnumber. (function opret_ordrelinje)
 // 20260305 PHR Fix to make sure that cash sale is not acconted on account sale account.
 // 20260306 PHR Fixed Stock was always set to 0 when crediting an order.
-
+// 20260312 PHR	Set valuta if not set in bogfor_nu.  
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */
@@ -2145,8 +2145,7 @@ function bogfor_indbetaling($id, $webservice) {
 	return ('OK');
 }
 ######################################################################################################################################
-function bogfor_nu($id, $kilde)
-{
+function bogfor_nu($id, $kilde) {
 
 	include("../includes/genberegn.php");
 	include("../includes/forfaldsdag.php");
@@ -2160,7 +2159,9 @@ function bogfor_nu($id, $kilde)
 	global $title;
 
 	$korttyper = $kortkonti = $vatAccount = array();
-
+	// 20260312 next 2 lines
+	if (!$valuta)    $valuta      = $baseCurrency;
+	if (!$valutakurs) $valutakurs = 100;
 
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='transaktioner' and column_name='report_number'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -2414,7 +2415,7 @@ function bogfor_nu($id, $kilde)
 		$beskrivelse = "Kreditkort salg: Faktura - " . $fakturanr;
 	$qtxt = "select id,ordre_id from transaktioner where ordre_id='$ordre_id'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$tekst = "Bogf&oslash;ring afbrudt - tjek kontrolspor (id $r[id] oid $r[ordre_id])";
+		$tekst = "Bogf&oslash;ring afbrudt - tjek kontrolspor id $r[id] oid $r[ordre_id]";
 		print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 		return ($tekst);
 	}
@@ -2429,7 +2430,8 @@ function bogfor_nu($id, $kilde)
 		$qtxt .= "and valuta='$valuta' and valutakurs='$valutakurs' and forfaldsdate='$forfaldsdate'";
 		fwrite($hmlog, __LINE__ . "  $qtxt\n");
 		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$tekst = "Bogf&oslash;ring afbrudt - tjek kontrolspor";
+			echo "$qtxt<br>";
+			$tekst = "Bogf&oslash;ring afbrudt - tjek kontrolspor Fakt. nr $fakturanr";
 			print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 			return ($tekst);
 		}
