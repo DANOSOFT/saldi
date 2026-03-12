@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-03 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,8 +41,10 @@
 // 20260224 PHR Fixed missing $db_id after logolib
 // 20260302 PHR	Fixed locaton if location for stock points to another stock
 // 20260303 PHR removed call to old phpmailer
+// 20260312 PHR reminder was not attached if background didn't exist
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
+
 
 if (!function_exists('skriv')) {
 	function skriv($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font, $formular, $line)
@@ -2094,23 +2096,17 @@ if (!function_exists('formularprint')) {
 		// UDSKRIVNING
 		if ($mailantal > 0) {
 			include("../includes/connect.php");
-			if (!isset($exec_path))
-				$exec_path = "/usr/bin";
+			if (!isset($exec_path)) $exec_path = "/usr/bin";
 			$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value'])
-				$ps2pdf = $r['var_value'];
+			if ($r['var_value']) $ps2pdf = $r['var_value'];
 			else
 				$ps2pdf = "$exec_path/ps2pdf";
 			$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value'])
-				$pdftk = $r['var_value'];
-			else
-				$pdftk = (isset($exec_path) && file_exists("$exec_path/pdftk")) ? "$exec_path/pdftk" : "/usr/bin/pdftk";
+			if ($r['var_value']) $pdftk = $r['var_value'];
+			else $pdftk = (isset($exec_path) && file_exists("$exec_path/pdftk")) ? "$exec_path/pdftk" : "/usr/bin/pdftk";
 			$r = db_fetch_array(db_select("select var_value from settings where var_name='weasyprint'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value'])
-				$weasyprint = $r['var_value'];
-			else
-				$weasyprint = "$exec_path/weasyprint";
+			if ($r['var_value']) $weasyprint = $r['var_value'];
+			else $weasyprint = "$exec_path/weasyprint";
 			include("../includes/online.php");
 			$r = db_fetch_array(db_select("select box3 from grupper where art='PV' and kodenr='1'", __FILE__ . " linje " . __LINE__));
 			($r['box3']) ? $formgen = 'html' : $formgen = 'ps';
@@ -2615,22 +2611,20 @@ if (!function_exists('rykkerprint')) {
 				$exec_path = "/usr/bin";
 			include("../includes/connect.php");
 			$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value'])
-				$ps2pdf = $r['var_value'];
-			else
-				$ps2pdf = "$exec_path/ps2pdf";
+			if ($r['var_value']) $ps2pdf = $r['var_value'];
+			else $ps2pdf = "$exec_path/ps2pdf";
 			$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value'])
-				$pdftk = $r['var_value'];
-			else
-				$pdftk = "$exec_path/pdftk";
+			if ($r['var_value']) $pdftk = $r['var_value'];
+			else $pdftk = "$exec_path/pdftk";
 			include("../includes/online.php");
 			for ($x = 1; $x <= $mailantal; $x++) {
 				print "<!-- kommentar for at skjule uddata til siden \n";
 				system("$ps2pdf ../temp/$db/$pfliste[$x] ../temp/$db/$pfliste[$x].pdf");
 				if ($logoart == 'PDF') {
-					$out = "../temp/$db/" . $pfliste[$x] . "x.pdf";
-					system("$pdftk ../temp/$db/$pfliste[$x].pdf background ../logolib/$db_id/bg.pdf output $out");
+					if (file_exists("../logolib/$db_id/bg.pdf")) { #20260312
+						$out = "../temp/$db/" . $pfliste[$x] . "x.pdf";
+						system("$pdftk ../temp/$db/$pfliste[$x].pdf background ../logolib/$db_id/bg.pdf output $out");
+					} else $out = "../temp/$db/$pfliste[$x].pdf";
 					if (!$inkasso) {
 						unlink("$mappe/$pfliste[$x].pdf");
 						system("mv $out $mappe/$pfliste[$x].pdf");
@@ -2646,7 +2640,7 @@ if (!function_exists('rykkerprint')) {
 					return ("../temp/$db/$pfliste[$x].pdf");
 					exit;
 				} else
-					$svar = send_mails(0, "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], '', '', '', 0);
+				$svar = send_mails(0, "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], '', '', '', 0);
 			}
 		}
 		if ($nomailantal > 0) {
