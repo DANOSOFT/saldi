@@ -194,7 +194,7 @@ print "<tr>";
 print "<td><input class='inputbox' type='text' style='text-align:right' size=3 name=posn0 value=$x></td>";
 if ($art!='KK') {
   print "<td><input class='inputbox' type='text' size=7 name=vare0 onfocus='document.forms[0].fokus.value=this.name;'></td>";
-  print "<td><input class='inputbox' type='text' size=7 name=lev_v0></td>";
+  print "<td><input class='inputbox' type='text' size=7 name=lev_varenr0></td>";
   print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta0></td>";
   print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=3></td>";
 }
