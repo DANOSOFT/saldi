@@ -1,10 +1,10 @@
-<?php
+	<?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---finans/regnskab.php --- patch 4.1.1 --- 2025.12.03 ---
+// ---finans/regnskab.php --- patch 5.0.0 --- 2026.03.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // --------------------------------------------------------------------------
 
 // 20121011 Indsat "and (lukket != 'on' or saldo != 0)" søg 20121011
@@ -44,6 +44,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250113 PHR Syncronized with saldiupdates
 // 20250510 LOE Text id changed from 3072 to 2373
+// 20260312 PHR Division by zero
 
 @session_start();
 $s_id=session_id();
@@ -243,10 +244,13 @@ while ($row = db_fetch_array($query)) {
 	if ($row['kontotype']=='D' || $row['kontotype']=='S') {
 		$primo[$x]=round($row['primo']+0.0001,2);
 		$ultimo[$x]=round($row['primo']+0.0001,2);
-		$q2 = db_select("select * from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr='$kontonr[$x]' order by transdate",__FILE__ . " linje " . __LINE__);
+		$qtxt = "select * from transaktioner where transdate>='$regnstart' and ";
+		$qtxt.= "transdate<='$regnslut' and kontonr='$kontonr[$x]' order by transdate";
+		$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 		 	for ($y=1; $y<=$maanedantal; $y++) {
 				if (!isset($belob[$x][$y])) $belob[$x][$y]=0;
+				$transdate[$x][$y]=$r2['transdate'];
 				if (($md[$y][1]<=$r2['transdate'])&&($md[$y+1][1]>$r2['transdate'])) {
 			 		$md[$y][2]=$md[$y][2]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
 					$belob[$x][$y]=$belob[$x][$y]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
@@ -479,17 +483,20 @@ for ($x=1; $x<=$kontoantal; $x++){
 		# Each month
 		for ($z=1; $z<=$maanedantal; $z++) {
 			$title='';
+			$mdkurs = $tal = 0;
 			if (!isset($belob[$x][$z])) $belob[$x][$z]=0;
 			if ($kontovaluta[$x]) {
-				for ($y=0;$y<=count($valkode);$y++){
+					for ($y=0;$y<=count($valkode);$y++){
 					if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$x][$z]) {
 						$mdkurs=$valkurs[$y];
 						break 1;
 					}
 				}
+			}
+			if ($mdkurs) {
 				$tal=dkdecimal($belob[$x][$z]*100/$mdkurs,2);
 				$title="DKK: ".dkdecimal($belob[$x][$z],2)." Kurs: $mdkurs";
-			}	else $tal=dkdecimal($belob[$x][$z],2); # if ($link) $y=$z.">";
+			} else $tal=dkdecimal($belob[$x][$z],2); # if ($link) $y=$z.">";
 			if ($kontotype[$x]!='Z') {
 				print "<td align=\"right\" title=\"$title\"><a href=kontospec.php?kontonr=$kontonr[$x]&month=$z>$tal<br></a></td>";
 			} else print "<td align=\"right\" title=\"$title\">$tal<br></td>";
@@ -498,16 +505,19 @@ for ($x=1; $x<=$kontoantal; $x++){
 		}
 		if ($kontotype[$x]=='Z') $ultimo[$x]=$ultimo[$x]+$primo[$x];  # if indsat 20.11.07 grundet fejl i sammentaeling paa statuskonti
 		$title='';
+		$mdkurs = $tal = 0;
 		if ($kontovaluta[$x]) {
-				for ($y=0;$y<=count($valkode);$y++){
-					if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnslut[$x][$z]) {
-						$mdkurs=$valkurs[$y];
-						break 1;
-					}
+			for ($y=0;$y<=count($valkode);$y++){
+				if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnslut[$x][$z]) {
+					$mdkurs=$valkurs[$y];
+					break 1;
 				}
-				$tal=dkdecimal($ultimo[$x]*100/$mdkurs,2);
-				$title="DKK: ".dkdecimal($ultimo[$x],2)." Kurs: $mdkurs";
-			}	else $tal=dkdecimal($ultimo[$x],2); # if ($link) $y=$z.">";
+			}
+		}
+		if ($mdkurs) {
+			$tal=dkdecimal($ultimo[$x]*100/$mdkurs,2);
+			$title="DKK: ".dkdecimal($ultimo[$x],2)." Kurs: $mdkurs";
+		}	else $tal=dkdecimal($ultimo[$x],2); # if ($link) $y=$z.">";
 #		$tal=dkdecimal($ultimo[$x]); # if ($link) {$y='13>';}
 		print "<td align=\"right\" title=\"$title\">$tal<br></td>";
 		fwrite($csv,";$tal\n");
