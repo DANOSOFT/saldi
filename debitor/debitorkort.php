@@ -2115,14 +2115,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Set input value from saved preference
+            // Set input value - prioritize URL search param, fallback to saved preference
             var urlParams = new URLSearchParams(window.location.search);
             var searchKey = 'search[' + gridId + '][' + field + ']';
             var urlSearchValue = urlParams.get(searchKey);
             
             if (urlSearchValue && urlSearchValue.trim() !== '') {
+                // URL has explicit search value - use it
                 dateInput.value = urlSearchValue;
+            } else if (preference && preference.date_value && preference.date_value.trim() !== '') {
+                // No URL search value, but we have a saved preference - restore it
+                dateInput.value = preference.date_value;
             } else {
+                // No URL search value and no saved preference
                 dateInput.value = '';
             }
         }
@@ -2198,10 +2203,32 @@ document.addEventListener('DOMContentLoaded', function() {
         $(dateInput).on('apply.daterangepicker', function(ev, picker) {
             if (picker.chosenLabel === 'Clear') {
                 $(this).val('');
-                var form = $(this).closest('form');
-                if (form.length > 0) {
-                    form.submit();
-                }
+                
+                // Delete the saved preference from database
+                $.ajax({
+                    url: 'save_date_settings.php',
+                    type: 'POST',
+                    data: {
+                        action: 'clear_date_preference',
+                        grid_id: gridId,
+                        field: field,
+                        bruger_id: bruger_id
+                    },
+                    success: function(response) {
+                        var form = $(dateInput).closest('form');
+                        if (form.length > 0) {
+                            form.submit();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('Error clearing date preference:', error);
+                        var form = $(dateInput).closest('form');
+                        if (form.length > 0) {
+                            form.submit();
+                        }
+                    }
+                });
+                
                 picker.hide();
                 return;
             }
@@ -2250,10 +2277,31 @@ document.addEventListener('DOMContentLoaded', function() {
         // When user clicks "Ryd" (Cancel) button
         $(dateInput).on('cancel.daterangepicker', function(ev, picker) {
             $(this).val('');
-            var form = $(this).closest('form');
-            if (form.length > 0) {
-                form.submit();
-            }
+            
+            // Delete the saved preference from database
+            $.ajax({
+                url: 'save_date_settings.php',
+                type: 'POST',
+                data: {
+                    action: 'clear_date_preference',
+                    grid_id: gridId,
+                    field: field,
+                    bruger_id: bruger_id
+                },
+                success: function(response) {
+                    var form = $(dateInput).closest('form');
+                    if (form.length > 0) {
+                        form.submit();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error clearing date preference:', error);
+                    var form = $(dateInput).closest('form');
+                    if (form.length > 0) {
+                        form.submit();
+                    }
+                }
+            });
         });
     }
 });

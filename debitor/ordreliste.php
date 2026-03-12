@@ -1758,15 +1758,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 
-                // Set input value from saved preference ONLY if there's a search value in the URL
+                // Set input value - prioritize URL search param, fallback to saved preference
                 var urlParams = new URLSearchParams(window.location.search);
                 var searchKey = 'search[' + gridId + '][' + field + ']';
                 var urlSearchValue = urlParams.get(searchKey);
                 
                 if (urlSearchValue && urlSearchValue.trim() !== '') {
+                    // URL has explicit search value - use it
                     input.value = urlSearchValue;
+                } else if (preference && preference.date_value && preference.date_value.trim() !== '') {
+                    // No URL search value, but we have a saved preference - restore it
+                    input.value = preference.date_value;
                 } else {
-                    // URL has no search value (empty or cleared), so leave input empty
+                    // No URL search value and no saved preference
                     input.value = '';
                 }
             }
@@ -1843,14 +1847,34 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // When user clicks "Søg" (Apply) button
             $(input).on('apply.daterangepicker', function(ev, picker) {
-                // Handle Clear action - just clear input and submit
+                // Handle Clear action - clear input and delete saved preference
                 if (picker.chosenLabel === 'Clear') {
                     $(this).val('');
                     
-                    var form = $(this).closest('form');
-                    if (form.length > 0) {
-                        form.submit();
-                    }
+                    // Delete the saved preference from database
+                    $.ajax({
+                        url: 'save_date_settings.php',
+                        type: 'POST',
+                        data: {
+                            action: 'clear_date_preference',
+                            grid_id: gridId,
+                            field: field,
+                            bruger_id: bruger_id
+                        },
+                        success: function(response) {
+                            var form = $(input).closest('form');
+                            if (form.length > 0) {
+                                form.submit();
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.log('Error clearing date preference:', error);
+                            var form = $(input).closest('form');
+                            if (form.length > 0) {
+                                form.submit();
+                            }
+                        }
+                    });
                     
                     picker.hide();
                     return;
@@ -1902,10 +1926,30 @@ document.addEventListener('DOMContentLoaded', function() {
             $(input).on('cancel.daterangepicker', function(ev, picker) {
                 $(this).val('');
                 
-                var form = $(this).closest('form');
-                if (form.length > 0) {
-                    form.submit();
-                }
+                // Delete the saved preference from database
+                $.ajax({
+                    url: 'save_date_settings.php',
+                    type: 'POST',
+                    data: {
+                        action: 'clear_date_preference',
+                        grid_id: gridId,
+                        field: field,
+                        bruger_id: bruger_id
+                    },
+                    success: function(response) {
+                        var form = $(input).closest('form');
+                        if (form.length > 0) {
+                            form.submit();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('Error clearing date preference:', error);
+                        var form = $(input).closest('form');
+                        if (form.length > 0) {
+                            form.submit();
+                        }
+                    }
+                });
             });
             
             // Visual feedback when opening - reload saved preference
