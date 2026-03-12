@@ -654,20 +654,35 @@ $custom_columns = array(
             } else {
                 $timestamp = strtotime($timestamp);
             }
-            $current_time = time();
-            $who = $row['hvem'];
+            // $current_time = time();
+            // $who = $row['hvem'];
             
-            $is_editable = ($row['status'] >= 3 || ($current_time - $timestamp) > 3600 || $who == $brugernavn || $who == '');
+            // $is_editable = ($row['status'] >= 3 || ($current_time - $timestamp) > 3600 || $who == $brugernavn || $who == '');
             
-            if ($is_editable) {
-                $style = "cursor: pointer; text-decoration: underline;";
-                $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
-                $onclick = "onClick=\"window.location.href='$href'\"";
-            } else {
-                $style = "color: #FF0000; cursor: not-allowed;";
-                $title = findtekst('1421|Ordre er i brug af', $sprog_id) . " $who";
-                $onclick = "";
-            }
+            // if ($is_editable) {
+            //     $style = "cursor: pointer; text-decoration: underline;";
+            //     $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
+            //     $onclick = "onClick=\"window.location.href='$href'\"";
+            // } else {
+            //     $style = "color: #FF0000; cursor: not-allowed;";
+            //     $title = findtekst('1421|Ordre er i brug af', $sprog_id) . " $who";
+            //     $onclick = "";
+            // }
+
+            $view_order_translations = array(
+                1 => 'Se ordredetaljer',   // Danish
+                2 => 'View order details', // English
+                3 => 'Bestelldetails',     // German
+                4 => 'Ver detalles',       // Spanish
+            );
+
+            $view_order_title = isset($view_order_translations[$sprog_id]) 
+                ? $view_order_translations[$sprog_id] 
+                : $view_order_translations[1]; // fallback to Danish
+
+            $style = "cursor: pointer; text-decoration: underline;";
+            $title = $view_order_title;
+            $onclick = "onClick=\"window.location.href='$href'\"";
             
             if ($row['art'] == 'DK') {
                 $display = "(KN)&nbsp;$value";
