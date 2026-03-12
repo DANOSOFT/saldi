@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-03-03--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-03-11--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@
 // 20260228 LOE Updated box1 in grupper to store the order of the orders for next/prev navigation in order details page.
 // 20260303 PHR Fixed revenue and cover ratio
 // 20260305 LOE Fixed pagination items not selecting because of screen sizes added more flexibility to account for smaller screens.
+// 20260311 PHR Fixed revenue and cover ratio again
 
 @session_start();
 $s_id = session_id();
@@ -2123,15 +2124,24 @@ if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) {
     $ordrlst = explode(";",file_get_contents("../temp/$db/ordrlst$bruger_id.txt"));
     for ($i=0;$i<count($ordrlst);$i++) {
         if ($ordrlst[$i]) {
-            $qtxt = "SELECT sum,moms,kostpris FROM ordrer WHERE id = $ordrlst[$i]";
+            $qtxt = "SELECT sum,moms,kostpris FROM ordrer WHERE id = '$ordrlst[$i]'";
             $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
             $ialt_total         += $r['sum'];
             $ialt_m_moms_total  +=  $r['sum'] + $r['moms'];
-            $ialt_kostpris_total+= $r['kostpris'];
+            if ($r['kostpris']) {
+                $ialt_kostpris_total+= $r['kostpris'];
+            } else {
+                $qtxt = "SELECT sum(antal*kostpris) as kostpris FROM ordrelinjer WHERE ordre_id = '$ordrlst[$i]'";
+                $r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+                if ($r2['kostpris']) {
+                    $qtxt = "update ordrer set kostpris = '$r2[kostpris]' where id = '$ordrlst[$i]'";
+                    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+                    $ialt_kostpris_total+= $r['kostpris'];
+                }
+            }
         }
     }
 }
-
 ########
 
 // Calculate and display turnover summary using TOTAL values (all matching orders, not just rendered rows)
