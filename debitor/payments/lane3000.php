@@ -224,7 +224,7 @@ async function get_api_key(baseurl) {
         // Log the response (don't wait for it to complete)
         const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
         
-/*         // write a put command to the settings for the terminal
+        // write a put command to the settings for the terminal
         const putPromise = fetch(
             `${baseurl}terminal/TERMINAL ID HERER/settings`,
             {
@@ -248,7 +248,7 @@ async function get_api_key(baseurl) {
         }).catch((putError) => {
             logToServer(`Terminal settings update exception: ${putError.message}`, 'ERROR');
             console.error('Terminal settings PUT failed:', putError);
-        }); */
+        });
 
         if (res.status != 200) {
             // Wait for both error logging and fail function

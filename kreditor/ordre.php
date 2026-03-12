@@ -518,6 +518,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			}
 		}
 		elseif (!$art) $art='KO';
+		$original_status = $status; // Save original POST status before godkend promotion
 		if ($godkend == "on") {
 			if ($status==0) $status=1;
 			elseif ($status==1) $status=2;
@@ -655,7 +656,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						alert ("Ulovlig værdi i Antal ($antal[$x])");
 						$antal[$x] = 1;
 					}
-					if ($status>0) {
+					if ($original_status > 0) { // Only enter delivery logic if order was already status 1+ (not for 0→1 suggestion acceptance)
 						$tidl_lev[$x]=0;
 						if ($vare_id[$x]) {
 							if ($serienr[$x]) {
