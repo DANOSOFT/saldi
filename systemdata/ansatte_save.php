@@ -99,7 +99,10 @@ if ($konto_id=$_POST['konto_id']) {
 		if ($id) {
 			$qtxt = "select id from brugere where ansat_id = '$id'";
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				update_settings_value('afd', 'brugerAfd', $afd, $r['id']);
+				update_settings_value('afd', 'brugerAfd', $afd, 'Bruger afdeling', $r['id']);
+				// Save background setting
+				$sprog_val = isset($_POST['sprog']) ? db_escape_string(trim($_POST['sprog'])) : 'Dansk';
+				update_settings_value('sprog', 'brugerSprog', $sprog_val, 'Bruger baggrund', $r['id']);
 			}
 		}
 		for ($x=1; $x<=$pro_antal; $x++) {

@@ -579,7 +579,8 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 
 	$current_user_afd = 0;
 	$current_user_navn = '';
-	$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
+	$current_user_sprog = ''; // User's background setting
+	$qtxt = "select id,ansat_id from brugere where brugernavn = '$brugernavn'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if ($r && if_isset($r, NULL, 'ansat_id')) {
 		$r2 = db_fetch_array(db_select("select navn,afd from ansatte where id = '" . $r['ansat_id'] . "'", __FILE__ . " linje " . __LINE__));
@@ -587,6 +588,8 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 			$current_user_navn = $r2['navn'];
 			$current_user_afd = $r2['afd'];
 		}
+		// Load user's background setting
+		$current_user_sprog = get_settings_value('sprog', 'brugerSprog', 'Dansk', $r['id']);
 	} else {
 		error_log("ansat_id is not set in the database for brugernavn: $brugernavn");
 	}
@@ -598,6 +601,7 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 	if (!$afd && $current_user_afd) {
 		$afd = $current_user_afd;
 	}
+
 
 	if ($kontoansvarlig) {
 		$query = db_select("select navn,afd from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__);
@@ -617,6 +621,10 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		$tmp = (int)substr($r['box1'], 1, 1);
 		$rabatsats = (float)$r['box6'];
 		$formularsprog = $r['box4'];
+		// Use user defined background if available
+		if ($current_user_sprog) {
+			$formularsprog = $current_user_sprog;
+		}
 		$valuta = $r['box3'];
 		$b2b = $r['box8'];
 		($r['box9']) ? $omkunde = 'on' : $omkunde = '';
@@ -806,7 +814,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		setcookie('localPrint', 'off', time() + 10, '/', 'saldi.dk');
 		$localPrint = NULL;
 	}
-	$formularsprog = if_isset($_POST, 'Dansk', 'sprog'); # 2022113 Tilføjet 'sprog
+	$formularsprog = if_isset($_POST, ($current_user_sprog ? $current_user_sprog : 'Dansk'), 'sprog'); # 2022113 Tilføjet 'sprog
 	$mail_bilag = if_isset($_POST, NULL, 'mail_bilag'); # 20131122 Tilføjet 'mail_bilag'
 	$genfakt = if_isset($_POST, NULL, 'genfakt');
 	if ($genfakt == '') $genfakt = '-';
