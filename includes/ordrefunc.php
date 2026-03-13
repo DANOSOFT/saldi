@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-12 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -83,7 +83,11 @@
 // 20260305 PHR Fix to make sure that cash sale is not acconted on account sale account.
 // 20260306 PHR Fixed Stock was always set to 0 when crediting an order.
 // 20260312 PHR	Set valuta if not set in bogfor_nu.  
+<<<<<<< HEAD
 // 20260313 Sawaneh SD-369 stock fallback in opret_ordrelinje commented out pending review
+=======
+// 20260313 PHR	Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort'
+>>>>>>> ac7af708 (Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort')
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */
@@ -2557,7 +2561,7 @@ function bogfor_nu($id, $kilde) {
 					list($betaling[$b], $kortnavn) = explode("|", $betaling[$b]);
 			}
 			$i = count($korttyper);
-			$korttyper[$i] = 'Betalingskort';
+			$korttyper[$i] = 'UnknownCard';
 			$kortkonti[$i] = $div_kort_kto;
 		}
 		for ($x = 0; $x < count($kortkonti); $x++) { #20150505
