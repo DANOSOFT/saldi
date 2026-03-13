@@ -221,9 +221,9 @@ async function get_api_key(baseurl) {
         const res = fetchResult.value;
         const jsondata = await res.json();
         
-        // Log the response (don't wait for it to complete)
+         // Log the response (don't wait for it to complete)
         const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
-        
+        /*
         // write a put command to the settings for the terminal
         const putPromise = fetch(
             `${baseurl}terminal/TERMINAL ID HERER/settings`,
@@ -257,7 +257,7 @@ async function get_api_key(baseurl) {
                 Promise.resolve(fail(jsondata.error))
             ]);
             return null;
-        }
+        } */
 
         // Wait for both success logging and response logging to complete
         await Promise.allSettled([
