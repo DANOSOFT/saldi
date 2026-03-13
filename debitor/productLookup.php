@@ -235,7 +235,7 @@ $columns[] = array(
         foreach ($words as $word) {
             if (!empty($word)) {
                 $word = db_escape_string($word);
-                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%')";
+                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%' or EXISTS (SELECT 1 FROM variant_varer vv WHERE vv.vare_id = v.id AND lower(vv.variant_stregkode) like '%$word%'))";
             }
         }
         return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
@@ -277,7 +277,7 @@ $columns[] = array(
         foreach ($words as $word) {
             if (!empty($word)) {
                 $word = db_escape_string($word);
-                $conditions[] = "(lower(v.beskrivelse) like '%$word%' or lower(v.trademark) like '%$word%')";
+                $conditions[] = "(lower(v.beskrivelse) like '%$word%' or lower(v.trademark) like '%$word%' or lower(v.stregkode) like '%$word%' or EXISTS (SELECT 1 FROM variant_varer vv WHERE vv.vare_id = v.id AND lower(vv.variant_stregkode) like '%$word%'))";
             }
         }
         return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";

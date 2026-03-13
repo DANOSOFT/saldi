@@ -2083,6 +2083,23 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$gs1serial = null;
 				$varenr0_original = $varenr[0];
 				$exact_match_check = db_fetch_array(db_select("SELECT id, beskrivelse FROM varer WHERE varenr = '$varenr[0]' OR varenr_alias = '$varenr[0]' OR stregkode = '$varenr[0]'", __FILE__ . " linje " . __LINE__));
+				// If no exact match in varer, check variant_varer table for variant barcode
+				if (!$exact_match_check) {
+					$varenr0_up = strtoupper($varenr[0]);
+					$variant_check_qtxt = "SELECT id, vare_id, variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr0_up'";
+					if (strlen($varenr[0]) == 12 && is_numeric($varenr[0])) {
+						$variant_check_qtxt .= " or variant_stregkode='0$varenr[0]'";
+					}
+					$variant_match = db_fetch_array(db_select($variant_check_qtxt, __FILE__ . " linje " . __LINE__));
+					if ($variant_match) {
+						// Found variant - look up parent product so the flow continues
+						$parent_vare = db_fetch_array(db_select("SELECT id, beskrivelse FROM varer WHERE id = '" . $variant_match['vare_id'] . "'", __FILE__ . " linje " . __LINE__));
+						if ($parent_vare) {
+							$exact_match_check = $parent_vare;
+							// Keep varenr[0] as the variant barcode - opret_ordrelinje() will resolve variant_id from it
+						}
+					}
+				}
 				if (!$exact_match_check && get_settings_value("gs1_parsing", "ordre", "off") === "on") {
 					// No direct match from raw input - try to extract GTIN from a GS1 barcode and retry
 					// GS1 is a barcode / datamatrix standard to encode stuff like
