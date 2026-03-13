@@ -56,6 +56,9 @@ $projekt_fra = "";
 $projekt_til = "";
 $simulering = "";
 $lagerbev = "";
+$konto_fra2 = "";
+$aar_til = "";
+
 
 if (!isset($find))
 	$find = NULL;
