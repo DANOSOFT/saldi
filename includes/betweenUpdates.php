@@ -26,6 +26,9 @@
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 
 
+$qtxt = "update grupper set box2 = '' where art = 'USET'";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
 // Change the column type to VARCHAR(20)
 
 $qtxt = "select id, ordredate from ordrer where art = ''";
