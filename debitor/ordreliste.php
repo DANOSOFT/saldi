@@ -655,20 +655,13 @@ $custom_columns = array(
                 $timestamp = strtotime($timestamp);
             }
 
-            $view_order_translations = array(
-                1 => 'Se ordredetaljer',   // Danish
-                2 => 'View order details', // English
-                3 => 'Bestelldetails',     // German
-                4 => 'Ver detalles',       // Spanish
-            );
-
-            $view_order_title = isset($view_order_translations[$sprog_id]) 
-                ? $view_order_translations[$sprog_id] 
-                : $view_order_translations[1]; // fallback to Danish
-
             $style = "cursor: pointer; text-decoration: underline;";
-            $title = $view_order_title;
+            $title = '';
             $onclick = "onClick=\"window.location.href='$href'\"";
+
+            if($valg == "faktura"){
+                $title = 'View order details';
+            }
             
             if ($row['art'] == 'DK') {
                 $display = "(KN)&nbsp;$value";
