@@ -83,6 +83,7 @@
 // 20260305 PHR Fix to make sure that cash sale is not acconted on account sale account.
 // 20260306 PHR Fixed Stock was always set to 0 when crediting an order.
 // 20260312 PHR	Set valuta if not set in bogfor_nu.  
+// 20260313 Sawaneh SD-369 stock fallback in opret_ordrelinje commented out pending review
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */

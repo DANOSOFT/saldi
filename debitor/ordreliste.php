@@ -45,6 +45,7 @@
 // 20260303 PHR Fixed revenue and cover ratio
 // 20260305 LOE Fixed pagination items not selecting because of screen sizes added more flexibility to account for smaller screens.
 // 20260311 PHR Fixed revenue and cover ratio again
+// 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly
 
 @session_start();
 $s_id = session_id();

@@ -70,6 +70,8 @@
 // 20260303 PHR Fixed ordrlst (arrows)
 // 20260304 Sawaneh SD-369 dfm_url override from pickup address
 // 20260305 PHR removed quickfix 20260304 as it made delivey when order was saved
+// 20260313 Sawaneh SD-369 stock/lager changes commented out pending review
+
 
 @session_start();
 $s_id = session_id();

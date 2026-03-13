@@ -54,6 +54,8 @@
 // 20260103 LOE User can now set language based on already defined languages
 // 20260220 LOE Background terms now used instead of language terms for clarity, as this is more accurate for what the settings do. The term 'language(sprog)' is still used in the database and code for backwards compatibility, but the user interface now refers to 'backgrounds' instead of 'languages'.
 // 20260303 PHP8
+// 20260313 Sawaneh SD-420 Added ordre_email and ordre_tlf to form dropdown
+// 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
 @session_start();
 $s_id=session_id();
 

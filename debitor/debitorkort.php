@@ -31,6 +31,7 @@
 // 20260204 LOE Added grid for displaying orders; related to the debitor SD-245
 // 20260205 LOE Fixed a bug where newly created accounts loads new form when save is clicked SD-321
 // 20260213 LOE  - Reordered the columns of datagrid, added Total field and clickable rows.
+// 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly
 @session_start();
 $s_id = session_id();
 
