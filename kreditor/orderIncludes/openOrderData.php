@@ -194,11 +194,11 @@ if (count($employees)) {
 	print "<select>";
 } else print $ref;
 print "</td>";
-print "<td>Afd</td>";
+if (count($depNumbers)) {
+	print "<td>Afd</td>";
 #print "<td><input class='inputbox' style='width:110px;' name='adf' value='$afd' onfocus='document.forms[0].fokus.value=this.name;'></td>";
 print "<td>";
 print "<input type = 'hidden' name = 'oldDep' value = '$afd'>";
-if (count($depNumbers)) {
 	print "<select class='inputbox' style='width:110px;'  name = 'afd'>";
 	for ($i=0;$i<count($depNumbers);$i++) {
 		if ($afd == $depNumbers[$i]) print "<option value='$depNumbers[$i]'>$depNumbers[$i] : $depNames[$i]</option>";
@@ -207,8 +207,7 @@ if (count($depNumbers)) {
 		if ($afd != $depNumbers[$i]) print "<option value='$depNumbers[$i]'>$depNumbers[$i] : $depNames[$i]</option>";
 	}
 	print "<select>";
-} else print $afd;
-
+}
 print "</tr>";
 if (count($lager_nr)) {
 	print "<tr><td>Lager</td>";

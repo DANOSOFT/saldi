@@ -39,7 +39,6 @@ if ($menu=='T') {
 }
 (isset($_POST['oldRef'])) ? $oldRef = $_POST['oldRef'] : $oldRef = NULL;
 (isset($_POST['oldDep'])) ? $oldDep = $_POST['oldDep'] : $oldDep = NULL;
-echo "$ref != $oldRef<br>";
 if ($ref && $oldRef && $ref != $oldRef) {
 	$qtxt = "select afd from ansatte where navn = '$ref'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
