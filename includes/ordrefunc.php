@@ -86,8 +86,6 @@
 // 20260313 Sawaneh SD-369 stock fallback in opret_ordrelinje commented out pending review
 // 20260313 PHR	Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort'
 
->>>>>>> ac7af708 (Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort')
-
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */
 #cho "$id,$hurtigfakt,$genfakt,$webservice<br>";
