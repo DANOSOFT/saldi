@@ -83,10 +83,9 @@
 // 20260305 PHR Fix to make sure that cash sale is not acconted on account sale account.
 // 20260306 PHR Fixed Stock was always set to 0 when crediting an order.
 // 20260312 PHR	Set valuta if not set in bogfor_nu.  
-<<<<<<< HEAD
 // 20260313 Sawaneh SD-369 stock fallback in opret_ordrelinje commented out pending review
-=======
 // 20260313 PHR	Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort'
+
 >>>>>>> ac7af708 (Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort')
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
