@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-03-05 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-03-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -72,6 +72,7 @@
 // 20260305 PHR removed quickfix 20260304 as it made delivey when order was saved
 // 20260313 Sawaneh SD-369 stock/lager changes commented out pending review
 
+// 20260312 PHR Fixed random product added when copying og crediting an order
 
 @session_start();
 $s_id = session_id();
@@ -3903,10 +3904,11 @@ function ordreside($id, $regnskab)
 		$totalrest = 0;
 		for ($x = 1; $x <= $linjeantal; $x++) {
 			$dkantal[$x] = $dk_kostpris[$x] = $lineCost[$x] = 0;
-			if (!$vare_id[$x]) {
-				$query = db_select("select id from varer where varenr = '$varenr[$x]' or varenr_alias = '$varenr[$x]' or stregkode = '$varenr[$x]'", __FILE__ . " linje " . __LINE__);
-				if ($row = db_fetch_array($query)) {
-					$vare_id[$x] = $row['id'];
+			if (!$vare_id[$x] && $varenr[$x]) { # 20260312 Added $varenr[$x] as it always found a vare_id.
+				$qtxt = "select id from varer where varenr = '$varenr[$x]' or varenr_alias = '$varenr[$x]' or stregkode = '$varenr[$x]'";
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				if ($r = db_fetch_array($q)) {
+					$vare_id[$x] = $r['id'];
 				}
 			}
 			if (($varenr[$x]) && ($vare_id[$x])) {

@@ -1620,15 +1620,15 @@ $purchase_columns = [
     [
         'field' => 'dato',
         'headerName' => 'Date',
-        'type' => 'text',
+        'type' => 'date',
         'width' => '1',
-        'sortable' => true,
         'searchable' => true,
         'align' => 'left',
         'sqlOverride' => "dato",
         'render' => function($value, $row, $column) {
             $vare_id = isset($row['vare_id']) ? $row['vare_id'] : '';
-            return "<td align='{$column['align']}' data-vare-id='{$vare_id}'>{$value}</td>";
+            $formatted_date = date('d-m-Y', strtotime($value));
+            return "<td align='{$column['align']}' data-vare-id='{$vare_id}'>{$formatted_date}</td>";
         }
     ],
     [
@@ -1805,7 +1805,7 @@ $purchase_grid = [
             vare_id
         FROM (
             SELECT 
-                TO_CHAR(ordrer.ordredate, 'DD-MM-YYYY') AS dato,
+                ordrer.ordredate::date AS dato,
                 varer.varenr AS varenr,
                 varer.id AS vare_id,
                 varer.beskrivelse AS varenavn,

@@ -35,7 +35,7 @@
 35	Kunde	Customer	Kunde
 36	Postnr.	ZIP code	Postnr.
 37	Telefon	Telephone	Telefon
-38	Stillingsliste	Job list	Stillingsliste
+38	Opgaveliste	Task list	Oppgaveliste
 39	Ny	New	Ny
 40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by : (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med : (f.eks. 23:44) for å søke i et intervall
 41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Enter a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten

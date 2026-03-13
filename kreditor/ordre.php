@@ -464,6 +464,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$leveres[$x]=usdecimal($leveres[$x],2);
 				if ($art=='KK') $leveres[$x]=$leveres[$x]*-1;
 			} else $leveres[$x] = 0;
+			$y="lev_varenr".$x;
+			$lev_varenr[$x]=db_escape_string(trim(if_isset($_POST,NULL,$y)));
 			$y="beskrivelse".$x;
 			$beskrivelse[$x]=db_escape_string(trim($_POST[$y]));
 			$y="pris".$x;
@@ -516,6 +518,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			}
 		}
 		elseif (!$art) $art='KO';
+		$original_status = $status; // Save original POST status before godkend promotion
 		if ($godkend == "on") {
 			if ($status==0) $status=1;
 			elseif ($status==1) $status=2;
@@ -653,7 +656,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						alert ("Ulovlig værdi i Antal ($antal[$x])");
 						$antal[$x] = 1;
 					}
-					if ($status>0) {
+					if ($original_status > 0) { // Only enter delivery logic if order was already status 1+ (not for 0→1 suggestion acceptance)
 						$tidl_lev[$x]=0;
 						if ($vare_id[$x]) {
 							if ($serienr[$x]) {
@@ -793,6 +796,20 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				}
 			}
 			if ( $posnr_ny[0] > 0 && $submit != 'lookup' ) {
+				if (!$varenr[0] && $lev_varenr[0] && $konto_id) {
+					$qtxt = "select varer.varenr from varer, vare_lev where vare_lev.lev_varenr = '$lev_varenr[0]' and vare_lev.lev_id = '$konto_id' and vare_lev.vare_id = varer.id";
+					if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+						$varenr[0] = $r['varenr'];
+					}
+				}
+				if ($varenr[0] && $konto_id) {
+					$qtxt = "select varer.varenr from varer, vare_lev where vare_lev.lev_varenr = '$varenr[0]' and vare_lev.lev_id = '$konto_id' and vare_lev.vare_id = varer.id";
+					if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+						$lev_varenr[0] = $varenr[0];
+						$varenr[0] = $r['varenr'];
+					}
+				}
+
 				if ($varenr[0]) {
 					$varenr[0]=strtoupper($varenr[0]);
 					if ($r=db_fetch_array(db_select("SELECT id,vare_id,variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr[0]'",__FILE__ . " linje " . __LINE__))) {

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- lap 3.3.0 --- 2024-11-26 ---
+// --- sager/sager.php --- lap 5.0.0 --- 2026-03-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2012-2024 Saldi.dk ApS
+// Copyright (c) 2012-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Har lagt al javascript i en separat fil ved navn 'jquery.sager.js' + diverse html rettelser
 // HTML rettelser til liste-visning og oprettelse af sag
@@ -50,6 +50,7 @@
 // 20170421 Mulighed for at vælge en fra og til dato i funktion 'akkordliste'
 // 20240531 Addad $regnaar to function akkordliste()
 // 20241126 PHP8
+// 20260312 PHP8
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -3876,7 +3877,7 @@ function akkordliste() {
 	
 	// Alle godkendte lønsedler på sagen, undtagen akkord afregning
 	$x=0; #20160303
-	$timer=array();
+	$timer = $timersum = array();
 	$qtxt="SELECT * FROM loen WHERE sag_id = '$id' AND godkendt >= '1' AND afvist = '' AND art != 'akk_afr' $where $where2 ORDER BY id";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -3893,6 +3894,7 @@ function akkordliste() {
 	
 	// Query til lønudgifter
 	$x=0; #20160729
+	$loen_sum = array();
 	$q = db_select("SELECT * FROM loen WHERE sag_id = '$id' AND godkendt >= '1' AND art != 'akktimer' $where $where2",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		//$loen_id[$x]=$r['id'];
@@ -3903,6 +3905,7 @@ function akkordliste() {
 	
 	// Alle godkendte lønsedler på sagen
 	$y=0;
+	$loen_id = array();
 	$q = db_select("SELECT * FROM loen WHERE sag_id = '$id' AND godkendt >= '1' AND afvist = '' $where $where2 ORDER BY id",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$loen_id[$y]=$r['id'];
@@ -4014,6 +4017,7 @@ function akkordliste() {
 	
 	// Her hentes de opgaver som er tilknyttet sagen 
 	$x=0;
+	$opgave_id = $opgave_id2 = array();
 	$q = db_select("SELECT * FROM opgaver WHERE assign_to = 'sager' AND assign_id = '$id' ORDER BY nr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$opgave_id[$x]=$r['id'];

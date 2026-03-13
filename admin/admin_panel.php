@@ -30,9 +30,6 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 
 // ---- REST API Configuration for ssl3.saldi.dk ----
-/* db_modify("INSERT INTO settings (var_name, var_value, var_grp) values ('saldi_api_user', 'api', 'internal_api')", __FILE__ . " linje " . __LINE__);
-db_modify("INSERT INTO settings (var_name, var_value, var_grp) values ('saldi_api_pass', 'Misko3023', 'internal_api')", __FILE__ . " linje " . __LINE__);
-db_modify("INSERT INTO settings (var_name, var_value, var_grp) values ('saldi_api_account', 'DANOSOFT', 'internal_api')", __FILE__ . " linje " . __LINE__); */
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_user' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
 $saldi_api_user = $query['var_value'];
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_pass' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));

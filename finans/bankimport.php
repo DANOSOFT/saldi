@@ -366,7 +366,7 @@ fclose ($fp);
 $fp=fopen($filnavn."2","w");
 if ($vend) {
  for ($y=$linjeantal;$y>=1;$y--) fwrite($fp,$ny_linje[$y]);
-} else { 
+} else {
 	for ($y=1;$y<=$linjeantal;$y++) fwrite($fp,$ny_linje[$y]);
 }
 fclose ($fp);
@@ -430,7 +430,7 @@ print "<tr><td colspan=$cols><hr></td></tr>\n";
 $splitter=chr(9);
 print "<tr><td><span title='".findtekst(1404, $sprog_id)."'><input type=text size=4 name=bilag value=$bilag></span></td>";
 $belob = $beskr = $dato = $kundenr = 0;
-for ($y=0; $y<$cols; $y++) {
+for ($y=0; $y<=$feltantal; $y++) {
 	if ($feltnavn[$y]=='dato' && $dato==1) {
 		$aalert = findtekst(1405, $sprog_id);
 		alert("$aalert");
@@ -523,9 +523,7 @@ if ($fp) {
 						if ($felt[$y]==0) $skriv_linje=0;
 						else $felt[$y]=dkdecimal($felt[$y]);
 					} elseif (nummertjek($felt[$y])=='DK') {
-						echo __line__." $skriv_linje";
 						if (usdecimal($felt[$y]) ==0 ) $skriv_linje=0;
-						echo __line__." $skriv_linje";
 					}	else {
 						$skriv_linje=0;
 					}
@@ -670,10 +668,8 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						if ($bankName == 'Sparebanken Vest' && $felt[1] == 'Betaling') $felt[$y] = '-'.$felt[$y]; 
 						$felt[$y]=str_replace(chr(194).chr(160),"",$felt[$y]); // 20220120 Weired dot?
 						$felt[$y]=str_replace(" ","",$felt[$y]);
-echo __line__." $felt[$y] -> ". nummertjek($felt[$y]);
 						if (nummertjek($felt[$y])=='US') $felt[$y]=dkdecimal($felt[$y]);
 						elseif (nummertjek($felt[$y])!='DK') $skriv_linje=0;		
-echo " | $felt[$y]<br>";
 					}
 					if ($feltnavn[$y]=='beskrivelse') { // 20220120
 						$felt[$y]=str_replace("%c3%a6","æ",$felt[$y]);
@@ -710,7 +706,6 @@ echo " | $felt[$y]<br>";
 					elseif ($feltnavn[$y]=='saldo')           $saldo           = usdecimal($felt[$y]);
 					elseif ($feltnavn[$y]=='currency')        $currency        = db_escape_string($felt[$y]);
 				}
-echo __line__." $amount<br>";
 				$qtxt=NULL;
 				$beskrivelse = trim($beskrivelse);
 				$saldo = (float)$saldo;
@@ -831,7 +826,6 @@ echo __line__." $amount<br>";
 						$qtxt.= " values ";
 						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','$k_type','$kredit','$faktura','$amount','$kladde_id',";
 						$qtxt.= "'$currencyCode','$afd','$saldo')";
-echo $qtxt;
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$bilag++; #20170630 Flyttet fra over db_mod...
 					}
