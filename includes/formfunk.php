@@ -41,6 +41,7 @@
 // 20260224 PHR Fixed missing $db_id after logolib
 // 20260302 PHR	Fixed locaton if location for stock points to another stock
 // 20260303 PHR removed call to old phpmailer
+// 20260313 Sawaneh SD-420 Map tlf to phone column for order forms
 // 20260312 PHR reminder was not attached if background didn't exist
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
@@ -249,6 +250,8 @@ if (!function_exists('skriv')) {
 								}
 								if ($variabel == "rykkerdate")
 									$variabel = "fakturadate";
+								if ($variabel == "tlf")
+									$variabel = "phone";
 								$qtxt = "select $variabel from ordrer where id=$id";
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "eget" || $tabel == "egen") {
@@ -601,6 +604,8 @@ if (!function_exists('find_form_tekst')) {
 							}
 						} elseif ($variabel == "rykkerdate")
 							$variabel = "fakturadate";
+						if ($variabel == "tlf")
+							$variabel = "phone";
 						if ($variabel) {
 							$qtxt = "select $variabel from ordrer where id=$id";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);

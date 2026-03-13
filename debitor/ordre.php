@@ -70,6 +70,8 @@
 // 20260303 PHR Fixed ordrlst (arrows)
 // 20260304 Sawaneh SD-369 dfm_url override from pickup address
 // 20260305 PHR removed quickfix 20260304 as it made delivey when order was saved
+// 20260313 Sawaneh SD-369 stock/lager changes commented out pending review
+
 // 20260312 PHR Fixed random product added when copying og crediting an order
 
 @session_start();
@@ -1050,6 +1052,14 @@ if ($b_submit) {
 		$qtxt = "select afd from ansatte where navn = '$ref'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$afd = if_isset($r['afd']);
+		// SD-369: Commented out - needs further review before enabling
+		// Update afd_lager when ref (Our ref.) changes so order lines use the correct stock
+		// if ($afd) {
+		// 	$r_afd = db_fetch_array(db_select("select box1 from grupper where kodenr='$afd' and art='AFD'", __FILE__ . " linje " . __LINE__));
+		// 	if ($r_afd && $r_afd['box1']) {
+		// 		$afd_lager = $r_afd['box1'];
+		// 	}
+		// }
 	}
 
 	if ($extAfd && $afd && $extAfd != $afd) {
