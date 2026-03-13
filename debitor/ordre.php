@@ -4822,7 +4822,7 @@ function ordreside($id, $regnskab)
 				$modtaget = dkdecimal(if_isset($_GET['modtaget']), 2);
 				if (if_isset($_GET['godkendt']) == 'OK' && usdecimal($modtaget, 2) == usdecimal($dkfelt_2, 2)) {
 					$betalt = usdecimal($modtaget, 2);
-					if ($_GET['kortnavn']) $felt_1 = $_GET['kortnavn'];
+					if ($_GET['cardscheme']) $felt_1 = $_GET['cardscheme'];
 					db_modify("update ordrer set betalt='$betalt',felt_1='$felt_1' where id = '$id'", __FILE__ . " linje " . __LINE__);
 				}
 				if ($betalt) {
