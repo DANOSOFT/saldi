@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort.php-----patch 4.1.1 ----2025-03-24-----
+// --- finans/rapport_includes/kontokort.php-----patch 5.0.0 ----2026-03-09-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0'
@@ -30,7 +30,7 @@
 // 20210211 PHR some cleanup
 // 20210301 PHR error in csv.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-
+// 20260309 LOE Fixed execessive error logging relating to undefined array keys.
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -282,7 +282,8 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	$q = db_select("select * from valuta order by gruppe,valdate desc", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$y = $x - 1;
-		if ((!$x) || $r['gruppe'] != $valkode[$x] || $valdate[$x] >= $regnstart) {
+		//compare with y, already set.
+		if ((!$x) || $r['gruppe'] != ($valkode[$y] ?? null) || ($valdate[$y] ?? null) >= $regnstart) {
 			$valkode[$x] = $r['gruppe'];
 			$valkurs[$x] = $r['kurs'];
 			$valdate[$x] = $r['valdate'];

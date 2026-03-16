@@ -215,7 +215,13 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	global $regnaar;
 
 	$betalingsdage=(int)$betalingsdage;
-
+	// havemøbelland
+	if($db == "pos_50"){
+		$lager = 10;
+	}
+	if(strtolower($ekstra1) == "betalingskort") {
+		$ekstra1 = "Ukendt kort";
+	}
 	// to be removed in 4.0.2 -->
 	$qtxt = "select data_type from information_schema.columns where table_name = 'ordrer' and column_name = 'shop_status'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {

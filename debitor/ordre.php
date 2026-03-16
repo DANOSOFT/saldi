@@ -70,6 +70,8 @@
 // 20260303 PHR Fixed ordrlst (arrows)
 // 20260304 Sawaneh SD-369 dfm_url override from pickup address
 // 20260305 PHR removed quickfix 20260304 as it made delivey when order was saved
+// 20260313 Sawaneh SD-369 stock/lager changes commented out pending review
+
 // 20260312 PHR Fixed random product added when copying og crediting an order
 
 @session_start();
@@ -1050,6 +1052,14 @@ if ($b_submit) {
 		$qtxt = "select afd from ansatte where navn = '$ref'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$afd = if_isset($r['afd']);
+		// SD-369: Commented out - needs further review before enabling
+		// Update afd_lager when ref (Our ref.) changes so order lines use the correct stock
+		// if ($afd) {
+		// 	$r_afd = db_fetch_array(db_select("select box1 from grupper where kodenr='$afd' and art='AFD'", __FILE__ . " linje " . __LINE__));
+		// 	if ($r_afd && $r_afd['box1']) {
+		// 		$afd_lager = $r_afd['box1'];
+		// 	}
+		// }
 	}
 
 	if ($extAfd && $afd && $extAfd != $afd) {
@@ -2073,6 +2083,23 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$gs1serial = null;
 				$varenr0_original = $varenr[0];
 				$exact_match_check = db_fetch_array(db_select("SELECT id, beskrivelse FROM varer WHERE varenr = '$varenr[0]' OR varenr_alias = '$varenr[0]' OR stregkode = '$varenr[0]'", __FILE__ . " linje " . __LINE__));
+				// If no exact match in varer, check variant_varer table for variant barcode
+				if (!$exact_match_check) {
+					$varenr0_up = strtoupper($varenr[0]);
+					$variant_check_qtxt = "SELECT id, vare_id, variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr0_up'";
+					if (strlen($varenr[0]) == 12 && is_numeric($varenr[0])) {
+						$variant_check_qtxt .= " or variant_stregkode='0$varenr[0]'";
+					}
+					$variant_match = db_fetch_array(db_select($variant_check_qtxt, __FILE__ . " linje " . __LINE__));
+					if ($variant_match) {
+						// Found variant - look up parent product so the flow continues
+						$parent_vare = db_fetch_array(db_select("SELECT id, beskrivelse FROM varer WHERE id = '" . $variant_match['vare_id'] . "'", __FILE__ . " linje " . __LINE__));
+						if ($parent_vare) {
+							$exact_match_check = $parent_vare;
+							// Keep varenr[0] as the variant barcode - opret_ordrelinje() will resolve variant_id from it
+						}
+					}
+				}
 				if (!$exact_match_check && get_settings_value("gs1_parsing", "ordre", "off") === "on") {
 					// No direct match from raw input - try to extract GTIN from a GS1 barcode and retry
 					// GS1 is a barcode / datamatrix standard to encode stuff like
@@ -2835,6 +2862,10 @@ if ($b_submit == 'del_ordre') {
 					$qtxt .= "$ny_antal,'$pris[$x]','$kostpris[$x]','$rabat[$x]','$lev_varenr[$x]','$serienr[$x]',";
 					$qtxt .= "'$linje_id[$x]','$momsfri[$x]','$r3[samlevare]','$projekt[$x]')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					$ny_linje = db_fetch_array(db_select("select id from ordrelinjer where ordre_id='$ny_id' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+					if ($ny_linje['id'] && $serienr[$x]) {
+						db_modify("update serienr set salgslinje_id='$ny_linje[id]' where salgslinje_id='$linje_id[$x]' and batch_salg_id=0", __FILE__ . " linje " . __LINE__);
+					}
 					$qtxt = "update ordrelinjer set antal='$antal[$x]' where id=$linje_id[$x]";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				} else {
@@ -3883,7 +3914,7 @@ function ordreside($id, $regnskab)
 				if ($serienr[$x]) {
 					$serienumre[$x] = NULL;
 					$q2 = db_select("select serienr from serienr where salgslinje_id='$linje_id[$x]' order by serienr", __FILE__ . " linje " . __LINE__);
-					while ($r2 = db_fetch_array($q2)) ($serienumre[$x]) ? $serienumre[$x] .= ',' . $r['serienr'] : $serienumre[$x] = $r['serienr'];
+					while ($r2 = db_fetch_array($q2)) ($serienumre[$x]) ? $serienumre[$x] .= ',' . $r2['serienr'] : $serienumre[$x] = $r2['serienr'];
 				}
 				#*/
 				if ($brugsamletpris && $linje_id[$x]) db_modify("update ordrelinjer set posnr='$x' where id = '$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
@@ -4812,7 +4843,7 @@ function ordreside($id, $regnskab)
 				$modtaget = dkdecimal(if_isset($_GET['modtaget']), 2);
 				if (if_isset($_GET['godkendt']) == 'OK' && usdecimal($modtaget, 2) == usdecimal($dkfelt_2, 2)) {
 					$betalt = usdecimal($modtaget, 2);
-					if ($_GET['kortnavn']) $felt_1 = $_GET['kortnavn'];
+					if ($_GET['cardscheme']) $felt_1 = $_GET['cardscheme'];
 					db_modify("update ordrer set betalt='$betalt',felt_1='$felt_1' where id = '$id'", __FILE__ . " linje " . __LINE__);
 				}
 				if ($betalt) {

@@ -1408,7 +1408,7 @@
 1408	Kassebilag	Cash voucher	Kassebilag
 1409	Mappe til bilag ikke fundet	Folder for attachments not found	Mappen for vedlegg ble ikke funnet
 1410	Der tillades kun bilag af typen PDF	Only PDF attachments are allowed	Bare PDF-vedlegg er tillatt
-1411	Vedhæft bilag	Attach attachment	Legg vedlegg
+1411	Vedhæft bilag	Add attachment	Legg vedlegg
 1412	Vælg bilag fra email	Select attachments from email	Velg vedlegg fra e-post
 1413	Gennemse	Browse	Gjennomse
 1414	Vælg bilag fra enhed	Select attachments from device	Velg vedlegg fra enheten
@@ -2788,7 +2788,7 @@
 2788	Udskriv skema	Print form	Skriv ut skjema
 2789	Løndato	Wage date	Lønnsdato
 2790	Overført	Transferred	Overført
-2791	Godk/Afv	Appr/Rej	Godk/Avv
+2791	Godk./Afv.	Appr./Rej.	Godk./Avv.
 2792	Sag	Project	Sak
 2793	Ansvarlig	Assigned	Ansvarlig
 2794	Medarb.	Empl.	Medarb.
@@ -3151,22 +3151,22 @@
 3151	Ret fase og kategori i bilag	Edit phase and category in attachment	Rediger fase og kategori i vedlegg
 3152	Der er sket en fejl under upload, prøv venligst igen	An error occurred during upload, please try again	Det oppsto en feil under opplastingen, prøv igjen
 3153	Medarbejderhåndbog	Employee handbook	Medarbeiderhåndbok
-3154	
-3155	
-3156	
-3157	
-3158	
-3159	
-3160	
-3161	
+3154	Evt. ny kategori	New category (opt.)	Evt. ny kategori
+3155	Tilknyt bilag til skema	Attach document to form	Knytt vedlegg til skjema
+3156	Certificeringsmenu	Certification menu	Sertifiseringsmeny
+3157	Kontrolskemaer	Checklists	Kontrollskjemaer
+3158	Gå til kontrolskemaer her	Go to checklists here	Gå til kontrollskjemaer her
+3159	Sagsnummer	Project number	Saksnummer
+3160	Find notat	Find note	Finn notat
+3161	Dato/tid	Date/time	Dato/tid
 3162	
-3163	
-3164	
-3165	
-3166	
-3167	
-3168	
-3169	
+3163	Denne note er tilknyttet sag	This note is linked to project	Dette notatet er knyttet til sak
+3164	Vis sag	View project	Vis sak
+3165	Kollegaer	Colleagues	Kollegaer
+3166	Kundekontakter	Customer contacts	Kundekontakter
+3167	Der er ingen kontakter tilknyttet kunde	There are no contacts linked to customer	Det er ingen kontakter knyttet til kunde
+3168	Der er ingen e-mailadresse	There is no email address	Det er ingen e-postadresse
+3169	Er ikke en gyldig e-mailadresse	Is not a valid email address	Er ikke en gyldig e-postadresse
 3170	
 3171	
 3172	

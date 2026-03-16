@@ -54,6 +54,8 @@
 // 20260103 LOE User can now set language based on already defined languages
 // 20260220 LOE Background terms now used instead of language terms for clarity, as this is more accurate for what the settings do. The term 'language(sprog)' is still used in the database and code for backwards compatibility, but the user interface now refers to 'backgrounds' instead of 'languages'.
 // 20260303 PHP8
+// 20260313 Sawaneh SD-420 Added ordre_email and ordre_tlf to form dropdown
+// 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
 @session_start();
 $s_id=session_id();
 
@@ -64,7 +66,16 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
-	
+
+// Display name for the default background "Dansk" — shown as "Standard" in Danish, "Default" in English
+function bg_display_name($sprog_value) {
+	global $sprog_id;
+	if ($sprog_value === 'Dansk') {
+		return ($sprog_id == 1) ? 'Standard' : 'Default';
+	}
+	return $sprog_value;
+}
+
 $art=$art_nr=$form_nr=$linjeantal=$nyt_sprog=$submit=$x=$form_sprog_id=NULL;
 $id=$db_id;
 	
@@ -107,7 +118,7 @@ if (isset($_POST) && $_POST) {
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=formularkort.php?nyt_sprog=yes\">";
 				exit;
 			} else {
-				print "<BODY onLoad=\"javascript:alert('".findtekst('2516|Dansk kan ikke slettes', $sprog_id).".')\">";
+				print "<BODY onLoad=\"javascript:alert('" . bg_display_name('Dansk') . " ".findtekst('2516|Dansk kan ikke slettes', $sprog_id).".')\">";
 			}
 		}
 	   #####
@@ -413,10 +424,10 @@ print "</SELECT></td>\n";
 print "<td>Bg.".findtekst('646|Navn', $sprog_id)."</td>\n";
 print "<td><SELECT class='inputbox' NAME=\"sprog\">\n";
 if (!isset($formularsprog) || !$formularsprog) $formularsprog="Dansk";
-print "<option value=\"". $formularsprog ."\">". $formularsprog ."</option>\n";
+print "<option value=\"". $formularsprog ."\">". bg_display_name($formularsprog) ."</option>\n";
 $q=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
-	if ($formularsprog!=$r['sprog']) print "<option value=\"". $r['sprog'] ."\">". $r['sprog'] ."</option>\n";
+	if ($formularsprog!=$r['sprog']) print "<option value=\"". $r['sprog'] ."\">". bg_display_name($r['sprog']) ."</option>\n";
 }
 	print "</SELECT></td>\n";
 print "<td><input class='button gray medium' type=\"submit\" accesskey=\"v\" value=\"".findtekst('586|Vælg', $sprog_id)."\" name=\"formularvalg\"></td></tr>\n";
@@ -654,7 +665,7 @@ if ($tmp!=$nyt_sprog) {
 		db_modify("delete from grupper where art = 'VSPR' and box1 = '$skabelon'",__FILE__ . " linje " . __LINE__);
 		print "<BODY onLoad=\"javascript:alert('$skabelon er slettet!')\">";
 	} else {
-		print "<BODY onLoad=\"javascript:alert('Danish cannot be deleted.')\">";
+		print "<BODY onLoad=\"javascript:alert('" . bg_display_name('Dansk') . " ".findtekst('2516|Dansk kan ikke slettes', $sprog_id).".')\">";
 	}
 } else {
 	
@@ -671,7 +682,7 @@ if ($tmp!=$nyt_sprog) {
     print "<td><SELECT class='inputbox' NAME='skabelon'>";
     $q = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
     while ($r = db_fetch_array($q)) {
-        print "<option value='" . htmlspecialchars($r['sprog'], ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars($r['sprog'], ENT_QUOTES, 'UTF-8') . "</option>";
+        print "<option value='" . htmlspecialchars($r['sprog'], ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars(bg_display_name($r['sprog']), ENT_QUOTES, 'UTF-8') . "</option>";
     }
     print "<option value=''></option>";
     print "</SELECT></td></tr>";
@@ -756,6 +767,8 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ordre_land'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('47|Land', $sprog_id))."</option>";                                       #Ordre land
 		print "<option value = 'ordre_kontakt'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('398|Kontakt', $sprog_id))."</option>";                                #Ordre kontakt
 		print "<option value = 'ordre_cvrnr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('48|Cvr-nr.', $sprog_id))."</option>";                                   #Ordre cvr nr.
+		print "<option value = 'ordre_email'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                    #Ordre e-mail
+		print "<option value = 'ordre_tlf'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                         #Ordre tlf
 	}
 	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
 		print "<option value = 'ordre_ean'>".findtekst('605|Ordre', $sprog_id)." EAN</option>";                                                                                    #Ordre EAN

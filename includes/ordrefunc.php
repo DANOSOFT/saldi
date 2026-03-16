@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-12 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -83,6 +83,8 @@
 // 20260305 PHR Fix to make sure that cash sale is not acconted on account sale account.
 // 20260306 PHR Fixed Stock was always set to 0 when crediting an order.
 // 20260312 PHR	Set valuta if not set in bogfor_nu.  
+// 20260313 Sawaneh SD-369 stock fallback in opret_ordrelinje commented out pending review
+// 20260313 PHR	Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort'
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */
@@ -2556,7 +2558,7 @@ function bogfor_nu($id, $kilde) {
 					list($betaling[$b], $kortnavn) = explode("|", $betaling[$b]);
 			}
 			$i = count($korttyper);
-			$korttyper[$i] = 'Betalingskort';
+			$korttyper[$i] = 'UnknownCard';
 			$kortkonti[$i] = $div_kort_kto;
 		}
 		for ($x = 0; $x < count($kortkonti); $x++) { #20150505
@@ -4041,6 +4043,19 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			($omkunde && $omvare) ? $omvbet = 'on' : $omvbet = '';
 			$antal *= 1;
 			$leveres *= 1;
+			// SD-369: Commented out - needs further review before enabling
+			// 20260310 Check if the item exists in the department's stock; if not, find a stock that has it
+			// if ($lager >= 1 && $vare_id && $lagerfort) {
+			// 	$r_ls = db_fetch_array(db_select("select beholdning from lagerstatus where vare_id='$vare_id' and lager='$lager' and beholdning > 0", __FILE__ . " linje " . __LINE__));
+			// 	if (!$r_ls) {
+			// 		// Item not in department stock - find a stock that has the item
+			// 		$r_alt = db_fetch_array(db_select("select lager from lagerstatus where vare_id='$vare_id' and beholdning > 0 order by beholdning desc limit 1", __FILE__ . " linje " . __LINE__));
+			// 		if ($r_alt && $r_alt['lager']) {
+			// 			$lager = (int)$r_alt['lager'];
+			// 		}
+			// 		// If no stock has it, keep the department stock as-is
+			// 	}
+			// }
 			if ($lager < 1)
 				$lager = 1;
 			$posnr = abs($posnr); #20200813

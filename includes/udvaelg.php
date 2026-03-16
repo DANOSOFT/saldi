@@ -82,8 +82,8 @@ if (!function_exists('udvaelg')){
 				$tmp2=usdecimal($tmp2);
 			}
 			elseif ($art=="NR") {
-				$tmp1=afrund($tmp1*1,2); #21050105-2
-				$tmp2=afrund($tmp2*1,2);
+				$tmp1=afrund((float)$tmp1,2); #21050105-2
+				$tmp2=afrund((float)$tmp2,2);
 			}
 			$udvaelg= "and $key >= '$tmp1' and $key <= '$tmp2'";
 		} else {
