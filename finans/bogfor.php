@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 4.1.1 --- 2025.12.10 ---
+// ---------------finans/bogfor.php---------- patch 5.0.0 --- 2026.03.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 // 20230626 PHR - Moved this part into 'if ($r = db_fetch_array($q)) {' from below as amount was aligned
 // 20250612 PHR	- Extra diff controle
 // 20251210 PHR - Missing financialYear in vat account lookup for E & Y
+// 20260316 PHR Better error handling for missing debitor group
 
 @session_start();
 $s_id=session_id();
@@ -1211,14 +1212,16 @@ function gruppeopslag($type, $konto) {
 	elseif ($type=='K') $art='KG';
 	if ($art){
 	$tmp=substr($art,0,1);
-		$query = db_select("select gruppe from adresser where kontonr = '$konto' and art='$tmp'",__FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query))	{
-			$query = db_select("select box1, box2 from grupper where art='$art' and kodenr='$row[gruppe]' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__);
-			if ($row =db_fetch_array($query)) {	
-				$konto=$row['box2'];
-				$momsart=$row['box1'];
-			}
-		}
+		$qtxt = "select gruppe from adresser where kontonr = '$konto' and art='$tmp'";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if ($r['gruppe'])	{
+			$qtxt = "select box1, box2 from grupper where art='$art' and kodenr='$r[gruppe]' and fiscal_year = '$regnaar'";
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			if ($r =db_fetch_array($q)) {	
+				$konto=$r['box2'];
+				$momsart=$r['box1'];
+			} else alert("Fejl i kontoopsætning for konto $konto"); 
+		} else alert("Konto $konto ikke tilknyttet en gruppe");
 	}
 	$svar=array($konto, $momsart);
 	return $svar;
