@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-02-11 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-03-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -92,6 +92,7 @@
 // 20260204 PHR Back button did not work if focus was 'Modtaget'
 // 20260211 PHR Updated cashCount 
 // 20260225 PHR Updated cashCount
+// 20260316 PHR Corrected Currency error in cashCount
 
 @session_start();
 $s_id = session_id();
@@ -612,6 +613,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 		chr(9) . $_POST['kr_1000'] . chr(9) . usdecimal($_POST['kr_andet'], 2) . chr(9) . if_isset($_POST['rappen_5'], 0) .
 		chr(9) . if_isset($_POST['rappen_10'], 0) . chr(9) . if_isset($_POST['rappen_20'], 0);
 		$optval = if_isset($_POST['optval'], array());
+
 		$reportNumber = if_isset($_POST['reportNumber']);
 		if (count($optval)) {
 			for ($x = 0; $x < count($optval); $x++) {
@@ -634,7 +636,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 			(int) $_POST['kr_500'] * 500 +
 			(int) $_POST['kr_1000'] * 1000 +
 			(float) usdecimal($_POST['kr_andet'], 2);
-		(int) $_POST['rappen_5'] * 0.05 +
+			(int) $_POST['rappen_5'] * 0.05 +
 			(int) $_POST['rappen_10'] * 0.1 +
 			(int) $_POST['rappen_20'] * 0.2;
 		(isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id)) ? $godkendt = 1 : $godkendt = 0;
@@ -2940,7 +2942,7 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?udskriv_kasseopg=$pfnavn&kasse=$kasse\">\n"; #20190813
 } #?id=$id&udskriv_kasseopg=$pfnavn&kasse=$kasse
 
-function kasseoptalling(
+function kasseoptalling( // Called from cashBalance.php
 	$kasse,
 	$optalt,
 	$ore_10,

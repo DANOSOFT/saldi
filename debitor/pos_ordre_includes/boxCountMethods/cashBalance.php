@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/CashBalance.php --- patch 5.0.0 --- 20226-02-25 '--
+// --- debitor/pos_ordre_includes/boxCountMethods/CashBalance.php --- patch 5.0.0 --- 2026-03-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20260316 PHR Corrected Currency error
 
 // 20260211 PHR Updated cashCount 
 // 20260225 PHR Updated cashCount
@@ -63,13 +64,12 @@ for ($i=0;$i<count($tmparray);$i++) {
 	$kr_500       = if_isset($tmparray[11],0);
 	$kr_1000      = if_isset($tmparray[12],0);
 	$kr_andet     = if_isset($tmparray[13],0);
-	$optval		  = if_isset($tmparray[14],0);
 
-/*
-	 for ($x=15;$x<count($tmparray);$x++) {
-		$optval[$x-15] = if_isset($tmparray[$x],0);
+	for ($x=12;$x<count($tmparray);$x++) {
+		$i = $x-17;
+		$optval[$i] = if_isset($tmparray[$x],0);
 	}
-*/
+
 	$qtxt = "select var_value from settings where var_name = 'change_cardvalue' limit 1";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$change_cardvalue = if_isset($r['var_value'],NULL);
