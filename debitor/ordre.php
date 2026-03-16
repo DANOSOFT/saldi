@@ -2862,6 +2862,10 @@ if ($b_submit == 'del_ordre') {
 					$qtxt .= "$ny_antal,'$pris[$x]','$kostpris[$x]','$rabat[$x]','$lev_varenr[$x]','$serienr[$x]',";
 					$qtxt .= "'$linje_id[$x]','$momsfri[$x]','$r3[samlevare]','$projekt[$x]')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					$ny_linje = db_fetch_array(db_select("select id from ordrelinjer where ordre_id='$ny_id' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+					if ($ny_linje['id'] && $serienr[$x]) {
+						db_modify("update serienr set salgslinje_id='$ny_linje[id]' where salgslinje_id='$linje_id[$x]' and batch_salg_id=0", __FILE__ . " linje " . __LINE__);
+					}
 					$qtxt = "update ordrelinjer set antal='$antal[$x]' where id=$linje_id[$x]";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				} else {
@@ -3910,7 +3914,7 @@ function ordreside($id, $regnskab)
 				if ($serienr[$x]) {
 					$serienumre[$x] = NULL;
 					$q2 = db_select("select serienr from serienr where salgslinje_id='$linje_id[$x]' order by serienr", __FILE__ . " linje " . __LINE__);
-					while ($r2 = db_fetch_array($q2)) ($serienumre[$x]) ? $serienumre[$x] .= ',' . $r['serienr'] : $serienumre[$x] = $r['serienr'];
+					while ($r2 = db_fetch_array($q2)) ($serienumre[$x]) ? $serienumre[$x] .= ',' . $r2['serienr'] : $serienumre[$x] = $r2['serienr'];
 				}
 				#*/
 				if ($brugsamletpris && $linje_id[$x]) db_modify("update ordrelinjer set posnr='$x' where id = '$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
