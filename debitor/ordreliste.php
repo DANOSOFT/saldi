@@ -656,7 +656,7 @@ $custom_columns = array(
             }
 
             $style = "cursor: pointer; text-decoration: underline;";
-            $title = '';
+            $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
             $onclick = "onClick=\"window.location.href='$href'\"";
 
             if($valg == "faktura"){
