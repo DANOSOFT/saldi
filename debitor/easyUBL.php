@@ -96,7 +96,8 @@
             5170 => 'Rejected',
             5180 => 'Approved',
             5199 => 'Parked',
-            5130 => "Sending"
+            5130 => "Sending",
+            5135 => "Error",
         );
         
         if (array_key_exists((int)$base64["documentStatusCode"], $incStatus)) {
