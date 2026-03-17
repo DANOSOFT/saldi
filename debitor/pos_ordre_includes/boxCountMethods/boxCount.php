@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026.02.11 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026.02.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -76,6 +76,7 @@ function setSpecifiedCashText() {
   }
 
 function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet) {
+	echo "<!-- function specifyAmount begin -->";
 	global $baseCurrency,$db;
 
 	$txt = setSpecifiedCashText();
@@ -142,6 +143,7 @@ function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_
 	file_put_contents($logfil,$txt,FILE_APPEND);
 	$txt = "1000 kr $kr_1000\nAndet kr $kr_andet\n";
 	file_put_contents($logfil,$txt,FILE_APPEND);
+	echo "<!-- function specifyAmount end -->";
 }
 
 
