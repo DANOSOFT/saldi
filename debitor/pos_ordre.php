@@ -613,7 +613,6 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 		chr(9) . $_POST['kr_1000'] . chr(9) . usdecimal($_POST['kr_andet'], 2) . chr(9) . if_isset($_POST['rappen_5'], 0) .
 		chr(9) . if_isset($_POST['rappen_10'], 0) . chr(9) . if_isset($_POST['rappen_20'], 0);
 		$optval = if_isset($_POST['optval'], array());
-
 		$reportNumber = if_isset($_POST['reportNumber']);
 		if (count($optval)) {
 			for ($x = 0; $x < count($optval); $x++) {
@@ -801,8 +800,6 @@ if ($vare_id_ny && !$vare_id) {
 } elseif (($vare_id_ny && $vare_id) || (!$id && isset($_POST['afslut']) && $_POST['afslut'])) { #20161014-4
 	if (!$id || $id == 0)
 		$id = opret_posordre(NULL, $kasse);
-#		include("pos_ordre_includes/showPosLines/productLines.php");
-#echo "pos_ordre_includes/showPosLines/productLines.php<br>";
 	if (!isset($momssats)) { #20140526
 		$r = db_fetch_array(db_select("select momssats from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 		$momssats = $r['momssats'];
@@ -2705,8 +2702,6 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 						$alert1 = findtekst(1869, $sprog_id);
 						$txt1 = findtekst(1870, $sprog_id);
 						$txt2 = findtekst(1871, $sprog_id);
-						#						echo "$svar<br>\n";
-#						print "$txt1, ID $ordre_id ordre $ordrenr, d=$d_kontrol, k=$k_kontrol $txt2";
 						print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
 						exit;
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
@@ -3111,11 +3106,10 @@ function kasseoptalling( // Called from cashBalance.php
 		$omsatning += $kortsum[$x];
 	}
 	if (!$optalt && $_COOKIE['saldi_kasseoptael']) {
-		$kr = array(0.1, 0,2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 1);
+		$kr = array(0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 1);
 		$ot = explode(chr(9), $_COOKIE['saldi_kasseoptael']);
 		for ($o = 0; $o < count($ot); $o++) {
-			if (!isset($kr[$o]))
-				$kr[$o] = 0;
+			if (!isset($kr[$o])) $kr[$o] = 0;
 			$optalt += (float) $kr[$o] * (float) $ot[$o];
 		}
 		$kr = $ot = NULL;
@@ -3135,7 +3129,6 @@ function kasseoptalling( // Called from cashBalance.php
 
 	$forventet = $byttepenge + $tilgang + $kortdiff;
 	(isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'])) ? $ny_morgen = $optalt - $udtages : $ny_morgen = 0; #20200112
-
 	specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet); #, $fiveRappen, $tenRappen, $twentyRappen
 	if ($valuta[0]) {
 		for ($x = 0; $x < count($valuta); $x++) {
