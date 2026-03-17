@@ -655,19 +655,13 @@ $custom_columns = array(
             } else {
                 $timestamp = strtotime($timestamp);
             }
-            $current_time = time();
-            $who = $row['hvem'];
-            
-            $is_editable = ($row['status'] >= 3 || ($current_time - $timestamp) > 3600 || $who == $brugernavn || $who == '');
-            
-            if ($is_editable) {
-                $style = "cursor: pointer; text-decoration: underline;";
-                $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
-                $onclick = "onClick=\"window.location.href='$href'\"";
-            } else {
-                $style = "color: #FF0000; cursor: not-allowed;";
-                $title = findtekst('1421|Ordre er i brug af', $sprog_id) . " $who";
-                $onclick = "";
+
+            $style = "cursor: pointer; text-decoration: underline;";
+            $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
+            $onclick = "onClick=\"window.location.href='$href'\"";
+
+            if($valg == "faktura"){
+                $title = 'View order details';
             }
             
             if ($row['art'] == 'DK') {
