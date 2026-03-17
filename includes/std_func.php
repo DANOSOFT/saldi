@@ -2153,7 +2153,7 @@ if (!function_exists('get_next_order_number')) {
 				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
 				
 				// Double-check that this order number doesn't exist (extra safety)
-				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art' OR art = '$art2'";
+				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND (art = '$art' OR art = '$art2')";
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				
 				if (!$check_r || !$check_r['id']) {

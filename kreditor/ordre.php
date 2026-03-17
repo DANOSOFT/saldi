@@ -110,7 +110,10 @@ if (isset($_COOKIE['valg'])) {
 #######
 #if ($popup) $returside="../includes/luk.php";
 #elseif (!$returside) $returside="../kreditor/ordreliste.php";
-if (!$returside || $returside=="ordreliste.php") $returside="../kreditor/ordreliste.php";
+if (!$returside || strpos($returside, 'ordreliste.php') === 0) {
+    $qs = (strpos($returside, '?') !== false) ? substr($returside, strpos($returside, '?')) : '';
+    $returside = "../kreditor/ordreliste.php" . $qs;
+}
 print "\n";
 
 $tidspkt=date("U");

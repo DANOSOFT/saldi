@@ -64,7 +64,7 @@ while ($r = db_fetch_array($q)) {
 $returside= if_isset($_GET, NULL,'returside');
 $returside = if_isset($returside, '../index/menu.php');
 
-if ($returside == 'ordreliste.php') $returside = NULL;
+if (strpos($returside, 'ordreliste.php') === 0) $returside = NULL;
 if (!$returside) {
     if ($popup) $returside = "../includes/luk.php";
     else $returside = '../index/menu.php';
@@ -639,6 +639,7 @@ print "</td></tr>\n";
 print "</tbody></table>";
 
 // Add row click handler for navigation
+$returside_encoded = urlencode("ordreliste.php?valg=$valg");
 print <<<SCRIPT
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -651,7 +652,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get the order ID from the data
             const orderId = row.dataset.orderId;
             if (orderId) {
-                window.location.href = 'ordre.php?tjek='+orderId+'&id='+orderId+'&returside=ordreliste.php';
+                window.location.href = 'ordre.php?tjek='+orderId+'&id='+orderId+'&returside=$returside_encoded';
             }
         });
     });
