@@ -440,7 +440,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				}
 				db_modify("delete from ordrelinjer where ordre_id=$id",__FILE__ . " linje " . __LINE__);
 				db_modify("delete from ordrer where id=$id",__FILE__ . " linje " . __LINE__);
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+				$back_url = "ordreliste.php" . ($valg ? "?valg=$valg" : "");
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=$back_url\">";
 			}
 		}
 
