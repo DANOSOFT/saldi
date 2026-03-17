@@ -5695,7 +5695,7 @@ $x = 0;
 						$disabled = "disabled";
 					}
 					// Made for Havemøbelshoppen
-					if ($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant" || $afd_navn == "Webshop") {
+					if ($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant") {
 						$disabled = '';
 					}
 					
