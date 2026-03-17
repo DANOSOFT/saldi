@@ -19,6 +19,8 @@ ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');
 
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$konto_id = isset($_GET['konto_id']) ? intval($_GET['konto_id']) : 0;
+$search_field = isset($_GET['search_field']) ? $_GET['search_field'] : 'varenr';
 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $limit = 50;
 $offset = ($page - 1) * $limit;
@@ -70,31 +72,41 @@ if (!$colCheck2 || !db_fetch_array($colCheck2)) {
     db_modify("ALTER table varer ADD column varenr_alias VARCHAR(255)", __FILE__ . " line " . __LINE__);
 }
 
-$baseWhere = "(lukket IS NULL OR lukket != '1')";
+$baseWhere = "(varer.lukket IS NULL OR varer.lukket != '1')";
 
 if ($search !== '') {
     $words = explode(' ', $search_escaped);
     foreach ($words as $word) {
         if (trim($word) === '') continue;
-        $searchCondition = "(varenr ILIKE '%$word%' OR COALESCE(varenr_alias,'') ILIKE '%$word%' OR beskrivelse ILIKE '%$word%' OR COALESCE(stregkode,'') ILIKE '%$word%' OR COALESCE(trademark,'') ILIKE '%$word%')";
-        if ($has_beskrivelse_alias) {
-            $searchCondition = "(varenr ILIKE '%$word%' OR COALESCE(varenr_alias,'') ILIKE '%$word%' OR beskrivelse ILIKE '%$word%' OR COALESCE(beskrivelse_alias,'') ILIKE '%$word%' OR COALESCE(stregkode,'') ILIKE '%$word%' OR COALESCE(trademark,'') ILIKE '%$word%')";
+        if ($search_field === 'lev_varenr') {
+            $searchCondition = "vl.lev_varenr ILIKE '%$word%'";
+        } else {
+            $searchCondition = "(varer.varenr ILIKE '%$word%' OR COALESCE(varer.varenr_alias,'') ILIKE '%$word%' OR varer.beskrivelse ILIKE '%$word%' OR COALESCE(varer.stregkode,'') ILIKE '%$word%' OR COALESCE(varer.trademark,'') ILIKE '%$word%')";
+            if ($has_beskrivelse_alias) {
+                $searchCondition = "(varer.varenr ILIKE '%$word%' OR COALESCE(varer.varenr_alias,'') ILIKE '%$word%' OR varer.beskrivelse ILIKE '%$word%' OR COALESCE(varer.beskrivelse_alias,'') ILIKE '%$word%' OR COALESCE(varer.stregkode,'') ILIKE '%$word%' OR COALESCE(varer.trademark,'') ILIKE '%$word%')";
+            }
         }
         $baseWhere .= " AND " . $searchCondition;
     }
 }
 
-$countQuery = db_select("SELECT COUNT(*) as cnt FROM varer WHERE $baseWhere", __FILE__ . " line " . __LINE__);
+$leverandorJoin = '';
+if ($konto_id > 0) {
+    $leverandorJoin = "INNER JOIN vare_lev vl ON vl.vare_id = varer.id AND vl.lev_id = $konto_id";
+}
+
+$countQuery = db_select("SELECT COUNT(*) as cnt FROM varer $leverandorJoin WHERE $baseWhere", __FILE__ . " line " . __LINE__);
 if ($countQuery) {
     $countRow = db_fetch_array($countQuery);
     $totalCount = intval($countRow['cnt']);
 }
 
 // Include gruppe (product group) in query for VAT-free check
-$qtxt = "SELECT id, varenr, beskrivelse, salgspris, kostpris, enhed, beholdning, gruppe 
-         FROM varer 
+$levVarenrSelect = $leverandorJoin ? ", COALESCE(vl.lev_varenr, '') as lev_varenr" : ", '' as lev_varenr";
+$qtxt = "SELECT varer.id, varer.varenr, varer.beskrivelse, varer.salgspris, varer.kostpris, varer.enhed, varer.beholdning, varer.gruppe $levVarenrSelect
+         FROM varer $leverandorJoin
          WHERE $baseWhere
-         ORDER BY varenr ASC LIMIT $limit OFFSET $offset";
+         ORDER BY varer.varenr ASC LIMIT $limit OFFSET $offset";
 
 $query = db_select($qtxt, __FILE__ . " line " . __LINE__);
 
@@ -113,6 +125,7 @@ if ($query) {
         $results[] = array(
             'id' => $row['id'],
             'varenr' => trim($row['varenr']),
+            'lev_varenr' => trim($row['lev_varenr']),
             'beskrivelse' => trim(stripslashes($row['beskrivelse'])),
             'salgspris' => $salgspris,
             'kostpris' => floatval($row['kostpris']),

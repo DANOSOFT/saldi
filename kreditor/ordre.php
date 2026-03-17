@@ -1057,6 +1057,16 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 			$bordnr_param = isset($bordnr) && $bordnr ? "&bordnr=$bordnr" : "";
 			$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=$fokus&vis_kost=$vis_kost&ref=" . urlencode($ref) . "$bordnr_param";
 			if (isset($afd_lager)) $url .= "&lager=$afd_lager";
+			if ($konto_id) $url .= "&konto_id=$konto_id&kontonr=" . urlencode($kontonr) . "&vis=1&firmanavn=" . urlencode($firmanavn);
+			if (strstr($fokus, 'lev_varenr') && $lev_varenr[0]) $url .= "&find=" . urlencode($lev_varenr[0]);
+			elseif (strstr($fokus, 'vare') && $varenr[0]) $url .= "&find=" . urlencode($varenr[0]);
+			elseif (strstr($fokus, 'besk') && $beskrivelse[0]) $url .= "&find=" . urlencode($beskrivelse[0]);
+			// Pass search values directly as grid search params so they appear in the column inputs
+			$grid_valg = isset($_COOKIE['valg']) ? $_COOKIE['valg'] : '';
+			$grid_id = "KPductLookup_$grid_valg";
+			if ($konto_id && $firmanavn) $url .= "&search[$grid_id][firmanavn]=" . urlencode($firmanavn);
+			if (strstr($fokus, 'lev_varenr') && $lev_varenr[0]) $url .= "&search[$grid_id][lev_varenr]=" . urlencode($lev_varenr[0]);
+			elseif (strstr($fokus, 'vare') && $varenr[0]) $url .= "&search[$grid_id][varenr]=" . urlencode($varenr[0]);
 			header("Location: $url");
 			exit; 
 

@@ -71,7 +71,7 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   print "<td><input class='inputbox' type='text' style='text-align:right' size=3 name=posn$x value='$x' onchange='javascript:docChange = true;'></td>";
   print "<td title='".findtekst(1513, $sprog_id)."'><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=7 name=vare$x onfocus='document.forms[0].fokus.value=this.name;' value='".htmlentities($varenr[$x])."'></td>"; #20180305
   print "<td><input class='inputbox' type='text' size=7 name=lev_varenr$x value=\"".htmlentities($lev_varenr[$x])."\" ";
-  print "onchange='javascript:docChange = true;'></td>";
+  print "onfocus='document.forms[0].fokus.value=this.name;' onchange='javascript:docChange = true;'></td>";
   print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x value='$dkantal[$x]' "; print "onchange='javascript:docChange = true;'></td>";
   print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=3 value='$enhed[$x]'></td>";
   print "<td><input class='inputbox' type='text' size=58 name=beskrivelse$x value= \"".htmlentities($beskrivelse[$x])."\" onchange='javascript:docChange = true;'></td>";
@@ -194,7 +194,7 @@ print "<tr>";
 print "<td><input class='inputbox' type='text' style='text-align:right' size=3 name=posn0 value=$x></td>";
 if ($art!='KK') {
   print "<td><input class='inputbox' type='text' size=7 name=vare0 onfocus='document.forms[0].fokus.value=this.name;'></td>";
-  print "<td><input class='inputbox' type='text' size=7 name=lev_varenr0></td>";
+  print "<td><input class='inputbox' type='text' size=7 name=lev_varenr0 onfocus='document.forms[0].fokus.value=this.name;'></td>";
   print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta0></td>";
   print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=3></td>";
 }
