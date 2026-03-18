@@ -66,12 +66,12 @@ function vis_pos_linjer($id,$momssats,$status,$pris_ny,$show) {
 	if (isset($_POST['betvaluta'])) $betvaluta=$_POST['betvaluta'];
 	else $betvaluta=$baseCurrency;
 
-	$samlet_pris=if_isset($_POST['samlet_pris']);
-	if ($vis_saet && !$samlet_pris && isset($_GET['samlet_pris'])) $samlet_pris=dkdecimal($_GET['samlet_pris']); #20170622-1
-	if ($varenr_ny) $samlet_pris='-'; # 20170318
-	if ($samlet_pris!='-') {
-		$samlet_pris=usdecimal($samlet_pris,2);
-		$samlet_pris*=1;
+	$samlet_pris = if_isset($_POST['samlet_pris']);
+	if ($vis_saet && !$samlet_pris && isset($_GET['samlet_pris'])) $samlet_pris = dkdecimal($_GET['samlet_pris']); #20170622-1
+	if ($varenr_ny) $samlet_pris = '-'; # 20170318
+	if ($samlet_pris!= '-') {
+		$samlet_pris = floatval(usdecimal($samlet_pris,2));
+		$samlet_pris*= 1;
 	}
 	include("ordrelinjerData.php"); #20190510
 	include("ordrelinjerDataII.php"); #20190510 // Her sætter den ordre linierne

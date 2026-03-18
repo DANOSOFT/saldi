@@ -1405,8 +1405,8 @@ if ($vare_id) {
 		#		if (!$modtaget2) $modtaget2=$sum;
 	} else
 		$modtaget = usdecimal($modtaget, 2);
-	$modtaget *= 1;
-	$betalt = $modtaget + $modtaget2;
+		$modtaget = floatval($modtaget);
+		$betalt   = $modtaget + $modtaget2;
 	if ($betaling == 'Konto' && $sum && !$modtaget * 1)
 		$modtaget = $sum;
 

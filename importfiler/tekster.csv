@@ -626,7 +626,7 @@
 626	Konduktør	Conductor	Dirigent
 627	Faldsikring	Fall protection	Fallbeskyttelse
 628	Førstehjælp	First aid	Førstehjelp
-629	Certificerings uddannelse	Certification training	Sertifiseringstrening
+629	Certificeringsuddannelse	Certification training	Sertifiseringstrening
 630	Andet	Other	Annet
 631	Helbred	Health	Helse
 632	Kontaktperson	Contact Person	Kontaktperson
@@ -3159,7 +3159,7 @@
 3159	Sagsnummer	Project number	Saksnummer
 3160	Find notat	Find note	Finn notat
 3161	Dato/tid	Date/time	Dato/tid
-3162	
+3162	Der er ikke tilknyttet en sag til notatet	No project is linked to the note	Det er ikke knyttet en sak til notatet
 3163	Denne note er tilknyttet sag	This note is linked to project	Dette notatet er knyttet til sak
 3164	Vis sag	View project	Vis sak
 3165	Kollegaer	Colleagues	Kollegaer
@@ -3167,18 +3167,18 @@
 3167	Der er ingen kontakter tilknyttet kunde	There are no contacts linked to customer	Det er ingen kontakter knyttet til kunde
 3168	Der er ingen e-mailadresse	There is no email address	Det er ingen e-postadresse
 3169	Er ikke en gyldig e-mailadresse	Is not a valid email address	Er ikke en gyldig e-postadresse
-3170	
-3171	
-3172	
-3173	
-3174	
-3175	
-3176	
-3177	
-3178	
-3179	
-3180	
-3181	
+3170	Vedrørende	Regarding	Vedrørende
+3171	Der er en besked til dig fra	You have received a message from	Det er en beskjed til deg fra
+3172	Venlig hilsen	Kind regards	Vennlig hilsen
+3173	Besked sendt til	Message sent to	Beskjed sendt til
+3174	Til sag	To project	Til sak
+3175	Besked til	Message to	Beskjed til
+3176	Gem som kladde	Save as draft	Lagre som utkast
+3177	Slet kladde	Delete draft	Slett utkast
+3178	Vil du slette dette notat	Do you want to delete this note	Vil du slette dette notatet
+3179	Tilknyt en sag til notatet her	Link a project to the note here	Knytt en sak til notatet her
+3180	Du er ved at gemme og afslutte notat. Det er ikke muligt at rette eller slette notat herefter!	You are about to save and close the note. Editing or deleting this note will not be possible after this!	Du er i ferd med å lagre og avslutte notatet. Det vil ikke være mulig å redigere eller slette notatet etter dette!
+3181	Gem og afslut	Save and close	Lagre og avslutt
 3182	
 3183	
 3184	
