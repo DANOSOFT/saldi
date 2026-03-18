@@ -437,6 +437,10 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			$qtxt .= " values ";
 			$qtxt .= "(0, '$vare_id', '$linje_id', '$levdate', '$id', '$antal', '$pris', '$lev_nr','$lager','$variant_id')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($serienr) {
+				$r2 = db_fetch_array(db_select("select max(id) as id from batch_salg where linje_id='$linje_id' and ordre_id='$id'", __FILE__ . " linje " . __LINE__));
+				if ($r2['id']) db_modify("update serienr set batch_salg_id=$r2[id] where salgslinje_id='$linje_id' and batch_salg_id=0", __FILE__ . " linje " . __LINE__);
+			}
 		}
 	} else {
 		$r = db_fetch_array(db_select("select fast_db from ordrelinjer where id='$linje_id'", __FILE__ . " linje " . __LINE__));
@@ -574,9 +578,13 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 			}
+			if ($serienr) {
+				$r2 = db_fetch_array(db_select("select max(id) as id from batch_salg where linje_id='$linje_id' and ordre_id='$id'", __FILE__ . " linje " . __LINE__));
+				if ($r2['id']) db_modify("update serienr set batch_salg_id=$r2[id] where salgslinje_id='$linje_id' and batch_salg_id=0", __FILE__ . " linje " . __LINE__);
+			}
 		}
 	}
-	sync_shop_vare($vare_id, $variant_id, $lager); # std_func. 
+	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
 	$qtxt = "update ordrelinjer set leveret = leveret+$antal,leveres=0 where id='$linje_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } # endfunc linjeopdat
