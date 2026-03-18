@@ -42,6 +42,7 @@ if (!$returside) {
 	else
 		$returside = "modtageliste.php";
 }
+$returside = nav_back_url($returside);
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
 $liste_id = if_isset($_GET['liste_id']) * 1;

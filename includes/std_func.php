@@ -59,6 +59,7 @@ include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
 include('stdFunc/usDecimal.php');
+include('stdFunc/navStack.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**

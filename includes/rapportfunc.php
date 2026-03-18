@@ -856,7 +856,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 	($kontoart == 'D') ? $tekst = 'DRV' : $tekst = 'KRV';
 	$qtxt = "select * from grupper where art = '$tekst' and kodenr = '$bruger_id'";
 	if (isset($_GET['returside']))
-		$returside = $_GET['returside'];
+		$returside = nav_back_url($_GET['returside']);
 	elseif ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$dato_fra = $r['box2'];
 		$dato_til = $r['box3'];

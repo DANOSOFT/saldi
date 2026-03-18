@@ -89,12 +89,7 @@ if (isset($_GET['nyt_sprog']) && $_GET['nyt_sprog']) {
 	$nyt_sprog=$_GET['nyt_sprog'];
 }
 $id = if_isset($_GET['id']);
-if(isset($_GET['returside']) && $_GET['returside']) {
-	$returside= $_GET['returside'];
-#	$ordre_id = $_GET['ordre_id'];
-#	$fokus = $_GET['fokus'];
-} 
-else {$returside="syssetup.php";}
+$returside = nav_back_url((isset($_GET['returside']) && $_GET['returside']) ? $_GET['returside'] : null);
 $navn=if_isset($_GET['navn']);
 
 if (isset($_POST) && $_POST) {

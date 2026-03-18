@@ -75,9 +75,7 @@ if (!$id) $id = if_isset($_GET, NULL, 'konto_id');
 if (!isset($_GET['fokus'])) $_GET['fokus'] = NULL;
 if (!isset($_GET['ordre_id'])) $_GET['ordre_id'] = NULL;
 if (!isset($_GET['returside'])) $_GET['returside'] = NULL;
-$backUrl = isset($_GET['returside'])
-	? $_GET['returside']
-	: 'javascript:window.history.go(-2);';
+$backUrl = nav_back_url(isset($_GET['returside']) ? $_GET['returside'] : null);
 if ($_GET['returside']) {
 	$returside = $_GET['returside'];
 	$ordre_id = $_GET['ordre_id'];

@@ -273,6 +273,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				db_modify("update grupper set box1='$jsvars' where  art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__);
 			}
 		}
+		nav_push(null, (bool)$popup);
 		if ($db_ver > '3.7.4') {
 			$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {

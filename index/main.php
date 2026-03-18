@@ -238,8 +238,7 @@ setInterval(checkRefreshCookie, 500);
     </li>
     <!-- Booking -->
     <?php
-    $query = db_select("select var_value from settings where var_grp='rental'", __FILE__ . " linje " . __LINE__);
-    if (db_num_rows($query) > 0 && is_feature_licensed('booking')) {
+    if (is_feature_licensed('booking')) {
     ?>
       <li style="display: <?php if (check_permissions(array(6))) {
                             echo 'block';
