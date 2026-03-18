@@ -62,7 +62,7 @@
         $db = $output["db_name"];
         $dbLocation = $output["db_location"];
         $connection=db_connect($sqhost,$squser,$sqpass,$db);
-        $query = db_select("SELECT email FROM adresser WHERE art = 'S'");
+        $query = db_select("SELECT email FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $r = db_fetch_array($query);
         $email = $r["email"];
         if(!file_exists("../temp/$db")){
