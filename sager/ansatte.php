@@ -1,26 +1,24 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------lap 3.3.0 ------2013-02-01------14:22---------
-// LICENS
+// ------ SAGER/ANSATTE.php-------lap 5.0.0 ------2026-03-18-------------
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Copyright (c) 2003-2013 Danosoft ApS
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
  
 // Nyt flueben - ny i branchen. reduceret løn 80% i x mdr.½
@@ -31,7 +29,7 @@ $s_id=session_id();
 // 20140924 PK - Tilrettet breadcrumb 
 // 20151007 PK - Der er sat session på alle og aftrådte i leftmenu, så den husker søgning. Søg alleA eller tiltraadteA
 // 20170911 PK - Har sat validering på brugernavn så der ikke kommer duplikater. Søg 20170911 
-
+// 20260318 LOE  Added functionality to toggle between password visibility.
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
@@ -349,7 +347,7 @@ function ret_ansat($id) {
 		if (!$kode1 || !$kode2) {
 			$ret_kode=0;
 			print "<BODY onLoad=\"javascript:alert('".findtekst('3077|Kodeord skal angives', $sprog_id)."!');location.hash='#anch';\">";
-		} elseif ($kode1 == '********') $ret_kode=0;
+		} elseif ($kode1 == '') $ret_kode=0;
 		elseif ($kode1 != $kode2) {
 			$ret_kode=0;
 			print "<BODY onLoad=\"javascript:alert('".findtekst('3078|Kodeord ikke ens', $sprog_id)."!');location.hash='#anch';\">";
@@ -414,8 +412,59 @@ function ret_ansat($id) {
 	print "<div style=\"float:left; width:379px;\">\n";
 	print "<h3>&nbsp;</h3>\n";
 	print "<div class=\"contentA\">\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst('324|Adgangskode', $sprog_id)."</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"kode1\" value=\"********\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst('328|Gentag adgangskode', $sprog_id)."</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"kode2\" value=\"********\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	##################
+	$label_kode1   = findtekst('324|Adgangskode', $sprog_id);
+	$label_kode2   = findtekst('328|Gentag adgangskode', $sprog_id);
+
+	print <<<HTML
+	<div class="row">
+		<div class="left">$label_kode1</div>
+		<div class="right" style="position:relative;">
+			<input class="text textIndent" type="password" name="kode1" id="kode1" value="" style="">
+			<span id="eye1" onclick="togglePassword('kode1','eye1')" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); cursor:pointer;">
+				<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+					<circle cx="12" cy="12" r="3"/>
+				</svg>
+			</span>
+		</div>
+		<div class="clear"></div>
+	</div>
+	<div class="row">
+		<div class="left">$label_kode2</div>
+		<div class="right" style="position:relative;">
+			<input class="text textIndent" type="password" name="kode2" id="kode2" value="" style="">
+			<span id="eye2" onclick="togglePassword('kode2','eye2')" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); cursor:pointer;">
+				<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+					<circle cx="12" cy="12" r="3"/>
+				</svg>
+			</span>
+		</div>
+		<div class="clear"></div>
+	</div>
+
+	<script>
+	var eyeOpen = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+	var eyeClosed = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+	function togglePassword(inputId, eyeId) {
+		const input = document.getElementById(inputId);
+		const eye = document.getElementById(eyeId);
+
+		if (!input) return;
+
+		if (input.type === "password") {
+			input.type = "text";
+			eye.innerHTML = eyeClosed;
+		} else {
+			input.type = "password";
+			eye.innerHTML = eyeOpen;
+		}
+	}
+	</script>
+	HTML;
+	###############
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of left container -->\n";
 	
