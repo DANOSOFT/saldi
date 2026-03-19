@@ -238,6 +238,29 @@ if(isset($_GET["put_new_orders"])){
     }
     writeLog("=== Order import process completed ===");
 
+    // Process refunded/credited orders (DanDomain status 303)
+    writeLog("=== Processing credit/refund orders (status 303) ===");
+    foreach ($orderItems as $order) {
+        if ($order->Status != "303") continue;
+
+        writeLog("Found credited order ID: " . $order->Id . " | Status: " . $order->Status);
+
+        $urltxt = "action=credit_shop_order&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser);
+        $urltxt .= "&shop_ordre_id=".urlencode($order->Id);
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$urltxt);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $result = curl_exec($ch);
+        if (curl_errno($ch)) {
+            writeLog("CURL error creating credit note for order " . $order->Id . ": " . curl_error($ch), 'ERROR');
+        } else {
+            writeLog("Credit note result for order " . $order->Id . ": " . $result);
+        }
+        curl_close($ch);
+    }
+    writeLog("=== Credit/refund order processing completed ===");
+
 }elseif(isset($_GET["stock"])){
     // change stock to int
     $stock = (int)$_GET["totalStock"];

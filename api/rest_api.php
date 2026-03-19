@@ -852,6 +852,120 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	return($saldi_id); 
 }
 
+function create_credit_note($shop_ordre_id) {
+	global $db, $db_skriv_id, $brugernavn, $webservice, $regnaar;
+
+	$log = fopen("../temp/$db/rest_api.log", "a");
+	fwrite($log, __line__ . " create_credit_note($shop_ordre_id)\n");
+
+	if (!$shop_ordre_id || !is_numeric($shop_ordre_id)) {
+		fwrite($log, __line__ . " Invalid shop_ordre_id ($shop_ordre_id)\n");
+		fclose($log);
+		return "Invalid shop_ordre_id ($shop_ordre_id)";
+	}
+
+	// 1. Look up original Saldi order via shop_ordrer
+	$r = db_fetch_array(db_select("SELECT saldi_id FROM shop_ordrer WHERE shop_id='$shop_ordre_id'", __FILE__ . " linje " . __LINE__));
+	if (!$r['saldi_id']) {
+		fwrite($log, __line__ . " Original order not found in Saldi for shop_id $shop_ordre_id\n");
+		fclose($log);
+		return "Original order not found for shop_id $shop_ordre_id";
+	}
+	$original_saldi_id = (int)$r['saldi_id'];
+	fwrite($log, __line__ . " Found original Saldi order id: $original_saldi_id\n");
+
+	// 2. Load original order details
+	$orig = db_fetch_array(db_select("SELECT * FROM ordrer WHERE id='$original_saldi_id'", __FILE__ . " linje " . __LINE__));
+	if (!$orig['id']) {
+		fwrite($log, __line__ . " Original order id $original_saldi_id not found in ordrer table\n");
+		fclose($log);
+		return "Original order $original_saldi_id not found";
+	}
+	if ((int)$orig['status'] < 3) {
+		fwrite($log, __line__ . " Original order $original_saldi_id is not yet invoiced (status=$orig[status])\n");
+		fclose($log);
+		return "Original order $original_saldi_id is not yet invoiced";
+	}
+	if ($orig['art'] != 'DO') {
+		fwrite($log, __line__ . " Original order $original_saldi_id is not a DO order (art=$orig[art])\n");
+		fclose($log);
+		return "Original order $original_saldi_id is not a DO order (art=$orig[art])";
+	}
+
+	// 3. Duplicate check - only one credit note per original order
+	$dup = db_fetch_array(db_select("SELECT id FROM ordrer WHERE kred_ord_id='$original_saldi_id' AND art='DK'", __FILE__ . " linje " . __LINE__));
+	if ($dup['id']) {
+		fwrite($log, __line__ . " Credit note already exists (id=$dup[id]) for order $original_saldi_id\n");
+		fclose($log);
+		return "Credit note already exists for order $original_saldi_id";
+	}
+
+	// 4. Generate next order number for DK
+	$new_ordrenr = get_next_order_number('DK');
+	fwrite($log, __line__ . " New credit note ordrenr: $new_ordrenr\n");
+
+	$today = date('Y-m-d');
+	$credit_sum  = (float)$orig['sum']  * -1;
+	$credit_moms = (float)$orig['moms'] * -1;
+
+	// 5. Insert new DK credit note order copying customer/address from original
+	$qtxt  = "INSERT INTO ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land,";
+	$qtxt .= " kontakt, email, art, kred_ord_id, projekt, momssats, betalingsbet, betalingsdage, betalings_id,";
+	$qtxt .= " status, ordredate, fakturadate, valuta, valutakurs, afd, ref, hvem,";
+	$qtxt .= " felt_1, felt_2, felt_3, felt_4, felt_5, kundeordnr, cvrnr, ean, sum, moms,";
+	$qtxt .= " lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt,";
+	$qtxt .= " tidspkt, phone, shop_status, shop_id, notes, sprog)";
+	$qtxt .= " VALUES ";
+	$qtxt .= "('$new_ordrenr','$orig[konto_id]','$orig[kontonr]','".db_escape_string($orig['firmanavn'])."','".db_escape_string($orig['addr1'])."','".db_escape_string($orig['addr2'])."',";
+	$qtxt .= "'".db_escape_string($orig['postnr'])."','".db_escape_string($orig['bynavn'])."','".db_escape_string($orig['land'])."',";
+	$qtxt .= "'".db_escape_string($orig['kontakt'])."','".db_escape_string($orig['email'])."',";
+	$qtxt .= "'DK','$original_saldi_id','$orig[projekt]','$orig[momssats]','$orig[betalingsbet]','$orig[betalingsdage]','',";
+	$qtxt .= "'0','$today','$today','$orig[valuta]','$orig[valutakurs]','$orig[afd]','$orig[ref]','',";
+	$qtxt .= "'','','','','','$orig[kundeordnr]','".db_escape_string($orig['cvrnr'])."','".db_escape_string($orig['ean'])."','$credit_sum','$credit_moms',";
+	$qtxt .= "'".db_escape_string($orig['lev_navn'])."','".db_escape_string($orig['lev_addr1'])."','".db_escape_string($orig['lev_addr2'])."',";
+	$qtxt .= "'".db_escape_string($orig['lev_postnr'])."','".db_escape_string($orig['lev_bynavn'])."','".db_escape_string($orig['lev_kontakt'])."',";
+	$qtxt .= "'$orig[tidspkt]','".db_escape_string($orig['phone'])."','','0','".db_escape_string($orig['notes'])."','$orig[sprog]')";
+	fwrite($log, __line__ . " $qtxt\n");
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	// 6. Get new credit note id
+	$r2 = db_fetch_array(db_select("SELECT id FROM ordrer WHERE ordrenr='$new_ordrenr'", __FILE__ . " linje " . __LINE__));
+	$credit_saldi_id = (int)$r2['id'];
+	if (!$credit_saldi_id) {
+		fwrite($log, __line__ . " Failed to retrieve credit note id after insert\n");
+		fclose($log);
+		return "Failed to create credit note order";
+	}
+	fwrite($log, __line__ . " Credit note order id: $credit_saldi_id\n");
+
+	// 7. Copy order lines with negated antal
+	$q = db_select("SELECT * FROM ordrelinjer WHERE ordre_id='$original_saldi_id'", __FILE__ . " linje " . __LINE__);
+	$line_count = 0;
+	while ($line = db_fetch_array($q)) {
+		$neg_antal = (float)$line['antal'] * -1;
+		$orig_line_id = (int)$line['id'];
+		$lqtxt  = "INSERT INTO ordrelinjer (ordre_id, varenr, beskrivelse, posnr, vare_id, antal, pris, rabat, momssats, lager, momsfri, varegruppe, kred_linje_id)";
+		$lqtxt .= " VALUES ";
+		$lqtxt .= "('$credit_saldi_id','".db_escape_string($line['varenr'])."','".db_escape_string($line['beskrivelse'])."',";
+		$lqtxt .= "'$line[posnr]','$line[vare_id]','$neg_antal','$line[pris]','$line[rabat]','$line[momssats]',";
+		$lqtxt .= "'$line[lager]','$line[momsfri]','$line[varegruppe]','$orig_line_id')";
+		fwrite($log, __line__ . " $lqtxt\n");
+		db_modify($lqtxt, __FILE__ . " linje " . __LINE__);
+		$line_count++;
+	}
+	fwrite($log, __line__ . " Copied $line_count order lines\n");
+
+	// 8. Invoice the credit note
+	fclose($log);
+	$result = fakturer_ordre($credit_saldi_id, '', '', null);
+
+	$log = fopen("../temp/$db/rest_api.log", "a");
+	fwrite($log, __line__ . " fakturer_ordre result: $result\n");
+	fclose($log);
+
+	return $credit_saldi_id;
+}
+
 function get_sold_labels() {
     $data = array();
     $result = db_select("SELECT 
@@ -1165,6 +1279,11 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$fakturadate= if_isset($_GET['fakturadate']);
 			fclose ($log);
 			$value = fakturer_ordre($ordre_id,$udskriv_til,$pos_betaling,$fakturadate);
+##############################################
+		} elseif ($action == 'credit_shop_order') {
+			$shop_ordre_id = (int)if_isset($_GET['shop_ordre_id']);
+			fclose($log);
+			$value = create_credit_note($shop_ordre_id);
 ##############################################
 		} else {
 			$value="Illegal action ($action)";
