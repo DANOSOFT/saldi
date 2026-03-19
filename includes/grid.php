@@ -416,6 +416,10 @@ function create_datagrid($id, $grid_data) {
         $sqlquery = db_select($query, __FILE__ . " line " . __LINE__);
         $rows = fetch_rows_from_query($sqlquery);
 
+        // Optional preload hook: allows bulk data loading before per-row rendering callbacks fire
+        $preloadFn = if_isset($grid_data, NULL, 'preload');
+        if ($preloadFn) $preloadFn($rows);
+
         // Fetch total row count
         $countQuery = build_count_query($grid_data, $columns_updated, $filters_updated, $searchTerms, $sort);
         $countResult = db_select($countQuery, __FILE__ . " line " . __LINE__);

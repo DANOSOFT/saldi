@@ -1590,7 +1590,7 @@ if (!function_exists('saldikrypt')) {
 	}
 }
 if (!function_exists('find_beholdning')) {
-	function find_beholdning($vare_id, $udskriv)
+	function find_beholdning($vare_id, $udskriv, $preseed = null)
 	{
 		/**
 		 * Fetches the current stock levels of an item based on various sales and purchase orders.
@@ -1624,9 +1624,15 @@ if (!function_exists('find_beholdning')) {
 				$x++;
 			}
 		*/
+		static $cache = [];
+		if ($preseed !== null && !isset($cache[$vare_id])) {
+			$cache[$vare_id] = $preseed;
+		}
+		if (isset($cache[$vare_id])) return $cache[$vare_id];
+
 		$x = 0;
 		$y = '';
-		$beholdning[1] = 0;  // in salesoffer 
+		$beholdning[1] = 0;  // in salesoffer
 		$beholdning[2] = 0;  // sales offer#
 		$beholdning[3] = 0;  // in sales order
 		$beholdning[4] = 0;  // sales ordre#
@@ -1660,6 +1666,7 @@ if (!function_exists('find_beholdning')) {
 #			while ($row3=db_fetch_array($query3)) {$beholdning[4]-=$row3['antal'];}
 			}
 		}
+		$cache[$vare_id] = $beholdning;
 		return $beholdning;
 	}
 } #endfunc find_beholdning()

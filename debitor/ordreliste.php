@@ -100,6 +100,79 @@ function ordreliste_safe_output($value) {
     }
     return htmlspecialchars($value);
 }
+
+/**
+ * Returns color + tooltip line data for an order, with static per-request cache.
+ * Both the rowStyle callback and the tooltip render callback share this result,
+ * so DB work is done once per order per request instead of twice.
+ *
+ * Accepts optional $preseed to allow bulk preloading (Tier 3).
+ */
+function get_order_lagerstatus_cache($ordre_id, $ls_vgr, $preseed = null) {
+    static $cache = [];
+    if ($preseed !== null && !isset($cache[$ordre_id])) {
+        $cache[$ordre_id] = $preseed;
+    }
+    if (isset($cache[$ordre_id])) return $cache[$ordre_id];
+
+    $result = ['color' => '#FF33FF', 'lines' => []];
+    $linjebg = null;
+
+    $q = db_select(
+        "SELECT ol.*, v.beholdning, v.gruppe
+         FROM ordrelinjer ol
+         LEFT JOIN varer v ON v.id = ol.vare_id
+         WHERE ol.ordre_id = '$ordre_id' AND ol.antal != '0'",
+        __FILE__ . " linje " . __LINE__
+    );
+    if (!$q) {
+        $cache[$ordre_id] = $result;
+        return $result;
+    }
+
+    while ($r = db_fetch_array($q)) {
+        if (!$r['vare_id']) continue;
+        $beholdning  = $r['beholdning'];
+        $antal       = $r['antal'];
+        $leveret     = $r['leveret'];
+        $needed      = $antal - $leveret;
+        $is_lagerfrt = in_array($r['gruppe'], $ls_vgr);
+        $tmp         = find_beholdning($r['vare_id'], NULL);
+
+        if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
+            $linjefarve = '#FFFF66';
+        } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
+            $linjefarve = '#FF4D4D';
+        } elseif ($antal != $leveret) {
+            $linjefarve = '#66FF66';
+        } else {
+            $linjefarve = '#FF33FF';
+        }
+
+        // Row color priority: red > yellow > green > magenta
+        if ($linjefarve === '#FF4D4D') {
+            $linjebg = '#FF4D4D';
+        } elseif ($linjefarve === '#FFFF66' && $linjebg !== '#FF4D4D') {
+            if ($linjebg === null || $linjebg === '#66FF66') $linjebg = '#FFFF66';
+        } elseif ($linjefarve === '#66FF66' && $linjebg === null) {
+            $linjebg = '#66FF66';
+        }
+
+        $result['lines'][] = [
+            'varenr'     => $r['varenr'],
+            'beholdning' => $beholdning,
+            'antal'      => $antal,
+            'leveret'    => $leveret,
+            'tmp'        => $tmp,
+            'linjefarve' => $linjefarve,
+        ];
+    }
+
+    $result['color'] = $linjebg ?: '#FF33FF';
+    $cache[$ordre_id] = $result;
+    return $result;
+}
+
 $title = findtekst('1201|Ordreliste • Kunder', $sprog_id);
 include("../includes/online.php");
 include("../includes/udvaelg.php");
@@ -657,9 +730,8 @@ $custom_columns = array(
                 $timestamp = strtotime($timestamp);
             }
 
-            $style = "cursor: pointer; text-decoration: underline;";
+            $style = "cursor: pointer;";
             $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
-            $onclick = "onClick=\"window.location.href='$href'\"";
 
             if($valg == "faktura"){
                 $title = 'View order details';
@@ -676,35 +748,15 @@ $custom_columns = array(
             // vis_lagerstatus: wrap display in overlib span with stock details tooltip
             if ($vis_lagerstatus && $row['art'] != 'DK' && $row['restordre'] != '1') {
                 $id = $row['id'];
+                $cached_ls = get_order_lagerstatus_cache($id, $ls_vgr);
                 $spantxt = "<table><tbody>";
                 $spantxt .= "<tr><td>Varenr</td><td>" . findtekst('948|Beholdning', $sprog_id) . "</td><td>" . findtekst('916|Antal', $sprog_id) . "</td><td>" . findtekst('1190|Leveret', $sprog_id) . "</td><td>" . findtekst('1428|Bestilt', $sprog_id) . "</td><td>" . findtekst('1429|Reserveret', $sprog_id) . "</td><td>" . findtekst('1430|I bestilling', $sprog_id) . "</td><td>" . findtekst('976|Disponibel', $sprog_id) . "</td></tr>";
-                $q_ls = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
-                if ($q_ls) while ($r_ls = db_fetch_array($q_ls)) {
-                    if (!$r_ls['vare_id']) continue;
-                    $q2_ls = db_select("select beholdning, gruppe from varer where id='{$r_ls['vare_id']}'", __FILE__ . " linje " . __LINE__);
-                    if (!$q2_ls) continue;
-                    $r2_ls = db_fetch_array($q2_ls);
-                    if (!$r2_ls) continue;
-                    $tmp_ls = find_beholdning($r_ls['vare_id'], NULL);
-                    $beholdning = $r2_ls['beholdning'];
-                    $antal = $r_ls['antal'];
-                    $leveret = $r_ls['leveret'];
-                    $needed = $antal - $leveret;
-                    $is_lagerfrt = in_array($r2_ls['gruppe'], $ls_vgr);
-
-                    if ($beholdning - $needed < 0 && $beholdning + $tmp_ls[4] - $needed >= 0 && $is_lagerfrt) {
-                        $spanbg = '#FFFF66';
-                    } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
-                        $spanbg = '#FF4D4D';
-                    } elseif ($antal != $leveret) {
-                        $spanbg = '#66FF66';
-                    } else {
-                        $spanbg = '#FF33FF';
-                    }
-
+                foreach ($cached_ls['lines'] as $line) {
+                    $spanbg = $line['linjefarve'];
                     if ($spanbg != '#FF33FF' && $spanbg != '#66FF66') {
-                        $spantxt .= "<tr bgcolor=$spanbg><td>$r_ls[varenr]</td><td align=right>" . dkdecimal($beholdning * 1, 0) . "</td>";
-                        $spantxt .= "<td align=right>" . dkdecimal($antal * 1, 0) . "</td><td align=right>" . dkdecimal($leveret * 1, 0) . "</td>";
+                        $tmp_ls = $line['tmp'];
+                        $spantxt .= "<tr bgcolor=$spanbg><td>{$line['varenr']}</td><td align=right>" . dkdecimal($line['beholdning'] * 1, 0) . "</td>";
+                        $spantxt .= "<td align=right>" . dkdecimal($line['antal'] * 1, 0) . "</td><td align=right>" . dkdecimal($line['leveret'] * 1, 0) . "</td>";
                         $spantxt .= "<td align=right>$tmp_ls[1]</td><td align=right>$tmp_ls[2]</td><td align=right>$tmp_ls[3]</td><td align=right>$tmp_ls[4]</td></tr>";
                     }
                 }
@@ -717,7 +769,7 @@ $custom_columns = array(
                 $display = "<span onmouseover=\"return overlib('" . $spantxt . "', WIDTH=800);\" onmouseout=\"return nd();\">" . $display . "</span>";
             }
             
-            return "<td align='$column[align]' style='$style' $onclick title='$title'>$display</td>";
+            return "<td align='$column[align]' style='$style' title='$title'><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
         }
     ),
     
@@ -1444,45 +1496,121 @@ $data = array(
 
     "rowStyle" => function ($row) use ($valg, $vis_lagerstatus, $ls_vgr, $sprog_id) {
         if (!$vis_lagerstatus) return "";
+        $cached = get_order_lagerstatus_cache($row['id'], $ls_vgr);
+        return "background-color: {$cached['color']};";
+    },
+    "preload" => function ($rows) use ($vis_lagerstatus, $ls_vgr) {
+        if (!$vis_lagerstatus || empty($rows)) return;
 
-        $id = $row['id'];
-        $linjebg = null;
+        // Collect all order IDs on this page
+        $ordre_ids = array_unique(array_map(fn($r) => (int)$r['id'], $rows));
+        $ordre_id_list = implode(',', $ordre_ids);
 
-        // Fetch order lines with non-zero quantities
-        $q = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
-        if (!$q) return "";
-        while ($r = db_fetch_array($q)) {
-            if (!$r['vare_id']) continue;
-            $q2 = db_select("select beholdning, gruppe from varer where id='{$r['vare_id']}'", __FILE__ . " linje " . __LINE__);
-            if (!$q2) continue;
-            $r2 = db_fetch_array($q2);
-            if (!$r2) continue;
-
-            $tmp = find_beholdning($r['vare_id'], NULL);
-            $beholdning = $r2['beholdning'];
-            $antal = $r['antal'];
-            $leveret = $r['leveret'];
-            $needed = $antal - $leveret;
-            $is_lagerfrt = in_array($r2['gruppe'], $ls_vgr);
-
-            if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
-                // Yellow: Low stock but sufficient with pending
-                if ($linjebg === null || $linjebg === '#66FF66') {
-                    $linjebg = '#FFFF66';
-                }
-            } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
-                // Red: Insufficient stock - overrides yellow/green
-                if ($linjebg === null || $linjebg === '#FFFF66' || $linjebg === '#FF33FF' || $linjebg === '#66FF66') {
-                    $linjebg = '#FF4D4D';
-                }
-            } elseif ($antal != $leveret && $linjebg === null) {
-                // Green: In stock, not yet delivered
-                $linjebg = '#66FF66';
+        // Bulk query 1: all ordrelinjer + varer for all orders on the page (1 query vs N×M)
+        $q_bulk = db_select(
+            "SELECT ol.ordre_id, ol.vare_id, ol.varenr, ol.antal, ol.leveret,
+                    v.beholdning, v.gruppe
+             FROM ordrelinjer ol
+             LEFT JOIN varer v ON v.id = ol.vare_id
+             WHERE ol.ordre_id IN ($ordre_id_list) AND ol.antal != '0'",
+            __FILE__ . " linje " . __LINE__
+        );
+        $lines_by_order = [];
+        $all_vare_ids = [];
+        if ($q_bulk) {
+            while ($r = db_fetch_array($q_bulk)) {
+                if (!$r['vare_id']) continue;
+                $lines_by_order[$r['ordre_id']][] = $r;
+                $all_vare_ids[$r['vare_id']] = true;
             }
         }
 
-        if (!$linjebg) $linjebg = '#FF33FF'; // Magenta: All delivered / sufficient
-        return "background-color: $linjebg;";
+        // Bulk query 2: find_beholdning equivalent for all relevant products (1 query vs N×M)
+        if (!empty($all_vare_ids)) {
+            $vare_id_list = implode(',', array_map('intval', array_keys($all_vare_ids)));
+            $q_beh = db_select(
+                "SELECT ol.vare_id, ol.antal, ol.leveret, o.ordrenr, o.status, o.art
+                 FROM ordrelinjer ol
+                 INNER JOIN ordrer o ON o.id = ol.ordre_id
+                 WHERE ol.vare_id IN ($vare_id_list)",
+                __FILE__ . " linje " . __LINE__
+            );
+            $bulk_rows_by_vare = [];
+            if ($q_beh) {
+                while ($rb = db_fetch_array($q_beh)) {
+                    $bulk_rows_by_vare[$rb['vare_id']][] = $rb;
+                }
+            }
+            // Build beholdning arrays matching find_beholdning() logic and prime its cache
+            foreach ($bulk_rows_by_vare as $vare_id => $vare_rows) {
+                $b = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => '', 6 => '', 7 => '', 8 => ''];
+                foreach ($vare_rows as $vr) {
+                    if ($vr['status'] < 1 && $vr['art'] == 'DO') {
+                        $b[1] += $vr['antal'];
+                        $b[5] = $b[5] ? $b[5] . ',' . $vr['ordrenr'] : $vr['ordrenr'];
+                    } elseif ($vr['status'] < 3 && $vr['art'] == 'DO') {
+                        $b[2] += $vr['antal'] - $vr['leveret'];
+                        $b[6] = $b[6] ? $b[6] . ',' . $vr['ordrenr'] : $vr['ordrenr'];
+                    } elseif ($vr['status'] < 1 && $vr['art'] == 'KO') {
+                        $b[3] += $vr['antal'];
+                        $b[7] = $b[7] ? $b[7] . ',' . $vr['ordrenr'] : $vr['ordrenr'];
+                    } elseif ($vr['status'] < 3 && $vr['art'] == 'KO') {
+                        $b[4] += $vr['antal'] - $vr['leveret'];
+                        $b[8] = $b[8] ? $b[8] . ',' . $vr['ordrenr'] : $vr['ordrenr'];
+                    }
+                }
+                find_beholdning($vare_id, NULL, $b); // primes Tier-1 static cache
+            }
+            // Prime cache for products with no order lines at all
+            foreach (array_keys($all_vare_ids) as $vare_id) {
+                if (!isset($bulk_rows_by_vare[$vare_id])) {
+                    find_beholdning($vare_id, NULL, [1=>0,2=>0,3=>0,4=>0,5=>'',6=>'',7=>'',8=>'']);
+                }
+            }
+        }
+
+        // Prime per-order cache (Tier-2) for all orders on the page
+        foreach ($ordre_ids as $ordre_id) {
+            $lines = $lines_by_order[$ordre_id] ?? [];
+            $linjebg = null;
+            $result_lines = [];
+            foreach ($lines as $r) {
+                $beholdning  = $r['beholdning'];
+                $antal       = $r['antal'];
+                $leveret     = $r['leveret'];
+                $needed      = $antal - $leveret;
+                $is_lagerfrt = in_array($r['gruppe'], $ls_vgr);
+                $tmp         = find_beholdning($r['vare_id'], NULL); // O(1) — Tier-1 cache
+                if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
+                    $linjefarve = '#FFFF66';
+                } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
+                    $linjefarve = '#FF4D4D';
+                } elseif ($antal != $leveret) {
+                    $linjefarve = '#66FF66';
+                } else {
+                    $linjefarve = '#FF33FF';
+                }
+                if ($linjefarve === '#FF4D4D') {
+                    $linjebg = '#FF4D4D';
+                } elseif ($linjefarve === '#FFFF66' && $linjebg !== '#FF4D4D') {
+                    if ($linjebg === null || $linjebg === '#66FF66') $linjebg = '#FFFF66';
+                } elseif ($linjefarve === '#66FF66' && $linjebg === null) {
+                    $linjebg = '#66FF66';
+                }
+                $result_lines[] = [
+                    'varenr'     => $r['varenr'],
+                    'beholdning' => $beholdning,
+                    'antal'      => $antal,
+                    'leveret'    => $leveret,
+                    'tmp'        => $tmp,
+                    'linjefarve' => $linjefarve,
+                ];
+            }
+            get_order_lagerstatus_cache($ordre_id, $ls_vgr, [
+                'color' => $linjebg ?: '#FF33FF',
+                'lines' => $result_lines,
+            ]);
+        }
     },
     "columns" => $columns,
     "filters" => $filters,
