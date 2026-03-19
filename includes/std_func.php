@@ -2129,10 +2129,9 @@ if (!function_exists('get_next_order_number')) {
 		$max_attempts = 10;
 		$attempt = 0;
 		$ordrenr = null;
-		
+
 		// Start transaction to ensure atomicity
 		transaktion('begin');
-		
 		try {
 			while ($attempt < $max_attempts) {
 				$attempt++;
@@ -2147,12 +2146,14 @@ if (!function_exists('get_next_order_number')) {
 				} elseif($art == "PO") {
 					$art2 = "PO";
 				}
+
 				// Use SELECT FOR UPDATE to lock relevant rows - works on both PostgreSQL and MySQL
 				// This locks the rows being read until the transaction is committed
 				// Use LOCK TABLE to ensure uniqueness and prevent race conditions
 				// FOR UPDATE with aggregate functions is not allowed in PostgreSQL
 				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
 				
+
 #				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
 				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) AS max_ordrenr ";
 				$qtxt.= "FROM (SELECT ordrenr FROM ordrer WHERE art = '$art' OR art = '$art2' FOR UPDATE) t";
@@ -2203,10 +2204,20 @@ if (!function_exists('get_next_invoice_number')) {
 		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
 		 */
 		
+		global $db;
+
 		$max_attempts = 10;
 		$attempt = 0;
 		$fakturanr = null;
-		
+
+		// Fix for medshop (saldi_390): fakturanr jumped from 234504 to 1423006538 by mistake.
+		// Exclude the erroneous number so MAX() falls back to 234504 and continues from 234505.
+		// All other databases are unaffected.
+		$ekstra = "";
+		if ($db == "saldi_390") {
+			$ekstra = " AND CAST(fakturanr AS INTEGER) < 1423006538";
+		}
+
 		// Start transaction to ensure atomicity
 		transaktion('begin');
 		
@@ -2230,7 +2241,7 @@ if (!function_exists('get_next_invoice_number')) {
 				// Get the maximum invoice number for the given art type
 				// Use MAX with CAST to properly find the highest numeric invoice number
 				// This queries ALL records, not just recent ones, to avoid missing higher numbers
-				$qtxt = "SELECT MAX(CAST(fakturanr AS INTEGER)) as max_fakturanr FROM ordrer WHERE (art = '$art' OR art = '$art2') AND fakturanr != '' AND fakturanr IS NOT NULL AND fakturanr ~ '^[0-9]+$'";
+				$qtxt = "SELECT MAX(CAST(fakturanr AS INTEGER)) as max_fakturanr FROM ordrer WHERE (art = '$art' OR art = '$art2') AND fakturanr != '' AND fakturanr IS NOT NULL AND fakturanr ~ '^[0-9]+$'$ekstra";
 				if ($id) {
 					$qtxt .= " AND id != '$id'";
 				}
