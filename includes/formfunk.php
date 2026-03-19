@@ -1929,6 +1929,7 @@ if (!function_exists('formularprint')) {
 				$y = $ya;
 				$y_tjek = $y;
 				$Opkt = $y - ($antal_ordrelinjer * $linjeafstand);
+				$remaining_varenr = [];
 				for ($x = 1; $x <= $linjeantal; $x++) {
 					if (!isset($l_sum[$x]))
 						$l_sum[$x] = NULL;
@@ -2022,9 +2023,24 @@ if (!function_exists('formularprint')) {
 							}
 							if ($variabel[$z] == "posnr")
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$posnr[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
-							elseif ($variabel[$z] == "varenr")
-								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$varenr[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__); # ellers kommer varenummer ikke med paa 1. linje paa side 2 . og 3
-								elseif ($variabel[$z] == "lev_varenr")
+							elseif ($variabel[$z] == "varenr") {
+								// Determine wrap width from configured laengde, or compute from column span to beskrivelse
+								$vn_wrap = ($laengde[$z] > 0) ? (int)$laengde[$z]
+									: (($beskriv_z && $str[$z] > 0)
+										? max(12, (int)(($xa[$beskriv_z] - $xa[$z]) / (0.55 * $str[$z])))
+										: 0);
+								if ($vn_wrap > 0 && mb_strlen($varenr[$x]) > $vn_wrap) {
+									$vn_wrapped = explode("\n", wordwrap($varenr[$x], $vn_wrap, "\n", true));
+								} else {
+									$vn_wrapped = [$varenr[$x]];
+								}
+								// Render first line in the loop (preserves page-break dummy-field logic)
+								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", trim($vn_wrapped[0]), "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__); # ellers kommer varenummer ikke med paa 1. linje paa side 2 . og 3
+								// Store any remaining wrapped lines for rendering after the loop
+								if (count($vn_wrapped) > 1) {
+									$remaining_varenr[$x] = ['lines' => array_slice($vn_wrapped, 1), 'z' => $z];
+								}
+							} elseif ($variabel[$z] == "lev_varenr")
 									$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$lev_varenr[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__); # ellers kommer varenummer ikke med paa 1. linje paa side 2 . og 3
 									elseif ($variabel[$z] == "leveres")
 										$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$leveres[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
@@ -2066,9 +2082,22 @@ if (!function_exists('formularprint')) {
 							elseif ($variabel[$z] == "beskrivelse")
 								$skriv_beskriv[$x] = $z;
 						}
+						// Render any remaining wrapped varenr lines below the first line
+						$y_after_varenr = $y;
+						if (!empty($remaining_varenr[$x])) {
+							$z_vn = $remaining_varenr[$x]['z'];
+							$vn_y = $y - $linjeafstand;
+							foreach ($remaining_varenr[$x]['lines'] as $vnr_line) {
+								skriv($id, "$str[$z_vn]", "$fed[$z_vn]", "$kursiv[$z_vn]", "$color[$z_vn]", trim($vnr_line), "ordrelinjer_" . $Opkt, "$xa[$z_vn]", "$vn_y", "$justering[$z_vn]", "$form_font[$z_vn]", "$formular", __LINE__);
+								$y_after_varenr = $vn_y;
+								$vn_y -= $linjeafstand;
+							}
+						}
 						if ($z = $skriv_beskriv[$x]) {
 							$y2 = ombryd($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskrivelse[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", $laengde[$z], $formular, $linjeafstand);
 						}
+						// Use the lowest y (most wrapped lines wins)
+						$y2 = min($y_after_varenr, $y2 ?? $y);
 						$y = $y2;
 						if ($y == 0)
 							$y = $ya;
