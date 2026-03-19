@@ -3148,7 +3148,7 @@
 3148	Der mangler både beskrivelse og filer	Both description and files are missing	Det mangler både beskrivelse og filer
 3149	Vedhæft bilag til mappe	Attach document to folder	Legg vedlegg til mappe
 3150	Vælg bilag	Select attachment	Velg vedlegg
-3151	Ret fase og kategori i bilag	Edit phase and category in attachment	Rediger fase og kategori i vedlegg
+3151	Ret fase & kategori i bilag	Edit phase & category in attachment	Rediger fase & kategori i vedlegg
 3152	Der er sket en fejl under upload, prøv venligst igen	An error occurred during upload, please try again	Det oppsto en feil under opplastingen, prøv igjen
 3153	Medarbejderhåndbog	Employee handbook	Medarbeiderhåndbok
 3154	Evt. ny kategori	New category (opt.)	Evt. ny kategori
@@ -3179,19 +3179,19 @@
 3179	Tilknyt en sag til notatet her	Link a project to the note here	Knytt en sak til notatet her
 3180	Du er ved at gemme og afslutte notat. Det er ikke muligt at rette eller slette notat herefter!	You are about to save and close the note. Editing or deleting this note will not be possible after this!	Du er i ferd med å lagre og avslutte notatet. Det vil ikke være mulig å redigere eller slette notatet etter dette!
 3181	Gem og afslut	Save and close	Lagre og avslutt
-3182	
-3183	
-3184	
-3185	
-3186	
-3187	
-3188	
-3189	
-3190	
-3191	
-3192	
-3193	
-3194	
+3182	Er indlæst	Has been loaded	Er lastet inn
+3183	Indlæsning af	Loading of	Innlasting av
+3184	Fejlet	Failed	Feilet
+3185	Sag-ID ikke angivet	Project ID not specified	Sak-ID ikke angitt
+3186	Kontrolskema	Checklist	Kontrollskjema
+3187	Til skema	To form	Til skjema
+3188	Til sagen her	For the project here	For saken her
+3189	E-mail skema	Email form	Send skjema på e-post
+3190	Vælg hvilken opgave skemaet hører til	Select a task to attach this form to	Velg hvilken oppgave skjemaet hører til
+3191	Tilbage til kontrolskema-liste	Back to checklist overview	Tilbake til kontrollskjema-oversikt
+3192	Slet kontrolskema	Delete checklist	Slett kontrollskjema
+3193	Vil du slette kontrolskemaet	Do you want to delete the checklist	Vil du slette kontrollskjemaet
+3194	Vil du slette arbejdssedlen	Do you want to delete the work order	Vil du slette arbeidsseddelen
 3195	
 3196	
 3197	

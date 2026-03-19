@@ -472,7 +472,7 @@ print "<tbody>\n";
 print "<tr><td width=\"100%\" align=\"center\">\n";
 print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid lightgray; padding: 0pt 0pt 1px;\">\n";
 print "<tbody>\n";
-print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\">".findtekst('3151|Ret fase og kategori i bilag', $sprog_id)."</td></tr>\n";
+print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\">".findtekst('3151|Ret fase & kategori i bilag', $sprog_id)."</td></tr>\n";
 print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 
 print "<input type=\"hidden\" name=\"kilde_id\" value=\"$kilde_id\">\n";
