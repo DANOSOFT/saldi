@@ -2138,8 +2138,14 @@ if (!function_exists('get_next_order_number')) {
 				$attempt++;
 				if($art == 'DO') {
 					$art2 = "DK";
-				} else {
+				} elseif($art == "DK") {
+					$art2 = "DO";
+				} elseif($art == "KO") {
 					$art2 = "KK";
+				}else if($art == "KK") {
+					$art2 = "KO";
+				} elseif($art == "PO") {
+					$art2 = "PO";
 				}
 				// Use SELECT FOR UPDATE to lock relevant rows - works on both PostgreSQL and MySQL
 				// This locks the rows being read until the transaction is committed
@@ -2209,8 +2215,14 @@ if (!function_exists('get_next_invoice_number')) {
 				$attempt++;
 				if($art == 'DO') {
 					$art2 = "DK";
-				} else {
+				} elseif($art == "DK") {
+					$art2 = "DO";
+				} elseif($art == "KO") {
 					$art2 = "KK";
+				}else if($art == "KK") {
+					$art2 = "KO";
+				} elseif($art == "PO") {
+					$art2 = "PO";
 				}
 				// Lock the ordrer table to prevent concurrent access
 				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
