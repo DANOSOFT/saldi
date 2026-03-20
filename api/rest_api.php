@@ -708,7 +708,25 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		fwrite($log,__line__." $qtxt\n");
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $linje_id = $r['id'];
 		else $linje_id = 0;
-	} else {
+	} elseif($shop_varenr == ""){
+		$qtxt="insert into ordrelinjer(ordre_id,beskrivelse,posnr,vare_id,antal,pris,rabat,lager,momsfri)";
+		$qtxt.=" values ";
+		$qtxt.="('$ordre_id','','$posnr','0','0','0','0','0','')";
+		fwrite($log,__line__." $qtxt\n");
+		$qtxt=chk4utf8($qtxt);
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		$posnr+=100;
+		$line_momssats = ($momsfri == 'on') ? 0 : $momssats;
+		$qtxt="insert into ordrelinjer(ordre_id,beskrivelse,posnr,vare_id,antal,pris,rabat,momssats,lager,momsfri)";
+		$qtxt.=" values ";
+		$qtxt.="('$ordre_id','".db_escape_string($beskrivelse)."','$posnr','0','$antal','$pris','$rabat','$line_momssats','$lager','$momsfri')";
+		fwrite($log,__line__." $qtxt\n");
+		$qtxt=chk4utf8($qtxt);
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		$qtxt = "select max(id) as id 	from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '0'"; 
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $linje_id = $r['id'];
+		else $linje_id = 0;
+	}else{
 		$qtxt="insert into ordrelinjer(ordre_id,beskrivelse,posnr,vare_id,antal,pris,rabat,lager,momsfri)";
 		$qtxt.=" values ";
 		$qtxt.="('$ordre_id','','$posnr','0','0','0','0','0','')";
@@ -773,7 +791,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 #	$betalt=$r['sum']+$r['moms'];
 #	$korttype=$r['felt_1'];
 	$varesum=$varemoms=0;
-	$qtxt="select antal,pris,rabat,momssats from ordrelinjer where ordre_id='$saldi_id' and vare_id > 0";
+	$qtxt="select antal,pris,rabat,momssats from ordrelinjer where ordre_id='$saldi_id' and vare_id >= 0";
 	fwrite($log,__line__." $qtxt\n");
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {

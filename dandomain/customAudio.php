@@ -24,7 +24,7 @@ if(isset($_GET["put_new_orders"])){
     }
 
     // set dates for search critiria
-    $start = date('Y-m-d', strtotime('-3 days'));
+    $start = date('Y-m-d', strtotime('-5 days'));
     $end = date('Y-m-d');
     writeLog("Fetching orders from $start to $end");
 
@@ -170,7 +170,12 @@ if(isset($_GET["put_new_orders"])){
                 // get % discount $orderLine->Discount is not a procent but a amount
                 $discount = 0;
                 if (isset($orderLine->Discount) && $orderLine->Discount > 0) {
-                    $discount = ($orderLine->Discount / $orderLine->Price) * 100;
+                    if($orderLine->Price > 0){
+                        $discount = ($orderLine->Discount / $orderLine->Price) * 100;
+                    }else{
+                        // Pure discount line (e.g. "Rabat"): use negative price
+                        $orderLine->Price = -$orderLine->Discount;
+                    }
                 }
                 $urltxt="action=insert_shop_orderline&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id;
                 $urltxt.="&varenr=".urlencode($orderLine->ItemNumber);
