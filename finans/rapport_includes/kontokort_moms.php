@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-02-10 --
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-03-20 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ------------------------------------------------------------------------------
 //
 // 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0' 
@@ -31,6 +31,7 @@
 // 20210211 PHR some cleanup
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260210 PHR Miscalculating when simulating
+// 20260320 PHR Typo
 
 	global $afd_navn,$ansatte,$ansatte_id;
 	global $bgcolor,$bgcolor4,$bgcolor5;
@@ -46,7 +47,7 @@
 	$csvfile="../temp/$db/rapport.csv";
 	$csv=fopen($csvfile,"w");
 	$query = db_select("select firmanavn from adresser where art='S'",__FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query)) {$firmanavn=$row['firmanavn'];}
+	if ($row = db_fetch_array($query)) $firmanavn=$row['firmanavn'];
 	$sim_kontonr=array();
 
 	$regnaar=$regnaar*1; #fordi den er i tekstformat og skal vaere numerisk
@@ -503,7 +504,6 @@
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
-}
  
 #################################################################################################
 ?>
