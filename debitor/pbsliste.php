@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// --- debitor/pbs_liste.php --- patch 4.1.1 --- 2025.11.11 ---
+// --- debitor/pbs_liste.php --- patch 4.5.0.0 --- 2026.03.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,10 +18,11 @@ $s_id=session_id();
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 2014.04.22 Max ID øges med en hvis alle eksisterende er afsendt. # 20140422 
+// 20260320 PHR Replaced kontonr(numeric) with ktonr(varchar) 
 
 $modulnr=5;
 $title="PBS Liste";
@@ -47,7 +48,7 @@ if ($r=db_fetch_array(db_select("select * from adresser where pbs_nr='' and pbs 
 	$kan_afsluttes=1;
 #echo "B $kan_afsluttes<br>";
 }
-if ($r=db_fetch_array(db_select("select adresser.kontonr as ny_kontonr, adresser.pbs_nr as pbs_nr, pbs_kunder.kontonr as kontonr from adresser,pbs_kunder where adresser.id=pbs_kunder.konto_id and adresser.kontonr!=pbs_kunder.kontonr order by adresser.id",__FILE__ . " linje " . __LINE__))) {
+if ($r=db_fetch_array(db_select("select adresser.kontonr as ny_kontonr, adresser.pbs_nr as pbs_nr, pbs_kunder.kontonr as kontonr from adresser,pbs_kunder where adresser.id=pbs_kunder.konto_id and adresser.kontonr!=pbs_kunder.ktonr order by adresser.id",__FILE__ . " linje " . __LINE__))) {
 	$kan_afsluttes=1;
 #echo "C $kan_afsluttes<br>";
 }
