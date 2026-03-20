@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-01-21 ---
+// --- index/login.php --- patch 5.0.0 --- 2026-03-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,7 @@
 // 20250614 PHR - sanitize prevented login for users with, among other things, email as username
 // 20260114 PHR - column tlf will be added if it does not exist. Else twofactor crashes.
 // 20260120 PHR fetch from settings disabled if table settings does not exist
+// 20260320 PHR cleanup (pdftk)
 
 ob_start(); //Starter output buffering
 @session_start();
@@ -132,7 +133,6 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name = 'settings'";
 (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))?$useSettings=1:$useSettings=0;
 
-echo "US $useSettings";
 if ($useSettings) {
 	$r=db_fetch_array(db_select("select var_value from settings where var_name='alertText'",__FILE__ . " linje " . __LINE__));
 	if (isset($r['var_value'])) $_SESSION['customAlertText']=$r['var_value'];

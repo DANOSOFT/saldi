@@ -28,7 +28,7 @@
 $qtxt = "SELECT * FROM information_schema.columns WHERE table_name = 'adresser' and column_name = 'kontonr' limit 1";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($r['data_type'] == 'numeric') {
-	$qtxt = "ALTTER TABLE adresser ALTER column kontonr SET TYPE = varchar(30)";
+	$qtxt = "ALTER TABLE adresser ALTER column kontonr TYPE varchar(30)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 

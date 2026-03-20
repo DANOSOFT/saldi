@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------systemdata/logoupload.php-----patch 4.1.1 ----2026-02-20-------
-//                           LICENSE
+// --- systemdata/logoupload.php --- patch 4.1.1 --- 2026-03-20 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -34,7 +34,7 @@
 // 20220615 PHR - Creates folder logolib if not exists
 // 20260102 LOE - Added uploading to folders by department
 // 20260220 LOE Background terms now used instead of language terms for clarity, as this is more accurate for what the settings do. The term 'language(sprog)' is still used in the database and code for backwards compatibility, but the user interface now refers to 'backgrounds' instead of 'languages'.
-
+// 20260320 PHR cleanup (pdftk)
 session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -318,7 +318,7 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 	}
 	
 	if (move_uploaded_file($fra, $til)) {
-		$pdftk = shell_exec("which pdftk");
+#		$pdftk = shell_exec("which pdftk");
 		if ($pdftk) {
 			$alert= findtekst('1751|The page has been loaded.', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert')\">";

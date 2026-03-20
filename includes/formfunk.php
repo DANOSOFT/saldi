@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-12 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,8 @@
 // 20260303 PHR removed call to old phpmailer
 // 20260313 Sawaneh SD-420 Map tlf to phone column for order forms
 // 20260312 PHR reminder was not attached if background didn't exist
+// PHR cleanup (pdftk)
+
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
 
@@ -978,13 +980,13 @@ if (!function_exists('formularprint')) {
 		global $lev_nr, $linjeafstand, $logo, $logoart;
 		global $mailantal, $mappe, $moms, $momsgrundlag, $momssats;
 		global $nextside;
-		global $printerid, $printfilnavn;
+		global $pdftk, $ps2pdf, $printerid, $printfilnavn;
 		global $ref, $regnaar, $returside;
 		global $s_id, $side, $sprog_id, $subtotal, $sum;
 		global $transportsum;
-		global $vis_saet;
+		global $vis_saet, $weasyprint;
 		global $y, $ya, $locat;
-		$bgr = $psfp1 = $htmfp1 = $kommentarprint = $rvnr = $serienr = $skjul_nul_lin = NULL;
+		$bgr = $psfp1 = $htmfp1 = $kommentarprint = $rvnr = $skjul_nul_lin = NULL;
 		$folgeseddel = $mailantal = $nomailantal = 0;
 		$side_x = 210;
 		$side_y = 297;
@@ -1360,7 +1362,7 @@ if (!function_exists('formularprint')) {
 			print "<!-- kommentar for at skjule uddata til siden \n";
 			if (!file_exists("../logolib/$db_id"))
 				mkdir("../logolib/$db_id");
-			if (system("which pdftk") && file_exists("../logolib/$db_id/$bgr.pdf")) {
+			if (file_exists($pdftk) && file_exists("../logolib/$db_id/$bgr.pdf")) {
 				$logoart = 'PDF';
 			} elseif ($udskriv_til == 'PDF-tekst') {
 				$logoart = 'PDF';
@@ -1693,6 +1695,7 @@ if (!function_exists('formularprint')) {
 							$projekt[$x] = ($row['projekt']);
 							$beskrivelse[$x] = trim($row['beskrivelse']);
 							$enhed[$x] = trim($row['enhed']);
+							$serienr[$x] = trim($row['serienr']);
 
 							$linje_id[$x] = $row['id'];
 							$linjesum[$x] = 0;
@@ -2129,19 +2132,6 @@ if (!function_exists('formularprint')) {
 		}
 		// UDSKRIVNING
 		if ($mailantal > 0) {
-			include("../includes/connect.php");
-			if (!isset($exec_path)) $exec_path = "/usr/bin";
-			$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value']) $ps2pdf = $r['var_value'];
-			else
-				$ps2pdf = "$exec_path/ps2pdf";
-			$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value']) $pdftk = $r['var_value'];
-			else $pdftk = (isset($exec_path) && file_exists("$exec_path/pdftk")) ? "$exec_path/pdftk" : "/usr/bin/pdftk";
-			$r = db_fetch_array(db_select("select var_value from settings where var_name='weasyprint'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value']) $weasyprint = $r['var_value'];
-			else $weasyprint = "$exec_path/weasyprint";
-			include("../includes/online.php");
 			$r = db_fetch_array(db_select("select box3 from grupper where art='PV' and kodenr='1'", __FILE__ . " linje " . __LINE__));
 			($r['box3']) ? $formgen = 'html' : $formgen = 'ps';
 			for ($x = 1; $x <= $mailantal; $x++) {
@@ -2368,7 +2358,9 @@ if (!function_exists('rykkerprint')) {
 
 		global $bg_fil, $bruger_id;
 		global $db, $db_id, $deb_valuta, $deb_valutakurs;
-		global $exec_path, $formularsprog, $psfp, $htmfp, $ialt, $valuta, $s_id;
+		global $exec_path, $formularsprog, $psfp;
+		global $htmfp, $ialt, $valuta, $s_id;
+		global $pdftk,$ps2pdf,$weasyprint;
 
 		if (!$formularsprog) $formularsprog = 'dansk';
 		$mailantal = 0;
@@ -2390,7 +2382,7 @@ if (!function_exists('rykkerprint')) {
 		print "<!-- kommentar for at skjule uddata til siden \n";
 		if (!file_exists("../logolib/$db_id"))
 			mkdir("../logolib/$db_id");
-		if (system("which pdftk") && file_exists("../logolib/$db_id/bg.pdf")) {
+		if ($pdftk && file_exists("../logolib/$db_id/bg.pdf")) {
 			$logoart = 'PDF';
 		} elseif (file_exists("../logolib/$db_id/$formular.ps")) {
 			$logo = "../logolib/$db_id/$formular.ps";
@@ -2639,18 +2631,7 @@ if (!function_exists('rykkerprint')) {
 		}
 		#	fclose($psfp);
 		if ($mailantal > 0) {
-			if (!isset($exec_path))
-				$exec_path = "/usr/bin";
-			if (!isset($exec_path))
-				$exec_path = "/usr/bin";
-			include("../includes/connect.php");
-			$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value']) $ps2pdf = $r['var_value'];
-			else $ps2pdf = "$exec_path/ps2pdf";
-			$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value']) $pdftk = $r['var_value'];
-			else $pdftk = "$exec_path/pdftk";
-			include("../includes/online.php");
+			if (!isset($exec_path)) $exec_path = "/usr/bin";
 			for ($x = 1; $x <= $mailantal; $x++) {
 				print "<!-- kommentar for at skjule uddata til siden \n";
 				system("$ps2pdf ../temp/$db/$pfliste[$x] ../temp/$db/$pfliste[$x].pdf");
@@ -2696,6 +2677,7 @@ if (!function_exists('kontoprint')) {
 		global $mappe;
 		global $printfilnavn, $psfp, $regnaar, $y;
 		global $s_id;
+		global $pdftk,$ps2pdf,$weasyprint;
 
 		$dkkforfalden = $nomailantal = $mailantal = 0;
 		$mailsprog = 'Dansk';
@@ -3041,18 +3023,6 @@ if (!function_exists('kontoprint')) {
 				$exec_path = "/usr/bin";
 			#	$qtxt="select * from formularer where formular = '11' and art = '5' and sprog='Dansk' order by xa,id";
 			#	$r=db_fetch_array(db_select($qtxt",__FILE__ . " linje " . __LINE__));
-			include("../includes/connect.php");
-			$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value'])
-				$ps2pdf = $r['var_value'];
-			else
-				$ps2pdf = "$exec_path/ps2pdf";
-			$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value'])
-				$pdftk = $r['var_value'];
-			else
-				$pdftk = "$exec_path/pdftk";
-			include("../includes/online.php");
 			for ($x = 1; $x <= $mailantal; $x++) {
 				#		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
 				system("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");

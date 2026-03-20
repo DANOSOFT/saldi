@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 5.0.0---2026-02-16---
+//------------index/install.php----lap 5.0.0---2026-03-20---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20260127 LOE Added findtextinst() for language selection management.
 // 20260302 PHR Added missing columns in  create brugere & regnskab
 // 20260212 PHR pdfmerge replaced by pdftk
+// 20260320 PHR cleanup (pdftk)
 
 session_start();
 ob_start(); //Starter output buffering
@@ -306,7 +307,7 @@ if (isset($_POST['opret'])){
 	$qtxt.= "('ps2pdf','globals',' 	/usr/bin/ps2pdf','Program for converting PostScript to PDF','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
-	$qtxt.= "('html2pdf','globals','/usr/bin/weasyprint','Program for converting HTML to PDF','0')";
+	$qtxt.= "('weasyprint','globals','/usr/bin/weasyprint','Program for converting HTML to PDF','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
 	$qtxt.= "('pdftk','globals','/usr/bin/pdftk','Program for merging PDF files','0')";

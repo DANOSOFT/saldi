@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 5.0.0 --- 2026-01-29---
+// --- includes/online.php --- patch 5.0.0 --- 2026-03-20---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@
 // 20260115 PHR fetch from settings disabled if $ver < '3.7.2'
 // 20260120 PHR fetch from settings disabled if table settings does not exist
 // 20260129 PHR More updates to make it work with very old releases.
+// 20260320 PHR cleanup (pdftk)
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -79,40 +80,41 @@ $relativePath = str_repeat('../', max(0, $slashCount - 2));
 if (isset($_COOKIE['timezone'])) { #20190110
 	$timezone = $_COOKIE['timezone'];
 	date_default_timezone_set($timezone);
-} else {
-	date_default_timezone_set('Europe/Copenhagen');
+} else date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
-	$r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
-	if ($r['var_value']) {
-		$timezone = $r['var_value'];
-	} else {
-		$timezone = 'Europe/Copenhagen';
-		if ($r['id']) $qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
-		else {
-			$qtxt = "insert into settings (var_name,var_value,var_description)";
-			$qtxt .= " values ";
-			$qtxt .= "('timezone','$timezone','Generel tidszone. Anvendes hvis der ikke er sat tidszone i det enkelte regnskab')";
-		}
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+$r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
+if ($r['var_value']) {
+	$timezone = $r['var_value'];
+} else {
+	$timezone = 'Europe/Copenhagen';
+	if ($r['id']) $qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
+	else {
+		$qtxt = "insert into settings (var_name,var_value,var_description)";
+		$qtxt .= " values ";
+		$qtxt .= "('timezone','$timezone','Generel tidszone. Anvendes hvis der ikke er sat tidszone i det enkelte regnskab')";
 	}
-	$qtxt = "select var_value from settings where var_name='alertText'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$r ? $customAlertText = $r['var_value'] : $customAlertText = NULL; #20211018
-	$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
-	$r ? $ps2pdf = $r['var_value'] : $ps2pdf = NULL;
-	$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
-	$r ? $pdftk = $r['var_value'] : $pdftk = NULL;
-	$r = db_fetch_array(db_select("select var_value from settings where var_name='ftp'", __FILE__ . " linje " . __LINE__));
-	$r ? $ftp = $r['var_value'] : $ftp = NULL;
-	$r = db_fetch_array(db_select("select var_value from settings where var_name='dbdump'", __FILE__ . " linje " . __LINE__));
-	$r ? $dbdump = $r['var_value'] : $dbdump = NULL;
-	$r = db_fetch_array(db_select("select var_value from settings where var_name='tar'", __FILE__ . " linje " . __LINE__));
-	$r ? $tar = $r['var_value'] : $tar = NULL;
-	$r = db_fetch_array(db_select("select var_value from settings where var_name='zip'", __FILE__ . " linje " . __LINE__));
-	$r ? $zip = $r['var_value'] : $zip = NULL;
-	$r = db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'", __FILE__ . " linje " . __LINE__));
-	$r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+$qtxt = "select var_value from settings where var_name='alertText'";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+$r ? $customAlertText = $r['var_value'] : $customAlertText = NULL; #20211018
+$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
+$r ? $ps2pdf = $r['var_value'] : $ps2pdf = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
+$r ? $pdftk = $r['var_value'] : $pdftk = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='ftp'", __FILE__ . " linje " . __LINE__));
+$r ? $ftp = $r['var_value'] : $ftp = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='dbdump'", __FILE__ . " linje " . __LINE__));
+$r ? $dbdump = $r['var_value'] : $dbdump = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='tar'", __FILE__ . " linje " . __LINE__));
+$r ? $tar = $r['var_value'] : $tar = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='zip'", __FILE__ . " linje " . __LINE__));
+$r ? $zip = $r['var_value'] : $zip = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='weasyprint' or var_name='html2pdf'", __FILE__ . " linje " . __LINE__));
+$r ? $weasyprint = $r['var_value'] : $weasyprint = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'", __FILE__ . " linje " . __LINE__));
+$r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
+
 
 if (!isset($meta_returside)) $meta_returside = NULL;
 $db_skriv_id = NULL; #bruges til at forhindre at skrivninger til masterbasen logges i de enkelte regnskaber.

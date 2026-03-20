@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.1.1 --- 2026.02.19 ---
+// --- includes/udskriv.php --- lap 5.0.0 --- 2026.03.20 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -40,6 +40,7 @@
 // 20230522 PHR php8
 // 20260102 LOE Added alert to install pdftk if not already done.
 // 20260217 LOE Updated the $href for 'DO' type.
+// 20260320 PHR cleanup (pdftk)
 
 
 @session_start();
@@ -76,11 +77,7 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
 	
 	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
 	elseif (!$returside) $returside = '../debitor/ordreliste.php';
-    $pdftk_check = shell_exec("which pdftk");
-		$pdftk_check = trim($pdftk_check);
-
-    // If pdftk is not installed, alert the user and redirect
-    if (!$pdftk_check) {
+    if (!$pdftk || !file_exist($pdftk)) {
         error_log("ERROR: pdftk is not installed. Please install pdftk first.");
         
         // Use JavaScript to alert and then redirect
@@ -278,12 +275,12 @@ if (file_exists("../temp/$ps_fil.pdf")) {
     elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
     elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
 			print "<!-- kommentar for at skjule uddata til siden \n";
-			$pdftk_bin = trim(shell_exec("which pdftk") ?? '');
-			error_log("DIAG: pdftk_bin=$pdftk_bin");
+			# $pdftk = trim(shell_exec("which pdftk") ?? '');
+			# error_log("DIAG: pdftk_bin=$pdftk");
 
-			if ($pdftk_bin && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+			if ($pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
 				$out = "../temp/" . $ps_fil . "x.pdf";
-				system("$pdftk_bin ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
+				system("$pdftk ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
 				error_log("DIAG: pdftk rc=$rc, out_exists=" . (file_exists($out) ? 'YES' : 'NO'));
 				if (file_exists($out)) {
 					unlink("../temp/$ps_fil.pdf");
