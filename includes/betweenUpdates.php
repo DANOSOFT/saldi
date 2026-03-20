@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 4.1.1--- 2026.03.16
+// --- includes/betweenUpdates.php --- patch 4.0.9--- 2025.03.22
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,21 +21,23 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2022026 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 
-$qtxt = "update grupper set box2 = '' where art = 'USET'";
-db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-// Change the column type to VARCHAR(20)
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and column_name = 'kontonr'";
+$qtxt = "SELECT * FROM information_schema.columns WHERE table_name = 'adresser' and column_name = 'kontonr' limit 1";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-if ($r[0] == 'numeric') {
-	$qtxt = "ALTER table adresser ALTER column kontonr TYPE varchar(30)";
+if ($r['data_type'] == 'numeric') {
+	$qtxt = "ALTTER TABLE adresser ALTER column kontonr SET TYPE = varchar(30)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
-	
+
+$qtxt = "update grupper set box2 = '' where art = 'USET'";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+// Change the column type to VARCHAR(20)
+
 $qtxt = "select id, ordredate from ordrer where art = ''";
 #cho "$qtxt<br>";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -51,9 +53,9 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' limit 1";
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'datatables' limit 1";
 if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'table_id'";
+	$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'tabel_id'";
 	$r=db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (strtolower($r['data_type']) != 'text') {
 		$qtxt = "ALTER TABLE datatables ALTER COLUMN tabel_id TYPE TEXT";
@@ -69,7 +71,6 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt.= "filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, sort TEXT, date_range_meta TEXT)";
 	db_modify($qtxt, __FILE__ . " line " . __LINE__);
 }
-
 db_modify("ALTER TABLE brugere ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45) NULL", __FILE__ . " linje " . __LINE__);
 
 // Check if the column already exists
