@@ -456,7 +456,8 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	$qtxt.= "('$ordrenr','$saldi_addr_id','$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."',";
 	$qtxt.= "'".db_escape_string($addr2)."','".db_escape_string($postnr)."','".db_escape_string($bynavn)."',";
 	$qtxt.= "'".db_escape_string($land)."','".db_escape_string($kontakt)."','".db_escape_string($email)."',";
-	$qtxt.= "'$udskriv_til','$art','$projektnr','$momssats','$betalingsbet','$betalingsdage','$betalings_id','0',";
+	$initial_status = ($art == 'DK') ? '1' : '0';
+	$qtxt.= "'$udskriv_til','$art','$projektnr','$momssats','$betalingsbet','$betalingsdage','$betalings_id','$initial_status',";
 	$qtxt.= "'$ordredate','$valuta','$valutakurs','$afd','$ref','','$ekstra1','$ekstra2','$ekstra3',";
 	$qtxt.= "'$ekstra4','$ekstra5','$shop_fakturanr','$cvrnr','$ean','$nettosum','$momssum',";
 	$qtxt.= "'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
@@ -527,12 +528,13 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	
 	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$discountType)\n");
 	if ($ordre_id && is_numeric($ordre_id)) {
-		$qtxt="select status,momssats,valutakurs from ordrer where id='$ordre_id'";
+		$qtxt="select status,momssats,valutakurs,art from ordrer where id='$ordre_id'";
 		fwrite($log,__line__." ".$qtxt."\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$momssats=$r['momssats'];
 		$ordre_valutakurs=$r['valutakurs']*1;
 		if (!$ordre_valutakurs) $ordre_valutakurs=100;
+		$ordre_art=$r['art'];
 		fwrite($log,__line__." Momssats $momssats\n");
 		if ($r['status'] > 2) {
 			fwrite($log,__line__." Order ID $ordre_id allready invoiced\n");
@@ -699,8 +701,9 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 			fwrite($log,__line__." Converted price from order currency to DKK: $shop_pris -> $pris (valutakurs=$ordre_valutakurs)\n");
 		}
 		
-		fwrite($log,__line__." opret_ordrelinje($ordre_id,$vare_id,".db_escape_string(chk4utf8($varenr)).",$antal,".db_escape_string(chk4utf8($beskrivelse)).",$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,".__line__.")\n");
-		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,__LINE__);
+		$line_art = $ordre_art ? $ordre_art : 'DO';
+		fwrite($log,__line__." opret_ordrelinje($ordre_id,$vare_id,".db_escape_string(chk4utf8($varenr)).",$antal,".db_escape_string(chk4utf8($beskrivelse)).",$pris,$rabat,'100','$line_art',$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,".__line__.")\n");
+		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100',$line_art,$momsfri,$posnr,'0','','',$discountType,'0','','','',$lager,__LINE__);
 		
 		fwrite($log,__line__." LineSum =  $lineSum\n");
 		$qtxt = "select max(id) as id from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '$vare_id'"; 

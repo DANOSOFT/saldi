@@ -226,7 +226,7 @@ if(isset($_GET["put_new_orders"])){
             $urltxt="action=insert_shop_orderline&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id;
             $urltxt.="&varenr=".urlencode("FRAGT");
             $urltxt.="&beskrivelse=".urlencode($order->Delivery->Title);
-            $urltxt.="&antal=1";
+            $urltxt.= $isKreditnota ? "&antal=-1" : "&antal=1";
             $urltxt.= ($order->Delivery->Price == 0) ? "&pris=0.0" : "&pris=".urlencode($order->Delivery->Price);
             $urltxt.="&rabat=0&stregkode=&variant=&varegruppe=1";
             if($order->Delivery->Vat == true){
