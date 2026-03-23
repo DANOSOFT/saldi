@@ -4,7 +4,7 @@ include "saldiinfoCA.php";
 // Logging function
 function writeLog($message, $type = 'INFO') {
     global $db;
-    $logFile = '/var/www/html/pblm/temp/'.$db.'/customAudio.log';
+    $logFile = '/var/www/html/pos/temp/'.$db.'/customAudio.log';
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] [$type] $message" . PHP_EOL;
     file_put_contents($logFile, $logEntry, FILE_APPEND);
@@ -47,9 +47,27 @@ if(isset($_GET["put_new_orders"])){
     foreach ($orderItems as $order) {
         writeLog("Processing order ID: " . $order->Id . " | Customer: " . $order->Customer->Email . " | Total: " . $order->Total . " " . $order->Currency->Iso);
         file_put_contents("Data.json", json_encode($order, JSON_PRETTY_PRINT) . "\n", FILE_APPEND);
+
+        // Check if this is a kreditnota by looking for negative antal on order lines
+        $isKreditnota = false;
+        $orderLinesCheck = isset($order->OrderLines->item) ? $order->OrderLines->item : [];
+        if (!is_array($orderLinesCheck) && $orderLinesCheck !== null) {
+            $orderLinesCheck = [$orderLinesCheck];
+        }
+        foreach ($orderLinesCheck as $line) {
+            if (isset($line->Amount) && $line->Amount < 0) {
+                $isKreditnota = true;
+                break;
+            }
+        }
+
         if($order->Status != "203"){
             writeLog("Order " . $order->Id . " is not completed (status: " . $order->Status . "), skipping");
             continue;
+        }
+
+        if ($isKreditnota) {
+            writeLog("Order " . $order->Id . " detected as kreditnota (negative antal found)");
         }
         $priceWithVat = $order->Total + ($order->Total * $order->Vat);
         $vatPrice = $order->Total * $order->Vat;
@@ -141,6 +159,9 @@ if(isset($_GET["put_new_orders"])){
         $url .= ($transactionId != "") ? "&betalings_id=".urlencode($transactionId) : "&betalings_id=";
         $url .= "&ean=".urlencode($order->Customer->Ean);
         ($order->Vat !== 0) ? $url .= "&momsfri=" : $url .= "&momsfri=on";
+        if ($isKreditnota) {
+            $url .= "&art=DK";
+        }
         file_put_contents("saldi-text.txt", $url . "\n", FILE_APPEND);
         // insert order into saldi
         $ch = curl_init();
@@ -169,16 +190,19 @@ if(isset($_GET["put_new_orders"])){
             foreach ($orderLines as $orderLine) { 
                 // get % discount $orderLine->Discount is not a procent but a amount
                 $discount = 0;
+                $isPureDiscountLine = false;
                 if (isset($orderLine->Discount) && $orderLine->Discount > 0) {
                     if($orderLine->Price > 0){
                         $discount = ($orderLine->Discount / $orderLine->Price) * 100;
                     }else{
                         // Pure discount line (e.g. "Rabat"): use negative price
                         $orderLine->Price = -$orderLine->Discount;
+                        $isPureDiscountLine = true;
                     }
                 }
+                $varenr = $isPureDiscountLine ? "R" : $orderLine->ItemNumber;
                 $urltxt="action=insert_shop_orderline&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id;
-                $urltxt.="&varenr=".urlencode($orderLine->ItemNumber);
+                $urltxt.="&varenr=".urlencode($varenr);
                 $urltxt.="&beskrivelse=".urlencode($orderLine->ProductTitle);
                 $urltxt.="&antal=".urlencode($orderLine->Amount);
                 $urltxt.="&pris=".urlencode($orderLine->Price)."&rabat=".urlencode($discount)."&stregkode=&variant=&varegruppe=2";
@@ -243,28 +267,7 @@ if(isset($_GET["put_new_orders"])){
     }
     writeLog("=== Order import process completed ===");
 
-    // Process refunded/credited orders (DanDomain status 303)
-    writeLog("=== Processing credit/refund orders (status 303) ===");
-    foreach ($orderItems as $order) {
-        if ($order->Status != "303") continue;
 
-        writeLog("Found credited order ID: " . $order->Id . " | Status: " . $order->Status);
-
-        $urltxt = "action=credit_shop_order&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser);
-        $urltxt .= "&shop_ordre_id=".urlencode($order->Id);
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$urltxt);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $result = curl_exec($ch);
-        if (curl_errno($ch)) {
-            writeLog("CURL error creating credit note for order " . $order->Id . ": " . curl_error($ch), 'ERROR');
-        } else {
-            writeLog("Credit note result for order " . $order->Id . ": " . $result);
-        }
-        curl_close($ch);
-    }
-    writeLog("=== Credit/refund order processing completed ===");
 
 }elseif(isset($_GET["stock"])){
     // change stock to int

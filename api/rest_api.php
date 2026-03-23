@@ -207,7 +207,7 @@ function insert_into_table($insert,$fields,$values) {
 	return $result;
 }
 
-function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog) {
+function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
 
 	global $db,$db_skriv_id;
 	global $brugernavn;
@@ -293,7 +293,6 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 #		exit;
 #	}
 
-	$art='DO';
 	if (!$firmanavn) {
 		$firmanavn=$kontakt;
 		$kontakt='';
@@ -306,13 +305,13 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	
 	// Enhanced duplication prevention checks
 	if ($shopOrderId) {
-		// Primary check: Check if shop order ID already exists
-		fwrite($log,__line__." Checking for existing shop order: $shopOrderId\n");
-		$qtxt = "select id,saldi_id from shop_ordrer where shop_id='$shopOrderId'";
+		// Primary check: Check if shop order ID already exists with same art type
+		fwrite($log,__line__." Checking for existing shop order: $shopOrderId (art: $art)\n");
+		$qtxt = "select so.id,so.saldi_id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='$shopOrderId' and o.art='$art'";
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		if ($r['id']) { 
-			fwrite($log,__line__." DUPLICATE DETECTED: Order id $shopOrderId already exists in saldi (saldi_id: $r[saldi_id])\n");
+		if ($r['id']) {
+			fwrite($log,__line__." DUPLICATE DETECTED: Order id $shopOrderId (art: $art) already exists in saldi (saldi_id: $r[saldi_id])\n");
 			fclose ($log);
 			return "Order id: $shopOrderId exists in saldi (internal ID: $r[saldi_id])";
 		}
@@ -476,10 +475,10 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	// Enhanced shop_ordrer insertion with duplicate prevention
 	if ($saldi_ordre_id && $shopOrderId) {
 		// Final check before inserting into shop_ordrer table
-		$qtxt_check="select id from shop_ordrer where shop_id='$shopOrderId'";
+		$qtxt_check="select so.id from shop_ordrer so join ordrer o on o.id=so.saldi_id where so.shop_id='$shopOrderId' and o.art='$art'";
 		$check_r=db_fetch_array(db_select($qtxt_check,__FILE__ . " linje " . __LINE__));
 		if ($check_r['id']) {
-			fwrite($log,__line__." ERROR: Race condition detected - shop_id $shopOrderId already exists in shop_ordrer\n");
+			fwrite($log,__line__." ERROR: Race condition detected - shop_id $shopOrderId (art: $art) already exists in shop_ordrer\n");
 			// Clean up the order we just created since it's a duplicate
 			db_modify("delete from ordrer where id='$saldi_ordre_id'",__FILE__ . " linje " . __LINE__);
 			fclose ($log);
@@ -1224,6 +1223,8 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$saldi_kontonr  = if_isset($_GET['saldi_kontonr']);
 			$pos_betaling   = if_isset($_GET['pos_betaling']);
 			$shop_status    = if_isset($_GET['shop_status']);
+			$art            = if_isset($_GET['art']);
+			if (!$art) $art = 'DO';
 
 			$fil = fopen('../temp/addr1.php','w');
 			fwrite($fil,"<?php $"."addr1='$addr1' ?>\n");
@@ -1242,7 +1243,7 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$params.= "$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$pos_betaling,$shop_status,$notes,$sprog";
 			fwrite($log,__line__." insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog\n");
 			fclose ($log);
-			$value = insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog);
+			$value = insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art);
 ##############################################
 		} elseif ($action=='insert_shop_orderline') {
 			$log=fopen("../temp/$db/rest_api.log","a");
