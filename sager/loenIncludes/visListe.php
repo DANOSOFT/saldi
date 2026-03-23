@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/vis_liste.php --- lap 4.0.8 --- 2023-09-27 ---
+// --- sager/loenIncludes/vis_liste.php --- lap 5.0.0 --- 2026-03-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,18 +20,18 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
-// ----------------------------------------------------------------------
+// Copyright (c) 2003-2026 saldi.dk aps
 // 20230703 PHR array tr_tjek moved up, as it was reset when it should not. 
 // 20230703 PHR reactiveate $sum1 - no idea why it was deactivated.
 // 20230915 PHR if transport has been on list and all itens with transport is removed, transportlines are deleted from
 //              loen_enheder
 // 20230915 PHR tent surcharges were not shown on completed bills.
+// 20260319 LOE Added $categorySum to calculate sum per category for use in ret_loen.php
 
 function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 
 	global $brugernavn,$bgcolor,$db;
-	
+	$categorySum = array(); 
 /*
  ($listevalg >= 10)?$nyListe = 1:$nyListe = 0;
 	if ($db == 'stillads_11' && $listevalg == 8) $nyListe = 1;
@@ -313,6 +313,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 				$teltsum+=$linjesum1[$x];
 			}
 			$sum1+=$linjesum1[$x];
+			$categorySum[$l_liste[$x]] += $linjesum1[$x];
 			$sum+= $linjesum2[$x];
 			($linjebg == $bgcolor)?$linjebg=$bgcolor2:$linjebg=$bgcolor;
 			($op[$x])?$op[$x]           = str_replace(".",",",$op[$x]):$op[$x] = '';
@@ -371,10 +372,23 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 			$z++;
 			if ($afsluttet && $l_liste[$x]!=$l_liste[$x+1]) {
 				for ($tr=0;$tr<count($tr_id);$tr++) {
-					if ($tr_liste[$tr]==$l_liste[$x]) {
-						print "<tr class=\"akkordListeTrans\"><td colspan=\"1\" style=\"text-align:right;\">$tr_antal[$tr]</td><td></td><td style=\"padding-left: 5px;\" colspan=\"12\">$tr_navn[$tr] ".findtekst('3056|Transport', $sprog_id)."</td><td style=\"text-align:right;\">".dkdecimal($tr_antal[$tr]*$tr_pris[$tr],2)."</td></tr>";
-						$sum+=$tr_antal[$tr]*$tr_pris[$tr];
-					}
+					if ($tr_liste[$tr] == $l_liste[$x]) {
+
+				$colspan = 11; 
+				//dkdecimal($linjesum1[$x],2).
+                $CurrentSum = dkdecimal($categorySum[$tr_liste[$tr]], 2);
+				print "<tr class=\"akkordListeTrans\" style=\"font-weight:bold;\">
+					<td colspan=\"1\" style=\"text-align:right;\">{$tr_antal[$tr]}</td>
+					<td></td>
+					<td style=\"padding-left: 5px;\" colspan=\"".($colspan-8)."\">
+						{$tr_navn[$tr]} " . findtekst('3056|Transport', $sprog_id)." ".findtekst('2795|Sum', $sprog_id)."
+					</td>
+					<td colspan=\"".(0)."\" style=\"text-align:right;\">$CurrentSum</td> 
+					<td colspan=\"".($colspan-2)."\" style=\"text-align:right;\">" . dkdecimal($tr_antal[$tr] * $tr_pris[$tr], 2) . "</td>
+				</tr>";
+
+				$sum += $tr_antal[$tr] * $tr_pris[$tr];
+			}
 				}
 				if ($l_liste[$x]=='7' || $l_liste[$x]=='11') {
 					print "<tr class=\"akkordListeTrans\">
