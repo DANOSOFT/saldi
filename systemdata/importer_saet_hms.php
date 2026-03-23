@@ -113,12 +113,16 @@ if ($do_import) {
             foreach ($styk_entries as $entry) {
                 // Match "varenr(antal)"
                 if (preg_match('/^(.+)\(([0-9.,]+)\)$/', $entry, $m)) {
-                    $sub_vnr  = db_escape_string(trim($m[1]));
-                    $sub_ant  = parse_danish_number($m[2]);
+                    $sub_alias = db_escape_string(trim($m[1]));
+                    $query = db_select("SELECT varenr FROM varer WHERE varenr_alias='$sub_alias'", __FILE__ . " linje " . __LINE__);
+                    if (db_num_rows($query) > 0) {
+                        $row = db_fetch_array($query);
+                        $sub_vnr = db_escape_string(trim($row['varenr']));
+                    }
                     $sq = db_fetch_array(db_select("SELECT id FROM varer WHERE varenr='$sub_vnr'", __FILE__ . " linje " . __LINE__));
                     if ($sq) {
                         $sub_id = $sq['id'];
-                        db_modify("INSERT INTO styklister(vare_id, indgaar_i, antal, posnr) VALUES ('$sub_id','$vare_id','$sub_ant','$posnr')", __FILE__ . " linje " . __LINE__);
+                        db_modify("INSERT INTO styklister(vare_id, indgaar_i, posnr) VALUES ('$sub_id','$vare_id','$posnr')", __FILE__ . " linje " . __LINE__);
                         $posnr++;
                     } else {
                         $styk_skip[] = htmlspecialchars($row[0]) . ": delvare '$sub_vnr' ikke fundet";
