@@ -2152,6 +2152,8 @@ if (!function_exists('get_next_order_number')) {
 					$art2 = "KO";
 				} elseif($art == "PO") {
 					$art2 = "PO";
+				}else{
+					$art2 = $art;
 				}
 
 				// Use SELECT FOR UPDATE to lock relevant rows - works on both PostgreSQL and MySQL
@@ -2224,6 +2226,9 @@ if (!function_exists('get_next_invoice_number')) {
 		if ($db == "saldi_390") {
 			$ekstra = " AND CAST(fakturanr AS INTEGER) < 1423006538";
 		}
+		if($db == "saldi_1004"){
+			$ekstra = " AND CAST(fakturanr AS INTEGER) < 9873561";
+		}
 
 		// Start transaction to ensure atomicity
 		transaktion('begin');
@@ -2241,6 +2246,8 @@ if (!function_exists('get_next_invoice_number')) {
 					$art2 = "KO";
 				} elseif($art == "PO") {
 					$art2 = "PO";
+				}else{
+					$art2 = $art;
 				}
 				// Lock the ordrer table to prevent concurrent access
 				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
