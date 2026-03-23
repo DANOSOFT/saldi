@@ -402,7 +402,7 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 					'oppId' => (int)$entry['id'],
 					'unAlignAccount' => $accountId
 				)));
-				$creditCell = "<a class='debitor-ledger-balanced-link' href='" . debitorGeneralLedgerEscape($unAlignUrl) . "' title='Udlign id=" . (int)$entry['udlign_id'] . ". Klik for at ophæve udligningen' onclick=\"return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id " . (int)$entry['udlign_id'] . "?')\">$displayAmount</a>";
+				$creditCell = "<a class='debitor-ledger-balanced-link' I have merged and tested, and backgrounds in test_12 are displayed, so no problems here.href='" . debitorGeneralLedgerEscape($unAlignUrl) . "' title='Udlign id=" . (int)$entry['udlign_id'] . ". Klik for at ophæve udligningen' onclick=\"return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id " . (int)$entry['udlign_id'] . "?')\">$displayAmount</a>";
 			}
 		}
 
@@ -744,7 +744,7 @@ function proceedKontoprint() {
 	.debitor-ledger-table td,
 	.debitor-ledger-table th {
 		padding: 2px 4px;
-		font-size: 0.95rem;
+		#font-size: 0.95rem;
 		white-space: nowrap;
 	}
 

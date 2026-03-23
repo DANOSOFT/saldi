@@ -59,7 +59,7 @@ a:link {
 .center-btn {
 	width: 100% !important;
 	border-radius: 5px;
-	  padding: 4px;
+	padding: 4px; 
 
 	/* justify-content: center; */
 }

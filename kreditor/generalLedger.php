@@ -747,7 +747,7 @@ function proceedKontoprint() {
 	.creditor-ledger-table td,
 	.creditor-ledger-table th {
 		padding: 2px 4px;
-		font-size: 0.95rem;
+		#font-size: 0.95rem;
 		white-space: nowrap;
 	}
 
