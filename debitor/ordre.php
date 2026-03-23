@@ -116,6 +116,7 @@ function bg_display_name($sprog_value) {
 	}
 	return $sprog_value;
 }
+
 include(__DIR__ . "/../includes/gs1_parser.php");  # Absolute import
 include("../includes/tid2decimal.php");
 
@@ -3609,14 +3610,6 @@ function ordreside($id, $regnskab)
 			while ($r = db_fetch_array($q)) {
 				$display_sprog = bg_display_name($r['sprog']);
 				if ($r['sprog'] == $formularsprog && !$found) {
-					/*
-					Old code:
-					print "<option selected>$r[sprog]</option>\n";
-
-					Main issue:
-					When the visible text changes from "Dansk" to "Standard/Default",
-					the option still has to submit the stored value "Dansk".
-					*/
 					print "<option value=\"$r[sprog]\" selected>$display_sprog</option>\n";
 					$found = true;  // Mark that $formularsprog is already inserted
 				} else {
@@ -4500,10 +4493,6 @@ function ordreside($id, $regnskab)
 			while ($r = db_fetch_array($q)) {
 				$display_sprog = bg_display_name($r['sprog']);
 				if ($r['sprog'] == $formularsprog && !$found) {
-					/*
-					Old code:
-					print "<option selected>$r[sprog]</option>\n";
-					*/
 					print "<option value=\"$r[sprog]\" selected>$display_sprog</option>\n";
 					$found = true; 
 				} else {

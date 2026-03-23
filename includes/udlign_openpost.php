@@ -73,6 +73,7 @@ if (isset($_POST['submit'])) {
 	$konto_til=$_POST['konto_til']; 
 	$retur=$_POST['retur'];
 	$returside=$_POST['returside'];
+	$layout=if_isset($_POST['layout']);
 	$diff=$_POST['diff'];
 	$dkkdiff=$_POST['dkkdiff'];
 	$maxdiff=$_POST['maxdiff'];
@@ -125,7 +126,10 @@ if (isset($_POST['submit'])) {
 	$konto_til=$_GET['konto_til']; 
 	$retur=$_GET['retur'];
 	$returside=$_GET['returside'];
+	$layout=if_isset($_GET['layout']);
 }
+
+$layoutParam = $layout ? "&layout=$layout" : '';
 
 $query = db_select("select * from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__); #$post_id[0] er den post som skal udlignes.
 if ($row = db_fetch_array($query)) {
@@ -269,7 +273,7 @@ print "<tr><td colspan=8 align=center>";
 print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
 
 print "<td width='10%' align=center>
-	   <a href=$retur?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok>
+	   <a href=$retur?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam>
 	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
 
 print "<td width='80%' align='center' style='$topStyle'>Udlign åbne poster<br></td>";
@@ -281,7 +285,7 @@ print " </tr></tbody></table></td></tr>";
 print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 print "<tr><td colspan=8 align=center>";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok>Luk</a></div></td>";
+print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam>Luk</a></div></td>";
 print "<td width=\"80%\" align=center><div class=\"top_bund\">Udlign &aring;bne poster<br></div></td>";
 print "<td width=\"10%\"><div class=\"top_bund\"><br></div></td>";
 print " </tr></tbody></table></td></tr>";
@@ -365,6 +369,7 @@ print "<input type = hidden name=konto_fra value=$konto_fra>";
 print "<input type = hidden name=konto_til value=$konto_til>";
 print "<input type = hidden name=retur value=$retur>";
 print "<input type = hidden name=returside value=$returside>";
+print "<input type = hidden name=layout value=$layout>";
 print "<input type = hidden name=diff value=$diff>";
 print "<input type = hidden name=dkkdiff value=$dkkdiff>";
 print "<input type = hidden name=maxdiff value=$maxdiff>";
@@ -390,4 +395,3 @@ print "<span title=\"".findtekst(180,$sprog_id)."\"><input type=\"submit\" style
 print "</td></tr></form>\n";
 
 ?>
-

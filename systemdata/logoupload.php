@@ -94,7 +94,7 @@ $has_other_backgrounds = count($backgrounds) > 1; // true if more than just Dans
 $has_departments = !empty($departments);
 #########
 
-$checksprog = $_GET['sprog'];
+$checksprog = isset($_GET['sprog']) ? $_GET['sprog'] : null;
 
 
 // Determine default background: "All" if multiple backgrounds exist, otherwise "Dansk"
@@ -379,19 +379,19 @@ function upload(){
                 return array('file' => $file_path, 'name' => $lang_prefix . $file_type, 'department' => $department, 'background' => $background);
             }
         } else {
-            // For Dansk, no suffix
+            // For Dansk, no prefix
             $file_path = $dept_dir . $file_type . ".pdf";
             if (file_exists($file_path)) {
                 return array('file' => $file_path, 'name' => $file_type, 'department' => $department, 'background' => 'Dansk');
             }
         }
-        
-        //  Check department-specific, background "All" (no suffix)
+
+        //  Check department-specific, background "All" (no prefix)
         $file_path_all = $dept_dir . $file_type . ".pdf";
         if (file_exists($file_path_all)) {
             return array('file' => $file_path_all, 'name' => $file_type, 'department' => $department, 'background' => 'All');
         }
-        
+
         // Check base (department 0), background-specific
         if ($background !== 'Dansk' && $background !== 'Danish') {
             $lang_prefix = strtolower($background) . "_";
@@ -419,10 +419,6 @@ function upload(){
     $bg_check = check_file_exists($current_sprog, 'bg', $selected_department);
     if ($bg_check) {
          $dept_display = ($bg_check['department'] == 0) ? 'All' : $bg_check['department'];
-        /*
-        Old code:
-        $lang_display = $bg_check['background'];
-        */
         $lang_display = bg_display_name($bg_check['background']);
         $dept_info = " (Dept. $dept_display, Background: $lang_display)";
         $bg="<a href=\"view_logoupload.php?vis={$bg_check['name']}&sprog=$current_sprog&department={$bg_check['department']}\">".findtekst('1754|show background', $sprog_id)."$dept_info</a>";
@@ -538,13 +534,6 @@ function upload(){
         print "<option value=\"All\"$selected_all>All</option>";
         foreach ($backgrounds as $lang) {
             $selected = ($current_sprog == $lang) ? ' selected' : '';
-            /*
-            Old code:
-            print "<option value=\"$lang\"$selected>$lang</option>";
-
-            Keep the stored value as "Dansk", but show the default background
-            with the new UI label.
-            */
             print "<option value=\"$lang\"$selected>" . bg_display_name($lang) . "</option>";
         }
         print "</select>";
@@ -591,10 +580,6 @@ function upload(){
         ? " (Dept. $selected_department: " . $departments[$selected_department] . ")" 
         : "";
     
-    /*
-    Old code:
-    print "<br><strong>Showing files for: $current_sprog$dept_info</strong><br><br></td></tr>";
-    */
     print "<br><strong>Showing files for: " . bg_display_name($current_sprog) . "$dept_info</strong><br><br></td></tr>";
     
     print "<tr><td colspan=\"2\">&nbsp;</td><td align=\"justify\">$font ".findtekst('1770|You have the option to upload a full page in PDF format as background for all forms or specifically for quotes, orders and invoices.', $sprog_id)."<br>";

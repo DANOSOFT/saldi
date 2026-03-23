@@ -137,7 +137,7 @@ $qtxt = "select kodenr, box1 from grupper where art = 'VSPR' order by kodenr";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 
 $languages = array();
-$languages[0] = "Dansk (Default)"; # Add Danish as default
+$languages[0] = "Default"; # Add Danish as default
 
 while ($r = db_fetch_array($q)) {
 	$languages[$r['kodenr']] = $r['box1'];

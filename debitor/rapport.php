@@ -162,10 +162,15 @@ if (isset($_GET['ny_rykker'])) {
 			autoudlign($udlign[$x]);
 		}
 	}
+	if ($rapportart == 'kontokort' && if_isset($_GET['layout']) == 'grid' && $konto_fra && $konto_fra == $konto_til) {
+		include_once 'generalLedger.php';
+		renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart);
+		exit;
+	}
 	if ($rapportart == 'accountChart')
 	include("../includes/row-hover-style-with-link-no-input.js.php");
-    else $rapportart = 'kontokort'; 
-	
+    else $rapportart = 'kontokort';
+
 	if ($rapportart == 'accountChart')
 		include_once("../includes/reportFunc/accountChart.php");
 	$rapportart($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
