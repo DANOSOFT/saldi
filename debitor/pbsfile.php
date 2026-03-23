@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pbsfile.php --- patchh 50.0.0 --- 2026-03-20 ---
+// --- debitor/pbsfile.php --- patchh 5.0.0 --- 2026-03-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,7 +36,8 @@
 // 2018.01.17 Tjekker ordrestatus - hvis ikke faktureret slettes filen fra listen. 20180117
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250820 PHP8
-// 20260320 PHR Replaced kontonr(numeric) with ktonr(varchar) 
+// 20260320 PHR Replaced kontonr(numeric) with ktonr(varchar)
+// 20260321 PHR Reversed above as ktonr does not exist in all accounts
 
 @session_start();
 $s_id=session_id();
@@ -165,7 +166,7 @@ if (!$afsendt) {
 
 	$x=0;
 	$qtxt = "select adresser.kontonr as ny_kontonr, adresser.pbs_nr as pbs_nr, adresser.gruppe as gruppe, pbs_kunder.kontonr as kontonr ";
-	$qtxt.= "from adresser,pbs_kunder where adresser.id=pbs_kunder.konto_id and adresser.kontonr!=pbs_kunder.ktonr order by adresser.id";
+	$qtxt.= "from adresser,pbs_kunder where adresser.id=pbs_kunder.konto_id and adresser.kontonr!=pbs_kunder.kontonr order by adresser.id";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)){
 		$x++;
