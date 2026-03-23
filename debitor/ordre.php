@@ -758,6 +758,10 @@ if ($id && $status < 3 && isset($_GET['vare_id'])) {
 		if (!is_array($vare_id[0]) && (is_int($vare_id[0]) || is_numeric($vare_id[0]))) {
 			if ($r = db_fetch_array(db_select("select id,varenr,samlevare,salgspris from varer where id = '$vare_id[0]'", __FILE__ . " linje " . __LINE__))) {
 				$varenr[0] = $r['varenr'];
+				// If a specific variant barcode is provided (from productLookup), use it so opret_ordrelinje can resolve the correct variant_id
+				if (isset($_GET['vsc']) && $_GET['vsc']) {
+					$varenr[0] = db_escape_string($_GET['vsc']);
+				}
 				gendan_saet($id);
 			}
 		}

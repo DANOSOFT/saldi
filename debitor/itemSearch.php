@@ -81,9 +81,9 @@ if ($search !== '') {
         if ($search_field === 'lev_varenr') {
             $searchCondition = "vl.lev_varenr ILIKE '%$word%'";
         } else {
-            $searchCondition = "(varer.varenr ILIKE '%$word%' OR COALESCE(varer.varenr_alias,'') ILIKE '%$word%' OR varer.beskrivelse ILIKE '%$word%' OR COALESCE(varer.stregkode,'') ILIKE '%$word%' OR COALESCE(varer.trademark,'') ILIKE '%$word%')";
+            $searchCondition = "(varer.varenr ILIKE '%$word%' OR COALESCE(varer.varenr_alias,'') ILIKE '%$word%' OR varer.beskrivelse ILIKE '%$word%' OR COALESCE(varer.stregkode,'') ILIKE '%$word%' OR COALESCE(varer.trademark,'') ILIKE '%$word%' OR COALESCE(vv.variant_stregkode,'') ILIKE '%$word%' OR COALESCE(vv.variant_text,'') ILIKE '%$word%')";
             if ($has_beskrivelse_alias) {
-                $searchCondition = "(varer.varenr ILIKE '%$word%' OR COALESCE(varer.varenr_alias,'') ILIKE '%$word%' OR varer.beskrivelse ILIKE '%$word%' OR COALESCE(varer.beskrivelse_alias,'') ILIKE '%$word%' OR COALESCE(varer.stregkode,'') ILIKE '%$word%' OR COALESCE(varer.trademark,'') ILIKE '%$word%')";
+                $searchCondition = "(varer.varenr ILIKE '%$word%' OR COALESCE(varer.varenr_alias,'') ILIKE '%$word%' OR varer.beskrivelse ILIKE '%$word%' OR COALESCE(varer.beskrivelse_alias,'') ILIKE '%$word%' OR COALESCE(varer.stregkode,'') ILIKE '%$word%' OR COALESCE(varer.trademark,'') ILIKE '%$word%' OR COALESCE(vv.variant_stregkode,'') ILIKE '%$word%' OR COALESCE(vv.variant_text,'') ILIKE '%$word%')";
             }
         }
         $baseWhere .= " AND " . $searchCondition;
@@ -95,7 +95,9 @@ if ($konto_id > 0) {
     $leverandorJoin = "INNER JOIN vare_lev vl ON vl.vare_id = varer.id AND vl.lev_id = $konto_id";
 }
 
-$countQuery = db_select("SELECT COUNT(*) as cnt FROM varer $leverandorJoin WHERE $baseWhere", __FILE__ . " line " . __LINE__);
+$variantJoin = "LEFT JOIN variant_varer vv ON vv.vare_id = varer.id AND vv.variant_stregkode IS NOT NULL AND vv.variant_stregkode != ''";
+
+$countQuery = db_select("SELECT COUNT(*) as cnt FROM varer $variantJoin $leverandorJoin WHERE $baseWhere", __FILE__ . " line " . __LINE__);
 if ($countQuery) {
     $countRow = db_fetch_array($countQuery);
     $totalCount = intval($countRow['cnt']);
@@ -103,8 +105,8 @@ if ($countQuery) {
 
 // Include gruppe (product group) in query for VAT-free check
 $levVarenrSelect = $leverandorJoin ? ", COALESCE(vl.lev_varenr, '') as lev_varenr" : ", '' as lev_varenr";
-$qtxt = "SELECT varer.id, varer.varenr, varer.beskrivelse, varer.salgspris, varer.kostpris, varer.enhed, varer.beholdning, varer.gruppe $levVarenrSelect
-         FROM varer $leverandorJoin
+$qtxt = "SELECT varer.id, varer.varenr, varer.beskrivelse, COALESCE(vv.variant_salgspris, varer.salgspris) AS salgspris, varer.kostpris, varer.enhed, varer.beholdning, varer.gruppe, vv.variant_stregkode AS vv_stregkode, vv.variant_text AS vv_variant_text $levVarenrSelect
+         FROM varer $variantJoin $leverandorJoin
          WHERE $baseWhere
          ORDER BY varer.varenr ASC LIMIT $limit OFFSET $offset";
 
@@ -130,7 +132,9 @@ if ($query) {
             'salgspris' => $salgspris,
             'kostpris' => floatval($row['kostpris']),
             'enhed' => trim($row['enhed']),
-            'beholdning' => floatval($row['beholdning'])
+            'beholdning' => floatval($row['beholdning']),
+            'vv_stregkode' => $row['vv_stregkode'] ? trim($row['vv_stregkode']) : null,
+            'vv_variant_text' => $row['vv_variant_text'] ? trim($row['vv_variant_text']) : null,
         );
     }
 }

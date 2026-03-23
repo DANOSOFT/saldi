@@ -41,7 +41,8 @@ if (isset($_GET['vare_id'])) {
     $href = ($art == 'PO') ? "pos_ordre.php" : "ordre.php";
     $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
     $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
-    $url = "$href?id=$id&vare_id=$vare_id&fokus=$fokus$bordnr_param$lager_param";
+    $vsc_param = (isset($_GET['vsc']) && $_GET['vsc']) ? "&vsc=" . urlencode($_GET['vsc']) : "";
+    $url = "$href?id=$id&vare_id=$vare_id&fokus=$fokus$bordnr_param$lager_param$vsc_param";
     header("Location: $url");
     exit;
 }
@@ -222,10 +223,12 @@ $columns[] = array(
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
         $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+        $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param";
         $alias = htmlspecialchars($row['varenr_alias'] ? $row['varenr_alias'] : '', ENT_QUOTES, 'UTF-8');
         $stregkode = htmlspecialchars($row['stregkode'] ? $row['stregkode'] : '', ENT_QUOTES, 'UTF-8');
-        return "<td align='$column[align]' onclick=\"event.preventDefault(); window.location.href='$url'\" style='cursor:pointer'><a href='$url' onclick=\"event.stopPropagation();\">$value</a><span style='display:none;'>$alias $stregkode</span></td>";
+        $variant_label = $row['vv_variant_text'] ? " <small style='color:#666'>(" . htmlspecialchars($row['vv_variant_text'], ENT_QUOTES, 'UTF-8') . ")</small>" : "";
+        return "<td align='$column[align]' onclick=\"event.preventDefault(); window.location.href='$url'\" style='cursor:pointer'><a href='$url' onclick=\"event.stopPropagation();\">$value</a>$variant_label<span style='display:none;'>$alias $stregkode</span></td>";
     },
     "sqlOverride" => "v.varenr",
     "generateSearch" => function ($column, $term) {
@@ -235,7 +238,7 @@ $columns[] = array(
         foreach ($words as $word) {
             if (!empty($word)) {
                 $word = db_escape_string($word);
-                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%' or EXISTS (SELECT 1 FROM variant_varer vv WHERE vv.vare_id = v.id AND lower(vv.variant_stregkode) like '%$word%'))";
+                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%' or lower(vv.variant_stregkode) like '%$word%' or lower(vv.variant_type) like '%$word%' or lower(vv.variant_text) like '%$word%')";
             }
         }
         return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
@@ -252,7 +255,8 @@ $columns[] = array(
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
         $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+        $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param";
         return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
     },
 );
@@ -267,8 +271,10 @@ $columns[] = array(
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
         $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
-        return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
+        $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param";
+        $variant_label = $row['vv_variant_text'] ? " <small style='color:#666'>(" . htmlspecialchars($row['vv_variant_text'], ENT_QUOTES, 'UTF-8') . ")</small>" : "";
+        return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value$variant_label</td>";
     },
     "generateSearch" => function ($column, $term) {
         $term = db_escape_string($term);
@@ -277,7 +283,7 @@ $columns[] = array(
         foreach ($words as $word) {
             if (!empty($word)) {
                 $word = db_escape_string($word);
-                $conditions[] = "(lower(v.beskrivelse) like '%$word%' or lower(v.trademark) like '%$word%' or lower(v.stregkode) like '%$word%' or EXISTS (SELECT 1 FROM variant_varer vv WHERE vv.vare_id = v.id AND lower(vv.variant_stregkode) like '%$word%'))";
+                $conditions[] = "(lower(v.beskrivelse) like '%$word%' or lower(v.trademark) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(vv.variant_stregkode) like '%$word%' or lower(vv.variant_text) like '%$word%')";
             }
         }
         return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
@@ -291,7 +297,7 @@ $columns[] = array(
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
-    "sqlOverride" => "v.salgspris",
+    "sqlOverride" => "COALESCE(vv.variant_salgspris, v.salgspris)",
     "valueGetter" => function ($value, $row, $column) {
         return $value;
     },
@@ -299,7 +305,8 @@ $columns[] = array(
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
         $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+        $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param";
         $basePrice = is_numeric($value) ? (float) $value : (float) str_replace(',', '.', $value);
         if ($incl_moms && !in_array($row['gruppe'], $momsfri)) {
             $salgspris = $basePrice + $basePrice * $momssats / 100;
@@ -337,7 +344,8 @@ if (count($lg_nr) > 1) {
                 $lagerId = $column['lagerId'];
                 $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
                 $lager_param = "&lager=$lg_kodenr";
-                $url = "$href?id=$id&vare_id=$row[id]&fokus=$fokus$bordnr_param$lager_param";
+                $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+                $url = "$href?id=$id&vare_id=$row[id]&fokus=$fokus$bordnr_param$lager_param$vsc_param";
                 if ($row["samlevare"] == "on") {
                     return "<td></td>";
                 }
@@ -384,7 +392,8 @@ if (count($lg_nr) > 1) {
             $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
             $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
             $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-            $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+            $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+            $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param";
             // Calculate reserved items
             $reserveret = 0;
             $vare_id = $row['id'];
@@ -431,7 +440,8 @@ if ($vis_kost == 'on') {
             $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
             $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
             $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-            $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+            $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+            $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param";
             $formatted = dkdecimal($value, 2);
             return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$formatted</td>";
         },
@@ -439,7 +449,7 @@ if ($vis_kost == 'on') {
 }
 
 // Build base query - grid system will add WHERE and SORT
-$query = "SELECT 
+$query = "SELECT
     v.id AS id,
     v.varenr AS varenr,
     v.varenr_alias AS varenr_alias,
@@ -447,13 +457,17 @@ $query = "SELECT
     v.enhed AS enhed,
     v.beskrivelse AS beskrivelse,
     v.trademark AS trademark,
-    v.salgspris AS salgspris,
+    COALESCE(vv.variant_salgspris, v.salgspris) AS salgspris,
     v.beholdning AS beholdning,
     v.gruppe AS gruppe,
     v.samlevare AS samlevare,
+    vv.id AS vv_id,
+    vv.variant_stregkode AS vv_stregkode,
+    vv.variant_text AS vv_variant_text,
     $SQLLagerFetch
     (SELECT kostpris FROM vare_lev WHERE vare_id = v.id ORDER BY posnr LIMIT 1) AS kostpris
 FROM varer v
+LEFT JOIN variant_varer vv ON vv.vare_id = v.id AND vv.variant_stregkode IS NOT NULL AND vv.variant_stregkode != ''
 $SQLLagerJoin
 WHERE v.lukket != '1' AND {{WHERE}}
 ORDER BY {{SORT}}";
