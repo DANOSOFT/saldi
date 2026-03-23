@@ -77,7 +77,7 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
 	
 	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
 	elseif (!$returside) $returside = '../debitor/ordreliste.php';
-    if (!$pdftk || !file_exist($pdftk)) {
+    if (!$pdftk || !file_exists($pdftk)) {
         error_log("ERROR: pdftk is not installed. Please install pdftk first.");
         
         // Use JavaScript to alert and then redirect
