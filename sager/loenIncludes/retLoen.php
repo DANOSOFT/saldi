@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- lap 5.0.0 --- 2026-01-26 ---
+// --- sager/loenIncludes/retLoen.php --- lap 5.0.0 --- 2026-03-19 ---  
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20250305 PHR Error if no employes in includes 'dyrtid'note.
 // 20250903 PHR changed dkdecimal($sum) to $sum
 // 20260126 PHR *1 replaced by (float) in $medarb_loen
+// 20260319 LOE Added $t_sum_total  
 
 function ret_loen() {
 	global $brugernavn;
@@ -1297,6 +1298,9 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					$aa_belob[$x]+
 					$loen_skur1[$x]+
 					$loen_skur2[$x];
+					###
+					$t_sum_total += $t_belob[$x];
+					###
 					if ($loen_date[$x] && ($loen_km[$x] || $skur1[$x] || $skur2[$x])){ #20180117
 						$t_km = 0;
 						$tjek = 0;
@@ -1428,17 +1432,17 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 						}
 #						<!--<td><button class=\"xmark delRow \"></button></td>-->
 					print "</td></tr>\n";
-
+					
 				}
 				print "</tbody>\n";
 				if ($loen_art!='aconto' && $loen_art!='regulering' && $loen_art!='ferie') { # 20140627,20160819
 					print "<tbody class=\"akkordTableBody akkordTableBorderBottom\">";
 					if ($loen_art=='akktimer' || $loen_art=='akkord') {$colspan1=2;$colspan2=9;}
-					elseif ($loen_art=='akk_afr' || $loen_art=='timer') {$colspan1=3;$colspan2=10;}
+					elseif ($loen_art=='akk_afr' || $loen_art=='timer') {$colspan1=3;$colspan2=10;} 
 					else {$colspan1=2;$colspan2=1;}
 
-					if($hideSalary && $loen_art == 'timer'){
-							print "<tr><td colspan=\"1\"><b>".findtekst('2795|Sum', $sprog_id)."</b></td>
+					       if($hideSalary && $loen_art == 'timer'){
+							  print "<tr><td colspan=\"1\"><b>".findtekst('2795|Sum', $sprog_id)."</b></td>
 								<td class=\"alignRight\" colspan=\"$colspan1\"><b>". str_replace(".",",",$timersum). "</b></td>
 								<td class=\"alignRight\" colspan=\"$colspan2\">
 									<input type=\"hidden\" name=\"hiddenSum\" value=\"$sum\">
@@ -1446,11 +1450,26 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 								print "<input type=\"hidden\" name=\"sum\" value=\"".$sum."\">\n"; #20250903
 							}
 							else {
-							print "<tr><td colspan=\"1\"><b>".findtekst('2795|Sum', $sprog_id)."</b></td>
-							<td class=\"alignRight\" colspan=\"$colspan1\"><b>". str_replace(".",",",$timersum) ."</b></td>
-							<td class=\"alignRight\" colspan=\"$colspan2\"><b>".dkdecimal($sum,2)."</b>
-								<input type=\"hidden\" name=\"sum\" value=\"$sum\">
-							</td>";
+								if ($loen_art == 'timer') {
+									$colspan_empty = $colspan2-6;
+								} else {
+									if($colspan2>9){
+									 $colspan_empty = $colspan2-4;
+									}else{
+									 $colspan_empty = $colspan2-3;
+									}
+								}
+								$colspan_t_sum  = 1; 
+								$colspan_aa_sum = 1;
+								$colspan_i_alt  = 1;
+								print "<tr><td colspan=\"1\"><b>".findtekst('2795|Sum', $sprog_id)."</b></td>
+									<td class=\"alignRight\" colspan=\"$colspan1\"><b>". str_replace(".",",",$timersum) ."</b></td>
+									<td colspan=\"$colspan_empty\"></td>
+									<td class=\"alignRight\" style=\"text-align:center;\"><b>" . dkdecimal($t_sum_total,2) . "</b></td>
+									<td class=\"alignRight\" colspan=\"$colspan_aa_sum\"><b>".dkdecimal($aa_sum_total,2)."</b></td>
+									<td class=\"alignRight\" colspan=\"$colspan_i_alt\"><b>".dkdecimal($sum,2)."</b>
+										<input type=\"hidden\" name=\"sum\" value=\"$sum\">
+									</td>";
 							}
 
 					print "</tbody>";
