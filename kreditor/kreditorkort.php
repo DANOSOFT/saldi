@@ -199,7 +199,7 @@ if ($menu == 'T') {
 	print "
 	<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style='width:100%' class='dataTableSmall'><tbody>
 	<tr><td style='width:50%'>
-	<input type='button' style='width:150px;' onclick=\"location.href='rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id'\" value='" . findtekst(133, $sprog_id) . "'>
+	<input type='button' style='width:150px;' onclick=\"location.href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id'\" value='" . findtekst(133, $sprog_id) . "'>
 	</td>
 	<td style='width:50%; text-align:right;'>
 	<input type='button' style='width:150px;' onclick=\"location.href='ordreliste.php?kontonumre=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id'\" value='" . findtekst(134, $sprog_id) . "'>
@@ -503,7 +503,7 @@ if ($menu == 'T') {
 	$tekst = findtekst(132, $sprog_id);
 
 	print "<td width='50%' align='right' title='$tekst'>
-		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>" . findtekst(133, $sprog_id) . "</a></td>\n";
+		   <a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>" . findtekst(133, $sprog_id) . "</a></td>\n";
 
 	if (substr($rettigheder, 5, 1) == '1') {
 		$tekst = findtekst(129, $sprog_id);
@@ -519,8 +519,8 @@ if ($menu == 'T') {
 	print	"<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>"; #tabel 1.3. start
 	print "<td width=\"40%\" $top_bund>&nbsp;</td>";
 	$tekst = findtekst(132, $sprog_id);
-	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\"><!--tekst 132-->" . findtekst(133, $sprog_id) . "<!--tekst 133--></td>\n";
-	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id>" . findtekst(133, $sprog_id) . "</td>\n";
+	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\"><!--tekst 132-->" . findtekst(133, $sprog_id) . "<!--tekst 133--></td>\n";
+	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id>" . findtekst(133, $sprog_id) . "</td>\n";
 	if (substr($rettigheder, 5, 1) == '1') {
 		$tekst = findtekst(129, $sprog_id);
 	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst(134, $sprog_id) . "</td>\n";

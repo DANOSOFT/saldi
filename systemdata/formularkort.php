@@ -67,7 +67,6 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 
-// Display name for the default background "Dansk" — shown as "Standard" in Danish, "Default" in English
 function bg_display_name($sprog_value) {
 	global $sprog_id;
 	if ($sprog_value === 'Dansk') {
@@ -113,7 +112,8 @@ if (isset($_POST) && $_POST) {
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=formularkort.php?nyt_sprog=yes\">";
 				exit;
 			} else {
-				print "<BODY onLoad=\"javascript:alert('" . bg_display_name('Dansk') . " ".findtekst('2516|Dansk kan ikke slettes', $sprog_id).".')\">";
+				$cannot_delete_default = str_replace('Dansk', bg_display_name('Dansk'), findtekst('2516|Dansk kan ikke slettes', $sprog_id));
+				print "<BODY onLoad=\"javascript:alert('" . $cannot_delete_default . ".')\">";
 			}
 		}
 	   #####
@@ -660,7 +660,8 @@ if ($tmp!=$nyt_sprog) {
 		db_modify("delete from grupper where art = 'VSPR' and box1 = '$skabelon'",__FILE__ . " linje " . __LINE__);
 		print "<BODY onLoad=\"javascript:alert('$skabelon er slettet!')\">";
 	} else {
-		print "<BODY onLoad=\"javascript:alert('" . bg_display_name('Dansk') . " ".findtekst('2516|Dansk kan ikke slettes', $sprog_id).".')\">";
+		$cannot_delete_default = str_replace('Dansk', bg_display_name('Dansk'), findtekst('2516|Dansk kan ikke slettes', $sprog_id));
+		print "<BODY onLoad=\"javascript:alert('" . $cannot_delete_default . ".')\">";
 	}
 } else {
 	

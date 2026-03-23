@@ -109,6 +109,15 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
+
+function bg_display_name($sprog_value) {
+	global $sprog_id;
+	if ($sprog_value === 'Dansk') {
+		return ($sprog_id == 1) ? 'Standard' : 'Default';
+	}
+	return $sprog_value;
+}
+
 include(__DIR__ . "/../includes/gs1_parser.php");  # Absolute import
 include("../includes/tid2decimal.php");
 
@@ -3621,11 +3630,12 @@ function ordreside($id, $regnskab)
 			$found = false;
 			// Check if $formularsprog is in the available options
 			while ($r = db_fetch_array($q)) {
+				$display_sprog = bg_display_name($r['sprog']);
 				if ($r['sprog'] == $formularsprog && !$found) {
-					print "<option selected>$r[sprog]</option>\n";
+					print "<option value=\"$r[sprog]\" selected>$display_sprog</option>\n";
 					$found = true;  // Mark that $formularsprog is already inserted
 				} else {
-					print "<option>$r[sprog]</option>\n";
+					print "<option value=\"$r[sprog]\">$display_sprog</option>\n";
 				}
 			}
 			print "</select></td></tr>";
@@ -4504,11 +4514,12 @@ function ordreside($id, $regnskab)
 			$found = false;
 
 			while ($r = db_fetch_array($q)) {
+				$display_sprog = bg_display_name($r['sprog']);
 				if ($r['sprog'] == $formularsprog && !$found) {
-					print "<option selected>$r[sprog]</option>\n";
+					print "<option value=\"$r[sprog]\" selected>$display_sprog</option>\n";
 					$found = true; 
 				} else {
-					print "<option>$r[sprog]</option>\n";
+					print "<option value=\"$r[sprog]\">$display_sprog</option>\n";
 				}
 			}
 

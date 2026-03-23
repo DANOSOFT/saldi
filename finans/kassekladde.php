@@ -1029,10 +1029,28 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 			}
 			#if (strstr($submit,"Impor")) {
 			if ($submit == 'import') {
+				/*
+			
 				if (!$bilagsnr) { #20171129
 					$r = db_fetch_array(db_select("select max(bilag) as bilagsnr from kassekladde where kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__));
 					$bilagsnr = $r['bilagsnr'];
 				}
+
+			
+				This forwarded the last used voucher number to the import screen instead of the next free number.
+				The first imported bank line then started on the same bilag as the previous journal line.
+				*/
+				$next_bilagsnr = 1;
+				$r = db_fetch_array(db_select("select max(bilag) as bilagsnr from kassekladde where kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__));
+				if ($r && $r['bilagsnr'] !== null && $r['bilagsnr'] !== '') {
+					$next_bilagsnr = (int)$r['bilagsnr'] + 1;
+				} else {
+					$r = db_fetch_array(db_select("select MAX(bilag) as bilagsnr from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'", __FILE__ . " linje " . __LINE__));
+					if ($r && $r['bilagsnr'] !== null && $r['bilagsnr'] !== '') {
+						$next_bilagsnr = (int)$r['bilagsnr'] + 1;
+					}
+				}
+				$bilagsnr = $next_bilagsnr;
 				print "<meta http-equiv='refresh' content='0;URL=../finans/importer.php?kladde_id=$kladde_id&bilagsnr=$bilagsnr'>";
 			}
 			#if (strstr($submit,"Udlig")) {
@@ -4614,6 +4632,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <?php
 	?>
-
-
 

@@ -1285,7 +1285,7 @@ if (!function_exists('formularprint')) {
 					}
 				}
 
-				// 2. Check Department + Default (Dansk/No suffix)
+				// 2. Check Department + Default (Dansk/No prefix)
 				if (!$found && $afd > 0) {
 					$check_path = "../logolib/$db_id/$afd/$bg_type.pdf";
 					if (file_exists($check_path)) {
