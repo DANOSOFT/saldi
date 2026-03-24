@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------debitor/formularprint-----patch 4.1.1---2026-03-09------
-// 							LICENSE
+// ---------debitor/formularprint-----patch 5.0.0---2026-03-24------
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -30,6 +30,8 @@
 // 20170505 Ved $udskriv_til=='ingen' returneres uden udskrift.
 // 20260102 LOE Added department support for background files
 // 20260309 PHR Fixed error in $returside after printing
+// 20260309 PHR Fixed another error in $returside after printing
+
 
 session_start();
 $s_id=session_id();
@@ -39,7 +41,6 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/formfunk.php");
 include("../includes/var2str.php");
- 
 /**
  * Find the appropriate background PDF file for a given background, document type and department.
  *   
@@ -138,11 +139,11 @@ if (isset($_GET['id']) && $_GET['id']){
 }
 
 // Redirect after printing
+
 if ($returside) {
     if (strpos($returside,'?')) $url = "$returside&locat=$locat"; # 20260309
-    else "$returside?locat=$locat";
+    else $url = "$returside?locat=$locat";
     print "<meta http-equiv=\"refresh\" content=\"1;URL=$url\">";
-    exit;
 } elseif ($popup) {
     print "<meta http-equiv=\"refresh\" content=\"1;URL=../includes/luk.php\">";
     exit;
@@ -150,6 +151,7 @@ if ($returside) {
     print "<meta http-equiv=\"refresh\" content=\"1;URL=ordre.php?id=$id\">";
     exit;
 } else {
+echo __file__." ".__line__."<br>";
     print "<meta http-equiv=\"refresh\" content=\"1;URL=ordreliste.php\">";
 }
 
