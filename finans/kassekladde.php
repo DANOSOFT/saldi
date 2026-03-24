@@ -1045,9 +1045,11 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 				if ($r && $r['bilagsnr'] !== null && $r['bilagsnr'] !== '') {
 					$next_bilagsnr = (int)$r['bilagsnr'] + 1;
 				} else {
-					$r = db_fetch_array(db_select("select MAX(bilag) as bilagsnr from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'", __FILE__ . " linje " . __LINE__));
-					if ($r && $r['bilagsnr'] !== null && $r['bilagsnr'] !== '') {
-						$next_bilagsnr = (int)$r['bilagsnr'] + 1;
+					if ($regnstart && $regnslut) {
+						$r = db_fetch_array(db_select("select MAX(bilag) as bilagsnr from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'", __FILE__ . " linje " . __LINE__));
+						if ($r && $r['bilagsnr'] !== null && $r['bilagsnr'] !== '') {
+							$next_bilagsnr = (int)$r['bilagsnr'] + 1;
+						}
 					}
 				}
 				$bilagsnr = $next_bilagsnr;
