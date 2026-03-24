@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- lap 5.0.0 --- 2026-03-17 ---
+// --- debitor/ret_genfakt.php --- lap 5.0.0 --- 2025-01-21 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -40,7 +40,6 @@
 // 2017.05.30 Betalingsdage sættes til 0 hvis ikke sat. Søg 20170530
 // 20241216 PHR PHP8
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
-// 20260317 PHR replaced & by ? in returside
 
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -383,7 +382,7 @@ if ($_GET['ordreliste']) {
 			}
 		}
 		if ($udskriv) {
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=formularprint.php?id=-1&returside=ordreliste.php?ordre_antal=$y&skriv=$udskriv&formular=4\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=formularprint.php?id=-1&returside=ordreliste.php&ordre_antal=$y&skriv=$udskriv&formular=4\">";
 #			print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=-1&ordre_antal=$y&skriv=$udskriv&formular=4' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";
 			exit;
 		}
