@@ -24,7 +24,7 @@ if(isset($_GET["put_new_orders"])){
     }
 
     // set dates for search critiria
-    $start = date('Y-m-d', strtotime('-42 days'));
+    $start = date('Y-m-d', strtotime('-2 months'));
     $end = date('Y-m-d');
     writeLog("Fetching orders from $start to $end");
 
