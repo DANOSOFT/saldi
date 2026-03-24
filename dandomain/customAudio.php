@@ -24,7 +24,7 @@ if(isset($_GET["put_new_orders"])){
     }
 
     // set dates for search critiria
-    $start = date('Y-m-d', strtotime('-5 days'));
+    $start = date('Y-m-d', strtotime('-42 days'));
     $end = date('Y-m-d');
     writeLog("Fetching orders from $start to $end");
 
@@ -74,13 +74,14 @@ if(isset($_GET["put_new_orders"])){
 
         // Include delivery cost in totals so they match the sum of all order lines
         // (FRAGT is added as a separate order line later)
-        $deliveryPrice = isset($order->Delivery->Price) ? (float)$order->Delivery->Price : 0;
+        $deliveryPrice = isset($order->Delivery->Price) ? abs((float)$order->Delivery->Price) : 0;
         $deliveryVat = 0;
         if ($deliveryPrice > 0 && isset($order->Delivery->Vat) && $order->Delivery->Vat) {
             $deliveryVat = $deliveryPrice * $order->Vat;
         }
-        $nettosum = $order->Total + $deliveryPrice;
-        $momssum = $vatPrice + $deliveryVat;
+        // Kreditnota: FRAGT line uses antal=-1 with positive pris, so delivery subtracts from totals
+        $nettosum = $order->Total + ($isKreditnota ? -$deliveryPrice : $deliveryPrice);
+        $momssum = $vatPrice + ($isKreditnota ? -$deliveryVat : $deliveryVat);
         
         // Extract transaction data for up to 2 cards
         // ekstra1 = card type 1, ekstra2 = amount paid with card 1
@@ -227,7 +228,7 @@ if(isset($_GET["put_new_orders"])){
             $urltxt.="&varenr=".urlencode("FRAGT");
             $urltxt.="&beskrivelse=".urlencode($order->Delivery->Title);
             $urltxt.= $isKreditnota ? "&antal=-1" : "&antal=1";
-            $urltxt.= ($order->Delivery->Price == 0) ? "&pris=0.0" : "&pris=".urlencode($order->Delivery->Price);
+            $urltxt.= ($order->Delivery->Price == 0) ? "&pris=0.0" : "&pris=".urlencode(abs((float)$order->Delivery->Price));
             $urltxt.="&rabat=0&stregkode=&variant=&varegruppe=1";
             if($order->Delivery->Vat == true){
                 $urltxt .= "&momsfri=";
