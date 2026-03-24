@@ -3391,6 +3391,12 @@ print "</form>";
 					if (!$transdate)
 						$transdate = date("Y-m-d");
 					$bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+					if ($bilag > 2147483647) {
+						$r_max = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag), 0) + 1 AS next_bilag FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
+						$new_bilag = (int)$r_max['next_bilag'];
+						alert("Bilagsnummer $bilag er for stort (maks 2147483647) og er erstattet med $new_bilag.");
+						$bilag = $new_bilag;
+					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
 					$qtxt .= "amount = '$amount', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', ansat= '$ansat_id', ";
@@ -3413,6 +3419,12 @@ print "</form>";
 						$next_pos_row = db_fetch_array($next_pos_query);
 						$next_pos = $next_pos_row['next_pos'];
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+						if ($insert_bilag > 2147483647) {
+							$r_max2 = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag), 0) + 1 AS next_bilag FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
+							$new_bilag2 = (int)$r_max2['next_bilag'];
+							alert("Bilagsnummer $insert_bilag er for stort (maks 2147483647) og er erstattet med $new_bilag2.");
+							$insert_bilag = $new_bilag2;
+						}
 						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
 						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id,forfaldsdate,betal_id, pos)";
 						$qtxt .= "values ";

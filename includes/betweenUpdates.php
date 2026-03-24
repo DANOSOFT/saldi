@@ -195,5 +195,11 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 }
 db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
 
+$qtxt = "SELECT character_maximum_length FROM information_schema.columns WHERE table_name='ordrer' and column_name='phone'";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+if ($r && $r['character_maximum_length'] < 50) {
+	db_modify("ALTER TABLE ordrer ALTER COLUMN phone TYPE VARCHAR(50)", __FILE__ . " linje " . __LINE__);
+}
+
 
 ?>
