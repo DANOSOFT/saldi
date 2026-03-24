@@ -2035,11 +2035,11 @@ if (!function_exists('getAvailable')) {
 			}
 			if (!$stock && $box8)
 				$available = 0;
-			elseif ($stock && $stock / $IemQty[$x] < $available)
+			elseif ($stock && $IemQty[$x] && $stock / $IemQty[$x] < $available)
 				$available = $stock / $IemQty[$x];
 			if (!$totalStock && $box8)
 				$totalAvailable = 0;
-			elseif ($totalStock && $totalStock / $IemQty[$x] < $totalAvailable)
+			elseif ($totalStock && $IemQty[$x] && $totalStock / $IemQty[$x] < $totalAvailable)
 				$totalAvailable = $totalStock / $IemQty[$x];
 			$x++;
 		}
@@ -2213,8 +2213,9 @@ if (!function_exists('get_next_invoice_number')) {
 		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
 		 */
 		
-		global $db;
+		global $db, $bruger_id;
 
+		$debug = ($bruger_id == -1);
 		$max_attempts = 10;
 		$attempt = 0;
 		$fakturanr = null;
@@ -2230,78 +2231,100 @@ if (!function_exists('get_next_invoice_number')) {
 			$ekstra = " AND CAST(fakturanr AS INTEGER) < 9873561";
 		}
 
-		// Start transaction to ensure atomicity
-		transaktion('begin');
-		
+		if($art == 'DO') {
+			$art2 = "DK";
+		} elseif($art == "DK") {
+			$art2 = "DO";
+		} elseif($art == "KO") {
+			$art2 = "KK";
+		}else if($art == "KK") {
+			$art2 = "KO";
+		} elseif($art == "PO") {
+			$art2 = "PO";
+		}else{
+			$art2 = $art;
+		}
+
+		if ($debug) echo "<pre>get_next_invoice_number(art=$art, id=$id) db=$db art2=$art2 ekstra=$ekstra</pre>";
+
 		try {
 			while ($attempt < $max_attempts) {
 				$attempt++;
-				if($art == 'DO') {
-					$art2 = "DK";
-				} elseif($art == "DK") {
-					$art2 = "DO";
-				} elseif($art == "KO") {
-					$art2 = "KK";
-				}else if($art == "KK") {
-					$art2 = "KO";
-				} elseif($art == "PO") {
-					$art2 = "PO";
-				}else{
-					$art2 = $art;
-				}
+				if ($debug) echo "<pre>  Attempt $attempt/$max_attempts</pre>";
+
+				// Start a fresh transaction for each attempt
+				transaktion('begin');
+
 				// Lock the ordrer table to prevent concurrent access
-				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
-				
+				global $connection;
+				$lock_result = @pg_query($connection, "LOCK TABLE ordrer IN EXCLUSIVE MODE");
+				if (!$lock_result) {
+					$err = pg_last_error($connection);
+					if ($debug) echo "<pre>  LOCK failed: $err — rollback and retry</pre>";
+					transaktion('rollback');
+					usleep(rand(50000, 200000));
+					continue;
+				}
+				if ($debug) echo "<pre>  LOCK acquired</pre>";
+
 				// Get the maximum invoice number for the given art type
-				// Use MAX with CAST to properly find the highest numeric invoice number
-				// This queries ALL records, not just recent ones, to avoid missing higher numbers
 				$qtxt = "SELECT MAX(CAST(fakturanr AS INTEGER)) as max_fakturanr FROM ordrer WHERE (art = '$art' OR art = '$art2') AND fakturanr != '' AND fakturanr IS NOT NULL AND fakturanr ~ '^[0-9]+$'$ekstra";
 				if ($id) {
 					$qtxt .= " AND id != '$id'";
 				}
-				
+
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				if (!$r) {
+					$err = pg_last_error($connection);
+					if ($debug) echo "<pre>  SELECT MAX failed: $err — rollback and retry</pre>";
+					transaktion('rollback');
+					usleep(rand(50000, 200000));
+					continue;
+				}
 				$fakturanr = ($r['max_fakturanr'] ? (int)$r['max_fakturanr'] : 0) + 1;
-				
+				if ($debug) echo "<pre>  MAX fakturanr=" . ($r['max_fakturanr'] ?? 'NULL') . " => next=$fakturanr</pre>";
+
+				// Check minimum invoice number from settings
+				$r = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'RB' AND kodenr='1'", __FILE__ . " linje " . __LINE__));
+				if ($r && $fakturanr < (int)$r['box1']) {
+					if ($debug) echo "<pre>  Min fakturanr from settings: " . $r['box1'] . " (was $fakturanr)</pre>";
+					$fakturanr = (int)$r['box1'];
+				}
+				if ($fakturanr < 1) {
+					$fakturanr = 1;
+				}
+
 				// Double-check that this invoice number doesn't exist (extra safety)
 				$qtxt = "SELECT id FROM ordrer WHERE (art = '$art' OR art = '$art2') AND fakturanr = '$fakturanr'";
 				if ($id) {
 					$qtxt .= " AND id != '$id'";
 				}
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				
-				if (!$check_r['id']) {
-					// Check minimum invoice number from settings
-					$r = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'RB' AND kodenr='1'", __FILE__ . " linje " . __LINE__));
-					if ($r && $fakturanr < (int)$r['box1']) {
-						$fakturanr = (int)$r['box1'];
-					}
-					if ($fakturanr < 1) {
-						$fakturanr = 1;
-					}
-					
+
+				if (!$check_r || !$check_r['id']) {
 					// If order ID is provided, set the fakturanr on the order NOW while table is locked
-					// This prevents race conditions between getting and setting the number
 					if ($id) {
 						db_modify("UPDATE ordrer SET fakturanr='$fakturanr' WHERE id='$id'", __FILE__ . " linje " . __LINE__);
 					}
-					
+
 					// Invoice number is unique, commit transaction and return
 					transaktion('commit');
+					if ($debug) echo "<pre>  OK — returning fakturanr=$fakturanr (attempt $attempt)</pre>";
 					return $fakturanr;
 				} else {
-					// Invoice number already exists, increment and try again
-					$fakturanr++;
-					usleep(rand(10000, 50000)); // Small random delay to reduce contention
+					if ($debug) echo "<pre>  Duplicate! fakturanr=$fakturanr already on order id=" . $check_r['id'] . " — rollback and retry</pre>";
+					transaktion('rollback');
+					usleep(rand(10000, 50000));
 				}
 			}
-			
+
 			// If we get here, we couldn't generate a unique number
-			transaktion('rollback');
+			if ($debug) echo "<pre>  FAILED after $max_attempts attempts</pre>";
 			throw new Exception("Could not generate unique invoice number after $max_attempts attempts");
-			
+
 		} catch (Exception $e) {
 			transaktion('rollback');
+			if ($debug) echo "<pre>  EXCEPTION: " . $e->getMessage() . "</pre>";
 			throw $e;
 		}
 	}
