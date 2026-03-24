@@ -358,6 +358,16 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		
 		// Only set amount from pool file if sourceId is empty (new entry) and newAmount is set
 		if (!$sourceId && $newAmount) {
+			// Normalize amount format: if US format (e.g. "19,455.00"), convert to Danish (e.g. "19.455,00")
+			// US format: comma before dot (comma=thousands, dot=decimal)
+			// Danish format: dot before comma (dot=thousands, comma=decimal)
+			$commaPos = strrpos($newAmount, ',');
+			$dotPos = strrpos($newAmount, '.');
+			if ($commaPos !== false && $dotPos !== false && $commaPos < $dotPos) {
+				// US format detected: remove commas (thousands), replace dot with comma (decimal)
+				$newAmount = str_replace(',', '', $newAmount);
+				$newAmount = str_replace('.', ',', $newAmount);
+			}
 			$sum = $newAmount;
 			$_POST['sum'] = $sum;
 			docPoolLog("docPool INSERT - Setting amount from pool file: newAmount=$newAmount");
@@ -423,7 +433,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					}
 				}
 				if (!$sourceId && empty($newAmount) && $poolData['amount']) {
-					$_POST['sum'] = $poolData['amount'];
+					$poolAmt = $poolData['amount'];
+					$cPos = strrpos($poolAmt, ','); $dPos = strrpos($poolAmt, '.');
+					if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
+						$poolAmt = str_replace(',', '', $poolAmt);
+						$poolAmt = str_replace('.', ',', $poolAmt);
+					}
+					$_POST['sum'] = $poolAmt;
 				}
 				if (!$sourceId && empty($newInvoiceNumber) && $poolData['invoice_number']) {
 					$_POST['fakturanr'] = $poolData['invoice_number'];
@@ -450,7 +466,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						}
 					}
 					if (isset($infoLines[2]) && !empty(trim($infoLines[2])) && empty($newAmount)) {
-						$_POST['sum'] = trim($infoLines[2]);
+						$infoAmt = trim($infoLines[2]);
+						$cPos = strrpos($infoAmt, ','); $dPos = strrpos($infoAmt, '.');
+						if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
+							$infoAmt = str_replace(',', '', $infoAmt);
+							$infoAmt = str_replace('.', ',', $infoAmt);
+						}
+						$_POST['sum'] = $infoAmt;
 					}
 					// Get invoice_number from line 4
 					if (isset($infoLines[4]) && !empty(trim($infoLines[4]))) {
@@ -502,7 +524,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					ob_start();
 				}
 				
-				include ("docsIncludes/insertDoc.php");
+					include ("docsIncludes/insertDoc.php");
 				
 				// Restore original docFolder for next iteration
 				if ($isMultiple) {

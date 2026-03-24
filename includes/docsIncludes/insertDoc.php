@@ -270,7 +270,7 @@ if ($docFolder && $source == 'creditorOrder') {
 		}
 		if ($_POST['sum']) {
 			$qtxt = "update kassekladde set amount = '". usdecimal($_POST['sum']) ."' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		if ($_POST['fakturanr']) {
 			$qtxt = "update kassekladde set faktura = '". db_escape_string($_POST['fakturanr']) ."' where id = '$sourceId'";
