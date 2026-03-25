@@ -231,6 +231,24 @@ $columns[] = array(
     },
 );
 $columns[] = array(
+    "field" => "lev_varenr",
+    "headerName" => "Lev. varenr",
+    "width" => "1",
+    "sqlOverride" => "ol.lev_varenr",
+    "render" => function ($value, $row, $column) {
+        $html = "<td align='$column[align]'>";
+        if ($value) {
+            foreach (explode("\n", $value) as $nr) {
+                if (trim($nr) !== '') {
+                    $html .= "<span>" . trim($nr) . "</span><br>";
+                }
+            }
+        }
+        $html .= "</td>";
+        return $html;
+    },
+);
+$columns[] = array(
     "field" => "enhed",
     "headerName" => "Enhed",
     "width" => "0.5",
@@ -421,15 +439,16 @@ $data = array(
     "table_name" => "varer",
     "query" => "WITH optimized_levs AS (
     -- Simplified supplier aggregation - only when needed
-    SELECT 
-        vl.vare_id, 
+    SELECT
+        vl.vare_id,
         string_agg(a.kontonr::TEXT, ' ') AS kontonr_concat,
-        string_agg(a.id || '\t' || a.kontonr::TEXT || '\t' || a.firmanavn, '\n') AS lev
-    FROM 
+        string_agg(a.id || '\t' || a.kontonr::TEXT || '\t' || a.firmanavn, '\n') AS lev,
+        string_agg(COALESCE(vl.lev_varenr, ''), '\n') AS lev_varenr
+    FROM
         vare_lev vl
-    LEFT JOIN 
+    LEFT JOIN
         adresser a ON vl.lev_id = a.id AND a.art = 'K'
-    GROUP BY 
+    GROUP BY
         vl.vare_id
 ),
 lager_totals AS (
@@ -483,7 +502,8 @@ SELECT DISTINCT
         WHEN vg.box7 = 'on' THEN v.salgspris  
         ELSE (100 + sm.box2::float) / 100 * v.salgspris  
     END AS momspris,                  
-    ol.lev as leverandør                          
+    ol.lev as leverandør,
+    ol.lev_varenr as lev_varenr
 FROM varer v
 $SQLLagerJoin
 LEFT JOIN lager_totals lt ON v.id = lt.vare_id  -- Use optimized CTE
