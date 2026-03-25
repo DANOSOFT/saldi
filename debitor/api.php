@@ -344,6 +344,11 @@
         if($cvrnr_with_prefix !== ""){
             $countryCode = substr($cvrnr_with_prefix, 0, 2);
         }
+        // Greenland (GL) should be sent as DK in companyId
+        if($countryCode == "GL"){
+            $cvrnr_with_prefix = "DK" . substr($cvrnr_with_prefix, 2);
+            $countryCode = "DK";
+        }
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
                 "streetName" => $r_faktura["lev_addr1"],
