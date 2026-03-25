@@ -344,8 +344,8 @@
         if($cvrnr_with_prefix !== ""){
             $countryCode = substr($cvrnr_with_prefix, 0, 2);
         }
-        // Greenland (GL) should be sent as DK in companyId
-        if($countryCode == "GL"){
+        // Greenland (GL) and Faroe Islands (FO) should be sent as DK in companyId
+        if($countryCode == "GL" || $countryCode == "FO"){
             $cvrnr_with_prefix = "DK" . substr($cvrnr_with_prefix, 2);
             $countryCode = "DK";
         }
