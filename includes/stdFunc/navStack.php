@@ -13,7 +13,7 @@ if (!defined('NAV_DEFAULT_URL')) define('NAV_DEFAULT_URL', '../index/menu.php');
 if (!function_exists('nav_push')):
 
 function _nav_file(): string {
-    return __DIR__.'/../../temp/nav_' . preg_replace('/[^a-zA-Z0-9]/', '', session_id()) . '.json';
+    return dirname(__DIR__, 2) . '/temp/nav_' . preg_replace('/[^a-zA-Z0-9]/', '', session_id()) . '.json';
 }
 
 function _nav_read(): array {
