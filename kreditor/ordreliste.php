@@ -62,8 +62,22 @@ while ($r = db_fetch_array($q)) {
     $all_db_columns[$r['column_name']] = $r['data_type'];
 }
 $konto_id = if_isset($_GET, NULL, 'konto_id');
+if ($konto_id) {
+    // Check if setting exists, then update or insert
+    $qtxt = "SELECT id FROM settings WHERE var_name = 'kreditorId' AND var_grp = 'kreditor' AND user_id = '$bruger_id'";
+    if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+        $qtxt = "UPDATE settings SET var_value = '$konto_id' WHERE var_name = 'kreditorId' AND var_grp = 'kreditor' AND user_id = '$bruger_id'";
+    } else {
+        $qtxt = "INSERT INTO settings (var_name, var_value, var_grp, user_id) VALUES ('kreditorId', '$konto_id', 'kreditor', '$bruger_id')";
+    }
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+} else {
+    $qtxt = "SELECT var_value FROM settings WHERE var_name = 'kreditorId' AND var_grp = 'kreditor' AND user_id = '$bruger_id'";
+    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $konto_id = $r['var_value'];
+}
 $returside= if_isset($_GET, NULL,'returside');
-$returside = if_isset($returside, '../index/menu.php');
+if ($konto_id) $returside = "../kreditor/kreditorkort.php?id=$konto_id";
+else $returside = if_isset($returside, '../index/menu.php');
 
 if ($returside == 'ordreliste.php') $returside = NULL;
 if (!$returside) {
@@ -622,6 +636,26 @@ $rowStyle = function($row) {
 $rowAttributes = function($row) {
     return "data-order-id='{$row['id']}'";
 };
+// If konto_id is available (from GET or saved in settings), pre-populate kontonr search
+$grid_id = "kredorliste_$valg";
+if ($konto_id) {
+    if (!isset($_GET['search'])) {
+        $_GET['search'] = array();
+    }
+    if (!isset($_GET['search'][$grid_id])) {
+        $_GET['search'][$grid_id] = array();
+    }
+    if (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
+        $konto_id_escaped = db_escape_string($konto_id);
+        $qtxt = "SELECT kontonr FROM adresser WHERE id = '$konto_id_escaped'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            if (!empty($r['kontonr'])) {
+                $_GET['search'][$grid_id]['kontonr'] = $r['kontonr'];
+            }
+        }
+    }
+}
+
 // Create grid configuration
 $grid_data = [
     'columns' => $columns,
@@ -814,12 +848,12 @@ if (!valgParam) {
     <?php endif; ?>
 }
 
-// Add 'valg' parameter to all forms in the datagrid
+// Add 'valg' and 'konto_id' parameters to all forms in the datagrid
 function addValgToForms() {
-    if (valgParam) {
-        const forms = document.querySelectorAll('.datatable-wrapper form');
+    const forms = document.querySelectorAll('.datatable-wrapper form');
 
-        forms.forEach(form => {
+    forms.forEach(form => {
+        if (valgParam) {
             let valgInput = form.querySelector('input[name="valg"]');
             if (!valgInput) {
                 valgInput = document.createElement('input');
@@ -828,8 +862,19 @@ function addValgToForms() {
                 form.appendChild(valgInput);
             }
             valgInput.value = valgParam;
-        });
-    }
+        }
+
+        <?php if ($konto_id): ?>
+        let kontoInput = form.querySelector('input[name="konto_id"]');
+        if (!kontoInput) {
+            kontoInput = document.createElement('input');
+            kontoInput.type = 'hidden';
+            kontoInput.name = 'konto_id';
+            form.appendChild(kontoInput);
+        }
+        kontoInput.value = "<?php echo addslashes($konto_id); ?>";
+        <?php endif; ?>
+    });
 }
 
 // Run on DOM load and after AJAX updates

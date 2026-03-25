@@ -31,12 +31,27 @@ $add_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -9
 
 ###########
 
+$btkort = false;
+if ($konto_id) {
+	$btkort = true;
+	$backUrl = "kreditorkort.php?id=$konto_id";
+}
+$konto_param = $konto_id ? "&konto_id=$konto_id" : "";
+
+$icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
 print "<tr><td height = '25' align = 'center' valign = 'top'>";
 
 print "<table class='topLine' width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-	
-print "<td width=75% style='$topStyle' align=left><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; 
 
+print "<td width=75% style='$topStyle' align=left><table border=0 cellspacing=2 cellpadding=0><tbody>\n";
+
+if ($btkort) {
+	print "<td width='200px'>
+		<a href=\"$backUrl\" accesskey=L>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		. $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+}
 
 	if (!$hurtigfakt || $hurtigfakt == 'off') {
 			print "<td width = 200px align=center ";
@@ -44,33 +59,33 @@ print "<td width=75% style='$topStyle' align=left><table border=0 cellspacing=2 
 				print "<td width = '200px' align=center>
 					<button class='headerbtn navbtn-top' style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">" .$forslag_icon . findtekst('827|Forslag', $sprog_id) . "</button></td>";
 			} else {
-				print "<td width = 200px align=center><a href='ordreliste.php?sort=$sort&valg=forslag$hreftext'>
+				print "<td width = 200px align=center><a href='ordreliste.php?sort=$sort&valg=forslag$konto_param$hreftext'>
 					<button class='headerbtn navbtn-top' style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 					.$forslag_icon. findtekst('827|Forslag', $sprog_id) . "</button></a></td>";
 			}
-	} 
+	}
 
 
 	if ($valg == "ordrer") {
 		print "<td width = '200px' align=center>";
 			print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor = 'pointer'\">";
-			print "$order_icon ".findtekst('107|Ordrer', $sprog_id)."</button></td>"; 
-			
+			print "$order_icon ".findtekst('107|Ordrer', $sprog_id)."</button></td>";
+
 	} else {
 		print "<td width = '200px' align=center>
-			<a href='ordreliste.php?valg=ordrer&konto_id=$konto_id&returside=$returside'>
+			<a href='ordreliste.php?valg=ordrer$konto_param'>
 			<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor = 'pointer'\">";
-			print "$order_icon ".findtekst('107|Ordrer', $sprog_id)."</button></td>"; 
+			print "$order_icon ".findtekst('107|Ordrer', $sprog_id)."</button></td>";
 	}
 
 	if ($valg == "faktura") {
 		print "<td width = '200px' align=center>";
 			print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-			
+
 			print "$invoice_icon".findtekst('643|Faktura', $sprog_id)."</button></td>";
 	} else {
 		print "<td width = '200px' align=center>";
-			print"<a href='ordreliste.php?valg=faktura&konto_id=$konto_id&returside=$returside'>";
+			print"<a href='ordreliste.php?valg=faktura$konto_param'>";
 			print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 			print "$invoice_icon".findtekst('643|Faktura', $sprog_id)."</button></td>";
 	}

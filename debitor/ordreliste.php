@@ -553,9 +553,9 @@ if (in_array('kundeordnr', $vis_felt)) {
 $grid_id = "ordrelst_$valg";
 
 
-// If konto_id is in GET and search fields are not already set, pre-populate from adresser
-if (isset($_GET['konto_id']) && $_GET['konto_id']) {
-    $debug_log[] = "konto_id found in GET, processing...";
+// If konto_id is available (from GET or saved in settings), pre-populate search from adresser
+if ($konto_id) {
+    $debug_log[] = "konto_id found ($konto_id), processing...";
 
     // Initialize search array if it doesn't exist
     if (!isset($_GET['search'])) {
@@ -571,30 +571,25 @@ if (isset($_GET['konto_id']) && $_GET['konto_id']) {
 
     // Only pre-populate if search fields are empty
     if (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
-        $konto_id_from_get = db_escape_string($_GET['konto_id']);
-        // $qtxt = "SELECT firmanavn, kontonr FROM adresser WHERE id = '$konto_id_from_get'";
-         $qtxt = "SELECT  kontonr FROM adresser WHERE id = '$konto_id_from_get'";
+        $konto_id_escaped = db_escape_string($konto_id);
+        $qtxt = "SELECT  kontonr FROM adresser WHERE id = '$konto_id_escaped'";
         $debug_log[] = "Query to fetch customer: $qtxt";
 
         if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
             $debug_log[] = "Customer found: " . json_encode($r);
 
-            // if (!empty($r['firmanavn'])) {
-            //     $_GET['search'][$grid_id]['firmanavn'] = $r['firmanavn'];
-            //     $debug_log[] = "Set firmanavn search: " . $r['firmanavn'];
-            // }
             if (!empty($r['kontonr'])) {
                 $_GET['search'][$grid_id]['kontonr'] = $r['kontonr'];
                 $debug_log[] = "Set kontonr search: " . $r['kontonr'];
             }
         } else {
-            $debug_log[] = "ERROR: No customer found with id = $konto_id_from_get";
+            $debug_log[] = "ERROR: No customer found with id = $konto_id_escaped";
         }
     } else {
         $debug_log[] = "Search fields already populated, skipping";
     }
 } else {
-    $debug_log[] = "konto_id NOT in GET or empty";
+    $debug_log[] = "konto_id NOT available";
 }
 
 $grid_search = isset($_GET['search'][$grid_id]) ? $_GET['search'][$grid_id] : array();
@@ -2661,12 +2656,12 @@ function select_valg($valg, $box)
 
 
 
-    // Add 'valg' parameter to all forms in the datagrid
+    // Add 'valg' and 'konto_id' parameters to all forms in the datagrid
     document.addEventListener('DOMContentLoaded', function() {
-        if (valgParam) {
-            const forms = document.querySelectorAll('.datatable-wrapper form');
+        const forms = document.querySelectorAll('.datatable-wrapper form');
 
-            forms.forEach(form => {
+        forms.forEach(form => {
+            if (valgParam) {
                 let valgInput = form.querySelector('input[name="valg"]');
                 if (!valgInput) {
                     valgInput = document.createElement('input');
@@ -2675,8 +2670,19 @@ function select_valg($valg, $box)
                     form.appendChild(valgInput);
                 }
                 valgInput.value = valgParam;
-            });
-        }
+            }
+
+            <?php if ($konto_id): ?>
+            let kontoInput = form.querySelector('input[name="konto_id"]');
+            if (!kontoInput) {
+                kontoInput = document.createElement('input');
+                kontoInput.type = 'hidden';
+                kontoInput.name = 'konto_id';
+                form.appendChild(kontoInput);
+            }
+            kontoInput.value = "<?php echo addslashes($konto_id); ?>";
+            <?php endif; ?>
+        });
     });
 </script>
 
