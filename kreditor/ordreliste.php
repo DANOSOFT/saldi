@@ -61,6 +61,7 @@ $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
     $all_db_columns[$r['column_name']] = $r['data_type'];
 }
+$konto_id = if_isset($_GET, NULL, 'konto_id');
 $returside= if_isset($_GET, NULL,'returside');
 $returside = if_isset($returside, '../index/menu.php');
 
@@ -150,7 +151,8 @@ if ($menu == 'T') {
     print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";
     print "<div class=\"headerTxt\">$title</div>";
     print "<div class=\"headerbtnRght headLink\">";
-    print "<a accesskey=N href='ordre.php?returside=ordreliste.php' title='Opret ny ordre'><i class='fa fa-plus-square fa-lg'></i></a>";
+    $ny_konto_param = ($konto_id) ? "&konto_id=$konto_id" : "";
+    print "<a accesskey=N href='ordre.php?returside=ordreliste.php$ny_konto_param' title='Opret ny ordre'><i class='fa fa-plus-square fa-lg'></i></a>";
     print "</div>";
     print "</div>";
     print "<div class='content-noside'>";

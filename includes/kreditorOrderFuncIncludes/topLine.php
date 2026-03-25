@@ -92,7 +92,8 @@ print "<td width=75% style='$topStyle' align=left><table border=0 cellspacing=2 
 	print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
 	print "<button class='headerbtn navbtn-top' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print "$help_icon".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
-	print "<td width=5% style='$buttonStyle'><a href=ordre.php?returside=ordreliste.php>
+	$ny_konto_param = ($konto_id) ? "&konto_id=$konto_id" : "";
+	print "<td width=5% style='$buttonStyle'><a href='ordre.php?returside=ordreliste.php$ny_konto_param'>
 		   <button class='headerbtn navbtn-top' style='$buttonStyle; width: 100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">" .$add_icon. findtekst('39|Ny', $sprog_id) . "</button></a></td>";
 	print "</tbody></table>";
 	print "</tbody></table></td></tr>\n"; 
