@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-02-17 --- 
+// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-03-25 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,9 @@
 // 20260204 LOE Added grid for displaying orders; related to the debitor SD-245
 // 20260205 LOE Fixed a bug where newly created accounts loads new form when save is clicked SD-321
 // 20260213 LOE  - Reordered the columns of datagrid, added Total field and clickable rows.
-// 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly
+// 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly 
+// 20260323 LOE Added a drag handle to adjust the height of the purchase history grid, and made the grid initially collapse.  
+// 20260325 LOE Added logic to navigate to appropriate returside for when general ledger is selected
 @session_start();
 $s_id = session_id();
 
@@ -75,8 +77,23 @@ if (!$id) $id = if_isset($_GET, NULL, 'konto_id');
 if (!isset($_GET['fokus'])) $_GET['fokus'] = NULL;
 if (!isset($_GET['ordre_id'])) $_GET['ordre_id'] = NULL;
 if (!isset($_GET['returside'])) $_GET['returside'] = NULL;
+########################
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+
+$host = $_SERVER['HTTP_HOST']; 
+$requestUri = $_SERVER['REQUEST_URI']; 
+
+$currentUrl = $protocol . $host . $requestUri;
+$parts = parse_url($currentUrl);
+
+$queryString = $parts['query'] ?? '';  
+
+######################
+
 $backUrl = nav_back_url(isset($_GET['returside']) ? $_GET['returside'] : null);
+
 if ($_GET['returside']) {
+	
 	$returside = $_GET['returside'];
 	$ordre_id = $_GET['ordre_id'];
 	$fokus = $_GET['fokus'];
@@ -467,7 +484,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		}
 
 
-		############################
+		############################ 
 		if (!$betalingsdage) {
 			$betalingsdage = 0;
 		}
@@ -898,7 +915,7 @@ if ($menu == 'T') {
 	}
 	print "</div>";
 	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
+	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
 	if (substr($rettigheder, 5, 1) == '1') {
 		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
 	} else {
@@ -1523,8 +1540,23 @@ if ($popup) {
     $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
 }
 
+
 // Kontokort button
-$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
+
+#check if ordre.php is contained in $returside 
+if (strpos($queryString, 'ordre.php') !== false) {
+	$returside = $_GET['returside'] ?? $queryString;
+    if ($returside !== 'ordre.php') {
+        $returside = str_replace('returside=', '', $returside);
+    } else {
+        $returside = str_replace('returside=', '', $queryString);
+    }
+	$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/$returside'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
+
+}else{
+
+$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
+}
 
 // Fakturaliste button
 if (substr($rettigheder, 5, 1) == '1') {
@@ -1569,8 +1601,8 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 		print "<a href=historikkort.php?id=$id>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
 	}
 	$tekst = findtekst('132|Vis Kontokort.', $sprog_id);
-	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
-	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 132--><a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
+	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
+	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 132--><a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
 	$tekst = findtekst('129|Vis fakturaliste.', $sprog_id);
 	if (substr($rettigheder, 5, 1) == '1') {
 		if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?konto_id=$id&valg=faktura&returside=../includes/luk.php','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></td>\n";
@@ -1611,6 +1643,17 @@ if (!$id) {
 
 ################## PURCHASE HISTORY GRID ##################
 if ($id > 0) {
+	print "<div id='resize-handle' title='drag to resize purchase history' style='height:12px; background:#e0e0f0; cursor:ns-resize; flex-shrink:0; position:relative;'>
+  <span style='position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:3px;'>
+    <span style='width:20px;height:2px;background:#888;border-radius:1px;'></span>
+  </span>
+  <span style='position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:3px; transform:translateY(-5px);'>
+    <span style='width:20px;height:2px;background:#888;border-radius:1px;'></span>
+  </span>
+  <span style='position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:3px; transform:translateY(5px);'>
+    <span style='width:20px;height:2px;background:#888;border-radius:1px;'></span>
+  </span>
+</div>";
     // Start purchase history wrapper - separate from form
     echo "<div class='purchase-history-wrapper'>";
     
@@ -1828,6 +1871,7 @@ $purchase_grid = [
     create_datagrid('purchase_history', $purchase_grid);
     
     echo "</div>"; // Close purchase-history-wrapper  
+	echo "</div>";
 }else{
     error_log("Invalid customer ID for purchase history grid: " . htmlspecialchars($id));
 }
@@ -2365,9 +2409,9 @@ document.addEventListener('DOMContentLoaded', function() {
 		flex-shrink: 0;
 		overflow-y: auto;
 		overflow-x: hidden;
-		max-height: 50vh;
-		border-bottom: 2px solid #ddd;
-		padding-bottom: 10px;
+		max-height: calc(100% - 120px); 
+		/* border-bottom: 2px solid #ddd; */
+		/* padding-bottom: 10px; */
 	}
 
 	.purchase-history-wrapper {
@@ -2442,6 +2486,35 @@ document.addEventListener('DOMContentLoaded', function() {
 	.dropdown{
 		display:none !important;
 	}
+	#resize-handle {
+    background: #ccc;
+    cursor: ns-resize;
+    height: 6px;
+    flex-shrink: 0;
+    transition: background 0.2s;
+	}
+	#resize-handle:hover {
+		background: #999;
+	}
+	/* Prevent scrollbar on tfoot/footer buttons */
+	#datatable-wrapper-purchase_history tfoot {
+		position: sticky;
+		bottom: 0;
+		z-index: 10;
+		flex-shrink: 0;
+		overflow: hidden; 
+	}
+
+	#datatable-wrapper-purchase_history tfoot tr:last-child td {
+		overflow: hidden;
+	}
+
+	/* Ensure the datatable search wrapper does NOT scroll — only tbody scrolls */
+	#datatable-wrapper-purchase_history .datatable-search-wrapper {
+		overflow: hidden;
+	}
+
+
 </style>
 
 <script>
@@ -2538,7 +2611,7 @@ function printPurchaseHistory() {
         });
         tbodyHTML += '</tr>';
     });
-    tbodyHTML += '</tbody>';
+    tbodyHTML += '</tbody>'; 
 
     // *** CHANGED: colgroupHTML inserted into table ***
     var cleanTableHTML = '<table class="print-table">' + colgroupHTML + theadHTML + tbodyHTML + '</table>';
@@ -2683,6 +2756,122 @@ function printPurchaseHistory() {
         printWindow.close();
     };
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait for grid to be fully rendered 
+    setTimeout(initResizableLayout, 800);
+});
+
+function initResizableLayout() {
+    const outer = document.querySelector('.outer-datatable-wrapper');
+    const formWrapper = document.querySelector('.form-wrapper');
+    const gridWrapper = document.querySelector('.purchase-history-wrapper');
+    const handle = document.getElementById('resize-handle');
+
+    if (!outer || !formWrapper || !gridWrapper || !handle) {
+        console.error('Required layout elements missing');
+        return;
+    }
+
+    // Get tfoot height (the footer of the grid)
+    const tfoot = document.querySelector('#datatable-purchase_history tfoot');
+    if (!tfoot) {
+        console.error('Table tfoot not found');
+        return;
+    }
+    const tfootHeight = tfoot.offsetHeight; 
+
+    //Set minimum height of grid wrapper to footer height
+    gridWrapper.style.minHeight = tfootHeight + 'px';
+
+   
+    const outerHeight = outer.clientHeight;
+    const handleHeight = handle.offsetHeight;
+    const availableHeight = outerHeight - handleHeight; 
+
+    // Determine initial height: prefer saved value, else default
+    let savedHeight = localStorage.getItem('debitorkort_form_height');
+    let maxFormHeight = availableHeight - tfootHeight;
+    if (maxFormHeight < 0) maxFormHeight = 0;
+    
+    let formWrapperHeight;
+    if (savedHeight !== null) {
+        formWrapperHeight = Math.min(maxFormHeight, Math.max(0, parseInt(savedHeight, 10)));
+    } else {
+        formWrapperHeight = maxFormHeight;
+    }
+    formWrapper.style.height = formWrapperHeight + 'px';
+
+    // Force grid wrapper to not be smaller than footer
+    if (gridWrapper.clientHeight < tfootHeight) {
+        gridWrapper.style.height = tfootHeight + 'px';
+    }
+
+    //Dragging logic
+    let isDragging = false;
+    let startY, startFormHeight; 
+
+    function startDrag(e) {
+        isDragging = true;
+        startY = e.clientY;
+        startFormHeight = formWrapper.clientHeight;
+        document.body.style.userSelect = 'none'; // prevent text selection
+    }
+
+    function onDrag(e) {
+        if (!isDragging) return;
+        const deltaY = e.clientY - startY;
+        let newHeight = startFormHeight + deltaY;
+
+        // Clamp: between 0 and (availableHeight - tfootHeight)
+        const maxFormHeight = availableHeight - tfootHeight;
+        newHeight = Math.min(maxFormHeight, Math.max(0, newHeight));
+
+        formWrapper.style.height = newHeight + 'px';
+        // Ensure grid wrapper never shrinks below footer height
+        if (gridWrapper.clientHeight < tfootHeight) {
+            gridWrapper.style.height = tfootHeight + 'px';
+        }
+    }
+
+    function stopDrag() {
+        if (isDragging) {
+            // Save the new height
+            localStorage.setItem('debitorkort_form_height', formWrapper.clientHeight);
+        }
+        isDragging = false;
+        document.body.style.userSelect = '';
+    }
+
+    handle.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+
+    //  Recalculate on window resize
+    window.addEventListener('resize', function() {
+        formWrapper.style.height = '';
+        setTimeout(() => {
+            const newOuterHeight = outer.clientHeight;
+            const newHandleHeight = handle.offsetHeight;
+            const newAvailable = newOuterHeight - newHandleHeight;
+            // Re-fetch tfoot height in case it changed (e.g. buttons wrap)
+            const newTfoot = document.querySelector('#datatable-purchase_history tfoot');
+            const newTfootHeight = newTfoot ? newTfoot.offsetHeight : tfootHeight;
+            let newMaxFormHeight = newAvailable - newTfootHeight;
+            if (newMaxFormHeight < 0) newMaxFormHeight = 0;
+            
+            let saved = localStorage.getItem('debitorkort_form_height');
+            let newFormHeight;
+            if (saved !== null) {
+                newFormHeight = Math.min(newMaxFormHeight, Math.max(0, parseInt(saved, 10)));
+            } else {
+                newFormHeight = newMaxFormHeight;
+            }
+            formWrapper.style.height = newFormHeight + 'px';
+            if (gridWrapper.clientHeight < newTfootHeight) {
+                gridWrapper.style.height = newTfootHeight + 'px';
+            }
+        }, 50);
+    });
+}
 </script>
-
-

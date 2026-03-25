@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- patch 4.1.0 --- 2025-12-05 ---
+// --- includes/rapportfunc.php --- patch 5.0.0 --- 2026-03-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,7 +69,7 @@
 // 20211101 MSC - Implementing new design
 // 20220901 MSC - Implementing new design
 // 20220905 MSC - Implementing new design
-// 20230111 MSC - Implementing new design
+// 20230111 MSC - Implementing new design 
 // 20230522	PHR - php8+20230616 
 // 20230620 PHR - outcommented section to reduce load. Guess it is not nessecary
 // 20230723 PHR - Moved some functions to reportFunc.php
@@ -77,8 +77,8 @@
 // 20240330 PHR	- Corrections in open post when fromdate != currentdate
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
 // 20250924 LOE - Modify select url to use window.location.href instead of window.open to fit into main frame.
-
-include("../includes/reportFunc/showOpenPosts.php");
+// 20260324 LOE - Updated returside for general ledger from debitor's card if users came from ordre.php
+include("../includes/reportFunc/showOpenPosts.php"); 
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
 {
@@ -1063,8 +1063,41 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 				$forfaldsdate[$y] = '';
 			}
 		}
-		$luk = "<a accesskey=L href=\"$returside\">";
+		
+		#########################
+		$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+		$host = $_SERVER['HTTP_HOST']; 
+		$requestUri = $_SERVER['REQUEST_URI']; 
+		$currentUrl = $protocol . $host . $requestUri;
+		$parts = parse_url($currentUrl);
 
+		// Extract the query string
+		$queryString = $parts['query'] ?? ''; 
+
+		if (strpos($queryString, 'ordre.php') !== false) {
+			$pos = strpos($queryString, 'returside=');
+			if ($pos !== false) {
+				$retursidePart = substr($queryString, $pos);
+				// parse it into array
+				parse_str($retursidePart, $params);
+
+				$returside = $params['returside'] ?? null;
+
+				// Remove 'returside' key itself to get attached parameters
+				unset($params['returside']);
+
+				$attachedQuery = http_build_query($params);
+				$returside = $returside;
+				if (!empty($attachedQuery)) {
+					$returside .= '?' . $attachedQuery;
+				}
+
+			$backUrl = $returside;
+			}
+		}
+		#####################################
+		$luk = "<a accesskey=L href=\"$returside\">";
+       
 		if ($menu == 'T') {
 			print "";
 		} else {
