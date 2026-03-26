@@ -449,7 +449,7 @@ print "<tr><td colspan=\"9\" align=\"right\"><b>".dkdecimal($omsaet,2)."</b></td
 /*
 print "<td align=\"right\"><b>".dkdecimal($modtaget,2)."</b></td>
 <td align=\"right\"><b>".dkdecimal($total_discount,2)."</b></td>
-<td align=\"right\"><b>_".dkdecimal($total_gross_profit,2)."</b></td>
+<td align=\"right\"><b>".dkdecimal($total_gross_profit,2)."</b></td>
 <td></td></tr>";
 */
 for ($z=0;$z<count($bet_type);$z++) {
@@ -526,7 +526,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	else $udvaelg=$udvaelg." and";
 	$x=0;
 	$id=array();
-	if ($straksbogfor && $vis_saet) $qtxt="select * from ordrer $udvaelg (art = 'PO') order by $sort limit 10000";
+	if ($straksbogfor && $vis_saet) $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
 	else $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -534,6 +534,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 		$id[$x]=$r['id'];
 		$fakturadato[$x]=dkdato($r['fakturadate']);
 		$tidspkt[$x]=substr($r['tidspkt'],-5);
+#if ($bruger_id == -1) echo "$r[tidspkt]<br>";
 		$fakturanr[$x]=$r['fakturanr'];
 		$kasse[$x]=$r['felt_5'];
 		$bord[$x]=$r['nr'];
