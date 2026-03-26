@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-02-27 ---
+// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-03-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,8 @@
 // 20243025 Sawaneh add rabat and gross profit columns
 // 20250903 PHR Added title for Bruttoavance
 // 20260226 PHR Kreditnota was not shown with 'straksbogfor'
+// 20260326 PHR Added & '$vis_saet' as just POS orders must be listed for most systems
+// 20260326 PHR Removed sum shown bottom left
 
 ob_start();
 @session_start();
@@ -443,13 +445,13 @@ if ($menu=='T') {
 } else {
 	print "<tr><td colspan=20><hr></td></tr>\n";
 }
-print "<tr><td colspan=\"9\" align=\"right\"><b>".dkdecimal($omsaet,2)."</b></td><td colspan=\"2\" align=\"right\"><b>".dkdecimal($modtaget,2)."</b></td><td colspan=\"1\" align=\"right\"><b>".dkdecimal($retursum,2)."</b></td><td></td></tr>"; 
-
+print "<tr><td colspan=\"9\" align=\"right\"><b>".dkdecimal($omsaet,2)."</b></td><td colspan=\"2\" align=\"right\"><b>".dkdecimal($modtaget,2)."</b></td><td colspan=\"1\" align=\"right\"><b>".dkdecimal($retursum,2)."</b></td><td></td></tr>";
+/*
 print "<td align=\"right\"><b>".dkdecimal($modtaget,2)."</b></td>
 <td align=\"right\"><b>".dkdecimal($total_discount,2)."</b></td>
-<td align=\"right\"><b>".dkdecimal($total_gross_profit,2)."</b></td>
+<td align=\"right\"><b>_".dkdecimal($total_gross_profit,2)."</b></td>
 <td></td></tr>";
-
+*/
 for ($z=0;$z<count($bet_type);$z++) {
 	if ($bet_sum[$z]) print "<tr><td colspan=\"10\" align=\"right\"><b>$bet_type[$z]</b></td><td align=\"right\"><b>".dkdecimal($bet_sum[$z],2)."</b></td></tr>"; 
 }
@@ -464,7 +466,7 @@ for ($z=0;$z<count($bet_type);$z++) {
 function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$summer,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$refs,$linjeantal,$start,$skriv,$borde,$status) {
 
 	global $bgcolor;
-	global $bgcolor5;
+	global $bgcolor5,$bruger_id;
 	global $linjeantal;
 	global $regnaar;
 	global $bet_sum;
@@ -524,7 +526,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	else $udvaelg=$udvaelg." and";
 	$x=0;
 	$id=array();
-	if ($straksbogfor) $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
+	if ($straksbogfor && $vis_saet) $qtxt="select * from ordrer $udvaelg (art = 'PO') order by $sort limit 10000";
 	else $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
