@@ -202,4 +202,10 @@ if ($r && $r['character_maximum_length'] < 50) {
 }
 
 
+// Add currency column to pool_files for storing invoice currency from extraction API
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='currency'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE pool_files ADD COLUMN currency varchar(10)", __FILE__ . " linje " . __LINE__);
+}
+
 ?>
