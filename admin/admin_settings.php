@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------- admin/admin_settings.php --- patch 5.0.0 --- 2026.03.20 ---
+// --------------- admin/admin_settings.php --- patch 5.0.0 --- 2026.03.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,7 +29,8 @@
 // 20240522 MMK Newssnippet
 // 20250503 LOE Updated files with new if_isset function implementation to prevent exessive error logs
 // 20260212 PHR pdfmerge replaced by pdftk and some errors
-// PHR cleanup (pdftk)
+// 20260320 PHR cleanup (pdftk)
+// 20260326 PHR Fixed error in weasyprint
 
 @session_start();
 $s_id=session_id();
@@ -45,7 +46,7 @@ if (isset($_POST['gem'])) {
 	$ps2pdfId = if_isset($_POST, NULL, 'ps2pdfId');
 	$ps2pdf = if_isset($_POST, NULL, 'ps2pdf');
 	$weasyprintId = if_isset($_POST, NULL, 'weasyprintId');
-	$weasyprint = if_isset($_POST, NULL, 'weasyprintId');
+	$weasyprint = if_isset($_POST, NULL, 'weasyprint');
 	$pdftkId = if_isset($_POST, NULL, 'pdftkId');
 	$pdftk = if_isset($_POST, NULL, 'pdftk');
 	$ftpId = if_isset($_POST, NULL, 'ftpId');
@@ -137,6 +138,7 @@ while ($r=db_fetch_array($q)) {
 	} elseif ($r['var_name']=='weasyprint') {
 		$weasyprintId=$r['id'];
 		$weasyprint=$r['var_value'];
+echo "$weasyprintId $weasyprint<br>";
 	} elseif ($r['var_name']=='pdftk') {
 		$pdftkId=$r['id'];
 		$pdftk=$r['var_value'];
