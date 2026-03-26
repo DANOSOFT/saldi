@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-20 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,8 +43,9 @@
 // 20260303 PHR removed call to old phpmailer
 // 20260313 Sawaneh SD-420 Map tlf to phone column for order forms
 // 20260312 PHR reminder was not attached if background didn't exist
-// PHR cleanup (pdftk)
-
+// 20260320 PHR cleanup (pdftk)
+// 20260325 PHR Added 'center' when using html
+ 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
 
@@ -310,7 +311,10 @@ if (!function_exists('skriv')) {
 							$a = $row['xa'];
 							$b = 297 - $row['ya'];
 							$c = $ny_str * 1.2;
-							if (strpos($format, 'neg')) {
+							if (strpos($format, 'div neg')) {
+								$a = 210 - $a;
+								fwrite($htmfp, "<div style=\"position:absolute;left:" . $a . "mm;top:" . $b . "mm;transform:translate(-50%, -50%);\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">" . $ny_streng . "</span></div>\n");
+							} elseif (strpos($format, 'neg')) {
 								$a = 210 - $a;
 								fwrite($htmfp, "<div style=\"position:absolute;right:" . $a . "mm;top:" . $b . "mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:" . $c . "px;\">" . $ny_streng . "</span></div>\n");
 							} else
