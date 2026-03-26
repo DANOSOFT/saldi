@@ -90,7 +90,7 @@ $columns[] = array(
         foreach ($words as $word) {
             if (!empty($word)) {
                 $word = db_escape_string($word);
-                $conditions[] = "(v.varenr ILIKE '%$word%' OR v.varenr_alias ILIKE '%$word%')";
+                $conditions[] = "(v.varenr ILIKE '%$word%' OR v.varenr_alias ILIKE '%$word%' OR stregkode ILIKE '%$word%')";
             }
         }
         return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
