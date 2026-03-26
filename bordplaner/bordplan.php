@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- bordplaner/bordplan.php ---------- lap 3.9.9----2021.02.13-------
+// --- bordplaner/bordplan.php --- lap 5.0.0 --- 2026.03.26-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2012-2021 saldi.dk aps
+// Copyright (c) 2012-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2014.11.11 Bordplan bruges nu også selvom der ikke er individuel bordplan
 // 2015.01.10 Bord sætttes kun som optaget hvis der er et bordnr.
 // 2016.10.14 Bord sætttes kun som optaget hvis der er ordrelinjer.
 // 2018.05.14 Tilføjet mulighed for "underborde". Søg "$_GET['bordplan']".
 // 2019.07.10 Rettet $flyt til $bord[$flyt] så bordnavn og ikke bord ID vises i overskrift ved del / ftyt
+// 20260326 PHR fiscal_year
 
 @session_start();
 $s_id=session_id();
@@ -41,7 +42,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$r = db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr='2'",__FILE__ . " linje " . __LINE__)); 
+$r = db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 ($r['box7'])?$bord=explode(chr(9),$r['box7']):$bord=NULL; #20140508
 (isset($_GET['flyt']))?$flyt=$_GET['flyt']:$flyt=NULL;
 $id=if_isset($_GET['id']);
