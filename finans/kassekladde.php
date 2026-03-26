@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-02-17 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-03-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20260217 PHR Typo
 // 20260223 Sawaneh Added drag-and-drop file upload to clip icons for direct voucher attachment
 // 20260306 Sawaneh Fixed bug: email usernames (e.g. hau@skjern-net.dk) broke posted cash journal grid. Changed $brugernavn to $bruger_id in datagrid ID.
+// 20260326 PHR Added: if ($regnstart && $regnslut)
 
 ob_start(); //Starter output buffering
 
