@@ -1838,6 +1838,7 @@ function ordre_valg() {
 		$ordreAutocomplete = "checked";
 	}
 	$gs1parsing = get_settings_value("gs1_parsing", "ordre", "off") === "on" ? "checked" : "";
+	$ourRefStockSwitch = get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" ? "checked" : "";
 
 	$rabatvarenr = NULL;
 	if ($rabatvareid) {
@@ -1909,6 +1910,7 @@ function ordre_valg() {
 	print "<tr><td title='Angiv en e-mail adresse til modtagelse af pluklister'>Plukliste email</td><td><INPUT title='E-mail adresse til at sende pluklister til' class='inputbox' type='email' style='width:200px;' name='pluklisteEmail' value='$pluklisteEmail'></td></tr>";
 	print "<tr><td title='Aktiverer autosøgning/autocomplete på ordresider (bruger specifik indstilling)'>Anvend autosøgning på ordrer</td><td><INPUT title='Aktiverer autosøgning/autocomplete på ordresider' class='inputbox' type='checkbox' name='ordreAutocomplete' $ordreAutocomplete></td></tr>";
 	print "<tr><td title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)'>Anvend GS1 stregkodefortolkning</td><td><INPUT title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
+	print "<tr><td title=\"Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.\">If 'Our ref's stock is empty choose another</td><td><INPUT title=\"Opdater lager ud fra 'Vores ref.' når feltet ændres\" class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";

@@ -1065,14 +1065,15 @@ if ($b_submit) {
 		$qtxt = "select afd from ansatte where navn = '$ref'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$afd = if_isset($r['afd']);
-		// SD-369: Commented out - needs further review before enabling
-		// Update afd_lager when ref (Our ref.) changes so order lines use the correct stock
-		// if ($afd) {
-		// 	$r_afd = db_fetch_array(db_select("select box1 from grupper where kodenr='$afd' and art='AFD'", __FILE__ . " linje " . __LINE__));
-		// 	if ($r_afd && $r_afd['box1']) {
-		// 		$afd_lager = $r_afd['box1'];
-		// 	}
-		// }
+		if (get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" && $afd) {
+			$r_afd = db_fetch_array(db_select("select box1 from grupper where kodenr='$afd' and art='AFD'", __FILE__ . " linje " . __LINE__));
+			if ($r_afd && $r_afd['box1']) {
+				$afd_lager = $r_afd['box1'];
+			} else {
+				$r_afd = db_fetch_array(db_select("select kodenr from grupper where box1='$afd' and art='LG'", __FILE__ . " linje " . __LINE__));
+				if ($r_afd && $r_afd['kodenr']) $afd_lager = $r_afd['kodenr'];
+			}
+		}
 	}
 
 	if ($extAfd && $afd && $extAfd != $afd) {
@@ -1389,6 +1390,14 @@ if ($b_submit) {
 			}
 		}
 		$lager[$x] = (int)$lager[$x];
+		// When ourRefStockSwitch is ON: if the current warehouse has no stock, find one that does
+		if (get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" && $vare_id[$x] && $lager[$x]) {
+			$r_stock = db_fetch_array(db_select("SELECT sum(beholdning) as qty FROM lagerstatus WHERE vare_id = '$vare_id[$x]' AND lager = '$lager[$x]'", __FILE__ . " linje " . __LINE__));
+			if (!$r_stock || $r_stock['qty'] <= 0) {
+				$r_alt = db_fetch_array(db_select("SELECT lager FROM lagerstatus WHERE vare_id = '$vare_id[$x]' AND beholdning > 0 ORDER BY beholdning DESC LIMIT 1", __FILE__ . " linje " . __LINE__));
+				if ($r_alt && $r_alt['lager']) $lager[$x] = $r_alt['lager'];
+			}
+		}
 		if (!$varenr[$x] || trim($varenr[$x]) === '') {
 			$lager[$x] = 0;
 		}
@@ -5174,6 +5183,17 @@ $x = 0;
 						$lager[$x] = $afd_lager;
 						db_modify("update ordrelinjer set lager = '$lager[$x]' where id = '$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
 					}
+					// When ourRefStockSwitch is ON: if the current warehouse has no stock, find one that does
+					if (get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" && $vare_id[$x] && $lager[$x]) {
+						$r_stock = db_fetch_array(db_select("SELECT sum(beholdning) as qty FROM lagerstatus WHERE vare_id = '$vare_id[$x]' AND lager = '$lager[$x]'", __FILE__ . " linje " . __LINE__));
+						if (!$r_stock || $r_stock['qty'] <= 0) {
+							$r_alt = db_fetch_array(db_select("SELECT lager FROM lagerstatus WHERE vare_id = '$vare_id[$x]' AND beholdning > 0 ORDER BY beholdning DESC LIMIT 1", __FILE__ . " linje " . __LINE__));
+							if ($r_alt && $r_alt['lager']) {
+								$lager[$x] = $r_alt['lager'];
+								db_modify("update ordrelinjer set lager = '$lager[$x]' where id = '$linje_id[$x]'", __FILE__ . " linje " . __LINE__);
+							}
+						}
+					}
 					/*					
 				db_modify("update ordrelinjer set kostpris='$kostpris[$x]' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
 */
@@ -5478,6 +5498,14 @@ $x = 0;
 				#        $antal[0]=NULL;
 			}
 			if (!$lager[0] && $afd_lager) $lager[0] = $afd_lager;
+			// When ourRefStockSwitch is ON: if the current warehouse has no stock, find one that does
+			if (get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" && $vare_id[0] && $lager[0]) {
+				$r_stock = db_fetch_array(db_select("SELECT sum(beholdning) as qty FROM lagerstatus WHERE vare_id = '$vare_id[0]' AND lager = '$lager[0]'", __FILE__ . " linje " . __LINE__));
+				if (!$r_stock || $r_stock['qty'] <= 0) {
+					$r_alt = db_fetch_array(db_select("SELECT lager FROM lagerstatus WHERE vare_id = '$vare_id[0]' AND beholdning > 0 ORDER BY beholdning DESC LIMIT 1", __FILE__ . " linje " . __LINE__));
+					if ($r_alt && $r_alt['lager']) $lager[0] = $r_alt['lager'];
+				}
+			}
 			if ($lagerantal > 1) {
 				$stockId = $lager[0];
 				for ($l = 0; $l < count($lagernr); $l++) {
