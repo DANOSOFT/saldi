@@ -544,7 +544,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			}
 
 			####
-			$q2 = db_select("select kontotype from adresser where kontonr = '$kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
+			$q2 = db_select("select kontotype from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 			$r2 = db_fetch_array($q2);
 			$vkontotype = $r2['kontotype'];
 			####
