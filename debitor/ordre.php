@@ -73,6 +73,8 @@
 // 20260313 Sawaneh SD-369 stock/lager changes commented out pending review
 
 // 20260312 PHR Fixed random product added when copying og crediting an order
+// 20260326 Sawaneh Fixed Fix ourRefStockSwitch order setting to find alternate warehouse when stock is empty
+
 
 @session_start();
 $s_id = session_id();
