@@ -277,7 +277,7 @@ $json_send = array(
           $dfm_sercode
   ),
   "SenderReference" => $dfm_ref,
-  "DeliveryRemark" => $dfm_devrem 
+  "DeliveryRemark" => $dfm_delrem 
 );
 
 $json_send=json_encode($json_send);
