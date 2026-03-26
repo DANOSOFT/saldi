@@ -111,7 +111,7 @@ $navn = ''; $firma = ''; $cvr = ''; $adresse = ''; $adresse2 = ''; $postnr = '';
 if (!$pakke) $pakke = ''; $pakke_1 = ''; $pakke_2 = ''; $pakke_3 = ''; $pakke_4 = ''; $pakke_5 = '';
 $regnskab = ''; $brugerantal = 0; $eventuelt = ''; $betingelser = ''; $brugernavn = ''; $kodeord = ''; $kodeord2 = '';
 
-if (isset($_POST['navn']) && isset($_POST['email'])) {
+if (isset($_POST['navn']) && isset($_POST['email']) && isset($_POST['cvr'])) {
 #include "top.php";
 	$s_id = db_escape_string($_POST['s_id']);
 	$referer = db_escape_string($_POST['referer']);
@@ -518,7 +518,7 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 			<div>
 				<input type="text"
 							 name="cvr"
-							 placeholder="Evt. CVR nr."
+							 placeholder="CVR nr. *"
 							 value="<?php echo $cvr ?>"
 							 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
 			</div>
