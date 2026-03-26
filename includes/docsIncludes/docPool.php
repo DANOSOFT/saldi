@@ -307,6 +307,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$newDate	   = if_isset($_POST,NULL,'newDate');
 	$newInvoiceNumber = if_isset($_POST,NULL,'newInvoiceNumber');
 	$newInvoiceDescription = if_isset($_POST,NULL,'newInvoiceDescription');
+	$newCurrency = if_isset($_POST,NULL,'newCurrency');
 	
 	// Override $poolFile from POST if it's set (for AJAX edit operations)
 	if (isset($_POST['poolFile']) && $_POST['poolFile']) {
@@ -358,14 +359,17 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		
 		// Only set amount from pool file if sourceId is empty (new entry) and newAmount is set
 		if (!$sourceId && $newAmount) {
-			// Normalize amount format: if US format (e.g. "19,455.00"), convert to Danish (e.g. "19.455,00")
-			// US format: comma before dot (comma=thousands, dot=decimal)
-			// Danish format: dot before comma (dot=thousands, comma=decimal)
+			// Normalize amount format from US/API format to Danish format for usdecimal()
+			// usdecimal() expects Danish format: dot=thousands, comma=decimal (e.g. "19.455,00")
+			// API returns US format: comma=thousands, dot=decimal (e.g. "19,455.00" or "61.13")
 			$commaPos = strrpos($newAmount, ',');
 			$dotPos = strrpos($newAmount, '.');
 			if ($commaPos !== false && $dotPos !== false && $commaPos < $dotPos) {
-				// US format detected: remove commas (thousands), replace dot with comma (decimal)
+				// US format with thousands: "19,455.00" -> "19.455,00"
 				$newAmount = str_replace(',', '', $newAmount);
+				$newAmount = str_replace('.', ',', $newAmount);
+			} elseif ($dotPos !== false && $commaPos === false) {
+				// US decimal only (no thousands): "61.13" -> "61,13"
 				$newAmount = str_replace('.', ',', $newAmount);
 			}
 			$sum = $newAmount;
@@ -384,7 +388,20 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if (!$sourceId && $newInvoiceDescription) {
 			$_POST['beskrivelse'] = $newInvoiceDescription;
 		}
-		
+
+		// Set valuta from pool file currency if sourceId is empty (new entry) and newCurrency is set
+		if (!$sourceId && $newCurrency) {
+			// Look up the grupper kodenr for this currency code (e.g. "DKK" -> kodenr integer)
+			$qtxt = "SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($newCurrency)) . "'";
+			$currRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if ($currRow && $currRow['kodenr']) {
+				$_POST['valuta'] = $currRow['kodenr'];
+				docPoolLog("docPool INSERT - Setting valuta from pool file: currency=$newCurrency, kodenr=" . $currRow['kodenr']);
+			} else {
+				docPoolLog("docPool INSERT - Currency '$newCurrency' not found in grupper VK");
+			}
+		}
+
 		// Handle multiple poolFiles - prioritize POST data for insert operations
 		// IMPORTANT: Do NOT use $poolFile function parameter here - it contains the 
 		// file being VIEWED, not the file the user wants to INSERT
@@ -438,6 +455,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
 						$poolAmt = str_replace(',', '', $poolAmt);
 						$poolAmt = str_replace('.', ',', $poolAmt);
+					} elseif ($dPos !== false && $cPos === false) {
+						// US decimal only (no thousands): "61.13" -> "61,13"
+						$poolAmt = str_replace('.', ',', $poolAmt);
 					}
 					$_POST['sum'] = $poolAmt;
 				}
@@ -446,6 +466,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				}
 				if (!$sourceId && empty($newInvoiceDescription) && $poolData['description']) {
 					$_POST['beskrivelse'] = $poolData['description'];
+				}
+				if (!$sourceId && empty($newCurrency) && $poolData['currency']) {
+					$qtxt = "SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($poolData['currency'])) . "'";
+					$currRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					if ($currRow && $currRow['kodenr']) {
+						$_POST['valuta'] = $currRow['kodenr'];
+					}
 				}
 			} elseif (!$sourceId && empty($newDate) && !empty($poolFiles)) {
 				// Fallback to .info file if not in DB
@@ -470,6 +497,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						$cPos = strrpos($infoAmt, ','); $dPos = strrpos($infoAmt, '.');
 						if ($cPos !== false && $dPos !== false && $cPos < $dPos) {
 							$infoAmt = str_replace(',', '', $infoAmt);
+							$infoAmt = str_replace('.', ',', $infoAmt);
+						} elseif ($dPos !== false && $cPos === false) {
+							// US decimal only (no thousands): "61.13" -> "61,13"
 							$infoAmt = str_replace('.', ',', $infoAmt);
 						}
 						$_POST['sum'] = $infoAmt;
@@ -2652,6 +2682,13 @@ print <<<JS
 				} else {
 					console.log('No description in fileData');
 				}
+				// Transfer currency if available
+				if (fileData.currency) {
+					formData.append('newCurrency', fileData.currency);
+					console.log('Transferring currency from pool file:', fileData.currency);
+				} else {
+					console.log('No currency in fileData');
+				}
 			} else {
 				console.log('Could not find file in docData. Available filenames:', docData.map(d => d.filename));
 			}
@@ -2991,7 +3028,8 @@ window.extractPoolFile = function(poolFile) {
 			if (extracted.invoiceNumber) message += 'Fakturanummer: ' + extracted.invoiceNumber + "\\n";
 			if (extracted.description) message += 'Beskrivelse: ' + extracted.description + "\\n";
 			if (extracted.vendor) message += 'Leverandør: ' + extracted.vendor + "\\n";
-			
+			if (extracted.currency) message += 'Valuta: ' + extracted.currency + "\\n";
+
 			if (confirm(message + 'Vil du opdatere filen med disse data?')) {
 				// Save the extracted data to the .info file
 				const saveData = new FormData();
@@ -3004,7 +3042,8 @@ window.extractPoolFile = function(poolFile) {
 				if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
 				if (extracted.description) saveData.append('newDescription', extracted.description);
 				if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
-				
+				if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+
 				fetch('docsIncludes/extractInvoiceHandler.php', {
 					method: 'POST',
 					body: saveData
@@ -3091,7 +3130,8 @@ window.extractAllPoolFiles = async function() {
 					if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
 					if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
 					if (extracted.description) saveData.append('newDescription', extracted.description);
-					
+					if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+
 					const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
 						method: 'POST',
 						body: saveData

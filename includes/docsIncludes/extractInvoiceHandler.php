@@ -192,7 +192,8 @@ if ($action === 'extract') {
 				'date' => $normalizedDate,
 				'vendor' => $result['vendor'] ?? null,
 				'invoiceNumber' => $result['invoiceNumber'] ?? null,
-				'description' => $result['description'] ?? null
+				'description' => $result['description'] ?? null,
+				'currency' => $result['currency'] ?? null
 			]
 		]);
 	} else {
@@ -209,6 +210,7 @@ if ($action === 'save') {
 	$newAccount = isset($_POST['newAccount']) ? $_POST['newAccount'] : '';
 	$newInvoiceNumber = isset($_POST['newInvoiceNumber']) ? $_POST['newInvoiceNumber'] : '';
 	$newDescription = isset($_POST['newDescription']) ? $_POST['newDescription'] : '';
+	$newCurrency = isset($_POST['newCurrency']) ? $_POST['newCurrency'] : '';
 	
 	$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
 	
@@ -219,6 +221,7 @@ if ($action === 'save') {
 	$existingDate = '';
 	$existingInvoiceNumber = '';
 	$existingDescription = '';
+	$existingCurrency = '';
 	
 	$qtxt = "SELECT * FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
 	$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -230,7 +233,8 @@ if ($action === 'save') {
 		$existingDate = $existingRow['file_date'] ?? '';
 		$existingInvoiceNumber = $existingRow['invoice_number'] ?? '';
 		$existingDescription = $existingRow['description'] ?? '';
-		
+		$existingCurrency = $existingRow['currency'] ?? '';
+
 		// If date in DB is in Y-m-d H:i:s format, we might want to standardize, but let's keep it as is
 		// logic below handles newDate overrides
 	} else {
@@ -255,32 +259,35 @@ if ($action === 'save') {
 	$finalAmount = !empty($newAmount) ? $newAmount : $existingAmount;
 	$finalInvoiceNumber = !empty($newInvoiceNumber) ? $newInvoiceNumber : $existingInvoiceNumber;
 	$finalDescription = !empty($newDescription) ? $newDescription : $existingDescription;
-	
+	$finalCurrency = !empty($newCurrency) ? $newCurrency : $existingCurrency;
+
 	// Format date using the normalization function (handles Danish months, etc.)
 	$dateToUse = !empty($newDate) ? $newDate : $existingDate;
 	$finalDate = normalizeDateFormat($dateToUse);
 	
 	// Update or Insert into Database
 	if ($existingRow) {
-		$qtxt = "UPDATE pool_files SET 
+		$qtxt = "UPDATE pool_files SET
 			subject = '". db_escape_string($finalSubject) ."',
 			account = '". db_escape_string($finalAccount) ."',
 			amount = '". db_escape_string($finalAmount) ."',
 			invoice_number = '". db_escape_string($finalInvoiceNumber) ."',
 			description = '". db_escape_string($finalDescription) ."',
+			currency = '". db_escape_string($finalCurrency) ."',
 			file_date = '". db_escape_string($finalDate) ."',
 			updated = CURRENT_TIMESTAMP
 			WHERE filename = '". db_escape_string($poolFile) ."'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	} else {
-		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, currency) VALUES (
 			'". db_escape_string($poolFile) ."',
 			'". db_escape_string($finalSubject) ."',
 			'". db_escape_string($finalAccount) ."',
 			'". db_escape_string($finalAmount) ."',
 			'". db_escape_string($finalDate) ."',
 			'". db_escape_string($finalInvoiceNumber) ."',
-			'". db_escape_string($finalDescription) ."'
+			'". db_escape_string($finalDescription) ."',
+			'". db_escape_string($finalCurrency) ."'
 		)";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}

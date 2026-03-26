@@ -44,7 +44,7 @@ $data = [];
 $fil_nr = 0;
 
 // Query all files from the pool_files table (database is the source of truth)
-$qtxt = "SELECT filename, subject, account, amount, file_date, invoice_number, description 
+$qtxt = "SELECT filename, subject, account, amount, file_date, invoice_number, description, currency
          FROM pool_files ORDER BY file_date DESC, updated DESC";
 $result = db_select($qtxt, __FILE__ . " line " . __LINE__);
 
@@ -58,7 +58,8 @@ while ($row = db_fetch_array($result)) {
     $modDate = $row['file_date'] ?: '';
     $invoiceNumber = $row['invoice_number'] ?: '';
     $description = $row['description'] ?: '';
-    
+    $currency = $row['currency'] ?: '';
+
     $fil_nr++;
     
     // Build href - remove any existing poolFile from poolParams
@@ -75,6 +76,7 @@ while ($row = db_fetch_array($result)) {
         'href' => $hreftxt,
         'invoiceNumber' => $invoiceNumber,
         'description' => $description,
+        'currency' => $currency,
         'fil_nr' => $fil_nr,
     ];
 }

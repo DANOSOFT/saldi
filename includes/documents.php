@@ -327,6 +327,18 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					}
 				}
 				
+				// Save extracted currency directly to pool_files (currency not stored in .info files)
+				if ($extractedData !== null && !empty($extractedData['currency'])) {
+					$uploadFilename = $baseName . '.pdf';
+					$uploadCurrency = $extractedData['currency'];
+					$qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($uploadFilename) . "'";
+					$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					if ($existingRow) {
+						$qtxt = "UPDATE pool_files SET currency = '" . db_escape_string($uploadCurrency) . "' WHERE id = '" . $existingRow['id'] . "'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					}
+				}
+
 				// Return JSON response for AJAX
 				header('Content-Type: application/json');
 				echo json_encode([

@@ -142,6 +142,10 @@ if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
             $qtxt = "update kassekladde set faktura = '" . db_escape_string($_POST['fakturanr']) . "' where id = '$sourceId'";
             db_modify($qtxt, __FILE__ . " linje " . __LINE__);
         }
+        if (isset($_POST['valuta']) && $_POST['valuta']) {
+            $qtxt = "update kassekladde set valuta = '" . (int)$_POST['valuta'] . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
     }
 
     // Return response
@@ -274,7 +278,11 @@ if ($docFolder && $source == 'creditorOrder') {
 		}
 		if ($_POST['fakturanr']) {
 			$qtxt = "update kassekladde set faktura = '". db_escape_string($_POST['fakturanr']) ."' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		}
+		if ($_POST['valuta']) {
+			$qtxt = "update kassekladde set valuta = '". (int)$_POST['valuta'] ."' where id = '$sourceId'";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=../finans/kassekladde.php?kladde_id=$kladde_id\">";
 	} else {

@@ -547,7 +547,8 @@ class AttachmentModel
             $fileDate = date('Y-m-d H:i:s');
             $invoiceNumber = '';
             $description = '';
-            
+            $currency = '';
+
             if ($metadata !== null && is_array($metadata)) {
                 $subject = isset($metadata['subject']) && $metadata['subject'] ? $metadata['subject'] : $baseName;
                 $account = isset($metadata['accountnr']) ? $metadata['accountnr'] : '';
@@ -555,17 +556,19 @@ class AttachmentModel
                 $fileDate = isset($metadata['date']) && $metadata['date'] ? $metadata['date'] : $fileDate;
                 $invoiceNumber = isset($metadata['invoiceNumber']) ? $metadata['invoiceNumber'] : '';
                 $description = isset($metadata['invoiceDescription']) ? $metadata['invoiceDescription'] : '';
+                $currency = isset($metadata['currency']) ? $metadata['currency'] : '';
             }
-            
+
             // Insert into database
-            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description) VALUES (
+            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, currency) VALUES (
                 '" . db_escape_string($filename) . "',
                 '" . db_escape_string($subject) . "',
                 '" . db_escape_string($account) . "',
                 '" . db_escape_string($amount) . "',
                 '" . db_escape_string($fileDate) . "',
                 '" . db_escape_string($invoiceNumber) . "',
-                '" . db_escape_string($description) . "'
+                '" . db_escape_string($description) . "',
+                '" . db_escape_string($currency) . "'
             )";
             db_modify($qtxt, __FILE__ . " line " . __LINE__);
             

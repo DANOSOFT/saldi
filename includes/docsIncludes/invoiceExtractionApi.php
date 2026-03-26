@@ -212,6 +212,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$vendor = null;
 	$invoiceNumber = null;
 	$description = null;
+	$currency = null;
 	if (isset($responseData['extracted_data'])) {
 		$extractedData = $responseData['extracted_data'];
 		
@@ -266,16 +267,22 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		if (isset($extractedData['vendor'])) {
 			$vendor = $extractedData['vendor'];
 		}
+
+		// Get currency
+		if (isset($extractedData['currency'])) {
+			$currency = $extractedData['currency'];
+		}
 	}
 	
 	// Return extracted data
-	if ($amount !== null || $date !== null || $vendor !== null || $invoiceNumber !== null || $description !== null) {
+	if ($amount !== null || $date !== null || $vendor !== null || $invoiceNumber !== null || $description !== null || $currency !== null) {
 		return array(
 			'amount' => $amount,
 			'date' => $date,
 			'vendor' => $vendor,
 			'invoiceNumber' => $invoiceNumber,
-			'description' => $description
+			'description' => $description,
+			'currency' => $currency
 		);
 	}
 	
