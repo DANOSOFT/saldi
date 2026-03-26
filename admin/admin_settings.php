@@ -138,7 +138,6 @@ while ($r=db_fetch_array($q)) {
 	} elseif ($r['var_name']=='weasyprint') {
 		$weasyprintId=$r['id'];
 		$weasyprint=$r['var_value'];
-echo "$weasyprintId $weasyprint<br>";
 	} elseif ($r['var_name']=='pdftk') {
 		$pdftkId=$r['id'];
 		$pdftk=$r['var_value'];
