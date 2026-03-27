@@ -201,6 +201,13 @@ if ($r && $r['character_maximum_length'] < 50) {
 	db_modify("ALTER TABLE ordrer ALTER COLUMN phone TYPE VARCHAR(50)", __FILE__ . " linje " . __LINE__);
 }
 
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE pool_files (id int, filename varchar(255), subject text, account varchar(50), ";
+	$qtxt.= "amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 // Add currency column to pool_files for storing invoice currency from extraction API
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='currency'";
