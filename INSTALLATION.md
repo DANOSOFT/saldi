@@ -1,11 +1,18 @@
-Installation of SALDI
-================================================= ===========================
+# Installation of SALDI
 
-NOTICE:
-See updated installation guide at INSTALLATION.md, this installation guide 
-includes how to setup optional docker container for saldi, and what is essentially 
-a one command install of the system
+## Client Requirements
 
+Web browser with cookies and JavaScript enabled, supporting pop-up windows.
+
+Tested browsers: Google Chrome / Chromium, Vivaldi.
+> Browsers from Microsoft are generally buggy and not recommended.
+
+---
+
+<details>
+<summary><strong>Option A — Standard Installation (Linux + Apache + PostgreSQL)</strong></summary>
+
+```
 System requirements for server:
 ----------------------
 Linux or other Unix-like system with web server with PHP support
@@ -23,23 +30,12 @@ copy.
 It is not recommended to use other database servers, as it is likely that there
 errors will occur when upgrading where there has been a change in the database model.
 
-System requirements for client:
-----------------------
-Web browser where cookies and JavaScript are enabled and which supports new ones
-windows and pop-ups.
-
-Saldi is developed for and tested with the web browsers:
-- Google Chrome / Chromium
-- Vivaldi
-
-Browsers from Microsoft are generally buggy and not recommended
-
 
 The installation itself:
 ---------------------
 0. We assume you have already initialized git. Then, Clone it from github to your root directory without adding in into extra directory.
 
-e.g www/  
+e.g www/
 
 www$ clone https://github.com/DANOSOFT/saldi.git
 
@@ -47,8 +43,8 @@ or www/html/
 
 www/html$ git clone https://github.com/DANOSOFT/saldi.git
 
-Note: if you don't need the extra directory that comes with the clonning, 
-i.) 
+Note: if you don't need the extra directory that comes with the clonning,
+i.)
 Go to your working directory and run these commands:
 	$ git remote add origin https://github.com/DANOSOFT/saldi.git
 	$ git fetch origin
@@ -64,7 +60,7 @@ Go to your working directory and run these commands:
 
  sudo sed -i 's/^\(balances:.*[a-z0-9]\)$/\1,www-data/' /etc/group
  sudo sed -i 's/^\(balances:.*\\)$/\1www-data/' /etc/group
- 
+
 3. Manually create these directories inside the root of saldi: 'temp' and 'logolib'.
 e.g saldi/loglib etc.
 
@@ -79,8 +75,8 @@ e.g saldi/loglib etc.
  or if you are down in the Saldi catalog itself:
 
  sudo chmod 775 includes logolib temp
- 
- If that permission didn't work during installation, you can use 777. 
+
+ If that permission didn't work during installation, you can use 777.
 
  In the includes directory the file connect.php is created, so after
  creation, it can be changed to 555. In the catalog logolib
@@ -97,10 +93,10 @@ e.g saldi/loglib etc.
 
 7. Specify the address of the web server and the directory under the web server
  hierarchy where you copied the Balances files to. For example:
- 
+
 	#domain/saldi
 
-       # http://localhost/saldi 
+       # http://localhost/saldi
 
 8. It may be that the browser complains that the page is trying to
  open pop-up windows. You must accept this. If not, it takes you to the installation page.
@@ -144,8 +140,121 @@ e.g saldi/loglib etc.
 
 16. Now it is time to set up the accounts in Balances. See the link
  "User guide" under "Support" on the website https://saldi.dk/
+```
 
-================================================= =====================
-Last modified 2024-07-09 by Lawrence Ojomon E. <loe@saldi.dk>
+</details>
 
-© Saldi.dk ApS - http://saldi.dk/
+---
+
+<details>
+<summary><strong>Option B — Docker Compose Installation</strong></summary>
+
+### Requirements
+
+- [Docker](https://docs.docker.com/get-docker/) with Docker Compose
+
+No system-level PHP, Apache, or PostgreSQL needed — everything runs in containers.
+
+### Steps
+
+**1.** Clone the repository:
+
+```bash
+git clone https://github.com/DANOSOFT/saldi.git
+cd saldi
+```
+
+**2.** *(Optional)* Configure email. By default, all outgoing emails are caught
+by the built-in Mailpit service and **not delivered**. To send real emails,
+copy the example env file and fill in your SMTP credentials:
+
+```bash
+cp .env.example .env
+# Edit .env with your SMTP details
+```
+
+**3.** Build and start all services:
+
+```bash
+docker compose up --build
+```
+
+**4.** Open your browser and go to `http://localhost:5000/saldi`. Allow pop-ups if prompted.
+
+**5.** The installation wizard opens. Fill in:
+
+| Field | Value |
+|---|---|
+| Database server | PostgreSQL |
+| Character set | UTF8 |
+| Server name | `postgres` ← use this, **not** localhost |
+| Database name | `saldi` |
+| DB administrator | `user` |
+| DB password | `password` |
+| SALDI admin | your choice |
+
+Click **Install**.
+
+**6.** After installation completes, click **Næste** and log in.
+
+**7.** Choose **"Opret Regnskab"**, fill in account details, click **Gem/Opdater**.
+
+**8.** Select the account from **"Vis regnskaber"** and begin using it.
+
+### Services
+
+| Service | URL | Purpose |
+|---|---|---|
+| SALDI | http://localhost:5000/saldi | Main application |
+| Adminer | http://localhost:5001 | Database browser |
+| Mailpit | http://localhost:5002 | Inspect outgoing emails (default) |
+
+**Adminer login:** System `PostgreSQL` · Server `postgres` · User `user` · Password `password`
+
+### Email Configuration
+
+Set these in your `.env` file to deliver real emails (see `.env.example`):
+
+| Variable | Description | Default |
+|---|---|---|
+| `SMTP_HOST` | SMTP server hostname | `mailpit` (caught locally) |
+| `SMTP_PORT` | SMTP port | `1025` |
+| `SMTP_FROM` | Envelope from address | `noreply@example.com` |
+| `SMTP_USER` | SMTP username | *(none)* |
+| `SMTP_PASS` | SMTP password | *(none)* |
+| `SMTP_TLS` | `on`/`off` | `off` |
+| `SMTP_STARTTLS` | `on`/`off` — use for port 587 | `off` |
+
+**Gmail** (requires a [Google App Password](https://support.google.com/accounts/answer/185833)):
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_STARTTLS=on
+SMTP_USER=you@gmail.com
+SMTP_PASS=your-app-password
+```
+
+**Office 365:**
+```env
+SMTP_HOST=smtp.office365.com
+SMTP_PORT=587
+SMTP_STARTTLS=on
+SMTP_USER=you@company.com
+SMTP_PASS=yourpassword
+```
+
+### Useful Commands
+
+```bash
+docker compose up -d          # Start in background
+docker compose down           # Stop all services
+docker compose logs -f web    # Follow web server logs
+docker compose exec web bash  # Shell into the web container
+docker compose up --build     # Rebuild after Dockerfile changes
+```
+
+</details>
+
+---
+
+*© Saldi.dk ApS — https://saldi.dk/*
