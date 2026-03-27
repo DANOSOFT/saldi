@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-02-12 --- 
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-03-26 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
 // 20260202 Added syncPuljeFilesToDatabase to sync files once on page load.
 // 20260212 PHR Added: if (date('U') - $skip > 600) $skip = 0;
+// 20260326 LOE Handle malformed numbers like 1.234.56 to 1.234,56 
 
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -1401,10 +1402,18 @@ print <<<JS
     let docData = [];
     let currentSort = { field: 'date', asc: false };
 
+    
     // Helper: parse amount string to float, handling English format (1,000.00) correctly
     function parseAmountToFloat(val) {
         if (!val) return NaN;
         var s = val.toString().trim();
+		// Handle malformed numbers like 1.234.56
+		if ((s.match(/\./g) || []).length > 1 && s.indexOf(',') === -1) {
+			var parts = s.split('.');
+			var decimal = parts.pop();       // last part = decimal
+			var integer = parts.join('');    // rest = integer
+			s = integer + '.' + decimal;
+		}
         // If it has both commas and dots, and the last dot comes after the last comma,
         // it's English format (commas are thousands separators) - strip commas
         var lastComma = s.lastIndexOf(',');
@@ -1996,7 +2005,7 @@ print <<<JS
 				const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input') && !this.hasAttribute('data-editing')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
 					"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
-					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
+					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(formattedAmount) + "'>" + amountCell + "</td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.invoiceNumber) + "'>" + invoiceNumberCell + "</td>" +
 					"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
 					"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
