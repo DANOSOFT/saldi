@@ -90,7 +90,7 @@
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup addresses
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260306 Sawaneh - Added Simple guides feature: sidebar overlay with hardcoded Finance + Scaffolding PDF links
-
+// 20260326 Sawaneh -Added ourRefStockSwitch setting
 
 @session_start();
 $s_id = session_id();
@@ -636,9 +636,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$showDB           = if_isset($_POST, null, 'showDB');
 		$showDG           = if_isset($_POST, null, 'showDG');
 		$pluklisteEmail   = if_isset($_POST, null, 'pluklisteEmail');
-		$lockPayment 	  = if_isset($_POST["lockPayment"]);
+		$lockPayment       = if_isset($_POST["lockPayment"]);
 		$ordreAutocomplete = if_isset($_POST, null, 'ordreAutocomplete');
 		$gs1parsing        = if_isset($_POST, null, 'gs1_parsing');
+		$ourRefStockSwitch = if_isset($_POST, null, 'ourRefStockSwitch');
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
@@ -648,6 +649,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("lockedInvoiceButton", "debitor", $lockPayment, "Locks the invoice button until payment has occured");
 		update_settings_value("ordreAutocomplete", "ordre", $ordreAutocomplete, "Enable or disable autocomplete search on order pages", $bruger_id);
 		update_settings_value("gs1_parsing", "ordre", $gs1parsing, "Enable GS1 barcode parsing on order line item entry");
+		update_settings_value("ourRefStockSwitch", "ordre", $ourRefStockSwitch, "Update order stock/warehouse from Our ref when the reference changes"); // Removed single quotes from description to avoid SQL syntax error
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
 		} elseif ($box2) {
