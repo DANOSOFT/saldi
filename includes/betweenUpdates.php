@@ -257,5 +257,4 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		}
 	}
 }
-
 ?>

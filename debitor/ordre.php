@@ -122,6 +122,7 @@ function bg_display_name($sprog_value) {
 
 include(__DIR__ . "/../includes/gs1_parser.php");  # Absolute import
 include("../includes/tid2decimal.php");
+include("../includes/stdFunc/getKontaktEmail.php");
 
 
 $title = findtekst('1092|Kundeordre', $sprog_id);
@@ -548,7 +549,7 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		$cvrnr = db_escape_string($r['cvrnr']);
 		$ean = db_escape_string($r['ean']);
 		$institution = db_escape_string($r['institution']);
-		$email = db_escape_string($r['email']);
+		$email = db_escape_string(getKontaktEmail($konto_id, 'faktura'));
 		$mail_fakt = $r['mailfakt'];
 		$phone = $r['tlf'];
 		if (empty($phone)) {

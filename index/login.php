@@ -950,7 +950,7 @@ if(!isset($afbryd)){
 			include("../includes/betweenUpdates.php");
 		}
 		hent_shop_ordrer(0,'');
-#if (!$sag_rettigheder&&$rettigheder) print "<meta http-equiv=\"refresh\" content=\"0;URL=sidemenu.php\">";
+if (!$sag_rettigheder && !$rettigheder && $brugernavn == 'kds?') print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/kds/\">";
 if (!$sag_rettigheder&&$rettigheder) {
 
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/menu.php\">";

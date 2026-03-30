@@ -58,7 +58,10 @@ function CreateDebitor() {
 	$maxNo         = if_isset($_GET['maxNo']);
 	$postnr        = if_isset($_GET['postnr']);
 	$tlf           = if_isset($_GET['tlf']);
-	
+	$email         = if_isset($_GET['email']);
+	$email_type    = if_isset($_GET['email_type']);
+	if (!$email_type) $email_type = 'hoved';
+
 	if (!$kontonr) {
 		include("restApiIncludes/getNextAccountNo.php");
 		$kontonr = getNextAccountNo('D');
@@ -97,7 +100,12 @@ function CreateDebitor() {
    $qtxt = "select id from adresser where kontonr='$kontonr' and art = 'D'";
     $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$id=$r['id'];
-	
+
+	// Save email to kontakt_emails table
+	if ($email && $id) {
+		db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '".db_escape_string($email)."', '".db_escape_string($email_type)."')", __FILE__ . " linje " . __LINE__);
+	}
+
 	return ("$id,$kontonr");
 }
 
