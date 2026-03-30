@@ -55,6 +55,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/formfunk.php");
+include("../includes/stdFunc/getKontaktEmail.php");
 
 $dato_fra=$dato_til=NULL;
 $email=NULL;
@@ -196,7 +197,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 	$til[$x]=dkdato($todate[$x]);
 	$query = db_select("select * from adresser where id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($query);
-	if (!$email[$x]) $email[$x]=$r['email'];
+	if (!$email[$x]) $email[$x]=getAllKontaktEmails($r['id'], 'kontoudtog');
 	$accountId[$x]=$r['id'];
 	$r2=db_fetch_array(db_select("select box3 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 	$kontovaluta[$x]=$r2['box3'];

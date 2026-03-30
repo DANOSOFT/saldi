@@ -971,6 +971,7 @@ if (!function_exists('formularprint')) {
 
 		include("../includes/std_func.php");
 		include("../includes/var2str.php");
+		include_once("../includes/stdFunc/getKontaktEmail.php");
 
 		global $bruger_id, $brugsamletpris;
 		global $charset;
@@ -1199,6 +1200,23 @@ if (!function_exists('formularprint')) {
 				$fakturanr = $row['fakturanr'];
 				($inkasso) ? $mail_fakt = 'on' : $mail_fakt = $row['mail_fakt'];
 				$email[0] = $row['email'];
+				// Combine order email with type-specific kontakt_emails
+				$r_ke = db_fetch_array(db_select("SELECT konto_id FROM ordrer WHERE id = '$ordre_id[$o]'", __FILE__ . " linje " . __LINE__));
+				if ($r_ke && $r_ke['konto_id']) {
+					$ke_type = '';
+					if ($formular == 0 || $formular == 1) $ke_type = 'tilbud';
+					elseif ($formular == 2) $ke_type = 'ordre';
+					elseif ($formular == 4 || $formular == 5) $ke_type = 'faktura';
+					elseif ($formular >= 6) $ke_type = 'rykker';
+					if ($ke_type) {
+						$ke_emails = getAllKontaktEmails($r_ke['konto_id'], $ke_type);
+						if ($ke_emails) {
+							// Merge order email + kontakt_emails, deduplicate
+							$all = array_filter(array_map('trim', preg_split('/[;,]/', $email[0] . ';' . $ke_emails)));
+							$email[0] = implode(';', array_unique($all));
+						}
+					}
+				}
 				if ($email[0] && $udskriv_alle_til == 'email')
 					$mail_fakt = 'on';
 				$pbs = $row['pbs'];

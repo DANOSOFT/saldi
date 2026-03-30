@@ -202,10 +202,59 @@ if ($r && $r['character_maximum_length'] < 50) {
 }
 
 
-// Add currency column to pool_files for storing invoice currency from extraction API
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='currency'";
-if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE pool_files ADD COLUMN currency varchar(10)", __FILE__ . " linje " . __LINE__);
+// Ensure pool_files table exists with all columns
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE pool_files (
+		id serial NOT NULL,
+		filename varchar(255) NOT NULL,
+		subject text,
+		account varchar(50),
+		amount varchar(50),
+		file_date varchar(50),
+		invoice_number varchar(100),
+		description text,
+		currency varchar(10),
+		updated timestamp DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (id),
+		UNIQUE(filename)
+	)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+} else {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='invoice_number'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE pool_files ADD COLUMN invoice_number varchar(100)", __FILE__ . " linje " . __LINE__);
+	}
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='description'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE pool_files ADD COLUMN description text", __FILE__ . " linje " . __LINE__);
+	}
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='currency'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER TABLE pool_files ADD COLUMN currency varchar(10)", __FILE__ . " linje " . __LINE__);
+	}
 }
 
+// Create kontakt_emails table for multiple emails per customer
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='kontakt_emails'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE IF NOT EXISTS kontakt_emails (
+		id SERIAL PRIMARY KEY,
+		konto_id INTEGER NOT NULL,
+		email VARCHAR(255) NOT NULL,
+		email_type VARCHAR(50) DEFAULT ''
+	)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	// Migrate existing emails from adresser to kontakt_emails
+	$qtxt = "SELECT id, email FROM adresser WHERE art = 'D' AND email IS NOT NULL AND email != ''";
+	$q_migrate = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r_migrate = db_fetch_array($q_migrate)) {
+		$mig_email = db_escape_string(trim($r_migrate['email']));
+		$mig_id = $r_migrate['id'];
+		if ($mig_email) {
+			db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$mig_id', '$mig_email', 'hoved')", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
 ?>

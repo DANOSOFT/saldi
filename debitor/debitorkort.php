@@ -165,7 +165,11 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$land = db_escape_string(trim($_POST['land']));
 		$kontakt = db_escape_string(trim($_POST['kontakt']));
 		$tlf = db_escape_string(trim($_POST['tlf']));
-		$email = db_escape_string(trim($_POST['email']));
+		// Derive primary email from kontakt_emails form data for adresser backward compatibility
+		$email = '';
+		if (isset($_POST['kontakt_email_val'][1]) && trim($_POST['kontakt_email_val'][1])) {
+			$email = db_escape_string(trim($_POST['kontakt_email_val'][1]));
+		}
 		$mailfakt = db_escape_string(trim(if_isset($_POST['mailfakt'])));
 		$cvrnr = db_escape_string(trim($_POST['cvrnr']));
 		$kontonr = db_escape_string(trim($_POST['kontonr']));
@@ -512,7 +516,29 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$r = db_fetch_array($q);
 			$id = $r['id'];
 			if ($kontakt) db_modify("insert into ansatte(konto_id, navn) values ('$id', '$kontakt')", __FILE__ . " linje " . __LINE__);
-			
+
+			// Save primary email for new customer
+			if (isset($_POST['kontakt_email_val'][1])) {
+				$ke_val = db_escape_string(trim($_POST['kontakt_email_val'][1]));
+				$ke_type = isset($_POST['kontakt_email_type'][1]) ? db_escape_string(trim($_POST['kontakt_email_type'][1])) : 'hoved';
+				if ($ke_val && $id) {
+					db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$ke_val', '$ke_type')", __FILE__ . " linje " . __LINE__);
+				}
+			}
+			// Save extra emails from JSON
+			if (isset($_POST['kontakt_emails_json']) && $_POST['kontakt_emails_json']) {
+				$json_emails = json_decode($_POST['kontakt_emails_json'], true);
+				if (is_array($json_emails)) {
+					foreach ($json_emails as $je) {
+						$je_val = db_escape_string(trim($je['email']));
+						$je_type = db_escape_string(trim($je['type']));
+						if ($je_val && $id) {
+							db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+						}
+					}
+				}
+			}
+
 			// If coming from an order, redirect directly back to the order with the new customer
 			if (strpos($returside, 'ordre.php') !== false) {
 				$sep = (strpos($returside, '?') !== false) ? '&' : '?';
@@ -566,6 +592,59 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+				// Process primary email (index 1) from form fields
+				if (isset($_POST['kontakt_email_val'][1])) {
+					$ke_id = isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0;
+					$ke_val = db_escape_string(trim($_POST['kontakt_email_val'][1]));
+					$ke_type = isset($_POST['kontakt_email_type'][1]) ? db_escape_string(trim($_POST['kontakt_email_type'][1])) : 'hoved';
+					if ($ke_id && $ke_val) {
+						db_modify("UPDATE kontakt_emails SET email = '$ke_val', email_type = '$ke_type' WHERE id = '$ke_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+					} elseif ($ke_id && !$ke_val) {
+						db_modify("DELETE FROM kontakt_emails WHERE id = '$ke_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+					} elseif (!$ke_id && $ke_val) {
+						db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$ke_val', '$ke_type')", __FILE__ . " linje " . __LINE__);
+					}
+				}
+
+				// Process extra emails from JSON hidden field
+				$primary_ke_id = isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0;
+				$existing_extra_ids = array();
+				$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
+				while ($r_ex = db_fetch_array($q_ex)) {
+					$existing_extra_ids[] = intval($r_ex['id']);
+				}
+
+				$posted_ids = array();
+				if (isset($_POST['kontakt_emails_json']) && $_POST['kontakt_emails_json']) {
+					$json_emails = json_decode($_POST['kontakt_emails_json'], true);
+					if (is_array($json_emails)) {
+						foreach ($json_emails as $je) {
+							$je_id = intval($je['id']);
+							$je_val = db_escape_string(trim($je['email']));
+							$je_type = db_escape_string(trim($je['type']));
+							if ($je_id && $je_val) {
+								db_modify("UPDATE kontakt_emails SET email = '$je_val', email_type = '$je_type' WHERE id = '$je_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+								$posted_ids[] = $je_id;
+							} elseif (!$je_id && $je_val) {
+								db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+							}
+						}
+					}
+				}
+
+				// Delete extras that were removed
+				foreach ($existing_extra_ids as $old_id) {
+					if (!in_array($old_id, $posted_ids)) {
+						db_modify("DELETE FROM kontakt_emails WHERE id = '$old_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+					}
+				}
+
+				// Sync primary email back to adresser.email for backward compatibility
+				$r_primary = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
+				$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
+				db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+
 				// for ($x = 1; $x <= $ans_ant; $x++) {
 				// 	$y = trim($posnr[$x]);
 				// 	if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
@@ -733,6 +812,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		
 		db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from shop_adresser where saldi_id = $id", __FILE__ . " linje " . __LINE__);
+		db_modify("delete from kontakt_emails where konto_id = $id", __FILE__ . " linje " . __LINE__);
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitor.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">\n";
 	   exit;
 	}
@@ -796,6 +876,19 @@ if ($id > 0) {
 	$felt_5 = htmlentities(trim($r['felt_5']), ENT_COMPAT, $charset);
 	($r['lukket']) ? $lukket = 'checked' : $lukket = '';
 
+	// Load kontakt_emails for this customer
+	$kontakt_email_ids = array();
+	$kontakt_email_vals = array();
+	$kontakt_email_types = array();
+	$kontakt_email_count = 0;
+	$q_emails = db_select("SELECT * FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id", __FILE__ . " linje " . __LINE__);
+	while ($r_email = db_fetch_array($q_emails)) {
+		$kontakt_email_count++;
+		$kontakt_email_ids[$kontakt_email_count] = $r_email['id'];
+		$kontakt_email_vals[$kontakt_email_count] = htmlentities(trim($r_email['email']), ENT_COMPAT, $charset);
+		$kontakt_email_types[$kontakt_email_count] = htmlentities(trim($r_email['email_type']), ENT_COMPAT, $charset);
+	}
+
 	$kategori = array();
 	if ($r['kategori'] || $r['kategori'] == 0) $kategori = explode(chr(9), $r['kategori']);
 	if (!$oprettet) {
@@ -854,6 +947,10 @@ if ($id > 0) {
 	$betalingsbet = $maxbb;
 	$betalingsdage = $maxbd;
 	$kontoansvarlig = '0';
+	$kontakt_email_ids = array();
+	$kontakt_email_vals = array();
+	$kontakt_email_types = array();
+	$kontakt_email_count = 0;
 	if (isset($_GET['kontonr'])) $kontonr = $_GET['kontonr'];
 	if (isset($_GET['firmanavn'])) $firmanavn = $_GET['firmanavn'];
 	if (isset($_GET['addr1'])) $addr1 = $_GET['addr1'];
@@ -1127,12 +1224,119 @@ print "<input class='inputbox' type='text' size=16 name=bynavn value=\"$bynavn\"
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr gcolor=$bg><td>" . findtekst('364|Land', $sprog_id) . "<!--tekst 364--></td><td><input class='inputbox' type='text' size='25' ";
 print "name='land' value=\"$land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+// Primary email row
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst('365|E-mail / brug mail', $sprog_id) . "<!--tekst 365--></td><td><input class='inputbox' type='text' size='22' ";
-print "name='email' value=\"$email\" onchange=\"javascript:docChange = true;\">\n";
-if ($email && $mailfakt) $mailfakt = "checked";
-print "<span title=\"" . findtekst('366|Afmærk her hvis modtageren skal modtage tilbud', $sprog_id) . "\"><!--tekst 366--><input class='inputbox' type=checkbox name='mailfakt' $mailfakt>";
-print "</span></td></tr>\n";
+$primary_email = '';
+if ($kontakt_email_count > 0) $primary_email = $kontakt_email_vals[1];
+if (!$primary_email && isset($email)) $primary_email = $email;
+if (!isset($mailfakt)) $mailfakt = '';
+if ($primary_email && $mailfakt) $mailfakt = "checked";
+
+print "<tr bgcolor=$bg><td>" . findtekst('365|E-mail', $sprog_id) . "<!--tekst 365--></td><td>";
+print "<input class='inputbox' type='text' size='22' name='kontakt_email_val[1]' value=\"$primary_email\" onchange=\"javascript:docChange = true;\">";
+$primary_id = ($kontakt_email_count > 0) ? $kontakt_email_ids[1] : '0';
+$primary_type = ($kontakt_email_count > 0) ? $kontakt_email_types[1] : 'hoved';
+print "<input type='hidden' name='kontakt_email_id[1]' value='$primary_id'>";
+print "<input type='hidden' name='kontakt_email_type[1]' value='$primary_type'>";
+print " <span title=\"" . findtekst('366|Afmærk her hvis modtageren skal modtage tilbud', $sprog_id) . "\"><!--tekst 366--><input class='inputbox' type=checkbox name='mailfakt' $mailfakt> brug mail</span>";
+print "</td></tr>\n";
+
+// Ekstra e-mails section header
+$extra_count = ($kontakt_email_count > 1) ? $kontakt_email_count - 1 : 0;
+($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+print "<tr bgcolor=$bg><td style='vertical-align:top'>";
+print "<b>Ekstra e-mails</b> <small>(<span id='ekstra_email_count'>$extra_count</span>)</small>";
+print "</td><td>";
+print "<button type='button' onclick='addEmailRow()' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">+ Ny</button>";
+print "</td></tr>\n";
+
+// Single hidden JSON field — always inside the form, always gets posted
+$ekstra_json = array();
+for ($em_i = 2; $em_i <= $kontakt_email_count; $em_i++) {
+	$ekstra_json[] = array(
+		'id' => $kontakt_email_ids[$em_i],
+		'email' => $kontakt_email_vals[$em_i],
+		'type' => $kontakt_email_types[$em_i]
+	);
+}
+print "<input type='hidden' name='kontakt_emails_json' id='kontakt_emails_json' value='" . htmlspecialchars(json_encode($ekstra_json), ENT_QUOTES) . "'>\n";
+
+// Display rows (visual only — data synced to hidden field on submit)
+($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+print "<tr bgcolor=$bg><td colspan=2><div id='ekstra_emails_container'>\n";
+for ($em_i = 2; $em_i <= $kontakt_email_count; $em_i++) {
+	$idx = $em_i - 2;
+	print "<div class='ekstra-email-row' style='margin-bottom:3px;' data-db-id='" . $kontakt_email_ids[$em_i] . "'>";
+	print "<select class='inputbox ke-type' onchange=\"javascript:docChange = true;\">";
+	$email_types = array('tilbud' => 'Tilbud', 'ordre' => 'Ordre', 'faktura' => 'Faktura/Kreditnota', 'kontoudtog' => 'Kontoudtog', 'rykker' => 'Rykker', 'andet' => 'Andet');
+	foreach ($email_types as $et_val => $et_label) {
+		$et_sel = ($kontakt_email_types[$em_i] == $et_val) ? ' selected' : '';
+		print "<option value='$et_val'$et_sel>$et_label</option>";
+	}
+	print "</select> ";
+	print "<input class='inputbox ke-email' type='text' size='18' value=\"" . $kontakt_email_vals[$em_i] . "\" onchange=\"javascript:docChange = true;\">";
+	print " <a href='#' onclick='removeEmailRow(this); return false;' title='Slet'>&times;</a>";
+	print "</div>\n";
+}
+print "</div></td></tr>\n";
+
+// JavaScript — syncs display rows to the hidden JSON field before submit
+print <<<'EMAILJS'
+<script>
+function syncEmailsToJson() {
+	var rows = document.querySelectorAll('#ekstra_emails_container .ekstra-email-row');
+	var data = [];
+	for (var i = 0; i < rows.length; i++) {
+		var email = rows[i].querySelector('.ke-email').value.trim();
+		var type = rows[i].querySelector('.ke-type').value;
+		var dbId = rows[i].getAttribute('data-db-id') || '0';
+		if (email) {
+			data.push({id: dbId, email: email, type: type});
+		}
+	}
+	document.getElementById('kontakt_emails_json').value = JSON.stringify(data);
+}
+
+function addEmailRow() {
+	var container = document.getElementById('ekstra_emails_container');
+	var row = document.createElement('div');
+	row.className = 'ekstra-email-row';
+	row.style.marginBottom = '3px';
+	row.setAttribute('data-db-id', '0');
+	row.innerHTML =
+		"<select class='inputbox ke-type' onchange='docChange=true'>" +
+		"<option value='tilbud'>Tilbud</option><option value='ordre'>Ordre</option><option value='faktura'>Faktura/Kreditnota</option><option value='kontoudtog'>Kontoudtog</option><option value='rykker'>Rykker</option><option value='andet'>Andet</option></select> " +
+		"<input class='inputbox ke-email' type='text' size='18' value='' placeholder='E-mailadresse' onchange='docChange=true'>" +
+		" <a href='#' onclick='removeEmailRow(this); return false;' title='Slet'>&times;</a>";
+	container.appendChild(row);
+	updateEmailCount();
+	docChange = true;
+}
+
+function removeEmailRow(el) {
+	el.closest('.ekstra-email-row').remove();
+	updateEmailCount();
+	docChange = true;
+}
+
+function updateEmailCount() {
+	var rows = document.querySelectorAll('#ekstra_emails_container .ekstra-email-row');
+	document.getElementById('ekstra_email_count').textContent = rows.length;
+}
+
+// Hook into form submit to sync data
+var theForm = document.forms['debitorkort'];
+if (theForm) {
+	var origOnsubmit = theForm.onsubmit;
+	theForm.onsubmit = function(e) {
+		syncEmailsToJson();
+		if (origOnsubmit) return origOnsubmit.call(this, e);
+		return true;
+	};
+}
+</script>
+EMAILJS;
+
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('367|Hjemmeside', $sprog_id) . "<!--tekst 367--></td>";
