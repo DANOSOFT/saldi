@@ -507,7 +507,9 @@ if (isset($pathParts[0])) {
 	exit;
 } */
 // Wrap the style output in the API check:
-if (!$isApiCall && $title != "POS Ordre" && $firstFolder != "sager") {
+// also make sure we are not in pos_ordre.php
+$fileName = basename(__FILE__);
+if (!$isApiCall && $title != "POS Ordre" && $firstFolder != "sager" && $fileName != "pos_ordre.php") {
 ?>
 <style>
 	/* type submit and type button */
