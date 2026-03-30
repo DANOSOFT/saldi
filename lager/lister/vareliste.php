@@ -537,7 +537,9 @@ ORDER BY {{SORT}}
 log_performance("Data array configuration completed", $data_start);
 ####################
 $initial_search = array();
-if (isset($_GET['varenr']) && !empty($_GET['varenr'])) {
+// Only use varenr GET param as initial search when NOT returning from varekort.
+// When returning from varekort, vare_id is set in the URL and the stored DB search should be preserved.
+if (isset($_GET['varenr']) && !empty($_GET['varenr']) && !isset($_GET['vare_id'])) {
     $varenr_param = trim($_GET['varenr']);
     $initial_search['varenr'] = $varenr_param;
 }
