@@ -973,11 +973,15 @@ $custom_columns = array(
             }
         },
         "render" => function ($value, $row, $column) {
-            $formatted = is_numeric($value) ? dkdecimal($value, 2) : $value;
+            // Convert to DKK using raw DB values
+            $valutakurs = floatval($row['valutakurs']);
+            $kurs_factor = ($valutakurs > 0) ? $valutakurs / 100 : 1;
+            $dkk_value = floatval($row['sum_m_moms']) * $kurs_factor;
+            $formatted = dkdecimal($dkk_value, 2);
             return "<td align='$column[align]'>$formatted</td>";
         }
     ),
-    
+
     "betalingsbet" => array(
         "field" => "betalingsbet",
         "headerName" => findtekst('56|Betalingsbet.', $sprog_id),
@@ -1032,9 +1036,15 @@ $custom_columns = array(
                 $row['kostpris'] = $kostpris;
             }
 
-            $formatted = dkdecimal($value, 2);
-            $ialt += floatval($value);
-            $ialt_m_moms += $row['sum_m_moms'];
+            // Convert to DKK using raw DB values (not the pre-formatted $value string)
+            // valutakurs=100 for DKK, e.g. 64.42 for SEK → factor = 64.42/100
+            $valutakurs = floatval($row['valutakurs']);
+            $kurs_factor = ($valutakurs > 0) ? $valutakurs / 100 : 1;
+            $dkk_value = floatval($row['sum']) * $kurs_factor;
+
+            $formatted = dkdecimal($dkk_value, 2);
+            $ialt += $dkk_value;
+            $ialt_m_moms += floatval($row['sum_m_moms']) * $kurs_factor;
             $ialt_kostpris += $row['kostpris'];
 
             if ($valg == "faktura") {
@@ -1042,9 +1052,9 @@ $custom_columns = array(
                 $kostpris = $row['kostpris'];
                 $dk_db = '0,00';
                 $dk_dg = '0,00';
-                $value_numeric = is_numeric($value) ? floatval($value) : floatval(str_replace(',', '.', $value));
+                $value_numeric = $dkk_value;
 
-                if (!empty($kostpris) && !empty($value) && $value_numeric != 0) {
+                if (!empty($kostpris) && $value_numeric != 0) {
                     $kostpris_numeric = is_numeric($kostpris) ? floatval($kostpris) : floatval(str_replace(',', '.', $kostpris));
                     $dk_db = dkdecimal($value_numeric - $kostpris_numeric, 2);
                     $dk_dg = dkdecimal(($value_numeric - $kostpris_numeric) * 100 / $value_numeric, 2);
@@ -1413,12 +1423,12 @@ if ($valg == "tilbud") {
 }
 
 
-$totals_query = "SELECT 
-    COALESCE(SUM(o.sum::numeric), 0) as total_sum,
-    COALESCE(SUM(o.sum::numeric + o.moms::numeric), 0) as total_sum_m_moms,
+$totals_query = "SELECT
+    COALESCE(SUM(o.sum::numeric * COALESCE(NULLIF(o.valutakurs::numeric, 0), 100) / 100), 0) as total_sum,
+    COALESCE(SUM((o.sum::numeric + o.moms::numeric) * COALESCE(NULLIF(o.valutakurs::numeric, 0), 100) / 100), 0) as total_sum_m_moms,
     COALESCE(SUM(o.kostpris::numeric), 0) as total_kostpris
 FROM ordrer o
-WHERE (o.art = 'DO' OR o.art = 'DK' OR (o.art = 'PO' AND o.konto_id > '0')) 
+WHERE (o.art = 'DO' OR o.art = 'DK' OR (o.art = 'PO' AND o.konto_id > '0'))
 AND $base_where_conditions";
 
 $totals_result = db_fetch_array(db_select($totals_query, __FILE__ . " linje " . __LINE__));
@@ -2287,10 +2297,11 @@ if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) {
     $ordrlst = explode(";",file_get_contents("../temp/$db/ordrlst$bruger_id.txt"));
     for ($i=0;$i<count($ordrlst);$i++) {
         if ($ordrlst[$i]) {
-            $qtxt = "SELECT sum,moms,kostpris FROM ordrer WHERE id = '$ordrlst[$i]'";
+            $qtxt = "SELECT sum,moms,kostpris,valutakurs FROM ordrer WHERE id = '$ordrlst[$i]'";
             $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-            $ialt_total         += $r['sum'];
-            $ialt_m_moms_total  +=  $r['sum'] + $r['moms'];
+            $kf = (floatval($r['valutakurs']) > 0) ? floatval($r['valutakurs']) / 100 : 1;
+            $ialt_total         += $r['sum'] * $kf;
+            $ialt_m_moms_total  += ($r['sum'] + $r['moms']) * $kf;
             if ($r['kostpris']) {
                 $ialt_kostpris_total+= $r['kostpris'];
             } else {
