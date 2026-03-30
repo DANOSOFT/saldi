@@ -122,12 +122,8 @@ if ($menu == 'T') {
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">\n";
 	print "<div class=\"headerbtnLft\"></div>\n";
-#	print "<span class=\"headerTxt\">Systemsetup</span>\n";
-#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";
 	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_div_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
+	// Settings page has its own integrated sidebar navigation, skip leftmenuholder
 	print "<div class=\"maincontentLargeHolder\">\n";
 } elseif ($menu == 'S') {
 	/*print "<script>
@@ -177,8 +173,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$menu           = $_POST['menu'];
 		$bgcolor        = $_POST['bgcolor'];
 		$nuance         = $_POST['fgcolor'];
-		$buttonColor    = $_POST["buttonColor"];
-		$buttonTxtColor = $_POST["buttonTxtColor"];
+		$buttonColor       = $_POST["buttonColor"];
+		$buttonTxtColor    = $_POST["buttonTxtColor"];
+		$ordreAutocomplete = if_isset($_POST, null, 'ordreAutocomplete');
 		// make sure $buttonColor and $buttonTxtColor are valid hex colors and are 6 characters long
 		if (strlen($buttonColor) != 6 || !ctype_xdigit($buttonColor)) {
 			$buttonColor = '114691'; // default color
@@ -240,6 +237,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$qtxt.= "('colors','buttonTxtColor','$buttonTxtColor','Button color for user settings','$bruger_id')";
 		}
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		update_settings_value("ordreAutocomplete", "ordre", $ordreAutocomplete, "Enable or disable autocomplete search on order pages", $bruger_id);
 		$cookie_name = "refresh_opener";
 		$cookie_value = "true";
 		setcookie($cookie_name, $cookie_value, time() + 30, "/"); // 30 seconds expiry
@@ -637,7 +635,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$showDG           = if_isset($_POST, null, 'showDG');
 		$pluklisteEmail   = if_isset($_POST, null, 'pluklisteEmail');
 		$lockPayment 	  = if_isset($_POST["lockPayment"]);
-		$ordreAutocomplete = if_isset($_POST, null, 'ordreAutocomplete');
 		$gs1parsing        = if_isset($_POST, null, 'gs1_parsing');
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
@@ -646,7 +643,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("showDB", "ordre", $showDB, "Weather or not to show the DB on the order page");
 		update_settings_value("showDG", "ordre", $showDG, "Weather or not to show the DG on the order page");
 		update_settings_value("lockedInvoiceButton", "debitor", $lockPayment, "Locks the invoice button until payment has occured");
-		update_settings_value("ordreAutocomplete", "ordre", $ordreAutocomplete, "Enable or disable autocomplete search on order pages", $bruger_id);
 		update_settings_value("gs1_parsing", "ordre", $gs1parsing, "Enable GS1 barcode parsing on order line item entry");
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
@@ -2182,135 +2178,44 @@ $docubizz = NULL;
 if (db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr = '2' and box6='on'", __FILE__ . " linje " . __LINE__)))
 	$docubizz = 'on';
 
-print "<table class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" height=\"100%\"><tbody>";
+// Inject settings CSS
+print "<link rel='stylesheet' type='text/css' href='../css/settings-modern.css'>\n";
 
-if ($menu != 'T') {
-	print "<td width=\"170px\" valign=\"top\">";
-	print "<table cellpadding=\"2\" cellspacing=\"2\" border=\"0\" width=\"100%\"><tbody>";
-	if ($menu == 'S') {
-		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; ".findtekst('30|Tilbage', $sprog_id)."</b></button></a></td></tr>\n"; // 200240428
-
-		print "<tr><td align=left><a href=diverse.php?sektion=kontoindstillinger>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('783|Kontoindstillinger', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=provision>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('784|Provisionsberegning', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=userSettings>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('785|Personlige valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=ordre_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('786|Ordrerelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=productOptions>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('787|Varerelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=variant_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('788|Variantrelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=shop_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('789|Shoprelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=api_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			   API</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=labels>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('791|Mærkater', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=pricelists>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('792|Prislister', $sprog_id)."</button></a><!--tekst 427--></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=rykker_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('793|Rykkerrelaterede valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=div_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('794|Diverse valg', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=tjekliste>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('796|Tjeklister', $sprog_id)."</button></a></td></tr>\n";
-
-		if ($docubizz) {
-			print "<tr><td align=left><a href=diverse.php?sektion=docubizz>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				   .findtekst('796|Tjeklister', $sprog_id)."</button></a></td></tr>\n";
-		}
-
-		print "<tr><td align=left><a href=diverse.php?sektion=bilag>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('170|Øredifferencer', $sprog_id)."</button></a><!--tekst 170--></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=massefakt>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('200|Massefakturering', $sprog_id)."</button></a><!--tekst 200--></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=barcodescan>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .'App Barcode'."</button></a><!--tekst 200--></td></tr>\n";
-
-		if (file_exists("../debitor/pos_ordre.php")) {
-			print "<tr><td align=left><a href=diverse.php?sektion=posOptions>
-			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			.findtekst('271|PoS-valg', $sprog_id)."</button></a></td></tr>\n";
-		}
-
-		print "<tr><td align=left><a href=diverse.php?sektion=sprog>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('801|Sprog', $sprog_id)."</button></a></td></tr>\n";
-
-		print "<tr><td align=left><a href=diverse.php?sektion=div_io>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('802|Import & eksport', $sprog_id)."</button></a></td></tr>\n";
-
-		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
-		print "<script>document.getElementById('sidebar-base').style.display = 'none';</script>";
-
-	} else { //Gammel menu
-		print "<tr><td align=\"center\" valign=\"top\"><br></td></tr>";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoindstillinger>".findtekst('783|Kontoindstillinger', $sprog_id)."</a></td></tr>\n"; // 20210513
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=provision>".findtekst('784|Provisionsberegning', $sprog_id)."</a>&nbsp;</td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=personlige_valg>".findtekst('785|Personlige valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=ordre_valg>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=productOptions>".findtekst('787|Varerelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst('788|Variantrelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>".findtekst('794|Diverse valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=../systemdata\barcodescan.php>App Barcode</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>".findtekst('796|Tjeklister', $sprog_id)."</a></td></tr>\n";
-		if ($docubizz) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>".findtekst('796|Tjeklister', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>".findtekst('797|Bilagshåndtering', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=orediff>".findtekst('170|Øredifferencer', $sprog_id)."</a><!--tekst 170--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=massefakt>".findtekst('200|Massefakturering', $sprog_id)."</a><!--tekst 200--></td></tr>\n";
-		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=posOptions>".findtekst('271|PoS-valg', $sprog_id)."</a><!--tekst 271--></td></tr>\n";
-		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=email>Mail indstillinger</a></td></tr>";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=sprog>".findtekst('801|Sprog', $sprog_id)."</a></td></tr>\n";
-		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoplan_io>Indl&aelig;s  / udl&aelig;s kontoplan</a></td></tr>";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_io>".findtekst('802|Import & eksport', $sprog_id)."</a></td></tr>\n";
-		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
-	}
+// Hide the system sidebar (from top.php) when in settings view
+if ($menu == 'S') {
+	print "<script>document.getElementById('sidebar-base').style.display = 'none';</script>";
 }
-if (!$sektion)
-	print "<td><br></td>";
+
+// --- Modern Settings Layout ---
+print "<div class='settings-page'>\n";
+print "<div class='settings-layout'>\n";
+
+// Sidebar navigation
+print "<div class='settings-sidebar'>\n";
+include('settings_nav.php');
+print "</div>\n";
+
+// Content area
+print "<div class='settings-content'>\n";
+
+// Welcome page when no section is selected
+if (!$sektion) {
+	include('settings_welcome.php');
+}
+
+// --- Section Dispatch ---
+// Sections converted to modern card layout output divs directly.
+// Legacy (un-converted) sections output <tr><td> and need a table wrapper.
+$modern_sections = ['orediff', 'massefakt', 'bilag', 'api_valg', 'shop_valg', 'rykker_valg', 'provision',
+                    'kontoindstillinger', 'ordre_valg'];
+$is_modern = $sektion && in_array($sektion, $modern_sections);
+$is_legacy = $sektion && !$is_modern;
+
+if ($is_legacy) {
+	print "<div class='settings-legacy-wrapper'>\n";
+	print "<table width='100%'><tbody>\n";
+}
+
 if ($sektion == "kontoindstillinger")
 	kontoindstillinger($regnskab, $skiftnavn);
 if ($sektion == "provision")
@@ -2339,7 +2244,6 @@ if ($sektion == "rykker_valg") rykker_valg();
 if ($sektion == "div_valg") div_valg(); # Kalder sys_div_valg.php
 if ($sektion == "docubizz") docubizz();
 if ($sektion == "bilag") bilag();
-//if ($sektion=="barcodescan") barcodescan();
 if ($sektion == "orediff") orediff($diffkto);
 if ($sektion == "massefakt") massefakt();
 if ($sektion == "posOptions") {
@@ -2350,14 +2254,13 @@ if ($sektion == "barcodescan") {
 	header("Location: ../systemdata/barcodescan.php");
 	exit;
 }
-
 if ($sektion == "sprog") {
 	include("diverseIncludes/language.php");
 	language();
 }
 if ($sektion == "tjekliste")
 	tjekliste();
-if (strpos($sektion, "_io")) {
+if ($sektion && strpos($sektion, "_io") !== false) {
 	kontoplan_io();
 	formular_io();
 	adresser_io();
@@ -2366,19 +2269,22 @@ if (strpos($sektion, "_io")) {
 	sqlquery_io($sqlstreng);
 }
 
-print "</tbody></table></td></tr>";
+if ($is_legacy) {
+	print "</tbody></table>\n";
+	print "</div><!-- end settings-legacy-wrapper -->\n";
+}
+
+print "</div><!-- end settings-content -->\n";
+print "</div><!-- end settings-layout -->\n";
+print "</div><!-- end settings-page -->\n";
+
 if ($menu == 'T')
-	print "</div>";
-#print "</form>";
-#print "</tbody></table></td></tr>";
-
-
-
+	print "</div><!-- end maincontentLargeHolder -->";
 
 
 ?>
-</tbody>
-</table>
+<?php if ($menu != 'T'): ?>
+</td></tr></tbody></table>
+<?php endif; ?>
 </body>
-
 </html>

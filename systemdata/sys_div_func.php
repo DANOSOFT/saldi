@@ -102,9 +102,8 @@ include_once("../includes/connect.php");
 
 function kontoindstillinger($regnskab, $skiftnavn)
 {
-	global $bgcolor, $bgcolor5, $sprog_id, $timezone, $db, $sqdb,$sqhost, $squser,$sqpass;
-	#	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone'];
-	#	else {
+	global $sprog_id, $timezone, $db, $sqdb, $sqhost, $squser, $sqpass;
+
 	$qtxt = "select id,var_value from settings where var_name='timezone'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && (isset($r['var_value']))) {
 		$timezone = $r['var_value'];
@@ -113,9 +112,6 @@ function kontoindstillinger($regnskab, $skiftnavn)
 			setcookie("timezone", $timezone, time() + 60 * 60 * 24 * 30, '/');
 		}
 	}
-	print "<tr><td colspan='6'><hr></td></tr>\n";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('783|Kontoindstillinger', $sprog_id)."</u></b></td></tr>\n";
-	print "<tr><td colspan='6'><br></td></tr>\n";
 
 	$max_users = 1;
 	$masterDb = $sqdb;
@@ -123,52 +119,71 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	@session_start();
 	$s_id = session_id();
 	include("../includes/connect.php");
-		$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
-		$result = db_select($query, __FILE__ . " linje " . __LINE__);
-	
-		if ($result) {
-			if (db_num_rows($result) > 0) {
-				$row = db_fetch_array($result);
-				$max_users = (int)$row['brugerantal'];
-			}
-		}
-	include("../includes/online.php");
-	if($masterDb == "gratis" || $masterDb == "mini") {
-		$disabled = "disabled";
+	$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
+	$result = db_select($query, __FILE__ . " linje " . __LINE__);
+	if ($result && db_num_rows($result) > 0) {
+		$row = db_fetch_array($result);
+		$max_users = (int)$row['brugerantal'];
 	}
-	
-	print "<form name='maxusers' action='diverse.php?sektion=kontoindstillinger' onsubmit='return confirmUpdate();' method='post'>\n";
-	print "<tr><td>Sæt brugere antal:</td>";
-	print "<td><input class='inputbox' type='number' style='width:50px' name='max_users' value='" . htmlspecialchars($max_users) . "' $disabled></td></tr>";
-	print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='Opdater bruger antal' name='update_max_users'></td></tr>\n";
-	print "</form>\n";
+	include("../includes/online.php");
+	if ($masterDb == "gratis" || $masterDb == "mini") $disabled = "disabled";
 
-	print "<script>
-		function confirmUpdate() {
-			return confirm('Er du sikker på du vil opdatere bruger antal?');
-		}
-	</script>\n";
+	// --- Account Info Card ---
+	print "<div class='settings-card'>\n";
+	print "<h3 class='settings-card-title'>".findtekst('783|Kontoindstillinger', $sprog_id)."</h3>\n";
 
 	if (!$skiftnavn) {
 		$klik = findtekst('149|Klik her for at sortere på telefonnummer.', $sprog_id);
-		$klik1 = explode(" ", $klik);  #20210710
-		print "<tr><td colspan='6'>".findtekst('1237|Dit regnskab hedder', $sprog_id)." <span style='font-weight:bold'>$regnskab</span>. ";
-		print "$klik1[0] <a href='diverse.php?sektion=kontoindstillinger&amp;skiftnavn=ja'>".findtekst('2157|her', $sprog_id)."</a> ".findtekst('1238|for at ændre navnet.', $sprog_id)."</td></tr>\n";
-		print "<tr><td colspan='6'><hr></td></tr>\n";
-		$tmp = date('U') - 60 * 60 * 24 * 365;
-		$tmp = date("Y-m-d", $tmp);
-		$r = db_fetch_array(db_select("select count(id) as transantal from transaktioner where logdate>='$tmp'", __FILE__ . " linje " . __LINE__));
-		$transantal = $r['transantal'] * 1;
-		print "<tr><td>".findtekst('1233|Der er foretaget', $sprog_id)." $transantal ".findtekst('1234|posteringer de sidste 12 mdr.', $sprog_id)."</td></tr>";
+		$klik1 = explode(" ", $klik);
+		print "<div class='settings-form-group'><div class='settings-label-col'>\n";
+		print "<label class='settings-label'>".findtekst('1237|Dit regnskab hedder', $sprog_id)." <strong>$regnskab</strong></label>\n";
+		print "<p class='settings-hint'>$klik1[0] <a href='diverse.php?sektion=kontoindstillinger&amp;skiftnavn=ja'>".findtekst('2157|her', $sprog_id)."</a> ".findtekst('1238|for at ændre navnet.', $sprog_id)."</p>\n";
+		print "</div></div>\n";
+
+		$tmp = date("Y-m-d", date('U') - 60 * 60 * 24 * 365);
+		$r_trans = db_fetch_array(db_select("select count(id) as transantal from transaktioner where logdate>='$tmp'", __FILE__ . " linje " . __LINE__));
+		$transantal = $r_trans['transantal'] * 1;
+		print "<div class='settings-form-group'><div class='settings-label-col'>\n";
+		print "<label class='settings-label'>".findtekst('1233|Der er foretaget', $sprog_id)." $transantal ".findtekst('1234|posteringer de sidste 12 mdr.', $sprog_id)."</label>\n";
+		print "</div></div>\n";
+	} else {
+		print "<form name='diverse' action='diverse.php?sektion=kontoindstillinger' method='post'>\n";
+		print "<div class='settings-form-group'><div class='settings-label-col'>\n";
+		print "<label class='settings-label'>".findtekst('2524|Skriv nyt navn på regnskab', $sprog_id)."</label>\n";
+		print "</div><div class='settings-control-col' style='display:flex;gap:0.5rem;align-items:center'>\n";
+		print "<input class='settings-input' type='text' name='newName' value='$regnskab'>\n";
+		print "<button type='submit' name='changeAccountName' class='settings-btn settings-btn-primary'>".findtekst('2526|Skift navn', $sprog_id)."</button>\n";
+		print "</div></div>\n";
+		print "</form>\n";
+	}
+
+	// Max users
+	print "<form name='maxusers' action='diverse.php?sektion=kontoindstillinger' onsubmit='return confirmUpdate();' method='post'>\n";
+	print "<div class='settings-form-group'><div class='settings-label-col'>\n";
+	print "<label class='settings-label'>Sæt brugere antal</label>\n";
+	print "</div><div class='settings-control-col' style='display:flex;gap:0.5rem;align-items:center'>\n";
+	print "<input class='settings-input' type='number' name='max_users' value='".htmlspecialchars($max_users)."' style='max-width:80px' $disabled>\n";
+	print "<button type='submit' name='update_max_users' class='settings-btn settings-btn-secondary'>Opdater</button>\n";
+	print "</div></div>\n";
+	print "</form>\n";
+	print "<script>function confirmUpdate(){return confirm('Er du sikker på du vil opdatere bruger antal?');}</script>\n";
+
+	print "</div>\n"; // end account info card
+
+	if (!$skiftnavn) {
 		$r = db_fetch_array(db_select("select felt_1,felt_2,felt_3,felt_4 from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
-		print "<tr><td colspan='6'><hr></td></tr>\n";
+
+		// --- Timezone Card ---
+		print "<div class='settings-card'>\n";
+		print "<h3 class='settings-card-title'>".findtekst('1236|Tidszone', $sprog_id)."</h3>\n";
 		print "<form name='timezone' action='diverse.php?sektion=kontoindstillinger' method='post'>\n";
-		$title = findtekst('1235|Vælg den tidszone der skal gælde for dette regnskab', $sprog_id);
-		$text = findtekst('1236|Tidszone', $sprog_id);
-		print "<tr><td title='$title'><!--tekst 434-->$text<!--tekst 435--></td>";
-		print "<td title='$title'><select class='inputbox' style='width:200px' name='timezone'>";
+		print "<div class='settings-form-group'><div class='settings-label-col'>\n";
+		print "<label class='settings-label'>".findtekst('1236|Tidszone', $sprog_id)."</label>\n";
+		print "<p class='settings-hint'>".findtekst('1235|Vælg den tidszone der skal gælde for dette regnskab', $sprog_id)."</p>\n";
+		print "</div><div class='settings-control-col'>\n";
+		print "<select class='settings-input' name='timezone'>\n";
 		$tz = fopen("../importfiler/timezones.csv", "r");
-		$x = 0;
+		$x = 0; $b = []; $c = [];
 		while ($line = trim(fgets($tz))) {
 			list($a, $b[$x], $c[$x]) = explode(",", $line);
 			$b[$x] = trim($b[$x], '"');
@@ -176,90 +191,96 @@ function kontoindstillinger($regnskab, $skiftnavn)
 			$x++;
 		}
 		for ($x = 0; $x < count($c); $x++) {
-			if ($timezone == $c[$x]) print "<option value='$c[$x]'>$b[$x] $c[$x]</option>";
+			if ($timezone == $c[$x]) print "<option value='$c[$x]'>$b[$x] $c[$x]</option>\n";
 		}
 		for ($x = 0; $x < count($c); $x++) {
-			if ($timezone != $c[$x]) print "<option value='$c[$x]'>$b[$x] $c[$x]</option>";
+			if ($timezone != $c[$x]) print "<option value='$c[$x]'>$b[$x] $c[$x]</option>\n";
 		}
-		print "</select></td></tr>";
-		$text = findtekst('898|Opdatér', $sprog_id) . " " . findtekst('1236|Tidszone', $sprog_id);
-		print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='$text' name='opdat_tidszone'><!--tekst 436--></td></tr>\n";
-		print "</form>";
-		print "<tr><td colspan='6'><hr></td></tr>\n";
-		print "<form name=diverse action='diverse.php?sektion=smtp' method='post'>\n";
-		$tekst1 = findtekst('434|Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk. Hvis serveren bruger anden port 25 skrives denne efter STMP navnet adskilt af :. F.eks. smtp.gmail.com:465', $sprog_id);
-		$tekst2 = findtekst('435|Alternativ SMTP-server: port', $sprog_id);
-		print "<tr><td title='$tekst1'><!--tekst 434-->$tekst2<!--tekst 435--></td>";
-		print "<td title='$tekst1'><input class='inputbox' type='text' style='width:200px' name='smtp' value='$r[felt_1]'></td></tr>";
-		$tekst1 = findtekst('749|Brugernavn til SMTP serveren, hvis krævet', $sprog_id);
-		$tekst2 = findtekst('225|Brugernavn', $sprog_id);
-		print "<tr><td title='$tekst1'><!--tekst 749-->$tekst2<!--tekst 225--></td>";
-		print "<td title='$tekst1'><input class='inputbox' type='text' style='width:200px' name='smtpuser' value='$r[felt_2]'></td></tr>";
-		$tekst1 = findtekst('750|Adgangskode til SMTP serveren, hvis krævet', $sprog_id);
-		$tekst2 = findtekst('324|Adgangskode', $sprog_id);
-		print "<tr><td title='$tekst1'><!--tekst 750-->$tekst2<!--tekst 324--></td>";
-		print "<td title='$tekst1'><input class='inputbox' type='text' style='width:200px' name='smtppass' value='$r[felt_3]'></td></tr>";
-		$tekst1 = findtekst('751|Krypteringsmetode til SMTP serveren, hvis krævet', $sprog_id);
-		$tekst2 = findtekst('748|Kryptering', $sprog_id);
-		print "<tr><td title='$tekst1'><!--tekst 751-->$tekst2<!--tekst 748--></td>";
-		print "<td title='$tekst1'><select class='inputbox' style='width:200px' name='smtpcrypt'>";
+		print "</select>\n";
+		print "</div></div>\n";
+		print "<div class='settings-actions'><button type='submit' name='opdat_tidszone' class='settings-btn settings-btn-primary'>".findtekst('898|Opdatér', $sprog_id)." ".findtekst('1236|Tidszone', $sprog_id)."</button></div>\n";
+		print "</form>\n";
+		print "</div>\n"; // end timezone card
+
+		// --- SMTP Card ---
+		print "<div class='settings-card'>\n";
+		print "<h3 class='settings-card-title'>".findtekst('435|Alternativ SMTP-server: port', $sprog_id)."</h3>\n";
+		print "<form name='diverse' action='diverse.php?sektion=smtp' method='post'>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('435|Alternativ SMTP-server: port', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('434|Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk. Hvis serveren bruger anden port 25 skrives denne efter STMP navnet adskilt af :. F.eks. smtp.gmail.com:465', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='smtp' value='$r[felt_1]'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('225|Brugernavn', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('749|Brugernavn til SMTP serveren, hvis krævet', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='smtpuser' value='$r[felt_2]'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('324|Adgangskode', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('750|Adgangskode til SMTP serveren, hvis krævet', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='smtppass' value='$r[felt_3]'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('748|Kryptering', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('751|Krypteringsmetode til SMTP serveren, hvis krævet', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><select class='settings-input' name='smtpcrypt' style='max-width:200px'>\n";
 		print "<option value='$r[felt_4]'>$r[felt_4]</option>";
 		if ($r['felt_4']) print "<option value=''></option>";
 		if ($r['felt_4'] != 'ssl') print "<option value='ssl'>ssl</option>";
 		if ($r['felt_4'] != 'tls') print "<option value='tls'>tls</option>";
-		print "</select></td></tr>";
-		$tekst1 = findtekst('436|Skift', $sprog_id);
-		print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='$tekst1' name='submit'><!--tekst 436--></td></tr>\n";
+		print "</select></div></div>\n";
+
+		print "<div class='settings-actions'><button type='submit' name='submit' class='settings-btn settings-btn-primary'>".findtekst('436|Skift', $sprog_id)."</button></div>\n";
 		print "</form>\n";
-		print "<tr><td colspan='6'><hr></td></tr>\n";
-		print "<tr><td colspan='6'><br></td></tr>\n";
-		print "<form name='nulstil_regnskab' action='diverse.php?sektion=kontoindstillinger' method='post'>\n"; #20170731 ->
+		print "</div>\n"; // end SMTP card
+
+		// --- Reset Account Card ---
+		print "<div class='settings-card'>\n";
 		$tekst1 = findtekst('756|Nulstil regnskab', $sprog_id);
-		$tekst2 = findtekst('757|Hvis du klikker på `Nulstil` slettes alle ordrer', $sprog_id);
-		print "<tr><td title='$tekst2'><b>$tekst1</b></td></tr>";
-		$tekst1 = findtekst('758|Behold debitorer & kreditorer', $sprog_id);
-		$tekst2 = findtekst('759|Hvis du afmærker dette felt beholdes dine kunder & leverandører (debitorer & kreditorer)', $sprog_id);
-		print "<tr><td title='$tekst2'>$tekst1</td><td title='$tekst2'><input type='checkbox' name='behold_debkred'></td></tr>";
-		$tekst1 = findtekst('760|Behold varer', $sprog_id);
-		$tekst2 = findtekst('761|Hvis du afmærker dette felt beholdes dine varer', $sprog_id);
-		print "<tr><tr><td title='$tekst2'>$tekst1</td><td title='$tekst2'><input type='checkbox' name='behold_varer'></td></tr>";
-		$tekst1 = findtekst('762|Er du sikker på at du vil nulstille dit regnskab? Tag en sikkerhedskopi først!', $sprog_id); $nulstil= findtekst('1239|Nulstil', $sprog_id);
+		print "<h3 class='settings-card-title'>$tekst1</h3>\n";
+		print "<form name='nulstil_regnskab' action='diverse.php?sektion=kontoindstillinger' method='post'>\n";
+		print "<p class='settings-hint' style='margin-bottom:1rem'>".findtekst('757|Hvis du klikker på `Nulstil` slettes alle ordrer', $sprog_id)."</p>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('758|Behold debitorer & kreditorer', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('759|Hvis du afmærker dette felt beholdes dine kunder & leverandører (debitorer & kreditorer)', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><label class='settings-toggle'><input type='checkbox' name='behold_debkred'><span class='toggle-label'>".findtekst('758|Behold debitorer & kreditorer', $sprog_id)."</span></label></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('760|Behold varer', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('761|Hvis du afmærker dette felt beholdes dine varer', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><label class='settings-toggle'><input type='checkbox' name='behold_varer'><span class='toggle-label'>".findtekst('760|Behold varer', $sprog_id)."</span></label></div></div>\n";
+
+		$confirm_tekst = findtekst('762|Er du sikker på at du vil nulstille dit regnskab? Tag en sikkerhedskopi først!', $sprog_id);
 		$nulstil = findtekst('1239|Nulstil', $sprog_id);
-		print "<tr><td></td><td><input class='button gray medium' style='width:200px' type='submit' name='nulstil' value='$nulstil' onclick=\"return confirm('$tekst1')\"></td></tr>";
-		print "</form>\n"; # <- 20170731
-		print "<tr><td colspan='6'><hr></td></tr>\n";
-		print "<tr><td colspan='6'><br></td></tr>\n";
-		print "<form name='slet_regnskab' action='diverse.php?sektion=kontoindstillinger' method='post'>\n"; #20170731 ->
+		print "<div class='settings-actions'><button type='submit' name='nulstil' value='$nulstil' class='settings-btn settings-btn-danger' onclick=\"return confirm('$confirm_tekst')\">$nulstil</button></div>\n";
+		print "</form>\n";
+		print "</div>\n"; // end reset card
+
+		// --- Delete Account Card ---
+		print "<div class='settings-card'>\n";
 		$tekst1 = findtekst('852|Slet regnskab', $sprog_id);
 		$tekst2 = findtekst('853|Hvis du sætter flueben i feltet og klikker på `Slet` slettes regnskabet og din konto lukkes. Vi beholder en sikkerhedskopi i 5 år jf. bogføringsloven.', $sprog_id);
-		print "<tr><td title='$tekst2'><b>$tekst1: $regnskab</b></td><td title='$tekst2'><input type='checkbox' name='slet_regnskab'></td></tr>";
-		$tekst1 = findtekst('851|Er du sikker på at du vil slette dit regnskab? Denne handling kan ikke fortrydes! - Tag en sikkerhedskopi først!', $sprog_id); $slet = findtekst('1099|Slet', $sprog_id);
+		print "<h3 class='settings-card-title'>$tekst1: $regnskab</h3>\n";
+		print "<form name='slet_regnskab' action='diverse.php?sektion=kontoindstillinger' method='post'>\n";
+		print "<p class='settings-hint' style='margin-bottom:1rem'>$tekst2</p>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>$tekst1</label></div>\n";
+		print "<div class='settings-control-col'><label class='settings-toggle'><input type='checkbox' name='slet_regnskab'><span class='toggle-label'>$tekst1</span></label></div></div>\n";
+
+		$confirm_tekst = findtekst('851|Er du sikker på at du vil slette dit regnskab? Denne handling kan ikke fortrydes! - Tag en sikkerhedskopi først!', $sprog_id);
 		$slet = findtekst('1099|Slet', $sprog_id);
-		print "<tr><td></td><td><input class='button gray medium' title='$tekst2' style='width:200px' type='submit' name='slet' value='$slet' onclick=\"return confirm('$tekst1')\"></td></tr>";
-		print "</form>\n"; # <- 20170731
-	} else {
-		print "<form name='diverse' action='diverse.php?sektion=kontoindstillinger' method='post'>\n";
-		print "<tr><td colspan='6'>".findtekst('2524|Skriv nyt navn på regnskab', $sprog_id)."<input class='inputbox' type='text' style='width:400px' name='newName' value='$regnskab'> ";
-		print findtekst('2525|og klik', $sprog_id)." <input class='button gray medium' style='width:75px' type='submit' value='".findtekst('2526|Skift navn', $sprog_id)."' name='changeAccountName'></td></tr>\n";
+		print "<div class='settings-actions'><button type='submit' name='slet' value='$slet' class='settings-btn settings-btn-danger' onclick=\"return confirm('$confirm_tekst')\">$slet</button></div>\n";
 		print "</form>\n";
+		print "</div>\n"; // end delete card
 	}
-
-
-	print "<tr><td colspan='6'><br></td></tr>\n";
 } # endfunc kontoindstillinger
 
 function provision() {
-	global $bgcolor, $bgcolor5, $popup, $sprog_id;
+	global $sprog_id;
 
-
-	$batch = $beskrivelse = $bet = $box1 = $box2 = $box3 = $box4 = NULL;
-	$id = $kodenr = $kort = $kua = $ref = NULL;
+	$batch = $bet = $box1 = $box2 = $box3 = $box4 = NULL;
+	$id = $kort = $kua = $ref = $smart = $fak = NULL;
 
 	$qtxt = "select * from grupper where art = 'DIV' and kodenr = '1'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$id = $r['id'];
-		$beskrivelse = $r['beskrivelse'];
-		$kodenr = $r['kodenr'];
 		$box1 = $r['box1'];
 		$box2 = $r['box2'];
 		$box3 = $r['box3'];
@@ -276,40 +297,63 @@ function provision() {
 	else $fak = "checked";
 
 	print "<form name='diverse' action='diverse.php?sektion=provision' method='post'>\n";
-	print "<tr><td colspan='6'><hr></td></tr>\n";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('1263|Grundlag for provisionsberegning', $sprog_id)."</u></b></td></tr>\n"; #20210711
-	print "<tr><td colspan='6'><br></td></tr>\n";
 	print "<input type='hidden' name='id' value='$id'>\n";
-	print "<tr>\n<td>".findtekst('1269|Beregn provision på ordrer som er faktureret eller faktureret og betalt', $sprog_id)."</td>\n<td></td>\n<td align='center'>".findtekst('1264|Faktureret', $sprog_id)."</td>\n<td align='center'>".findtekst('1265|Betalt', $sprog_id)."</td></tr>\n";
-	print "<tr>\n<td></td>\n<td></td>\n<td align='center'><input class='inputbox' type='radio' name='box4' value='fak' title='".findtekst('1717|Provision beregnes på fakturerede ordrer', $sprog_id)."' $fak></td>\n"; #20210802
-	print "<td align='center'><input class='inputbox' type=radio name='box4' value='bet' title='".findtekst('1718|Provision beregnes på betalte ordrer', $sprog_id)."' $bet></td>\n</tr>\n";
-	print "<tr>\n<td>".findtekst('1268|Kilde for personinfo', $sprog_id)."</td>\n<td align='center'>Ref.</td>\n<td align='center'>".findtekst('1267|Kundeans.', $sprog_id)."</td>\n<td align='center'>".findtekst('1266|Begge', $sprog_id)."</td>\n</tr>\n";
-	print "<tr>\n<td></td>\n";
-	print "<td align='center'><input class='inputbox' type='radio' name='box1' value='ref' \n";
-	print "title='".findtekst('1719|Provision tilfalder den der er angivet som referenceperson på de enkelte ordrer', $sprog_id)."' $ref></td>\n";
-	print "<td align='center'><input class='inputbox' type='radio' name='box1' value='kua' \n";
-	print "title='".findtekst('1720|Provision tilfalder den kundeansvarlige', $sprog_id)."' $kua></td>\n";
-	print "<td align='center'><input class='inputbox' type='radio' name='box1' value='smart' \n";
-	print "title='".findtekst('1721|Provision tilfalder den kundeansvarlige såfremt der er tildelt en sådan, ellers til den som er referenceperson på de enkelte ordrer', $sprog_id)."' $smart></td>\n";
-	print "</tr>\n";
-	print "<tr><td>".findtekst('1270|Kilde for kostpris', $sprog_id)."</td><td></td><td align='center'>".findtekst('1271|Indkøbspris', $sprog_id)."</td><td align='center'>".findtekst('566|Varekort', $sprog_id)."</td></tr>\n";
-	print "<tr>\n<td></td>\n<td></td>\n";
-	print "<td align=center><input class='inputbox' type='radio' name='box2' value='batch' \n";
-	print "title='".findtekst('1722|Anvend varens reelle indkøbspris som kostpris', $sprog_id)."' $batch></td>\n";
-	print "<td align='center'><input class='inputbox' type='radio' name='box2' value='kort' title='".findtekst('1723|Anvend kostpris fra varekort', $sprog_id)."' $kort></td>\n</tr>\n";
-	print "<tr>\n<td>".findtekst('1272|Skæringsdato for provisionsberegning', $sprog_id)."</td><td></td><td></td>\n";
-	print "<td align=center><select class='inputbox' name='box3' \n";
-	print "title='".findtekst('1724|Dato hvorfra og med (i foregående måned) til (dato i indeværende måned) provisionsberegning foretages', $sprog_id)."'>";
+	print "<div class='settings-card'>\n";
+	print "<h3 class='settings-card-title'>".findtekst('1263|Grundlag for provisionsberegning', $sprog_id)."</h3>\n";
+
+	// Beregningsgrundlag
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('1269|Beregn provision på ordrer som er faktureret eller faktureret og betalt', $sprog_id)."</label>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<label style='display:inline-flex;align-items:center;gap:0.5rem;margin-right:1.5rem;font-size:0.875rem;cursor:pointer'><input type='radio' name='box4' value='fak' $fak style='accent-color:#114691'> ".findtekst('1264|Faktureret', $sprog_id)."</label>\n";
+	print "<label style='display:inline-flex;align-items:center;gap:0.5rem;font-size:0.875rem;cursor:pointer'><input type='radio' name='box4' value='bet' $bet style='accent-color:#114691'> ".findtekst('1265|Betalt', $sprog_id)."</label>\n";
+	print "</div></div>\n";
+
+	// Kilde for personinfo
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('1268|Kilde for personinfo', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('1721|Provision tilfalder den kundeansvarlige såfremt der er tildelt en sådan, ellers til den som er referenceperson på de enkelte ordrer', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<label style='display:inline-flex;align-items:center;gap:0.5rem;margin-right:1rem;font-size:0.875rem;cursor:pointer'><input type='radio' name='box1' value='ref' $ref style='accent-color:#114691'> Ref.</label>\n";
+	print "<label style='display:inline-flex;align-items:center;gap:0.5rem;margin-right:1rem;font-size:0.875rem;cursor:pointer'><input type='radio' name='box1' value='kua' $kua style='accent-color:#114691'> ".findtekst('1267|Kundeans.', $sprog_id)."</label>\n";
+	print "<label style='display:inline-flex;align-items:center;gap:0.5rem;font-size:0.875rem;cursor:pointer'><input type='radio' name='box1' value='smart' $smart style='accent-color:#114691'> ".findtekst('1266|Begge', $sprog_id)."</label>\n";
+	print "</div></div>\n";
+
+	// Kilde for kostpris
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('1270|Kilde for kostpris', $sprog_id)."</label>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<label style='display:inline-flex;align-items:center;gap:0.5rem;margin-right:1.5rem;font-size:0.875rem;cursor:pointer'><input type='radio' name='box2' value='batch' $batch style='accent-color:#114691'> ".findtekst('1271|Indkøbspris', $sprog_id)."</label>\n";
+	print "<label style='display:inline-flex;align-items:center;gap:0.5rem;font-size:0.875rem;cursor:pointer'><input type='radio' name='box2' value='kort' $kort style='accent-color:#114691'> ".findtekst('566|Varekort', $sprog_id)."</label>\n";
+	print "</div></div>\n";
+
+	// Skæringsdato
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('1272|Skæringsdato for provisionsberegning', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('1724|Dato hvorfra og med (i foregående måned) til (dato i indeværende måned) provisionsberegning foretages', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<select class='settings-input' name='box3' style='max-width:120px'>\n";
 	if ($box3) print "<option>$box3</option>\n";
 	for ($x = 1; $x <= 28; $x++) {
 		print "<option>$x</option>\n";
 	}
-	print "</select></td></tr>\n";
-	print "<tr><td><br></td></tr>\n";
-	print "<tr><td><br></td></tr>\n";
-	print "<tr><td><br></td><td><br></td><td><br></td><td align='center'><input class='button green medium' type='submit' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'></td></tr>\n";
+	print "</select>\n";
+	print "</div></div>\n";
+
+	print "<div class='settings-actions'>\n";
+	print "<button type='submit' name='submit' class='settings-btn settings-btn-primary'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>\n";
+	print "</div>\n";
+	print "</div>\n";
 	print "</form>\n";
-} # endfunc provision  # HTML renset hertil 20150522
+} # endfunc provision
 
 
 function kontoplan_io() {
@@ -1833,10 +1877,6 @@ function ordre_valg() {
 	}
 
 	$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
-	$ordreAutocomplete = get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id);
-	if ($ordreAutocomplete === "on") {
-		$ordreAutocomplete = "checked";
-	}
 	$gs1parsing = get_settings_value("gs1_parsing", "ordre", "off") === "on" ? "checked" : "";
 
 	$rabatvarenr = NULL;
@@ -1860,61 +1900,86 @@ function ordre_valg() {
 		$saetvarenr = $r['varenr'];
 	}
 
-	print "<form name=diverse action=diverse.php?sektion=ordre_valg method=post>";
-	print "<tr><td colspan='6'><hr></td></tr>";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</u></b></td></tr>";
-	print "<tr><td colspan='6'><br></td></tr>";
-	print "<input type=hidden name=id value='$id'>";
-	$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
-	if($r = db_fetch_array(db_select($qtxt, __FILE__ . "linje " . __LINE__)))
-		print "<tr><td title='Låser fakturere knappen hvis den ikke er betalt'>Lås fakutrer knappen hvis ordren ikke er betalt</td><td><input type='checkbox' class='checkbox' name='lockPayment' $lockPayment><td></tr>";
+	print "<form name='diverse' action='diverse.php?sektion=ordre_valg' method='post'>\n";
+	print "<input type='hidden' name='id' value='$id'>\n";
 
-	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (private kunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatPrivateCustomers $incl_moms_private></td></tr>";
-	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (erhvervskunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatBusinessCustomers $incl_moms_business></td></tr>";
-	print "<tr><td title='".findtekst('188|Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler', $sprog_id)."'>".findtekst('164|Medtag kommentarer på følgesedler', $sprog_id)."</td><td><INPUT title='".findtekst('188|Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name=box3 $folge_s_tekst></td></tr>";
-	print "<tr><td title='".findtekst('189|Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler', $sprog_id)."'>".findtekst('169|Medtag kun linjer med antal på følgeseddel', $sprog_id)."</td><td><INPUT title='".findtekst('189|Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name=box8 $vis_nul_lev></td></tr>";
+	// Helper for toggle rows
+	$toggle = function($name, $label, $hint, $checked) {
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>$label</label>\n";
+		if ($hint) print "<p class='settings-hint'>$hint</p>\n";
+		print "</div><div class='settings-control-col'><label class='settings-toggle'><input type='checkbox' name='$name' $checked><span class='toggle-label'>$label</span></label></div></div>\n";
+	};
+	// Helper for text input rows
+	$textfield = function($name, $label, $hint, $value, $width = '120px') {
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>$label</label>\n";
+		if ($hint) print "<p class='settings-hint'>$hint</p>\n";
+		print "</div><div class='settings-control-col'><input class='settings-input' type='text' name='$name' value='$value' style='max-width:$width;text-align:right'></div></div>\n";
+	};
+
+	// --- Fakturering & Moms ---
+	print "<div class='settings-card'>\n";
+	print "<h3 class='settings-card-title'>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</h3>\n";
+
+	$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . "linje " . __LINE__)))
+		$toggle('lockPayment', 'Lås fakturere knappen hvis ordren ikke er betalt', 'Låser fakturere knappen hvis den ikke er betalt', $lockPayment);
+
+	$toggle('vatPrivateCustomers', 'Vis priser inkl. moms på kundeordrer (private kunder)', 'Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer', $incl_moms_private);
+	$toggle('vatBusinessCustomers', 'Vis priser inkl. moms på kundeordrer (erhvervskunder)', 'Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer', $incl_moms_business);
+	$toggle('box3', findtekst('164|Medtag kommentarer på følgesedler', $sprog_id), findtekst('188|Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler', $sprog_id), $folge_s_tekst);
+	$toggle('box8', findtekst('169|Medtag kun linjer med antal på følgeseddel', $sprog_id), findtekst('189|Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler', $sprog_id), $vis_nul_lev);
+
 	$qtxt = "select id from grupper where art = 'VG' and box9='on'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $hurtigfakt = "onclick='return false'";
-	print "<tr><td title='".findtekst('190|Hurtigfakturering anvendes, hvis der ikke er behov for tilbud/følgesedler', $sprog_id)."'>".findtekst('165|Anvend hurtigfakturering (ingen tilbud & automatisk levering ved fakturering)', $sprog_id)."</td><td><INPUT title='".findtekst('190|Hurtigfakturering anvendes, hvis der ikke er behov for tilbud/følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name='box4' $hurtigfakt></td></tr>";
-	print "<tr><td title='".findtekst('191|Hvis dette felt ikke er afmærket, skal salgsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id)."'>".findtekst('166|Omgående bogføring af salgsordrer', $sprog_id)."</td><td><INPUT title='".findtekst('191|Hvis dette felt ikke er afmærket, skal salgsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id)."' class='inputbox' type='checkbox' name='straks_deb' $straks_deb></td></tr>";
-	print "<tr><td title='".findtekst('214|Hvis dette felt ikke er afmærket, skal købsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id)."'>".findtekst('213|Omgående bogføring af købsordrer', $sprog_id)."</td><td><INPUT title='".findtekst('214|Hvis dette felt ikke er afmærket, skal købsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id)."' class='inputbox' type='checkbox' name='straks_kred' $straks_kred></td></tr>";
-	print "<tr><td title='".findtekst('313|Hvis dette felt er afmærket styres lager efter FIFO (first in first out) princippet, og kostprisen reguleres automatisk efter sidste varekøb.', $sprog_id)."'>".findtekst('314|Anvend FIFO på lagervarer', $sprog_id)."</td><td><INPUT title='".findtekst('313|Hvis dette felt er afmærket styres lager efter FIFO (first in first out) princippet, og kostprisen reguleres automatisk efter sidste varekøb.', $sprog_id)."' class='inputbox' type='checkbox' name='box6' $fifo></td></tr>";
-	print "<tr><td title='".findtekst('732|Vælg om kostpriser skal reguleres til gennemsnitspris, genanskaffelsespris eller ikke skal justeres', $sprog_id)."'>".findtekst('731|Aut. regulering af kostpriser', $sprog_id)."</td><td colspan='1'><SELECT title='".findtekst('732|Vælg om kostpriser skal reguleres til gennemsnitspris, genanskaffelsespris eller ikke skal justeres', $sprog_id)."'class='inputbox' name='kostmetode'>";
-	for ($i = 0; $i < 3; $i++) {
-		if ($i == $kostmetode) print "<option value=$i>$kostbeskrivelse[$i]</option>";
-	}
-	for ($i = 0; $i < 3; $i++) {
-		if ($i != $kostmetode) print "<option value=$i>$kostbeskrivelse[$i]</option>";
-	}
-	print "</SELECT></td></tr>";
-	if ($kostmetode >= 1) {
-		print "<tr><td></td><td colspan='2'><a href='../includes/opdat_kostpriser.php?metode=$kostmetode' target='blank'><INPUT title='".findtekst('738|Klik her for at opdatere kostprisen for alle lagervarer med pris på sidste køb.', $sprog_id)."' type='button' value='".findtekst('739|Opdater kostpriser', $sprog_id)."'></a></td>";
-	}
-	print "</tr>";
-	print "<tr><td title='".findtekst('192|Afmærk dette felt for at tillade negativ lagerbeholdning', $sprog_id)."'>".findtekst('183|Tillad negativ lagerbeholdning', $sprog_id)."</td><td><INPUT title='".findtekst('192|Afmærk dette felt for at tillade negativ lagerbeholdning', $sprog_id)."' class='inputbox' type='checkbox' name='box9' $negativt_lager></td></tr>";
-	print "<tr><td title='".findtekst('743|Afmærkes dette felt, bliver det muligt at ændre prisen på bundlinjen i en salgsordre, og der bliver givet en samlet rabat, som ved postering fordeles på de enkelte varer', $sprog_id)."'>".findtekst('742|Anvend samlet pris', $sprog_id)."</td><td><INPUT title='".findtekst('743|Afmærkes dette felt, bliver det muligt at ændre prisen på bundlinjen i en salgsordre, og der bliver givet en samlet rabat, som ved postering fordeles på de enkelte varer', $sprog_id)."' class='inputbox' type='checkbox' name='box14' $samlet_pris></td></tr>";
-	print "<tr><td title='".findtekst('680|Afmærkes dette felt, vil der komme en advarsel hvis lagerbeholdningen er for lav når et produkt indsættes', $sprog_id)."'>".findtekst('714|Advar ved for lav lagerbeholdning', $sprog_id)."</td><td><INPUT title='".findtekst('680|Afmærkes dette felt, vil der komme en advarsel hvis lagerbeholdningen er for lav når et produkt indsættes', $sprog_id)."' class='inputbox' type='checkbox' name='box11' $advar_lav_beh></td></tr>";
-	print "<tr><td title='".findtekst('682|Afmærkes dette felt, vil et ekstra felt vises på kundebestillinger for procentfakturering af vareværdien. Dette bruges f.eks. ved udlejning af udstyr.', $sprog_id)."'>".findtekst('681|Anvend procentfakturering', $sprog_id)."</td><td><INPUT title='".findtekst('682|Afmærkes dette felt, vil et ekstra felt vises på kundebestillinger for procentfakturering af vareværdien. Dette bruges f.eks. ved udlejning af udstyr.', $sprog_id)."' class='inputbox' type='checkbox' name='box12' $procentfakt></td></tr>";
-	print "<tr><td title='".findtekst('684|Skrives en værdi her, vises et redigerbart felt på ordre-siden med den angivne værdi. Procenttillægget er et tillæg til det samlede fakturabeløb før momsberegning.', $sprog_id)."'>".findtekst('683|Procenttillæg', $sprog_id)."</td><td><INPUT title='".findtekst('684|Skrives en værdi her, vises et redigerbart felt på ordre-siden med den angivne værdi. Procenttillægget er et tillæg til det samlede fakturabeløb før momsberegning.', $sprog_id)."' class='inputbox' type='text' style='width:35px;text-align:right;' name='procenttillag' value='$procenttillag'>%</td></tr>";
-	print "<tr><td title='".findtekst('686|Angiv her hvilken konto i kontoplanen procenttillægget skal konteres på', $sprog_id)."'>".findtekst('685|Varenr. for procenttillæg', $sprog_id)."</td><td><INPUT title='".findtekst('686|Angiv her hvilken konto i kontoplanen procenttillægget skal konteres på', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='procentvare' value='$procentvare'></td></tr>";
-	print "<tr><td title='".findtekst('288|For at kunne give rabat på kontantsalg, skal dette felt udfyldes med varenummeret på den vare, der bruges til formålet', $sprog_id)."'>".findtekst('287|Varenr. for rabat', $sprog_id)."</td><td><INPUT title='".findtekst('288|For at kunne give rabat på kontantsalg, skal dette felt udfyldes med varenummeret på den vare, der bruges til formålet', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box2' value='$rabatvarenr'></td></tr>";
-	if ($samlet_pris) print "<tr><td title='".findtekst('745|Angives der et varenummer her, bliver det muligt at samle en gruppe varer i en salgsordre som et sæt og give en samlet pris for denne gruppe', $sprog_id)."'>".findtekst('744|Varenr. for sæt', $sprog_id)."</td><td><INPUT title='".findtekst('745|Angives der et varenummer her, bliver det muligt at samle en gruppe varer i en salgsordre som et sæt og give en samlet pris for denne gruppe', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='saetvarenr' value='$saetvarenr'></td></tr>";
-	print "<tr><td title='".findtekst('688|Angiv hvilken konto betalingen skal konteres på ved kontantsalg. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.', $sprog_id)."'>".findtekst('687|Kontonummer for kontantsalg', $sprog_id)."</td><td><INPUT title='".findtekst('688|Angiv hvilken konto betalingen skal konteres på ved kontantsalg. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box7' value='$kontantkonto'></td></tr>";
-	print "<tr><td title='".findtekst('690|Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.', $sprog_id)."'>".findtekst('689|Kontonummer for salg på kreditkort', $sprog_id)."</td><td><INPUT title='".findtekst('690|Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box10' value='$kortkonto'></td></tr>";
-	print "<tr><td title='".findtekst('1711|Afmærk dette felt for at bruge ordrebemærkning til intern brug', $sprog_id)."'>".findtekst('1714|Anvend ordrebemærkning til internt brug', $sprog_id)."</td><td><INPUT title='".findtekst('1712|Bemærkning til ordre', $sprog_id)."' class='inputbox' type='checkbox' name='orderNoteEnabled' $orderNoteEnabled></td></tr>";
-	print "<tr><td title='".findtekst('2370|Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en e-mail på en ordre', $sprog_id)."'>".findtekst('2369|Aktiver debitoripad', $sprog_id)."</td><td><INPUT title='".findtekst('2370|Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en mail på en ordre', $sprog_id)."' class='inputbox' type='checkbox' name='debitoripad' $debitoripad></td></tr>";
-	print "<tr><td title='".findtekst('690|Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.', $sprog_id)."'>".findtekst('2400|Ordrebek', $sprog_id)."</td><td><INPUT title='".findtekst('2401|Overblik', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='portovarenr' value='$portovarenr'></td></tr>";
-	print "<tr><td title='Dette felt deaktiverer visning af DB på ordre siden'>Skjul dækningsbidrag</td><td><INPUT title='Dette felt deaktiverer visning af DB på ordre siden', class='inputbox' type='checkbox' name='showDB' $showDB></td></tr>";
-	print "<tr><td title='Dette felt deaktiverer visning af DG på ordre siden'>Skjul dækningsgrad</td><td><INPUT title='Dette felt deaktiverer visning af DG på ordre siden', class='inputbox' type='checkbox' name='showDG' $showDG></td></tr>";
-	print "<tr><td title='Angiv en e-mail adresse til modtagelse af pluklister'>Plukliste email</td><td><INPUT title='E-mail adresse til at sende pluklister til' class='inputbox' type='email' style='width:200px;' name='pluklisteEmail' value='$pluklisteEmail'></td></tr>";
-	print "<tr><td title='Aktiverer autosøgning/autocomplete på ordresider (bruger specifik indstilling)'>Anvend autosøgning på ordrer</td><td><INPUT title='Aktiverer autosøgning/autocomplete på ordresider' class='inputbox' type='checkbox' name='ordreAutocomplete' $ordreAutocomplete></td></tr>";
-	print "<tr><td title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)'>Anvend GS1 stregkodefortolkning</td><td><INPUT title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
-	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
+	$toggle('box4', findtekst('165|Anvend hurtigfakturering (ingen tilbud & automatisk levering ved fakturering)', $sprog_id), findtekst('190|Hurtigfakturering anvendes, hvis der ikke er behov for tilbud/følgesedler', $sprog_id), $hurtigfakt);
+	$toggle('straks_deb', findtekst('166|Omgående bogføring af salgsordrer', $sprog_id), findtekst('191|Hvis dette felt ikke er afmærket, skal salgsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id), $straks_deb);
+	$toggle('straks_kred', findtekst('213|Omgående bogføring af købsordrer', $sprog_id), findtekst('214|Hvis dette felt ikke er afmærket, skal købsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id), $straks_kred);
+	$toggle('box6', findtekst('314|Anvend FIFO på lagervarer', $sprog_id), findtekst('313|Hvis dette felt er afmærket styres lager efter FIFO (first in first out) princippet, og kostprisen reguleres automatisk efter sidste varekøb.', $sprog_id), $fifo);
 
-	print "<tr><td><br></td></tr>";
-	print "<tr><td><br></td></tr>";
-	print "<td><br></td><td><br></td><td><br></td><td align = center><input class='button green medium' type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'></td>";
-	print "</form>";
+	// Kostpris metode (select)
+	print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('731|Aut. regulering af kostpriser', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('732|Vælg om kostpriser skal reguleres til gennemsnitspris, genanskaffelsespris eller ikke skal justeres', $sprog_id)."</p></div>\n";
+	print "<div class='settings-control-col'><select class='settings-input' name='kostmetode' style='max-width:250px'>\n";
+	for ($i = 0; $i < 3; $i++) { if ($i == $kostmetode) print "<option value=$i>$kostbeskrivelse[$i]</option>"; }
+	for ($i = 0; $i < 3; $i++) { if ($i != $kostmetode) print "<option value=$i>$kostbeskrivelse[$i]</option>"; }
+	print "</select>\n";
+	if ($kostmetode >= 1) {
+		print " <a href='../includes/opdat_kostpriser.php?metode=$kostmetode' target='_blank' class='settings-btn settings-btn-secondary' style='margin-left:0.5rem'>".findtekst('739|Opdater kostpriser', $sprog_id)."</a>";
+	}
+	print "</div></div>\n";
+
+	$toggle('box9', findtekst('183|Tillad negativ lagerbeholdning', $sprog_id), findtekst('192|Afmærk dette felt for at tillade negativ lagerbeholdning', $sprog_id), $negativt_lager);
+	$toggle('box14', findtekst('742|Anvend samlet pris', $sprog_id), findtekst('743|Afmærkes dette felt, bliver det muligt at ændre prisen på bundlinjen i en salgsordre, og der bliver givet en samlet rabat, som ved postering fordeles på de enkelte varer', $sprog_id), $samlet_pris);
+	$toggle('box11', findtekst('714|Advar ved for lav lagerbeholdning', $sprog_id), findtekst('680|Afmærkes dette felt, vil der komme en advarsel hvis lagerbeholdningen er for lav når et produkt indsættes', $sprog_id), $advar_lav_beh);
+	$toggle('box12', findtekst('681|Anvend procentfakturering', $sprog_id), findtekst('682|Afmærkes dette felt, vil et ekstra felt vises på kundebestillinger for procentfakturering af vareværdien. Dette bruges f.eks. ved udlejning af udstyr.', $sprog_id), $procentfakt);
+
+	$textfield('procenttillag', findtekst('683|Procenttillæg', $sprog_id), findtekst('684|Skrives en værdi her, vises et redigerbart felt på ordre-siden med den angivne værdi. Procenttillægget er et tillæg til det samlede fakturabeløb før momsberegning.', $sprog_id), $procenttillag, '100px');
+	$textfield('procentvare', findtekst('685|Varenr. for procenttillæg', $sprog_id), findtekst('686|Angiv her hvilken konto i kontoplanen procenttillægget skal konteres på', $sprog_id), $procentvare, '120px');
+	$textfield('box2', findtekst('287|Varenr. for rabat', $sprog_id), findtekst('288|For at kunne give rabat på kontantsalg, skal dette felt udfyldes med varenummeret på den vare, der bruges til formålet', $sprog_id), $rabatvarenr, '120px');
+	if ($samlet_pris) $textfield('saetvarenr', findtekst('744|Varenr. for sæt', $sprog_id), findtekst('745|Angives der et varenummer her, bliver det muligt at samle en gruppe varer i en salgsordre som et sæt og give en samlet pris for denne gruppe', $sprog_id), $saetvarenr, '120px');
+	$textfield('box7', findtekst('687|Kontonummer for kontantsalg', $sprog_id), findtekst('688|Angiv hvilken konto betalingen skal konteres på ved kontantsalg. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.', $sprog_id), $kontantkonto, '120px');
+	$textfield('box10', findtekst('689|Kontonummer for salg på kreditkort', $sprog_id), findtekst('690|Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.', $sprog_id), $kortkonto, '120px');
+
+	$toggle('orderNoteEnabled', findtekst('1714|Anvend ordrebemærkning til internt brug', $sprog_id), findtekst('1711|Afmærk dette felt for at bruge ordrebemærkning til intern brug', $sprog_id), $orderNoteEnabled);
+	$toggle('debitoripad', findtekst('2369|Aktiver debitoripad', $sprog_id), findtekst('2370|Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en e-mail på en ordre', $sprog_id), $debitoripad);
+
+	$textfield('portovarenr', findtekst('2400|Ordrebek', $sprog_id), findtekst('2401|Overblik', $sprog_id), $portovarenr, '120px');
+
+	$toggle('showDB', 'Skjul dækningsbidrag', 'Dette felt deaktiverer visning af DB på ordre siden', $showDB);
+	$toggle('showDG', 'Skjul dækningsgrad', 'Dette felt deaktiverer visning af DG på ordre siden', $showDG);
+
+	// Plukliste email
+	print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>Plukliste email</label>\n";
+	print "<p class='settings-hint'>Angiv en e-mail adresse til modtagelse af pluklister</p></div>\n";
+	print "<div class='settings-control-col'><input class='settings-input' type='email' name='pluklisteEmail' value='$pluklisteEmail'></div></div>\n";
+
+	$toggle('gs1_parsing', 'Anvend GS1 stregkodefortolkning', 'Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)', $gs1parsing);
+
+	print "<div class='settings-actions'>\n";
+	print "<button type='submit' name='submit' class='settings-btn settings-btn-primary'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>\n";
+	print "</div>\n";
+	print "</div>\n"; // end card
+	print "</form>\n";
 } # endfunc ordre_valg
 
 # ---------------------- varianter ----------------------
@@ -2135,75 +2200,81 @@ function variant_valg() {
 } # endfunc variant_valg
 
 function shop_valg() {
-	global $sprog_id;
-	global $bgcolor;
-	global $bgcolor5;
-	global $db;
-	global $labelprint;
+	global $sprog_id, $db;
 
-	#	$hurtigfakt=NULL; $incl_moms_private=NULL; $incl_moms_business=NULL; $folge_s_tekst=NULL; $negativt_lager=NULL; $straks_bogf=NULL; $vis_nul_lev=NULL;
 	$q = db_select("select * from grupper where art = 'DIV' and kodenr = '5'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
 	$id = $r['id'];
-	$beskrivelse = $r['beskrivelse'];
-	$kodenr = $r['kodenr'];
 	$box2 = trim($r['box2']);
 	$box3 = trim($r['box3']);
 	$box4 = trim($r['box4']);
 	$box5 = trim($r['box5']);
 	$box7 = trim($r['box7']);
 	$box9 = trim($r['box9']);
-	# OBS $box1 bruges under vare_valg!!
-	# OBS $box8 bruges under ordrelaterede valg!!
-
-	print "<form name=diverse action=diverse.php?sektion=shop_valg method=post>";
-	print "<tr><td colspan='6'><hr></td></tr>";
 
 	if ($box2 == '!') $box3 = '1';
-	print "<tr><td><br></td></tr>";
-	print "<tr><td title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><!--tekst 826-->".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."<!--tekst 826--></td><td colspan='3' title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><select style='text-align:left;width:300px;' name='box3'>";
-	if (!$box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
-	if ($box3=='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
-	if ($box3=='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
-	if ($box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
-	if ($box3!='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
-	if ($box3!='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
-	print "</select></td></tr>";
+
+	print "<form name='diverse' action='diverse.php?sektion=shop_valg' method='post'>\n";
+	print "<div class='settings-card'>\n";
+	print "<h3 class='settings-card-title'>".findtekst('789|Shoprelaterede valg', $sprog_id)."</h3>\n";
+
+	// Webshop type
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."</label>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<select class='settings-input' name='box3'>\n";
+	if (!$box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."</option>";
+	if ($box3=='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."</option>";
+	if ($box3=='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."</option>";
+	if ($box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."</option>";
+	if ($box3!='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."</option>";
+	if ($box3!='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."</option>";
+	print "</select>\n";
+	print "</div></div>\n";
+
 	if ($box3 == '2') {
-		print "<tr><td title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503-->".findtekst('504|Webshop URL', $sprog_id)."<!--tekst 504--></td><td colspan='3' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503--><input type='text' style='text-align:left;width:300px;' name='box2' value = '$box2'</td></tr>";
-		print "<tr><td title=''>".findtekst('733|Tegn kodning for shop', $sprog_id)."<!--tekst 733--></td><td colspan='3' title='".findtekst('733|Tegn kodning for shop', $sprog_id)."'><!--tekst 733--><select style='text-align:left;width:300px;' name='box7'>";
-		if ($box7 == 'UTF-8') {
-			print "<option>UTF-8</option>";
-			print "<option>ISO-8859-1</option>";
-		} else {
-			print "<option>ISO-8859-1</option>";
-			print "<option>UTF-8</option>";
-		}
-		print "</select></td></tr>";
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('504|Webshop URL', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='box2' value='$box2'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('733|Tegn kodning for shop', $sprog_id)."</label></div>\n";
+		print "<div class='settings-control-col'><select class='settings-input' name='box7' style='max-width:200px'>\n";
+		if ($box7 == 'UTF-8') { print "<option>UTF-8</option><option>ISO-8859-1</option>"; }
+		else { print "<option>ISO-8859-1</option><option>UTF-8</option>"; }
+		print "</select></div></div>\n";
+
 		if ($apifil = $box2) {
-			$filnavn = mt_rand() . ".csv";
-			if (substr($apifil, 0, 4) == 'http') { #20150608
-				print "<tr><td title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740-->".findtekst('741|Hent nye varer fra shop.', $sprog_id)."<!--tekst 741--></td><td colspan='3'  title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740--><a href=../api/hent_varer.php target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst('741|Hent nye varer fra shop.', $sprog_id)."'><!--tekst 749--></a></td></tr>";
-				$apifil = str_replace("/?", "sync_saldi_kat.php?", $apifil);
-				$apifil = $apifil . "&saldi_db=$db&filnavn=$filnavn";
-#				print "<tr><td title='".findtekst(678, $sprog_id)."'><!--tekst 678-->".findtekst(679, $sprog_id)."<!--tekst 679--></td><td colspan='3'  title='".findtekst(678, $sprog_id)."'><!--tekst 678--><a href=$apifil target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst(679, $sprog_id)."'><!--tekst 679--></a></td></tr>";
-#				print "<tr><td colspan='3'><span title='Klik her for at hente nye ordrer fra shop'><a href=$apifil target='_blank'>SHOP import</a</span></td></tr>";
+			if (substr($apifil, 0, 4) == 'http') {
+				print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('741|Hent nye varer fra shop.', $sprog_id)."</label>";
+				print "<p class='settings-hint'>".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."</p></div>\n";
+				print "<div class='settings-control-col'><a href='../api/hent_varer.php' target='_blank' class='settings-btn settings-btn-secondary'>".findtekst('741|Hent nye varer fra shop.', $sprog_id)."</a></div></div>\n";
 			}
 		}
 	} elseif ($box3 == '1') {
-		print "<tr><td title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 821-->".findtekst('692|Merchant nr:', $sprog_id)."<!--tekst 822--></td><td colspan='3' title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 621--><input type='text' style='text-align:left;width:300px;' name='box4' value = '$box4'</td></tr>";
-		print "<tr><td title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752-->".findtekst('753|Agreement_id', $sprog_id)."<!--tekst 753--></td><td colspan='3' title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752--><input type='text' style='text-align:left;width:300px;' name='box9' value = '$box9'</td></tr>";
-		print "<tr><td title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823-->".findtekst('694|Md5-secret', $sprog_id)."<!--tekst 824--></td><td colspan='3' title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823--><input type='text' style='text-align:left;width:300px;' name='box5' value = '$box5'</td></tr>";
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('692|Merchant nr:', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='box4' value='$box4'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('753|Agreement_id', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='box9' value='$box9'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('694|Md5-secret', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='box5' value='$box5'></div></div>\n";
 	}
-	print "<tr><td>";
-	print "<br></td></tr>";
-	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'><!--tekst 471--></td>";
-	print "</form>";
-	print "<tr><td colspan='6'><hr></td></tr>";
+
+	print "<div class='settings-actions'>\n";
+	print "<button type='submit' name='submit' class='settings-btn settings-btn-primary'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>\n";
+	print "</div>\n";
+	print "</div>\n";
+	print "</form>\n";
 } # endfunc shop_valg
 
 function api_valg() {
-	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id, $buttonStyle;
+	global $bruger_id, $db, $sprog_id, $buttonStyle;
 	$r = db_fetch_array(db_select("select * from grupper where art = 'API' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 	$api_key = trim($r['box1']);
@@ -2213,6 +2284,7 @@ function api_valg() {
 	$api_fil2 = trim($r['box5']);
 	$api_fil3 = trim($r['box6']);
 
+	$userId = $userName = [];
 	$x = 0;
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -2228,29 +2300,56 @@ function api_valg() {
 		for ($x = 0; $x < 36; $x++) $api_key .= substr($chars, rand(0, strlen($chars) - 1), 1);
 	}
 
-	print "<form name=diverse action=diverse.php?sektion=api_valg method=post>";
-	print "<tr><td colspan='6'><hr></td></tr>";
-	print "<tr><td><br></td></tr>";
 	list($tmp, $folder, $tmp) = explode('/', $_SERVER['REQUEST_URI'], 3);
 	$url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]/$folder/api";
+
+	print "<form name='diverse' action='diverse.php?sektion=api_valg' method='post'>\n";
+	print "<div class='settings-card'>\n";
+	print "<h3 class='settings-card-title'>API</h3>\n";
+
 	if ($userId) {
 		if ($api_bruger) {
-			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
-			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
-			print "<tr><td>Swagger: </td><td td colspan='3'><a href='https://ssl12.saldi.dk/pblm/restapi/swagger-ui.html#/' target='_blank' style='$buttonStyle; text-decoration:none; display: inline-block; padding: 2px;'>Swagger</a></td></tr>";
-			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key' readonly></td></tr>";
-			print "<tr><td title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822-->".findtekst('821|Tilladte IP adresser', $sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
-			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";
-			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil2' value = '$api_fil2'></td></tr>";
-			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil3' value = '$api_fil3'></td></tr>";
+			// Connection info
+			print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('831|Saldi DB:', $sprog_id)."</label>";
+			print "<p class='settings-hint'>".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."</p></div>\n";
+			print "<div class='settings-control-col'><span style='font-size:0.875rem;font-weight:600'>$db</span></div></div>\n";
+
+			print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('835|Saldi URL:', $sprog_id)."</label>";
+			print "<p class='settings-hint'>".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."</p></div>\n";
+			print "<div class='settings-control-col'><span style='font-size:0.875rem;word-break:break-all'>$url</span></div></div>\n";
+
+			print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>Swagger</label></div>\n";
+			print "<div class='settings-control-col'><a href='https://ssl12.saldi.dk/pblm/restapi/swagger-ui.html#/' target='_blank' class='settings-btn settings-btn-secondary' style='text-decoration:none'>Swagger</a></div></div>\n";
+
+			print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('819|API Nøgle', $sprog_id)."</label>";
+			print "<p class='settings-hint'>".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."</p></div>\n";
+			print "<div class='settings-control-col'><input class='settings-input' type='text' name='api_key' value='$api_key' readonly></div></div>\n";
+
+			print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('821|Tilladte IP adresser', $sprog_id)."</label>";
+			print "<p class='settings-hint'>".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."</p></div>\n";
+			print "<div class='settings-control-col'><input class='settings-input' type='text' name='ip_list' value='$ip_list'></div></div>\n";
+
+			print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('829|API Klient', $sprog_id)." 1</label>";
+			print "<p class='settings-hint'>".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."</p></div>\n";
+			print "<div class='settings-control-col'><input class='settings-input' type='text' name='api_fil' value='$api_fil'></div></div>\n";
+
+			print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('829|API Klient', $sprog_id)." 2</label></div>\n";
+			print "<div class='settings-control-col'><input class='settings-input' type='text' name='api_fil2' value='$api_fil2'></div></div>\n";
+
+			print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('829|API Klient', $sprog_id)." 3</label></div>\n";
+			print "<div class='settings-control-col'><input class='settings-input' type='text' name='api_fil3' value='$api_fil3'></div></div>\n";
 		} else {
-			print "<input type='hidden' style='text-align:left;width:300px;' name='api_key' value = '$api_key'>";
-			print "<input type='hidden' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'>";
-			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'>";
-			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil2' value= '$api_fil2'>";
-			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil3' value= '$api_fil3'>";
+			print "<input type='hidden' name='api_key' value='$api_key'>";
+			print "<input type='hidden' name='ip_list' value='$ip_list'>";
+			print "<input type='hidden' name='api_fil' value='$api_fil'>";
+			print "<input type='hidden' name='api_fil2' value='$api_fil2'>";
+			print "<input type='hidden' name='api_fil3' value='$api_fil3'>";
 		}
-		print "<tr><td title='".findtekst('824|Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API', $sprog_id)."'><!--tekst 824-->".findtekst('225|Brugernavn', $sprog_id)."<!--tekst 823--></td><td colspan='3' title='".findtekst('824|Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API', $sprog_id)."'><!--tekst 824--><select style='text-align:left;width:300px;' name='api_bruger'>";
+
+		// User select
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('225|Brugernavn', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('824|Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><select class='settings-input' name='api_bruger'>\n";
 		if ($api_bruger) {
 			for ($x = 0; $x < count($userId); $x++) {
 				if ($api_bruger == $userId[$x]) print "<option value='$userId[$x]'>$userName[$x]</option>";
@@ -2260,15 +2359,31 @@ function api_valg() {
 		for ($x = 0; $x < count($userId); $x++) {
 			if ($api_bruger != $userId[$x]) print "<option value='$userId[$x]'>$userName[$x]</option>";
 		}
-		print "</select></td></tr>";
-		print "<tr><td><br></td></tr>";
-		print "<tr><td><br></td><td colspan='1'><input type=submit style='text-align:center;width:300px;' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'><!--tekst 471--></td></tr>";
-		print "</form>";
-		print "<tr><td colspan='6'><hr></td></tr>";
-		print "<tr><td title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740-->".findtekst('741|Hent nye varer fra shop', $sprog_id)."<!--tekst 741--></td><td colspan='3' title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi', $sprog_id)."'><!--tekst 740--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=1><input style='text-align:center;width:300px;' type='button' value='".findtekst('741|Hent nye varer fra shop', $sprog_id)."'><!--tekst 749--></a></td></tr>";
-		print "<tr><td title='".findtekst('1726|Opdaterer beskrivelse, stregkode og pris fra shop', $sprog_id)."'><!--tekst 1726-->".findtekst('2546|Opdater fra shop', $sprog_id)."<!--tekst 2546--></td><td colspan='3' title='".findtekst('1726|Opdaterer beskrivelse, stregkode og pris fra shop', $sprog_id)."'><!--tekst 1726--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=2><input style='text-align:center;width:300px;' type='button' value='".findtekst('2546|Opdater fra shop', $sprog_id)."'><!--tekst 2546--></a></td></tr>";
-	} else print "<tr><td colspan='2'>".findtekst('825|Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.', $sprog_id)."</td></tr>";
-	print "<tr><td colspan='6'><hr></td></tr>";
+		print "</select></div></div>\n";
+
+		print "<div class='settings-actions'>\n";
+		print "<button type='submit' name='submit' class='settings-btn settings-btn-primary'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>\n";
+		print "</div>\n";
+		print "</div>\n"; // end settings-card
+		print "</form>\n";
+
+		// Shop sync actions (separate card)
+		print "<div class='settings-card'>\n";
+		print "<h3 class='settings-card-title'>".findtekst('741|Hent nye varer fra shop', $sprog_id)."</h3>\n";
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('741|Hent nye varer fra shop', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><a href='".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=1' class='settings-btn settings-btn-secondary'>".findtekst('741|Hent nye varer fra shop', $sprog_id)."</a></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('2546|Opdater fra shop', $sprog_id)."</label>";
+		print "<p class='settings-hint'>".findtekst('1726|Opdaterer beskrivelse, stregkode og pris fra shop', $sprog_id)."</p></div>\n";
+		print "<div class='settings-control-col'><a href='".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=2' class='settings-btn settings-btn-secondary'>".findtekst('2546|Opdater fra shop', $sprog_id)."</a></div></div>\n";
+		print "</div>\n"; // end sync card
+	} else {
+		print "<div class='settings-alert settings-alert-warning'>".findtekst('825|Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.', $sprog_id)."</div>\n";
+		print "</div>\n"; // end settings-card
+		print "</form>\n";
+	}
+
 	if (isset($_GET['varesync']) && $_GET['varesync']) {
 		include("../api/varesync.php");
 		varesync($_GET['varesync']);
@@ -3024,30 +3139,25 @@ function prislister()
 function rykker_valg()
 {
 	global $sprog_id;
-	global $bgcolor;
-	global $bgcolor5;
 
-	$box1 = $box2 = $box3 = $box4 = $box5 = $box6 = $box7 = $box8 = $box9 = NULL;
+	$box1 = $box2 = $box5 = $box6 = $box7 = $box9 = NULL;
 
 	$r = db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '4'", __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 	$box1 = $r['box1'];
 	$box2 = $r['box2'];
-	if ($r['box3']) $box3 = $r['box3'] * 1;
-	$box4 = $r['box4'];
 	if ($r['box5']) $box5 = $r['box5'] * 1;
 	if ($r['box6']) $box6 = $r['box6'] * 1;
 	if ($r['box7']) $box7 = $r['box7'] * 1;
-	#	$box8=$r['box8']; Box 8 bruger til resistrering af sidst sendte reminder.
-	$box9 = $r['box9']; # Inkasso.
+	$box9 = $r['box9'];
 	if ($box9) {
 		$qtxt = "select kontonr from adresser where id='$box9'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$box9 = $r['kontonr'];
 	}
-	#	$box10=$r['box10'];
 
 	$x = 0;
+	$br_id = $br_navn = [];
 	$q = db_select("select id,brugernavn from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -3056,49 +3166,83 @@ function rykker_valg()
 		if ($box1 == $br_id[$x]) $box1 = $br_navn[$x];
 	}
 	$br_antal = $x;
-	/*
-	if ($box3 || $box4) {
-		if ($r=db_fetch_array(db_select("select beskrivelse from varer where varenr = '$box4'",__FILE__ . " linje " . __LINE__))) {
-			$varetekst=htmlentities($r['beskrivelse']);
-		} else print "<BODY onLoad=\"JavaScript:alert('Varenummer ikke gyldigt')\">";
-	}
-*/
-	print "<form name='diverse action=diverse.php?sektion=rykker_valg' method='post'>\n";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</b></td></tr>\n";
-	print "<input type='hidden' name=id value='$id'>\n";
-	#Box1 Brugernavn for "rykkeransvarlig - Naar bruger logger ind adviseres hvis der skal rykkes - Hvis navn ikke angives adviseres alle..
-	$title = ""; # HERTIL
-	print "<tr><td title='".findtekst('224|Brugernavn for rykkeransvarlig - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.', $sprog_id)."'>".findtekst('225|Brugernavn', $sprog_id)."</td>\n"; #20210713
-	print "<td title='".findtekst('224|Brugernavn for rykkeransvarlig - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.', $sprog_id)."'><select class='inputbox' name='box1' style='width:80px'>\n";
-	if ($box1) print "    <option>$box1</option>\n";
+
+	if (!strpos(findtekst('833|Kontonr for inkassoadvokat.', $sprog_id), 'inkasso')) db_modify("delete from tekster where tekst_id='833' and sprog_id='$sprog_id'", __FILE__ . " linje " . __LINE__);
+	if (!strpos(findtekst('834|Ved at udfylde dette felt med kontonummer for din inkassoadvokat (kreditor)', $sprog_id),'udfylde')) db_modify("delete from tekster where tekst_id='834' and sprog_id='$sprog_id'", __FILE__ . " linje " . __LINE__);
+
+	print "<form name='diverse' action='diverse.php?sektion=rykker_valg' method='post'>\n";
+	print "<input type='hidden' name='id' value='$id'>\n";
+	print "<div class='settings-card'>\n";
+	print "<h3 class='settings-card-title'>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</h3>\n";
+
+	// Brugernavn
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('225|Brugernavn', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('224|Brugernavn for rykkeransvarlig - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<select class='settings-input' name='box1' style='max-width:200px'>\n";
+	if ($box1) print "<option>$box1</option>\n";
 	print "<option value=''>- ".findtekst('2498|Alle', $sprog_id)." -</option>\n";
 	for ($x = 1; $x <= $br_antal; $x++) {
 		if ($br_navn[$x] != $box1) print "<option>$br_navn[$x]</option>\n";
 	}
-	print "</select></td></tr>\n";
-	#Box2 Mailadresse for rykkeransvarlig hvis angivet sendes email naar der skal rykkes. (Naar nogen logger ind - uanset hvem)
-	print "<tr><td title='".findtekst('226|Mailadresse for rykkeransvarlig. Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem)', $sprog_id)."'>".findtekst('227|Mailadresse', $sprog_id)."</td>\n";
-	print "<td title='".findtekst('226|Mailadresse for rykkeransvarlig. Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem)', $sprog_id)."'><input class='inputbox' type='text' size='30' name='box2' value='$box2'></td></tr>\n"; # 20150625
-	#Box4 Varenummer for rente
-#	print "<tr><td title='".findtekst(230, $sprog_id)."'>".findtekst(231, $sprog_id)."</td><td><input class='inputbox' type=text size=15 name=box4 value='$box4'></td></tr>";
-	#Box3 Rentesats % pr paabegyndt md.
-#	print "<tr><td title='".findtekst('228|Rentesats i % pr. påbegyndt måned', $sprog_id)."'>".findtekst(229, $sprog_id)."</td><td><input class='inputbox' type=text style='text-align:right' size=1 name=box3 value='$box3'> %</td></tr>";
-	#Box5 Dage betalingsfrist skal vaere overskredet foer der rykkes.
-	print "<tr><td title='".findtekst('232|Antal dage betalingsfristen skal være overskredet, før der påmindes om 1. rykker', $sprog_id)."'>".findtekst('233|Frist for rykker 1', $sprog_id)."</td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box5' value='$box5'> ".findtekst('1332|Dage', $sprog_id)."</td></tr>\n";
-	#Box6 Dage fra rykker 1 til rykker 2
-	print "<tr><td title='".findtekst('234|Antal dage betalingsfristen for rykker 1 skal være overskredet, før der påmindes om 2. rykker', $sprog_id)."'>".findtekst('235|Frist for rykker 2', $sprog_id)." </td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box6' value='$box6'> ".findtekst('1332|Dage', $sprog_id)."</td></tr>\n";
-	#Box7 Dage fra rykker 2 til rykker 3
-	print "<tr><td title='".findtekst('236|Antal dage betalingsfristen for rykker 2 skal være overskredet, før der påmindes om 3. rykker', $sprog_id)."'>".findtekst('237|Frist for rykker 3', $sprog_id)." </td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box7' value='$box7'> ".findtekst('1332|Dage', $sprog_id)."</td></tr>\n";
-	print "<td colspan='3'>&nbsp;</td>\n";
-	if (!strpos(findtekst('833|Kontonr for inkassoadvokat.', $sprog_id), 'inkasso')) db_modify("delete from tekster where tekst_id='833' and sprog_id='$sprog_id'", __FILE__ . " linje " . __LINE__); #20211019
-	if (!strpos(findtekst('834|Ved at udfylde dette felt med kontonummer for din inkassoadvokat (kreditor)', $sprog_id),'udfylde')) db_modify("delete from tekster where tekst_id='834' and sprog_id='$sprog_id'", __FILE__ . " linje " . __LINE__);
-	print "<tr><td title='".findtekst('834|Ved at udfylde dette felt med kontonummer for din inkassoadvokat (kreditor)', $sprog_id)."'>".findtekst('833|Kontonr for inkassoadvokat.', $sprog_id)." </td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right;width=20px;' name='box9' value='$box9'></td></tr>\n";
-	print "<td colspan='3'>&nbsp;</td>\n";
-	print "<td align='center'><input class='button green medium' type='submit' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'></td>\n";
+	print "</select>\n";
+	print "</div></div>\n";
+
+	// Mailadresse
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('227|Mailadresse', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('226|Mailadresse for rykkeransvarlig. Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem)', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<input class='settings-input' type='text' name='box2' value='$box2'>\n";
+	print "</div></div>\n";
+
+	// Frister
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('233|Frist for rykker 1', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('232|Antal dage betalingsfristen skal være overskredet, før der påmindes om 1. rykker', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<input class='settings-input' type='text' name='box5' value='$box5' style='max-width:100px;text-align:right'> ".findtekst('1332|Dage', $sprog_id)."\n";
+	print "</div></div>\n";
+
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('235|Frist for rykker 2', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('234|Antal dage betalingsfristen for rykker 1 skal være overskredet, før der påmindes om 2. rykker', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<input class='settings-input' type='text' name='box6' value='$box6' style='max-width:100px;text-align:right'> ".findtekst('1332|Dage', $sprog_id)."\n";
+	print "</div></div>\n";
+
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('237|Frist for rykker 3', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('236|Antal dage betalingsfristen for rykker 2 skal være overskredet, før der påmindes om 3. rykker', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<input class='settings-input' type='text' name='box7' value='$box7' style='max-width:100px;text-align:right'> ".findtekst('1332|Dage', $sprog_id)."\n";
+	print "</div></div>\n";
+
+	// Inkasso
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('833|Kontonr for inkassoadvokat.', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('834|Ved at udfylde dette felt med kontonummer for din inkassoadvokat (kreditor)', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<input class='settings-input' type='text' name='box9' value='$box9' style='max-width:150px;text-align:right'>\n";
+	print "</div></div>\n";
+
+	print "<div class='settings-actions'>\n";
+	print "<button type='submit' name='submit' class='settings-btn settings-btn-primary'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>\n";
+	print "</div>\n";
+	print "</div>\n";
 	print "</form>\n";
 } # endfunc rykker_valg
 
@@ -3253,30 +3397,25 @@ function docubizz() {
 
 function bilag()
 {
-	global $bgcolor, $bgcolor5, $db, $s_id, $sprog_id;
-	$ftp_bilag_mappe = $ftp_dokument_mappe = $id = $internFTP = null; #20211019
-	$onclick = $internFTP = $internFTP = $google_docs = null;
+	global $db, $sprog_id;
+	$ftp_bilag_mappe = $ftp_dokument_mappe = $id = $internFTP = null;
+	$ftpsted = $ftplogin = $ftpkode = $google_docs = null;
 ?>
-	<script Language="JavaScript">
-		<!--
+	<script>
 		function Form1_Validator(ftp) {
-			if (ftp.box3.value != ftp.pw2.value) {
-				$alert = findtekst('1345|Begge adgangskoder skal være ens', $sprog_id).".";
-				alert($alert);
+			if (ftp.box3 && ftp.pw2 && ftp.box3.value != ftp.pw2.value) {
+				alert("<?php echo findtekst('1345|Begge adgangskoder skal være ens', $sprog_id); ?>");
 				ftp.box3.focus();
-				return (false);
+				return false;
 			}
 		}
-		//
-		-->
 	</script>
-
 <?php
 	$externFTP = NULL;
 	$storageType = if_isset($_POST['storageType']);
 
 	$r = db_fetch_array(db_select("select * from grupper where art = 'bilag'", __FILE__ . " linje " . __LINE__));
-	if ($r) {	 #20211019 This checks whether $r is true before assigning values to the variables ..it prevents Trying to access array offset on value of type bool in..error.
+	if ($r) {
 		$id = $r['id'];
 		$ftpsted = $r['box1'];
 		$ftplogin = $r['box2'];
@@ -3295,71 +3434,79 @@ function bilag()
 				$externFTP = NULL;
 			} else $externFTP = 'checked';
 		}
-
 		if ($storageType == 'externFTP') $externFTP = 'checked';
-		if (!isset($sprog_id)) $sprog_id = null;
-		if (!isset($onclick)) $onclick = null;
 		if (!$ftp_bilag_mappe) $ftp_bilag_mappe = 'bilag';
 		if (!$ftp_dokument_mappe) $ftp_dokument_mappe = 'dokumenter';
 		($r['box7']) ? $google_docs = 'checked' : $google_docs = NULL;
 	}
-		print "<tr bgcolor='$bgcolor5'><td colspan='6'><b>".findtekst('797|Bilagshåndtering', $sprog_id)."</b></td></tr>\n";
-		print "<tr><td colspan='6'><br>".findtekst('1335|Denne sektion indeholder de informationer, som er nødvendige for at kunne håndtere scannede bilag', $sprog_id)."</td></tr>\n";
-#		print "<tr><td colspan='6'>".findtekst('1336|Du kan vælge at lade os opbevare dine scannede bilag for kr. 75,- pr. måned pr. GB,', $sprog_id)."</td></tr>\n";
-		print "<tr><td colspan='6'></td></tr>\n";
-		print "<tr><td colspan='6'>".findtekst('1337|hvilket ligeledes giver mulighed for at sende indscannede bilag pr. e-mail til serveren', $sprog_id)."</td></tr>\n";
-		print "<tr><td colspan='6'>".findtekst('1338|og efterfølgende importere dem i kassekladden.', $sprog_id)."</td></tr>\n";
-		print "<tr><td colspan='6'>".findtekst('1339|Bilag sendes til', $sprog_id)." ";
-		print "<a href='mailto:bilag_".$db."@".$_SERVER['SERVER_NAME']."'>";
-		print "bilag_".$db."@".$_SERVER['SERVER_NAME']."</a>.</td></tr>\n";
-		print "<tr><td colspan='6'>".findtekst('1340|Du kan også vælge selv at sætte en ftp-server op til formålet eller benytte en eksisterende. Det koster ikke noget.', $sprog_id)."</td></tr>\n";
-		print "<tr><td colspan='6'>&nbsp;</td></tr>\n\n";
-		print "<form name='ftp' action='diverse.php?sektion=bilag' method='post' onsubmit=\"return Form1_Validator(this)\">\n";
-		print "<input type='hidden' name='id' value='$id'>\n";
-		print "<tr><td>".findtekst('1341|Opbevaring af bilag.', $sprog_id)."</td><td><select name=\"storageType\">";
-		if ($internFTP) print "<option value=\"internFTP\">".findtekst('1342|Intern opbevaring', $sprog_id)."</option>";
-		elseif ($externFTP) print "<option value=\"externFTP\">".findtekst('1343|Egen FTP server', $sprog_id)."</option>";
-		else print "<option value=\"\">".findtekst('1344|Ingen opbevaring', $sprog_id)."</option>";
-		if (!$internFTP) print "<option value=\"internFTP\">".findtekst('1342|Intern opbevaring', $sprog_id)."</option>";
-		if (!$externFTP) print "<option value=\"externFTP\">".findtekst('1343|Egen FTP server', $sprog_id)."</option>";
-		if ($internFTP || $externFTP) print "<option value=\"\">".findtekst('1344|Ingen opbevaring', $sprog_id)."</option>";
-		print "</select></td></tr>";
-	/*
-		if ($internFTP) $onclick=NULL;
-		else $onclick="onclick=\"return confirm('Intern bilagsopbevaring koster kr. 30,- pr. md. pr. GB.')\"";
-		print "<tr>\n<td title='".findtekst(212, $sprog_id)."'>".findtekst(211, $sprog_id)."</td>\n";
-		print "<td colspan='2' title='".findtekst(212, $sprog_id)."'>";
-		print "<input $onclick class='inputbox' type='checkbox' name='box6' $internFTP></td>\n</tr>\n";
-	*/
-		print "<tr>\n<td title='".findtekst('720|Afmærk her hvis du har en google konto. Så vil du kunne se næsten alle dokumentformater. Eller kan du kun se de formater din browser understøtter.', $sprog_id)."'>".findtekst('719|Brug Google Docs viewer', $sprog_id)."</td>\n";
-		print "<td colspan='2' title='".findtekst('720|Afmærk her hvis du har en google konto. Så vil du kunne se næsten alle dokumentformater. Eller kan du kun se de formater din browser understøtter.', $sprog_id)."'>";
-		print "<input $onclick class='inputbox' type='checkbox' name='box7' $google_docs></td>\n</tr>\n";
+
+	print "<form name='ftp' action='diverse.php?sektion=bilag' method='post' onsubmit=\"return Form1_Validator(this)\">\n";
+	print "<input type='hidden' name='id' value='$id'>\n";
+
+	print "<div class='settings-card'>\n";
+	print "<h3 class='settings-card-title'>".findtekst('797|Bilagshåndtering', $sprog_id)."</h3>\n";
+	print "<p class='settings-hint' style='margin-bottom:1rem'>".findtekst('1335|Denne sektion indeholder de informationer, som er nødvendige for at kunne håndtere scannede bilag', $sprog_id)."<br>";
+	print findtekst('1337|hvilket ligeledes giver mulighed for at sende indscannede bilag pr. e-mail til serveren', $sprog_id)." ";
+	print findtekst('1338|og efterfølgende importere dem i kassekladden.', $sprog_id)."<br>";
+	print findtekst('1339|Bilag sendes til', $sprog_id)." <a href='mailto:bilag_".$db."@".$_SERVER['SERVER_NAME']."'>bilag_".$db."@".$_SERVER['SERVER_NAME']."</a>.<br>";
+	print findtekst('1340|Du kan også vælge selv at sætte en ftp-server op til formålet eller benytte en eksisterende. Det koster ikke noget.', $sprog_id)."</p>\n";
+
+	// Storage type
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('1341|Opbevaring af bilag.', $sprog_id)."</label>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<select class='settings-input' name='storageType' style='max-width:250px'>\n";
+	if ($internFTP) print "<option value='internFTP'>".findtekst('1342|Intern opbevaring', $sprog_id)."</option>";
+	elseif ($externFTP) print "<option value='externFTP'>".findtekst('1343|Egen FTP server', $sprog_id)."</option>";
+	else print "<option value=''>".findtekst('1344|Ingen opbevaring', $sprog_id)."</option>";
+	if (!$internFTP) print "<option value='internFTP'>".findtekst('1342|Intern opbevaring', $sprog_id)."</option>";
+	if (!$externFTP) print "<option value='externFTP'>".findtekst('1343|Egen FTP server', $sprog_id)."</option>";
+	if ($internFTP || $externFTP) print "<option value=''>".findtekst('1344|Ingen opbevaring', $sprog_id)."</option>";
+	print "</select>\n";
+	print "</div></div>\n";
+
+	// Google Docs viewer
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('719|Brug Google Docs viewer', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('720|Afmærk her hvis du har en google konto. Så vil du kunne se næsten alle dokumentformater. Eller kan du kun se de formater din browser understøtter.', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<label class='settings-toggle'><input type='checkbox' name='box7' $google_docs><span class='toggle-label'>".findtekst('719|Brug Google Docs viewer', $sprog_id)."</span></label>\n";
+	print "</div></div>\n";
 
 	if ($externFTP) {
-		print "<tr>\n<td>".findtekst('1346|Navn eller IP-nummer på ftp-server', $sprog_id)."</td>\n";
-		print "<td colspan='2'><input class='inputbox' type='text' name='box1' size='25' value='$ftpsted'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst('1347|Brugernavn på ftpserver', $sprog_id)."</td>\n";
-		print "<td colspan='2'><input class='inputbox' type='text' name='box2' size='25' value='$ftplogin'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst('1348|Adgangskode til ftpserver', $sprog_id)."</td>\n";
-		print "<td colspan='2'><input class='inputbox' type='password' name='box3' size='25' value='$ftpkode'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst('1349|Gentag adgangskode', $sprog_id)."</td>\n";
-		print "<td colspan='2'><input class='inputbox' type='password' name='pw2' size='25' value='$ftpkode'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst('1350|Mappe til bilag på ftpserver', $sprog_id)."</td>";
-		print "<td colspan='2'><input class='inputbox' type='text' name='box4' size='25' value='$ftp_bilag_mappe'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst('1351|Mappe til dokumenter på ftpserver', $sprog_id)."</td>\n";
-		print "<td colspan='2'><input class='inputbox' type='text' name='box5' size='25' value='$ftp_dokument_mappe'></td>\n</tr>\n";
-		print "<tr><td>&nbsp;</td></tr>\n";
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('1346|Navn eller IP-nummer på ftp-server', $sprog_id)."</label></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='box1' value='$ftpsted'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('1347|Brugernavn på ftpserver', $sprog_id)."</label></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='box2' value='$ftplogin'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('1348|Adgangskode til ftpserver', $sprog_id)."</label></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='password' name='box3' value='$ftpkode'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('1349|Gentag adgangskode', $sprog_id)."</label></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='password' name='pw2' value='$ftpkode'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('1350|Mappe til bilag på ftpserver', $sprog_id)."</label></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='box4' value='$ftp_bilag_mappe'></div></div>\n";
+
+		print "<div class='settings-form-group'><div class='settings-label-col'><label class='settings-label'>".findtekst('1351|Mappe til dokumenter på ftpserver', $sprog_id)."</label></div>\n";
+		print "<div class='settings-control-col'><input class='settings-input' type='text' name='box5' value='$ftp_dokument_mappe'></div></div>\n";
 	}
-	print "<tr>\n<td colspan='3'>&nbsp;</td>\n";
-	print "<td align='center'><input class='button green medium' style='width:8em' type='submit' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'></td>\n<tr>\n";
-	print "</form>\n\n";
+
+	print "<div class='settings-actions'>\n";
+	print "<button type='submit' name='submit' class='settings-btn settings-btn-primary'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>\n";
+	print "</div>\n";
+	print "</div>\n";
+	print "</form>\n";
 } # endfunc bilag
 
 function orediff($diffkto)
 {
 	global $sprog_id;
-	global $bgcolor;
-	global $bgcolor5;
 
 	$q = db_select("select * from grupper where art = 'OreDif'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
@@ -3367,28 +3514,41 @@ function orediff($diffkto)
 	$maxdiff = dkdecimal($r['box1']);
 	if (!$diffkto) $diffkto = $r['box2'];
 
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b>".findtekst('170|Øredifferencer', $sprog_id)."</b></td></tr>\n";
-	print "<tr><td colspan='2'>&nbsp;</td></tr>\n";
-
-	print "<form name='orediff' action='diverse.php?sektion=orediff' method='post' onsubmit=\"return Form1_Validator(this)\">\n";
+	print "<form name='orediff' action='diverse.php?sektion=orediff' method='post'>\n";
 	print "<input type='hidden' name='id' value='$id'>\n";
-	print "<tr>\n<td title='".findtekst('171|Skriv det maksimale beløb for øredifferencer angivet i kroner', $sprog_id)."'>".findtekst('172|Maksimalt beløb for øredifferencer (i kroner)', $sprog_id)."</td>\n";
-	print "<td colspan='1'><input class='inputbox' type='text' style='text-align:right' name='box1' size='3' value='$maxdiff'></td>\n</tr>\n";
-	print "<tr>\n<td title='".findtekst('173|Skriv det kontonummer i kontoplanen som skal bruges til øredifferencer', $sprog_id)."'>".findtekst('174|Kontonummer for øredifferencer', $sprog_id)."</td>\n";
-	print "<td colspan='1'><input class='inputbox' type='text' style='text-align:right' name='box2' size='3' value='$diffkto'></td>\n</tr>\n";
-	print "<tr><td colspan='1'>&nbsp;</td>\n";
-	print "<td align='center'><input class='button green medium' style='width:8em' type='submit' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'></td>\n<tr>\n";
-	print "</form>\n\n";
+	print "<div class='settings-card'>\n";
+	print "<h3 class='settings-card-title'>".findtekst('170|Øredifferencer', $sprog_id)."</h3>\n";
+
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('172|Maksimalt beløb for øredifferencer (i kroner)', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('171|Skriv det maksimale beløb for øredifferencer angivet i kroner', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<input class='settings-input' type='text' name='box1' value='$maxdiff' style='max-width:120px;text-align:right'>\n";
+	print "</div></div>\n";
+
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('174|Kontonummer for øredifferencer', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('173|Skriv det kontonummer i kontoplanen som skal bruges til øredifferencer', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<input class='settings-input' type='text' name='box2' value='$diffkto' style='max-width:120px;text-align:right'>\n";
+	print "</div></div>\n";
+
+	print "<div class='settings-actions'>\n";
+	print "<button type='submit' name='submit' class='settings-btn settings-btn-primary'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>\n";
+	print "</div>\n";
+	print "</div>\n";
+	print "</form>\n";
 } # endfunc orediff.
 
 function massefakt() {
 	global $sprog_id;
-	global $docubizz;
-	global $bgcolor;
-	global $bgcolor5;
 
 	$id = $levfrist = 0;
-	$batch = $brug_dellev = $brug_mfakt = $folge_s_tekst = $gruppevalg = $kua = $kuansvalg = $ref = $smart = NULL;
+	$brug_dellev = $brug_mfakt = NULL;
 
 	$q = db_select("select * from grupper where art = 'MFAKT' and kodenr = '1'", __FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($q)) {
@@ -3398,19 +3558,44 @@ function massefakt() {
 		$levfrist = $r['box3'];
 		if (!$levfrist) $levfrist = 0;
 	}
+
 	print "<form name='diverse' action='diverse.php?sektion=massefakt' method='post'>\n";
-	print "<tr bgcolor='$bgcolor5'><td colspan='2'><b>".findtekst('200|Massefakturering', $sprog_id)."</b></td></tr>\n";
-	print "<tr><td colspan='6'>&nbsp;</td></tr>\n";
 	print "<input name='id' type='hidden' value='$id'>\n";
-	print "<tr>\n<td title='".findtekst('202|Hvis du aktiverer massefakturering', $sprog_id)."'>".findtekst('201|Aktiver massefakturering', $sprog_id)."</td>\n";
-	print "<td><input name='brug_mfakt' class='inputbox' type='checkbox' $brug_mfakt></td>\n</tr>\n";
-	print "<tr>\n<td title='".findtekst('204|Hvis du afmærker dette felt', $sprog_id)."'>".findtekst('203|Medtag delleverancer', $sprog_id)."</td>\n";
-	print "<td><input name='brug_dellev' class='inputbox' type='checkbox' $brug_dellev></td>\n</tr>\n";
-	print "<tr>\n<td title='".findtekst('206|Her angiver du', $sprog_id)."'>".findtekst('205|Frist for dellevering (dage)', $sprog_id)."</td>\n";
-	print "<td><input name='levfrist' class='inputbox' type='text' style='text-align:right' size='3' value='$levfrist'></td>\n</tr>\n";
-	print "<tr>\n<td>&nbsp;</td>\n";
-	print "<td style='text-align:center'><input class='button green medium' name='submit' type='submit' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."'></td>\n</tr>\n";
-	print "</form>\n\n";
+	print "<div class='settings-card'>\n";
+	print "<h3 class='settings-card-title'>".findtekst('200|Massefakturering', $sprog_id)."</h3>\n";
+
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('201|Aktiver massefakturering', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('202|Hvis du aktiverer massefakturering', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<label class='settings-toggle'><input type='checkbox' name='brug_mfakt' $brug_mfakt><span class='toggle-label'>".findtekst('201|Aktiver massefakturering', $sprog_id)."</span></label>\n";
+	print "</div></div>\n";
+
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('203|Medtag delleverancer', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('204|Hvis du afmærker dette felt', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<label class='settings-toggle'><input type='checkbox' name='brug_dellev' $brug_dellev><span class='toggle-label'>".findtekst('203|Medtag delleverancer', $sprog_id)."</span></label>\n";
+	print "</div></div>\n";
+
+	print "<div class='settings-form-group'>\n";
+	print "<div class='settings-label-col'>\n";
+	print "<label class='settings-label'>".findtekst('205|Frist for dellevering (dage)', $sprog_id)."</label>\n";
+	print "<p class='settings-hint'>".findtekst('206|Her angiver du', $sprog_id)."</p>\n";
+	print "</div>\n";
+	print "<div class='settings-control-col'>\n";
+	print "<input class='settings-input' type='text' name='levfrist' value='$levfrist' style='max-width:120px;text-align:right'>\n";
+	print "</div></div>\n";
+
+	print "<div class='settings-actions'>\n";
+	print "<button type='submit' name='submit' class='settings-btn settings-btn-primary'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>\n";
+	print "</div>\n";
+	print "</div>\n";
+	print "</form>\n";
 } # endfunc massefakt
 #####################################################
 function testftp($box1, $box2, $box3, $box4, $box5, $box6)

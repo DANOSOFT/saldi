@@ -34,6 +34,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
+include_once('settings_layout.php');
 
 // Handle AJAX request to update POS setting
 if (isset($_POST['ajax_update_pos'])) {
@@ -44,21 +45,18 @@ if (isset($_POST['ajax_update_pos'])) {
     exit;
 }
 
-if ($menu=='T') {
+if ($menu == 'T') {
     include_once '../includes/top_header.php';
     include_once '../includes/top_menu.php';
-    print "<div id=\"header\">\n";
-    print "<div class=\"headerbtnLft\"></div>\n";
-    print "</div><!-- end of header -->";
-    print "<div id=\"leftmenuholder\">";
-    include_once 'left_menu.php';
-    print "</div><!-- end of leftmenuholder -->\n";
+    print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
     print "<div class=\"maincontentLargeHolder\">\n";
-} else {
+} elseif ($menu == 'S') {
     include("top.php");
 }
 
 include("../includes/db_query.php");
+
+settings_layout_start($menu, 'valuta', false);
 ?>
 
 <style>
@@ -300,9 +298,5 @@ while ($r = db_fetch_array($q)) {
 </div>
 
 <?php
-if ($menu=='T') {
-    include_once '../includes/topmenu/footer.php';
-} else {
-    include_once '../includes/oldDesign/footer.php';
-}
+settings_layout_end($menu, false);
 ?>

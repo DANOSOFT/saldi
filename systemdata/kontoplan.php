@@ -39,6 +39,7 @@ include("../includes/std_func.php");
 include("../includes/grid.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
+include_once('settings_layout.php');
 
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
@@ -46,46 +47,16 @@ $backUrl = isset($_GET['returside'])
 if ($popup) $returside="../includes/luk.php";
 else $returside=$backUrl;
 
-if ($menu=='T') {
+if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "<div id=\"leftmenuholder\">\n";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"rightContent\">\n";
-} elseif ($menu=='S') {
-	print "<div align=\"center\">";
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height=\"25\" align=\"center\" valign=\"top\">";
-	print "<table id=\"topHeader\" width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	print "<td width=\"10%\" align=\"left\"><a href=\"#\" onclick=\"return false;\"><button style='$buttonStyle; width:100%' >&nbsp;</button></a></td>";
-	print "<td width=\"80%\" style='$topStyle' align=\"center\">".findtekst(113, $sprog_id)."</td>";
-
-	print "<td width=\"10%\" align=\"right\"><a href=kontokort.php accesskey=N>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
-
-	print "</tbody></table>";
-	print "</td></tr>";
-	print "<tr><td valign=\"top\">";
-} else {
-	print "<div align=\"center\">";
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height=\"25\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund align=\"left\"><a href=$returside accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund align=\"center\">".findtekst(113,$sprog_id)."</td>";
-	print "<td width=\"10%\" $top_bund align=\"right\"><a href=kontokort.php accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
-	print "<tr><td valign=\"top\">";
+	print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
+	print "<div class=\"maincontentLargeHolder\">\n";
+} elseif ($menu == 'S') {
+	include("top.php");
 }
+
+settings_layout_start($menu, 'kontoplan', false);
 
 // Prepare valuta lookup arrays
 $valutakode[0] = 0;
@@ -446,16 +417,5 @@ print <<<PRINTBUTTON
 </script>
 PRINTBUTTON;
 
-if (!$menu == 'T') {
-	print "</td></tr>";
-	print "</tbody></table>";
-} else {
-	print "</div>";
-}
-
-if ($menu == 'T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
+settings_layout_end($menu, false);
 

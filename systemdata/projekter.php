@@ -17,7 +17,7 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
@@ -25,23 +25,32 @@
 // ----------------------------------------------------------------------
 // 20160118 div smårettelser.
 // 20210211 PHR Some cleanup
-// 20210710 LOE Some texts translated 
+// 20210710 LOE Some texts translated
 // 20211018 LOE Some bugs fixed + 20211019
 // 20230323 PBLM Fixed minor error
 
 @session_start();
 $s_id=session_id();
 
-$cfg = $nopdat = NULL;	
+$cfg = $nopdat = NULL;
 
 $modulnr=1;
 $title="Systemsetup";
 $css="../css/standard.css";
-	
+
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-include("top.php");
+include_once('settings_layout.php');
+
+if ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
+	print "<div class=\"maincontentLargeHolder\">\n";
+} elseif ($menu == 'S') {
+	include("top.php");
+}
 
 $id=if_isset($_GET['id']);
 $tilpas=if_isset($_GET['tilpas']);
@@ -65,7 +74,6 @@ if ($gem) {
 			$projektnr.=$projektarray[$y];
 		}
 		$projektnr=db_escape_string(trim($projektnr));
-#		echo "cfg $cfg $projekt_nr<br";
 		if(db_fetch_array(db_select("SELECT id FROM grupper where beskrivelse='$beskrivelse' and art = 'PRJ' and kodenr = '$projektnr' and id != '$id'",__FILE__ . " linje " . __LINE__))) {
 			print "<BODY onLoad=\"javascript:alert('Projektnummer er allerede i brug')\">";
 		} elseif (!$slet) {
@@ -88,25 +96,15 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify("delete from grupper where art='PRJ' and kodenr='0' and id != $cfg_id",__FILE__ . " linje " . __LINE__);
 }
 if (!$cfg) $cfg=4;
-/*
-if (!$cfg) {
-	$cfg=4;
-	$q=db_select("SELECT * FROM grupper where art = 'PRJ' and kodenr != '0'",__FILE__ . " linje " . __LINE__);
-	while($r=db_fetch_array($q)) {
-		if (strlen($r['kodenr'])>$cfg) $cfg=strlen($r['kodenr']);
-	}
-	if ($cfg_id) update 
-echo "insert into grupper (beskrivelse,art,kodenr,box1) values ('projekt','PRJ','0','$cfg')<br>";
-	db_modify("insert into grupper (beskrivelse,art,kodenr,box1) values ('projekt','PRJ','0','$cfg')",__FILE__ . " linje " . __LINE__);
-}
-*/
 
+settings_layout_start($menu, 'projekter');
 
 print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 	if ($tilpas) tilpas($cfg_id,$cfg);
 	else rediger($id);
 print "</tbody></table>";
-print "</body></html>";
+
+settings_layout_end($menu);
 
 function tilpas($id,$cfg) {
 	global $sprog_id;
@@ -123,9 +121,9 @@ function rediger($id) {
 	global $cfg;
 	global $db_encode;
 	global $sprog_id; #20211018
-	
+
 	$projektnr = $pos = $beskrivelse =null; #20211019
-	
+
 	$id*=1;
 	if ($id) {
 		$r=db_fetch_array(db_select("SELECT kodenr,beskrivelse FROM grupper where id='$id'",__FILE__ . " linje " . __LINE__));

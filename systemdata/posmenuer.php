@@ -59,6 +59,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/posmenufunc_includes/buttonFunc.php");
+include_once('settings_layout.php');
 
 $title = findtekst(1940, $sprog_id);
 $buttonTextArr = setAccordinglyLanguage();
@@ -367,6 +368,17 @@ if (!$radius)
 	$radius = 1;
 if (!$fontsize)
 	$fontsize = 20;
+
+if ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
+	print "<div class=\"maincontentLargeHolder\">\n";
+} elseif ($menu == 'S') {
+	include("top.php");
+}
+
+settings_layout_start($menu, 'posmenuer', false);
 
 print "<table border = '1'><tbody><tr><td>\n";
 print "<form name='posmenuer' action='posmenuer.php' method='post'>\n";
@@ -1346,3 +1358,4 @@ print "</div>";
 			})
 	}
 </script>
+<?php settings_layout_end($menu, false); ?>

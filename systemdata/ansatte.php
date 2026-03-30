@@ -41,6 +41,7 @@ include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once('settings_layout.php');
 
  if ($_GET) {
 	$id = $_GET['id'];
@@ -51,36 +52,18 @@ include("../includes/std_func.php");
 if ($_POST) {
 	include("ansatte_save.php");
 }
-if ($menu=='T') {
+if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=stamkort.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
+	print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
 	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<div class='divSys'>";
-	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\"><tbody>"; # -> 1
-} else {
-	$query = db_select("select firmanavn from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
-	$row = db_fetch_array($query);
-
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><!-- TABEL 1 -> --><tbody>";
-	print "<tr><td align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><!-- TABEL 1.1 -> --><tbody>";
-	print "<td width=\"10%\" $top_bund<font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">$font<a href=stamkort.php?returside=$returside&id=$konto_id&fokus=$fokus accesskey=L>".findtekst(30, $sprog_id)."</a></td>";#20210711 
-	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">$font$row[firmanavn] - ".findtekst(1262, $sprog_id)."</td>";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">$font<a href=ansatte.php?returside=$returside&fokus=$fokus&konto_id=$konto_id accesskey=N>".findtekst(39, $sprog_id)."</a><br></td>";
-	print "</tbody></table><!-- <- TABEL1.1 -->";
-	print "</td></tr>";
-	print "<td align=center valign=center>";
-	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><!-- TABEL 1.2 -> --><tbody>";
+} elseif ($menu == 'S') {
+	include("top.php");
 }
+
+settings_layout_start($menu, 'ansatte');
+
+print "<table border=\"0\" cellspacing=\"0\" class=\"dataTableSys\"><tbody>";
 
 include("ansatte_load.php");
 
@@ -93,20 +76,7 @@ print "<td><br></td><td><br></td><td><br></td>";
 PRINT "<td align=center><input type=\"submit\" class='green medium button' style='width:150px;' accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\" name=\"submit\"></td>";
 print "</form>";
 
-print "
-</tbody>
-</table>
-</td></tr>
-<tr><td align=\"center\" valign=\"bottom\">
-</tbody></table>
-</div></div>
-";
+print "</tbody></table>";
 
-
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
-
+settings_layout_end($menu);
 ?>

@@ -48,6 +48,7 @@ $bgcolor1 = NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once('settings_layout.php');
 
 $aktiver = if_isset($_GET['aktiver']);
 $deleteYear = if_isset($_GET['deleteYear']);
@@ -108,21 +109,18 @@ if ($deleteEmptyYear) {
 	}
 }
 
-if ($menu == 'T') {  # 20150327 start
+if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\"></div>\n";
-	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
+	print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
 	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<table border=\"1\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable2\">";
-} else {
+} elseif ($menu == 'S') {
 	include("top.php");
-	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\">";
-}  # 20150327 stop
+}
+
+settings_layout_start($menu, 'regnskabsaar');
+
+print "<table cellpadding=\"1\" cellspacing=\"0\" border=\"0\" class=\"dataTable2\">";
 
 #print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\" width=\"70%\"><tbody>";
 ($bgcolor1 != $bgcolor) ? $bgcolor1 = $bgcolor : $bgcolor1 = $bgcolor5;
@@ -300,10 +298,6 @@ if ($x < 1)
 ?>
 </tbody>
 </table>
-</td>
-</tr>
-</tbody>
-</table>
-</body>
-
-</html>
+<?php
+settings_layout_end($menu);
+?>

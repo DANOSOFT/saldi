@@ -30,22 +30,18 @@ $title="Tekster";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once('settings_layout.php');
 
 if (!isset ($sprog)) $sprog = null;
-global $db; 
-if ($menu=='T') {
+global $db;
+if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\"></div>\n";
-#	print "<span class=\"headerTxt\">Systemsetup</span>\n";     
-#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";       
-	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_div_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
+	print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
 	print "<div class=\"maincontentLargeHolder\">\n";
-} else include("top.php");
+} elseif ($menu == 'S') {
+	include("top.php");
+}
 
 
 // if($mod = if_isset($_GET['mod'])){ #20210819
@@ -138,8 +134,9 @@ while ($r = db_fetch_array($q)) {
 $tekstantal=$x;
 
 #$csvfile="../$db/importfiler/teksterA.csv";
-$csvfile="../importfiler/teksterA.csv"; #20210819 
+$csvfile="../importfiler/teksterA.csv"; #20210819
 
+settings_layout_start($menu, 'tekster');
 
 print "<form name=\"tekster\" action=\"tekster.php?sprog_id=$sprog_id&sort=$sort\" method=\"post\">";
  print "<input type=hidden name=tekstantal value=\"$tekstantal\">";
@@ -164,5 +161,5 @@ print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>"; #20210819
 fclose($csv);
 print "</tbody></table>";
 
+settings_layout_end($menu);
 ?>
-</body></html>

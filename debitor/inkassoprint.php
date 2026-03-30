@@ -35,6 +35,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/formfunk.php");
+include("../includes/stdFunc/getKontaktEmail.php");
 
 $inkasso=if_isset($_GET['inkasso']);
 $rykker_id=if_isset($_GET['rykker_id']);
@@ -185,9 +186,7 @@ while ($r2 = db_fetch_array($q2)) {
 	$x++;
 }
 
-$qtxt="select email from adresser where id = '$inkasso'";
-$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-$email=$r['email'];
+$email=getAllKontaktEmails($inkasso, 'rykker');
 #$mailsprog=strtolower($r['sprog']);
 #fwrite($fp,$initext);
 #$formularsprog=strtolower($r['sprog']);
@@ -240,7 +239,11 @@ if ($email && strpos($email, '@')) {
 				$mail->From = $afsendermail;
 				$mail->FromName = $afsendernavn;
 			}
-			$mail->AddAddress($email); 
+			$ke_emails = preg_split('/[;,]/', $email);
+			foreach ($ke_emails as $ke_addr) {
+				$ke_addr = trim($ke_addr);
+				if ($ke_addr && strpos($ke_addr, '@')) $mail->AddAddress($ke_addr);
+			}
 			$mail->AddBCC($afsendermail); 
 			$mail->AddReplyTo($afsendermail,$afsendernavn);
 

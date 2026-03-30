@@ -38,6 +38,7 @@ function userSettings() {
 	$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $buttonTxtColor = $r['var_value'];
 	else $buttonTxtColor = 'ffffff';
+	$ordreAutocomplete = get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on" ? "checked" : "";
 
 	print "<form name=userSettings action=diverse.php?sektion=userSettings&popup=$popup method=post>";
 	print "<tr><td colspan='6'><hr></td></tr>";
@@ -184,6 +185,7 @@ submit.addEventListener('click', function(event) {
 	}
 	print "</select></td></tr>\n";
 */
+	print "<tr><td title='Aktiverer autosøgning/autocomplete på ordresider'>Anvend autosøgning på ordrer</td><td><input class='inputbox' type='checkbox' name='ordreAutocomplete' value='on' $ordreAutocomplete></td></tr>\n";
 	print "<tr><td><br></td></tr>\n";
 	print "<tr><td><br></td></tr>\n";
 	print "<tr><td><br></td><td><br></td><td><br></td><td align = center><input class='button green medium' type=submit accesskey='g' value='".findtekst(471, $sprog_id)."' name='submit'></td></tr>\n";

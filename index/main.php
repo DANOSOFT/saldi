@@ -349,7 +349,7 @@ setInterval(checkRefreshCookie, 500);
             echo '<li><a href="#" onclick=\'update_iframe("/systemdata/kontoplan.php")\'>' . findtekst('612|Kontoplan', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(1))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/syssetup.php")\'>' . findtekst('122|Indstillinger', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/diverse.php")\'>' . findtekst('122|Indstillinger', $sprog_id) . '</a></li>';
 
             # Kassesystem eller ej
             $qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";

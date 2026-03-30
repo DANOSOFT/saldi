@@ -7,7 +7,7 @@
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
 // Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
+//
 // Programmet må ikke uden forudgående skriftlig aftale anvendes
 // i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
 //
@@ -32,23 +32,18 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
-include("../includes/top.php");
+include_once('settings_layout.php');
 
-#if ($menu=='T') {
-#        include_once '../includes/top_header.php';
-#        include_once '../includes/top_menu.php';
-#        print "<div id=\"header\">\n";
-#        print "<div class=\"headerbtnLft\"></div>\n";
-#        print "</div><!-- end of header -->";
-#        print "<div id=\"leftmenuholder\">";
-#        include_once 'left_menu.php';
-#        print "</div><!-- end of leftmenuholder -->\n";
-#        print "<div class=\"maincontent\">\n";
-#        print "<table border=\"1\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\"><tbody>";
-#} else {
-#        include("top.php");
-#        print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>";
-#}
+if ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
+	print "<div class=\"maincontentLargeHolder\">\n";
+} elseif ($menu == 'S') {
+	include("top.php");
+}
+
+settings_layout_start($menu, 'prisliste');
 
 $splitter=$_POST['splitter'];
 $feltantal=$_POST['feltantal'];
@@ -77,7 +72,6 @@ if ($splitter==3) {
 }
 print "<tr><td><input type=\"submit\" name=\"ok\" value=\"OK\"></td></tr>\n";
 print "</tbody></table>\n\n";
-# value=\"$separator\"></td></tr>
 
-include_once '../includes/bund.php';
+settings_layout_end($menu);
 ?>

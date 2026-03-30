@@ -41,6 +41,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include_once('settings_layout.php');
 
 if (!isset ($colbg)) $colbg = NULL;
 $da = str_replace(" ", "",(findtekst('1141|Debitorapport', $sprog_id)));
@@ -63,25 +64,18 @@ $debitorrapport,$kreditorrapport,$produktionsordre,$varerapport);
 #$modules=array('kontoplan','indstillinger','kassekladde','regnskab','finansrapport','debitorordre','debitorkonti','kreditorordre','kreditorkonti','varer','enheder','backup','debitorrapport','kreditorrapport','produktionsordre','varerapport');
 
 
-if ($menu=='T') {  # 20150327 start
+if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-    print "<div id=\"leftmenuholder\">";
-    include_once 'left_menu.php';
-    print "</div><!-- end of leftmenuholder -->\n";
+	print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
 	print "<div class=\"maincontentLargeHolder\">\n";
-	print "<div class='divSys'>";
-    print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\" width='100%'><tbody>";
-} else {
+} elseif ($menu == 'S') {
 	include("top.php");
-	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>"; 
-}  # 20150327 stop
+}
+
+settings_layout_start($menu, 'brugere');
+
+print "<table border=\"0\" cellspacing=\"0\" class=\"dataTableSys\" width='100%'><tbody>";
 
 $ip_address = if_isset($_SERVER['REMOTE_ADDR']);
 $proxy_ip = if_isset($_SERVER['HTTP_X_FORWARDED_FOR']);
@@ -411,18 +405,7 @@ if ($ret_id) {
 print "</tr>";
 # print "</tbody></table></td></tr>";
 
-print "
-</tbody>
-</table>
-</td></tr>
-</tbody></table>
-</div></div>
-";
+print "</tbody></table>";
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
-
+settings_layout_end($menu);
 ?>

@@ -28,28 +28,22 @@
 	@session_start();
 	$s_id=session_id();
  	$css="../css/standard.css";
-	
+
 	$modulnr=9;
  	$title="Enheder / materialer";
- 
+
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once('settings_layout.php');
 
-	if ($menu=='T') {
-			$border="0";
-			include_once '../includes/top_header.php';
-			include_once '../includes/top_menu.php';
-			print "<div id=\"header\">\n";
-			print "<div class=\"headerbtnLft\"></div>\n";
-			print "</div><!-- end of header -->";
-			print "<div id=\"leftmenuholder\">";
-			include_once 'left_menu.php';
-			print "</div><!-- end of leftmenuholder -->\n";
-			print "<div class=\"maincontentLargeHolder\">\n";
-	} else {
+	if ($menu == 'T') {
+		include_once '../includes/top_header.php';
+		include_once '../includes/top_menu.php';
+		print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
+		print "<div class=\"maincontentLargeHolder\">\n";
+	} elseif ($menu == 'S') {
 		include("top.php");
-		$border="1";
 	}
 
 	if (!isset ($_GET['returside'])) $_GET['returside'] = null;
@@ -60,7 +54,7 @@
 	if (!isset ($mat_id)) $mat_id = null;
 	if (!isset ($_POST['mat_id'])) $_POST['mat_id'] = null;
 	if (!isset ($_POST['enh_id'])) $_POST['enh_id'] = null;
-	
+
 	if($_GET['returside']){
 		$returside= $_GET['returside'];
 		$ordre_id = $_GET['ordre_id'];
@@ -76,7 +70,7 @@
 		$enh_betegnelse  = $_POST['enh_betegnelse'];
 		$enh_beskrivelse = $_POST['enh_beskrivelse'];
 
-		
+
 		if (isset($enh_betegnelse[0]) && $enh_betegnelse[0]) {
 			$query = db_select("select id from enheder where betegnelse = '$enh_betegnelse[0]'",__FILE__ . " linje " . __LINE__);
 			$row = db_fetch_array($query);
@@ -101,10 +95,10 @@
 		$mat_id=$_POST['mat_id'];
 		$mat_beskrivelse=$_POST['mat_beskrivelse'];
 		$mat_densitet=$_POST['mat_densitet'];
-			
+
 		$mat_beskrivelse[0]=trim($mat_beskrivelse[0]);
 		$mat_beskrivelse[$mat_id]=trim(if_isset($mat_beskrivelse[$mat_id]));
- 
+
 		if (($mat_beskrivelse[0])&&($mat_densitet[0])){
 			$mat_densitet[0]=usdecimal($mat_densitet[0]);
 			$q = db_select("select id from materialer where beskrivelse = '$mat_beskrivelse[0]'",__FILE__ . " linje " . __LINE__);
@@ -124,17 +118,9 @@
 			db_modify("delete from materialer where id = '$mat_id'",__FILE__ . " linje " . __LINE__);
 		}
 	}
-/*
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=../includes/luk.php accesskey=L>Luk</a></td>";
-	print "<td width=\"80%\" $top_bund>Enheder & materialer</td>";
-	print "<td width=\"10%\" $top_bund><br></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
-	print "<td align = center valign = center>";
-*/
+
+	settings_layout_start($menu, 'enheder');
+
 	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" valign=top><tbody>";
 	$x=0;
 	$query = db_select("select * from enheder order by betegnelse",__FILE__ . " linje " . __LINE__);
@@ -161,7 +147,7 @@
 	else {$max_antal=$mat_antal;}
 
 	print "<td width=50% valign=top>";
-	print "<table class='dataTable' cellpadding=\"1\" cellspacing=\"1\" border=\"$border\"><tbody>";
+	print "<table class='dataTable' cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	print "<form name=enheder action=enheder.php method=post>";
 
 
@@ -184,9 +170,9 @@
 	else {print "<tr><td><input type=text size=3 name=enh_betegnelse[0]></td><td><input type=text size=25 name=enh_beskrivelse[0]></td></tr>";}
 
 	print "<tr><td align = center colspan=2><input class='button green medium' type=submit accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"enheder\"></td></tr>";
-	print "</tbody></table border=1>";
+	print "</tbody></table>";
 
-	print "<td width=50% valign=top><table class='dataTable' cellpadding=\"1\" cellspacing=\"1\" border=\"$border\"><tbody>";
+	print "<td width=50% valign=top><table class='dataTable' cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	print "<form name=materialer action=enheder.php method=post>";
 
 
@@ -211,8 +197,5 @@
 	print "</tbody></table>";
 	print "</tbody></table>";
 
-
+	settings_layout_end($menu);
 ?>
-</td></tr>
-</tbody></table>
-</body></html>

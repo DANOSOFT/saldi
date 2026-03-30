@@ -35,27 +35,21 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include_once('settings_layout.php');
 
 if (!isset ($_POST['id'])) $_POST['id'] = null;
 if (!isset ($_POST['rabat'])) $_POST['rabat'] = null;
 if (!isset ($_POST['drg_antal'])) $_POST['drg_antal'] = null;
 if (!isset ($_POST['ny_rabat'])) $_POST['ny_rabat'] = null;
 
-if ($menu=='T') {  # 20150313 start
-        include_once '../includes/top_header.php';
-        include_once '../includes/top_menu.php';
-        print "<div id=\"header\">\n";
-        print "<div class=\"headerbtnLft\"></div>\n";
-        print "</div><!-- end of header -->";
-        print "<div id=\"leftmenuholder\">";
-        include_once 'left_menu.php';
-        print "</div><!-- end of leftmenuholder -->\n";
-		print "<div class=\"maincontentLargeHolder\">\n";
-} else {
-        include("top.php");
-        print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
-}  # 20150313 stop
-
+if ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">\n<div class=\"headerbtnLft\"></div>\n</div>";
+	print "<div class=\"maincontentLargeHolder\">\n";
+} elseif ($menu == 'S') {
+	include("top.php");
+}
 
 $dgselfdef=if_isset($_GET['dgselfdef']);
 $vgselfdef=if_isset($_GET['vgselfdef']);
@@ -134,6 +128,8 @@ if(isset($_POST['gem'])) {
 		}
 	}
 }
+
+settings_layout_start($menu, 'rabatgrupper');
 
 $id=array();$dg=array();$dgnavn=array();$rabat=array();$vg=array();$vgnavn=array();
 
@@ -263,9 +259,9 @@ if ($menu=='T'){
 print "<tr><td colspan='$colspan' align='center'><input $style type=submit accesskey=\"g\" value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"gem\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
 print "</form>";
 
-print "</tbody></table></td></tr>"; # <- tabel 1.1.3
-print "</tbody></table>"; # <- tabel 1.1
-print "</td></tbody></table>"; # <- tabel 1
+print "</tbody></table>";
+
+settings_layout_end($menu);
 
 function ny_varerabatgruppe($x) {
 	if(isset($_POST['gem'])) {
@@ -274,14 +270,17 @@ echo "insert into grupper (beskrivelse,art,kodenr,box1) values ('DebitorVareRaba
 		db_modify("insert into grupper (beskrivelse,art,kodenr,box1) values ('DebitorVareRabatGrupper','DVRG','$x','$vrgnavn')",__FILE__ . " linje " . __LINE__);
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=rabatgrupper.php\">";
 	} else {
+		global $menu;
+		settings_layout_start($menu, 'rabatgrupper');
 		print "<form name=\"rabat\" action=\"rabatgrupper.php?vgselfdef=$x\" method=\"post\">
-			<td align=\"center\">Navn på ny \"vare-rabatgruppe\"<br>
+			<table><tr><td align=\"center\">Navn på ny \"vare-rabatgruppe\"<br>
 			<input class=\"inputbox\" type=\"text\" style=\"width:250px\" name=\"vrgnavn\"><br>
-			<input STYLE=\"width:250px;height: 1.5em;margin-bottom:1px;padding: 1px 1px;border: 1px solid #DDDDDD;background:url('../img/knap_bg.gif');\" type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\" onclick=\"javascript:docChange = false;\">
-			</td></form>";
+			<input class='button green medium' type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\" onclick=\"javascript:docChange = false;\">
+			</td></tr></table></form>";
+		settings_layout_end($menu);
 		exit;
 	}
-} 
+}
 function ret_varerabatgruppe($x) {
 	if(isset($_POST['gem'])) {
 		$vrgnavn=$_POST['vrgnavn'];
@@ -294,17 +293,17 @@ function ret_varerabatgruppe($x) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=rabatgrupper.php\">";
 		
 	} else {
-# echo "select box1 from grupper where art = 'DVRG' and kodenr='$x'<br>";
+		global $menu;
 		$r=db_fetch_array(db_select("select box1 from grupper where art = 'DVRG' and kodenr='$x'",__FILE__ . " linje " . __LINE__));
 		$vrgnavn=$r['box1'];
-# echo "V $vrgnavn<br>";
+		settings_layout_start($menu, 'rabatgrupper');
 		print "<form name=\"rabat\" action=\"rabatgrupper.php?ret_vrgnavn=$x\" method=\"post\">
-			<td align=\"center\">Nyt navn \"vare-rabatgruppe\"<br>
+			<table><tr><td align=\"center\">Nyt navn \"vare-rabatgruppe\"<br>
 			<input class=\"inputbox\" type=\"text\" style=\"width:250px\" name=\"vrgnavn\" value=\"$vrgnavn\"><br>
-			<input STYLE=\"width:250px;height: 1.5em;margin-bottom:1px;padding: 1px 1px;border: 1px solid #DDDDDD;background:url('../img/knap_bg.gif');\" type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\" onclick=\"javascript:docChange = false;\">
-			</td></form>";
+			<input class='button green medium' type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\" onclick=\"javascript:docChange = false;\">
+			</td></tr></table></form>";
+		settings_layout_end($menu);
 		exit;
 	}
-} 
+}
 ?>
-</body></html>
