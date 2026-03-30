@@ -45,7 +45,7 @@
 // 20260312 PHR reminder was not attached if background didn't exist
 // 20260320 PHR cleanup (pdftk)
 // 20260325 PHR Added 'center' when using html
- 
+
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
 
@@ -390,14 +390,20 @@ if (!function_exists('skriv')) {
 if (!function_exists('ombryd')) {
 	function ombryd($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font, $laengde, $formular, $linespace)
 	{
+
 		print "<!--function ombryd start-->";
 		global $vare_note;
 
 		$lokation = NULL;
 		if (strpos($tekst, chr(9))) {
-			list($tekst, $lokation, $vare_note) = explode(chr(9), $tekst);
+			$parts = explode(chr(9), $tekst);
+			$tekst = $parts[0];
+			$lokation = $parts[1] ?? NULL;
+			$vare_note = $parts[2] ?? NULL;
 		}
+		error_log("tekst before wrap: " . json_encode($tekst) . " length: " . strlen($tekst) . " laengde: " . $laengde);
 		$tekst = wordwrap($tekst, $laengde, "\n", true);
+		error_log("tekst after wrap: " . json_encode($tekst));
 		$nytekst = "";
 		if (strstr($tekstinfo, 'ordrelinjer')) {
 			list($tmp, $Opkt) = explode("_", $tekstinfo);
@@ -427,8 +433,15 @@ if (!function_exists('ombryd')) {
 			$y = skriv($id, $str, $fed, $italic, $color, $nytekst, $tekstinfo, $x, $y, $format, $form_font, $formular, __LINE__);
 		}
 		if ($lokation) {
-			$y = $y - $linespace;
-			$y = skriv($id, $str, $fed, $italic, $color, $lokation, $tekstinfo, $x, $y, $format, $form_font, $formular, __LINE__);
+			$lokation = wordwrap($lokation, $laengde, "\n", true);
+			$lok_lines = explode("\n", $lokation);
+			foreach ($lok_lines as $lok_line) {
+				$lok_line = trim($lok_line);
+				if (strlen($lok_line) >= 1) {
+					$y = $y - $linespace;
+					$y = skriv($id, $str, $fed, $italic, $color, $lok_line, $tekstinfo, $x, $y, $format, $form_font, $formular, __LINE__);
+				}
+			}
 		}
 		if ($vare_note) {
 			$y = $y - $linespace;
@@ -2747,7 +2760,7 @@ if (!function_exists('kontoprint')) {
 			else
 				$qtxt = "select id,gruppe from adresser where kontonr='$konto_fra' and art = '$kontoart'";
 		} elseif ($konto_fra && $konto_fra != '*') {
-			$konto_fra = str_replace("*", "%", $konto_fra);
+			$konto_fra = str_beskrivelsreplace("*", "%", $konto_fra);
 			$tmp1 = strtolower($konto_fra);
 			$tmp2 = strtoupper($konto_fra);
 			$qtxt = "select id,gruppe from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
