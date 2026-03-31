@@ -29,6 +29,12 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
+// ---- Ensure lukkes_kommentar column exists on regnskab ----
+$_col_check = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='lukkes_kommentar' AND table_schema='public'", __FILE__ . " linje " . __LINE__));
+if (!$_col_check) {
+    db_modify("ALTER TABLE regnskab ADD COLUMN lukkes_kommentar text", __FILE__ . " linje " . __LINE__);
+}
+
 // ---- REST API Configuration for ssl3.saldi.dk ----
 $query = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_name = 'saldi_api_user' AND var_grp = 'internal_api'", __FILE__ . " linje " . __LINE__));
 $saldi_api_user = $query['var_value'];
@@ -218,11 +224,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $lukket = isset($_POST['lukket']) ? 'on' : '';
         $betalt_til = $_POST['betalt_til'] ? "'" . db_escape_string($_POST['betalt_til']) . "'" : "'2099-12-31'";
         $logintekst = db_escape_string(if_isset($_POST['logintekst'], ''));
-        
-        $qtxt = "UPDATE regnskab SET brugerantal='$brugerantal', posteringer='$posteringer', lukket='$lukket', 
-                 betalt_til=$betalt_til, logintekst='$logintekst' WHERE id = $regnskab_id";
+        $lukkes_post = trim(if_isset($_POST['lukkes'], ''));
+        $lukkes_sql = ($lukkes_post && $lukkes_post !== '') ? "'" . db_escape_string($lukkes_post) . "'" : "NULL";
+        $lukkes_kommentar = db_escape_string(if_isset($_POST['lukkes_kommentar'], ''));
+
+        $qtxt = "UPDATE regnskab SET brugerantal='$brugerantal', posteringer='$posteringer', lukket='$lukket',
+                 betalt_til=$betalt_til, logintekst='$logintekst',
+                 lukkes=$lukkes_sql, lukkes_kommentar='$lukkes_kommentar' WHERE id = $regnskab_id";
         db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        
+
         $message = "Indstillinger opdateret!";
     }
 }
@@ -706,6 +716,89 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         }
         .checkbox-group label { font-size: 14px; color: #2d3748; cursor: pointer; font-weight: 500; }
         
+        /* ─── Scheduled Close Section ─── */
+        .close-schedule-box {
+            margin-top: 16px;
+            padding: 16px 20px;
+            background: #fffaf0;
+            border: 1.5px solid #f6ad55;
+            border-radius: 10px;
+        }
+        .close-schedule-box .box-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #c05621;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .close-schedule-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .close-schedule-fields .form-group {
+            margin-bottom: 0;
+        }
+        .close-schedule-fields .form-group label {
+            font-size: 12px;
+            color: #744210;
+        }
+        .close-schedule-fields input[type="date"] {
+            width: 160px;
+            padding: 9px 12px;
+            border: 2px solid #f6ad55;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #1a202c;
+            background: #fff;
+            transition: all 0.2s;
+        }
+        .close-schedule-fields input[type="date"]:focus {
+            border-color: #dd6b20;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(221,107,32,0.18);
+        }
+        .close-schedule-fields textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 9px 12px;
+            border: 2px solid #f6ad55;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #1a202c;
+            background: #fff;
+            resize: vertical;
+            min-height: 64px;
+            transition: all 0.2s;
+        }
+        .close-schedule-fields textarea:focus {
+            border-color: #dd6b20;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(221,107,32,0.18);
+        }
+        .close-countdown {
+            margin-top: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .close-countdown.urgent { color: #c53030; }
+        .close-countdown.warning { color: #c05621; }
+        .close-countdown.ok { color: #276749; }
+        .close-schedule-hint {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #975a16;
+        }
+
         /* ─── Stats Section ─── */
         .stats-number {
             font-size: 30px;
@@ -1041,7 +1134,16 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
     
     $qtxt = "SELECT * FROM regnskab WHERE id = $filter_regnskab";
     $reg = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-    
+
+    // Auto-close account if scheduled lukkes date has passed
+    if ($reg && $reg['lukket'] != 'on' && !empty($reg['lukkes']) && $reg['lukkes'] !== '2099-12-31') {
+        if (strtotime($reg['lukkes']) <= strtotime(date('Y-m-d'))) {
+            db_modify("UPDATE regnskab SET lukket='on' WHERE id=" . (int)$reg['id'], __FILE__ . " linje " . __LINE__);
+            db_modify("DELETE FROM online WHERE db='" . db_escape_string($reg['db']) . "'", __FILE__ . " linje " . __LINE__);
+            $reg['lukket'] = 'on';
+        }
+    }
+
     if (!$reg) {
         echo "<div class='message error'>⚠️ Regnskab ikke fundet!</div>";
         echo "<a href='admin_panel.php' class='btn btn-outline'>← Tilbage</a>";
@@ -1110,6 +1212,11 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         $betalt_til_display = $betalt_til_raw ? date("d-m-Y", strtotime($betalt_til_raw)) : '-'; 
         $betalt_til_input = $betalt_til_raw ? date("Y-m-d", strtotime($betalt_til_raw)) : '';
         $logintekst_val = htmlspecialchars(if_isset($reg, '', 'logintekst'));
+        $lukkes_raw = if_isset($reg, '', 'lukkes');
+        $lukkes_input = ($lukkes_raw && $lukkes_raw !== '2099-12-31') ? date("Y-m-d", strtotime($lukkes_raw)) : '';
+        $lukkes_display = $lukkes_input ? date("d-m-Y", strtotime($lukkes_raw)) : '';
+        $lukkes_days = $lukkes_input ? (int)floor((strtotime($lukkes_raw) - time()) / 86400) : null;
+        $lukkes_kommentar_val = htmlspecialchars(if_isset($reg, '', 'lukkes_kommentar'));
         
         // Usage percentages
         if ($max_brugere > 0 && is_numeric($actual_brugere)) {
@@ -1390,7 +1497,36 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                         <input type="checkbox" name="lukket" id="lukket_cb" <?php echo $is_closed ? 'checked' : ''; ?>>
                         <label for="lukket_cb">Lukket (deaktivér konto)</label>
                     </div>
-                    
+
+                    <div class="close-schedule-box">
+                        <div class="box-title">⏱ Planlagt lukning</div>
+                        <div class="close-schedule-fields">
+                            <div class="form-group">
+                                <label>Lukkes dato</label>
+                                <input type="date" name="lukkes" value="<?php echo $lukkes_input; ?>">
+                                <?php if ($lukkes_input && $lukkes_days !== null) {
+                                    if ($lukkes_days < 0) {
+                                        $cls = 'urgent'; $lbl = '⚠ Overskredet med ' . abs($lukkes_days) . ' dag' . (abs($lukkes_days) == 1 ? '' : 'e');
+                                    } elseif ($lukkes_days == 0) {
+                                        $cls = 'urgent'; $lbl = '⚠ Lukkes i dag!';
+                                    } elseif ($lukkes_days <= 7) {
+                                        $cls = 'urgent'; $lbl = 'Om ' . $lukkes_days . ' dag' . ($lukkes_days == 1 ? '' : 'e');
+                                    } elseif ($lukkes_days <= 30) {
+                                        $cls = 'warning'; $lbl = 'Om ' . $lukkes_days . ' dage';
+                                    } else {
+                                        $cls = 'ok'; $lbl = 'Om ' . $lukkes_days . ' dage';
+                                    }
+                                    echo "<div class='close-countdown $cls'>$lbl</div>";
+                                } ?>
+                            </div>
+                            <div class="form-group">
+                                <label>Årsag / kommentar</label>
+                                <textarea name="lukkes_kommentar" placeholder="Beskriv årsag til lukning..."><?php echo $lukkes_kommentar_val; ?></textarea>
+                            </div>
+                        </div>
+                        <div class="close-schedule-hint">Lad datoen være tom for ingen planlagt lukning.</div>
+                    </div>
+
                     <div style="margin-top: 16px; text-align: right;">
                         <button type="submit" class="btn btn-success">💾 Gem indstillinger</button>
                     </div>
@@ -1533,7 +1669,19 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                 if ($is_closed) {
                     echo "<td><span class='badge badge-closed'>Lukket</span></td>";
                 } else {
-                    echo "<td><span class='badge badge-active'>Aktiv</span></td>";
+                    $lukkes_date = if_isset($reg, '', 'lukkes');
+                    if ($lukkes_date && $lukkes_date !== '2099-12-31') {
+                        $days_left = (int)floor((strtotime($lukkes_date) - time()) / 86400);
+                        $luk_color = $days_left <= 7 ? '#742a2a' : ($days_left <= 30 ? '#c05621' : '#2d6a4f');
+                        $luk_bg    = $days_left <= 7 ? '#fed7d7' : ($days_left <= 30 ? '#feebc8' : '#c6f6d5');
+                        $luk_label = $days_left < 0 ? 'Overskredet' : ($days_left == 0 ? 'Lukkes i dag' : 'Lukkes om ' . $days_left . 'd');
+                        $luk_title = date('d-m-Y', strtotime($lukkes_date));
+                        $luk_kommentar = htmlspecialchars(if_isset($reg, '', 'lukkes_kommentar'));
+                        if ($luk_kommentar) $luk_title .= ': ' . $luk_kommentar;
+                        echo "<td><span class='badge badge-active'>Aktiv</span> <span style='background:$luk_bg;color:$luk_color;font-size:11px;padding:1px 5px;border-radius:4px;font-weight:600;' title='" . htmlspecialchars($luk_title) . "'>⏱ $luk_label</span></td>";
+                    } else {
+                        echo "<td><span class='badge badge-active'>Aktiv</span></td>";
+                    }
                 }
                 
                 // Licenses

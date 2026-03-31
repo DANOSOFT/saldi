@@ -177,6 +177,15 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 	$max_posteringer = $row['posteringer'];
 	$lukket = $row['lukket'];
 
+	// Auto-close account when scheduled lukkes date has passed
+	if ($lukket != 'on' && !empty($row['lukkes']) && $row['lukkes'] !== '2099-12-31') {
+		if (strtotime($row['lukkes']) <= strtotime(date('Y-m-d'))) {
+			db_modify("UPDATE regnskab SET lukket='on' WHERE id=" . (int)$row['id'], __FILE__ . " linje " . __LINE__);
+			db_modify("DELETE FROM online WHERE db='" . db_escape_string($row['db']) . "'", __FILE__ . " linje " . __LINE__);
+			$lukket = 'on';
+		}
+	}
+
 }
 
 if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
