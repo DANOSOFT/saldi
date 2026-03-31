@@ -338,4 +338,9 @@ while ($r = db_fetch_array($q)) {
 }
 #xit;
 */
+
+$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='plukliste_comment'";
+if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table ordrer ADD column plukliste_comment text default ''",__FILE__ . " linje " . __LINE__);
+}
 ?>

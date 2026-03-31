@@ -42,7 +42,8 @@ include("../includes/formfunk.php");
 
 if (!isset($exec_path)) $exec_path = "/usr/bin";
 
-$id = if_isset($_GET, null, 'id');
+$id = if_isset($_POST, null, 'id') ?: if_isset($_GET, null, 'id');
+$kommentar = trim(if_isset($_POST, '', 'kommentar'));
 
 if (!$id || !is_numeric($id)) {
     print "<script>alert('Ordre ID mangler');window.history.back();</script>";
@@ -61,6 +62,11 @@ if (!$pluklisteEmail) {
 if (!filter_var($pluklisteEmail, FILTER_VALIDATE_EMAIL)) {
     print "<script>alert('Ugyldig email adresse konfigureret: " . htmlspecialchars($pluklisteEmail) . "');window.history.back();</script>";
     exit;
+}
+
+// Save plukliste comment to database
+if ($kommentar) {
+    db_modify("update ordrer set plukliste_comment = '" . db_escape_string($kommentar) . "' where id = '$id'", __FILE__ . " linje " . __LINE__);
 }
 
 // Get order information
@@ -207,6 +213,9 @@ if (!$pdf_path || !file_exists($pdf_path)) {
 // Send the email with the PDF attached
 $mail_subj = "Plukliste for ordre $ordrenr - $firmanavn";
 $mail_text = "Hermed plukliste for ordre $ordrenr.\n\nKunde: $firmanavn (Kontonr: $kontonr)";
+if ($kommentar) {
+    $mail_text .= "\n\nKommentar: " . htmlspecialchars($kommentar);
+}
 $mailsprog = 'dansk';
 
 // Use the send_mails function
