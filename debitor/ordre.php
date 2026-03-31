@@ -252,7 +252,7 @@ $default_procenttillag = str_replace(",", ".", $default_procenttillag);
 $brugsamletpris = $r['box14'];
 if ($brugsamletpris) {
 	$r = db_fetch_array(db_SELECT("select box8 from grupper where art = 'DIV' and kodenr = '5'", __FILE__ . " linje " . __LINE__));
-	$svid = $r['box8'] * 1;
+	$svid = (int)$r['box8'];
 	$r = db_fetch_array(db_SELECT("select varenr from varer where id = '$svid'", __FILE__ . " linje " . __LINE__));
 	$svnr = ($r) ? $r['varenr'] : NULL;
 } else $svnr = NULL;
