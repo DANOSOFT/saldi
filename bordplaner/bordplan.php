@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bordplaner/bordplan.php --- lap 5.0.0 --- 2026.03.26-------
+// --- bordplaner/bordplan.php --- lap 5.0.0 --- 2026.04.01-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 2018.05.14 Tilføjet mulighed for "underborde". Søg "$_GET['bordplan']".
 // 2019.07.10 Rettet $flyt til $bord[$flyt] så bordnavn og ikke bord ID vises i overskrift ved del / ftyt
 // 20260326 PHR fiscal_year
+// 20260401 PHR $title = 'Bordplan' (used in online.php)
 
 @session_start();
 $s_id=session_id();
@@ -35,7 +36,7 @@ ob_start();
 
 $modulnr=5;
 $z=NULL;
-$title="POS_ordre";
+$title="Bordplan";
 $css="../css/pos.css";
 
 include("../includes/connect.php");
