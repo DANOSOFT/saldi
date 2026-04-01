@@ -158,17 +158,12 @@
         const basePath = '../debitor/';
         const kassePath = '../finans/kassekladde_includes/';
 
-        const kontoInput = document.querySelector('input[name="konto_id"]');
-        const kontoId = kontoInput ? parseInt(kontoInput.value) : 0;
-
         switch (type) {
             case 'item':
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value);
-                if (kontoId > 0) url += '&konto_id=' + kontoId;
                 break;
             case 'lev_item':
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value) + '&search_field=lev_varenr';
-                if (kontoId > 0) url += '&konto_id=' + kontoId;
                 break;
             case 'customer':
                 url = kassePath + 'accountSearch.php?type=kreditor&search=' + encodeURIComponent(value);

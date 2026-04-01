@@ -93,6 +93,8 @@ if ($search !== '') {
 $leverandorJoin = '';
 if ($konto_id > 0) {
     $leverandorJoin = "INNER JOIN vare_lev vl ON vl.vare_id = varer.id AND vl.lev_id = $konto_id";
+} elseif ($search_field === 'lev_varenr') {
+    $leverandorJoin = "INNER JOIN vare_lev vl ON vl.vare_id = varer.id";
 }
 
 $variantJoin = "LEFT JOIN variant_varer vv ON vv.vare_id = varer.id AND vv.variant_stregkode IS NOT NULL AND vv.variant_stregkode != ''";
