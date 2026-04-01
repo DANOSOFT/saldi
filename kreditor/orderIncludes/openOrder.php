@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrder.php --- lap 5.0.0 --- 2026.03.12 ---
+// --- kreditor/orderIncludes/openOrder.php --- lap 5.0.0 --- 2026.04.01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,13 +21,14 @@
 // See GNU General Public License for more details.
 //
 // Copyright (c) 2003-2026 saldi.dk ApS
-// ----------------------
 // ------------------------------------------------
+//
 // 20230111 MSC - Implementing new design
 // 20231219 MSC - Copy pasted new design into code
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20260217 PHR Added 'kundeordrnr'
 // 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
+// 20060401 PHR Minor correction so it finds correct stock when creating order
 
 global $menu;
 
@@ -51,18 +52,19 @@ if ($ref && $oldRef && $ref != $oldRef) {
 		}
 	}
 }
-if ($afd && $oldDep && $afd != $oldDep) {
-	$qtxt = "select box1 from grupper where art = 'AFD' and kodenr = $afd";
-	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$lager = $r['box1'];
-	}
-}
+
 if (!$ref) {
 	$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$r = db_fetch_array(db_select("select navn, afd from ansatte where id = $r[ansat_id]",__FILE__ . " linje " . __LINE__));
 		$ref = $r['navn'];
 		$afd = $r['afd'];
+	}
+}
+if (($afd && $oldDep && $afd != $oldDep) || ($afd && !$lager)) {
+	$qtxt = "select box1 from grupper where art = 'AFD' and kodenr = $afd";
+	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		$lager = $r['box1'];
 	}
 }
 $i = 0;
