@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 5.0.0 --- 2026-03-20---
+// --- includes/online.php --- patch 5.0.0 --- 2026-04-01---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,6 +59,7 @@
 // 20260120 PHR fetch from settings disabled if table settings does not exist
 // 20260129 PHR More updates to make it work with very old releases.
 // 20260320 PHR cleanup (pdftk)
+// 20260402 PHR Bypass style if title = 'Bordplan'
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -177,7 +178,6 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 	$max_posteringer = $row['posteringer'];
 	$lukket = $row['lukket'];
 
-	// Auto-close account when scheduled lukkes date has passed
 	if ($lukket != 'on' && !empty($row['lukkes']) && $row['lukkes'] !== '2099-12-31') {
 		if (strtotime($row['lukkes']) <= strtotime(date('Y-m-d'))) {
 			db_modify("UPDATE regnskab SET lukket='on' WHERE id=" . (int)$row['id'], __FILE__ . " linje " . __LINE__);
@@ -516,9 +516,7 @@ if (isset($pathParts[0])) {
 	exit;
 } */
 // Wrap the style output in the API check:
-// also make sure we are not in pos_ordre.php
-$fileName = basename(__FILE__);
-if (!$isApiCall && $title != "POS Ordre" && $firstFolder != "sager" && $fileName != "pos_ordre.php") {
+if (!$isApiCall && $title != "POS Ordre" && $title != 'Bordplan' && $firstFolder != "sager") {
 ?>
 <style>
 	/* type submit and type button */
