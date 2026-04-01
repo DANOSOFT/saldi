@@ -150,7 +150,7 @@ function countPriceCorrection($id, $price, $kasse)
 function countCorrection($id, $kasse)
 {
     if (isset($_SESSION['savingCorrection']) && $_SESSION['savingCorrection'] == true) {
-        $sum = isset($_POST['sum']) ? $_POST['sum'] : 0;
+        $sum = isset($_POST['sum']) ? (float) $_POST['sum'] : 0;
         $id = getReceiptId("corrections");
         db_modify("insert into corrections (id, price, kasse) values ($id, $sum, $kasse)", __LINE__ . "linje" . __LINE__);
         unset($_SESSION['savingCorrection']);
