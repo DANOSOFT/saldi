@@ -425,7 +425,7 @@ HTML;
 <div class="create-customer-overlay" id="createCustomerForm">
   <span class="close-btn" onclick="toggleCreateForm(false)" title="Close">&times;</span>
   <h3>$lbl_create</h3>
-  <form name="create_debtor" action="ordre.php?id=$id&sag_id=$sag_id&returside=$returside" method="post" onsubmit="return validateCreateCustomer()">
+  <form name="create_debtor" action="ordre.php" method="post" onsubmit="return validateCreateCustomer()">
     <table>
       <tr>
         <td></td>
