@@ -3192,14 +3192,14 @@
 3192	Slet kontrolskema	Delete checklist	Slett kontrollskjema
 3193	Vil du slette kontrolskemaet	Do you want to delete the checklist	Vil du slette kontrollskjemaet
 3194	Vil du slette arbejdssedlen	Do you want to delete the work order	Vil du slette arbeidsseddelen
-3195	
+3195	Vedr.	Re.	Vedr.
 3196	
-3197	
-3198	
-3199	
-3200	
-3201	
-3202	
+3197	Send arbejdsseddel (e-mail)	Email work order	Send arbeidsseddel (e-post)
+3198	Send kontrolskema (e-mail)	Email checklist	Send kontrollskjema (e-post)
+3199	Sagskontakter	Project contacts	Sakskontakter
+3200	Der er ingen kontakter tilknyttet sagen	There are no contacts linked to the project	Det er ingen kontakter knyttet til saken
+3201	Indtast evt. e-mail	Enter email (opt.)	Skriv inn evt. e-post
+3202	Indtast evt. tekst	Enter text (opt.)	Skriv inn evt. tekst
 3203	
 3204	
 3205	
