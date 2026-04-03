@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-03-16 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-04-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -93,7 +93,7 @@
 // 20260211 PHR Updated cashCount 
 // 20260225 PHR Updated cashCount
 // 20260316 PHR Corrected Currency error in cashCount
-
+// 20260403 PHR Added && '$leveres[0] != 0' as leveres else is set to 0 if qty was changed and kokkelprint became reset.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1510,9 +1510,12 @@ if ($vare_id) {
 					print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
 					$fokus = "pris_ny";
 				} else {
-					$r = db_fetch_array(db_select("select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'", __FILE__ . " linje " . __LINE__));
-					if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]))
-						db_modify("update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'", __FILE__ . " linje " . __LINE__);
+					$qtxt = "select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'";
+					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
+						$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					}					
 					$varenr_ny = $next_varenr;
 					$tmp = $antal_ny; #Til kundedisplay
 					$antal_ny = NULL;
