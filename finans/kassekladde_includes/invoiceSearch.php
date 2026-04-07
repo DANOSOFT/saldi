@@ -4,7 +4,7 @@ ob_start();
 
 @session_start();
 $s_id = session_id();
-$title = "invoiceSearch"; 
+$title = "invoiceSearch";  
 $modulnr = 0;
 $bg = "nix";  
 $header = "nix";
@@ -14,7 +14,7 @@ chdir(dirname(__FILE__) . '/..');
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");
+include("../includes/std_func.php"); 
 
 ob_end_clean();
 
@@ -27,6 +27,11 @@ $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $limit = 50; 
 $offset = ($page - 1) * $limit;
 
+$currentAmount = isset($_GET['currentAmount']) ? trim($_GET['currentAmount']) : '';
+
+// JS already sends clean decimal format (e.g. "4999.00"), just cast directly
+$currentAmountNormalized = $currentAmount;
+$currentAmountFloat = ($currentAmount !== '') ? floatval($currentAmount) : null;
 if (!isset($regnaar) || empty($regnaar)) {
     echo json_encode(array('error' => 'Session expired'));
     exit;
@@ -117,18 +122,23 @@ if ($query) {
             }
         }
         
+        $rowAmount = floatval($row['amount']);
+        $amountMatch = ($currentAmountFloat !== null) && (abs(abs($rowAmount) - abs($currentAmountFloat)) < 0.001);
+
+
         $results[] = array(
             'id' => $row['id'],
             'kontonr' => trim($row['konto_nr']),
             'konto_id' => $row['konto_id'],
             'faktnr' => trim($row['faktnr']),
-            'amount' => floatval($row['amount']),
+            'amount' => $rowAmount,
             'transdate' => $row['transdate'],
             'firmanavn' => trim(stripslashes($row['firmanavn'])),
             'beskrivelse' => isset($row['beskrivelse']) ? trim(stripslashes($row['beskrivelse'])) : '',
             'art' => $accountArt,
             'valuta' => isset($row['valuta']) ? trim($row['valuta']) : '',
-            'offsetAccount' => $offsetAccount
+            'offsetAccount' => $offsetAccount,
+            'amountMatch' => $amountMatch
         );
     }
 }

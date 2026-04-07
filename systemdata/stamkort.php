@@ -1,5 +1,5 @@
 <?php
-// -- ---------systemdata/stamdata.php---patch 4.0.8 ----2023-08-2--------
+// -- ---------systemdata/stamdata.php---patch 5.0.0 ----2026-03-28--------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2012.08.21 Tilføjet leverandørservice - PBS
 // 2014.11.20 Opdater mastersystem ved ændring af email.
@@ -255,7 +255,7 @@ if ($id) {
 	}
 	print "<tbody></table></td></tr>";
 } else {
-	$href='http://saldi.dk/dok/saldi_gdpr_20180525.pdf';
+	$href='http://saldi.dk/dok/saldi_gdpr_20180525.pdf'; 
 	print "<tr><td>".findtekst('2484|Databehandleraftale', $sprog_id)."</td><td><a href=\"$href\" target=\"blank\"><button type='button' style='width:200px;'>".findtekst('2484|Databehandleraftale', $sprog_id)."</button></a></td></tr>";
 }
 
@@ -266,5 +266,5 @@ print "<tr><td colspan=2 align=center><input type=\"submit\" accesskey=\"g\" val
 </table>
 </td></tr>
 </tbody></table>
-<script language="javascript" type="text/javascript" src="../javascript/cvrapiopslag.js"></script>
+<script language="javascript" type="text/javascript" src="../javascript/cvrapiopslag.js?v=1.2.1"></script> 
 </body></html>
