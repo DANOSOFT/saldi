@@ -1012,10 +1012,9 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 			if ($submit == 'simulate') { #20210721
 				print "<meta http-equiv='refresh' content='0;URL=../finans/bogfor.php?kladde_id=$kladde_id&funktion=simuler'>";
 				/*
-																								#?>
-																								#<body onload="simuler()">
-																								#<?php
-																								*/
+				#?>
+				#<body onload="simuler()">																			#<?php
+				*/
 			}
 			#if (strstr($submit,"Bogf"))	{
 			if ($submit == 'doPost') {
@@ -3421,10 +3420,6 @@ print "</form>";
 					#				$beskrivelse=db_escape_string(if_isset($r['beskrivelse'], ''));
 					$qtxt = NULL;
 					if ($forfaldsdate) {
-						// Get next global position for the entire journal
-						$next_pos_query = db_select("SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
-						$next_pos_row = db_fetch_array($next_pos_query);
-						$next_pos = $next_pos_row['next_pos'];
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 						if ($insert_bilag > 2147483647) {
 							$r_max2 = db_fetch_array(db_select("SELECT COALESCE(MAX(bilag), 0) + 1 AS next_bilag FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
@@ -3432,6 +3427,13 @@ print "</form>";
 							alert("Bilagsnummer $insert_bilag er for stort (maks 2147483647) og er erstattet med $new_bilag2.");
 							$insert_bilag = $new_bilag2;
 						}
+						// Insert at the correct bilag/transdate position instead of always at the end.
+						// Find the highest pos of entries that should come before the new entry.
+						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
+						$ins_pos_r = db_fetch_array($ins_pos_q);
+						$next_pos = $ins_pos_r['max_pos'] + 1;
+						// Shift all entries at or after the insertion point to make room.
+						db_modify("UPDATE kassekladde SET pos = pos + 1 WHERE kladde_id = '$kladde_id' AND pos >= '$next_pos'", __FILE__ . " linje " . __LINE__);
 						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
 						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id,forfaldsdate,betal_id, pos)";
 						$qtxt .= "values ";
@@ -3439,11 +3441,13 @@ print "</form>";
 						$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', ";
 						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')";
 					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
-						// Get next global position for the entire journal
-						$next_pos_query = db_select("SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
-						$next_pos_row = db_fetch_array($next_pos_query);
-						$next_pos = $next_pos_row['next_pos'];
 						$insert_bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
+						// Insert at the correct bilag/transdate position instead of always at the end.
+						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
+						$ins_pos_r = db_fetch_array($ins_pos_q);
+						$next_pos = $ins_pos_r['max_pos'] + 1;
+						// Shift all entries at or after the insertion point to make room.
+						db_modify("UPDATE kassekladde SET pos = pos + 1 WHERE kladde_id = '$kladde_id' AND pos >= '$next_pos'", __FILE__ . " linje " . __LINE__);
 						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
 						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id, pos)";
 						$qtxt .= " values ";
