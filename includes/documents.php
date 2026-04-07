@@ -163,22 +163,27 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 			
 			// Try to extract invoice data via API
 			$extractedData = null;
-			
+			$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
+
 			// Convert images to PDF if needed
 			if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
 				$tempFile = "$poolDir/$baseName.$ext";
 				if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
-					// Extract data from ORIGINAL image before converting to PDF
-					error_log("documents.php (AJAX): Calling extractInvoiceData for ORIGINAL image: $tempFile");
-					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-					$extractedData = extractInvoiceData($tempFile, $invoiceId);
-					if ($extractedData) {
-						error_log("documents.php (AJAX): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+					if ($autoExtract) {
+						// Extract data from ORIGINAL image before converting to PDF
+						error_log("documents.php (AJAX): Calling extractInvoiceData for ORIGINAL image: $tempFile");
+						$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+						$extractedData = extractInvoiceData($tempFile, $invoiceId);
+						if ($extractedData) {
+							error_log("documents.php (AJAX): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+						} else {
+							error_log("documents.php (AJAX): API extraction returned null for file: $tempFile");
+						}
 					} else {
-						error_log("documents.php (AJAX): API extraction returned null for file: $tempFile");
+						error_log("documents.php (AJAX): Auto-extract disabled, skipping for: $tempFile");
 					}
-					
-					
+
+
 					// Now convert to PDF
 					exec("convert '$tempFile' '$targetFile'", $output, $return_var);
 					if ($return_var === 0 && file_exists($targetFile)) {
@@ -191,7 +196,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				// For PDF files, move directly
 				move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
 				// Extract data from PDF
-				if (file_exists($targetFile)) {
+				if ($autoExtract && file_exists($targetFile)) {
 					error_log("documents.php (AJAX): Calling extractInvoiceData for PDF: $targetFile");
 					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
 					$extractedData = extractInvoiceData($targetFile, $invoiceId);
@@ -200,6 +205,8 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					} else {
 						error_log("documents.php (AJAX): API extraction returned null for file: $targetFile");
 					}
+				} elseif (!$autoExtract) {
+					error_log("documents.php (AJAX): Auto-extract disabled, skipping for: $targetFile");
 				}
 			}
 			
@@ -553,22 +560,27 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 		
 		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
 		$extractedData = null;
-		
+		$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
+
 		// Convert images to PDF if needed
 		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
 			$tempFile = "$poolDir/$baseName.$ext";
 			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
-				// Extract data from ORIGINAL image before converting to PDF
-				error_log("documents.php (block2): Calling extractInvoiceData for ORIGINAL image: $tempFile");
-				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-				$extractedData = extractInvoiceData($tempFile, $invoiceId);
-				if ($extractedData) {
-					error_log("documents.php (block2): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+				if ($autoExtract) {
+					// Extract data from ORIGINAL image before converting to PDF
+					error_log("documents.php (block2): Calling extractInvoiceData for ORIGINAL image: $tempFile");
+					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+					$extractedData = extractInvoiceData($tempFile, $invoiceId);
+					if ($extractedData) {
+						error_log("documents.php (block2): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+					} else {
+						error_log("documents.php (block2): API extraction returned null for file: $tempFile");
+					}
 				} else {
-					error_log("documents.php (block2): API extraction returned null for file: $tempFile");
+					error_log("documents.php (block2): Auto-extract disabled, skipping for: $tempFile");
 				}
-				
-				
+
+
 				// Now convert to PDF
 				exec("convert '$tempFile' '$targetFile'", $output, $return_var);
 				if ($return_var === 0 && file_exists($targetFile)) {
@@ -581,7 +593,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 			// For PDF files, move directly
 			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
 			// Extract data from PDF
-			if (file_exists($targetFile)) {
+			if ($autoExtract && file_exists($targetFile)) {
 				error_log("documents.php (block2): Calling extractInvoiceData for PDF: $targetFile");
 				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
 				$extractedData = extractInvoiceData($targetFile, $invoiceId);
@@ -590,6 +602,8 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 				} else {
 					error_log("documents.php (block2): API extraction returned null for file: $targetFile");
 				}
+			} elseif (!$autoExtract) {
+				error_log("documents.php (block2): Auto-extract disabled, skipping for: $targetFile");
 			}
 		}
 		

@@ -2516,31 +2516,6 @@ $dropAttr = "";
 			}
 		}
 
-		// Add Plus and Delete buttons
-		print "<td style='text-align:center; white-space:nowrap;'>";
-
-		// Plus button - always enabled
-		print "<td style='text-align:center; white-space:nowrap;'>";
-
-		$plusTitle = "Duplicate this line";  
-		print "<button type='button' class='duplicate-line-btn' data-row='$y' data-id='$id[$y]' title='$plusTitle'>+</button>";
-
-		// Delete button - disabled if document attached
-		$qtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$id[$y]'";
-		$hasDoc = ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__)));
-
-		if ($hasDoc) {
-			$deleteTitle = "Remove attached document first";  
-			$deleteDisabled = "disabled";
-		} else {
-			$deleteTitle = "Delete this line";  
-			$deleteDisabled = "";
-		}
-
-		print "<button type='button' class='delete-line-btn' data-row='$y' data-id='$id[$y]' title='$deleteTitle' $deleteDisabled>x</button>";
-
-		print "</td>\n";
-
 		######
 
 		if ($control_bal_fetched) {
@@ -2559,6 +2534,29 @@ $dropAttr = "";
 			if ($saldoDiff)
 				print "<td>&nbsp;</td><td align='right'><div $color>(" . dkdecimal($saldoDiff) . ")</div></td>\n";
 		}
+
+		// Add Plus and Delete buttons
+		// Plus button - always enabled
+		print "<td style='text-align:center; white-space:nowrap;'>";
+
+		$plusTitle = "Duplicate this line";
+		print "<button type='button' class='duplicate-line-btn' data-row='$y' data-id='$id[$y]' title='$plusTitle'>+</button>";
+
+		// Delete button - disabled if document attached
+		$qtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$id[$y]'";
+		$hasDoc = ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__)));
+
+		if ($hasDoc) {
+			$deleteTitle = "Remove attached document first";
+			$deleteDisabled = "disabled";
+		} else {
+			$deleteTitle = "Delete this line";
+			$deleteDisabled = "";
+		}
+
+		print "<button type='button' class='delete-line-btn' data-row='$y' data-id='$id[$y]' title='$deleteTitle' $deleteDisabled>x</button>";
+
+		print "</td>\n";
 		print "<input type=hidden name='id[$y]' value='$id[$y]'>";
 		print "<input type=hidden name='dkka$y' value='$dkkamount[$y]'>";
 		print "<input type=hidden name='transdate[$y]' value='$transdate[$y]'>";
@@ -3127,7 +3125,10 @@ print "</form>";
 					$alerttxt5 = findtekst('1592|er låst og må ikke anvendes (Bilag nr', $sprog_id); // er låst og må ikke anvendes (Bilag nr
 
 
-					$alerttekst = addslashes($alerttxt1 . " '" . $debet . "' " . $alerttxt2 . " " . $bilag . $alerttxt3); # 20230306 added ' and spaces
+					$hint = '';
+					if (isset($debitornr) && in_array($debet, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
+					elseif (isset($kreditornr) && in_array($debet, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					$alerttekst = addslashes($alerttxt1 . " '" . $debet . "' " . $alerttxt2 . " " . $bilag . $alerttxt3 . $hint); # 20230306 added ' and spaces
 				} elseif (in_array($debet, $lukket))
 					$alerttekst = addslashes($alerttxt4 . " " . $debet . " " . $alerttxt5 . " " . $bilag . $alerttxt3); # 20230306 added spaces
 				if ($alerttekst) {
@@ -3144,7 +3145,10 @@ print "</form>";
 
 
 				if (!in_array($kredit, $accountNumbers)) {
-					$alerttekst = addslashes($alert1 . " '" . $kredit . "' " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
+					$hint = '';
+					if (isset($debitornr) && in_array($kredit, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
+					elseif (isset($kreditornr) && in_array($kredit, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					$alerttekst = addslashes($alert1 . " '" . $kredit . "' " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
 				} elseif (in_array($kredit, $lukket))
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alerttxt4 . " " . $bilag . $alert4);
 				if ($alerttekst) {
@@ -3160,9 +3164,12 @@ print "</form>";
 				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 
 				$svar = find_kontonr($fokus, 'D', $debet, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
-				if ($svar == $debet)
-					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
-				else
+				if ($svar == $debet) {
+					$hint = '';
+					if (in_array($debet, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($kreditornr) && in_array($debet, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
+				} else
 					$debet = $svar;
 				if ($alerttekst) {
 					alert($alerttekst);
@@ -3177,9 +3184,12 @@ print "</form>";
 				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 
 				$svar = find_kontonr($fokus, 'D', $kredit, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
-				if ($svar == $kredit)
-					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
-				else
+				if ($svar == $kredit) {
+					$hint = '';
+					if (in_array($kredit, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($kreditornr) && in_array($kredit, $kreditornr)) $hint = ' - Kontoen findes som Kreditor (K)';
+					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
+				} else
 					$kredit = $svar;
 				if ($alerttekst) {
 					alert($alerttekst);
@@ -3193,9 +3203,12 @@ print "</form>";
 				$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
 				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 				$svar = find_kontonr($fokus, 'K', $debet, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
-				if ($svar == $debet)
-					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
-				else
+				if ($svar == $debet) {
+					$hint = '';
+					if (in_array($debet, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($debitornr) && in_array($debet, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
+					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
+				} else
 					$debet = $svar;
 				if ($alerttekst) {
 					alert($alerttekst);
@@ -3209,9 +3222,12 @@ print "</form>";
 				$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
 				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 				$svar = find_kontonr($fokus, 'K', $kredit, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
-				if ($svar == $kredit)
-					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
-				else
+				if ($svar == $kredit) {
+					$hint = '';
+					if (in_array($kredit, $accountNumbers)) $hint = ' - Kontoen findes som Finanskonto (F)';
+					elseif (isset($debitornr) && in_array($kredit, $debitornr)) $hint = ' - Kontoen findes som Debitor (D)';
+					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4 . $hint);
+				} else
 					$kredit = $svar;
 				if ($alerttekst) {
 					alert($alerttekst);
