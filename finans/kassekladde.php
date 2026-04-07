@@ -1121,7 +1121,9 @@ $x = 0;
 
 if (!$simuler) {
 
-	if ($returside == "kontospec.php") {
+	if ($returside && $returside != "regnskab" && $returside != "kontospec.php") {
+		$backUrl = $returside;
+	} elseif ($returside == "kontospec.php") {
 		$backUrl = "kontospec.php";
 	} else {
 		$backUrl = "../finans/kladdeliste.php";
@@ -1144,7 +1146,8 @@ if (!$simuler) {
 
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			print "<div id='header'>";
-			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id&line=". __line__ .";','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+			$backTarget = $backUrl != '../finans/kladdeliste.php' ? $backUrl : "../finans/kladdeliste.php?exitDraft=$kladde_id&line=". __line__ .";";
+			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('" . htmlspecialchars($backTarget, ENT_QUOTES, $charset) . "','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 			print "<div class='headerTxt'>$title &nbsp;•&nbsp; $kladde_id</div>";
 			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id&line=". __line__ .";','$tekst')\"' title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
 			print "</div>";
@@ -1160,6 +1163,8 @@ if (!$simuler) {
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			if ($popup || $visipop) {
 				print "<a href=\"javascript:confirmClose('../includes/luk.php?tabel=kladdeliste&amp;id=$kladde_id&exitDraft=$kladde_id&line=". __line__ .";','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+			} elseif ($backUrl != '../finans/kladdeliste.php') {
+				print "<a href=\"javascript:confirmClose('" . htmlspecialchars($backUrl, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			} else {
 				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id&line=". __line__ .";&line=". __line__ .";','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			}
