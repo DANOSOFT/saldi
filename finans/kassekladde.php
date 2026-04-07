@@ -297,19 +297,6 @@ if ($_GET) {
 	if (!isset($betal_id[$x]))
 		$betal_id[$x] = '';
 
-	if ($kksort) {
-		db_modify("update grupper set box1='$kksort' where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
-		// When user changes sort order, renumber positions to match the new sort
-		if ($kladde_id && function_exists('renumberPositions')) {
-			if ($kksort == 'bilag,transdate') {
-				renumberPositions($kladde_id, 'bilag, transdate, id');
-			} elseif ($kksort == 'transdate,bilag') {
-				renumberPositions($kladde_id, 'transdate, bilag, id');
-			} elseif ($kksort == 'amount') {
-				renumberPositions($kladde_id, 'amount, bilag, transdate, id');
-			}
-		}
-	}
 	if (($sort) && ($funktion)) {
 		if (!function_exists($funktion)) include_once("kassekladde_includes/$funktion.php");
 		$funktion($find, $sort, $fokus, $x, $id[$x], $kladde_id, $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $lobenr[$x]);
@@ -2181,9 +2168,9 @@ if ($kladde_id) {
 		// Order by pos (global position) as primary sort, then by bilag/transdate/id as fallback
 		// This ensures user-defined order is preserved
 		if ($kksort == 'bilag,transdate') {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos, bilag, transdate, id";
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag, transdate, pos, id";
 		} else {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos, $kksort, id";
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, pos, id";
 		}
 	}
 	#cho __line__." $qtxt<br>";
@@ -2521,7 +2508,13 @@ $dropAttr = "";
 
 		#######
 		// Display row number ($y) as the visual line number - stored pos is used for ordering only
-		print "<td class='drag-handle' style='cursor:move;' data-id='{$id[$y]}' data-pos='" . (isset($pos[$y]) ? $pos[$y] : 0) . "'>&#x2630; $y</td>";
+		if(isset($bilag[$y+1])){
+			if((($bilag[$y] == $bilag[$y+1]) && ($transdate[$y] == $transdate[$y+1])) || (($bilag[$y] == $bilag[$y-1]) && ($transdate[$y] == $transdate[$y-1]))){
+				print "<td class='drag-handle' style='cursor:move;' data-id='{$id[$y]}' data-pos='" . (isset($pos[$y]) ? $pos[$y] : 0) . "'>&#x2630; $y</td>";
+			}else{
+				print "<td></td>";
+			}
+		}
 
 		// Add Plus and Delete buttons
 		print "<td style='text-align:center; white-space:nowrap;'>";
