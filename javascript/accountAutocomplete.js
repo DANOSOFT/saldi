@@ -1,9 +1,9 @@
 
 (function () {
-    'use strict';
+    'use strict'; 
 
     const CONFIG = {
-        minSearchLength: 0,
+        minSearchLength: 0, 
         debounceDelay: 200,
         maxResults: 50
     };
@@ -426,12 +426,12 @@
     }
 
 
-    function performInvoiceSearch(input, searchValue, page) {
-        searchValue = searchValue.trim();
-        page = page || 1;
-        const dropdown = input.autocompleteDropdown;
-        const rowNum = input.rowNumber;
-
+   function performInvoiceSearch(input, searchValue, page) {
+    searchValue = searchValue.trim();
+    page = page || 1;
+    const dropdown = input.autocompleteDropdown;
+    const rowNum = input.rowNumber;
+   
         let accountNr = '';
         let accountType = '';
 
@@ -457,7 +457,7 @@
             }
         }
 
-        let basePath = '';
+       let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/invoiceSearch.php';
         } else if (window.location.pathname.includes('/includes/')) {
@@ -466,10 +466,16 @@
             basePath = 'finans/kassekladde_includes/invoiceSearch.php';
         }
 
+        // Read belo field and convert from Danish format (4.999,00 → 4999.00)
+        const beloFieldForSearch = document.querySelector('input[name="belo' + rowNum + '"]');
+        const rawAmount = beloFieldForSearch ? beloFieldForSearch.value.trim() : '';
+        const currentAmount = rawAmount.replace(/\./g, '').replace(',', '.');
+       
         const url = basePath + '?search=' +
             encodeURIComponent(searchValue) +
             '&account=' + encodeURIComponent(accountNr) +
             '&accountType=' + encodeURIComponent(accountType) +
+            '&currentAmount=' + encodeURIComponent(currentAmount) +
             '&page=' + page;
 
         fetch(url)
@@ -643,10 +649,21 @@
             basePath = 'finans/kassekladde_includes/amountSearch.php';
         }
 
-        const url = basePath + '?search=' + encodeURIComponent(searchValue) +
+        // Read the current amount value from the belo field on the same row
+        const beloFieldForSearch = document.querySelector('input[name="belo' + rowNum + '"]');
+        // Danish format: 7.500,2 → remove thousands dot → replace decimal comma → 7500.2
+        const rawAmount = beloFieldForSearch ? beloFieldForSearch.value.trim() : '';
+        const currentAmount = rawAmount.replace(/\./g, '').replace(',', '.'); 
+      
+
+        const url = basePath + '?search=' +
+            encodeURIComponent(searchValue) +
             '&account=' + encodeURIComponent(accountNr) +
             '&accountType=' + encodeURIComponent(accountType) +
-            '&invoice=' + encodeURIComponent(invoiceNr);
+            '&currentAmount=' + encodeURIComponent(currentAmount) +
+            '&page=' + page;
+
+
 
         fetch(url)
             .then(function (response) {
@@ -911,11 +928,22 @@
 
         html += '<tbody>';
 
-        let itemIndex = 0;
-        results.forEach(function (item) {
-            const description = (item.firmanavn || '') + (item.faktnr ? ' - ' + item.faktnr : '');
+        // Sort: amount-matching rows first, then the rest
+        const sortedResults = results.slice().sort(function (a, b) {
+            if (a.amountMatch && !b.amountMatch) return -1;
+            if (!a.amountMatch && b.amountMatch) return 1;
+            return 0;
+        });
 
-            html += '<tr class="account-autocomplete-item"' +
+
+
+        let itemIndex = 0;
+        sortedResults.forEach(function (item) {
+            const description = (item.firmanavn || '') + (item.faktnr ? ' - ' + item.faktnr : '');
+            const matchStyle = item.amountMatch ? ' style="background-color: #fff9c4 !important; font-weight: bold;"' : '';
+            const matchClass = item.amountMatch ? ' account-autocomplete-item--amount-match' : '';
+
+            html += '<tr class="account-autocomplete-item' + matchClass + '"' + matchStyle +
                 ' data-kontonr="' + escapeHtml(item.faktnr) + '"' +
                 ' data-faktnr="' + escapeHtml(item.faktnr) + '"' +
                 ' data-amount="' + item.amount + '"' +
@@ -1109,11 +1137,6 @@
             window.docChange = true;
         }
 
-        // Debug logging
-        console.log('setFieldValue:', field.name, '=', value, 'form:', field.form ? field.form.id : 'no form');
-        if (!field.form) {
-            console.error('Field is not connected to form!', field.name);
-        }
     }
 
     function selectInvoiceOrAmount(input, item) {
@@ -1134,11 +1157,6 @@
         const currency = item.dataset.currency || '';
         const offsetAccount = item.dataset.offsetaccount || '';
 
-
-        console.log('selectInvoiceOrAmount:', {
-            faktnr, amount, accountNr, accountType, description, currency, offsetAccount,
-            rowNum, fieldType: input.fieldType
-        });
 
         const faktField = document.querySelector('input[name="fakt' + rowNum + '"]');
         const beloField = document.querySelector('input[name="belo' + rowNum + '"]');
@@ -1214,18 +1232,7 @@
             }
         }
 
-        // Debug logging after filling
-        console.log('After fill:', {
-            amountValue,
-            branch: amountValue < 0 ? 'negative' : 'positive',
-            dTypeField: dTypeField ? dTypeField.value : 'null',
-            debeField: debeField ? debeField.value : 'null',
-            kTypeField: kTypeField ? kTypeField.value : 'null',
-            kredField: kredField ? kredField.value : 'null',
-            existingDebet,
-            existingKredit,
-            offsetAccount
-        });
+        
 
         // Ensure docChange is set
         if (typeof window.docChange !== 'undefined') {
