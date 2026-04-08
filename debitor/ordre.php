@@ -5015,6 +5015,19 @@ function ordreside($id, $regnskab)
 			print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
 			print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
 		}
+		$lev_max = 0;
+		$q = db_select("select lev_nr from batch_salg where ordre_id = $id", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			if ($r['lev_nr'] > $lev_max) {
+				$lev_max = $r['lev_nr'];
+			}
+		}
+		if ($lev_max > 0) {
+			print "<tr class='tableTexting2'><td colspan=\"2\">&nbsp;</td></tr>\n";
+			for ($levnr = 1; $levnr <= $lev_max; $levnr++) {
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=$levnr&formular=3'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
+			}
+		}
 		print "</td></tr></tbody></table></td></tr>\n"; #<- Tabel 4.3
 		$kontonr = (int)$kontonr;
 		$row2 = db_fetch_array(db_select("select notes from adresser where kontonr = '$kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__)); #20142403-1
