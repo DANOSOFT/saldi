@@ -1300,26 +1300,35 @@ if ($source == 'kassekladde') {
 	}
 
 	// Helper: render one full editable entry row
-	$renderBilagRow = function($rowId, $d, $showLabels = true) use ($inStyle, $btnStyle, $svgSave, $svgCopy, $escKladde, $intBilag) {
+	$renderBilagRow = function($rowId, $d, $showLabels = true) use ($inStyle, $btnStyle, $svgSave, $svgCopy, $escKladde, $intBilag, $readOnly, $sourceId) {
 		$pfx = "row_{$rowId}";
 		$momsfriChecked = !empty($d['momsfri']) ? ' checked' : '';
 		$rowIdJs = is_numeric($rowId) ? (int)$rowId : "'new'";
 		$lbl = function($text) use ($showLabels) { return $showLabels ? "<label>{$text}</label>" : ''; };
+		$ro = $readOnly ? ' readonly' : '';
+		$roBg = $readOnly ? ' background-color:#f0f0f0;' : '';
+		$dis = $readOnly ? ' disabled' : '';
+		$cbVal = is_numeric($rowId) ? (int)$rowId : '0';
+		$cbChecked = ((string)$cbVal === (string)$sourceId) ? ' checked' : '';
 		print "<div class='kassebilag-entry' id='bilagEntry_{$rowId}' style='margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e0e0e0;'>";
 		print "<div class='topbar-fields-row'>";
-		print "<div class='topbar-field'>" . $lbl('Bilag #:') . "<input type='text' id='{$pfx}_Bilag' value=\"" . htmlspecialchars($d['bilag'] ?? '') . "\" style='width:55px;{$inStyle}'></div>";
-		print "<div class='topbar-field'>" . $lbl('Dato:') . "<input type='text' id='{$pfx}_Dato' value=\"" . htmlspecialchars($d['dato'] ?? '') . "\" style='width:85px;{$inStyle}' placeholder='dd-mm-yyyy'></div>";
-		print "<div class='topbar-field'>" . $lbl('Faktura:') . "<input type='text' id='{$pfx}_Faktura' value=\"" . htmlspecialchars($d['faktura'] ?? '') . "\" style='width:70px;{$inStyle}' placeholder='Fakturanr'></div>";
-		print "<div class='topbar-field'>" . $lbl('Beskrivelse:') . "<input type='text' id='{$pfx}_Beskrivelse' value=\"" . htmlspecialchars($d['beskrivelse'] ?? '') . "\" style='width:180px;{$inStyle}' placeholder='Beskrivelse'></div>";
-		print "<div class='topbar-field'>" . $lbl('Debet:') . "<input type='text' id='{$pfx}_Debet' value=\"" . htmlspecialchars($d['debet'] ?? '') . "\" style='width:60px;{$inStyle}' placeholder='Konto'></div>";
-		print "<div class='topbar-field'>" . $lbl('Kredit:') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}' placeholder='Konto'></div>";
-		print "<div class='topbar-field'>" . $lbl('Beløb:') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}' placeholder='0,00'></div>";
-		print "<div class='topbar-field'>" . $lbl('Afd:') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}' placeholder='Afd'></div>";
-		print "<div class='topbar-field'>" . $lbl('Proj:') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}' placeholder='Proj'></div>";
-		print "<div class='topbar-field'>" . $lbl('Valuta:') . "<input type='text' id='{$pfx}_Valuta' value=\"" . htmlspecialchars($d['valuta'] ?? '') . "\" style='width:50px;{$inStyle}' placeholder='DKK'></div>";
-		print "<div class='topbar-field'>" . $lbl('u/m:') . "<input type='checkbox' id='{$pfx}_Momsfri'{$momsfriChecked}></div>";
-		print "<div class='topbar-field'>" . $lbl('Forfald:') . "<input type='text' id='{$pfx}_Forfald' value=\"" . htmlspecialchars($d['forfald'] ?? '') . "\" style='width:85px;{$inStyle}' placeholder='dd-mm-yyyy'></div>";
-		print "<div class='topbar-field'><a href='#' onclick=\"duplicateRow($rowIdJs, $escKladde, $intBilag); return false;\" title='Dupliker linje' style=\"$btnStyle\">$svgCopy &nbsp;Dupliker</a></div>";
+		$linkIcon = '<svg style="width:14px;height:14px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
+		print "<div class='topbar-field' style='justify-content:center;align-items:center;'>" . $lbl($linkIcon) . "<input type='checkbox' class='targetLineCheckbox' value='{$cbVal}'{$cbChecked} style='width:16px;height:16px;cursor:pointer;accent-color:{$GLOBALS['buttonColor']};' title='Tilknyt bilag til denne linje'></div>";
+		print "<div class='topbar-field'>" . $lbl('Bilag #:') . "<input type='text' id='{$pfx}_Bilag' value=\"" . htmlspecialchars($d['bilag'] ?? '') . "\" style='width:55px;{$inStyle}{$roBg}'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Dato:') . "<input type='text' id='{$pfx}_Dato' value=\"" . htmlspecialchars($d['dato'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Faktura:') . "<input type='text' id='{$pfx}_Faktura' value=\"" . htmlspecialchars($d['faktura'] ?? '') . "\" style='width:70px;{$inStyle}{$roBg}' placeholder='Fakturanr'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Beskrivelse:') . "<input type='text' id='{$pfx}_Beskrivelse' value=\"" . htmlspecialchars($d['beskrivelse'] ?? '') . "\" style='width:180px;{$inStyle}{$roBg}' placeholder='Beskrivelse'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Debet:') . "<input type='text' id='{$pfx}_Debet' value=\"" . htmlspecialchars($d['debet'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='Konto'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Kredit:') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='Konto'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Beløb:') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Afd:') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='Afd'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Proj:') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='Proj'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Valuta:') . "<input type='text' id='{$pfx}_Valuta' value=\"" . htmlspecialchars($d['valuta'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='DKK'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('u/m:') . "<input type='checkbox' id='{$pfx}_Momsfri'{$momsfriChecked}{$dis}></div>";
+		print "<div class='topbar-field'>" . $lbl('Forfald:') . "<input type='text' id='{$pfx}_Forfald' value=\"" . htmlspecialchars($d['forfald'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
+		if (!$readOnly) {
+			print "<div class='topbar-field'><a href='#' onclick=\"duplicateRow($rowIdJs, $escKladde, $intBilag); return false;\" title='Dupliker linje' style=\"$btnStyle\">$svgCopy &nbsp;Dupliker</a></div>";
+		}
 		print "</div>"; // topbar-fields-row
 		print "</div>"; // kassebilag-entry
 	};
@@ -1340,8 +1349,12 @@ if ($source == 'kassekladde') {
 		print "<span style=\"$btnStyleDisabled\">Næste bilag $svgChevronRight</span>";
 	}
 	$bilagParam = $displayBilag !== '' ? '&bilag=' . urlencode($displayBilag) : '';
-	print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus Ny linje</a>";
-	print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp;Gem alle</a>";
+	if (!$readOnly) {
+		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus Ny linje</a>";
+		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp;Gem alle</a>";
+	} else {
+		print "<span style='color:#999; font-size:12px; font-weight:bold; padding:3px 8px;'>Bogført</span>";
+	}
 	print "</div>"; // topbar-nav header
 
 	// Count total rows (existing + new if applicable)
@@ -1430,6 +1443,29 @@ if ($source == 'kassekladde') {
 		});
 		</script>";
 	}
+
+	// Ensure at least one checkbox is checked and highlight selected rows
+	print "<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		var cbs = document.querySelectorAll('.targetLineCheckbox');
+		if (cbs.length > 0 && !document.querySelector('.targetLineCheckbox:checked')) {
+			cbs[0].checked = true;
+		}
+		function updateTargetHighlights() {
+			document.querySelectorAll('.kassebilag-entry').forEach(function(e) {
+				e.style.backgroundColor = '';
+			});
+			document.querySelectorAll('.targetLineCheckbox:checked').forEach(function(cb) {
+				var entry = cb.closest('.kassebilag-entry');
+				if (entry) entry.style.backgroundColor = '#e8f4fd';
+			});
+		}
+		cbs.forEach(function(cb) {
+			cb.addEventListener('change', updateTargetHighlights);
+		});
+		updateTargetHighlights();
+	});
+	</script>";
 
 	print "</div>"; // kassebilagTopBar
 }
@@ -2702,10 +2738,22 @@ print <<<JS
 		url.searchParams.delete('poolFile');
 		url.searchParams.delete('poolFile[]');
 		url.searchParams.delete('poolFiles');
-		
+
+		// Get all checked target line checkboxes
+		const targetCheckboxes = document.querySelectorAll('.targetLineCheckbox:checked');
+		const targetSourceIds = Array.from(targetCheckboxes).map(cb => cb.value);
+		// Use the first checked line as primary sourceId (for single-line compat)
+		if (targetSourceIds.length > 0) {
+			url.searchParams.set('sourceId', targetSourceIds[0]);
+		}
+
 		// Create FormData with all required fields
 		const formData = new FormData();
 		formData.append('insertFile', '1');
+		// Pass all selected target line IDs so backend attaches only to these
+		if (targetSourceIds.length > 0) {
+			formData.append('targetSourceIds', targetSourceIds.join(','));
+		}
 		
 		// Add selected files - ONLY use poolFiles (comma-separated) as it's most reliable
 		formData.append('poolFiles', selectedFiles.join(','));
@@ -2856,8 +2904,8 @@ print <<<JS
 		// Show loading indicator
 		const loadingMsg = selectedFiles.length > 1 ? 'Indsætter ' + selectedFiles.length + ' filer...' : 'Indsætter fil...';
 		console.log(loadingMsg);
-		
-		// Send AJAX request (same approach as saveRowData)
+
+		// Send AJAX request - backend handles attaching to all targetSourceIds
 		fetch(url.toString(), {
 			method: 'POST',
 			body: formData,
@@ -2865,36 +2913,24 @@ print <<<JS
 		})
 		.then(response => {
 			console.log('Insert response status:', response.status, response.ok, response.redirected);
-			
-			// Check if response contains redirect or is successful
+
 			if (response.ok || (response.status >= 200 && response.status < 300)) {
-				// Get the response text to check for redirect URL
 				return response.text().then(text => {
-					// Check if response contains a redirect script
+					// Clear sessionStorage for inserted files
+					selectedFiles.forEach(file => {
+						sessionStorage.removeItem('docPool_checked_' + file);
+					});
+
 					const redirectMatch = text.match(/window\.location\.(replace|href)\s*=\s*['"]([^'"]+)['"]/);
 					if (redirectMatch) {
-						// Clear sessionStorage for inserted files
-						selectedFiles.forEach(file => {
-							sessionStorage.removeItem('docPool_checked_' + file);
-						});
-						// Extract redirect URL from response
-						const redirectUrl = redirectMatch[2];
-						window.location.replace(redirectUrl);
+						window.location.replace(redirectMatch[2]);
 					} else {
-						// Clear sessionStorage for inserted files
-						selectedFiles.forEach(file => {
-							sessionStorage.removeItem('docPool_checked_' + file);
-						});
-						// Fallback: construct redirect URL from current context
 						const kladdeId = url.searchParams.get('kladde_id') || '';
 						const fokus = url.searchParams.get('fokus') || '';
 						const source = url.searchParams.get('source') || '';
-						
 						if (source === 'kassekladde' && kladdeId) {
-							const redirectUrl = '../finans/kassekladde.php?kladde_id=' + kladdeId + '&fokus=' + fokus;
-							window.location.replace(redirectUrl);
+							window.location.replace('../finans/kassekladde.php?kladde_id=' + kladdeId + '&fokus=' + fokus);
 						} else {
-							// Reload current page without poolFile params
 							url.searchParams.delete('poolFile[]');
 							url.searchParams.delete('poolFiles');
 							url.searchParams.delete('insertFile');
@@ -2903,7 +2939,6 @@ print <<<JS
 					}
 				});
 			} else {
-				// Error handling
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
 					alert('Fejl ved indsætning (Status: ' + response.status + '). Prøv igen.');

@@ -391,20 +391,41 @@ if (!file_exists($showDoc)) {
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		/* docPoolLog("document inserted successfully"); */
 
-		// Also attach to all sibling lines sharing the same bilag number
+		// Also attach to sibling lines sharing the same bilag number
+		// If targetSourceIds is provided, only attach to those specific lines (user selected checkboxes)
+		// Otherwise fall back to attaching to all siblings
 		if ($source == 'kassekladde' && $sourceId) {
-			$qBilag = db_fetch_array(db_select("SELECT bilag, kladde_id FROM kassekladde WHERE id = '$sourceId'", __FILE__ . " linje " . __LINE__));
-			if ($qBilag && $qBilag['bilag'] && $qBilag['kladde_id']) {
-				$siblingBilag   = (int)$qBilag['bilag'];
-				$siblingKladde  = (int)$qBilag['kladde_id'];
-				$qSiblings = db_select("SELECT id FROM kassekladde WHERE kladde_id = '$siblingKladde' AND bilag = '$siblingBilag' AND id != '$sourceId'", __FILE__ . " linje " . __LINE__);
-				while ($sibling = db_fetch_array($qSiblings)) {
-					// Skip if already attached
-					$alreadyQ = db_fetch_array(db_select("SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '{$sibling['id']}' AND filename = '" . db_escape_string($fileName) . "'", __FILE__ . " linje " . __LINE__));
+			$targetIds = [];
+			if (isset($_POST['targetSourceIds']) && $_POST['targetSourceIds']) {
+				$targetIds = array_map('intval', explode(',', $_POST['targetSourceIds']));
+				$targetIds = array_filter($targetIds, function($id) { return $id > 0; });
+			}
+
+			if (!empty($targetIds)) {
+				// Only attach to the explicitly selected lines (excluding current sourceId which is already done)
+				foreach ($targetIds as $tid) {
+					if ((int)$tid === (int)$sourceId) continue;
+					$alreadyQ = db_fetch_array(db_select("SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$tid' AND filename = '" . db_escape_string($fileName) . "'", __FILE__ . " linje " . __LINE__));
 					if (!$alreadyQ) {
 						$sQtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
-						$sQtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','kassekladde','{$sibling['id']}','". date('U') ."','$userId')";
+						$sQtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','kassekladde','$tid','". date('U') ."','$userId')";
 						db_modify($sQtxt, __FILE__ . " linje " . __LINE__);
+					}
+				}
+			} else {
+				// No specific targets: attach to all siblings with the same bilag number
+				$qBilag = db_fetch_array(db_select("SELECT bilag, kladde_id FROM kassekladde WHERE id = '$sourceId'", __FILE__ . " linje " . __LINE__));
+				if ($qBilag && $qBilag['bilag'] && $qBilag['kladde_id']) {
+					$siblingBilag   = (int)$qBilag['bilag'];
+					$siblingKladde  = (int)$qBilag['kladde_id'];
+					$qSiblings = db_select("SELECT id FROM kassekladde WHERE kladde_id = '$siblingKladde' AND bilag = '$siblingBilag' AND id != '$sourceId'", __FILE__ . " linje " . __LINE__);
+					while ($sibling = db_fetch_array($qSiblings)) {
+						$alreadyQ = db_fetch_array(db_select("SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '{$sibling['id']}' AND filename = '" . db_escape_string($fileName) . "'", __FILE__ . " linje " . __LINE__));
+						if (!$alreadyQ) {
+							$sQtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
+							$sQtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','kassekladde','{$sibling['id']}','". date('U') ."','$userId')";
+							db_modify($sQtxt, __FILE__ . " linje " . __LINE__);
+						}
 					}
 				}
 			}
