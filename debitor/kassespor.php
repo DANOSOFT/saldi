@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-03-26 ---
+// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-04-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 // 20260226 PHR Kreditnota was not shown with 'straksbogfor'
 // 20260326 PHR Added & '$vis_saet' as just POS orders must be listed for most systems
 // 20260326 PHR Removed sum shown bottom left
+// 20260408 PHR Trimming $_POST & made a quickfix for missing or wrong 'tidspkt'
 
 ob_start();
 @session_start();
@@ -107,23 +108,23 @@ if (!isset ($beskrivelse)) $beskrivelse = NULL;
 if (!isset ($logtid)) $logtid = NULL;
 
 if ($submit= if_isset($_POST['submit'])){
-	$status = if_isset($_POST['status']);
-	$fakturadatoer = if_isset($_POST['fakturadatoer']);
-	$logtimes = if_isset($_POST['logtimes']);
-	$afdelinger=if_isset($_POST['afdelinger']);
-	$sort = if_isset($_POST['sort']);
-	$nysort = if_isset($_POST['nysort']);
-	$idnumre = if_isset($_POST['idnumre']);
-	$kontonumre = if_isset($_POST['kontonumre']);
-	$fakturanumre = if_isset($_POST['fakturanumre']);
-	$summer = if_isset($_POST['summer']);
-	$betalinger = if_isset($_POST['betalinger']);
-	$betalinger2 = if_isset($_POST['betalinger2']);
-	$modtagelser = if_isset($_POST['modtagelser']);
-	$modtagelser2 = if_isset($_POST['modtagelser2']);
-	$kasser =  if_isset($_POST['kasser']);
-	$borde =  if_isset($_POST['borde']);
-	$refs =  if_isset($_POST['refs']);
+	$status = trim(if_isset($_POST['status']));
+	$fakturadatoer = trim(if_isset($_POST['fakturadatoer']));
+	$logtimes = trim(if_isset($_POST['logtimes']));
+	$afdelinger=trim(if_isset($_POST['afdelinger']));
+	$sort = trim(if_isset($_POST['sort']));
+	$nysort = trim(if_isset($_POST['nysort']));
+	$idnumre = trim(if_isset($_POST['idnumre']));
+	$kontonumre = trim(if_isset($_POST['kontonumre']));
+	$fakturanumre = trim(if_isset($_POST['fakturanumre']));
+	$summer = trim(if_isset($_POST['summer']));
+	$betalinger = trim(if_isset($_POST['betalinger']));
+	$betalinger2 = trim(if_isset($_POST['betalinger2']));
+	$modtagelser = trim(if_isset($_POST['modtagelser']));
+	$modtagelser2 = trim(if_isset($_POST['modtagelser2']));
+	$kasser =  trim(if_isset($_POST['kasser']));
+	$borde =  trim(if_isset($_POST['borde']));
+	$refs =  trim(if_isset($_POST['refs']));
 	$linjeantal = if_isset($_POST['linjeantal']);
 	$cookievalue="$sort;$nysort;$fakturadatoer;$logtimes;$afdelinger;$sort;$nysort;$idnumre;$fakturanumre;$summer;$betalinger;$betalinger2;$modtagelser;$modtagelser2;$kasser;$refs;$linjeantal;$borde;$status";
 	setcookie("saldi_kassespor", $cookievalue, time()+3600*24*365);
@@ -534,7 +535,6 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 		$id[$x]=$r['id'];
 		$fakturadato[$x]=dkdato($r['fakturadate']);
 		$tidspkt[$x]=substr($r['tidspkt'],-5);
-#if ($bruger_id == -1) echo "$r[tidspkt]<br>";
 		$fakturanr[$x]=$r['fakturanr'];
 		$kasse[$x]=$r['felt_5'];
 		$bord[$x]=$r['nr'];
@@ -580,6 +580,16 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 		$x++;
 	}
 	for ($x=0;$x<count($id);$x++) {
+		if (!strpos($tidspkt[$x],":")) {
+			$qtxt = "SELECT MAX(modtime) AS modtime FROM batch_salg WHERE ordre_id = '$id[$x]'";
+			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$tidspkt[$x] = substr($r[0],11,5);
+				$qtxt = "UPDATE ordrer SET tidspkt = '$tidspkt[$x]' WHERE id = '$id[$x]'";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			}
+
+		}
+
 		$udskriv=1;
 		if (($x>=$start)&&($x<$start+$linjeantal) && ($udskriv)){
 			$y++;
