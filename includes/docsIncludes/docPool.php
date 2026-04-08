@@ -1276,10 +1276,25 @@ if ($source == 'kassekladde') {
 			$bilagLines[] = $bl;
 		}
 
-		if ($intBilag > 0) {
-			$qPB = db_select("SELECT id FROM kassekladde WHERE kladde_id = '$escKladde' AND bilag < $intBilag ORDER BY bilag DESC, id ASC LIMIT 1", __FILE__ . " linje " . __LINE__);
+		if ($displayBilag !== '') {
+			// Find prev bilag that has no document attached (skip bilag groups with documents)
+			$qPB = db_select(
+				"SELECT k.id, k.bilag FROM kassekladde k " .
+				"WHERE k.kladde_id = '$escKladde' AND CAST(k.bilag AS integer) < $intBilag " .
+				"AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.source = 'kassekladde' AND d.source_id::text = k.id::text) " .
+				"ORDER BY CAST(k.bilag AS integer) DESC, k.id ASC LIMIT 1",
+				__FILE__ . " linje " . __LINE__
+			);
 			if ($rPB = db_fetch_array($qPB)) $prevBilagId = $rPB['id'];
-			$qNB = db_select("SELECT id FROM kassekladde WHERE kladde_id = '$escKladde' AND bilag > $intBilag ORDER BY bilag ASC, id ASC LIMIT 1", __FILE__ . " linje " . __LINE__);
+
+			// Find next bilag that has no document attached
+			$qNB = db_select(
+				"SELECT k.id, k.bilag FROM kassekladde k " .
+				"WHERE k.kladde_id = '$escKladde' AND CAST(k.bilag AS integer) > $intBilag " .
+				"AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.source = 'kassekladde' AND d.source_id::text = k.id::text) " .
+				"ORDER BY CAST(k.bilag AS integer) ASC, k.id ASC LIMIT 1",
+				__FILE__ . " linje " . __LINE__
+			);
 			if ($rNB = db_fetch_array($qNB)) $nextBilagId = $rNB['id'];
 		}
 	}
@@ -1329,8 +1344,16 @@ if ($source == 'kassekladde') {
 	print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp;Gem alle</a>";
 	print "</div>"; // topbar-nav header
 
+	// Count total rows (existing + new if applicable)
+	$totalRows = count($bilagLines) + (!$sourceId ? 1 : 0);
+	$collapsible = $totalRows > 1;
+
+	print "<div id='bilagRowsContainer'>";
+
 	// Render all existing lines for this bilag
 	foreach ($bilagLines as $blIdx => $bl) {
+		$hiddenClass = ($collapsible && $blIdx >= 1) ? " style='display:none;'" : "";
+		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
 		$renderBilagRow($bl['id'], [
 			'bilag'       => $bl['bilag'],
 			'dato'        => $bl['transdate'] ? dkdato($bl['transdate']) : '',
@@ -1345,10 +1368,14 @@ if ($source == 'kassekladde') {
 			'momsfri'     => $bl['momsfri'] ?? 0,
 			'forfald'     => $bl['forfaldsdate'] ? dkdato($bl['forfaldsdate']) : '',
 		], $blIdx === 0);
+		print "</div>";
 	}
 
 	// New entry row: always shown when sourceId=0
 	if (!$sourceId) {
+		$newIdx = count($bilagLines);
+		$hiddenClass = ($collapsible && $newIdx >= 1) ? " style='display:none;'" : "";
+		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
 		$renderBilagRow('new', [
 			'bilag'       => $displayBilag,
 			'dato'        => $displayDato,
@@ -1363,6 +1390,45 @@ if ($source == 'kassekladde') {
 			'momsfri'     => $displayMomsfri,
 			'forfald'     => $displayForfald,
 		], empty($bilagLines));
+		print "</div>";
+	}
+
+	print "</div>"; // bilagRowsContainer
+
+	// Toggle button when more than 1 row
+	if ($collapsible) {
+		$hiddenCount = $totalRows - 1;
+		$bilagKey = $escKladde . '_' . $intBilag;
+		print "<a href='#' id='bilagToggleBtn' onclick='toggleBilagRows(); return false;' style=\"$btnStyle; display:block; text-align:center; margin-top:2px; font-size:11px;\">";
+		print "<span id='bilagToggleText'>Vis {$hiddenCount} flere linjer &#9660;</span></a>";
+		print "<script>
+		var bilagStorageKey = 'bilagRowsExpanded_' + " . json_encode($bilagKey) . ";
+		function toggleBilagRows() {
+			var rows = document.querySelectorAll('#bilagRowsContainer .bilag-row-wrapper');
+			var btn = document.getElementById('bilagToggleText');
+			var expanded = rows[1] && rows[1].style.display !== 'none';
+			for (var i = 1; i < rows.length; i++) {
+				rows[i].style.display = expanded ? 'none' : '';
+			}
+			if (expanded) {
+				btn.innerHTML = 'Vis ' + (rows.length - 1) + ' flere linjer &#9660;';
+				localStorage.removeItem(bilagStorageKey);
+			} else {
+				btn.innerHTML = 'Skjul linjer &#9650;';
+				localStorage.setItem(bilagStorageKey, '1');
+			}
+		}
+		document.addEventListener('DOMContentLoaded', function() {
+			if (localStorage.getItem(bilagStorageKey) === '1') {
+				var rows = document.querySelectorAll('#bilagRowsContainer .bilag-row-wrapper');
+				var btn = document.getElementById('bilagToggleText');
+				for (var i = 1; i < rows.length; i++) {
+					rows[i].style.display = '';
+				}
+				if (btn) btn.innerHTML = 'Skjul linjer &#9650;';
+			}
+		});
+		</script>";
 	}
 
 	print "</div>"; // kassebilagTopBar
