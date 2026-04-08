@@ -1194,7 +1194,7 @@ if ($source == 'kassekladde') {
 	$btnStyleDisabled = "color: #999; text-decoration: none; display: flex; align-items: center; background-color: #eee; padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 12px; border: 1px solid #ccc;";
 
 	if ($sourceId) {
-		$qtxt = "select bilag, beskrivelse, transdate, d_type, debet, k_type, kredit, faktura, amount, kladde_id, afd, medarb, ansat, projekt, valuta, momsfri, forfaldsdate from kassekladde where id = '$sourceId'";
+		$qtxt = "select bilag, beskrivelse, transdate, d_type, debet, k_type, kredit, faktura, amount, kladde_id, afd, ansat, projekt, valuta, momsfri, forfaldsdate from kassekladde where id = '$sourceId'";
 		$kladdeInfo = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($kladdeInfo) {
 			$currentKladdeId = $kladdeInfo['kladde_id'];
@@ -1212,7 +1212,6 @@ if ($source == 'kassekladde') {
 			$displayKredit      = htmlspecialchars($kladdeInfo['kredit'] ?? '');
 			$displayAmount      = $kladdeInfo['amount'] ? dkdecimal($kladdeInfo['amount']) : '';
 			$displayAfd         = htmlspecialchars($kladdeInfo['afd'] ?? '');
-			$displayMedarb      = htmlspecialchars($kladdeInfo['medarb'] ?? '');
 			$displayProjekt     = htmlspecialchars($kladdeInfo['projekt'] ?? '');
 			$displayValutaNr = (int)($kladdeInfo['valuta'] ?? 0);
 			if ($displayValutaNr) {
@@ -1242,7 +1241,6 @@ if ($source == 'kassekladde') {
 		$displayKredit      = htmlspecialchars($kredit ?? '');
 		$displayAmount      = htmlspecialchars($sum ?? '');
 		$displayAfd         = '';
-		$displayMedarb      = '';
 		$displayProjekt     = '';
 		$displayValuta      = '';
 		$displayMomsfri     = 0;
@@ -1263,7 +1261,7 @@ if ($source == 'kassekladde') {
 	if ($escKladde && $displayBilag !== '') {
 		$escBilag = db_escape_string($displayBilag);
 		$qAll = db_select(
-			"SELECT id, bilag, beskrivelse, transdate, debet, kredit, faktura, amount, afd, medarb, projekt, valuta, momsfri, forfaldsdate " .
+			"SELECT id, bilag, beskrivelse, transdate, debet, kredit, faktura, amount, afd, projekt, valuta, momsfri, forfaldsdate " .
 			"FROM kassekladde WHERE kladde_id = '$escKladde' AND bilag = '$escBilag' ORDER BY id ASC",
 			__FILE__ . " linje " . __LINE__
 		);
@@ -1302,7 +1300,6 @@ if ($source == 'kassekladde') {
 		print "<div class='topbar-field'>" . $lbl('Kredit:') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}' placeholder='Konto'></div>";
 		print "<div class='topbar-field'>" . $lbl('Beløb:') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}' placeholder='0,00'></div>";
 		print "<div class='topbar-field'>" . $lbl('Afd:') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}' placeholder='Afd'></div>";
-		print "<div class='topbar-field'>" . $lbl('Ansat:') . "<input type='text' id='{$pfx}_Medarb' value=\"" . htmlspecialchars($d['medarb'] ?? '') . "\" style='width:60px;{$inStyle}' placeholder='ID'></div>";
 		print "<div class='topbar-field'>" . $lbl('Proj:') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}' placeholder='Proj'></div>";
 		print "<div class='topbar-field'>" . $lbl('Valuta:') . "<input type='text' id='{$pfx}_Valuta' value=\"" . htmlspecialchars($d['valuta'] ?? '') . "\" style='width:50px;{$inStyle}' placeholder='DKK'></div>";
 		print "<div class='topbar-field'>" . $lbl('u/m:') . "<input type='checkbox' id='{$pfx}_Momsfri'{$momsfriChecked}></div>";
@@ -1343,7 +1340,6 @@ if ($source == 'kassekladde') {
 			'kredit'      => $bl['kredit'] ?? '',
 			'amount'      => $bl['amount'] ? dkdecimal($bl['amount']) : '',
 			'afd'         => $bl['afd'] ?? '',
-			'medarb'      => $bl['medarb'] ?? '',
 			'projekt'     => $bl['projekt'] ?? '',
 			'valuta'      => $bl['valuta'] ?? '',
 			'momsfri'     => $bl['momsfri'] ?? 0,
@@ -1362,7 +1358,6 @@ if ($source == 'kassekladde') {
 			'kredit'      => $displayKredit,
 			'amount'      => $displayAmount,
 			'afd'         => $displayAfd,
-			'medarb'      => $displayMedarb,
 			'projekt'     => $displayProjekt,
 			'valuta'      => $displayValuta,
 			'momsfri'     => $displayMomsfri,
@@ -4569,7 +4564,6 @@ HTML;
 		selectDebtor: "' . findtekst('586', $langId) . ' Debitor",
 		selectCreditor: "' . findtekst('586', $langId) . ' Kreditor",
 		selectDepartment: "' . findtekst('586', $langId) . ' ' . findtekst('274', $langId) . '",
-		selectEmployee: "' . findtekst('586', $langId) . ' Medarbejder",
 		selectCurrency: "' . findtekst('586', $langId) . ' ' . findtekst('776', $langId) . '",
 		selectAmount: "' . findtekst('586', $langId) . ' ' . findtekst('934', $langId) . '",
 		openItems: "Åbne Poster",
@@ -4630,7 +4624,6 @@ HTML;
             fakturanr:   getVal(pfx + 'Faktura'),
             amount:      getVal(pfx + 'Amount'),
             afd:         getVal(pfx + 'Afd'),
-            medarb:      getVal(pfx + 'Medarb'),
             projekt:     getVal(pfx + 'Projekt'),
             valuta:      getVal(pfx + 'Valuta'),
             momsfri:     getCheck(pfx + 'Momsfri'),
@@ -4655,7 +4648,6 @@ HTML;
         fd.append("fakturanr",   v.fakturanr);
         fd.append("sum",         v.amount);
         fd.append("afd",         v.afd);
-        fd.append("medarb",      v.medarb);
         fd.append("projekt",     v.projekt);
         fd.append("valuta",      v.valuta);
         fd.append("momsfri",     v.momsfri);
