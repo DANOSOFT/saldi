@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- patch 4.1.1 --- 2025.08.20---
+// --- lager/rapport.php --- patch 5.0.0 --- 2026.04.08---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -65,7 +65,9 @@
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20250820 PHR Added some line ident comments
 // 20251206 LOE some topline codes moved to ../includes/S_topLine.php also used by other files
+// 20260408 PHR set max_execution_time to 300
 
+ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
