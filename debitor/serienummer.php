@@ -59,7 +59,7 @@ if ($_POST['submit']) {
 					$y++;
 					$qtxt = "update serienr set serienr='$serienr[$x]',salgslinje_id='$linje_id' where id='$sn_id[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				} elseif ($valg[$x] != "on") {
+				} elseif ($valg[$x] != "on" && $sn_id[$x]) {
 					$qtxt = "update serienr set salgslinje_id=0 where id=$sn_id[$x]";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} elseif ($sn_id[$x]) {
