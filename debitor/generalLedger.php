@@ -377,7 +377,8 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 		}
 		$refCell = debitorGeneralLedgerEscape($entry['refnr']);
 		if ($entry['kladde_id']) {
-			$refCell = "<a style='cursor:pointer;' title='Kladde ID: " . debitorGeneralLedgerEscape($entry['kladde_id']) . "' onclick=\"window.open('../finans/kassekladde.php?kladde_id=" . (int)$entry['kladde_id'] . "&visipop=on')\">" . debitorGeneralLedgerEscape($entry['refnr']) . "</a>";
+			$ledgerReturnUrl = '../debitor/' . debitorGeneralLedgerUrl($baseParams);
+			$refCell = "<a style='cursor:pointer;' title='Kladde ID: " . debitorGeneralLedgerEscape($entry['kladde_id']) . "' href='../finans/kassekladde.php?kladde_id=" . (int)$entry['kladde_id'] . "&returside=" . urlencode($ledgerReturnUrl) . "'>" . debitorGeneralLedgerEscape($entry['refnr']) . "</a>";
 		}
 
 		$debitCell = "0";

@@ -40,8 +40,9 @@ print "<tr><td height='25' align='center' valign='top' class='top-header'>";
 print "<table class='topLine' width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr class='header-row'>"; # Tabel 1.1 ->
 
 # Back button
+$backTargetS = ($backUrl == '../finans/kladdeliste.php') ? "$backUrl?exitDraft=$kladde_id&line=". __line__ : $backUrl;
 print "<td width=5% style='$buttonStyle'>
-	<a href=\"javascript:confirmClose('$backUrl?exitDraft=$kladde_id&line=". __line__ ."','$tekst')\" accesskey='L'>
+	<a href=\"javascript:confirmClose('" . htmlspecialchars($backTargetS, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 	$icon_back ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 

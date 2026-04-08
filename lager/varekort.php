@@ -1196,7 +1196,7 @@ if ($menu == 'T') {
     }else{ 
        if ($opener != 'varer.php') {
             print "<td width=\"10%\">
-                <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>
+                <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&vare_id=$id','$tekst')\" accesskey=L>
                 <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
         } else {
             print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>
@@ -1227,7 +1227,7 @@ if ($menu == 'T') {
     print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
     $tmp = ($popup) ? "onClick=\"javascript=opener.location.reload();\"" : "";
     if ($opener != 'varer.php')
-        print "<td width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
+        print "<td width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&vare_id=$id','$tekst')\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
     else
         print "<td width=\"10%\" $tmp $top_bund> <a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>Luk</a></td>\n";
     print "<td width=\"70%\" $top_bund align=\"center\">".findtekst('566|Varekort', $sprog_id)."</td>\n";
