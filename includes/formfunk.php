@@ -1397,7 +1397,7 @@ if (!function_exists('formularprint')) {
 			print "<!-- kommentar for at skjule uddata til siden \n";
 			if (!file_exists("../logolib/$db_id"))
 				mkdir("../logolib/$db_id");
-			if (file_exists($pdftk) && file_exists("../logolib/$db_id/$bgr.pdf")) {
+			if (file_exists($pdftk) && (file_exists("../logolib/$db_id/$bgr.pdf") || ($background_pdf_path && file_exists($background_pdf_path)))) {
 				$logoart = 'PDF';
 			} elseif ($udskriv_til == 'PDF-tekst') {
 				$logoart = 'PDF';
@@ -1416,7 +1416,6 @@ if (!function_exists('formularprint')) {
 				$logo = "../logolib/$db_id/afd$afd/$bgr.ps";
 				$logoart = 'PS';
 				$logo_found = true;
-
 			} else {
 				$query = db_select("select * from formularer where formular = '$formular' and art = '1' and beskrivelse = 'LOGO' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {

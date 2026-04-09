@@ -1,10 +1,18 @@
 <?php
 include "saldiinfoCA.php";
 
-// Logging function
+// Logging functions
 function writeLog($message, $type = 'INFO') {
     global $db;
     $logFile = '/var/www/html/pos/temp/'.$db.'/customAudio.log';
+    $timestamp = date('Y-m-d H:i:s');
+    $logEntry = "[$timestamp] [$type] $message" . PHP_EOL;
+    file_put_contents($logFile, $logEntry, FILE_APPEND);
+}
+
+function writeLogUpdate($message, $type = 'INFO') {
+    global $db;
+    $logFile = '/var/www/html/pos/temp/'.$db.'/customAudioChanges.log';
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] [$type] $message" . PHP_EOL;
     file_put_contents($logFile, $logEntry, FILE_APPEND);
@@ -79,9 +87,16 @@ if(isset($_GET["put_new_orders"])){
         if ($deliveryPrice > 0 && isset($order->Delivery->Vat) && $order->Delivery->Vat) {
             $deliveryVat = $deliveryPrice * $order->Vat;
         }
-        // Kreditnota: FRAGT line uses antal=-1 with positive pris, so delivery subtracts from totals
-        $nettosum = $order->Total + ($isKreditnota ? -$deliveryPrice : $deliveryPrice);
-        $momssum = $vatPrice + ($isKreditnota ? -$deliveryVat : $deliveryVat);
+        // For kreditnotas, Dandomain's Total already includes delivery (it's the full negative amount).
+        // The FRAGT line is still added separately (antal=-1), so nettosum must equal Total as-is.
+        // For normal orders, Total excludes delivery, so we add deliveryPrice to match items (products + FRAGT).
+        if ($isKreditnota) {
+            $nettosum = $order->Total;
+            $momssum = $order->Total * $order->Vat;
+        } else {
+            $nettosum = $order->Total + $deliveryPrice;
+            $momssum = $vatPrice + $deliveryVat;
+        }
         
         // Extract transaction data for up to 2 cards
         // ekstra1 = card type 1, ekstra2 = amount paid with card 1
@@ -198,8 +213,10 @@ if(isset($_GET["put_new_orders"])){
                     }else{
                         // Pure discount line (e.g. "Rabat"): use negative price
                         $orderLine->Price = -$orderLine->Discount;
-                        $isPureDiscountLine = true;
                     }
+                }
+                if($orderLine->Price < 0){
+                    $isPureDiscountLine = true;
                 }
                 $varenr = $isPureDiscountLine ? "R" : $orderLine->ItemNumber;
                 $urltxt="action=insert_shop_orderline&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id;
@@ -279,16 +296,39 @@ if(isset($_GET["put_new_orders"])){
     // DiscountType = The type of discount given in Discount, either 'p' for percent or 'a' for a amount
     // Discount = The discount given on the product
     $sku = $_GET["itemNo"];
-    writeLog("=== Stock update request === SKU: $sku | New stock: $stock");
+    writeLogUpdate("=== Stock update request === SKU: $sku | New stock: $stock");
 
     try {
         $Client = new SoapClient('service.wsdl');
         $Client->Solution_Connect (array('Username' => 'Saldi@API.dk', 'Password' =>'u4rHNwP2eG7h9ja'));
         $parameter = ["ItemNumber" => $sku, "Stock" => $stock];
-        $ProductReturn = $Client->Product_Update(array('ProductData' => $parameter));
-        writeLog("Stock updated successfully for SKU: $sku | Response: " . json_encode($ProductReturn));
+        try {
+            $ProductReturn = $Client->Product_Update(array('ProductData' => $parameter));
+            writeLogUpdate("Stock updated successfully for SKU: $sku | Response: " . json_encode($ProductReturn));
+        } catch (Throwable $e) {
+            // Product not found as product — look up as variant and use stock location update
+            writeLogUpdate("Product_Update failed for SKU: $sku, looking up variant - " . $e->getMessage());
+            $Client->Product_SetVariantFields(array('Fields' => 'Id,ItemNumber'));
+            $variantResult = $Client->Product_GetVariantsByItemNumber(array('ItemNumber' => $sku));
+            $variants = isset($variantResult->Product_GetVariantsByItemNumberResult->item)
+                ? $variantResult->Product_GetVariantsByItemNumberResult->item
+                : null;
+            if (!$variants) {
+                throw new Exception("No variant found with item number '$sku'");
+            }
+            if (!is_array($variants)) {
+                $variants = [$variants];
+            }
+            $variantId = $variants[0]->Id;
+            $StockReturn = $Client->Product_UpdateVariantStockForStockLocation(array(
+                'VariantId' => $variantId,
+                'StockLocationId' => 1,
+                'Stock' => $stock
+            ));
+            writeLogUpdate("Variant stock updated for SKU: $sku (VariantId: $variantId) | Response: " . json_encode($StockReturn));
+        }
     } catch (Throwable $e) {
-        writeLog("Stock update failed for SKU: $sku - " . $e->getMessage(), 'ERROR');
+        writeLogUpdate("Stock update failed for SKU: $sku - " . $e->getMessage(), 'ERROR');
     }
  }
  if(isset($_GET["salesPrice"])){
@@ -296,7 +336,7 @@ if(isset($_GET["put_new_orders"])){
     $price = $_GET["salesPrice"];
     $discountType = $_GET["discountType"];
     $discount = $_GET["discount"];
-    writeLog("=== Price update request === SKU: $sku | Price: $price | Discount: $discount | Type: $discountType");
+    writeLogUpdate("=== Price update request === SKU: $sku | Price: $price | Discount: $discount | Type: $discountType");
     
     if($discountType != "" && $discountType == "percent"){
         $discountType = "p";
@@ -308,25 +348,39 @@ if(isset($_GET["put_new_orders"])){
         $Client = new SoapClient('service.wsdl');
         $Client->Solution_Connect (array('Username' => 'Saldi@API.dk', 'Password' =>'u4rHNwP2eG7h9ja'));
         $parameter = ["ItemNumber" => $sku, "Price" => $price, "DiscountType" => $discountType, "Discount" => $discount];
-        $ProductReturn = $Client->Product_Update(array('ProductData' => $parameter));
-        writeLog("Price updated successfully for SKU: $sku | Response: " . json_encode($ProductReturn));
+        try {
+            $ProductReturn = $Client->Product_Update(array('ProductData' => $parameter));
+            writeLogUpdate("Price updated successfully for SKU: $sku | Response: " . json_encode($ProductReturn));
+        } catch (Throwable $e) {
+            // Product not found — try as variant item number
+            writeLogUpdate("Product_Update failed for SKU: $sku, trying Product_UpdateVariant - " . $e->getMessage());
+            $VariantReturn = $Client->Product_UpdateVariant(array('VariantData' => $parameter));
+            writeLogUpdate("Variant price updated successfully for SKU: $sku | Response: " . json_encode($VariantReturn));
+        }
     } catch (Throwable $e) {
-        writeLog("Price update failed for SKU: $sku - " . $e->getMessage(), 'ERROR');
+        writeLogUpdate("Price update failed for SKU: $sku - " . $e->getMessage(), 'ERROR');
     }
  }
  if(isset($_GET["costPrice"])){
     $sku = $_GET["itemNo"];
     $costPrice = $_GET["costPrice"];
-    writeLog("=== Cost price update request === SKU: $sku | Cost price: $costPrice");
+    writeLogUpdate("=== Cost price update request === SKU: $sku | Cost price: $costPrice");
     
     try {
        $Client = new SoapClient('service.wsdl');
        $Client->Solution_Connect (array('Username' => 'Saldi@API.dk', 'Password' =>'u4rHNwP2eG7h9ja'));
        $parameter = ["ItemNumber" => $sku, "BuyingPrice" => $costPrice];
-        $ProductReturn = $Client->Product_Update(array('ProductData' => $parameter));
-        writeLog("Cost price updated successfully for SKU: $sku | Response: " . json_encode($ProductReturn));
+        try {
+            $ProductReturn = $Client->Product_Update(array('ProductData' => $parameter));
+            writeLogUpdate("Cost price updated successfully for SKU: $sku | Response: " . json_encode($ProductReturn));
+        } catch (Throwable $e) {
+            // Product not found — try as variant item number
+            writeLogUpdate("Product_Update failed for SKU: $sku, trying Product_UpdateVariant - " . $e->getMessage());
+            $VariantReturn = $Client->Product_UpdateVariant(array('VariantData' => $parameter));
+            writeLogUpdate("Variant cost price updated successfully for SKU: $sku | Response: " . json_encode($VariantReturn));
+        }
     } catch (Throwable $e) {
-        writeLog("Cost price update failed for SKU: $sku - " . $e->getMessage(), 'ERROR');
+        writeLogUpdate("Cost price update failed for SKU: $sku - " . $e->getMessage(), 'ERROR');
     }
  }
 

@@ -34,8 +34,12 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 
 	// include online.php to get user DB
 	include "online.php"; */
-	$apiUrl = "http://72.62.59.20:5000/extract-invoice";
-	$apiKey = "change-me-in-production";
+	$apiUrl = "https://ai.saldi.dk/invoice-extraction";
+	include "../connect.php";
+	$query = db_select("SELECT var_value FROM settings WHERE var_name = 'apikey' AND var_grp = 'app_api'", __FILE__ . " linje " . __LINE__);
+	$row = db_fetch_array($query);
+	$apiKey = $row["var_value"];
+	//include "../online.php";
 	// Try to get API URL from settings
 	/* $qtxt = "SELECT var_value FROM settings WHERE var_name = 'invoiceExtractionApiUrl' AND var_grp = 'api'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -180,7 +184,6 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$curlError = curl_error($ch);
 	curl_close($ch);
 
-	// file_put_contents('response.json', $response);
 	// Check for cURL errors
 	if ($curlError) {
 		error_log("cURL error calling invoice extraction API: $curlError");
