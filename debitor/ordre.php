@@ -4086,17 +4086,23 @@ function ordreside($id, $regnskab)
 				print "<td align=\"right\" title=\"Kostpris $dk_lineCost[$x] * db: $dk_db[$x] * dg: $dk_dg[$x]%\">" . $tmp . "</td>\n";
 			} else print "<td>&nbsp;</td>\n";
 			print "<input type=\"hidden\" name=\"projekt[$x]\" value=\"$projekt[$x]\">\n";
-			if ($vis_projekt && !$projekt[0] && $projekt[$x]) {
-				$qtxt = "select beskrivelse from grupper where art = 'PROJ' and kodenr='$projekt[$x]'";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				print "<td align=\"right\" title=\"'$r[projekt]'\">$projekt[$x]</td>\n";
-			} // else print "<td></td>"; # udkommenteret 20140502
-			print $kdo[$x];
+			
+			if ($vis_projekt && !$projekt[0]) {
+				if ($projekt[$x]) {
+					$qtxt = "select beskrivelse from grupper where art = 'PROJ' and kodenr='$projekt[$x]'";
+					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					print "<td align=\"right\" title=\"$r[beskrivelse]\">$projekt[$x]</td>\n";
+				} else {
+					print "<td></td>\n";
+				}
+			}
+
 			if ($genfakt) {
 				print "<td align=\"center\">";
 				if ($kdo[$x]) print "<b>&radic;</b>";
 				print "</td>";
 			}
+
 			if ($omvbet[$x]) $omvbet[$x] = "&radic;";
 			if ($omkunde) print "<td align=\"center\">$omvbet[$x]</td>\n";
 			if ($kobs_ordre_id[0] && $art != 'DK' && $ko_ant[$x] >= 1) {

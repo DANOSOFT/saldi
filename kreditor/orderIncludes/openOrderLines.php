@@ -81,7 +81,7 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) $tmp=dkdecimal($ialt,2);
   else $tmp=NULL;
   print "<td align=right><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee;text-align:right' readonly='readonly' size=10 value='$tmp'></td>";
-  if ($vis_projekt && !$projekt[0]) {
+  if ($vis_projekt) {
   print "<td><input class='inputbox' style='width:50px;' name='projekt[$x]' value='{$projekt[$x]}' onfocus='document.forms[0].fokus.value=this.name;'></td>";
 }
 if ($status>=1) {
