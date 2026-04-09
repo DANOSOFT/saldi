@@ -32,6 +32,12 @@ if ($r['data_type'] == 'numeric') {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
+$qtxt = "SELECT * FROM information_schema.columns WHERE table_name = 'ordrer' and column_name = 'kontonr' limit 1";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+if ($r['data_type'] == 'numeric') {
+	$qtxt = "ALTER TABLE ordrer ALTER column kontonr TYPE varchar(30)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 $qtxt = "update grupper set box2 = '' where art = 'USET'";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -201,7 +207,6 @@ if ($r && $r['character_maximum_length'] < 50) {
 	db_modify("ALTER TABLE ordrer ALTER COLUMN phone TYPE VARCHAR(50)", __FILE__ . " linje " . __LINE__);
 }
 
-
 // Ensure pool_files table exists with all columns
 $qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pool_files'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -237,7 +242,8 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // Because of an earlier error, table pool_files may be created without autoincrement, This fix that.
 $qtxt = "SELECT column_default, identity_generation, pg_get_serial_sequence('pool_files', 'id') AS seq ";
 $qtxt.= "FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = 'id'";
-if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+if (!$r['seq']) {
 	$qtxt = "CREATE SEQUENCE IF NOT EXISTS pool_files_id_seq";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	$qtxt = "UPDATE pool_files SET id = nextval('pool_files_id_seq') WHERE id IS NULL";
@@ -249,21 +255,7 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE pool_files ALTER COLUMN id SET DEFAULT nextval('pool_files_id_seq')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
-// Because of an earlier error, table pool_files may be created without autoincrement, This fix that.
-$qtxt = "SELECT column_default, identity_generation, pg_get_serial_sequence('pool_files', 'id') AS seq ";
-$qtxt.= "FROM information_schema.columns WHERE table_name = 'pool_files' AND column_name = 'id'";
-if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE SEQUENCE IF NOT EXISTS pool_files_id_seq";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	$qtxt = "UPDATE pool_files SET id = nextval('pool_files_id_seq') WHERE id IS NULL";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	$qtxt = "SELECT setval('pool_files_id_seq', COALESCE((SELECT MAX(id) FROM pool_files), 1), true)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	$qtxt = "ALTER TABLE pool_files ALTER COLUMN id SET NOT NULL";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	$qtxt = "ALTER TABLE pool_files ALTER COLUMN id SET DEFAULT nextval('pool_files_id_seq')";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
+
 // Create kontakt_emails table for multiple emails per customer
 $qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='kontakt_emails'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {

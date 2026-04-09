@@ -3,34 +3,34 @@
 print "<div style=\"float:left; width:379px;\">\n";
 print "<h3>&nbsp;</h3>\n";
 print "<div class=\"contentA\">\n";
-print "<div class=\"row\"><div class=\"left\">".findtekst(376,$sprog_id)."<!--tekst 376--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"cvrnr\" value=\"$cvrnr\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('376|CVR-nr.', $sprog_id)."<!--tekst 376--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"cvrnr\" value=\"$cvrnr\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<div class=\"row\"><div class=\"left\">".findtekst(377,$sprog_id)."<!--tekst 377--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"tlf\" value=\"$tlf\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"tlf\" value=\"$tlf\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<div class=\"row\"><div class=\"left\">".findtekst(378,$sprog_id)."<!--tekst 378--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"fax\" value=\"$fax\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('378|Telefax', $sprog_id)."<!--tekst 378--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"fax\" value=\"$fax\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 if ($kontotype=='erhverv') {
 	//($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-	print "<div class=\"row\"><div class=\"left\">".findtekst(379,$sprog_id)."<!--tekst 379--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"ean\" value=\"$ean\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('379|EAN-nr.', $sprog_id)."<!--tekst 379--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"ean\" value=\"$ean\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	//($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-	print "<div class=\"row\"><div class=\"left\">".findtekst(380,$sprog_id)."<!--tekst 380--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"institution\" value=\"$institution\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('380|Institutionsnr.', $sprog_id)."<!--tekst 380--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"institution\" value=\"$institution\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 }
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<div class=\"row\"><div class=\"left\">".findtekst(381,$sprog_id)."<!--tekst 381--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"kreditmax\" style=\"text-align:right;\" value=\"$kreditmax\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('381|Kreditmax', $sprog_id)."<!--tekst 381--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"kreditmax\" style=\"text-align:right;\" value=\"$kreditmax\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<div class=\"row\"><div class=\"left\">".findtekst(382,$sprog_id)."<!--tekst 382--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"bank_reg\" value=\"$bank_reg\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('382|Bank reg.', $sprog_id)."<!--tekst 382--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"bank_reg\" value=\"$bank_reg\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<div class=\"row\"><div class=\"left\">".findtekst(383,$sprog_id)."<!--tekst 383--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"bank_konto\" value=\"$bank_konto\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('383|Bankkonto', $sprog_id)."<!--tekst 383--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"bank_konto\" value=\"$bank_konto\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 ##################### PBS ##################### 
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 if ($pbs) {
-	print "<div class=\"row\"><div class=\"left\">".findtekst(384,$sprog_id)."<!--tekst 384--></div><div class=\"right\"><input class=\"textSpaceSmall\" type=\"checkbox\" name=\"pbs\" $pbs><input class=\"textSpace textMediumX textIndent\" type=\"text\" name=\"pbs_nr\" value=\"$pbs_nr\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('384|BS-nr.', $sprog_id)."<!--tekst 384--></div><div class=\"right\"><input class=\"textSpaceSmall\" type=\"checkbox\" name=\"pbs\" $pbs><input class=\"textSpace textMediumX textIndent\" type=\"text\" name=\"pbs_nr\" value=\"$pbs_nr\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 } else {
-	print "<div class=\"row\"><div class=\"left\">".findtekst(385,$sprog_id)."<!--tekst 385--></div><div class=\"right\"><input class=\"textSpaceSmall\" type=\"checkbox\" name=\"pbs\" $pbs></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('385|BS', $sprog_id)."<!--tekst 385--></div><div class=\"right\"><input class=\"textSpaceSmall\" type=\"checkbox\" name=\"pbs\" $pbs></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 }
 ##################### KONTOANSVARLIG ##################### 
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 /*
-print "<div class=\"row\"><div class=\"left\">".findtekst(386,$sprog_id)."<!--tekst 386--></div>\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('386|Kundeansvarlig', $sprog_id)."<!--tekst 386--></div>\n";
 	$r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'",__FILE__ . " linje " . __LINE__));
 print "<div class=\"right\"><select style=\"width:194px;\" name=\"kontoansvarlig\" value=\"$kontoansvarlig\"  onchange=\"javascript:docChange = true;\">\n"; // ?? value i select tag ??
 if ($r['initialer']) {
@@ -78,7 +78,7 @@ print "</select></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 		$x++;
 	}
 	
-print "<div class=\"row\"><div class=\"left\">".findtekst(386,$sprog_id)."<!--tekst 386--></div>\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('386|Kundeansvarlig', $sprog_id)."<!--tekst 386--></div>\n";
 print "<div class=\"right\"><select style=\"width:194px;\" name=\"kontoansvarlig\" onchange=\"javascript:docChange = true;\">\n"; 
 	for ($x=0;$x<count($kontoansvarlig_id);$x++) {
 		if ($kontoansvarlig==$kontoansvarlig_id[$x]) print "<option value=\"$kontoansvarlig_id[$x]\">$ansvarlig[$x]&nbsp;</option>\n"; 
@@ -96,9 +96,9 @@ for ($x=0;$x<$status_antal;$x++) {
 }
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 if ($new_status) {
- print "<div class=\"row\"><div class=\"left\" title=\"".findtekst(497,$sprog_id)."\"><!--tekst 497-->".findtekst(494,$sprog_id)."<!--tekst 494--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"ny_status\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+ print "<div class=\"row\"><div class=\"left\" title=\"".findtekst('497|Navn på ny status.', $sprog_id)."\"><!--tekst 497-->".findtekst('494|Status', $sprog_id)."<!--tekst 494--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"ny_status\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 } else {
-	print "<div class=\"row\"><div class=\"left\" title='".findtekst(496,$sprog_id)."'><!--tekst 496-->".findtekst(494,$sprog_id)."<!--tekst 494--></div>\n";
+	print "<div class=\"row\"><div class=\"left\" title='".findtekst('496|Vælg \'Ny Status\' for at tilføje en ny status', $sprog_id)."'><!--tekst 496-->".findtekst('494|Status', $sprog_id)."<!--tekst 494--></div>\n";
 	print "<div class=\"right\"><select style=\"width:194px;\" name=\"status\" onchange=\"javascript:docChange = true;\">\n";
 	if (!$status) print "<option>&nbsp;</option>\n";
 	for ($x=0;$x<$status_antal;$x++) {
@@ -108,12 +108,12 @@ if ($new_status) {
 		if ($status!=$status_id[$x]) print "<option value=\"$status_id[$x]\">$status_beskrivelse[$x]&nbsp;</option>\n";
 	}
 	if ($status) print "<option>&nbsp;</option>\n";
-	print "<option value=\"new_status\">".findtekst(495,$sprog_id)."<!--tekst 495--></option>\n";
+	print "<option value=\"new_status\">".findtekst('495|Ny status', $sprog_id)."<!--tekst 495--></option>\n";
 	print "</select></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 }
 ##################### LUKKET ##################### 
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<div class=\"row\"><div class=\"left\">".findtekst(387,$sprog_id)."<!--tekst 387--></div><div class=\"right\"><input class=\"textSpaceSmall\" type=\"checkbox\" name=\"lukket\" $lukket></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('387|Lukket', $sprog_id)."<!--tekst 387--></div><div class=\"right\"><input class=\"textSpaceSmall\" type=\"checkbox\" name=\"lukket\" $lukket></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 print "</div><!-- end of contentA -->\n";
 print "</div><!-- end of right container -->\n";
 ?>

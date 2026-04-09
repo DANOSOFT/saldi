@@ -1081,13 +1081,19 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if (file_exists("../../css")) $cssPath = "../../css";
 		elseif (file_exists("../../../css")) $cssPath = "../../../css";
 	}
-	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css\">\n";
-	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css\">\n";
-	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/accountAutocomplete.css\">\n";
-    print '<link rel="stylesheet" type="text/css" href="../css/datepickerDa.css">';
+	$v1 = @filemtime("$cssPath/docpool-variables.css") ?: 0;
+	$v2 = @filemtime("$cssPath/docpool.css") ?: 0;
+	$v3 = @filemtime("../css/accountAutocomplete.css") ?: 0;
+	$v4 = @filemtime("../css/datepickerDa.css") ?: 0;
+	$v5 = @filemtime("../javascript/accountAutocomplete.js") ?: 0;
+	$v6 = @filemtime("../javascript/datepickerDa.js") ?: 0;
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css?v=$v1\">\n";
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css?v=$v2\">\n";
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/accountAutocomplete.css?v=$v3\">\n";
+    print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/datepickerDa.css?v=$v4\">";
     print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
-	print '<script src="../javascript/accountAutocomplete.js"></script>';
-    print '<script src="../javascript/datepickerDa.js"></script>';
+	print "<script src=\"../javascript/accountAutocomplete.js?v=$v5\"></script>";
+    print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
 		.icon-svg { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; fill: none; stroke: currentColor; }
@@ -1297,6 +1303,15 @@ if ($source == 'kassekladde') {
 			);
 			if ($rNB = db_fetch_array($qNB)) $nextBilagId = $rNB['id'];
 		}
+	}
+
+	// Reorder so the selected sourceId row comes first
+	if ($sourceId && count($bilagLines) > 1) {
+		usort($bilagLines, function($a, $b) use ($sourceId) {
+			if ((string)$a['id'] === (string)$sourceId) return -1;
+			if ((string)$b['id'] === (string)$sourceId) return 1;
+			return (int)$a['id'] - (int)$b['id'];
+		});
 	}
 
 	// Helper: render one full editable entry row

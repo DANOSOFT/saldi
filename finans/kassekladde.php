@@ -260,7 +260,7 @@ $r = db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' 
 ($r['box10']) ? $vis_bet_id = 1         : $vis_bet_id = 0;
 if ($_GET) {
 	$returside = if_isset($_GET['returside']);
-	if (!$returside)           $returside = "../finans/kladdeliste.php'";
+	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
 	$sort            =       if_isset($_GET['sort']);
 	$kksort          =       if_isset($_GET['kksort']); #sortering i kassekladde
