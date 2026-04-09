@@ -5,6 +5,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 	global $sag_rettigheder;
 	global $overtid_50pct;
 	global $overtid_100pct;
+	global $sprog_id;
 	
 	$afvis=NULL;$ansatte=NULL;$afsluttet=NULL;
 	$beskyttet=NULL;
@@ -73,7 +74,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 		if (($loen_art=='akk_afr' || $loen_art=='akkord') && $sag_nr) {
 		$r=db_fetch_array(db_select("select id,nummer from loen where (art='akk_afr' or art='akkord') and sag_nr = '$sag_nr' and opg_nr = '$opg_nr' and afsluttet = '' and afvist = '' and id != '$id'",__FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
-				$txt="Der eksisterer allerede en uafsluttet akkordseddel (nr: $r[nummer]) til $listevalg for den ".$loendate." på sag nr: $sag_nr, opgave nr:$opg_nr!";
+				$txt=findtekst('3038|Der eksisterer allerede en uafsluttet akkordseddel', $sprog_id)." (nr: $r[nummer]) ".findtekst('3131|til', $sprog_id)." $listevalg ".findtekst('3039|for den', $sprog_id)." ".$loendate." ".findtekst('3040|på sag nr.', $sprog_id)." $sag_nr, ".findtekst('3041|opgave nr.', $sprog_id)." $opg_nr!"; #Der eksisterer allerede en uafsluttet akkordseddel [nr.] til [listevalg] for den [løndato] på sag nr. [nr.], opgave nr. [nr.]!
 				print "<BODY onLoad=\"javascript:alert('$txt')\">";
 				$sag_nr='0';
 				$sag_id=0;
@@ -82,7 +83,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 		if ($loen_art=='akktimer' && $sag_nr) {
 			$r=db_fetch_array(db_select("select id,nummer from loen where (art='akktimer' or art='akkord') and loendate='".usdate($loendato)."' and sag_nr = '$sag_nr' and opg_nr = '$opg_nr' and afsluttet = '' and afvist = '' and (master_id='$id' or master_id='0' or master_id=NULL) and id != '$id'",__FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
-				$txt="Der eksisterer allerede en uafsluttet akkordtimeseddel (nr: $r[nummer]) til $listevalg for den ".$loendate." på sag nr: $sag_nr, opgave nr:$opg_nr!";
+				$txt=findtekst('3042|Der eksisterer allerede en uafsluttet akkordtimeseddel', $sprog_id)." (nr: $r[nummer]) ".findtekst('3131|til', $sprog_id)." $listevalg ".findtekst('3039|for den', $sprog_id)." ".$loendate." ".findtekst('3040|på sag nr.', $sprog_id)." $sag_nr, ".findtekst('3041|opgave nr.', $sprog_id)." $opg_nr!"; #Der eksisterer allerede en uafsluttet akkordtimeseddel [nr] til [listevalg] for den [løndato] på sag nr. [nr.], opgave nr. [nr.]!
 				print "<BODY onLoad=\"javascript:alert('$txt')\">";
 				$sag_nr='0';
 				$sag_id=0;
@@ -106,7 +107,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 								$ret_skur[$x]=NULL;
 								if ($sk1[$i]||$sk2[$i]){
 									$ret_skur[$x]="off";
-									$txt="Der er allerede skur d. ".dkdato($loendate)." for medarb.nr: $medarb_nr[$x] på seddel $r[nummer]";
+									$txt=findtekst('3043|Der er allerede registreret skur', $sprog_id)." ".findtekst('2882|d.', $sprog_id)." ".dkdato($loendate)." ".findtekst('3044|for medarb. nr.', $sprog_id)." $medarb_nr[$x] ".findtekst('3045|på seddel', $sprog_id)." $r[nummer]"; #Der er allerede registreret skur d. [løndato] for medarb. nr. [nr.] på seddel [nr.]
 									print "<BODY onLoad=\"javascript:alert('$txt')\">";
 									$skur1[$x]=NULL;  
 									$skur2[$x]=NULL;
@@ -186,7 +187,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 		if (!$loendato || $loendato=="01-01-1970") {
 			$loendato="01-01-1970"; 
 			$loendate=usdate($loendato);
-			$datotext_errortxt="<span style=\"color: red;\">Dato ikke udfyld</span>";
+			$datotext_errortxt="<span style=\"color: red;\">".findtekst('3019|Dato ikke udfyldt', $sprog_id)."</span>";
 			$datotext_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 			//print "<BODY onLoad=\"javascript:alert('Dato ikke udfyld')\">"; // laves om til css-validering???
 		} else {
@@ -194,7 +195,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 			$datotext_error=NULL;
 		}
 		if (strstr($loen_art,'akk') && !$sag_nr) { // Er ikke sikker på at det er nødvendigt at have 'aconto,regulering,timer' med???
-			$sagsnr_errortxt="<span style=\"color: red;\">Sagsnr ikke valgt</span>";
+			$sagsnr_errortxt="<span style=\"color: red;\">".findtekst('3020|Sagsnr. ikke valgt', $sprog_id)."</span>";
 			$sagsnr_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 			//print "<BODY onLoad=\"javascript:alert('Sagsnr ikke valgt')\">"; // laves om til css-validering???
 		} else {
@@ -202,20 +203,20 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 			$sagsnr_error=NULL;
 		}
 		if ((strstr($loen_art,'akk') || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='timer') && !$opg_nr) {
-			$opgnr_errortxt="<span style=\"color: red;\">Opgave ikke valgt</span>";
+			$opgnr_errortxt="<span style=\"color: red;\">".findtekst('3021|Opgave ikke valgt', $sprog_id)."</span>";
 			$opgnr_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 		} else {
 			$opgnr_errortxt=NULL;
 			$opgnr_error=NULL;
 		}
 		if (!$feriefra && $ferietil) {
-			$feriefratil_errortxt="<span style=\"color: red;\">Ferie 'Fra' er ikke valgt</span>";
+			$feriefratil_errortxt="<span style=\"color: red;\">".findtekst('3022|Ferie Fra er ikke valgt', $sprog_id)."</span>";
 			$feriefra_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 		} elseif ($feriefra && !$ferietil) {
-			$feriefratil_errortxt="<span style=\"color: red;\">Ferie 'Til' er ikke valgt</span>";
+			$feriefratil_errortxt="<span style=\"color: red;\">".findtekst('3023|Ferie Til er ikke valgt', $sprog_id)."</span>";
 			$ferietil_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 		} elseif (!$feriefra && !$ferietil) {
-			$feriefratil_errortxt="<span style=\"color: red;\">Ferie 'Fra' og 'Til' er ikke valgt</span>";
+			$feriefratil_errortxt="<span style=\"color: red;\">".findtekst('3024|Ferie Fra og Til er ikke valgt', $sprog_id)."</span>";
 			$feriefra_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 			$ferietil_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 		} else {
@@ -224,7 +225,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 			$ferietil_error=NULL;
 		}
 		if(!$loen_tekst && ((strstr($loen_art,'akk')) || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='timer')) {
-			$loentext_errortxt="<span style=\"color: red;\">Udført er ikke udfyldt</span>";
+			$loentext_errortxt="<span style=\"color: red;\">".findtekst('3025|Udført er ikke udfyldt', $sprog_id)."</span>";
 			$loentext_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 			//print "<BODY onLoad=\"javascript:alert('Udført er ikke udfyldt')\">"; // laves o til css-validering??
 		} else {

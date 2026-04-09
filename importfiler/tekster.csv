@@ -42,7 +42,7 @@
 42	Afmærk de felter som skal eksporteres	Mark the fields to be exported	Merk feltene som skal eksporteres
 43	Kontonr.	Account no.	Kontonr.
 44	Adresse 1	Address 1	Adresse 1
-45	Adresse 2	Address 2	adresse 2
+45	Adresse 2	Address 2	Adresse 2
 46	By	City	By
 47	Land	Country	Land
 48	CVR-nr.	VAT no.	MVA-nr.
@@ -380,7 +380,7 @@
 380	Institutionsnr.	Institution no.	Institusjonsnr.
 381	Kreditmax	Max credit	Kreditmax
 382	Bank reg.	Bank reg.	Bankreg.
-383	Bank konto	Bank account	bankkonto
+383	Bankkonto	Bank account	Bankkonto
 384	BS-nr.	BS number.	BS-nummer.
 385	BS	BS	BS
 386	Kundeansvarlig	Customer manager	Kundesjef
@@ -663,7 +663,7 @@
 663	Tiltrådt	Joined	Ble med
 664	Løn	Pay	Lønn
 665	Løntillæg	Wage supplement	Lønnstillegg
-666	Postnr & by	ZIP code & city	Post kode & by
+666	Postnr. & by	ZIP code & city	Postnr. & by
 667	E-mail/brug	Email / use	E-post / bruk
 668	Betalingsbet.	Pay.terms	Betalingsbet.
 669	Ny kontakt	New contact	Ny kontakt
@@ -955,7 +955,7 @@
 955	Alle varer fra lev.	All products from supl.	Alle varer fra lev.
 956	Kun mangler	Only missing	Bare mangler
 957	Vareliste	Item list	Vareliste
-958	Oprettet af	Created by	Oprettet av
+958	Oprettet af	Created by	Opprettet av
 959	Modtaget af	Received by	Mottatt av
 960	Modtagelsesdato	Date of receipt	Dato for kvitering
 961	Du opretter en ny modtagelse ved at klikke på <u>Ny</u> øverst til højre.	To create a new receipt, click <u>New</u> at the top right.	For å opprette et nytt mottak, klikk <u>Ny</u> øverst til høyre.
@@ -3193,31 +3193,31 @@
 3193	Vil du slette kontrolskemaet	Do you want to delete the checklist	Vil du slette kontrollskjemaet
 3194	Vil du slette arbejdssedlen	Do you want to delete the work order	Vil du slette arbeidsseddelen
 3195	Vedr.	Re.	Vedr.
-3196	
+3196	Tilbage til certificerings-menu	Back to certification menu	Tilbake til sertifiseringsmeny
 3197	Send arbejdsseddel (e-mail)	Email work order	Send arbeidsseddel (e-post)
 3198	Send kontrolskema (e-mail)	Email checklist	Send kontrollskjema (e-post)
 3199	Sagskontakter	Project contacts	Sakskontakter
 3200	Der er ingen kontakter tilknyttet sagen	There are no contacts linked to the project	Det er ingen kontakter knyttet til saken
 3201	Indtast evt. e-mail	Enter email (opt.)	Skriv inn evt. e-post
 3202	Indtast evt. tekst	Enter text (opt.)	Skriv inn evt. tekst
-3203	
-3204	
-3205	
-3206	
-3207	
-3208	
-3209	
-3210	
-3211	
-3212	
-3213	
-3214	
-3215	
-3216	
-3217	
-3218	
-3219	
-3220	
+3203	Til kontrolskema-liste	To checklist overview	Til kontrollskjema-oversikt
+3204	Slet kunde	Delete customer	Slett kunde
+3205	Vil du slette denne kunde	Do you want to delete this customer	Vil du slette denne kunden
+3206	Liste med sager fra	List of projects from	Liste med saker fra
+3207	Indtastet	Entered	Inntastet
+3208	Tilbage til planlægningsmenu	Back to planning menu	Tilbake til planleggingsmeny
+3209	Planlægning - beregning	Planning - estimation	Planlegging - beregning
+3210	Print &apos;Planlægning - beregning&apos;	Print &apos;Planning - estimation&apos;	Skriv ut &apos;Planlegging - beregning&apos;
+3211	Afl. dato	Del. date	Avl. dato
+3212	Planlægning til sager med &apos;beregning&apos; som status	Planning for projects with &apos;estimation&apos; as status	Planlegging for saker med &apos;beregning&apos; som status
+3213	Her vises dato for oprettelse af sager, og dato for aflevering af tilbud	Here the creation date for projects and the delivery date for offers are displayed	Her vises dato for opprettelse av saker, og dato for levering av tilbud
+3214	For at bruge &apos;Planlægning - beregning&apos; skal sagerne der vises have status &apos;beregning&apos;. Ved start af sag kan der vælges dato for oprettelse af sagen og afleveringsdato af tilbud under &apos;Planlægningsinformation&apos;.	To use &apos;Planning - estimation&apos;, the displayed projects must have &apos;estimation&apos; as their status. When starting a project, the creation date and offer delivery date can be chosen under &apos;Planning information&apos;.	For å bruke &apos;Planlegging - beregning&apos; må sakene som vises ha status &apos;beregning&apos;. Ved oppstart av sak kan man velge dato for opprettelse av saken og leveringsdato for tilbud under &apos;Planleggingsinformasjon&apos;.
+3215	Planlægning - opgaver	Planning - tasks	Planlegging - oppgaver
+3216	Planlagt	Scheduled	Planlagt
+3217	Udf. adr.	Site addr.	Utf. adr.
+3218	Planlægning til opgaver for sager med aktiv status	Planning for tasks on projects with active status	Planlegging for oppgaver på saker med aktiv status
+3219	Her vises start- og slutdato for aktive opgaver	Here the start and end dates for active tasks are displayed	Her vises start- og sluttdato for aktive oppgaver
+3220	For at bruge &apos;Planlægning - opgaver&apos; skal sagerne til opgaverne der vises have en aktiv status. Når status på en opgave er aktiv kan der vælges start- og slutdato for opgavens løbetid under &apos;Planlægningsinformation&apos;.	To use &apos;Planning - tasks&apos;, the projects for the displayed tasks must have an active status. When a task has an active status, the start and end dates for the task duration can be chosen under &apos;Planning information&apos;.	For å bruke &apos;Planlegging - oppgaver&apos; må sakene til oppgavene som vises ha en aktiv status. Når status på en oppgave er aktiv kan man velge start- og sluttdato for oppgavens løpetid under &apos;Planleggingsinformasjon&apos;.
 3221	
 3222	
 3223	
@@ -3251,3 +3251,5 @@
 3251	
 3252	
 3253
+3254	
+3255	
