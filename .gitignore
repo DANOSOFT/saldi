@@ -9,6 +9,8 @@ includes/connect.php
 testshop.php
 saldiinfo.php
 phpmailer/*
+phpmailer
+vendor
 */phpmailer/*
 includes/vendor/
 
