@@ -285,7 +285,7 @@ print "<tr>";
 
 if ($status==1) {
 	print "<td align=center title='".findtekst('1502|Position (ordrelinjenummer)', $sprog_id)."'>Pos.</td><td align=center title='".findtekst(320, $sprog_id)."'>".findtekst(917, $sprog_id).".</td><td align=center title='".findtekst(1511, $sprog_id)."'>".findtekst(952, $sprog_id).".</td><td align=center>".findtekst(916, $sprog_id)."</td><td align=center>".findtekst(945, $sprog_id)."</td><td align=center>".findtekst(914,$sprog_id)."</td><td align=center>".findtekst(915, $sprog_id)."</td><td align=center title='".findtekst(1503, $sprog_id)."'>%</td><td align=center>".findtekst(947, $sprog_id)."</td>";
-	if ($vis_projekt && !$projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
+	if ($vis_projekt && $projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
 	if ($art=='KK') print "<td colspan='2' align='center' title='".findtekst(1508, $sprog_id)."'>".findtekst(937, $sprog_id)."</td>";
 	elseif ($submit == 'split') {
 		print "<td colspan='2' align='center' title='".findtekst(200, $sprog_id)."'>".findtekst(2009, $sprog_id)."</td>";
@@ -293,7 +293,7 @@ if ($status==1) {
 }
 else {
 	print "<td align=center title='".findtekst(1502, $sprog_id)."'>Pos.</td><td align=center title='".findtekst(320, $sprog_id)."'>".findtekst(917, $sprog_id).".</td><td align=center title='".findtekst(1511, $sprog_id)."'>".findtekst(952, $sprog_id).".</td><td align=center>".findtekst(916, $sprog_id)."</td><td>".findtekst(945, $sprog_id)."</td><td align=center>".findtekst(914,$sprog_id)."</td><td align=center>".findtekst(915, $sprog_id)."</td><td align=center title='".findtekst(1503, $sprog_id)."'>%</td><td align=center>".findtekst(947, $sprog_id)."</td>";
-	if ($vis_projekt && !$projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
+	if ($vis_projekt && $projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
 	else print "<td></td>";
 }
 if ($omlev) print "<td title ='".findtekst(1512, $sprog_id)."'>O/B</td>";
