@@ -516,7 +516,7 @@ if (isset($pathParts[0])) {
 	exit;
 } */
 // Wrap the style output in the API check:
-if (!$isApiCall && substr($title, 0, 3) != 'POS' && $title != 'Bordplan' && $firstFolder != "sager") {
+if (!$isApiCall && substr($title, 0, 3) != 'POS' && $title != 'Bordplan' && $firstFolder != "sager" && strpos($path, 'pos_ordre.php') === false) {
 ?>
 <style>
 	/* type submit and type button */
