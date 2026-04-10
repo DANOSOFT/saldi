@@ -112,6 +112,9 @@ while ($r = db_fetch_array($q))	{
 	}
 }
 $linjeantal=$x;
+if (isset($_GET['vare_id']) && $_GET['vare_id'] && $linjeantal > 0) {
+	$fokus = 'anta' . $linjeantal;
+}
 print "<input type='hidden' name='linjeantal' value='$linjeantal'>";
 $sum=0;
 #if ($status==1){$status=2;}
