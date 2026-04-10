@@ -4651,7 +4651,7 @@ function ordreside($id, $regnskab)
 				print "<input type='hidden' name='betalingsdage' value='0'>";
 				print "$betalingsbet";
 				print "</td>";
-				if ($betalingsbet = 'Netto') print "<td></td>";
+				if ($betalingsbet == 'Netto') print "<td></td>";
 			} else {
 				if ($felt_1 == 'Konto') { # Rettet 20181218 
 					if (!in_array($betalingsbet, $kontobet)) {
