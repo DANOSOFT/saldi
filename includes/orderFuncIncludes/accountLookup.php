@@ -426,6 +426,7 @@ HTML;
   <span class="close-btn" onclick="toggleCreateForm(false)" title="Close">&times;</span>
   <h3>$lbl_create</h3>
   <form name="create_debtor" action="ordre.php" method="post" onsubmit="return validateCreateCustomer()">
+   <input type="hidden" name="id" value="$id">
     <table>
       <tr>
         <td></td>

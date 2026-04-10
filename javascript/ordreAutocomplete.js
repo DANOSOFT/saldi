@@ -92,6 +92,7 @@
 
         input.addEventListener('focus', function () {
             if (selectionMade) return;
+            if (this.readOnly) return;
             if (this.value.length >= CONFIG.minSearchLength || type !== 'item') {
                 handleInput(this);
             }

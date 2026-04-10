@@ -207,6 +207,7 @@ if (isset($_POST['create_debtor'])) {
 
 	$konto_id = create_debtor($kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $email, $phone, $cvrnr, $grp, $ean, $betalingsbet, $betalingsdage, $kontakt);
 	if (!$konto_id) $konto_id = 0;
+	if (!$id && isset($_POST['id'])) $id = $_POST['id']; #20260410 - form posts the id
 	if (!$id && isset($_GET['id'])) $id = $_GET['id']; #20221019
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id&konto_id=$konto_id\">\n";
 	exit;
