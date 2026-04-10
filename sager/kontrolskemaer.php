@@ -119,7 +119,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 				item_container_id : '.paging_content',
 				num_page_links_to_display : 10,
 				abort_on_small_lists: true,
-				nav_label_info : 'Viser {0}-{1} af {2}',
+				nav_label_info : '".findtekst('2954|Viser', $sprog_id)." {0}-{1} ".lcfirst(findtekst('2767|Af', $sprog_id))." {2}',
 				nav_label_first : '<<',
 				nav_label_last : '>>',
 				nav_label_prev : '<',

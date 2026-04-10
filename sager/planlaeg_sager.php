@@ -160,7 +160,7 @@
 		list($dayendop, $monthendop,  $yearendop) = explode("-",$plantilop[$x]);
 		$newmonthendop = sprintf('%02d',$monthendop-1);
 		
-		$itemsag = "{ id: \"$sag_id[$x]\", name: \"<span style='color:#078585;float:right;padding-right:5px;'>$sag_nr[$x]<\/span>\", title: \"Planlagt\", start: new Date($yearstartop,$newmonthstartop,$daystartop), end: new Date($yearendop,$newmonthendop,$dayendop)}";
+		$itemsag = "{ id: \"$sag_id[$x]\", name: \"<span style='color:#078585;float:right;padding-right:5px;'>$sag_nr[$x]<\/span>\", title: \"".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($yearstartop,$newmonthstartop,$daystartop), end: new Date($yearendop,$newmonthendop,$dayendop)}";
 		
 	
 		
@@ -209,15 +209,15 @@
 				}
 				
 				$opg_omfangNy = str_replace(array("\n", "\r"), ' ', $opg_omfang[$y]); // Fjerner skjulte linebreaks i omfang (textarea), da ganttView ikke kan vise dem
-				($opg_omfangNy)?$n = "\\nBeskrivelse:\\n".$opg_omfangNy:$n = ''; // Hvis omfang, indsættes det i strengen
+				($opg_omfangNy)?$n = "\\n".findtekst('914|Beskrivelse', $sprog_id).":\\n".$opg_omfangNy:$n = ''; // Hvis omfang, indsættes det i strengen
 				
-				$itemopg .= "{ opg_id: \"$opg_id[$y]\", title: \"Opgave nr:\t$opg_nr[$y]\\nNavn:\t\t$opg_beskrivelse[$y]\\nOprettet:\t$opg_dato[$y]\\nOprettet af:\t$opg_oprettet_af[$y]\\nStatus:\t\t$opg_status[$y]$n\\n\\nPlanlagt\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"},";
+				$itemopg .= "{ opg_id: \"$opg_id[$y]\", title: \"".findtekst('2870|Opgavenr.', $sprog_id).":\t$opg_nr[$y]\\n".findtekst('138|Navn', $sprog_id).":\t\t$opg_beskrivelse[$y]\\n".findtekst('65|Oprettet', $sprog_id).":\t$opg_dato[$y]\\n".findtekst('958|Oprettet af', $sprog_id).":\t$opg_oprettet_af[$y]\\n".findtekst('494|Status', $sprog_id).":\t\t$opg_status[$y]$n\\n\\n".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"},";
 			
 			}
 		
 		$allitems = "$itemsag,$itemopg";
 		//echo "$allitems";
-		$items .= "{ name: \"<a href='sager.php?funktion=vis_sag&sag_id=$sag_id[$x]&konto_id=$konto_id[$x]' title='Sag:\t\t$sag_nr[$x]\\nKunde:\t\t$sag_firmanavn[$x]\\nUdf. adr.:\t$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]\\nAnsvarlig:\t$sag_ansvarlig[$x]\\nStatus:\t\t$status[$x]'>$udf_addr1[$x]<\/a>\", series: [$allitems]},";
+		$items .= "{ name: \"<a href='sager.php?funktion=vis_sag&sag_id=$sag_id[$x]&konto_id=$konto_id[$x]' title='".findtekst('2792|Sag', $sprog_id).":\t\t$sag_nr[$x]\\n".findtekst('35|Kunde', $sprog_id).":\t\t$sag_firmanavn[$x]\\n".findtekst('3217|Udf. adr.', $sprog_id).":\t$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]\\n".findtekst('2793|Ansvarlig', $sprog_id).":\t$sag_ansvarlig[$x]\\n".findtekst('494|Status', $sprog_id).":\t\t$status[$x]'>$udf_addr1[$x]<\/a>\", series: [$allitems]},";
 	
 	}
 	$ganttdata = "[".rtrim($items, ",")."]";
@@ -244,7 +244,7 @@
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
 		<![endif]-->
-		<title>Stillads</title>
+		<title>".findtekst('2783|Stillads', $sprog_id)."</title>
 	</head>
 	<body>
 		<div id=\"wrapper\">";
@@ -254,10 +254,10 @@
 	print "<div id=\"breadcrumbbar\">
 
 				<ul id=\"breadcrumb\">
-					<li><a href=\"../sager/sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+					<li><a href=\"../sager/sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 					<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->";
-					print "<li><a href=\"planlaeg.php\" title=\"Tilbage til planlægning menu\">Planlægning</a></li>\n";
-					print "<li>Planlægning sager</li>\n";
+					print "<li><a href=\"planlaeg.php\" title=\"".findtekst('3208|Tilbage til planlægningsmenu', $sprog_id)."\">".findtekst('2775|Planlægning', $sprog_id)."</a></li>\n";
+					print "<li>".findtekst('3222|Planlægning: sager', $sprog_id)."</li>\n";
 				print "</ul>
 				
 	</div><!-- end of breadcrumbbar -->\n";
@@ -270,7 +270,7 @@
 	if ($planfraop || $planfraned) {
 		print "<div id=\"ganttChart\"></div>\n";
 	} else {
-		print "<div style=\"text-align: center;\"><h3>Planlægning til sager med aktiv status!</h3><br><p style=\"font-size:14px;color:#cd3300;\">Her vises start og slut dato for aktive sager og opgaver.</p><br><p>For at bruge planlægning, skal sagerne der vises have en aktiv status. Når status på en sag er aktiv kan der vælges start og slut dato for sagens løbetid under planlægnings information.</p></div>\n";
+		print "<div style=\"text-align: center;\"><h3>".findtekst('3226|Planlægning til sager med aktiv status', $sprog_id)."!</h3><br><p style=\"font-size:14px;color:#cd3300;\">".findtekst('3227|Her vises start- og slutdato for aktive sager og opgaver', $sprog_id).".</p><br><p>".findtekst('3228|For at bruge Planlægning: sager skal sagerne der vises have en aktiv status. Når status på en sag er aktiv kan der vælges start- og slutdato for sagens løbetid under Planlægningsinformation', $sprog_id).".</p></div>\n";
 	}
 	//print "<br/><br/>";
 	//print "<div id=\"eventMessage\"></div>";

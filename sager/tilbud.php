@@ -1,16 +1,16 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
-	$s_id=session_id();
+	$s_id = session_id();
 
 	
-	$bg="nix";
-	$header='nix';
+	$bg     = "nix";
+	$header = 'nix';
 
-	$menu_sager='id="menuActive"';
-	$menu_dagbog=NULL;
-	$menu_kunder=NULL;
-	$menu_loen=NULL;
-	$menu_ansatte=NULL;
+	$menu_sager   = 'id="menuActive"';
+	$menu_dagbog  = NULL;
+	$menu_kunder  = NULL;
+	$menu_loen    = NULL;
+	$menu_ansatte = NULL;
 
 	$modulnr=0;
 	include("../includes/connect.php");
@@ -35,7 +35,7 @@ if(is_array($templ)){
 			$template[] = array('beskrivelse' => $temp['beskrivelse'], 'tekst' => $temp['tekst']);
 	}
 }else{
-	$template[] = array('beskrivelse' => 'Ingen template', 'tekst' => '');
+	$template[] = array('beskrivelse' => findtekst('3236|Ingen skabelon', $sprog_id), 'tekst' => '');
 }
 /*
   echo '<pre>';
@@ -46,11 +46,11 @@ if(is_array($templ)){
 $id=if_isset($_GET['sag_id']);
 $konto_id=if_isset($_GET['konto_id']);
 
-$query = db_select("SELECT * FROM sager WHERE id = '$id'",__FILE__ . " linje " . __LINE__);
-$row = db_fetch_array($query);
-$sagsnr=$row['sagsnr'];
-$firmanavn=$row['firmanavn'];
-$beskrivelse=$row['beskrivelse'];
+$query       =  db_select("SELECT * FROM sager WHERE id = '$id'",__FILE__ . " linje " . __LINE__);
+$row         =  db_fetch_array($query);
+$sagsnr      = $row['sagsnr'];
+$firmanavn   = $row['firmanavn'];
+$beskrivelse = $row['beskrivelse'];
 ?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -67,7 +67,7 @@ $beskrivelse=$row['beskrivelse'];
                     switch (n) {
                         case 'mytemplate':
                             var mlb = cm.createListBox('mytemplate', {
-                                title : 'Templates',
+                                title : '<?php echo findtekst('803|Skabelon', $sprog_id); ?>',
                                 onselect : function(v){
                                     var ed=this.control_manager.editor; 
                                     ed.focus();
@@ -98,7 +98,7 @@ $beskrivelse=$row['beskrivelse'];
                 tinyMCE.init({
                     // General options
                     mode: "exact",
-                    language : "da",
+                    language : "<?php echo ($sprog_id == 2) ? 'en' : 'da'; ?>",
                     elements : "tilbud",
                     theme : "advanced",
                     plugins : "-mytemplate,autolink,lists,spellchecker,pagebreak,style,layer,table,save,advhr,advimage,advlink,emotions,iespell,inlinepopups,insertdatetime,preview,media,searchreplace,print,contextmenu,paste,directionality,fullscreen,noneditable,visualchars,nonbreaking,xhtmlxtras,template,wordcount",
@@ -138,7 +138,7 @@ $beskrivelse=$row['beskrivelse'];
                 });
         </script>
 <?php
-print "<title>Stillads</title>
+print "<title>".findtekst('2783|Stillads', $sprog_id)."</title>
         
     </head>
     <body>
@@ -148,22 +148,22 @@ print "<title>Stillads</title>
             print "<div id=\"breadcrumbbar\">
 
                 <ul id=\"breadcrumb\">
-                    <li><a href=\"sager.php\" title=\"Sager\"><img src=\"../img/home.png\" alt=\"Sager\" class=\"home\" /></a></li>
-                    <li><a href=\"sager.php\" title=\"Sager\">Sager</a></li>
+                    <li><a href=\"sager.php\" title=\"".findtekst('2774|Sager', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2774|Sager', $sprog_id)."\" class=\"home\" /></a></li>
+                    <li><a href=\"sager.php\" title=\"".findtekst('2774|Sager', $sprog_id)."\">".findtekst('2774|Sager', $sprog_id)."</a></li>
                     <!--<li><a href=\"#\" title=\"Sample page 2\">Sample page 2</a></li>
                     <li><a href=\"#\" title=\"Sample page 3\">Sample page 3</a></li>
                     <li>Current page</li>-->
-                    <li>Nyt tilbud</li>
+                    <li>".findtekst('3251|Nyt tilbud', $sprog_id)."</li>
                 </ul>
 
             </div><!-- end of breadcrumbbar -->
 
             <div id=\"leftmenuholder\">
                 <div class=\"leftmenu\">
-                    <div class=\"leftmenuhead\">Tilbud:</div>
+                    <div class=\"leftmenuhead\">".findtekst('812|Tilbud', $sprog_id).":</div>
                     <ul>
-                        <li><a href=\"sager.php?function=vis_sag&amp;sag_id=$id\">Retur til sag</a></li>
-                        <li><a href=\"template_list.php?sag_id=$id\">Opret/Ret templates</a></li>
+                        <li><a href=\"sager.php?function=vis_sag&amp;sag_id=$id\">".findtekst('2813|Tilbage til sag', $sprog_id)."</a></li>
+                        <li><a href=\"template_list.php?sag_id=$id\">".findtekst('3241|Opret/ret skabeloner', $sprog_id)."</a></li>
                     </ul>
                 </div><!-- end of leftmenu -->
 
@@ -172,7 +172,7 @@ print "<title>Stillads</title>
 
             <div class=\"maincontent\">
 								<div class=\"content\">
-									<p>Tilbud til <b>$firmanavn</b>, sag: <b>$sagsnr</b> $beskrivelse</p>
+									<p>".findtekst('3253|Tilbud til', $sprog_id)." <b>$firmanavn</b>, ".lcfirst(findtekst('2792|Sag', $sprog_id)).": <b>$sagsnr</b> $beskrivelse</p>
 								</div>
                 <div class=\"content\">
                     <form method=\"post\" action=\"\">
@@ -181,8 +181,8 @@ print "<title>Stillads</title>
                                 <td colspan=\"2\"><textarea id=\"tilbud\" name=\"tilbud\" rows=\"20\" cols=\"70\"></textarea></td>
                             </tr>
                             <tr>
-                                <td style=\"padding-top: 10px;\"><input class=\"button gray medium\" type=\"submit\" value=\"Gem\" >
-                                <td style=\"padding-top: 10px;\" align=\"right\"><input class=\"button gray medium\" type=\"reset\" value=\"reset\" ></td>
+                                <td style=\"padding-top: 10px;\"><input class=\"button gray medium\" type=\"submit\" value=\"".findtekst('3|Gem', $sprog_id)."\" >
+                                <td style=\"padding-top: 10px;\" align=\"right\"><input class=\"button gray medium\" type=\"reset\" value=\"".findtekst('1239|Nulstil', $sprog_id)."\" ></td>
                             </tr>
                         </table>
                     </form>
