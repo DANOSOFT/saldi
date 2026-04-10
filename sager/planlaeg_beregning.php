@@ -107,8 +107,8 @@
 					<li><a href=\"../sager/sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 					<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->";
 					print "<li><a href=\"planlaeg.php\" title=\"".findtekst('3208|Tilbage til planlægningsmenu', $sprog_id)."\">".findtekst('2775|Planlægning', $sprog_id)."</a></li>\n";
-					print "<li>".findtekst('3209|Planlægning - beregning', $sprog_id)."</li>\n";
-					if ($beregn_opret) print "<li style=\"float:right;\"><a href=\"#\" title=\"".findtekst('3210|Print Planlægning - beregning', $sprog_id)."\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"".findtekst('3210|Print Planlægning - beregning', $sprog_id)."\" class=\"printIcon\" /></a></li>";
+					print "<li>".findtekst('3209|Planlægning: beregning', $sprog_id)."</li>\n";
+					if ($beregn_opret) print "<li style=\"float:right;\"><a href=\"#\" title=\"".findtekst('3210|Print Planlægning: beregning', $sprog_id)."\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"".findtekst('3210|Print Planlægning: beregning', $sprog_id)."\" class=\"printIcon\" /></a></li>";
 				print "</ul>
 				
 	</div><!-- end of breadcrumbbar -->\n";

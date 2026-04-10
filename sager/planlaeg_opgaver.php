@@ -250,7 +250,7 @@
 					<li><a href=\"../sager/sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 					<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->";
 					print "<li><a href=\"planlaeg.php\" title=\"".findtekst('3208|Tilbage til planlægningsmenu', $sprog_id)."\">".findtekst('2775|Planlægning', $sprog_id)."</a></li>\n";
-					print "<li>".findtekst('3215|Planlægning - opgaver', $sprog_id)."</li>\n";
+					print "<li>".findtekst('3215|Planlægning: opgaver', $sprog_id)."</li>\n";
 				print "</ul>
 				
 	</div><!-- end of breadcrumbbar -->\n";
@@ -263,7 +263,7 @@
 	if ($opg_planfra || $opg_plantil) {
 		print "<div id=\"ganttChart\"></div>\n";
 	} else {
-		print "<div style=\"text-align: center;\"><h3>".findtekst('3218|Planlægning til opgaver for sager med aktiv status', $sprog_id)."!</h3><br><p style=\"font-size:14px;color:#cd3300;\">".findtekst('3219|Her vises start- og slutdato for aktive opgaver', $sprog_id).".</p><br><p>".findtekst('3220|For at bruge Planlægning - opgaver skal sagerne til opgaverne der vises have en aktiv status. Når status på en opgave er aktiv kan der vælges start- og slutdato for opgavens løbetid under Planlægningsinformation.', $sprog_id)."</p></div>\n";
+		print "<div style=\"text-align: center;\"><h3>".findtekst('3218|Planlægning til opgaver for sager med aktiv status', $sprog_id)."!</h3><br><p style=\"font-size:14px;color:#cd3300;\">".findtekst('3219|Her vises start- og slutdato for aktive opgaver', $sprog_id).".</p><br><p>".findtekst('3220|For at bruge Planlægning: opgaver skal sagerne til opgaverne der vises have en aktiv status. Når status på en opgave er aktiv kan der vælges start- og slutdato for opgavens løbetid under Planlægningsinformation.', $sprog_id)."</p></div>\n";
 	}
 	//print "<br/><br/>";
 	//print "<div id=\"eventMessage\"></div>";

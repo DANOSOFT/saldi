@@ -3206,50 +3206,150 @@
 3206	Liste med sager fra	List of projects from	Liste med saker fra
 3207	Indtastet	Entered	Inntastet
 3208	Tilbage til planlægningsmenu	Back to planning menu	Tilbake til planleggingsmeny
-3209	Planlægning - beregning	Planning - estimation	Planlegging - beregning
-3210	Print &apos;Planlægning - beregning&apos;	Print &apos;Planning - estimation&apos;	Skriv ut &apos;Planlegging - beregning&apos;
+3209	Planlægning: beregning	Planning: estimation	Planlegging: beregning
+3210	Print &apos;Planlægning: beregning&apos;	Print &apos;Planning: estimation&apos;	Skriv ut &apos;Planlegging: beregning&apos;
 3211	Afl. dato	Del. date	Avl. dato
 3212	Planlægning til sager med &apos;beregning&apos; som status	Planning for projects with &apos;estimation&apos; as status	Planlegging for saker med &apos;beregning&apos; som status
-3213	Her vises dato for oprettelse af sager, og dato for aflevering af tilbud	Here the creation date for projects and the delivery date for offers are displayed	Her vises dato for opprettelse av saker, og dato for levering av tilbud
-3214	For at bruge &apos;Planlægning - beregning&apos; skal sagerne der vises have status &apos;beregning&apos;. Ved start af sag kan der vælges dato for oprettelse af sagen og afleveringsdato af tilbud under &apos;Planlægningsinformation&apos;.	To use &apos;Planning - estimation&apos;, the displayed projects must have &apos;estimation&apos; as their status. When starting a project, the creation date and offer delivery date can be chosen under &apos;Planning information&apos;.	For å bruke &apos;Planlegging - beregning&apos; må sakene som vises ha status &apos;beregning&apos;. Ved oppstart av sak kan man velge dato for opprettelse av saken og leveringsdato for tilbud under &apos;Planleggingsinformasjon&apos;.
-3215	Planlægning - opgaver	Planning - tasks	Planlegging - oppgaver
+3213	Her vises dato for oprettelse af sager, og dato for aflevering af tilbud	The creation date for projects and the delivery date for offers are displayed here	Her vises dato for opprettelse av saker, og dato for levering av tilbud
+3214	For at bruge &apos;Planlægning: beregning&apos; skal sagerne der vises have status &apos;beregning&apos;. Ved start af sag kan der vælges dato for oprettelse af sagen og afleveringsdato af tilbud under &apos;Planlægningsinformation&apos;.	To use &apos;Planning: estimation&apos;, the displayed projects must have &apos;estimation&apos; as their status. When starting a project, the creation date and offer delivery date can be selected under &apos;Planning information&apos;.	For å bruke &apos;Planlegging: beregning&apos; må sakene som vises ha status &apos;beregning&apos;. Ved oppstart av sak kan man velge dato for opprettelse av saken og leveringsdato for tilbud under &apos;Planleggingsinformasjon&apos;.
+3215	Planlægning: opgaver	Planning: tasks	Planlegging: oppgaver
 3216	Planlagt	Scheduled	Planlagt
 3217	Udf. adr.	Site addr.	Utf. adr.
-3218	Planlægning til opgaver for sager med aktiv status	Planning for tasks on projects with active status	Planlegging for oppgaver på saker med aktiv status
-3219	Her vises start- og slutdato for aktive opgaver	Here the start and end dates for active tasks are displayed	Her vises start- og sluttdato for aktive oppgaver
-3220	For at bruge &apos;Planlægning - opgaver&apos; skal sagerne til opgaverne der vises have en aktiv status. Når status på en opgave er aktiv kan der vælges start- og slutdato for opgavens løbetid under &apos;Planlægningsinformation&apos;.	To use &apos;Planning - tasks&apos;, the projects for the displayed tasks must have an active status. When a task has an active status, the start and end dates for the task duration can be chosen under &apos;Planning information&apos;.	For å bruke &apos;Planlegging - oppgaver&apos; må sakene til oppgavene som vises ha en aktiv status. Når status på en oppgave er aktiv kan man velge start- og sluttdato for oppgavens løpetid under &apos;Planleggingsinformasjon&apos;.
-3221	
-3222	
-3223	
-3224	
-3225	
-3226	
-3227	
-3228	
-3229	
-3230	
-3231	
-3232	
-3233	
-3234	
-3235	
-3236	
-3237	
-3238	
-3239	
-3240	
-3241	
-3242	
-3243	
-3244	
-3245	
-3246	
-3247	
-3248	
-3249	
-3250	
-3251	
-3252	
-3253
-3254	
-3255	
+3218	Planlægning til opgaver for sager med aktiv status	Planning of tasks for projects with active status	Planlegging for oppgaver på saker med aktiv status
+3219	Her vises start- og slutdato for aktive opgaver	The start and end dates for active tasks are displayed here	Her vises start- og sluttdato for aktive oppgaver
+3220	For at bruge &apos;Planlægning: opgaver&apos; skal sagerne til opgaverne der vises have en aktiv status. Når status på en opgave er aktiv kan der vælges start- og slutdato for opgavens løbetid under &apos;Planlægningsinformation&apos;.	To use &apos;Planning: tasks&apos;, the projects for the displayed tasks must have an active status. When a task has an active status, the start and end dates for the task duration can be selected under &apos;Planning information&apos;.	For å bruke &apos;Planlegging: oppgaver&apos; må sakene til oppgavene som vises ha en aktiv status. Når status på en oppgave er aktiv kan man velge start- og sluttdato for oppgavens løpetid under &apos;Planleggingsinformasjon&apos;.
+3221	Planlægningsmenu	Planning menu	Planleggingsmeny
+3222	Planlægning: sager	Planning: projects	Planlegging: saker
+3223	Gå til &apos;Planlægning: sager&apos; her	Go to &apos;Planning: projects&apos; here	Gå til &apos;Planlegging: saker&apos; her
+3224	Gå til &apos;Planlægning: opgaver&apos; her	Go to &apos;Planning: tasks&apos; here	Gå til &apos;Planlegging: oppgaver&apos; her
+3225	Gå til &apos;Planlægning: beregning&apos; her	Go to &apos;Planning: estimation&apos; here	Gå til &apos;Planlegging: beregning&apos; her
+3226	Planlægning til sager med aktiv status	Planning for projects with active status	Planlegging for saker med aktiv status
+3227	Her vises start- og slutdato for aktive sager og opgaver	The start and end dates for active projects and tasks are displayed here	Her vises start- og sluttdato for aktive saker og oppgaver
+3228	For at bruge &apos;Planlægning: sager&apos; skal sagerne der vises have en aktiv status. Når status på en sag er aktiv kan der vælges start- og slutdato for sagens løbetid under &apos;Planlægningsinformation&apos;.	To use &apos;Planning: projects&apos;, the displayed projects must have an active status. When a project has an active status, the start and end dates for the project duration can be selected under &apos;Planning information&apos;.	For å bruke &apos;Planlegging: saker&apos; må sakene som vises ha en aktiv status. Når status på en sak er aktiv kan man velge start- og sluttdato for sakens løpetid under &apos;Planleggingsinformasjon&apos;.
+3229	Løbetid	Duration	Varighet
+3230	Ingen aktive opgaver på sagen	No active tasks on the project	Ingen aktive oppgaver på saken
+3231	HUSK at vælge start- og slutdato på opgave, hvis den skal vises	REMEMBER to select start and end dates on a task for it to be displayed	HUSK å velge start- og sluttdato på oppgave, hvis den skal vises
+3232	Planlægning af sagen	Project planning	Planlegging av saken
+3233	Her vises sagens længde + start- og slutdato for opgaverne på sagen	The project duration and start and end dates for the project's tasks are displayed here	Her vises sakens lengde + start- og sluttdato for oppgavene på saken
+3234	For at bruge &apos;Planlægning&apos; skal sagens status være aktiv. Når status på sagen er aktiv kan der vælges start- og slutdato under &apos;Planlægningsinformation&apos;.	To use &apos;Planning&apos;, the project status must be active. When the project status is active, start and end dates can be selected under &apos;Planning information&apos;.	For å bruke &apos;Planlegging&apos; må sakens status være aktiv. Når status på saken er aktiv kan man velge start- og sluttdato under &apos;Planleggingsinformasjon&apos;.
+3235	Det samme gør sig gældende for opgaver. Når opgavens status er aktiv kan start- og slutdato vælges.	The same applies to tasks. When a task status is active, start and end dates can be selected.	Det samme gjelder for oppgaver. Når oppgavens status er aktiv kan start- og sluttdato velges.
+3236	Ingen skabelon	No template	Ingen mal
+3237	Udfyld skabelonnavn	Fill in template name	Fyll ut malnavn
+3238	Udfyld skabelon	Fill in template	Fyll ut mal
+3239	Ret skabelon	Edit template	Rediger mal
+3240	Opret ny skabelon	Create new template	Opprett ny mal
+3241	Opret/ret skabeloner	Create/edit templates	Opprett/rediger maler
+3242	Retur til tilbud	Return to offer	Retur til tilbud
+3243	Tilbage til opret/ret skabeloner	Back to create/edit templates	Tilbake til opprett/rediger maler
+3244	Skabelonnavn	Template name	Malnavn
+3245	Gem/ret skabelon	Save/edit template	Lagre/rediger mal
+3246	Opret skabelon	Create template	Opprett mal
+3247	Slet denne skabelon	Delete this template	Slett denne malen
+3248	Er du sikker på du vil slette denne	Are you sure you want to delete this	Er du sikker på at du vil slette denne
+3249	Ret denne skabelon	Edit this template	Rediger denne malen
+3250	Der er ingen skabeloner	There are no templates	Det er ingen maler
+3251	Nyt tilbud	New offer	Nytt tilbud
+3252	Retur til sag	Return to project	Retur til sak
+3253	Tilbud til	Offer for	Tilbud til
+3254	Din browser kan ikke vise denne fil	Your browser cannot display this file	Nettleseren din kan ikke vise denne filen
+3255	Hent filen herunder	Download the file below	Last ned filen nedenfor
+3256	
+3257	
+3258	
+3259	
+3260	
+3261	
+3262	
+3263	
+3264	
+3265	
+3266	
+3267	
+3268	
+3269	
+3270	
+3271	
+3272	
+3273	
+3274	
+3275	
+3276	
+3277	
+3278	
+3279	
+3280	
+3281	
+3282	
+3283	
+3284	
+3285	
+3286	
+3287	
+3288	
+3289	
+3290	
+3291	
+3292	
+3293	
+3294	
+3295	
+3296	
+3297	
+3298	
+3299	
+3300	
+3301	
+3302	
+3303	
+3304	
+3305	
+3306	
+3307	
+3308	
+3309	
+3310	
+3311	
+3312	
+3313	
+3314	
+3315	
+3316	
+3317	
+3318	
+3319	
+3320	
+3321	
+3322	
+3323	
+3324	
+3325	
+3326	
+3327	
+3328	
+3329	
+3330	
+3331	
+3332	
+3333	
+3334	
+3335	
+3336	
+3337	
+3338	
+3339	
+3340	
+3341	
+3342	
+3343	
+3344	
+3345	
+3346	
+3347	
+3348	
+3349	
+3350	
+3351	
+3352	
+3353	
+3354	
+3355	
