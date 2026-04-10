@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-03-26 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,7 @@
 // 20260223 Sawaneh Added drag-and-drop file upload to clip icons for direct voucher attachment
 // 20260306 Sawaneh Fixed bug: email usernames (e.g. hau@skjern-net.dk) broke posted cash journal grid. Changed $brugernavn to $bruger_id in datagrid ID.
 // 20260326 PHR Added: if ($regnstart && $regnslut)
+// 20260410 PHR set $vis_bilag = 1 
 
 ob_start(); //Starter output buffering
 
@@ -382,6 +383,7 @@ if ($_POST) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "select * from grupper where ART = 'bilag' and (box6 ='on' or (box1 !='' and box2 !='' and box3 !=''))";
 	($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $vis_bilag = 1 : $vis_bilag = 0;
+	$vis_bilag = 1; # 20260410
 	(isset($r['box6']) && $r['box6'] == 'on') ? $intern_bilag = 1 : $intern_bilag = 0;
 	(db_fetch_array(db_select("select * from grupper where ART = 'AFD'", __FILE__ . " linje " . __LINE__))) ? $vis_afd = 1 : $vis_afd = 0;
 	(db_fetch_array(db_select("select * from grupper where ART = 'PRJ'", __FILE__ . " linje " . __LINE__))) ? $vis_projekt = 1 : $vis_projekt = 0;
