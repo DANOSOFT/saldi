@@ -11,5 +11,5 @@ elseif (in_array($_POST['regnskab'],$ssl4no)) $action="https://ssl4.saldi.dk/no/
 elseif (in_array($_POST['regnskab'],$ssl7pos)) $action="https://ssl7.saldi.dk/pos/index/login.php";
 elseif (in_array($_POST['regnskab'],$finans)) $action="https://ssl5.saldi.dk/finans/index/login.php";
 elseif ($_POST['regnskab'] == 'Gen&Brug') $action="https://ssl4.saldi.dk/flatpay/index/login.php";
-else $action="https://ssl4.saldi.dk/pos/index/login.php";
+else $action="https://" . $_SERVER['HTTP_HOST'] . "/pos/index/login.php";
 ?> 
