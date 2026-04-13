@@ -164,14 +164,9 @@ while ($r=db_fetch_array($q)) {
 }
 
 if (!$saet) {
-	$s=array();
-	$x=0;
-	$q=db_select("select distinct(saet) as saet from ordrelinjer where ordre_id='$id' and samlevare='on' and varenr!='$svnr' order by saet",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$s[$x]=$r['saet'];
-	}
-	$saet=1;
-	while(in_array($saet,$s)) $saet++; 
+	// Default to the first existing saet; fall back to 1 if none exist
+	$r=db_fetch_array(db_select("select min(saet) as saet from ordrelinjer where ordre_id='$id' and saet>'0'",__FILE__ . " linje " . __LINE__));
+	$saet=$r['saet'] ? $r['saet'] : 1;
 }
 
 $r=db_fetch_array(db_select("select box2 from grupper where art='OreDif'",__FILE__ . " linje " . __LINE__));
