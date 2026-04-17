@@ -168,6 +168,35 @@ if ($status>=1) {
       print "text-align:right' size='4' name='leve$x' value='$dklev[$x]' onchange='javascript:docChange = true;'></td>\n";
     }
   print "<td>($dk_tidl_lev[$x])</td>";
+  // Expiry date fields for items with has_due_date
+  if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+    $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
+    $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
+    if (!$batch_due_date_val) {
+      // Pre-fill with default shelf life if set
+      $shelf_days = item_default_shelf_life($vare_id[$x]);
+      if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
+    }
+    print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+    print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+    print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+    print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
+  }
+  }
+} else {
+  if (!$vis_projekt) print "<td></td>";
+  // Expiry date fields for status 0 (draft orders)
+  if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+    $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
+    $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
+    if (!$batch_due_date_val) {
+      $shelf_days = item_default_shelf_life($vare_id[$x]);
+      if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
+    }
+    print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+    print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+    print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+    print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
   }
 }
 if ($omlev) {

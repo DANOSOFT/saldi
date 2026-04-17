@@ -60,6 +60,7 @@ include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
 include('stdFunc/usDecimal.php');
 include('stdFunc/navStack.php');
+include('stdFunc/fefo.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -1511,7 +1512,7 @@ if (!function_exists('lagerreguler')) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
 			$diff *= -1;
-			$qtxt = "select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by kobsdate,id";
+			$qtxt = "select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by " . fefo_order_clause();
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($diff && $r = db_fetch_array($q)) {
 				$pris = (float)$r['pris'];

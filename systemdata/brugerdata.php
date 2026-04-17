@@ -59,6 +59,11 @@ if ($_POST) {
 	$nykode1=trim($_POST['nykode1']);
 	$nykode2=trim($_POST['nykode2']);
 	db_modify("update grupper set box2='$popup' where art = 'USET' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__);
+	// Save expiry warning days setting
+	$warn_days_post = if_isset($_POST['due_date_warning_days']);
+	if ($warn_days_post !== null && $warn_days_post !== '') {
+		update_settings_value('due_date_warning_days', 'lager', intval($warn_days_post), 'Days before expiry to warn', $bruger_id);
+	}
 	if ($glkode1!=$nykode1) {
 		if ($nykode1 && $nykode1==$nykode2 && $glkode) {
 			$r=db_fetch_array(db_select("select kode from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));
@@ -133,6 +138,13 @@ if (($brugernavn=='test')&&($db=='test')) {
 print "<tr><td>Bekr&aelig;ft ny kode</td><td><input type=password size=20 name=nykode2></td></tr>";
 if ($popup) $popup="checked";
 print "<tr><td title='".$tekst=findtekst(207,$sprog_id)."'>".$tekst=findtekst(208,$sprog_id)."</td><td><input type=checkbox name=popup $popup></td></tr>";
+
+// Expiry date warning setting
+$warn_days = get_due_date_warning_days($bruger_id);
+print "<tr><td colspan='2'><hr></td></tr>";
+print "<tr><td>".findtekst('5006|Advar om udl&oslash;b (dage f&oslash;r)', $sprog_id)."</td>";
+print "<td><input type='number' min='1' style='width:60px;text-align:right;' name='due_date_warning_days' value='$warn_days'></td></tr>";
+
 print "<td colspan=2 align = center><input type=submit value=\"Ok\" name=\"submit\"></td>";
 print "</form";
 print "</tr></tbody></table></td></tr>";

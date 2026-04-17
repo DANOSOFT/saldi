@@ -483,6 +483,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
 			$projekt[$x] = if_isset($projekt, NULL,$x);
+			$batch_due_date[$x] = if_isset($_POST['batch_due_date'], NULL, $x);
+			$batch_batch_no[$x] = db_escape_string(trim(if_isset($_POST['batch_batch_no'], NULL, $x)));
 		}
 		if ($sletstart && $sletslut && $sletstart<$sletslut) {
 			for ($x=$sletstart; $x<=$sletslut; $x++) {
@@ -790,7 +792,14 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
 					$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
-						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager' where id='$linje_id[$x]'";
+						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager'";
+						if (isset($batch_due_date[$x]) && function_exists('item_has_due_date')) {
+							if ($batch_due_date[$x]) $qtxt .= ",batch_due_date='$batch_due_date[$x]'";
+							else $qtxt .= ",batch_due_date=NULL";
+							if ($batch_batch_no[$x]) $qtxt .= ",batch_batch_no='" . db_escape_string($batch_batch_no[$x]) . "'";
+							else $qtxt .= ",batch_batch_no=NULL";
+						}
+						$qtxt .= " where id='$linje_id[$x]'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} 
 #					if ($leveret[$x]!=$tidl_lev[$x]) {

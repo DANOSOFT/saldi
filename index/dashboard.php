@@ -128,6 +128,34 @@ function check_permissions($permarr) {
 
 	print "</div>";
 	print "</div>";
+
+	// Expiry warning for users without finance access but with inventory access
+	if (check_permissions(array(12))) {
+		$_expiry_warn_days = get_due_date_warning_days($bruger_id);
+		$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, COUNT(*) AS batch_count
+		                 FROM batch_kob bk
+		                 WHERE bk.due_date IS NOT NULL AND bk.rest > 0
+		                 AND bk.due_date <= CURRENT_DATE + interval '$_expiry_warn_days days'";
+		$_expiry_r = db_fetch_array(db_select($_expiry_qtxt, __FILE__ . " linje " . __LINE__));
+		if ($_expiry_r && intval($_expiry_r['batch_count']) > 0) {
+			$_exp_items = intval($_expiry_r['item_count']);
+			$_exp_batches = intval($_expiry_r['batch_count']);
+			$_expired_qtxt = "SELECT COUNT(*) FROM batch_kob WHERE due_date IS NOT NULL AND rest > 0 AND due_date < CURRENT_DATE";
+			$_expired_r = db_fetch_array(db_select($_expired_qtxt, __FILE__ . " linje " . __LINE__));
+			$_exp_expired = intval($_expired_r[0]);
+			$_exp_bg = $_exp_expired > 0 ? '#ffcccc' : '#ffffcc';
+			$_exp_border = $_exp_expired > 0 ? '#e00' : '#cc0';
+			$_exp_msg = findtekst('5021|Advarsel', $sprog_id) . ': ';
+			if ($_exp_expired > 0) {
+				$_exp_msg .= $_exp_expired . ' ' . findtekst('5022|batch(er) er udl&oslash;bet', $sprog_id) . '. ';
+			}
+			$_exp_msg .= $_exp_batches . ' ' . findtekst('5023|batch(er) p&aring;', $sprog_id) . ' ' . $_exp_items . ' ' . findtekst('5024|vare(r) udl&oslash;ber inden for', $sprog_id) . ' ' . $_expiry_warn_days . ' ' . findtekst('5025|dage', $sprog_id) . '.';
+			print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; margin-top:1em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.href='../lager/udlobsrapport.php'\">";
+			print "<b>$_exp_msg</b> " . findtekst('5026|Klik for at se udl&oslash;bsrapporten', $sprog_id) . ".";
+			print "</div>";
+		}
+	}
+
 //	print "<p title='For at få adgang skal du aktivere finansmodulet for brugeren'>Du har ikke adgang til at se virksomhedsoversigten</p>";
 	print "<img src='../img/Saldi_Main_Logo.png' style='position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40%'></img>";
 	exit;
@@ -249,6 +277,35 @@ print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap:
 # Newsbar
 if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) && $newssnippet != '') {
 	print "<div id='newsbar'><span><b>Nyt i saldi:</b> $newssnippet</span><span id='closebtn' onClick=\"document.location.href = 'dashboard.php?close_snippet=1'\">x</span></div>";
+}
+
+# Expiry warning banner — show if user has inventory access (module 12)
+if (check_permissions(array(12))) {
+	$_expiry_warn_days = get_due_date_warning_days($bruger_id);
+	$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, COUNT(*) AS batch_count
+	                 FROM batch_kob bk
+	                 WHERE bk.due_date IS NOT NULL AND bk.rest > 0
+	                 AND bk.due_date <= CURRENT_DATE + interval '$_expiry_warn_days days'";
+	$_expiry_r = db_fetch_array(db_select($_expiry_qtxt, __FILE__ . " linje " . __LINE__));
+	if ($_expiry_r && intval($_expiry_r['batch_count']) > 0) {
+		$_exp_items = intval($_expiry_r['item_count']);
+		$_exp_batches = intval($_expiry_r['batch_count']);
+		// Count already expired
+		$_expired_qtxt = "SELECT COUNT(*) FROM batch_kob WHERE due_date IS NOT NULL AND rest > 0 AND due_date < CURRENT_DATE";
+		$_expired_r = db_fetch_array(db_select($_expired_qtxt, __FILE__ . " linje " . __LINE__));
+		$_exp_expired = intval($_expired_r[0]);
+
+		$_exp_bg = $_exp_expired > 0 ? '#ffcccc' : '#ffffcc';
+		$_exp_border = $_exp_expired > 0 ? '#e00' : '#cc0';
+		$_exp_msg = findtekst('5021|Advarsel', $sprog_id) . ': ';
+		if ($_exp_expired > 0) {
+			$_exp_msg .= $_exp_expired . ' ' . findtekst('5022|batch(er) er udl&oslash;bet', $sprog_id) . '. ';
+		}
+		$_exp_msg .= $_exp_batches . ' ' . findtekst('5023|batch(er) p&aring;', $sprog_id) . ' ' . $_exp_items . ' ' . findtekst('5024|vare(r) udl&oslash;ber inden for', $sprog_id) . ' ' . $_expiry_warn_days . ' ' . findtekst('5025|dage', $sprog_id) . '.';
+		print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.href='../lager/udlobsrapport.php'\">";
+		print "<b>$_exp_msg</b> " . findtekst('5026|Klik for at se udl&oslash;bsrapporten', $sprog_id) . ".";
+		print "</div>";
+	}
 }
 
 # Titlebar

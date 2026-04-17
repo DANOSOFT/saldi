@@ -327,6 +327,10 @@ if ($saveItem || $submit = trim($submit)) {
     $ny_beholdning = if_isset($_POST['ny_beholdning']);
     $lukket = if_isset($_POST['lukket']);
     $serienr = db_escape_string(trim(if_isset($_POST['serienr'])));
+    $has_due_date = (if_isset($_POST['has_due_date']) == 'on') ? 'true' : 'false';
+    $default_shelf_life_days = if_isset($_POST['default_shelf_life_days']);
+    if ($default_shelf_life_days !== null && $default_shelf_life_days !== '') $default_shelf_life_days = intval($default_shelf_life_days);
+    else $default_shelf_life_days = null;
     #   list ($gruppe)           =  explode (':', if_isset($_POST['gruppe']));
     $notes = db_escape_string(trim(if_isset($_POST['notes'])));
     $notesInternal = db_escape_string(trim(if_isset($_POST['notesInternal'])));
@@ -929,7 +933,10 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "tier_price_multiplier='$tier_price_multiplier',salgspris_method='$salgspris_method',";// 20221004
             $qtxt .= "salgspris_rounding='$salgspris_rounding',salgspris_multiplier='$salgspris_multiplier',";// 20221004
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
-            $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision' where id = '$id'";
+            $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision',";// 20221004
+            $qtxt .= "has_due_date=$has_due_date,";
+            $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL");
+            $qtxt .= " where id = '$id'";
          $saved  =  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             if ($submit == 'copy') {
                 $copyItemNo = "kopi_af_$varenr";
@@ -1269,6 +1276,8 @@ if ($id > 0) {
     $rabatgruppe = $row['rabatgruppe'] * 1;
     $dvrg_nr[0] = $row['dvrg'] * 1; # DebitorVareRabatGruppe
     $serienr = $row['serienr'];
+    $has_due_date = ($row['has_due_date'] === 't' || $row['has_due_date'] === true || $row['has_due_date'] == 1) ? 'on' : '';
+    $default_shelf_life_days = $row['default_shelf_life_days'];
     $lukket = $row['lukket'];
     $notes = $row['notes'];
     $notesInternal = $row['notesinternal'];
@@ -1466,6 +1475,10 @@ if (!isset($max_lager))
     $max_lager = NULL;
 if (!isset($volume_lager))
     $volume_lager = NULL;
+if (!isset($has_due_date))
+    $has_due_date = '';
+if (!isset($default_shelf_life_days))
+    $default_shelf_life_days = NULL;
 
 if (!$min_lager)
     $min_lager = 0;
@@ -1683,6 +1696,9 @@ if (!$varenr) {
     print "\n<!-- productCardIncludes/showLocations.php begin -->\n";
     include('productCardIncludes/showLocations.php');
     print "\n<!-- productCardIncludes/showLocations.php end -->\n";
+    print "\n<!-- productCardIncludes/showExpirySettings.php begin -->\n";
+    include('productCardIncludes/showExpirySettings.php');
+    print "\n<!-- productCardIncludes/showExpirySettings.php end -->\n";
     print "</tbody></table></td>";#  <- Diverse tabel
 #################### KATEGORIER ###########################
     print "<td valign=\"top\" height=\"200px\">";

@@ -298,6 +298,19 @@ else {
 }
 if ($omlev) print "<td title ='".findtekst(1512, $sprog_id)."'>O/B</td>";
 
+// Check if any items on this order have expiry date tracking
+// Query DB directly since order line data is loaded after this header
+$has_expiry_items = false;
+if ($id) {
+	$_eq = db_select("SELECT ol.vare_id FROM ordrelinjer ol JOIN varer v ON v.id = ol.vare_id WHERE ol.ordre_id = '$id' AND v.has_due_date = true LIMIT 1", __FILE__ . " linje " . __LINE__);
+	if (db_fetch_array($_eq)) $has_expiry_items = true;
+}
+if ($has_expiry_items) {
+	print "<td align='center' style='min-width:130px;white-space:nowrap;'>".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."</td>";
+	print "<td align='center' style='min-width:90px;white-space:nowrap;'>".findtekst('5005|Batchnr.', $sprog_id)."</td>";
+}
+if ($labelprint) print "<td></td>";
+
 print "</tr>\n";
 print "<!-- END orderIncludes/openOrderData.php -->";
 

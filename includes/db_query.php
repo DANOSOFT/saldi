@@ -318,7 +318,14 @@ if (!function_exists('db_fetch_array')) {
                 error_log("Error: db_fetch_array() - Invalid query result");
                 return false;
             }
-        } else return pg_fetch_array($qtext);
+        } else {
+            if ($qtext && $qtext !== false) {
+                return pg_fetch_array($qtext);
+            } else {
+                error_log("Error: db_fetch_array() - Invalid query result (pg)");
+                return false;
+            }
+        }
 	}
 }
 
