@@ -3174,7 +3174,33 @@ if (strstr($b_submit, 'Lev') && $bogfor != 0 && $status < 3) {
 	$alert = findtekst('1847|Du kan ikke levere uden ordrelinjer', $sprog_id);
 	if (!$x) print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
 	else {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=levering.php?id=$id\">\n";
+		// Check for expired/near-expiry batches before delivery
+		$expiry_warnings = array();
+		$warning_days = get_due_date_warning_days();
+		for ($ew = 1; $ew <= $linjeantal; $ew++) {
+			if ($vare_id[$ew] && item_has_due_date($vare_id[$ew]) && $leveres[$ew] > 0) {
+				$_lager_ew = isset($lager[$ew]) ? $lager[$ew] : 0;
+				$_qtxt = fefo_batch_query($vare_id[$ew], $_lager_ew);
+				$_q = db_select($_qtxt, __FILE__ . " linje " . __LINE__);
+				if ($_r = db_fetch_array($_q)) {
+					$_status = batch_expiry_status($_r['due_date'], $warning_days);
+					$_vnr = db_fetch_array(db_select("select varenr from varer where id='$vare_id[$ew]'", __FILE__ . " linje " . __LINE__));
+					if ($_status == 'expired') {
+						$expiry_warnings[] = "UDLOBET: " . $_vnr['varenr'] . " (batch " . ($_r['batch_no'] ? $_r['batch_no'] : $_r['id']) . ", udl. " . $_r['due_date'] . ")";
+					} elseif ($_status == 'warning') {
+						$_days = days_until_expiry($_r['due_date']);
+						$expiry_warnings[] = "Udlober snart: " . $_vnr['varenr'] . " (" . $_days . " dage, batch " . ($_r['batch_no'] ? $_r['batch_no'] : $_r['id']) . ")";
+					}
+				}
+			}
+		}
+		if (count($expiry_warnings) && !isset($_GET['confirm_expiry'])) {
+			$warn_msg = implode("\\n", $expiry_warnings);
+			$warn_msg .= "\\n\\nFortsaet med levering?";
+			print "<script>if(confirm('" . addslashes($warn_msg) . "')) { window.location='levering.php?id=$id'; } else { window.location='ordre.php?id=$id'; }</script>\n";
+		} else {
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=levering.php?id=$id\">\n";
+		}
 	}
 }
 $meta_returside = "<meta http-equiv=\"refresh\" content=\"3600;URL=$returside\">\n"; #20142403-2
@@ -6858,8 +6884,8 @@ function batch ($linje_id) {
 		$rest=array();
 		$lev_rest=$leveres;
 
-		if (isset($lager)) $query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by kobsdate",__FILE__ . " linje " . __LINE__);
-		else $query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by kobsdate",__FILE__ . " linje " . __LINE__);
+		if (isset($lager)) $query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by " . fefo_order_clause(),__FILE__ . " linje " . __LINE__);
+		else $query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by " . fefo_order_clause(),__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			$x++;
 			$batch_kob_id=$row['id'];

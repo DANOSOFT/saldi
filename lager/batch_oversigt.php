@@ -38,8 +38,7 @@ include("../includes/topline_settings.php");
 
 $title = findtekst('5004|Batch oversigt', $sprog_id);
 
-if (isset($_GET['returside']) && $_GET['returside']) $returside = $_GET['returside'];
-elseif ($popup) $returside = "../includes/luk.php";
+if ($popup) $returside = "../includes/luk.php";
 else $returside = "lagerstatus.php";
 
 $vare_id = intval($_GET['vare_id']);

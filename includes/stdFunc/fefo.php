@@ -65,17 +65,15 @@ if (!function_exists('fefo_batch_query')) {
 
 if (!function_exists('item_has_due_date')) {
 	/**
-	 * Checks whether an item's product group has batch/expiry tracking enabled
-	 * (grupper.box9 = 'on' for the item's VG group in the current fiscal year).
+	 * Checks whether an item has expiry date tracking enabled.
 	 *
 	 * @param int $vare_id  Item ID
-	 * @return bool  True if the group has batch tracking enabled
+	 * @return bool  True if the item has due_date tracking enabled
 	 */
 	function item_has_due_date($vare_id) {
-		global $regnaar;
-		$qtxt = "SELECT g.box9 FROM varer v JOIN grupper g ON g.kodenr = v.gruppe AND g.art = 'VG' AND g.fiscal_year = '$regnaar' WHERE v.id = '$vare_id'";
+		$qtxt = "SELECT has_due_date FROM varer WHERE id = '$vare_id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		return ($r && trim($r['box9']) === 'on');
+		return ($r && ($r['has_due_date'] === 't' || $r['has_due_date'] === true || $r['has_due_date'] == 1));
 	}
 }
 
