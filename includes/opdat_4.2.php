@@ -36,8 +36,8 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 	global $db_type;
 	$s_id=session_id();
 
-	$nextver='4.2.5';
-	if ($fixNo<"5"){
+	$nextver='4.2.4';
+	if ($fixNo<"4"){
 		include("../includes/connect.php");
 		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
 		$tmp=$r['version'];
