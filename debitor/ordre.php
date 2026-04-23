@@ -561,7 +561,7 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		}
 		if ($r['pbs_nr'] > 0) {
 			$pbs_nr = $r['pbs_nr'];
-			$pbs = 'bs';
+			$pbs = 'PBS';
 		}
 		$kontakt = db_escape_string($r['kontakt']);
 		$notes = db_escape_string($r['notes']);
@@ -859,7 +859,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	}
 	if (substr($udskriv_til, 0, 3) == 'PBS') {
 		$udskriv_til = 'PBS';
-		$pbs = "BS";
+		$pbs = "PBS";
 	}
 	if ($udskriv_til == 'oioubl') $oioubl = "on";
 
@@ -1810,6 +1810,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 						}
 					}
 				}
+				// kun gældende for negative referancer
 				if (!isset($modtaget[$x])) $modtaget[$x] = 0;
 				$query = db_select("select antal from batch_salg where linje_id = $linje_id[$x]", __FILE__ . " linje " . __LINE__);
 				while ($row = db_fetch_array($query)) $modtaget[$x] = $modtaget[$x] + $row['antal'];
@@ -3694,7 +3695,7 @@ function ordreside($id, $regnskab)
 		if ($lev_pbs_nr) {
 			if ($tmp == 'L') {
 				if ($pbs) print "<option value=\"PBS\">PBS</option>\n";
-				elseif ($tmp && $udskriv_til != "PBS" && $lev_pbs == 'B') print "<option title=\"" . findtekst('1452|Opkræves via betalingsservice', $sprog_id) . "\">BS</option>\n";
+				elseif ($tmp && $udskriv_til != "PBS" && $lev_pbs == 'B') print "<option title=\"" . findtekst('1452|Opkræves via betalingsservice', $sprog_id) . "\">PBS</option>\n";
 			}
 		}
 		$qtxt = "select * from grupper where ART = 'bilag' and (box6 ='on' or (box1 !='' and box2 !='' and box3 !=''))";
@@ -4535,7 +4536,7 @@ function ordreside($id, $regnskab)
 		if ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
-		} elseif ($udskriv_til == "PBS" && $lev_pbs != 'B') print "<option value=\"PBS\">BS</option>\n";
+		} elseif ($udskriv_til == "PBS" && $lev_pbs != 'B') print "<option value=\"PBS\">PBS</option>\n";
 		else print "<option>$udskriv_til</option>\n";
 		if ($udskriv_til != "PDF") print "<option>PDF</option>\n";
 		if ($showLocalPrint && $localPrint != 'on') print "<option value='localPrint'>" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
@@ -4556,7 +4557,7 @@ function ordreside($id, $regnskab)
 				if ($tmp) print "<option value=\"PBS\">PBS</option>\n";
 			} else {
 				if ($udskriv_til != "PBS" && $lev_pbs != 'B') print "<option value=\"PBS_FI\">PBS</option>\n";
-				elseif ($tmp && $udskriv_til != "PBS" && $lev_pbs == 'B') print "<option title=\"" . findtekst('1452|Opkræves via betalingsservice', $sprog_id) . "\">BS</option>\n";
+				elseif ($tmp && $udskriv_til != "PBS" && $lev_pbs == 'B') print "<option title=\"" . findtekst('1452|Opkræves via betalingsservice', $sprog_id) . "\">PBS</option>\n";
 			}
 		}
 		print "</SELECT></td></tr>\n";
