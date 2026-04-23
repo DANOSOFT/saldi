@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-22 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -76,6 +76,7 @@
 // 20260415 PHR Modtag (Receive) was set to 0 in creditnote
 // 20260420 PHR Removed GLS codes
 // 20260422 PHR Defined $fast_db as array; 
+// 20260432	PHR Warning when $ref id changes
 
 @session_start();
 $s_id = session_id();
@@ -1079,6 +1080,9 @@ if ($b_submit) {
 				if ($r_afd && $r_afd['kodenr']) $afd_lager = $r_afd['kodenr'];
 			}
 		}
+		$alerttxt = "Ref ændret til $ref";
+		if ($afd) $alerttxt.= " & afd til $afd";
+		alert ("$alerttxt");
 	}
 
 	if ($extAfd && $afd && $extAfd != $afd) {
