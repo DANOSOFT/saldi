@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/accountchart.php --- lap 4.1.1 --- 2025.09.25 ---
+// --- includes/reportFunc/accountchart.php --- lap 5.0.0 --- 2026.04.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 - 2025 Saldi.dk ApS
+// Copyright (c) 2023 - 2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20250627 base currency anount was not calculated correct.
 // 2050923 LOE - Showing all records or only open records added.
 // 20251002 MS Removed "Width=80%" and added padding to allow the Print/Email buttons to have the intended size, while still centering the text
+// 20260423 PHR	Corrected call to text numner for text
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -305,7 +306,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		if ($kontoart=='K') $tekst = findtekst('1140|Kreditorrapport', $sprog_id) ." - ". findtekst('133|Kontokort', $sprog_id);
 		else $tekst = findtekst('1141|Debitorapport', $sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
 
-		print "<td align='center' style='$topStyle; padding-left: 10%'>$tekst</td>\n"; #251002
+		print "<td align='center' style='z$topStyle; padding-left: 10%'>$tekst</td>\n"; #251002
 		################
 			print "<td width='10%'>
 					<select name='typeSelect' style='$topStyle; width:100%; height:100%; font-size:inherit;'
@@ -349,7 +350,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		print "<td width=\"10%\" $top_bund>$luk ".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 		if ($kontoart=='K') $tekst = findtekst('1140|Kreditorrapport', $sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
 		else $tekst= findtekst('1141|Debitorapport', $sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
-		print "<td width=\"80%\" $top_bund>$tekst</td>";
+		print "<td width=\"80%\" $top_bund>$kontoart -> $tekst</td>";
 		($kontoantal==1)?$w=5:$w=10;
 		print "<td width=\"$w%\" $top_bund onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kilde=$kilde&kontoart=$kontoart','kontoprint','left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"".findtekst('2216|Udskriv kontoudtog som PDF (Åbner i popup)', $sprog_id)."\">". findtekst('880|Udskriv', $sprog_id) ."</td>\n";
 		if ($kontoantal==1) { # 2019-11-07
@@ -395,7 +396,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		print "<th>".findtekst('635|Dato', $sprog_id)."</th>";
 		print "<th>".findtekst('671|Bilag', $sprog_id)."</th>";
 		print "<th>".findtekst('643|Faktura', $sprog_id)."</th>";
-		print "<th>".findtekst('1141|Tekst', $sprog_id)."</th>";
+		print "<th>".findtekst('1163|Tekst', $sprog_id)."</th>";
 		print "<th>$prj</th>";
 		print "<th>".findtekst('1164|Forfaldsdato', $sprog_id)."</th>";
 		print "<th align=right class='text-right'>".findtekst('1000|Debet', $sprog_id)."</th>";
@@ -533,7 +534,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			print "<tr><td>".(isset($sprog_id) ? findtekst('635|Dato', $sprog_id) : "")."</td>";
 			print "<td>".(isset($sprog_id) ? findtekst('671|Bilag', $sprog_id) : "")."</td>";
 			print "<td>".(isset($sprog_id) ? findtekst('643|Faktura', $sprog_id) : "")."</td>";
-			print "<td>".(isset($sprog_id) ? findtekst('1141|Tekst', $sprog_id) : "")."</td>";
+			print "<td>".(isset($sprog_id) ? findtekst('1163|Tekst', $sprog_id) : "")."</td>";
 			print "<td>$prj</td>";
 			print "<td>".(isset($sprog_id) ? findtekst('1164|Forfaldsdato', $sprog_id) : "")."</td>";
 			print "<td align=right>".(isset($sprog_id) ? findtekst('1000|Debet', $sprog_id) : "")."</td>";
