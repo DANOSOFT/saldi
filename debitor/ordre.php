@@ -5386,8 +5386,8 @@ $x = 0;
 						}
 						if ($art == 'DK') $dkantal = dkdecimal(abs($r['antal']), 2);
 						else $dkantal = dkdecimal($r['antal'], 2);
-						if (substr($dkantal, -1) == '0') $dkantal = substr($dkantal, 0, -1);
-						if (substr($dkantal, -1) == '0') $dkantal = substr($dkantal, 0, -2);
+						while (substr($dkantal, -1) == '0') $dkantal = substr($dkantal, 0, -1);
+						if (substr($dkantal, -1) == '.' || substr($dkantal, -1) == ',') $dkantal = substr($dkantal, 0, -1);
 					}
 					$tidl_lev_ialt += $tmp;
 					print "<tr><td></td><td>$r[varenr]</td><td align=\"right\">$dkantal</td><td>$r[enhed]</td><td>$r[lager]</td><td>$r[beskrivelse]</td></tr>";
@@ -6155,8 +6155,8 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		if ($antal) {
 			if ($art == 'DK') $dkantal = dkdecimal($antal * -1, 2);
 			else $dkantal = dkdecimal($antal, 2);
-			if (substr($dkantal, -1) == '0') $dkantal = substr($dkantal, 0, -1);
-			if (substr($dkantal, -1) == '0') $dkantal = substr($dkantal, 0, -2);
+			while (substr($dkantal, -1) == '0') $dkantal = substr($dkantal, 0, -1);
+			if (substr($dkantal, -1) == '.' || substr($dkantal, -1) == ',') $dkantal = substr($dkantal, 0, -1);
 		}
 	} else {
 		$antal = 0;
@@ -6436,17 +6436,18 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 				$lever_modtag = "lever";
 			}
 
-			if (substr($dklev, -1) == '0') $dklev = substr($dklev, 0, -1);
-			if (substr($dklev, -1) == '0') $dklev = substr($dklev, 0, -2);
-			if (substr($dk_tidl_lev, -1) == '0') $dk_tidl_lev = substr($dk_tidl_lev, 0, -1);
-			if (substr($dk_tidl_lev, -1) == '0') $dk_tidl_lev = substr($dk_tidl_lev, 0, -2);
+			while (substr($dklev, -1) == '0') $dklev = substr($dklev, 0, -1);
+			if (substr($dklev, -1) == '.' || substr($dklev, -1) == ',') $dklev = substr($dklev, 0, -1);
+
+			while (substr($dk_tidl_lev, -1) == '0') $dk_tidl_lev = substr($dk_tidl_lev, 0, -1);
+			if (substr($dk_tidl_lev, -1) == '.' || substr($dk_tidl_lev, -1) == ',') $dk_tidl_lev = substr($dk_tidl_lev, 0, -1);
 			print "<input type=\"hidden\" name=tidl_lev[$x] value=\"$dk_tidl_lev\">\n";
 			$temp = $beholdning - $reserveret[$x];
 			$status = 2;
 			$beholdning = $beholdning * 1;
 			$beholdning = dkdecimal($beholdning, 2);
-			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -1);
-			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -2);
+			while (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -1);
+			if (substr($beholdning, -1) == '.' || substr($beholdning, -1) == ',') $beholdning = substr($beholdning, 0, -1);
 			if (!$lagervare) $beholdning = "ikke lagerført";
 			$tmp = afrund(abs($antal) - abs($tidl_lev), 2); #20131004
 			if ($samlevare && $saet) {
