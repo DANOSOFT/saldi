@@ -951,7 +951,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	}
 	if (substr($udskriv_til, 0, 3) == 'PBS') {
 		$udskriv_til = 'PBS';
-		$pbs = "BS";
+		$pbs = "PBS";
 	}
 	if ($udskriv_til == 'oioubl') $oioubl = "on";
 
