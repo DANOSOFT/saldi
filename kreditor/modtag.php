@@ -57,6 +57,8 @@ function fejltekst(tekst) {
 </script>
 <?php
 
+$aarstart = '';
+$aarslut  = '';
 $query = db_select("select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__);
 if ($row = db_fetch_array($query)) {
 	$year=substr(str_replace(" ","",$row['box2']),-2);
@@ -91,7 +93,7 @@ $levdate=$row['levdate'];
 list ($year, $month, $day) = explode ('-', $row['levdate']);
 $year=substr($year,-2);
 $ym=$year.$month;
-if (($ym<$aarstart)||($ym>$aarslut)) {
+if (empty($aarstart) || empty($aarslut) || ($ym<$aarstart) || ($ym>$aarslut)) {
 	print "<BODY onLoad=\"fejltekst('Leveringsdato udenfor regnskabs&aring;r')\">";
 	 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 	exit;
