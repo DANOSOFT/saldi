@@ -67,7 +67,7 @@
 		</td>
 	</tr>
 	<tr>
-	<td colspan=\"2\"></td><td colspan=\"3\" style=\"padding-left: 5px;\"><b>".findtekst('2795|Sum', $sprog_id)." ".lcfirst(findtekst('3256|Inkl. telttillæg', $sprog_id))."</b></td>
-	<td colspan=\"10\" align=\"right\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
+	<td colspan=\"2\"></td><td colspan=\"3\" style=\"padding-left: 5px;\"><b>".findtekst('2795|Sum', $sprog_id)." ".lcfirst(findtekst('3256|Inkl. telttillæg', $sprog_id))."</b></td>"; #Sum inkl. telttillæg
+	print "<td colspan=\"10\" align=\"right\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
 	</tr>";
 ?>

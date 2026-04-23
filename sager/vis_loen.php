@@ -440,24 +440,24 @@ function vis_loen($id) {
 				if ($oprettet) {
 						print "<table border=\"0\" cellspacing=\"0\" width=\"780\">
 						<tr>
-							<td><b>".findtekst('65|Oprettet', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)." ".date("d-m-Y",$oprettet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$oprettet)."</td>
+							<td><b>".findtekst('65|Oprettet', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y",$oprettet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$oprettet)."</td>
 							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $oprettet_af</td>
 							<td><b>".findtekst('1134|Løbenr.', $sprog_id).":&nbsp;</b>$loen_nr</td>
 							<td><b>".findtekst('494|Status', $sprog_id).":&nbsp;</b>$status</td>
 							
 						</tr>";
 					if ($afsluttet) {
-						print "<tr><td><b>".findtekst('2790|Overført', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)." ".date("d-m-Y",$afsluttet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$afsluttet)."</td>
+						print "<tr><td><b>".findtekst('2790|Overført', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y",$afsluttet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$afsluttet)."</td>
 							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afsluttet_af</td></tr>";
 					}
 					if ($godkendt) {
-						print "<tr><td><b>".findtekst('2937|Godkendt', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)." ".date("d-m-Y",$godkendt)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$godkendt)."</td>
+						print "<tr><td><b>".findtekst('2937|Godkendt', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y",$godkendt)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$godkendt)."</td>
 							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $godkendt_af</td>";
  							if ($master_nr) print"<td><b>".findtekst('3034|Afr. på', $sprog_id)."&nbsp; : </b>$master_nr</td>"; #20151215
 							print "</tr>";
 					}
 					if ($afvist) {
-						print "<tr><td><b>".findtekst('3011|Afvist', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)." ".date("d-m-Y",$afvist)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$afvist)."</td>
+						print "<tr><td><b>".findtekst('3011|Afvist', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y",$afvist)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$afvist)."</td>
 							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afvist_af</td></tr>";
 					}
 					print "</table>";
@@ -578,7 +578,7 @@ function vis_loen($id) {
 					print "<tr>\n";
 						if ($loen_art=='akk_afr') print "<td title=\"".findtekst('3050|Akkordseddel nr.', $sprog_id).": $akkord_nr[$x]\"><input type=\"text\" $beskyttet placeholder=\"".findtekst('438|Dato', $sprog_id)."\" name=\"loen_date[$x]\" class=\"medarbejdernr printBorderNone\" value=\"".dkdato($loen_date[$x])."\" style=\"width:66px;\"></td>\n";
 						print "<td><input type=\"text\" $beskyttet placeholder=\"".findtekst('3054|Med. nr.', $sprog_id)."\" name=\"medarb_nr[$x]\" class=\"medarbejdernr printBorderNone\" value=\"$medarb_nr[$x]\" style=\"width:56px;\"></td>
-						<td><input type=\"text\" $beskyttet placeholder=\"".findtekst('3055|Medarbejder navn', $sprog_id)."\" name=\"medarb_navn[$x]\" class=\"medarbejdernavn printBorderNone\" value=\"$medarb_navn[$x]\" style=\"width:260px\">\n";
+						<td><input type=\"text\" $beskyttet placeholder=\"".findtekst('3055|Medarbejdernavn', $sprog_id)."\" name=\"medarb_navn[$x]\" class=\"medarbejdernavn printBorderNone\" value=\"$medarb_navn[$x]\" style=\"width:260px\">\n";
 						if ($loen_art!='ferie') print "</td>\n";
 						if ($loen_art!='aconto' && $loen_art!='regulering' && $loen_art!='ferie') print "<td><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_timer[$x]\" class=\"zeroValue alignRight printBorderNone\" value=\"".str_replace(".",",",$loen_timer[$x])."\" style=\"width:33px;\"></td>\n";
 						if ($loen_art=='akk_afr'||$loen_art=='akktimer'||$loen_art=='akkord'||$loen_art=='timer') {

@@ -2879,7 +2879,7 @@
 2879	Ændr eksisterende kunde på sagen	Change existing customer for the project	Endre eksisterende kunde på saken
 2880	Kontaktpersoner til sagen	Contact persons for the project	Kontaktpersoner for saken
 2881	Notat	Note	Notat
-2882	d.	&nbsp;	d.
+2882	d. 	-	d. 
 2883	kl.	at	kl.
 2884	Oprettet af	Created by	Opprettet av
 2885	Planlægningsinformation til opgave	Planning information for task	Planleggingsinformasjon for oppgave
@@ -3036,8 +3036,8 @@
 3036	Bekræft sletning	Confirm deletion	Bekreft sletting
 3037	Denne seddel er afvist af	This slip has been rejected by	Denne seddelen er avvist av
 3038	Der eksisterer allerede en uafsluttet akkordseddel	An unfinished piecework slip already exists	Det eksisterer allerede en uavsluttet akkordseddel
-3039	for den	for	for den
-3040	på sag nr.	on project no.	på sak nr.
+3039	for den	on	for den
+3040	på sag nr.	for project no.	på sak nr.
 3041	opgave nr.	task no.	oppgave nr.
 3042	Der eksisterer allerede en uafsluttet akkordtimeseddel	An unfinished piecework hour slip already exists	Det eksisterer allerede en uavsluttet akkordtimeseddel
 3043	Der er allerede registreret skur	Site cabin already registered	Skur er allerede registrert

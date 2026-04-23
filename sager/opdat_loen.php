@@ -74,7 +74,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 		if (($loen_art=='akk_afr' || $loen_art=='akkord') && $sag_nr) {
 		$r=db_fetch_array(db_select("select id,nummer from loen where (art='akk_afr' or art='akkord') and sag_nr = '$sag_nr' and opg_nr = '$opg_nr' and afsluttet = '' and afvist = '' and id != '$id'",__FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
-				$txt=findtekst('3038|Der eksisterer allerede en uafsluttet akkordseddel', $sprog_id)." (nr: $r[nummer]) ".findtekst('3131|til', $sprog_id)." $listevalg ".findtekst('3039|for den', $sprog_id)." ".$loendate." ".findtekst('3040|på sag nr.', $sprog_id)." $sag_nr, ".findtekst('3041|opgave nr.', $sprog_id)." $opg_nr!"; #Der eksisterer allerede en uafsluttet akkordseddel [nr.] til [listevalg] for den [løndato] på sag nr. [nr.], opgave nr. [nr.]!
+				$txt=findtekst('3038|Der eksisterer allerede en uafsluttet akkordseddel', $sprog_id)." (".lcfirst(findtekst('2248|Nr.', $sprog_id))." $r[nummer]) ".findtekst('3131|til', $sprog_id)." $listevalg ".findtekst('3039|for den', $sprog_id)." ".$loendate." ".findtekst('3040|på sag nr.', $sprog_id)." $sag_nr, ".findtekst('3041|opgave nr.', $sprog_id)." $opg_nr!"; #Der eksisterer allerede en uafsluttet akkordseddel [nr.] til [listevalg] for den [løndato] på sag nr. [nr.], opgave nr. [nr.]!
 				print "<BODY onLoad=\"javascript:alert('$txt')\">";
 				$sag_nr='0';
 				$sag_id=0;
@@ -83,7 +83,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 		if ($loen_art=='akktimer' && $sag_nr) {
 			$r=db_fetch_array(db_select("select id,nummer from loen where (art='akktimer' or art='akkord') and loendate='".usdate($loendato)."' and sag_nr = '$sag_nr' and opg_nr = '$opg_nr' and afsluttet = '' and afvist = '' and (master_id='$id' or master_id='0' or master_id=NULL) and id != '$id'",__FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
-				$txt=findtekst('3042|Der eksisterer allerede en uafsluttet akkordtimeseddel', $sprog_id)." (nr: $r[nummer]) ".findtekst('3131|til', $sprog_id)." $listevalg ".findtekst('3039|for den', $sprog_id)." ".$loendate." ".findtekst('3040|på sag nr.', $sprog_id)." $sag_nr, ".findtekst('3041|opgave nr.', $sprog_id)." $opg_nr!"; #Der eksisterer allerede en uafsluttet akkordtimeseddel [nr] til [listevalg] for den [løndato] på sag nr. [nr.], opgave nr. [nr.]!
+				$txt=findtekst('3042|Der eksisterer allerede en uafsluttet akkordtimeseddel', $sprog_id)." (".lcfirst(findtekst('2248|Nr.', $sprog_id))." $r[nummer]) ".findtekst('3131|til', $sprog_id)." $listevalg ".findtekst('3039|for den', $sprog_id)." ".$loendate." ".findtekst('3040|på sag nr.', $sprog_id)." $sag_nr, ".findtekst('3041|opgave nr.', $sprog_id)." $opg_nr!"; #Der eksisterer allerede en uafsluttet akkordtimeseddel [nr.] til [listevalg] for den [løndato] på sag nr. [nr.], opgave nr. [nr.]!
 				print "<BODY onLoad=\"javascript:alert('$txt')\">";
 				$sag_nr='0';
 				$sag_id=0;
@@ -107,7 +107,7 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 								$ret_skur[$x]=NULL;
 								if ($sk1[$i]||$sk2[$i]){
 									$ret_skur[$x]="off";
-									$txt=findtekst('3043|Der er allerede registreret skur', $sprog_id)." ".findtekst('2882|d.', $sprog_id)." ".dkdato($loendate)." ".findtekst('3044|for medarb. nr.', $sprog_id)." $medarb_nr[$x] ".findtekst('3045|på seddel', $sprog_id)." $r[nummer]"; #Der er allerede registreret skur d. [løndato] for medarb. nr. [nr.] på seddel [nr.]
+									$txt=findtekst('3043|Der er allerede registreret skur', $sprog_id)." ".findtekst('2882|d.', $sprog_id)."".dkdato($loendate)." ".findtekst('3044|for medarb. nr.', $sprog_id)." $medarb_nr[$x] ".findtekst('3045|på seddel', $sprog_id)." $r[nummer]"; #Der er allerede registreret skur d. [løndato] for medarb. nr. [nr.] på seddel [nr.]
 									print "<BODY onLoad=\"javascript:alert('$txt')\">";
 									$skur1[$x]=NULL;  
 									$skur2[$x]=NULL;
