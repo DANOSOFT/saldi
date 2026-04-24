@@ -2985,7 +2985,7 @@ if (strstr($b_submit, 'Lev') && $bogfor != 0 && $status < 3) {
 			$fast_db[$x]    = $r['fast_db'];
 			$lev_varenr[$x] = $r['lev_varenr'];
 		}
-*/
+	*/
 	$q = db_select("select * from ordrelinjer where ordre_id = '$id' order by posnr,id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -3078,7 +3078,7 @@ function ordreside($id, $regnskab)
 	if ($menu == 'T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
-		#  } else {
+	#  } else {
 	}
 
 	$dkb = 0; #dækningsbidrag;
@@ -3678,7 +3678,7 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til!="email" && $email) print "<option>email</option>\n";
 		if ($udskriv_til!="oioxml" && strlen($ean)==13) print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n";
 		print "</SELECT></td></tr>\n";
-*/
+		*/
 		if ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
@@ -3721,7 +3721,7 @@ function ordreside($id, $regnskab)
 			if ($pbs_nr && !$pbs_fi) print "<td colspan=\"2\" title=\"$title\">Opkr&aelig;v via PBS (BS)</td><td title=\"$title\"><input class=\"inputbox\" type=\"checkbox\" name=\"pbs_bs\" \"$pbs_bs\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 		} else print "</tr>\n";
 		 
-*/
+		*/
 
 		// 
 		print "<tr class='tableTexting'><td width=\"100\"><b>" . findtekst('881|Ordredato', $sprog_id) . "</b></td><td width=\"100\">$ordredato</td>\n"; #20210629
@@ -4601,7 +4601,7 @@ function ordreside($id, $regnskab)
 			$title="Opkr&aelig;ves via PBS betalingsservice";
 			if ($pbs_nr && !$pbs_fi) print "<td colspan=\"2\" title=\"$title\">Opkr&aelig;v via PBS (BS)</td><td title=\"$title\"><input class = 'inputbox' type=\"checkbox\" name=\"pbs_bs\" \"$pbs_bs\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 		} else print "</tr>\n";
-*/
+		*/
 		if (!$hurtigfakt && $status <= 1) $std_bilag = "tilbud";
 		elseif ($status <= 2) $std_bilag = "ordrer";
 		elseif ($status >= 4) $std_bilag = "faktura";
@@ -4784,8 +4784,8 @@ function ordreside($id, $regnskab)
 		 *		if (!$id) {
 		 *			$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
 		 *
-	}
-	*/
+		}
+		*/
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr) > 1) {
 			print "</td><td></td>\n";
@@ -5152,7 +5152,7 @@ function ordreside($id, $regnskab)
 		print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
 		print "<input type=\"hidden\" name=\"id\" value=\"$id\">\n";
 
-$x = 0;
+		$x = 0;
 		if (!$ordre_id) $ordre_id = 0;
 		$kostpris[0] = $kostsum = 0;
 		$blandet_moms = $lagervarer = $tGrossWeight = $tNetWeight = $tVolume = 0;
@@ -5185,6 +5185,7 @@ $x = 0;
 				$procent[$x]         = $row['procent'] * 1;
 				$antal[$x]           = $row['antal'] * 1;
 				$leveres[$x]         = $row['leveres'];
+				$leveret[$x]         = $row['leveret'];
 				$vare_id[$x]         = $row['vare_id'];
 				$momsfri[$x]         = $row['momsfri'];
 				$rabatgruppe[$x]     = $row['rabatgruppe'];
