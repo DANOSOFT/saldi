@@ -408,7 +408,7 @@ if ($header != 'nix') {
 	<script type="text/javascript">
 		// jQuery funktion til autosize på textarea 
 		$(document).ready(function(){
-			$('.autosize').autosize()
+			if(typeof $('.autosize') !== 'undefined' && typeof $('.autosize').autosize !== 'undefined') $('.autosize').autosize()
 		});
 		// jQuery funktion til ordrelinjer i ordre.php. Ved tryk på enter submitter formen og ved shift+enter laver den ny linje i textarea
 		$(function() {
