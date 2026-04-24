@@ -26,7 +26,7 @@
 // 20250627 base currency anount was not calculated correct.
 // 2050923 LOE - Showing all records or only open records added.
 // 20251002 MS Removed "Width=80%" and added padding to allow the Print/Email buttons to have the intended size, while still centering the text
-// 20260423 PHR	Corrected call to text numner for text
+// 20260423 PHR Corrected call to text number for text
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {

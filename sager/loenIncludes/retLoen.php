@@ -260,7 +260,7 @@ function ret_loen() {
 						$fordeling.= chr(9).$loen_fordeling[$x];
 						$timer    .= chr(9).$loen_timer[$x];
 						$t50pct   .= chr(9).$loen_50pct[$x];
-						$t100pc   .= chr(9).$loen_100pct[$x];
+						$t100pct  .= chr(9).$loen_100pct[$x];
 						$skur_1   .= chr(9).$skur1[$x];
 						$skur_2   .= chr(9).$skur2[$x];
 						$mentor   .= chr(9).$loen_mentor[$x];
