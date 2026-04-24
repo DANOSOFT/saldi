@@ -323,12 +323,12 @@ if ($tjek = if_isset($_GET['tjek'])) {
 			db_modify("update kladdeliste set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
 		}
 	}
-/*
+	/*
 	if (db_fetch_array(db_select("select id from tmpkassekl where kladde_id='$tjek'", __FILE__ . " linje " . __LINE__)))
 		$fejl = 1;
 	else
 		$fejl = 0;
-*/
+	*/
 	if ($r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__))) {
 		$kksort = $r['box1'];
 		$kontrolkonto = $r['box2'];
@@ -521,14 +521,14 @@ if ($_POST) {
 	$antal_ny      = if_isset($_POST['antal_ny']);
 	$antal_ex      = if_isset($_POST['antal_ex']);
 	$fokus         = if_isset($_POST['fokus']);
-//  $momsfri       = if_isset($_POST['momsfri']);
+	#$momsfri       = if_isset($_POST['momsfri']);
 	$id            = if_isset($_POST['id']);
 	$gl_transdate  = if_isset($_POST['transdate']);
 	if ($kladde_id) {
-#		if ($r=db_fetch_array(db_select("select id from kladdeliste where bogfort='S' and id='$kladde_id'",__FILE__ . " linje " . __LINE__))) {
-#			 $alerttekst= findtekst('1417|Annullerer simulering for denne kladde', $sprog_id);
-#			 alert('a'.$alerttekst);
-#		}
+	#		if ($r=db_fetch_array(db_select("select id from kladdeliste where bogfort='S' and id='$kladde_id'",__FILE__ . " linje " . __LINE__))) {
+	#			 $alerttekst= findtekst('1417|Annullerer simulering for denne kladde', $sprog_id);
+	#			 alert('a'.$alerttekst);
+	#		}
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 		if (isset($_POST['cancelSimulation']) && $_POST['cancelSimulation']) {
 			db_modify("delete from simulering where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
@@ -670,8 +670,8 @@ if ($_POST) {
 			$sletslut  = '';
 		}
 		## Bilag		
-#		if ($bilag[$x]=='-*') $sletrest=1;
-#		if ($sletrest) $bilag[$x]='-';
+		#if ($bilag[$x]=='-*') $sletrest=1;
+		#if ($sletrest) $bilag[$x]='-';
 
 		if (!isset($bilag_ligslut))
 			$bilag_ligslut = NULL;
@@ -752,7 +752,7 @@ if ($_POST) {
 		}
 		if ($d_type[$x] && $d_type[$x] != 'D' && $d_type[$x] != 'K')
 			$d_type[$x] = 'F'; #20110605
-# debet
+		# debet
 		if ((!$debet_ligslut) && ($debet[$x] == "=>")) {
 			$debet_ligstart = $x;
 			$debet[$x] = $debet[$x - 1];
@@ -790,7 +790,7 @@ if ($_POST) {
 		}
 		if ($k_type[$x] && $k_type[$x] != 'D' && $k_type[$x] != 'K')
 			$k_type[$x] = 'F'; #20110605
-# kredit
+		# kredit
 		if ((!$kredit_ligslut) && ($kredit[$x] == "=>")) {
 			$kredit_ligstart = $x;
 			$kredit[$x] = $kredit[$x - 1];
@@ -863,11 +863,11 @@ if ($_POST) {
 			$belob_ligslut  = '';
 		}
 		/*
-																			if (strtoupper($debet[$x]) == 'D') $d_type[$x]='D';
-																			if (strtoupper($debet[$x]) == 'K') $d_type[$x]='K';
-																			if (strtoupper($kredit[$x]) == 'D') $k_type[$x]='D';
-																			if (strtoupper($kredit[$x]) == 'K') $k_type[$x]='K';
-																	*/
+			if (strtoupper($debet[$x]) == 'D') $d_type[$x]='D';
+			if (strtoupper($debet[$x]) == 'K') $d_type[$x]='K';
+			if (strtoupper($kredit[$x]) == 'D') $k_type[$x]='D';
+			if (strtoupper($kredit[$x]) == 'K') $k_type[$x]='K';
+		*/
 		# Hvis der skrives d eller k i debet eller kredit felt, slås op kreditor eller debitor liste.
 		if ($submit == 'save' && ($fokus == "debe$x" && (strtoupper($debet[$x]) == 'D' || strtoupper($debet[$x]) == 'K'))) {
 			$qtxt = "select * from kontoplan where genvej='" . strtoupper($debet[$x]) . "' and regnskabsaar='$regnaar'";
@@ -1005,32 +1005,33 @@ if ($_POST) {
 			#cho __line__." $qtxt<br>";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-if ($x == $antal - 1 && $kladde_id) { // only after last line
-    $sum_debet = 0;
-    $sum_kredit = 0;
+			if ($x == $antal - 1 && $kladde_id) { // only after last line
+				$sum_debet = 0;
+				$sum_kredit = 0;
 
-    $res = db_select("SELECT debet, kredit FROM tmpkassekl WHERE bilag = '$bilag[$x]' AND kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
-    while ($row = db_fetch_array($res)) {
-        $sum_debet += floatval($row['debet']);
-        $sum_kredit += floatval($row['kredit']);
-    }
+				$res = db_select("SELECT debet, kredit FROM tmpkassekl WHERE bilag = '$bilag[$x]' AND kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+				while ($row = db_fetch_array($res)) {
+					$sum_debet += floatval($row['debet']);
+					$sum_kredit += floatval($row['kredit']);
+				}
 
-    $diff = round($sum_debet - $sum_kredit, 2);
-    if ($diff != 0) {
-        $next_lob   = $x + 1;
-        $debet_val  = $diff < 0 ? abs($diff) : 0;
-        $kredit_val = $diff > 0 ? abs($diff) : 0;
+				$diff = round($sum_debet - $sum_kredit, 2);
+				if ($diff != 0) {
+					$next_lob   = $x + 1;
+					$debet_val  = $diff < 0 ? abs($diff) : 0;
+					$kredit_val = $diff > 0 ? abs($diff) : 0;
 
-        $qtxt = "INSERT INTO tmpkassekl (lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id)
-                 VALUES ('$next_lob', '0', '$bilag[$x]', '$dato[$x]', 'Auto-balance', '', '$debet_val', '', '$kredit_val', '', '0', '', '', '$kladde_id', '', '', '', '', '')";
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-    }
-}
-
+					$qtxt = "INSERT INTO tmpkassekl (lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id)
+							VALUES ('$next_lob', '0', '$bilag[$x]', '$dato[$x]', 'Auto-balance', '', '$debet_val', '', '$kredit_val', '', '0', '', '', '$kladde_id', '', '', '', '', '')";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				}
+			}
 		}
-		if ($fejl)
+		if ($fejl) {
 			$submit = 'save'; #20210721
+		}
 	}
+
 	#cho __line__." F $fejl<br>";
 	if ($fejl)
 		$submit = 'save';
@@ -1105,9 +1106,6 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 						$submit = 'save';
 				}
 			}
-			#******************************
-#cho __line__." $submit $debet[$x] $fokus $x<br>";
-#			if ($submit === 'lookup' || $submit === 'save' ) {
 			if ($submit === 'lookup') {
 				if (isset($debet[$opslag_id])) {
 					if (strtoupper($debet[$opslag_id]) == "K") $d_type[$opslag_id] = "K";
@@ -1193,7 +1191,8 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 					$bilagsnr = $r['bilagsnr'];
 				}
 
-
+				*/
+				/**
 				This forwarded the last used voucher number to the import screen instead of the next free number.
 				The first imported bank line then started on the same bilag as the previous journal line.
 				*/
@@ -1370,56 +1369,56 @@ function build_kassekladde_query($kladde_id, $kksort) {
 $columns = array(
     // Bilag clip column (if vis_bilag is enabled)
     array(
-    'field' => 'clip',
-    'headerName' => '',
-    'type' => 'text',
-    'width' => '0.5',
-    'sortable' => false,
-    'searchable' => false,
-    'hidden' => !$vis_bilag,
-    'render' => function($value, $row, $column) use ($kladde_id, $sprog_id) {
-        $id = $row['id'];
-        $bilag = $row['bilag'];
-        $dokument = $row['dokument'];
-        
-        // Check documents table for attached files
-        $qtxt = "select id, filename from documents where source = 'kassekladde' and source_id = '$id' order by id limit 1";
-        $docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-        
-        $hasDoc = ($dokument || $docRow) ? true : false;
-        
-        if ($hasDoc) {
-            $clip = 'paper.png';
-            $titletxt = findtekst(1454, $sprog_id);
-            $href = "../includes/documents.php?source=kassekladde&sourceId=$id&kladde_id=$kladde_id&bilag=$bilag&fokus=bila";
-        } else {
-            $clip = 'clip.png';
-            $titletxt = findtekst(1455, $sprog_id);
-            $href = "../includes/documents.php?source=kassekladde&sourceId=$id&kladde_id=$kladde_id&bilag=$bilag&fokus=bila&openPool=1";
-        }
-        
-        $dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id, \"" . htmlspecialchars($bilag) . "\")'" : "";
-        $dropAttr = "";
-        $dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
-        
-        $txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-        return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
-            <span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>
-            <img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
-        </td>";
-    }
-),
+		'field' => 'clip',
+		'headerName' => '',
+		'type' => 'text',
+		'width' => '0.5',
+		'sortable' => false,
+		'searchable' => false,
+		'hidden' => !$vis_bilag,
+		'render' => function($value, $row, $column) use ($kladde_id, $sprog_id) {
+			$id = $row['id'];
+			$bilag = $row['bilag'];
+			$dokument = $row['dokument'];
+			
+			// Check documents table for attached files
+			$qtxt = "select id, filename from documents where source = 'kassekladde' and source_id = '$id' order by id limit 1";
+			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			
+			$hasDoc = ($dokument || $docRow) ? true : false;
+			
+			if ($hasDoc) {
+				$clip = 'paper.png';
+				$titletxt = findtekst(1454, $sprog_id);
+				$href = "../includes/documents.php?source=kassekladde&sourceId=$id&kladde_id=$kladde_id&bilag=$bilag&fokus=bila";
+			} else {
+				$clip = 'clip.png';
+				$titletxt = findtekst(1455, $sprog_id);
+				$href = "../includes/documents.php?source=kassekladde&sourceId=$id&kladde_id=$kladde_id&bilag=$bilag&fokus=bila&openPool=1";
+			}
+			
+			$dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id, \"" . htmlspecialchars($bilag) . "\")'" : "";
+			$dropAttr = "";
+			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
+			
+			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
+			return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
+				<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>
+				<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
+			</td>";
+		}
+	),
     
-    // Bilag number
-    array(
-        'field' => 'bilag',
-        'headerName' => findtekst('671|Bilag', $sprog_id),
-        'type' => 'text',
-        'width' => '1',
-        'align' => 'right',
-        'sortable' => true,
-        'searchable' => true,
-        'defaultSort' => false,
+	// Bilag number
+	array(
+		'field' => 'bilag',
+		'headerName' => findtekst('671|Bilag', $sprog_id),
+		'type' => 'text',
+		'width' => '1',
+		'align' => 'right',
+		'sortable' => true,
+		'searchable' => true,
+		'defaultSort' => false,
 		"sqlOverride" => "k.bilag",
 		"valueGetter" => function ($value, $row, $column) {
 			return $value;
@@ -1435,136 +1434,136 @@ $columns = array(
 			// Cast integer field to text for ILIKE search
 			return "$field::text ILIKE '%$term%'";
 		},
-        'defaultSortDirection' => 'asc'
-    ),
-    
-    // Date
-    array(
-        'field' => 'transdate',
-        'headerName' => findtekst('635|Dato', $sprog_id),
-        'type' => 'text',
-        'width' => '1.5',
-		 'align' => 'center',
-        'sortable' => true,
-        'searchable' => true,
+		'defaultSortDirection' => 'asc'
+	),
+	
+	// Date
+	array(
+		'field' => 'transdate',
+		'headerName' => findtekst('635|Dato', $sprog_id),
+		'type' => 'text',
+		'width' => '1.5',
+		'align' => 'center',
+		'sortable' => true,
+		'searchable' => true,
 		"sqlOverride" => "k.transdate",
-        'valueGetter' => function($value, $row, $column) {
-            return dkdato($value);
-        },
-	 'generateSearch' => function ($column, $term) {
-        return generateSearch($column, $term);
-      },
-    ),
-    
-    // Description
-    array(
-        'field' => 'beskrivelse',
-        'headerName' => findtekst('1068|Bilagstekst', $sprog_id),
-        'type' => 'text',
-        'width' => '3',
-        'sortable' => false,
-        'searchable' => true
-    ),
-    
-    // D/K Type for Debet
-    array(
-        'field' => 'd_type',
-        'headerName' => 'D/K',
-        'type' => 'text',
-        'width' => '0.5',
-        'align' => 'center',
-        'sortable' => false,
-        'searchable' => false
-    ),
-    
-  
+		'valueGetter' => function($value, $row, $column) {
+			return dkdato($value);
+		},
+		'generateSearch' => function ($column, $term) {
+			return generateSearch($column, $term);
+		},
+	),
+	
+	// Description
+	array(
+		'field' => 'beskrivelse',
+		'headerName' => findtekst('1068|Bilagstekst', $sprog_id),
+		'type' => 'text',
+		'width' => '3',
+		'sortable' => false,
+		'searchable' => true
+	),
+	
+	// D/K Type for Debet
+	array(
+		'field' => 'd_type',
+		'headerName' => 'D/K',
+		'type' => 'text',
+		'width' => '0.5',
+		'align' => 'center',
+		'sortable' => false,
+		'searchable' => false
+	),
+
+
 
 	// Debet column
-array(
-    'field' => 'debet',
-    'headerName' => findtekst('1000|Debet', $sprog_id),
-    'type' => 'text',
-    'width' => '1.5',
-    'align' => 'left',
-    'sortable' => true,
-    'defaultSort' => true,
-    "sqlOverride" => "k.debet",
-    "valueGetter" => function ($value, $row, $column) {
-        return $value;
-    },
-    // Add custom render function to include title
-    'render' => function($value, $row, $column) use ($regnaar) {
-        global $regnaar;
-        $value = strip_tags($value);
-        $debettext = '';
-        if ($row['d_type'] == 'F' && $value) {
-            $query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
-            if ($row2 = db_fetch_array($query2)) {
-                $debettext = $row2['beskrivelse'];
-                if (trim($row2['moms']))
-                    $debettext = $debettext . " - " . trim($row2['moms']);
-            }
-        } elseif (($row['d_type'] == 'D' || $row['d_type'] == 'K') && $value) {
-            $query2 = db_select("select firmanavn from adresser where kontonr='$value' and art = '{$row['d_type']}'", __FILE__ . " linje " . __LINE__);
-            if ($row2 = db_fetch_array($query2)) {
-                $debettext = trim($row2['firmanavn']);
-            }
-        }
-        
-        return "<td align='right' title='" . htmlspecialchars($debettext) . "'>" . htmlspecialchars($value) . "</td>";
-    },
-    "generateSearch" => function ($column, $term) {
-        $field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
-        $term = db_escape_string(trim($term, "'"));
-        
-        if (empty($term)) {
-            return "1=1";
-        }
-        
-        return "$field::text ILIKE '%$term%'";
-    },
-    'defaultSortDirection' => 'asc'
-),
+	array(
+		'field' => 'debet',
+		'headerName' => findtekst('1000|Debet', $sprog_id),
+		'type' => 'text',
+		'width' => '1.5',
+		'align' => 'left',
+		'sortable' => true,
+		'defaultSort' => true,
+		"sqlOverride" => "k.debet",
+		"valueGetter" => function ($value, $row, $column) {
+			return $value;
+		},
+		// Add custom render function to include title
+		'render' => function($value, $row, $column) use ($regnaar) {
+			global $regnaar;
+			$value = strip_tags($value);
+			$debettext = '';
+			if ($row['d_type'] == 'F' && $value) {
+				$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+				if ($row2 = db_fetch_array($query2)) {
+					$debettext = $row2['beskrivelse'];
+					if (trim($row2['moms']))
+						$debettext = $debettext . " - " . trim($row2['moms']);
+				}
+			} elseif (($row['d_type'] == 'D' || $row['d_type'] == 'K') && $value) {
+				$query2 = db_select("select firmanavn from adresser where kontonr='$value' and art = '{$row['d_type']}'", __FILE__ . " linje " . __LINE__);
+				if ($row2 = db_fetch_array($query2)) {
+					$debettext = trim($row2['firmanavn']);
+				}
+			}
+			
+			return "<td align='right' title='" . htmlspecialchars($debettext) . "'>" . htmlspecialchars($value) . "</td>";
+		},
+		"generateSearch" => function ($column, $term) {
+			$field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
+			$term = db_escape_string(trim($term, "'"));
+			
+			if (empty($term)) {
+				return "1=1";
+			}
+			
+			return "$field::text ILIKE '%$term%'";
+		},
+		'defaultSortDirection' => 'asc'
+	),
 
-// Debet VAT column
-array(
-    'field' => 'debet_vat',
-    'headerName' => findtekst('770|Moms', $sprog_id),
-    'type' => 'text',
-    'width' => '0.8',
-    'align' => 'center',
-    'sortable' => false,
-    'searchable' => false,
-    'render' => function($value, $row, $column) use ($regnaar) {
-        global $regnaar;
-        $saved_vat = get_saved_vat_code($row, 'debetvat');
-        $vat = ($saved_vat === null) ? '' : $saved_vat;
-        $dtype = isset($row['d_type']) ? trim($row['d_type']) : '';
-        $debet = isset($row['debet']) ? trim($row['debet']) : '';
-        if ($saved_vat === null && $debet && $dtype != 'D' && $dtype != 'K') {
-            $query2 = db_select("select moms from kontoplan where kontonr='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
-            if ($row2 = db_fetch_array($query2)) {
-                $vat = isset($row2['moms']) ? trim($row2['moms']) : '';
-            }
-        }
-        return "<td align='center'>" . htmlspecialchars($vat) . "</td>";
-    }
-),
+	// Debet VAT column
+	array(
+		'field' => 'debet_vat',
+		'headerName' => findtekst('770|Moms', $sprog_id),
+		'type' => 'text',
+		'width' => '0.8',
+		'align' => 'center',
+		'sortable' => false,
+		'searchable' => false,
+		'render' => function($value, $row, $column) use ($regnaar) {
+			global $regnaar;
+			$saved_vat = get_saved_vat_code($row, 'debetvat');
+			$vat = ($saved_vat === null) ? '' : $saved_vat;
+			$dtype = isset($row['d_type']) ? trim($row['d_type']) : '';
+			$debet = isset($row['debet']) ? trim($row['debet']) : '';
+			if ($saved_vat === null && $debet && $dtype != 'D' && $dtype != 'K') {
+				$query2 = db_select("select moms from kontoplan where kontonr='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+				if ($row2 = db_fetch_array($query2)) {
+					$vat = isset($row2['moms']) ? trim($row2['moms']) : '';
+				}
+			}
+			return "<td align='center'>" . htmlspecialchars($vat) . "</td>";
+		}
+	),
 
 
 	###########
-    // D/K Type for Kredit
-    array(
-        'field' => 'k_type',
-        'headerName' => 'D/K',
-        'type' => 'text',
-        'width' => '0.5',
-        'align' => 'center',
-        'sortable' => false,
-        'searchable' => false
-    ),
-    
-    
+	// D/K Type for Kredit
+	array(
+		'field' => 'k_type',
+		'headerName' => 'D/K',
+		'type' => 'text',
+		'width' => '0.5',
+		'align' => 'center',
+		'sortable' => false,
+		'searchable' => false
+	),
+	
+	
 	// Kredit column
 	array(
 		'field' => 'kredit',
@@ -1637,28 +1636,28 @@ array(
 		}
 	),
 
-    // Faktura
-    array(
-        'field' => 'faktura',
-        'headerName' => findtekst('828|Fakturanr.', $sprog_id),
-        'type' => 'text',
-        'width' => '1.5',
-        'align' => 'right',
-        'sortable' => false,
-        'searchable' => true
-    ),
-    
-    // Amount/Beløb
-    array(
-        'field' => 'belob',
-        'headerName' => findtekst('934|Beløb', $sprog_id),
-        'type' => 'text',
-        'width' => '1.5',
-        'align' => 'right',
-        'sortable' => true,
-        'searchable' => true,
-        // 'decimalPrecision' => 2,
-       'defaultSort' => true,
+	// Faktura
+	array(
+		'field' => 'faktura',
+		'headerName' => findtekst('828|Fakturanr.', $sprog_id),
+		'type' => 'text',
+		'width' => '1.5',
+		'align' => 'right',
+		'sortable' => false,
+		'searchable' => true
+	),
+
+	// Amount/Beløb
+	array(
+		'field' => 'belob',
+		'headerName' => findtekst('934|Beløb', $sprog_id),
+		'type' => 'text',
+		'width' => '1.5',
+		'align' => 'right',
+		'sortable' => true,
+		'searchable' => true,
+		// 'decimalPrecision' => 2,
+		'defaultSort' => true,
 		"sqlOverride" => "k.amount",
 		"valueGetter" => function ($value, $row, $column) {
 			return is_numeric($value) ? dkdecimal($value, 2) : $value;
@@ -1674,112 +1673,111 @@ array(
 			// Cast integer field to text for ILIKE search
 			return "$field::text ILIKE '%$term%'";
 		},
-        'defaultSortDirection' => 'asc'
-    ),
-    
-    // Afdeling (if visible)
-    array(
-        'headerName' => findtekst('2464|Afd.', $sprog_id),
-        'type' => 'number',
-        'width' => '1',
-        'align' => 'right',
-			'sortable' => false,
-        'searchable' => false,
-        'hidden' => !$vis_afd
+		'defaultSortDirection' => 'asc'
+	),
 	
-    ),
-    
-    // Ansat (if visible)
-    array(
-        'headerName' => findtekst('589|Ansat', $sprog_id),
-        'type' => 'text',
-        'width' => '1',
-        'hidden' => !$vis_ansat,
-		 'sortable' => false,
-        'searchable' => false
-    ),
-    
-    // Projekt (if visible)
-    array(
-        'headerName' => 'Proj.',
-        'type' => 'number',
-        'width' => '1',
-        'align' => 'right',
-		 'sortable' => false,
-        'searchable' => false,
-        'hidden' => !$vis_projekt
+	// Afdeling (if visible)
+	array(
+		'headerName' => findtekst('2464|Afd.', $sprog_id),
+		'type' => 'number',
+		'width' => '1',
+		'align' => 'right',
+			'sortable' => false,
+		'searchable' => false,
+		'hidden' => !$vis_afd
+	
+	),
+	
+	// Ansat (if visible)
+	array(
+		'headerName' => findtekst('589|Ansat', $sprog_id),
+		'type' => 'text',
+		'width' => '1',
+		'hidden' => !$vis_ansat,
+		'sortable' => false,
+		'searchable' => false
+	),
+	
+	// Projekt (if visible)
+	array(
+		'headerName' => 'Proj.',
+		'type' => 'number',
+		'width' => '1',
+		'align' => 'right',
+		'sortable' => false,
+		'searchable' => false,
+		'hidden' => !$vis_projekt
 		
-    ),
-    
-    // Valuta (if visible)
-    array(
-        'headerName' => findtekst('1069|Valuta', $sprog_id),
-        'type' => 'text',
-        'width' => '1',
-        'hidden' => !$vis_valuta,
-		 'sortable' => false,
-        'searchable' => false
-        
-    ),
-    
-    // Forfald (if there are debitor/kreditor entries)
-    array(
-        'field' => 'forfaldsdate',
-        'headerName' => findtekst('1070|Forfald', $sprog_id),
-        'type' => 'text',
-        'width' => '1.5',
-        'sortable' => true,
-        'searchable' => true,
-        "sqlOverride" => "k.forfaldsdate",
-        'valueGetter' => function($value, $row, $column) {
-            return dkdato($value);
-        },
+	),
+	
+	// Valuta (if visible)
+	array(
+		'headerName' => findtekst('1069|Valuta', $sprog_id),
+		'type' => 'text',
+		'width' => '1',
+		'hidden' => !$vis_valuta,
+		'sortable' => false,
+		'searchable' => false
+		
+	),
+	
+	// Forfald (if there are debitor/kreditor entries)
+	array(
+		'field' => 'forfaldsdate',
+		'headerName' => findtekst('1070|Forfald', $sprog_id),
+		'type' => 'text',
+		'width' => '1.5',
+		'sortable' => true,
+		'searchable' => true,
+		"sqlOverride" => "k.forfaldsdate",
+		'valueGetter' => function($value, $row, $column) {
+			return dkdato($value);
+		},
 		'generateSearch' => function ($column, $term) {
 			return generateSearch($column, $term);
 		},
-    ),
-    
-    // Betalings-ID (if visible)
-    array(
-        'field' => 'betal_id',
-        'headerName' => findtekst('2534|Betalings-ID', $sprog_id),
-        'type' => 'text',
-        'width' => '1.5',
-         'sortable' => false,
-        'searchable' => false,
-        'hidden' => !($vis_forfald && $vis_bet_id)
-    ),
-    
-    // Momsfri
-    array(
-        'field' => 'momsfri',
-        'headerName' => findtekst('2589|u/m', $sprog_id),
-        'type' => 'text',
-        'width' => '0.5',
-        'align' => 'center',
-        'sortable' => false,
-        'searchable' => false,
-        'render' => function($value, $row, $column) {
-            return "<td align='center'>" . (strstr($value, 'on') ? 'V' : '') . "</td>";
-        }
-    ),
-    
-    // Position - used for maintaining user-defined order
-    array(
-        'field' => 'pos',
-        'headerName' => 'Position',
-        'type' => 'text',
-        'width' => '1',
-        'align' => 'center',
-        'sortable' => true,
-        'searchable' => false,
-        'defaultSort' => true,
-        'defaultSortDirection' => 'asc'
-    )
+	),
+	
+	// Betalings-ID (if visible)
+	array(
+		'field' => 'betal_id',
+		'headerName' => findtekst('2534|Betalings-ID', $sprog_id),
+		'type' => 'text',
+		'width' => '1.5',
+		'sortable' => false,
+		'searchable' => false,
+		'hidden' => !($vis_forfald && $vis_bet_id)
+	),
+	
+	// Momsfri
+	array(
+		'field' => 'momsfri',
+		'headerName' => findtekst('2589|u/m', $sprog_id),
+		'type' => 'text',
+		'width' => '0.5',
+		'align' => 'center',
+		'sortable' => false,
+		'searchable' => false,
+		'render' => function($value, $row, $column) {
+			return "<td align='center'>" . (strstr($value, 'on') ? 'V' : '') . "</td>";
+		}
+	),
+	
+	// Position - used for maintaining user-defined order
+	array(
+		'field' => 'pos',
+		'headerName' => 'Position',
+		'type' => 'text',
+		'width' => '1',
+		'align' => 'center',
+		'sortable' => true,
+		'searchable' => false,
+		'defaultSort' => true,
+		'defaultSortDirection' => 'asc'
+	)
 );
 ##########
-function generateSearch(array $column, string $term): string
-{
+function generateSearch(array $column, string $term): string {
     $field = !empty($column['sqlOverride']) ? $column['sqlOverride'] : $column['field'];
     $term  = trim($term);
 
@@ -2186,7 +2184,7 @@ if ($kladde_id) {
 if ($tjek) {
     $action_url .= "&tjek=$tjek";
 }
-	print "<form name='kassekladde' id='kassekladde' action='$action_url' method='post'>";
+print "<form name='kassekladde' id='kassekladde' action='$action_url' method='post'>";
 print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
 print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
 print "<tr><td width='100%' valign='top' height='1%' align='center' class='kassekladde-note-tb'>
@@ -2221,7 +2219,7 @@ else
 ##########################
 // Create the datagrid
 if (($bogfort && $bogfort != '-') || $udskriv) {
-   # echo "<center>";
+   	#echo "<center>";
     if (!$udskriv) {  // Close the form if it's open Searches don't work without this
         print "</form>";
     }
@@ -2231,30 +2229,30 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		create_datagrid("kass_$bruger_id", $grid_data);
 	print "</div>";
 	########
-	 // Add preserved parameters 
+	// Add preserved parameters // heredoc works as long as it'd indent is the same indentation as the least indented line in the heredoc
     echo <<<SCRIPT
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // OLD: const form = document.querySelector('#datatable-wrapper-kass_$brugernavn form');
-        const form = document.querySelector('#datatable-wrapper-kass_$bruger_id form');
-        if (form) {
-            // Add kladde_id
-            const kladdeInput = document.createElement('input');
-            kladdeInput.type = 'hidden';
-            kladdeInput.name = 'kladde_id';
-            kladdeInput.value = '$kladde_id';
-            form.appendChild(kladdeInput);
-            
-            // Add tjek
-            const tjekInput = document.createElement('input');
-            tjekInput.type = 'hidden';
-            tjekInput.name = 'tjek';
-            tjekInput.value = '$tjek';
-            form.appendChild(tjekInput);
-        }
-    });
-    </script>
-SCRIPT;
+		<script>
+		document.addEventListener('DOMContentLoaded', function() {
+			// OLD: const form = document.querySelector('#datatable-wrapper-kass_$brugernavn form');
+			const form = document.querySelector('#datatable-wrapper-kass_$bruger_id form');
+			if (form) {
+				// Add kladde_id
+				const kladdeInput = document.createElement('input');
+				kladdeInput.type = 'hidden';
+				kladdeInput.name = 'kladde_id';
+				kladdeInput.value = '$kladde_id';
+				form.appendChild(kladdeInput);
+				
+				// Add tjek
+				const tjekInput = document.createElement('input');
+				tjekInput.type = 'hidden';
+				tjekInput.name = 'tjek';
+				tjekInput.value = '$tjek';
+				form.appendChild(tjekInput);
+			}
+		});
+		</script>
+		SCRIPT;
 	########
 	
 	
@@ -2263,8 +2261,6 @@ SCRIPT;
 		print "<div class='kassekladde-scroll-container'>";  
 		print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
 		
-		// print "<tbody>"; # Tabel 1.3 -> kladdelinjer
-		// print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
 		print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
 		print "<tr class='table-krow'><td colspan='24' style='padding: 10px 0;'></td></tr>";
 		print "<tr>";
@@ -2355,35 +2351,35 @@ if ($kladde_id) {
 		print "<meta http-equiv='refresh' content='3600;URL=../finans/kladdeliste.php?tabel=kladdeliste&id=$kladde_id'>";
 
 	print "<script>
-	document.addEventListener('DOMContentLoaded', function() { 
-		console.log('CONTENT LOAD');
-		var element = document.body;
-		var scrollpos = localStorage.getItem('kassekladde-$kladde_id');
-		if (scrollpos && element) {
-			element.scrollTo(0, parseInt(scrollpos, 10));
-		}
-	});
+		document.addEventListener('DOMContentLoaded', function() { 
+			console.log('CONTENT LOAD');
+			var element = document.body;
+			var scrollpos = localStorage.getItem('kassekladde-$kladde_id');
+			if (scrollpos && element) {
+				element.scrollTo(0, parseInt(scrollpos, 10));
+			}
+		});
 
-	function saveScrollPosition() {
-		var element = document.body;
-		if (element) {
-			var scrollKey = 'kassekladde-$kladde_id';
-			localStorage.setItem(scrollKey, element.scrollTop);
-			console.log('Scroll position saved:', element.scrollTop);
+		function saveScrollPosition() {
+			var element = document.body;
+			if (element) {
+				var scrollKey = 'kassekladde-$kladde_id';
+				localStorage.setItem(scrollKey, element.scrollTop);
+				console.log('Scroll position saved:', element.scrollTop);
+			}
 		}
-	}
-	
-	document.addEventListener('visibilitychange', function() {
-		if (document.visibilityState === 'hidden') {
+		
+		document.addEventListener('visibilitychange', function() {
+			if (document.visibilityState === 'hidden') {
+				saveScrollPosition();
+			}
+		});
+		
+		window.addEventListener('beforeunload', function() {
 			saveScrollPosition();
-		}
-	});
-	
-	window.addEventListener('beforeunload', function() {
-		saveScrollPosition();
-	});
-	
-	</script>";
+		});
+		
+		</script>";
 
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -2412,7 +2408,7 @@ if ($kladde_id) {
 		if ($fejl) {
 			$transdate[$x] = usdate($row['transdate']);
 			$dato[$x] = dkdato($transdate[$x]);
-#			echo __line__." $row[transdate] | transdate[$x] $transdate[$x] | dato[$x] $dato[$x]<br>";
+			#echo __line__." $row[transdate] | transdate[$x] $transdate[$x] | dato[$x] $dato[$x]<br>";
 			if ($row['forfaldsdate']) {
 				$forfaldsdate[$x] = usdate($row['forfaldsdate']);
 				$forfaldsdato[$x] = $row['forfaldsdate'];
@@ -2448,10 +2444,6 @@ if ($kladde_id) {
 		$kreditvat[$x] = normalize_vat_code($stored_kreditvat, $vat_codes);
 		$faktura[$x] = htmlentities($row['faktura'], ENT_QUOTES, $charset);
 		$saldo[$x] = $row['saldo'];
-		if ($fejl) {
-			#			$belob[$x]=$amount[$x];
-#			$amount[$x]=usdecimal($amount[$x],2);
-		} #else $belob[$x]=dkdecimal($amount[$x],2);
 		$momsfri[$x] = $row['momsfri'];
 		$afd[$x] = $row['afd'];
 		if ($fejl)
@@ -2552,10 +2544,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$control_next_date = '9999-12-31';
 		$kontrolkonto = $kontrolkonto * 1;
 		$qtxt = "select saldo,moms from kontoplan where kontonr='$kontrolkonto' and regnskabsaar='$regnaar'";
-#		$qtxt = "select primo,moms from kontoplan where kontonr='$kontrolkonto' and regnskabsaar='$regnaar'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			$kontrolsaldo = $r['saldo'];
-#			$kontrolsaldo = $r['primo'];
 			if ($r['moms']) {
 				$r2 = db_fetch_array(db_select("select box2 from grupper where
 						kode='" . substr($r['moms'], 0, 1) . "' and
@@ -2563,14 +2553,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$kontrolmoms = $r['box2'] * 1;
 			}
 		}
-/*
+		/*
 		$q = db_select("select transdate from transaktioner where kontonr='$kontrolkonto' order by transdate desc limit 1", __FILE__ . " linje " . __LINE__);
 		if ($r = db_fetch_array($q)) {
 			$control_bal_last = $r['transdate'];
 		} else {
 			$control_bal_last = "1970-01-01";
 		}
-*/
+		*/
 	}
 	if (!isset($bilag[0]))      $bilag[0]      = 0;
 	if (!isset($bilag[$x + 1])) $bilag[$x + 1] = 0;
@@ -2606,18 +2596,18 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!$fejl && $kredit[$y] < 1)
 			$kredit[$y] = "";
 		if ($fejl)
-#			$amount[$y] = usdecimal($amount[$y], 2); # phr 20070801
+		#$amount[$y] = usdecimal($amount[$y], 2); # phr 20070801
 		if (!$debet[$y])
 			$debet[$y] = "";
 		if (!$kredit[$y])
 			$kredit[$y] = "";
-		#		if($valuta[$y]&&$valuta[$y]!=$baseCurrency) {
-#		if ($r=db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1='$valuta[$y]'",__FILE__ . " linje " . __LINE__))) {
-#			if ($r=db_fetch_array(db_select("select kurs from valuta where gruppe='$r[kodenr]' and valdate < '$transdate[$y]' order by valdate desc",__FILE__ . " linje " . __LINE__))) {
-#				$dk_amount=$amount[$y]*$r['kurs']/100;
-#				} else $dk_amount=0;
-#			} else $dk_amount=$amount[$y];
-#		} else $dk_amount=$amount[$y];
+		#if($valuta[$y]&&$valuta[$y]!=$baseCurrency) {
+		#if ($r=db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1='$valuta[$y]'",__FILE__ . " linje " . __LINE__))) {
+		#	if ($r=db_fetch_array(db_select("select kurs from valuta where gruppe='$r[kodenr]' and valdate < '$transdate[$y]' order by valdate desc",__FILE__ . " linje " . __LINE__))) {
+		#		$dk_amount=$amount[$y]*$r['kurs']/100;
+		#		} else $dk_amount=0;
+		#	} else $dk_amount=$amount[$y];
+		#} else $dk_amount=$amount[$y];
 		if ($momsfri[$y] || !$kontrolmoms)
 			$tmp = 1;
 		else
@@ -2631,7 +2621,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($k_type[$y] == 'F' && $kredit[$y] == $kontrolkonto) {
 				$kontrolsaldo -= $dkkamount[$y] / $tmp; # 20230302
 			}
-#			if ($debet[$y] === '' && $kredit[$y] === '')	$kontrolsaldo = ''; #outcommented 20240401
+			#if ($debet[$y] === '' && $kredit[$y] === '')	$kontrolsaldo = ''; #outcommented 20240401
 		}
 
 		if ($id[$y] && $debet[$y] && is_numeric($debet[$y]) && $kredit[$y] && is_numeric($kredit[$y]))
@@ -2655,13 +2645,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			// Drag-and-drop attributes for linking documents between lines
 			$dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id[$y], \"" . htmlspecialchars($bilag[$y]) . "\")'" : "";
-$dropAttr = "";
+			$dropAttr = "";
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 			
 			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
 			print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>";
-#			print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
+			#print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
 			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
 		}
 		if (!isset($dub_bilag[$y]))
@@ -2915,8 +2905,8 @@ $dropAttr = "";
 				print "<span onclick=\"confirmClose('../includes/documents.php?source=kassekladde";
 				print "&ny=ja&sourceId=". if_isset($id[$x],0) ."&kladde_id=$kladde_id&bilag=$bilag[$x]";
 				print "&bilag_id=". if_isset($id[$x],0) ."&fokus=bila$y','$txt')\" style='cursor:pointer;display:inline-block;'>";
-#				print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=" . if_isset($id[$y],0); 
-#				print "&kladde_id=$kladde_id&bilag=$bilag[$x]&bilag_id=" . if_isset($id[$y],0) ."&fokus=bila$y' onclick='this.form.submit()'>";
+				#print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=" . if_isset($id[$y],0); 
+				#print "&kladde_id=$kladde_id&bilag=$bilag[$x]&bilag_id=" . if_isset($id[$y],0) ."&fokus=bila$y' onclick='this.form.submit()'>";
 				print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
 
 
@@ -3055,8 +3045,8 @@ $dropAttr = "";
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='proj$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_valuta)
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:40px;' name='valu$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		#		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=forf$z $de_fok onchange='javascript:docChange = true;'></td>\n";
-#		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=b_id$z $de_fok onchange='javascript:docChange = true;'></td>\n";
+		#print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=forf$z $de_fok onchange='javascript:docChange = true;'></td>\n";
+		#print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=b_id$z $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_forfald) {
 			print "<td><input  class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
@@ -3094,7 +3084,7 @@ $dropAttr = "";
 	} else {
 	print "<table id='buttonTable' style='margin: 0 auto; width:800px;' border='0' cellspacing='0' cellpadding='1'><tbody>
        <tr>";
- # Tabel 1.4 -> Knapper
+ 	# Tabel 1.4 -> Knapper
 	}
 	if (!$udskriv) {
 		if ($bogfort == 'V') {
@@ -3111,32 +3101,32 @@ $dropAttr = "";
 
 		} elseif ($bogfort == 'S') {
 
-		print "<form method='post' action='kassekladde.php?kladde_id=$kladde_id&tjek=$kladde_id'>";
-print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
+			print "<form method='post' action='kassekladde.php?kladde_id=$kladde_id&tjek=$kladde_id'>";
+			print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
 
-print "
-<tr style='position: relative;'>
-  <td colspan='9'
-      style='
-        position: absolute;
-        bottom: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-        text-align: center;
-      '>
-    <input
-      type='submit'
-      class='button rosy medium'
-      accesskey='a'
-      value='" . findtekst('1090|Annuller simulering', $sprog_id) . "'
-      name='cancelSimulation'
-      onclick='docChange = false;'
-    >
-  </td>
-</tr>
-";
+			print "
+			<tr style='position: relative;'>
+			<td colspan='9'
+				style='
+					position: absolute;
+					bottom: 40px;
+					left: 50%;
+					transform: translateX(-50%);
+					text-align: center;
+				'>
+				<input
+				type='submit'
+				class='button rosy medium'
+				accesskey='a'
+				value='" . findtekst('1090|Annuller simulering', $sprog_id) . "'
+				name='cancelSimulation'
+				onclick='docChange = false;'
+				>
+			</td>
+			</tr>
+			";
 
-print "</form>";
+			print "</form>";
 			// print "<form method='post' action='kassekladde.php?kladde_id=$kladde_id&tjek=$kladde_id'>";
 			// print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
 			// print "<tr><td colspan=9 align='center'><input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'></td></tr>\n";
@@ -3169,7 +3159,7 @@ print "</form>";
 		print "</form>";
 	}
 	print "</tbody></table></td></tr>\n"; # Tabel 1.4 <- Knapper 
-#	if ($udskriv) print "<tr><td width=\"100%\" height=\"100%\">zz</td></tr>";
+	#if ($udskriv) print "<tr><td width=\"100%\" height=\"100%\">zz</td></tr>";
 	print "</tbody></table>"; # Tabel 1 <- 
 	if ($udskriv) {
 		print "</div>"; # Close print-view div
@@ -3225,10 +3215,10 @@ print "</form>";
 				$aarslut = $year2 . $md2;
 			}
 		}
-		#	(!$bilag) {$bilag=$prebilag;} PHR 02.10.06
-#	if ($bilag=="-"){$bilag="";} PHR 02.10.06
-#	if ($bilag=='-*') $sletrest=1;
-#	if ($sletrest) $bilag='-';
+		#(!$bilag) {$bilag=$prebilag;} PHR 02.10.06
+		#if ($bilag=="-"){$bilag="";} PHR 02.10.06
+		#if ($bilag=='-*') $sletrest=1;
+		#if ($sletrest) $bilag='-';
 		if ($bilag && $bilag != '0' && substr($bilag, -1) != 'r' && $bilag != '-')
 			$bilag = (int) $bilag; 	//20160909 undtaget * til bilagsrenum
 		$debet = trim($debet);
@@ -3506,9 +3496,7 @@ print "</form>";
 			$debug_result = checkOpenFiscalYear($transdate);
 			print "<script>console.log('DEBUG fiscal year check: regnaar=$regnaar, transdate=$transdate, ym=$ym, aarstart=$aarstart, aarslut=$aarslut, result=" . ($debug_result ? 'PASS' : 'FAIL') . "');</script>";
 			if (!$debug_result) {
-
-
-#			if (!$fejl && $dato && ($ym < $aarstart || $ym > $aarslut)) {
+			#if (!$fejl && $dato && ($ym < $aarstart || $ym > $aarslut)) {
 				$alert1 = findtekst('635|Dato', $sprog_id);
 				$alert2 = findtekst('1595|udenfor regnskabsår', $sprog_id);
 				$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
@@ -3591,7 +3579,7 @@ print "</form>";
 		}
 		$prebilag = $bilag;
 	} # endfunc kontroller
-######################################################################################################################################
+	######################################################################################################################################
 	function opdater($kladde_id)
 	{
 		global $baseCurrency,$egen_kto_id;
@@ -3604,8 +3592,8 @@ print "</form>";
 			if (($r['bilag'] != "-") && ($r['transdate'] || $r['debet'] || $r['kredit'])) {
 				if ($r['transdate'])
 					$transdate = usdate($r['transdate']);
-				#			else $transdate=NULL; # <- 2009.05.12
-#			else $transdate=date("Y-m-d"); # <- 2009.05.14
+				#else $transdate=NULL; # <- 2009.05.12
+				#else $transdate=date("Y-m-d"); # <- 2009.05.14
 				if ($r['forfaldsdate'])
 					$forfaldsdate = usdate($r['forfaldsdate']);
 				else
@@ -3735,9 +3723,8 @@ print "</form>";
 		}
 	}
 	######################################################################################################################################
-######################################################################################################################################
-	function nextfokus($fokus)
-	{
+	######################################################################################################################################
+	function nextfokus($fokus){
 		global $id;
 		global $amount;
 		if ($fokus) {
@@ -3763,7 +3750,7 @@ print "</form>";
 				$fokus = "bila" . $f_id;
 			}
 		} #else $fokus="bila".$x;
-# 	if ($amount[$x-1]>0) {$fokus="bila".$x;}
+		#if ($amount[$x-1]>0) {$fokus="bila".$x;}
 	
 		return $fokus;
 	}
@@ -3794,7 +3781,7 @@ print "</form>";
 		else
 			$forfaldsdate = NULL;
 		#	$bilag = str_replace('+',':',$bilag); #jeg ved ikke hvorfor, men den vil ikke splitte med "+"
-#	list ($bilag,$antal) = explode (':',$bilag);
+		#list ($bilag,$antal) = explode (':',$bilag);
 		if ($ansat) {
 			$r = db_fetch_array(db_select("select id from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
 			$tmp = $r['id'] * 1;
@@ -3861,10 +3848,10 @@ print "</form>";
 			print "<body onLoad=\"javascript:alert('".findtekst('2596|Posteringen er tilbageført på kladde', $sprog_id)." $ompost_til')\">";
 		}
 	} # endfunc ompost
-##########################################################################################################
+	##########################################################################################################
 	// Handle move up/down
 
-function valutaopslag($amount, $valuta, $transdate) {
+	function valutaopslag($amount, $valuta, $transdate) {
 
 		$qtxt = "select * from valuta where gruppe = '$valuta' and valdate <= '$transdate' order by valdate desc";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -3950,18 +3937,18 @@ function valutaopslag($amount, $valuta, $transdate) {
 		else
 			return (NULL);
 	} # endfunc sidste_5
-##########################################################################################################
-function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount, $faktura) {
-	if ($id) {
-		$id = (int)$id;
-		$qtxt = "select bilag,kladde_id from kassekladde where transdate='$transdate' and d_type='$d_type' ";
-		$qtxt.= "and debet='$debet' and k_type='$k_type' and kredit='$kredit' and amount = '$amount' ";
-		$qtxt.= "and faktura = '$faktura' and id!='$id' limit 1";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			return ($r['bilag'] . "," . $r['kladde_id']);
-		} else return ("0,0");
+	##########################################################################################################
+	function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount, $faktura) {
+		if ($id) {
+			$id = (int)$id;
+			$qtxt = "select bilag,kladde_id from kassekladde where transdate='$transdate' and d_type='$d_type' ";
+			$qtxt.= "and debet='$debet' and k_type='$k_type' and kredit='$kredit' and amount = '$amount' ";
+			$qtxt.= "and faktura = '$faktura' and id!='$id' limit 1";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				return ($r['bilag'] . "," . $r['kladde_id']);
+			} else return ("0,0");
+		}
 	}
-}
 
 	$x--;
 	if (!$fokus && $x == 1)
@@ -3983,31 +3970,30 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 	#######################
 	// --- Sticky Pagination Footer ---
 
-if ($page_display) {
-	
-	?>
-     <style>
-		 html, body {
-			overflow-y: hidden !important;
-		}
-		/* .datatable, #datatable-wrapper {
-			height: 100vh !important;
-		}  */
-		 #datatable-wrapper {
-			height: 100vh !important;
-		} 
-
-		.dropdown {
-			display: none;
-		}
-	
-	</style>
-	<?php
-}
-
-
-if($page_display){ #20251213
+	if ($page_display) {
 		
+		?>
+		<style>
+			html, body {
+				overflow-y: hidden !important;
+			}
+			/* .datatable, #datatable-wrapper {
+				height: 100vh !important;
+			}  */
+			#datatable-wrapper {
+				height: 100vh !important;
+			} 
+
+			.dropdown {
+				display: none;
+			}
+		
+		</style>
+		<?php
+	}
+	
+
+	if($page_display){ #20251213
 ?>
 
 
@@ -4439,17 +4425,17 @@ include("kassekladde_includes/unsavedWarning.php");
 ###############dropdown date select
 print "<script>
 document.addEventListener('DOMContentLoaded', function() {
-  // OLD: const brugernavn = " . json_encode($brugernavn) . ";
-  const brugerId = " . json_encode($bruger_id) . ";
-  
-  const kassekladdeInput = document.querySelector(
-    // OLD: \"input[name='search[kass_\" + brugernavn + \"][transdate]']\"
-    \"input[name='search[kass_\" + brugerId + \"][transdate]']\"
-  );
-   const forfaldsdateInput = document.querySelector(
-    // OLD: \"input[name='search[kass_\" + brugernavn + \"][forfaldsdate]']\"
-    \"input[name='search[kass_\" + brugerId + \"][forfaldsdate]']\"
-  );
+	// OLD: const brugernavn = " . json_encode($brugernavn) . ";
+	const brugerId = " . json_encode($bruger_id) . ";
+	
+	const kassekladdeInput = document.querySelector(
+		// OLD: \"input[name='search[kass_\" + brugernavn + \"][transdate]']\"
+		\"input[name='search[kass_\" + brugerId + \"][transdate]']\"
+	);
+	const forfaldsdateInput = document.querySelector(
+		// OLD: \"input[name='search[kass_\" + brugernavn + \"][forfaldsdate]']\"
+		\"input[name='search[kass_\" + brugerId + \"][forfaldsdate]']\"
+	);
 
     // Function to initialize a single datepicker
     function initDatepicker(input) {
@@ -4535,455 +4521,451 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>";
 
-
-
-// Add clip drag-and-drop JavaScript for linking documents between lines
-print "
-<style>
-/* Clip drag and drop styles */
-.clip-cell {
-	/* transition: all 0.2s ease; Removed to prevent drag flicker */
-	padding: 2px 4px;
-	min-width: 28px;
-	min-height: 28px;
-}
-.clip-cell span {
-	pointer-events: auto;
-	display: inline-block;
-}
-.clip-cell.drag-over {
-	background-color: #d4edda !important;
-	box-shadow: inset 0 0 8px rgba(40, 167, 69, 0.5);
-	/* transform: scale(1.1); Removed to prevent drag flicker */
-}
-.clip-cell.drag-over-file {
-	background-color: #cce5ff !important;
-	box-shadow: inset 0 0 8px rgba(0, 123, 255, 0.5);
-}
-.clip-cell.drag-over-invalid {
-	background-color: #f8d7da !important;
-}
-.clip-icon[draggable='true'] {
-	cursor: grab !important;
-}
-.clip-icon[draggable='true']:active {
-	cursor: grabbing !important;
-}
-.clip-icon.dragging {
-	opacity: 0.5;
-}
-/* File upload overlay on clip cell */
-.clip-cell.drag-over-file .clip-icon {
-	opacity: 0.4;
-}
-/* Upload progress indicator */
-.clip-cell.uploading {
-	position: relative;
-}
-.clip-cell.uploading::after {
-	content: '';
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	width: 16px;
-	height: 16px;
-	margin: -8px 0 0 -8px;
-	border: 2px solid #007bff;
-	border-top-color: transparent;
-	border-radius: 50%;
-	animation: clip-spin 0.8s linear infinite;
-}
-@keyframes clip-spin {
-	to { transform: rotate(360deg); }
-}
-</style>
-";
 ?>
 
+// Add clip drag-and-drop JavaScript for linking documents between lines
+<style>
+	/* Clip drag and drop styles */
+	.clip-cell {
+		/* transition: all 0.2s ease; Removed to prevent drag flicker */
+		padding: 2px 4px;
+		min-width: 28px;
+		min-height: 28px;
+	}
+	.clip-cell span {
+		pointer-events: auto;
+		display: inline-block;
+	}
+	.clip-cell.drag-over {
+		background-color: #d4edda !important;
+		box-shadow: inset 0 0 8px rgba(40, 167, 69, 0.5);
+		/* transform: scale(1.1); Removed to prevent drag flicker */
+	}
+	.clip-cell.drag-over-file {
+		background-color: #cce5ff !important;
+		box-shadow: inset 0 0 8px rgba(0, 123, 255, 0.5);
+	}
+	.clip-cell.drag-over-invalid {
+		background-color: #f8d7da !important;
+	}
+	.clip-icon[draggable='true'] {
+		cursor: grab !important;
+	}
+	.clip-icon[draggable='true']:active {
+		cursor: grabbing !important;
+	}
+	.clip-icon.dragging {
+		opacity: 0.5;
+	}
+	/* File upload overlay on clip cell */
+	.clip-cell.drag-over-file .clip-icon {
+		opacity: 0.4;
+	}
+	/* Upload progress indicator */
+	.clip-cell.uploading {
+		position: relative;
+	}
+	.clip-cell.uploading::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 16px;
+		height: 16px;
+		margin: -8px 0 0 -8px;
+		border: 2px solid #007bff;
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: clip-spin 0.8s linear infinite;
+	}
+	@keyframes clip-spin {
+		to { transform: rotate(360deg); }
+	}
+</style>
+
 <script>
-// Clip drag and drop for linking documents between kassekladde lines
-const clipKladdeId = <?php echo json_encode($kladde_id); ?>;
-let clipDragSourceId = null;
-let clipDragSourceBilag = null;
+	// Clip drag and drop for linking documents between kassekladde lines
+	const clipKladdeId = <?php echo json_encode($kladde_id); ?>;
+	let clipDragSourceId = null;
+	let clipDragSourceBilag = null;
 
-function clipDragStart(event, sourceId, sourceBilag) {
-	console.log('clipDragStart called - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
-	clipDragSourceId = sourceId;
-	clipDragSourceBilag = sourceBilag;
-	
-	// Use JSON in text/plain for reliability across platforms
-	const dragData = JSON.stringify({
-		sourceId: sourceId,
-		sourceBilag: sourceBilag
-	});
-	console.log('clipDragStart - setting dragData:', dragData);
-	event.dataTransfer.setData('text/plain', dragData);
-	
-	// Keep text/bilag just in case, but text/plain JSON is primary
-	event.dataTransfer.setData('text/bilag', sourceBilag);
-	event.dataTransfer.effectAllowed = 'link';
-	console.log('clipDragStart - dataTransfer set. text/plain:', event.dataTransfer.getData('text/plain'), 'text/bilag:', event.dataTransfer.getData('text/bilag'));
-	
-	// Add visual feedback
-	event.target.classList.add('dragging');
-	console.log('clipDragStart - added dragging class to:', event.target);
-	
-	// Add drag image
-	const dragImage = event.target.cloneNode(true);
-	dragImage.style.width = '30px';
-	dragImage.style.height = '30px';
-	document.body.appendChild(dragImage);
-	event.dataTransfer.setDragImage(dragImage, 15, 15);
-	setTimeout(() => dragImage.remove(), 0);
-}
-
-function clipDragOver(event) {
-	event.preventDefault();
-	
-	// Find the clip cell
-	const cell = event.target.closest('.clip-cell');
-	if (cell) {
-		const targetId = cell.dataset.sourceId;
-		const targetBilag = cell.dataset.bilag;
+	function clipDragStart(event, sourceId, sourceBilag) {
+		console.log('clipDragStart called - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
+		clipDragSourceId = sourceId;
+		clipDragSourceBilag = sourceBilag;
 		
-		// Check if this is a file being dragged from the OS
-		const hasFiles = event.dataTransfer.types.includes('Files');
+		// Use JSON in text/plain for reliability across platforms
+		const dragData = JSON.stringify({
+			sourceId: sourceId,
+			sourceBilag: sourceBilag
+		});
+		console.log('clipDragStart - setting dragData:', dragData);
+		event.dataTransfer.setData('text/plain', dragData);
 		
-		if (hasFiles && !clipDragSourceId) {
-			// File drag from OS - always allow, show file-specific highlight
-			event.dataTransfer.dropEffect = 'copy';
-			cell.classList.add('drag-over-file');
-			cell.classList.remove('drag-over', 'drag-over-invalid');
-		} else {
-			// Clip-to-clip drag
-			event.dataTransfer.dropEffect = 'link';
-			console.log('clipDragOver - targetId:', targetId, 'targetBilag:', targetBilag, 'sourceId:', clipDragSourceId);
-			// Don't allow dropping on itself
-			if (targetId == clipDragSourceId) {
-				cell.classList.add('drag-over-invalid');
-				cell.classList.remove('drag-over', 'drag-over-file');
-			} else {
-				cell.classList.add('drag-over');
-				cell.classList.remove('drag-over-invalid', 'drag-over-file');
-			}
-		}
-	}
-}
-
-function clipDragLeave(event) {
-	const cell = event.target.closest('.clip-cell');
-	if (cell) {
-		// Prevent firing when moving to a child element
-		if (event.relatedTarget && cell.contains(event.relatedTarget)) {
-			return;
-		}
-		console.log('clipDragLeave - leaving cell:', cell.dataset.sourceId);
-		cell.classList.remove('drag-over', 'drag-over-invalid', 'drag-over-file');
-	}
-}
-
-function clipDrop(event, targetSourceId, targetBilag) {
-	console.log('clipDrop called - targetSourceId:', targetSourceId, 'targetBilag:', targetBilag);
-	event.preventDefault();
-	
-	const cell = event.target.closest('.clip-cell');
-	if (cell) {
-		cell.classList.remove('drag-over', 'drag-over-invalid', 'drag-over-file');
-	}
-	
-	// Check if files are being dropped from the OS file system
-	if (event.dataTransfer.files && event.dataTransfer.files.length > 0 && !clipDragSourceId) {
-		console.log('clipDrop - FILE DROP detected, files:', event.dataTransfer.files.length);
-		uploadFileToClip(event.dataTransfer.files[0], targetSourceId, targetBilag, cell);
-		return;
-	}
-	
-	let sourceId = null;
-	let sourceBilag = null;
-	
-	// Try parsing JSON from text/plain
-	try {
-		const rawData = event.dataTransfer.getData('text/plain');
-		console.log('clipDrop - rawData from text/plain:', rawData);
+		// Keep text/bilag just in case, but text/plain JSON is primary
+		event.dataTransfer.setData('text/bilag', sourceBilag);
+		event.dataTransfer.effectAllowed = 'link';
+		console.log('clipDragStart - dataTransfer set. text/plain:', event.dataTransfer.getData('text/plain'), 'text/bilag:', event.dataTransfer.getData('text/bilag'));
 		
-		if (rawData && rawData.startsWith('{')) {
-			const data = JSON.parse(rawData);
-			console.log('clipDrop - parsed JSON:', data);
-			sourceId = data.sourceId;
-			sourceBilag = data.sourceBilag;
-		} else {
-			// Fallback for simple ID if needed
-			console.log('clipDrop - rawData is not JSON, treating as ID');
-			sourceId = rawData;
-		}
-	} catch (e) {
-		console.error('Drag drop parse error', e);
-		sourceId = event.dataTransfer.getData('text/plain');
-	}
-
-	// Fallback to globals or text/bilag
-	if (!sourceBilag) {
-		console.log('clipDrop - sourceBilag missing, checking text/bilag');
-		sourceBilag = event.dataTransfer.getData('text/bilag');
-	}
-	if (!sourceId) { 
-		console.log('clipDrop - sourceId missing, using global fallback:', clipDragSourceId);
-		sourceId = clipDragSourceId;
-	}
-	if (!sourceBilag) {
-		console.log('clipDrop - sourceBilag missing, using global fallback:', clipDragSourceBilag);
-		sourceBilag = clipDragSourceBilag;
-	}
-	
-	console.log('clipDrop FINAL - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
-	
-	// Don't link to itself
-	if (sourceId == targetSourceId) {
-		console.log('clipDrop - cannot link to itself, returning');
-		return;
-	}
-	
-	// Confirm the action - show bilag numbers instead of line IDs
-	console.log('clipDrop - showing confirm dialog for bilag', sourceBilag, 'to', targetBilag);
-	if (!confirm('Link bilag fra bilag ' + sourceBilag + ' til bilag ' + targetBilag + '?')) {
-		console.log('clipDrop - user cancelled');
-		return;
-	}
-	
-	console.log('clipDrop - user confirmed, calling linkDocumentsBetweenLines');
-	// Make AJAX call to link documents
-	linkDocumentsBetweenLines(sourceId, targetSourceId);
-}
-
-function linkDocumentsBetweenLines(fromSourceId, toSourceId) {
-console.log('Linking:', fromSourceId, 'to', toSourceId);
-	const formData = new FormData();
-	formData.append('action', 'linkDocuments');
-	formData.append('fromSourceId', fromSourceId);
-	formData.append('toSourceId', toSourceId);
-	formData.append('source', 'kassekladde');
-	
-	fetch('../includes/docsIncludes/linkDocumentsApi.php', {
-		method: 'POST',
-		body: formData
-	})
-	.then(response => response.json())
-	.then(data => {
-		if (data.success) {
-			alert('Bilag linket succesfuldt! (' + data.count + ' dokument(er))');
-			// Refresh the page to show updated document links
-			location.reload();
-		} else {
-			alert('Fejl: ' + (data.message || 'Kunne ikke linke bilag'));
-		}
-	})
-	.catch(error => {
-		console.error('Error linking documents:', error);
-		alert('Fejl ved linking af bilag: ' + error.message);
-	});
-}
-
-// Upload a file from OS drag-and-drop directly to a kassekladde line clip
-function uploadFileToClip(file, targetSourceId, targetBilag, cell) {
-	console.log('uploadFileToClip - file:', file.name, 'size:', file.size, 'type:', file.type, 'targetSourceId:', targetSourceId, 'targetBilag:', targetBilag);
-	
-	// Validate file type
-	const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-	const allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
-	const fileExt = file.name.split('.').pop().toLowerCase();
-	
-	if (!allowedTypes.includes(file.type) && !allowedExts.includes(fileExt)) {
-		alert('Filtypen er ikke tilladt. Tilladte typer: PDF, JPG, PNG');
-		return;
-	}
-	
-	// Validate file size (max 100MB)
-	if (file.size > 100 * 1024 * 1024) {
-		alert('Filen er for stor. Maks. 100 MB.');
-		return;
-	}
-	
-	// Show uploading indicator on the cell
-	if (cell) {
-		cell.classList.add('uploading');
-	}
-	
-	// Get kladde_id from the page context
-	const pageKladdeId = clipKladdeId || '';
-	
-	if (!pageKladdeId) {
-		alert('Fejl: Ingen aktiv kassekladde fundet.');
-		if (cell) cell.classList.remove('uploading');
-		return;
-	}
-	
-	const formData = new FormData();
-	formData.append('uploadedFile', file);
-	formData.append('sourceId', targetSourceId);
-	formData.append('kladde_id', pageKladdeId);
-	formData.append('bilag', targetBilag || '');
-	
-	fetch('../includes/docsIncludes/uploadToClipApi.php', {
-		method: 'POST',
-		body: formData
-	})
-	.then(response => response.json())
-	.then(data => {
-		if (cell) cell.classList.remove('uploading');
+		// Add visual feedback
+		event.target.classList.add('dragging');
+		console.log('clipDragStart - added dragging class to:', event.target);
 		
-		if (data.success) {
-			console.log('uploadFileToClip - success:', data);
-			// Refresh the page to show the updated clip icon (paper.png instead of clip.png)
-			location.reload();
-		} else {
-			alert('Fejl ved upload: ' + (data.message || 'Ukendt fejl'));
-		}
-	})
-	.catch(error => {
-		if (cell) cell.classList.remove('uploading');
-		console.error('Error uploading file to clip:', error);
-		alert('Fejl ved upload af fil: ' + error.message);
-	});
-}
-
-// Add dragend handler to clean up
-document.addEventListener('dragend', function(event) {
-	if (event.target.classList) {
-		event.target.classList.remove('dragging');
+		// Add drag image
+		const dragImage = event.target.cloneNode(true);
+		dragImage.style.width = '30px';
+		dragImage.style.height = '30px';
+		document.body.appendChild(dragImage);
+		event.dataTransfer.setDragImage(dragImage, 15, 15);
+		setTimeout(() => dragImage.remove(), 0);
 	}
-	// Remove all drag-over classes
-	document.querySelectorAll('.clip-cell').forEach(cell => {
-		cell.classList.remove('drag-over', 'drag-over-invalid', 'drag-over-file');
-	});
-	
-	// Delay cleanup to ensure drop handler has time to read the values
-	setTimeout(() => {
-		clipDragSourceId = null;
-		clipDragSourceBilag = null;
-	}, 100);
-});
 
-// Setup drag and drop event listeners programmatically (works better in Chrome than inline handlers)
-document.addEventListener('DOMContentLoaded', function() {
-	// Use CAPTURING phase (third param = true) to intercept events BEFORE the <a> tag handles them
-	document.addEventListener('dragover', function(e) {
-		const cell = e.target.closest('.clip-cell');
+	function clipDragOver(event) {
+		event.preventDefault();
+		
+		// Find the clip cell
+		const cell = event.target.closest('.clip-cell');
 		if (cell) {
-			e.preventDefault(); // MUST be here for drop to work in Chrome
-			e.stopPropagation();
-			e.stopImmediatePropagation();
-			clipDragOver(e);
-			return false;
-		} else if (e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.indexOf('Files') !== -1) {
-			// Prevent default for file drags anywhere to avoid browser opening the file
-			e.preventDefault();
-		}
-	}, true); // <-- CAPTURING phase
-	
-	document.addEventListener('drop', function(e) {
-		const cell = e.target.closest('.clip-cell');
-		if (cell) {
-			e.preventDefault();
-			e.stopPropagation();
-			e.stopImmediatePropagation();
 			const targetId = cell.dataset.sourceId;
 			const targetBilag = cell.dataset.bilag;
-			clipDrop(e, targetId, targetBilag);
-			return false;
-		} else {
-			e.preventDefault();
+			
+			// Check if this is a file being dragged from the OS
+			const hasFiles = event.dataTransfer.types.includes('Files');
+			
+			if (hasFiles && !clipDragSourceId) {
+				// File drag from OS - always allow, show file-specific highlight
+				event.dataTransfer.dropEffect = 'copy';
+				cell.classList.add('drag-over-file');
+				cell.classList.remove('drag-over', 'drag-over-invalid');
+			} else {
+				// Clip-to-clip drag
+				event.dataTransfer.dropEffect = 'link';
+				console.log('clipDragOver - targetId:', targetId, 'targetBilag:', targetBilag, 'sourceId:', clipDragSourceId);
+				// Don't allow dropping on itself
+				if (targetId == clipDragSourceId) {
+					cell.classList.add('drag-over-invalid');
+					cell.classList.remove('drag-over', 'drag-over-file');
+				} else {
+					cell.classList.add('drag-over');
+					cell.classList.remove('drag-over-invalid', 'drag-over-file');
+				}
+			}
 		}
-	}, true); // <-- CAPTURING phase
-	
-	document.addEventListener('dragleave', function(e) {
-		const cell = e.target.closest('.clip-cell');
-		if (cell) {
-			clipDragLeave(e);
-		}
-	}, true); // <-- CAPTURING phase
-	
-	// Initialize account autocomplete after page is fully loaded
-	if (typeof window.initAccountAutocomplete === 'function') {
-		console.log('Calling initAccountAutocomplete from kassekladde.php');
-		window.initAccountAutocomplete();
 	}
-	
-	// Initialize datepicker on all date fields
-	$('input[name^="dato"]').datepickerDa();
-	// Initialize datepicker on Due Date fields
-	$('input[name^="forf"]').datepickerDa();
 
-	// VAT lookup for debit and credit account fields
-	function lookupVat(kontonr, vatField) {
-		if (!kontonr || kontonr.trim() === '') {
-			$(vatField).val('');
+	function clipDragLeave(event) {
+		const cell = event.target.closest('.clip-cell');
+		if (cell) {
+			// Prevent firing when moving to a child element
+			if (event.relatedTarget && cell.contains(event.relatedTarget)) {
+				return;
+			}
+			console.log('clipDragLeave - leaving cell:', cell.dataset.sourceId);
+			cell.classList.remove('drag-over', 'drag-over-invalid', 'drag-over-file');
+		}
+	}
+
+	function clipDrop(event, targetSourceId, targetBilag) {
+		console.log('clipDrop called - targetSourceId:', targetSourceId, 'targetBilag:', targetBilag);
+		event.preventDefault();
+		
+		const cell = event.target.closest('.clip-cell');
+		if (cell) {
+			cell.classList.remove('drag-over', 'drag-over-invalid', 'drag-over-file');
+		}
+		
+		// Check if files are being dropped from the OS file system
+		if (event.dataTransfer.files && event.dataTransfer.files.length > 0 && !clipDragSourceId) {
+			console.log('clipDrop - FILE DROP detected, files:', event.dataTransfer.files.length);
+			uploadFileToClip(event.dataTransfer.files[0], targetSourceId, targetBilag, cell);
 			return;
 		}
-		$.post('kassekladde.php', {
-			action: 'lookup_vat',
-			kontonr: kontonr.trim(),
-			regnaar: '<?php echo $regnaar; ?>'
-		}, function(data) {
-			if (data && data.vat !== undefined) {
-				$(vatField).val(data.vat);
+		
+		let sourceId = null;
+		let sourceBilag = null;
+		
+		// Try parsing JSON from text/plain
+		try {
+			const rawData = event.dataTransfer.getData('text/plain');
+			console.log('clipDrop - rawData from text/plain:', rawData);
+			
+			if (rawData && rawData.startsWith('{')) {
+				const data = JSON.parse(rawData);
+				console.log('clipDrop - parsed JSON:', data);
+				sourceId = data.sourceId;
+				sourceBilag = data.sourceBilag;
 			} else {
-				$(vatField).val('');
+				// Fallback for simple ID if needed
+				console.log('clipDrop - rawData is not JSON, treating as ID');
+				sourceId = rawData;
 			}
-		}, 'json').fail(function() {
-			$(vatField).val('');
+		} catch (e) {
+			console.error('Drag drop parse error', e);
+			sourceId = event.dataTransfer.getData('text/plain');
+		}
+
+		// Fallback to globals or text/bilag
+		if (!sourceBilag) {
+			console.log('clipDrop - sourceBilag missing, checking text/bilag');
+			sourceBilag = event.dataTransfer.getData('text/bilag');
+		}
+		if (!sourceId) { 
+			console.log('clipDrop - sourceId missing, using global fallback:', clipDragSourceId);
+			sourceId = clipDragSourceId;
+		}
+		if (!sourceBilag) {
+			console.log('clipDrop - sourceBilag missing, using global fallback:', clipDragSourceBilag);
+			sourceBilag = clipDragSourceBilag;
+		}
+		
+		console.log('clipDrop FINAL - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
+		
+		// Don't link to itself
+		if (sourceId == targetSourceId) {
+			console.log('clipDrop - cannot link to itself, returning');
+			return;
+		}
+		
+		// Confirm the action - show bilag numbers instead of line IDs
+		console.log('clipDrop - showing confirm dialog for bilag', sourceBilag, 'to', targetBilag);
+		if (!confirm('Link bilag fra bilag ' + sourceBilag + ' til bilag ' + targetBilag + '?')) {
+			console.log('clipDrop - user cancelled');
+			return;
+		}
+		
+		console.log('clipDrop - user confirmed, calling linkDocumentsBetweenLines');
+		// Make AJAX call to link documents
+		linkDocumentsBetweenLines(sourceId, targetSourceId);
+	}
+
+	function linkDocumentsBetweenLines(fromSourceId, toSourceId) {
+	console.log('Linking:', fromSourceId, 'to', toSourceId);
+		const formData = new FormData();
+		formData.append('action', 'linkDocuments');
+		formData.append('fromSourceId', fromSourceId);
+		formData.append('toSourceId', toSourceId);
+		formData.append('source', 'kassekladde');
+		
+		fetch('../includes/docsIncludes/linkDocumentsApi.php', {
+			method: 'POST',
+			body: formData
+		})
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				alert('Bilag linket succesfuldt! (' + data.count + ' dokument(er))');
+				// Refresh the page to show updated document links
+				location.reload();
+			} else {
+				alert('Fejl: ' + (data.message || 'Kunne ikke linke bilag'));
+			}
+		})
+		.catch(error => {
+			console.error('Error linking documents:', error);
+			alert('Fejl ved linking af bilag: ' + error.message);
 		});
 	}
 
-	// Attach change event to all debit fields
-	$(document).on('change', 'input[name^="debe"]', function() {
-		var name = $(this).attr('name');
-		var rowNum = name.replace('debe', '');
-		var dTypeVal = $('input[name="d_ty' + rowNum + '"]').val();
-		if (!dTypeVal || dTypeVal === '' || dTypeVal === 'F') {
-			lookupVat($(this).val(), 'select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]');
-		} else {
-			$('select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]').val('');
+	// Upload a file from OS drag-and-drop directly to a kassekladde line clip
+	function uploadFileToClip(file, targetSourceId, targetBilag, cell) {
+		console.log('uploadFileToClip - file:', file.name, 'size:', file.size, 'type:', file.type, 'targetSourceId:', targetSourceId, 'targetBilag:', targetBilag);
+		
+		// Validate file type
+		const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+		const allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
+		const fileExt = file.name.split('.').pop().toLowerCase();
+		
+		if (!allowedTypes.includes(file.type) && !allowedExts.includes(fileExt)) {
+			alert('Filtypen er ikke tilladt. Tilladte typer: PDF, JPG, PNG');
+			return;
 		}
+		
+		// Validate file size (max 100MB)
+		if (file.size > 100 * 1024 * 1024) {
+			alert('Filen er for stor. Maks. 100 MB.');
+			return;
+		}
+		
+		// Show uploading indicator on the cell
+		if (cell) {
+			cell.classList.add('uploading');
+		}
+		
+		// Get kladde_id from the page context
+		const pageKladdeId = clipKladdeId || '';
+		
+		if (!pageKladdeId) {
+			alert('Fejl: Ingen aktiv kassekladde fundet.');
+			if (cell) cell.classList.remove('uploading');
+			return;
+		}
+		
+		const formData = new FormData();
+		formData.append('uploadedFile', file);
+		formData.append('sourceId', targetSourceId);
+		formData.append('kladde_id', pageKladdeId);
+		formData.append('bilag', targetBilag || '');
+		
+		fetch('../includes/docsIncludes/uploadToClipApi.php', {
+			method: 'POST',
+			body: formData
+		})
+		.then(response => response.json())
+		.then(data => {
+			if (cell) cell.classList.remove('uploading');
+			
+			if (data.success) {
+				console.log('uploadFileToClip - success:', data);
+				// Refresh the page to show the updated clip icon (paper.png instead of clip.png)
+				location.reload();
+			} else {
+				alert('Fejl ved upload: ' + (data.message || 'Ukendt fejl'));
+			}
+		})
+		.catch(error => {
+			if (cell) cell.classList.remove('uploading');
+			console.error('Error uploading file to clip:', error);
+			alert('Fejl ved upload af fil: ' + error.message);
+		});
+	}
+
+	// Add dragend handler to clean up
+	document.addEventListener('dragend', function(event) {
+		if (event.target.classList) {
+			event.target.classList.remove('dragging');
+		}
+		// Remove all drag-over classes
+		document.querySelectorAll('.clip-cell').forEach(cell => {
+			cell.classList.remove('drag-over', 'drag-over-invalid', 'drag-over-file');
+		});
+		
+		// Delay cleanup to ensure drop handler has time to read the values
+		setTimeout(() => {
+			clipDragSourceId = null;
+			clipDragSourceBilag = null;
+		}, 100);
 	});
 
-	// Attach change event to all credit fields
-	$(document).on('change', 'input[name^="kred"]', function() {
-		var name = $(this).attr('name');
-		var rowNum = name.replace('kred', '');
-		var kTypeVal = $('input[name="k_ty' + rowNum + '"]').val();
-		if (!kTypeVal || kTypeVal === '' || kTypeVal === 'F') {
-			lookupVat($(this).val(), 'select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]');
-		} else {
-			$('select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]').val('');
+	// Setup drag and drop event listeners programmatically (works better in Chrome than inline handlers)
+	document.addEventListener('DOMContentLoaded', function() {
+		// Use CAPTURING phase (third param = true) to intercept events BEFORE the <a> tag handles them
+		document.addEventListener('dragover', function(e) {
+			const cell = e.target.closest('.clip-cell');
+			if (cell) {
+				e.preventDefault(); // MUST be here for drop to work in Chrome
+				e.stopPropagation();
+				e.stopImmediatePropagation();
+				clipDragOver(e);
+				return false;
+			} else if (e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.indexOf('Files') !== -1) {
+				// Prevent default for file drags anywhere to avoid browser opening the file
+				e.preventDefault();
+			}
+		}, true); // <-- CAPTURING phase
+		
+		document.addEventListener('drop', function(e) {
+			const cell = e.target.closest('.clip-cell');
+			if (cell) {
+				e.preventDefault();
+				e.stopPropagation();
+				e.stopImmediatePropagation();
+				const targetId = cell.dataset.sourceId;
+				const targetBilag = cell.dataset.bilag;
+				clipDrop(e, targetId, targetBilag);
+				return false;
+			} else {
+				e.preventDefault();
+			}
+		}, true); // <-- CAPTURING phase
+		
+		document.addEventListener('dragleave', function(e) {
+			const cell = e.target.closest('.clip-cell');
+			if (cell) {
+				clipDragLeave(e);
+			}
+		}, true); // <-- CAPTURING phase
+		
+		// Initialize account autocomplete after page is fully loaded
+		if (typeof window.initAccountAutocomplete === 'function') {
+			console.log('Calling initAccountAutocomplete from kassekladde.php');
+			window.initAccountAutocomplete();
 		}
-	});
+		
+		// Initialize datepicker on all date fields
+		$('input[name^="dato"]').datepickerDa();
+		// Initialize datepicker on Due Date fields
+		$('input[name^="forf"]').datepickerDa();
 
-	// Also clear VAT when D/K type changes to D or K (debtor/creditor)
-	$(document).on('change', 'input[name^="d_ty"]', function() {
-		var name = $(this).attr('name');
-		var rowNum = name.replace('d_ty', '');
-		var dTypeVal = $(this).val();
-		if (dTypeVal === 'D' || dTypeVal === 'K') {
-			$('select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]').val('');
-		} else {
-			var debet = $('input[name="debe' + rowNum + '"]').val();
-			if (debet) lookupVat(debet, 'select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]');
+		// VAT lookup for debit and credit account fields
+		function lookupVat(kontonr, vatField) {
+			if (!kontonr || kontonr.trim() === '') {
+				$(vatField).val('');
+				return;
+			}
+			$.post('kassekladde.php', {
+				action: 'lookup_vat',
+				kontonr: kontonr.trim(),
+				regnaar: '<?php echo $regnaar; ?>'
+			}, function(data) {
+				if (data && data.vat !== undefined) {
+					$(vatField).val(data.vat);
+				} else {
+					$(vatField).val('');
+				}
+			}, 'json').fail(function() {
+				$(vatField).val('');
+			});
 		}
-	});
 
-	$(document).on('change', 'input[name^="k_ty"]', function() {
-		var name = $(this).attr('name');
-		var rowNum = name.replace('k_ty', '');
-		var kTypeVal = $(this).val();
-		if (kTypeVal === 'D' || kTypeVal === 'K') {
-			$('select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]').val('');
-		} else {
-			var kredit = $('input[name="kred' + rowNum + '"]').val();
-			if (kredit) lookupVat(kredit, 'select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]');
-		}
+		// Attach change event to all debit fields
+		$(document).on('change', 'input[name^="debe"]', function() {
+			var name = $(this).attr('name');
+			var rowNum = name.replace('debe', '');
+			var dTypeVal = $('input[name="d_ty' + rowNum + '"]').val();
+			if (!dTypeVal || dTypeVal === '' || dTypeVal === 'F') {
+				lookupVat($(this).val(), 'select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]');
+			} else {
+				$('select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]').val('');
+			}
+		});
+
+		// Attach change event to all credit fields
+		$(document).on('change', 'input[name^="kred"]', function() {
+			var name = $(this).attr('name');
+			var rowNum = name.replace('kred', '');
+			var kTypeVal = $('input[name="k_ty' + rowNum + '"]').val();
+			if (!kTypeVal || kTypeVal === '' || kTypeVal === 'F') {
+				lookupVat($(this).val(), 'select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]');
+			} else {
+				$('select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]').val('');
+			}
+		});
+
+		// Also clear VAT when D/K type changes to D or K (debtor/creditor)
+		$(document).on('change', 'input[name^="d_ty"]', function() {
+			var name = $(this).attr('name');
+			var rowNum = name.replace('d_ty', '');
+			var dTypeVal = $(this).val();
+			if (dTypeVal === 'D' || dTypeVal === 'K') {
+				$('select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]').val('');
+			} else {
+				var debet = $('input[name="debe' + rowNum + '"]').val();
+				if (debet) lookupVat(debet, 'select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]');
+			}
+		});
+
+		$(document).on('change', 'input[name^="k_ty"]', function() {
+			var name = $(this).attr('name');
+			var rowNum = name.replace('k_ty', '');
+			var kTypeVal = $(this).val();
+			if (kTypeVal === 'D' || kTypeVal === 'K') {
+				$('select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]').val('');
+			} else {
+				var kredit = $('input[name="kred' + rowNum + '"]').val();
+				if (kredit) lookupVat(kredit, 'select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]');
+			}
+		});
 	});
-});
 </script>
 
-<?php
-	?>
+<?php ?>
