@@ -3270,70 +3270,78 @@ window.extractAllPoolFiles = async function() {
 	};
 	
 	updateProgress();
+
 	
 	// Process each file sequentially
-	for (const file of docData) {
-		const poolFile = file.filename;
-		
-		try {
-			// Extract data
-			const extractFormData = new FormData();
-			extractFormData.append('action', 'extract');
-			extractFormData.append('poolFile', poolFile);
-			extractFormData.append('db', db);
-			
-			const extractResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
-				method: 'POST',
-				body: extractFormData
-			});
-			
-			const extractResult = await extractResponse.json();
-			
-			if (extractResult.success && extractResult.data) {
-				const extracted = extractResult.data;
-				
-				// Only save if we got some data
-				if (extracted.amount || extracted.date || extracted.vendor) {
-					// Save the extracted data to the .info file
-					const saveData = new FormData();
-					saveData.append('action', 'save');
-					saveData.append('poolFile', poolFile);
-					saveData.append('db', db);
-					if (extracted.amount) saveData.append('newAmount', extracted.amount);
-					if (extracted.date) saveData.append('newDate', extracted.date);
-					if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
-					if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
-					if (extracted.description) saveData.append('newDescription', extracted.description);
-					if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+	let queue = docData.slice();
 
-					const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
+	const THREADS = 4;
+	for(let i = 0; i<THREADS; i++){
+		while('undefined' !== typeof (file = queue.pop())){
+			// TODO add to promises to be able to make it async and await all to finish
+			(/*async*/ function(file) {
+				const poolFile = file.filename;
+				
+				try {
+					// Extract data
+					const extractFormData = new FormData();
+					extractFormData.append('action', 'extract');
+					extractFormData.append('poolFile', poolFile);
+					extractFormData.append('db', db);
+					
+					const extractResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
 						method: 'POST',
-						body: saveData
+						body: extractFormData
 					});
 					
-					const saveResult = await saveResponse.json();
-					if (saveResult.success) {
-						successful++;
+					const extractResult = await extractResponse.json();
+					
+					if (extractResult.success && extractResult.data) {
+						const extracted = extractResult.data;
+						
+						// Only save if we got some data
+						if (extracted.amount || extracted.date || extracted.vendor) {
+							// Save the extracted data to the .info file
+							const saveData = new FormData();
+							saveData.append('action', 'save');
+							saveData.append('poolFile', poolFile);
+							saveData.append('db', db);
+							if (extracted.amount) saveData.append('newAmount', extracted.amount);
+							if (extracted.date) saveData.append('newDate', extracted.date);
+							if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
+							if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
+							if (extracted.description) saveData.append('newDescription', extracted.description);
+							if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+
+							const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
+								method: 'POST',
+								body: saveData
+							});
+							
+							const saveResult = await saveResponse.json();
+							if (saveResult.success) {
+								successful++;
+							} else {
+								failed++;
+								console.error('Failed to save data for ' + poolFile + ': ' + (saveResult.error || 'Unknown error'));
+							}
+						} else {
+							// No data extracted
+							failed++;
+						}
 					} else {
 						failed++;
-						console.error('Failed to save data for ' + poolFile + ': ' + (saveResult.error || 'Unknown error'));
+						console.error('Failed to extract data from ' + poolFile + ': ' + (extractResult.error || 'Unknown error'));
 					}
-				} else {
-					// No data extracted
+				} catch (error) {
 					failed++;
+					console.error('Error processing ' + poolFile + ': ' + error.message);
 				}
-			} else {
-				failed++;
-				console.error('Failed to extract data from ' + poolFile + ': ' + (extractResult.error || 'Unknown error'));
-			}
-		} catch (error) {
-			failed++;
-			console.error('Error processing ' + poolFile + ': ' + error.message);
+				processed++;
+			})(file);
 		}
-		
-		processed++;
-		updateProgress();
 	}
+
 	
 	// Restore button
 	btn.innerHTML = originalContent;
