@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 5.0.0 --- 2026-04-01---
+// --- includes/online.php --- patch 5.0.0 --- 2026-04-24---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20120905 $ansat_navn bliver nu sat her. Søg 20120905
 // 20130120 $sag_rettigheder bliver nu sat her. Søg 20130120
@@ -60,6 +60,7 @@
 // 20260129 PHR More updates to make it work with very old releases.
 // 20260320 PHR cleanup (pdftk)
 // 20260402 PHR Bypass style if title = 'Bordplan'
+// 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -76,7 +77,6 @@ if ($questionMarkPos !== false) {
 }
 $slashCount = substr_count($path, '/');
 $relativePath = str_repeat('../', max(0, $slashCount - 2));
-
 
 if (isset($_COOKIE['timezone'])) { #20190110
 	$timezone = $_COOKIE['timezone'];
@@ -115,7 +115,6 @@ $r = db_fetch_array(db_select("select var_value from settings where var_name='we
 $r ? $weasyprint = $r['var_value'] : $weasyprint = NULL;
 $r = db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'", __FILE__ . " linje " . __LINE__));
 $r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
-
 
 if (!isset($meta_returside)) $meta_returside = NULL;
 $db_skriv_id = NULL; #bruges til at forhindre at skrivninger til masterbasen logges i de enkelte regnskaber.
@@ -157,7 +156,11 @@ if ($r = db_fetch_array($q)) {
 		}
 	}
 }
-#}
+if (isset($_POST['thisDb']) && $db && strpos($db,'_') && $db != $_POST['thisDb']) {
+	alert ("Du har skiftet regnskab fra $_POST[thisDb] til $db, handling afbrudt");
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
+	$_POST = $_GET = NULL;
+}
 
 $labelprint = 0;
 if ($sqdb == 'udvikling') $labelprint = 1;
