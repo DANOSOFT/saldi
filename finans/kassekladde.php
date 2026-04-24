@@ -2375,7 +2375,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 		print "<div class='kassekladde-scroll-container'>";
 		print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
-
+		
 		print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
 		print "<tr class='table-krow'><td colspan='24' style='padding: 10px 0;'></td></tr>";
 		$_next_dir   = ($kkdir == 'asc') ? 'desc' : 'asc';
@@ -2472,10 +2472,12 @@ if ($kladde_id) {
 		print "<meta http-equiv='refresh' content='3600;URL=../finans/kladdeliste.php?tabel=kladdeliste&id=$kladde_id'>";
 
 	print "<script>
-		document.addEventListener('DOMContentLoaded', function() {
-			var element = document.querySelector('.kassekladde-scroll-container');
-			if (element) {
-				element.scrollTop = element.scrollHeight;
+		document.addEventListener('DOMContentLoaded', function() { 
+			console.log('CONTENT LOAD');
+			var element = document.body;
+			var scrollpos = localStorage.getItem('kassekladde-$kladde_id');
+			if (scrollpos && element) {
+				element.scrollTo(0, parseInt(scrollpos, 10));
 			}
 		});
 
