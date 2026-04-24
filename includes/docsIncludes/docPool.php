@@ -3283,7 +3283,6 @@ window.extractAllPoolFiles = async function() {
 	};
 	
 	updateProgress();
-
 	
 	// Process each file sequentially
 	let queue = docData.slice();
