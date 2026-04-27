@@ -256,17 +256,32 @@ $nextfakt1    = strtolower(str_replace(' ', '_', $kk));
 
 $id = if_isset($_GET, NULL, 'id');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
-if ($konto_id) {
+$account_context = if_isset($_GET, NULL, 'account_context');
+$menu_entry = if_isset($_GET, NULL, 'menu_entry');
+$reset_context = if_isset($_GET, NULL, 'reset_context');
+$returside = if_isset($_GET, NULL, 'returside');
+
+$account_context = ($account_context == '1');
+$menu_entry = ($menu_entry == '1');
+$reset_context = ($reset_context == '1');
+$is_plain_entry = $menu_entry || $reset_context;
+
+if ($account_context && $konto_id) {
     $qtxt = "update settings set var_value = '$konto_id' where ";
     $qtxt .= "var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    $returside = "../debitor/debitorkort.php?id=$konto_id";
 } else {
-    $qtxt = "select var_value from settings where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
-    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $konto_id  = $r['var_value'];
-    #	(isset($_SESSION['debitorId']) && $_SESSION['debitorId']) $konto_id  = $_SESSION['debitorId'];
+    $qtxt = "update settings set var_value = '' where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    $konto_id = NULL;
 }
-if ($konto_id) $returside = "../debitor/debitorkort.php?id=$konto_id";
-else $returside = if_isset($_GET, NULL, 'returside');
+
+if ($is_plain_entry) {
+    $konto_id = NULL;
+    $account_context = false;
+}
+
 if (!$returside) $returside = '../index/menu.php';
 $valg = strtolower(if_isset($_GET, NULL, 'valg'));
 $sort = if_isset($_GET, NULL, 'sort');
@@ -291,8 +306,10 @@ if (!$returside && $konto_id && !$popup) {
 }
 
 // View selection - stored in database settings for persistence
-// Priority: 1) URL parameter (user clicked tab), 2) Database setting, 3) Default 'ordrer'
-if (isset($_GET['valg']) && $_GET['valg']) {
+// Priority: 1) forced plain entry, 2) URL parameter, 3) Database setting, 4) Default
+if ($is_plain_entry) {
+    $valg = 'ordrer';
+} elseif (isset($_GET['valg']) && $_GET['valg']) {
     // User explicitly clicked a tab - use this value
     $valg = strtolower($_GET['valg']);
 } else {
@@ -305,7 +322,7 @@ if (isset($_GET['valg']) && $_GET['valg']) {
     
     // If no saved setting, check special cases or default to 'ordrer'
     if (!$valg) {
-        if (isset($_GET['konto_id']) && $_GET['konto_id']) {
+        if ($account_context && isset($_GET['konto_id']) && $_GET['konto_id']) {
             $valg = "faktura";
         } else {
             $valg = "ordrer";
@@ -321,6 +338,11 @@ if ($valg == 'invoice') $valg = 'faktura';
 if (!$valg) $valg = "ordrer";
 $tjek = array("tilbud", "ordrer", "faktura", "pbs");
 if (!in_array($valg, $tjek)) $valg = "ordrer";
+
+if ($is_plain_entry) {
+    db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
+    db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
+}
 
 // Save the validated valg to database setting for persistence
 $qtxt = "SELECT id FROM settings WHERE var_name = 'ordreliste_valg' AND var_grp = 'debitor' AND user_id = '$bruger_id'";
@@ -372,7 +394,7 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
     if (!$returside) {
         $returside = $r['box2'];
-        if (strstr($returside, "debitorkort.php?id=") && !$konto_id) {
+        if ($account_context && strstr($returside, "debitorkort.php?id=") && !$konto_id) {
             list($tmp, $konto_id) = explode("=", $returside);
         }
     }
@@ -1420,6 +1442,11 @@ if ($valg == "tilbud") {
     $base_where_conditions = "o.status < 3";
 } else {
     $base_where_conditions = "(o.status = 1 OR o.status = 2)";
+}
+
+if ($account_context && $konto_id) {
+    $konto_id_escaped = db_escape_string($konto_id);
+    $base_where_conditions .= " AND o.konto_id = '$konto_id_escaped'";
 }
 
 
@@ -2692,6 +2719,15 @@ function select_valg($valg, $box)
                 form.appendChild(kontoInput);
             }
             kontoInput.value = "<?php echo addslashes($konto_id); ?>";
+
+            let accountContextInput = form.querySelector('input[name="account_context"]');
+            if (!accountContextInput) {
+                accountContextInput = document.createElement('input');
+                accountContextInput.type = 'hidden';
+                accountContextInput.name = 'account_context';
+                form.appendChild(accountContextInput);
+            }
+            accountContextInput.value = "<?php echo $account_context ? '1' : '0'; ?>";
             <?php endif; ?>
         });
     });

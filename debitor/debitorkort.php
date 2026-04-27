@@ -1014,7 +1014,7 @@ if ($menu == 'T') {
 	print "<div class=\"headerTxt\">$title</div>";
 	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
 	if (substr($rettigheder, 5, 1) == '1') {
-		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
+		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
 	} else {
 		print "";
 	}
@@ -1764,7 +1764,7 @@ $buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.
 
 // Fakturaliste button
 if (substr($rettigheder, 5, 1) == '1') {
-    $buttons_html .= "<button type='button' onclick=\"window.location.href='ordreliste.php?konto_id=$id&amp;valg=faktura&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_faktura'>" . findtekst('134|Fakturaliste', $sprog_id) . "</button>";
+	$buttons_html .= "<button type='button' onclick=\"window.location.href='ordreliste.php?konto_id=$id&amp;account_context=1&amp;valg=faktura&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_faktura'>" . findtekst('134|Fakturaliste', $sprog_id) . "</button>";
 } else {
     $buttons_html .= "<button style='$buttonStyle; padding: 8px 16px; opacity: 0.5; cursor: not-allowed;' disabled>" . findtekst('134|Fakturaliste', $sprog_id) . "</button>";
 }
@@ -1809,8 +1809,8 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 132--><a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
 	$tekst = findtekst('129|Vis fakturaliste.', $sprog_id);
 	if (substr($rettigheder, 5, 1) == '1') {
-		if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?konto_id=$id&valg=faktura&returside=../includes/luk.php','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></td>\n";
-		else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 129--><a href=ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id>" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></td>\n";
+		if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../includes/luk.php','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></td>\n";
+		else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 129--><a href=ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../debitor/debitorkort.php?id=$id>" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></td>\n";
 	} else print "<td width=\"10%\" $top_bund><span style=\"color:#999;\">" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></span></td>\n";
 	$r = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
 	$jobkort = $r['box7'];
