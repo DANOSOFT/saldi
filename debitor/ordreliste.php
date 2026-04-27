@@ -211,7 +211,7 @@ if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) unlink("../temp/$db/ordrls
 </script>
 <?php
 
-# >> Date picker scripts <<
+### Date picker scripts ###
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
