@@ -261,14 +261,14 @@ $nextfakt1    = strtolower(str_replace(' ', '_', $kk));
 $id = if_isset($_GET, NULL, 'id');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
 $account_context = if_isset($_GET, NULL, 'account_context');
-$menu_entry = if_isset($_GET, NULL, 'menu_entry');
-$reset_context = if_isset($_GET, NULL, 'reset_context');
-$returside = if_isset($_GET, NULL, 'returside');
+$menu_entry      = if_isset($_GET, NULL, 'menu_entry');
+$reset_context   = if_isset($_GET, NULL, 'reset_context');
+$returside       = if_isset($_GET, NULL, 'returside');
 
 $account_context = ($account_context == '1');
-$menu_entry = ($menu_entry == '1');
-$reset_context = ($reset_context == '1');
-$is_plain_entry = $menu_entry || $reset_context;
+$menu_entry      = ($menu_entry == '1');
+$reset_context   = ($reset_context == '1');
+$is_plain_entry  = $menu_entry || $reset_context;
 
 if ($account_context && $konto_id) {
     $qtxt = "update settings set var_value = '$konto_id' where ";
@@ -345,8 +345,8 @@ if (!in_array($valg, $tjek)) $valg = "ordrer";
 
 if ($is_plain_entry) {
     //This block is resetting all previous column settings by users and breaks the flow of the grid each time a page is visited from others..// 20260609
-    #db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
-   # db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
+    // db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
+    // db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
 }
 
 // Save the validated valg to database setting for persistence
