@@ -35,6 +35,10 @@ $afd_lager = if_isset($_GET, NULL, 'lager');
 $vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
 $vatBusinessCustomers = get_settings_value("vatBusinessCustomers", "ordre", "");
 
+// Preserve scaffolding context when redirecting back to ordre.php so the page keeps
+// rendering with scaffolding styling (sag_id) instead of falling back to finance design.
+$sag_id_param = (!empty($_GET['sag_id'])) ? "&sag_id=" . urlencode($_GET['sag_id']) : "";
+
 // Handle product selection - redirect back to order
 if (isset($_GET['vare_id'])) {
     $vare_id = $_GET['vare_id'];
@@ -42,7 +46,7 @@ if (isset($_GET['vare_id'])) {
     $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
     $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
     $vsc_param = (isset($_GET['vsc']) && $_GET['vsc']) ? "&vsc=" . urlencode($_GET['vsc']) : "";
-    $url = "$href?id=$id&vare_id=$vare_id&fokus=$fokus$bordnr_param$lager_param$vsc_param";
+    $url = "$href?id=$id&vare_id=$vare_id&fokus=$fokus$bordnr_param$lager_param$vsc_param$sag_id_param";
     header("Location: $url");
     exit;
 }
@@ -51,7 +55,7 @@ if (isset($_GET['vare_id'])) {
 if (isset($_GET['insertItems']) && isset($_GET['vare_id']) && isset($_GET['antal'])) {
     $href = ($art == 'PO') ? "pos_ordre.php" : "ordre.php";
     $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
-    $url = "$href?id=$id&fokus=$fokus$bordnr_param";
+    $url = "$href?id=$id&fokus=$fokus$bordnr_param$sag_id_param";
     // Add items as query parameters
     $vare_ids = is_array($_GET['vare_id']) ? $_GET['vare_id'] : array($_GET['vare_id']);
     $antals = is_array($_GET['antal']) ? $_GET['antal'] : array($_GET['antal']);

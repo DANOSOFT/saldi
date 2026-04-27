@@ -518,8 +518,11 @@ if (isset($pathParts[0])) {
 	print_r($pathParts);
 	exit;
 } */
-// Wrap the style output in the API check:
-if (!$isApiCall && substr($title, 0, 3) != 'POS' && $title != 'Bordplan' && $firstFolder != "sager" && strpos($path, 'pos_ordre.php') === false) {
+// Wrap the style output in the API check.
+// Also skip when the current request is for a scaffolding-context page (sag_id set via GET/POST),
+// so scaffolding button classes (.green/.blue/.gray/.white) are not overridden by the finance color.
+$inScaffoldingContext = !empty($_GET['sag_id']) || !empty($_POST['sag_id']);
+if (!$isApiCall && substr($title, 0, 3) != 'POS' && $title != 'Bordplan' && $firstFolder != "sager" && strpos($path, 'pos_ordre.php') === false && !$inScaffoldingContext) {
 ?>
 <style>
 	/* type submit and type button */
