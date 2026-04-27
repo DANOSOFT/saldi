@@ -22,7 +22,8 @@ body
 {
     font: normal 12px Arial, Helvetica, sans-serif;
     color: #444;
-    height: 100%;
+    min-height: 100%;
+    background-color: #ffffff;
 }
 
 p
@@ -50,7 +51,7 @@ img
 {
     margin: auto;
     width: 100%;
-    height: 100%;
+    min-height: 100vh;
     background-color: white;
 }
 
