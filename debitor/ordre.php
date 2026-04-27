@@ -128,6 +128,21 @@ include("../includes/std_func.php");
 
 
 include("../includes/connect.php");
+
+// Restore scaffolding context (sag_id) from the order record itself when the URL/POST didn't carry it.
+// Many flows redirect back to ordre.php without sag_id (levering.php, bogfor.php, accountLookup,
+// sync_stamkort.php, etc.), which used to drop us back into finance styling. Resolving here — before
+// online.php runs and emits the finance-button color override — keeps scaffolding styling stable.
+if (empty($_GET['sag_id']) && empty($_POST['sag_id'])) {
+    $sag_id_lookup = isset($_GET['id']) ? $_GET['id'] : (isset($_POST['id']) ? $_POST['id'] : null);
+    if ($sag_id_lookup !== null && is_numeric($sag_id_lookup) && (int)$sag_id_lookup > 0) {
+        $r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='" . db_escape_string($sag_id_lookup) . "'", __FILE__ . " linje " . __LINE__));
+        if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
+            $_GET['sag_id'] = $r_sag['sag_id'];
+        }
+    }
+}
+
 include("../includes/online.php");
 
 // Restore scaffolding context (sag_id) from the order record itself when the URL/POST didn't carry it.
