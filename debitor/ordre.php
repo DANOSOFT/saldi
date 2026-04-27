@@ -77,6 +77,7 @@
 // 20260420 PHR Removed GLS codes
 // 20260422 PHR Defined $fast_db as array; 
 // 20260432	PHR Warning when $ref id changes
+// 20260427 PHR Fixed vat added twice when open order was copies. ($sourceStatus)
 
 @session_start();
 $s_id = session_id();
@@ -95,7 +96,7 @@ $oioxml = $oioubl = $ordrenr = NULL;
 $pbs = $phone = $prev_id = $pris[0] = $procenttillag = $procentvare = NULL;
 $qtext = NULL;
 $ref = $restordre = $rvnr = NULL;
-$status = $swap_account = NULL;
+$sourceStatus = $status = $swap_account = NULL;
 $tdlv = NULL;
 $valgt = $varenr[0] = $valuta = $vis_lev_addr = $vis_projekt = NULL;
 $width = NULL;
@@ -1543,10 +1544,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	}
 	if (strstr($b_submit, "Kred")) {
 		$art = 'DK';
-
+		$sourceStatus = $status; 
 		$query = db_select("select id from ordrer where kred_ord_id = $id", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
-
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$row[id]\">\n";
 			exit;
 		} elseif ($kred_ord_id) {
@@ -1560,6 +1560,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	} elseif (strstr($b_submit, "Kopi")) {
 		$gl_id = $id;
 		$id = '';
+		$sourceStatus = $status;
 		$status = 0;
 	} elseif (!$art) $art = 'DO';
 	if (strlen($ordredate) < 6) $ordredate = date("Y-m-d");
@@ -1648,7 +1649,6 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			}
 		}
 	}
-
 	if (!$id && !$gl_id && $konto_id && $firmanavn) {  # Opretter ny ordre fra konto id
 		$phone = str_replace('', '', $phone);
 		if (strlen($phone) > 15) {
@@ -2317,7 +2317,6 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 			$felt_4 *= -1;
 		}
 	}
-
 	if ((!$id) && ($konto_id)) {
 		$qtxt = "select kontonr from adresser where id='$konto_id'"; #20160217
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2382,7 +2381,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 			if (!$momsfri[$x] && !$varemomssats[$x]) $varemomssats[$x] = $momssats;
 			if ($varemomssats[$x] > $momssats) $varemomssats[$x] = $momssats;
 			if ($momsfri[$x] || $omvbet[$x]) $varemomssats[$x] = 0;
-			if ($incl_moms) $pris[$x] += $pris[$x] * $varemomssats[$x] / 100;
+			if ($sourceStatus >= 3 && $incl_moms) $pris[$x] += $pris[$x] * $varemomssats[$x] / 100;
 			if ($procenttillag && $procentvare && $varenr[$x] == $procentvare) {
 				$tmp = NULL; # der skal bare stå et eller andet :-)
 			} elseif ((!$kdo[$x] || strstr($b_submit, 'Kred')) && (!$folgevare[$x] || $folgevare[$x] >= 0)) {
