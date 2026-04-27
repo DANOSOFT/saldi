@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-04-15 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-04-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,6 +86,7 @@
 // 20260313 Sawaneh SD-369 stock fallback in opret_ordrelinje commented out pending review
 // 20260313 PHR	Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort'
 // 20260415 PHR Modtag (Receive) was set to 0 when delivering a negative quantity
+// 20260227 PHR Added more arguments to funtion call at line 1260, as last 4 was missing
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -1257,8 +1258,7 @@ function bogfor($id, $webservice=false)
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
 				$tmp = str_replace('$procenttillæg;', $procenttillag, $r['beskrivelse']);
-				opret_ordrelinje($id, $r['id'], $r['varenr'], 1, $tmp, $tillag, 0, 100, $art, '', $posnr, '', '', 'on', 'percent', '', $lager); #20140426
-				$r = db_fetch_array(db_select("select max(id) as linje_id from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__));
+				opret_ordrelinje($id, $r['id'], $r['varenr'], 1, $tmp, $tillag, 0, 100, $art, '', $posnr, '', '', 'on', 'percent', '','','','', $lager,__line__); #20260427
 				db_modify("update ordrelinjer set leveres='1' where id='$r[linje_id]'", __FILE__ . " linje " . __LINE__);
 				levering($id, '', '', '');
 				$sum += $tillag;
@@ -2283,8 +2283,8 @@ function bogfor_nu($id, $kilde) {
 			$valuta = $baseCurrency;
 		$projekt[0] = $r['projekt'];
 		$betalingsbet = $r['betalingsbet'];
-		$betalingsdage = $r['betalingsdage'] * 1;
-		$betalt = $r['betalt'] * 1;
+		$betalingsdage = (int)$r['betalingsdage'];
+		$betalt = (float)$r['betalt'];
 		$felt_1 = $r['felt_1'];
 		$felt_2 = $r['felt_2'];
 		$felt_3 = $r['felt_3'];
