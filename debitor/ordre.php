@@ -113,7 +113,6 @@ include("../includes/std_func.php");
 
 
 include("../includes/connect.php");
-include("../includes/online.php");
 
 // Restore scaffolding context (sag_id) from the order record itself when the URL/POST didn't carry it.
 // Many flows redirect back to ordre.php without sag_id (levering.php, bogfor.php, accountLookup,
@@ -124,10 +123,13 @@ if (empty($_GET['sag_id']) && empty($_POST['sag_id'])) {
     if ($sag_id_lookup !== null && is_numeric($sag_id_lookup) && (int)$sag_id_lookup > 0) {
         $r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='" . db_escape_string($sag_id_lookup) . "'", __FILE__ . " linje " . __LINE__));
         if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
-            $_GET['sag_id'] = $r_sag['sag_id'];  
+            $_GET['sag_id'] = $r_sag['sag_id'];
         }
     }
 }
+
+include("../includes/online.php");
+
 // Defensive scaffolding-context button restore.
 // online.php may emit a global `input[type=submit/button] { background:#114691 !important }` rule.
 // When sag_id is present we re-apply the scaffolding `.button .green/.blue/.gray/.white/...`
