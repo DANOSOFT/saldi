@@ -1548,11 +1548,11 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$qtxt = "select box6 from grupper where art='DG' and kodenr='$grp'";
 			($kontonr && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $rabatsats = $r['box6'] : $rabatsats == 0;
 		}
-	#	} else {
-	#		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
-	#		// Reload the current page.
-	#		header("Refresh:0");
-	#		exit;
+		#	} else {
+		#		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
+		#		// Reload the current page.
+		#		header("Refresh:0");
+		#		exit;
 	}
 	if (strstr($b_submit, 'Slet')) {
 		slet_ordre($id);
