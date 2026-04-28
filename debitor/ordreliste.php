@@ -256,7 +256,7 @@ $nextfakt1    = strtolower(str_replace(' ', '_', $kk));
 
 $id = if_isset($_GET, NULL, 'id');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
-$account_context = if_isset($_GET, NULL, 'account_context');
+$account_context = if_isset($_GET, NULL, 'account_context'); # sync
 $menu_entry = if_isset($_GET, NULL, 'menu_entry');
 $reset_context = if_isset($_GET, NULL, 'reset_context');
 $returside = if_isset($_GET, NULL, 'returside');
