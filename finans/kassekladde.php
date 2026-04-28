@@ -94,6 +94,7 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
+include("../includes/bilagsmatch.js.php");
 
 include("../includes/grid.php");
 
@@ -205,8 +206,8 @@ print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" 
 
 $langId = !empty($sprog_id) ? intval($sprog_id) : 1;
 print '<script>
-window.saldiLanguage = ' . $langId . ';
-window.saldiTranslations = {
+	window.saldiLanguage = ' . $langId . ';
+	window.saldiTranslations = {
     selectAccount: "' . findtekst('586', $langId) . ' ' . findtekst('592', $langId) . '",
     selectDebtor: "' . findtekst('586', $langId) . ' Debitor",
     selectCreditor: "' . findtekst('586', $langId) . ' Kreditor",
@@ -251,7 +252,7 @@ print "<script>
 		that.style.backgroundColor = bgcolor;
 		document.forms[0].fokus.value=that.name; 
 	}
-		function defokuser(that, fgcolor, bgcolor){
+	function defokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
 		that.style.backgroundColor = bgcolor; 
 	}
@@ -3132,6 +3133,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			// print "<tr><td colspan=9 align='center'><input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'></td></tr>\n";
 			// print "</form>";
 		} else {
+			print "<td align='center'><span title='" . findtekst('TBD', $sprog_id) . "'><input type='submit' class='button green medium' style='width:120px;' value='" . findtekst('TBD', $sprog_id) . "' name='bilagsmatch' onclick='javascript:{console.log(\"test\"); return false;}'></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1544|Klik her for at gemme', $sprog_id) . "'><input type='submit' class='button green medium' style='width:120px;' accesskey='g' value='" . findtekst('3|Gem', $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1545|Opslag - din markørs placering angiver hvilken tabel, opslag foretages i', $sprog_id) . "'><input type='submit' class='button blue medium' style='width:120px;' accesskey='o' value='" . findtekst('644|Opslag', $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span></td>";
 			if ($kladde_id && !$fejl) {
