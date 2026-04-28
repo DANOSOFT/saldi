@@ -1484,11 +1484,11 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$qtxt = "select box6 from grupper where art='DG' and kodenr='$grp'";
 			($kontonr && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $rabatsats = $r['box6'] : $rabatsats == 0;
 		}
-#	} else {
-#		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
-#		// Reload the current page.
-#		header("Refresh:0");
-#		exit;
+		#	} else {
+		#		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
+		#		// Reload the current page.
+		#		header("Refresh:0");
+		#		exit;
 	}
 	if (strstr($b_submit, 'Slet')) {
 		slet_ordre($id);
@@ -3683,7 +3683,7 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til!="email" && $email) print "<option>email</option>\n";
 		if ($udskriv_til!="oioxml" && strlen($ean)==13) print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n";
 		print "</SELECT></td></tr>\n";
-*/
+		*/
 		if ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
@@ -3726,7 +3726,7 @@ function ordreside($id, $regnskab)
 			if ($pbs_nr && !$pbs_fi) print "<td colspan=\"2\" title=\"$title\">Opkr&aelig;v via PBS (BS)</td><td title=\"$title\"><input class=\"inputbox\" type=\"checkbox\" name=\"pbs_bs\" \"$pbs_bs\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 		} else print "</tr>\n";
 		 
-*/
+		*/
 
 		// 
 		print "<tr class='tableTexting'><td width=\"100\"><b>" . findtekst('881|Ordredato', $sprog_id) . "</b></td><td width=\"100\">$ordredato</td>\n"; #20210629
