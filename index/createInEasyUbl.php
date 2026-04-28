@@ -74,8 +74,8 @@
         $timestamp = date("Y-m-d-H-i-s");
         file_put_contents("../temp/$db/$timestamp.json", $pError);
         //echo "JSON: " . json_encode($data) . "<br>"; //if we want the json
-        echo "Respons: " . json_encode($response, JSON_PRETTY_PRINT) . "<br>";
-        echo "Error: " . $pError;
+        echo "Respons: " . htmlspecialchars(json_encode($response, JSON_PRETTY_PRINT)) . "<br>";
+        echo "Error: " . htmlspecialchars($pError);
         return "error";
     }else{
         $response = json_decode($response, true);
