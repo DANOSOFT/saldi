@@ -31,6 +31,7 @@
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
+            "orgNo" => "", //TODO find out what string to put here
             "currency" => "DKK",
             "country" => "DK",
             "webhookUrl" => $webhookUrl,
@@ -382,6 +383,8 @@
             "issueDate" => date("c", strtotime($r_faktura["fakturadate"])),
             "dueDate" => usdate(forfaldsdag($r_faktura['fakturadate'], $r_faktura['betalingsbet'], $r_faktura['betalingsdage']))."T00:00:00.000Z",
             "deliveryDate" => date("c", strtotime($r_faktura["levdate"])),
+            "orderReference" => "", //TODO 
+            "invoiceReference" => "", //TODO
             "salesOrderID" => $r_faktura["ordrenr"],
             "note" => $r_faktura["notes"],
             "buyerReference" => $r_faktura["kundeordnr"],
@@ -411,6 +414,30 @@
                     "electronicMail" => $r_faktura["email"]
                 ]
             ],
+            "buyerCustomerParty" => [
+                "endpointId" => "", //Was missing from JSON structure
+                "endpointIdType" => "", //Was missing from JSON structure
+                "name" => "", //Was missing from JSON structure
+                "companyId" => "", //Was missing from JSON structure
+                "postalAddress" => [
+                    "streetName" => "", //Was missing from JSON structure
+                    "buildingNumber" => "", //Was missing from JSON structure
+                    "inhouseMail" => "", //Was missing from JSON structure
+                    "additionalStreetName" => "", //Was missing from JSON structure
+                    "attentionName" => "", //Was missing from JSON structure
+                    "cityName" => "", //Was missing from JSON structure
+                    "postalCode" => "", //Was missing from JSON structure
+                    "countrySubentity" => "", //Was missing from JSON structure
+                    "addressLine" => "", //Was missing from JSON structure
+                    "countryCode" => "", //Was missing from JSON structure
+                ], //Was missing from JSON structure
+                "contact" => [
+                    "initials" => "", //Was missing from JSON structure
+                    "name" => "", //Was missing from JSON structure
+                    "telephone" => "", //Was missing from JSON structure
+                    "electronicMail" => "", //Was missing from JSON structure
+                ]
+            ], //Was missing from JSON structure
             "documentCurrencyCode" => $r_faktura["valuta"],
             //(float)number_format((float)$r_faktura["sum"], 2)
             "totalAmount" => (float)number_format((float)$r_faktura["sum"], 2),
@@ -424,6 +451,28 @@
                 "iban" => "",
                 "creditorIdentifier" => "",
                 "paymentID" => ""
+            ],
+            "additionalDocuments" => [
+                // Template
+                // [
+                // "iD" => "",
+                // "documentType" => "",
+                // "documentDescription" => "",
+                // "fileName" => "",
+                // "base64Object" => "",
+                // ],
+            ],
+            "allowanceCharges" => [
+                //Template
+                //I don't think this needs to be filled unless it's actually has charges
+                //[
+                //    "isCharge" => true,
+                //    "reasonCode" => "",
+                //    "reason": => "",
+                //    "percentage"=> 0,
+                //    "amount" => 0,
+                //    "baseAmount" => 0
+                //],
             ],
         ];
     

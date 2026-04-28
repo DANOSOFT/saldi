@@ -27,6 +27,7 @@
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
+            "orgNo" => "", //TODO find out what string to put here
             "currency" => "DKK",
             "country" => "DK",
             "webhookUrl" => $webhookUrl,
