@@ -2494,7 +2494,7 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 	} elseif ($udskriv_til == "Digitalt" && $status >= 3 && $art == "DO") {
 		$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
 		if (db_num_rows($query) <= 0) {
-?>
+			?>
 			<script>
 				if (confirm('Ved at sende fakture digitalt, vil du blive oprettet i nemhandel') == true)
 					window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank')
@@ -2600,7 +2600,7 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 				<script>
 					window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank')
 				</script>
-<?php
+			<?php
 			}
 		}
 	} else {

@@ -72,7 +72,7 @@
         // save response in file in temp folder
         $timestamp = date("Y-m-d-H-i-s");
         file_put_contents("../temp/$db/$timestamp.json", $error);
-        //echo "JSON: " . json_encode($data) . "<br>"; if we want the json
+        //echo "JSON: " . json_encode($data) . "<br>"; //if we want the json
         echo "Respons: " . json_encode($response) . "<br>";
         echo "Error: " . json_encode($error);
         return "error";

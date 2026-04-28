@@ -289,7 +289,7 @@
 
     // Setting up the invoice data
     function sendInvoice($id, $type) {
-				global $db;
+            global $db;
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $adresse = db_fetch_array($query);
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
@@ -532,7 +532,9 @@
         }
         $data["invoiceLines"] = $line;
         file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
-        /* echo json_encode($data, JSON_PRETTY_PRINT); */
+
+        //echo json_encode($data, JSON_PRETTY_PRINT);
+        //die(json_encode($data, JSON_PRETTY_PRINT));
         $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
         
         return $name;
