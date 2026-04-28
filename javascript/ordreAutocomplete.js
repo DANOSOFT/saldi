@@ -381,6 +381,19 @@
             const vsc = selected.dataset.vsc;
             if (vsc) redirectUrl += `&vsc=${encodeURIComponent(vsc)}`;
 
+            // Preserve scaffolding context (sag_id) so the page returns to scaffolding styling.
+            // Try URL first, then form hidden input as fallback (form posts strip URL params).
+            let sagId = urlParams.get('sag_id');
+            if (!sagId && input.form) {
+                const sagInput = input.form.querySelector('input[name="sag_id"]');
+                if (sagInput && sagInput.value && sagInput.value !== '0') sagId = sagInput.value;
+            }
+            if (!sagId) {
+                const sagInput = document.querySelector('input[name="sag_id"]');
+                if (sagInput && sagInput.value && sagInput.value !== '0') sagId = sagInput.value;
+            }
+            if (sagId) redirectUrl += `&sag_id=${encodeURIComponent(sagId)}`;
+
             console.log('FINAL redirectUrl:', redirectUrl);
 
             var submitButton = document.getElementById("submit");

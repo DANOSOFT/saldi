@@ -519,9 +519,26 @@ if (isset($pathParts[0])) {
 	exit;
 } */
 // Wrap the style output in the API check.
-// Also skip when the current request is for a scaffolding-context page (sag_id set via GET/POST),
-// so scaffolding button classes (.green/.blue/.gray/.white) are not overridden by the finance color.
+// Also skip when the current request is for a scaffolding-context page, so scaffolding button
+// classes (.green/.blue/.gray/.white) are not overridden by the finance color.
 $inScaffoldingContext = !empty($_GET['sag_id']) || !empty($_POST['sag_id']);
+if (
+	!$inScaffoldingContext
+	&& strpos($path, 'debitor/ordre.php') !== false
+	&& (isset($_GET['id']) || isset($_POST['id']) || isset($_GET['tjek']))
+) {
+	$orderContextId = null;
+	if (!empty($_GET['id']) && is_numeric($_GET['id'])) $orderContextId = (int) $_GET['id'];
+	elseif (!empty($_POST['id']) && is_numeric($_POST['id'])) $orderContextId = (int) $_POST['id'];
+	elseif (!empty($_GET['tjek']) && is_numeric($_GET['tjek'])) $orderContextId = (int) $_GET['tjek'];
+	if ($orderContextId) {
+		$r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='$orderContextId'", __FILE__ . " linje " . __LINE__));
+		if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
+			$inScaffoldingContext = true;
+			$_GET['sag_id'] = (int)$r_sag['sag_id'];
+		}
+	}
+}
 if (!$isApiCall && substr($title, 0, 3) != 'POS' && $title != 'Bordplan' && $firstFolder != "sager" && strpos($path, 'pos_ordre.php') === false && !$inScaffoldingContext) {
 ?>
 <style>

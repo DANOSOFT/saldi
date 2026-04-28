@@ -1326,8 +1326,8 @@ function vis_sag() {
 		$bilag_filtype[$x]=$r['filtype'];
 		$bilag_kategori[$x]=$r['kategori'];
 		$bilag_beskrivelse[$x]=$r['beskrivelse'];
-		$bilag_dato[$x]=date("d-m-Y",$r['datotid']);
-		$bilag_tidspkt[$x]=date("H:i",$r['datotid']);
+		$bilag_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$bilag_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$bilag_datotid[$x]=$r['datotid'];
 		$bilag_fase[$x]=$r['fase']*1;
 		$bilag_hvem[$x]=$r['hvem'];
@@ -1347,8 +1347,8 @@ function vis_sag() {
 		//if (strlen($tmp)>20) $tmp=substr($tmp,0,20)."...";
 		$notat_beskrivelse[$x]=utf8_encode($tmp);
 #		$notat_overskrift[$x]=$r['overskrift'];
-		$notat_dato[$x]=date("d-m-Y",$r['datotid']);
-		$notat_tidspkt[$x]=date("H:i",$r['datotid']);
+		$notat_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$notat_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$notat_datotid[$x]=$r['datotid'];
 		$notat_fase[$x]=$r['fase']*1;
 		$notat_status[$x]=$r['status'];
@@ -1363,8 +1363,8 @@ function vis_sag() {
 	while ($r = db_fetch_array($q)) {
 		$kontrol_id[$x]=$r['id'];
 		$kontrol_tjek_id[$x]=$r['tjekliste_id'];
-		$kontrol_dato[$x]=date("d-m-Y",$r['datotid']);
-		$kontrol_tidspkt[$x]=date("H:i",$r['datotid']);
+		$kontrol_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$kontrol_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$kontrol_opg_art[$x]=$r['opg_art'];
 		$kontrol_opg_navn[$x]=$r['opg_navn'];
 		$kontrol_sjak[$x]=$r['sjak'];
@@ -1409,8 +1409,8 @@ function vis_sag() {
 		$tilbud_nr[$x]=$r['tilbudnr'];
 		$tilbud_beskrivelse[$x]=$r['beskrivelse'];
 		$tilbud_tekst[$x]=$r['tekst'];
-		$tilbud_dato[$x]=date("d-m-Y",$r['datotid']);
-		$tilbud_tidspkt[$x]=date("H:i",$r['datotid']);
+		$tilbud_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$tilbud_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$tilbud_hvem[$x]=$r['hvem'];
 		$x++;
 	}
@@ -1425,8 +1425,8 @@ function vis_sag() {
 		$ordrer_tilbudnr[$x]=$r['tilbudnr'];
 		$ordrer_ordrenr[$x]=$r['ordrenr'];
 		$ordrer_nr[$x]=$r['nr'];
-		$ordrer_dato[$x]=date("d-m-Y",$r['datotid']);
-		$ordrer_tidspkt[$x]=date("H:i",$r['datotid']);
+		$ordrer_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$ordrer_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$ordrer_ref[$x]=$r['ref'];
 		$ordrer_art[$x]=$r['art'];
 		$ordrer_status[$x]=$r['status'];
@@ -1450,8 +1450,8 @@ function vis_sag() {
 		$ot_tilbudnr[$x]=$r['tilbudnr'];
 		$ot_ordrenr[$x]=$r['ordrenr'];
 		$ot_nr[$x]=$r['nr'];
-		$ot_dato[$x]=date("d-m-Y",$r['datotid']);
-		$ot_tidspkt[$x]=date("H:i",$r['datotid']);
+		$ot_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		$ot_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$ot_ref[$x]=$r['ref'];
 		$ot_status[$x]=$r['status'];
 		if ($ot_status[$x] == '0') $otstatus[$x] = "Tilbud";
@@ -1470,8 +1470,8 @@ function vis_sag() {
 		$faktura_tilbud_nr[$x]=$r['nr'];
 		$fakturadate[$x]=$r['fakturadate'];
 		$faktura_dato[$x] = date("d-m-Y", strtotime($fakturadate[$x]));
-		//$faktura_dato[$x]=date("d-m-Y",$r['datotid']);
-		//$faktura_tidspkt[$x]=date("H:i",$r['datotid']);
+		//$faktura_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		//$faktura_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$faktura_ref[$x]=$r['ref'];
 		$faktura_status[$x]=$r['status'];
 		//if ($ordrer_status[$x] == '0') $opgstatus[$x] = "Tilbud";
@@ -1492,8 +1492,8 @@ function vis_sag() {
 		$kreditnota_tilbud_nr[$x]=$r['nr'];
 		$kreditnotadate[$x]=$r['fakturadate'];
 		$kreditnota_dato[$x] = date("d-m-Y", strtotime($kreditnotadate[$x]));
-		//$faktura_dato[$x]=date("d-m-Y",$r['datotid']);
-		//$faktura_tidspkt[$x]=date("H:i",$r['datotid']);
+		//$faktura_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+		//$faktura_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$kreditnota_ref[$x]=$r['ref'];
 		$kreditnota_status[$x]=$r['status'];
 		//if ($ordrer_status[$x] == '0') $opgstatus[$x] = "Tilbud";
@@ -2212,7 +2212,7 @@ function vis_sag() {
 							<td colspan=\"1\" title=\"$bilag_beskrivelse[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:220px;\">$bilag_beskrivelse[$y]&nbsp;</p></td>
 							<td colspan=\"1\" title=\"$bilag_bilag_fase[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:94px;\">$bilag_bilag_fase[$y]&nbsp;</p></td>
 							<td colspan=\"1\" title=\"$bilag_kategori[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:100px;\">$bilag_kategori[$y]&nbsp;</p></td>
-							<td colspan=\"1\"><p>".date("d-m-Y",$bilag_datotid[$y])."</p></td>
+							<td colspan=\"1\"><p>".date("d-m-Y",(int)$bilag_datotid[$y])."</p></td>
 							<td colspan=\"1\"><p>$bilag_tidspkt[$y]</p></td>
 							<td colspan=\"1\" title=\"$bilag_hvem[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:80px;\">$bilag_hvem[$y]&nbsp;</p></td>";
 							print "<td colspan=\"1\" title=\"".findtekst('2841|Ret fase, kategori og tilknyt bilag til kontrolskema', $sprog_id)."\"><a href=\"bilag_sager.php?kilde=sager&amp;sag_id=$id&amp;konto_id=$konto_id&amp;kilde_id=$id&amp;bilag_id=$bilag_id[$y]\" class=\"cross\"></a></td>\n";
@@ -2470,8 +2470,8 @@ function ret_opgave($sag_id) {
 			$tilbud_nr[$x]=$r['tilbudnr'];
 			$tilbud_beskrivelse[$x]=$r['beskrivelse'];
 			$tilbud_tekst[$x]=$r['tekst'];
-			$tilbud_dato[$x]=date("d-m-Y",$r['datotid']);
-			$tilbud_tidspkt[$x]=date("H:i",$r['datotid']);
+			$tilbud_dato[$x]=date("d-m-Y",(int)$r['datotid']);
+			$tilbud_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 			$tilbud_hvem[$x]=$r['hvem'];
 			$x++;
 		}
