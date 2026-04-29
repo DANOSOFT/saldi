@@ -118,6 +118,7 @@ include("../includes/std_func.php");
 
 
 include("../includes/connect.php");
+include("../includes/online.php");
 
 // Restore scaffolding context (sag_id) from the order record itself when the URL/POST didn't carry it.
 // Many flows redirect back to ordre.php without sag_id (levering.php, bogfor.php, accountLookup,
