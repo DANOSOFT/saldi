@@ -150,57 +150,59 @@ function fod_felter_vis_titel($titel, $bold) {
 }
 
 function fod_felter_vis_beloeb($obj, $visallefelter, $bold) {
+	global $sprog_id;
 
 	$startbold = $bold?"<b>":"";
 	$endbold = $bold?"</b>":"";
 
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->loen_timeant, $visallefelter)."\">
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->loen_timeant, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->loen_timer, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\" 
-	title=\"Sum: ".fod_dkdecimal($obj->akktimer, $visallefelter)."|".fod_dkdecimal($obj->dt_timer, $visallefelter)."\">
+	title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->akktimer, $visallefelter)."|".fod_dkdecimal($obj->dt_timer, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->loen_dyrtid, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\" 
-	title=\"Sum: ".fod_dkdecimal($obj->antal_50pct, $visallefelter)."\">
+	title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->antal_50pct, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->loen_50pct, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->antal_100pct, $visallefelter)."\">
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->antal_100pct, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->loen_100pct, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Timer: ".fod_dkdecimal($obj->akktimer, $visallefelter)."\">
+	print "<td align=\"right\" title=\"".findtekst('2980|Timer', $sprog_id).": ".fod_dkdecimal($obj->akktimer, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->akk_loen, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Km: ".fod_dkdecimal($obj->korsel_km, $visallefelter)."\">
+	print "<td align=\"right\" title=\"".findtekst('2996|Km', $sprog_id).": ".fod_dkdecimal($obj->korsel_km, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->korsel_kr, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\">$startbold".fod_dkdecimal($obj->skur1, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\">$startbold".fod_dkdecimal($obj->skur2, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\">$startbold".fod_dkdecimal($obj->mentor, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->antal_plads, $visallefelter)."\">
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->antal_plads, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->plads, $visallefelter)."&nbsp;$endbold</td>";
-#	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->antal_mentor, $visallefelter)."\">
+#	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->antal_mentor, $visallefelter)."\">
 #	$startbold".fod_dkdecimal($obj->mentor, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->antal_sygdom, $visallefelter)."\">
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->antal_sygdom, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->sygdom, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->antal_barn_syg, $visallefelter)."\">
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->antal_barn_syg, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->barn_syg, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->antal_skole, $visallefelter)."\">
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->antal_skole, $visallefelter)."\">
 	$startbold".fod_dkdecimal($obj->skole, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\">$startbold".fod_dkdecimal($obj->ansat_sum, $visallefelter)."&nbsp;$endbold</td>";
 }
 
 function fod_felter_vis_timer($obj, $visallefelter, $bold) {
+	global $sprog_id;
 	$startbold = $bold?"<b>":"";
 	$endbold = $bold?"</b>":"";
 
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->loen_timer, $visallefelter)."\">$startbold".fod_dkdecimal($obj->loen_timeant, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->loen_dyrtid, $visallefelter)."\">$startbold".fod_dkdecimal($obj->dt_timer, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->loen_50pct, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_50pct, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->loen_100pct, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_100pct, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Timer: ".fod_dkdecimal($obj->akktimer, $visallefelter)."\">$startbold".fod_dkdecimal($obj->akk_loen, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Km: ".fod_dkdecimal($obj->korsel_km, $visallefelter)."\">$startbold".fod_dkdecimal($obj->korsel_kr, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->loen_timer, $visallefelter)."\">$startbold".fod_dkdecimal($obj->loen_timeant, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->loen_dyrtid, $visallefelter)."\">$startbold".fod_dkdecimal($obj->dt_timer, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->loen_50pct, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_50pct, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->loen_100pct, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_100pct, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2980|Timer', $sprog_id).": ".fod_dkdecimal($obj->akktimer, $visallefelter)."\">$startbold".fod_dkdecimal($obj->akk_loen, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2996|Km', $sprog_id).": ".fod_dkdecimal($obj->korsel_km, $visallefelter)."\">$startbold".fod_dkdecimal($obj->korsel_kr, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\">$startbold".fod_dkdecimal($obj->skur1, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\">$startbold".fod_dkdecimal($obj->skur2, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\">$startbold".fod_dkdecimal($obj->mentor, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->plads, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_plads, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->sygdom, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_sygdom, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->barn_syg, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_barn_syg, $visallefelter)."&nbsp;$endbold</td>";
-	print "<td align=\"right\" title=\"Sum: ".fod_dkdecimal($obj->skole, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_skole, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->plads, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_plads, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->sygdom, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_sygdom, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->barn_syg, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_barn_syg, $visallefelter)."&nbsp;$endbold</td>";
+	print "<td align=\"right\" title=\"".findtekst('2795|Sum', $sprog_id).": ".fod_dkdecimal($obj->skole, $visallefelter)."\">$startbold".fod_dkdecimal($obj->antal_skole, $visallefelter)."&nbsp;$endbold</td>";
 	print "<td align=\"right\">$startbold".fod_dkdecimal($obj->ansat_sum, $visallefelter)."&nbsp;$endbold</td>";
 }
 
@@ -209,6 +211,7 @@ function fod_indsaml_data($periode) {
 
 	global $overtid_50pct;
 	global $overtid_100pct;
+	global $sprog_id;
 
 	$funcstarttime = microtime(true);
 
@@ -594,7 +597,7 @@ function fod_indsaml_data($periode) {
 					if ($fodsagid != 0) {
 						$r = db_fetch_array(db_select("SELECT udf_addr1 FROM sager WHERE id='$fodsagid'", __FILE__ . " linje " . __LINE__));
 						array_push($fodopgave->udfaddrs, htmlspecialchars($r['udf_addr1']));
-						array_push($fodopgave->udftitles, "Sag: $fodsag->sag_nr - Opgave: $fodopgave->opg_nr - " . htmlspecialchars($r['udf_addr1']));
+						array_push($fodopgave->udftitles, findtekst('2792|Sag', $sprog_id).": $fodsag->sag_nr - ".findtekst('2800|Opgave', $sprog_id).": $fodopgave->opg_nr - " . htmlspecialchars($r['udf_addr1']));
 					}
 
 					$fodsag->udfaddrs = array_merge($fodsag->udfaddrs, $fodopgave->udfaddrs);
