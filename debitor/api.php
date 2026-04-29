@@ -422,30 +422,31 @@
                     "electronicMail" => $r_faktura["email"]
                 ]
             ],
-            "buyerCustomerParty" => [
-                "endpointId" => "", //Was missing from JSON structure
-                "endpointIdType" => "", //Was missing from JSON structure
-                "name" => "", //Was missing from JSON structure
-                "companyId" => "", //Was missing from JSON structure
-                "postalAddress" => [
-                    "streetName" => "", //Was missing from JSON structure
-                    "buildingNumber" => "", //Was missing from JSON structure
-                    "inhouseMail" => "", //Was missing from JSON structure
-                    "additionalStreetName" => "", //Was missing from JSON structure
-                    "attentionName" => "", //Was missing from JSON structure
-                    "cityName" => "", //Was missing from JSON structure
-                    "postalCode" => "", //Was missing from JSON structure
-                    "countrySubentity" => "", //Was missing from JSON structure
-                    "addressLine" => "", //Was missing from JSON structure
-                    "countryCode" => "", //Was missing from JSON structure
-                ], //Was missing from JSON structure
-                "contact" => [
-                    "initials" => "", //Was missing from JSON structure
-                    "name" => "", //Was missing from JSON structure
-                    "telephone" => "", //Was missing from JSON structure
-                    "electronicMail" => "", //Was missing from JSON structure
-                ]
-            ], //Was missing from JSON structure
+            // Not needed when Customer and Payer are the same
+            // "buyerCustomerParty" => [
+            //     "endpointId" => "", //Was missing from JSON structure
+            //     "endpointIdType" => "", //Was missing from JSON structure
+            //     "name" => "", //Was missing from JSON structure
+            //     "companyId" => "", //Was missing from JSON structure
+            //     "postalAddress" => [
+            //         "streetName" => "", //Was missing from JSON structure
+            //         "buildingNumber" => "", //Was missing from JSON structure
+            //         "inhouseMail" => "", //Was missing from JSON structure
+            //         "additionalStreetName" => "", //Was missing from JSON structure
+            //         "attentionName" => "", //Was missing from JSON structure
+            //         "cityName" => "", //Was missing from JSON structure
+            //         "postalCode" => "", //Was missing from JSON structure
+            //         "countrySubentity" => "", //Was missing from JSON structure
+            //         "addressLine" => "", //Was missing from JSON structure
+            //         "countryCode" => "", //Was missing from JSON structure
+            //     ], //Was missing from JSON structure
+            //     "contact" => [
+            //         "initials" => "", //Was missing from JSON structure
+            //         "name" => "", //Was missing from JSON structure
+            //         "telephone" => "", //Was missing from JSON structure
+            //         "electronicMail" => "", //Was missing from JSON structure
+            //     ]
+            // ], //Was missing from JSON structure
             "documentCurrencyCode" => $r_faktura["valuta"],
             //(float)number_format((float)$r_faktura["sum"], 2)
             "totalAmount" => (float)number_format((float)$r_faktura["sum"], 2),
