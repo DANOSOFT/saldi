@@ -129,7 +129,7 @@ if (empty($_GET['sag_id']) && empty($_POST['sag_id'])) {
     if ($sag_id_lookup !== null && is_numeric($sag_id_lookup) && (int)$sag_id_lookup > 0) {
         $r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='" . db_escape_string($sag_id_lookup) . "'", __FILE__ . " linje " . __LINE__));
         if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
-            $_GET['sag_id'] = $r_sag['sag_id'];
+            $_GET['sag_id'] = $r_sag['sag_id'];   
         }
     }
 }
