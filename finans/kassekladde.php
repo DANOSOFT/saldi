@@ -10,7 +10,7 @@
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
-// which is published by The Free Software Foundation; either in version 2
+// which is published by The Free Software Foundation; either in version 2 
 // of this license or later version of your choice.
 // However, respect the following:
 //
@@ -3061,27 +3061,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td></td>\n";
 			}
 		}
-		// get last bilagsnr from database but check if the row already has asigned bilagnr
 		
-		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
-		if (isset($bilag[$x]) && $bilag[$x]) {
-			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
-			$next = $bilag[$x];
-		} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
-			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
-			if ($x == 1) {
-				$next = $last_bilag;
-			} else {
-				$next = $bilag[$x-1] + 1;
-			}
-		} else {
-			$next = $bilag[$x-1] + 1;
-		}
-		if($dato[$x] == ''){
-			$dato[$x] = dkdato(date("Y-m-d"));
-		}
 		
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";

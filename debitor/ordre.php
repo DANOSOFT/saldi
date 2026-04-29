@@ -76,7 +76,7 @@
 // 20260415 PHR Modtag (Receive) was set to 0 in creditnote
 // 20260420 PHR Removed GLS codes
 // 20260422 PHR Defined $fast_db as array; 
-// 20260432	PHR Warning when $ref id changes
+// 20260423	PHR Warning when $ref id changes
 // 20260427 PHR Fixed vat added twice when open order was copies. ($sourceStatus)
 // 20260429 PHR Changed 'PBS' to 'BS' as colunm is varchar(2)
 // 20260429 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
@@ -138,7 +138,7 @@ if (empty($_GET['sag_id']) && empty($_POST['sag_id'])) {
     if ($sag_id_lookup !== null && is_numeric($sag_id_lookup) && (int)$sag_id_lookup > 0) {
         $r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='" . db_escape_string($sag_id_lookup) . "'", __FILE__ . " linje " . __LINE__));
         if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
-            $_GET['sag_id'] = $r_sag['sag_id'];
+            $_GET['sag_id'] = $r_sag['sag_id'];   
         }
     }
 }
@@ -3463,7 +3463,8 @@ function ordreside($id, $regnskab)
 		$restordre = if_isset($row, NULL, 'restordre');
 		$digitalStatus = if_isset($row, NULL, 'digital_status');
 		$ordredate = if_isset($row, null, 'ordredate') ?? date("y-m-d");
-
+		$opValue = $_GET['valg'];
+		file_put_contents("../temp/$db/area$bruger_id.txt", $opValue, LOCK_EX);
 		$ordredato = dkdato($ordredate);
 		if (if_isset($row, NULL, 'levdate')) {
 			$levdato = dkdato(if_isset($row, NULL, 'levdate'));
@@ -4169,21 +4170,42 @@ function ordreside($id, $regnskab)
 			if ($betalings_id) print "<tr class='tableTexting2'><td><b>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td><td align=\"right\">&nbsp;$betalings_id</td></tr>";
 			print "<tr><td colspan=\"2\"><b><hr></b></tr>\n";
 			print "<tr class='tableTexting'><td colspan=\"2\"><a href=\"ordre.php?id=$id&returside=$returside&vis_lev_addr=1\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . "</td></tr>\n";
+			// Plukliste buttons
 			// Plukliste buttons — not applicable when the order is viewed inside a scaffolding case.
 			if (!$sag_id) {
 				include("../includes/topline_settings.php");
-				$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
-				print "<tr><td colspan=\"2\"><hr></td></tr>\n";
-				print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
-				print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
-				print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-				if ($pluklisteEmail) {
-					print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
-					print "<input type='text' id='plukkommentar1' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
-					print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar1').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:100%'>Send plukliste</button>";
-					print "</td></tr>\n";
+			
+				if ($hurtigfakt == 'on' && $opValue == 'faktura') {
+					$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+					if ($pluklisteEmail) {
+						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
+						print "<input type='text' id='plukkommentar1' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
+						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar1').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
+						print "</td></tr>\n";
+					}
+				}elseif($hurtigfakt != "on" && $opValue != "tilbud"){ 
+					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+					if ($pluklisteEmail && $hurtigfakt != "on") {
+						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
+						print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
+						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
+						print "</td></tr>\n";
+					}
 				}
+				print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
+				print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
+				print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
+				print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
+			
 			}
 		}
 		$lev_max = 0;
