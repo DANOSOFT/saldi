@@ -58,6 +58,9 @@ function bg_display_name($sprog_value) {
 	if ($sprog_value === 'Dansk') {
 		return ($sprog_id == 1) ? 'Standard' : 'Default';
 	}
+	if ($sprog_value === 'All') {
+		return findtekst('2498|Alle', $sprog_id);
+	}
 	return $sprog_value;
 }
 
@@ -418,9 +421,9 @@ function upload(){
     // Check for files in the current background and selected department
     $bg_check = check_file_exists($current_sprog, 'bg', $selected_department);
     if ($bg_check) {
-         $dept_display = ($bg_check['department'] == 0) ? 'All' : $bg_check['department'];
+        $dept_display = ($bg_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $bg_check['department'];
         $lang_display = bg_display_name($bg_check['background']);
-        $dept_info = " (Dept. $dept_display, Background: $lang_display)";
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $bg="<a href=\"view_logoupload.php?vis={$bg_check['name']}&sprog=$current_sprog&department={$bg_check['department']}\">".findtekst('1754|show background', $sprog_id)."$dept_info</a>";
         $txt1= findtekst('1755|Do you want to delete this background for all forms?', $sprog_id);
         $slet_bg="<a href=\"logoupload.php?slet_bilag={$bg_check['name']}&sprog={$bg_check['background']}&department={$bg_check['department']}\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Delete', $sprog_id)."</a>";
@@ -431,9 +434,9 @@ function upload(){
     
     $tilbud_bg_check = check_file_exists($current_sprog, 'tilbud_bg', $selected_department);
     if ($tilbud_bg_check) {
-        $dept_display = ($tilbud_bg_check['department'] == 0) ? 'All' : $tilbud_bg_check['department'];
+        $dept_display = ($tilbud_bg_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $tilbud_bg_check['department'];
         $lang_display = bg_display_name($tilbud_bg_check['background']);
-        $dept_info = " (Dept. $dept_display, Background: $lang_display)";
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $tilbud_bg="<a href=\"view_logoupload.php?vis={$tilbud_bg_check['name']}&sprog=$current_sprog&department={$tilbud_bg_check['department']}\">".findtekst('1756|show background for quotes', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1757|Do you want to delete this background for quotes?', $sprog_id);
         $slet_tilbud_bg="<a href=\"logoupload.php?slet_bilag={$tilbud_bg_check['name']}&sprog={$tilbud_bg_check['background']}&department={$tilbud_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
@@ -444,9 +447,9 @@ function upload(){
     
     $ordrer_bg_check = check_file_exists($current_sprog, 'ordrer_bg', $selected_department);
     if ($ordrer_bg_check) {
-        $dept_display = ($ordrer_bg_check['department'] == 0) ? 'All' : $ordrer_bg_check['department'];
+        $dept_display = ($ordrer_bg_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $ordrer_bg_check['department'];
         $lang_display = bg_display_name($ordrer_bg_check['background']);
-        $dept_info = " (Dept. $dept_display, Background: $lang_display)";
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $ordrer_bg="<a href=\"view_logoupload.php?vis={$ordrer_bg_check['name']}&sprog=$current_sprog&department={$ordrer_bg_check['department']}\">".findtekst('1759|show background for orders', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1760|Do you want to delete this background for orders?', $sprog_id);
         $slet_ordrer_bg="<a href=\"logoupload.php?slet_bilag={$ordrer_bg_check['name']}&sprog={$ordrer_bg_check['background']}&department={$ordrer_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
@@ -457,9 +460,9 @@ function upload(){
     
     $faktura_bg_check = check_file_exists($current_sprog, 'faktura_bg', $selected_department);
     if ($faktura_bg_check) {
-         $dept_display = ($faktura_bg_check['department'] == 0) ? 'All' : $faktura_bg_check['department'];
+        $dept_display = ($faktura_bg_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $faktura_bg_check['department'];
         $lang_display = bg_display_name($faktura_bg_check['background']);
-        $dept_info = " (Dept. $dept_display, Background: $lang_display)";
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $faktura_bg="<a href=\"view_logoupload.php?vis={$faktura_bg_check['name']}&sprog=$current_sprog&department={$faktura_bg_check['department']}\">".findtekst('1761|show background for invoices', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1762|Do you want to delete this background for invoices?', $sprog_id);
         $slet_faktura_bg="<a href=\"logoupload.php?slet_bilag={$faktura_bg_check['name']}&sprog={$faktura_bg_check['background']}&department={$faktura_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
@@ -471,9 +474,9 @@ function upload(){
     // Check for bilag files
     $tilbud_bilag_check = check_file_exists($current_sprog, 'tilbud_bilag', $selected_department);
     if ($tilbud_bilag_check) {
-        $dept_display = ($tilbud_bilag_check['department'] == 0) ? 'All' : $tilbud_bilag_check['department'];
+        $dept_display = ($tilbud_bilag_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $tilbud_bilag_check['department'];
         $lang_display = bg_display_name($tilbud_bilag_check['background']);
-        $dept_info = " (Dept. $dept_display, Background: $lang_display)";
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $tilbud_bilag="<a href=\"view_logoupload.php?vis={$tilbud_bilag_check['name']}&sprog=$current_sprog&department={$tilbud_bilag_check['department']}\">".findtekst('1763|show attachment for quotes', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1764|Do you want to delete this attachment for quotes?', $sprog_id);
         $slet_tilbud_bilag="<a href=\"logoupload.php?slet_bilag={$tilbud_bilag_check['name']}&sprog={$tilbud_bilag_check['background']}&department={$tilbud_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
@@ -484,9 +487,9 @@ function upload(){
     
     $ordrer_bilag_check = check_file_exists($current_sprog, 'ordrer_bilag', $selected_department);
     if ($ordrer_bilag_check) {
-         $dept_display = ($ordrer_bilag_check['department'] == 0) ? 'All' : $ordrer_bilag_check['department'];
+        $dept_display = ($ordrer_bilag_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $ordrer_bilag_check['department'];
         $lang_display = bg_display_name($ordrer_bilag_check['background']);
-        $dept_info = " (Dept. $dept_display, Background: $lang_display)";
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $ordrer_bilag="<a href=\"view_logoupload.php?vis={$ordrer_bilag_check['name']}&sprog=$current_sprog&department={$ordrer_bilag_check['department']}\">".findtekst('1766|show attachment for orders', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1767|Do you want to delete this attachment for orders?', $sprog_id);
         $slet_ordrer_bilag="<a href=\"logoupload.php?slet_bilag={$ordrer_bilag_check['name']}&sprog={$ordrer_bilag_check['background']}&department={$ordrer_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
@@ -497,9 +500,9 @@ function upload(){
     
     $faktura_bilag_check = check_file_exists($current_sprog, 'faktura_bilag', $selected_department);
     if ($faktura_bilag_check) {
-         $dept_display = ($faktura_bilag_check['department'] == 0) ? 'All' : $faktura_bilag_check['department']; 
+        $dept_display = ($faktura_bilag_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $faktura_bilag_check['department'];
         $lang_display = bg_display_name($faktura_bilag_check['background']);
-        $dept_info = " (Dept. $dept_display, Background: $lang_display)";
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
         $faktura_bilag="<a href=\"view_logoupload.php?vis={$faktura_bilag_check['name']}&sprog=$current_sprog&department={$faktura_bilag_check['department']}\">".findtekst('1768|show attachment for invoices', $sprog_id)."$dept_info</a>";
         $txt= findtekst('1769|Do you want to delete this attachment for invoices?', $sprog_id);
         $slet_faktura_bilag="<a href=\"logoupload.php?slet_bilag={$faktura_bilag_check['name']}&sprog={$faktura_bilag_check['background']}&department={$faktura_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
@@ -527,11 +530,13 @@ function upload(){
     
     // Background dropdown - only show if there are other backgrounds besides Dansk
     if ($has_other_backgrounds) {
-        print "<strong>Select background: </strong>";
+        $txt1 = findtekst('586|Vælg', $sprog_id)." ".lcfirst(findtekst('571|Baggrund', $sprog_id)); #Vælg baggrund
+        $txt2 = findtekst('2498|Alle', $sprog_id);
+        print "<strong>$txt1: </strong>";
         print "<select name=\"sprog\" onchange=\"this.form.submit()\">";
         // Add "All" option
         $selected_all = ($current_sprog == 'All') ? ' selected' : '';
-        print "<option value=\"All\"$selected_all>All</option>";
+        print "<option value=\"All\"$selected_all>$txt2</option>";
         foreach ($backgrounds as $lang) {
             $selected = ($current_sprog == $lang) ? ' selected' : '';
             print "<option value=\"$lang\"$selected>" . bg_display_name($lang) . "</option>";
@@ -544,11 +549,13 @@ function upload(){
 
     // Department dropdown - only show if there are any departments
     if ($has_departments) {
-        print "&nbsp;&nbsp;<strong>Select department: </strong>";
+        $txt1 = findtekst('586|Vælg', $sprog_id)." ".lcfirst(findtekst('658|Afdeling', $sprog_id)); #Vælg afdeling
+        $txt2 = findtekst('2498|Alle', $sprog_id);
+        print "&nbsp;&nbsp;<strong>$txt1: </strong>";
         print "<select name=\"department\" onchange=\"this.form.submit()\">";
         // Add "All" option with value 0
         $selected_all_dept = ($selected_department == 0) ? ' selected' : '';
-        print "<option value=\"0\"$selected_all_dept>All</option>";
+        print "<option value=\"0\"$selected_all_dept>$txt2</option>";
         foreach ($departments as $dept_id => $dept_name) {
             $selected = ($selected_department == $dept_id) ? ' selected' : '';
             // Permission logic remains
@@ -566,21 +573,24 @@ function upload(){
 
     // Show permission info (same as before)
     if (!$is_admin) {
-        print "<br><small><i>You only have access to your own department (Dept. $user_assigned_department)</i></small>";
+        print "<br><small><i>Du har kun adgang til din egen afdeling (Afd. $user_assigned_department)</i></small>";
+#       print "<br><small><i>You only have access to your own department (Dept. $user_assigned_department)</i></small>";
     } else {
         //don't show if departments doesn't exist, since it would be confusing to show "You have access to all departments" when there are no departments
         if ($has_departments) {
-        print "<br><small><i>Admin: You have access to all departments</i></small>";
+            print "<br><small><i>Admin: Du har adgang til alle afdelinger</i></small>";
+#           print "<br><small><i>Admin: You have access to all departments</i></small>";
         }
     }
 
     print "</form>";
     
-    $dept_info = isset($departments[$selected_department]) 
-        ? " (Dept. $selected_department: " . $departments[$selected_department] . ")" 
+    $dept_info = isset($departments[$selected_department])
+        ? " (".findtekst('2464|Afd.', $sprog_id)." $selected_department: " . $departments[$selected_department] . ")"
         : "";
     
-    print "<br><strong>Showing files for: " . bg_display_name($current_sprog) . "$dept_info</strong><br><br></td></tr>";
+    $txt = findtekst('3259|Viser filer for', $sprog_id);
+    print "<br><strong>$txt: " . bg_display_name($current_sprog) . "$dept_info</strong><br><br></td></tr>";
     
     print "<tr><td colspan=\"2\">&nbsp;</td><td align=\"justify\">$font ".findtekst('1770|You have the option to upload a full page in PDF format as background for all forms or specifically for quotes, orders and invoices.', $sprog_id)."<br>";
     print "<br>".findtekst('1771|It is also possible to upload an attachment in PDF format, as an attached file in email for quotes, orders and invoices.', $sprog_id)."<br>";
