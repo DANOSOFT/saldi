@@ -27,6 +27,7 @@
 // 2050923 LOE - Showing all records or only open records added.
 // 20251002 MS Removed "Width=80%" and added padding to allow the Print/Email buttons to have the intended size, while still centering the text
 // 20260423 PHR Corrected call to text number for text
+// 20260429 PHR Removed 'unalign' from Openpost / AllAcount
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -60,6 +61,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		$qtxt = "update openpost set udlignet='0',udlign_id='0' where konto_id = '$unAlignAccount'";
 		if ($unAlign) $qtxt .= " and udlign_id='$unAlign'";
 		elseif ($unAlignId) $qtxt.= " and id = '$unAlignId'";
+if ($bruger_id == -1) echo "$qtxt<br>";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	$r=db_fetch_array(db_select("select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__));
@@ -320,12 +322,12 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			if ($OpenPost != 'on')
 				print "<option value='rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra
 					   &kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
-					   &submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]'>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
+					   &submit=ok'>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
 						
 			if ($AllAcount != 'on') 
 				print "<option value='rapport.php?rapportart=accountChart&kilde=show_all&kto_fra=$kto_fra
 					   &kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
-					   &submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]'>".findtekst('2699|Vis alle poster', $sprog_id)."</option>\n";
+					   &submit=ok'>".findtekst('2699|Vis alle poster', $sprog_id)."</option>\n";
 			print "</select>
 				</td>\n";
 
