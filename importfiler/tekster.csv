@@ -1203,7 +1203,7 @@
 1203	Søgetekst	Search text	Søgetekst
 1204	Klik for at åbne, højreklik for at gemme	Click to open, right-click to save	Klikk for å åpne, høyreklikk for å lagre
 1205	Diff. konto	Diff. account	Diff. regnskap
-1206	Ret	Modify	Ret
+1206	Ret	Modify	Rett
 1207	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen.\\nEllers risikerer du at lave rod i dit regnskab	If the exchange rate changes, do not correct the exchange rate, but add a new exchange rate stating the date of the exchange rate change. \\ nOtherwise, you risk messing up your accounts.	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse av dato for kursændringen. \\ nEllers risikerer du at lave rod i dette regnskab
 1208	Start md.	Start mnth.	Start md.
 1209	Start år	Start yr.	Startår
@@ -2966,7 +2966,7 @@
 2966	Medarbejder	Employee	Medarbeider
 2967	Medarbejderliste	Employee list	Medarbeiderliste
 2968	Brugergrupper	User groups	Brukergrupper
-2969	Tilret stamkort	Edit information card	Tilrett stamkort
+2969	Tilret stamkort	Edit information card	Rett stamkort
 2970	Skemaliste	Form list	Skjemaliste
 2971	Lønseddel	Pay slip	Lønnsseddel
 2972	Overførte	Transferred	Overførte
