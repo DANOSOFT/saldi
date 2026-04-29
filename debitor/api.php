@@ -11,6 +11,7 @@
     $query = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $apiKey = $res["var_value"];
+    //echo $apiKey . "<br>";
 
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
@@ -69,7 +70,7 @@
             "doNotReceiveUBL" => false,
         ];
 
-        /* echo json_encode($data, JSON_PRETTY_PRINT); */
+        // echo json_encode($data, JSON_PRETTY_PRINT) . "<br>";
 
         return $data;
         
@@ -111,12 +112,18 @@
             // An error occurred
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
-            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response];
+            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response, 'status code' => $httpCode];
             
             // Save error response in temp folder
             file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             
             return ['success' => false, 'message' => 'Error updating company: ' . $errorMessage];
+        } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
+            return ['success' => false,
+                'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
+                'response' => $response,
+                'status code' => $httpCode
+            ];
         }
         
         // Save successful response in temp folder for debugging
@@ -141,13 +148,14 @@
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
             $response = curl_exec($ch);
             $response = json_decode($response, true);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             $timestamp = date("Y-m-d-H-i-s");
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
 				$errorNumber = curl_errno($ch);
 				$errorMessage = curl_error($ch);
-				$error = ['error' => $errorNumber, 'message' => $errorMessage];
+				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'statusCode' => $httpCode];
 				json_encode($error, JSON_PRETTY_PRINT);
 				
 				// save response in file in temp folder
@@ -158,7 +166,7 @@
 				</script>
 				<?php
 				exit;
-			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000") {
+			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000" || $httpCode >= 400) {
 				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
@@ -248,7 +256,7 @@
             if($result["message"] !== ""){
             ?>
             <script>
-                alert("<?php echo $result["message"]; ?>");
+                alert("<?php echo "EasyUBL Error Accured: " . $result["message"]; ?>");
             </script>
             <?php
             }else{
@@ -533,7 +541,6 @@
         $data["invoiceLines"] = $line;
         file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
 
-        //echo json_encode($data, JSON_PRETTY_PRINT);
         //die(json_encode($data, JSON_PRETTY_PRINT));
         $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
         

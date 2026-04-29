@@ -61,20 +61,21 @@
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE));
     $response = curl_exec($ch);
+    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     if ($response === false || $response === "") {
         // An error occurred
         $errorNumber = curl_errno($ch);
         $errorMessage = curl_error($ch);
-        $error = ['error' => $errorNumber, 'message' => $errorMessage, "success" => false];
-        json_encode($error, JSON_PRETTY_PRINT);
+        $error = ['error' => $errorNumber, 'message' => $errorMessage, "success" => false, "statusCode" => $httpcode];
+        $pError = json_encode($error, JSON_PRETTY_PRINT);
         
         // save response in file in temp folder
         $timestamp = date("Y-m-d-H-i-s");
-        file_put_contents("../temp/$db/$timestamp.json", $error);
+        file_put_contents("../temp/$db/$timestamp.json", $pError);
         //echo "JSON: " . json_encode($data) . "<br>"; //if we want the json
-        echo "Respons: " . json_encode($response) . "<br>";
-        echo "Error: " . json_encode($error);
+        echo "Respons: " . json_encode($response, JSON_PRETTY_PRINT) . "<br>";
+        echo "Error: " . $pError;
         return "error";
     }else{
         $response = json_decode($response, true);
