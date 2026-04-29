@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-23 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -78,7 +78,7 @@
 // 20260422 PHR Defined $fast_db as array; 
 // 20260432	PHR Warning when $ref id changes
 // 20260427 PHR Fixed vat added twice when open order was copies. ($sourceStatus)
-
+// 20260429 PHR Changed 'PBS' to 'BS' as colunm is varchar(2)
 @session_start();
 $s_id = session_id();
 
@@ -625,7 +625,7 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		}
 		if ($r['pbs_nr'] > 0) {
 			$pbs_nr = $r['pbs_nr'];
-			$pbs = 'PBS';
+			$pbs = 'BS';
 		}
 		$kontakt = db_escape_string($r['kontakt']);
 		$notes = db_escape_string($r['notes']);
@@ -923,7 +923,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	}
 	if (substr($udskriv_til, 0, 3) == 'PBS') {
 		$udskriv_til = 'PBS';
-		$pbs = "PBS";
+		$pbs = "BS";
 	}
 	if ($udskriv_til == 'oioubl') $oioubl = "on";
 
