@@ -133,9 +133,6 @@ if (empty($_GET['sag_id']) && empty($_POST['sag_id'])) {
         }
     }
 }
-
-include("../includes/online.php");
-
 // Defensive scaffolding-context button restore.
 // online.php may emit a global `input[type=submit/button] { background:#114691 !important }` rule.
 // When sag_id is present we re-apply the scaffolding `.button .green/.blue/.gray/.white/...`
