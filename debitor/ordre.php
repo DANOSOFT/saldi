@@ -3912,7 +3912,7 @@ function ordreside($id, $regnskab)
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		if (($pbs || $lev_pbs_nr) && $udskriv_til != "PBS") print "<option value=\"PBS\">PBS</option>\n";
 		#		if ($udskriv_til!="ingen") print "<option>ingen</option>\n"; #PHR 20170501
-		if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803
+		//if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803 #NTR 20260429 removed option
 		if ($udskriv_til != "Digitalt") print "<option value='Digitalt' title='" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "'>" . findtekst('2532|Digitalt', $sprog_id) . "</option>\n"; #PBLM 12/06-2023
 		#		if ($udskriv_til!="edifakt") print "<option title=\"".findtekst('1451|Kun ved fakturering/kreditering', $sprog_id)."\">edifakt</option>\n"; #20140201
 		$tmp = if_isset($pbs_nr, 0);
