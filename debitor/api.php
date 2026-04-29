@@ -283,7 +283,7 @@
             if($result["message"] !== ""){
             ?>
             <script>
-                alert("<?php echo "EasyUBL Error Occured: " . json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE); ?>");
+                alert("<?= "EasyUBL Error Occured: " . json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE); ?>");
             </script>
             <?php
             }else{
