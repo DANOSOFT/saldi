@@ -1377,13 +1377,13 @@ function ordreside($id) {
 }# end function ordreside
 ######################################################################################################################################
 
-    ######################################################################################################################################
-    function ansatopslag($sort, $fokus, $id){
+######################################################################################################################################
+function ansatopslag($sort, $fokus, $id){
 
-    global $bgcolor,$bgcolor5;
-    global $charset;
-    global $memu;
-    global $sprog_id;
+	global $bgcolor,$bgcolor5;
+	global $charset;
+	global $memu;
+	global $sprog_id;
 
 	if ($menu=='T') {
 		include_once '../includes/top_header.php';
@@ -1413,37 +1413,33 @@ function ordreside($id) {
 	print" </tr>\n";
 
 
-                            $sort = $_GET['sort'];
-                            if (!$sort) $sort = "navn";
-                            if (!$id) $id = '0'; # <- 2009.05.10 $query=db_select("select konto_id from ordrer where
-                                id=$id",__FILE__ . " linje " . __LINE__); $row=db_fetch_array($query);
-                                $konto_id=$row['konto_id']*1; # <- 2009.05.10 $query=db_select("select * from ansatte
-                                where konto_id=$konto_id order by $sort",__FILE__ . " linje " . __LINE__); # <-
-                                2009.05.10 while ($row=db_fetch_array($query)) { if
-                                ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000' ;} else {$linjebg=$bgcolor5;
-                                $color='#000000' ;} print "<tr bgcolor=\" $linjebg\">";
-                                print "<td><a
-                                        href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>".htmlentities($row['navn'],ENT_COMPAT,$charset)."</a>
-                                </td>";
-                                print "<td> $row[tlf]</td>";
-                                print "<td> $row[mobil]</td>";
-                                print "<td> $row[email]</td>";
-                                print "
-            </tr>\n";
-            }
+	$sort = $_GET['sort'];
+	if (!$sort) $sort = "navn";
+	if (!$id) $id = '0'; # <- 2009.05.10
 
-            print "</tbody>
-    </table>
-    </td>
-    </tr>
-    </tbody>
-    </table>";
+	$query = db_select("select konto_id from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
+	$row = db_fetch_array($query);
+	$konto_id = $row['konto_id']*1; # <- 2009.05.10
 
-    if ($menu=='T') {
-    include_once '../includes/topmenu/footer.php';
-    } else {
-    include_once '../includes/oldDesign/footer.php';
-    }
+	$query = db_select("select * from ansatte where konto_id = $konto_id order by $sort",__FILE__ . " linje " . __LINE__); # <- 2009.05.10
+	while ($row = db_fetch_array($query))	{
+		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
+		else {$linjebg=$bgcolor5; $color='#000000';}
+		print "<tr bgcolor=\"$linjebg\">";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>".htmlentities($row['navn'],ENT_COMPAT,$charset)."</a></td>";
+		print "<td> $row[tlf]</td>";
+		print "<td> $row[mobil]</td>";
+		print "<td> $row[email]</td>";
+		print "</tr>\n";
+	}
+
+	print "</tbody></table></td></tr></tbody></table>";
+
+	if ($menu=='T') {
+		include_once '../includes/topmenu/footer.php';
+	} else {
+		include_once '../includes/oldDesign/footer.php';
+	}
 
 	exit;
 }
@@ -1461,7 +1457,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 		include_once '../includes/top_menu.php';
 	}
 
-    if ($find) $find=str_replace("*","%",$find);
+	if ($find) $find=str_replace("*","%",$find);
 
 	if (!$konto_id) {
 		if ((!$kontonr)&&($id)) {
@@ -1510,84 +1506,69 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 	}
 		print" </tr>\n";
 
-                                            $sort = if_isset($_GET['sort']);
-                                            if (!$sort) $sort = 'varenr';
+	$sort = if_isset($_GET['sort']);
+	if (!$sort) $sort = 'varenr';
 
 
-                                            $vare_id=array();
-                                            if (($vis)&&($konto_id)) {
-                                            $temp=" and lev_id = ".$konto_id;
-                                            }
+	$vare_id=array();
+	if (($vis)&&($konto_id)) {
+		$temp=" and lev_id = ".$konto_id;
+	}
 
-                                            $y=0;
-                                            $skjul_vare_id=array();
-                                            $vis_vare_id=array();
-                                            $query = db_select("select * from vare_lev",__FILE__ . " linje " .
-                                            __LINE__);
-                                            while ($row = db_fetch_array($query)) {
-                                            $y++;
-                                            if (!$konto_id || !$vis || $row['lev_id']==$konto_id || $row['lev_id']=='0')
-                                            {
-                                            $vis_vare_id[$y]=$row['vare_id'];
-                                            } else $skjul_vare_id[$y]=$row['vare_id'];
-                                            }
+	$y=0;
+	$skjul_vare_id=array();
+	$vis_vare_id=array();
+	$query = db_select("select * from vare_lev",__FILE__ . " linje " . __LINE__);
+	while ($row = db_fetch_array($query)) {
+		$y++;
+		if (!$konto_id || !$vis || $row['lev_id']==$konto_id || $row['lev_id']=='0') {
+			$vis_vare_id[$y]=$row['vare_id'];
+		}	else $skjul_vare_id[$y]=$row['vare_id'];
+	}
 
-                                            if (!$sort) $sort = 'varenr';
+	if (!$sort) $sort = 'varenr';
 
-                                            if (!$kontonr){$x++;}
-                                            elseif ($x>1) {print "<td colspan=9>
-                                                <hr>
-                                            </td>";}
-                                            if ($find) {
-                                            $query = db_select("select * from varer where lukket != '1' and $fokus like
-                                            '$find' order by $sort",__FILE__ . " linje " . __LINE__);
-                                            }
-                                            else {
-                                            $query = db_select("select * from varer where lukket != '1' order by
-                                            $sort",__FILE__ . " linje " . __LINE__);
-                                            }
-                                            $vist=0;
-                                            while ($row = db_fetch_array($query)) {
-                                            $vare_id=$row['id'];
-                                            if (($konto_id && !in_array($vare_id,$skjul_vare_id)) ||
-                                            in_array($vare_id,$vis_vare_id)) {
-                                            $varenr=db_escape_string(trim($row['varenr']));
-                                            $x=0;
-                                            $query2 = db_select("select * from vare_lev where vare_id = $row[id]
-                                            $temp",__FILE__ . " linje " . __LINE__);
-                                            while ($row2 = db_fetch_array($query2)) {
-                                            $x++;
-                                            $y++;
-                                            if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
-                                            else {$linjebg=$bgcolor5; $color='#000000';}
-                                            print "<tr bgcolor=\"$linjebg\">";
-                                                print "<td><a
-                                                        href=\"ordre.php?vare_id=$vare_id&fokus=$fokus&konto_id=$row2[lev_id]&id=$id&lager=$lager\">".htmlentities($varenr,ENT_COMPAT,$charset)."</a>
-                                                </td>";
-                                                print "<td>$row[enhed]<br></td>";
-                                                print "<td> $row[beskrivelse]<br></td>";
-                                                $salgspris=dkdecimal($row['salgspris'],2);
-                                                print "<td align=right> $salgspris<br></td>";
-                                                $kostpris=dkdecimal($row2['kostpris'],2);
-                                                print "<td align=right> $kostpris<br></td>";
-                                                if ($lager>=1){
-                                                $q2 = db_select("select * from batch_kob where vare_id=$vare_id and
-                                                rest>0 and lager=$lager",__FILE__ . " linje " . __LINE__);
-                                                while ($r2 = db_fetch_array($q2)) {
-                                                $q3 = db_select("select * from reservation where
-                                                batch_kob_id=$r2[id]",__FILE__ . " linje " . __LINE__);
-                                                while ($r3 = db_fetch_array($q3)) {$reserveret=$reserveret+$r3[antal];}
-                                                }
-                                                $linjetext="<span title='".findtekst(1520, $sprog_id).": $reserveret'>";
-                                                    if ($r2= db_fetch_array(db_select("select beholdning from
-                                                    lagerstatus where vare_id=$row[id] and lager=$lager",__FILE__ . "
-                                                    linje " . __LINE__))) {
-                                                    print "<td align=right>$linjetext $r2[beholdning] &nbsp;</span></td>
-                ";
-                } else print "<td align=right>$linjetext 0 &nbsp;</span></td>";
-                }
-                else {print "<td align=right> $row[beholdning] &nbsp;</td>"; }
-                # print "<td></td>";
+	if (!$kontonr){$x++;}
+	elseif ($x>1) {print "<td colspan=9><hr></td>";}
+	if ($find) {
+		$query = db_select("select * from varer where lukket != '1' and $fokus like '$find' order by $sort",__FILE__ . " linje " . __LINE__);
+	}
+	else {
+		$query = db_select("select * from varer where lukket != '1' order by $sort",__FILE__ . " linje " . __LINE__);
+	}
+	$vist=0;
+	while ($row = db_fetch_array($query)) {
+		$vare_id=$row['id'];
+		if (($konto_id && !in_array($vare_id,$skjul_vare_id)) || in_array($vare_id,$vis_vare_id)) {
+			$varenr=db_escape_string(trim($row['varenr']));
+			$x=0;
+			$query2 = db_select("select * from vare_lev where vare_id = $row[id] $temp",__FILE__ . " linje " . __LINE__);
+			while ($row2 = db_fetch_array($query2)) {
+				$x++;
+				$y++;
+				if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
+				else {$linjebg=$bgcolor5; $color='#000000';}
+				print "<tr bgcolor=\"$linjebg\">";
+				print "<td><a href=\"ordre.php?vare_id=$vare_id&fokus=$fokus&konto_id=$row2[lev_id]&id=$id&lager=$lager\">".htmlentities($varenr,ENT_COMPAT,$charset)."</a></td>";
+				print "<td>$row[enhed]<br></td>";
+				print "<td> $row[beskrivelse]<br></td>";
+				$salgspris=dkdecimal($row['salgspris'],2);
+				print "<td align=right> $salgspris<br></td>";
+				$kostpris=dkdecimal($row2['kostpris'],2);
+				print "<td align=right> $kostpris<br></td>";
+				if ($lager>=1){
+					$q2 = db_select("select * from batch_kob where vare_id=$vare_id and rest>0 and lager=$lager",__FILE__ . " linje " . __LINE__);
+					while ($r2 = db_fetch_array($q2)) {
+						$q3 = db_select("select * from reservation where batch_kob_id=$r2[id]",__FILE__ . " linje " . __LINE__);
+						while ($r3 = db_fetch_array($q3)) {$reserveret=$reserveret+$r3[antal];}
+					}
+					$linjetext="<span title= '".findtekst(1520, $sprog_id).": $reserveret'>";
+					if ($r2= db_fetch_array(db_select("select beholdning from lagerstatus where vare_id=$row[id] and lager=$lager",__FILE__ . " linje " . __LINE__))) {
+						print "<td align=right>$linjetext $r2[beholdning] &nbsp;</span></td>";
+					} else print "<td align=right>$linjetext 0 &nbsp;</span></td>";
+				}
+				else {print "<td align=right> $row[beholdning] &nbsp;</td>"; }
+#			print "<td></td>";
 
 				$levquery = db_select("select kontonr, firmanavn from adresser where id=$row2[lev_id]",__FILE__ . "
 				linje " . __LINE__);
@@ -1609,7 +1590,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 			content=\"0;URL=ordre.php?vare_id=$vare_id&fokus=$fokus&konto_id=$row2[lev_id]&id=$id\">";
 		}
 
-            if ($kontonr && !$vist && $row['samlevare']!='on' && !in_array($vare_id,$skjul_vare_id)) {
+		if ($kontonr && !$vist && $row['samlevare']!='on' && !in_array($vare_id,$skjul_vare_id)) {
 
 			# if ((!in_array($row[id], $vare_id))&&($vist==0)&&($row['samlevare']!='on')&&($konto_id)) {
 			if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
@@ -1641,28 +1622,28 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 	</table>";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
-    if ($menu=='T') {
-    include_once '../includes/topmenu/footer.php';
-    } else {
-    include_once '../includes/oldDesign/footer.php';
-    }
+	if ($menu=='T') {
+		include_once '../includes/topmenu/footer.php';
+	} else {
+		include_once '../includes/oldDesign/footer.php';
+	}
 
-    exit;
-    }
-    ######################################################################################################################################
-    function sidehoved($id, $returside, $kort, $fokus, $tekst) {
-    global $bgcolor2;
-    global $color;
-    global $menu;
-    global $sprog_id;
-    global $top_bund;
-    global $valg;
+	exit;
+}
+######################################################################################################################################
+function sidehoved($id, $returside, $kort, $fokus, $tekst) {
+	global $bgcolor2;
+	global $color;
+	global $menu;
+	global $sprog_id;
+	global $top_bund;
+	global $valg;
 
-    $title= 'Leverandør ordre';
-    $alerttekst=findtekst(154,$sprog_id);
+	$title= 'Leverandør ordre';
+	$alerttekst=findtekst(154,$sprog_id);
 
-    include("../includes/topline_settings.php");
-    print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
+	include("../includes/topline_settings.php");
+	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
 	if ($menu=='T') {
 		include_once '../includes/top_header.php';
@@ -1768,121 +1749,112 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 		print "<tr><td valign=\"top\" align=center>";
 	}
 
-                                                        }
-                                                        ######################################################################################################################################
-                                                        function find_vare_id ($varenr) {
-                                                        $qtxt = "select id from varer where varenr = '$varenr' or
-                                                        stregkode = '$varenr'";
-                                                        if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " .
-                                                        __LINE__))) {
-                                                        return ($r['id']);
-                                                        } else return (0);
-                                                        }
-                                                        ######################################################################################################################################
-                                                        function samlevare($id,$art,$v_id,$leveres) {
-                                                        global $lager;
-                                                        if ($art=='KO') {
-                                                        include ("../includes/fuld_stykliste.php");
-                                                        list($vare_id,$stk_antal,$antal) = fuld_stykliste($v_id, '',
-                                                        'basisvarer');
-                                                        for ($x=1; $x<=$antal; $x++) { if
-                                                            ($r=db_fetch_array(db_select("select * from varer where
-                                                            id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__))) {
+}
+######################################################################################################################################
+function find_vare_id ($varenr) {
+	$qtxt = "select id from varer where varenr = '$varenr' or stregkode = '$varenr'";
+	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		return ($r['id']);
+	}	else return (0);
+}
+######################################################################################################################################
+function samlevare($id,$art,$v_id,$leveres) {
+	global $lager;
+	if ($art=='KO') {
+		include ("../includes/fuld_stykliste.php");
+		list($vare_id,$stk_antal,$antal) = fuld_stykliste($v_id, '', 'basisvarer');
+		for ($x=1; $x<=$antal; $x++) {
+			if ($r=db_fetch_array(db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__))) {
 				$stk_antal[$x]=$stk_antal[$x]*$leveres;
-				db_modify(" insert into ordrelinjer (ordre_id,varenr,vare_id,beskrivelse,antal,leveres,pris,posnr,lager) values
-                                                            ('$id', '$r[varenr]' , '$vare_id[$x]' , '$r[beskrivelse]'
-                                                            , '$stk_antal[$x]' , '$stk_antal[$x]' , '$r[kostpris]'
-                                                            ,'100',$lager)",__FILE__ . " linje " . __LINE__); } } } /*
-                                                            else { $r=db_fetch_array(db_select("select
-                                                            antal,posnr,kred_linje_id from ordrelinjer where
-                                                            id='$linje_id'",__FILE__ . " linje " . __LINE__));
+				db_modify("insert into ordrelinjer (ordre_id,varenr,vare_id,beskrivelse,antal,leveres,pris,posnr,lager) values ('$id', '$r[varenr]', '$vare_id[$x]', '$r[beskrivelse]', '$stk_antal[$x]', '$stk_antal[$x]', '$r[kostpris]','100',$lager)",__FILE__ . " linje " . __LINE__);
+			}
+		}
+	} 
+/*
+else {
+		$r=db_fetch_array(db_select("select antal,posnr,kred_linje_id from ordrelinjer where id='$linje_id'",__FILE__ . " linje " . __LINE__));
 		$antal=$r['antal']*1;
 		$posnr=$r['posnr']*1;
 		$kred_linje_id=$r['kred_linje_id']*1;
-		if ($antal && $r=db_fetch_array(db_select(" select id,antal from ordrelinjer where id='$kred_linje_id'",__FILE__ . "
-                                                            linje " . __LINE__))) {
+		if ($antal && $r=db_fetch_array(db_select("select id,antal from ordrelinjer where id='$kred_linje_id'",__FILE__ . " linje " . __LINE__))) {
 			$org_antal=$r['antal'];
-			$q=db_select(" select * from ordrelinjer where samlevare='$r[id]'",__FILE__ . " linje " . __LINE__);
+			$q=db_select("select * from ordrelinjer where samlevare='$r[id]'",__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array($q)) {
 				$ny_antal=afrund($r['antal']*$org_antal/$antal,2);
 					values 
-				('$id', '$r[varenr]', '$r[vare_id]', '$r[beskrivelse]', '$ny_antal', '$ny_antal', '$r[pris]', '$r[posnr]' )<br>" ;
-                                                            db_modify("insert into ordrelinjer (ordre_id, varenr,
-                                                            vare_id, beskrivelse, antal, leveres, pris, posnr) values
-                                                            ('$id', '$r[varenr]' , '$r[vare_id]' , '$r[beskrivelse]'
-                                                            , '$ny_antal' , '$ny_antal' , '$r[pris]' , '$r[posnr]'
-                                                            )",__FILE__ . " linje " . __LINE__); } } } */ #exit; }
-                                                            ##############################################################################
-                                                            function indsaet_linjer($ordre_id, $linje_id, $posnr) {
-                                                            $posnr=str_replace('+',':',$posnr); #jeg ved ikke hvorfor,
-                                                            men den vil ikke splitte med "+" list ($posnr,
-                                                            $antal)=explode (':', $posnr); db_modify("update ordrelinjer
-                                                            set posnr='$posnr' where id='$linje_id'",__FILE__ . " linje " . __LINE__);
+				('$id', '$r[varenr]', '$r[vare_id]', '$r[beskrivelse]', '$ny_antal', '$ny_antal', '$r[pris]', '$r[posnr]' )<br>";
+				db_modify("insert into ordrelinjer (ordre_id, varenr, vare_id, beskrivelse, antal, leveres, pris, posnr) 
+					values 
+				('$id', '$r[varenr]', '$r[vare_id]', '$r[beskrivelse]', '$ny_antal', '$ny_antal', '$r[pris]', '$r[posnr]' )",__FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+*/
+#exit;
+}
+##############################################################################
+function indsaet_linjer($ordre_id, $linje_id, $posnr) {
+	$posnr = str_replace('+',':',$posnr); #jeg ved ikke hvorfor, men den vil ikke splitte med "+"
+	list ($posnr, $antal) = explode (':', $posnr);
+	db_modify("update ordrelinjer set posnr='$posnr' where id='$linje_id'",__FILE__ . " linje " . __LINE__);
 	for ($x=1; $x<=$antal; $x++) {
-		db_modify(" insert into ordrelinjer (posnr, ordre_id) values ('$posnr', '$ordre_id' )",__FILE__ . " linje " .
-                                                            __LINE__); } } if ($fokus) { print "<script language=\"
-                                                            javascript\">";
-                                                            print "document.ordre.$fokus.focus();";
-                                                            print "</script>";
-                                                            }
-                                                            print "</tbody>
-                                        </table>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>";
+		db_modify("insert into ordrelinjer (posnr, ordre_id) values ('$posnr', '$ordre_id')",__FILE__ . " linje " . __LINE__);
+	}
+}
+if ($fokus) {
+	print "<script language=\"javascript\">";
+	print "document.ordre.$fokus.focus();";
+	print "</script>";
+}
+print "</tbody></table>
+</td></tr>
+</tbody></table>";
 
-                if ($menu=='T') {
-                include_once '../includes/topmenu/footer.php';
-                print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\">
-                </script>";
-                }
+if ($menu=='T') {
+	include_once '../includes/topmenu/footer.php';
+	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
+}
 
-                ?>
+?>
 
-                <?php if (get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on") { ?>
-                <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
-                <script src="../javascript/kreditorOrdreAutocomplete.js"></script>
-                <?php } ?>
+<?php if (get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on") { ?>
+<link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
+<script src="../javascript/kreditorOrdreAutocomplete.js"></script>
+<?php } ?>
 
-                <style>
-                .ordreform {
-                    overflow-x: auto;
-                    height: calc(100vh - 50px);
-                }
-                </style>
+<style>
+.ordreform { 
+        overflow-x: auto;
+        height: calc(100vh - 50px);
+}
+</style>
 
-                <script>
-                let isSubmitting = false;
-                document.addEventListener("DOMContentLoaded", function() {
-                    const forms = document.querySelectorAll("form");
-                    forms.forEach(form => {
-                        form.addEventListener("submit", function() {
-                            isSubmitting = true;
-                        });
-                    });
-                });
-
-                function unlockOrderBeacon(evtName) {
-                    if (!isSubmitting && !window.orderUnlocked) {
-                        window.orderUnlocked = true;
-                        let data = new URLSearchParams();
-                        data.append("id", "<?php echo (int)$id; ?>");
-                        data.append("event", evtName);
-                        if (navigator.sendBeacon) {
-                            navigator.sendBeacon("../includes/unlock_order.php", data);
-                        } else {
-                            let xhr = new XMLHttpRequest();
-                            xhr.open('POST', '../includes/unlock_order.php', false);
-                            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-                            xhr.send(data.toString());
-                        }
-                    }
-                }
-                window.addEventListener("beforeunload", function() {
-                    unlockOrderBeacon('beforeunload');
-                });
-                window.addEventListener("pagehide", function() {
-                    unlockOrderBeacon('pagehide');
-                });
-                </script>
+<script>
+let isSubmitting = false;
+document.addEventListener("DOMContentLoaded", function () {
+    const forms = document.querySelectorAll("form");
+    forms.forEach(form => {
+        form.addEventListener("submit", function () {
+            isSubmitting = true;
+        });
+    });
+});
+function unlockOrderBeacon(evtName) {
+    if (!isSubmitting && !window.orderUnlocked) {
+        window.orderUnlocked = true;
+        let data = new URLSearchParams();
+        data.append("id", "<?php echo (int)$id; ?>"); 
+        data.append("event", evtName);
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon("../includes/unlock_order.php", data);
+        } else {
+            let xhr = new XMLHttpRequest();
+            xhr.open('POST', '../includes/unlock_order.php', false);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.send(data.toString());
+        }
+    }
+}
+window.addEventListener("beforeunload", function() { unlockOrderBeacon('beforeunload'); });
+window.addEventListener("pagehide", function() { unlockOrderBeacon('pagehide'); });
+</script>
