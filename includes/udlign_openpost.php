@@ -314,7 +314,7 @@ if ($menu=='S') {
 			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 	}
-	print "<td width=\"75%\" align='center' style='$topStyle'>".findtekst(2189, $sprog_id)."</td>";
+	print "<td width=\"90%\" align='center' style='$topStyle'>".findtekst(2189, $sprog_id)."</td>";
 	print "<td width=5% style=$buttonStyle>";
 	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print "</button></td>";
