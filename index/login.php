@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-04-22 ---
+// --- index/login.php --- patch 5.0.0 --- 2026-04-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,35 +23,7 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-// 20130919 Tjekkede ikke om der var opdateringer ved login i "hovedregnskab" Søg 20130919
-// 20140106	Tilføjet opslag i tmp_kode. Søg tmp_kode
-// 20140920	Tilføjet db_escape_string foran brugernavn og regnskab så det også fungerer med apostrof i disse.
-// 20150104 Initerer variablen $nextver så den bypasser versionskontrol i online.php
-// 20150114 PK 	- Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
-// 20150129 PHR - Fjernet session_unset,session_destroy, da man bliver smidt af under login.
-// 20150129 PK 	- Tilføjet session_unset,session_destroy før session_start, som tømmer browser for sessions når man kommer ind på login siden.
-// 20150209 PHR - Rettigheder sættes nu også ved temp koder, elle smides man af igen : 20150209
-// 20151002	PHR - online.txt er omdøbt til .ht_online.txt
-// 20161104	PHR - Div ændringer relateret til bedre sikkerhed
-// 20170210	PHR - Aktivering af nyt API 20170217
-// 20170911	PHR	- Tilføjet db_type til global og rettet $sqdb til $db grundet db fejl ved login fra anden session uden logaf. 20170911 
-// 20180108	PHR	-	Udfaset gammelt API kald 20180108
-// 20180305	PHR	-	Opdateret API kald
-// 20181128 PHR - Timezone hentes nu fra tabellen settings.
-// 20190704 RG	-	(Rune Grysbæk) Mysqli implementation 
-// 20200622 PHR - Added include addrOpdat.php - can be removed after 3.9.3 (done 20210127)
-// 20210127 PHR - Added trim() to $r['lukket']
-// 20210826 PHR - Added squser & sqpass to function online.
-// 20210830 LOE - When a user successfuly logs in if their IP is not found in ip's table it is added
-// 20210902	PHR	- Added $regnskab to .ht_online.log 
-// 20211006 LOE - This is not available in develop database
-// 20211007 LOE - $_SESION changed to $_SESSION
-// 20211009 PHR - language settings. ($languageId)
-// 20211015 LOE - Modified some codes to adjust to IP moved to settings table 
-// 20211018 LOE - Fixed some bugs
-// 20211105 PHR - As above :o)
-// 20211205 PHR - Sets language to 1 of not found;
-// 20211215 PHR - moved call to online.php
+
 // 20220118 PHR - Added 'if ($db != $sqdb && $dbver > '4.0.4')'
 // 20200222 PHR - Added call to locator and added global_id;
 // 20200225 PHR - Added call to 'includes/betewwnUpdates';
@@ -72,8 +44,10 @@
 // 20260320 PHR cleanup (pdftk)
 // 20260420 PHR Removed test codes// 20260422 PHR	Removed sanitize input from password at it sometimes changes the length of the password
 // 20260422 PHR Fixed cancel not working.
+// 20260422 LOE Updated sanitize_input function to allow more characters for email address like usernames.
+// 20260425 LOE Fixed a bug where same account name with different case could cause login issues. Now first tries to find exact match and only if that fails, it tries case-insensitive match.
 
-ob_start(); //Starter output buffering
+ob_start(); //Starter output buffering 
 @session_start();
 session_unset();
 session_destroy();
@@ -166,18 +140,18 @@ print "</head>";
 
 $dbMail=NULL;
 function sanitize_input($input) {
-	return $input; // No sanitization needed for this example, but you can add your own logic here.
-	/* // Trim the input to remove any leading/trailing whitespace
-	$input = trim($input);
 	
-	// Remove any special characters that might lead to SQL injection
-	$input = preg_replace('/[^\w\s\-]/', '', $input);
+	 // Trim the input to remove any leading/trailing whitespace
+	$input = trim($input);
+	// Allow only: letters, numbers, spaces, @ . _ -
+    // Remove anything else (quotes, semicolons, backticks, etc.) for email addresses compatibility
+    $input = preg_replace('/[^a-zA-Z0-9\s@._-]/', '', $input);
 	
 	if (strlen($input) > 80) {
 		return false;
 	}
 	
-	return $input; */
+	return $input; 
 }
 /* file_put_contents("passwords.txt", "regnskab: $regnskab, brugernavn: $brugernavn, password: $password\n", FILE_APPEND); */
 if (isset($_POST['regnskab'])) {
@@ -191,7 +165,7 @@ if (isset($_POST['regnskab'])) {
 		if ($_POST['huskmig']) setcookie("saldi_huskmig",$_POST['huskmig'].chr(9).$regnskab.chr(9).$brugernavn,time()+60*60*24*365*10);
 		else setcookie("saldi_huskmig",$huskmig.chr(9).$regnskab.chr(9).$brugernavn,time()-1);
 	}#20211018
-	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone'];
+	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone']; 
 	if (!isset($timezone)) $timezone='Europe/Copenhagen';
 	date_default_timezone_set($timezone);
 	$qtxt="select version from regnskab where id='1'"; 
@@ -224,11 +198,15 @@ if (isset($_POST['regnskab'])) {
 	$up = str_replace('é','É',$up);
 	$up = db_escape_string($up);
 
-	$qtxt = "select * from regnskab where regnskab = '$asIs' or lower(regnskab) = '$low' or upper(regnskab) = '$up'";
-#	$qtxt = "select * from regnskab where regnskab = '$asIs'";
- #	$qtxt.= " or lower(regnskab) = '".db_escape_string(strtolower($regnskab))."'";
- # $qtxt.= " or upper(regnskab) = '".db_escape_string(strtoupper($regnskab))."'";
-	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
+	//$qtxt = "select * from regnskab where regnskab = '$asIs' or lower(regnskab) = '$low' or upper(regnskab) = '$up'";
+	$qtxt = "select * from regnskab where regnskab = '$asIs'"; //former code failed sometimes for same account name with different case.
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	if (!$r) {
+		// Only fall back to case-insensitive if no exact match found
+		$qtxt = "select * from regnskab where lower(regnskab) = '$low'";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	}
+	if ($r){
 		$dbuser = trim(if_isset($r['dbuser'], ''));
 		$dbver = trim(if_isset($r['version'], ''));
 		// $dbpass = trim(if_isset($r['dbpass'], ''));

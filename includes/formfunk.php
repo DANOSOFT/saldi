@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-04-22 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-04-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,8 +45,9 @@
 // 20260312 PHR reminder was not attached if background didn't exist
 // 20260320 PHR cleanup (pdftk)
 // 20260325 PHR Added 'center' when using html
+// 20260422 LOE added leveret to show up when printing.
+// 20260424 LOE populate leveres and leveret from batch_salg if empty, for invoice printing.
 // 20260426 PHR Outcommented change by PBLM as it has to be modified
-
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
 
@@ -1133,6 +1134,7 @@ if (!function_exists('formularprint')) {
 			$varenr = array();
 			$lev_varenr = array();
 			$leveres = array();
+			$leveret = array();
 			$vare_id = array();
 			$linje_id = array();
 			$antal = array();
@@ -1567,7 +1569,7 @@ if (!function_exists('formularprint')) {
 				$qtxt = "select MAX(lev_nr) as lev_nr from batch_salg where ordre_id = $ordre_id[$o]";
 				$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$lev_nr = (int) $r2['lev_nr'];
-			}
+			}  
 			if ($formular == 3 || $formular == 9)
 				$udskriv_til = 'PDF';
 			if ($mail_fakt && $formular != 3 && $udskriv_til == 'email') {
@@ -1741,6 +1743,7 @@ if (!function_exists('formularprint')) {
 								$vare_id[$x] = $row['vare_id'];
 								$antal[$x] = (float) $row['antal'];
 								$leveres[$x] = (float) $row['leveres'];
+								$leveret[$x] = (float) $row['leveret'];
 								$dkantal[$x] = str_replace(".", ",", $antal[$x]);
 								$momsfri[$x] = $row['momsfri'];
 								$omvbet[$x] = $row['omvbet'];
@@ -1806,6 +1809,17 @@ if (!function_exists('formularprint')) {
 									}
 									$rest[$x] = $antal[$x] - $lev_antal[$x] - $tidl_lev[$x];
 								}
+								####################### populate leveres and leveret from batch_salg if empty
+								if (!$leveres[$x] && !$leveret[$x]) {
+									$total_lev = 0;
+									$q2 = db_select("select antal from batch_salg where linje_id = $linje_id[$x]", __FILE__ . " linje " . __LINE__);
+									while ($r2 = db_fetch_array($q2)) {
+										$total_lev += $r2['antal'];
+									}
+									#$leveres[$x] = $total_lev;
+									$leveret[$x] = $total_lev;
+								}
+								#######################
 								$enhed[$x] = $row['enhed'];
 								$pris[$x] = $row['pris'];
 								#							if ($rvnr) {
@@ -1919,6 +1933,7 @@ if (!function_exists('formularprint')) {
 						$trademark[$x] = $trademark[$y];
 						$lev_antal[$x] = $lev_antal[$y];
 						$leveres[$x] = $leveres[$y];
+						$leveret[$x] = $leveret[$y];
 						$tidl_lev[$x] = $tidl_lev[$y];
 						$rest[$x] = $rest[$y];
 						$lokation[$x] = $lokation[$y];
@@ -2072,7 +2087,7 @@ if (!function_exists('formularprint')) {
 								if ($vn_wrap > 0 && mb_strlen($varenr[$x]) > $vn_wrap) {
 									$vn_wrapped = explode("\n", wordwrap($varenr[$x], $vn_wrap, "\n", true));
 								} else {
-									$vn_wrapped = [$varenr[$x]];
+									$vn_wrapped = [$varenr[$x]]; 
 								}
 								// Render first line in the loop (preserves page-break dummy-field logic)
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", trim($vn_wrapped[0]), "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__); # ellers kommer varenummer ikke med paa 1. linje paa side 2 . og 3
@@ -2084,6 +2099,8 @@ if (!function_exists('formularprint')) {
 									$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$lev_varenr[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__); # ellers kommer varenummer ikke med paa 1. linje paa side 2 . og 3
 									elseif ($variabel[$z] == "leveres")
 										$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$leveres[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
+							elseif ($variabel[$z] == "leveret")
+								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$leveret[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
 							elseif ($variabel[$z] == "projekt")
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$projekt[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
 							elseif ($variabel[$z] == "antal")

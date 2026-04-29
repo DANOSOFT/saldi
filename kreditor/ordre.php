@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-02-25---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-04-21---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,23 +24,6 @@
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 20200827 PHR Added protection against delete if items recieved. 20200827
-// 20201002	PHR Orderline will no be created if no id.
-// 20201021 changed from '=substr($fokus,4)' to '=0' as $focus is 'varenr'?;
-// 20210514 LOE	These texts were translated but not entered here previously
-// 20210716 LOE Translation of title tags , and general fixing of some bugs
-// 20211125 PHR Added link to document and done some cleanup 
-// 20211201 PHR error in check for item group corrected. 
-// 20211201 PHR $_GET['vare_id'] removed from 120 as it is in line 125
-// 20220124 PHR	several translation issues rgarding submit.
-// 20220124 PHR replaced 'vareOpslag' with 'lookup' everywhere
-// 20220331 PHR changed various if statements from 'Kopi' & 'Kred' to 'copy' & 'credit' 
-// 20220627 MSC - Implementing new design
-// 20220629 MSC - Implementing new design
-// 20221106 PHR - Various changes to fit php8 / MySQLi
-// 20220124 MLH added debitor lookup funcionality
-// 20220124 MLH added kundeordnr / Rekv.nr.
-// 20220124 MLH added udskriv_til, email and mail_fakt
 // 20230105 MLH added mail_text and mail_subj
 // 20230215 PHR Various minor corrections
 // 20230503 PHR php8 + email was missing when inserting creditor.
@@ -58,7 +41,8 @@
 // 20260217 PHR kundeordrnr
 // 20260219 PHR if ($leveres[$x] < $antal[$x] + $tidl_lev[$x]) changed to if ($leveres[$x] && $leveres[$x] < $antal[$x] + $tidl_lev[$x])
 // 20260223 LOE Fixed SD-350-creditor-order-lookup-does-not-work-on-new-supplier-order
-// 20250225 PHR Order taken by ---
+// 20260225 PHR Order taken by ---
+// 20260421 LOE Set antal to 1 if empty
 @session_start();
 $s_id=session_id();
 
@@ -458,6 +442,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$varenr[$x]=db_escape_string(trim($_POST[$y]));
 			$y="anta".$x;
 			$antal[$x]=$_POST[$y];
+			if (empty($antal[$x])) { //set antal to 1 if empty
+				$antal[$x] = 1;
+			}
 			if ($antal[$x]){
 				$antal[$x]=usdecimal($antal[$x],2);
 				if ($art=='KK') $antal[$x]=$antal[$x]*-1;

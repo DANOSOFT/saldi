@@ -4,13 +4,13 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-10 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-29 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
-// which is published by The Free Software Foundation; either in version 2
+// which is published by The Free Software Foundation; either in version 2 
 // of this license or later version of your choice.
 // However, respect the following:
 //
@@ -46,8 +46,8 @@
 // 20260326 PHR Added: if ($regnstart && $regnslut)
 // 20260410 PHR set $vis_bilag = 1 
 // 20260417 Sawaneh: Added a cloumn for vat with a dropwdown select
+// 20260423 LOE Reordered and added some codes to adjust for lines not yet saved to the database.
 
-// 
 
 ob_start(); //Starter output buffering
 
@@ -2977,6 +2977,30 @@ $dropAttr = "";
 		if (!isset($valuta[$x]))      $valuta[$x]      = NULL;
 		if (!isset($ansat[$x]))       $ansat[$x]       = NULL;
 		print "<tr>";
+		##################
+		// get last bilagsnr from database but check if the row already has asigned bilagnr
+				
+				// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
+				if (isset($bilag[$x]) && $bilag[$x]) {
+					// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
+					$next = $bilag[$x];
+				} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
+					$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+					$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+					if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
+					if ($x == 1) {
+						$next = $last_bilag;
+					} else {
+						$next = $bilag[$x-1] + 1;
+					}
+				} else {
+					$next = $bilag[$x-1] + 1;	
+				}
+				if($dato[$x] == ''){
+					$dato[$x] = dkdato(date("Y-m-d"));
+				}
+
+		#################
 
 		if ($vis_bilag && !$fejl) { #20140425
 			#if ($kladde_id && $intern_bilag) print "<td title='".findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id)."'><a href='../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$x]&bilag=$bilag[$x]&ny=ja&kilde_id=$kladde_id&fokus=bila$x'><img  style='border: 0px solid' src='../ikoner/clip.png'></a></td>\n";
@@ -2992,41 +3016,27 @@ $dropAttr = "";
 					$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
 				}
 				$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-				print "<td class='clip-cell' data-source-id='" . if_isset($id[$x],0) . "' data-bilag='" . htmlspecialchars($bilag[$x]) . "' title='$titletxt'>";
-				print "<span onclick=\"confirmClose('../includes/documents.php?source=kassekladde";
-				print "&ny=ja&sourceId=". if_isset($id[$x],0) ."&kladde_id=$kladde_id&bilag=$bilag[$x]";
-				print "&bilag_id=". if_isset($id[$x],0) ."&fokus=bila$y','$txt')\" style='cursor:pointer;display:inline-block;'>";
-#				print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=" . if_isset($id[$y],0); 
-#				print "&kladde_id=$kladde_id&bilag=$bilag[$x]&bilag_id=" . if_isset($id[$y],0) ."&fokus=bila$y' onclick='this.form.submit()'>";
-				print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
-
-
-				// print "</tr>";
+				########################
+				$href = "../includes/documents.php?source=kassekladde&sourceId=0"
+                . "&kladde_id=" . urlencode($kladde_id)
+                . "&bilag="     . urlencode($next)
+                . "&dato="      . urlencode($dato[$x])
+                . "&beskrivelse=" . urlencode($beskrivelse[$x] ?? '')
+                . "&debet="     . urlencode($debet[$x] ?? '')
+                . "&kredit="    . urlencode($kredit[$x] ?? '')
+                . "&fakturanr=" . urlencode($faktura[$x] ?? '')
+                . "&sum="       . urlencode($belob ?? '')
+                . "&fokus=bila$x&openPool=1";
+				########################
+			print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+            print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+            print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
+        	// print "</tr>";
 			} else {
 				print "<td></td>\n";
 			}
 		}
-		// get last bilagsnr from database but check if the row already has asigned bilagnr
 		
-		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
-		if (isset($bilag[$x]) && $bilag[$x]) {
-			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
-			$next = $bilag[$x];
-		} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
-			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
-			if ($x == 1) {
-				$next = $last_bilag;
-			} else {
-				$next = $bilag[$x-1] + 1;
-			}
-		} else {
-			$next = $bilag[$x-1] + 1;
-		}
-		if($dato[$x] == ''){
-			$dato[$x] = dkdato(date("Y-m-d"));
-		}
 		
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";

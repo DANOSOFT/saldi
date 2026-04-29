@@ -127,7 +127,7 @@ function kontoopslag($sort, $fokus, $id, $find){
 	require_once '../includes/orderFuncIncludes/grid_account_lookup.php';
 
 	// Define grid configuration
-	$grid_id = 'kredLkUp_' . $id;
+	$grid_id = 'kreditor_lookup';
 	$grid_id = substr($grid_id, 0, 19); // Trim to 19 characters
 
 	// Map fokus field to grid search field

@@ -4,23 +4,21 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 5.0.0 --- 2026.03.20 ---
+// --- includes/udskriv.php --- lap 5.0.0 --- 2026.04.28 ---
 // LICENS
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
@@ -41,6 +39,7 @@
 // 20260102 LOE Added alert to install pdftk if not already done.
 // 20260217 LOE Updated the $href for 'DO' type.
 // 20260320 PHR cleanup (pdftk)
+// 20260428 LOE added more options for 'DO' type and updated faktura navigation for pick list.
 
 
 @session_start();
@@ -72,7 +71,7 @@ $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
 $locat      = if_isset($_GET, NULL, 'locat');
-error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
+
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
 	
 	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
@@ -332,7 +331,10 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			global $menu;
 
 			include("../includes/topline_settings.php");
-
+            ############
+			$path = "../temp/$db/area$bruger_id.txt";
+			$value = file_exists($path) ? file_get_contents($path) : null;
+			###########
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>"; 
 				if ($returside) {
@@ -341,7 +343,16 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
 					$href = "../debitor/ordreliste.php";
 				 } else {
-					$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
+					if($art == 'DO'){
+						if($value == 'faktura'){
+							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=$returside";
+
+						}else{
+							$href = "../debitor/ordreliste.php";
+						}
+					}else{
+					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
+					}
 				 }  
 				} else { 
 					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";

@@ -101,7 +101,8 @@ try {
 
     // Handle search parameters - only creditors (art = 'K')
     $searchParams = $requestParams['search'];
-    $whereClauses = ["art = 'K'", "lukket != 'on'"];
+    $whereClauses = ["art = 'K'", "lukket != 'on' OR lukket IS NULL"]; 
+
 
     foreach ($validColumns as $col) {
         if (!empty($searchParams[$col])) {
