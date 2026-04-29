@@ -273,7 +273,7 @@ print "<tr><td colspan=8 align=center>";
 print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
 
 print "<td width='10%' align=center>
-	   <a href=$retur?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam>
+	   <a href=$retur?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok$layoutParam>
 	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
 
 print "<td width='80%' align='center' style='$topStyle'>Udlign åbne poster<br></td>";
