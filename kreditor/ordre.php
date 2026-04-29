@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-04-21---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-05-06---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
