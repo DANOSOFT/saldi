@@ -29,7 +29,7 @@
 // 20210107 PHR Corrected error in 'deferred financial year'.
 // 20210125 PHR Added csv option.
 // 20210211 PHR some cleanup
-// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding 
 // 20260210 PHR Miscalculating when simulating
 // 20260320 PHR Typo
 // 20260429 LOE Updated the top menu and made the report header sticky when scrolling.
@@ -722,6 +722,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 } //end function
  
 #################################################################################################
+} //end function
 ?>
 <style>
 	
