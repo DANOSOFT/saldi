@@ -1187,7 +1187,7 @@ if (strpos($currentFile, $docRoot) === 0) {
     $insertDocPath = '/pblm/includes/docsIncludes/insertDoc.php';
 }
 
-print "<div id='docPoolContainer'>";
+print "<div id='docPoolContainer' style='overflow: auto;'>";
 print "<script>console.time('docPoolRender');</script>";
 
 // ---- KASSEBILAG TOP BAR (above the left/right split) ----
