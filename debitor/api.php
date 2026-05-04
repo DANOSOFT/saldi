@@ -146,8 +146,8 @@
 
             // Save error response in temp folder
             file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-
-            return ['success' => false, 'message' => 'Error updating company: ' . htmlspecialchars(json_encode($errorMessage, JSON_PRETTY_PRINT))];
+            
+            return ['success' => false, 'message' => 'Error updating company: ' . (is_string($errorMessage) ? $errorMessage : json_encode($errorMessage))];
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
             return ['success' => false,
                 'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
