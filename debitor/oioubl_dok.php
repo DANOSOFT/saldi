@@ -75,7 +75,7 @@ print "<div align=\"center\">
 
 
 $fp=fopen("../temp/$db/$printfilnavn","w");
-if ((strtolower($doktype)=="faktura")||(strtolower($doktype)=="kreditnota")) fwrite($fp,oioubldoc_faktura($id, $doktype, $testdok));
+if ((strtolower($doktype)=="faktura")||(strtolower($doktype)=="kreditnota")) fwrite($fp,base64_encode(oioubldoc_faktura($id, $doktype, $testdok)));
 fclose($fp);
 
 // 2012.09.20 Integration med ebconnect.
