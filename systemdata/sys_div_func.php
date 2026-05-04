@@ -2139,73 +2139,73 @@ function variant_valg() {
 	print "</td></tr>";
 } # endfunc variant_valg
 
-function shop_valg() {
-	global $sprog_id;
-	global $bgcolor;
-	global $bgcolor5;
-	global $db;
-	global $labelprint;
+// function shop_valg() {
+// 	global $sprog_id;
+// 	global $bgcolor;
+// 	global $bgcolor5;
+// 	global $db;
+// 	global $labelprint;
 
-	#	$hurtigfakt=NULL; $incl_moms_private=NULL; $incl_moms_business=NULL; $folge_s_tekst=NULL; $negativt_lager=NULL; $straks_bogf=NULL; $vis_nul_lev=NULL;
-	$q = db_select("select * from grupper where art = 'DIV' and kodenr = '5'", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array($q);
-	$id = $r['id'];
-	$beskrivelse = $r['beskrivelse'];
-	$kodenr = $r['kodenr'];
-	$box2 = trim($r['box2']);
-	$box3 = trim($r['box3']);
-	$box4 = trim($r['box4']);
-	$box5 = trim($r['box5']);
-	$box7 = trim($r['box7']);
-	$box9 = trim($r['box9']);
-	# OBS $box1 bruges under vare_valg!!
-	# OBS $box8 bruges under ordrelaterede valg!!
+// 	#	$hurtigfakt=NULL; $incl_moms_private=NULL; $incl_moms_business=NULL; $folge_s_tekst=NULL; $negativt_lager=NULL; $straks_bogf=NULL; $vis_nul_lev=NULL;
+// 	$q = db_select("select * from grupper where art = 'DIV' and kodenr = '5'", __FILE__ . " linje " . __LINE__);
+// 	$r = db_fetch_array($q);
+// 	$id = $r['id'];
+// 	$beskrivelse = $r['beskrivelse'];
+// 	$kodenr = $r['kodenr'];
+// 	$box2 = trim($r['box2']);
+// 	$box3 = trim($r['box3']);
+// 	$box4 = trim($r['box4']);
+// 	$box5 = trim($r['box5']);
+// 	$box7 = trim($r['box7']);
+// 	$box9 = trim($r['box9']);
+// 	# OBS $box1 bruges under vare_valg!!
+// 	# OBS $box8 bruges under ordrelaterede valg!!
 
-	print "<form name=diverse action=diverse.php?sektion=shop_valg method=post>";
-	print "<tr><td colspan='6'><hr></td></tr>";
+// 	print "<form name=diverse action=diverse.php?sektion=shop_valg method=post>";
+// 	print "<tr><td colspan='6'><hr></td></tr>";
 
-	if ($box2 == '!') $box3 = '1';
-	print "<tr><td><br></td></tr>";
-	print "<tr><td title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><!--tekst 826-->".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."<!--tekst 826--></td><td colspan='3' title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><select style='text-align:left;width:300px;' name='box3'>";
-	if (!$box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
-	if ($box3=='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
-	if ($box3=='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
-	if ($box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
-	if ($box3!='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
-	if ($box3!='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
-	print "</select></td></tr>";
-	if ($box3 == '2') {
-		print "<tr><td title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503-->".findtekst('504|Webshop URL', $sprog_id)."<!--tekst 504--></td><td colspan='3' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503--><input type='text' style='text-align:left;width:300px;' name='box2' value = '$box2'</td></tr>";
-		print "<tr><td title=''>".findtekst('733|Tegn kodning for shop', $sprog_id)."<!--tekst 733--></td><td colspan='3' title='".findtekst('733|Tegn kodning for shop', $sprog_id)."'><!--tekst 733--><select style='text-align:left;width:300px;' name='box7'>";
-		if ($box7 == 'UTF-8') {
-			print "<option>UTF-8</option>";
-			print "<option>ISO-8859-1</option>";
-		} else {
-			print "<option>ISO-8859-1</option>";
-			print "<option>UTF-8</option>";
-		}
-		print "</select></td></tr>";
-		if ($apifil = $box2) {
-			$filnavn = mt_rand() . ".csv";
-			if (substr($apifil, 0, 4) == 'http') { #20150608
-				print "<tr><td title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740-->".findtekst('741|Hent nye varer fra shop.', $sprog_id)."<!--tekst 741--></td><td colspan='3'  title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740--><a href=../api/hent_varer.php target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst('741|Hent nye varer fra shop.', $sprog_id)."'><!--tekst 749--></a></td></tr>";
-				$apifil = str_replace("/?", "sync_saldi_kat.php?", $apifil);
-				$apifil = $apifil . "&saldi_db=$db&filnavn=$filnavn";
-#				print "<tr><td title='".findtekst(678, $sprog_id)."'><!--tekst 678-->".findtekst(679, $sprog_id)."<!--tekst 679--></td><td colspan='3'  title='".findtekst(678, $sprog_id)."'><!--tekst 678--><a href=$apifil target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst(679, $sprog_id)."'><!--tekst 679--></a></td></tr>";
-#				print "<tr><td colspan='3'><span title='Klik her for at hente nye ordrer fra shop'><a href=$apifil target='_blank'>SHOP import</a</span></td></tr>";
-			}
-		}
-	} elseif ($box3 == '1') {
-		print "<tr><td title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 821-->".findtekst('692|Merchant nr:', $sprog_id)."<!--tekst 822--></td><td colspan='3' title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 621--><input type='text' style='text-align:left;width:300px;' name='box4' value = '$box4'</td></tr>";
-		print "<tr><td title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752-->".findtekst('753|Agreement_id', $sprog_id)."<!--tekst 753--></td><td colspan='3' title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752--><input type='text' style='text-align:left;width:300px;' name='box9' value = '$box9'</td></tr>";
-		print "<tr><td title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823-->".findtekst('694|Md5-secret', $sprog_id)."<!--tekst 824--></td><td colspan='3' title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823--><input type='text' style='text-align:left;width:300px;' name='box5' value = '$box5'</td></tr>";
-	}
-	print "<tr><td>";
-	print "<br></td></tr>";
-	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'><!--tekst 471--></td>";
-	print "</form>";
-	print "<tr><td colspan='6'><hr></td></tr>";
-} # endfunc shop_valg
+// 	if ($box2 == '!') $box3 = '1';
+// 	print "<tr><td><br></td></tr>";
+// 	print "<tr><td title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><!--tekst 826-->".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."<!--tekst 826--></td><td colspan='3' title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><select style='text-align:left;width:300px;' name='box3'>";
+// 	if (!$box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
+// 	if ($box3=='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
+// 	if ($box3=='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
+// 	if ($box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
+// 	if ($box3!='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
+// 	if ($box3!='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
+// 	print "</select></td></tr>";
+// 	if ($box3 == '2') {
+// 		print "<tr><td title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503-->".findtekst('504|Webshop URL', $sprog_id)."<!--tekst 504--></td><td colspan='3' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503--><input type='text' style='text-align:left;width:300px;' name='box2' value = '$box2'</td></tr>";
+// 		print "<tr><td title=''>".findtekst('733|Tegn kodning for shop', $sprog_id)."<!--tekst 733--></td><td colspan='3' title='".findtekst('733|Tegn kodning for shop', $sprog_id)."'><!--tekst 733--><select style='text-align:left;width:300px;' name='box7'>";
+// 		if ($box7 == 'UTF-8') {
+// 			print "<option>UTF-8</option>";
+// 			print "<option>ISO-8859-1</option>";
+// 		} else {
+// 			print "<option>ISO-8859-1</option>";
+// 			print "<option>UTF-8</option>";
+// 		}
+// 		print "</select></td></tr>";
+// 		if ($apifil = $box2) {
+// 			$filnavn = mt_rand() . ".csv";
+// 			if (substr($apifil, 0, 4) == 'http') { #20150608
+// 				print "<tr><td title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740-->".findtekst('741|Hent nye varer fra shop.', $sprog_id)."<!--tekst 741--></td><td colspan='3'  title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740--><a href=../api/hent_varer.php target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst('741|Hent nye varer fra shop.', $sprog_id)."'><!--tekst 749--></a></td></tr>";
+// 				$apifil = str_replace("/?", "sync_saldi_kat.php?", $apifil);
+// 				$apifil = $apifil . "&saldi_db=$db&filnavn=$filnavn";
+// #				print "<tr><td title='".findtekst(678, $sprog_id)."'><!--tekst 678-->".findtekst(679, $sprog_id)."<!--tekst 679--></td><td colspan='3'  title='".findtekst(678, $sprog_id)."'><!--tekst 678--><a href=$apifil target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst(679, $sprog_id)."'><!--tekst 679--></a></td></tr>";
+// #				print "<tr><td colspan='3'><span title='Klik her for at hente nye ordrer fra shop'><a href=$apifil target='_blank'>SHOP import</a</span></td></tr>";
+// 			}
+// 		}
+// 	} elseif ($box3 == '1') {
+// 		print "<tr><td title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 821-->".findtekst('692|Merchant nr:', $sprog_id)."<!--tekst 822--></td><td colspan='3' title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 621--><input type='text' style='text-align:left;width:300px;' name='box4' value = '$box4'</td></tr>";
+// 		print "<tr><td title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752-->".findtekst('753|Agreement_id', $sprog_id)."<!--tekst 753--></td><td colspan='3' title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752--><input type='text' style='text-align:left;width:300px;' name='box9' value = '$box9'</td></tr>";
+// 		print "<tr><td title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823-->".findtekst('694|Md5-secret', $sprog_id)."<!--tekst 824--></td><td colspan='3' title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823--><input type='text' style='text-align:left;width:300px;' name='box5' value = '$box5'</td></tr>";
+// 	}
+// 	print "<tr><td>";
+// 	print "<br></td></tr>";
+// 	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'><!--tekst 471--></td>";
+// 	print "</form>";
+// 	print "<tr><td colspan='6'><hr></td></tr>";
+// } # endfunc shop_valg
 
 function api_valg() {
 	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id, $buttonStyle;
