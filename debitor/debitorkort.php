@@ -518,11 +518,18 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			if ($kontakt) db_modify("insert into ansatte(konto_id, navn) values ('$id', '$kontakt')", __FILE__ . " linje " . __LINE__);
 
 			// Save primary email for new customer
+			$primary_ke_id = 0;
 			if (isset($_POST['kontakt_email_val'][1])) {
+				$ke_id = isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0;
 				$ke_val = db_escape_string(trim($_POST['kontakt_email_val'][1]));
 				$ke_type = isset($_POST['kontakt_email_type'][1]) ? db_escape_string(trim($_POST['kontakt_email_type'][1])) : 'hoved';
-				if ($ke_val && $id) {
+				if ($ke_id && $ke_val) {
+					db_modify("UPDATE kontakt_emails SET email = '$ke_val', email_type = '$ke_type' WHERE id = '$ke_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+					$primary_ke_id = $ke_id;
+				} elseif (!$ke_id && $ke_val && $id) {
 					db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$ke_val', '$ke_type')", __FILE__ . " linje " . __LINE__);
+					$r_new_ke = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kontakt_emails', 'id')) AS id", __FILE__ . " linje " . __LINE__));
+					$primary_ke_id = $r_new_ke ? intval($r_new_ke['id']) : 0;
 				}
 			}
 			// Save extra emails from JSON
@@ -608,7 +615,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				}
 
 				// Process extra emails from JSON hidden field
-				$primary_ke_id = isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0;
+				$primary_ke_id = isset($primary_ke_id) ? intval($primary_ke_id) : (isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0);
 				$existing_extra_ids = array();
 				$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
 				while ($r_ex = db_fetch_array($q_ex)) {
