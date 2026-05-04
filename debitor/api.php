@@ -135,7 +135,6 @@
         curl_close($ch);
 
         $timestamp = date("Y-m-d-H-i-s");
-
         if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || trim($response) === "") {
             // An error occurred
             $errorNumber = curl_errno($ch);
