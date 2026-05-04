@@ -151,6 +151,7 @@
                 'response' => $response,
                 'status code' => $httpCode
             ];
+            return ['success' => false, 'message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT)];
         }
         
         // Save successful response in temp folder for debugging

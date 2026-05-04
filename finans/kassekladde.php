@@ -97,7 +97,8 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
-include("../includes/bilagsmatch.js.php");
+
+include("./kassekladde_includes/bilagsmatch.php");
 
 include("../includes/grid.php");
 
