@@ -151,6 +151,9 @@ include("../includes/stykliste.php");
 include("../includes/fuld_stykliste.php");
 include("productCardIncludes/itemVat.php");
 include("productCardIncludes/percentageField.php");
+include_once("../includes/emballage_schema.php");
+$packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='specialtype'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -1943,6 +1946,11 @@ if ($id) {
         print "<td align=center><input style='width:150px;' class='button red medium' type=submit ";
         print "value=\"$txt1099\" name=\"deleteItem\" OnClick=\"return confirm('Slet varenr $varenr ?')\"></td>";
     }
+}
+if ($id && $packagingModuleEnabled) {
+    $emb_btn   = ($sprog_id == 2) ? 'Packaging' : 'Emballage';
+    $emb_btn_t = ($sprog_id == 2) ? 'Manage packaging for this product' : 'Administrér emballage for denne vare';
+    print "<td align=center><a href='emballage.php?id=$id' style='text-decoration:none;'><input style='width:150px;' class='button blue medium' type='button' value='$emb_btn' title='$emb_btn_t'></a></td>";
 }
 print "</form>";
 print "</tr></tbody></table></td></tr>";
