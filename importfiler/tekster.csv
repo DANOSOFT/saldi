@@ -3257,25 +3257,25 @@
 3257	Indtast et navn på den baggrund, du vil tilføje	Enter a name for the background you want to add	Skriv inn et navn på bakgrunnen du vil legge til
 3258	Vælg skabelon	Select template	Velg mal
 3259	Viser filer for	Showing files for	Viser filer for
-3260	
-3261	
-3262	
-3263	
-3264	
-3265	
-3266	
-3267	
-3268	
-3269	
-3270	
-3271	
-3272	
-3273	
-3274	
-3275	
-3276	
-3277	
-3278	
+3260	Oprydning færdig	Cleanup complete	Opprydding ferdig
+3261	Fjernede	Removed	Fjernet
+3262	Forældreløse info-filer	Orphaned info files	Foreldreløse info-filer
+3263	Ingen forældreløse info-filer fundet	No orphaned info files found	Ingen foreldreløse info-filer funnet
+3264	Nogle filer kunne ikke indsættes	Some files could not be inserted	Noen filer kunne ikke settes inn
+3265	Ingen filer valgt	No files selected	Ingen filer valgt
+3266	Linje	Line	Linje
+3267	Duplikér	Duplicate	Dupliser
+3268	Tilknyt bilag til denne linje	Attach document to this line	Knytt vedlegg til denne linjen
+3269	Proj.	Proj.	Prosj.
+3270	Flere linjer	More lines	Flere linjer
+3271	Auto-udtræk fakturadata ved upload	Auto-extract invoice data on upload	Auto-uttrekk fakturadata ved opplasting
+3272	Opdatér alle filer med fakturadata	Update all files with invoice data	Oppdater alle filer med fakturadata
+3273	Slet valgte filer	Delete selected files	Slett valgte filer
+3274	Tabelvisning	Table view	Tabellvisning
+3275	Kortvisning	Card view	Kortvisning
+3276	Forhåndsvisning	Preview	Forhåndsvisning
+3277	Indlæser	Loading	Laster
+3278	Filer	Files	Filer
 3279	
 3280	
 3281	

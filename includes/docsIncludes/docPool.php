@@ -287,16 +287,17 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				}
 			}
 			if ($count > 0) {
-				echo "<script>alert('Oprydning færdig. Fjernede $count forældreløse info-filer.');</script>";
+				$alert = findtekst('3260|Oprydning færdig', $sprog_id).". ".findtekst('3261|Fjernede', $sprog_id)." $count ".lcfirst(findtekst('3262|Forældreløse info-filer', $sprog_id))."."; #Oprydning færdig. Fjernede [X] forældreløse info-filer.
+				echo "<script>alert('$alert');</script>";
 			} else {
-				echo "<script>alert('Ingen forældreløse info-filer fundet.');</script>";
+				$alert = findtekst('3263|Ingen forældreløse info-filer fundet').".";
+				echo "<script>alert('$alert');</script>";
 			}
 		}
 		update_settings_value("cleanup", "docs", 1);
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1\">";
 		exit;
 	}
-
 	(isset($_POST['rename']) && $_POST['rename'])?$rename=1:$rename=0;
 	(isset($_POST['unlinkFile']) && $_POST['unlinkFile'])?$unlinkFile=$_POST['unlinkFile']:((isset($_GET['unlinkFile']) && $_GET['unlinkFile'])?$unlinkFile=$_GET['unlinkFile']:$unlinkFile=NULL);
 	
@@ -668,7 +669,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					$failedList = implode(', ', array_map(function($f) {
 						return addslashes(htmlspecialchars($f, ENT_QUOTES));
 					}, $failedFiles));
-					echo "alert('Nogle filer kunne ikke indsættes: " . $failedList . "');";
+					echo "alert('".addslashes(findtekst('3264|Nogle filer kunne ikke indsættes', $sprog_id)).": " . $failedList . "');";
 				}
 				
 				// Perform redirect immediately
@@ -679,7 +680,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				exit;
 			}
 		} else {
-			alert("Ingen filer valgt");
+			alert(findtekst('3265|Ingen filer valgt', $sprog_id));
 		}
 		exit;
 	}
@@ -1329,6 +1330,7 @@ if ($source == 'kassekladde') {
 
 	// Helper: render one full editable entry row
 	$renderBilagRow = function($rowId, $d, $showLabels = true) use ($inStyle, $btnStyle, $svgSave, $svgCopy, $escKladde, $intBilag, $readOnly, $sourceId) {
+		global $sprog_id;
 		$pfx = "row_{$rowId}";
 		$momsfriChecked = !empty($d['momsfri']) ? ' checked' : '';
 		$rowIdJs = is_numeric($rowId) ? (int)$rowId : "'new'";
@@ -1341,21 +1343,21 @@ if ($source == 'kassekladde') {
 		print "<div class='kassebilag-entry' id='bilagEntry_{$rowId}' style='margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e0e0e0;'>";
 		print "<div class='topbar-fields-row'>";
 		$linkIcon = '<svg style="width:14px;height:14px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
-		print "<div class='topbar-field' style='justify-content:center;align-items:center;'>" . $lbl($linkIcon) . "<input type='checkbox' class='targetLineCheckbox' value='{$cbVal}'{$cbChecked} style='width:16px;height:16px;cursor:pointer;accent-color:{$GLOBALS['buttonColor']};' title='Tilknyt bilag til denne linje'></div>";
-		print "<div class='topbar-field'>" . $lbl('Bilag #:') . "<input type='text' id='{$pfx}_Bilag' value=\"" . htmlspecialchars($d['bilag'] ?? '') . "\" style='width:55px;{$inStyle}{$roBg}'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Dato:') . "<input type='text' id='{$pfx}_Dato' value=\"" . htmlspecialchars($d['dato'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Faktura:') . "<input type='text' id='{$pfx}_Faktura' value=\"" . htmlspecialchars($d['faktura'] ?? '') . "\" style='width:70px;{$inStyle}{$roBg}' placeholder='Fakturanr'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Beskrivelse:') . "<input type='text' id='{$pfx}_Beskrivelse' value=\"" . htmlspecialchars($d['beskrivelse'] ?? '') . "\" style='width:180px;{$inStyle}{$roBg}' placeholder='Beskrivelse'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Debet:') . "<input type='text' id='{$pfx}_Debet' value=\"" . htmlspecialchars($d['debet'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='Konto'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Kredit:') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='Konto'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Beløb:') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Afd:') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='Afd'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Proj:') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='Proj'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Valuta:') . "<input type='text' id='{$pfx}_Valuta' value=\"" . htmlspecialchars($d['valuta'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='DKK'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('u/m:') . "<input type='checkbox' id='{$pfx}_Momsfri'{$momsfriChecked}{$dis}></div>";
-		print "<div class='topbar-field'>" . $lbl('Forfald:') . "<input type='text' id='{$pfx}_Forfald' value=\"" . htmlspecialchars($d['forfald'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
+		print "<div class='topbar-field' style='justify-content:center;align-items:center;'>" . $lbl($linkIcon) . "<input type='checkbox' class='targetLineCheckbox' value='{$cbVal}'{$cbChecked} style='width:16px;height:16px;cursor:pointer;accent-color:{$GLOBALS['buttonColor']};' title='".findtekst('3268|Tilknyt bilag til denne linje', $sprog_id)."'></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('671|Bilag', $sprog_id).' #:') . "<input type='text' id='{$pfx}_Bilag' value=\"" . htmlspecialchars($d['bilag'] ?? '') . "\" style='width:55px;{$inStyle}{$roBg}'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('438|Dato', $sprog_id).':') . "<input type='text' id='{$pfx}_Dato' value=\"" . htmlspecialchars($d['dato'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('643|Faktura', $sprog_id).':') . "<input type='text' id='{$pfx}_Faktura' value=\"" . htmlspecialchars($d['faktura'] ?? '') . "\" style='width:70px;{$inStyle}{$roBg}' placeholder='".findtekst('828|Fakturanr.', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('914|Beskrivelse', $sprog_id).':') . "<input type='text' id='{$pfx}_Beskrivelse' value=\"" . htmlspecialchars($d['beskrivelse'] ?? '') . "\" style='width:180px;{$inStyle}{$roBg}' placeholder='".findtekst('914|Beskrivelse', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('1000|Debet', $sprog_id).':') . "<input type='text' id='{$pfx}_Debet' value=\"" . htmlspecialchars($d['debet'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('1001|Kredit', $sprog_id).':') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('934|Beløb', $sprog_id).':') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('2464|Afd.', $sprog_id).':') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('2464|Afd.', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('3269|Proj.', $sprog_id).':') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('3269|Proj.', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('776|Valuta', $sprog_id).':') . "<input type='text' id='{$pfx}_Valuta' value=\"" . htmlspecialchars($d['valuta'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='DKK'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('2589|u/m', $sprog_id).':') . "<input type='checkbox' id='{$pfx}_Momsfri'{$momsfriChecked}{$dis}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('1070|Forfald', $sprog_id).':') . "<input type='text' id='{$pfx}_Forfald' value=\"" . htmlspecialchars($d['forfald'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
 		if (!$readOnly) {
-			print "<div class='topbar-field'><a href='#' onclick=\"duplicateRow($rowIdJs, $escKladde, $intBilag); return false;\" title='Dupliker linje' style=\"$btnStyle\">$svgCopy &nbsp;Dupliker</a></div>";
+			print "<div class='topbar-field'><a href='#' onclick=\"duplicateRow($rowIdJs, $escKladde, $intBilag); return false;\" title='".findtekst('3267|Duplikér', $sprog_id).' '.lcfirst(findtekst('3266|Linje', $sprog_id))."' style=\"$btnStyle\">$svgCopy &nbsp;".findtekst('3267|Duplikér', $sprog_id)."</a></div>"; #Duplikér linje
 		}
 		print "</div>"; // topbar-fields-row
 		print "</div>"; // kassebilag-entry
@@ -1365,23 +1367,30 @@ if ($source == 'kassekladde') {
 
 	// Title + bilag-group navigation
 	print "<div class='topbar-nav' style='margin-bottom:8px;'>";
-	print "<span class='topbar-title' id='entryTitle'>" . findtekst('1408|Kassebilag', $sprog_id) . ($displayBilag !== '' ? " &mdash; Bilag #{$displayBilag}" : "") . "</span>";
+	print "<span class='topbar-title' id='entryTitle'>" . findtekst('1408|Kassebilag', $sprog_id) . ($displayBilag !== '' ? " &mdash; " . findtekst('671|Bilag', $sprog_id) . " #{$displayBilag}" : "") . "</span>";
 	if ($prevBilagId) {
-		print "<a href=\"{$baseUrl}&sourceId={$prevBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgChevronLeft Forrige bilag</a>";
+		$txt = findtekst('2598|Forrige', $sprog_id).' '.lcfirst(findtekst('671|Bilag', $sprog_id)); #Forrige bilag
+		print "<a href=\"{$baseUrl}&sourceId={$prevBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgChevronLeft $txt</a>";
 	} else {
-		print "<span style=\"$btnStyleDisabled\">$svgChevronLeft Forrige bilag</span>";
+		$txt = findtekst('2598|Forrige', $sprog_id).' '.lcfirst(findtekst('671|Bilag', $sprog_id)); #Forrige bilag
+		print "<span style=\"$btnStyleDisabled\">$svgChevronLeft $txt</span>";
 	}
 	if ($nextBilagId) {
-		print "<a href=\"{$baseUrl}&sourceId={$nextBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">Næste bilag $svgChevronRight</a>";
+		$txt = findtekst('1200|Næste', $sprog_id).' '.lcfirst(findtekst('671|Bilag', $sprog_id)); #Næste bilag
+		print "<a href=\"{$baseUrl}&sourceId={$nextBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$txt $svgChevronRight</a>";
 	} else {
-		print "<span style=\"$btnStyleDisabled\">Næste bilag $svgChevronRight</span>";
+		$txt = findtekst('1200|Næste', $sprog_id).' '.lcfirst(findtekst('671|Bilag', $sprog_id)); #Næste bilag
+		print "<span style=\"$btnStyleDisabled\">$txt $svgChevronRight</span>";
 	}
 	$bilagParam = $displayBilag !== '' ? '&bilag=' . urlencode($displayBilag) : '';
 	if (!$readOnly) {
-		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus Ny linje</a>";
-		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp;Gem alle</a>";
+		$txt1 = findtekst('39|Ny', $sprog_id).' '.lcfirst(findtekst('3266|Linje', $sprog_id)); #Ny linje
+		$txt2 = findtekst('3|Gem', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id)); #Gem alle
+		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus $txt1</a>";
+		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp; $txt2</a>";
 	} else {
-		print "<span style='color:#999; font-size:12px; font-weight:bold; padding:3px 8px;'>Bogført</span>";
+		$txt = findtekst('637|Bogført', $sprog_id);
+		print "<span style='color:#999; font-size:12px; font-weight:bold; padding:3px 8px;'>$txt</span>";
 	}
 	print "</div>"; // topbar-nav header
 
@@ -1508,12 +1517,12 @@ print "<div id='leftPanel'>";
 print "<div id='docPoolToolbar' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 6px;'>";
 // Search box
 print "<div style='flex: 1; margin-right: 10px;'>";
-print "<input type='text' id='poolSearchBox' placeholder='Søg...' oninput='filterPoolFiles()' style='width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;'>";
+print "<input type='text' id='poolSearchBox' placeholder='".findtekst('913|Søg', $sprog_id)."...' oninput='filterPoolFiles()' style='width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;'>";
 print "</div>";
 // View mode toggle and extract all button
 print "<div style='display: flex; gap: 8px;'>";
 // Auto-extract toggle
-print "<label title='Auto-udtræk fakturadata ved upload' style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
+print "<label title='".findtekst('3271|Auto-udtræk fakturadata ved upload', $sprog_id)."' style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
 print "<span style='position: relative; display: inline-block; width: 36px; height: 20px;'>";
 print "<input type='checkbox' id='autoExtractToggle' " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "" : "checked") . " onchange='toggleAutoExtract(this)' style='opacity: 0; width: 0; height: 0;'>";
 print "<span id='autoExtractSlider' style='position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "#ccc" : "#17a2b8") . "; transition: .3s; border-radius: 20px;'></span>";
@@ -1521,23 +1530,23 @@ print "<span id='autoExtractKnob' style='position: absolute; height: 16px; width
 print "</span>";
 print "AI scan</label>";
 // Extract all button
-print "<button type='button' id='extractAllBtn' onclick='extractAllPoolFiles()' title='Opdater alle filer med fakturadata' style='padding: 8px 12px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgScan <span style='font-size: 12px;'>Opdater alle</span></button>";
+print "<button type='button' id='extractAllBtn' onclick='extractAllPoolFiles()' title='".findtekst('3272|Opdatér alle filer med fakturadata', $sprog_id)."' style='padding: 8px 12px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgScan <span style='font-size: 12px;'>".findtekst('898|Opdatér', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id))."</span></button>"; #Opdatér alle
 // Delete selected button
-print "<button type='button' id='deleteSelectedBtn' onclick='deleteSelectedFiles()' title='Slet valgte filer' style='padding: 8px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgTrash <span style='font-size: 12px;'>Slet valgte</span></button>";
+print "<button type='button' id='deleteSelectedBtn' onclick='deleteSelectedFiles()' title='".findtekst('3273|Slet valgte filer', $sprog_id)."' style='padding: 8px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgTrash <span style='font-size: 12px;'>".findtekst('1146|Slet valgte', $sprog_id)."</span></button>";
 print "<div style='display: flex; gap: 0;'>";
-print "<button type='button' id='tableViewBtn' onclick='setViewMode(\"table\")' title='Tabelvisning' style='padding: 8px 12px; background-color: $buttonColor; color: $buttonTxtColor; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;'>$svgTable</button>";
-print "<button type='button' id='cardViewBtn' onclick='setViewMode(\"card\")' title='Kortvisning' style='padding: 8px 12px; background-color: #e9ecef; color: #495057; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px;'>$svgGrid</button>";
+print "<button type='button' id='tableViewBtn' onclick='setViewMode(\"table\")' title='".findtekst('3274|Tabelvisning', $sprog_id)."' style='padding: 8px 12px; background-color: $buttonColor; color: $buttonTxtColor; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;'>$svgTable</button>";
+print "<button type='button' id='cardViewBtn' onclick='setViewMode(\"card\")' title='".findtekst('3275|Kortvisning', $sprog_id)."' style='padding: 8px 12px; background-color: #e9ecef; color: #495057; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px;'>$svgGrid</button>";
 print "</div>";
 print "</div>";
 print "</div>";
 
 // Preview popup container (for card view hover)
 print "<div id='previewPopup' style='display: none; position: fixed; z-index: 99999; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); padding: 10px; max-width: 500px; max-height: 600px; overflow: hidden;'>";
-print "<div id='previewTitle' style='padding: 8px; background: $buttonColor; color: $buttonTxtColor; border-radius: 4px 4px 0 0; margin: -10px -10px 10px -10px; font-size: 12px; font-weight: bold;'>Forhåndsvisning</div>";
-print "<div id='previewContent'><div style='display: flex; align-items: center; justify-content: center; width: 480px; height: 550px; background: #f5f5f5; color: #666; font-size: 14px;'>Indlæser...</div></div>";
+print "<div id='previewTitle' style='padding: 8px; background: $buttonColor; color: $buttonTxtColor; border-radius: 4px 4px 0 0; margin: -10px -10px 10px -10px; font-size: 12px; font-weight: bold;'>".findtekst('3276|Forhåndsvisning', $sprog_id)."</div>";
+print "<div id='previewContent'><div style='display: flex; align-items: center; justify-content: center; width: 480px; height: 550px; background: #f5f5f5; color: #666; font-size: 14px;'>".findtekst('3277|Indlæser', $sprog_id)."...</div></div>";
 print "</div>";
 
-print "<div id='fileListContainer'>Loading files...</div>";
+print "<div id='fileListContainer'>".findtekst('3277|Indlæser', $sprog_id).' '.lcfirst(findtekst('3278|Filer', $sprog_id))."...</div>"; #Indlæser filer
 // Fixed bottom section will be added here later via PHP (before leftPanel closes)
 
 
