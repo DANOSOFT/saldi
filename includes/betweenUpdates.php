@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.04.29
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.05.04
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,9 @@
 // ----------------------------------------------------------------------
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 // 20260429 LOE added leveret to formularer table
+// 20260504 LOE added a separate table for managing delivery addresses and those in adresser are migrated to the new table and linked to the corresponding account.
 // 20260504 NTR Fixed error on login due to missing regnskab's table
+
 
 
 $qtxt = "CREATE SEQUENCE IF NOT EXISTS regnskab_id_seq";
@@ -60,6 +62,97 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
+
+############table for managing delivery addresses
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'delivery_addresses'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE delivery_addresses (
+		id            SERIAL PRIMARY KEY,
+		account_id    INTEGER NOT NULL REFERENCES adresser(id) ON DELETE CASCADE,
+		is_primary    BOOLEAN NOT NULL DEFAULT FALSE,
+		sort_order    SMALLINT NOT NULL DEFAULT 0,
+		description   VARCHAR(100),
+		company_name  VARCHAR(255),
+		first_name    VARCHAR(100),
+		last_name     VARCHAR(100),
+		address_line1 VARCHAR(255),
+		address_line2 VARCHAR(255),
+		postal_code   VARCHAR(20),
+		city          VARCHAR(100),
+		country       VARCHAR(100),
+		contact_name  VARCHAR(100),
+		phone         VARCHAR(50),
+		email         VARCHAR(255),
+		created_at    TIMESTAMP DEFAULT NOW()
+	)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'delivery_addresses' AND indexname = 'idx_delivery_addresses_account_id'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE INDEX idx_delivery_addresses_account_id ON delivery_addresses(account_id)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+//migrate all delivery addresses in adresser to delivery_addresses and link them to the corresponding account
+// Only run migration once
+$already_migrated = db_fetch_array(db_select(
+    "SELECT var_value FROM settings WHERE var_name = 'delivery_addr_migrated' AND var_grp = 'system'",
+    __FILE__ . " linje " . __LINE__
+));
+error_log("Delivery address migration already done: " . ($already_migrated ? 'yes' : 'no'));
+if (!$already_migrated) {
+    $qtxt = "SELECT id, lev_firmanavn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, lev_kontakt, lev_email 
+             FROM adresser 
+             WHERE (lev_firmanavn IS NOT NULL AND lev_firmanavn != '') 
+                OR (lev_addr1 IS NOT NULL AND lev_addr1 != '')";
+
+    if ($result = db_select($qtxt, __FILE__ . " linje " . __LINE__)) {
+        while ($row = db_fetch_array($result)) {
+            $account_id    = intval($row['id']);
+            $company_name  = db_escape_string(trim($row['lev_firmanavn']));
+            $address_line1 = db_escape_string(trim($row['lev_addr1']));
+            $address_line2 = db_escape_string(trim($row['lev_addr2']));
+            $postal_code   = db_escape_string(trim($row['lev_postnr']));
+            $city          = db_escape_string(trim($row['lev_bynavn']));
+            $country       = db_escape_string(trim($row['lev_land']));
+            $contact_name  = db_escape_string(trim($row['lev_kontakt']));
+            $email         = db_escape_string(trim($row['lev_email']));
+
+            if (!$company_name && !($address_line1 || $address_line2)) continue;
+
+            $qtxt_check = "SELECT id FROM delivery_addresses
+                           WHERE account_id   = $account_id
+                             AND company_name  = '$company_name'
+                             AND address_line1 = '$address_line1'
+                             AND postal_code   = '$postal_code'
+                           LIMIT 1";
+
+            if (!db_fetch_array(db_select($qtxt_check, __FILE__ . " linje " . __LINE__))) {
+                db_modify("INSERT INTO delivery_addresses
+                               (account_id, is_primary, description, company_name,
+                                address_line1, address_line2, postal_code, city,
+                                country, contact_name, email)
+                           VALUES
+                               ($account_id, TRUE, 'Primary Delivery Address', '$company_name',
+                                '$address_line1', '$address_line2', '$postal_code', '$city',
+                                '$country', '$contact_name', '$email')",
+                    __FILE__ . " linje " . __LINE__
+                );
+            }
+        }
+    }
+
+    // Mark migration as done so it never runs again
+    db_modify(
+        "INSERT INTO settings (var_name, var_grp, var_value, var_description)
+         VALUES ('delivery_addr_migrated', 'system', 'yes', 'One-time migration of lev_* fields to delivery_addresses table')",
+        __FILE__ . " linje " . __LINE__
+    );
+	error_log("Delivery address migration completed.");
+}
+############
+error_log("continuation of other updates...................");
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE batch_kob ADD due_date integer";
