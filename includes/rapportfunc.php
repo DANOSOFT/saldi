@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- patch 4.1.0 --- 2024-05-22 ---
+// --- includes/rapportfunc.php --- patch 5.0.0 --- 2026-03-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20121106 Kontrol for aktivt regnskabsaar v. bogføring af rykker.Søg 20121106  
@@ -69,20 +69,21 @@
 // 20211101 MSC - Implementing new design
 // 20220901 MSC - Implementing new design
 // 20220905 MSC - Implementing new design
-// 20230111 MSC - Implementing new design
+// 20230111 MSC - Implementing new design 
 // 20230522	PHR - php8+20230616 
 // 20230620 PHR - outcommented section to reduce load. Guess it is not nessecary
 // 20230723 PHR - Moved some functions to reportFunc.php
 // 20230824 MSC - Copy pasted new design into code
 // 20240330 PHR	- Corrections in open post when fromdate != currentdate
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
-
-include("../includes/reportFunc/showOpenPosts.php");
+// 20250924 LOE - Modify select url to use window.location.href instead of window.open to fit into main frame.
+// 20260324 LOE - Updated returside for general ledger from debitor's card if users came from ordre.php
+include("../includes/reportFunc/showOpenPosts.php"); 
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
 {
 ?>
-	<script LANGUAGE="JavaScript">
+	<script LANGUAGE="JavaScript"> 
 		<!--
 		function confirmSubmit(tekst) {
 			var agree = confirm(tekst);
@@ -212,7 +213,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<tr><td width=100% height=\"8\">\n";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
 
-		print "<td width='10%'><a accesskey=l href=\"rapport.php\">
+		print "<td width='10%' style='$topStyle' ><a accesskey=l href=\"rapport.php\">
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
 		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
@@ -225,8 +226,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<td width=\"80%\" $top_bund>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
 		print "<td width=\"10%\" $top_bund>\n";
 	}
-	print "<div style='padding:5px;height:12px;'><center><select name=\"aabenpostmode\"
-		onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\"></div>\n";
+	print "<div><center><select name='aabenpostmode' style='$topStyle' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
 	if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
 	elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
 	elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
@@ -677,6 +677,8 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 	global $menu;
 	global $rettigheder;
 	global $sprog_id;
+	global $buttonColor;
+	global $buttonTxtColor;
 	print "<script>
 		function saldiSpecialBack() {
 		const params = new URLSearchParams(window.location.search);
@@ -695,7 +697,7 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 			    }
 		}
 </script>";
-$backUrl = isset($_GET['returside']) ? $_GET['returside'] : 'javascript:saldiSpecialBack()';
+$backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 
 
 	$husk = "";
@@ -718,9 +720,8 @@ $backUrl = isset($_GET['returside']) ? $_GET['returside'] : 'javascript:saldiSpe
 	// ($popup) ? $returside = "../includes/luk.php" : $returside = "../index/menu.php";
 	($popup) ? $returside = "../includes/luk.php" : $returside = $backUrl;
 
-
 	include("../includes/topline_settings.php");
-
+	
 	if ($menu == 'T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
@@ -732,18 +733,50 @@ $backUrl = isset($_GET['returside']) ? $_GET['returside'] : 'javascript:saldiSpe
 		print "<div class='content-noside'>";
 		print "<div class='dataTablediv' style='width:700px; margin: auto;'><table width='100%' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" class='dataTableSmall'><tbody>\n";
 	} elseif ($menu == 'S') {
-		print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
+			
+	#####################
+	$leftemptyBtn  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	
+	#####################
+	print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
+	
+	print "<tr id='topTr'><td width=5% style='$topStyle'>";
+	print "<span class='headerbtn' style='$buttonStyle'>"
+	. $leftemptyBtn . "</span>";
+	print "</td>";
 
-		print "<tr><td width='10%' align='center' style='$buttonStyle'><a href=$returside accesskey=L>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>";
+	print "<td width='75%' align='center' style='$topStyle'>$title</td>";
 
-		print "<td width='80%' align='center' style='$topStyle'>$title</td>";
+	
+	print "<td width='5%' align='center' style='$topStyle''><br></td>";
 
-		print "<td width='10%' align='center' style='$topStyle''><br></td>";
-
-		print "</tr><tr><td height=99%><br></td></td>";
+		print "</tr><tr class='noHover'><td height=99%><br></td></td>";
 		print "<td valign='top' align='center'><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
 		print "<tr><td align=center colspan=\"5\"><big><b>$title</b></big><br><br></td></tr>";
+	?>
+	<style>
+	.headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+	}
+	a:link{
+		text-decoration: none;
+	}
+	</style>
+	<script>
+			document.addEventListener("DOMContentLoaded", function() {
+			var trElement = document.getElementById("topTr");
+			if (trElement) {
+				
+				trElement.classList.remove("hover-highlight");
+			}
+		});
+	</script>
+	<?php
+     
+		##################
 	} else {
 		$butCol = '#009578';
 		$topStyle = "border:1;border-color:#fefefe;border-radius:5px;width:100%;height:100%;background:url('../img/knap_bg.gif');";
@@ -823,7 +856,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 	($kontoart == 'D') ? $tekst = 'DRV' : $tekst = 'KRV';
 	$qtxt = "select * from grupper where art = '$tekst' and kodenr = '$bruger_id'";
 	if (isset($_GET['returside']))
-		$returside = $_GET['returside'];
+		$returside = nav_back_url($_GET['returside']);
 	elseif ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$dato_fra = $r['box2'];
 		$dato_til = $r['box3'];
@@ -1030,8 +1063,41 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 				$forfaldsdate[$y] = '';
 			}
 		}
-		$luk = "<a accesskey=L href=\"$returside\">";
+		
+		#########################
+		$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+		$host = $_SERVER['HTTP_HOST']; 
+		$requestUri = $_SERVER['REQUEST_URI']; 
+		$currentUrl = $protocol . $host . $requestUri;
+		$parts = parse_url($currentUrl);
 
+		// Extract the query string
+		$queryString = $parts['query'] ?? ''; 
+
+		if (strpos($queryString, 'ordre.php') !== false) {
+			$pos = strpos($queryString, 'returside=');
+			if ($pos !== false) {
+				$retursidePart = substr($queryString, $pos);
+				// parse it into array
+				parse_str($retursidePart, $params);
+
+				$returside = $params['returside'] ?? null;
+
+				// Remove 'returside' key itself to get attached parameters
+				unset($params['returside']);
+
+				$attachedQuery = http_build_query($params);
+				$returside = $returside;
+				if (!empty($attachedQuery)) {
+					$returside .= '?' . $attachedQuery;
+				}
+
+			$backUrl = $returside;
+			}
+		}
+		#####################################
+		$luk = "<a accesskey=L href=\"$returside\">";
+       
 		if ($menu == 'T') {
 			print "";
 		} else {
@@ -1062,13 +1128,20 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<td width ='80%' align = 'center' style='$topStyle'>$tekst</td>";
 
 			($kontoantal == 1) ? $w = 5 : $w = 10;
-			print "<td width=\"w%\" align='center' onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\">
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">" . findtekst(880, $sprog_id) . "</button></td>\n";
+			// print "<td width=\"w%\" align='center' onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\">
+			// 	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">" . findtekst(880, $sprog_id) . "</button></td>\n";
+				   
+			print "<td width=\"w%\" align='center'>
+				<button style='$buttonStyle; width:100%' 
+					onMouseOver=\"this.style.cursor = 'pointer'\" 
+					title=\"Udskriv kontoudtog som PDF (Åbner i popup)\"
+					onclick=\"showLangModalKontoprint()\">" . findtekst(880, $sprog_id) . "</button>
+			</td>\n";
 			if ($kontoantal == 1) { # 2019-11-07
 				if ($fromdate)
 					$firstdate = $fromdate;
 				if ($todate)
-					$lastdate = $todate;
+					$lastdate = $todate; 
 				print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=" . dkdato($firstdate) . 	"&dato_til=" . dkdato($lastdate) . "&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Send som mail (Åbner i popup)\">
 					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></td>\n";
 			}
@@ -1395,6 +1468,36 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		}
 	}
 	print "</tbody></table>";
+
+print '
+<div id="langModalKontoprint" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3);">
+  <div style="background:#fff; padding:30px; border-radius:8px; width:300px; margin:10% auto; box-shadow:0 2px 10px #0003;">
+    <h3>Select Language</h3>
+    <select id="langSelectKontoprint" style="width:100%; padding:8px;">
+     <option value="danish">Dansk</option>
+     <option value="english">English</option>
+    </select>
+    <div style="margin-top:20px; text-align:right;">
+      <button type="button" onclick="closeLangModalKontoprint()">Cancel</button>
+      <button type="button" onclick="proceedKontoprint()">Print</button>
+    </div>
+  </div>
+</div>
+<script>
+function showLangModalKontoprint() {
+  document.getElementById("langModalKontoprint").style.display = "block";
+}
+function closeLangModalKontoprint() {
+  document.getElementById("langModalKontoprint").style.display = "none";
+}
+function proceedKontoprint() {
+  var lang = document.getElementById("langSelectKontoprint").value;
+  var url = "kontoprint.php?dato_fra=' . $dato_fra . '&dato_til=' . $dato_til . '&konto_fra=' . $konto_fra . '&konto_til=' . $konto_til . '&kontoart=' . $kontoart . '&lang=" + lang;
+  window.open(url, "kontoprint", "left=0,top=0,width=1000,height=700,scrollbars=yes,resizable=yes,menubar=no,location=no");
+  closeLangModalKontoprint();
+}
+</script>
+';
 
 	if ($menu == 'T') {
 		include_once '../includes/topmenu/footer.php';

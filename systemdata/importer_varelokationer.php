@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// ------ systemdata/importer_varelokationer.php ------------ lap 3.6.4 -- 2016-02-19 --
+// ------ systemdata/importer_varelokationer.php ------------ lap 5.0.0 -- 2016-04-16 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -26,6 +26,7 @@
 // Copyright (c) 2003-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260416 PHP8
 
 @session_start();
 $s_id=session_id();
@@ -36,18 +37,25 @@ $title="Import&eacute;r varelokationer";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
+$returside="diverse.php?sektion=div_io";
 
 print "<div align=\"center\">\n";
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
-print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
-if ($popup) print "<td width=\"10%\" $top_bund><a href=../includes/luk.php accesskey=L>Luk</a></td>\n"; 
-else print "<td width=\"10%\" $top_bund><a href=diverse.php?sektion=div_io accesskey=L>Luk</a></td>\n";
-print "<td width=\"80%\" $top_bund>$title</td>\n";
-print "<td width=\"10%\" $top_bund><br></td>\n";
-print "</tbody></table>\n";
-print "</td></tr>\n";
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
+print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
+
+print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
+
+       <td align='center' style='$topStyle'>".$title."<br></td>
+
+       <td width=\"170px\" style='$topStyle'><br></td></tr>
+       </tbody></table></td></tr>"; # <- tabel 1.1.1
+
+print "</tr></tbody></table></td></tr>";
 
 $submit=if_isset($_POST['submit']);
 
@@ -64,7 +72,7 @@ if($submit) {
 			overfoer_data($filnavn,$lager,$tegnset);
 		} else echo "Der er sket en fejl under hentningen, pr&oslash;v venligst igen";
 	}
-} else upload();
+} else upload('');
 
 print "</tbody></table>";
 print "</body></html>";

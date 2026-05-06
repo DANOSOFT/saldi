@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/insertAccount.php----patch 4.0.8 ----2024-06-26--
+// --- kreditor/ordreIncludes/insertAccount.php --- patch 5.0.0 --- 2026-02-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,16 +21,17 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20230509 PHR php8
 // 20230718 LOE Minor modification
 // 20231207 PHR lock table while finding next ordrenr.
 // 20240626 PHR Added 'fiscal_year' in queries
+// 20270226 PHR $art set to 'KO' if empty
 
 if (!function_exists('insertAccount')) {
 function insertAccount($id, $konto_id) {
-	global $addr1,$addr2,$afd,$art;
+	global $addr1,$addr2,$art;
 	global $betalingsbet,$betalingsdate,$brugernavn,$bynavn;
 	global $cvrnr;
 	global $gruppe;
@@ -39,19 +40,36 @@ function insertAccount($id, $konto_id) {
 	global $momssats;
 	global $postnr,$regnaar;
 	global $status,$sum;
-	global $valuta,$omlev;
+	global $valuta,$omlev,$afd;
 	$tidspkt=date("U");
 
 	if (!$konto_id) {
 		return 0;
 		exit;
 	}
-	if (!$afd)         $afd         = 0;
 	if (!$id)          $id          = 0;
 	if (!$kred_ord_id) $kred_ord_id = 0;
 	if (!$lager)       $lager       = 0;
 	if (!$status)      $status      = 0;
 	if (!$sum)         $sum         = 0;
+	if (!$art)         $art         = 'KO';
+
+	if (!$afd) {
+		$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && if_isset($r,NULL,'ansat_id')) {
+			$r = db_fetch_array(db_select("select afd from ansatte where id = " . (int)$r['ansat_id'],__FILE__ . " linje " . __LINE__));
+			if ($r && if_isset($r, NULL, 'afd')) $afd=$r['afd'];
+		}
+	}
+	$afd = (int)$afd;
+
+	// Set lager based on afd if lager is not already set
+	if (!$lager && $afd) {
+		$r_afd_lg = db_fetch_array(db_select("select box1 from grupper where kodenr='$afd' and art = 'AFD'",__FILE__ . " linje " . __LINE__));
+		if ($r_afd_lg && $r_afd_lg['box1']) {
+			$lager = (int)$r_afd_lg['box1'];
+		}
+	}
 
 	$qtxt = "select * from adresser where id = '$konto_id'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -91,13 +109,11 @@ function insertAccount($id, $konto_id) {
 			$momssats='0.00';
 		}
 	} elseif ($konto_id) print "<BODY onLoad=\"javascript:alert('Kreditor er ikke tilknyttet en kreditorgruppe')\">";
-	$momssats=(float)$momssats;
+	$momssats=(float)usdecimal($momssats);
 	if ((!$id)&&($firmanavn)) {
 		transaktion('begin');
 		$ordredate=date("Y-m-d");
-		$qtxt = "select max(ordrenr) as ordrenr from ordrer where art='KO' or art='KK'";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $ordrenr=$r['ordrenr']+1;
-		else $ordrenr=1;
+		$ordrenr = get_next_order_number('KO');
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,lev_addr1,";
 		$qtxt.= "lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,betalingsdage,betalingsbet,cvrnr,notes,art,ordredate,";

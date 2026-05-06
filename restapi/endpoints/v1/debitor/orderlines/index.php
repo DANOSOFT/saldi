@@ -56,62 +56,16 @@ class OrderLineEndpoint extends BaseEndpoint
 
     protected function handlePut($data)
     {
-        try {
-            if (!isset($data->id)) {
-                $this->sendResponse(false, null, 'Order line ID is required for update', 400);
-                return;
-            }
-
-            $orderLine = new OrderLineModel($data->id);
-            if (!$orderLine->getId()) {
-                $this->sendResponse(false, null, 'Order line not found', 404);
-                return;
-            }
-
-            // Update fields
-            if (isset($data->antal)) $orderLine->setAntal($data->antal);
-            if (isset($data->pris)) $orderLine->setPris($data->pris);
-            if (isset($data->rabat)) $orderLine->setRabat($data->rabat);
-            if (isset($data->beskrivelse)) $orderLine->setBeskrivelse($data->beskrivelse);
-
-            if ($orderLine->save()) {
-                $headers = array_change_key_case(getallheaders(), CASE_LOWER);
-                $db = $headers['x-db'] ?? 'unknown';
-                write_log("Order line updated: " . $data->id, $db, 'INFO');
-                $this->sendResponse(true, $orderLine->toArray(), 'Order line updated successfully');
-            } else {
-                $this->sendResponse(false, null, 'Failed to update order line', 500);
-            }
-        } catch (Exception $e) {
-            $this->handleError($e);
-        }
+        // There is no PUT method for order lines
+        $this->sendResponse(false, null, 'PUT method is not supported for order lines', 405);
+        return;
     }
 
     protected function handleDelete($data)
     {
-        try {
-            if (!isset($data->id)) {
-                $this->sendResponse(false, null, 'Order line ID is required for deletion', 400);
-                return;
-            }
-
-            $orderLine = new OrderLineModel($data->id);
-            if (!$orderLine->getId()) {
-                $this->sendResponse(false, null, 'Order line not found', 404);
-                return;
-            }
-
-            if ($orderLine->delete()) {
-                $headers = array_change_key_case(getallheaders(), CASE_LOWER);
-                $db = $headers['x-db'] ?? 'unknown';
-                write_log("Order line deleted: " . $data->id, $db, 'INFO');
-                $this->sendResponse(true, null, 'Order line deleted successfully');
-            } else {
-                $this->sendResponse(false, null, 'Failed to delete order line', 500);
-            }
-        } catch (Exception $e) {
-            $this->handleError($e);
-        }
+        // There is no DELETE method for order lines
+        $this->sendResponse(false, null, 'DELETE method is not supported for order lines', 405);
+        return;
     }
 }
 

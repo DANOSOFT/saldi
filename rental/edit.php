@@ -23,11 +23,11 @@
     $steps = array();
     $steps[] = array(
     "selector" => ".btn-success",
-    "content" => "Klik her for at tilføje nye stande."
+    "content" => findtekst('2667|Klik her for at tilføje nye stande', $sprog_id)."."
     );
     $steps[] = array(
     "selector" => ".btn-primary",
-    "content" => "Når du har ændret navn på en eller flere stand så klik her for at gemme."
+    "content" => findtekst('2668|Når du har ændret navnet på én eller flere stande, klik her for at gemme', $sprog_id)."."
     );
 
    ?>

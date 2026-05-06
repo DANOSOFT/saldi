@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------systemdata/logoupload.php-----patch 4.0.8 ----2023-07-22-------
-//                           LICENSE
+// --- systemdata/logoupload.php --- patch 4.1.1 --- 2026-03-20 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20131118 PK Har ændret upload af baggrund. Det er nu muligt at vælge forskellige baggrund til Tilbud, Ordrer og Faktura
@@ -32,11 +32,13 @@
 // 20190225 MSC - Rettet topmenu design og isset fejl
 // 20210803 LOE - Translated some texts here and included the required file
 // 20220615 PHR - Creates folder logolib if not exists
-
-@session_start();
+// 20260102 LOE - Added uploading to folders by department
+// 20260220 LOE Background terms now used instead of language terms for clarity, as this is more accurate for what the settings do. The term 'language(sprog)' is still used in the database and code for backwards compatibility, but the user interface now refers to 'backgrounds' instead of 'languages'.
+// 20260320 PHR cleanup (pdftk)
+session_start();
 $s_id=session_id();
 $css="../css/standard.css";
-$title="SALDI - logoindl&aelig;sning";
+$title="SALDI - Logo Upload";
 
 include("../includes/connect.php");
 include("../includes/settings.php");
@@ -47,9 +49,124 @@ include("../includes/topline_settings.php");
 
 if (!isset ($_POST['bilagfil'])) $_POST['bilagfil'] = null;
 
-global $db_id;
+global $db_id; 
 global $menu;
 global $sprog_id; 
+
+function bg_display_name($sprog_value) {
+	global $sprog_id;
+	if ($sprog_value === 'Dansk') {
+		return ($sprog_id == 1) ? 'Standard' : 'Default';
+	}
+	if ($sprog_value === 'All') {
+		return findtekst('2498|Alle', $sprog_id);
+	}
+	return $sprog_value;
+}
+
+// Get current user info
+global $bruger_id;
+
+$is_admin = 1;
+
+// Get user's assigned department from settings (for permission checking)
+$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
+$user_assigned_department = isset($afd) && $afd > 0 ? (int)$afd : 0;
+
+
+
+// Get departments for dropdown
+$departments = array();
+$q = db_select("SELECT kodenr, beskrivelse FROM grupper WHERE art='AFD' ORDER BY beskrivelse", __FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+    $departments[$r['kodenr']] = $r['beskrivelse'];
+}
+
+###########
+// Get all distinct backgrounds from formularer
+$backgrounds = array();
+$q_lang = db_select("SELECT DISTINCT sprog FROM formularer ORDER BY sprog", __FILE__ . " linje " . __LINE__);
+while ($r_lang = db_fetch_array($q_lang)) {
+    $backgrounds[] = $r_lang['sprog'];
+}
+// Ensure Dansk is always present
+if (!in_array('Dansk', $backgrounds)) {
+    array_unshift($backgrounds, 'Dansk');
+}
+$has_other_backgrounds = count($backgrounds) > 1; // true if more than just Dansk
+$has_departments = !empty($departments);
+#########
+
+$checksprog = isset($_GET['sprog']) ? $_GET['sprog'] : null;
+
+
+// Determine default background: "All" if multiple backgrounds exist, otherwise "Dansk"
+$default_sprog = ($has_other_backgrounds) ? 'All' : 'Dansk'; 
+$current_sprog = $default_sprog;
+if (isset($_GET['sprog'])) {
+    $current_sprog = $_GET['sprog'];
+    $_SESSION['current_sprog'] = $current_sprog;
+} elseif (isset($_SESSION['current_sprog'])) {
+    $current_sprog = $_SESSION['current_sprog'];
+} elseif (isset($_POST['sprog_valg'])) {
+    $current_sprog = $_POST['sprog_valg'];
+    $_SESSION['current_sprog'] = $current_sprog;
+}
+
+
+# Get selected department from GET, POST, or session ; THIS IS THE DEPARTMENT TO WORK WITH
+$selected_department = null;
+if (isset($_GET['department'])) {
+    $selected_department = (int)$_GET['department'];
+    $_SESSION['selected_department'] = $selected_department;
+} elseif (isset($_POST['department'])) {
+    $selected_department = (int)$_POST['department'];
+    $_SESSION['selected_department'] = $selected_department;
+} elseif (isset($_SESSION['selected_department'])) {
+    $selected_department = (int)$_SESSION['selected_department'];
+}
+
+// If no department selected yet, set default based on user type
+if ($selected_department === null) {
+    if ($is_admin) {
+        // Admin: default to All (0) if departments exist
+        $selected_department = ($has_departments) ? 0 : 0; // 0 = All
+    } else {
+        // Non-admin: default to their assigned department
+        $selected_department = $user_assigned_department;
+    }
+    $_SESSION['selected_department'] = $selected_department;
+}
+
+// Check if user has permission to access selected department
+$has_permission = false;
+if ($is_admin) {
+    // Admin can access all departments
+    $has_permission = true;
+} else {
+    // Non-admin can only access their own assigned department
+    $has_permission = ($selected_department == $user_assigned_department);
+}
+
+// If non-admin has no permission and has a department, redirect to it
+if (!$has_permission && $user_assigned_department > 0) {
+    $selected_department = $user_assigned_department;
+    $_SESSION['selected_department'] = $selected_department;
+    $has_permission = true;
+}
+
+// If still no permission (user with no department trying to access other department), show error
+if (!$has_permission) {
+    die("You do not have access to this department.");
+}
+
+// Validate that selected department exists in departments list (for both admin and non-admin)
+if ($selected_department > 0 && !isset($departments[$selected_department]) && !$is_admin) {
+    // For non-admin, if their assigned department doesn't exist in the list, show error
+    die("Your department does not exist in the system.");
+}
+
+
 print "<div align=\"center\">";
 if ($menu=='T') {
 #	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
@@ -58,7 +175,7 @@ if ($menu=='T') {
 	print "<div id=\"header\">\n";
 	print "<div class=\"headerbtnLft\"></div>\n";
 #	print "<span class=\"headerTxt\">Systemsetup</span>\n";     
-#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";       
+#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green medium right\">Ny debitor</a>--></div>";       
 	print "</div><!-- end of header -->";
 	print "<div id=\"leftmenuholder\">";
 	include_once 'left_menu.php';
@@ -71,9 +188,9 @@ if ($menu=='T') {
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 
 	print "<td width=\"10%\"><a href=\"formularkort.php\" accesskey=\"L\">";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>"; #20210803
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Back', $sprog_id)."</button></a></td>"; #20210803
 
-	print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('1745|Indlæs fil', $sprog_id)."</td>";
+	print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('1745|Load File', $sprog_id)."</td>";
 	print "<td width=\"10%\" align='center' style='$topStyle'><br></td>";
 
 	print "</tbody></table>";
@@ -82,27 +199,63 @@ if ($menu=='T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"formularkort.php\" accesskey=\"L\">".findtekst('30|Tilbage', $sprog_id)."</a></td>"; #20210803
-	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('1745|Indlæs fil', $sprog_id)."</td>";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"formularkort.php\" accesskey=\"L\">".findtekst('30|Back', $sprog_id)."</a></td>"; #20210803
+	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('1745|Load File', $sprog_id)."</td>";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";
 	}
 if (!file_exists("../logolib")) mkdir("../logolib",0777); 
-if (!file_exists("../logolib/$db_id")) mkdir("../logolib/$db_id",0777); 
+
+// Create database-specific directory if it doesn't exist
+$dest_dir = "../logolib/$db_id";
+if (!file_exists($dest_dir)) {
+    mkdir($dest_dir, 0777, true);
+}
 
 if (isset($_GET['slet_bilag'])) {
-	$slet_bilag=$_GET['slet_bilag'].".pdf";
-	unlink("../logolib/$db_id/$slet_bilag");
-	upload();
-	exit;
+    $slet_bilag=$_GET['slet_bilag'].".pdf"; 
+    
+    // For delete operation, use the selected department and current background
+    $delete_department = $selected_department;
+    
+    // Check permission before deleting
+    if (!$is_admin && $delete_department != $user_assigned_department) {
+        print "<BODY onLoad=\"javascript:alert('You do not have permission to delete files from this department')\">";
+        upload();
+        exit;
+    }
+  
+    
+   
+    $selected_sprog = $_GET['sprog'] ?? $current_sprog;
+  
+    
+    // Use db_id directory structure with optional department
+    $department_dir = ($delete_department > 0) ? "$db_id/$delete_department" : "$db_id";
+    $file_path = "../logolib/$department_dir/" . $slet_bilag;
+    
+   
+    if (file_exists($file_path)) {
+        unlink($file_path);
+    }
+    
+    upload();
+    exit;
 }
 	
 if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
-	
+    
+    // Check permission before uploading
+    $department = (int)$_POST['department'];
+    if (!$is_admin && $department != $user_assigned_department) {
+        print "<BODY onLoad=\"javascript:alert('You do not have permission to upload files to this department')\">";
+        upload();
+        exit;
+    }
 	
 	$fejl = $_FILES['uploadedfile']['error'];
-	$alert1 = findtekst('1746|Desværre - dit logo er alt for stort. Der acceptereres kun op til 100 kb', $sprog_id);
+	$alert1 = 'Unfortunately - your logo is too big. Only up to 100 kb is accepted';
 	if ($fejl) {
 		switch ($fejl) {
 			case 2: print "<BODY onLoad=\"javascript:alert('$alert1')\">";
@@ -112,221 +265,401 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 	}
 	if (!isset ($_POST['bilag_valg'])) $_POST['bilag_valg'] = null;
 	if (!isset ($_POST['bg_valg'])) $_POST['bg_valg'] = null;
+	if (!isset ($_POST['department'])) $_POST['department'] = 0;
+	
 	$bilag_valg = $_POST['bilag_valg'];
 	$bg_valg = $_POST['bg_valg'];
+	$department = (int)$_POST['department'];
+
+	
+	if (!isset ($_POST['sprog_valg'])) $_POST['sprog_valg'] = 'Dansk';
+	$sprog_valg = $_POST['sprog_valg'];
+	
 	$fil_stoerrelse = $_FILES['uploadedfile']['size'];
 	$filetype = $_FILES['uploadedfile']['type'];
 	$fileName= $_FILES['uploadedfile']['name'];
 	$fra = $_FILES["uploadedfile"]["tmp_name"];
 	$fil_stoerrelse = $_FILES["uploadedfile"]["size"];
-	($bg_valg)?$valg=$bg_valg:$valg=$bilag_valg;
-	//echo "valg: $valg"; exit;
-//echo "filtype $filetype<br>";
-//echo "filename $fileName<br>";
-//echo "bg_valg: $bg_valg";
-/*
-	if ((strpos($filetype, 'eps'))||(strpos($fileName, '.eps'))) {
-		$til = "../logolib/logo_$db_id.eps";
-		if($fil_stoerrelse > 500000) {
-			$tmp=ceil($fil_stoerrelse);
-			print "<BODY onLoad=\"javascript:alert('Desv&aelig;rre - dit logo er for stort. Der acceptereres kun op til 500 kb, og logoet fylder $tmp kb')\">";
-			upload();
-			exit;
-		} else $filetype="eps";
-	} elseif ((strpos($filetype, 'jpeg'))||(strpos($fileName, '.jpg'))||(strpos($fileName, 'jpeg'))) {
-		$til = "../logolib/logo_$db_id.jpg";
-		if($fil_stoerrelse > 100000) {
-			$tmp=ceil($fil_stoerrelse);
-			print "<BODY onLoad=\"javascript:alert('Desv&aelig;rre - dit logo er for stort. Der acceptereres kun op til 100 kb, og logoet fylder $tmp kb')\">";
-			upload();
-			exit;
-		} else $filetype="jpg";
-	} else*/if ((strpos($filetype,'pdf'))||(strpos($fileName,'.PDF'))||(strpos($fileName,'pdf'))) {
+	
+	// Build filename: No background prefix in filename since it's in the directory structure
+	
+	$valg = '';
+	if ($bg_valg) {
+		$valg = $bg_valg;
+	} else {
+		$valg = $bilag_valg;
+	}
+	
+	// Handle background: if "All", no prefix; otherwise add language prefix for non-Danish
+	if ($sprog_valg !== 'All') {
+        $lang_lower = strtolower($sprog_valg);
+        $is_default_lang = ($lang_lower == 'dansk' || $lang_lower == 'danish');
+        if (!$is_default_lang) {
+            $lang_prefix = $lang_lower . "_";
+            $valg = $lang_prefix . $valg;
+        }
+    }
+
+	if ((strpos($filetype,'pdf'))||(strpos($fileName,'.PDF'))||(strpos($fileName,'pdf'))) {
 		if($fil_stoerrelse > 10485760) {
 			$tmp=ceil($fil_stoerrelse);
 			system ("rm $filename");
 			$tmp/=1024;
-			$alert = findtekst('1747|Desværre - din PDF er for stor. Der acceptereres kun op til 10 MB, og den fylder', $sprog_id);
+			$alert = findtekst('1747|Unfortunately - your PDF is too big. Only up to 10 MB is accepted, and it takes up', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert $tmp MB')\">";
 			upload();
 			exit;
 		}
-		if (!file_exists("../logolib/$db_id")) system ("mkdir ../logolib/$db_id");
-		$til = "../logolib/$db_id/$valg.pdf";
+		
+		// Use db_id directory structure with optional department
+		$department_dir = ($department > 0) ? "$db_id/$department/" : "$db_id/";
+		$dest_dir = "../logolib/$department_dir";
+		
+		if (!file_exists($dest_dir)) {
+			mkdir($dest_dir, 0777, true);
+		}
+		$til = $dest_dir . $valg . ".pdf";
+	
+		
 	} else {
-		$alert1 = findtekst('1748|Filformatet skal være PDF', $sprog_id);
+		$alert1 = findtekst('1748|The file format must be PDF', $sprog_id);
 		print "<BODY onLoad=\"javascript:alert('$alert1')\">";
-		//echo "Filformatet er ikke genkendt<br>";
 		upload();
 		exit;
 	}
+	
 	if (move_uploaded_file($fra, $til)) {
-		if ($filetype=="jpg") {
-			$tmp=str_replace(".jpg","",$til);
-			$fra=$tmp.".jpg";
-			$til=$tmp.".eps";
-			if (file_exists($convert)) {
-				system ("$convert $fra $til");
-				$alert = findtekst('1749|Logoet er indlæst.', $sprog_id);
-				print "<BODY onLoad=\"javascript:alert('$alert')\">";
-				$alert1 = findtekst('1750|ImageMagic er ikke installeret - logo kan ikke indlæses', $sprog_id);
-			} else print "<BODY onLoad=\"javascript:alert('$alert1')\">";
-			unlink ($fra);
- 		} else {
-
- 		#			print "<!-- kommentar for at skjule uddata til siden \n";
-			$pdftk=system("which pdftk");
-#			print "-->\n";
-			if ($pdftk) {
-				$alert= findtekst('1751|Siden er indlæst.', $sprog_id);
-				print "<BODY onLoad=\"javascript:alert('$alert')\">";
-				upload();
-				exit;
-			} elseif (file_exists($pdf2ps)) {
-				$pdffil=$til;
-				$pdffil=str_replace("../logolib/$db_id/","",$pdffil);
-				$psfil=str_replace(".pdf",".ps",$pdffil);
-				system ("cd ../logolib/$db_id/\nrm $psfil\n$pdf2ps $pdffil");
-				$alert1= findtekst('1751|Siden er indlæst.', $sprog_id);
-				print "<BODY onLoad=\"javascript:alert('$alert1')\">";
-			}
-			else print "<BODY onLoad=\"javascript:alert('".findtekst('1752|Hverken PDFTK (anbefales) eller PDF2PS er installeret - logo kan ikke indlæses', $sprog_id)."')\">";
+#		$pdftk = shell_exec("which pdftk");
+		if ($pdftk) {
+			$alert= findtekst('1751|The page has been loaded.', $sprog_id);
+			print "<BODY onLoad=\"javascript:alert('$alert')\">";
+			upload();
+			exit;
+		} elseif (file_exists($pdf2ps)) {
+			$pdffil=$til;
+			$pdffil = str_replace($dest_dir,"",$pdffil);
+			$psfil=str_replace(".pdf",".ps",$pdffil);
+			system ("cd $dest_dir\nrm $psfil\n$pdf2ps $pdffil");
+			$alert1= findtekst('1751|The page has been loaded.', $sprog_id);
+			print "<BODY onLoad=\"javascript:alert('$alert1')\">";
 		}
-	} else { $txt1= findtekst('1753|Der er sket en fejl under indlæsningen. Prøv venligst igen', $sprog_id);
-		
+		else print "<BODY onLoad=\"javascript:alert('".findtekst('1752|Neither PDFTK (recommended) or PDF2PS is installed - logo cannot be loaded', $sprog_id)."')\">";
+	} else { 
+		$txt1= findtekst('1753|An error occurred during loading. Please try again', $sprog_id);
 		print "<BODY onLoad=\"javascript:alert('$txt1')\">";
 		echo "$txt1";
 		upload();
 	}
 } else upload();
 print "</tbody></table>";
-################################################################################################################
-function upload(){
-	global $font;
-	global $db_id;
-	global $sprog_id; #20210803
 
-	if(file_exists("../logolib/$db_id/bg.pdf")) {
-		$bg="<a href=\"view_logoupload.php?vis=bg\">".findtekst('1754|vis baggrund', $sprog_id)."</a>";
-		$txt1= findtekst('1755|Vil du slette denne baggrund alle formularer?', $sprog_id);
-		$slet_bg="<a href=\"logoupload.php?slet_bilag=bg\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
-		$slet_bg=NULL;
-	}
-	if(file_exists("../logolib/$db_id/tilbud_bg.pdf")) {
-		$tilbud_bg="<a href=\"view_logoupload.php?vis=tilbud_bg\">".findtekst('1756|vis baggrund til tilbud', $sprog_id)."</a>";
-		$txt= findtekst('1757|Vil du slette denne baggrund til tilbud?', $sprog_id);
-		$slet_tilbud_bg="<a href=\"logoupload.php?slet_bilag=tilbud_bg\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$tilbud_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
-		$slet_tilbud_bg=NULL;
-	}
-	if(file_exists("../logolib/$db_id/ordrer_bg.pdf")) {
-		$ordrer_bg="<a href=\"view_logoupload.php?vis=ordrer_bg\">".findtekst('1759|vis baggrund til ordrer', $sprog_id)."</a>";
-		$txt1=findtekst('1760|Vil du slette denne baggrund til ordrer?', $sprog_id);
-		$slet_ordrer_bg="<a href=\"logoupload.php?slet_bilag=ordrer_bg\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$ordrer_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
-		$slet_ordrer_bg=NULL;
-	}
-	if(file_exists("../logolib/$db_id/faktura_bg.pdf")) {
-		$txt= findtekst('1762|Vil du slette denne baggrund til faktura?', $sprog_id);
-		$faktura_bg="<a href=\"view_logoupload.php?vis=faktura_bg\">".findtekst('1761|vis baggrund til faktura', $sprog_id)."</a>";
-		$slet_faktura_bg="<a href=\"logoupload.php?slet_bilag=faktura_bg\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$faktura_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
-		$slet_faktura_bg=NULL;
-	}
-	if(file_exists("../logolib/$db_id/tilbud_bilag.pdf")) {
-		$txt1 = findtekst('1764|Vil du slette dette bilag til tilbud?', $sprog_id);
-		$tilbud_bilag="<a href=\"view_logoupload.php?vis=tilbud_bilag\">".findtekst('1763|vis bilag til tilbud', $sprog_id)."</a>";
-		$slet_tilbud_bilag="<a href=\"logoupload.php?slet_bilag=tilbud_bilag\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$tilbud_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
-		$slet_tilbud_bilag=NULL;
-	}
-	if(file_exists("../logolib/$db_id/ordrer_bilag.pdf")) {
-		$txt = findtekst('1766|Vil du slette dette bilag til ordrer?', $sprog_id);
-		$ordrer_bilag="<a href=\"view_logoupload.php?vis=ordrer_bilag\">".findtekst('1765|vis bilag til ordrer', $sprog_id)."</a>";
-		$slet_ordrer_bilag="<a href=\"logoupload.php?slet_bilag=ordrer_bilag\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$ordrer_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
-		$slet_ordrer_bilag=NULL;
-	}
-	if(file_exists("../logolib/$db_id/faktura_bilag.pdf")) {
-		$txt1 = findtekst('1769|Vil du slette dette bilag til faktura?', $sprog_id);
-		$faktura_bilag="<a href=\"view_logoupload.php?vis=faktura_bilag\">".findtekst('1768|vis bilag til faktura', $sprog_id)."</a>";
-		$slet_faktura_bilag="<a href=\"logoupload.php?slet_bilag=faktura_bilag\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>"; #20210803
-	} else {
-		$faktura_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
-		$slet_faktura_bilag=NULL;
-	}
-	print "<tr><td width=\"100%\" align=\"center\">";
-	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">";
-	print "<colgroup>
-						<col width=\"15%\">
-						<col width=\"20%\">
-						<col width=\"30%\">
-						<col width=\"5%\">
-						<col width=\"12%\">
-						<col width=\"3%\">
-						<col width=\"15%\">
-				</colgroup>";
-	print "<tbody>";
-	//print "<tr><td>&nbsp;</td><td colspan=\"5\" align=center>$font Du har mulighed for at oploade en logo i form af en jpg eller eps fil. </td><td>&nbsp;</td></tr>";
-	//print "<tr><td>&nbsp;</td><td colspan=\"5\" align=center>$font Eller du kan lave en hel side i PDF format og bruge den som baggrund for tilbud, ordrer og fakturaer</td><td>&nbsp;</td></tr>";
-	//print "<tr><td>&nbsp;</td><td colspan=\"5\"align=center>$font Brug f.eks <a href=\"http://da.libreoffice.org\" target=\"blank\">Libre Office</a> som kan gemme direkte til PDF</td><td>&nbsp;</td></tr>";
-	//print "<tr><td>&nbsp;</td><td colspan=\"5\"align=center>$font Max str. er 100 kb for jpg og 500 kb for eps &amp; PDF<br><br><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
-	print "<tr><td colspan=\"2\">&nbsp;</td><td align=\"justify\">$font ".findtekst('1770|Du har mulighed for at oploade en hel side i PDF format som baggrund for alle formularer eller specifikt for tilbud, ordrer og fakturaer.', $sprog_id)."<br>";
-	print "<br>".findtekst('1771|Det er også muligt at oploade et bilag i PDF format, som vedhæftet fil i mail for tilbud, ordrer og fakturaer.', $sprog_id)."<br>";
-	print "<br>".findtekst('1772|Brug f.eks', $sprog_id)." <a href=\"http://da.libreoffice.org\" target=\"blank\">Libre Office</a> ".findtekst('1773|som kan gemme direkte til PDF.', $sprog_id);
-	print "<br>".findtekst('1774|Størrelsen på PDF må max være 10mb.', $sprog_id)."<br><br></td><td colspan=\"4\">&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\">$font<hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
-	print "</tbody>";
-	
-	print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
-	print "<tbody>";
-	print "<tr><td>&nbsp;";
-	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
-	print "<input type=\"hidden\" name=\"filtype\" value='PDF'></td>";
-	print "<td align=left>$font ".findtekst('1775|Vælg PDF fil til baggrund for:', $sprog_id)."</td>";
-	print "<td><select name=\"bg_valg\">
-					<option value=\"bg\">".findtekst('1776|Alle formularer', $sprog_id)."</option>
-					<option value=\"tilbud_bg\">".findtekst('812|Tilbud', $sprog_id)."</option>
-					<option value=\"ordrer_bg\">".findtekst('107|Ordrer', $sprog_id)."</option>
-					<option value=\"faktura_bg\">".findtekst('1777|Fakturaer', $sprog_id)."</option>
-				</select>";
-	print "<input name=\"uploadedfile\" type=\"file\" /><br /></td><td>$font ".findtekst('1776|Alle formularer', $sprog_id)."</td><td>$font $bg&nbsp;</td><td>$font $slet_bg&nbsp;</td><td>&nbsp;</td></td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('812|Tilbud', $sprog_id)."</td><td>$font $tilbud_bg&nbsp;</td><td>$font $slet_tilbud_bg&nbsp;</td><td>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Ordrer', $sprog_id)."</td><td>$font $ordrer_bg&nbsp;</td><td>$font $slet_ordrer_bg&nbsp;</td><td>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=center><input class='button green medium' type=\"submit\" name=\"bgfil\" value=\"".findtekst('1360|Indlæs', $sprog_id)."\"></td><td>$font ".findtekst('1777|Fakturaer', $sprog_id)."</td><td>$font $faktura_bg&nbsp;</td><td>$font $slet_faktura_bg&nbsp;</td><td>&nbsp;</td></tr>";
-	//print "<tr><td width=20%>&nbsp;</td><td>&nbsp;</td><td width=20%>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
-	print "</tbody>";
-	print "</form>";
-	
-	print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
-	print "<tbody>";
-	print "<tr><td>&nbsp;";
-	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
-	print "<input type=\"hidden\" name=\"filtype\" value='logo'></td>";
-	print "<td align=left>$font ".findtekst('1778|Vælg PDF som bilag i mail til:', $sprog_id)."</td>";
-	print "<td><select name=\"bilag_valg\">
-					<option value=\"tilbud_bilag\">".findtekst('812|Tilbud', $sprog_id)."</option>
-					<option value=\"ordrer_bilag\">".findtekst('107|Ordrer', $sprog_id)."</option>
-					<option value=\"faktura_bilag\">".findtekst('1777|Fakturaer', $sprog_id)."</option>
-				</select>";
-	print "<input name=\"uploadedfile\" type=\"file\" /><br /></td><td>$font ".findtekst('812|Tilbud', $sprog_id)."</td><td>$font $tilbud_bilag&nbsp;</td><td>$font $slet_tilbud_bilag&nbsp;</td><td>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Ordrer', $sprog_id)."</td><td>$font $ordrer_bilag&nbsp;</td><td>$font $slet_ordrer_bilag&nbsp;</td><td>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=\"center\"><input class='button green medium' type=\"submit\" name=\"bilagfil\" value=\"".findtekst('1360|Indlæs', $sprog_id)."\"></td><td width=5%>$font ".findtekst('1777|Fakturaer', $sprog_id).":</td><td>$font $faktura_bilag&nbsp;</td><td>$font $slet_faktura_bilag&nbsp;</td><td>&nbsp;</td></tr>";
-	//print "<tr><td width=20%>&nbsp;</td><td>&nbsp;</td><td width=20%>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
-	print "</tbody>";
-	print "</form>";
-	
-	print "</table>";
-	print "</td></tr>";
+
+
+function upload(){
+    global $font;
+    global $db_id;
+    global $sprog_id;
+    global $current_sprog;
+    global $departments;
+    global $selected_department;
+    global $bruger_id;
+    global $user_assigned_department;
+    global $is_admin;
+    global $has_other_backgrounds, $has_departments, $backgrounds;
+    // Function to check for files in department directory : Use db_id directory structure
+    function check_file_exists($background, $file_type, $department) {
+        global $db_id;
+        
+        // Define paths
+        $base_dir = "../logolib/$db_id/";
+        $dept_dir = ($department > 0) ? "../logolib/$db_id/$department/" : $base_dir;
+        
+        // Check department-specific, background-specific
+        if ($background !== 'Dansk' && $background !== 'Danish') {
+            $lang_prefix = strtolower($background) . "_";
+            $file_path = $dept_dir . $lang_prefix . $file_type . ".pdf";
+            if (file_exists($file_path)) {
+                return array('file' => $file_path, 'name' => $lang_prefix . $file_type, 'department' => $department, 'background' => $background);
+            }
+        } else {
+            // For Dansk, no prefix
+            $file_path = $dept_dir . $file_type . ".pdf";
+            if (file_exists($file_path)) {
+                return array('file' => $file_path, 'name' => $file_type, 'department' => $department, 'background' => 'Dansk');
+            }
+        }
+
+        //  Check department-specific, background "All" (no prefix)
+        $file_path_all = $dept_dir . $file_type . ".pdf";
+        if (file_exists($file_path_all)) {
+            return array('file' => $file_path_all, 'name' => $file_type, 'department' => $department, 'background' => 'All');
+        }
+
+        // Check base (department 0), background-specific
+        if ($background !== 'Dansk' && $background !== 'Danish') {
+            $lang_prefix = strtolower($background) . "_";
+            $file_path_base = $base_dir . $lang_prefix . $file_type . ".pdf";
+            if (file_exists($file_path_base)) {
+                return array('file' => $file_path_base, 'name' => $lang_prefix . $file_type, 'department' => 0, 'background' => $background);
+            }
+        } else {
+            $file_path_base = $base_dir . $file_type . ".pdf";
+            if (file_exists($file_path_base)) {
+                return array('file' => $file_path_base, 'name' => $file_type, 'department' => 0, 'background' => 'Dansk');
+            }
+        }
+        
+        // Check base, background "All"
+        $file_path_base_all = $base_dir . $file_type . ".pdf";
+        if (file_exists($file_path_base_all)) {
+            return array('file' => $file_path_base_all, 'name' => $file_type, 'department' => 0, 'background' => 'All');
+        }
+        
+        return false;
+    }
+    
+    // Check for files in the current background and selected department
+    $bg_check = check_file_exists($current_sprog, 'bg', $selected_department);
+    if ($bg_check) {
+        $dept_display = ($bg_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $bg_check['department'];
+        $lang_display = bg_display_name($bg_check['background']);
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
+        $bg="<a href=\"view_logoupload.php?vis={$bg_check['name']}&sprog=$current_sprog&department={$bg_check['department']}\">".findtekst('1754|show background', $sprog_id)."$dept_info</a>";
+        $txt1= findtekst('1755|Do you want to delete this background for all forms?', $sprog_id);
+        $slet_bg="<a href=\"logoupload.php?slet_bilag={$bg_check['name']}&sprog={$bg_check['background']}&department={$bg_check['department']}\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+    } else {
+        $bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
+        $slet_bg=NULL;
+    }
+    
+    $tilbud_bg_check = check_file_exists($current_sprog, 'tilbud_bg', $selected_department);
+    if ($tilbud_bg_check) {
+        $dept_display = ($tilbud_bg_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $tilbud_bg_check['department'];
+        $lang_display = bg_display_name($tilbud_bg_check['background']);
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
+        $tilbud_bg="<a href=\"view_logoupload.php?vis={$tilbud_bg_check['name']}&sprog=$current_sprog&department={$tilbud_bg_check['department']}\">".findtekst('1756|show background for quotes', $sprog_id)."$dept_info</a>";
+        $txt= findtekst('1757|Do you want to delete this background for quotes?', $sprog_id);
+        $slet_tilbud_bg="<a href=\"logoupload.php?slet_bilag={$tilbud_bg_check['name']}&sprog={$tilbud_bg_check['background']}&department={$tilbud_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+    } else {
+        $tilbud_bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
+        $slet_tilbud_bg=NULL;
+    }
+    
+    $ordrer_bg_check = check_file_exists($current_sprog, 'ordrer_bg', $selected_department);
+    if ($ordrer_bg_check) {
+        $dept_display = ($ordrer_bg_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $ordrer_bg_check['department'];
+        $lang_display = bg_display_name($ordrer_bg_check['background']);
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
+        $ordrer_bg="<a href=\"view_logoupload.php?vis={$ordrer_bg_check['name']}&sprog=$current_sprog&department={$ordrer_bg_check['department']}\">".findtekst('1759|show background for orders', $sprog_id)."$dept_info</a>";
+        $txt= findtekst('1760|Do you want to delete this background for orders?', $sprog_id);
+        $slet_ordrer_bg="<a href=\"logoupload.php?slet_bilag={$ordrer_bg_check['name']}&sprog={$ordrer_bg_check['background']}&department={$ordrer_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+    } else {
+        $ordrer_bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
+        $slet_ordrer_bg=NULL;
+    }
+    
+    $faktura_bg_check = check_file_exists($current_sprog, 'faktura_bg', $selected_department);
+    if ($faktura_bg_check) {
+        $dept_display = ($faktura_bg_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $faktura_bg_check['department'];
+        $lang_display = bg_display_name($faktura_bg_check['background']);
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
+        $faktura_bg="<a href=\"view_logoupload.php?vis={$faktura_bg_check['name']}&sprog=$current_sprog&department={$faktura_bg_check['department']}\">".findtekst('1761|show background for invoices', $sprog_id)."$dept_info</a>";
+        $txt= findtekst('1762|Do you want to delete this background for invoices?', $sprog_id);
+        $slet_faktura_bg="<a href=\"logoupload.php?slet_bilag={$faktura_bg_check['name']}&sprog={$faktura_bg_check['background']}&department={$faktura_bg_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+    } else {
+        $faktura_bg="<i>".findtekst('1758|No background', $sprog_id)."</i>";
+        $slet_faktura_bg=NULL; 
+    }
+    
+    // Check for bilag files
+    $tilbud_bilag_check = check_file_exists($current_sprog, 'tilbud_bilag', $selected_department);
+    if ($tilbud_bilag_check) {
+        $dept_display = ($tilbud_bilag_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $tilbud_bilag_check['department'];
+        $lang_display = bg_display_name($tilbud_bilag_check['background']);
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
+        $tilbud_bilag="<a href=\"view_logoupload.php?vis={$tilbud_bilag_check['name']}&sprog=$current_sprog&department={$tilbud_bilag_check['department']}\">".findtekst('1763|show attachment for quotes', $sprog_id)."$dept_info</a>";
+        $txt= findtekst('1764|Do you want to delete this attachment for quotes?', $sprog_id);
+        $slet_tilbud_bilag="<a href=\"logoupload.php?slet_bilag={$tilbud_bilag_check['name']}&sprog={$tilbud_bilag_check['background']}&department={$tilbud_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+    } else {
+        $tilbud_bilag="<i>".findtekst('1765|No attachment', $sprog_id)."</i>";
+        $slet_tilbud_bilag=NULL;
+    }
+    
+    $ordrer_bilag_check = check_file_exists($current_sprog, 'ordrer_bilag', $selected_department);
+    if ($ordrer_bilag_check) {
+        $dept_display = ($ordrer_bilag_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $ordrer_bilag_check['department'];
+        $lang_display = bg_display_name($ordrer_bilag_check['background']);
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
+        $ordrer_bilag="<a href=\"view_logoupload.php?vis={$ordrer_bilag_check['name']}&sprog=$current_sprog&department={$ordrer_bilag_check['department']}\">".findtekst('1766|show attachment for orders', $sprog_id)."$dept_info</a>";
+        $txt= findtekst('1767|Do you want to delete this attachment for orders?', $sprog_id);
+        $slet_ordrer_bilag="<a href=\"logoupload.php?slet_bilag={$ordrer_bilag_check['name']}&sprog={$ordrer_bilag_check['background']}&department={$ordrer_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+    } else {
+        $ordrer_bilag="<i>".findtekst('1765|No attachment', $sprog_id)."</i>";
+        $slet_ordrer_bilag=NULL;
+    }
+    
+    $faktura_bilag_check = check_file_exists($current_sprog, 'faktura_bilag', $selected_department);
+    if ($faktura_bilag_check) {
+        $dept_display = ($faktura_bilag_check['department'] == 0) ? findtekst('2498|Alle', $sprog_id) : $faktura_bilag_check['department'];
+        $lang_display = bg_display_name($faktura_bilag_check['background']);
+        $dept_info = " (".findtekst('2464|Afd.', $sprog_id)." $dept_display, ".findtekst('571|Baggrund', $sprog_id).": $lang_display)";
+        $faktura_bilag="<a href=\"view_logoupload.php?vis={$faktura_bilag_check['name']}&sprog=$current_sprog&department={$faktura_bilag_check['department']}\">".findtekst('1768|show attachment for invoices', $sprog_id)."$dept_info</a>";
+        $txt= findtekst('1769|Do you want to delete this attachment for invoices?', $sprog_id);
+        $slet_faktura_bilag="<a href=\"logoupload.php?slet_bilag={$faktura_bilag_check['name']}&sprog={$faktura_bilag_check['background']}&department={$faktura_bilag_check['department']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Delete', $sprog_id)."</a>";
+    } else {
+        $faktura_bilag="<i>".findtekst('1765|No attachment', $sprog_id)."</i>";
+        $slet_faktura_bilag=NULL;
+    }
+    
+    print "<tr><td width=\"100%\" align=\"center\">";
+    print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">";
+    print "<colgroup>
+                        <col width=\"15%\">
+                        <col width=\"20%\">
+                        <col width=\"30%\">
+                        <col width=\"5%\">
+                        <col width=\"12%\">
+                        <col width=\"3%\">
+                        <col width=\"15%\">
+                </colgroup>";
+    print "<tbody>";
+
+    print "<tr><td colspan=\"7\" align=\"center\">";
+   print "<form method=\"GET\" action=\"logoupload.php\" id=\"filterForm\">";
+
+    
+    // Background dropdown - only show if there are other backgrounds besides Dansk
+    if ($has_other_backgrounds) {
+        $txt1 = findtekst('586|Vælg', $sprog_id)." ".lcfirst(findtekst('571|Baggrund', $sprog_id)); #Vælg baggrund
+        $txt2 = findtekst('2498|Alle', $sprog_id);
+        print "<strong>$txt1: </strong>";
+        print "<select name=\"sprog\" onchange=\"this.form.submit()\">";
+        // Add "All" option
+        $selected_all = ($current_sprog == 'All') ? ' selected' : '';
+        print "<option value=\"All\"$selected_all>$txt2</option>";
+        foreach ($backgrounds as $lang) {
+            $selected = ($current_sprog == $lang) ? ' selected' : '';
+            print "<option value=\"$lang\"$selected>" . bg_display_name($lang) . "</option>";
+        }
+        print "</select>";
+    } else {
+        // Only Dansk exists - use hidden input
+        print "<input type=\"hidden\" name=\"sprog\" value=\"Dansk\">";
+    }
+
+    // Department dropdown - only show if there are any departments
+    if ($has_departments) {
+        $txt1 = findtekst('586|Vælg', $sprog_id)." ".lcfirst(findtekst('658|Afdeling', $sprog_id)); #Vælg afdeling
+        $txt2 = findtekst('2498|Alle', $sprog_id);
+        print "&nbsp;&nbsp;<strong>$txt1: </strong>";
+        print "<select name=\"department\" onchange=\"this.form.submit()\">";
+        // Add "All" option with value 0
+        $selected_all_dept = ($selected_department == 0) ? ' selected' : '';
+        print "<option value=\"0\"$selected_all_dept>$txt2</option>";
+        foreach ($departments as $dept_id => $dept_name) {
+            $selected = ($selected_department == $dept_id) ? ' selected' : '';
+            // Permission logic remains
+            if ($is_admin) {
+                print "<option value=\"$dept_id\"$selected>$dept_id - $dept_name</option>";
+            } else {
+                print "<option value=\"$dept_id\" disabled>$dept_id - $dept_name</option>";
+            }
+        }
+        print "</select>";
+    } else {
+        // No departments - use hidden input with 0 (base)
+        print "<input type=\"hidden\" name=\"department\" value=\"0\">";
+    }
+
+    // Show permission info (same as before)
+    if (!$is_admin) {
+        print "<br><small><i>Du har kun adgang til din egen afdeling (Afd. $user_assigned_department)</i></small>";
+#       print "<br><small><i>You only have access to your own department (Dept. $user_assigned_department)</i></small>";
+    } else {
+        //don't show if departments doesn't exist, since it would be confusing to show "You have access to all departments" when there are no departments
+        if ($has_departments) {
+            print "<br><small><i>Admin: Du har adgang til alle afdelinger</i></small>";
+#           print "<br><small><i>Admin: You have access to all departments</i></small>";
+        }
+    }
+
+    print "</form>";
+    
+    $dept_info = isset($departments[$selected_department])
+        ? " (".findtekst('2464|Afd.', $sprog_id)." $selected_department: " . $departments[$selected_department] . ")"
+        : "";
+    
+    $txt = findtekst('3259|Viser filer for', $sprog_id);
+    print "<br><strong>$txt: " . bg_display_name($current_sprog) . "$dept_info</strong><br><br></td></tr>";
+    
+    print "<tr><td colspan=\"2\">&nbsp;</td><td align=\"justify\">$font ".findtekst('1770|You have the option to upload a full page in PDF format as background for all forms or specifically for quotes, orders and invoices.', $sprog_id)."<br>";
+    print "<br>".findtekst('1771|It is also possible to upload an attachment in PDF format, as an attached file in email for quotes, orders and invoices.', $sprog_id)."<br>";
+    print "<br>".findtekst('1772|Use e.g.', $sprog_id)." <a href=\"http://da.libreoffice.org\" target=\"blank\">Libre Office</a> ".findtekst('1773|which can save directly to PDF.', $sprog_id);
+    print "<br>".findtekst('1774|The size of the PDF must be max 10mb.', $sprog_id)."<br><br></td><td colspan=\"4\">&nbsp;</td></tr>";
+    print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\">$font<hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+    print "</tbody>";
+    
+    // Check if user can upload to selected department
+    $can_upload = ($is_admin || $selected_department == $user_assigned_department);
+    
+    if ($can_upload) {
+        print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
+        print "<tbody>";
+        print "<tr><td>&nbsp;";
+        print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
+        print "<input type=\"hidden\" name=\"filtype\" value='PDF'>";
+        // Pass the current filter values
+        print "<input type=\"hidden\" name=\"sprog_valg\" value=\"$current_sprog\">";
+        print "<input type=\"hidden\" name=\"department\" value=\"$selected_department\">";
+        print "<td align=left>$font ".findtekst('1775|Select PDF file for background for:', $sprog_id)."</td>";
+        
+        print "<td><select name=\"bg_valg\">
+                    <option value=\"bg\">".findtekst('1776|All forms', $sprog_id)."</option>
+                    <option value=\"tilbud_bg\">".findtekst('812|Quotes', $sprog_id)."</option>
+                    <option value=\"ordrer_bg\">".findtekst('107|Orders', $sprog_id)."</option>
+                    <option value=\"faktura_bg\">".findtekst('1777|Invoices', $sprog_id)."</option>
+                </select>";
+        print "<input name=\"uploadedfile\" type=\"file\" /><br /></td>";
+        print "<td>$font ".findtekst('1776|All forms', $sprog_id)."</td><td>$font $bg&nbsp;</td><td>$font $slet_bg&nbsp;</td><td>&nbsp;</td></tr>";
+        print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('812|Quotes', $sprog_id)."</td><td>$font $tilbud_bg&nbsp;</td><td>$font $slet_tilbud_bg&nbsp;</td><td>&nbsp;</td></tr>";
+        print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Orders', $sprog_id)."</td><td>$font $ordrer_bg&nbsp;</td><td>$font $slet_ordrer_bg&nbsp;</td><td>&nbsp;</td></tr>";
+        print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=center><input class='button green medium' type=\"submit\" name=\"bgfil\" value=\"".findtekst('1360|Load', $sprog_id)."\"></td><td>$font ".findtekst('1777|Invoices', $sprog_id)."</td><td>$font $faktura_bg&nbsp;</td><td>$font $slet_faktura_bg&nbsp;</td><td>&nbsp;</td></tr>";
+        print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+        print "</tbody>";
+        print "</form>";
+        
+        print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
+        print "<tbody>";
+        print "<tr><td>&nbsp;";
+        print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
+        print "<input type=\"hidden\" name=\"filtype\" value='logo'>";
+        // Pass the current filter values
+        print "<input type=\"hidden\" name=\"sprog_valg\" value=\"$current_sprog\">";
+        print "<input type=\"hidden\" name=\"department\" value=\"$selected_department\">";
+        print "<td align=left>$font ".findtekst('1778|Select PDF as attachment in email to:', $sprog_id)."</td>";
+        
+        print "<td><select name=\"bilag_valg\">
+                    <option value=\"tilbud_bilag\">".findtekst('812|Quotes', $sprog_id)."</option>
+                    <option value=\"ordrer_bilag\">".findtekst('107|Orders', $sprog_id)."</option>
+                    <option value=\"faktura_bilag\">".findtekst('1777|Invoices', $sprog_id)."</option>
+                </select>";
+        print "<input name=\"uploadedfile\" type=\"file\" /><br /></td>";
+        print "<td>$font ".findtekst('812|Quotes', $sprog_id)."</td><td>$font $tilbud_bilag&nbsp;</td><td>$font $slet_tilbud_bilag&nbsp;</td><td>&nbsp;</td></tr>";
+        print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Orders', $sprog_id)."</td><td>$font $ordrer_bilag&nbsp;</td><td>$font $slet_ordrer_bilag&nbsp;</td><td>&nbsp;</td></tr>";
+        print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=\"center\"><input class='button green medium' type=\"submit\" name=\"bilagfil\" value=\"".findtekst('1360|Load', $sprog_id)."\"></td><td width=5%>$font ".findtekst('1777|Invoices', $sprog_id).":</td><td>$font $faktura_bilag&nbsp;</td><td>$font $slet_faktura_bilag&nbsp;</td><td>&nbsp;</td></tr>";
+        print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+        print "</tbody>";
+        print "</form>";
+    } else {
+        // User doesn't have permission to upload
+        print "<tr><td colspan=\"7\" align=\"center\"><br>";
+        print "<div style=\"color: red; font-weight: bold;\">";
+        print 'You do not have permission to upload or delete files in this department';
+        print "</div><br></td></tr>";
+    }
+    
+    print "</table>";
+    print "</td></tr>";
 }
 
 

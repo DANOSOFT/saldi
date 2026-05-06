@@ -1,0 +1,13 @@
+Url Parameters: []
+Fetching inventory status for ID: 29
+Fetching inventory status for ID: 29
+Fetching inventory status for ID: 29
+Fetching inventory status for ID: 29
+Fetching inventory status for ID: 30
+Fetching inventory status for ID: 30
+Fetching inventory status for ID: 29
+Url Parameters: {"lager_nr":"0"}
+Url Parameters: {"lager_nr":"0"}
+Url Parameters: {"lager_nr":"0"}
+Url Parameters: {"lager_nr":"0"}
+Query SELECT id FROM lagerstatus WHERE lager = '0'

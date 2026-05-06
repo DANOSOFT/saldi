@@ -1,4 +1,6 @@
 <?php
+// 20251028 PK - added two hours(7200) to start date due to daylight saving time
+
 function loenafregning() {#Summeret lønafregning
 
 	global $ansat_id;
@@ -60,7 +62,7 @@ function loenafregning() {#Summeret lønafregning
 
 	$x = 0;
 	$r = db_fetch_array(db_select("select box4 from grupper where art='loen'",__FILE__ . " linje " . __LINE__));
-	$p_start[$x] = strtotime($r['box4']);
+	$p_start[$x] = strtotime($r['box4'])+7200; #20251028
 	while ($p_start[$x] <= date("U")+1209600) {
 		$x++;
 		$p_start[$x] = $p_start[$x-1]+1209600;
@@ -174,12 +176,12 @@ function loenafregning() {#Summeret lønafregning
 				//print "<form name=\"loenafregning\" action=\"loen.php?funktion=loenafregning&amp;periode=$periode&amp;alle_ansatte_id=$alle_ansatte_id&amp;visalle=$visalle\" method=\"post\">\n";
 					print "<div style=\"float:left; width:828px;#background-color:lightgreen;\">\n";
 					//print "<div id=\"printableArea\">\n";
-						$tmp = "<h2 class=\"printHeadline\">Lønopgørelse</h2>\n";
-						if ($afregnet) $tmp.="<p class=\"printHeadline\">afregnet d. ".date("d-m-Y",$afregnet)." af $afregnet_af</p>\n";
+						$tmp = "<h2 class=\"printHeadline\">".findtekst('2979|Lønopgørelse', $sprog_id)."</h2>\n";
+						if ($afregnet) $tmp.="<p class=\"printHeadline\">".findtekst('2986|Afregnet d.', $sprog_id)." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('638|Af', $sprog_id))." $afregnet_af</p>\n";
 						print "$tmp\n";
 								print "<table width=\"100%\" border=\"0\" class=\"loenafregning\"><tbody>\n";
-								print "<tr><td colspan=\"14\"><b>Periode&nbsp;&nbsp;</b>".date("d-m-Y",$periode)."&nbsp;&ndash;&nbsp;".date("d-m-Y",$periode+1209600-86400)."</td></tr>\n";
-								/*print "<tr><td colspan=\"14\"><b>Periode&nbsp;&nbsp;</b><SELECT NAME=\"periode\" class=\"printSelect\" onchange=\"this.form.submit()\" >\n";
+								print "<tr><td colspan=\"14\"><b>".findtekst('899|Periode', $sprog_id)."&nbsp;&nbsp;</b>".date("d-m-Y",$periode)."&nbsp;&ndash;&nbsp;".date("d-m-Y",$periode+1209600-86400)."</td></tr>\n";
+								/*print "<tr><td colspan=\"14\"><b>".findtekst('899|Periode', $sprog_id)."&nbsp;&nbsp;</b><SELECT NAME=\"periode\" class=\"printSelect\" onchange=\"this.form.submit()\" >\n";
 								for ($x = count($p_start)-3;$x>=0;$x--){
 									if ($periode==$p_start[$x]) print "<OPTION value=\"$p_start[$x]\">".date("d-m-Y",$p_start[$x])."&nbsp;&ndash;&nbsp;".date("d-m-Y",$p_start[$x+1]-86400)."</option>\n";
 								}
@@ -188,9 +190,9 @@ function loenafregning() {#Summeret lønafregning
 								}
 								print "</SELECT></td></tr>\n";*/
 								if ($vis=="belob") {
-									print "<tr><td  colspan=\"14\"><b>Lønafregning beløb</b></td></tr>\n";
+									print "<tr><td  colspan=\"14\"><b>".findtekst('2985|Lønafregning beløb', $sprog_id)."</b></td></tr>\n";
 								} else {
-									print "<tr><td  colspan=\"14\"><b>Lønafregning timer</b></td></tr>\n";
+									print "<tr><td  colspan=\"14\"><b>".findtekst('2984|Lønafregning timer', $sprog_id)."</b></td></tr>\n";
 								}
 
 								$vist = 0;
@@ -221,24 +223,24 @@ function loenafregning() {#Summeret lønafregning
 											}
 											print "</td></tr>
 											<tr bgcolor=\"$linjebg\"><td><b>\n";
-											(count($fodansatinfos)==1)?print "Dato":print "Navn";
+											(count($fodansatinfos)==1)?print findtekst('438|Dato', $sprog_id):print findtekst('138|Navn', $sprog_id);
 										
 											print "</b></td>";
-												if (count($fodansatinfos)==1) print "<td align=\"center\"><b>Sted</b></td>";
-												print "<td align=\"center\"><b>Timer</b></td>
-												<td align=\"center\"><b>Dyrtid</b></td>
+												if (count($fodansatinfos)==1) print "<td align=\"center\"><b>".findtekst('2987|Sted', $sprog_id)."</b></td>";
+												print "<td align=\"center\"><b>".findtekst('2980|Timer', $sprog_id)."</b></td>
+												<td align=\"center\"><b>".findtekst('2809|Dyrtid', $sprog_id)."</b></td>
 												<td align=\"center\"><b>50%</b></td>
 												<td align=\"center\"><b>100%</b></td>
-												<td align=\"center\"><b>Akkord</b></td>";
-/*if ($vis=="belob")*/ print "<td align=\"center\"><b>Kørsel</b></td>"; # udkommenteret 20142503
-												print "<td align=\"center\"><b>Skur&nbsp;1</b></td>
-												<td align=\"center\"><b>Skur&nbsp;2</b></td>
-												<td align=\"center\"><b>Mentor</b></td>
-												<td align=\"center\"><b>Plads</b></td>
-												<td align=\"center\"><b>Sygdom</b></td>
-												<td align=\"center\"><b>Barn&nbsp;syg</b></td>
-												<td align=\"center\"><b>Skole</b></td>
-												<td align=\"center\"><b>I&nbsp;alt</b></td>
+												<td align=\"center\"><b>".findtekst('2988|Akkord', $sprog_id)."</b></td>";
+/*if ($vis=="belob")*/ print "<td align=\"center\"><b>".findtekst('2989|Kørsel', $sprog_id)."</b></td>"; # udkommenteret 20142503
+												print "<td align=\"center\"><b>".findtekst('2990|Skur', $sprog_id)."&nbsp;1</b></td>
+												<td align=\"center\"><b>".findtekst('2990|Skur', $sprog_id)."&nbsp;2</b></td>
+												<td align=\"center\"><b>".findtekst('2991|Mentor', $sprog_id)."</b></td>
+												<td align=\"center\"><b>".findtekst('2812|Plads', $sprog_id)."</b></td>
+												<td align=\"center\"><b>".findtekst('2806|Sygdom', $sprog_id)."</b></td>
+												<td align=\"center\"><b>".findtekst('2807|Barn syg', $sprog_id)."</b></td>
+												<td align=\"center\"><b>".findtekst('2992|Skole', $sprog_id)."</b></td>
+												<td align=\"center\"><b>".findtekst('2373|I alt', $sprog_id)."</b></td>
 											</tr>";
 										}
 										for ($y = 0;$y<count($fodansatinfos);$y++) {
@@ -308,14 +310,14 @@ function loenafregning() {#Summeret lønafregning
 								<tr><td colspan=\"14\"><br></td></tr>";
 								/*
 								print "<tr class=\"printDisplayNone\"><td colspan=\"7\">
-									<input type=submit style=\"width:80px\" value=\"Opdat&eacute;r\" class=\"button gray medium\" name=\"submitForm\" onclick=\"javascript:docChange = false;\">";
+									<input type=submit style=\"width:80px\" value=\"".findtekst('898|Opdatér', $sprog_id)."\" class=\"button gray medium\" name=\"submitForm\" onclick=\"javascript:docChange = false;\">";
 								print "<td colspan=\"7\" align=\"right\">";
 								if (substr($sag_rettigheder,6,1) && !$afregnet && !$ansatvalg)
 								{
 									$afregnet = date("d-m-Y");
 									print "
 										<input type=\"text\" style=\"width:80px;\" value=\"$afregnet\" name=\"afregnet\">
-										<input type=\"submit\" style=\"width:80px;\" value=\"Afregn\" class=\"button gray medium\" name=\"afregn\" onclick=\"javascript:docChange = false;\"></td>
+										<input type=\"submit\" style=\"width:80px;\" value=\"".findtekst('2993|Afregn', $sprog_id)."\" class=\"button gray medium\" name=\"afregn\" onclick=\"javascript:docChange = false;\"></td>
 										</tr>\n";
 								}*/
 								print "</tbody></table>\n";		
@@ -409,12 +411,12 @@ function loenafregning() {#Summeret lønafregning
 		print "<form name=\"loenafregning\" action=\"loen.php?funktion=loenafregning&amp;periode=$periode&amp;ansat_id=$ansatvalg&amp;vis=$vis&amp;refresh=on\" method=\"post\">\n";
 			print "<div style=\"float:left; width:828px;#background-color:lightgreen;\">\n";
 			print "<div id=\"printableArea\">\n";
-				$tmp = "<h2 class=\"printHeadline\">Lønopgørelse</h2>\n";
-				if (isset($afregnet) && $afregnet) $tmp.="<p class=\"printHeadline\">afregnet d. ".date("d-m-Y",$afregnet)." af $afregnet_af</p>\n";
+				$tmp = "<h2 class=\"printHeadline\">".findtekst('2979|Lønopgørelse', $sprog_id)."</h2>\n";
+				if (isset($afregnet) && $afregnet) $tmp.="<p class=\"printHeadline\">".findtekst('2986|Afregnet d.', $sprog_id)." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('638|Af', $sprog_id))." $afregnet_af</p>\n";
 				print "$tmp\n";
 #					print "<div class=\"contentA\">\n";
 						print "<table width='100%' border='0' class='loenafregning'><tbody>\n";
-						print "<tr><td colspan='10'><b>Periode&nbsp;&nbsp;</b><SELECT NAME=\"periode\" class=\"printSelect\" onchange=\"this.form.submit()\">\n";# onchange=\"this.form.submit()
+						print "<tr><td colspan='10'><b>".findtekst('899|Periode', $sprog_id)."&nbsp;&nbsp;</b><SELECT NAME=\"periode\" class=\"printSelect\" onchange=\"this.form.submit()\">\n";# onchange=\"this.form.submit()
 						for ($x = count($p_start)-3;$x>=0;$x--) {
 							if ($periode==$p_start[$x]) print "<OPTION value=\"$p_start[$x]\">".date("d-m-Y",$p_start[$x])."&nbsp;&ndash;&nbsp;".date("d-m-Y",$p_start[$x+1]-86400)."</option>\n";
 						}
@@ -422,12 +424,12 @@ function loenafregning() {#Summeret lønafregning
 							if ($periode!=$p_start[$x]) print "<OPTION value=\"$p_start[$x]\">".date("d-m-Y",$p_start[$x])."&nbsp;&ndash;&nbsp;".date("d-m-Y",$p_start[$x+1]-86400)."</option>\n";
 						}
 						print "</SELECT></td>";
-						//print "<td colspan='4' align='right'><input type=submit style=\"width:80px\" value=\"Opdat&eacute;r\" class=\"button gray medium\" name=\"submitForm\" onclick=\"javascript:docChange = false;\"></td></tr>";
+						//print "<td colspan='4' align='right'><input type=submit style=\"width:80px\" value=\"".findtekst('898|Opdatér', $sprog_id)."\" class=\"button gray medium\" name=\"submitForm\" onclick=\"javascript:docChange = false;\"></td></tr>";
 						//print "\n";
 						if ($vis=="belob") {
-							print "<tr><td  colspan=\"14\"><b>Lønafregning beløb</b></td></tr>\n";
+							print "<tr><td  colspan=\"14\"><b>".findtekst('2985|Lønafregning beløb', $sprog_id)."</b></td></tr>\n";
 						} else {
-							print "<tr><td  colspan=\"14\"><b>Lønafregning timer</b></td></tr>\n";
+							print "<tr><td  colspan=\"14\"><b>".findtekst('2984|Lønafregning timer', $sprog_id)."</b></td></tr>\n";
 						}
 						$vist = 0;
 
@@ -456,24 +458,24 @@ function loenafregning() {#Summeret lønafregning
 									print "</td></tr>
 									<tr bgcolor=\"$linjebg\"><td><b>\n";
 
-									(count($fodansatinfos)==1)?print "Dato":print "Navn";
+									(count($fodansatinfos)==1)?print findtekst('438|Dato', $sprog_id):print findtekst('138|Navn', $sprog_id);
 								
 									print "</b></td>";
-										if (count($fodansatinfos)==1) print "<td align=\"center\"><b>Sted</b></td>";
-										print "<td align=\"center\"><b>Timer</b></td>
-										<td align=\"center\"><b>Dyrtid</b></td>
+										if (count($fodansatinfos)==1) print "<td align=\"center\"><b>".findtekst('2987|Sted', $sprog_id)."</b></td>";
+										print "<td align=\"center\"><b>".findtekst('2980|Timer', $sprog_id)."</b></td>
+										<td align=\"center\"><b>".findtekst('2809|Dyrtid', $sprog_id)."</b></td>
 										<td align=\"center\"><b>50%</b></td>
 										<td align=\"center\"><b>100%</b></td>
-										<td align=\"center\"><b>Akkord</b></td>";
-/*if ($vis=="belob")*/ print "<td align=\"center\"><b>Kørsel</b></td>"; # udkommenteret 20142503
-										print "<td align=\"center\"><b>Skur&nbsp;1</b></td>
-										<td align=\"center\"><b>Skur&nbsp;2</b></td>
-										<td align=\"center\"><b>Mentor</b></td>
-										<td align=\"center\"><b>Plads</b></td>
-										<td align=\"center\"><b>Sygdom</b></td>
-										<td align=\"center\"><b>Barn&nbsp;syg</b></td>
-										<td align=\"center\"><b>Skole</b></td>
-										<td align=\"center\"><b>I&nbsp;alt</b></td>
+										<td align=\"center\"><b>".findtekst('2988|Akkord', $sprog_id)."</b></td>";
+/*if ($vis=="belob")*/ print "<td align=\"center\"><b>".findtekst('2989|Kørsel', $sprog_id)."</b></td>"; # udkommenteret 20142503
+										print "<td align=\"center\"><b>".findtekst('2990|Skur', $sprog_id)."&nbsp;1</b></td>
+										<td align=\"center\"><b>".findtekst('2990|Skur', $sprog_id)."&nbsp;2</b></td>
+										<td align=\"center\"><b>".findtekst('2991|Mentor', $sprog_id)."</b></td>
+										<td align=\"center\"><b>".findtekst('2812|Plads', $sprog_id)."</b></td>
+										<td align=\"center\"><b>".findtekst('2806|Sygdom', $sprog_id)."</b></td>
+										<td align=\"center\"><b>".findtekst('2807|Barn syg', $sprog_id)."</b></td>
+										<td align=\"center\"><b>".findtekst('2992|Skole', $sprog_id)."</b></td>
+										<td align=\"center\"><b>".findtekst('2373|I alt', $sprog_id)."</b></td>
 									</tr>";
 								}
 								for ($y = 0;$y<count($fodansatinfos);$y++) {
@@ -571,13 +573,13 @@ function loenafregning() {#Summeret lønafregning
 
 						print "<tr><td colspan=\"14\"><br></td></tr>";
 						print "<tr class=\"printDisplayNone\"><td colspan=\"7\">
-							<input type=submit style=\"width:80px\" value=\"Opdat&eacute;r\" class=\"button gray medium\" name=\"submitForm\" onclick=\"javascript:docChange = false;\">";
+							<input type=submit style=\"width:80px\" value=\"".findtekst('898|Opdatér', $sprog_id)."\" class=\"button gray medium\" name=\"submitForm\" onclick=\"javascript:docChange = false;\">";
 						print "<td colspan=\"7\" align=\"right\">";
 						if (substr($sag_rettigheder,6,1) && !$afregnet && !$ansatvalg) {
 							$afregnet=date("d-m-Y");
 							print "
 								<input type=\"text\" style=\"width:80px;\" value=\"$afregnet\" name=\"afregnet\">
-								<input type=\"submit\" style=\"width:80px;\" value=\"Afregn\" class=\"button gray medium\" name=\"afregn\" onclick=\"javascript:docChange = false;\"></td>
+								<input type=\"submit\" style=\"width:80px;\" value=\"".findtekst('2993|Afregn', $sprog_id)."\" class=\"button gray medium\" name=\"afregn\" onclick=\"javascript:docChange = false;\"></td>
 								</tr>\n";
 						}
 						print "</tbody></table>\n";		

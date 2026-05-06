@@ -1,5 +1,6 @@
 <?php
 function customer_graph() {
+    global $sprog_id;
     # Customer Heatmap
 
     echo '
@@ -15,12 +16,12 @@ function customer_graph() {
         height: 350px;
     ">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h4 style="margin: 0; color: #999">Antal kunder per tidspunkt gennemsnit de sidste</h4>
+            <h4 style="margin: 0; color: #999">'.findtekst('2577|Gennemsnitligt antal kunder pr. time de sidste', $sprog_id).'</h4>
             <select style="width: 150px; padding: 0.5em; border-radius: 5px; border: 1px solid #ccc;" id="customerHeatmapSelect">
-                <option value="30">30 dage</option>
-                <option value="90">90 dage</option>
-                <option value="180">180 dage</option>
-                <option value="365">365 dage</option>
+                <option value="30">30 '.strtolower(findtekst('2578|Dage', $sprog_id)).'</option>
+                <option value="90">90 '.strtolower(findtekst('2578|Dage', $sprog_id)).'</option>
+                <option value="180">180 '.strtolower(findtekst('2578|Dage', $sprog_id)).'</option>
+                <option value="365">365 '.strtolower(findtekst('2578|Dage', $sprog_id)).'</option>
             </select>
         </div>
         <div id="customerHeatmap" style="flex: 1; width: 100%; height: 100%;"></div>
@@ -160,31 +161,31 @@ function customer_graph() {
                                     from: 0,
                                     to: maxValue * 0.05,
                                     color: '#EBEDF0',
-                                    name: 'Lav'
+                                    name: '".findtekst('2579|Lav', $sprog_id)."'
                                 },
                                 {
                                     from: maxValue * 0.05,
                                     to: maxValue * 0.25,
                                     color: '#C0DEFF',
-                                    name: 'Medium'
+                                    name: '".findtekst('2580|Medium', $sprog_id)."'
                                 },
                                 {
                                     from: maxValue * 0.25,
                                     to: maxValue * 0.50,
                                     color: '#90CAF9',
-                                    name: 'Høj'
+                                    name: '".findtekst('2581|Høj', $sprog_id)."'
                                 },
                                 {
                                     from: maxValue * 0.50,
                                     to: maxValue * 0.75,
                                     color: '#42A5F5',
-                                    name: 'Meget høj'
+                                    name: '".findtekst('2582|Meget høj', $sprog_id)."'
                                 },
                                 {
                                     from: maxValue * 0.75,
                                     to: maxValue,
                                     color: '#1E88E5',
-                                    name: 'Ekstrem'
+                                    name: '".findtekst('2583|Ekstrem', $sprog_id)."'
                                 }
                             ]
                         }

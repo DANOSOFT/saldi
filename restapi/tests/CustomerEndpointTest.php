@@ -21,9 +21,9 @@ class CustomerEndpointTest
         // Set your actual authorization headers
         $this->headers = [
             'Content-Type: application/json',
-            'Authorization: 4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD',
-            'X-SaldiUser: api',
-            'X-DB: test_4'
+            // TODO: Replace with JWT token from POST /auth/login
+            
+            // Headers will be set after login
         ];
     }
 
@@ -65,8 +65,8 @@ class CustomerEndpointTest
         echo "Testing: Create Customer\n";
         
         $customerData = [
-            'firmanavn' => 'Test Company A',
-            'tlf' => '59842689',
+            'companyName' => 'Test Company A',
+            'phone' => '59842689',
             'email' => 'test2@company-a.com',
             'addr1' => 'Test Street 123',
             'postnr' => '1234',
@@ -118,7 +118,6 @@ class CustomerEndpointTest
         
         $customerId = $this->createdCustomerIds[0];
         $response = $this->makeRequest('GET', null, "?id=$customerId");
-        print_r($response); // Debugging line
         if ($response['success'] && $response['data']['id'] == $customerId) {
             echo "✓ Retrieved customer with ID: $customerId\n";
         } else {

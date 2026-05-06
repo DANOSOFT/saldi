@@ -1,0 +1,230 @@
+
+.account-autocomplete-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+#account-autocomplete-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 99999;
+}
+
+.account-autocomplete-dropdown {
+    position: absolute;
+    pointer-events: auto;
+    z-index: 99999;
+    min-width: 500px;
+    max-width: 600px;
+    max-height: 450px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+    border: 2px solid #114691;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    font-size: 12px;
+}
+
+.account-autocomplete-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #114691;
+    color: #ffffff;
+    padding: 8px 12px;
+    flex-shrink: 0;
+}
+
+.account-autocomplete-header-title {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.account-autocomplete-close-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background-color 0.2s ease;
+}
+
+.account-autocomplete-close-btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.account-autocomplete-search-box {
+    padding: 8px 12px;
+    background-color: #f0f4f8;
+    border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+}
+
+.account-autocomplete-search-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 12px;
+    box-sizing: border-box;
+}
+
+.account-autocomplete-search-input:focus {
+    outline: none;
+    border-color: #114691;
+    box-shadow: 0 0 0 2px rgba(17, 70, 145, 0.2);
+}
+
+.account-autocomplete-results {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.account-autocomplete-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.account-autocomplete-table thead {
+    position: sticky;
+    top: 0;
+    background-color: #1e5a96;
+    color: #ffffff;
+}
+
+.account-autocomplete-table thead th {
+    padding: 8px 6px;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+    border-bottom: 2px solid #114691;
+}
+
+.account-autocomplete-table tbody tr.account-autocomplete-item {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.account-autocomplete-table tbody tr.account-autocomplete-item:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.account-autocomplete-table tbody tr.account-autocomplete-item:hover,
+.account-autocomplete-table tbody tr.account-autocomplete-item.selected {
+    background-color: #cce0f5;
+}
+
+.account-autocomplete-table tbody tr.account-autocomplete-category {
+    background-color: #e8eef5;
+    cursor: default;
+}
+
+.account-autocomplete-table tbody tr.account-autocomplete-category td {
+    padding: 6px;
+    font-weight: bold;
+    color: #114691;
+    border-top: 1px solid #ccd9e8;
+}
+
+.account-autocomplete-table tbody td {
+    padding: 6px;
+    border-bottom: 1px solid #eee;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-autocomplete-table tbody td:first-child {
+    font-weight: 500;
+    color: #114691;
+}
+
+/* Scrollbar styling for results */
+.account-autocomplete-results::-webkit-scrollbar {
+    width: 8px;
+}
+
+.account-autocomplete-results::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.account-autocomplete-results::-webkit-scrollbar-thumb {
+    background: #114691;
+    border-radius: 4px;
+}
+
+.account-autocomplete-results::-webkit-scrollbar-thumb:hover {
+    background: #0d3366;
+}
+
+/* No results message */
+.account-autocomplete-no-results {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+/* Pagination footer */
+.account-autocomplete-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #f0f4f8;
+    border-top: 1px solid #ddd;
+    flex-shrink: 0;
+}
+
+.account-autocomplete-pagination-info {
+    font-size: 11px;
+    color: #666;
+}
+
+.account-autocomplete-pagination-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.account-autocomplete-page-btn {
+    background-color: #114691;
+    color: #ffffff;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.account-autocomplete-page-btn:hover {
+    background-color: #0d3366;
+}
+
+.account-autocomplete-page-btn:active {
+    background-color: #092647;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+    .account-autocomplete-dropdown {
+        min-width: 300px;
+        max-width: 95vw;
+    }
+    
+    .account-autocomplete-table thead th,
+    .account-autocomplete-table tbody td {
+        padding: 4px;
+        font-size: 11px;
+    }
+}

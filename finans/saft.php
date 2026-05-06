@@ -553,7 +553,7 @@ while ($r = db_fetch_array($query)) {
 	$saldo_check[$x] = $r['saldo'];
 	$mapto_check[$x] = accountNumberExist($r['map_to'], $csv_kontonr);
 }
-$kontoantal_check = 0; // $x
+$kontoantal_check = $x; // $x - Use 0 if no mapping of standard accountnumber and you want to se header only in SAF-T
 
 if ($kontoantal_check <= 0) {
 	$standardKontoCheck = true;
@@ -696,7 +696,7 @@ $closeXMLFile = "" . findtekst(2351, $sprog_id) . ""; // Luk XML fil
 if ($standardKontoCheck) {
 	print "<table class=\"saftTable1\">\n";
 	print "<tr><td colspan=\"2\">";
-	print "" . findtekst(2348, $sprog_id) . "";
+	print findtekst('2348|Her kan du oprette en SAF-T Financial rapport', $sprog_id).":";
 	print "</td><td>&nbsp;</td><td>&nbsp;</td></tr>\n";
 	print "<tr><td colspan=\"4\"></td></tr>";
 	print "<tr><td>";

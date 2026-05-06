@@ -31,6 +31,20 @@ class VatModel
     }
 
     /**
+     * Get the current fiscal year from the database
+     *
+     * @return int|null Fiscal year or null if not found
+     */
+    private static function getFiscalYear(){
+        $query = db_select("SELECT kodenr FROM grupper WHERE art = 'RA' ORDER BY kodenr DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
+        if (db_num_rows($query) > 0) {
+            $r = db_fetch_array($query);
+            return (int)$r['kodenr'];
+        }
+        return null;
+    }
+
+    /**
      * Load item details from database by ID
      * 
      * @param int $id
@@ -38,7 +52,7 @@ class VatModel
      */
     private function loadFromId($id)
     {
-        global $regnaar;
+        $regnaar = self::getFiscalYear();
 
         $qtxt = "SELECT * FROM grupper WHERE id = $id";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -65,34 +79,34 @@ class VatModel
      * Load item details from database by kodenr
      * 
      * @param int $kodenr
-     * @return bool Success status
+     * @return VatModel[] Array of VatModel objects
      */
-    private function loadFromVatcode($vatcode)
+    public static function loadFromVatcode($vatcode)
     {
-        global $regnaar;
+        $regnaar = self::getFiscalYear();
 
-        $momskode = $vatcode[0];
+        /* $momskode = $vatcode[0];
         $nr = substr($vatcode, 1);
 
-        $qtxt = "SELECT * FROM grupper WHERE fiscal_year = $regnaar AND art IN ('SM','KM','EM','YM') AND kodenr = '$nr' AND kode='$momskode'";
+        $qtxt = "SELECT * FROM grupper WHERE fiscal_year = $regnaar AND art IN ('SM','KM','EM','YM') AND kodenr = '$nr' AND kode='$momskode'"; */
+        
+        $qtxt = "SELECT id FROM grupper WHERE fiscal_year = $regnaar AND art IN ('SM','KM','EM','YM') AND kode = '$vatcode'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
-        if ($r = db_fetch_array($q)) {
-            $this->id = (int)$r['id'];
-            $this->beskrivelse = $r['beskrivelse'];
-            $this->momskode = $r['kode'];
-            $this->nr = $r['kodenr'];
-            $this->fiscal_year = $r['fiscal_year'];
-
-            $this->account = $r['box1'];
-            $this->sats = (float)$r['box2'];
-            $this->modkonto = $r['box3'];
-            $this->map = $r['box4'];
-
-            return true;
+        // Check if query succeeded
+        if ($q === false) {
+            return [];
         }
 
-        return false;
+        if (db_num_rows($q) > 0) {
+            $items = [];
+            while ($r = db_fetch_array($q)) {
+                $items[] = new VatModel($r['id']);
+            }
+            return $items;
+        }
+
+        return [];
     }
 
 
@@ -103,7 +117,7 @@ class VatModel
      */
     public function save()
     {
-        global $regnaar;
+        $regnaar = self::getFiscalYear();
 
         if ($this->id) {
             // Update existing item
@@ -111,7 +125,6 @@ class VatModel
                 beskrivelse = '$this->beskrivelse', 
                 kodenr = '$this->nr', 
                 kode = '$this->momskode', 
-                fiscal_year = '$this->fiscal_year', 
                 box1 = '$this->account', 
                 box2 = '$this->sats', 
                 box3 = '$this->modkonto', 
@@ -136,7 +149,7 @@ class VatModel
                 '$this->beskrivelse', 
                 '$this->nr', 
                 '$this->momskode', 
-                '$this->fiscal_year', 
+                '$regnaar', 
                 '$this->account', 
                 '$this->sats', 
                 '$this->modkonto', 
@@ -144,6 +157,15 @@ class VatModel
             )";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+            $query = db_select("SELECT id FROM grupper WHERE art = '" . $this->momskode . "M' AND fiscal_year = $regnaar AND kodenr = '$this->nr' AND kode = '$this->momskode' ORDER BY id DESC", __FILE__ . " linje " . __LINE__);
+
+            if(db_num_rows($query) > 0) {
+                // Get the last inserted ID
+                $this->id = db_fetch_array($query)['id'];
+            } else {
+                // If insert failed, return false
+                return false;
+            }
             // If insert is successful, set the new ID
             return explode("\t", $q)[0] == "0";
         }
@@ -160,7 +182,7 @@ class VatModel
             return false;
         }
 
-        $qtxt = "DELETE FROM grupper WHERE id = ?";
+        $qtxt = "DELETE FROM grupper WHERE id = $this->id";
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         return explode("\t", $q)[0] == "0";
@@ -175,7 +197,7 @@ class VatModel
      */
     public static function getAllItems($orderBy = 'kodenr', $orderDirection = 'ASC')
     {
-        global $regnaar;
+        $regnaar = self::getFiscalYear();
 
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = ['id', 'kodenr', 'beskrivelse', 'fiscal_year'];
@@ -203,7 +225,7 @@ class VatModel
      */
     public static function findBy($field, $value)
     {
-        global $regnaar;
+        $regnaar = self::getFiscalYear();
 
         // Whitelist allowed search fields
         $allowedFields = ['id', 'kodenr', 'beskrivelse', 'fiscal_year', 'kode'];
@@ -222,7 +244,7 @@ class VatModel
     }
 
     /**
-     * Method to convert object to array
+     * Method to convert object to array with English field names
      *
      * @return array Associative array of item properties
      */
@@ -230,14 +252,14 @@ class VatModel
     {
         return [
             'id' => $this->id,
-            'beskrivelse' => $this->beskrivelse,
-            'momskode' => $this->momskode,
-            'nr' => $this->nr,
-            'fiscal_year' => $this->fiscal_year,
+            'description' => $this->beskrivelse,
+            'vatCode' => $this->momskode,
+            'number' => $this->nr,
+            'fiscalYear' => $this->fiscal_year,
             'account' => $this->account,
-            'sats' => $this->sats,
-            'modkonto' => $this->modkonto,
-            'map' => $this->map
+            'rate' => $this->sats,
+            'contraAccount' => $this->modkonto,
+            'mapping' => $this->map
         ];
     }
 
@@ -262,11 +284,6 @@ class VatModel
         return $this->nr;
     }
 
-    public function getFiscalYear()
-    {
-        return $this->fiscal_year;
-    }
-
     public function getAccount()
     {
         return $this->account;
@@ -283,6 +300,37 @@ class VatModel
     }
 
     public function getMap()
+    {
+        return $this->map;
+    }
+
+    // Additional English getters for consistency
+    public function getDescription()
+    {
+        return $this->beskrivelse;
+    }
+
+    public function getVatCode()
+    {
+        return $this->momskode;
+    }
+
+    public function getNumber()
+    {
+        return $this->nr;
+    }
+
+    public function getRate()
+    {
+        return $this->sats;
+    }
+
+    public function getContraAccount()
+    {
+        return $this->modkonto;
+    }
+
+    public function getMapping()
     {
         return $this->map;
     }
@@ -326,5 +374,36 @@ class VatModel
     public function setMap($map)
     {
         $this->map = $map;
+    }
+
+    // Additional English setters for consistency
+    public function setDescription($description)
+    {
+        $this->beskrivelse = $description;
+    }
+
+    public function setVatCode($vatCode)
+    {
+        $this->momskode = $vatCode;
+    }
+
+    public function setNumber($number)
+    {
+        $this->nr = $number;
+    }
+
+    public function setRate($rate)
+    {
+        $this->sats = $rate;
+    }
+
+    public function setContraAccount($contraAccount)
+    {
+        $this->modkonto = $contraAccount;
+    }
+
+    public function setMapping($mapping)
+    {
+        $this->map = $mapping;
     }
 }

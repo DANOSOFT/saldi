@@ -330,15 +330,15 @@ include_once("sidemenu.php");
 ?>
 <div class="p-4 lg:ml-64 h-screen">
 	<div class="w-full dark:text-white text-center">
-		<p class="text-5xl lg:text-xl"><?php echo $custName ?> • <?php if($condition == 'new'){ echo findtekst(1951, $sprog_id); }else{ echo findtekst(1952, $sprog_id);} ?></p>
-		<p class="text-5xl lg:text-xl"><?php echo findtekst(1948, $sprog_id) ?></p>
-		<p class="text-5xl lg:text-xl"><?php echo findtekst(1949, $sprog_id) ?></p>
+		<p class="text-5xl lg:text-xl"><?php echo $custName ?> • <?php if($condition == 'new'){ echo findtekst('1951|Nye varer', $sprog_id); }else{ echo findtekst('1952|Brugte varer', $sprog_id);} ?></p>
+		<p class="text-5xl lg:text-xl"><?php echo findtekst('1948|OBS - Du kan ikke rette en label når den er udskrevet', $sprog_id) ?></p>
+		<p class="text-5xl lg:text-xl"><?php echo findtekst('1949|Når en label er udskrevet kan den slettes. Informationerne ligger i stregkoden.', $sprog_id) ?></p>
 
 		<?php if ($medlem){
 			if($vareLimit <= 0) $vareLimit = 0;?>
 			<p>Du kan tilføje <b><?php echo $vareLimit ?></b> varer.</p>
 		<?php } ?>
-		<p><a href="https://saldi.dk/dok/myLabelPdf_<?php echo $sprog_id ?>.pdf" target="_blank" class='font-medium text-5xl lg:text-xl text-blue-600 dark:text-blue-500 hover:underline'><?php echo findtekst(1950, $sprog_id) ?></a></p>
+		<p><a href="https://saldi.dk/dok/myLabelPdf_<?php echo $sprog_id ?>.pdf" target="_blank" class='font-medium text-5xl lg:text-xl text-blue-600 dark:text-blue-500 hover:underline'><?php echo findtekst('1950|klik her for mere info', $sprog_id) ?></a></p>
 	</div>
 	<div class="flex flex-col items-center mb-3">
 			<label for="condition" class="mb-2 text-5xl lg:text-xl font-medium text-gray-900 dark:text-white">Vælg nyt hvis dit salg skal være med moms ellers vælg brugt</label>
@@ -423,23 +423,23 @@ include_once("sidemenu.php");
 	print "</div>";
 
 	print "<div class='text-center dark:text-white my-4 py-2 grid grid-cols-3 lg:grid-cols-6 gap-20 text-4xl lg:text-sm'>";
-	print "<input type='submit' name='update' value='". findtekst(3, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	$title = findtekst(1942, $sprog_id);
+	print "<input type='submit' name='update' value='".findtekst('3|Gem', $sprog_id)."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
+	$title = findtekst('1942|Slet valgte labels. En udskrevet label fungerer stadig selvom den slettes.', $sprog_id);
 	print "<td title = '$title'>";
-	print "<input type='submit' name='delete' value='". findtekst(1099, $sprog_id) ."'";
-	print "onclick=\"return confirm('". findtekst(1943, $sprog_id) ."')\" class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	$title = findtekst(1944, $sprog_id);
+	print "<input type='submit' name='delete' value='".findtekst('1099|Slet', $sprog_id)."'";
+	print "onclick=\"return confirm('".findtekst('1943|Slet valgte labels?', $sprog_id)."')\" class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
+	$title = findtekst('1944|Klik for at oprette nyt labelark', $sprog_id);
 	if(!$medlem){
 	print "<td title = '$title'>";
-	print "<input type='submit' name='new' value='". findtekst(1945, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
+	print "<input type='submit' name='new' value='".findtekst('1945|Nyt ark', $sprog_id)."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
 	}
-	$title = findtekst(1946, $sprog_id);
+	$title = findtekst('1946|Klik for at vælge alle labels til udskrift eller sletning', $sprog_id);
 	print "<td title = '$title'>";
-	print "<input type='submit' name='all' value='". findtekst(89, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	print "<input type='submit' name='printSheet' value='". findtekst(1953, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	$title = findtekst(1954, $sprog_id);
+	print "<input type='submit' name='all' value='".findtekst('89|Vælg alle', $sprog_id)."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
+	print "<input type='submit' name='printSheet' value='".findtekst('1953|Udskriv Ark', $sprog_id)."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
+	$title = findtekst('1954|Klik for at udskrive alle afmærkede labels', $sprog_id);
 	print "<td title = '$title'>";
-	print "<input type='submit' name='printLabels' value='". findtekst(1955, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
+	print "<input type='submit' name='printLabels' value='".findtekst('1955|Udskriv Labels', $sprog_id)."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
 	print "</form>";
 	print "</div>";
 				?>
@@ -459,19 +459,19 @@ include_once("sidemenu.php");
 } else $vareLimit = $productLimit = 0;
 print "<div class='w-full lg:w-1/2 mx-auto'>";
 print "<div class='kundeNavn'>$custName • ";
-if ($condition == 'new') print findtekst(1951, $sprog_id) ."</div><br>";
-else print findtekst(1952, $sprog_id) ."</div>";
+if ($condition == 'new') print findtekst('1951|Nye varer', $sprog_id)."</div><br>";
+else print findtekst('1952|Brugte varer', $sprog_id)."</div>";
 if ($mobile) {
 	print "<br>";
 } else {
 	print "<br>";
-	print "<div class='center'>". findtekst(1948, $sprog_id) ."<br>\n";
-	print findtekst(1949, $sprog_id) ." ";
-	if ($medlem){
+	print "<div class='center'>".findtekst('1948|OBS - Du kan ikke rette en label når den er udskrevet', $sprog_id)."<br>\n";
+	print findtekst('1949|Når en label er udskrevet kan den slettes. Informationerne ligger i stregkoden.', $sprog_id)." ";
+	if ($medlem) {
 		if($vareLimit <= 0) $vareLimit = 0;
-		print "<br><br >Du kan tilføje <b>$vareLimit</b> varer.</br><br>";
+			print "<br><br >Du kan tilføje <b>$vareLimit</b> varer.</br><br>";
 	}
-	print "<a href='https://saldi.dk/dok/myLabelPdf_$sprog_id.pdf' target='_blank'>". findtekst(1950, $sprog_id) ."</a></div>\n";
+	print "<a href='https://saldi.dk/dok/myLabelPdf_$sprog_id.pdf' target='_blank'>".findtekst('1950|klik her for mere info', $sprog_id)."</a></div>\n";
 }
 print "<form action='mylabel.php?id=$id&condition=$condition' method='post'>\n";
 print "<input type='hidden' name='page' value='". $page ."'>\n";
@@ -533,23 +533,23 @@ for ($a=1;$a<=$rows;$a++) {
 
 	print "<div class='footer'>";
 	print "<div class='inputs'>";
-	print "<input class='inputSubmit' type='submit' name='update' value='". findtekst(3, $sprog_id) ."'>";
-	$title = findtekst(1942, $sprog_id);
+	print "<input class='inputSubmit' type='submit' name='update' value='".findtekst('3|Gem', $sprog_id)."'>";
+	$title = findtekst('1942|Slet valgte labels. En udskrevet label fungerer stadig selvom den slettes.', $sprog_id);
 	print "<span title = '$title'>";
-	print "<input class='inputSubmit' type='submit' name='delete' value='". findtekst(1099, $sprog_id) ."'";
-	print "onclick=\"return confirm('". findtekst(1943, $sprog_id) ."')\"></span>";
+	print "<input class='inputSubmit' type='submit' name='delete' value='".findtekst('1099|Slet', $sprog_id)."'";
+	print "onclick=\"return confirm('".findtekst('1943|Slet valgte labels?', $sprog_id)."')\"></span>";
 	if (!$productLimit) {
-		$title = findtekst(1944, $sprog_id);
+		$title = findtekst('1944|Klik for at oprette nyt labelark', $sprog_id);
 		print "<span title = '$title'>";
-		print "<input class='inputSubmit' type='submit' name='new' value='". findtekst(1945, $sprog_id) ."'></span>";
+		print "<input class='inputSubmit' type='submit' name='new' value='".findtekst('1945|Nyt ark', $sprog_id)."'></span>";
 	}
-	$title = findtekst(1946, $sprog_id);
+	$title = findtekst('1946|Klik for at vælge alle labels til udskrift eller sletning', $sprog_id);
 	print "<span style='text-align=left;' title = '$title'>";
-	print "<input class='inputSubmit' type='submit' name='all' value='". findtekst(89, $sprog_id) ."'>";
+	print "<input class='inputSubmit' type='submit' name='all' value='".findtekst('89|Vælg alle', $sprog_id)."'>";
 	print"</span>";
-	$title = findtekst(1947, $sprog_id);
+	$title = findtekst('1947|Klik for at komme til \'Mit salg\'', $sprog_id);
 	print "<span title='$title'>";
-	print "<input class='inputSubmit' type='submit' name='mySale' value='". findtekst(1881, $sprog_id) ."'>";
+	print "<input class='inputSubmit' type='submit' name='mySale' value='".findtekst('1881|Mit Salg', $sprog_id)."'>";
 	print "</span>";
 	print "</div>";
 	print "</div>";
@@ -600,32 +600,32 @@ for ($a=1;$a<=$rows;$a++) {
 	print "</td></tr></table>";
 	print "<div class='footer'>";
 	print "<td><input class='submit' style='width:120px;text-align:center;' ";
-	print "type='submit' name='update' value='". findtekst(3, $sprog_id) ."'></td>";
-	$title = findtekst(1942, $sprog_id);
+	print "type='submit' name='update' value='".findtekst('3|Gem', $sprog_id)."'></td>";
+	$title = findtekst('1942|Slet valgte labels. En udskrevet label fungerer stadig selvom den slettes.', $sprog_id);
 	print "<td title = '$title'>";
 	print "<input class='submit' style='width:120px;text-align:center;' ";
-	print "type='submit' name='delete' value='". findtekst(1099, $sprog_id) ."'";
-	print "onclick=\"return confirm('". findtekst(1943, $sprog_id) ."')\"></td>";
-	$title = findtekst(1944, $sprog_id);
+	print "type='submit' name='delete' value='".findtekst('1099|Slet', $sprog_id)."'";
+	print "onclick=\"return confirm('".findtekst('1943|Slet valgte labels?', $sprog_id)."')\"></td>";
+	$title = findtekst('1944|Klik for at oprette nyt labelark', $sprog_id);
 	if(!$medlem){
 	print "<td title = '$title'>";
 	print "<input class='submit' style='width:120px;text-align:center;' ";
-	print "type='submit' name='new' value='". findtekst(1945, $sprog_id) ."'></td>";
+	print "type='submit' name='new' value='".findtekst('1945|Nyt ark', $sprog_id)."'></td>";
 	}
-	$title = findtekst(1946, $sprog_id);
+	$title = findtekst('1946|Klik for at vælge alle labels til udskrift eller sletning', $sprog_id);
 	print "<td title = '$title'>";
 	print "<input class='submit' style='width:120px;text-align:center;' ";
-	print "type='submit' name='all' value='". findtekst(89, $sprog_id) ."'></td>";
-	$title = findtekst(1947, $sprog_id);
+	print "type='submit' name='all' value='".findtekst('89|Vælg alle', $sprog_id)."'></td>";
+	$title = findtekst('1947|Klik for at komme til \'Mit salg\'', $sprog_id);
 	print "<td title='$title'>";
 	print "<input class='submit' style='width:120px;text-align:center;' ";
-	print "type='submit' name='mySale' value='". findtekst(1881, $sprog_id) ."'></td>";
+	print "type='submit' name='mySale' value='".findtekst('1881|Mit Salg', $sprog_id)."'></td>";
 	print "<td><input class='submit' style='width:120px;text-align:center;' ";
-	print "type='submit' name='printSheet' value='". findtekst(1953, $sprog_id) ."'></td>";
-	$title = findtekst(1954, $sprog_id);
+	print "type='submit' name='printSheet' value='".findtekst('1953|Udskriv Ark', $sprog_id)."'></td>";
+	$title = findtekst('1954|Klik for at udskrive alle afmærkede labels', $sprog_id);
 	print "<td title = '$title'>";
 	print "<input class='submit' style='width:120px;text-align:center;' ";
-	print "type='submit' name='printLabels' value='". findtekst(1955, $sprog_id) ."'></td>";
+	print "type='submit' name='printLabels' value='".findtekst('1955|Udskriv Labels', $sprog_id)."'></td>";
 	print "<td></td>";
 	print "</tr>\n";
 	print "</form>";

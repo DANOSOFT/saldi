@@ -167,17 +167,15 @@
 		?>
 		<tr>
 			<td><?php print findtekst(980,$sprog_id); ?></td>
+			<td>Min:</td>
+			<td align="right"><input class="inputbox" type="text" size="5" style="text-align:right" name="min_lager" value='<?php print dkdecimal($min_lager,0); ?>'></td>
+			<td>Max:</td>
+			<td align="right"><input class="inputbox" type="text" size="5" style="text-align:right" name="max_lager" value='<?php print dkdecimal($max_lager,0)?>'></td>
+		</tr>
+		<tr>
+			<td>Pakningsmængde:</td>
 			<td></td>
-			<td colspan='1' align="left">
-				<div style='display: flex;'>
-					<span style="padding-right: 9px;">Min:</span>
-					<input class="inputbox" type="text" size="5" style="text-align:right" name="min_lager" value='<?php print dkdecimal($min_lager,0); ?>'>
-					<span style="padding: 0 9px;">Max:</span>
-					<input class="inputbox" type="text" size="5" style="text-align:right" name="max_lager" value='<?php print dkdecimal($max_lager,0)?>'>
-				</div>
-					<span>Pakningsmængde:</span>
-					<input class="inputbox" type="text" size="5" style="text-align:right" name="volume_lager" value='<?php print dkdecimal($volume_lager,0); ?>'>
-			</td>
+			<td align="right"><input class="inputbox" type="text" size="5" style="text-align:right" name="volume_lager" value='<?php print dkdecimal($volume_lager,0); ?>'></td>
 		</tr>
 		<?php
 		$txt647  = findtekst(647,$sprog_id); // Initialer

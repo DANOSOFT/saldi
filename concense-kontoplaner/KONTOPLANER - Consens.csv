@@ -1,0 +1,3096 @@
+Kontonr.,Kontonavn,Moms,Type
+1000,RESULTATOPGØRELSE, ,Overskrift1
+1001,Nettoomsætning,,Overskrift2
+1009,Nettomsætning,,Overskrift3
+1010,"Nettomsætning, Danmark",,Overskrift4
+1011,Salg af varer/ydelser,U25,D
+1012,Salg af varer/ydelser u/moms,,D
+1013,Salg af fragt,U25,D
+1014,Salg af fragt/ydelser u/moms,,D
+1015,Salg af varer til tilknyttede virksomheder,U25,D
+1016,Salg af varer til tilknyttede virksomheder u/moms,,D
+1017,Salg af varer til associerede virksomheder,U25,D
+1018,Salg af varer til associerede virksomheder u/moms,,D
+1019,Provision,U25,D
+1020,Provision u/moms,,D
+1021,Kontantrabatter,U25,D
+1022,Kontantrabatter u/moms,,D
+1023,Andre rabatter,U25,D
+1024,Andre rabatter u/moms,,D
+1025,"Salg, brugtmoms",,D
+1029,"Nettomsætning, Danmark",,SumFra4
+1030,"Nettomsætning, udland",,Overskrift4
+1031,Salg af varer til EU lande,UEUV,D
+1032,Salg af ydelser til EU lande,UEUY,D
+1033,Fjernsalg af varer til EU-land 1,UEUV2,D
+1034,Fjernsalg af varer til EU-land 2,UEUV2,D
+1035,Fjernsalg af varer til EU-land 3,UEUV2,D
+1036,Fjernsalg af varer til EU-land 4,UEUV2,D
+1037,Fjernsalg af varer til EU-land 5,UEUV2,D
+1038,Salg af varer til 3. lande,UVC,D
+1039,Salg af ydelser til 3. lande,UVC,D
+1040,Salg af fragt,,D
+1041,Provision eksport,,D
+1042,Rabat eksport,,D
+1043,Kontantrabat eksport,,D
+1044,"Modkonto fragt, rabatter og provision",,D
+1055,"Valutakursgevinster, eksport",,D
+1056,"Valutakurstab, eksport",,D
+1057,"Nettomsætning, udland i alt",,SumFra4
+1058,Nettomsætning i alt,,SumFra3
+1059,Nettomsætning 2,,Overskrift3
+1060,"Nettomsætning 2, Danmark",,Overskrift4
+1061,Salg af varer/ydelser,U25,D
+1062,Salg af varer/ydelser u/moms,,D
+1063,Salg af fragt,U25,D
+1064,Salg af fragt/ydelser u/moms,,D
+1065,Salg af varer til tilknyttede virksomheder,U25,D
+1066,Salg af varer til tilknyttede virksomheder u/moms,,D
+1067,Salg af varer til associerede virksomheder,U25,D
+1068,Salg af varer til associerede virksomheder u/moms,,D
+1069,Provision,U25,D
+1070,Provision u/moms,,D
+1071,Kontantrabatter,U25,D
+1072,Kontantrabatter u/moms,,D
+1073,Andre rabatter,U25,D
+1074,Andre rabatter u/moms,,D
+1079,"Nettomsætning 2, Danmark i alt",,SumFra4
+1080,"Nettomsætning 2, udland",,Overskrift4
+1081,Salg af varer til EU lande,UEUV,D
+1082,Salg af ydelser til EU lande,UEUY,D
+1083,Fjernsalg af varer til EU-land 1,UEUV2,D
+1084,Fjernsalg af varer til EU-land 2,UEUV2,D
+1085,Fjernsalg af varer til EU-land 3,UEUV2,D
+1086,Fjernsalg af varer til EU-land 4,UEUV2,D
+1087,Fjernsalg af varer til EU-land 5,UEUV2,D
+1088,Salg af varer til 3. lande,UVC,D
+1089,Salg af ydelser til 3. lande,UVC,D
+1090,Salg af fragt,,D
+1091,Provision eksport,,D
+1092,Rabat eksport,,D
+1093,Kontantrabat eksport,,D
+1094,"Modkonto fragt, rabatter og provision",,D
+1105,"Valutakursgevinster, eksport",,D
+1106,"Valutakurstab, eksport",,D
+1107,"Nettomsætning 2, udland i alt",,SumFra4
+1108,Nettomsætning 2 i alt,,SumFra3
+1109,Nettomsætning 3,,Overskrift3
+1110,"Nettomsætning 3, Danmark",,Overskrift4
+1111,Salg af varer/ydelser,U25,D
+1112,Salg af varer/ydelser u/moms,,D
+1113,Salg af fragt,U25,D
+1114,Salg af fragt/ydelser u/moms,,D
+1115,Salg af varer til tilknyttede virksomheder,U25,D
+1116,Salg af varer til tilknyttede virksomheder u/moms,,D
+1117,Salg af varer til associerede virksomheder,U25,D
+1118,Salg af varer til associerede virksomheder u/moms,,D
+1119,Provision,U25,D
+1120,Provision u/moms,,D
+1121,Kontantrabatter,U25,D
+1122,Kontantrabatter u/moms,,D
+1123,Andre rabatter,U25,D
+1124,Andre rabatter u/moms,,D
+1129,"Nettomsætning 3, Danmark i alt",,SumFra4
+1130,"Nettomsætning 3, udland",,Overskrift4
+1131,Salg af varer til EU lande,UEUV,D
+1132,Salg af ydelser til EU lande,UEUY,D
+1133,Fjernsalg af varer til EU-land 1,UEUV2,D
+1134,Fjernsalg af varer til EU-land 2,UEUV2,D
+1135,Fjernsalg af varer til EU-land 3,UEUV2,D
+1136,Fjernsalg af varer til EU-land 4,UEUV2,D
+1137,Fjernsalg af varer til EU-land 5,UEUV2,D
+1138,Salg af varer til 3. lande,UVC,D
+1139,Salg af ydelser til 3. lande,UVC,D
+1140,Salg af fragt,,D
+1141,Provision eksport,,D
+1142,Rabat eksport,,D
+1143,Kontantrabat eksport,,D
+1144,"Modkonto fragt, rabatter og provision",,D
+1155,"Valutakursgevinster, eksport",,D
+1156,"Valutakurstab, eksport",,D
+1157,"Nettomsætning 3, udland i alt",,SumFra4
+1158,Nettomsætning 3 i alt,,SumFra3
+1170,Omsætning biydelser mv.,,Overskrift3
+1171,"Rykkergebyrer, indtægter",,D
+1172,Administrationsgebyr,U25,D
+1173,Betalingskortgebyr,U25,D
+1174,Kassedifferencer indtægt,U25,D
+1175,Salg af varer til tilknyttede virksomheder,U25,D
+1189,Omsætning biydelser mv. i alt,,SumFra3
+1190,Balancereguleringer,,Overskrift3
+1191,Regulering gangværende arbejder salgsværdi,,D
+1192,Regulering  forudfaktureret/forudbetalt,,D
+1193,Regulering varedebitorer,,D
+1194,Arbejde udført for egen regning og opført under aktiver,,D
+1195,Besætningsforskydning,,D
+1196,Konjunkturændringer besætninger,,D
+1199,Balancereguleringer i alt,,SumFra3
+1200,Indtægter udlejningsejendomme,,Overskrift3
+1202,Huslejeindtægter u/moms ejendom,,D
+1203,Huslejeindtægter,U25,D
+1204,Grundejernes Investeringsfond Vareforbrug,,D
+1206,"Varme u/moms, indtægter",,D
+1207,Varme Vareforbrug,U25,D
+1208,"Elektricitet u/moms, indtægter",,D
+1209,Elektricitet Vareforbrug,U25,D
+1210,Vand  u/moms,,D
+1211,Vand Vareforbrug,U25,D
+1212,"Antenne u/moms, indtægter",,D
+1213,"Antenne, indtægter",U25,D
+1214,Vask u/moms,,D
+1215,Vask,U25,D
+1216,Fællesudgifter u/moms,,D
+1217,Fællesudgifter,U25,D
+1218,Deposita u/moms,,D
+1219,Deposita Vareforbrug,U25,D
+1220,Erstatninger u/moms Vareforbrug,,D
+1221,Erstatninger Vareforbrug,U25,D
+1299,Indtægter udlejningsejendomme i alt,,SumFra3
+1300,Vareforbrug,,Overskrift2
+1301,Vareforbrug ,,Overskrift3
+1302,Vareindkøb ,,Overskrift4
+1303,Varekøb,I25,D
+1304,"Varekøb, DK omvendt betalingspligt",OBPK,D
+1305,Hjælpematerialer,I25,D
+1306,Varekøb u/moms,,D
+1307,EU-erhvervelser varer,IEUV,D
+1308,Varekøb 3. lande,IVV,D
+1309,Told mv.,,D
+1310,Importmoms fra importspecifikation,IMPO,D
+1311,Modkonto importmoms fra Importspecifikation,,D
+1312,EU-erhvervelser ydelser,IEUY,D
+1313,Ydelseskøb 3. lande,IVY,D
+1315,Varekøb fra tilknyttede virksomheder,I25,D
+1316,Varekøb fra tilknyttede virksomheder u/moms,,D
+1317,Varekøb fra associerede virksomheder,I25,D
+1318,Varekøb fra associerede virksomheder u/moms,,D
+1319,Fragt o.a. hjemtagelsesomkostninger m/moms,I25,D
+1320,Fragt o.a. hjemtagelsesomkostninger u/moms,,D
+1321,Fragt o.a. hjemtagelsesomkostninger EU,IEUV,D
+1322,Fragt o.a. hjemtagelsesomkostninger udlandet,IVV,D
+1323,Emballage,I25,D
+1324,Emballage u/moms,,D
+1325,Provision,I25,D
+1326,Provision u/moms,,D
+1327,Kontantrabatter,I25,D
+1328,Kontantrabatter u/moms,,D
+1329,Andre rabatter,I25,D
+1330,Andre rabatter u/moms,,D
+1331,Reduktioner,I25,D
+1332,Erstatninger,I25,D
+1333,Erstatninger u/moms,,D
+1334,Periodisering,,D
+1335,Defekte varer,,D
+1336,Køb af ydelser,I25,D
+1337,Varekøb 3,I25,D
+1338,Varekøb 4,I25,D
+1339,Varekøb 5,I25,D
+1340,Varekøb 6,I25,D
+1341,Varekøb 7,I25,D
+1342,Varekøb 8,I25,D
+1343,Varekøb u/moms 2,,D
+1344,Varekøb u/moms 3,,D
+1345,EU-erhvervelser varer 2,IEUV,D
+1346,EU-erhvervelser varer 3,IEUV,D
+1347,Varekøb 3. lande 2,IVV,D
+1348,Varekøb 3. lande 3,IVV,D
+1349,Hjælpematerialer 2,I25,D
+1350,Hjælpematerialer 3,I25,D
+1351,Hjælpematerialer 4,I25,D
+1352,"Køb, brugtmoms",,D
+1357,"Forbrug egne varer, privat",I25,D
+1358,"Forbrug egne varer, repræsentation",I25,D
+1359,Vareindkøb i alt ,,SumFra4
+1360,Fremmed arbejde ,,Overskrift4
+1361,Fremmed arbejde,I25,D
+1362,Fremmed arbejde u/moms,,D
+1363,Fremmed arbejde EU,IEUY,D
+1364,Fremmed arbejde 3. lande,IVY,D
+1365,Reduktioner,I25,D
+1366,Periodisering,,D
+1370,Maskinstation,I25,D
+1371,Fremmed arbejde,I25,D
+1372,Fremmed arbejde,I25,D
+1373,Fremmed arbejde,I25,D
+1374,Fremmed arbejde,I25,D
+1375,Fremmed arbejde,I25,D
+1379,Fremmed arbejde i alt ,,SumFra4
+1380,Kraftforbrug mv. og hjælpematerialer ,,Overskrift4
+1381,Elektricitet,I25,D
+1382,Refunderet elafgift,,D
+1383,Refunderet CO2-afgift,,D
+1384,Elforbrug private andele Vareforbrug,I25,D
+1385,Olie,I25,D
+1386,Olie refunderede afgifter,,D
+1387,Olie private andele,I25,D
+1388,Gas,I25,D
+1389,"Refunderet energiafgift, gas",,D
+1390,"Refunderet CO2-afgift, gas",,D
+1391,Kul mv.,I25,D
+1392,"Refunderet energiafgift, mv.",,D
+1393,Refunderet CO2-afgift mv.,,D
+1394,Vand,I25,D
+1395,Refunderet vandafgift,,D
+1396,Vand private andele Vareforbrug,I25,D
+1397,Hjælpematerialer mv.,I25,D
+1419,Kraftforbrug mv. og hjælpematerialer i alt ,,SumFra4
+1420,Maskiner og værktøj ,,Overskrift4
+1421,Reparation og vedligeholdelse Vareforbrug,I25,D
+1422,Reparation og vedligeholdelse u/moms Vareforbrug,,D
+1423,Leje og operationel leasing,I25,D
+1424,Leje og operationel leasing u/moms,,D
+1425,Finansiel leasing,I25,D
+1426,Finansiel leasing u/moms,,D
+1427,"Småanskaffelser, maskiner og værktøj",I25,D
+1428,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse",I25,D
+1429,"Småanskaffelser, maskiner og værktøj u/moms",,D
+1430,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse u/moms",,D
+1431,"Småanskaffelser, maskiner og værktøj, DK omvendt betalingspligt",OBPK,D
+1432,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse, DK omvendt betalingspligt",OBPK,D
+1433,"Småanskaffelser, maskiner og værktøj, EU-erhvervelser",IEUV,D
+1434,"Småanskaffelser, maskiner og værktøj, u/skattemæssig grænse, EU-erhvervelser",IEUV,D
+1435,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse",IEUV,D
+1436,"Småanskaffelser, maskiner og værktøj, varekøb 3. lande",IVV,D
+1437,"Småanskaffelser, maskiner og værktøj, varekøb 3. lande o/skattemæssig grænse",IVV,D
+1442,Regulering IPO varer under fremstilling,,D
+1443,Ændring i lagre af færdigvarer og varer under fremstilling,,D
+1449,Maskiner og værktøj i alt ,,SumFra4
+1450,Øvrige stykomkostninger ,,Overskrift4
+1451,Maskinforsikring,,D
+1452,Provision,I25,D
+1453,Provision u/moms,,D
+1454,Forsendelse varesalg,I25,D
+1455,Forsendelse varesalg u/moms,,D
+1487,"Valutakursgevinster, import",,D
+1488,"Valutakurrtab, import",,D
+1489,Øvrige stykomkostninger i alt ,,SumFra4
+1490,Reguleringer i balancen ,,Overskrift4
+1491,Regulering varelager,,D
+1492,Regulering råvarer og hjælpematerialer,,D
+1493,Regulering varer under fremstilling,,D
+1494,Regulering fremstillede varer og handelsvarer,,D
+1495,Regulering igangværende arbejder for fremmed regning,,D
+1496,Nedskrivning besætning primo,,D
+1497,Nedskrivning besætning ultimo,,D
+1498,Reguleringer i balancen i alt ,,SumFra4
+1499,Vareforbrug i alt ,,SumFra3
+1501,Vareforbrug 2 ,,Overskrift3
+1502,Vareindkøb mv. 2 ,,Overskrift4
+1503,Varekøb,I25,D
+1504,"Varekøb, DK omvendt betalingspligt",OBPK,D
+1505,Hjælpematerialer,I25,D
+1506,Varekøb u/moms,,D
+1507,EU-erhvervelser varer,IEUV,D
+1508,Varekøb 3. lande,IVV,D
+1509,Told mv.,,D
+1510,Importmoms fra importspecifikation,IMPO,D
+1511,Modkonto importmoms fra Importspecifikation,,D
+1512,EU-erhvervelser ydelser,IEUY,D
+1513,Ydelseskøb 3. lande,IVY,D
+1515,Varekøb fra tilknyttede virksomheder,I25,D
+1516,Varekøb fra tilknyttede virksomheder u/moms,,D
+1517,Varekøb fra associerede virksomheder,I25,D
+1518,Varekøb fra associerede virksomheder u/moms,,D
+1519,Fragt o.a. hjemtagelsesomkostninger m/moms,I25,D
+1520,Fragt o.a. hjemtagelsesomkostninger u/moms,,D
+1521,Fragt o.a. hjemtagelsesomkostninger EU,I25,D
+1522,Fragt o.a. hjemtagelsesomkostninger udlandet,,D
+1523,Emballage,I25,D
+1524,Emballage u/moms,,D
+1525,Provision,I25,D
+1526,Provision u/moms,,D
+1527,Kontantrabatter,I25,D
+1528,Kontantrabatter u/moms,,D
+1529,Andre rabatter,I25,D
+1530,Andre rabatter u/moms,,D
+1531,Reduktioner,I25,D
+1532,Erstatninger,I25,D
+1533,Erstatninger u/moms,,D
+1534,Periodisering,,D
+1535,Defekte varer,,D
+1536,Køb af ydelser,I25,D
+1537,Varekøb 3,I25,D
+1538,Varekøb 4,I25,D
+1539,Varekøb 5,I25,D
+1540,Varekøb 6,I25,D
+1541,Varekøb 7,I25,D
+1542,Varekøb 8,I25,D
+1543,Varekøb u/moms 2,,D
+1544,Varekøb u/moms 3,,D
+1545,EU-erhvervelser varer 2,IEUV,D
+1546,EU-erhvervelser varer 3,IEUV,D
+1547,Varekøb 3. lande 2,IVV,D
+1548,Varekøb 3. lande 3,IVV,D
+1549,Hjælpematerialer 2,I25,D
+1550,Hjælpematerialer 3,I25,D
+1551,Hjælpematerialer 4,I25,D
+1557,"Forbrug egne varer, privat",I25,D
+1558,"Forbrug egne varer, repræsentation",I25,D
+1559,Vareindkøb mv. 2 i alt ,,SumFra4
+1560,Fremmed arbejde  2 ,,Overskrift4
+1561,Fremmed arbejde,I25,D
+1562,Fremmed arbejde u/moms,,D
+1563,Fremmed arbejde EU,IEUY,D
+1564,Fremmed arbejde 3. lande,IVY,D
+1565,Reduktioner,I25,D
+1566,Periodisering,,D
+1579,Fremmed arbejde  2 i alt ,,SumFra4
+1580,Kraftforbrug mv. og hjælpematerialer 2 ,,Overskrift4
+1581,Elektricitet,I25,D
+1582,Refunderet elafgift,,D
+1583,Refunderet CO2-afgift,,D
+1584,Elforbrug private andele,I25,D
+1585,Olie,I25,D
+1586,Olie refunderede afgifter,,D
+1587,Olie private andele,I25,D
+1588,Gas,I25,D
+1589,"Refunderet energiafgift, gas",,D
+1590,"Refunderet CO2-afgift, gas",,D
+1591,Kul mv.,I25,D
+1592,"Refunderet energiafgift, mv.",,D
+1593,Refunderet CO2-afgift mv.,,D
+1594,Vand,I25,D
+1595,Refunderet vandafgift,,D
+1596,Vand private andele,I25,D
+1597,Hjælpematerialer mv.,I25,D
+1619,Kraftforbrug mv. og hjælpematerialer 2 i alt ,,SumFra4
+1620,Maskiner og værktøj 2 ,,Overskrift4
+1621,Reparation og vedligeholdelse,I25,D
+1622,Reparation og vedligeholdelse u/moms,,D
+1623,Leje og operationel leasing,I25,D
+1624,Leje og operationel leasing u/moms,,D
+1625,Finansiel leasing,I25,D
+1626,Finansiel leasing u/moms,,D
+1627,"Småanskaffelser, maskiner og værktøj",I25,D
+1628,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse",I25,D
+1629,"Småanskaffelser, maskiner og værktøj u/moms",,D
+1630,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse u/moms",,D
+1631,"Småanskaffelser, maskiner og værktøj, DK omvendt betalingspligt",OBPK,D
+1632,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse, DK omvendt betalingspligt",OBPK,D
+1633,"Småanskaffelser, maskiner og værktøj, EU-erhvervelser",IEUV,D
+1634,"Småanskaffelser, maskiner og værktøj, u/skattemæssig grænse, EU-erhvervelser",IEUV,D
+1635,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse",IEUV,D
+1636,"Småanskaffelser, maskiner og værktøj, varekøb 3. lande",IVV,D
+1637,"Småanskaffelser, maskiner og værktøj, varekøb 3. lande o/skattemæssig grænse",IVV,D
+1642,Regulering IPO varer under fremstilling,,D
+1643,Ændring i lagre af færdigvarer og varer under fremstilling,,D
+1649,Maskiner og værktøj 2 i alt ,,SumFra4
+1650,Øvrige stykomkostninger 2 ,,Overskrift4
+1651,Maskinforsikring,,D
+1652,Provision,I25,D
+1653,Provision u/moms,,D
+1654,Forsendelse varesalg,I25,D
+1655,Forsendelse varesalg u/moms,,D
+1687,"Valutakursgevinster, import",,D
+1688,"Valutakurrtab, import",,D
+1689,Øvrige stykomkostninger 2 i alt ,,SumFra4
+1690,Reguleringer i balancen 2 ,,Overskrift4
+1691,Regulering varelager,,D
+1692,Regulering råvarer og hjælpematerialer,,D
+1693,Regulering varer under fremstilling,,D
+1694,Regulering fremstillede varer og handelsvarer,,D
+1695,Regulering igangværende arbejder for fremmed regning,,D
+1698,Reguleringer i balancen 2 i alt ,,SumFra4
+1699,Vareforbrug 2 i alt ,,SumFra3
+1701,Vareforbrug 3 ,,Overskrift3
+1702,Vareindkøb mv. 3 ,,Overskrift4
+1703,Varekøb,I25,D
+1704,"Varekøb, DK omvendt betalingspligt",OBPK,D
+1705,Hjælpematerialer,I25,D
+1706,Varekøb u/moms,,D
+1707,EU-erhvervelser varer,IEUV,D
+1708,Varekøb 3. lande,IVV,D
+1709,Told mv.,,D
+1710,Importmoms fra importspecifikation,IMPO,D
+1711,Modkonto importmoms fra Importspecifikation,,D
+1712,EU-erhvervelser ydelser,IEUY,D
+1713,Ydelseskøb 3. lande,IVY,D
+1715,Varekøb fra tilknyttede virksomheder,I25,D
+1716,Varekøb fra tilknyttede virksomheder u/moms,,D
+1717,Varekøb fra associerede virksomheder,I25,D
+1718,Varekøb fra associerede virksomheder u/moms,,D
+1719,Fragt o.a. hjemtagelsesomkostninger m/moms,I25,D
+1720,Fragt o.a. hjemtagelsesomkostninger u/moms,,D
+1721,Fragt o.a. hjemtagelsesomkostninger EU,I25,D
+1722,Fragt o.a. hjemtagelsesomkostninger udlandet,,D
+1723,Emballage,I25,D
+1724,Emballage u/moms,,D
+1725,Provision,I25,D
+1726,Provision u/moms,,D
+1727,Kontantrabatter,I25,D
+1728,Kontantrabatter u/moms,,D
+1729,Andre rabatter,I25,D
+1730,Andre rabatter u/moms,,D
+1731,Reduktioner,I25,D
+1732,Erstatninger,I25,D
+1733,Erstatninger u/moms,,D
+1734,Periodisering,,D
+1735,Defekte varer,,D
+1736,Køb af ydelser,I25,D
+1737,Varekøb 3,I25,D
+1738,Varekøb 4,I25,D
+1739,Varekøb 5,I25,D
+1740,Varekøb 6,I25,D
+1741,Varekøb 7,I25,D
+1742,Varekøb 8,I25,D
+1743,Varekøb u/moms 2,,D
+1744,Varekøb u/moms 3,,D
+1745,EU-erhvervelser varer 2,IEUV,D
+1746,EU-erhvervelser varer 3,IEUV,D
+1747,Varekøb 3. lande 2,IVV,D
+1748,Varekøb 3. lande 3,IVV,D
+1749,Hjælpematerialer 2,I25,D
+1750,Hjælpematerialer 3,I25,D
+1751,Hjælpematerialer 4,I25,D
+1757,"Forbrug egne varer, privat",I25,D
+1758,"Forbrug egne varer, repræsentation",I25,D
+1759,Vareindkøb mv. 3 i alt ,,SumFra4
+1760,Fremmed arbejde  3 ,,Overskrift4
+1761,Fremmed arbejde,I25,D
+1762,Fremmed arbejde u/moms,,D
+1763,Fremmed arbejde EU,IEUY,D
+1764,Fremmed arbejde 3. lande,IVY,D
+1765,Reduktioner,I25,D
+1766,Periodisering,,D
+1779,Fremmed arbejde  3 i alt ,,SumFra4
+1780,Kraftforbrug mv. og hjælpematerialer 3 ,,Overskrift4
+1781,Elektricitet,I25,D
+1782,Refunderet elafgift,,D
+1783,Refunderet CO2-afgift,,D
+1784,Elforbrug private andele,I25,D
+1785,Olie,I25,D
+1786,Olie refunderede afgifter,,D
+1787,Olie private andele,I25,D
+1788,Gas,I25,D
+1789,"Refunderet energiafgift, gas",,D
+1790,"Refunderet CO2-afgift, gas",,D
+1791,Kul mv.,I25,D
+1792,"Refunderet energiafgift, mv.",,D
+1793,Refunderet CO2-afgift mv.,,D
+1794,Vand,I25,D
+1795,Refunderet vandafgift,,D
+1796,Vand private andele,I25,D
+1797,Hjælpematerialer mv.,I25,D
+1819,Kraftforbrug mv. og hjælpematerialer 3 i alt ,,SumFra4
+1820,Maskiner og værktøj 3 ,,Overskrift4
+1821,Reparation og vedligeholdelse,I25,D
+1822,Reparation og vedligeholdelse u/moms,,D
+1823,Leje og operationel leasing,I25,D
+1824,Leje og operationel leasing u/moms,,D
+1825,Finansiel leasing,I25,D
+1826,Finansiel leasing u/moms,,D
+1827,"Småanskaffelser, maskiner og værktøj",I25,D
+1828,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse",I25,D
+1829,"Småanskaffelser, maskiner og værktøj u/moms",,D
+1830,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse u/moms",,D
+1831,"Småanskaffelser, maskiner og værktøj, DK omvendt betalingspligt",OBPK,D
+1832,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse, DK omvendt betalingspligt",OBPK,D
+1833,"Småanskaffelser, maskiner og værktøj, EU-erhvervelser",IEUV,D
+1834,"Småanskaffelser, maskiner og værktøj, u/skattemæssig grænse, EU-erhvervelser",IEUV,D
+1835,"Småanskaffelser, maskiner og værktøj u/skattemæssig grænse",IEUV,D
+1836,"Småanskaffelser, maskiner og værktøj, varekøb 3. lande",IVV,D
+1837,"Småanskaffelser, maskiner og værktøj, varekøb 3. lande o/skattemæssig grænse",IVV,D
+1842,Regulering IPO varer under fremstilling,,D
+1843,Ændring i lagre af færdigvarer og varer under fremstilling,,D
+1849,Maskiner og værktøj 3 i alt ,,SumFra4
+1850,Øvrige stykomkostninger 3 ,,Overskrift4
+1851,Maskinforsikring,,D
+1852,Provision,I25,D
+1853,Provision u/moms,,D
+1854,Forsendelse varesalg,I25,D
+1855,Forsendelse varesalg u/moms,,D
+1887,"Valutakursgevinster, import",,D
+1888,"Valutakurrtab, import",,D
+1889,Øvrige stykomkostninger 3 i alt ,,SumFra4
+1890,Reguleringer i balancen 3 ,,Overskrift4
+1891,Regulering varelager,,D
+1892,Regulering råvarer og hjælpematerialer,,D
+1893,Regulering varer under fremstilling,,D
+1894,Regulering fremstillede varer og handelsvarer,,D
+1895,Regulering igangværende arbejder for fremmed regning,,D
+1898,Reguleringer i balancen 3 i alt ,,SumFra4
+1899,Vareforbrug 3 i alt ,,SumFra3
+1900,Omkostninger udlejningsejendomme,,Overskrift3
+1901,Ejendomsskat Udlejningsejendomme,,D
+1902,Grundejernes Investeringsfond  Udlejningsejendomme,,D
+1903,Ejendomsforsikring Udlejningsejendomme,,D
+1904,Renovation Udlejningsejendomme,I25,D
+1905,Renovation u/moms Udlejningsejendomme,,D
+1906,Vedligeholdelse Udlejningsejendomme,I25,D
+1907,Vedligeholdelse u/moms Udlejningsejendomme,,D
+1908,Varme  Udlejningsejendomme,I25,D
+1909,Varme u/moms Udlejningsejendomme,,D
+1910,Elektricitet Udlejningsejendomme,I25,D
+1911,Elektricitet u/moms Udlejningsejendomme,,D
+1912,Vand Udlejningsejendomme,I25,D
+1913,Vand u/moms Udlejningsejendomme,,D
+1914,Antenne Udlejningsejendomme,I25,D
+1915,Antenne u/moms Udlejningsejendomme,,D
+1916,Øvrige driftsudgifter Udlejningsejendomme,I25,D
+1917,Øvrige driftsudgifter u/moms Udlejningsejendomme,,D
+1999,Omkostninger udlejningsejendomme i alt,,SumFra3
+2000,Øvrigt vareforbrug,,Overskrift3
+2001,Garantiprovision,,D
+2002,Garantiprovision u/skattemæssigt fradrag,,D
+2999,Vareforbrug i alt,,SumFra3
+3000,Produktionsløn,,Overskrift2
+3001,"Lønninger, produktion",,Overskrift3
+3002,Bidragspligtig A-indkomst (AM-grundlag),,D
+3003,Bidragsfri A-indkomst,,D
+3004,Bidragspligtig B-indkomst (AM-grundlag),,D
+3005,Bidragsfri B-indkomst,,D
+3006,Feriepenge (AM-grundlag),,D
+3007,Jubilæumsgratiale og fratrædelsesgodtgørelser mv.,,D
+3008,"Sundhedsforsikring, tilbageført",,D
+3009,"Gruppeliv, tilbageført",,D
+3010,"Fri bil, tilbageført",,D
+3011,"Fri telefon, tilbageført",,D
+3012,"Fri bolig, tilbageført",,D
+3013,"Andre personalegoder, tilbageført",,D
+3014,"ATP, medarbejderdel",,D
+3015,"Arbejdsmarkedspension, medarbejderdel",,D
+3016,"Anden pension, medarbejderdel",,D
+3020,Regulering beregnet skyldig løn,,D
+3021,Regulering ubeskattede SH,,D
+3022,Regulering feriepengeforpligtelse,,D
+3038,"Overført fra Løn, gager og honorarer",,D
+3039,"Lønninger, produktion i alt",,SumFra3
+3040,"Pensioner, produktion",,Overskrift3
+3041,"Arbejdsmarkedspension, arbejdsgiverdel",,D
+3042,"Anden pension, arbejdsgiverdel",,D
+3043,Pension til fratrådte medarbejdere,,D
+3048,Overført til produktionslønninger,,D
+3049,"Pensioner, produktion i alt",,SumFra3
+3050,"Andre omkostninger til social sikring, produktion",,Overskrift3
+3051,Arbejdsskadeforsikring,,D
+3052,Erhvervsansvarsforsikring,,D
+3053,Sygedagpengeforsikring,,D
+3054,Gruppelivsforsikring,,D
+3055,Sundhedsforsikring,,D
+3056,Øvrige personaleforsikringer,,D
+3057,Sundhedsomkostninger,,D
+3058,"ATP-bidrag, arbejdsgiverdel",,D
+3059,Arbejdsgivernes Uddannelsesbidrag (AUB),,D
+3060,Arbejdsmarkedets Erhvervssikring (AES),,D
+3061,Barsel.dk,,D
+3062,Finansieringsbidrag (FIB),,D
+3063,Arbejdsmarkedets Fond for Udstationerede (AFU),,D
+3064,Andre sociale omkostninger,,D
+3088,"Overført fra Løn, gager og honorarer",,D
+3089,"Andre omkostninger til social sikring, produktion i alt",,SumFra3
+3090,"Reduktioner, produktion",,Overskrift3
+3091,Refunderede syge- og barselsdagpenge,,D
+3092,Løntilskud,,D
+3093,Tilskud AER,,D
+3094,Godtgørelse ATP,,D
+3095,Elevrefusion,,D
+3097,"Overført fra Løn, gager og honorarer",,D
+3098,"Reduktioner, produktion i alt",,SumFra3
+3099,Produktionsløn i alt,,SumFra2
+3100,Administrativ løn,,Overskrift2
+3101,"Løn, gager og honorarer, administration",,Overskrift3
+3102,Bidragspligtig A-indkomst (AM-grundlag),,D
+3103,Bidragsfri A-indkomst,,D
+3104,Bidragspligtig B-indkomst (AM-grundlag),,D
+3105,Bidragsfri B-indkomst,,D
+3106,Feriepenge (AM-grundlag),,D
+3107,Jubilæumsgratiale og fratrædelsesgodtgørelser mv.,,D
+3108,"Sundhedsforsikring, tilbageført",,D
+3109,"Gruppeliv, tilbageført",,D
+3110,"Fri bil, tilbageført",,D
+3111,"Fri telefon, tilbageført",,D
+3112,"Fri bolig, tilbageført",,D
+3113,"Andre personalegoder, tilbageført",,D
+3114,"ATP, medarbejderdel",,D
+3115,"Arbejdsmarkedspension, medarbejderdel",,D
+3116,"Anden pension, medarbejderdel",,D
+3117,Overført til bestyrelse og direktion,,D
+3118,Bestyrelse,,D
+3119,Direktion,,D
+3120,Regulering beregnet skyldig løn,,D
+3121,Regulering ubeskattede SH,,D
+3122,Regulering feriepengeforpligtelse,,D
+3123,Regulering feriepengeforpligtelse direktion,,D
+3124,Regulering feriepengeforpligtelse bestyrelse,,D
+3125,Feriefond,,D
+3137,Vendekonto løn,,D
+3138,Overført til produktionslønninger,,D
+3139,"Løn, gager og honorarer, administration i alt",,SumFra3
+3140,"Pensioner, administration",,Overskrift3
+3141,"Arbejdsmarkedspension, arbejdsgiverdel",,D
+3142,"Anden pension, arbejdsgiverdel",,D
+3143,Pension til fratrådte medarbejdere,,D
+3148,Overført til produktionslønninger,,D
+3149,"Pensioner, administration i alt",,SumFra3
+3150,"Andre omkostninger til social sikring, administration",,Overskrift3
+3151,Arbejdsskadeforsikring,,D
+3152,Erhvervsansvarsforsikring,,D
+3153,Sygedagpengeforsikring,,D
+3154,Gruppelivsforsikring,,D
+3155,Sundhedsforsikring,,D
+3156,Øvrige forsikringer,,D
+3157,Sundhedsomkostninger,,D
+3158,"ATP-bidrag, arbejdsgiverdel",,D
+3159,Arbejdsgivernes Uddannelsesbidrag (AUB),,D
+3160,Arbejdsmarkedets Erhvervssikring (AES),,D
+3161,Barsel.dk,,D
+3162,Finansieringsbidrag (FIB),,D
+3163,Arbejdsmarkedets Fond for Udstationerede (AFU),,D
+3164,Andre sociale bidrag,,D
+3188,Overført til produktionslønninger,,D
+3189,"Andre omkostninger til social sikring, administration i alt",,SumFra3
+3190,"Reduktioner, administration",,Overskrift3
+3191,Refunderede syge- og barselsdagpenge,,D
+3192,Løntilskud,,D
+3193,Tilskud AER,,D
+3194,Godtgørelse ATP,,D
+3195,Elevrefusion,,D
+3197,Overført til produktionslønninger,,D
+3198,"Reduktioner, administration i alt",,SumFra3
+3199,Administrativ løn i alt,,SumFra2
+4000,Andre eksterne omkostninger,,Overskrift2
+4001,Personaleomkostninger,,Overskrift3
+4002,BST,I25,D
+4003,BST u/moms,,D
+4004,Anvendes ikke,,D
+4005,"Kursusudgifter, bøger og lignende",I25,D
+4006,"Kursusudgifter, bøger og lignende u/moms",,D
+4007,Personaleomkostninger u/moms,,D
+4008,Personaleomkostninger m/moms,I25,D
+4009,Bespisning i byen (restaurationsbesøg mv.),REP,D
+4010,Bespisning uden for virksomhedens lokaler i øvrigt,,D
+4011,Gaver o.a. belønninger,,D
+4016,Skattefri godtgørelser,,D
+4017,Lærlingeomkostninger,I25,D
+4018,Arbejdstøj,I25,D
+4019,Arbejdstøj u/moms,,D
+4020,"Databehandling, løn",I25,D
+4021,"Sundhedsforsikring, ekst. omk.",,D
+4022,"Sundhedsomkostninger, ekst. omk.",,D
+4023,Bespisning under kursus/møder mv. i virksomhedens lokaler,I25,D
+4024,Bespisning under uvarslet overarbejde i virksomhedens lokaler,I25,D
+4025,Anden bespisning i virksomhedens lokaler,,D
+4026,Bestyrelsesmøder ude i byen,REP,D
+4027,Bestyrelsesmøder i virksomhedens lokaler,I25,D
+4028,"Frokostordning, indtægter",,D
+4029,"Frokostordning, udgifter",,D
+4030,Belønningsmiddage,REP,D
+4047,Øvrige personaleomkostninger,I25,D
+4048,Øvrige personaleomkostninger u/moms,,D
+4049,Personaleomkostninger i alt,,SumFra3
+4050,Repræsentation,,Overskrift3
+4051,"Tobak, repræsentation",,D
+4052,"Vin, spiritus, øl mv., repræsentation",,D
+4053,"Gaver og blomster, repræsentation",,D
+4054,"Reklameartikler, repræsentation (>100 kr. mv.)",,D
+4055,"Vareprøver, repræsentation",,D
+4056,"Reception mv., repræsentation",,D
+4057,"Rejseomkostninger, repræsentation",,D
+4058,"Hotelophold, repræsentation",HREP,D
+4059,"Restaurationsbesøg, repræsentation",REP,D
+4060,Forretningsmøder i virksomhedens lokaler,I25,D
+4061,Kaffe og te i virksomhedens lokaler (forretningsmøder/kurser),I25,D
+4062,Anden kundepleje i virksomhedens lokaler,I25,D
+4063,Cigaretter mv.,,D
+4071,Forretningsmøder mv. i udlandet,,D
+4072,Modkonto ej fradrag for repræsentationsomkostninger,,D
+4097,Ikke fradragsberettigede repræsentationsomkostninger,,D
+4098,Øvrige repræsentationsomkostninger,,D
+4099,Repræsentation i alt,,SumFra3
+4100,Salgs- og distributionsomkostninger,,Overskrift3
+4101,Annoncer og reklame,I25,D
+4102,Annoncer og reklame u/moms,,D
+4103,Annoncetilskud,I25,D
+4104,Radio/TV-spots,I25,D
+4105,"Internetannoncer, sociale medier mv.",I25,D
+4106,"Internetannoncer, sociale medier mv. EU",IEUY,D
+4107,"Internetannoncer, sociale medier mv. 3. lande",IVY,D
+4108,Tryksager og brochurer,I25,D
+4109,Reklameartikler med fuldt fradrag (<100 kr. mv.),I25,D
+4110,Vareprøver,I25,D
+4111,Dekoration/skilte,I25,D
+4112,Reklame-emballage/stativer o.l.,I25,D
+4113,"Småanskaffelser, salg og distribution u/skattemæssig grænse",I25,D
+4114,"Småanskaffelser, salg og distribution u/moms",,D
+4115,"Småanskaffelser, salg og distribution u/skattemæssig grænse u/moms",,D
+4116,"Småanskaffelser, salg og distribution, DK omvendt betalingspligt",OBPK,D
+4117,"Småanskaffelser, salg og distribution u/skattemæssig grænse, DK omvendt betalingspligt",OBPK,D
+4118,"Småanskaffelser, salg og distribution, EU-erhvervelser",IEUV,D
+4119,"Småanskaffelser, salg og distribution, u/skattemæssig grænse, EU-erhvervelser",IEUV,D
+4120,"Småanskaffelser, salg og distribution u/skattemæssig grænse",IEUV,D
+4121,"Småanskaffelser, salg og distribution, varekøb 3. lande",IVV,D
+4122,"Småanskaffelser, salg og distribution, varekøb 3. lande o/skattemæssig grænse",IVV,D
+4123,Regulering IPO varer under fremstilling,,D
+4124,"Emballage, fælles",I25,D
+4125,Fragt o.a. forsendelsesomkostninger m/moms,I25,D
+4126,Fragt o.a. forsendelsesomkostninger u/moms,,D
+4127,"Messe, udstillinger, kongresser og konferencer",I25,D
+4128,Sponsoromkostninger,I25,D
+4129,"Reception mv., reklamemæssig karakter",I25,D
+4130,Kundeservice,I25,D
+4131,Kundeservice u/moms,,D
+4132,Kundeakkvisition,I25,D
+4133,Kundeakkvisition u/moms,,D
+4134,Fragt o.a. forsendelsesomkostninger EU,IEUY,D
+4135,Fragt o.a. forsendelsesomkostninger 3. lande,IVY,D
+4147,Øvrige salgs- og distributionsomkostninger,I25,D
+4148,Øvrige salgs- og distributionsomkostninger u/moms,,D
+4149,Salgs- og distributionsomkostninger i alt,,SumFra3
+4150,Rejser,,Overskrift3
+4151,Hotelophold,HREP,D
+4152,Restaurationsbesøg,REP,D
+4153,Rejseudgifter EU m. reverse charge,IEUY,D
+4156,Hotelophold i udlandet,,D
+4157,Restaurationsbesøg i udlandet,,D
+4158,Taxi o.a. persontransport i udlandet,,D
+4159,"Adgang til messer, udstillinger og konferencer mv. i udlandet",,D
+4160,Øvrige omkostninger ved rejser i udlandet,,D
+4170,Skattefri rejsegodtgørelse,,D
+4171,Fradrag for rejser efter statens takster,,D
+4180,Anden bespisning mv. på rejse,,D
+4197,Øvrige rejseomkostninger,I25,D
+4198,Øvrige rejseomkostninger u/moms,,D
+4199,Rejser i alt,,SumFra3
+4200,Transportomkostninger,,Overskrift3
+4201,Gulpladebiler,,Overskrift4
+4202,"Brændstof, gulpladebiler",I25,D
+4203,"Vægtafgift, gulpladebiler",,D
+4204,"Forsikring, gulpladebiler",,D
+4205,"Vedligeholdelse, gulpladebiler",I25,D
+4206,"Redningskorps, gulpladebiler",I25,D
+4207,"Redningskorps u/moms, gulpladebiler",,D
+4208,"Leje, gulpladebiler",I25,D
+4209,"Finansiel leasing, gulpladebiler",I25,D
+4210,"Parkeringsafgift, gulpladebiler",I25,D
+4211,"Parkeringsbøde lønoplyst, gulpladebiler",I25,D
+4212,"Parkeringsbøde ikke lønoplyst, gulpladebiler",,D
+4213,"Broafgift, gulpladebiler",,D
+4214,"Færge, gulpladebiler",I25,D
+4215,"Færge, gulpladebiler u/moms",,D
+4216,"Øvrige driftsomkostninger, gulpladebiler",I25,D
+4217,"Øvrige driftsomkostninger, gulpladebiler u/moms",,D
+4220,Gulpladebiler i alt,,SumFra4
+4221,Papegøje- og gulpladebiler,,Overskrift4
+4222,"Brændstof, papegøje- og gulpladebiler",I25,D
+4223,"Vægtafgift, papegøje- og gulpladebiler",,D
+4224,"Forsikring, papegøje- og gulpladebiler",,D
+4225,"Vedligeholdelse, papegøje- og gulpladebiler",I25,D
+4226,"Redningskorps, papegøje- og gulpladebiler",I25,D
+4227,"Redningskorps u/moms, papegøje- og gulpladebiler",,D
+4228,"Leje, papegøje- og gulpladebiler",I25,D
+4229,"Finansiel leasing, papegøje- og gulpladebiler",I25,D
+4230,"Parkeringsafgift, papegøje- og gulpladebiler",I25,D
+4231,"Parkeringsbøde lønoplyst, papegøje- og gulpladebiler",I25,D
+4232,"Parkeringsbøde ikke lønoplyst, papegøje- og gulpladebiler",I25,D
+4233,"Broafgift, papegøje- og gulpladebiler",I25,D
+4234,"Færge, papegøje- og gulpladebiler",I25,D
+4235,"Færge, papegøje- og gulpladebiler u/moms",,D
+4236,"Øvrige driftsomkostninger, papegøje- og gulpladebiler",I25,D
+4237,"Øvrige driftsomkostninger, papegøje- og gulpladebiler u/moms",,D
+4240,Papegøje- og gulpladebiler i alt,,SumFra4
+4241,Andre driftsmidler,,Overskrift4
+4242,"Brændstof, andre driftsmidler",,D
+4243,"Vægtafgift, andre driftsmidler",,D
+4244,"Forsikring, andre driftsmidler",,D
+4245,"Vedligeholdelse, andre driftsmidler",,D
+4246,"Redningskorps, andre driftsmidler",,D
+4247,"Redningskorps u/moms, andre driftsmidler",,D
+4248,"Leje, andre driftsmidler",,D
+4249,"Finansiel leasing, andre driftsmidler",,D
+4250,"Parkeringsafgift, andre driftsmidler",,D
+4251,"Parkeringsbøde lønoplyst, andre driftsmidler",,D
+4252,"Parkeringsbøde ikke lønoplyst, andre driftsmidler",,D
+4253,"Broafgift, andre driftsmidler",,D
+4254,"Færge, andre driftsmidler",,D
+4255,"Færge, andre driftsmidler u/moms",,D
+4256,"Øvrige driftsomkostninger, andre driftsmidler",,D
+4257,"Øvrige driftsomkostninger, andre driftsmidler u/moms",,D
+4259,Andre driftsmidler i alt,,SumFra4
+4260,Hvidpladebiler,,Overskrift4
+4261,"Brændstof, hvidpladebiler",,D
+4262,"Ejerafgift, hvidpladebiler",,D
+4263,"Forsikring, hvidpladebiler",,D
+4264,"Vedligeholdelse, hvidpladebiler",,D
+4265,"Redningskorps, hvidpladebiler",,D
+4266,"Leje, hvidpladebiler",,D
+4267,"Leje med delvist momsfradrag, hvidpladebiler",,D
+4268,"Finansiel leasing, hvidpladebiler",,D
+4269,"Parkering, hvidpladebiler",,D
+4270,"Broafgift, hvidpladebiler",,D
+4271,"Broafgift m/moms, hvidpladebiler (Øresund)",I25,D
+4272,"Færge, hvidpladebiler",,D
+4273,"Parkeringsbøde lønoplyst, hvidpladebiler",,D
+4274,"Parkeringsbøde ikke lønoplyst, hvidpladebiler",,D
+4278,"Øvrige omkostninger, hvidpladebiler",,D
+4279,Hvidpladebiler i alt,,SumFra4
+4280,Øvrige transportomkostninger,,Overskrift4
+4281,Skattefri befordringsgodtgørelse,,D
+4282,Taxa,,D
+4283,Tog,,D
+4284,Fly,,D
+4285,Bus,,D
+4286,"Færge, personbefordring",,D
+4287,"Fartbøder, lønoplyst",,D
+4288,"Fartbøder, ikke lønoplyst",,D
+4289,Fradrag erhvervsmæssig kørsel efter statens takster,,D
+4290,Fri bil / privat andel biludgifter,,D
+4296,Øvrige transportomkostninger m/moms,I25,D
+4297,Øvrige transportomkostninger u/moms,,D
+4298,Øvrige transportomkostninger i alt,,SumFra4
+4299,Transportomkostninger i alt,,SumFra3
+4300,Lokaleomkostninger,,Overskrift3
+4301,Husleje o.a. lokaleomkostninger,,Overskrift4
+4302,Husleje m/moms,I25,D
+4303,Husleje u/moms,,D
+4304,Lejeindtægter m/moms,U25,D
+4305,Lejeindtægter u/moms,,D
+4306,"Forsikring, lokaler",,D
+4307,Ejendomsskat,,D
+4308,Grundejernes Investeringsfond,,D
+4309,Reparation og vedligeholdelse,I25,D
+4310,Reparation og vedligeholdelse u/moms,,D
+4311,Rengøring,I25,D
+4312,Rengøring u/moms,,D
+4313,Renovation,I25,D
+4314,Renovation u/moms,,D
+4315,Tilslutningsafgifter,I25,D
+4316,Tilslutningsafgifter u/moms,,D
+4330,Fradrag for arbejdsværelse,,D
+4331,Fradrag for lagerlokale eget hjem,,D
+4332,Fradrag for lagerlokale eget hjem,,D
+4357,Øvrige lokaleomkostninger,I25,D
+4358,Øvrige lokaleomkostninger u/moms,,D
+4359,Husleje o.a. lokaleomkostninger i alt,,SumFra4
+4360,Forbrug,,Overskrift4
+4361,Miljøafgift,I25,D
+4362,Miljøafgift u/moms,,D
+4363,Elektricitet,I25,D
+4364,Refunderet elafgift,,D
+4365,Refunderet CO2-afgift,,D
+4366,Elforbrug private andele,I25,D
+4367,Varme,I25,D
+4368,"Refunderet energiafgift, varme",,D
+4369,"Refunderet CO2-afgift, varme",,D
+4370,Varme private andele,I25,D
+4371,Gas,I25,D
+4372,"Refunderet energiafgift, gas",,D
+4373,"Refunderet CO2-afgift, gas",,D
+4374,Vand,I25,D
+4375,Refunderet vandafgift,,D
+4376,Vand private andele,I25,D
+4377,Elektricitet u/moms,I25,D
+4378,Varme u/moms,I25,D
+4379,Gas u/moms,I25,D
+7380,Vand u/moms,I25,D
+4396,Øvrige forbrugsomkostninger,I25,D
+4397,Øvrige forbrugsomkostninger u/moms,,D
+4398,Forbrug i alt,,SumFra4
+4399,Lokaleomkostninger i alt,,SumFra3
+4400,Administrationsomkostninger,,Overskrift3
+4401,Kontorhold,,Overskrift4
+4402,Kontorartikler/tryksager,I25,D
+4403,Reparation og vedligeholdelse inventar,I25,D
+4404,"Småanskaffelser, kontorhold u/skattemæssig grænse",I25,D
+4405,"Småanskaffelser, kontorhold u/moms",,D
+4406,"Småanskaffelser, kontorhold u/skattemæssig grænse u/moms",,D
+4407,"Småanskaffelser, kontorhold, DK omvendt betalingspligt",OBPK,D
+4408,"Småanskaffelser, kontorhold u/skattemæssig grænse, DK omvendt betalingspligt",OBPK,D
+4409,"Småanskaffelser, kontorhold, EU-erhvervelser",IEUV,D
+4410,"Småanskaffelser, kontorhold, u/skattemæssig grænse, EU-erhvervelser",IEUV,D
+4411,"Småanskaffelser, kontorhold u/skattemæssig grænse",IEUV,D
+4412,"Småanskaffelser, kontorhold, varekøb 3. lande",IVV,D
+4413,"Småanskaffelser, kontorhold, varekøb 3. lande o/skattemæssig grænse",IVV,D
+4414,Regulering IPO varer under fremstilling,,D
+4415,"Leje og operationel leasing, administration",I25,D
+4416,"Leje og operationel leasing u/moms, administration",,D
+4417,"Finansiel leasing, administration",I25,D
+4418,"Finansiel leasing u/moms, administration",,D
+4447,Øvrige omkostninger til kontorhold,I25,D
+4448,Øvrige omkostninger til kontorhold u/moms,,D
+4449,Kontorhold i alt,,SumFra4
+4450,Edb-udgifter,,Overskrift4
+4451,Regnskabsprogram,I25,D
+4452,Andre edb-licenser,I25,D
+4453,Hjemmeside,I25,D
+4454,Webhotel m/moms,I25,D
+4455,Webhotel EU,IEUY,D
+4456,Webhotel 3. lande,IVY,D
+4457,Andre edb-udgifter m/moms,I25,D
+4458,Andre edb-udgifter EU,IEUY,D
+4459,Andre edb-udgifter 3. lande,IVY,D
+4460,"Småanskaffelser, edb u/skattemæssig grænse",I25,D
+4461,"Småanskaffelser, edb u/moms",,D
+4462,"Småanskaffelser, edb u/skattemæssig grænse u/moms",,D
+4463,"Småanskaffelser, edb, DK omvendt betalingspligt",OBPK,D
+4464,"Småanskaffelser, edb u/skattemæssig grænse, DK omvendt betalingspligt",OBPK,D
+4465,"Småanskaffelser, edb, EU-erhvervelser",IEUV,D
+4466,"Småanskaffelser, edb, u/skattemæssig grænse, EU-erhvervelser",IEUV,D
+4467,"Småanskaffelser, edb u/skattemæssig grænse",IEUV,D
+4468,"Småanskaffelser, edb, varekøb 3. lande",IVV,D
+4469,"Småanskaffelser, edb, varekøb 3. lande o/skattemæssig grænse",IVV,D
+4470,Regulering IPO varer under fremstilling,,D
+4471,"Leje og operationel leasing, edb",I25,D
+4472,"Leje og operationel leasing u/moms, edb",,D
+4473,"Finansiel leasing, edb",I25,D
+4474,"Finansiel leasing u/moms, edb",,D
+4496,Øvrige edb-udgifter,I25,D
+4497,Øvrige edb-udgifter u/moms,,D
+4498,Privat andel af computer,,D
+4499,Administrationsomkostninger i alt,,SumFra4
+4500,Kommunikation,,Overskrift4
+4501,Telefon,I25,D
+4502,"Mobiltelefon, andel m/moms",I25,D
+4503,"Mobiltelefon, andel u/moms",,D
+4504,"Internet, andel m/moms",I25,D
+4505,"Internet, andel u/moms",,D
+4506,Informationssøgning (databaser),I25,D
+4507,Erhvervslicens,I25,D
+4508,"Småanskaffelser, kommunikation u/skattemæssig grænse",I25,D
+4509,"Småanskaffelser, kommunikation u/moms",,D
+4510,"Småanskaffelser, kommunikation u/skattemæssig grænse u/moms",,D
+4511,"Småanskaffelser, kommunikation, DK omvendt betalingspligt",OBPK,D
+4512,"Småanskaffelser, kommunikation u/skattemæssig grænse, DK omvendt betalingspligt",OBPK,D
+4513,"Småanskaffelser, kommunikation, EU-erhvervelser",IEUV,D
+4514,"Småanskaffelser, kommunikation, u/skattemæssig grænse, EU-erhvervelser",IEUV,D
+4515,"Småanskaffelser, kommunikation u/skattemæssig grænse",IEUV,D
+4516,"Småanskaffelser, kommunikation, varekøb 3. lande",IVV,D
+4517,"Småanskaffelser, kommunikation, varekøb 3. lande o/skattemæssig grænse",IVV,D
+4518,Regulering IPO varer under fremstilling,,D
+4519,"Leje og operationel leasing, kommunikation",I25,D
+4520,"Leje og operationel leasing u/moms, kommunikation",,D
+4521,"Finansiel leasing, kommunikation",I25,D
+4522,"Finansiel leasing u/moms, kommunikation",,D
+4523,Telefonsystem,I25,D
+4546,Øvrige udgifter til kommunikation,I25,D
+4547,Øvrige udgifter til kommunikation u/moms,,D
+4548,Privat andel af telefon og internet,,D
+4549,Administrationsomkostninger i alt,,SumFra4
+4550,Ekstern bistand mv.,,Overskrift4
+4551,Advokathonorar,I25,D
+4552,Advokathonorar u/skattemæssigt fradrag,I25,D
+4553,Retsafgifter,,D
+4554,Rådgivning og administration,,D
+4555,Rådgivning og administration vedr. værdipapirer og bankindeståender,,D
+4556,Depotgebyr,,D
+4557,Depotgebyr u/skattemæssigt fradrag,,D
+4558,Boksleje,,D
+4559,Boksleje u/skattemæssigt fradrag,,D
+4560,Revisorhonorar,I25,D
+4561,Revisorhonorar vedr. sidste år,I25,D
+4562,"Skyldig revision, regulering",,D
+4563,Revisorhonorar u/skattemæssigt fradrag,I25,D
+4564,Bogføringsassistance,I25,D
+4565,Stiftelsesomkostninger u/moms,,D
+4566,Stiftelsesomkostninger m/moms,I25,D
+4567,Gebyrer skat,,D
+4568,Gebyrer skat u/skattemæssigt fradrag,,D
+4569,Regulering kreditorer,I25,D
+4571,Landboforening,I25,D
+4572,Porteføljepleje,,D
+4573,Ej fradragsberettigede omkostninger m/moms,I25,D
+4574,Ej fradragsberettigede omkostninger,,D
+4575,Modkonto ej fradragsberettigede omkostninger,,D
+4576,,I25,D
+4577,,I25,D
+4578,,I25,D
+4589,Øvrig konsulentbistand,I25,D
+4595,"Øvrige udgifter til ekstern bistand, EU",,D
+4596,"Øvrige udgifter til ekstern bistand, 3. lande",,D
+4597,Øvrige udgifter til ekstern bistand,I25,D
+4598,Øvrige udgifter til ekstern bistand u/moms,,D
+4599,Administrationsomkostninger i alt,,SumFra4
+4600,Faglige omkostninger,,Overskrift4
+4601,Aviser,,D
+4602,Faglitteratur/tidsskrifter,I25,D
+4603,Faglitteratur/tidsskrifter u/moms,,D
+4604,Anden litteratur,I25,D
+4605,Anden litteratur u/moms,,D
+4606,Kontingenter,I25,D
+4607,Kontingenter u/moms,,D
+4608,Faglige udgifter m/moms,I25,D
+4609,Faglige udgifter u/moms,,D
+4620,"Faglige udgifter, EU-erhvervelser varekøb",IEUV,D
+4621,"Faglige udgifter, varekøb 3. lande",IVV,D
+4622,"Faglige udgifter, EU-erhvervelser ydelser",IEUY,D
+4623,"Faglige udgifter, ydelseskøb 3. lande",IVY,D
+4624,Kontingent vedrørende virksomhed og fradrag for syge- og arbejdsskadeforsikringer,,D
+4647,Øvrige faglige udgifter,I25,D
+4648,Øvrige faglige udgifter u/moms,,D
+4649,Administrationsomkostninger i alt,,SumFra4
+4650,Debitorer,,Overskrift4
+4651,"Tab på varedebitorer, konstateret",U25,D
+4652,"Tab på varedebitorer u/moms, konstateret",,D
+4653,"Regulering af hensættelse til imødegåelse af tab, fordringer (lagerprincip)",,D
+4654,Indgået på tidligere afskrevne fordringer,U25,D
+4655,Indgået på tidligere afskrevne fordringer u/moms,,D
+4656,"Inkasso, debitorer",I25,D
+4657,"Inkasso, debitorer u/moms",,D
+4658,"RKI, kreditoplysninger",I25,D
+4697,Øvrige udgifter vedr. debitorer,I25,D
+4698,Øvrige udgifter vedr. debitorer u/moms,,D
+4699,Administrationsomkostninger i alt,,SumFra4
+4700,Sikringsudgifter,,Overskrift4
+4701,Forsikringer,,D
+4702,Debitorforsikringer,,D
+4703,Produktansvarsforsikring,,D
+4704,Almindelig erhvervsansvarsforsikring,,D
+4705,Professionel ansvarsforsikring,,D
+4706,Driftsforsikring,,D
+4707,Transportforsikring,,D
+4708,Driftstabsforsikring,,D
+4709,Edb-forsikring,,D
+4710,Øvrige forsikringer,,D
+4711,Alarm,I25,D
+4712,Vagtværn,I25,D
+4747,Øvrige sikringsudgifter,I25,D
+4748,Øvrige sikringsudgifter u/moms,,D
+4749,Administrationsomkostninger i alt,,SumFra4
+4750,Porto og gebyrer,,Overskrift4
+4751,Porto u/moms,,D
+4752,Porto m/moms,I25,D
+4753,Offentlige bøder,,D
+4754,Offentlige gebyrer,,D
+4755,Offentlige gebyrer u/skattemæssigt fradrag,,D
+4756,Rykkergebyrer,,D
+4757,Formueforvaltning,,D
+4758,Formueforvaltning u/moms,,D
+4759,Formueforvaltning uden fradrag,,D
+4760,Formueforvaltning u/moms uden fradrag,,D
+4761,Bankgebyrer,,D
+4797,Gebyrer mv.,I25,D
+4798,Gebyrer mv. u/moms,,D
+4799,Administrationsomkostninger i alt,,SumFra4
+4950,Øvrige omkostninger,,Overskrift4
+4951,Koda-afgift,,D
+4952,Kvalitetskontrol,I25,D
+4953,Forsknings-/udviklingsudgifter,I25,D
+4954,Kassedifferencer u/moms,,D
+4955,Diverse omkostninger,,D
+4956,Bøder og lignende,,D
+4957,Andel af fællesomkostninger,I25,D
+4958,Lønsumsafgift,,D
+4959,Miljøgodkendelse,,D
+4960,Generalforsamling ude i byen,REP,D
+4961,Generalforsamling i virksomhedens lokaler,,D
+4962,Abonnementer,I25,D
+4963,Abonnementer u/moms,,D
+4964,Almenvelgørende bidrag m/fradrag,,D
+4965,Almenvelgørende bidrag og donationer u/fradrag,,D
+4970,Ej fradragsberettigede omkostninger,,D
+4997,Regulering periodeafgrænsningsposter,,D
+4998,Administrationsomkostninger i alt,,SumFra4
+4999,Andre eksterne omkostninger i alt,,SumFra3
+5000,Resultat før afskrivninger,,SumFra2
+5001,Afskrivninger,,Overskrift2
+5002,Udviklingsprojekter årets afskrivning,,D
+5003,Edb-licenser årets afskrivning,,D
+5004,"Patenter, licenser og varemærker årets afskrivning",,D
+5005,Goodwill 1 årets afskrivning,,D
+5006,Goodwill 2 årets afskrivning,,D
+5007,Bygninger årets afskrivning,,D
+5008,Investeringsejendomme årets afskrivning,,D
+5009,Andre investeringsaktiver årets afskrivning,,D
+5010,Produktionsanlæg og maskiner årets afskrivning,,D
+5011,Biler årets afskrivning,,D
+5012,Skibe årets afskrivning,,D
+5013,Edb-udstyr årets afskrivning,,D
+5014,"Andre anlæg, driftsmateriel og inventar årets afskrivning",,D
+5015,Materielle anlægsaktiver under udførelse årets afskrivning,,D
+5016,Besætninger årets afskrivning,,D
+5017,Indretning af lokaler årets afskrivning,,D
+5030,Småanskaffelser u/skattemæssig grænse (afskrivninger),I25,D
+5031,Småanskaffelser u/moms (afskrivninger),,D
+5032,Småanskaffelser u/skattemæssig grænse u/moms (afskrivninger),,D
+5033,"Småanskaffelser, DK omvendt betalingspligt (afskrivninger)",OBPK,D
+5034,"Småanskaffelser u/skattemæssig grænse, DK omvendt betalingspligt (afskrivninger)",OBPK,D
+5035,"Småanskaffelser, EU-erhvervelser (afskrivninger)",IEUV,D
+5036,"Småanskaffelser, u/skattemæssig grænse, EU-erhvervelser (afskrivninger)",IEUV,D
+5037,Småanskaffelser u/skattemæssig grænse (afskrivninger),IEUV,D
+5038,"Småanskaffelser, varekøb 3. lande (afskrivninger) ",IVV,D
+5039,"Småanskaffelser, varekøb 3. lande o/skattemæssig grænse (afskrivninger)",IVV,D
+5040,Regulering IPO varer under fremstilling (afskrivninger),,D
+5050,Straksafskrivning bygninger,,D
+5099,Afskrivninger i alt,,SumFra2
+5100,Dagsværdiregulering af investeringsaktiver,,Overskrift2
+5101,Dagsværdiregulering af investeringsejendomme,,D
+5102,Gevinst (tab) ved salg af investeringsejendomme,,D
+5103,Dagsværdiregulering af biologiske aktiver,,D
+5105,Dagsværdiregulering af andre investeringsaktiver,,D
+5106,Gevinst (tab) ved salg af andre investeringsaktiver,,D
+5150,Dagsværdiregulering af gæld vedrørende investeringsejendomme,,D
+5151,Gevinst (tab) ved indfrielse af gæld vedrørende investeringsejendomme,,D
+5152,Dagsværdiregulering af gæld vedrørende andre investerings aktiver,,D
+5153,Gevinst (tab) ved indfrielse af gæld vedrørende andre investerings aktiver,,D
+5179,Dagsværdiregulering af investeringsaktiver i alt,,SumFra2
+5180,Dagsværdiregulering af investeringsaktiver,,Overskrift2
+5181,Forskningsomkostninger,U25,D
+5182,Udviklingsomkostninger,U25,D
+5199,Dagsværdiregulering af investeringsaktiver i alt,,SumFra2
+5200,Andre driftsindtægter,,Overskrift2
+5201,Lejeindtægter m/moms,U25,D
+5202,Lejeindtægter u/moms,,D
+5203,Grundejernes Investeringsfond Andre driftsindtægter,,D
+5204,Udlodning af reservefondsandele,,D
+5210,Tilskud og erstatninger m/moms,U25,D
+5211,Tilskud og erstatninger u/moms Andre driftsindtægter,,D
+5212,"Erstatninger m/moms, skattefrie",U25,D
+5213,"Erstatninger u/moms, skattefrie",,D
+5214,Produktudviklingstilskud,,D
+5215,"Produktudviklingstilskud, skattefrie",,D
+5230,Indtægt skibsvirksomh.bierhv.,,D
+5250,Fortjeneste ved salg af materielle anlægsaktiver u/moms,,D
+5251,Fortjeneste ved salg af materielle anlægsaktiver m/moms,U25,D
+5252,Bogført værdi af solgte materielle anlægsaktiver (fortjeneste),,D
+5270,Fortjeneste ved salg af immaterielle anlægsaktiver u/moms,,D
+5271,Fortjeneste ved salg af immaterielle anlægsaktiver m/moms,U25,D
+5272,Bogført værdi af solgte immaterielle anlægsaktiver  (fortjeneste),,D
+5282,Fortjeneste ved salg af kapitalandele i tilknyttede virksomheder,,D
+5283,Fortjeneste ved salg af kapitalandele i associerede virksomheder,,D
+5297,Øvrige driftsindtægter mv.,U25,D
+5298,Øvrige driftsindtægter mv. u/moms,,D
+5299,Andre driftsindtægter i alt,,SumFra2
+5300,Andre driftsomkostninger,,Overskrift2
+5301,Lejeudgifter m/moms,U25,D
+5302,Lejeudgifter u/moms,,D
+5303,Ejendomsskatter mv.,,D
+5304,Vedligeholdelse og reparationer m/moms,I25,D
+5305,Vedligeholdelse og reparationer u/moms,,D
+5306,Renovation mv.,,D
+5307,Tilslutningsafgifter,,D
+5308,"Forsikringer, andre driftsomk.",,D
+5350,Tab ved salg af materielle anlægsaktiver u/moms,,D
+5351,Tab ved salg af materielle anlægsaktiver m/moms,U25,D
+5352,Bogført værdi af solgte materielle anlægsaktiver (tab),,D
+5370,Tab ved salg af immaterielle anlægsaktiver u/moms,,D
+5371,Tab ved salg af immaterielle anlægsaktiver m/moms,U25,D
+5372,Bogført værdi af solgte immaterielle anlægsaktiver (tab),,D
+5382,Tab ved salg af kapitalandele i tilknyttede virksomheder,,D
+5383,Tab ved salg af kapitalandele i associerede virksomheder,,D
+5397,Øvrige driftsomkostninger mv.,I25,D
+5398,Øvrige driftsomkostninger mv. u/moms,,D
+5399,Andre driftsomkostninger i alt,,SumFra2
+6000,Indtægter af kapitalandele i tilknyttede virksomheder,,Overskrift2
+6011,Udbytter fra danske tilknyttede virksomheder,,D
+6012,Udbytter fra danske tilknyttede virksomheder 2,,D
+6013,Udbytter fra danske tilknyttede virksomheder 3,,D
+6014,Udbytter fra danske tilknyttede virksomheder 4,,D
+6015,Udbytter fra danske tilknyttede virksomheder 5,,D
+6021,Indtægter af kapitalandele i danske tilknyttede virksomheder,,D
+6022,Indtægter af kapitalandele i danske tilknyttede virksomheder 2,,D
+6023,Indtægter af kapitalandele i danske tilknyttede virksomheder 3,,D
+6024,Indtægter af kapitalandele i danske tilknyttede virksomheder 4,,D
+6025,Indtægter af kapitalandele i danske tilknyttede virksomheder 5,,D
+6031,Afskrivning af goodwill på kapitalandele i danske tilknyttede virksomheder,,D
+6032,Afskrivning af goodwill på kapitalandele i danske tilknyttede virksomheder 2,,D
+6033,Afskrivning af goodwill på kapitalandele i danske tilknyttede virksomheder 3,,D
+6034,Afskrivning af goodwill på kapitalandele i danske tilknyttede virksomheder 4,,D
+6035,Afskrivning af goodwill på kapitalandele i danske tilknyttede virksomheder 5,,D
+6041,Fortjeneste ved salg af kapitalandele i danske tilknyttede virksomheder,,D
+6042,Fortjeneste ved salg af kapitalandele i danske tilknyttede virksomheder 2,,D
+6043,Fortjeneste ved salg af kapitalandele i danske tilknyttede virksomheder 3,,D
+6044,Fortjeneste ved salg af kapitalandele i danske tilknyttede virksomheder 4,,D
+6045,Fortjeneste ved salg af kapitalandele i danske tilknyttede virksomheder 5,,D
+6199,Indtægter af kapitalandele i tilknyttede virksomheder i alt,,SumFra2
+6200,Indtægter af kapitalandele i associerede virksomheder,,Overskrift2
+6201,Indtægter af kapitalandele i danske associerede virksomheder,,Overskrift3
+6211,Udbytter fra danske associerede virksomheder,,D
+6212,Udbytter fra danske associerede virksomheder 2,,D
+6213,Udbytter fra danske associerede virksomheder 3,,D
+6214,Udbytter fra danske associerede virksomheder 4,,D
+6215,Udbytter fra danske associerede virksomheder 5,,D
+6221,Indtægter af kapitalandele i danske associerede virksomheder,,D
+6222,Indtægter af kapitalandele i danske associerede virksomheder 2,,D
+6223,Indtægter af kapitalandele i danske associerede virksomheder 3,,D
+6224,Indtægter af kapitalandele i danske associerede virksomheder 4,,D
+6225,Indtægter af kapitalandele i danske associerede virksomheder 5,,D
+6231,Afskrivning af goodwill på kapitalandele i danske associerede virksomheder,,D
+6232,Afskrivning af goodwill på kapitalandele i danske associerede virksomheder 2,,D
+6233,Afskrivning af goodwill på kapitalandele i danske associerede virksomheder 3,,D
+6234,Afskrivning af goodwill på kapitalandele i danske associerede virksomheder 4,,D
+6235,Afskrivning af goodwill på kapitalandele i danske associerede virksomheder 5,,D
+6241,Fortjeneste ved salg af kapitalandele i danske associerede virksomheder,,D
+6242,Fortjeneste ved salg af kapitalandele i danske associerede virksomheder 2,,D
+6243,Fortjeneste ved salg af kapitalandele i danske associerede virksomheder 3,,D
+6244,Fortjeneste ved salg af kapitalandele i danske associerede virksomheder 4,,D
+6245,Fortjeneste ved salg af kapitalandele i danske associerede virksomheder 5,,D
+6299,Indtægter af kapitalandele i associerede virksomheder i alt,,SumFra2
+6300,Indtægter af kapitalandele i associerede virksomheder,,Overskrift2
+6301,Indtægter af kapitalandele i joint ventures,,Overskrift3
+6311,Udbytter fra joint ventures,,D
+6312,Udbytter fra joint ventures 2,,D
+6313,Udbytter fra joint ventures 3,,D
+6314,Udbytter fra joint ventures 4,,D
+6315,Udbytter fra joint ventures 5,,D
+6321,Indtægter af kapitalandele i joint ventures,,D
+6322,Indtægter af kapitalandele i joint ventures 2,,D
+6323,Indtægter af kapitalandele i joint ventures 3,,D
+6324,Indtægter af kapitalandele i joint ventures 4,,D
+6325,Indtægter af kapitalandele i joint ventures 5,,D
+6331,Afskrivning af goodwill på kapitalandele i joint ventures,,D
+6332,Afskrivning af goodwill på kapitalandele i joint ventures 2,,D
+6333,Afskrivning af goodwill på kapitalandele i joint ventures 3,,D
+6334,Afskrivning af goodwill på kapitalandele i joint ventures 4,,D
+6335,Afskrivning af goodwill på kapitalandele i joint ventures 5,,D
+6341,Fortjeneste ved salg af kapitalandele i joint ventures,,D
+6342,Fortjeneste ved salg af kapitalandele i joint ventures 2,,D
+6343,Fortjeneste ved salg af kapitalandele i joint ventures 3,,D
+6344,Fortjeneste ved salg af kapitalandele i joint ventures 4,,D
+6345,Fortjeneste ved salg af kapitalandele i joint ventures 5,,D
+6399,Indtægter af kapitalandele i associerede virksomheder i alt,,SumFra2
+7000,Finansielle indtægter,,Overskrift2
+7001,"Finansielle indtægter, anlægsaktiver",,Overskrift3
+7002,"Finansielle indtægter, aktier, anlægsaktiver",,Overskrift4
+7003,"Aktieudbytte, anlægsaktiver",,D
+7004,"Aktieudbytte udenlandske aktier, anlægsaktiver",,D
+7005,"Aktieudbytte, skattefri",,D
+7006,"Aktiegevinst, skattefri (unoterede selskaber)",,D
+7012,"Realiserede kursgevinster aktier, anlægsaktiver",,D
+7022,"Urealiserede kursgevinster aktier, anlægsaktiver",,D
+7099,"Finansielle indtægter, aktier, anlægsaktiver i alt",,SumFra4
+7100,"Finansielle indtægter, øvrige værdipapirer mv., anlægsaktiver",,Overskrift4
+7101,"Renter, bank, anlægsaktiver",,D
+7102,"Renter, obligationer, anlægsaktiver",,D
+7103,"Renter, pantebreve, anlægsaktiver",,D
+7104,"Renter, gældsbreve, anlægsaktiver",,D
+7105,"Renter, mellemregning med ejere og ledelse",,D
+7106,"Renter, mellemregning med ejere og ledelse 2",,D
+7107,"Renter, mellemregning med ejere og ledelse 3",,D
+7108,"Renter, mellemregning med ejere og ledelse 4",,D
+7109,"Renter, mellemregning med ejere og ledelse",,D
+7110,"Renter, udlån, anlægsaktiver",,D
+7115,"Renter, andre, anlægsaktiver",,D
+7121,"Periodiserede renter, bank, anlægsaktiver",,D
+7122,"Periodiserede renter, obligationer, anlægsaktiver",,D
+7123,"Periodiserede renter, pantebreve, anlægsaktiver",,D
+7124,"Periodiserede renter, gældsbreve, anlægsaktiver",,D
+7125,"Periodiserede renter, mellemregning med ejere og ledelse",,D
+7126,"Periodiserede renter, mellemregning med ejere og ledelse 2",,D
+7127,"Periodiserede renter, mellemregning med ejere og ledelse 3",,D
+7128,"Periodiserede renter, mellemregning med ejere og ledelse 4",,D
+7129,"Periodiserede renter, mellemregning med ejere og ledelse 5",,D
+7130,"Periodiserede renter, udlån, anlægsaktiver",,D
+7131,"Periodiserede renter, andre, anlægsaktiver",,D
+7132,"Realiserede kursgevinster obligationer, anlægsaktiver",,D
+7133,"Realiserede kursgevinster pantebreve, anlægsaktiver",,D
+7134,"Realiserede kursgevinster gældsbreve, anlægsaktiver",,D
+7135,"Realiserede kursgevinster udlån, anlægsaktiver",,D
+7136,"Realiserede kursgevinster finansielle instrumenter, anlægsaktiver",,D
+7137,"Realiserede kursgevinster andre, anlægsaktiver",,D
+7138,"Urealiserede kursgevinster obligationer, anlægsaktiver",,D
+7139,"Urealiserede kursgevinster pantebreve, anlægsaktiver",,D
+7140,"Urealiserede kursgevinster gældsbreve, anlægsaktiver",,D
+7141,"Urealiserede kursgevinster udlån, anlægsaktiver",,D
+7142,"Urealiserede kursgevinster finansielle instrumenter, anlægsaktiver",,D
+7143,"Urealiserede kursgevinster andre, anlægsaktiver",,D
+7198,"Finansielle indtægter, øvrige værdipapirer mv., anlægsaktiver i alt",,SumFra4
+7199,"Finansielle indtægter, anlægsaktiver i alt",,SumFra3
+7200,Renteindtægter tilknyttede virksomheder,,Overskrift3
+7201,Renteindtægter tilknyttede virksomheder,,D
+7202,Renteindtægter tilknyttede virksomheder 2,,D
+7203,Renteindtægter tilknyttede virksomheder 3,,D
+7204,Renteindtægter tilknyttede virksomheder 4,,D
+7205,Renteindtægter tilknyttede virksomheder 5,,D
+7299,Renteindtægter tilknyttede virksomheder i alt,,SumFra3
+7300,Renteindtægter associerede virksomheder,,Overskrift3
+7301,Renteindtægter associerede virksomheder,,D
+7302,Renteindtægter associerede virksomheder 2,,D
+7303,Renteindtægter associerede virksomheder 3,,D
+7304,Renteindtægter associerede virksomheder 4,,D
+7305,Renteindtægter associerede virksomheder 5,,D
+7399,Renteindtægter associerede virksomheder i alt,,SumFra3
+7400,Andre finansielle indtægter,,Overskrift3
+7401,"Andre finansielle indtægter, aktier",,Overskrift4
+7402,Dansk aktieudbytte uden indeholdt udbytteskat,,D
+7403,"Dansk aktieudbytte med 15,4% indeholdt udbytteskat",,D
+7404,Dansk aktieudbytte med 22% indeholdt udbytteskat,,D
+7405,Dansk aktieudbytte med 25% indeholdt udbytteskat,,D
+7406,Dansk aktieudbytte med 27% indeholdt udbytteskat,,D
+7407,Udenlandsk aktieudbytte uden indeholdt udbytteskat,,D
+7408,Udenlandsk aktieudbytte med 15% indeholdt udbytteskat,,D
+7409,Udenlandsk aktieudbytte i øvrigt med indeholdt udbytteskat,,D
+7410,"Udlodninger fra investeringsselskaber og obligationsbaserede investeringsbeviser (indeholdt udbytteskat)
+",,D
+7411,Dansk udbytteskat,,D
+7412,Beregnet lempelse udenlandsk udbytte Saxo Bank,,D
+7413,Modpost udbytteskat,,D
+7497,Realiserede kursgevinster aktier,,D
+7498,Urealiserede kursgevinster aktier,,D
+7499,"Andre finansielle indtægter, aktier i alt",,SumFra4
+7500,Andre finansielle indtægter renteindtægter,,Overskrift4
+7501,Renteindtægter bank,,D
+7502,Renteindtægter bank 2,,D
+7503,Renteindtægter bank 3,,D
+7504,Renteindtægter bank 4,,D
+7505,Renteindtægter bank 5,,D
+7506,Renteindtægter kassekredit,,D
+7507,Renteindtægter kassekredit 2,,D
+7508,Renteindtægter kassekredit 3,,D
+7509,Renteindtægter kassekredit 4,,D
+7510,Renteindtægter kassekredit 5,,D
+7511,Renteindtægter obligationer,,D
+7512,Renteindtægter pantebreve,,D
+7513,Renteindtægter gældsbreve,,D
+7514,Renteindtægter debitorer,,D
+7515,Renteindtægter mellemregning med ejere og ledelse,,D
+7516,Renteindtægter mellemregning med ejere og ledelse 2,,D
+7517,Renteindtægter mellemregning med ejere og ledelse 3,,D
+7518,Renteindtægter mellemregning med ejere og ledelse 4,,D
+7519,Renteindtægter mellemregning med ejere og ledelse 5,,D
+7520,Renteindtægter Grundejernes Investeringsfond,,D
+7521,Renteindtægter andre tilgodehavender,,D
+7535,Renteindtægter andre,,D
+7541,Periodiserede renter bank,,D
+7542,Periodiserede renter obligationer,,D
+7543,Periodiserede renter pantebreve,,D
+7544,Periodiserede renter gældsbreve,,D
+7545,Periodiserede renter debitorer,,D
+7546,Periodiserede renter mellemregning med ejere og ledelse,,D
+7547,Periodiserede renter mellemregning med ejere og ledelse 2,,D
+7548,Periodiserede renter mellemregning med ejere og ledelse 3,,D
+7549,Periodiserede renter mellemregning med ejere og ledelse 4,,D
+7550,Periodiserede renter mellemregning med ejere og ledelse 5,,D
+7551,Periodiserede renter tilgodehavender,,D
+7565,Periodiserede renter andre,,D
+7599,Andre finansielle indtægter renteindtægter i alt,,SumFra4
+7600,Andre finansielle indtægter kursgevinster værdipapirer mv.,,Overskrift4
+7602,Realiserede kursgevinster obligationer,,D
+7603,Realiserede kursgevinster pantebreve,,D
+7604,Realiserede kursgevinster gældsbreve,,D
+7605,Realiserede kursgevinster tilgodehavender,,D
+7619,Realiserede kursgevinster andre,,D
+7642,Urealiserede kursgevinster obligationer,,D
+7643,Urealiserede kursgevinster pantebreve,,D
+7644,Urealiserede kursgevinster gældsbreve,,D
+7645,Urealiserede kursgevinster tilgodehavender,,D
+7659,Urealiserede kursgevinster andre,,D
+7699,Andre finansielle indtægter kursgevinster værdipapirer mv. i alt,,SumFra4
+7700,Andre finansielle indtægter kursgevinster gæld mv.,,Overskrift4
+7701,Kursgevinst ved gældseftergivelse,,D
+7702,Andre realiserede kursgevinster lån,,D
+7703,Valutakursgevinster realiserede,,D
+7704,Realiserede kursgevinster finansielle instrumenter,,D
+7722,Urealiserede kursgevinster lån,,D
+7723,Valutakursgevinster urealiserede,,D
+7724,Urealiserede kursgevinster finansielle instrumenter,,D
+7899,Andre finansielle indtægter kursgevinster gæld mv. i alt,,SumFra4
+7900,Øvrige finansielle indtægter,,Overskrift4
+7901,Gebyrindtægter debitorer,,D
+7911,Rentegodtgørelse selskabsskat,,D
+7997,Øvrige finansielle indtægter i alt,,SumFra4
+7998,Andre finansielle indtægter i alt,,SumFra3
+7999,Finansielle indtægter i alt,,SumFra2
+8000,Finansielle omkostninger,,Overskrift2
+8001,Finansielle omkostninger anlægsaktiver,,Overskrift3
+8002,Finansielle omkostninger aktier anlægsaktiver,,Overskrift4
+8006,"Aktietab, skattefri (unoterede selskaber)",,D
+8012,Realiserede kurstab aktier anlægsaktiver,,D
+8022,Urealiserede kurstab aktier anlægsaktiver,,D
+8099,Finansielle omkostninger aktier anlægsaktiver i alt,,SumFra4
+8100,Finansielle omkostninger øvrige værdipapirer mv. anlægsaktiver,,Overskrift4
+8101,Realiserede kurstab obligationer anlægsaktiver,,D
+8102,Realiserede kurstab pantebreve anlægsaktiver,,D
+8103,Realiserede kurstab gældsbreve anlægsaktiver,,D
+8104,Realiserede kurstab udlån anlægsaktiver,,D
+8105,Realiserede kurstab finansielle instrumenter anlægsaktiver,,D
+8118,Realiserede kurstab andre anlægsaktiver,,D
+8121,Urealiserede kurstab obligationer anlægsaktiver,,D
+8122,Urealiserede kurstab pantebreve anlægsaktiver,,D
+8123,Urealiserede kurstab gældsbreve anlægsaktiver,,D
+8124,Urealiserede kurstab udlån anlægsaktiver,,D
+8125,Urealiserede kurstab finansielle instrumenter anlægsaktiver,,D
+8138,Urealiserede kurstab andre anlægsaktiver,,D
+8198,Finansielle omkostninger øvrige værdipapirer mv. anlægsaktiver i alt,,SumFra4
+8199,Finansielle omkostninger anlægsaktiver i alt,,SumFra3
+8200,Renteomkostninger tilknyttede virksomheder,,Overskrift3
+8201,Renteomkostninger tilknyttede virksomheder,,D
+8202,Renteomkostninger tilknyttede virksomheder 2,,D
+8203,Renteomkostninger tilknyttede virksomheder 3,,D
+8204,Renteomkostninger tilknyttede virksomheder 4,,D
+8205,Renteomkostninger tilknyttede virksomheder 5,,D
+8299,Renteomkostninger tilknyttede virksomheder i alt,,SumFra3
+8300,Renteomkostninger associerede virksomheder,,Overskrift3
+8301,Renteomkostninger associerede virksomheder,,D
+8302,Renteomkostninger associerede virksomheder 2,,D
+8303,Renteomkostninger associerede virksomheder 3,,D
+8304,Renteomkostninger associerede virksomheder 4,,D
+8305,Renteomkostninger associerede virksomheder 5,,D
+8399,Renteomkostninger associerede virksomheder i alt,,SumFra3
+8400,Andre finansielle omkostninger,,Overskrift3
+8401,Andre finansielle omkostninger kurstab aktier,,Overskrift4
+8411,Realiserede kurstab aktier,,D
+8421,Urealiserede kurstab aktier,,D
+8499,Andre finansielle omkostninger kurstab aktier i alt,,SumFra4
+8500,Andre finansielle omkostninger renteomkostninger,,Overskrift4
+8501,Renteomkostninger bank,,D
+8502,Renteomkostninger bank 2,,D
+8503,Renteomkostninger bank 3,,D
+8504,Renteomkostninger bank 4,,D
+8505,Renteomkostninger bank 5,,D
+8521,Renteomkostninger kassekredit,,D
+8522,Renteomkostninger kassekredit 2,,D
+8523,Renteomkostninger kassekredit 3,,D
+8524,Renteomkostninger kassekredit 4,,D
+8525,Renteomkostninger kassekredit 5,,D
+8541,Renteomkostninger realkreditgæld,,D
+8542,Renteomkostninger realkreditgæld 2,,D
+8543,Renteomkostninger realkreditgæld 3,,D
+8544,Renteomkostninger realkreditgæld 4,,D
+8545,Renteomkostninger realkreditgæld 5,,D
+8561,Renteomkostninger realkreditgæld 6,,D
+8562,Renteomkostninger realkreditgæld 7,,D
+8563,Renteomkostninger realkreditgæld 8,,D
+8564,Renteomkostninger realkreditgæld 9,,D
+8565,Renteomkostninger realkreditgæld 10,,D
+8571,Renteomkostninger pantebrevsgæld,,D
+8572,Renteomkostninger kreditorer,,D
+8573,Renteomkostninger mellemregning med ejere,,D
+8574,Renteomkostninger mellemregning med ejere,,D
+8575,Renteomkostninger mellemregning med ejere,,D
+8576,Renteomkostninger mellemregning med ejere,,D
+8577,Renteomkostninger mellemregning med ejere,,D
+8578,Kautionspræmie / provision,,D
+8579,Kautionspræmie / provision 2,,D
+8581,"Renteomkostninger, SKAT, uden fradrag",,D
+8582,"Renteomkostninger, SKAT, med fradrag",,D
+8583,Renteomkostninger anden gæld,,D
+8584,Renteomkostninger feriefonden,,D
+8599,Andre finansielle omkostninger renteomkostninger i alt,,SumFra4
+8600,Andre finansielle omkostninger øvrige kurstab værdipapirer,,Overskrift4
+8602,Realiserede kurstab obligationer,,D
+8603,Realiserede kurstab pantebreve,,D
+8604,Realiserede kurstab gældsbreve,,D
+8605,Realiserede kurstab tilgodehavender,,D
+8619,Realiserede kurstab andre,,D
+8622,Urealiserede kurstab obligationer,,D
+8623,Urealiserede kurstab pantebreve,,D
+8624,Urealiserede kurstab gældsbreve,,D
+8625,Urealiserede kurstab tilgodehavender,,D
+8639,Urealiserede kurstab andre,,D
+8699,Andre finansielle omkostninger øvrige kurstab værdipapirer i alt,,SumFra4
+8700,Andre finansielle omkostninger kurstab gæld mv.,,Overskrift4
+8701,Kurstab ved gældseftergivelse,,D
+8702,Realiserede kurstab lån,,D
+8703,Valutakurstab realiserede,,D
+8704,Realiserede kurstab finansielle instrumenter,,D
+8722,Urealiserede kurstab lån,,D
+8723,Valutakurstab urealiserede,,D
+8724,Urealiserede kurstab finansielle instrumenter,,D
+8899,Andre finansielle omkostninger kurstab gæld mv. i alt,,SumFra4
+8900,Øvrige finansielle omkostninger,,Overskrift4
+8901,Renteomkostninger finansiel leasing,,D
+8902,Renteomkostninger kontrakter,,D
+8921,Låneomkostninger med fradrag,,D
+8922,Låneomkostninger uden fradrag,,D
+8931,Gebyromkostninger debitorer,,D
+8941,Rentetillæg selskabsskat,,D
+8951,Renter til det offentlige med skattemæssig fradrag,,D
+8952,Renter til det offentlige u. skattemæssig fradrag,,D
+8970,Modkonto renter uden fradrag,,D
+8998,Øvrige finansielle omkostninger i alt,,SumFra4
+8999,Finansielle omkostninger i alt,,SumFra2
+9000,Skat af årets resultat,,Overskrift2
+9001,Årets aktuelle skat,,D
+9002,Regulering af skat vedrørende tidligere år,,D
+9003,Nedskrivning skatteaktiv,,D
+9004,Skattekredit forskning og udvikling,,D
+9005,Årets udskudte skat,,D
+9006,"Regulering af udskudt skat, ændret skatteprocent",,D
+9007,Regulering af udskudt skat i øvrigt,,D
+9011,"Årets aktuelle skat, udland",,D
+9012,"Regulering af skat vedrørende tidligere år, udland",,D
+9013,"Nedskrivning skatteaktiv, udland",,D
+9014,"Skattekredit forskning og udvikling, udland",,D
+9015,"Årets udskudte skat, udland",,D
+9016,"Regulering af udskudt skat, ændret skatteprocent, udland",,D
+9017,"Regulering af udskudt skat i øvrigt, udland",,D
+9198,Skat af årets resultat i alt,,SumFra2
+9199,ÅRETS RESULTAT,,SumFra1
+9200,Resultatdisponering,,Overskrift1
+9201,Nettoopskrivning efter den indre værdis metode,,R
+9202,Nettoopskrivning af investeringsaktiver,,R
+9203,Overkurs ved emission,,R
+9204,Årets henlæggelse til øvrige lovpligtige reserver,,R
+9205,Årets henlæggelse til vedtægtsmæssige reserver,,R
+9206,Årets henlæggelse til øvrige reserver,,R
+9207,Årets henlæggelse til reserve for iværksætterselskab,,R
+9208,Overført til sikringsfond,,R
+9209,Overført til reservefond,,R
+9210,Overført til dispositionsfond,,R
+9211,Årets resultat vedrørende bunden fondskapital,,R
+9212,Årets resultat vedrørende disponibel fondskapital,,R
+9213,Hensat af fondskapitalen til senere uddeling,,R
+9214,Ekstraordinært udbytte for regnskabsåret (EK),,R
+9215,Udbytte for regnskabsåret (EK),,R
+9216,Overført af årets resultat,,R
+9217,Minoritetsinteresser andel af årets resultat,,R
+9250,Resultatandel,,R
+9251,Resultatandel 2,,R
+9252,Resultatandel 3,,R
+9253,Resultatandel 4,,R
+9254,Resultatandel 5,,R
+9255,Reserve for udviklingsomkostninger,,R
+9300,Modpost resultatdisponering,,R
+9500,Resultatdisponering i alt,,SumFra1
+10000,Balancen,,Overskrift1
+10001,Aktiver,,Overskrift2
+10002,Anlægsaktiver,,Overskrift3
+11000,Immaterielle anlægsaktiver,,Overskrift4
+11100,Færdiggjore udviklingsprojekter,,Overskrift5
+11101,"Kostpris primo Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11102,"Årets tilgang med moms Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",I25,A
+11103,"Årets tilgang uden moms Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11104,"Årets afgang Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11151,"Afskrivninger primo Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11152,"Nedskrivninger primo Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11153,"Årets afskrivninger Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11154,"Årets nedskrivninger Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11155,"Tilbageførte afskrivninger på årets afgang Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11156,"Tilbageførte nedskrivninger på årets afgang Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11157,"Tilbageførte afskrivninger Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11158,"Tilbageførte nedskrivninger Færdiggjorte udviklingsprojekter, herunder patenter og lignende rettigheder, der stammer fra udviklingsprojekter",,A
+11199,Færdiggjore udviklingsprojekter i alt,,SumFra5
+11200,Edb-licenser,,Overskrift5
+11201,"Kostpris primo Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11202,"Årets tilgang med moms Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",I25,A
+11203,"Årets tilgang uden moms Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11204,"Årets afgang Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11251,"Afskrivninger primo  Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11252,"Nedskrivninger primo 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11253,"Årets afskrivninger Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11254,"Årets nedskrivninger Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11255,"Tilbageførte afskrivninger på årets afgang Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11256,"Tilbageførte nedskrivninger på årets afgang 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11257,"Tilbageførte afskrivninger  Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11258,"Tilbageførte nedskrivninger 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11299,Edb-licenser i alt,,SumFra5
+11300,"Patenter, licenser og varemærker",,Overskrift5
+11301,"Kostpris primo 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11302,"Årets tilgang med moms 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",I25,A
+11303,"Årets tilgang uden moms 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11304,"Årets afgang 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11351,"Afskrivninger primo Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11352,"Nedskrivninger primo Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11353,"Årets afskrivninger 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11354,"Årets nedskrivninger 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11355,"Tilbageførte afskrivninger på årets afgang 2 Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11356,"Tilbageførte nedskrivninger på årets afgang Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11357,"Tilbageførte afskrivninger Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11358,"Tilbageførte nedskrivninger 2  Erhvervede koncessioner, patenter, licenser, varemærker samt lignende rettigheder",,A
+11399,"Patenter, licenser og varemærker i alt",,SumFra5
+11400,Goodwill,,Overskrift5
+11401,Kostpris primo Goodwill,,A
+11402,Årets tilgang med moms Goodwill,I25,A
+11403,Årets tilgang uden moms Goodwill,,A
+11404,Årets afgang Goodwill,,A
+11451,Afskrivninger primo Goodwill,,A
+11452,Nedskrivninger primo Goodwill,,A
+11453,Årets afskrivninger Goodwill,,A
+11454,Årets nedskrivninger Goodwill,,A
+11455,Tilbageførte afskrivninger på årets afgang Goodwill,,A
+11456,Tilbageførte nedskrivninger på årets afgang Goodwill,,A
+11457,Tilbageførte afskrivninger Goodwill,,A
+11458,Tilbageførte nedskrivninger Goodwill,,A
+11499,Goodwill i alt,,SumFra5
+11500,Goodwill,,Overskrift5
+11501,Kostpris primo,,A
+11502,Årets tilgang med moms,I25,A
+11503,Årets tilgang uden moms,,A
+11504,Årets afgang,,A
+11551,Afskrivninger primo,,A
+11552,Nedskrivninger primo,,A
+11553,Årets afskrivninger,,A
+11554,Årets nedskrivninger,,A
+11555,Tilbageførte afskrivninger på årets afgang,,A
+11556,Tilbageførte nedskrivninger på årets afgang,,A
+11557,Tilbageførte afskrivninger,,A
+11558,Tilbageførte nedskrivninger,,A
+11599,Goodwill i alt,,SumFra5
+11600,Udviklingsprojekter under udførelse,,Overskrift5
+11601,Kostpris primo,,A
+11602,Årets tilgang med moms,I25,A
+11603,Årets tilgang uden moms,,A
+11604,Årets afgang,,A
+11651,Afskrivninger primo,,A
+11652,Nedskrivninger primo,,A
+11653,Årets afskrivninger,,A
+11654,Årets nedskrivninger,,A
+11655,Tilbageførte afskrivninger på årets afgang,,A
+11656,Tilbageførte nedskrivninger på årets afgang,,A
+11657,Tilbageførte afskrivninger,,A
+11658,Tilbageførte nedskrivninger,,A
+11699,Udviklingsprojekter under udførelse i alt,,SumFra5
+11700,Forudbetalinger for immaterielle anlægsaktiver,,Overskrift5
+11701,Kostpris primo,,A
+11702,Årets tilgang med moms,I25,A
+11703,Årets tilgang uden moms,,A
+11704,Årets afgang,,A
+11751,Afskrivninger primo,,A
+11752,Nedskrivninger primo,,A
+11753,Årets afskrivninger,,A
+11754,Årets nedskrivninger,,A
+11755,Tilbageførte afskrivninger på årets afgang,,A
+11756,Tilbageførte nedskrivninger på årets afgang,,A
+11757,Tilbageførte afskrivninger,,A
+11758,Tilbageførte nedskrivninger,,A
+11799,Forudbetalinger for immaterielle anlægsaktiver i alt,,SumFra5
+11800,Immaterielle anlægsaktiver i alt,,SumFra4
+12000,Materielle anlægsaktiver,,Overskrift4
+12100,Grunde,,Overskrift5
+12101,Kostpris primo Grunde og bygninger,,A
+12102,Årets tilgang med moms Grunde og bygninger,I25,A
+12103,Årets tilgang uden moms Grunde og bygninger,,A
+12104,Årets afgang Grunde og bygninger,,A
+12151,Afskrivninger primo Grunde og bygninger,,A
+12152,Nedskrivninger primo Grunde og bygninger,,A
+12153,Årets afskrivninger Grunde og bygninger,,A
+12154,Årets nedskrivninger Grunde og bygninger,,A
+12155,Tilbageførte afskrivninger på årets afgang Grunde og bygninger,,A
+12156,Tilbageførte nedskrivninger på årets afgang Grunde og bygninger,,A
+12157,Tilbageførte afskrivninger Grunde og bygninger,,A
+12158,Tilbageførte nedskrivninger Grunde og bygninger,,A
+12181,Opskrivninger primo Grunde og bygninger,,A
+12182,Årets opskrivninger Grunde og bygninger,,A
+12183,Tilbageførte opskrivninger på årets opgang Grunde og bygninger,,A
+12184,Tilbageførte opskrivninger Grunde og bygninger,,A
+12199,Grunde i alt,,SumFra5
+12200,Bygninger,,Overskrift5
+12201,Kostpris primo Grunde og bygninger,,A
+12202,Årets tilgang med moms,I25,A
+12203,Årets tilgang uden moms,,A
+12204,Årets afgang,,A
+12251,Afskrivninger primo,,A
+12252,Nedskrivninger primo,,A
+12253,Årets afskrivninger Grunde og bygninger,,A
+12254,Årets nedskrivninger,,A
+12255,Tilbageførte afskrivninger på årets afgang,,A
+12256,Tilbageførte nedskrivninger på årets afgang,,A
+12257,Tilbageførte afskrivninger,,A
+12258,Tilbageførte nedskrivninger,,A
+12281,Opskrivninger primo,,A
+12282,Årets opskrivninger,,A
+12283,Tilbageførte opskrivninger på årets opgang,,A
+12284,Tilbageførte opskrivninger,,A
+12299,Bygninger i alt,,SumFra5
+12300,Investeringsejendomme,,Overskrift5
+12301,Kostpris primo Investeringsejendomme,,A
+12302,Årets tilgang med moms Investeringsejendomme,I25,A
+12303,Årets tilgang uden moms Investeringsejendomme,,A
+12304,Årets afgang Investeringsejendomme,,A
+12311,Reguleringer primo,,A
+12312,Årets reguleringer,,A
+12399,Investeringsejendomme i alt,,SumFra5
+12400,Andre investeringsaktiver,,Overskrift5
+12401,"Andre investeringsaktiver, kostpris primo",,A
+12402,"Andre investeringsaktiver, årets tilgang med moms",I25,A
+12403,"Andre investeringsaktiver, årets tilgang uden moms",,A
+12404,"Andre investeringsaktiver, årets afgang",,A
+12411,"Andre investeringsaktiver, reguleringer primo",,A
+12412,"Andre investeringsaktiver, årets reguleringer",,A
+12499,Andre investeringsaktiver i alt,,SumFra5
+12500,Produktionsanlæg og maskiner,,Overskrift5
+12501,Kostpris primo Produktionsanlæg og maskiner,,A
+12502,Årets tilgang med moms Produktionsanlæg og maskiner,I25,A
+12503,Årets tilgang uden moms Produktionsanlæg og maskiner,,A
+12504,Årets afgang Produktionsanlæg og maskiner,,A
+12551,Afskrivninger primo Produktionsanlæg og maskiner,,A
+12552,Nedskrivninger primo Produktionsanlæg og maskiner,,A
+12553,Årets afskrivninger Produktionsanlæg og maskiner,,A
+12554,Årets nedskrivninger Produktionsanlæg og maskiner,,A
+12555,Tilbageførte afskrivninger på årets afgang Produktionsanlæg og maskiner,,A
+12556,Tilbageførte nedskrivninger på årets afgang Produktionsanlæg og maskiner,,A
+12557,Tilbageførte afskrivninger Produktionsanlæg og maskiner,,A
+12558,Tilbageførte nedskrivninger Produktionsanlæg og maskiner,,A
+12581,Opskrivninger primo Produktionsanlæg og maskiner,,A
+12582,Årets opskrivninger Produktionsanlæg og maskiner,,A
+12583,Tilbageførte opskrivninger på årets opgang Produktionsanlæg og maskiner,,A
+12584,Tilbageførte opskrivninger Produktionsanlæg og maskiner,,A
+12599,Produktionsanlæg og maskiner i alt,,SumFra5
+12600,Biler,,Overskrift5
+12601,"Kostpris primo Andre anlæg, driftsmateriel og inventar",,A
+12602,"Årets tilgang med moms Andre anlæg, driftsmateriel og inventar",I25,A
+12603,"Årets tilgang uden moms Andre anlæg, driftsmateriel og inventar",,A
+12604,"Årets afgang Andre anlæg, driftsmateriel og inventar",,A
+12651,"Afskrivninger primo Andre anlæg, driftsmateriel og inventar",,A
+12652,"Nedskrivninger primo Andre anlæg, driftsmateriel og inventar",,A
+12653,"Årets afskrivninger Andre anlæg, driftsmateriel og inventar",,A
+12654,"Årets nedskrivninger Andre anlæg, driftsmateriel og inventar",,A
+12655,"Tilbageførte afskrivninger på årets afgang Andre anlæg, driftsmateriel og inventar",,A
+12656,"Tilbageførte nedskrivninger på årets afgang Andre anlæg, driftsmateriel og inventar",,A
+12657,"Tilbageførte afskrivninger Andre anlæg, driftsmateriel og inventar",,A
+12658,"Tilbageførte nedskrivninger Andre anlæg, driftsmateriel og inventar",,A
+12681,"Opskrivninger primo Andre anlæg, driftsmateriel og inventar",,A
+12682,"Årets opskrivninger Andre anlæg, driftsmateriel og inventar",,A
+12683,"Tilbageførte opskrivninger på årets opgang Andre anlæg, driftsmateriel og inventar",,A
+12684,"Tilbageførte opskrivninger Andre anlæg, driftsmateriel og inventar",,A
+12699,Biler i alt,,SumFra5
+12700,Skibe,,Overskrift5
+12701,Kostpris primo,,A
+12702,Årets tilgang med moms,I25,A
+12703,Årets tilgang uden moms,,A
+12704,Årets afgang,,A
+12751,Afskrivninger primo,,A
+12752,Nedskrivninger primo,,A
+12753,Årets afskrivninger,,A
+12754,Årets afskrivninger,,A
+12755,Tilbageførte afskrivninger på årets afgang,,A
+12756,Tilbageførte nedskrivninger på årets afgang,,A
+12757,Tilbageførte afskrivninger,,A
+12758,Tilbageførte nedskrivninger,,A
+12781,Opskrivninger primo,,A
+12782,Årets opskrivninger,,A
+12783,Tilbageførte opskrivninger på årets opgang,,A
+12784,Tilbageførte opskrivninger,,A
+12799,Skibe i alt,,SumFra5
+12800,Edb-udstyr,,Overskrift5
+12801,"Kostpris primo 2 Andre anlæg, driftsmateriel og inventar",,A
+12802,"Årets tilgang med moms 2 Andre anlæg, driftsmateriel og inventar",I25,A
+12803,"Årets tilgang uden moms 2 Andre anlæg, driftsmateriel og inventar",,A
+12804,"Årets afgang 2 Andre anlæg, driftsmateriel og inventar",,A
+12851,"Afskrivninger primo  Andre anlæg, driftsmateriel og inventar",,A
+12852,"Nedskrivninger primo  Andre anlæg, driftsmateriel og inventar",,A
+12853,"Årets afskrivninger 2 Andre anlæg, driftsmateriel og inventar",,A
+12854,"Årets nedskrivninger 2 Andre anlæg, driftsmateriel og inventar",,A
+12855,"Tilbageførte afskrivninger på årets afgang  Andre anlæg, driftsmateriel og inventar",,A
+12856,"Tilbageførte nedskrivninger på årets afgang  Andre anlæg, driftsmateriel og inventar",,A
+12857,"Tilbageførte afskrivninger  Andre anlæg, driftsmateriel og inventar",,A
+12858,"Tilbageførte nedskrivninger  Andre anlæg, driftsmateriel og inventar",,A
+12881,"Opskrivninger primo 2 Andre anlæg, driftsmateriel og inventar",,A
+12882,"Årets opskrivninger 2 Andre anlæg, driftsmateriel og inventar",,A
+12883,"Tilbageførte opskrivninger på årets opgang 2 Andre anlæg, driftsmateriel og inventar",,A
+12884,"Tilbageførte opskrivninger 2 Andre anlæg, driftsmateriel og inventar",,A
+12899,Edb-udstyr i alt,,SumFra5
+12900,"Andre anlæg, driftsmateriel og inventar",,Overskrift5
+12901,"Kostpris primo 3 Andre anlæg, driftsmateriel og inventar",,A
+12902,"Årets tilgang med moms 3 Andre anlæg, driftsmateriel og inventar",I25,A
+12903,"Årets tilgang uden moms 3 Andre anlæg, driftsmateriel og inventar",,A
+12904,"Årets afgang 3 Andre anlæg, driftsmateriel og inventar",,A
+12951,"Afskrivninger primo   Andre anlæg, driftsmateriel og inventar",,A
+12952,"Nedskrivninger primo   Andre anlæg, driftsmateriel og inventar",,A
+12953,"Årets afskrivninger 3 Andre anlæg, driftsmateriel og inventar",,A
+12954,"Årets nedskrivninger 3 Andre anlæg, driftsmateriel og inventar",,A
+12955,"Tilbageførte afskrivninger på årets afgang   Andre anlæg, driftsmateriel og inventar",,A
+12956,"Tilbageførte nedskrivninger på årets afgang   Andre anlæg, driftsmateriel og inventar",,A
+12957,"Tilbageførte afskrivninger   Andre anlæg, driftsmateriel og inventar",,A
+12958,"Tilbageførte nedskrivninger   Andre anlæg, driftsmateriel og inventar",,A
+12981,"Opskrivninger primo 3 Andre anlæg, driftsmateriel og inventar",,A
+12982,"Årets opskrivninger 3 Andre anlæg, driftsmateriel og inventar",,A
+12983,"Tilbageførte opskrivninger på årets opgang 3 Andre anlæg, driftsmateriel og inventar",,A
+12984,"Tilbageførte opskrivninger 3 Andre anlæg, driftsmateriel og inventar",,A
+12999,"Andre anlæg, driftsmateriel og inventar i alt",,SumFra5
+13000,Materielle anlægsaktiver under udførelse,,Overskrift5
+13001,Kostpris primo,,A
+13002,Årets tilgang med moms,I25,A
+13003,Årets tilgang uden moms,,A
+13004,Årets afgang,,A
+13051,Afskrivninger primo,,A
+13052,Nedskrivninger primo,,A
+13053,Årets afskrivninger,,A
+13054,Årets nedskrivninger,,A
+13055,Tilbageførte afskrivninger på årets afgang,,A
+13056,Tilbageførte nedskrivninger på årets afgang,,A
+13057,Tilbageførte afskrivninger,,A
+13058,Tilbageførte nedskrivninger,,A
+13081,Opskrivninger primo,,A
+13082,Årets opskrivninger,,A
+13083,Tilbageførte opskrivninger på årets opgang,,A
+13084,Tilbageførte opskrivninger,,A
+13099,Materielle anlægsaktiver under udførelse i alt,,SumFra5
+13100,Stambesætninger,,Overskrift5
+13101,Kostpris primo Stambesætninger,,A
+13102,Årets tilgang med moms Stambesætninger,I25,A
+13103,Årets tilgang uden moms Stambesætninger,,A
+13104,Årets afgang Stambesætninger,,A
+13151,Afskrivninger primo Stambesætninger,,A
+13152,Nedskrivninger primo Stambesætninger,,A
+13153,Årets afskrivninger Stambesætninger,,A
+13154,Årets nedskrivninger Stambesætninger,,A
+13155,Tilbageførte afskrivninger på årets afgang Stambesætninger,,A
+13156,Tilbageførte nedskrivninger på årets afgang Stambesætninger,,A
+13157,Tilbageførte afskrivninger Stambesætninger,,A
+13158,Tilbageførte nedskrivninger Stambesætninger,,A
+13181,Opskrivninger primo Stambesætninger,,A
+13182,Årets opskrivninger Stambesætninger,,A
+13183,Tilbageførte opskrivninger på årets opgang Stambesætninger,,A
+13184,Tilbageførte opskrivninger Stambesætninger,,A
+13199,Stambesætninger i alt,,SumFra5
+13200,Indretning af lejede lokaler,,Overskrift5
+13201,"Kostpris primo, indretning af lejede lokaler",,A
+13202,"Årets tilgang med moms, indretning af lejede lokaler ",I25,A
+13203,Årets tilgang uden moms,,A
+13204,"Årets afgang, indretning af lejede lokaler",,A
+13251,Afskrivninger primo,,A
+13252,Nedskrivninger primo,,A
+13253,"Årets afskrivninger, indretning af lejede lokaler",,A
+13254,Årets nedskrivninger,,A
+13255,Tilbageførte afskrivninger på årets afgang,,A
+13256,Tilbageførte nedskrivninger på årets afgang,,A
+13257,Tilbageførte afskrivninger,,A
+13258,Tilbageførte nedskrivninger,,A
+13281,Opskrivninger primo,,A
+13282,Årets opskrivninger,,A
+13283,Tilbageførte opskrivninger på årets opgang,,A
+13284,Tilbageførte opskrivninger,,A
+13299,Indretning af lejede lokaler i alt,,SumFra5
+13300,Forudbetalinger for materielle anlægsaktiver,,Overskrift5
+13301,Kostpris primo,,A
+13302,Årets tilgang med moms,I25,A
+13303,Årets tilgang uden moms,,A
+13304,Årets afgang,,A
+13399,Forudbetalinger for materielle anlægsaktiver i alt,,SumFra5
+13400,Materielle anlægsaktiver i alt,,SumFra4
+13998,Finansielle anlægsaktiver,,Overskrift4
+13999,Kapitalandele i tilknyttede virksomheder,,Overskrift5
+14000,Kapitalandele i tilknyttede virksomheder,,Overskrift6
+14001,Kapitalandele i tilknyttede virksomheder,,A
+14002,Årets tilgang,,A
+14003,Årets afgang,,A
+14004,Værdireguleringer primo,,A
+14005,Kursregulering til ultimokurs,,A
+14006,Årets resultatandele,,A
+14007,Valutakursregulering,,A
+14008,Udloddet udbytte,,A
+14009,Afskrivning af goodwill,,A
+14010,Ændring af intern avance,,A
+14011,Korrektion af tidligere nedskrivning,,A
+14012,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14019,Kapitalandele i tilknyttede virksomheder i alt,,SumFra6
+14020,Kapitalandele i tilknyttede virksomheder 2,,Overskrift6
+14021,"Kapitalandele i tilknyttede virksomheder 2, Kostpris primo",,A
+14022,Årets tilgang,,A
+14023,Årets afgang,,A
+14024,Værdireguleringer primo,,A
+14025,Kursregulering til ultimokurs,,A
+14026,Årets resultatandele,,A
+14027,Valutakursregulering,,A
+14028,Udloddet udbytte,,A
+14029,Afskrivning af goodwill,,A
+14030,Ændring af intern avance,,A
+14031,Korrektion af tidligere nedskrivning,,A
+14032,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14039,Kapitalandele i tilknyttede virksomheder 2 i alt,,SumFra6
+14040,Kapitalandele i tilknyttede virksomheder 3,,Overskrift6
+14041,"Kapitalandele i tilknyttede virksomheder 3, Kostpris primo",,A
+14042,Årets tilgang,,A
+14043,Årets afgang,,A
+14044,Værdireguleringer primo,,A
+14045,Kursregulering til ultimokurs,,A
+14046,Årets resultatandele,,A
+14047,Valutakursregulering,,A
+14048,Udloddet udbytte,,A
+14049,Afskrivning af goodwill,,A
+14050,Ændring af intern avance,,A
+14051,Korrektion af tidligere nedskrivning,,A
+14052,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14059,Kapitalandele i tilknyttede virksomheder 3 i alt,,SumFra6
+14060,Kapitalandele i tilknyttede virksomheder 4,,Overskrift6
+14061,Kostpris primo,,A
+14062,Årets tilgang,,A
+14063,Årets afgang,,A
+14064,Værdireguleringer primo,,A
+14065,Kursregulering til ultimokurs,,A
+14066,Årets resultatandele,,A
+14067,Valutakursregulering,,A
+14068,Udloddet udbytte,,A
+14069,Afskrivning af goodwill,,A
+14070,Ændring af intern avance,,A
+14071,Korrektion af tidligere nedskrivning,,A
+14072,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14079,Kapitalandele i tilknyttede virksomheder 4 i alt,,SumFra6
+14080,Kapitalandele i tilknyttede virksomheder 5,,Overskrift6
+14081,Kostpris primo,,A
+14082,Årets tilgang,,A
+14083,Årets afgang,,A
+14084,Værdireguleringer primo,,A
+14085,Kursregulering til ultimokurs,,A
+14086,Årets resultatandele,,A
+14087,Valutakursregulering,,A
+14088,Udloddet udbytte,,A
+14089,Afskrivning af goodwill,,A
+14090,Ændring af intern avance,,A
+14091,Korrektion af tidligere nedskrivning,,A
+14092,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14098,Kapitalandele i tilknyttede virksomheder 5 i alt,,SumFra6
+14099,Kapitalandele i tilknyttede virksomheder i alt,,SumFra5
+14100,"Tilgodehavender hos tilknyttede virksomheder, anlægsaktiver",,Overskrift5
+14101,Tilgodehavender hos tilknyttede virksomheder,,A
+14102,Tilgodehavender hos tilknyttede virksomheder 2,,A
+14103,Tilgodehavender hos tilknyttede virksomheder 3,,A
+14151,Tilgodehavender hos tilknyttede virksomheder 4,,A
+14152,Tilgodehavender hos tilknyttede virksomheder 5,,A
+14197,Hensat til forventet tab,,A
+14198,"Tilgodehavender hos tilknyttede virksomheder, anlægsaktiver i alt",,SumFra5
+14199,Kapitalandele i associerede virksomheder,,Overskrift5
+14200,Kapitalandele i associerede virksomheder,,Overskrift6
+14201,Kapitalandele i associerede virksomheder,,A
+14202,Årets tilgang,,A
+14203,Årets afgang,,A
+14204,Værdireguleringer primo,,A
+14205,Kursregulering til ultimokurs,,A
+14206,Årets resultatandele,,A
+14207,Valutakursregulering,,A
+14208,Udloddet udbytte,,A
+14209,Afskrivning af goodwill,,A
+14210,Ændring af intern avance,,A
+14211,Korrektion af tidligere nedskrivning,,A
+14212,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14219,Kapitalandele i associerede virksomheder i alt,,SumFra6
+14220,Kapitalandele i associerede virksomheder 2,,Overskrift6
+14221,Kapitalandele i associerede virksomheder 2,,A
+14222,Årets tilgang,,A
+14223,Årets afgang,,A
+14224,Værdireguleringer primo,,A
+14225,Kursregulering til ultimokurs,,A
+14226,Årets resultatandele,,A
+14227,Valutakursregulering,,A
+14228,Udloddet udbytte,,A
+14229,Afskrivning af goodwill,,A
+14230,Ændring af intern avance,,A
+14231,Korrektion af tidligere nedskrivning,,A
+14232,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14239,Kapitalandele i associerede virksomheder 2 i alt,,SumFra6
+14240,Kapitalandele i associerede virksomheder 3,,Overskrift6
+14241,Kostpris primo,,A
+14242,Årets tilgang,,A
+14243,Årets afgang,,A
+14244,Værdireguleringer primo,,A
+14245,Kursregulering til ultimokurs,,A
+14246,Årets resultatandele,,A
+14247,Valutakursregulering,,A
+14248,Udloddet udbytte,,A
+14249,Afskrivning af goodwill,,A
+14250,Ændring af intern avance,,A
+14251,Korrektion af tidligere nedskrivning,,A
+14252,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14259,Kapitalandele i associerede virksomheder 3 i alt,,SumFra6
+14260,Kapitalandele i associerede virksomheder 4,,Overskrift6
+14261,Kostpris primo,,A
+14262,Årets tilgang,,A
+14263,Årets afgang,,A
+14264,Værdireguleringer primo,,A
+14265,Kursregulering til ultimokurs,,A
+14266,Årets resultatandele,,A
+14267,Valutakursregulering,,A
+14268,Udloddet udbytte,,A
+14269,Afskrivning af goodwill,,A
+14270,Ændring af intern avance,,A
+14271,Korrektion af tidligere nedskrivning,,A
+14272,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14279,Kapitalandele i associerede virksomheder 4 i alt,,SumFra6
+14280,Kapitalandele i associerede virksomheder 5,,Overskrift6
+14281,Kostpris primo,,A
+14282,Årets tilgang,,A
+14283,Årets afgang,,A
+14284,Værdireguleringer primo,,A
+14285,Kursregulering til ultimokurs,,A
+14286,Årets resultatandele,,A
+14287,Valutakursregulering,,A
+14288,Udloddet udbytte,,A
+14289,Afskrivning af goodwill,,A
+14290,Ændring af intern avance,,A
+14291,Korrektion af tidligere nedskrivning,,A
+14292,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14298,Kapitalandele i associerede virksomheder 5 i alt,,SumFra6
+14299,Kapitalandele i associerede virksomheder i alt,,SumFra5
+14300,"Tilgodehavender hos associerede virksomheder, anlægsaktiver",,Overskrift5
+14301,Tilgodehavender hos associerede virksomheder,,A
+14302,Tilgodehavender hos associerede virksomheder 2,,A
+14303,Tilgodehavender hos associerede virksomheder 3,,A
+14351,Tilgodehavender hos associerede virksomheder 4,,A
+14352,Tilgodehavender hos associerede virksomheder 5,,A
+14369,Hensat til forventet tab,,A
+14370,"Tilgodehavender hos associerede virksomheder, anlægsaktiver i alt",,SumFra5
+14371,Kapitalandele i joint ventures,,Overskrift5
+14372,Kapitalandele i joint ventures,,Overskrift6
+14373,Kostpris primo Kapitalandele i joint ventures,,A
+14374,Årets tilgang,,A
+14375,Årets afgang,,A
+14376,Værdireguleringer primo,,A
+14377,Kursregulering til ultimokurs,,A
+14378,Årets resultatandele,,A
+14379,Valutakursregulering,,A
+14380,Udloddet udbytte,,A
+14381,Afskrivning af goodwill,,A
+14382,Ændring af intern avance,,A
+14383,Korrektion af tidligere nedskrivning,,A
+14384,Tilbageførte værdireguleringer på afhændede kapitalandele,,A
+14399,Kapitalandele i joint ventures i alt,,SumFra5
+14400,"Andre værdipapirer og kapitalandele, anlægsaktiver",,Overskrift5
+14401,Aktier,,Overskrift6
+14402,Kostpris primo,,A
+14403,Årets tilgang,,A
+14404,Årets afgang,,A
+14412,Værdireguleringer primo,,A
+14413,Årets værdireguleringer,,A
+14422,Aktier,,A
+14423,Aktier 2,,A
+14424,Aktier 3,,A
+14425,Aktier 4,,A
+14426,Aktier 5,,A
+14427,Aktier 6,,A
+14428,Aktier 7,,A
+14429,Aktier 8,,A
+14430,Aktier 9,,A
+14431,Aktier 10,,A
+14500,Aktier i alt,,SumFra5
+14501,Investeringsforeningsbeviser,,Overskrift6
+14502,Kostpris primo,,A
+14503,Årets tilgang,,A
+14504,Årets afgang,,A
+14512,Værdireguleringer primo,,A
+14513,Årets værdireguleringer,,A
+14522,Investeringsforeningsbeviser,,A
+14523,Investeringsforeningsbeviser 2,,A
+14524,Investeringsforeningsbeviser 3,,A
+14525,Investeringsforeningsbeviser 4,,A
+14526,Investeringsforeningsbeviser 5,,A
+14527,Investeringsforeningsbeviser 6,,A
+14528,Investeringsforeningsbeviser 7,,A
+14529,Investeringsforeningsbeviser 8,,A
+14530,Investeringsforeningsbeviser 9,,A
+14531,Investeringsforeningsbeviser 10,,A
+14600,Investeringsforeningsbeviser i alt,,SumFra6
+14601,Obligationer,,Overskrift6
+14602,Kostpris primo,,A
+14603,Årets tilgang,,A
+14604,Årets afgang,,A
+14612,Værdireguleringer primo,,A
+14613,Årets værdireguleringer,,A
+14622,Obligationer,,A
+14623,Obligationer 2,,A
+14624,Obligationer 3,,A
+14625,Obligationer 4,,A
+14626,Obligationer 5,,A
+14627,Obligationer 6,,A
+14628,Obligationer 7,,A
+14629,Obligationer 8,,A
+14630,Obligationer 9,,A
+14631,Obligationer 10,,A
+14700,Obligationer i alt,,SumFra6
+14701,Pantebreve,,Overskrift6
+14702,Kostpris primo,,A
+14703,Årets tilgang,,A
+14704,Årets afgang,,A
+14712,Værdireguleringer primo,,A
+14713,Årets værdireguleringer,,A
+14722,Pantebreve,,A
+14723,Pantebreve 2,,A
+14724,Pantebreve 3,,A
+14725,Pantebreve 4,,A
+14726,Pantebreve 5,,A
+14727,Pantebreve 6,,A
+14728,Pantebreve 7,,A
+14729,Pantebreve 8,,A
+14730,Pantebreve 9,,A
+14731,Pantebreve 10,,A
+14799,Hensat til forventet tab,,A
+14800,Pantebreve i alt,,SumFra6
+14801,Gældsbreve,,Overskrift6
+14802,Kostpris primo,,A
+14803,Årets tilgang,,A
+14804,Årets afgang,,A
+14812,Værdireguleringer primo,,A
+14813,Årets værdireguleringer,,A
+14822,Gældsbreve,,A
+14823,Gældsbreve 2,,A
+14824,Gældsbreve 3,,A
+14825,Gældsbreve 4,,A
+14826,Gældsbreve 5,,A
+14827,Gældsbreve 6,,A
+14828,Gældsbreve 7,,A
+14829,Gældsbreve 8,,A
+14830,Gældsbreve 9,,A
+14831,Gældsbreve 10,,A
+14899,Hensat til forventet tab,,A
+14900,Gældsbreve i alt,,SumFra6
+14901,Andre værdipapirer,,Overskrift6
+14902,Kostpris primo,,A
+14903,Årets tilgang,,A
+14904,Årets afgang,,A
+14912,Værdireguleringer primo,,A
+14913,Årets værdireguleringer,,A
+14922,Andre værdipapirer,,A
+14923,Andre værdipapirer 2,,A
+14924,Andre værdipapirer 3,,A
+14925,Andre værdipapirer 4,,A
+14926,Andre værdipapirer 5,,A
+14927,Andre værdipapirer 6,,A
+14928,Andre værdipapirer 7,,A
+14929,Andre værdipapirer 8,,A
+14930,Andre værdipapirer 9,,A
+14931,Andre værdipapirer 10,,A
+14999,Andre værdipapirer i alt,,SumFra6
+15199,"Andre værdipapirer og kapitalandele, anlægsaktiver i alt",,SumFra5
+15200,"Andre tilgodehavender, anlægsaktiver",,Overskrift5
+15201,Langfristede tilgodehavender,,Overskrift6
+15202,Kostpris primo,,A
+15203,Årets tilgang,,A
+15204,Årets afgang,,A
+15212,Værdireguleringer primo,,A
+15213,Årets værdireguleringer,,A
+15222,Langfristede tilgodehavender,,A
+15223,Langfristede tilgodehavender 2,,A
+15224,Langfristede tilgodehavender 3,,A
+15225,Langfristede tilgodehavender 4,,A
+15226,Langfristede tilgodehavender 5,,A
+15227,Langfristede tilgodehavender 6,,A
+15228,Langfristede tilgodehavender 7,,A
+15229,Langfristede tilgodehavender 8,,A
+15230,Langfristede tilgodehavender 9,,A
+15231,Langfristede tilgodehavender 10,,A
+15300,Langfristede tilgodehavender i alt,,SumFra6
+15301,"Tilgodehavender hos ejere og ledelse, anlægsaktiver",,Overskrift6
+15302,Kostpris primo,,A
+15303,Årets tilgang,I25,A
+15304,Årets afgang,,A
+15305,Værdireguleringer primo,U25,A
+15306,Årets værdireguleringer,,A
+15310,"Tilgodehavender hos ejere og ledelse, anlægsaktiver",,A
+15311,"Tilgodehavender hos ejere og ledelse, anlægsaktiver 2",,A
+15312,"Tilgodehavender hos ejere og ledelse, anlægsaktiver 3",,A
+15313,"Tilgodehavender hos ejere og ledelse, anlægsaktiver 4",,A
+15314,"Tilgodehavender hos ejere og ledelse, anlægsaktiver 5",,A
+15497,Hensat til forventet tab,,A
+15498,"Tilgodehavender hos ejere og ledelse, anlægsaktiver i alt",,SumFra6
+15499,"Andre tilgodehavender, anlægsaktiver i alt",,SumFra5
+15500,Deposita,,Overskrift5
+15501,"Deposita, Kostpris primo",,A
+15502,"Deposita, Årets tilgang m/moms",I25,A
+15503,"Deposita, Årets tilgang u/moms",,A
+15504,Årets afgang m/moms,U25,A
+15505,Årets afgang u/moms,,A
+15506,Værdireguleringer primo,,A
+15507,Årets værdireguleringer,,A
+15521,Deposita,,A
+15522,Deposita 2,,A
+15523,Deposita 3,,A
+15524,Deposita 4,,A
+15525,Deposita 5,,A
+15526,Deposita 6,I25,A
+15527,Deposita 7,I25,A
+15528,Deposita 8,I25,A
+15529,Deposita 9,I25,A
+15530,Deposita 10,I25,A
+15548,Hensat til forventet tab,,A
+15549,Deposita i alt,,SumFra5
+15550,Krav på indbetaling af virksomhedskapital,,Overskrift5
+15551,Kostpris primo,,A
+15552,Årets tilgang m/moms,I25,A
+15553,Årets tilgang u/moms,,A
+15554,Årets afgang m/moms,U25,A
+15555,Årets afgang u/moms,,A
+15556,Værdireguleringer primo,,A
+15557,Årets værdireguleringer,,A
+15571,Krav på indbetaling af virksomhedskapital,,A
+15572,Krav på indbetaling af virksomhedskapital 2,,A
+15573,Krav på indbetaling af virksomhedskapital 3,,A
+15574,Krav på indbetaling af virksomhedskapital 4,,A
+15575,Krav på indbetaling af virksomhedskapital 5,,A
+15576,Krav på indbetaling af virksomhedskapital 6,,A
+15577,Krav på indbetaling af virksomhedskapital 7,,A
+15578,Krav på indbetaling af virksomhedskapital 8,,A
+15579,Krav på indbetaling af virksomhedskapital 9,,A
+15580,Krav på indbetaling af virksomhedskapital 10,,A
+15598,Hensat til forventet tab,,A
+15599,Krav på indbetaling af virksomhedskapital i alt,,SumFra5
+15600,Skat,,Overskrift5
+15601,Udskudt skatteaktiv,,A
+15602,Tilgodehavende selskabsskat,I25,A
+15699,Skat i alt,,SumFra5
+15700,Finansielle anlægsaktiver i alt,,SumFra4
+15998,Anlægsaktiver i alt,,SumFra3
+15999,Omsætningsaktiver,,Overskrift3
+16000,Varebeholdninger,,Overskrift4
+16100,Råvarer og hjælpematerialer,,Overskrift5
+16101,Råvarer og hjælpematerialer,,A
+16102,"Råvarer og hjælpematerialer, fra tilknyttede virksomheder",,A
+16103,Råvarer og hjælpematerialer fra associerede virksomheder,,A
+16104,"Råvarer og hjælpematerialer, nedskrivning for ukurans",,A
+16105,Biologiske aktiver til forbrug,,A
+16110,Kornbeholdning,,A
+16112,Olie- og gasbeholdning,,A
+16114,Gødning og kemikaliebeholdning,,A
+16149,Råvarer og hjælpematerialer i alt,,SumFra5
+16150,Varer under fremstilling,,Overskrift5
+16151,Varer under fremstilling,,A
+16152,"Varer under fremstilling, fra tilknyttede virksomheder",,A
+16153,Varer under fremstilling fra associerede virksomheder,,A
+16154,"Varer under fremstilling, nedskrivning for ukurans",,A
+16155,Jordbeholdninger,,A
+16199,Varer under fremstilling i alt,,SumFra5
+16200,Fremstillede varer og handelsvarer,,Overskrift5
+16201,Fremstillede varer og handelsvarer,,A
+16202,"Fremstillede varer og handelsvarer, fra tilknyttede virksomheder",,A
+16203,Fremstillede varer og handelsvarer fra associerede virksomheder,,A
+16204,"Fremstillede varer og handelsvarer, nedskrivning for ukurans",,A
+16205,Aktiver bestemt for salg,,A
+16211,Handelsvarer,,A
+16212,"Handelsvarer, fra tilknyttede virksomheder",,A
+16213,Handelsvarer fra associerede virksomheder,,A
+16214,"Handelsvarer, nedskrivning for ukurans",,A
+16249,Fremstillede varer og handelsvarer i alt,,SumFra5
+16250,Forudbetalinger for varer,,Overskrift5
+16251,Forudbetalinger for varer,,A
+16252,"Forudbetalinger for varer, fra tilknyttede virksomheder",,A
+16253,Forudbetalinger for varer fra associerede virksomheder,,A
+16279,Forudbetalinger for varer i alt,,SumFra5
+16280,Handelsbesætning,,Overskrift5
+16281,Tyre og tyre-stude,,A
+16282,Kalve,,A
+16283,Orner,,A
+16284,Sopolte,,A
+16285,Slagtesvin,,A
+16286,Smågrise,,A
+16287,Lam og væddere,,A
+16288,Nedskrivning besætning,,A
+16289,"Handelsbesætning, fra tilknyttede virksomheder",,A
+16290,Handelsbesætning fra associerede virksomheder,,A
+16298,Handelsbesætning i alt,,SumFra5
+16299,Varebeholdninger i alt,,SumFra4
+16300,Tilgodehavender,,Overskrift4
+16301,Tilgodehavender fra salg og tjenesteydelser,,Overskrift5
+16302,Tilgodehavender fra salg og tjenesteydelser,,A
+16303,Tilgodehavender fra salg og tjenesteydelser 2,,A
+16304,Tilgodehavender fra salg og tjenesteydelser 3,,A
+16305,Tilgodehavender fra salg og tjenesteydelser 4,,A
+16306,Tilgodehavender fra salg og tjenesteydelser 5,,A
+16307,"Tilgodehavender fra salg og tjenesteydelser, danske",,A
+16308,"Tilgodehavender fra salg og tjenesteydelser, udenlandske",,A
+16309,Valutakursregulering ultimo,,A
+16348,Hensat til tab på debitorer,,A
+16349,Tilgodehavender fra salg og tjenesteydelser i alt,,SumFra5
+16350,Igangværende arbejder,,Overskrift5
+16351,Igangværende arbejder for fremmed regning Igangværende arbejder for fremmed regning,,A
+16352,"Igangværende arbejder for fremmed regning, tilknyttede virksomheder",,A
+16353,"Igangværende arbejder for fremmed regning, associerede virksomheder",,A
+16354,Aconto faktureret igangværende arbejder for fremmed regning,,A
+16399,Igangværende arbejder i alt,,SumFra5
+16400,Tilgodehavende hos tilknyttede virksomheder,,Overskrift5
+16401,Tilgodehavender hos tilknyttede virksomheder,,A
+16402,Tilgodehavender hos tilknyttede virksomheder 2,,A
+16403,Tilgodehavender hos tilknyttede virksomheder 3,,A
+16404,Tilgodehavender hos tilknyttede virksomheder 4,,A
+16405,Tilgodehavender hos tilknyttede virksomheder 5,,A
+16431,"Tilgodehavender hos tilknyttede virksomheder, sambeskatningsbidrag",,A
+16432,"Tilgodehavender hos tilknyttede virksomheder, sambeskatningsbidrag 2",,A
+16433,"Tilgodehavender hos tilknyttede virksomheder, sambeskatningsbidrag 3",,A
+16434,"Tilgodehavender hos tilknyttede virksomheder, sambeskatningsbidrag 4",,A
+16435,"Tilgodehavender hos tilknyttede virksomheder, sambeskatningsbidrag 5",,A
+16461,Tilgodehavender hos tilknyttede virksomheder 6,,A
+16462,Tilgodehavender hos tilknyttede virksomheder 7,,A
+16463,Tilgodehavender hos tilknyttede virksomheder 8,,A
+16464,Tilgodehavender hos tilknyttede virksomheder 9,,A
+16465,"Tilgodehavender hos tilknyttede virksomheder, nedskrivning",,A
+16499,Tilgodehavende hos tilknyttede virksomheder i alt,,SumFra5
+16500,Tilgodehavende hos associerede virksomheder,,Overskrift5
+16501,Tilgodehavender hos associerede virksomheder,,A
+16502,Tilgodehavender hos associerede virksomheder 2,,A
+16503,Tilgodehavender hos associerede virksomheder 3,,A
+16504,Tilgodehavender hos associerede virksomheder 4,,A
+16505,Tilgodehavender hos associerede virksomheder 5,,A
+16531,Tilgodehavender hos associerede virksomheder 6,,A
+16532,Tilgodehavender hos associerede virksomheder 7,,A
+16533,Tilgodehavender hos associerede virksomheder 8,,A
+16534,Tilgodehavender hos associerede virksomheder 9,,A
+16535,"Tilgodehavender hos associerede virksomheder, nedskrivning",,A
+16549,Tilgodehavende hos associerede virksomheder i alt,,SumFra5
+16550,Mellemregningskonto andre virksomheder,,Overskrift5
+16551,Mellemregningskonto andre virksomheder,,A
+16552,Mellemregningskonto andre virksomheder 2,,A
+16553,Mellemregningskonto andre virksomheder 3,,A
+16554,Mellemregningskonto andre virksomheder 2,,A
+16555,Mellemregningskonto andre virksomheder i alt,,A
+16599,Mellemregningskonto andre virksomheder i alt,,SumFra5
+16600,Andre tilgodehavender,,Overskrift5
+16601,Personaledebitorer,,A
+16602,Acontoløn personale,,A
+16603,Tilgodehavende renter,,A
+16621,Andre tilgodehavender,,A
+16622,Andre tilgodehavender 2,,A
+16623,Andre tilgodehavender 3,,A
+16624,Andre tilgodehavender 4,,A
+16625,Andre tilgodehavender 5,,A
+16631,"Tilgode, varmeregnskab",,A
+16632,"Tilgode, andre forbrugsregnskaber",,A
+16633,"Andre tilgodehavender, udlejning 1",,A
+16634,"Andre tilgodehavender, udlejning 2",,A
+16635,"Andre tilgodehavender, udlejning 3",,A
+16680,"Selskabsskat tilgode, lang",,A
+16681,Udskudt skatteaktiv,,A
+16682,Selskabsskat tilgode,,A
+16683,Tilgodehavende moms,,A
+16684,Leasingtilgodehavender,,A
+16685,Selskabsskat tilgode,,A
+16686,Selskabsskat tilgode skattekreditordningen forskning og udvikling,,A
+16699,Andre tilgodehavender i alt,,SumFra5
+16700,Krav på indbetaling af virksomhedskapital og overkurs,,Overskrift5
+16701,Krav på indbetaling af virksomhedskapital og overkurs I,,A
+16702,Krav på indbetaling af virksomhedskapital og overkurs 2,,A
+16703,Krav på indbetaling af virksomhedskapital og overkurs 3,,A
+16704,Krav på indbetaling af virksomhedskapital og overkurs 4,,A
+16705,Krav på indbetaling af virksomhedskapital og overkurs 5,,A
+16749,Krav på indbetaling af virksomhedskapital og overkurs i alt,,SumFra5
+16750,Tilgodehavender hos ejere og ledelse,,Overskrift5
+16751,Tilgodehavender hos ejere og ledelse,,A
+16752,Tilgodehavender hos ejere og ledelse 2,,A
+16753,Tilgodehavender hos ejere og ledelse 3,,A
+16754,Tilgodehavender hos ejere og ledelse 4,,A
+16755,Tilgodehavender hos ejere og ledelse 5,,A
+16800,Tilgodehavender hos ejere og ledelse i alt,,SumFra5
+16801,Periodeafgrænsningsposter,,Overskrift5
+16802,Periodeafgrænsningsposter Periodeafgrænsningsposter (aktiver),,A
+16803,Periodeafgrænsningsposter 2,,A
+16804,Periodeafgrænsningsposter 3,,A
+16805,Periodeafgrænsningsposter 4,,A
+16806,Periodeafgrænsningsposter 5,,A
+16899,Periodeafgrænsningsposter i alt,,SumFra5
+16999,Tilgodehavender i alt,,SumFra4
+17000,Værdipapirer og kapitalandele,,Overskrift4
+17001,Kapitalandele i tilknyttede virksomheder,,A
+17002,Kapitalandele i associerede virksomheder,,A
+17003,Kapitalandele i joint ventures,,A
+17011,Aktier,,A
+17012,Investeringsforeningsbeviser,,A
+17013,Obligationer,,A
+17014,Pantebreve,,A
+17015,Gældsbreve,,A
+17016,Andre værdipapirer,,A
+17999,Værdipapirer og kapitalandele i alt,,SumFra4
+18000,Likvide beholdninger,,Overskrift4
+18001,Kasse,,A
+18002,Kasse 2,,A
+18003,Kasse 3,,A
+18004,Kasse 4,,A
+18005,Kasse 5,,A
+18006,Valutabeholdning,,A
+18010,Bank,,A
+18011,Bank 2,,A
+18012,Bank 3,,A
+18013,Bank 4,,A
+18014,Bank 5,,A
+18015,Bank 6,,A
+18016,Bank 7,,A
+18017,Bank 8,,A
+18018,Bank 9,,A
+18019,Bank 10,,A
+18020,Bank værdipapirdepot 1,,A
+18021,Bank værdipapirdepot 2,,A
+18022,Bank 13,,A
+18023,Bank 14,,A
+18024,Indestående Grundejernes Investeringsfond,,A
+18999,Likvide beholdninger i alt,,SumFra4
+19998,Omsætningsaktiver i alt,,SumFra3
+19999,Aktiver i alt,,SumFra2
+20000,Passiver,,Overskrift2
+20001,Egenkapital,,Overskrift3
+21000,Selskabskapital,,Overskrift4
+21001,"Selskabskapital, primo",,P
+21002,"Selsabskapåital, fondsemission",,P
+21003,"Selskabskapital, nedskrivning til dækning af tab",,P
+21004,"Selskabskapital, kapitalforhøjelse",,P
+21005,"Selskabskapital, kapitalnedsættelse",,P
+21099,Selskabskapital i alt,,SumFra4
+21100,Overkurs ved emission,,Overskrift4
+21101,Overkurs ved emission  året,,P
+21102,Årets overkurs ved emission,,P
+21103,Overført til dækning af underskud,,P
+21199,Overkurs ved emission i alt,,SumFra4
+21200,Reserve for opskrivninger,,Overskrift4
+21201,"Reserve for opskrivninger, primo",,P
+21202,"Reserve for opskrivninger, året",,P
+21203,"Reserve for opskrivninger, skat af årets opskrivning",,P
+21204,"Reserve for opskrivninger, opløsning af tidligere års opskrivning",,P
+21205,"Reserve for opskrivninger, overført til selskabskapital (fondsemission)",,P
+21249,Reserve for opskrivninger i alt,,SumFra4
+21250,Reserve for nettoopskrivning efter den indre værdis metode,,Overskrift4
+21251,"Reserve for nettoopskrivning efter den indre værdis metode, primo",,P
+21252,"Reserve for nettoopskrivning efter den indre værdis metode, årets nettoopskrivning",,P
+21253,"Reserve for nettoopskrivning efter den indre værdis metode, overført til andre poster",,P
+21299,Reserve for nettoopskrivning efter den indre værdis metode i alt,,SumFra4
+21300,Reserve for udlån og sikkerhedsstillelse,,Overskrift4
+21301,"Reserve for udlån og sikkerhedsstillelse, primo",,P
+21302,"Reserve for udlån og sikkerhedsstillelse, årets nettoopskrivning",,P
+21303,"Reserve for udlån og sikkerhedsstillelse, overført til andre poster",,P
+21399,Reserve for udlån og sikkerhedsstillelse i alt,,SumFra4
+21400,Reserve for ikke indbetalt virksomhedskapital og overkurs,,Overskrift4
+21401,"Reserve for ikke indbetalt virksomhedskapital og overkurs, primo",,P
+21402,"Reserve for ikke indbetalt virksomhedskapital og overkurs, årets nettoopskrivning",,P
+21403,"Reserve for ikke indbetalt virksomhedskapital og overkurs, overført til andre poster",,P
+21404,"Reserve for ikke indbetalt virksomhedskapital og overkurs, overført udbytte til ejerne",,P
+21499,Reserve for ikke indbetalt virksomhedskapital og overkurs i alt,,SumFra4
+21500,Reserve for iværksætterselskaber,,Overskrift4
+21501,"Reserve for iværksætterselskaber, primo",,P
+21502,"Reserve for iværksætterselskaber, årets bevægelse",,P
+21503,"Reserve for iværksætterselskaber, overført til andre poster",,P
+21599,Reserve for iværksætterselskaber i alt,,SumFra4
+21600,Reserve for udviklingsomkostninger,,Overskrift4
+21601,"Reserve for udviklingsomkostninger, primo",,P
+21602,"Reserve for udviklingsomkostninger, årets bevægelse",,P
+21603,"Reserve for udviklingsomkostninger, overført til andre poster",,P
+21699,Reserve for udviklingsomkostninger i alt,,SumFra4
+21700,Øvrige lovpligtige reserver,,Overskrift4
+21701,"Øvrige lovpligtige reserver, primo",,P
+21702,"Øvrige lovpligtige reserver, årets bevægelse",,P
+21703,"Øvrige lovpligtige reserver, overført til andre poster",,P
+21799,Øvrige lovpligtige reserver i alt,,SumFra4
+21800,Vedtægtsmæssige reserver,,Overskrift4
+21801,"Vedtægtsmæssige reserver, primo",,P
+21802,"Vedtægtsmæssige reserver, årets bevægelse",,P
+21803,"Vedtægtsmæssige reserver, overført til andre poster",,P
+21899,Vedtægtsmæssige reserver i alt,,SumFra4
+21900,Øvrige reserver,,Overskrift4
+21901,"Øvrige reserver, primo",,P
+21902,"Øvrige reserver, årets bevægelse",,P
+21903,"Øvrige reserver, overført til andre poster",,P
+21999,Øvrige reserver i alt,,SumFra4
+22000,Foreslået udbytte,,Overskrift4
+22001,Foreslået udbytte primo,,P
+22002,Foreslået udbytte,,P
+22003,Udloddet udbytte ,,P
+22004,Ekstraordinært udbytte,,P
+22005,Udbytte af egne kapitalandele,,P
+22006,Overført til andre poster,,P
+22099,Foreslået udbytte i alt,,SumFra4
+22100,Hensatte uddelinger,,Overskrift4
+22101,Uddelinger primo,,P
+22102,Foreslåede uddelinger,,P
+22103,Udbetalte uddelinger,,P
+22149,Hensatte uddelinger i alt,,SumFra4
+22150,Sikringsfond,,Overskrift4
+22151,Sikringsfond primo,,P
+22152,Årets bevægelse på sikringsfond,,P
+22153,Overført til andre poster,,P
+22199,Sikringsfond i alt,,SumFra4
+22200,Reservefond,,Overskrift4
+22201,Reservefond primo,,P
+22202,Årets bevægelse på reservefond,,P
+22203,Overført til andre poster,,P
+22249,Reservefond i alt,,SumFra4
+22250,Disponible reserver,,Overskrift4
+22251,Disponible reserver primo,,P
+22252,Årets bevægelse på disponible reserver,,P
+22253,Overført til andre poster,,P
+22299,Disponible reserver i alt,,SumFra4
+22300,Bunden kapital,,Overskrift4
+22301,Bunden kapital primo,,P
+22302,Årets bevægelse på bunden kapital,,P
+22303,Overført til andre poster,,P
+22349,Bunden kapital i alt,,SumFra4
+22350,Likvidationskonto,,Overskrift4
+22351,Likvidationskonto primo,,P
+22352,Årets bevægelse på likvidationskonto,,P
+22353,Overført til andre poster,,P
+22399,Likvidationskonto i alt,,SumFra4
+22800,Overført resultat,,Overskrift4
+22801,"Overført resultat, primo",,P
+22802,Ændring af anvendt regnskabspraksis,,P
+22803,"Overført resultat, året",,P
+22804,Erhvervelse af egne kapitalandele,,P
+22805,Afhændelse af egne kapitalandele,,P
+22806,Skat ved afhændelse af egne kapitalandele,,P
+22807,Udbytte af egne kapitalandele,,P
+22808,Koncerntilskud fra modervirksomhed,,P
+22809,Ændring i dagsværdi sikringsinstrumenter,,P
+22810,Overførsel fra andre reserver,,P
+22811,Omkostninger ved stiftelse og kapitalforhøjelse,,P
+22812,Væsentlige fejl,,P
+22813,Ændring i anvendt regnskabspraksis,,P
+22814,"Overført overskud, overført fra væsentlige fejl",,P
+22815,Overført til selskabskapital,,P
+22816,Overført fra selskabskapital,,P
+22899,Overført resultat i alt,,SumFra4
+22900,Minoritetsinteresser,,Overskrift4
+22901,"Minoritetsinteresser, primo",,P
+22902,Minoritetsinteressers andel af årets resultat,,P
+22903,Udloddet udbytte til minoritetsinteresser i datterselskaber,,P
+22998,Minoritetsinteresser i alt,,SumFra4
+22999,Egenkapital i alt,,SumFra3
+23000,Indestående i virksomhed,,Overskrift4
+23100,Indestående i virksomhed,,Overskrift5
+23101,Indestående i virksomhed før hævninger,,Overskrift6
+23102,Indestående primo Kapitalkonto,,P
+23103,Årets resultat Kapitalkonto,,P
+23104,Op- og nedskrivninger Kapitalkonto,,P
+23105,Kapitalreguleringer Kapitalkonto,,P
+23106,Indskud Kapitalkonto,,P
+23107,Ikke-fradragsberettigede omkostninger Kapitalkonto,,P
+23149,Indestående i virksomhed før hævninger i alt,,SumFra6
+23150,Hævninger,,Overskrift6
+23151,Hævet kontant Kapitalkonto,,P
+23152,B-skat Kapitalkonto,,P
+23153,AM-bidrag Kapitalkonto,,P
+23154,Udbytteskat Kapitalkonto,,P
+23155,Skatter tidligere år Kapitalkonto,,P
+23156,Mellemregningskonto (gæld),,P
+23157,Pensioner Kapitalkonto,,P
+23158,Faglige kontingenter Kapitalkonto,,P
+23159,Omkostninger private boliger Kapitalkonto,,P
+23160,Værdi af fri telefon Kapitalkonto,,P
+23161,Private andele Kapitalkonto,,P
+23162,Forbrug af egne varer Kapitalkonto,,P
+23163,"Personbil driftsudgifter, papegøjepladebil Kapitalkonto",I25,P
+23164,Værdi af fri bil Kapitalkonto,,P
+23165,Refusion af befordringsgodtgørelse Kapitalkonto,,P
+23198,Hævninger i alt,,SumFra6
+23199,Indestående i virksomhed i alt,,SumFra5
+23200,Indestående i virksomhed 2,,Overskrift5
+23201,Indestående i virksomhed 2 før hævninger,,Overskrift6
+23202,Indestående primo Kapitalkonto 2,,P
+23203,Årets resultat Kapitalkonto 2,,P
+23204,Op- og nedskrivninger Kapitalkonto 2,,P
+23205,Kapitalreguleringer Kapitalkonto 2,,P
+23206,Indskud Kapitalkonto 2,,P
+23207,Ikke-fradragsberettigede omkostninger Kapitalkonto 2,,P
+23249,Indestående i virksomhed 2 før hævninger i alt,,SumFra6
+23250,Hævninger,,Overskrift6
+23251,Hævet kontant Kapitalkonto 2,,P
+23252,B-skat Kapitalkonto 2,,P
+23253,AM-bidrag Kapitalkonto 2,,P
+23254,Udbytteskat Kapitalkonto 2,,P
+23255,Skatter tidligere år Kapitalkonto 2,,P
+23256,Mellemregningskonto Kapitalkonto 2,,P
+23257,Pensioner Kapitalkonto 2,,P
+23258,Faglige kontingenter Kapitalkonto 2,,P
+23259,Omkostninger private boliger Kapitalkonto 2,,P
+23260,Værdi af fri telefon Kapitalkonto 2,,P
+23261,Private andele Kapitalkonto 2,,P
+23262,Forbrug af egne varer Kapitalkonto 2,,P
+23263,Personbil driftsudgifter Kapitalkonto 2,,P
+23264,Værdi af fri bil Kapitalkonto 2,,P
+23265,Refusion af befordringsgodtgørelse Kapitalkonto 2,,P
+23298,Hævninger i alt,,SumFra6
+23299,Indestående i virksomhed 2 i alt,,SumFra5
+23300,Indestående i virksomhed 3,,Overskrift5
+23301,Indestående i virksomhed 3 før hævninger,,Overskrift6
+23302,Indestående primo,,P
+23303,Årets resultat,,P
+23304,Op- og nedskrivninger,,P
+23305,Kapitalreguleringer,,P
+23306,Indskud,,P
+23307,Ikke-fradragsberettigede omkostninger  Kapitalkonto 2,,P
+23349,Indestående i virksomhed 3 før hævninger i alt,,SumFra6
+23350,Hævninger,,Overskrift6
+23351,Hævet kontant,,P
+23352,B-skat,,P
+23353,AM-bidrag,,P
+23354,Udbytteskat,,P
+23355,Skatter tidligere år,,P
+23356,Mellemregningskonto,,P
+23357,Pensioner,,P
+23358,Faglige kontingenter,,P
+23359,Omkostninger private boliger,,P
+23360,Værdi af fri telefon,,P
+23361,Private andele,,P
+23362,Forbrug af egne varer,,P
+23363,Personbil driftsudgifter,,P
+23364,Værdi af fri bil,,P
+23365,Refusion af befordringsgodtgørelse,,P
+23398,Hævninger i alt,,SumFra6
+23399,Indestående i virksomhed 3 i alt,,SumFra5
+23400,Indestående i virksomhed 4,,Overskrift5
+23401,Indestående i virksomhed 4 før hævninger,,Overskrift6
+23402,Indestående primo,,P
+23403,Årets resultat,,P
+23404,Op- og nedskrivninger,,P
+23405,Kapitalreguleringer,,P
+23406,Indskud,,P
+23407,Ikke-fradragsberettigede omkostninger,,P
+23449,Indestående i virksomhed 4 før hævninger i alt,,SumFra6
+23450,Hævninger,,Overskrift6
+23451,Hævet kontant,,P
+23452,B-skat,,P
+23453,AM-bidrag,,P
+23454,Udbytteskat,,P
+23455,Skatter tidligere år,,P
+23456,Mellemregningskonto,,P
+23457,Pensioner,,P
+23458,Faglige kontingenter,,P
+23459,Omkostninger private boliger,,P
+23460,Værdi af fri telefon,,P
+23461,Private andele,,P
+23462,Forbrug af egne varer,,P
+23463,Personbil driftsudgifter,,P
+23464,Værdi af fri bil,,P
+23465,Refusion af befordringsgodtgørelse,,P
+23498,Hævninger i alt,,SumFra6
+23499,Indestående i virksomhed 4 i alt,,SumFra5
+23500,Indestående i virksomhed 5,,Overskrift5
+23501,Indestående i virksomhed 5 før hævninger,,Overskrift6
+23502,Indestående primo,,P
+23503,Årets resultat,,P
+23504,Op- og nedskrivninger,,P
+23505,Kapitalreguleringer,,P
+23506,Indskud,,P
+23507,Ikke-fradragsberettigede omkostninger,,P
+23549,Indestående i virksomhed 5 før hævninger i alt,,SumFra6
+23550,Hævninger,,Overskrift6
+23551,Hævet kontant,,P
+23552,B-skat,,P
+23553,AM-bidrag,,P
+23554,Udbytteskat,,P
+23555,Skatter tidligere år,,P
+23556,Mellemregningskonto,,P
+23557,Pensioner,,P
+23558,Faglige kontingenter,,P
+23559,Omkostninger private boliger,,P
+23560,Værdi af fri telefon,,P
+23561,Private andele,,P
+23562,Forbrug af egne varer,,P
+23563,Personbil driftsudgifter,,P
+23564,Værdi af fri bil,,P
+23565,Refusion af befordringsgodtgørelse,,P
+23598,Hævninger i alt,,SumFra6
+23599,Indestående i virksomhed 5 i alt,,SumFra5
+23998,Indestående i virksomhed i alt,,SumFra4
+23999,Egenkapital i alt,,SumFra3
+30000,Hensatte forpligtelser,,Overskrift3
+30001,Hensættelser til pensioner og lignende forpligtelser,,H
+30002,Hensættelse til udskudt skat,,H
+30003,Hensættelse til omstrukturering,,H
+30004,Hensættelse vedr. tabsgivende kontrakter,,H
+30005,Hensættelse til retablering af lejede lokaler,,H
+30006,Hensættelser vedrørende kapitalandele i tilknyttede virksomheder,,H
+30007,Hensættelser vedrørende kapitalandele i associerede virksomheder,,H
+30008,Andre hensatte forpligtelser,,H
+30009,Andre hensatte forpligtelser 2,,H
+30010,Andre hensatte forpligtelser 3,,H
+30011,Andre hensatte forpligtelser 4,,H
+30012,Andre hensatte forpligtelser 5,,H
+30998,Hensatte forpligtelser i alt,,SumFra3
+30999,Gældsforpligtelser,,Overskrift3
+31000,Langfristede gældsforpligtelser,,Overskrift4
+31100,"Gæld, der er optaget ved udstedelse af obligationer",,Overskrift5
+31101,"Gæld, der er optaget ved udstedelse af obligationer",,P
+31102,"Gæld, der er optaget ved udstedelse af obligationer 2",,P
+31103,"Gæld, der er optaget ved udstedelse af obligationer 3",,P
+31104,"Gæld, der er optaget ved udstedelse af obligationer 4",,P
+31105,"Gæld, der er optaget ved udstedelse af obligationer 5",,P
+31199,"Gæld, der er optaget ved udstedelse af obligationer i alt",,SumFra5
+31200,Ansvarlig lånekapital,,Overskrift5
+31201,Ansvarlig lånekapital Ansvarlig lånekapital (langfristet gæld),,P
+31202,Ansvarlig lånekapital 2,,P
+31203,Ansvarlig lånekapital 3,,P
+31204,Ansvarlig lånekapital 4,,P
+31205,Ansvarlig lånekapital 5,,P
+31299,Ansvarlig lånekapital i alt,,SumFra5
+31300,Konvertible gældsbreve,,Overskrift5
+31301,Konvertible gældsbreve,,P
+31302,Konvertible gældsbreve 2,,P
+31303,Konvertible gældsbreve 3,,P
+31304,Konvertible gældsbreve 4,,P
+31305,Konvertible gældsbreve 5,,P
+31399,Konvertible gældsbreve i alt,,SumFra5
+31400,Udbyttegivende gældsbreve,,Overskrift5
+31401,Udbyttegivende gældsbreve,,P
+31402,Udbyttegivende gældsbreve 2,,P
+31403,Udbyttegivende gældsbreve 3,,P
+31404,Udbyttegivende gældsbreve 4,,P
+31405,Udbyttegivende gældsbreve 5,,P
+31499,Udbyttegivende gældsbreve i alt,,SumFra5
+31500,"Bankgæld, lang",,Overskrift5
+31501,"Bankgæld, lang",,P
+31502,"Bankgæld, lang 2",,P
+31503,"Bankgæld, lang 3",,P
+31504,"Bankgæld, lang 4",,P
+31505,"Bankgæld, lang 5",,P
+31599,"Bankgæld, lang i alt",,SumFra5
+31600,Gæld til realkreditinstitutter,,Overskrift5
+31601,Gæld til realkreditinstitutter,,P
+31602,Gæld til realkreditinstitutter 2,,P
+31603,Gæld til realkreditinstitutter 3,,P
+31604,Gæld til realkreditinstitutter 4,,P
+31605,Gæld til realkreditinstitutter 5,,P
+31606,Gæld til realkreditinstitutter 6,,P
+31607,Gæld til realkreditinstitutter 7,,P
+31608,Gæld til realkreditinstitutter 8,,P
+31609,Gæld til realkreditinstitutter 9,,P
+31610,Gæld til realkreditinstitutter 10,,P
+31697,Kortfristet del af gæld til realkreditinstitutter,,P
+31698,Kortfristet del af gæld til realkreditinstitutter,,P
+31699,Gæld til realkreditinstitutter i alt,,SumFra5
+31700,Kontraktgæld,,Overskrift5
+31701,Kontraktgæld,,P
+31702,Kontraktgæld 2,,P
+31703,Kontraktgæld 3,,P
+31704,Kontraktgæld 4,,P
+31705,Kontraktgæld 5,,P
+31706,Kontraktgæld 6,,P
+31707,Kontraktgæld 7,,P
+31708,Kontraktgæld 8,,P
+31709,Kontraktgæld 9,,P
+31710,Kontraktgæld 10,,P
+31799,Kontraktgæld i alt,,SumFra5
+31800,Finansiel leasinggæld,,Overskrift5
+31801,Finansiel leasinggæld,,P
+31802,Finansiel leasinggæld 2,,P
+31803,Finansiel leasinggæld 3,,P
+31804,Finansiel leasinggæld 4,,P
+31805,Finansiel leasinggæld 5,,P
+31806,Finansiel leasinggæld 6,,P
+31807,Finansiel leasinggæld 7,,P
+31808,Finansiel leasinggæld 8,,P
+31809,Finansiel leasinggæld 9,,P
+31810,Finansiel leasinggæld 10,,P
+31899,Finansiel leasinggæld i alt,,SumFra5
+31900,"Modtagne forudbetalinger fra kunder, lang",,Overskrift5
+31901,"Modtagne forudbetalinger fra kunder, lang",,P
+31902,"Modtagne forudbetalinger fra kunder, lang 2",,P
+31903,"Modtagne forudbetalinger fra kunder, lang 3",,P
+31904,"Modtagne forudbetalinger fra kunder, lang 4",,P
+31905,"Modtagne forudbetalinger fra kunder, lang 5",,P
+31999,"Modtagne forudbetalinger fra kunder, lang i alt",,SumFra5
+32000,"Leverandører af varer og tjenesteydelser, lang",,Overskrift5
+32001,"Leverandører af varer og tjenesteydelser, lang",,P
+32002,"Leverandører af varer og tjenesteydelser, lang 2",,P
+32003,"Leverandører af varer og tjenesteydelser, lang 3",,P
+32004,"Leverandører af varer og tjenesteydelser, lang 4",,P
+32005,"Leverandører af varer og tjenesteydelser, lang 5",,P
+32099,"Leverandører af varer og tjenesteydelser, lang i alt",,SumFra5
+32100,Skyldige deposita,,Overskrift5
+32101,Skyldige deposita,,P
+32102,Skyldige deposita 2,,P
+32103,Skyldige deposita 3,,P
+32104,Skyldige deposita 4,,P
+32105,Skyldige deposita 5,,P
+32106,Skyldige deposita 6,U25,P
+32107,Skyldige deposita 7,U25,P
+32108,Skyldige deposita 8,U25,P
+32109,Skyldige deposita 9,U25,P
+32110,Skyldige deposita 10,U25,P
+32199,Skyldige deposita i alt,,SumFra5
+32200,"Gæld til tilknyttede virksomheder, lang",,Overskrift5
+32201,"Gæld til tilknyttede virksomheder, lang",,P
+32202,"Gæld til tilknyttede virksomheder, lang 2",,P
+32203,"Gæld til tilknyttede virksomheder, lang 3",,P
+32204,"Gæld til tilknyttede virksomheder, lang 4",,P
+32205,"Gæld til tilknyttede virksomheder, lang 5",,P
+32299,"Gæld til tilknyttede virksomheder, lang i alt",,SumFra5
+32300,"Gæld til associerede virksomheder, lang",,Overskrift5
+32301,"Gæld til associerede virksomheder, lang",,P
+32302,"Gæld til associerede virksomheder, lang 2",,P
+32303,"Gæld til associerede virksomheder, lang 3",,P
+32304,"Gæld til associerede virksomheder, lang 4",,P
+32305,"Gæld til associerede virksomheder, lang 5",,P
+32499,"Gæld til associerede virksomheder, lang i alt",,SumFra5
+32500,"Selskabsskat, lang",,Overskrift5
+32501,"Selskabsskat, langfristet",,P
+32502,"Sambeskatningsbidrag, lang gæld",,P
+32599,"Selskabsskat, lang i alt",,SumFra5
+32600,Koncernbadwill,,Overskrift5
+32601,Koncernbadwill,,P
+32602,Koncernbadwill 2,,P
+32603,Koncernbadwill 3,,P
+32604,Koncernbadwill 4,,P
+32605,Koncernbadwill 5,,P
+32699,Koncernbadwill i alt,,SumFra5
+32700,Gæld til ejere og ledelse,,Overskrift5
+32701,Gæld til ejere og ledelse Gæld til virksomhedsdeltagere og ledelse (langfristet gæld),,P
+32702,Gæld til ejere og ledelse 2,,P
+32703,Gæld til ejere og ledelse 3,,P
+32704,Gæld til ejere og ledelse 4,,P
+32705,Gæld til ejere og ledelse 5,,P
+32799,Gæld til ejere og ledelse i alt,,SumFra5
+32800,Anden gæld,,Overskrift5
+32801,"Anden gæld Anden gæld, herunder skyldige skatter og skyldige bidrag til social sikring (langfristet gæld)",,P
+32802,Anden gæld 2,,P
+32803,Anden gæld 3,,P
+32804,Anden gæld 4,,P
+32805,Anden gæld 5,,P
+32806,Anden gæld 6,,P
+32807,Anden gæld 7,,P
+32808,Anden gæld 8,,P
+32809,Gældsbreve,,P
+32810,Skyldige renter,,P
+32859,Anden gæld i alt,,SumFra5
+32860,Modtagne forudbetalinger vedr. igangværende arbejder,,Overskrift5
+32861,Modtagne forudbetalinger vedr. igangværende arbejder,,P
+32862,Modtagne forudbetalinger vedr. igangværende arbejder 2,,P
+32863,Modtagne forudbetalinger vedr. igangværende arbejder 3,,P
+32864,Modtagne forudbetalinger vedr. igangværende arbejder 4,,P
+32865,Modtagne forudbetalinger vedr. igangværende arbejder 5,,P
+32879,Modtagne forudbetalinger vedr. igangværende arbejder i alt,,SumFra5
+32880,Igangværende arbejder for fremmed regning,,Overskrift5
+32881,Igangværende arbejder for fremmed regning Igangværende arbejder for fremmed regning (langfristet gæld),,P
+32882,Igangværende arbejder for fremmed regning 2,,P
+32883,Igangværende arbejder for fremmed regning 3,,P
+32884,Igangværende arbejder for fremmed regning 4,,P
+32885,Igangværende arbejder for fremmed regning 5,,P
+32899,Igangværende arbejder for fremmed regning i alt,,SumFra5
+32900,Gæld til joint ventures,,Overskrift5
+32901,Gæld til joint ventures Gæld til joint ventures (langfristet gæld),,P
+32902,Gæld til joint ventures 2,,P
+32903,Gæld til joint ventures 3,,P
+32904,Gæld til joint ventures 4,,P
+32905,Gæld til joint ventures 5,,P
+33999,Gæld til joint ventures i alt,,SumFra5
+34000,"Periodeafgrænsningsposter, lang",,Overskrift5
+34001,"Periodeafgrænsningsposter, lang",,P
+34002,"Periodeafgrænsningsposter, lang 2",,P
+34003,"Periodeafgrænsningsposter, lang 3",,P
+34004,"Periodeafgrænsningsposter, lang 4",,P
+34005,"Periodeafgrænsningsposter, lang 5",,P
+34099,"Periodeafgrænsningsposter, lang i alt",,SumFra5
+34999,Langfristede gældsforpligtelser i alt,,SumFra4
+35000,Kortfristede gældsforpligtelser,,Overskrift4
+35001,Kortfristet del af langfristet gæld,,P
+35010,Gæld til kreditinstitutter,,Overskrift5
+35011,Gæld til kreditinstitutter,,P
+35012,Gæld til kreditinstitutter 2,,P
+35013,Gæld til kreditinstitutter 3,,P
+35014,Gæld til kreditinstitutter 4,,P
+35015,Gæld til kreditinstitutter 5,,P
+35029,Gæld til kreditinstitutter i alt,,SumFra5
+35030,"Gæld, der er optaget ved udstedelse af obligationer",,Overskrift5
+35031,"Gæld, der er optaget ved udstedelse af obligationer",,P
+35032,"Gæld, der er optaget ved udstedelse af obligationer 2",,P
+35033,"Gæld, der er optaget ved udstedelse af obligationer 3",,P
+35034,"Gæld, der er optaget ved udstedelse af obligationer 4",,P
+35035,"Gæld, der er optaget ved udstedelse af obligationer 5",,P
+35039,"Gæld, der er optaget ved udstedelse af obligationer i alt",,SumFra5
+35050,Gæld til kreditinstitutter i øvrigt,,Overskrift5
+35051,Gæld til kreditinstitutter i øvrigt,,P
+35052,Gæld til kreditinstitutter i øvrigt 2,,P
+35053,Gæld til kreditinstitutter i øvrigt 3,,P
+35054,Gæld til kreditinstitutter i øvrigt 4,,P
+35055,Gæld til kreditinstitutter i øvrigt 5,,P
+35059,Gæld til kreditinstitutter i øvrigt i alt,,SumFra5
+35070,Konvertible og udbyttegivende gældsbreve,,Overskrift5
+35071,Konvertible og udbyttegivende gældsbreve,,P
+35072,Konvertible og udbyttegivende gældsbreve 2,,P
+35073,Konvertible og udbyttegivende gældsbreve 3,,P
+35074,Konvertible og udbyttegivende gældsbreve 4,,P
+35075,Konvertible og udbyttegivende gældsbreve 5,,P
+35079,Konvertible og udbyttegivende gældsbreve i alt,,SumFra5
+35080,Igangværende arbejder for fremmed regning,,Overskrift5
+35081,Igangværende arbejder for fremmed regning Igangværende arbejder for fremmed regning (kortfristet gæld),,P
+35082,Igangværende arbejder for fremmed regning 2,,P
+35083,Igangværende arbejder for fremmed regning 3,,P
+35084,Igangværende arbejder for fremmed regning 4,,P
+35085,Igangværende arbejder for fremmed regning 5,,P
+35089,Igangværende arbejder for fremmed regning i alt,,SumFra5
+35100,Kassekredit,,Overskrift5
+35101,Kassekredit,,P
+35102,Kassekredit 2,,P
+35103,Kassekredit 3,,P
+35104,Kassekredit 4,,P
+35105,Kassekredit 5,,P
+35199,Kassekredit i alt,,SumFra5
+35200,Modtagne forudbetalinger fra kunder,,Overskrift5
+35201,Modtagne forudbetalinger fra kunder,,P
+35202,Modtagne forudbetalinger fra kunder 2,,P
+35203,Modtagne forudbetalinger fra kunder 3,,P
+35204,Modtagne forudbetalinger fra kunder 4,,P
+35205,Modtagne forudbetalinger fra kunder 5,,P
+35299,Modtagne forudbetalinger fra kunder i alt,,SumFra5
+35300,Leverandører af varer og tjenesteydelser,,Overskrift5
+35301,Leverandører af varer og tjenesteydelser,,P
+35302,Leverandører af varer og tjenesteydelser,,P
+35303,Leverandører af varer og tjenesteydelser 2,,P
+35304,Leverandører af varer og tjenesteydelser 3,,P
+35305,Leverandører af varer og tjenesteydelser 4,,P
+35306,Leverandører af varer og tjenesteydelser 5,,P
+35307,Leverandører af varer og tjenesteydelser 6,,P
+35308,Leverandører af varer og tjenesteydelser 7,,P
+35309,Leverandører af varer og tjenesteydelser 8,,P
+35310,Leverandører af varer og tjenesteydelser 9,,P
+35311,Leverandører af varer og tjenesteydelser 10,,P
+35312,Leverandører af varer og tjenesteydelser 11,,P
+35313,Leverandører af varer og tjenesteydelser 12,,P
+35314,Leverandører af varer og tjenesteydelser 13,,P
+35315,Leverandører af varer og tjenesteydelser 14,,P
+35316,Leverandører af varer og tjenesteydelser 15,,P
+35317,Leverandører af varer og tjenesteydelser 16,,P
+35318,Leverandører af varer og tjenesteydelser 17,,P
+35319,Leverandører af varer og tjenesteydelser 18,,P
+35320,Leverandører af varer og tjenesteydelser 19,,P
+35321,Leverandører af varer og tjenesteydelser 20,,P
+35322,Leverandører af varer og tjenesteydelser 21,,P
+35323,Leverandører af varer og tjenesteydelser 22,,P
+35324,Leverandører af varer og tjenesteydelser 23,,P
+35325,Leverandører af varer og tjenesteydelser 24,,P
+35326,Leverandører af varer og tjenesteydelser 25,,P
+35327,Leverandører af varer og tjenesteydelser 26,,P
+35328,Leverandører af varer og tjenesteydelser 27,,P
+35329,Leverandører af varer og tjenesteydelser 28,,P
+35330,Leverandører af varer og tjenesteydelser 29,,P
+35331,Leverandører af varer og tjenesteydelser 30,,P
+35332,Leverandører af varer og tjenesteydelser 31,,P
+35333,Leverandører af varer og tjenesteydelser 32,,P
+35341,Skyldig revisor,,P
+35342,Skyldige omkostninger,,P
+35343,Skyldige omkostninger 2,,P
+35344,Skyldige omkostninger 3,,P
+35345,Skyldige omkostninger 4,,P
+35346,Skyldige omkostninger 5,,P
+35399,Leverandører af varer og tjenesteydelser i alt,,SumFra5
+35400,Gæld til tilknyttede virksomheder,,Overskrift5
+35401,Gæld til tilknyttede virksomheder,,P
+35402,Gæld til tilknyttede virksomheder 2,,P
+35403,Gæld til tilknyttede virksomheder 3,,P
+35404,Gæld til tilknyttede virksomheder 4,,P
+35405,Gæld til tilknyttede virksomheder 5,,P
+35499,Gæld til tilknyttede virksomheder i alt,,SumFra5
+35500,Gæld til associerede virksomheder,,Overskrift5
+35501,Gæld til associerede virksomheder,,P
+35502,Gæld til associerede virksomheder 2,,P
+35503,Gæld til associerede virksomheder 3,,P
+35504,Gæld til associerede virksomheder 4,,P
+35505,Gæld til associerede virksomheder 5,,P
+35579,Gæld til associerede virksomheder i alt,,SumFra5
+35580,Gæld til joint ventures,,Overskrift5
+35581,Gæld til joint ventures (kortfristet),,P
+35582,Gæld til joint ventures 2,,P
+35583,Gæld til joint ventures 3,,P
+35584,Gæld til joint ventures 4,,P
+35585,Gæld til joint ventures 5,,P
+35599,Gæld til joint ventures i alt,,SumFra5
+35600,Gæld til ejere og ledelse,,Overskrift5
+35601,Gæld til ejere og ledelse (kortfristet),,P
+35602,Gæld til ejere og ledelse 2,,P
+35603,Gæld til ejere og ledelse 3,,P
+35604,Gæld til ejere og ledelse 4,,P
+35605,Gæld til ejere og ledelse 5,,P
+35659,Gæld til ejere og ledelse i alt,,SumFra5
+35660,Leasingforpligtelser,,Overskrift5
+35661,Leasingforpligtelser,,P
+35662,Leasingforpligtelser 2,,P
+35663,Leasingforpligtelser 3,,P
+35664,Leasingforpligtelser 4,,P
+35665,Leasingforpligtelser 5,,P
+35669,Leasingforpligtelser i alt,,SumFra5
+35670,Ansvarlig lånekapital,,Overskrift5
+35671,Ansvarlig lånekapital,,P
+35672,Ansvarlig lånekapital 2,,P
+35673,Ansvarlig lånekapital 3,,P
+35674,Ansvarlig lånekapital 4,,P
+35675,Ansvarlig lånekapital 5,,P
+35679,Ansvarlig lånekapital i alt,,SumFra5
+35680,Negativ goodwill,,Overskrift5
+35681,Negativ goodwill,,P
+35682,Negativ goodwill 2,,P
+35683,Negativ goodwill 3,,P
+35684,Negativ goodwill 4,,P
+35685,Negativ goodwill 5,,P
+35689,Negativ goodwill i alt,,SumFra5
+35690,Deposita,,Overskrift5
+35691,Deposita Deposita (kortfristet gæld),,P
+35692,Deposita 2,,P
+35693,Deposita 3,,P
+35694,Deposita 4,I25,P
+35695,Deposita 5,I25,P
+35699,Deposita i alt,,SumFra5
+35700,Selskabsskat,,Overskrift5
+35701,Selskabsskat,,P
+35702,Rentetillæg restskat,,P
+35703,Rentegodtgørelse restskat,,P
+35704,Betalt restskat vedrørende tidligere regnskabsår,,P
+35705,Skat af årets resultat,,P
+35706,Betalt acontoskat,,P
+35707,Betalt ordinær acontoskat 20. marts,,P
+35708,Betalt friillig acontoskat 20. marts,,P
+35709,Rentegodtgørelse friillig acontoskat 20. marts,,P
+35710,Betalt ordinær acontoskat 20. november,,P
+35711,Betalt friillig acontoskat 20. november,,P
+35712,Rentetillæg friillig acontoskat 20. november,,P
+35713,Betalt ordinær acontoskat 1. februar,,P
+35714,Rentetillæg friillig acontoskat 1. februar,,P
+35715,Betalt udbytteskat,,P
+35716,Betalt udenlandsk skat,,P
+35731,Selskabsskat overført til langfristet gæld,,P
+35732,Selskabsskat overført til tilgodehavender,,P
+35733,Sambeskatningsbidrag,,P
+35734,Selskabsskat udland,,P
+37998,Selskabsskat i alt,,SumFra5
+37999,Anden gæld,,Overskrift5
+38000,Moms og afgifter,,Overskrift6
+38001,"Skyldig moms, primo",,P
+38011,Udgående moms,,P
+38012,Moms af EU varekøb (erhvervelsesmoms),,P
+38013,Importmoms,,P
+38014,Moms af køb af ydelser i EU med omvendt betalingspligt,,P
+38015,Moms af køb af ydelser i ej-EU med omvendt betalingspligt,,P
+38021,Indgående moms,,P
+38022,Modkonto moms af EU varekøb (erhvervelsesmoms),,P
+38023,Modkonto importmoms,,P
+38024,Modkonto moms af køb af ydelser i EU med omvendt betalingspligt,,P
+38025,Modkonto moms af køb af ydelser i ej-EU med omvendt betalingspligt,,P
+38026,Manuel indgående moms,,P
+38027,Brugtmoms,,P
+38031,Olieafgift,,P
+38032,El-afgift,,P
+38033,Gasafgift,,P
+38034,Kulafgift,,P
+38035,CO2-afgift,,P
+38036,Vandafgift,,P
+38037,Afregnet moms,,P
+38038,Overført til aktiver,,P
+38039,CO2-afgift 2,,P
+38099,Moms og afgifter i alt,,SumFra6
+38100,Skatter og sociale bidrag,,Overskrift6
+38101,Skyldig A-skat,,P
+38102,Skyldigt AM-bidrag,,P
+38103,Skyldig ATP,,P
+38104,Skyldig SH-betaling,,P
+38105,Skyldigt SP-bidrag,,P
+38106,Skyldige feriepenge,,P
+38107,Skyldige sociale bidrag,,P
+38108,Skyldig AUB,,P
+38109,Skyldige AES,,P
+38110,Skyldig Barsel.dk,,P
+38111,Skyldigt Finansieringsbidrag (FIB),,P
+38112,Skyldigt AFU,,P
+38113,Andre skyldige skatter og sociale bidrag,,P
+38114,Skyldig lønsumsafgift,,P
+38115,Skyldig feriefond,,P
+38199,Skatter og sociale bidrag i alt,,SumFra6
+38200,Anden gæld i øvrigt,,Overskrift6
+38201,Skyldig løn og gage,,P
+38202,Skyldigt bestyrelseshonorar,,P
+38203,Skyldigt tantieme,,P
+38204,Skyldig overtidsbetaling / flex,,P
+38205,Skyldige pensionsindbetalinger,,P
+38206,Skattekontoen,,P
+38207,Forudbetalinger for varer,,P
+38208,Forudbetalinger for varer tilknyttede virksomheder,,P
+38209,Afsat skyldig feriepengeforpligtelse,,P
+38210,Kortfristede uddelingsforpligtelser,,P
+38211,Skyldige udlæg,,P
+38221,Andre skyldige omkostninger,,P
+38222,Andre skyldige omkostninger 2,,P
+38223,Andre skyldige omkostninger 3,,P
+38224,Andre skyldige omkostninger 4,,P
+38225,Andre skyldige omkostninger 5,,P
+38226,Anden gæld,,P
+38227,Anden gæld 2,,P
+38228,Anden gæld 3,,P
+38229,Anden gæld 4,,P
+38230,Anden gæld 5,,P
+38231,Anden gæld 6,,P
+38232,Hensat vedligeholdelse Grundejernes Investeringsfond,,P
+38233,Skyldige renter,,P
+38241,"Skyldig, varmeregnskab",,P
+38242,"Skyldig, andre forbrugsregnskaber",,P
+38243,"Anden gæld, udlejning 1",,P
+38244,"Anden gæld, udlejning 2",,P
+38245,"Anden gæld, udlejning 3",,P
+38246,Gældsstyrelsen,,P
+38298,Andre skyldige omkostninger i alt,,SumFra6
+38299,Anden gæld i alt,,SumFra5
+38300,Periodeafgrænsningsposter,,Overskrift5
+38301,Periodeafgrænsningsposter (kortfristet gæld),,P
+38302,Periodeafgrænsningsposter 2,,P
+38303,Periodeafgrænsningsposter 3,,P
+38304,Periodeafgrænsningsposter 4,,P
+38305,Periodeafgrænsningsposter 5,,P
+38306,Periodeafgrænsningsposter 6,,P
+38307,Periodeafgrænsningsposter 7,,P
+38308,Vendekonto 1,,P
+38309,Vendekonto depot / bank,,P
+38310,Vendekonto bank,,P
+38311,Vendekonto skattekonto,,P
+38999,Periodeafgrænsningsposter i alt,,SumFra5
+39000,Analyse-/ fejlkonto,,Overskrift5
+39995,Analyse-/ fejlkonto,,P
+39996,Analyse-/ fejlkonto i alt,,SumFra5
+39997,Kortfristede gældsforpligtelser i alt,,SumFra4
+39998,Gældsforpligtelser i alt,,SumFra3
+39999,Passiver i alt,,SumFra2

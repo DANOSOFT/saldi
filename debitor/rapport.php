@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------patch 4.0.8 ----2023-07-22--------------
+// -------debitor/rapport.php------patch 4.1.1 ----2025-09-24--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20121105 - Fejl ved "masseudligning (Klik på 0,00 i åbenpostoversigt) når kun 1 dato sat. Søg 20121105 
@@ -31,6 +31,7 @@
 // 20190410 - PHR $konto_fra=$konto_fra=$konto rettet til $konto_fra=$konto_til=$konto;
 // 20190815 - PHR
 // 20210805 - LOE Translated some texts 
+// 20250923 - LOE Sets rapportart to $rapportart = 'kontokort'; only if not accountChart 
 
 
 @session_start();
@@ -49,10 +50,37 @@ include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
 include("../includes/row-hover-style-with-links.js.php");
 
+
+?>
+<script>
+function checkPopupBlocked() {
+    var popup = window.open('', 'test', 'width=1,height=1');
+    
+    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+        // Popup blocked
+        return true;
+    } else {
+        // Popup allowed - close test popup
+        popup.close();
+        return false;
+    }
+}
+
+const res = checkPopupBlocked();
+if (res) {
+	// Alert the user about the popup blocker (Dansk translation)
+	alert("Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen, skal du tillade pop-up vinduer for denne side.");
+} else {
+	// Proceed with the report functionality
+	console.log("Pop-up allowed, proceeding with report functionality.");
+}
+</script>
+<?php
+
 print '
 <style>
 .hover-highlight:hover {
-  outline: 2px solid #000;
+  outline: 2px solid #b2b2b2;
   background-color: #f9f9f9;
   cursor: pointer;
 }
@@ -91,20 +119,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
 #print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 global $sprog_id; //2021
+
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
-	: 'javascript:window.history.go(-2);';
+	: '../index/menu.php';
 if ($popup)
 	$returside = "../includes/luk.php";
 else
 	$returside = $backUrl;
 
-if (!isset($rapportart))
+if(isset($_GET["rapportart"]) && $_GET["rapportart"] == "openpost") {
+	$openpost = true;
+}
+
+if (!isset($_GET["rapportart"]))
 	$rapportart = NULL;
 if (!isset($_GET['submit']))
 	$_GET['submit'] = NULL;
-if (!isset($_GET['returside']))
-	$_GET['returside'] = NULL;
+/* if (!isset($_GET['returside']))
+	$_GET['returside'] = NULL; */
 if (!isset($_GET['udlign']))
 	$_GET['udlign'] = NULL;
 
@@ -116,11 +149,12 @@ if (isset($_GET['ny_rykker'])) {
 	#	$regnaar=$_GET['regnaar'];
 	openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
 	exit;
-} elseif ($rapportart = if_isset($_GET['rapportart'])) {
+} elseif (isset($_GET['rapportart']) && $_GET['rapportart'] != 'openpost') {
 	$dato_fra = if_isset($_GET['dato_fra']);
 	$dato_til = if_isset($_GET['dato_til']);
 	$konto_fra = if_isset($_GET['konto_fra']);
 	$konto_til = if_isset($_GET['konto_til']);
+	$rapportart = $_GET['rapportart']; 
 	if (isset($_GET['udlign'])) {
 		$udlign = explode(",", $_GET['udlign']);
 		#		$autoudlign=array($udlign);
@@ -128,17 +162,24 @@ if (isset($_GET['ny_rykker'])) {
 			autoudlign($udlign[$x]);
 		}
 	}
+	if ($rapportart == 'kontokort' && if_isset($_GET['layout']) == 'grid' && $konto_fra && $konto_fra == $konto_til) {
+		include_once 'generalLedger.php';
+		renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart);
+		exit;
+	}
 	if ($rapportart == 'accountChart')
-include("../includes/row-hover-style-with-link-no-input.js.php");
+	include("../includes/row-hover-style-with-link-no-input.js.php");
+    else $rapportart = 'kontokort';
 
-		$rapportart = 'kontokort';
 	if ($rapportart == 'accountChart')
 		include_once("../includes/reportFunc/accountChart.php");
 	$rapportart($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
+	
 	exit;
 }
+
 $rapportart = NULL;
-if (isset($_POST['openpost']))
+if (isset($_POST['openpost']) || $openpost)
 	$rapportart = 'openpost';
 if (isset($_POST['kontosaldo']))
 	$rapportart = 'kontosaldo';
@@ -349,7 +390,7 @@ if (isset($_POST['submit']) || $rapportart) {
 #if ($dato_til) $dato_til=find_maaned_nr($dato_til); 
 
 if ($udlign = if_isset($_GET['udlign']))
-	echo "dada"; #autoudlign($udlign);
+	autoudlign($udlign);
 if (strstr($rapportart, "ben post"))
 	$rapportart = "openpost";
 if (!isset($submit))

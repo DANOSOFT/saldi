@@ -119,7 +119,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 				item_container_id : '.paging_content',
 				num_page_links_to_display : 10,
 				abort_on_small_lists: true,
-				nav_label_info : 'Viser {0}-{1} af {2}',
+				nav_label_info : '".findtekst('2954|Viser', $sprog_id)." {0}-{1} ".lcfirst(findtekst('2767|Af', $sprog_id))." {2}',
 				nav_label_first : '<<',
 				nav_label_last : '>>',
 				nav_label_prev : '<',
@@ -135,7 +135,8 @@ function kontrolskemaliste() {
 
 	global $sag_rettigheder;
 	global $funktion;
-	
+	global $sprog_id;
+
 	$notat_id=if_isset($_GET['notat_id']);
 	$menu_certificering='id="menuActive"';
 	
@@ -211,7 +212,7 @@ function kontrolskemaliste() {
 	$sqlsort=urldecode($sort);
 	
 	$limitarray=array('500','1000','2500','5000','10000','NULL');
-	$limitnavn=array('500','1000','2500','5000','10000','Alle');
+	$limitnavn=array('500','1000','2500','5000','10000',findtekst('2498|Alle', $sprog_id));
 	
 	($skema_limit)?$limit=$skema_limit:$limit='500';
 	
@@ -272,14 +273,14 @@ function kontrolskemaliste() {
 		print "<div id=\"breadcrumbbar\">
 				<ul id=\"breadcrumb\">
 					<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-					else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+					else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 					print "</li>
-					<li><a href=\"certificering.php\" title=\"Tilbage til certificerings-menu\">Certificering</a></li>
+					<li><a href=\"certificering.php\" title=\"".findtekst('3196|Tilbage til certificerings-menu', $sprog_id)."\">".findtekst('2777|Certificering', $sprog_id)."</a></li>
 					<!--<li><a href=\"#\" title=\"Sample page 2\">Sample page 2</a></li>
 					<li><a href=\"#\" title=\"Sample page 3\">Sample page 3</a></li>
 					<li>Current page</li>-->
-					<li>Kontrolskemaer</li>
+					<li>".findtekst('3157|Kontrolskemaer', $sprog_id)."</li>
 				</ul>
 
 		</div><!-- end of breadcrumbbar -->
@@ -295,10 +296,10 @@ function kontrolskemaliste() {
 			<table border=\"0\" cellspacing=\"0\" width=\"828\">
 				<thead>
 					<tr>
-						<th width=\"100\">Dato</th>
-						<th width=\"100\">Sagsnr</th>
-						<th width=\"100\">Af</th>
-						<th width=\"410\">Opstillings adresse</th>
+						<th width=\"100\">".findtekst('438|Dato', $sprog_id)."</th>
+						<th width=\"100\">".findtekst('2819|Sagsnr.', $sprog_id)."</th>
+						<th width=\"100\">".findtekst('638|Af', $sprog_id)."</th>
+						<th width=\"410\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</th>
 						<th colspan=\"6\">&nbsp;</th>
 					</tr>
 				</thead>
@@ -314,7 +315,7 @@ function kontrolskemaliste() {
 						<td style=\"padding:0px;\"><input type=\"hidden\" class=\"sag_id\" value=\"\" name=\"sag_id\"></td>
 						<td style=\"padding:0px;\"><input type=\"hidden\" class=\"tjek_id\" value=\"\" name=\"tjek_id\"></td>
 						<td style=\"padding:0px;\"><input type=\"hidden\" value=\"vis_skema\" name=\"funktion\"></td>
-						<td align=\"center\"><input type=\"submit\" value=\"Find skema\" name=\"findsag\" class=\"button gray small\" tabindex=\"4\"></td>
+						<td align=\"center\"><input type=\"submit\" value=\"".findtekst('3122|Find skema', $sprog_id)."\" name=\"findsag\" class=\"button gray small\" tabindex=\"4\"></td>
 						
 					</tr>
 				</tbody>
@@ -322,11 +323,11 @@ function kontrolskemaliste() {
 			</form>
 			<form name=\"sagliste\" action=\"kontrolskemaer.php?funktion=kontrolskemaliste\" method=\"post\">
 				<div style=\"height:25px;padding:10px 12px 0 12px;#background-color:#f2f2f2;\">
-					<span style=\"float:left;width:260px;\"><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;unsetsort=unset\" class=\"button gray small\">Slet sortering</a></span>\n";
+					<span style=\"float:left;width:260px;\"><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;unsetsort=unset\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>\n";
 					($antal_skemaer_alle<=500)?$display="display:none;":$display=NULL;
 					print "
 					<div style=\"float:right;$display\">
-						<p style=\"float:left;\">Vælg antal viste linjer:&nbsp;</p>
+						<p style=\"float:left;\">".findtekst('2797|Vælg antal viste linjer', $sprog_id).":&nbsp;</p>
 						<select name=\"skema_limit\" class=\"selectinputloen\" style=\"width:76px;\" onchange=\"this.form.submit()\">\n";
 						
 							for ($i=0;$i<count($limitarray);$i++) {
@@ -350,14 +351,14 @@ function kontrolskemaliste() {
 		print "<div class=\"contentkundehead\">
 			<ul id=\"sort\">
 					<li>
-							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=datotid&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:115px\">Dato</a>
-							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=tjekpunkt&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:120px\">Skema</a>
-							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=opg_navn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:75px\">Opgave</a>
-							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt03 $sortstyle[3]\" style=\"width:65px\">Sagsnr</a>
-							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt04 $sortstyle[4]\" style=\"width:215px\">Opstillings adresse</a>
-							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">Af</a>
-							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=sjak&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt06 $sortstyle[6]\" style=\"width:70px\">Sjak</a>
-							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste\" class=\"felt07 $sortstyle[7]\" style=\"width:60px\">status</a>
+							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=datotid&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:115px\">".findtekst('438|Dato', $sprog_id)."</a>
+							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=tjekpunkt&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:120px\">".findtekst('2824|Skema', $sprog_id)."</a>
+							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=opg_navn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:75px\">".findtekst('2800|Opgave', $sprog_id)."</a>
+							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=sagsnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt03 $sortstyle[3]\" style=\"width:65px\">".findtekst('2819|Sagsnr.', $sprog_id)."</a>
+							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=udf_addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt04 $sortstyle[4]\" style=\"width:215px\">".findtekst('2820|Opstillingsadresse', $sprog_id)."</a>
+							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=skema_hvem&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt05 $sortstyle[5]\" style=\"width:75px\">".findtekst('638|Af', $sprog_id)."</a>
+							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;nysort=sjak&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt06 $sortstyle[6]\" style=\"width:70px\">".findtekst('3123|Sjak', $sprog_id)."</a>
+							<a href=\"kontrolskemaer.php?funktion=kontrolskemaliste\" class=\"felt07 $sortstyle[7]\" style=\"width:60px\">".findtekst('494|Status', $sprog_id)."</a>
 					</li>
 			</ul>
 		</div><!-- end of contentkundehead -->
@@ -396,7 +397,7 @@ function kontrolskemaliste() {
 						$stat1 = count( array_keys( $status, "1" ));
 						$stat2 = count( array_keys( $status, "2" ));
 						$stat3 = count( array_keys( $status, "3" ));
-						$stattitle = "OK: $stat1 - Fejl: $stat2 - Kritisk: $stat3";
+						$stattitle = "OK: $stat1 - ".findtekst('3124|Fejl', $sprog_id).": $stat2 - ".findtekst('3125|Kritisk', $sprog_id).": $stat3";
 						
 						if($stat1==0) $stat1 = "";
 						if($stat2==0) $stat2 = "";
@@ -437,7 +438,7 @@ function kontrolskemaliste() {
 				
 						($skema_fase[$x]==1)?$funktion_navn = "vis_arbejdsseddel":$funktion_navn = "vis_kontrolskema";
 					print "<li><a href=\"kontrolskemaer.php?funktion=$funktion_navn&amp;sag_id=$skema_sagid[$x]&amp;sag_fase=$skema_fase[$x]&amp;tjek_id=$skema_tjek_id[$x]&amp;tjekskema_id=$skema_id[$x]\">
-						<span class=\"felt01\" style=\"width:115px;\">".date("d-m-y",$skema_datotid[$x])." kl. ".date("H:i",$skema_datotid[$x])."&nbsp;</span>
+						<span class=\"felt01\" style=\"width:115px;\">".date("d-m-y",$skema_datotid[$x])." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i",$skema_datotid[$x])."&nbsp;</span>
 						<span class=\"felt02\" style=\"width:120px;\" title='$skema_navn[$x]'>$skema_navn[$x]&nbsp;</span>
 						<span class=\"felt03\" style=\"width:75px;\" title='$skema_opgave[$x]'>$skema_opgave[$x]&nbsp;</span>
 						<span class=\"felt04\" style=\"width:65px;\" title='$skema_sagsnr[$x]'>$skema_sagsnr[$x]&nbsp;</span>
@@ -484,7 +485,8 @@ function vis_arbejdsseddel() {
 	global $sag_rettigheder;
 	global $funktion;
 	global $db;
-	
+	global $sprog_id;
+
 	$sag_id=if_isset($_GET['sag_id']);
 	$sag_fase=if_isset($_GET['sag_fase']);
 	$tjekpunkt_id=if_isset($_GET['tjek_id']);
@@ -599,15 +601,15 @@ function vis_arbejdsseddel() {
 	print "<div id=\"breadcrumbbar\">
 			<ul id=\"breadcrumb\">
 				<li>";
-				if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-				else print "<a href=\"\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+				if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+				else print "<a href=\"\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 				print "</li>
-				<li><a href=\"certificering.php\" title=\"Tilbage til certificerings-menu\">Certificering</a></li>
-				<li><a href=\"kontrolskemaer.php\" title=\"Til kontrolskema-liste\">Kontrolskemaer</a></li>
+				<li><a href=\"certificering.php\" title=\"".findtekst('3196|Tilbage til certificerings-menu', $sprog_id)."\">".findtekst('2777|Certificering', $sprog_id)."</a></li>
+				<li><a href=\"kontrolskemaer.php\" title=\"".findtekst('3203|Til kontrolskema-liste', $sprog_id)."\">".findtekst('3157|Kontrolskemaer', $sprog_id)."</a></li>
 				<!--<li><a href=\"#\" title=\"Sample page 3\">Sample page 3</a></li>
 				<li>Current page</li>-->
 				<li title=\"Sag: $sagsnr - $udf_addr1, $udf_postnr $udf_bynavn\">$tjekpunktnavn</li>
-				<li style=\"float:right;\"><a href=\"#\" title=\"Print skema\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"Print skema\" class=\"printIcon\" /></a></li>
+				<li style=\"float:right;\"><a href=\"#\" title=\"".findtekst('3136|Print skema', $sprog_id)."\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"".findtekst('3136|Print skema', $sprog_id)."\" class=\"printIcon\" /></a></li>
 				<!--<li style=\"float:right;\"><a href=\"kontrol_sager.php?funktion=emailArbejdsseddel&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"Email skema\" style=\"background-image: none;\"><img src=\"../img/mail.png\" alt=\"Email skema\" class=\"printIcon\" /></a></li>-->
 			</ul>
 
@@ -624,7 +626,7 @@ function vis_arbejdsseddel() {
 	
 	print "<div id=\"printableArea\">\n";
 	
-	($opg_navn)?$opg='til&nbsp;'.$opg_navn:$opg=NULL;
+	($opg_navn)?$opg=findtekst('3131|til', $sprog_id).'&nbsp;'.$opg_navn:$opg=NULL;
 	print "<h3 class=\"printHeadLineSkema\">$tjekpunktnavn $opg</h3>\n";
 	print "<table border=\"0\" cellspacing=\"0\" class=\"kontrolskema printKontrolskematxt\">\n";
 	print "<colgroup>
@@ -646,15 +648,15 @@ function vis_arbejdsseddel() {
 		</tr>
   </tbody>\n";
   print "<tbody>\n";
-  print "<tr><td colspan=\"4\"><p><b>Udføres dato:&nbsp;</b>$udf_dato</p></td>\n";// .date("d-m-Y",$udf_dato).
-	print "<td colspan=\"2\"><p><b>Sagsnr:&nbsp;</b> $sagsnr</p></td></tr>\n";
-	print "<tr><td colspan=\"2\" style=\"vertical-align:top;#width:200px;\"><p><b>Opstillingsadresse:</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
-	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Kunde:</b></p><p>$sag_firmanavn</p></td>\n";
-	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>kontakt:</b></p><p>$sag_kontakt&nbsp;</p></td></tr>\n";
-	print "<tr><td colspan=\"4\" style=\"vertical-align:top;\"><p><b>Sjak:</b></p>\n";
+  print "<tr><td colspan=\"4\"><p><b>".findtekst('3132|Udførelsesdato', $sprog_id).":&nbsp;</b>$udf_dato</p></td>\n";// .date("d-m-Y",$udf_dato).
+	print "<td colspan=\"2\"><p><b>".findtekst('2819|Sagsnr.', $sprog_id).":&nbsp;</b> $sagsnr</p></td></tr>\n";
+	print "<tr><td colspan=\"2\" style=\"vertical-align:top;#width:200px;\"><p><b>".findtekst('2820|Opstillingsadresse', $sprog_id).":</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
+	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('35|Kunde', $sprog_id).":</b></p><p>$sag_firmanavn</p></td>\n";
+	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('398|Kontakt', $sprog_id).":</b></p><p>$sag_kontakt&nbsp;</p></td></tr>\n";
+	print "<tr><td colspan=\"4\" style=\"vertical-align:top;\"><p><b>".findtekst('3123|Sjak', $sprog_id).":</b></p>\n";
 	print "<p title=\"$sjaktitle\">$sjak</p></td>\n";
-	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Konduktør:</b></p><p>$hvem</p></td></tr>\n";
-	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Opgave beskrivelse:</b></p></td><td colspan=\"4\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
+	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('626|Konduktør', $sprog_id).":</b></p><p>$hvem</p></td></tr>\n";
+	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></p></td><td colspan=\"4\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
 	print "</tbody>\n";
   print "<tbody>\n";
   for ($x=1;$x<=count($id);$x++) {
@@ -692,10 +694,10 @@ function vis_arbejdsseddel() {
 		}
   }
   print "</td></tr>\n";
-  print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Manuel Transport:</b></p></td><td colspan=\"4\"><p><b>$man_trans</b> Gange (hvis mere end forventet skal der ringes til ansvarlig konduktør)</p></td></tr>\n";
-	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Stillads til:<br>(Evt. Tegning)</b></p></td><td colspan=\"4\"><textarea class=\"textAreaSager autosize kontrolskema_tegning\" style=\"border:none;background:transparent;\" name=\"stillads_til\" rows=\"1\" cols=\"37\" disabled>$stillads_til</textarea></td></tr>\n";
-	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Generalt for sagen:</b></p></td><td colspan=\"4\" style=\"#color:#cd3300 !important;\"><p><i><b>$sag_omfang</b></i></p></td></tr>\n";
-	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Husk hver dag at:</b></p></td><td colspan=\"4\" style=\"text-align:center;color:#cd3300 !important;\"><p><b>Kontrollere bilen for fejl/mangler.</b></p><p><b>Kontrollere eget udstyr og værktøj.</b></p></td></tr>\n";
+  print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3135|Manuel transport', $sprog_id).":</b></p></td><td colspan=\"4\"><p><b>$man_trans</b> ".findtekst('3138|Gange', $sprog_id)." (".lcfirst(findtekst('3139|Hvis mere end forventet, skal der ringes til ansvarlig konduktør', $sprog_id)).")</p></td></tr>\n";
+	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3137|Stillads til', $sprog_id).":<br>(".findtekst('3143|Evt. tegning', $sprog_id).")</b></p></td><td colspan=\"4\"><textarea class=\"textAreaSager autosize kontrolskema_tegning\" style=\"border:none;background:transparent;\" name=\"stillads_til\" rows=\"1\" cols=\"37\" disabled>$stillads_til</textarea></td></tr>\n";
+	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('2916|Generelt for sagen', $sprog_id).":</b></p></td><td colspan=\"4\" style=\"#color:#cd3300 !important;\"><p><i><b>$sag_omfang</b></i></p></td></tr>\n";
+	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3140|Husk hver dag at', $sprog_id).":</b></p></td><td colspan=\"4\" style=\"text-align:center;color:#cd3300 !important;\"><p><b>".findtekst('3141|Kontrollere bilen for fejl/mangler', $sprog_id).".</b></p><p><b>".findtekst('3142|Kontrollere eget udstyr og værktøj', $sprog_id).".</b></p></td></tr>\n";
 	print "</tbody>\n";
 	print "</table>\n";
   print "<div id=\"printableFooter\">\n";
@@ -708,11 +710,11 @@ function vis_arbejdsseddel() {
 	
 	if ($bilag_id) { #20170303
 		print "<br>";
-		print "<h3>Bilag:</h3>\n";
+		print "<h3>".findtekst('671|Bilag', $sprog_id).":</h3>\n";
 		print "<table border=\"0\" cellspacing=\"0\" class=\"tableBilag\">\n";
 		print "<tbody class=\"tableBilagZebra tableBilagBorderTop tableBilagBorderBottom\">\n";
 		for ($y=0;$y<count($bilag_id);$y++) {
-			print "<tr><td><p>$bilag_beskrivelse[$y]</p></td><td align=\"right\"><p><a href=\"../bilag/$db/$sag_id/$bilag_id[$y].$bilag_filtype[$y]\" target=\"blank\" class=\"button blue small\">Vis</a></p></td></tr>\n";
+			print "<tr><td><p>$bilag_beskrivelse[$y]</p></td><td align=\"right\"><p><a href=\"../bilag/$db/$sag_id/$bilag_id[$y].$bilag_filtype[$y]\" target=\"blank\" class=\"button blue small\">".findtekst('1133|Vis', $sprog_id)."</a></p></td></tr>\n";
 		}
 		print "</tbody>\n";
 		print "</table>\n";
@@ -727,7 +729,8 @@ function vis_kontrolskema() {
 	global $sag_rettigheder;
 	global $funktion;
 	global $db;
-	
+	global $sprog_id;
+
 	$sag_id=if_isset($_GET['sag_id']);
 	$sag_fase=if_isset($_GET['sag_fase']);
 	$tjekpunkt_id=if_isset($_GET['tjek_id']);
@@ -835,15 +838,15 @@ function vis_kontrolskema() {
 	print "<div id=\"breadcrumbbar\">
 			<ul id=\"breadcrumb\">
 				<li>";
-				if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-				else print "<a href=\"\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+				if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+				else print "<a href=\"\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 				print "</li>
-				<li><a href=\"certificering.php\" title=\"Tilbage til certificerings-menu\">Certificering</a></li>
-				<li><a href=\"kontrolskemaer.php\" title=\"Til kontrolskema-liste\">Kontrolskemaer</a></li>
+				<li><a href=\"certificering.php\" title=\"".findtekst('3196|Tilbage til certificerings-menu', $sprog_id)."\">".findtekst('2777|Certificering', $sprog_id)."</a></li>
+				<li><a href=\"kontrolskemaer.php\" title=\"".findtekst('3203|Til kontrolskema-liste', $sprog_id)."\">".findtekst('3157|Kontrolskemaer', $sprog_id)."</a></li>
 				<!--<li><a href=\"#\" title=\"Sample page 3\">Sample page 3</a></li>
 				<li>Current page</li>-->
 				<li title=\"Sag: $sagsnr - $udf_addr1, $udf_postnr $udf_bynavn\">$tjekpunktnavn</li>
-				<li style=\"float:right;\"><a href=\"#\" title=\"Print skema\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"Print skema\" class=\"printIcon\" /></a></li>
+				<li style=\"float:right;\"><a href=\"#\" title=\"".findtekst('3136|Print skema', $sprog_id)."\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"".findtekst('3136|Print skema', $sprog_id)."\" class=\"printIcon\" /></a></li>
 				<!--<li style=\"float:right;\"><a href=\"kontrol_sager.php?funktion=emailKontrolskema&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"Email skema\" style=\"background-image: none;\"><img src=\"../img/mail.png\" alt=\"Email skema\" class=\"printIcon\" /></a></li>-->
 			</ul>
 
@@ -860,7 +863,7 @@ function vis_kontrolskema() {
 	
 	print "<div id=\"printableArea\">\n";
 	
-	($opg_navn)?$opg='til&nbsp;'.$opg_navn:$opg=NULL;
+	($opg_navn)?$opg=findtekst('3131|til', $sprog_id).'&nbsp;'.$opg_navn:$opg=NULL;
 	print "<h3 class=\"printHeadLineSkema\">$tjekpunktnavn $opg</h3>\n";
 	print "<table border=\"0\" cellspacing=\"0\" class=\"kontrolskema\" style=\"table-layout:fixed;\">\n";
 	print "<colgroup>
@@ -882,17 +885,17 @@ function vis_kontrolskema() {
 		</tr>
   </tbody>\n";
   print "<tbody>\n";
-	print "<tr><td colspan=\"2\" class=\"printtxt\"><p><b>Opstillingsadresse:</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>Status:</b></p></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\" class=\"printdate\"><p><b>Dato:</b></p><p>".date("d-m-Y",$datotid)."</p></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>Opgavens art:</b></p><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"opg_art\" rows=\"4\" cols=\"12\" style=\"height:64px;width:95px;border:none;background:transparent;\" disabled>".htmlspecialchars($opg_art)."</textarea></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>Sjak:</b></p><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"sjak\" rows=\"4\" cols=\"10\" title=\"$sjaktitle\" style=\"height:64px;width:85px;border:none;background:transparent;\" disabled>".htmlspecialchars($sjak)."</textarea></td></tr>\n";
-	print "<tr><td colspan=\"2\" class=\"printtxt\"><input type=\"hidden\" name=\"hvem\" value='$ansat_navn'><p><b>Kontroleret af:</b></p><p>".htmlspecialchars($hvem)."</p></td></tr>\n";
-	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" class=\"printtxt\" style=\"vertical-align:top;\"><p><b>Opgave beskrivelse:</b></p></td><td colspan=\"4\" class=\"printtxt\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
+	print "<tr><td colspan=\"2\" class=\"printtxt\"><p><b>".findtekst('2820|Opstillingsadresse', $sprog_id).":</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('494|Status', $sprog_id).":</b></p></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\" class=\"printdate\"><p><b>".findtekst('438|Dato', $sprog_id).":</b></p><p>".date("d-m-Y",$datotid)."</p></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('3145|Opgavens art', $sprog_id).":</b></p><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"opg_art\" rows=\"4\" cols=\"12\" style=\"height:64px;width:95px;border:none;background:transparent;\" disabled>".htmlspecialchars($opg_art)."</textarea></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('3123|Sjak', $sprog_id).":</b></p><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"sjak\" rows=\"4\" cols=\"10\" title=\"$sjaktitle\" style=\"height:64px;width:85px;border:none;background:transparent;\" disabled>".htmlspecialchars($sjak)."</textarea></td></tr>\n";
+	print "<tr><td colspan=\"2\" class=\"printtxt\"><input type=\"hidden\" name=\"hvem\" value='$ansat_navn'><p><b>".findtekst('2826|Kontrolleret af', $sprog_id).":</b></p><p>".htmlspecialchars($hvem)."</p></td></tr>\n";
+	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" class=\"printtxt\" style=\"vertical-align:top;\"><p><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></p></td><td colspan=\"4\" class=\"printtxt\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
 	// Array til status select-box i kontrolskema
 	$value = array(0,1,2,3,4);
 	$color = array("white","green","yellow","red","white");
-	$option_name = array("&nbsp;","OK","Fejl","Kritisk","N/A");
+	$option_name = array("&nbsp;","OK",findtekst('3124|Fejl', $sprog_id),findtekst('3125|Kritisk', $sprog_id),"N/A");
 	
 	for ($x=1;$x<=count($id);$x++) {
 		
@@ -984,8 +987,8 @@ function vis_kontrolskema() {
 			print "<select name=\"kontrolpunkt[$x]\" class=\"kontrol_status\" >
 				<option value=\"0\" style=\"background-color:white;\">&nbsp;</option>
 				<option value=\"1\" style=\"background-color:green;\">OK</option>
-				<option value=\"2\" style=\"background-color:yellow;\">Fejl</option>
-				<option value=\"3\" style=\"background-color:red;\">Kritisk</option>
+				<option value=\"2\" style=\"background-color:yellow;\">".findtekst('3124|Fejl', $sprog_id)."</option>
+				<option value=\"3\" style=\"background-color:red;\">".findtekst('3125|Kritisk', $sprog_id)."</option>
 			</select>\n";
 			
 			
@@ -1001,11 +1004,11 @@ function vis_kontrolskema() {
 	
 	if ($bilag_id) { #20170303
 		print "<br>";
-		print "<h3>Bilag:</h3>\n";
+		print "<h3>".findtekst('671|Bilag', $sprog_id).":</h3>\n";
 		print "<table border=\"0\" cellspacing=\"0\" class=\"tableBilag\">\n";
 		print "<tbody class=\"tableBilagZebra tableBilagBorderTop tableBilagBorderBottom\">\n";
 		for ($y=0;$y<count($bilag_id);$y++) {
-			print "<tr><td><p>$bilag_beskrivelse[$y]</p></td><td align=\"right\"><p><a href=\"../bilag/$db/$sag_id/$bilag_id[$y].$bilag_filtype[$y]\" target=\"blank\" class=\"button blue small\">Vis</a></p></td></tr>\n";
+			print "<tr><td><p>$bilag_beskrivelse[$y]</p></td><td align=\"right\"><p><a href=\"../bilag/$db/$sag_id/$bilag_id[$y].$bilag_filtype[$y]\" target=\"blank\" class=\"button blue small\">".findtekst('1133|Vis', $sprog_id)."</a></p></td></tr>\n";
 		}
 		print "</tbody>\n";
 		print "</table>\n";

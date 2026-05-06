@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------index/menu.php------ ver 4.0.8 --- 2025-04-14 ---
+// -----------index/menu.php------ ver 4.1.1 --- 2025-08-15 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // 11122023 PBLM 
 // 20240108 LOE Minor modification.
 // 20250414 LOE $_SESSION['UserName'] added to query barcode for app
+// 20250815 LOE Empty text at 110 changed to 609 for old menu [Goods]
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -55,12 +56,10 @@ $modulnr=0;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-if (isset($_GET['useMain']))	 {
-	($_GET['useMain'] == 'on')?$menu = 'S':$menu = '';
-	$qtxt = "update grupper set box3 ='$menu' where  art = 'USET' and kodenr = '$bruger_id'"; 
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$_SESSION['UserName'] = $brugernavn;
-}
+$menu = 'S';
+$qtxt = "update grupper set box3 ='$menu' where  art = 'USET' and kodenr = '$bruger_id'"; 
+db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+$_SESSION['UserName'] = $brugernavn;
 if ($menu == 'S') {
 	$_SESSION['UserName'] = $brugernavn;
 	print "<script>try {parent.location.href = '../index/main.php'} catch {window.location.href = '../index/main.php'}</script>";
@@ -74,7 +73,32 @@ parent.location.href = \"../index/menu.php\";
 } 
 </script>";
 }
+?>
+<script>
+function checkPopupBlocked() {
+    var popup = window.open('', 'test', 'width=1,height=1');
+    
+    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+        // Popup blocked
+        return true;
+    } else {
+        // Popup allowed - close test popup
+        popup.close();
+        return false;
+    }
+}
 
+const res = checkPopupBlocked();
+if (res) {
+	// Alert the user about the popup blocker (Dansk translation)
+	alert("Din browser blokerer pop-up vinduer. Saldi bruger pop-up vinduer til en del funktioner, så for at de funktioner skal virke, bliver du nødt til at tillade dem.");
+} else {
+	// Proceed with the report functionality
+	console.log("Pop-up allowed, proceeding with report functionality.");
+}
+</script>
+
+<?php
 $provision=0;
 if (trim($ansat_id)) {
 	$ansat_id=$ansat_id*1;
@@ -206,8 +230,8 @@ function oldmenu() {
 	if ($vis_debitor) {
 		$tekst=findtekst(106,$sprog_id);
 		if (substr($rettigheder,5,1)=='1') {
-			if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_ordrer=window.open('../debitor/ordreliste.php?returside=../includes/luk.php','d_ordrer','".$jsvars."');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
-			else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/ordreliste.php?returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
+			if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_ordrer=window.open('../debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer&returside=../includes/luk.php','d_ordrer','".$jsvars."');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
+			else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer&returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
 		} else {
 			print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(107,$sprog_id)."</td>\n";
 		}
@@ -233,8 +257,8 @@ function oldmenu() {
 		if ($vis_lager) {
 			$tekst=findtekst(109,$sprog_id);
 			if (substr($rettigheder,9,1)=='1') {
-				if ($popup) print "<td $stor_knap_bg onClick=\"javascript:lager=window.open('../lager/varer.php?returside=../includes/luk.php','lager','".$jsvars."');lager.focus();\"	onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(110,$sprog_id)."</td>\n";
-				else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../lager/varer.php?returside=../index/menu.php\">".findtekst(110,$sprog_id)."</a></td>\n";
+				if ($popup) print "<td $stor_knap_bg onClick=\"javascript:lager=window.open('../lager/varer.php?returside=../includes/luk.php','lager','".$jsvars."');lager.focus();\"	onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(609,$sprog_id)."</td>\n";
+				else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../lager/varer.php?returside=../index/menu.php\">".findtekst(609,$sprog_id)."</a></td>\n";
 			} else {
 				$row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
 				#if ($row[ansat_id]) {
@@ -254,7 +278,7 @@ function oldmenu() {
 			}
 			#if (!$lager) {
 			if (!$lager) {
-					print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(110,$sprog_id)."</td>\n";
+					print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(609,$sprog_id)."</td>\n";
 			}
 		}
 	}

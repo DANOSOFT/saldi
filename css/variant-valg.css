@@ -1,0 +1,454 @@
+/**
+ * Variant Valg Styles
+ * Used by systemdata/sys_div_func.php - variant_valg()
+ */
+
+/* CSS Custom Properties for theming - can be overridden inline */
+:root {
+	--variant-primary-color: #3b82f6;
+	--variant-primary-hover: #2563eb;
+	--variant-primary-text: #ffffff;
+}
+
+.variant-container {
+	padding: 20px;
+	max-width: 1200px;
+	margin: 0 auto;
+}
+
+.variant-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 25px;
+	padding-bottom: 15px;
+	border-bottom: 2px solid #e5e7eb;
+}
+
+.variant-header h2 {
+	margin: 0;
+	color: #1f2937;
+	font-size: 24px;
+	font-weight: 600;
+}
+
+.variant-actions {
+	display: flex;
+	gap: 10px;
+}
+
+/* Button styles */
+.btn-variant {
+	padding: 10px 18px;
+	border: none;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	text-decoration: none;
+}
+
+.btn-primary-variant {
+	background: var(--variant-primary-color);
+	color: var(--variant-primary-text);
+}
+
+.btn-primary-variant:hover {
+	background: var(--variant-primary-hover);
+	transform: translateY(-1px);
+	box-shadow: 0 4px 6px rgba(59, 130, 246, 0.25);
+}
+
+.btn-secondary-variant {
+	background: #f3f4f6;
+	color: #374151;
+	border: 1px solid #d1d5db;
+}
+
+.btn-secondary-variant:hover {
+	background: #e5e7eb;
+}
+
+.btn-success-variant {
+	background: #10b981;
+	color: white;
+}
+
+.btn-success-variant:hover {
+	background: #059669;
+}
+
+.btn-danger-variant {
+	background: #ef4444;
+	color: white;
+	padding: 6px 10px;
+	font-size: 12px;
+}
+
+.btn-danger-variant:hover {
+	background: #dc2626;
+}
+
+/* Icon button styles */
+.btn-icon-variant {
+	background: transparent;
+	border: none;
+	padding: 6px 8px;
+	cursor: pointer;
+	border-radius: 6px;
+	transition: all 0.2s;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	text-decoration: none;
+}
+
+.btn-icon-variant:hover {
+	background: #f3f4f6;
+}
+
+.btn-icon-variant svg {
+	width: 16px;
+	height: 16px;
+	stroke-width: 1.5;
+}
+
+.btn-icon-variant.btn-edit svg {
+	stroke: #6b7280;
+}
+
+.btn-icon-variant.btn-edit:hover {
+	background: #eff6ff;
+}
+
+.btn-icon-variant.btn-edit:hover svg {
+	stroke: #3b82f6;
+}
+
+.btn-icon-variant.btn-delete svg {
+	stroke: #9ca3af;
+}
+
+.btn-icon-variant.btn-delete:hover {
+	background: #fef2f2;
+}
+
+.btn-icon-variant.btn-delete:hover svg {
+	stroke: #ef4444;
+}
+
+/* Card styles */
+.variant-card {
+	background: #fff;
+	border-radius: 10px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+	margin-bottom: 16px;
+	overflow: hidden;
+	border: 1px solid #e5e7eb;
+}
+
+.variant-card-header {
+	background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+	padding: 16px 20px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	border-bottom: 1px solid #e5e7eb;
+	cursor: pointer;
+}
+
+.variant-card-header:hover {
+	background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+.variant-name {
+	font-size: 16px;
+	font-weight: 600;
+	color: #1f2937;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.variant-count {
+	background: var(--variant-primary-color);
+	color: white;
+	font-size: 11px;
+	padding: 3px 8px;
+	border-radius: 12px;
+	font-weight: 500;
+}
+
+.variant-card-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.variant-card-body {
+	padding: 0;
+}
+
+/* Table styles */
+.variant-values-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.variant-values-table th {
+	text-align: left;
+	padding: 12px 20px;
+	background: #f9fafb;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: #6b7280;
+	border-bottom: 1px solid #e5e7eb;
+}
+
+.variant-values-table td {
+	padding: 12px 20px;
+	border-bottom: 1px solid #f3f4f6;
+	font-size: 14px;
+	color: #374151;
+}
+
+.variant-values-table tr:last-child td {
+	border-bottom: none;
+}
+
+.variant-values-table tr:hover {
+	background: #f9fafb;
+}
+
+/* Add value row */
+.add-value-row {
+	background: #fefce8 !important;
+}
+
+.add-value-row td {
+	padding: 12px 20px;
+}
+
+.add-value-input {
+	padding: 8px 12px;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	font-size: 14px;
+	width: 250px;
+	transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.add-value-input:focus {
+	outline: none;
+	border-color: var(--variant-primary-color);
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* New variant section */
+.new-variant-section {
+	background: #fff;
+	border-radius: 10px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+	padding: 20px;
+	margin-top: 20px;
+	border: 2px dashed #d1d5db;
+}
+
+.new-variant-section h3 {
+	margin: 0 0 15px 0;
+	color: #374151;
+	font-size: 16px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+}
+
+.new-variant-input {
+	padding: 10px 14px;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	font-size: 14px;
+	width: 300px;
+	margin-right: 10px;
+}
+
+.new-variant-input:focus {
+	outline: none;
+	border-color: var(--variant-primary-color);
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Import section */
+.import-section {
+	background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+	border-radius: 10px;
+	padding: 20px;
+	margin-bottom: 20px;
+	border: 1px solid #bfdbfe;
+}
+
+.import-section h3 {
+	margin: 0 0 15px 0;
+	color: #1e40af;
+	font-size: 16px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+}
+
+.import-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+}
+
+.import-box {
+	background: white;
+	padding: 20px;
+	border-radius: 8px;
+	border: 1px solid #93c5fd;
+}
+
+.import-box h4 {
+	margin: 0 0 10px 0;
+	color: #1e40af;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.import-box p {
+	margin: 0 0 12px 0;
+	color: #64748b;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.import-box code {
+	display: block;
+	background: #f1f5f9;
+	padding: 8px 10px;
+	border-radius: 4px;
+	font-size: 11px;
+	color: #475569;
+	margin-bottom: 12px;
+	overflow-x: auto;
+}
+
+/* File input */
+.file-input-wrapper {
+	position: relative;
+	overflow: hidden;
+	display: inline-block;
+}
+
+.file-input-wrapper input[type=file] {
+	position: absolute;
+	left: 0;
+	top: 0;
+	opacity: 0;
+	cursor: pointer;
+	width: 100%;
+	height: 100%;
+}
+
+.file-input-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	background: white;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 13px;
+	color: #374151;
+	transition: all 0.2s;
+}
+
+.file-input-label:hover {
+	background: #f9fafb;
+	border-color: #9ca3af;
+}
+
+/* Empty state */
+.empty-state {
+	text-align: center;
+	padding: 40px 20px;
+	color: #6b7280;
+}
+
+.empty-state-icon {
+	margin-bottom: 15px;
+	display: flex;
+	justify-content: center;
+}
+
+.empty-state p {
+	margin: 0;
+	font-size: 14px;
+}
+
+/* Rename form */
+.rename-form {
+	background: #fef3c7;
+	border-radius: 10px;
+	padding: 20px;
+	margin-bottom: 20px;
+	border: 1px solid #fcd34d;
+}
+
+.rename-form h3 {
+	margin: 0 0 15px 0;
+	color: #92400e;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+/* Toggle icon */
+.toggle-icon {
+	transition: transform 0.2s;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.toggle-icon svg {
+	color: #9ca3af;
+}
+
+.variant-card.collapsed .toggle-icon {
+	transform: rotate(-90deg);
+}
+
+.variant-card.collapsed .variant-card-body {
+	display: none;
+}
+
+/* Import message */
+.variant-import-message {
+	background: #d1fae5;
+	border: 1px solid #10b981;
+	border-radius: 8px;
+	padding: 15px 20px;
+	margin-bottom: 20px;
+	color: #065f46;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+	.import-grid {
+		grid-template-columns: 1fr;
+	}
+	
+	.add-value-input,
+	.new-variant-input {
+		width: 100%;
+	}
+}
+

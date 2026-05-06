@@ -11,6 +11,7 @@
     $query = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $apiKey = $res["var_value"];
+    //echo $apiKey . "<br>";
 
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
@@ -31,6 +32,7 @@
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
+            "orgNo" => "", //TODO find out what string to put here
             "currency" => "DKK",
             "country" => "DK",
             "webhookUrl" => $webhookUrl,
@@ -68,10 +70,66 @@
             "doNotReceiveUBL" => false,
         ];
 
-        /* echo json_encode($data, JSON_PRETTY_PRINT); */
+        // echo json_encode($data, JSON_PRETTY_PRINT) . "<br>";
 
         return $data;
         
+    }
+
+    // Update company data at EasyUBL with new data from database
+    function updateCompany() {
+        global $apiKey, $db;
+        
+        // Get the existing company ID from the database
+        $query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+        
+        if(db_num_rows($query) === 0) {
+            // No company ID exists, cannot update - need to create first
+            return ['success' => false, 'message' => 'No company ID found. Please create a company first.'];
+        }
+        
+        $res = db_fetch_array($query);
+        $companyId = $res["var_value"];
+        
+        // Get fresh company data from the database
+        $data = createCompany($apiKey);
+        
+        // Send update request to EasyUBL with the actual company ID
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Update/$companyId");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $response = json_decode($response, true);
+        curl_close($ch);
+        
+        $timestamp = date("Y-m-d-H-i-s");
+        
+        if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "") {
+            // An error occurred
+            $errorNumber = curl_errno($ch);
+            $errorMessage = curl_error($ch);
+            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response, 'status code' => $httpCode];
+            
+            // Save error response in temp folder
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            
+            return ['success' => false, 'message' => 'Error updating company: ' . $errorMessage];
+        } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
+            return ['success' => false,
+                'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
+                'response' => $response,
+                'status code' => $httpCode
+            ];
+        }
+        
+        // Save successful response in temp folder for debugging
+        file_put_contents("../temp/$db/Update-company-success-$timestamp.json", json_encode($response, JSON_UNESCAPED_UNICODE));
+        
+        return ['success' => true, 'companyId' => $companyId, 'response' => $response];
     }
 
     // Getting the company id from the database
@@ -90,14 +148,14 @@
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
             $response = curl_exec($ch);
             $response = json_decode($response, true);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            echo $response;
             $timestamp = date("Y-m-d-H-i-s");
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
 				$errorNumber = curl_errno($ch);
 				$errorMessage = curl_error($ch);
-				$error = ['error' => $errorNumber, 'message' => $errorMessage];
+				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'statusCode' => $httpCode];
 				json_encode($error, JSON_PRETTY_PRINT);
 				
 				// save response in file in temp folder
@@ -108,7 +166,7 @@
 				</script>
 				<?php
 				exit;
-			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000") {
+			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000" || $httpCode >= 400) {
 				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
@@ -144,7 +202,15 @@
 
     // Sending the invoice to the recipient through easyUBL
     function getInvoicesOrder($data, $url, $orderId) {
-        global $db, $apiKey;
+        global $bruger_id, $db, $apiKey;
+        $query = db_select("SELECT var_value FROM settings WHERE var_name = 'updatedCompany' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+        if(db_num_rows($query) == 0){
+            $query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+            if(db_num_rows($query) > 0){
+                updateCompany();
+                $query = db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('updatedCompany', 'easyUBL', 'true')", __FILE__ . " linje " . __LINE__);
+            }
+        }
         $companyID = getCompanyID();
         if($companyID == "error"){
             die("Der er sket en fejl. Kontakt support.");
@@ -162,14 +228,14 @@
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         $result = curl_exec($ch);
-        
+
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
-        file_put_contents($result, "../temp/$db/fakture-result-$ranStr.json");
+        file_put_contents("../temp/$db/fakture-result-$ranStr.json", $result);
         $result = json_decode($result, true);
         if (curl_errno($ch)) {
             echo 'Error: ' . curl_error($ch);
-            file_put_contents(curl_error($ch), "../temp/$db/fakture-error-$ranStr.json");
+            file_put_contents("../temp/$db/fakture-error-$ranStr.json", curl_error($ch));
             exit();
         }
         
@@ -187,11 +253,20 @@
             
             // save response in file in temp folder
             file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            if($result["message"] !== ""){
             ?>
             <script>
+                alert("<?php echo "EasyUBL Error Accured: " . $result["message"]; ?>");
+            </script>
+            <?php
+            }else{
+            ?>
+            <script>
+
                 alert("Der opdstod en fejl under sending af fakturaen. kontakt support. Tlf: 46902208");
             </script>
             <?php
+            }
             exit;
         }
         // decode base64
@@ -222,32 +297,66 @@
 
     // Setting up the invoice data
     function sendInvoice($id, $type) {
-				global $db;
+            global $db;
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $adresse = db_fetch_array($query);
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
         $r_faktura = db_fetch_array($query);
         $initials = explode(" ", $r_faktura["firmanavn"]);
         foreach($initials as $key => $value){
-            $initials[$key] = substr($value, 0, 1);
+            $initials[$key] = mb_substr($value, 0, 1, "UTF-8");
         }
         $initials = implode("", $initials);
+
         if($r_faktura["art"] == "DK"){
             $creditNote = "Cre";
         }else{
             $creditNote = "Inv";
         }
+        $cvrnr_with_prefix = "";
         // check if the ean number is 13 characters long
         if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === false){
             $endpointId = $r_faktura["ean"];
             $endpointType = "GLN";
-        }else if($_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === true){
-            // split at ean at : and take the first part
+        } else if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") !== false){
+            // Change === true to !== false
             $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
             $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
-        }else{
+            if(is_numeric($endpointType)){
+                if($endpointType == 0007){
+                    $endpointId = "SE".$endpointId;
+                }
+                $cvrnr_with_prefix = $endpointId;
+                $endpointType = "DK:CVR";
+            }
+        } else {
             $endpointId = "DK".$r_faktura["cvrnr"];
             $endpointType = "DK:CVR";
+        }
+        if($cvrnr_with_prefix == ""){
+            if($r_faktura["cvrnr"]) {
+                // Check if CVR number starts with digits only (Danish CVR)
+                if (preg_match('/^\d/', $r_faktura["cvrnr"])) {
+                    // Danish CVR - add DK prefix
+                    $cvrnr_with_prefix = "DK" . $r_faktura["cvrnr"];
+                } else {
+                    // Already has country prefix (SE, NO, etc.) - use as is
+                    $cvrnr_with_prefix = $r_faktura["cvrnr"];
+                }
+            }else{
+                $cvrnr_with_prefix = "";
+            }
+        }
+        // country code should be the same as prefix for cvrnr
+        $countryCode = "DK";
+        
+        if($cvrnr_with_prefix !== ""){
+            $countryCode = substr($cvrnr_with_prefix, 0, 2);
+        }
+        // Greenland (GL) and Faroe Islands (FO) should be sent as DK in companyId
+        if($countryCode == "GL" || $countryCode == "FO"){
+            $cvrnr_with_prefix = "DK" . substr($cvrnr_with_prefix, 2);
+            $countryCode = "DK";
         }
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
@@ -260,7 +369,7 @@
                 "postalCode" => $r_faktura["lev_postnr"],
                 "countrySubentity" => "",
                 "addressLine" => "",
-                "countryCode" => "DK"
+                "countryCode" => $countryCode
             ];
         }else{
             $deliverAddress = [
@@ -282,6 +391,8 @@
             "issueDate" => date("c", strtotime($r_faktura["fakturadate"])),
             "dueDate" => usdate(forfaldsdag($r_faktura['fakturadate'], $r_faktura['betalingsbet'], $r_faktura['betalingsdage']))."T00:00:00.000Z",
             "deliveryDate" => date("c", strtotime($r_faktura["levdate"])),
+            "orderReference" => "", //TODO 
+            "invoiceReference" => "", //TODO
             "salesOrderID" => $r_faktura["ordrenr"],
             "note" => $r_faktura["notes"],
             "buyerReference" => $r_faktura["kundeordnr"],
@@ -291,7 +402,7 @@
                 "endpointId" =>  $endpointId, //$r_faktura["ean"], // 5790002747557
                 "endpointIdType" => $endpointType, // GLN = Global Location Number (EAN)
                 "name" => $r_faktura["firmanavn"],
-                "companyId" => "DK".$r_faktura["cvrnr"],
+                "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
                     "streetName" => explode(" ", $r_faktura["addr1"])[0],
                     "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
@@ -302,15 +413,40 @@
                     "postalCode" => $r_faktura["postnr"],
                     "countrySubentity" => "",
                     "addressLine" => "",
-                    "countryCode" => "DK"
+                    "countryCode" => $countryCode
                 ],
                 "contact" => [
-                    "initials" => $initials,
+                    "initials" => ($initials !== null && $initials !== "") ? $initials : "",
                     "name" => ($r_faktura["kontakt"] !== "") ? $r_faktura["kontakt"] : $r_faktura["firmanavn"],
                     "telephone" => strval($r_faktura["phone"]),
                     "electronicMail" => $r_faktura["email"]
                 ]
             ],
+            // Not needed when Customer and Payer are the same
+            // "buyerCustomerParty" => [
+            //     "endpointId" => "", //Was missing from JSON structure
+            //     "endpointIdType" => "", //Was missing from JSON structure
+            //     "name" => "", //Was missing from JSON structure
+            //     "companyId" => "", //Was missing from JSON structure
+            //     "postalAddress" => [
+            //         "streetName" => "", //Was missing from JSON structure
+            //         "buildingNumber" => "", //Was missing from JSON structure
+            //         "inhouseMail" => "", //Was missing from JSON structure
+            //         "additionalStreetName" => "", //Was missing from JSON structure
+            //         "attentionName" => "", //Was missing from JSON structure
+            //         "cityName" => "", //Was missing from JSON structure
+            //         "postalCode" => "", //Was missing from JSON structure
+            //         "countrySubentity" => "", //Was missing from JSON structure
+            //         "addressLine" => "", //Was missing from JSON structure
+            //         "countryCode" => "", //Was missing from JSON structure
+            //     ], //Was missing from JSON structure
+            //     "contact" => [
+            //         "initials" => "", //Was missing from JSON structure
+            //         "name" => "", //Was missing from JSON structure
+            //         "telephone" => "", //Was missing from JSON structure
+            //         "electronicMail" => "", //Was missing from JSON structure
+            //     ]
+            // ], //Was missing from JSON structure
             "documentCurrencyCode" => $r_faktura["valuta"],
             //(float)number_format((float)$r_faktura["sum"], 2)
             "totalAmount" => (float)number_format((float)$r_faktura["sum"], 2),
@@ -320,19 +456,47 @@
                 "bankName" => $adresse["bank_navn"],
                 "bankRegNo" => $adresse["bank_reg"],
                 "bankAccount" => $adresse["bank_konto"],
-                "bic" => "", 
-                "iban" => "", 
-                "creditorIdentifier" => "", 
+                "bic" => "",
+                "iban" => "",
+                "creditorIdentifier" => "",
                 "paymentID" => ""
+            ],
+            "additionalDocuments" => [
+                // Template
+                // [
+                // "iD" => "",
+                // "documentType" => "",
+                // "documentDescription" => "",
+                // "fileName" => "",
+                // "base64Object" => "",
+                // ],
+            ],
+            "allowanceCharges" => [
+                //Template
+                //I don't think this needs to be filled unless it's actually has charges
+                //[
+                //    "isCharge" => true,
+                //    "reasonCode" => "",
+                //    "reason": => "",
+                //    "percentage"=> 0,
+                //    "amount" => 0,
+                //    "baseAmount" => 0
+                //],
             ],
         ];
     
         $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
         while ($res = db_fetch_array($query)) {
-            $res["pris"] = abs($res["pris"]);
-            $res["rabat"] = abs($res["rabat"]);
-            $res["antal"] = abs($res["antal"]);
-            $res["momssats"] = abs($res["momssats"]);
+            
+            $res["rabat"] = abs((float)$res["rabat"]);
+            if($creditNote == "Cre"){
+                $res["antal"] = abs((float)$res["antal"]);
+                $res["pris"] = abs((float)$res["pris"]);
+            }else{
+                $res["antal"] = (float)$res["antal"];
+                $res["pris"] = (float)$res["pris"];
+            }
+            $res["momssats"] = abs((float)$res["momssats"]);
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
             if(trim($res["beskrivelse"]) == ""){
                 continue;
@@ -377,7 +541,8 @@
         }
         $data["invoiceLines"] = $line;
         file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
-        /* echo json_encode($data, JSON_PRETTY_PRINT); */
+
+        //die(json_encode($data, JSON_PRETTY_PRINT));
         $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
         
         return $name;

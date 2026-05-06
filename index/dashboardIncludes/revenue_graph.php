@@ -3,6 +3,7 @@ function revenue_graph($startDate, $endDate) {
     global $kontomin;
     global $kontomaks;
     global $regnaar;
+    global $sprog_id;
 
     echo '
 <div style="
@@ -16,7 +17,7 @@ function revenue_graph($startDate, $endDate) {
     flex-direction: column;
     height: 350px;
 ">
-    <h4 style="margin: 0; color: #999">Din omsætning sammenlignet med sidste år, ekskl. moms</h4>
+    <h4 style="margin: 0; color: #999">'.findtekst("2165|Din omsætning sammenlignet med sidste år, ekskl. moms", $sprog_id).'</h4>
     <div style="flex: 1; width: 100%">
       <canvas id="myChart"></canvas>
     </div>
@@ -98,12 +99,12 @@ function revenue_graph($startDate, $endDate) {
         data: {
           labels: ['".implode("','", $monthLabels)."'],
           datasets: [{
-            label: 'Omsætning $slutLabel',
+            label: '".findtekst('1166|Omsætning', $sprog_id)." $slutLabel',
             data: ['".implode("','", $revenue_last)."'],
             borderWidth: 1
           },
           {
-            label: 'Omsætning $startLabel',
+            label: '".findtekst('1166|Omsætning', $sprog_id)." $startLabel',
             data: ['".implode("','", $revenue_now)."'],
             borderWidth: 1
           }]

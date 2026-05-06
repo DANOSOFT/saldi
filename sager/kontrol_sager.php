@@ -30,30 +30,30 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
-$s_id=session_id();
+$s_id = session_id();
 
-$bg="nix";
-$header='nix';
+$bg     = "nix";
+$header = 'nix';
 
-$menu_sager='id="menuActive"';
-$menu_planlaeg=NULL;
-$menu_dagbog=NULL;
-$menu_kunder=NULL;
-$menu_loen=NULL;
-$menu_ansatte=NULL;
-$menu_certificering=NULL;
-$menu_medarbejdermappe=NULL;
+$menu_sager            = 'id="menuActive"';
+$menu_planlaeg         = NULL;
+$menu_dagbog           = NULL;
+$menu_kunder           = NULL;
+$menu_loen             = NULL;
+$menu_ansatte          = NULL;
+$menu_certificering    = NULL;
+$menu_medarbejdermappe = NULL;
 	
-$modulnr=0;
+$modulnr = 0;
 		
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$sag_id=if_isset($_GET['sag_id']);
-$konto_id=if_isset($_GET['konto_id']);
-$funktion=if_isset($_GET['funktion']);
-if (!$funktion) $funktion="kontrolliste";  
+$sag_id   = if_isset($_GET['sag_id']);
+$konto_id = if_isset($_GET['konto_id']);
+$funktion = if_isset($_GET['funktion']);
+if (!$funktion) $funktion = "kontrolliste";  
 
 global $brugernavn;
 global $db;
@@ -70,44 +70,46 @@ print "</body>\n";
 print "</html>\n";
 		
 function kontrolliste() {
-	$sag_id=if_isset($_GET['sag_id']);
-	$konto_id=if_isset($_GET['konto_id']);
+	global $sprog_id;
+
+	$sag_id   = if_isset($_GET['sag_id']);
+	$konto_id = if_isset($_GET['konto_id']);
 		
-	if (!$sag_id) return('Sag ID ikke angivet');
+	if (!$sag_id) return(findtekst('3185|Sag-ID ikke angivet', $sprog_id));
 
 	// Visning af sagsnr og beskrivelse i breadcrumb
-	$r=db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__)); 
-	$sagsnr=$r['sagsnr'];
-	$sag_beskrivelse=htmlspecialchars($r['beskrivelse']);
-	$udf_addr1=htmlspecialchars($r['udf_addr1']);
-	$udf_postnr=$r['udf_postnr'];
-	$udf_bynavn=htmlspecialchars($r['udf_bynavn']);
+	$r               = db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__)); 
+	$sagsnr          = $r['sagsnr'];
+	$sag_beskrivelse = htmlspecialchars($r['beskrivelse']);
+	$udf_addr1       = htmlspecialchars($r['udf_addr1']);
+	$udf_postnr      = $r['udf_postnr'];
+	$udf_bynavn      = htmlspecialchars($r['udf_bynavn']);
 		
 		// Her hentes tjeklister til visning
-	$x=0;
-	$qtxt="select * from tjekliste where assign_to = 'sager' and assign_id = '0' and fase >= '2' order by fase";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$x    = 0;
+	$qtxt = "select * from tjekliste where assign_to = 'sager' and assign_id = '0' and fase >= '2' order by fase";
+	$q    = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$tjek_id[$x]=$r['id'];
-		//$tjek_sub_id[$x]=$r['sub_id'];
-		$tjek_punkt[$x]=$r['tjekpunkt']; 
-		$tjek_fase[$x]=$r['fase']*1;
+		$tjek_id[$x]     = $r['id'];
+	//	$tjek_sub_id[$x] = $r['sub_id'];
+		$tjek_punkt[$x]  = $r['tjekpunkt']; 
+		$tjek_fase[$x]   = $r['fase']*1;
 		$x++;
 	}
 		
 	// Her hentes arbejdsseddel fra tjeklister
-	$qtxt="select * from tjekliste where assign_to = 'sager' and assign_id = '0' and fase = '1'";
-	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
-	$arbejdsseddel_id=$r['id'];
-	$arbejdsseddel_punkt=$r['tjekpunkt']; 
-	$arbejdsseddel_fase=$r['fase']*1;
+	$qtxt = "select * from tjekliste where assign_to = 'sager' and assign_id = '0' and fase = '1'";
+	$r    = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
+	$arbejdsseddel_id    = $r['id'];
+	$arbejdsseddel_punkt = $r['tjekpunkt']; 
+	$arbejdsseddel_fase  = $r['fase']*1;
 			
 	print "<div id=\"breadcrumbbar\">
 		<ul id=\"breadcrumb\">
-			<li><a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+			<li><a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 			<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->
-			<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"Sag: $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">Tilbage til sag $sagsnr</a></li>\n";
-	print "<li>Kontrolskema</li>
+			<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"".findtekst('2792|Sag', $sprog_id).": $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">".findtekst('2813|Tilbage til sag', $sprog_id)." $sagsnr</a></li>\n";
+	print "<li>".findtekst('3186|Kontrolskema', $sprog_id)."</li>
 		</ul>
 	</div><!-- end of breadcrumbbar -->\n";
 
@@ -117,14 +119,14 @@ function kontrolliste() {
 	print "<tr><td width=\"100%\" align=\"center\">\n";
 	print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class=\"kontrolskema_liste\" >\n";
 	print "<tbody>\n";
-	print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>Vælg Kontrolskema</h4></td></tr>\n";
+	print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>".findtekst('586|Vælg', $sprog_id)." ".lcfirst(findtekst('3186|Kontrolskema', $sprog_id))."</h4></td></tr>\n"; #Vælg Kontrolskema
 	print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 	print "</tbody>\n";
 	print "<tbody class=\"dataTableZebra dataTableTopBorder\">\n";
-	print "<tr><td>$arbejdsseddel_punkt</td><td class=\"alignRight\"><a href=\"kontrol_sager.php?funktion=arbejdsseddel&amp;sag_id=$sag_id&amp;sag_fase=$arbejdsseddel_fase&amp;tjek_id=$arbejdsseddel_id\" title=\"Opret $arbejdsseddel_punkt til sagen her!\" class=\"button blue small\">Til skema</a></td></tr>\n";
+	print "<tr><td>$arbejdsseddel_punkt</td><td class=\"alignRight\"><a href=\"kontrol_sager.php?funktion=arbejdsseddel&amp;sag_id=$sag_id&amp;sag_fase=$arbejdsseddel_fase&amp;tjek_id=$arbejdsseddel_id\" title=\"".findtekst('1232|Opret', $sprog_id)." $arbejdsseddel_punkt ".lcfirst(findtekst('3188|Til sagen her', $sprog_id))."!\" class=\"button blue small\">".findtekst('3187|Til skema', $sprog_id)."</a></td></tr>\n"; #Opret $arbejdsseddel_punkt til sagen her!
 
 	for ($y=0;$y<count($tjek_id);$y++) {
-		print "<tr><td>$tjek_punkt[$y]</td><td class=\"alignRight\"><a href=\"kontrol_sager.php?funktion=kontrolskema&amp;sag_id=$sag_id&amp;sag_fase=$tjek_fase[$y]&amp;tjek_id=$tjek_id[$y]\" title=\"Opret kontrolskema '$tjek_punkt[$y]' til sagen her!\" class=\"button blue small\">Til skema</a></td></tr>\n";
+		print "<tr><td>$tjek_punkt[$y]</td><td class=\"alignRight\"><a href=\"kontrol_sager.php?funktion=kontrolskema&amp;sag_id=$sag_id&amp;sag_fase=$tjek_fase[$y]&amp;tjek_id=$tjek_id[$y]\" title=\"".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('3186|Kontrolskema', $sprog_id))." '$tjek_punkt[$y]' ".lcfirst(findtekst('3188|Til sagen her', $sprog_id))."!\" class=\"button blue small\">".findtekst('3187|Til skema', $sprog_id)."</a></td></tr>\n"; #Opret kontrolskema '$tjek_punkt[$y]' til sagen her!
 	}
 
 	print "</tbody>\n";
@@ -147,14 +149,14 @@ function kontrolskema() {
 //	tjekliste_id : ID på tjekpunkt i tjekliste -Hvis denne eksisterer er punket afmærket, ellers ikke.
 //	assign_id: Sagen punktet tilhører
 
-	$sag_id=if_isset($_GET['sag_id']);
-	$sag_fase=if_isset($_GET['sag_fase']);
-	$tjekpunkt_id=if_isset($_GET['tjek_id']);
-	$tjekskema_id=if_isset($_GET['tjekskema_id']);
+	$sag_id       = if_isset($_GET['sag_id']);
+	$sag_fase     = if_isset($_GET['sag_fase']);
+	$tjekpunkt_id = if_isset($_GET['tjek_id']);
+	$tjekskema_id = if_isset($_GET['tjekskema_id']);
 	
-	if(isset($_POST['sag_id'])) $sag_id = $_POST['sag_id'];
-	if(isset($_POST['sag_fase'])) $sag_fase = $_POST['sag_fase'];
-	if(isset($_POST['tjek_id'])) $tjekpunkt_id = $_POST['tjek_id'];
+	if(isset($_POST['sag_id']))       $sag_id       = $_POST['sag_id'];
+	if(isset($_POST['sag_fase']))     $sag_fase     = $_POST['sag_fase'];
+	if(isset($_POST['tjek_id']))      $tjekpunkt_id = $_POST['tjek_id'];
 	if(isset($_POST['tjekskema_id'])) $tjekskema_id = $_POST['tjekskema_id'];
 	/*$sag_id=if_isset($_POST['sag_id']);
 	$sag_fase=if_isset($_POST['sag_fase']);
@@ -174,32 +176,32 @@ function kontrolskema() {
 	//$r = db_fetch_array(db_select("select status from sager where id = '$sag_id'",__FILE__ . " linje " . __LINE__));
 	//($sag_fase<$r['status'])?$disabled="DISABLED=\"disabled\"":$disabled=NULL;
 	
-	$datotid=date("U");
+	$datotid = date("U");
 	
 	if (isset($_POST['kontrolskema']) && !$tjekskema_id) {
 		
-		$tjekliste_id=if_isset($_POST['tjekliste_id']);
-		$status_tekst=if_isset($_POST['status_tekst']);
-		$opg_art=if_isset($_POST['opg_art']);
-		$sjak=if_isset($_POST['sjak']);
-		$sjakid=if_isset($_POST['sjakid']);
-		$tjekantal=if_isset($_POST['tjekantal']);
-		$kontrolpunkt=if_isset($_POST['kontrolpunkt']);
-		$hvem=if_isset($_POST['hvem']);
-		//$opgavenavn=if_isset($_POST['opgavenavn']);
-		$opgave=if_isset($_POST['opgave']);
+		$tjekliste_id = if_isset($_POST['tjekliste_id']);
+		$status_tekst = if_isset($_POST['status_tekst']);
+		$opg_art      = if_isset($_POST['opg_art']);
+		$sjak         = if_isset($_POST['sjak']);
+		$sjakid       = if_isset($_POST['sjakid']);
+		$tjekantal    = if_isset($_POST['tjekantal']);
+		$kontrolpunkt = if_isset($_POST['kontrolpunkt']);
+		$hvem         = if_isset($_POST['hvem']);
+		//$opgavenavn = if_isset($_POST['opgavenavn']);
+		$opgave       = if_isset($_POST['opgave']);
 		if($opgave){
-			$r=db_fetch_array(db_select("select nr,beskrivelse from opgaver where assign_to = 'sager' and id = '$opgave'",__FILE__ . " linje " . __LINE__)); 
-			$opgavenavn="Opgave ".$r['nr'];
-			$opgavebeskrivelse=$r['beskrivelse'];
+			$r = db_fetch_array(db_select("select nr,beskrivelse from opgaver where assign_to = 'sager' and id = '$opgave'",__FILE__ . " linje " . __LINE__)); 
+			$opgavenavn        = "Opgave ".$r['nr'];
+			$opgavebeskrivelse = $r['beskrivelse'];
 		}
 		// Her skal info til tjekskema insættes og opdateres
-		$r=db_fetch_array(db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' and fase = '$sag_fase'",__FILE__ . " linje " . __LINE__)); 
-		$id=$r['id'];
+		$r  = db_fetch_array(db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' and fase = '$sag_fase'",__FILE__ . " linje " . __LINE__)); 
+		$id = $r['id'];
 		db_modify("insert into tjekskema (tjekliste_id,datotid,opg_art,sjak,sag_id,hvem,opg_navn,opg_beskrivelse,sjakid) values ('$id','$datotid','$opg_art','$sjak','$sag_id','$hvem','$opgavenavn','$opgavebeskrivelse','$sjakid')",__FILE__ . " linje " . __LINE__);
 		// Her finder vi id fra sidste tjekskema
-		$r=db_fetch_array(db_select("select max(id) as id from tjekskema where hvem='$hvem'",__FILE__ . " linje " . __LINE__));
-		$tjekskema_id=$r['id'];
+		$r = db_fetch_array(db_select("select max(id) as id from tjekskema where hvem='$hvem'",__FILE__ . " linje " . __LINE__));
+		$tjekskema_id = $r['id'];
 		// Her indsættes 'status' og 'status_tekst' i tjekpunkter
 		for ($x=1;$x<=$tjekantal;$x++) {
 			if ($tjekliste_id[$x]) {
@@ -458,13 +460,13 @@ function kontrolskema() {
 	}
 	print "<div id=\"breadcrumbbar\">
 			<ul id=\"breadcrumb\">
-				<li><a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+				<li><a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 				<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->
-				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"Sag: $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">Tilbage til sag $sagsnr</a></li>
-				<li><a href=\"kontrol_sager.php?funktion=kontrolliste&amp;sag_id=$sag_id\" title=\"Tilbage til kontrolskema-liste\">Kontrolskema</a></li>\n";
+				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"".findtekst('2792|Sag', $sprog_id).": $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">".findtekst('2813|Tilbage til sag', $sprog_id)." $sagsnr</a></li>
+				<li><a href=\"kontrol_sager.php?funktion=kontrolliste&amp;sag_id=$sag_id\" title=\"".findtekst('3191|Tilbage til kontrolskema-liste', $sprog_id)."\">".findtekst('3186|Kontrolskema', $sprog_id)."</a></li>\n";
 				print "<li>$tjekpunktnavn</li>\n";
-				print "<li style=\"float:right;\"><a href=\"#\" title=\"Print skema\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"Print skema\" class=\"printIcon\" /></a></li>"; 
-				print "<li style=\"float:right;\"><a href=\"kontrol_sager.php?funktion=emailKontrolskema&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"Email skema\" style=\"background-image: none;\"><img src=\"../img/mail.png\" alt=\"Email skema\" class=\"printIcon\" /></a></li>";
+				print "<li style=\"float:right;\"><a href=\"#\" title=\"".findtekst('2788|Udskriv skema', $sprog_id)."\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"".findtekst('2788|Udskriv skema', $sprog_id)."\" class=\"printIcon\" /></a></li>"; 
+				print "<li style=\"float:right;\"><a href=\"kontrol_sager.php?funktion=emailKontrolskema&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"".findtekst('3189|E-mail skema', $sprog_id)."\" style=\"background-image: none;\"><img src=\"../img/mail.png\" alt=\"".findtekst('3189|E-mail skema', $sprog_id)."\" class=\"printIcon\" /></a></li>";
 				// Her er button til jQuery.printElement
 				//print "<li style=\"float:right;\"><input type=\"button\" value=\"print\" id=\"simplePrint\" /></li>";
 				// Her er button til google cloud print
@@ -480,7 +482,7 @@ function kontrolskema() {
 	print "<tbody>\n";
 	
 	print "<tr><td width=\"100%\" align=\"center\">\n";
-	print "<div style=\"#background-color:lightblue;height:40px;padding-top:5px;\"><p>Vælg hvilken opgave skeamaet hører til:&nbsp;\n";
+	print "<div style=\"#background-color:lightblue;height:40px;padding-top:5px;\"><p>".findtekst('3190|Vælg hvilken opgave skemaet hører til', $sprog_id).":&nbsp;\n";
 	print "<select style=\"width:110px;\" id=\"opgavenavn\" name=\"opgave\">\n";
 				for ($x=0;$x<=count($opgave_nr);$x++) {
 					if ($opg_navn==$opgave_navn[$x]) print "<option title=\"$opgave_navn[$x]&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";	
@@ -492,7 +494,7 @@ function kontrolskema() {
 	print "<div id=\"printableArea\">\n";
 	//print "<a style=\"float:right;\" href=\"javascript:window.print()\">Print</a>\n";
 	if (!$tjekskema_id) $hvem = $ansat_navn;
-	($opg_navn)?$opg='til&nbsp;'.$opg_navn:$opg=NULL;
+	($opg_navn)?$opg=findtekst('3131|til', $sprog_id).'&nbsp;'.$opg_navn:$opg=NULL;
 	print "<h3 class=\"printHeadLineSkema\">$tjekpunktnavn $opg</h3>\n";
 	print "<table border=\"0\" cellspacing=\"0\" class=\"kontrolskema\" style=\"table-layout:fixed;\">\n";
 	print "<colgroup>
@@ -516,18 +518,18 @@ function kontrolskema() {
 		</tr>
   </tbody>\n";
 	print "<tbody>\n";
-	print "<tr><td colspan=\"2\" class=\"printtxt\"><p><b>Opstillingsadresse:</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>Status:</b></p></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\" class=\"printdate\"><p><b>Dato:</b></p><p>".date("d-m-Y",$datotid)."</p></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>Opgavens art:</b></p><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"opg_art\" rows=\"4\" cols=\"12\" style=\"height:64px;width:95px;\">".htmlspecialchars($opg_art)."</textarea></td>\n";
-	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>Sjak:</b></p><textarea class=\"textAreaSager autosize kontrolskema_font sjak\" name=\"sjak\" rows=\"4\" cols=\"10\" title=\"$sjaktitle\" style=\"height:64px;width:85px;\">".htmlspecialchars($sjak)."</textarea></td>\n"; // onfocus=\"var val=this.value; this.value=''; this.value= val;\"
+	print "<tr><td colspan=\"2\" class=\"printtxt\"><p><b>".findtekst('2820|Opstillingsadresse', $sprog_id).":</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('494|Status', $sprog_id).":</b></p></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\" class=\"printdate\"><p><b>".findtekst('438|Dato', $sprog_id).":</b></p><p>".date("d-m-Y",$datotid)."</p></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('3145|Opgavens art', $sprog_id).":</b></p><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"opg_art\" rows=\"4\" cols=\"12\" style=\"height:64px;width:95px;\">".htmlspecialchars($opg_art)."</textarea></td>\n";
+	print "<td rowspan=\"2\" align=\"center\" valign=\"top\"><p><b>".findtekst('3123|Sjak', $sprog_id).":</b></p><textarea class=\"textAreaSager autosize kontrolskema_font sjak\" name=\"sjak\" rows=\"4\" cols=\"10\" title=\"$sjaktitle\" style=\"height:64px;width:85px;\">".htmlspecialchars($sjak)."</textarea></td>\n"; // onfocus=\"var val=this.value; this.value=''; this.value= val;\"
 	print "<td style=\"height:0px;padding:0px;margin:0px;border:none;\"><input type=\"hidden\" class=\"sjakid\" name=\"sjakid\" value=\"\"></td></tr>\n";
-	print "<tr><td colspan=\"2\" class=\"printtxt\"><input type=\"hidden\" name=\"hvem\" value='$ansat_navn'><p><b>Kontroleret af:</b></p><p>".htmlspecialchars($hvem)."</p></td></tr>\n";
-	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" class=\"printtxt\" style=\"vertical-align:top;\"><p><b>Opgave beskrivelse:</b></p></td><td colspan=\"4\" class=\"printtxt\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
+	print "<tr><td colspan=\"2\" class=\"printtxt\"><input type=\"hidden\" name=\"hvem\" value='$ansat_navn'><p><b>".findtekst('2826|Kontrolleret af', $sprog_id).":</b></p><p>".htmlspecialchars($hvem)."</p></td></tr>\n";
+	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" class=\"printtxt\" style=\"vertical-align:top;\"><p><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></p></td><td colspan=\"4\" class=\"printtxt\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
 	// Array til status select-box i kontrolskema
 	$value = array(0,1,2,3,4);
 	$color = array("white","green","yellow","red","white");
-	$option_name = array("&nbsp;","OK","Fejl","Kritisk","N/A");
+	$option_name = array("&nbsp;","OK",findtekst('3124|Fejl', $sprog_id),findtekst('3125|Kritisk', $sprog_id),"N/A");
 	
 	for ($x=1;$x<=count($id);$x++) {
 		
@@ -619,8 +621,8 @@ function kontrolskema() {
 			print "<select name=\"kontrolpunkt[$x]\" class=\"kontrol_status\" >
 				<option value=\"0\" style=\"background-color:white;\">&nbsp;</option>
 				<option value=\"1\" style=\"background-color:green;\">OK</option>
-				<option value=\"2\" style=\"background-color:yellow;\">Fejl</option>
-				<option value=\"3\" style=\"background-color:red;\">Kritisk</option>
+				<option value=\"2\" style=\"background-color:yellow;\">".findtekst('3124|Fejl', $sprog_id)."</option>
+				<option value=\"3\" style=\"background-color:red;\">".findtekst('3125|Kritisk', $sprog_id)."</option>
 				<option value=\"4\" style=\"background-color:white;\">N/A</option>
 			</select>\n";
 			
@@ -637,9 +639,9 @@ function kontrolskema() {
 	
 	print "<table border=\"0\" cellspacing=\"0\">\n";
 	print "<tbody>\n";
-	print "<tr><td align=\"center\"><input type=\"submit\" class=\"button gray small\" accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"kontrolskema\">\n";
+	print "<tr><td align=\"center\"><input type=\"submit\" class=\"button gray small\" accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"kontrolskema\">\n";
 	if ($tjekskema_id) {
-		print "<input class=\"button rosy small\" type=\"submit\" name=\"slet_kontrolskema\" style=\"margin-left:10px;\" value=\"Slet kontrolskema\" onclick=\"return confirm('Vil du slette kontrolskemaet?');\">\n";
+		print "<input class=\"button rosy small\" type=\"submit\" name=\"slet_kontrolskema\" style=\"margin-left:10px;\" value=\"".findtekst('3192|Slet kontrolskema', $sprog_id)."\" onclick=\"return confirm('".findtekst('3193|Vil du slette kontrolskemaet', $sprog_id)."?');\">\n";
 		//print "<input class=\"button gray small\" type=\"submit\" name=\"afslut_kontrolskema\" style=\"margin-left:10px;\" value=\"Godkend\" onclick=\"return confirm('Du er ved at godkende skemaet.\n Der vil ikke være muligt at rette eller slette derefter');\">\n";
 	}
 	print "</td></tr>\n";
@@ -647,11 +649,11 @@ function kontrolskema() {
 	
 	if ($bilag_id) { #20170303
 		print "<br>";
-		print "<h3>Bilag:</h3>\n";
+		print "<h3>".findtekst('671|Bilag', $sprog_id).":</h3>\n";
 		print "<table border=\"0\" cellspacing=\"0\" class=\"tableBilag\">\n";
 		print "<tbody class=\"tableBilagZebra tableBilagBorderTop tableBilagBorderBottom\">\n";
 		for ($y=0;$y<count($bilag_id);$y++) {
-			print "<tr><td><p>$bilag_beskrivelse[$y]</p></td><td align=\"right\"><p><a href=\"../bilag/$db/$sag_id/$bilag_id[$y].$bilag_filtype[$y]\" target=\"blank\" class=\"button blue small\">Vis</a></p></td></tr>\n";
+			print "<tr><td><p>$bilag_beskrivelse[$y]</p></td><td align=\"right\"><p><a href=\"../bilag/$db/$sag_id/$bilag_id[$y].$bilag_filtype[$y]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></p></td></tr>\n";
 		}
 		print "</tbody>\n";
 		print "</table>\n";
@@ -1032,13 +1034,13 @@ function arbejdsseddel() {
 	}
 	print "<div id=\"breadcrumbbar\">
 			<ul id=\"breadcrumb\">
-				<li><a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+				<li><a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 				<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->
-				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"Sag: $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">Tilbage til sag $sagsnr</a></li>
-				<li><a href=\"kontrol_sager.php?funktion=kontrolliste&amp;sag_id=$sag_id\" title=\"Tilbage til kontrolskema-liste\">Kontrolskema</a></li>\n";
+				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"".findtekst('2792|Sag', $sprog_id).": $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">".findtekst('2813|Tilbage til sag', $sprog_id)." $sagsnr</a></li>
+				<li><a href=\"kontrol_sager.php?funktion=kontrolliste&amp;sag_id=$sag_id\" title=\"".findtekst('3191|Tilbage til kontrolskema-liste', $sprog_id)."\">".findtekst('3186|Kontrolskema', $sprog_id)."</a></li>\n";
 				print "<li>$tjekpunktnavn</li>\n";
-				print "<li style=\"float:right;\"><a href=\"#\" title=\"Print skema\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"Print skema\" class=\"printIcon\" /></a></li>";
-				print "<li style=\"float:right;\"><a href=\"kontrol_sager.php?funktion=emailArbejdsseddel&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"Email skema\" style=\"background-image: none;\"><img src=\"../img/mail.png\" alt=\"Email skema\" class=\"printIcon\" /></a></li>";
+				print "<li style=\"float:right;\"><a href=\"#\" title=\"".findtekst('2788|Udskriv skema', $sprog_id)."\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"".findtekst('2788|Udskriv skema', $sprog_id)."\" class=\"printIcon\" /></a></li>";
+				print "<li style=\"float:right;\"><a href=\"kontrol_sager.php?funktion=emailArbejdsseddel&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"".findtekst('3189|E-mail skema', $sprog_id)."\" style=\"background-image: none;\"><img src=\"../img/mail.png\" alt=\"".findtekst('3189|E-mail skema', $sprog_id)."\" class=\"printIcon\" /></a></li>";
 				print "
 			</ul>
 			
@@ -1050,7 +1052,7 @@ function arbejdsseddel() {
 	print "<tbody>\n";
 	
 	print "<tr><td width=\"100%\" align=\"center\">\n";
-	print "<div style=\"#background-color:lightblue;height:40px;padding-top:5px;\"><p>Vælg hvilken opgave skeamaet hører til:&nbsp;\n"; 
+	print "<div style=\"#background-color:lightblue;height:40px;padding-top:5px;\"><p>".findtekst('3190|Vælg hvilken opgave skemaet hører til', $sprog_id).":&nbsp;\n"; 
 	print "<select style=\"width:110px;\" id=\"opgavenavn\" name=\"opgave\">\n";
 				for ($x=0;$x<=count($opgave_nr);$x++) {
 					if ($opg_navn==$opgave_navn[$x]) print "<option title=\"$opgave_navn[$x]&#013;$opgave_beskrivelse[$x]\" value=\"$opgave_id[$x]\">$opgave_select_beskrivelse[$x]&nbsp;</option>\n";	
@@ -1062,7 +1064,7 @@ function arbejdsseddel() {
 	print "<div id=\"printableArea\">\n";
 	//print "<a style=\"float:right;\" href=\"javascript:window.print()\">Print</a>\n";
 	if (!$tjekskema_id) $hvem = $ansat_navn;
-	($opg_navn)?$opg='til&nbsp;'.$opg_navn:$opg=NULL;
+	($opg_navn)?$opg=findtekst('3131|til', $sprog_id).'&nbsp;'.$opg_navn:$opg=NULL;
 	print "<h3 class=\"printHeadLineSkema\">$tjekpunktnavn $opg</h3>\n";
 	print "<table border=\"0\" cellspacing=\"0\" class=\"kontrolskema printKontrolskematxt\">\n";
 	print "<colgroup>
@@ -1086,16 +1088,16 @@ function arbejdsseddel() {
 		</tr>
   </tbody>\n";
 	print "<tbody>\n";
-	print "<tr><td colspan=\"4\"><p><b>Udføres dato:&nbsp;</b><input name=\"udf_dato\" id=\"datepicker\" type=\"text\" style=\"width:95px;\" class=\"printBorderNone kontrolskema_font\" value='$udf_dato'/></p></td>\n";// .date("d-m-Y",$udf_dato).
-	print "<td colspan=\"2\"><p><b>Sagsnr:&nbsp;</b> $sagsnr</p></td></tr>\n";
-	print "<tr><td colspan=\"2\" style=\"vertical-align:top;#width:200px;\"><p><b>Opstillingsadresse:</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
-	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Kunde:</b></p><p>$sag_firmanavn</p></td>\n";
-	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>kontakt:</b></p><p>$sag_kontakt&nbsp;</p></td></tr>\n";
-	print "<tr><td colspan=\"4\" style=\"vertical-align:top;\"><p><b>Sjak:</b></p>\n";
+	print "<tr><td colspan=\"4\"><p><b>".findtekst('3132|Udførelsesdato', $sprog_id).":&nbsp;</b><input name=\"udf_dato\" id=\"datepicker\" type=\"text\" style=\"width:95px;\" class=\"printBorderNone kontrolskema_font\" value='$udf_dato'/></p></td>\n";// .date("d-m-Y",$udf_dato).
+	print "<td colspan=\"2\"><p><b>".findtekst('2819|Sagsnr.', $sprog_id)."&nbsp;</b> $sagsnr</p></td></tr>\n";
+	print "<tr><td colspan=\"2\" style=\"vertical-align:top;#width:200px;\"><p><b>".findtekst('2820|Opstillingsadresse', $sprog_id).":</b></p><p>$udf_addr1, $udf_postnr $udf_bynavn</p></td>\n";
+	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('35|Kunde', $sprog_id).":</b></p><p>$sag_firmanavn</p></td>\n";
+	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('398|Kontakt', $sprog_id).":</b></p><p>$sag_kontakt&nbsp;</p></td></tr>\n";
+	print "<tr><td colspan=\"4\" style=\"vertical-align:top;\"><p><b>".findtekst('3123|Sjak', $sprog_id).":</b></p>\n";
 	print "<textarea class=\"textAreaSager autosize kontrolskema_font sjak\" name=\"sjak\" rows=\"1\" cols=\"10\" title=\"$sjaktitle\" style=\"height:16px;width:100%;\" >".htmlspecialchars($sjak)."</textarea></td>\n";//onfocus=\"var val=this.value; this.value=''; this.value= val;\"
-	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Konduktør:</b></p><p>$hvem</p></td>\n";
+	print "<td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3133|Konduktør', $sprog_id).":</b></p><p>$hvem</p></td>\n";
 	print "<td style=\"height:0px;padding:0px;margin:0px;border:none;\"><input type=\"hidden\" class=\"sjakid\" name=\"sjakid\" value=\"\"></td></tr>\n";
-	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Opgave beskrivelse:</b></p></td><td colspan=\"4\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
+	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></p></td><td colspan=\"4\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
 	print "</tbody>\n";
 	#print "</table>\n";
 	#print "<table border=\"0\" cellspacing=\"0\" class=\"kontrolskema\">\n";
@@ -1223,22 +1225,22 @@ function arbejdsseddel() {
 		$apvPss.= "Alle nødvendige vejledninger er tilgængelige i Saldi, også via mobilen.<br>\n";
 		$apvPss.= "Døre og adgangsveje holdes fri, med mindre andet er aftalt.\n";
 	} else $apvPss = NULL; 
-	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Manuel Transport:</b></p></td><td colspan=\"4\">
+	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3135|Manuel transport', $sprog_id).":</b></p></td><td colspan=\"4\">
 		<input class=\"textXSmall printBorderNone\" type=\"text\" name=\"man_trans\" 
 		value=\"$man_trans\" style=\"float:left;margin-right:4px;text-align:right;\"/>
-		<p> Gange (hvis mere end forventet skal der ringes til ansvarlig konduktør)</p></td></tr>\n";
-	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Stillads til:<br>(Evt. Tegning)</b></p></td><td colspan=\"4\">
+		<p> ".findtekst('3138|Gange', $sprog_id)." (".lcfirst(findtekst('3139|Hvis mere end forventet, skal der ringes til ansvarlig konduktør', $sprog_id)).")</p></td></tr>\n"; #Gange (hvis mere end forventet...)
+	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3137|Stillads til', $sprog_id).":<br>(".findtekst('3143|Evt. tegning', $sprog_id).")</b></p></td><td colspan=\"4\">
 		<textarea class=\"textAreaSager autosize kontrolskema_tegning\" name=\"stillads_til\" rows=\"1\" cols=\"37\">$stillads_til</textarea>
 		</td></tr>\n";
-	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Generelt for sagen:</b></p></td>
+	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('2916|Generelt for sagen', $sprog_id).":</b></p></td>
 		<td colspan=\"4\" style=\"#color:#cd3300 !important;\"><p><i><b>$sag_omfang</b></i></p></td></tr>\n";
 	if ($apvPss) {
 		print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>APV / PSS:</b></p></td>
 			<td colspan=\"4\" style=\"#color:#cd3300 !important;\"><p>$apvPss</p></td></tr>\n";
 	}
-	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>Husk hver dag at:</b></p></td>
-		<td colspan=\"4\" style=\"text-align:center;color:#cd3300 !important;\"><p><b>Kontrollere bilen for fejl/mangler.</b></p>
-		<p><b>Kontrollere eget udstyr og værktøj.</b></p></td></tr>\n";
+	print "<tr><td colspan=\"2\" style=\"vertical-align:top;\"><p><b>".findtekst('3140|Husk hver dag at', $sprog_id).":</b></p></td>
+		<td colspan=\"4\" style=\"text-align:center;color:#cd3300 !important;\"><p><b>".findtekst('3141|Kontrollere bilen for fejl/mangler', $sprog_id).".</b></p>
+		<p><b>".findtekst('3142|Kontrollere eget udstyr og værktøj', $sprog_id).".</b></p></td></tr>\n";
 	print "</tbody>\n";
 	print "</table>\n";
 	#echo "regnskab: $regnskab";
@@ -1253,21 +1255,21 @@ function arbejdsseddel() {
 	print "<table border=\"0\" cellspacing=\"0\">\n";
 	print "<tbody>\n";
 	
-	print "<tr><td align=\"center\"><input type=\"submit\" class=\"button gray small\" accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"kontrolskema\">\n";
+	print "<tr><td align=\"center\"><input type=\"submit\" class=\"button gray small\" accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"kontrolskema\">\n";
 	if ($tjekskema_id) {
-		print "<input class=\"button gray small\" type=\"submit\" name=\"kopi_kontrolskema\" style=\"margin-left:10px;\" value=\"Kopiere kontrolskema\">\n";
-		print "<input class=\"button rosy small\" type=\"submit\" name=\"slet_kontrolskema\" style=\"margin-left:10px;\" value=\"Slet kontrolskema\" onclick=\"return confirm('Vil du slette arbejdsseddel?');\">\n";
+		print "<input class=\"button gray small\" type=\"submit\" name=\"kopi_kontrolskema\" style=\"margin-left:10px;\" value=\"".findtekst('1493|Kopiér', $sprog_id)." ".lcfirst(findtekst('3186|Kontrolskema', $sprog_id))."\">\n"; #Kopiér kontrolskema
+		print "<input class=\"button rosy small\" type=\"submit\" name=\"slet_kontrolskema\" style=\"margin-left:10px;\" value=\"".findtekst('3192|Slet kontrolskema', $sprog_id)."\" onclick=\"return confirm('".findtekst('3194|Vil du slette arbejdssedlen', $sprog_id)."?');\">\n";
 	}
 	print "</td></tr>\n";
 	print "</tbody></table>\n";
 	
 	if ($bilag_id) { #20170303
 		print "<br>";
-		print "<h3>Bilag:</h3>\n";
+		print "<h3>".findtekst('671|Bilag', $sprog_id).":</h3>\n";
 		print "<table border=\"0\" cellspacing=\"0\" class=\"tableBilag\">\n";
 		print "<tbody class=\"tableBilagZebra tableBilagBorderTop tableBilagBorderBottom\">\n";
 		for ($y=0;$y<count($bilag_id);$y++) {
-			print "<tr><td><p>$bilag_beskrivelse[$y]</p></td><td align=\"right\"><p><a href=\"../bilag/$db/$sag_id/$bilag_id[$y].$bilag_filtype[$y]\" target=\"blank\" class=\"button blue small\">Vis</a></p></td></tr>\n";
+			print "<tr><td><p>$bilag_beskrivelse[$y]</p></td><td align=\"right\"><p><a href=\"../bilag/$db/$sag_id/$bilag_id[$y].$bilag_filtype[$y]\" target=\"blank\" class=\"button blue small\">".findtekst('2087|Vis', $sprog_id)."</a></p></td></tr>\n";
 		}
 		print "</tbody>\n";
 		print "</table>\n";
@@ -1281,6 +1283,7 @@ function arbejdsseddel() {
 function emailKontrolskema() {
 
 	global $db;
+	global $sprog_id;
 
 	$sag_id=if_isset($_GET['sag_id']);
 	$sag_fase=if_isset($_GET['sag_fase']);
@@ -1355,14 +1358,14 @@ function emailKontrolskema() {
 	$tjekpunktnavn=htmlspecialchars($r['tjekpunkt']);
 	
 	// Hvis der er en opgavebeskrivelse sættes den i en variable
-	($opg_beskrivelse)?$opgavebeskrivelse="<tr><td colspan=\"2\" style=\"vertical-align:top;border: 1px solid black;padding: 5px 7px;\"><span><b>Opgave beskrivelse:</b></span></td><td colspan=\"4\" style=\"border: 1px solid black;padding: 5px 7px;\"><span><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></span></td></tr>":$opgavebeskrivelse=NULL;
+	($opg_beskrivelse)?$opgavebeskrivelse="<tr><td colspan=\"2\" style=\"vertical-align:top;border: 1px solid black;padding: 5px 7px;\"><span><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></span></td><td colspan=\"4\" style=\"border: 1px solid black;padding: 5px 7px;\"><span><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></span></td></tr>":$opgavebeskrivelse=NULL;
 	
 	// Body-tekst til mail
 	$mailtext = '
 	<html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-		<title>Kontrolskema</title>
+		<title>'.findtekst('3186|Kontrolskema', $sprog_id).'</title>
 		<style>
 		*
 		{
@@ -1428,14 +1431,14 @@ function emailKontrolskema() {
   </tbody>
   <tbody>
 		<tr>
-			<td colspan="2" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Opstillingsadresse:</b></span><br><span>'.$udf_addr1.', '.$udf_postnr.' '.$udf_bynavn.'</span></td>
-			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Status:</b></span></td>
-			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Dato:</b></span><br><span>'.date("d-m-Y",$datotid).'</span></td>
-			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Opgavens art:</b></span><br><span>'.htmlspecialchars($opg_art).'</span></td>
-			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Sjak:</b></span><br><span>'.htmlspecialchars($sjak).'</span></td>
+			<td colspan="2" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('2820|Opstillingsadresse', $sprog_id).':</b></span><br><span>'.$udf_addr1.', '.$udf_postnr.' '.$udf_bynavn.'</span></td>
+			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('494|Status', $sprog_id).':</b></span></td>
+			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('438|Dato', $sprog_id).':</b></span><br><span>'.date("d-m-Y",$datotid).'</span></td>
+			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3145|Opgavens art', $sprog_id).':</b></span><br><span>'.htmlspecialchars($opg_art).'</span></td>
+			<td rowspan="2" align="center" valign="top" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3123|Sjak', $sprog_id).':</b></span><br><span>'.htmlspecialchars($sjak).'</span></td>
 		</tr>
 		<tr>
-			<td colspan="2" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Kontroleret af:</b></span><br><span>'.htmlspecialchars($hvem).'</span></td>
+			<td colspan="2" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('2826|Kontrolleret af', $sprog_id).':</b></span><br><span>'.htmlspecialchars($hvem).'</span></td>
 		</tr>'.$opgavebeskrivelse.'
 	';
 	
@@ -1465,7 +1468,7 @@ function emailKontrolskema() {
 		foreach ($email_list as $mail) {
 			if (!filter_var($mail, FILTER_VALIDATE_EMAIL)) {
 				$mail_fejl = "1";
-				$error_message = $mail."\\n\\nEr ikke en gyldig email adresse";
+				$error_message = $mail."\\n\\n".findtekst('3169|Er ikke en gyldig e-mailadresse', $sprog_id);
 				print "<BODY onLoad=\"javascript:alert('$error_message')\">";
 			}
 		}
@@ -1484,7 +1487,7 @@ function emailKontrolskema() {
 		$smtp = 'localhost';
 		$from = $afsendernavn.'<mailer.'.$db.'@saldi.dk>';
 		$replyto = $afsendernavn.'<'.$afsendermail.'>';
-		$beskrivelse= $tjekpunktnavn.' Vedr.: '.$udf_addr1.', '.$udf_postnr.' '.$udf_bynavn;
+		$beskrivelse = $tjekpunktnavn.' '.findtekst('3195|Vedr.', $sprog_id).': '.$udf_addr1.', '.$udf_postnr.' '.$udf_bynavn;
 		/*
 		if ($mail_fejl == "0") {
 			$headers='From: ' . $from . "\r\n";
@@ -1581,8 +1584,8 @@ function emailKontrolskema() {
 					$option_name = NULL;
 						if ($status<=0) {$statcolor = "background-color:white;"; $option_name = "&nbsp;";}
 						if ($status==1) {$statcolor = "background-color:green;"; $option_name = "OK";}
-						if ($status==2) {$statcolor = "background-color:yellow;"; $option_name = "Fejl";}
-						if ($status==3) {$statcolor = "background-color:red;"; $option_name = "Kritisk";}
+						if ($status==2) {$statcolor = "background-color:yellow;"; $option_name = findtekst('3124|Fejl', $sprog_id);}
+						if ($status==3) {$statcolor = "background-color:red;"; $option_name = findtekst('3125|Kritisk', $sprog_id);}
 						if ($status==4) {$statcolor = "background-color:white;"; $option_name = "N/A";}
 					
 					$mail->Body .= '<tr>';
@@ -1606,7 +1609,7 @@ function emailKontrolskema() {
 				}
 			}
 			echo "-->";
-			if ($beskedSendtTil) print "<BODY onLoad=\"javascript:alert('Besked sendt til:\\n$beskedSendtTil')\">";
+			if ($beskedSendtTil) print "<BODY onLoad=\"javascript:alert('".findtekst('3173|Besked sendt til', $sprog_id).":\\n$beskedSendtTil')\">";
 			elseif ($errorTxt) echo "$errorTxt<br>";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/kontrol_sager.php?sag_id=$sag_id&amp;funktion=kontrolskema&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\">";
 		}
@@ -1679,12 +1682,12 @@ function emailKontrolskema() {
 	
 	print "<div id=\"breadcrumbbar\">
 			<ul id=\"breadcrumb\">
-				<li><a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+				<li><a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 				<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->
-				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"Sag: $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">Tilbage til sag $sagsnr</a></li>
-				<li><a href=\"kontrol_sager.php?funktion=kontrolliste&amp;sag_id=$sag_id\" title=\"Tilbage til kontrolskema-liste\">Kontrolskema</a></li>
-				<li><a href=\"kontrol_sager.php?funktion=kontrolskema&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"Tilbage til $tjekpunktnavn $opg_navn\">$tjekpunktnavn</a></li>\n";
-				print "<li>Mail kontrolskema</li>\n";
+				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"".findtekst('2792|Sag', $sprog_id).": $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">".findtekst('2813|Tilbage til sag', $sprog_id)." $sagsnr</a></li>
+				<li><a href=\"kontrol_sager.php?funktion=kontrolliste&amp;sag_id=$sag_id\" title=\"".findtekst('3191|Tilbage til kontrolskema-liste', $sprog_id)."\">".findtekst('3186|Kontrolskema', $sprog_id)."</a></li>
+				<li><a href=\"kontrol_sager.php?funktion=kontrolskema&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"".findtekst('30|Tilbage', $sprog_id)." ".lcfirst(findtekst('904|til', $sprog_id))." $tjekpunktnavn $opg_navn\">$tjekpunktnavn</a></li>\n"; #Tilbage til $tjekpunktnavn $opg_navn
+				print "<li>".findtekst('3198|Send kontrolskema (e-mail)', $sprog_id)."</li>\n";
 				print "
 			</ul>
 			
@@ -1725,12 +1728,12 @@ function emailKontrolskema() {
 	print "<table border=\"0\" cellspacing=\"0\" width=\"595\" class=\"tableMail\">\n";
 	print "<tbody>
 					<tr>
-						<td><p><b>Kunde:</b></p></td>
+						<td><p><b>".findtekst('35|Kunde', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr class=\"tableMailHead\">
-						<td><p><b>Navn</b></p></td>
-						<td><p><b>e-mail</b></p></td>
+						<td><p><b>".findtekst('138|Navn', $sprog_id)."</b></p></td>
+						<td><p><b>".findtekst('52|E-mail', $sprog_id)."</b></p></td>
 						<td>&nbsp;</td>
 					</tr>
 				</tbody>\n";
@@ -1740,7 +1743,7 @@ function emailKontrolskema() {
 					print "<tr>
 						<td><p>$f_navn[$x]</p></td>\n";
 						if (!$f_email[$x]) {
-						print "<td colspan=\"2\"><p><i>Der er ingen e-mail adresse</i></p></td>\n";
+						print "<td colspan=\"2\"><p><i>".findtekst('3168|Der er ingen e-mailadresse', $sprog_id)."</i></p></td>\n";
 						} else {
 						print "<td><p>$f_email[$x]</p></td>
 						<td><p><input type=\"checkbox\" name=\"mailvalg[$x]\" $checked></p></td>\n";
@@ -1752,19 +1755,19 @@ function emailKontrolskema() {
 	
 	print "<tbody>
 					<tr>
-						<td><p><b>Kundekontakter:</b></p></td>
+						<td><p><b>".findtekst('3166|Kundekontakter', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr class=\"tableMailHead\">
-						<td><p><b>Navn</b></p></td>
-						<td><p><b>e-mail</b></p></td>
+						<td><p><b>".findtekst('138|Navn', $sprog_id)."</b></p></td>
+						<td><p><b>".findtekst('52|E-mail', $sprog_id)."</b></p></td>
 						<td>&nbsp;</td>
 					</tr>
 				</tbody>\n";
 				
 	print "<tbody class=\"tableMailZebra\">\n";
 				if (!$a_navn) {
-					print "<tr><td colspan=\"3\"align=\"center\"><p><i>Der er ingen kontakter tilknyttet kunde</i></p></td></tr>\n";
+					print "<tr><td colspan=\"3\"align=\"center\"><p><i>".findtekst('3167|Der er ingen kontakter tilknyttet kunde', $sprog_id)."</i></p></td></tr>\n";
 				} else {
 					for ($x=count($f_navn);$x<count($f_navn)+count($a_navn);$x++) {
 						if (!$mailvalg[$x] && !$check && ($a_navn[$x] == $s_kontakt)) {
@@ -1783,7 +1786,7 @@ function emailKontrolskema() {
 						print "<tr>
 							<td><p>$a_navn[$x]</p></td>\n";
 							if (!$a_email[$x]) {
-							print "<td colspan=\"2\"><p><i>Der er ingen e-mail adresse</i></p></td>\n";
+							print "<td colspan=\"2\"><p><i>".findtekst('3168|Der er ingen e-mailadresse', $sprog_id)."</i></p></td>\n";
 							} else {
 							print "<td><p>$a_email[$x]&nbsp;</p></td>
 							<td><p><input type=\"checkbox\" name=\"mailvalg[$x]\" $checked><input type=\"hidden\" name=\"check\" value=\"$check\"></p></td>\n";
@@ -1797,25 +1800,25 @@ function emailKontrolskema() {
 	
 	print "<tbody>
 					<tr>
-						<td><p><b>Sagskontakter:</b></p></td>
+						<td><p><b>".findtekst('3199|Sagskontakter', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr class=\"tableMailHead\">
-						<td><p><b>Navn</b></p></td>
-						<td><p><b>e-mail</b></p></td>
+						<td><p><b>".findtekst('138|Navn', $sprog_id)."</b></p></td>
+						<td><p><b>".findtekst('52|E-mail', $sprog_id)."</b></p></td>
 						<td>&nbsp;</td>
 					</tr>
 				</tbody>\n";
 	
 	print "<tbody class=\"tableMailZebra\">\n";
 				if (!$k_navn) {
-					print "<tr><td colspan=\"3\"align=\"center\"><p><i>Der er ingen kontakter tilknyttet sagen</i></p></td></tr>\n";
+					print "<tr><td colspan=\"3\"align=\"center\"><p><i>".findtekst('3200|Der er ingen kontakter tilknyttet sagen', $sprog_id)."</i></p></td></tr>\n";
 				} else {
 					for ($x=count($f_navn)+count($a_navn);$x<count($f_navn)+count($a_navn)+count($k_navn);$x++) { 
 						print "<tr>
 							<td><p>$k_navn[$x]</p></td>\n";
 							if (!$k_email[$x]) {
-							print "<td colspan=\"2\"><p><i>Der er ingen e-mail adresse</i></p></td>\n";
+							print "<td colspan=\"2\"><p><i>".findtekst('3168|Der er ingen e-mailadresse', $sprog_id)."</i></p></td>\n";
 							} else {
 							print "<td><p>$k_email[$x]</p></td>
 							<td><p><input type=\"checkbox\" name=\"mailvalg[$x]\" ></p></td>\n";
@@ -1828,12 +1831,12 @@ function emailKontrolskema() {
 	
 	print "<tbody>
 					<tr>
-						<td><p><b>Kolleger:</b></p></td>
+						<td><p><b>".findtekst('3165|Kollegaer', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr class=\"tableMailHead\">
-						<td><p><b>Navn</b></p></td>
-						<td><p><b>e-mail</b></p></td>
+						<td><p><b>".findtekst('138|Navn', $sprog_id)."</b></p></td>
+						<td><p><b>".findtekst('52|E-mail', $sprog_id)."</b></p></td>
 						<td>&nbsp;</td>
 					</tr>
 				</tbody>\n";
@@ -1855,7 +1858,7 @@ function emailKontrolskema() {
 	
 	print "<tbody>
 					<tr>
-						<td><p><b>Indtast evt. email:</b></p></td>
+						<td><p><b>".findtekst('3201|Indtast evt. e-mail', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr>
@@ -1865,7 +1868,7 @@ function emailKontrolskema() {
 						<td colspan=\"3\">&nbsp;</td>
 					</tr>
 					<tr>
-						<td><p><b>Indtast evt. tekst:</b></p></td>
+						<td><p><b>".findtekst('3202|Indtast evt. tekst', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr>
@@ -1879,7 +1882,7 @@ function emailKontrolskema() {
 	
 	print "<tbody>
 					<tr>
-						<td colspan=\"3\"><input type=\"submit\" class=\"button blue medium\" name=\"mail\" value=\"Send mail\"></td>
+						<td colspan=\"3\"><input type=\"submit\" class=\"button blue medium\" name=\"mail\" value=\"".findtekst('2310|Send', $sprog_id)." ".lcfirst(findtekst('52|E-mail', $sprog_id))."\"></td> #Send e-mail
 					</tr>
 				</tbody>
 				</table>\n";
@@ -1891,8 +1894,8 @@ function emailKontrolskema() {
 
 function emailArbejdsseddel() {
 
-
-global $db;
+	global $db;
+	global $sprog_id;
 
 	$sag_id=if_isset($_GET['sag_id']);
 	$sag_fase=if_isset($_GET['sag_fase']);
@@ -1970,7 +1973,7 @@ global $db;
 	$tjekpunktnavn=$r['tjekpunkt'];
 	
 	// Hvis der er en opgavebeskrivelse sættes den i en variable
-	($opg_beskrivelse)?$opgavebeskrivelse="<tr><td colspan=\"2\" style=\"vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;\"><span><b>Opgave beskrivelse:</b></span></td><td colspan=\"4\" style=\"border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;\"><span><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></span></td></tr>":$opgavebeskrivelse=NULL;
+	($opg_beskrivelse)?$opgavebeskrivelse="<tr><td colspan=\"2\" style=\"vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;\"><span><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></span></td><td colspan=\"4\" style=\"border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;\"><span><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></span></td></tr>":$opgavebeskrivelse=NULL;
 	
 	// Body-tekst til mail
 	$mailtext = '
@@ -1978,7 +1981,7 @@ global $db;
 	<html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-		<title>Kontrolskema</title>
+		<title>'.findtekst('3186|Kontrolskema', $sprog_id).'</title>
 		<style type="text/css">
 		*
 		{
@@ -2051,37 +2054,37 @@ global $db;
   </tbody>
   <tbody>
 		<tr>
-			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Udføres dato:&nbsp;</b>'.$udf_dato.'</span></td>
-			<td colspan="2" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Sagsnr:&nbsp;</b>'.$sagsnr.'</span></td>
+			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3132|Udførelsesdato', $sprog_id).':&nbsp;</b>'.$udf_dato.'</span></td>
+			<td colspan="2" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('2819|Sagsnr.', $sprog_id).'&nbsp;</b>'.$sagsnr.'</span></td>
 		</tr>
 		<tr>
-			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Opstillingsadresse:</b></span><br><span>'.$udf_addr1.', '.$udf_postnr.' '.$udf_bynavn.'</span></td>
-			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Kunde:</b></span><br><span>'.$sag_firmanavn.'</span></td>
-			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>kontakt:</b></span><br><span>'.$sag_kontakt.'&nbsp;</span></td>
+			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('2820|Opstillingsadresse', $sprog_id).':</b></span><br><span>'.$udf_addr1.', '.$udf_postnr.' '.$udf_bynavn.'</span></td>
+			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('35|Kunde', $sprog_id).':</b></span><br><span>'.$sag_firmanavn.'</span></td>
+			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('398|Kontakt', $sprog_id).':</b></span><br><span>'.$sag_kontakt.'&nbsp;</span></td>
 		</tr>
 		<tr>
-			<td colspan="4" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Sjak:</b></span><br><span>'.$sjak.'</span></td>
-			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Konduktør:&nbsp;</b></span><br><span>'.$hvem.'</span></td>
+			<td colspan="4" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3123|Sjak', $sprog_id).':</b></span><br><span>'.$sjak.'</span></td>
+			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3133|Konduktør', $sprog_id).':&nbsp;</b></span><br><span>'.$hvem.'</span></td>
 		</tr>
 		'.$opgavebeskrivelse.'
 	';
 	
 	$mailTableBottom = '
 		<tr>
-			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Manuel Transport:</b></span></td>
-			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.$man_trans.'</span><span>&nbsp;Gange (hvis mere end forventet skal der ringes til ansvarlig kondukt&oslash;r)</span></td>
+			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3135|Manuel transport', $sprog_id).':</b></span></td>
+			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.$man_trans.'</span><span>&nbsp;'.findtekst('3138|Gange', $sprog_id).' ('.lcfirst(findtekst('3139|Hvis mere end forventet, skal der ringes til ansvarlig konduktør', $sprog_id)).')</span></td>
 		</tr>
 		<tr>
-			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Stillads til:<br>(Evt. Tegning)</b></span></td>
+			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3137|Stillads til', $sprog_id).':<br>('.findtekst('3143|Evt. tegning', $sprog_id).')</b></span></td>
 			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.$stillads_til.'</span></td>
 		</tr>
 		<tr>
-			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Generalt for sagen:</b></span></td>
+			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('2916|Generelt for sagen', $sprog_id).':</b></span></td>
 			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><i><b>'.$sag_omfang.'</b></i></span></td>
 		</tr>
 		<tr>
-			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Husk hver dag at:</b></span></td>
-			<td colspan="4" style="text-align:center;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Kontrollere bilen for fejl/mangler.</b></span><br><span><b>Kontrollere eget udstyr og v&aelig;rkt&oslash;j.</b></span></td>
+			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3140|Husk hver dag at', $sprog_id).':</b></span></td>
+			<td colspan="4" style="text-align:center;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.findtekst('3141|Kontrollere bilen for fejl/mangler', $sprog_id).'.</b></span><br><span><b>'.findtekst('3142|Kontrollere eget udstyr og værktøj', $sprog_id).'.</b></span></td>
 		</tr>
 	</tbody>
 	</table>
@@ -2108,7 +2111,7 @@ global $db;
 		foreach ($email_list as $mail) {
 			if (!filter_var($mail, FILTER_VALIDATE_EMAIL)) {
 				$mail_fejl = "1";
-				$error_message = $mail."\\n\\nEr ikke en gyldig email adresse";
+				$error_message = $mail."\\n\\n".findtekst('3169|Er ikke en gyldig e-mailadresse', $sprog_id);
 				print "<BODY onLoad=\"javascript:alert('$error_message')\">";
 			}
 		}
@@ -2127,7 +2130,7 @@ global $db;
 		$smtp = 'localhost';
 		$from = $afsendernavn.'<mailer.'.$db.'@saldi.dk>';
 		$replyto = $afsendernavn.'<'.$afsendermail.'>';
-		$beskrivelse = $tjekpunktnavn.' Vedr.: '.$udf_addr1.', '.$udf_postnr.' '.$udf_bynavn;
+		$beskrivelse = $tjekpunktnavn.' '.findtekst('3195|Vedr.', $sprog_id).': '.$udf_addr1.', '.$udf_postnr.' '.$udf_bynavn;
 		/*
 		if ($mail_fejl == "0") {
 			$headers='From: ' . $from . "\r\n";
@@ -2250,7 +2253,7 @@ global $db;
 				for ($i=0;$i<count($emails);$i++) {
 					$beskedSendtTil.=$emails[$i].'\\n';
 				}
-				print "<BODY onLoad=\"javascript:alert('Besked sendt til:\\n$beskedSendtTil')\">";
+				print "<BODY onLoad=\"javascript:alert('".findtekst('3173|Besked sendt til', $sprog_id).":\\n$beskedSendtTil')\">";
 			}
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/kontrol_sager.php?sag_id=$sag_id&amp;funktion=arbejdsseddel&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\">";
 		}
@@ -2288,6 +2291,8 @@ global $db;
 		
 	// Finder kundes navn og email (da $x skal starte efter firmanavn findes $x ved at counte antal firmanavn)
 		$x=count($f_navn);
+		$a_navn  = array();
+		$a_email = array();
 		$q=db_select("select navn,email from ansatte where konto_id = '$konto_id'",__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$a_navn[$x]=$r['navn'];
@@ -2297,6 +2302,8 @@ global $db;
 		
 	 // Kontaktpersoner til sagen
 		$x=count($f_navn)+count($a_navn);
+		$k_navn  = array();
+		$k_email = array();
 		$q=db_select("select navn,email from ansatte where sag_id = '$sag_id' order by posnr",__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$k_navn[$x]=$r['navn'];
@@ -2321,12 +2328,12 @@ global $db;
 	
 	print "<div id=\"breadcrumbbar\">
 			<ul id=\"breadcrumb\">
-				<li><a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+				<li><a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 				<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->
-				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"Sag: $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">Tilbage til sag $sagsnr</a></li>
-				<li><a href=\"kontrol_sager.php?funktion=kontrolliste&amp;sag_id=$sag_id\" title=\"Tilbage til kontrolskema-liste\">Kontrolskema</a></li>
-				<li><a href=\"kontrol_sager.php?funktion=arbejdsseddel&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"Tilbage til $tjekpunktnavn $opg_navn\">$tjekpunktnavn</a></li>\n";
-				print "<li>Mail arbejdsseddel</li>\n";
+				<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\" title=\"".findtekst('2792|Sag', $sprog_id).": $sagsnr, $sag_beskrivelse, $udf_addr1, $udf_postnr $udf_bynavn\">".findtekst('2813|Tilbage til sag', $sprog_id)." $sagsnr</a></li>
+				<li><a href=\"kontrol_sager.php?funktion=kontrolliste&amp;sag_id=$sag_id\" title=\"".findtekst('3191|Tilbage til kontrolskema-liste', $sprog_id)."\">".findtekst('3186|Kontrolskema', $sprog_id)."</a></li>
+				<li><a href=\"kontrol_sager.php?funktion=arbejdsseddel&amp;sag_id=$sag_id&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\" title=\"".findtekst('30|Tilbage', $sprog_id)." ".lcfirst(findtekst('904|til', $sprog_id))." $tjekpunktnavn $opg_navn\">$tjekpunktnavn</a></li>\n"; #Tilbage til $tjekpunktnavn $opg_navn
+				print "<li>".findtekst('3197|Send arbejdsseddel (e-mail)', $sprog_id)."</li>\n";
 				print "
 			</ul>
 			
@@ -2367,12 +2374,12 @@ global $db;
 	print "<table border=\"0\" cellspacing=\"0\" width=\"595\" class=\"tableMail\">\n";
 	print "<tbody>
 					<tr>
-						<td><p><b>Kunde:</b></p></td>
+						<td><p><b>".findtekst('35|Kunde', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr class=\"tableMailHead\">
-						<td><p><b>Navn</b></p></td>
-						<td><p><b>e-mail</b></p></td>
+						<td><p><b>".findtekst('138|Navn', $sprog_id)."</b></p></td>
+						<td><p><b>".findtekst('52|E-mail', $sprog_id)."</b></p></td>
 						<td>&nbsp;</td>
 					</tr>
 				</tbody>\n";
@@ -2382,7 +2389,7 @@ global $db;
 					print "<tr>
 						<td><p>$f_navn[$x]</p></td>\n";
 						if (!$f_email[$x]) {
-						print "<td colspan=\"2\"><p><i>Der er ingen e-mail adresse</i></p></td>\n";
+						print "<td colspan=\"2\"><p><i>".findtekst('3168|Der er ingen e-mailadresse', $sprog_id)."</i></p></td>\n";
 						} else {
 						print "<td><p>$f_email[$x]</p></td>
 						<td><p><input type=\"checkbox\" name=\"mailvalg[$x]\" $checked></p></td>\n";
@@ -2394,19 +2401,19 @@ global $db;
 	
 	print "<tbody>
 					<tr>
-						<td><p><b>Kundekontakter:</b></p></td>
+						<td><p><b>".findtekst('3166|Kundekontakter', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr class=\"tableMailHead\">
-						<td><p><b>Navn</b></p></td>
-						<td><p><b>e-mail</b></p></td>
+						<td><p><b>".findtekst('138|Navn', $sprog_id)."</b></p></td>
+						<td><p><b>".findtekst('52|E-mail', $sprog_id)."</b></p></td>
 						<td>&nbsp;</td>
 					</tr>
 				</tbody>\n";
 				
 	print "<tbody class=\"tableMailZebra\">\n";
 				if (!$a_navn) {
-					print "<tr><td colspan=\"3\"align=\"center\"><p><i>Der er ingen kontakter tilknyttet kunde</i></p></td></tr>\n";
+					print "<tr><td colspan=\"3\"align=\"center\"><p><i>".findtekst('3167|Der er ingen kontakter tilknyttet kunde', $sprog_id)."</i></p></td></tr>\n";
 				} else {
 					for ($x=count($f_navn);$x<count($f_navn)+count($a_navn);$x++) {
 						if (!$mailvalg[$x] && !$check && ($a_navn[$x] == $s_kontakt)) {
@@ -2424,7 +2431,7 @@ global $db;
 						print "<tr>
 							<td><p>$a_navn[$x]</p></td>\n";
 							if (!$a_email[$x]) {
-							print "<td colspan=\"2\"><p><i>Der er ingen e-mail adresse</i></p></td>\n";
+							print "<td colspan=\"2\"><p><i>".findtekst('3168|Der er ingen e-mailadresse', $sprog_id)."</i></p></td>\n";
 							} else {
 							print "<td><p>$a_email[$x]&nbsp;</p></td>
 							<td><p><input type=\"checkbox\" name=\"mailvalg[$x]\" $checked><input type=\"hidden\" name=\"check\" value=\"$check\"></p></td>\n";
@@ -2437,25 +2444,25 @@ global $db;
 	
 	print "<tbody>
 					<tr>
-						<td><p><b>Sagskontakter:</b></p></td>
+						<td><p><b>".findtekst('3199|Sagskontakter', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr class=\"tableMailHead\">
-						<td><p><b>Navn</b></p></td>
-						<td><p><b>e-mail</b></p></td>
+						<td><p><b>".findtekst('138|Navn', $sprog_id)."</b></p></td>
+						<td><p><b>".findtekst('52|E-mail', $sprog_id)."</b></p></td>
 						<td>&nbsp;</td>
 					</tr>
 				</tbody>\n";
 	
 	print "<tbody class=\"tableMailZebra\">\n";
 				if (!$k_navn) {
-					print "<tr><td colspan=\"3\"align=\"center\"><p><i>Der er ingen kontakter tilknyttet sagen</i></p></td></tr>\n";
+					print "<tr><td colspan=\"3\"align=\"center\"><p><i>".findtekst('3200|Der er ingen kontakter tilknyttet sagen', $sprog_id)."</i></p></td></tr>\n";
 				} else {
 					for ($x=count($f_navn)+count($a_navn);$x<count($f_navn)+count($a_navn)+count($k_navn);$x++) { 
 						print "<tr>
 							<td><p>$k_navn[$x]</p></td>\n";
 							if (!$k_email[$x]) {
-							print "<td colspan=\"2\"><p><i>Der er ingen e-mail adresse</i></p></td>\n";
+							print "<td colspan=\"2\"><p><i>".findtekst('3168|Der er ingen e-mailadresse', $sprog_id)."</i></p></td>\n";
 							} else {
 							print "<td><p>$k_email[$x]</p></td>
 							<td><p><input type=\"checkbox\" name=\"mailvalg[$x]\" ></p></td>\n";
@@ -2468,12 +2475,12 @@ global $db;
 	
 	print "<tbody>
 					<tr>
-						<td><p><b>Kolleger:</b></p></td>
+						<td><p><b>".findtekst('3165|Kollegaer', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr class=\"tableMailHead\">
-						<td><p><b>Navn</b></p></td>
-						<td><p><b>e-mail</b></p></td>
+						<td><p><b>".findtekst('138|Navn', $sprog_id)."</b></p></td>
+						<td><p><b>".findtekst('52|E-mail', $sprog_id)."</b></p></td>
 						<td>&nbsp;</td>
 					</tr>
 				</tbody>\n";
@@ -2495,7 +2502,7 @@ global $db;
 	
 	print "<tbody>
 					<tr>
-						<td><p><b>Indtast evt. email:</b></p></td>
+						<td><p><b>".findtekst('3201|Indtast evt. e-mail', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr>
@@ -2505,7 +2512,7 @@ global $db;
 						<td colspan=\"3\">&nbsp;</td>
 					</tr>
 					<tr>
-						<td><p><b>Indtast evt. tekst:</b></p></td>
+						<td><p><b>".findtekst('3202|Indtast evt. tekst', $sprog_id).":</b></p></td>
 						<td colspan=\"2\">&nbsp;</td>
 					</tr>
 					<tr>
@@ -2519,7 +2526,7 @@ global $db;
 	
 	print "<tbody>
 					<tr>
-						<td colspan=\"3\"><input type=\"submit\" class=\"button blue medium\" name=\"mail\" value=\"Send mail\"></td>
+						<td colspan=\"3\"><input type=\"submit\" class=\"button blue medium\" name=\"mail\" value=\"".findtekst('2310|Send', $sprog_id)." ".lcfirst(findtekst('52|E-mail', $sprog_id))."\"></td> #Send e-mail
 					</tr>
 				</tbody>
 				</table>\n";

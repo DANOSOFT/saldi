@@ -1,32 +1,31 @@
 <?php
-// ------- includes/fuld_stykliste.php lap 3.2.9 ------2012-06-20-----------
-// LICENS
+// --- includes/fuld_stykliste.php lap 4.1.1 --- 2025-09-25 ---
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
-// 
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2004-2025 saldi.dk aps
 // ----------------------------------------------------------------------
+// 2025.09-25 PHR PHP8
 
 if (!function_exists('fuld_stykliste')) {
 	function fuld_stykliste($id, $udskriv, $udvalg) {
-	GLOBAL $charset;
+	global $charset;
 
 	$x=0;
-	$query = db_select("select * from styklister where indgaar_i='$id' order by posnr",__FILE__ . " linje " . __LINE__);
+	$qtxt = "select * from styklister where indgaar_i='$id' order by posnr";
+	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		$x++;
 		$vare_id[$x]=$row['vare_id'];
@@ -82,7 +81,7 @@ if (!function_exists('fuld_stykliste')) {
 		$row = db_fetch_array($query);
 		$varenr[$a]=htmlentities(stripslashes($row['varenr']),ENT_COMPAT,$charset);
 		$beskrivelse[$a]=htmlentities(stripslashes($row['beskrivelse']),ENT_COMPAT,$charset);
-		if ($row[samlevare]!='on') {
+		if ($row['samlevare']!='on') {
 			$sum=$row['kostpris']*$v_antal[$a];
 			$ialt=$ialt+$sum;
 			$x++;

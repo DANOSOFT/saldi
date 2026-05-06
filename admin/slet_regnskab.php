@@ -34,7 +34,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 if ($db != $sqdb) {
-	print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at g&oslash;re her! Dit IP nummer, brugernavn og regnskab er registreret!')\">";
+	print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
 	exit;
 }
@@ -62,9 +62,9 @@ if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 
 <table width="100%" height="100%" border="0" cellspacing="0" cellpadding="0"><tbody>
 	<tr><td align="center" valign="top" height="25">
 		<table width="100%" align="center" border="0" cellspacing="2" cellpadding="0"><tbody>
-			<td width="10%" <?php echo $top_bund ?>><a href=../index/admin_menu.php accesskey=L>Luk</a></td>
-			<td width="80%" <?php echo $top_bund ?> align="center">Slet regnskab</td>
-			<td width="10%" <?php echo $top_bund ?> align = "right"><br></td>
+			<td width="10%" <?php echo $top_bund?>><a href=../index/admin_menu.php accesskey=L><?php echo findtekst('2172|Luk', $sprog_id)?></a></td>
+			<td width="80%" <?php echo $top_bund?> align="center"><?php echo findtekst('341|Slet regnskab', $sprog_id)?></td>
+			<td width="10%" <?php echo $top_bund?> align = "right"><br></td>
 		</tbody></table>
 	</td></tr>
 <td align = center valign = center>
@@ -102,12 +102,12 @@ if ($_POST['regnskabsantal']) {
 					fclose($fp);
 					if ($db_type=='mysql') system ("mysqldump -h $sqhost -u $squser --password=$sqpass -n $db_navn[$x] > $dump_filnavn");
 					else system ("export PGPASSWORD=$sqpass\npg_dump -h $sqhost -U $squser -f $dump_filnavn $db_navn[$x]");
-#					system("export PGPASSWORD=$sqpass\npg_dump -h $sqhost -U $squser -f $dump_filnavn $db_navn[$x]");
+					//system("export PGPASSWORD=$sqpass\npg_dump -h $sqhost -U $squser -f $dump_filnavn $db_navn[$x]");
 					system ("cd $mappe\ntar -pzcf $tgz_filnavn $db_navn[$x]\nmv $tgz_filnavn $dat_filnavn\nrm -r $tmpmappe");
 					if (file_exists("$mappe/$dat_filnavn")) {
-# 						print "Sletter regnskab: $regnskab[$x]<br>";
+ 						//print "Sletter regnskab: $regnskab[$x]<br>";
 						
-					if ($r=db_fetch_array(db_select("select id from kundedata where regnskab_id='$id[$x]'",__FILE__ . " linje " . __LINE__))) {
+						if ($r=db_fetch_array(db_select("select id from kundedata where regnskab_id='$id[$x]'",__FILE__ . " linje " . __LINE__))) {
 							$qtxt="update kundedata set slettet='on' where id='$r[id]'";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
 						} else {
@@ -119,7 +119,7 @@ if ($_POST['regnskabsantal']) {
 						$qtxt="DROP DATABASE IF EXISTS $db_navn[$x]";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$slettet_regnskab=$regnskab[$x];
-					} else "print Backupfejl - $regnskab[$x] ikke slettet";
+					} else print "Backupfejl - $regnskab[$x] ikke slettet";
 				}
 			}	
 		}
@@ -148,7 +148,7 @@ print "<tr><td colspan=3>F&oslash;lgende regnskaber er markeret som lukket</td><
 print "<form name=slet_regnskab action=slet_regnskab.php method=post>";
 for ($x=1; $x<=$regnskabsantal; $x++) {
 	print "<tr>";
-#	print "<td>X $x</td>";
+	//print "<td>X $x</td>";
 	print "<input type=\"hidden\" name=id[$x] value=\"$id[$x]\">";
 	print "<input type=\"hidden\" name=db_navn[$x] value=\"$db_navn[$x]\">";
 	print "<input type=\"hidden\" name=regnskab[$x] value=\"$regnskab[$x]\">";

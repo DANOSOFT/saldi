@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.05.26 ---
+// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -93,7 +93,11 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250513 Sawaneh add max user update in kontoindstillinger()
 // 20250526 PHR 'nyt_navn' changed to 'newName' 
-
+// 20250911 LOE modified text 3023 to 2324
+// 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
+// 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address UI
+// 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
+// 20260420 NTR SST-578 Fixed QRcode always fetching kasse 2, instead of it's intended kasse
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -725,6 +729,7 @@ function div_valg() {
 	$gls_id = $gls_pass = $gls_user = $gls_ctId = NULL; #20211019 $gls_ctId added
 	$dfm_id = $dfm_pass = $dfm_user = $dfm_agree = $dfm_hub = $dfm_ship = $dfm_good = $dfm_pay = $dfm_url = $dfm_gooddes = $dfm_sercode = NULL;
 	$dfm_pickup_addr = $dfm_pickup_name1 = $dfm_pickup_name2 = $dfm_pickup_street1 = $dfm_pickup_street2 = $dfm_pickup_town = $dfm_pickup_zipcode = NULL;
+	$dfm_pickup_addresses = array(); // Array to hold multiple pickup addresses
 	$gruppevalg = $jobkort = $kort = $kuansvalg = $ref = $kua = $smart = $debtor2orderphone = NULL;
 	$qp_merchant = $qp_md5secret = $qp_agreement_id = $qp_itemGrp = NULL;
 	$payment_days = NULL;
@@ -754,7 +759,7 @@ function div_valg() {
 	// if ($box8) $ebconnect = "checked";
 	if ($box8 == 'on') $payment_days = "checked";
 	if ($box9 == 'on') $ledig = "checked"; # ledig
-	if ($box10 == 'on') $betalingsliste = "checked";
+#	if ($box10 == 'on') $betalingsliste = "checked";
 	$paymentDays = get_settings_value("paymentDays", "payment", "");
 
 	$r = db_fetch_array(db_select("select box1,box3 from grupper where art = 'PV' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
@@ -768,7 +773,66 @@ function div_valg() {
 		if ($r['var_name'] == 'gls_user') $gls_user = $r['var_value'];
 		if ($r['var_name'] == 'gls_pass') $gls_pass = $r['var_value'];
 		if ($r['var_name'] == 'gls_ctId') $gls_ctId = $r['var_value'];
+		if ($r['var_name'] == 'dfm_id')             $dfm_id             = $r['var_value'];
+		if ($r['var_name'] == 'dfm_user')           $dfm_user           = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pass')           $dfm_pass           = $r['var_value'];
+		if ($r['var_name'] == 'dfm_agree')          $dfm_agree          = $r['var_value'];
+		if ($r['var_name'] == 'dfm_hub')            $dfm_hub            = $r['var_value'];
+		if ($r['var_name'] == 'dfm_ship')           $dfm_ship           = $r['var_value'];
+		if ($r['var_name'] == 'dfm_good')           $dfm_good           = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pay')            $dfm_pay            = $r['var_value'];
+		if ($r['var_name'] == 'dfm_url')            $dfm_url            = $r['var_value'];
+		if ($r['var_name'] == 'dfm_gooddes')        $dfm_gooddes        = $r['var_value'];
+		if ($r['var_name'] == 'dfm_sercode')        $dfm_sercode        = $r['var_value'];
 	}
+	
+	// Fetch multiple pickup addresses grouped by group_id
+	$qtxt = "select group_id, var_name, var_value from settings where var_grp='DFM_Pickup' order by group_id, var_name";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$gid = $r['group_id'] ?: 0;
+		if (!isset($dfm_pickup_addresses[$gid])) {
+			$dfm_pickup_addresses[$gid] = array(
+				'addr' => '', 'name1' => '', 'name2' => '', 
+				'street1' => '', 'street2' => '', 'town' => '', 'zipcode' => '',
+				'buttonname' => '',
+				'dfm_id' => '', 'dfm_user' => '', 'dfm_pass' => '',
+				'dfm_agree' => '', 'dfm_hub' => '', 'dfm_ship' => '',
+				'dfm_good' => '', 'dfm_pay' => '', 'dfm_sercode' => '',
+				'dfm_url' => '', 'dfm_gooddes' => ''
+			);
+		}
+		$field = str_replace('dfm_pickup_', '', $r['var_name']);
+		if (isset($dfm_pickup_addresses[$gid][$field])) {
+			$dfm_pickup_addresses[$gid][$field] = $r['var_value'];
+		}
+	}
+	
+	// For backwards compatibility, also check old-style storage (single pickup in GLS group)
+	$qtxt = "select var_name,var_value from settings where var_grp='GLS' and var_name like 'dfm_pickup_%'";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$has_old_style = false;
+	while ($r = db_fetch_array($q)) {
+		$has_old_style = true;
+		if ($r['var_name'] == 'dfm_pickup_addr')    $dfm_pickup_addr    = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_name1')   $dfm_pickup_name1   = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_name2')   $dfm_pickup_name2   = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_street1') $dfm_pickup_street1 = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_street2') $dfm_pickup_street2 = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_town')    $dfm_pickup_town    = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_zipcode') $dfm_pickup_zipcode = $r['var_value'];
+	}
+
+	// If we have old-style data but no new-style, add it to the array
+	if ($has_old_style && empty($dfm_pickup_addresses) && $dfm_pickup_addr) {
+		$dfm_pickup_addresses[0] = array(
+			'addr' => $dfm_pickup_addr, 'name1' => $dfm_pickup_name1, 'name2' => $dfm_pickup_name2,
+			'street1' => $dfm_pickup_street1, 'street2' => $dfm_pickup_street2, 
+			'town' => $dfm_pickup_town, 'zipcode' => $dfm_pickup_zipcode,
+			'buttonname' => ''
+		);
+	}
+	
 	$qtxt = "select var_name,var_value from settings where var_grp='DanskeFragt'";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -783,13 +847,6 @@ function div_valg() {
 		if ($r['var_name'] == 'dfm_url')            $dfm_url            = $r['var_value'];
 		if ($r['var_name'] == 'dfm_gooddes')        $dfm_gooddes        = $r['var_value'];
 		if ($r['var_name'] == 'dfm_sercode')        $dfm_sercode        = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_addr')    $dfm_pickup_addr    = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_name1')   $dfm_pickup_name1   = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_name2')   $dfm_pickup_name2   = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_street1') $dfm_pickup_street1 = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_street2') $dfm_pickup_street2 = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_town')    $dfm_pickup_town    = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_zipcode') $dfm_pickup_zipcode = $r['var_value'];
 	}
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
@@ -835,7 +892,7 @@ function div_valg() {
 
 	$labelsize = get_settings_value("labelsize", "mysale", 22);
 
-	print "<form name='diverse' action='diverse.php?sektion=div_valg' method='post'>\n";
+	print "<form name='diverse' id='diverse' action='diverse.php?sektion=div_valg' method='post'>\n";
 	print "<tr style='background-color:$bgcolor5'><td colspan='6'><b>".findtekst('794|Diverse valg', $sprog_id)."</b></td></tr>\n";
 	print "<tr><td colspan='2'>&nbsp;</td></tr>\n";
 	print "<input name='id' type='hidden' value='$id'>\n";
@@ -857,7 +914,17 @@ function div_valg() {
 	print "<tr>\n<td title='".findtekst('185|Betalingslister giver mulighed for at overføre betalinger til bank via ERH (bankernes erhvervsformater). Hvis dette felt er afmærket', $sprog_id)."'>".findtekst('184|Brug betalingslister', $sprog_id)."</td>\n";
 	print "<td title='".findtekst('185|Betalingslister giver mulighed for at overføre betalinger til bank via ERH (bankernes erhvervsformater). Hvis dette felt er afmærket', $sprog_id)."'>\n";
 	print "<!-- 184 : Brug betalingslister -->";
-	print "<input name='box10' class='inputbox' type='checkbox' $betalingsliste>\n";
+	print "<select name='box10' class='inputbox'>\n";
+	if ($box10 == '') print "<option value = ''></option>";
+	if ($box10 == 'B') print "<option value = 'B'>Begge</option>";
+	if ($box10 == 'D') print "<option value = 'D'>Debitorer</option>";
+	if ($box10 == 'K') print "<option value = 'K'>Kreditorer</option>";
+	if ($box10 != '') print "<option value = ''></option>";
+	if ($box10 != 'B') print "<option value = 'B'>Begge</option>";
+	if ($box10 != 'D') print "<option value = 'D'>Debitorer</option>";
+	if ($box10 != 'K') print "<option value = 'K'>Kreditorer</option>";
+	print "</select>";
+#	print "<input name='box10' class='inputbox' type='checkbox' $betalingsliste>\n";
 	print "</td></tr>\n";
 	print "<tr>\n<td title='".findtekst('1061|Når en ordre oprettes flyttes debitors kontonummer over på ordren, hvis der ikke er angivet et telefonnummer på debitorkortet. Kan dog rettes på ordren efterfølgende.', $sprog_id)."'>".findtekst('1060|Benyt debitors kontonummer som telefonnumer på ordre', $sprog_id)."</td>\n";
 	print "<td title='".findtekst('1061|Når en ordre oprettes flyttes debitors kontonummer over på ordren, hvis der ikke er angivet et telefonnummer på debitorkortet. Kan dog rettes på ordren efterfølgende.', $sprog_id)."'>\n";
@@ -1006,9 +1073,9 @@ function div_valg() {
 		print "<!-- 1022 Hub -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_hub' class='inputbox' style='width:150px;' type='text' value='$dfm_hub'></td>\n</tr>\n";
-		$txt = findtekst('1020|Danske Fragtmænd aftalenummer', $sprog_id);
-		$title = findtekst('1031|URL for den API-server som skal benyttes til Danske Fragtmænd. Skal starte med https:// eller https:// og slutte uden skråstreg.', $sprog_id);
-		print "<!-- 1020 API-URL -->";
+		$txt = findtekst('3129|API URL', $sprog_id);
+		$title = findtekst('3130|URL for den API-server som skal benyttes til Danske Fragtmænd. Skal starte med https:// og slutte uden skråstreg.', $sprog_id);
+		print "<!-- 3129 API-URL -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_url' class='inputbox' style='width:150px;' type='text' value='$dfm_url'></td>\n</tr>\n";
 		$txt = findtekst('1014|ClientID til API', $sprog_id);
@@ -1052,53 +1119,155 @@ function div_valg() {
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_sercode' class='inputbox' style='width:150px;' type='text' value='$dfm_sercode'></td>\n</tr>\n";
 
+		// Multiple pickup addresses section
 		$txt = findtekst('1043|Afhentningsadresse er en anden end hovedadressen', $sprog_id);
 		$title = findtekst('1044|Markeres hvis der skal hentes gods fra en anden adresse end hovedadressen.', $sprog_id);
-		print "<!-- 1043 Afhentningsadresse er en anden end hovedadressen -->";
-		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
-
-		if ($dfm_pickup_addr) {
-			print "<td><input type='checkbox' name='dfm_pickup_addr' class='inputbox' checked value='dfm_pickup_addr'></td>\n</tr>\n";
-			$txt = findtekst('360|Firmanavn', $sprog_id);
-			$title = findtekst('1046|Angiv navnet på det firma eller privatperson, der skal gods hentes fra.', $sprog_id);
-			print "<!-- 360 Firmanavn -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_name1' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_name1'></td>\n</tr>\n";
-			$txt = findtekst('1047|Eventuelt ekstra navn', $sprog_id);
-			$title = findtekst('1048|Angiv hvis der er et ekstra navn eller undernavn til afhentningsted fx c/o ...', $sprog_id);
-			print "<!-- 1047 Eventuelt ekstra navn -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_name2' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_name2'></td>\n</tr>\n";
-			$txt = findtekst('361|Adresse', $sprog_id);
-			$title = findtekst('1050|Angiv vejnavn, husnummer, etage m.v.', $sprog_id);
-			print "<!-- 361 Adresse -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_street1' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_street1'></td>\n</tr>\n";
-			$txt = findtekst('1051|Eventuelt ekstra adresselinje', $sprog_id);
-			$title = findtekst('1052|Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.', $sprog_id);
-			print "<!-- 1051 Eventuel ekstra adresselinje -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_street2' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_street2'></td>\n</tr>\n";
-			$txt = findtekst('1053|Postnummer', $sprog_id);
-			$title = findtekst('1054|Angiv postnummeret for afhentningstedet', $sprog_id);
-			print "<!-- 1053 Postnummer -->";
-			print "<tr bgcolor='$bgcolor5'><td title='$title'>--- $txt</td><td title='$title'>";
-			print "<input name='dfm_pickup_zipcode' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_zipcode'>";
-			print "</td>\n</tr>\n";
-			$txt = findtekst('1055|By', $sprog_id);
-			$title = findtekst('1056|Angiv bynavn eller postdistrikt for afhentningsstedet', $sprog_id);
-			print "<!-- 1055 Bynavn -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_town' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_town'></td>\n</tr>\n";
-		} else {
-			print "<td><input type=\"checkbox\" name=\"dfm_pickup_addr\" value=\"DayP\"></td>\n</tr>\n";
-			print "<input name='dfm_pickup_name1' type='hidden' value='$dfm_pickup_name1'>\n";
-			print "<input name='dfm_pickup_name2' type='hidden' value='$dfm_pickup_name2'>\n";
-			print "<input name='dfm_pickup_street1' type='hidden' value='$dfm_pickup_street1'>\n";
-			print "<input name='dfm_pickup_street2' type='hidden' value='$dfm_pickup_street2'>\n";
-			print "<input name='dfm_pickup_zipcode' type='hidden' value='$dfm_pickup_zipcode'>\n";
-			print "<input name='dfm_pickup_town' type='hidden' value='$dfm_pickup_town'>\n";
+		print "<!-- 1043 Multiple Afhentningsadresser -->";
+		print "<tr bgcolor='$bgcolor5'>\n<td colspan='2'><strong>- $txt</strong></td>\n</tr>\n";
+		
+		print "<tr><td colspan='2'>\n";
+		print "<div id='dfm_pickup_container'>\n";
+		
+		// Text translations for JS
+		$txt_firmanavn = findtekst('360|Firmanavn', $sprog_id);
+		$title_firmanavn = findtekst('1046|Angiv navnet på det firma eller privatperson, der skal gods hentes fra.', $sprog_id);
+		$txt_ekstra_navn = findtekst('1047|Eventuelt ekstra navn', $sprog_id);
+		$title_ekstra_navn = findtekst('1048|Angiv hvis der er et ekstra navn eller undernavn til afhentningsted fx c/o ...', $sprog_id);
+		$txt_adresse = findtekst('361|Adresse', $sprog_id);
+		$title_adresse = findtekst('1050|Angiv vejnavn, husnummer, etage m.v.', $sprog_id);
+		$txt_ekstra_addr = findtekst('1051|Eventuelt ekstra adresselinje', $sprog_id);
+		$title_ekstra_addr = findtekst('1052|Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.', $sprog_id);
+		$txt_postnr = findtekst('1053|Postnummer', $sprog_id);
+		$title_postnr = findtekst('1054|Angiv postnummeret for afhentningstedet', $sprog_id);
+		$txt_by = findtekst('1055|By', $sprog_id);
+		$title_by = findtekst('1056|Angiv bynavn eller postdistrikt for afhentningsstedet', $sprog_id);
+		$txt_knap_navn = findtekst('3127|Knap navn', $sprog_id);
+		$title_knap_navn = findtekst('3128|Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.', $sprog_id);
+		$txt_slet = 'Slet';
+		
+		// Display existing pickup addresses
+		$pickup_idx = 0;
+		if (!empty($dfm_pickup_addresses)) {
+			foreach ($dfm_pickup_addresses as $gid => $addr) {
+				print "<div class='dfm_pickup_block' data-idx='$pickup_idx' style='border:1px solid #ccc; padding:10px; margin:5px 0; background:#f9f9f9;'>\n";
+				print "<input type='hidden' name='dfm_pickup_group_id[$pickup_idx]' value='$gid'>\n";
+				print "<input type='hidden' name='dfm_pickup_addr[$pickup_idx]' value='1'>\n";
+				print "<table style='width:100%;'>\n";
+				print "<tr><td colspan='2'><strong>Afhentningsadresse #" . ($pickup_idx + 1) . "</strong> ";
+				print "<button type='button' class='btn btn-sm' onclick='removeDfmPickup($pickup_idx)' style='float:right;'>$txt_slet</button></td></tr>\n";
+				print "<tr><td title='$title_firmanavn'>$txt_firmanavn</td><td><input name='dfm_pickup_name1[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['name1']) . "'></td></tr>\n";
+				print "<tr><td title='$title_ekstra_navn'>$txt_ekstra_navn</td><td><input name='dfm_pickup_name2[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['name2']) . "'></td></tr>\n";
+				print "<tr><td title='$title_adresse'>$txt_adresse</td><td><input name='dfm_pickup_street1[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['street1']) . "'></td></tr>\n";
+				print "<tr><td title='$title_ekstra_addr'>$txt_ekstra_addr</td><td><input name='dfm_pickup_street2[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['street2']) . "'></td></tr>\n";
+				print "<tr><td title='$title_postnr'>$txt_postnr</td><td><input name='dfm_pickup_zipcode[$pickup_idx]' class='inputbox' style='width:100px;' type='text' value='" . htmlspecialchars($addr['zipcode']) . "'></td></tr>\n";
+				print "<tr><td title='$title_by'>$txt_by</td><td><input name='dfm_pickup_town[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['town']) . "'></td></tr>\n";
+				print "<tr><td title='$title_knap_navn'>$txt_knap_navn</td><td><input name='dfm_pickup_buttonname[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['buttonname'] ?? '') . "' placeholder='" . htmlspecialchars($addr['name1'] ?: $addr['town']) . "'></td></tr>\n";
+				print "<tr><td colspan='2' style='padding-top:10px;'><em>Specifikke DFM API-oplysninger for denne adresse (efterlad tom kasse for at bruge globale):</em></td></tr>\n";
+				print "<tr><td>DFM ClientID</td><td><input name='dfm_pickup_id[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_id'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM API-brugernavn</td><td><input name='dfm_pickup_user[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_user'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM API-password</td><td><input name='dfm_pickup_pass[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_pass'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM Aftalenummer</td><td><input name='dfm_pickup_agree[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_agree'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM API URL</td><td><input name='dfm_pickup_url[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_url'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>DFM Hub</td><td><input name='dfm_pickup_hub[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_hub'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Shippingtype (standard)</td><td><input name='dfm_pickup_ship[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_ship'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Godstype (standard)</td><td><input name='dfm_pickup_good[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_good'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Godsbeskrivelse (standard)</td><td><input name='dfm_pickup_gooddes[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_gooddes'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Betalingmetode (standard)</td><td><input name='dfm_pickup_pay[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_pay'] ?? '') . "'></td></tr>\n";
+				print "<tr><td>Afleveringsmetode (standard)</td><td><input name='dfm_pickup_sercode[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['dfm_sercode'] ?? '') . "'></td></tr>\n";
+				print "</table>\n";
+				print "</div>\n";
+				$pickup_idx++;
+			}
 		}
+		
+		print "</div>\n";
+		print "<button type='button' class='btn' onclick='addDfmPickup()' style='margin:10px 0;'>+ Tilføj afhentningsadresse</button>\n";
+		print "<input type='hidden' id='dfm_pickup_count' name='dfm_pickup_count' value='$pickup_idx'>\n";
+		print "</td></tr>\n";
+		
+		// JavaScript for adding/removing pickup addresses
+		print "<script>
+var dfmPickupIdx = $pickup_idx;
+var dfmPickupLabels = {
+	firmanavn: '" . addslashes($txt_firmanavn) . "',
+	ekstraNavn: '" . addslashes($txt_ekstra_navn) . "',
+	adresse: '" . addslashes($txt_adresse) . "',
+	ekstraAddr: '" . addslashes($txt_ekstra_addr) . "',
+	postnr: '" . addslashes($txt_postnr) . "',
+	by: '" . addslashes($txt_by) . "',
+	slet: '" . addslashes($txt_slet) . "',
+	knapNavn: '" . addslashes($txt_knap_navn) . "'
+};
+
+function addDfmPickup() {
+	var container = document.getElementById('dfm_pickup_container');
+	if (!container) return;
+	
+	var form = document.forms['diverse'];
+	if (!form) return;
+	
+	var idx = dfmPickupIdx;
+	
+	// Create hidden inputs and add them directly to the form element
+	var hiddenGroupId = document.createElement('input');
+	hiddenGroupId.type = 'hidden';
+	hiddenGroupId.name = 'dfm_pickup_group_id[' + idx + ']';
+	hiddenGroupId.value = 'new_' + idx;
+	hiddenGroupId.id = 'dfm_pickup_group_id_' + idx;
+	form.appendChild(hiddenGroupId);
+	
+	var hiddenAddr = document.createElement('input');
+	hiddenAddr.type = 'hidden';
+	hiddenAddr.name = 'dfm_pickup_addr[' + idx + ']';
+	hiddenAddr.value = '1';
+	hiddenAddr.id = 'dfm_pickup_addr_' + idx;
+	form.appendChild(hiddenAddr);
+	
+	// Create visual block in container
+	var html = '<div class=\"dfm_pickup_block\" data-idx=\"' + idx + '\" style=\"border:1px solid #ccc; padding:10px; margin:5px 0; background:#f9f9f9;\">';
+	html += '<table style=\"width:100%;\">';
+	html += '<tr><td colspan=\"2\"><strong>Afhentningsadresse #' + (idx + 1) + '</strong> ';
+	html += '<button type=\"button\" class=\"btn btn-sm\" onclick=\"removeDfmPickup(' + idx + ')\" style=\"float:right;\">' + dfmPickupLabels.slet + '</button></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.firmanavn + '</td><td><input form=\"diverse\" name=\"dfm_pickup_name1[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.ekstraNavn + '</td><td><input form=\"diverse\" name=\"dfm_pickup_name2[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.adresse + '</td><td><input form=\"diverse\" name=\"dfm_pickup_street1[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.ekstraAddr + '</td><td><input form=\"diverse\" name=\"dfm_pickup_street2[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.postnr + '</td><td><input form=\"diverse\" name=\"dfm_pickup_zipcode[' + idx + ']\" class=\"inputbox\" style=\"width:100px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.by + '</td><td><input form=\"diverse\" name=\"dfm_pickup_town[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.knapNavn + '</td><td><input form=\"diverse\" name=\"dfm_pickup_buttonname[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td colspan=\"2\" style=\"padding-top:10px;\"><em>Specifikke DFM API-oplysninger for denne adresse (efterlad tom kasse for at bruge globale):</em></td></tr>';
+	html += '<tr><td>DFM ClientID</td><td><input form=\"diverse\" name=\"dfm_pickup_id[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM API-brugernavn</td><td><input form=\"diverse\" name=\"dfm_pickup_user[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM API-password</td><td><input form=\"diverse\" name=\"dfm_pickup_pass[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM Aftalenummer</td><td><input form=\"diverse\" name=\"dfm_pickup_agree[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM API URL</td><td><input form=\"diverse\" name=\"dfm_pickup_url[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>DFM Hub</td><td><input form=\"diverse\" name=\"dfm_pickup_hub[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Shippingtype (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_ship[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Godstype (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_good[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Godsbeskrivelse (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_gooddes[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Betalingmetode (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_pay[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>Afleveringsmetode (standard)</td><td><input form=\"diverse\" name=\"dfm_pickup_sercode[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+
+	html += '</table></div>';
+	
+	container.insertAdjacentHTML('beforeend', html);
+	dfmPickupIdx++;
+	document.getElementById('dfm_pickup_count').value = dfmPickupIdx;
+}
+
+function removeDfmPickup(idx) {
+	var block = document.querySelector('.dfm_pickup_block[data-idx=\"' + idx + '\"]');
+	if (block) {
+		block.remove();
+	}
+	// Also remove the hidden inputs that were added to the form
+	var hiddenGroupId = document.getElementById('dfm_pickup_group_id_' + idx);
+	if (hiddenGroupId) hiddenGroupId.remove();
+	var hiddenAddr = document.getElementById('dfm_pickup_addr_' + idx);
+	if (hiddenAddr) hiddenAddr.remove();
+}
+
+</script>\n";
 	} else {
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>$txt</td>\n";
 		print "<td title='$title'><input name='dfm_agree' class='inputbox' style='width:150px;' type='text' value='$dfm_agree'></td>\n</tr>\n";
@@ -1194,7 +1363,7 @@ function div_valg() {
       <button type='button' onclick='alert(\"Dit login til din vibrant terminalen: \\n\\n$r[var_name] \\n$r[var_value]\")'>$ntxt</button>
     </td>\n</tr>\n";
 	} else { # No vibrant account in the system
-		$ytxt = findtekst('3023|Opret login', $sprog_id); # Create account
+		$ytxt = findtekst('2324|Opret login', $sprog_id); # Create account
 
 		print "<td title='$mtitle'>
       <button type='button' onclick='show_popup_vibrant()'>$ytxt</button>
@@ -1425,9 +1594,11 @@ function div_valg() {
 					echo "Curl error: " . $error;
 				} else {
 					// Process response
-					echo "Response: " . $response . "\n";
-					echo "Status Code: " . $status_code . "\n";
-					$url = 'https://api.vipps.no/qr/v1/merchant-callback/kasse2';
+					if($status_code!=200){
+						echo "Response: " . $response . "\n";
+						echo "Status Code: " . $status_code . "\n";
+					}
+					$url = 'https://api.vipps.no/qr/v1/merchant-callback/kasse' . $i;
 
 					$headers = array(
 						'Content-Type: application/json',
@@ -1504,7 +1675,7 @@ function div_valg() {
 
 
 	print "<tr><td colspan='2'>&nbsp;</td></tr>";
-	print "<tr><td colspan='1'>&nbsp;</td><td style='text-align:center'>\n";
+	print "<tr><td colspan='2' style='text-align:center'>\n";
 	print "     <input class='button green medium' name='submit' type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."'>\n";
 	print "</td></tr>\n";
 	print "</form>\n\n";
@@ -1595,34 +1766,49 @@ function ordre_valg() {
 	global $sprog_id;
 	global $bgcolor;
 	global $bgcolor5;
+	global $regnaar;
+	global $bruger_id;
 
-	$hurtigfakt = $incl_moms = $folge_s_tekst = $negativt_lager = $straks_bogf = $vis_nul_lev = $orderNoteEnabled = NULL;
+	$hurtigfakt = $incl_moms_private = $incl_moms_business = $folge_s_tekst = $negativt_lager = $straks_bogf = $vis_nul_lev = $orderNoteEnabled = NULL;
 
 	$r = db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 	$beskrivelse = $r['beskrivelse'];
 	$kodenr = $r['kodenr'];
-	($r['box1'] == 'on') ? $incl_moms = "checked" : $incl_moms = NULL;
-	$rabatvareid = (int)$r['box2'];
-	($r['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
-	($r['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
-	if (strstr($r['box5'], ';')) {
-		list($straks_deb, $straks_kred) = explode(';', $r['box5']); #20170404
+	
+	// Store the original grupper data in a separate variable
+	$grupper_data = $r;
+	
+	// Read VAT options from settings table
+	$qtxt = "select var_value from settings where var_name='vatPrivateCustomers' and var_grp='ordre'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		if ($r['var_value']) $incl_moms_private = 'checked';
+	}
+	
+	$qtxt = "select var_value from settings where var_name='vatBusinessCustomers' and var_grp='ordre'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		if ($r['var_value']) $incl_moms_business = 'checked';
+	}
+	$rabatvareid = (int)$grupper_data['box2'];
+	($grupper_data['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
+	($grupper_data['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
+	if (strstr($grupper_data['box5'], ';')) {
+		list($straks_deb, $straks_kred) = explode(';', $grupper_data['box5']); #20170404
 	} else {
-		$straks_deb = $r['box5'];
-		$straks_kred = $r['box5'];
+		$straks_deb = $grupper_data['box5'];
+		$straks_kred = $grupper_data['box5'];
 	}
 	($straks_deb == 'on') ? $straks_deb = 'checked' : $straks_deb = NULL;
 	($straks_kred == 'on') ? $straks_kred = 'checked' : $straks_kred = NULL;
-	($r['box6'] == 'on') ? $fifo = "checked" : $fifo = NULL;
-	$kontantkonto = $r['box7'];
-	($r['box8'] == 'on') ? $vis_nul_lev = "checked" : $vis_nul_lev = NULL;
-	($r['box9'] == 'on') ? $negativt_lager = "checked" : $negativt_lager = NULL;
-	$kortkonto = $r['box10'];
-	($r['box11'] == 'on') ? $advar_lav_beh = "checked" : $advar_lav_beh = NULL;
-	($r['box12'] == 'on') ? $procentfakt = "checked" : $procentfakt = NULL;
-	list($procenttillag, $procentvare) = explode(chr(9), $r['box13']);
-	($r['box14'] == 'on') ? $samlet_pris = "checked" : $samlet_pris = NULL;
+	($grupper_data['box6'] == 'on') ? $fifo = "checked" : $fifo = NULL;
+	$kontantkonto = $grupper_data['box7'];
+	($grupper_data['box8'] == 'on') ? $vis_nul_lev = "checked" : $vis_nul_lev = NULL;
+	($grupper_data['box9'] == 'on') ? $negativt_lager = "checked" : $negativt_lager = NULL;
+	$kortkonto = $grupper_data['box10'];
+	($grupper_data['box11'] == 'on') ? $advar_lav_beh = "checked" : $advar_lav_beh = NULL;
+	($grupper_data['box12'] == 'on') ? $procentfakt = "checked" : $procentfakt = NULL;
+	list($procenttillag, $procentvare) = explode(chr(9), $grupper_data['box13']);
+	($grupper_data['box14'] == 'on') ? $samlet_pris = "checked" : $samlet_pris = NULL;
 
 	$qtxt = "select var_value from settings where var_name='orderNoteEnabled'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -1633,9 +1819,29 @@ function ordre_valg() {
 
 	$portovarenr = get_settings_value("porto_varnr", "ordre", "");
 	$debitoripad = get_settings_value("debitoripad", "ordre", "off");
+	$showDB = get_settings_value("showDB", "ordre", "");
+	$showDG = get_settings_value("showDG", "ordre", "");
+	$lockPayment = get_settings_value("lockedInvoiceButton", "debitor", "");
+	if($lockPayment === "on"){
+		$lockPayment = "checked";
+	}
+	if ($showDB === "on") {
+		$showDB = "checked";
+	}
+	if ($showDG === "on") {
+		$showDG = "checked";
+	}
 	if ($debitoripad === "on") {
 		$debitoripad = "checked";
 	}
+
+	$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+	$ordreAutocomplete = get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id);
+	if ($ordreAutocomplete === "on") {
+		$ordreAutocomplete = "checked";
+	}
+	$gs1parsing = get_settings_value("gs1_parsing", "ordre", "off") === "on" ? "checked" : "";
+	$ourRefStockSwitch = get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" ? "checked" : "";
 
 	$rabatvarenr = NULL;
 	if ($rabatvareid) {
@@ -1663,7 +1869,12 @@ function ordre_valg() {
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</u></b></td></tr>";
 	print "<tr><td colspan='6'><br></td></tr>";
 	print "<input type=hidden name=id value='$id'>";
-	print "<tr><td title='".findtekst('197|Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer', $sprog_id)."'>".findtekst('196|Vis priser inkl. moms på kundeordrer', $sprog_id)."</td><td><INPUT title='".findtekst('197|Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer', $sprog_id)."' class='inputbox' type='checkbox' name=box1 $incl_moms></td></tr>";
+	$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+	if($r = db_fetch_array(db_select($qtxt, __FILE__ . "linje " . __LINE__)))
+		print "<tr><td title='Låser fakturere knappen hvis den ikke er betalt'>Lås fakutrer knappen hvis ordren ikke er betalt</td><td><input type='checkbox' class='checkbox' name='lockPayment' $lockPayment><td></tr>";
+
+	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (private kunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatPrivateCustomers $incl_moms_private></td></tr>";
+	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (erhvervskunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatBusinessCustomers $incl_moms_business></td></tr>";
 	print "<tr><td title='".findtekst('188|Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler', $sprog_id)."'>".findtekst('164|Medtag kommentarer på følgesedler', $sprog_id)."</td><td><INPUT title='".findtekst('188|Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name=box3 $folge_s_tekst></td></tr>";
 	print "<tr><td title='".findtekst('189|Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler', $sprog_id)."'>".findtekst('169|Medtag kun linjer med antal på følgeseddel', $sprog_id)."</td><td><INPUT title='".findtekst('189|Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name=box8 $vis_nul_lev></td></tr>";
 	$qtxt = "select id from grupper where art = 'VG' and box9='on'";
@@ -1697,7 +1908,13 @@ function ordre_valg() {
 	print "<tr><td title='".findtekst('1711|Afmærk dette felt for at bruge ordrebemærkning til intern brug', $sprog_id)."'>".findtekst('1714|Anvend ordrebemærkning til internt brug', $sprog_id)."</td><td><INPUT title='".findtekst('1712|Bemærkning til ordre', $sprog_id)."' class='inputbox' type='checkbox' name='orderNoteEnabled' $orderNoteEnabled></td></tr>";
 	print "<tr><td title='".findtekst('2370|Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en e-mail på en ordre', $sprog_id)."'>".findtekst('2369|Aktiver debitoripad', $sprog_id)."</td><td><INPUT title='".findtekst('2370|Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en mail på en ordre', $sprog_id)."' class='inputbox' type='checkbox' name='debitoripad' $debitoripad></td></tr>";
 	print "<tr><td title='".findtekst('690|Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.', $sprog_id)."'>".findtekst('2400|Ordrebek', $sprog_id)."</td><td><INPUT title='".findtekst('2401|Overblik', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='portovarenr' value='$portovarenr'></td></tr>";
-#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
+	print "<tr><td title='Dette felt deaktiverer visning af DB på ordre siden'>Skjul dækningsbidrag</td><td><INPUT title='Dette felt deaktiverer visning af DB på ordre siden', class='inputbox' type='checkbox' name='showDB' $showDB></td></tr>";
+	print "<tr><td title='Dette felt deaktiverer visning af DG på ordre siden'>Skjul dækningsgrad</td><td><INPUT title='Dette felt deaktiverer visning af DG på ordre siden', class='inputbox' type='checkbox' name='showDG' $showDG></td></tr>";
+	print "<tr><td title='Angiv en e-mail adresse til modtagelse af pluklister'>Plukliste email</td><td><INPUT title='E-mail adresse til at sende pluklister til' class='inputbox' type='email' style='width:200px;' name='pluklisteEmail' value='$pluklisteEmail'></td></tr>";
+	print "<tr><td title='Aktiverer autosøgning/autocomplete på ordresider (bruger specifik indstilling)'>Anvend autosøgning på ordrer</td><td><INPUT title='Aktiverer autosøgning/autocomplete på ordresider' class='inputbox' type='checkbox' name='ordreAutocomplete' $ordreAutocomplete></td></tr>";
+	print "<tr><td title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)'>Anvend GS1 stregkodefortolkning</td><td><INPUT title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
+	print "<tr><td title=\"Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.\">If 'Our ref's stock is empty choose another</td><td><INPUT title=\"Opdater lager ud fra 'Vores ref.' når feltet ændres\" class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
+	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
@@ -1712,131 +1929,286 @@ function variant_valg() {
 	global $bgcolor;
 	global $bgcolor5;
 	global $db;
+	global $buttonColor;
+	global $buttonTxtColor;
+	global $buttonColorHover;
 
-	print "<form name='diverse' action='diverse.php?sektion=variant_valg' method='post'>";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".str_replace("php","html",findtekst('472|Varianter', $sprog_id))."<!--tekst 472--></u></b></td></tr>";
-	if ($delete_var_type = if_isset($_GET['delete_var_type'])) db_modify("delete from variant_typer where id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
+	// Handle delete actions
+	if ($delete_var_type = if_isset($_GET['delete_var_type'])) {
+		db_modify("delete from variant_typer where id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
+	}
 	if ($delete_variant = if_isset($_GET['delete_variant'])) {
 		db_modify("delete from variant_typer where variant_id = '$delete_variant'", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from varianter where id = '$delete_variant'", __FILE__ . " linje " . __LINE__);
 	}
-	if ($rename_var_type = if_isset($_GET['rename_var_type'])) {
+
+	// Include external CSS file and set CSS custom properties for theme colors
+	print "<link rel='stylesheet' href='../css/variant-valg.css'>";
+	$primaryColor = $buttonColor ?: '#3b82f6';
+	$primaryHover = $buttonColorHover ?: '#2563eb';
+	$primaryText = $buttonTxtColor ?: '#ffffff';
+	print "<style>:root { --variant-primary-color: $primaryColor; --variant-primary-hover: $primaryHover; --variant-primary-text: $primaryText; }</style>";
+
+	// JavaScript for toggling variant cards
+	print "<script>
+	function toggleVariantCard(header) {
+		var card = header.parentElement;
+		card.classList.toggle('collapsed');
+	}
+	</script>";
+
+	print "<tr><td colspan='6'>";
+	print "<div class='variant-container'>";
+
+	// Header
+	print "<div class='variant-header'>";
+	print "<h2>".str_replace("php","html",findtekst('472|Varianter', $sprog_id))."</h2>";
+	print "</div>";
+
+	// Display import message if exists
+	if (isset($_SESSION['variant_import_message'])) {
+		print "<div class='variant-import-message'>";
+		print "<strong>✓ Import resultat:</strong> " . htmlspecialchars($_SESSION['variant_import_message']);
+		print "</div>";
+		unset($_SESSION['variant_import_message']);
+	}
+
+	// Check for rename mode
+	$rename_var_type = if_isset($_GET['rename_var_type']);
+	$rename_variant = if_isset($_GET['rename_variant']);
+
+	if ($rename_var_type) {
 		$r = db_fetch_array(db_select("select beskrivelse from variant_typer where id=$rename_var_type", __FILE__ . " linje " . __LINE__));
+		print "<form name='diverse' action='diverse.php?sektion=variant_valg' method='post'>";
+		print "<div class='rename-form'>";
+		print "<h3>".findtekst('479|Klik her for at omdøbe denne værdi', $sprog_id)."</h3>";
 		print "<input type='hidden' name='rename_var_type' value='$rename_var_type'>";
-		print "<tr><td>".findtekst('473|Ny variant værdi', $sprog_id)."<!--tekst 473--></td><td></td><td><input type='text' name='var_type_beskrivelse' value = '$r[beskrivelse]'</td></tr>";
-	} elseif ($rename_variant = if_isset($_GET['rename_variant'])) {
+		print "<input type='text' class='new-variant-input' name='var_type_beskrivelse' value='".htmlspecialchars($r['beskrivelse'])."' autofocus>";
+		print "<button type='submit' class='btn-variant btn-primary-variant' name='submit'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>";
+		print " <a href='diverse.php?sektion=variant_valg' class='btn-variant btn-secondary-variant'>".findtekst('1355|Annullér', $sprog_id)."</a>";
+		print "</div>";
+		print "</form>";
+	} elseif ($rename_variant) {
 		$r = db_fetch_array(db_select("select beskrivelse from varianter where id=$rename_variant", __FILE__ . " linje " . __LINE__));
+		print "<form name='diverse' action='diverse.php?sektion=variant_valg' method='post'>";
+		print "<div class='rename-form'>";
+		print "<h3>".findtekst('477|Klik her for at omdøbe denne variant', $sprog_id)."</h3>";
 		print "<input type='hidden' name='rename_varianter' value='$rename_variant'>";
-		print "<tr><td>".findtekst('474|Ny variant', $sprog_id)."<!--tekst 474--></td><td></td><td><input type='text' name='variant_beskrivelse' value = '$r[beskrivelse]'</td></tr>";
+		print "<input type='text' class='new-variant-input' name='variant_beskrivelse' value='".htmlspecialchars($r['beskrivelse'])."' autofocus>";
+		print "<button type='submit' class='btn-variant btn-primary-variant' name='submit'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>";
+		print " <a href='diverse.php?sektion=variant_valg' class='btn-variant btn-secondary-variant'>".findtekst('1355|Annullér', $sprog_id)."</a>";
+		print "</div>";
+		print "</form>";
 	} else {
-		$x = 0;
+		// Import Section
+		print "<div class='import-section'>";
+		print "<h3><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:20px;height:20px;vertical-align:middle;margin-right:8px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5'/></svg>Import varianter fra CSV</h3>";
+		print "<div class='import-grid'>";
+		
+		// Import Variant Types (main categories)
+		print "<div class='import-box'>";
+		print "<form enctype='multipart/form-data' action='diverse.php?sektion=variant_valg_import_types' method='POST'>";
+		print "<h4>Import varianttyper</h4>";
+		print "<p>Importér varianter (f.eks. Farve, Størrelse). Én variant pr. linje.</p>";
+		print "<code>Farve<br>Størrelse<br>Materiale</code>";
+		print "<input type='hidden' name='MAX_FILE_SIZE' value='500000'>";
+		print "<div class='file-input-wrapper'>";
+		print "<span class='file-input-label'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:16px;height:16px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z'/></svg> Vælg CSV fil</span>";
+		print "<input type='file' name='variant_types_file' accept='.csv,.txt' onchange='this.form.submit()'>";
+		print "</div>";
+		print "</form>";
+		print "</div>";
+		
+		// Import Variant Values (values for types)
+		print "<div class='import-box'>";
+		print "<form enctype='multipart/form-data' action='diverse.php?sektion=variant_valg_import_values' method='POST'>";
+		print "<h4>Import variantværdier</h4>";
+		print "<p>Importér værdier for varianter. Format: variantnavn;værdi</p>";
+		print "<code>Farve;Rød<br>Farve;Blå<br>Størrelse;Small<br>Størrelse;Large</code>";
+		print "<input type='hidden' name='MAX_FILE_SIZE' value='500000'>";
+		print "<div class='file-input-wrapper'>";
+		print "<span class='file-input-label'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:16px;height:16px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z'/></svg> Vælg CSV fil</span>";
+		print "<input type='file' name='variant_values_file' accept='.csv,.txt' onchange='this.form.submit()'>";
+		print "</div>";
+		print "</form>";
+		print "</div>";
+		
+		print "</div>"; // End import-grid
+		print "</div>"; // End import-section
+
+		// Load variant data
+		$variants = array();
 		$q = db_select("select * from varianter order by beskrivelse", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$x++;
-			$variant_id[$x] = $r['id'];
-			$variant_beskrivelse[$x] = $r['beskrivelse'];
-			$y = 0;
-			$q2 = db_select("select * from variant_typer where variant_id=$variant_id[$x] order by beskrivelse", __FILE__ . " linje " . __LINE__);
+			$variant = array(
+				'id' => $r['id'],
+				'beskrivelse' => $r['beskrivelse'],
+				'values' => array()
+			);
+			$q2 = db_select("select * from variant_typer where variant_id=".$r['id']." order by beskrivelse", __FILE__ . " linje " . __LINE__);
 			while ($r2 = db_fetch_array($q2)) {
-				$y++;
-				$var_type_id[$x][$y] = $r2['id'];
-				$var_type_beskrivelse[$x][$y] = $r2['beskrivelse'];
+				$variant['values'][] = array(
+					'id' => $r2['id'],
+					'beskrivelse' => $r2['beskrivelse']
+				);
 			}
-			$var_type_antal[$x] = $y;
+			$variants[] = $variant;
 		}
-		$variant_antal = $x;
-		print "<tr><td></td><td><b>".findtekst('475|Variant', $sprog_id)."<!--tekst 475--></b></td><td><b>".findtekst('476|Værdi', $sprog_id)."<!--tekst 476--></b></td></tr>";
-		for ($x = 1; $x <= $variant_antal; $x++) {
-			print "<tr><td></td><td>$variant_beskrivelse[$x]</td></td><td>";
-			print "<td><span title='".findtekst('477|Klik her for at omdøbe denne variant', $sprog_id)."'><!--tekst 477--><a href='diverse.php?sektion=variant_valg&rename_variant=".$variant_id[$x]."' onclick=\"return confirm('".findtekst('483|Vil du omdøbe denne variant?', $sprog_id)."')\"><img src=../ikoner/rename.png border=0></a></span>\n";
-			print "<span title='".findtekst('478|Klik her for at slette denne variant og tilhørende variant værdier.', $sprog_id)."'><!--tekst 478--><a href='diverse.php?sektion=variant_valg&delete_variant=".$variant_id[$x]."' onclick=\"return confirm('".findtekst('481|Vil du slette denne variant og tilhørende variant værdier?', $sprog_id)."')\"><img src=../ikoner/delete.png border=0></a></span></td></tr>\n";
-			for ($y = 1; $y <= $var_type_antal[$x]; $y++) {
-				#				if ($y>1)
-				print "<tr></td><td><td></td>";
-				print "<td>".$var_type_beskrivelse[$x][$y]."</td>";
-				print "<td><span title='".findtekst('479|Klik her for at omdøbe denne værdi', $sprog_id)."'><!--tekst 479--><a href='diverse.php?sektion=variant_valg&rename_var_type=".$var_type_id[$x][$y]."' onclick=\"return confirm('".findtekst('484|Vil du omdøbe denne værdi?', $sprog_id)."')\"><img src=../ikoner/rename.png border=0></a></span>\n";
-				print "<span title='".findtekst('480|Klik her for at slette denne værdi', $sprog_id)."'><!--tekst 480--><a href='diverse.php?sektion=variant_valg&delete_var_type=".$var_type_id[$x][$y]."' onclick=\"return confirm('".findtekst('482|Vil du slette denne værdi?', $sprog_id)."')\"><img src=../ikoner/delete.png border=0></a></span></td></tr>\n";
+
+		print "<form name='diverse' action='diverse.php?sektion=variant_valg' method='post'>";
+
+		if (count($variants) == 0) {
+			// Empty state
+			print "<div class='variant-card'>";
+			print "<div class='empty-state'>";
+			print "<div class='empty-state-icon'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:48px;height:48px;stroke-width:1.5;color:#9ca3af'><path stroke-linecap='round' stroke-linejoin='round' d='M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z'/></svg></div>";
+			print "<p>Ingen varianter oprettet endnu</p>";
+			print "<p style='color:#9ca3af; margin-top:5px;'>Varianttype for varen, f.eks. farve eller størrelse</p>";
+			print "</div>";
+			print "</div>";
+		} else {
+			// Display variants as cards
+			$x = 0;
+			foreach ($variants as $variant) {
+				$x++;
+				$valueCount = count($variant['values']);
+				
+				print "<div class='variant-card'>";
+				print "<div class='variant-card-header' onclick='toggleVariantCard(this)'>";
+				print "<div class='variant-name'>";
+				print "<span class='toggle-icon'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:16px;height:16px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/></svg></span>";
+				print htmlspecialchars($variant['beskrivelse']);
+				print "<span class='variant-count'>$valueCount ".($valueCount == 1 ? "Værdi" : "Værdier")."</span>";
+				print "</div>";
+				print "<div class='variant-card-actions' onclick='event.stopPropagation();'>";
+				print "<a href='diverse.php?sektion=variant_valg&rename_variant=".$variant['id']."' class='btn-icon-variant btn-edit' title='Klik her for at omdøbe denne variant'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' d='M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10'/></svg></a>";
+				print "<a href='diverse.php?sektion=variant_valg&delete_variant=".$variant['id']."' class='btn-icon-variant btn-delete' title='Klik her for at slette denne variant og tilhørende variant værdier.' onclick=\"return confirm('Vil du slette denne variant og tilhørende variant værdier?')\"><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' d='M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0'/></svg></a>";
+				print "</div>";
+				print "</div>"; // End card header
+				
+				print "<div class='variant-card-body'>";
+				print "<table class='variant-values-table'>";
+				print "<thead><tr><th>Værdi</th><th style='width:100px; text-align:center;'>Handling</th></tr></thead>";
+				print "<tbody>";
+				
+				// Existing values
+				foreach ($variant['values'] as $value) {
+					print "<tr>";
+					print "<td>".htmlspecialchars($value['beskrivelse'])."</td>";
+					print "<td style='text-align:center;'>";
+					print "<a href='diverse.php?sektion=variant_valg&rename_var_type=".$value['id']."' class='btn-icon-variant btn-edit' title='".findtekst('479|Klik her for at omdøbe denne værdi', $sprog_id)."'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' d='M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10'/></svg></a>";
+					print "<a href='diverse.php?sektion=variant_valg&delete_var_type=".$value['id']."' class='btn-icon-variant btn-delete' title='".findtekst('480|Klik her for at slette denne værdi', $sprog_id)."' onclick=\"return confirm('".findtekst('482|Vil du slette denne værdi?', $sprog_id)."')\"><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' d='M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0'/></svg></a>";
+					print "</td>";
+					print "</tr>";
+				}
+				
+				// Add new value row
+				print "<tr class='add-value-row'>";
+				print "<td colspan='2'>";
+				print "<input type='hidden' name='variant_id[$x]' value='".$variant['id']."'>";
+				print "<input type='text' class='add-value-input' name='var_type_beskrivelse[$x]' placeholder='Ny variant værdi...' title='Værdi for varianten, f.eks. \'rød\' eller \'lille\'>";
+				print "</td>";
+				print "</tr>";
+				
+				print "</tbody>";
+				print "</table>";
+				print "</div>"; // End card body
+				print "</div>"; // End card
 			}
-			print "<input type='hidden' name='variant_id[$x]' value='$variant_id[$x]'>";
-			print "<tr><td title='".findtekst('486|Værdi for varianten, f.eks. \'rød\' eller \'lille\'', $sprog_id)."'><!--tekst 486-->".findtekst('473|Ny variant værdi', $sprog_id)."<!--tekst 473--></td><td></td><td title='".findtekst('486|Værdi for variant', $sprog_id)."'><!--tekst 486--><input type='text' name='var_type_beskrivelse[$x]'</td></tr>";
+			
+			print "<input type='hidden' name='variant_antal' value='$x'>";
 		}
-		print "<input type='hidden' name='variant_antal' value='$variant_antal'>";
-		print "<tr><td title='".findtekst('485|Varianttype for varen, f.eks. farve eller størrelse', $sprog_id)."'><!--tekst 485-->".findtekst('474|Ny variant', $sprog_id)."<!--tekst 474--></td><td title='".findtekst('485|Varianttype for varen, f.eks. \'farve\' eller \'størrelse\'', $sprog_id)."'><!--tekst 485--><input type='text' name='variant_beskrivelse'</td></tr>";
+
+		// New variant section
+		print "<div class='new-variant-section'>";
+		print "<h3><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:20px;height:20px;vertical-align:middle;margin-right:8px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M12 4.5v15m7.5-7.5h-15'/></svg>Ny variant</h3>";
+		print "<input type='text' class='new-variant-input' name='variant_beskrivelse' placeholder='Varianttype for varen, f.eks. farve eller størrelse...'>";
+		print "</div>";
+
+		// Submit button
+		print "<div style='margin-top:20px; text-align:center;'>";
+		print "<button type='submit' class='btn-variant btn-success-variant' name='submit' accesskey='g' style='padding: 12px 30px; font-size: 15px; display:inline-flex; align-items:center; gap:8px;'>";
+		print "<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:18px;height:18px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>Gem/opdatér";
+		print "</button>";
+		print "</div>";
+
+		print "</form>";
 	}
-	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'><!--tekst 471--></td>";
-	print "</form>";
+
+	print "</div>"; // End variant-container
+	print "</td></tr>";
 } # endfunc variant_valg
 
-function shop_valg() {
-	global $sprog_id;
-	global $bgcolor;
-	global $bgcolor5;
-	global $db;
-	global $labelprint;
+// function shop_valg() {
+// 	global $sprog_id;
+// 	global $bgcolor;
+// 	global $bgcolor5;
+// 	global $db;
+// 	global $labelprint;
 
-	#	$hurtigfakt=NULL; $incl_moms=NULL; $folge_s_tekst=NULL; $negativt_lager=NULL; $straks_bogf=NULL; $vis_nul_lev=NULL;
-	$q = db_select("select * from grupper where art = 'DIV' and kodenr = '5'", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array($q);
-	$id = $r['id'];
-	$beskrivelse = $r['beskrivelse'];
-	$kodenr = $r['kodenr'];
-	$box2 = trim($r['box2']);
-	$box3 = trim($r['box3']);
-	$box4 = trim($r['box4']);
-	$box5 = trim($r['box5']);
-	$box7 = trim($r['box7']);
-	$box9 = trim($r['box9']);
-	# OBS $box1 bruges under vare_valg!!
-	# OBS $box8 bruges under ordrelaterede valg!!
+// 	#	$hurtigfakt=NULL; $incl_moms_private=NULL; $incl_moms_business=NULL; $folge_s_tekst=NULL; $negativt_lager=NULL; $straks_bogf=NULL; $vis_nul_lev=NULL;
+// 	$q = db_select("select * from grupper where art = 'DIV' and kodenr = '5'", __FILE__ . " linje " . __LINE__);
+// 	$r = db_fetch_array($q);
+// 	$id = $r['id'];
+// 	$beskrivelse = $r['beskrivelse'];
+// 	$kodenr = $r['kodenr'];
+// 	$box2 = trim($r['box2']);
+// 	$box3 = trim($r['box3']);
+// 	$box4 = trim($r['box4']);
+// 	$box5 = trim($r['box5']);
+// 	$box7 = trim($r['box7']);
+// 	$box9 = trim($r['box9']);
+// 	# OBS $box1 bruges under vare_valg!!
+// 	# OBS $box8 bruges under ordrelaterede valg!!
 
-	print "<form name=diverse action=diverse.php?sektion=shop_valg method=post>";
-	print "<tr><td colspan='6'><hr></td></tr>";
+// 	print "<form name=diverse action=diverse.php?sektion=shop_valg method=post>";
+// 	print "<tr><td colspan='6'><hr></td></tr>";
 
-	if ($box2 == '!') $box3 = '1';
-	print "<tr><td><br></td></tr>";
-	print "<tr><td title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><!--tekst 826-->".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."<!--tekst 826--></td><td colspan='3' title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><select style='text-align:left;width:300px;' name='box3'>";
-	if (!$box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
-	if ($box3=='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
-	if ($box3=='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
-	if ($box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
-	if ($box3!='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
-	if ($box3!='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
-	print "</select></td></tr>";
-	if ($box3 == '2') {
-		print "<tr><td title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503-->".findtekst('504|Webshop URL', $sprog_id)."<!--tekst 504--></td><td colspan='3' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503--><input type='text' style='text-align:left;width:300px;' name='box2' value = '$box2'</td></tr>";
-		print "<tr><td title=''>".findtekst('733|Tegn kodning for shop', $sprog_id)."<!--tekst 733--></td><td colspan='3' title='".findtekst('733|Tegn kodning for shop', $sprog_id)."'><!--tekst 733--><select style='text-align:left;width:300px;' name='box7'>";
-		if ($box7 == 'UTF-8') {
-			print "<option>UTF-8</option>";
-			print "<option>ISO-8859-1</option>";
-		} else {
-			print "<option>ISO-8859-1</option>";
-			print "<option>UTF-8</option>";
-		}
-		print "</select></td></tr>";
-		if ($apifil = $box2) {
-			$filnavn = mt_rand() . ".csv";
-			if (substr($apifil, 0, 4) == 'http') { #20150608
-				print "<tr><td title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740-->".findtekst('741|Hent nye varer fra shop.', $sprog_id)."<!--tekst 741--></td><td colspan='3'  title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740--><a href=../api/hent_varer.php target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst('741|Hent nye varer fra shop.', $sprog_id)."'><!--tekst 749--></a></td></tr>";
-				$apifil = str_replace("/?", "sync_saldi_kat.php?", $apifil);
-				$apifil = $apifil . "&saldi_db=$db&filnavn=$filnavn";
-#				print "<tr><td title='".findtekst(678, $sprog_id)."'><!--tekst 678-->".findtekst(679, $sprog_id)."<!--tekst 679--></td><td colspan='3'  title='".findtekst(678, $sprog_id)."'><!--tekst 678--><a href=$apifil target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst(679, $sprog_id)."'><!--tekst 679--></a></td></tr>";
-#				print "<tr><td colspan='3'><span title='Klik her for at hente nye ordrer fra shop'><a href=$apifil target='_blank'>SHOP import</a</span></td></tr>";
-			}
-		}
-	} elseif ($box3 == '1') {
-		print "<tr><td title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 821-->".findtekst('692|Merchant nr:', $sprog_id)."<!--tekst 822--></td><td colspan='3' title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 621--><input type='text' style='text-align:left;width:300px;' name='box4' value = '$box4'</td></tr>";
-		print "<tr><td title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752-->".findtekst('753|Agreement_id', $sprog_id)."<!--tekst 753--></td><td colspan='3' title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752--><input type='text' style='text-align:left;width:300px;' name='box9' value = '$box9'</td></tr>";
-		print "<tr><td title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823-->".findtekst('694|Md5-secret', $sprog_id)."<!--tekst 824--></td><td colspan='3' title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823--><input type='text' style='text-align:left;width:300px;' name='box5' value = '$box5'</td></tr>";
-	}
-	print "<tr><td>";
-	print "<br></td></tr>";
-	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'><!--tekst 471--></td>";
-	print "</form>";
-	print "<tr><td colspan='6'><hr></td></tr>";
-} # endfunc shop_valg
+// 	if ($box2 == '!') $box3 = '1';
+// 	print "<tr><td><br></td></tr>";
+// 	print "<tr><td title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><!--tekst 826-->".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."<!--tekst 826--></td><td colspan='3' title='".findtekst('695|Vælg her om du vil anvende Saldis interne shop eller en ekstern via API.', $sprog_id)."'><select style='text-align:left;width:300px;' name='box3'>";
+// 	if (!$box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
+// 	if ($box3=='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
+// 	if ($box3=='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
+// 	if ($box3) print "<option value='0'>".findtekst('697|Ingen webshop', $sprog_id)."<!--tekst 697--></option>";
+// 	if ($box3!='1') print "<option value='1'>".findtekst('698|Intern webshop', $sprog_id)."<!--tekst 698--></option>";
+// 	if ($box3!='2') print "<option value='2'>".findtekst('699|Ekstern webshop', $sprog_id)."<!--tekst 829--></option>";
+// 	print "</select></td></tr>";
+// 	if ($box3 == '2') {
+// 		print "<tr><td title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503-->".findtekst('504|Webshop URL', $sprog_id)."<!--tekst 504--></td><td colspan='3' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503--><input type='text' style='text-align:left;width:300px;' name='box2' value = '$box2'</td></tr>";
+// 		print "<tr><td title=''>".findtekst('733|Tegn kodning for shop', $sprog_id)."<!--tekst 733--></td><td colspan='3' title='".findtekst('733|Tegn kodning for shop', $sprog_id)."'><!--tekst 733--><select style='text-align:left;width:300px;' name='box7'>";
+// 		if ($box7 == 'UTF-8') {
+// 			print "<option>UTF-8</option>";
+// 			print "<option>ISO-8859-1</option>";
+// 		} else {
+// 			print "<option>ISO-8859-1</option>";
+// 			print "<option>UTF-8</option>";
+// 		}
+// 		print "</select></td></tr>";
+// 		if ($apifil = $box2) {
+// 			$filnavn = mt_rand() . ".csv";
+// 			if (substr($apifil, 0, 4) == 'http') { #20150608
+// 				print "<tr><td title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740-->".findtekst('741|Hent nye varer fra shop.', $sprog_id)."<!--tekst 741--></td><td colspan='3'  title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740--><a href=../api/hent_varer.php target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst('741|Hent nye varer fra shop.', $sprog_id)."'><!--tekst 749--></a></td></tr>";
+// 				$apifil = str_replace("/?", "sync_saldi_kat.php?", $apifil);
+// 				$apifil = $apifil . "&saldi_db=$db&filnavn=$filnavn";
+// #				print "<tr><td title='".findtekst(678, $sprog_id)."'><!--tekst 678-->".findtekst(679, $sprog_id)."<!--tekst 679--></td><td colspan='3'  title='".findtekst(678, $sprog_id)."'><!--tekst 678--><a href=$apifil target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst(679, $sprog_id)."'><!--tekst 679--></a></td></tr>";
+// #				print "<tr><td colspan='3'><span title='Klik her for at hente nye ordrer fra shop'><a href=$apifil target='_blank'>SHOP import</a</span></td></tr>";
+// 			}
+// 		}
+// 	} elseif ($box3 == '1') {
+// 		print "<tr><td title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 821-->".findtekst('692|Merchant nr:', $sprog_id)."<!--tekst 822--></td><td colspan='3' title='".findtekst('691|Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 621--><input type='text' style='text-align:left;width:300px;' name='box4' value = '$box4'</td></tr>";
+// 		print "<tr><td title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752-->".findtekst('753|Agreement_id', $sprog_id)."<!--tekst 753--></td><td colspan='3' title='".findtekst('752|Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 752--><input type='text' style='text-align:left;width:300px;' name='box9' value = '$box9'</td></tr>";
+// 		print "<tr><td title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823-->".findtekst('694|Md5-secret', $sprog_id)."<!--tekst 824--></td><td colspan='3' title='".findtekst('693|Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay', $sprog_id)."'><!--tekst 823--><input type='text' style='text-align:left;width:300px;' name='box5' value = '$box5'</td></tr>";
+// 	}
+// 	print "<tr><td>";
+// 	print "<br></td></tr>";
+// 	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'><!--tekst 471--></td>";
+// 	print "</form>";
+// 	print "<tr><td colspan='6'><hr></td></tr>";
+// } # endfunc shop_valg
 
 function api_valg() {
-	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id;
+	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id, $buttonStyle;
 	$r = db_fetch_array(db_select("select * from grupper where art = 'API' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 	$api_key = trim($r['box1']);
@@ -1844,6 +2216,7 @@ function api_valg() {
 	$api_bruger = trim($r['box3']);
 	$api_fil = trim($r['box4']);
 	$api_fil2 = trim($r['box5']);
+	$api_fil3 = trim($r['box6']);
 
 	$x = 0;
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
@@ -1855,7 +2228,7 @@ function api_valg() {
 		}
 	}
 	if (!$api_key) {
-		$chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_!#+-*.:,;';
+		$chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 		$api_key = '';
 		for ($x = 0; $x < 36; $x++) $api_key .= substr($chars, rand(0, strlen($chars) - 1), 1);
 	}
@@ -1865,19 +2238,22 @@ function api_valg() {
 	print "<tr><td><br></td></tr>";
 	list($tmp, $folder, $tmp) = explode('/', $_SERVER['REQUEST_URI'], 3);
 	$url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]/$folder/api";
-	if (count($userId)) {
+	if ($userId) {
 		if ($api_bruger) {
 			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
 			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
-			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key'></td></tr>";
+			print "<tr><td>Swagger: </td><td td colspan='3'><a href='https://ssl12.saldi.dk/pblm/restapi/swagger-ui.html#/' target='_blank' style='$buttonStyle; text-decoration:none; display: inline-block; padding: 2px;'>Swagger</a></td></tr>";
+			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key' readonly></td></tr>";
 			print "<tr><td title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822-->".findtekst('821|Tilladte IP adresser', $sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil2' value = '$api_fil2'></td></tr>";
+			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil3' value = '$api_fil3'></td></tr>";
 		} else {
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_key' value = '$api_key'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil2' value= '$api_fil2'>";
+			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil3' value= '$api_fil3'>";
 		}
 		print "<tr><td title='".findtekst('824|Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API', $sprog_id)."'><!--tekst 824-->".findtekst('225|Brugernavn', $sprog_id)."<!--tekst 823--></td><td colspan='3' title='".findtekst('824|Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API', $sprog_id)."'><!--tekst 824--><select style='text-align:left;width:300px;' name='api_bruger'>";
 		if ($api_bruger) {
@@ -1905,104 +2281,503 @@ function api_valg() {
 } # endfunc api_valg
 
 function labels($valg) {
-	global $sprog_id;
-	global $bgcolor;
-	global $bgcolor5;
-	global $db;
-	global $labelName;
-	global $labelprint;
+    global $sprog_id;
+    global $bgcolor;
+    global $bgcolor5;
+    global $db;
+    global $labelName;
+    global $labelprint;
 
-	if (!$labelName) {
-		$labelName = if_isset($_POST['labelName']);
-		if (isset($_POST['newLabelName'])) $labelName = $_POST['newLabelName'];
-	}
-	($valg == 'box1') ? $txt = 'Vare' : $txt = 'Adresse';
-	if (isset($_POST['newLabel'])) {
-		print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
-		print "<tr bgcolor='$bgcolor5'><td colspan='6' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.', $sprog_id)."'><!--tekst 737-->";
-		print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
-		$qtxt = "select $valg from grupper where art = 'LABEL'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $labelText = $r['box1'];
-		print "<tr><td><br><br></td></tr>";
-		print "<tr><td  valign='top' align='left' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><b>".findtekst('914|Beskrivelse', $sprog_id)."</b><br>";
-		print "<input type='text' style='width:200px' name='newLabelName' pattern='[a-zA-Z0-9+.-]+'><br>";
-		print "".findtekst('1309|Tilladte tegn er: a-z A-Z 0-9', $sprog_id)."</td>";
-		print "<td valign='top' align = 'left'><b>".findtekst('803|Skabelon', $sprog_id)."</b><br><select style='width:200px' name='labelTemplate'>";
-		print "<option value=''></option>";
-		print "<option value='A4Label38x21_ens.txt'>".findtekst('1310|A4 38,1 x 21,2 mm, ens labels', $sprog_id)."</option>";
-		print "<option value='A4Label38x21.txt'>".findtekst('1311|A4 38,1 x 21,2 mm, mit salg', $sprog_id)."</option>";
-		print "<option value='BrotherLabel22606.txt'>".findtekst('1312|Brother 22606', $sprog_id)."</option>";
-		print "<option value='BrotherLabel22606MS.txt'>".findtekst('1313|Brother 22606 mit salg', $sprog_id)."</option>";
-		print "<option value='DymoLabelArt11354.txt'>Dymo 11354</option>";
-		print "<option value='DymoLabelArt11354MS.txt'>".findtekst('1314|Dymo 11354 mit salg', $sprog_id)."</option>";
-		print "</td></select></td>";
-		print "<td valign='top' align = 'center'>&nbsp<br>";
-		print "<input type='submit' style='width:200px' accesskey='s' value='".findtekst('1232|Opret', $sprog_id)."' name='createNewLabel'>";
-		print "</td></tr></form>";
-	} elseif ($valg) {
-		$x = 0;
-		$labelNames = array();
-		$qtxt = "select id, labeltype, labelname from labels order by labelname";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$labelNames[$x] = $r['labelname'];
-			$x++;
-		}
-		if (!$labelName) $labelName = 'Standard';
-		$txt .= " - $labelName";
-		print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.', $sprog_id)."'><!--tekst 737-->";
-		print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
-		if ($valg == 'box1') {
-			$qtxt = "select id, labeltype, labeltext from labels where labelname = '$labelName' ";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$labelText = $r['labeltext'];
-			$labelType = $r['labeltype'];
-		}
-		if (empty($labelType)) $labelType = 'sheet';                 #20210712
-		if ($labelName == 'Standard' && empty($labelText)) {
-			$qtxt = "select $valg from grupper where art = 'LABEL'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $labelText = $r[$valg];
-		}
-		if ($valg == 'box1') {
-			if (count($labelNames) > 1) {
-				print "<form name='labelvalg' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
-				print "<tr><td align='center' colspan='4'>";
-				print "Vælg label <select style='width:200px' name='labelName' onchange='javascript:this.form.submit()'>";
-				for ($x = 0; $x < count($labelNames); $x++) {
-					if ($labelName == $labelNames[$x]) print "<option value='$labelNames[$x]'>$labelNames[$x]</option>";
+    if (!$labelName) {
+        $labelName = if_isset($_POST['labelName']);
+        if (isset($_POST['newLabelName'])) $labelName = $_POST['newLabelName'];
+    }
+    ($valg == 'box1') ? $txt = 'Vare' : $txt = 'Adresse';
+    
+    // Check if user wants to edit raw HTML
+    $editRawHTML = isset($_POST['editRawHTML']) || isset($_GET['editRawHTML']);
+    
+    if (isset($_POST['newLabel'])) {
+        print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
+        print "<tr bgcolor='$bgcolor5'><td colspan='6' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.', $sprog_id)."'><!--tekst 737-->";
+        print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
+        $qtxt = "select $valg from grupper where art = 'LABEL'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $labelText = $r['box1'];
+        print "<tr><td><br><br></td></tr>";
+        print "<tr><td  valign='top' align='left' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><b>".findtekst('914|Beskrivelse', $sprog_id)."</b><br>";
+        print "<input type='text' style='width:200px' name='newLabelName' pattern='[a-zA-Z0-9+.-]+' required><br>";
+        print "".findtekst('1309|Tilladte tegn er: a-z A-Z 0-9', $sprog_id)."</td>";
+        print "<td valign='top' align = 'left'><b>".findtekst('803|Skabelon', $sprog_id)."</b><br><select style='width:200px' name='labelTemplate'>";
+        print "<option value='A4Label38x21_ens.txt'>".findtekst('1310|A4 38,1 x 21,2 mm, ens labels', $sprog_id)."</option>";
+        print "<option value='A4Label38x21.txt'>".findtekst('1311|A4 38,1 x 21,2 mm, mit salg', $sprog_id)."</option>";
+        print "<option value='BrotherLabel22606.txt'>".findtekst('1312|Brother 22606', $sprog_id)."</option>";
+        print "<option value='BrotherLabel22606MS.txt'>".findtekst('1313|Brother 22606 mit salg', $sprog_id)."</option>";
+        print "<option value='DymoLabelArt11354.txt'>Dymo 11354</option>";
+        print "<option value='DymoLabelArt11354MS.txt'>".findtekst('1314|Dymo 11354 mit salg', $sprog_id)."</option>";
+        print "</td></select></td>";
+        print "<td valign='top' align = 'center'>&nbsp<br>";
+        print "<input type='submit' style='width:200px' accesskey='s' value='".findtekst('1232|Opret', $sprog_id)."' name='createNewLabel'>";
+        print "</td></tr></form>";
+    } elseif ($valg) {
+        $x = 0;
+        $labelNames = array();
+        $qtxt = "select id, labeltype, labelname from labels order by labelname";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        while ($r = db_fetch_array($q)) {
+            $labelNames[$x] = $r['labelname'];
+            $x++;
+        }
+        if (!$labelName) $labelName = 'Standard';
+        $txt .= " - $labelName";
+        print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips och tricks.', $sprog_id)."'><!--tekst 737-->";
+        print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
+        
+        // **FIX: Add proper database retrieval here**
+        if ($valg == 'box1') {
+			if (in_array($labelName, $labelNames)) {
+				$qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
+				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$labelText = $r['labeltext'];
+					$labelType = $r['labeltype'];
 				}
-				for ($x = 0; $x < count($labelNames); $x++) {
-					if ($labelName != $labelNames[$x]) print "<option value='$labelNames[$x]'>$labelNames[$x]</option>";
+            } else {
+                $qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
+                if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                    $labelText = $r['labeltext'];
+                    $labelType = $r['labeltype'];
 				}
-				print "</select><br>";
-			}
-			print "<input type='submit' style='border:0px;width:100%;height:1px' value=' ' name='labelvalg'></form></td></tr>";
-		}
+            }
+        }
+        
+        if (empty($labelType)) $labelType = 'sheet';
+        if ($labelName == 'Standard' && empty($labelText)) {
+            $labelText = '$cols=1;
+$rows=1;
+$txtlen=50;
+<top>
+<style>
+#main {
+width: 100%;
+overflow:hidden;
+margin-top: 7mm;
+margin-bottom: 0mm;
+margin-right: 0mm;
+margin-left: 3mm;}
+
+p {
+width: 38.1mm;
+display: inline-block;
+height: 21.2mm;
+padding-bottom:0px;
+margin-top: 0mm;
+margin-bottom: 0mm;
+margin-right: 0mm;
+margin-left: 1mm;
+font-size: 12px}
+
+img {
+width: 90%;
+height: 5mm;
+margin-left:-4px}
+</style>	
+<div id="main">
+</top>
+
+<p>
+$varenr<br>
+$beskrivelse<br>
+Pris $pris<br>
+<img src=\'$img\'><br>
+</p>
+
+<bottom>
+</div>
+/bottom;';
+        }
+        
+        if ($valg == 'box1') {
+            // Label selection dropdown - only show if there are custom labels
+            $hasMultipleOptions = count($labelNames) > 1 || (count($labelNames) == 1 && $labelName != 'Standard');
+            
+            if (count($labelNames) > 0) {
+                print "<form name='labelvalg' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
+                print "<tr><td align='center' colspan='4'>";
+                print "Choose Label: <select style='width:200px' name='labelName' onchange='javascript:this.form.submit()'";
+                
+                // Grey out (disable) if there's only one meaningful option
+                if (!$hasMultipleOptions) {
+                    print " disabled style='width:200px; background-color:#f0f0f0; color:#999;'";
+                }
+                
+                print ">";
+                for ($x = 0; $x < count($labelNames); $x++) {
+                    $selected = ($labelName == $labelNames[$x]) ? ' selected' : '';
+                    print "<option value='{$labelNames[$x]}'$selected>{$labelNames[$x]}</option>";
+                }
+                print "</select>";
+                
+                // Add a hidden field to ensure form submission still works when dropdown is disabled
+                if (!$hasMultipleOptions) {
+                    print "<input type='hidden' name='labelName' value='$labelName'>";
+                }
+                
+                print "<br>";
+                print "<input type='submit' style='border:0px;width:100%;height:1px' value=' ' name='labelvalg'></form></td></tr>";
+            }
+        }
+        
 		print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
-		print "<input type='hidden' name='labelName' value='$labelName'></a></td></tr>";
-		print "<tr><td align='center' colspan='4' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503-->";
-		print "<textarea style='width:100%;height:500px' name='labelText'>$labelText</textarea></td></tr>";
-		print "<td  align='center' colspan='4'>";
-		print "<select name='labelType' style='width:100px'>";
-		if ($labelType == 'sheet') print "<option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option><option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option>";
-		else print "<option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option><option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option>";
-		print "</select>";
-		print "<input type=submit style='width:200px' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='saveLabel'><!--tekst 471-->";
-		if ($valg == 'box1') {
-			print "&nbsp;<input type=submit style='width:200px' accesskey='n' value='".findtekst('39|Ny', $sprog_id)." ".lcfirst(findtekst('1316|Label', $sprog_id))."' name='newLabel'>";
+		print "<input type='hidden' name='labelName' value='$labelName'>";
+		
+		if ($editRawHTML) {
+			// Raw HTML editing mode
+			print "<tr><td colspan='4'>";
+			print "<div style='margin-bottom: 10px;'>";
+			print "<h3>Rå HTML Editor</h3>";
+			print "<p style='color: #666; font-size: 12px;'>Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$beskrivelse, \$pris, \$img, osv.</p>";
+			print "</div>";
+			print "<textarea name='rawHTML' style='width: 100%; height: 400px; font-family: monospace; font-size: 12px;'>" . htmlspecialchars($labelText) . "</textarea>";
+			print "</td></tr>";
+			
+			print "<tr><td align='center' colspan='4'>";
+			print "<select name='labelType' style='width:100px'>";
+			if ($labelType == 'sheet') print "<option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option><option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option>";
+			else print "<option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option><option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option>";
+			print "</select>";
+			print "<input type='submit' style='width:150px' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='saveRawHTML'>";
+			print "&nbsp;<input type='submit' style='width:150px' value='Skift til Visuel Editor' name='switchToVisual'>";
+			if ($valg == 'box1') {
+			print "&nbsp;<input type='submit' style='width:150px' value='".findtekst('39|Ny', $sprog_id)." Label' name='newLabel'>";
 			if ($labelName != 'Standard') {
-				$txt = "".findtekst('1317|Vil du slette label', $sprog_id)." $labelName ?";
-				print "&nbsp;<input type=submit style='width:200px' value='".findtekst('1099|Slet', $sprog_id)." ".lcfirst(findtekst('1316|Label', $sprog_id))."' name='deleteLabel' onclick=\"return confirm('$txt')\">";
+				$txt = "Er du sikker på du vil slette label $labelName ?";
+				print "&nbsp;<input type='submit' style='width:150px' value='Slet Label' name='deleteLabel' onclick=\"return confirm('$txt')\">";
 			}
+			}
+			print "</td></tr>";
+			
+		} else {
+			// Visual editing mode
+			// Parse the label template for user-friendly editing
+			$parsedLabel = parseLabelTemplate($labelText);
+			
+			// Display user-friendly form fields
+			print "<tr><td colspan='4'>";
+			print "<div style='display: flex; gap: 20px;'>";
+			
+			// Left column - Label dimensions and settings
+			print "<div style='flex: 1;'>";
+			print "<h3>Label ".findtekst('2139|Indstillinger', $sprog_id)."</h3>";
+			print "<table>";
+			print "<tr><td>Kolonner:</td><td><input type='number' name='cols' value='".$parsedLabel['cols']."' min='1' max='10' style='width:60px;'></td></tr>";
+			print "<tr><td>Rækker:</td><td><input type='number' name='rows' value='".$parsedLabel['rows']."' min='1' max='20' style='width:60px;'></td></tr>";
+			print "<tr><td>".findtekst("2504|Tekstlængde", $sprog_id)."</td><td><input type='number' name='txtlen' value='".$parsedLabel['txtlen']."' min='10' max='100' style='width:60px;'></td></tr>";
+			print "</table>";
+			
+			print "<h3>Styling</h3>";
+			print "<table>";
+			print "<tr><td>".findtekst("2411|Bredde", $sprog_id)."</td><td><input type='text' name='width' value='".$parsedLabel['width']."' style='width:80px;'> mm</td></tr>";
+			print "<tr><td>".findtekst("1790|Højde", $sprog_id)."</td><td><input type='text' name='height' value='".$parsedLabel['height']."' style='width:80px;'> mm</td></tr>";
+			print "<tr><td>Standard ".findtekst('765|Skriftstørrelse', $sprog_id).":</td><td><input type='text' name='font_size' value='".$parsedLabel['font_size']."' style='width:80px;'> px</td></tr>";
+			print "<tr><td>Margin Top:</td><td><input type='text' name='margin_top' value='".$parsedLabel['margin_top']."' style='width:80px;'> mm</td></tr>";
+			print "<tr><td>Margin ".findtekst("2511|Venstre", $sprog_id).":</td><td><input type='text' name='margin_left' value='".$parsedLabel['margin_left']."' style='width:80px;'> mm</td></tr>";
+			print "</table>";
+			print "</div>";
+			
+			// Middle column - Label Content with individual font sizes
+			print "<div style='flex: 1;'>";
+			print "<h3>Label Indhold & Skriftstørrelser</h3>";
+			print "<table>";
+			print "<tr><td colspan='3'><strong>Element</strong></td><td><strong>".findtekst('1133|Vis', $sprog_id)."</strong></td><td><strong>".findtekst('765|Skriftstørrelse', $sprog_id)." (px)</strong></td></tr>";
+
+			print "<tr><td colspan='3'>".findtekst("320|Varenummer", $sprog_id)."</td><td><input type='checkbox' name='show_varenr' ".($parsedLabel['show_varenr'] ? 'checked' : '')."></td>";
+			print "<td><input type='number' name='varenr_font_size' value='".$parsedLabel['varenr_font_size']."' style='width:60px;' min='6' max='72'></td></tr>";
+			
+			print "<tr><td colspan='3'>Mærke</td><td><input type='checkbox' name='show_varemrk' ".($parsedLabel['show_varemrk'] ? 'checked' : '')."></td>";
+			print "<td><input type='number' name='varemrk_font_size' value='".$parsedLabel['varemrk_font_size']."' style='width:60px;' min='6' max='72'></td></tr>";
+			
+			print "<tr><td colspan='3'>".findtekst("914|Beskrivelse", $sprog_id)."</td><td><input type='checkbox' name='show_beskrivelse' ".($parsedLabel['show_beskrivelse'] ? 'checked' : '')."></td>";
+			print "<td><input type='number' name='beskrivelse_font_size' value='".$parsedLabel['beskrivelse_font_size']."' style='width:60px;' min='6' max='72'></td></tr>";
+			
+			print "<tr><td colspan='3'>".findtekst("915|Pris", $sprog_id)."</td><td><input type='checkbox' name='show_pris' ".($parsedLabel['show_pris'] ? 'checked' : '')."></td>";
+			print "<td><input type='number' name='pris_font_size' value='".$parsedLabel['pris_font_size']."' style='width:60px;' min='6' max='72'></td></tr>";
+			
+			print "<tr><td colspan='3'>".findtekst("2016|Stregkode", $sprog_id)."</td><td><input type='checkbox' name='show_barcode' ".($parsedLabel['show_barcode'] ? 'checked' : '')."></td>";
+			print "<td>N/A</td></tr>";
+			
+			print "</table>";
+			print "</div>";
+			
+			// Right column - Custom Text Lines with individual font sizes
+			print "<div style='flex: 1;'>";
+			print "<h3>Brugerdefinerede Tekstlinjer</h3>";
+			print "<div>";
+			for ($i = 1; $i <= 5; $i++) {
+			$textValue = isset($parsedLabel["custom_text_$i"]) ? $parsedLabel["custom_text_$i"] : '';
+			$fontSize = isset($parsedLabel["custom_text_{$i}_size"]) ? $parsedLabel["custom_text_{$i}_size"] : $parsedLabel['font_size'];
+			print "<div style='margin-bottom: 10px; border: 1px solid #ccc; padding: 8px;'>";
+			print "<label><strong>Linje $i:</strong></label><br>";
+			print "<input type='text' name='custom_text_$i' value='$textValue' placeholder='Brugerdefineret tekst' style='width:150px; margin-bottom: 5px;'><br>";
+			print "<label>".findtekst('765|Skriftstørrelse', $sprog_id).":</label>";
+			print "<input type='number' name='custom_text_{$i}_size' value='$fontSize' style='width:60px;' min='6' max='72'> px";
+			print "</div>";
+			}
+			print "</div>";
+			print "</div>";
+			
+			print "</div>";
+			print "</td></tr>";
+			
+			print "<tr><td align='center' colspan='4'>";
+			print "<select name='labelType' style='width:100px'>";
+			if ($labelType == 'sheet') print "<option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option><option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option>";
+			else print "<option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option><option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option>";
+			print "</select>";
+			print "<input type='submit' style='width:150px' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='saveLabel'>";
+			print "&nbsp;<input type='submit' style='width:150px' value='Rediger Rå HTML' name='editRawHTML'>";
+			if ($valg == 'box1') {
+			print "&nbsp;<input type='submit' style='width:150px' accesskey='n' value='".findtekst('39|Ny', $sprog_id)." Label' name='newLabel'>";
+			if ($labelName != 'Standard') {
+				$txt = "Er du sikker på du vil slette label $labelName ?";
+				print "&nbsp;<input type='submit' style='width:150px' value='Slet Label' name='deleteLabel' onclick=\"return confirm('$txt')\">";
+			}
+			}
+			print "</td></tr>";
 		}
-		print "</td></form>";
-	} else {
+		
+		print "</form>";
+		} else {
 		print "<tr><td>".findtekst('1308|Klik på den labeltype du vil redigere', $sprog_id)."</td><td>";
 		print "<a href='diverse.php?sektion=labels&valg=box1'>";
 		print "<input type='button'  style='width:100px' value='".findtekst('110|Varer', $sprog_id)."'></a></td></tr>";
 		print "<tr><td></td><td><a href=diverse.php?sektion=labels&valg=box2>";
 		print "<input type='button' style='width:100px' value='".findtekst('361|Adresse', $sprog_id)."'></a></td></tr>";
-	}
+    }
+}
+
+function parseLabelTemplate($labelText) {
+    $parsed = array(
+        'cols' => 1,
+        'rows' => 1,
+        'txtlen' => 50,
+        'width' => '38.1',
+        'height' => '21.2',
+        'font_size' => '12',
+        'margin_top' => '7',
+        'margin_left' => '3',
+        'show_varenr' => false,
+        'show_varemrk' => false,
+        'show_beskrivelse' => false,
+        'show_pris' => false,
+        'show_barcode' => false,
+        'varenr_font_size' => '12',
+        'varemrk_font_size' => '12',
+        'beskrivelse_font_size' => '12',
+        'pris_font_size' => '12'
+    );
+    
+    if (empty($labelText)) return $parsed;
+    
+    // Parse $cols, $rows, $txtlen from first lines
+    if (preg_match('/\$cols=(\d+);/', $labelText, $matches)) {
+        $parsed['cols'] = $matches[1];
+    }
+    if (preg_match('/\$rows=(\d+);/', $labelText, $matches)) {
+        $parsed['rows'] = $matches[1];
+    }
+    if (preg_match('/\$txtlen=(\d+);/', $labelText, $matches)) {
+        $parsed['txtlen'] = $matches[1];
+    }
+    
+    // Parse CSS dimensions
+    if (preg_match('/width:\s*([0-9.]+)mm/', $labelText, $matches)) {
+        $parsed['width'] = $matches[1];
+    }
+    if (preg_match('/height:\s*([0-9.]+)mm/', $labelText, $matches)) {
+        $parsed['height'] = $matches[1];
+    }
+    if (preg_match('/font-size:\s*([0-9.]+)px/', $labelText, $matches)) {
+        $parsed['font_size'] = $matches[1];
+        // Set default font sizes for all elements
+        $parsed['varenr_font_size'] = $matches[1];
+        $parsed['varemrk_font_size'] = $matches[1];
+        $parsed['beskrivelse_font_size'] = $matches[1];
+        $parsed['pris_font_size'] = $matches[1];
+    }
+    if (preg_match('/margin-top:\s*([0-9.]+)mm/', $labelText, $matches)) {
+        $parsed['margin_top'] = $matches[1];
+    }
+    if (preg_match('/margin-left:\s*([0-9.]+)mm/', $labelText, $matches)) {
+        $parsed['margin_left'] = $matches[1];
+    }
+    
+    // Check what fields are shown
+    $parsed['show_varenr'] = strpos($labelText, '$varenr') !== false;
+    $parsed['show_varemrk'] = strpos($labelText, '$varemrk') !== false;
+    $parsed['show_beskrivelse'] = (strpos($labelText, '$beskrivelse') !== false || strpos($labelText, '$minbeskrivelse') !== false);
+    $parsed['show_pris'] = (strpos($labelText, '$pris') !== false || strpos($labelText, '$minpris') !== false);
+    $parsed['show_barcode'] = strpos($labelText, '$img') !== false;
+    
+    // Parse individual font sizes for each element
+    if (preg_match('/<p>(.*?)<\/p>/s', $labelText, $matches)) {
+        $content = $matches[1];
+        $lines = explode('<br>', $content);
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            // Check for varenr with specific font size
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?\$varenr.*?<\/span>/i', $line, $fontMatches)) {
+                $parsed['varenr_font_size'] = $fontMatches[1];
+            }
+            
+            // Check for varemrk with specific font size
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?\$varemrk.*?<\/span>/i', $line, $fontMatches)) {
+                $parsed['varemrk_font_size'] = $fontMatches[1];
+            }
+            
+            // Check for beskrivelse with specific font size
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?\$(min)?beskrivelse.*?<\/span>/i', $line, $fontMatches)) {
+                $parsed['beskrivelse_font_size'] = $fontMatches[1];
+            }
+            
+            // Check for pris with specific font size
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?[Pp]ris.*?\$(min)?pris.*?<\/span>/i', $line, $fontMatches)) {
+                $parsed['pris_font_size'] = $fontMatches[1];
+            }
+        }
+    }
+    
+    // Extract custom text with individual font sizes
+    if (preg_match('/<p>(.*?)<\/p>/s', $labelText, $matches)) {
+        $content = $matches[1];
+        $lines = explode('<br>', $content);
+        $customLineCount = 1;
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (!empty($line) && 
+                !preg_match('/\$/', $line) && 
+                !preg_match('/<img/', $line) && 
+                !preg_match('/[Pp]ris/', $line)) {
+                
+                // Check if this line has a specific font-size
+                if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>(.*?)<\/span>/i', $line, $spanMatches)) {
+                    $parsed["custom_text_$customLineCount"] = trim(strip_tags($spanMatches[2]));
+                    $parsed["custom_text_{$customLineCount}_size"] = $spanMatches[1];
+                } else {
+                    $parsed["custom_text_$customLineCount"] = trim(strip_tags($line));
+                    $parsed["custom_text_{$customLineCount}_size"] = $parsed['font_size'];
+                }
+                $customLineCount++;
+                if ($customLineCount > 5) break;
+            }
+        }
+    }
+    
+    return $parsed;
+}
+
+function generateLabelTemplate($data) {
+    $template = "\$cols={$data['cols']};\n";
+    $template .= "\$rows={$data['rows']};\n";
+    $template .= "\$txtlen={$data['txtlen']};\n";
+    $template .= "<top>\n<style>\n";
+    $template .= "#main {\n";
+    $template .= "width: 100%;\n";
+    $template .= "overflow:hidden;\n";
+    $template .= "margin-top: {$data['margin_top']}mm;\n";
+    $template .= "margin-bottom: 0mm;\n";
+    $template .= "margin-right: 0mm;\n";
+    $template .= "margin-left: {$data['margin_left']}mm;}\n\n";
+    
+    $template .= "p {\n";
+    $template .= "width: {$data['width']}mm;\n";
+    $template .= "display: inline-block;\n";
+    $template .= "height: {$data['height']}mm;\n";
+    $template .= "padding-bottom:0px;\n";
+    $template .= "margin-top: 0mm;\n";
+    $template .= "margin-bottom: 0mm;\n";
+    $template .= "margin-right: 0mm;\n";
+    $template .= "margin-left: 1mm;\n";
+    $template .= "font-size: {$data['font_size']}px}\n\n";
+    
+    if ($data['show_barcode']) {
+        $template .= "img {\n";
+        $template .= "width: 90%;\n";
+        $template .= "height: 5mm;\n";
+        $template .= "margin-left:-4px}\n";
+    }
+    
+    $template .= "</style>\t\n";
+    $template .= "<div id=\"main\">\n";
+    $template .= "</top>\n\n";
+    
+    $template .= "<p>\n";
+    
+    // Add content based on selections with individual font sizes
+    if ($data['show_varenr'] && $data['show_varemrk']) {
+        $varenrSize = $data['varenr_font_size'];
+        $varemrkSize = $data['varemrk_font_size'];
+        if ($varenrSize == $varemrkSize && $varenrSize == $data['font_size']) {
+            $template .= "\$varenr / \$varemrk<br>\n";
+        } else {
+            $template .= "<span style='font-size: {$varenrSize}px'>\$varenr</span> / <span style='font-size: {$varemrkSize}px'>\$varemrk</span><br>\n";
+        }
+    } elseif ($data['show_varenr']) {
+        $fontSize = $data['varenr_font_size'];
+        if ($fontSize != $data['font_size']) {
+            $template .= "<span style='font-size: {$fontSize}px'>\$varenr</span><br>\n";
+        } else {
+            $template .= "\$varenr<br>\n";
+        }
+    } elseif ($data['show_varemrk']) {
+        $fontSize = $data['varemrk_font_size'];
+        if ($fontSize != $data['font_size']) {
+            $template .= "<span style='font-size: {$fontSize}px'>\$varemrk</span><br>\n";
+        } else {
+            $template .= "\$varemrk<br>\n";
+        }
+    }
+    
+    if ($data['show_beskrivelse']) {
+        $fontSize = $data['beskrivelse_font_size'];
+        if ($fontSize != $data['font_size']) {
+            $template .= "<span style='font-size: {$fontSize}px'>\$minbeskrivelse</span><br>\n";
+        } else {
+            $template .= "\$minbeskrivelse<br>\n";
+        }
+    }
+    
+    // Add custom text lines with individual font sizes
+    for ($i = 1; $i <= 5; $i++) {
+        if (!empty($data["custom_text_$i"])) {
+            $fontSize = isset($data["custom_text_{$i}_size"]) ? $data["custom_text_{$i}_size"] : $data['font_size'];
+            if ($fontSize != $data['font_size']) {
+                $template .= "<span style='font-size: {$fontSize}px'>{$data["custom_text_$i"]}</span><br>\n";
+            } else {
+                $template .= "{$data["custom_text_$i"]}<br>\n";
+            }
+        }
+    }
+    
+    if ($data['show_pris']) {
+        $fontSize = $data['pris_font_size'];
+        if ($fontSize != $data['font_size']) {
+            $template .= "<span style='font-size: {$fontSize}px'>Pris \$minpris</span><br>\n";
+        } else {
+            $template .= "Pris \$minpris<br>\n";
+        }
+    }
+    
+    if ($data['show_barcode']) {
+        $template .= "<img src='\$img'><br>\n";
+    }
+    
+    $template .= "</p>\n\n";
+    $template .= "<bottom>\n";
+    $template .= "</div>\n";
+    $template .= "/bottom;";
+    
+    return $template;
 } # endfunc labels
 
 function prislister()
@@ -2433,8 +3208,8 @@ function docubizz() {
 		<!--
 		function Form1_Validator(docubizz) {
 			if (docubizz.box3.value != docubizz.pw2.value) {
-				alert("".findtekst('1345|Begge adgangskoder skal være ens.', $sprog_id).
-					"");
+				alert("".findtekst('1345|Begge adgangskoder skal være ens', $sprog_id).
+					".");
 				docubizz.box3.focus();
 				return (false);
 			}
@@ -2491,7 +3266,7 @@ function bilag()
 		<!--
 		function Form1_Validator(ftp) {
 			if (ftp.box3.value != ftp.pw2.value) {
-				$alert = findtekst('1345|Begge adgangskoder skal være ens.', $sprog_id);
+				$alert = findtekst('1345|Begge adgangskoder skal være ens', $sprog_id).".";
 				alert($alert);
 				ftp.box3.focus();
 				return (false);

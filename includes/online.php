@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 4.1.0 --- 2024-04-23---
+// --- includes/online.php --- patch 5.0.0 --- 2026-04-24---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20120905 $ansat_navn bliver nu sat her. Søg 20120905
 // 20130120 $sag_rettigheder bliver nu sat her. Søg 20130120
@@ -54,48 +54,67 @@
 // 20240422 PHR Added 'S' in box3 when insertion uset in grupper
 // 26042024 PBLM changed the path of the javascript and css files to be relative to the file location for flatpickr
 // 23-05-2024 PBLM Setup notification from easyUBL
+// 20251119 PHR added  && $title != "POS Ordre" to if (!$isApiCall) 
+// 20260115 PHR fetch from settings disabled if $ver < '3.7.2'
+// 20260120 PHR fetch from settings disabled if table settings does not exist
+// 20260129 PHR More updates to make it work with very old releases.
+// 20260320 PHR cleanup (pdftk)
+// 20260402 PHR Bypass style if title = 'Bordplan'
+// 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 
 #include("../includes/connect.php"); #20211001
+if (!isset($buttonColor))    $buttonColor = '#114691';
+if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
+if (!isset($nextver))        $nextver = 0;
+if (!isset($useSettings))    $useSettings = '';
+
+$url = $_SERVER['REQUEST_URI'];
+$questionMarkPos = strpos($url, '?');
+if ($questionMarkPos !== false) {
+	$path = substr($url, 0, $questionMarkPos);
+} else {
+	$path = $url;
+}
+$slashCount = substr_count($path, '/');
+$relativePath = str_repeat('../', max(0, $slashCount - 2));
+
 if (isset($_COOKIE['timezone'])) { #20190110
 	$timezone = $_COOKIE['timezone'];
 	date_default_timezone_set($timezone);
-} else {
-	date_default_timezone_set('Europe/Copenhagen');
+} else date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
-	$r = db_fetch_array(db_select("select lukket,version from regnskab where id='1' and db = '$sqdb'", __FILE__ . " linje " . __LINE__)); # 20210930
-	if (isset($dbver) && $dbver >= '3.7.2') {
-		$r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
-		if ($r['var_value']) {
-			$timezone = $r['var_value'];
-		} else {
-			$timezone = 'Europe/Copenhagen';
-			if ($r['id']) $qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
-			else {
-				$qtxt = "insert into settings (var_name,var_value,var_description)";
-				$qtxt .= " values ";
-				$qtxt .= "('timezone','$timezone','Generel tidszone. Anvendes hvis der ikke er sat tidszone i det enkelte regnskab')";
-			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
-		$qtxt = "select var_value from settings where var_name='alertText'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$r ? $customAlertText = $r['var_value'] : $customAlertText = NULL; #20211018
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
-		$r ? $ps2pdf = $r['var_value'] : $ps2pdf = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
-		$r ? $pdftk = $r['var_value'] : $pdftk = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='ftp'", __FILE__ . " linje " . __LINE__));
-		$r ? $ftp = $r['var_value'] : $ftp = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='dbdump'", __FILE__ . " linje " . __LINE__));
-		$r ? $dbdump = $r['var_value'] : $dbdump = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='tar'", __FILE__ . " linje " . __LINE__));
-		$r ? $tar = $r['var_value'] : $tar = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='zip'", __FILE__ . " linje " . __LINE__));
-		$r ? $zip = $r['var_value'] : $zip = NULL;
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'", __FILE__ . " linje " . __LINE__));
-		$r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
+$r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
+if ($r['var_value']) {
+	$timezone = $r['var_value'];
+} else {
+	$timezone = 'Europe/Copenhagen';
+	if ($r['id']) $qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
+	else {
+		$qtxt = "insert into settings (var_name,var_value,var_description)";
+		$qtxt .= " values ";
+		$qtxt .= "('timezone','$timezone','Generel tidszone. Anvendes hvis der ikke er sat tidszone i det enkelte regnskab')";
 	}
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+$qtxt = "select var_value from settings where var_name='alertText'";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+$r ? $customAlertText = $r['var_value'] : $customAlertText = NULL; #20211018
+$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
+$r ? $ps2pdf = $r['var_value'] : $ps2pdf = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='pdftk'", __FILE__ . " linje " . __LINE__));
+$r ? $pdftk = $r['var_value'] : $pdftk = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='ftp'", __FILE__ . " linje " . __LINE__));
+$r ? $ftp = $r['var_value'] : $ftp = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='dbdump'", __FILE__ . " linje " . __LINE__));
+$r ? $dbdump = $r['var_value'] : $dbdump = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='tar'", __FILE__ . " linje " . __LINE__));
+$r ? $tar = $r['var_value'] : $tar = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='zip'", __FILE__ . " linje " . __LINE__));
+$r ? $zip = $r['var_value'] : $zip = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='weasyprint' or var_name='html2pdf'", __FILE__ . " linje " . __LINE__));
+$r ? $weasyprint = $r['var_value'] : $weasyprint = NULL;
+$r = db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'", __FILE__ . " linje " . __LINE__));
+$r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
 
 if (!isset($meta_returside)) $meta_returside = NULL;
 $db_skriv_id = NULL; #bruges til at forhindre at skrivninger til masterbasen logges i de enkelte regnskaber.
@@ -127,10 +146,9 @@ if ($r = db_fetch_array($q)) {
 } elseif ($title != 'login' && $title != 'opdat' && $title != 'logud' && $title != 'Aaben regnskab') {
 	if ($webservice) return ('Session expired');
 	else {
-		if (!isset($nextver))
-			$nextver = NULL;
 		if (!$nextver) { # 20150125
-			include("../includes/std_func.php");
+			// check if std_func exists in the includes folder
+			include($relativePath . "includes/std_func.php");
 			$txt = '&nbsp;Din session er udl&oslash;bet - du skal logge ind igen';
 			print tekstboks($txt);
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/logud.php\">";
@@ -138,14 +156,18 @@ if ($r = db_fetch_array($q)) {
 		}
 	}
 }
-#}
+if (isset($_POST['thisDb']) && $db && strpos($db,'_') && $db != $_POST['thisDb']) {
+	alert ("Du har skiftet regnskab fra $_POST[thisDb] til $db, handling afbrudt");
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
+	$_POST = $_GET = NULL;
+}
 
 $labelprint = 0;
 if ($sqdb == 'udvikling') $labelprint = 1;
 $kundedisplay = 0;
 
 if ($modulnr && $modulnr < 100 && $db == $sqdb) { #Lukker vinduet hvis revisorbruger er logget af
-	include("../includes/std_func.php");
+	include($relativePath . "includes/std_func.php");
 	$txt = 'Du har logget ud - vinduet lukkes';
 	print tekstboks($txt);
 	print "<meta http-equiv=\"refresh\" content=\"4;URL=../includes/luk.php\">";
@@ -159,12 +181,20 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 	$max_posteringer = $row['posteringer'];
 	$lukket = $row['lukket'];
 
+	if ($lukket != 'on' && !empty($row['lukkes']) && $row['lukkes'] !== '2099-12-31') {
+		if (strtotime($row['lukkes']) <= strtotime(date('Y-m-d'))) {
+			db_modify("UPDATE regnskab SET lukket='on' WHERE id=" . (int)$row['id'], __FILE__ . " linje " . __LINE__);
+			db_modify("DELETE FROM online WHERE db='" . db_escape_string($row['db']) . "'", __FILE__ . " linje " . __LINE__);
+			$lukket = 'on';
+		}
+	}
+
 }
 
 if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	$menu=NULL;
-	if (!isset($nextver)) { # 20150104
-		if ($version > $db_ver) {
+	if (!$nextver) { # 20150104
+#		if ($version > $db_ver) {
 			if ($db_type == 'mysql') {
 				if (!mysql_select_db($db))
 					die("Unable to connect to MySQL");
@@ -173,26 +203,27 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				if (!mysqli_select_db($connection, $db))
 					die("Unable to connect to MySQLi");
 			} else {
-				$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+					$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
 				if (!$connection)
 					die("Unable to connect to PostgreSQL");
 			}
-			if (tbl_exists('grupper')) {
-				$r = db_fetch_array(db_select("select box1 from grupper where art='VE'", __FILE__ . " linje " . __LINE__));
-				include("../includes/connect.php");
-				if ($r['box1'] > $db_ver) {
+#				if (tbl_exists('grupper')) {
+				$qtxt = "select box1 from grupper where art='VE'";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				if ($r['box1'] < $db_ver) {
 					$db_ver = $r['box1'];
+					include("../includes/connect.php");
 					db_modify("update regnskab set version = '$db_ver' where id = '$db_id'", __FILE__ . " linje " . __LINE__);
-				}
+#				}
 				if ($version > $db_ver && $title != 'Aaben regnskab') {
 					include("../includes/tjek4opdat.php");
 					tjek4opdat($db_ver, $version);
 				}
-			} else {
-				echo "stopper her";
-				exit;
+#			} else {
+#				echo "stopper her";
+#				exit;
 			}
-		}
+#			}
 	}
 	if ($db_type == 'mysql') {
 		if (!mysql_select_db($db))
@@ -205,12 +236,12 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		if (!$connection)
 			die("Unable to connect to PostgreSQL");
 	}
-
-	$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$baseCurrency = $r['var_value'];
+	if ($db_ver > '3.7.4') {
+		$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$baseCurrency = $r['var_value'];
+		} else $baseCurrency = 'DKK';
 	} else $baseCurrency = 'DKK';
-
 	if (!$revisor) {
 		if ($lukket) {
 			echo "regnskabet er lukket";
@@ -256,17 +287,28 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				db_modify("update grupper set box1='$jsvars' where  art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__);
 			}
 		}
+		nav_push(null, (bool)$popup);
+		if ($db_ver > '3.7.4') {
+			$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$buttonColor = "#$r[var_value]";
+			} else {
+				$buttonColor = '#114691'; // Default button color
+			}
+			$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+			if ($useSettings && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$buttonTxtColor = "#$r[var_value]";
+			} else {
+				$buttonTxtColor = '#ffffff'; // Default button text color
+			}
+		}
 		$textcolor = "#000077";
 		$textcolor2 = "#009900";
 		$textcolor3 = "#6666aa"; # Svagere tekst til det som er mindre vigtigt
-		if (!isset($bgcolor))
-			$bgcolor = "#eeeef0"; #alm baggrund
-		if (!isset($bgcolor2))
-			$bgcolor2 = "#BEBCCE"; #top & bundlinjer
-		if (!isset($bgcolor3))
-			$bgcolor3 = "#cccccc";
-		if (!isset($bgcolor4))
-			$bgcolor4 = "#d0d0f0";
+		if (!isset($bgcolor))  $bgcolor = "#eeeef0"; #alm baggrund
+		if (!isset($bgcolor2)) $bgcolor2 = "#BEBCCE"; #top & bundlinjer
+		if (!isset($bgcolor3)) $bgcolor3 = "#cccccc";
+		if (!isset($bgcolor4)) $bgcolor4 = "#d0d0f0";
 		if (!isset($bgcolor5)) {
 			$bgcolor5 = NULL;
 			for ($x = 1; $x <= 5; $x = $x + 2) {
@@ -279,8 +321,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			}
 			# $bgcolor5="#e0e0f0";
 		}
-		if (!isset($bgnuance1))
-			$bgnuance1 = "+01+01-55"; # Aendring af nuancen til gult ved skiftende linjer
+		if (!isset($bgnuance1)) $bgnuance1 = "+01+01-55"; # Aendring af nuancen til gult ved skiftende linjer
 	}
 	if ($menu == 'T') {
 		$header = 'nix';
@@ -288,7 +329,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$css = NULL;
 	}
 	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
-		include("../includes/std_func.php");
+		include($relativePath . "includes/std_func.php");
 		$txt = "Du har ikke nogen rettigheder her - din aktivitet er blevet logget";
 		print tekstboks($txt);
 		exit;
@@ -458,4 +499,58 @@ if ($bg != 'nix') {
 	print "<body bgcolor=\"$bgcolor\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\">\n";
 }
 
+// Check if this is an API call
+$isApiCall = (
+    isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false ||
+    isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false ||
+    strpos($_SERVER['REQUEST_URI'], '/api/') !== false ||
+    strpos($_SERVER['REQUEST_URI'], '/restapi/') !== false ||
+    isset($_GET['api']) ||
+    isset($_POST['api'])
+);
+
+$pathParts = explode('/', trim($path, '/'));
+$firstFolder = '';
+if (isset($pathParts[0])) {
+    $firstFolder = $pathParts[1];
+}
+/* if($bruger_id == -1){
+	print_r($pathParts);
+	exit;
+} */
+// Wrap the style output in the API check.
+// Also skip when the current request is for a scaffolding-context page, so scaffolding button
+// classes (.green/.blue/.gray/.white) are not overridden by the finance color.
+$inScaffoldingContext = !empty($_GET['sag_id']) || !empty($_POST['sag_id']);
+if (
+	!$inScaffoldingContext
+	&& strpos($path, 'debitor/ordre.php') !== false
+	&& (isset($_GET['id']) || isset($_POST['id']) || isset($_GET['tjek']))
+) {
+	$orderContextId = null;
+	if (!empty($_GET['id']) && is_numeric($_GET['id'])) $orderContextId = (int) $_GET['id'];
+	elseif (!empty($_POST['id']) && is_numeric($_POST['id'])) $orderContextId = (int) $_POST['id'];
+	elseif (!empty($_GET['tjek']) && is_numeric($_GET['tjek'])) $orderContextId = (int) $_GET['tjek'];
+	if ($orderContextId) {
+		$r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='$orderContextId'", __FILE__ . " linje " . __LINE__));
+		if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
+			$inScaffoldingContext = true;
+			$_GET['sag_id'] = (int)$r_sag['sag_id'];
+		}
+	}
+}
+if (!$isApiCall && substr($title, 0, 3) != 'POS' && $title != 'Bordplan' && $firstFolder != "sager" && strpos($path, 'pos_ordre.php') === false && !$inScaffoldingContext) {
 ?>
+<style>
+	/* type submit and type button */
+	input[type="submit"],
+	input[type="button"] {
+		background: <?php echo $buttonColor; ?> !important;
+		background-color: <?php echo $buttonColor; ?> !important;
+		color: <?php echo $buttonTxtColor; ?> !important;
+		border: 1px solid <?php echo $buttonColor; ?> !important;
+		cursor: pointer;
+	}
+</style>
+<?php
+}

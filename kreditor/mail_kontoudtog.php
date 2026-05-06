@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_kontoudtog.php --- ver 4.0.7 --- 2022-11-24 --
+// --- debitor/mail_kontoudtog.php --- ver 4.1.1 --- 2025-09-24 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 Saldi.DK ApS
+// Copyright (c) 2003-2025 Saldi.DK ApS
 // ----------------------------------------------------------------------
 // 20120906 break ændret til break 1
 // 20121004 Gmail afviser mails hvor 'from' ikke er *.saldi.dk søg 20121029
@@ -41,6 +41,8 @@
 // 20220809 PHR Changed if($charset=="UTF-8") to if($charset != "UTF-8") and utf8_decode to utf8_encode
 // 20221124 PHR Changed 'from' address to $db@$_SERVER_NAME  + added $mail->ReturnPath = $afsendermail;
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250924 LOE Added static footer with email and period inputs + buttons
+// 20250925 LOE Kilde added to determine which emails to send
 
 @session_start();
 $s_id=session_id();
@@ -77,6 +79,37 @@ if (isset($_POST['retur']) && $_POST['retur']) {
 	$email=$_POST['email'];
 	$fra=$_POST['fra'];
 	$til=$_POST['til'];
+	
+	##################
+	
+	for ($x = 1; $x <= $kontoantal; $x++) {
+		// --------- FRA DATE ------------
+			if (!empty($fra[$x])) {
+				// Use per-row date if valid
+				$fra_dt = DateTime::createFromFormat('d-m-Y', $fra[$x]) ?: DateTime::createFromFormat('Y-m-d', $fra[$x]);
+				if ($fra_dt) {
+					$fra[$x] = $fra_dt->format('d-m-Y');
+				} else {
+					$fra[$x] = !empty($dato_fra) ? $dato_fra : date('d-m-Y');
+				}
+			} else {
+				$fra[$x] = !empty($dato_fra) ? $dato_fra : date('d-m-Y');
+			}
+
+			// --------- TIL DATE ------------
+			if (!empty($til[$x])) {
+				$til_dt = DateTime::createFromFormat('d-m-Y', $til[$x]) ?: DateTime::createFromFormat('Y-m-d', $til[$x]);
+				if ($til_dt) {
+					$til[$x] = $til_dt->format('d-m-Y');
+				} else {
+					$til[$x] = !empty($dato_til) ? $dato_til : date('d-m-Y');
+				}
+			} else {
+				$til[$x] = !empty($dato_til) ? $dato_til : date('d-m-Y');
+			}
+		}
+
+	################
 }
 else {
 	$kontoliste=if_isset($_GET['kontoliste']);
@@ -89,23 +122,52 @@ else {
 		($dato_til)?$til[$x]=dkdato(usdate($dato_til)):$til[$x]=NULL;
 	}
 }
+if(isset($_GET['kilde'])) {
+	$kilde=if_isset($_GET['kilde']); #20250925
+} elseif(isset($_POST['kilde'])) {
+	$kilde=if_isset($_POST['kilde']); 
+} else {
+	$kilde=NULL;
+}
+
+$current_kilde = $_GET['kilde'] ?? ''; # For dropdown/select 
+// $AllAcount = ($current_kilde === 'show_all') ? 'on' : '';
+// $OpenPost = ($current_kilde === 'openpost') ? 'on' : '';
 
 if ($send_mails) {
-	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	$sent_emails = send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	print "<div style='text-align:center; margin:20px; padding:15px; background-color:#d4edda; border:1px solid #c3e6cb; border-radius:5px; color:#155724; font-size:16px;'>";
+	print "<strong>" . findtekst('2700|Send mail(s)', $sprog_id) . "</strong><br>";
+	print findtekst('2703|Mail er sendt', $sprog_id);
+	if (!empty($sent_emails) && is_array($sent_emails)) {
+		print "<br><small>" . implode(', ', $sent_emails) . "</small>";
+	}
+	print "</div>";
 	print "<form name=luk action=../includes/luk.php method=post>";	
 	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
 	print "</form></div>";
+	print "<script>alert('".findtekst('2703|Mail er sendt', $sprog_id)."');</script>";
 	exit;	
 } elseif ($send_pdfs) {
+	$sent_emails = array();
 	for ($x=1;$x<=count($konto_id);$x++) {
 		$qtxt="select kontonr,art from adresser where id='$konto_id[$x]'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 #		echo "kontoprint($r[kontonr],$r[kontonr],$fra[$x],$til[$x],$r[art],$email[$x])<br>";
 		$svar=kontoprint($r['kontonr'],$r['kontonr'],$fra[$x],$til[$x],$r['art'],$email[$x]);
+		if ($email[$x]) $sent_emails[] = $email[$x];
 	}
+	print "<div style='text-align:center; margin:20px; padding:15px; background-color:#d4edda; border:1px solid #c3e6cb; border-radius:5px; color:#155724; font-size:16px;'>";
+	print "<strong>" . findtekst('2701|Send som PDF', $sprog_id) . "</strong><br>";
+	print findtekst('2703|Mail er sendt', $sprog_id);
+	if (count($sent_emails) > 0) {
+		print "<br><small>" . implode(', ', $sent_emails) . "</small>";
+	}
+	print "</div>";
 	print "<form name=luk action=../includes/luk.php method=post>";	
 	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
 	print "</form></div>";
+	print "<script>alert('".findtekst('2703|Mail er sendt', $sprog_id)."');</script>";
 	exit;
 }
 #xit;
@@ -249,6 +311,15 @@ for($x=1; $x<=$kontoantal; $x++) {
 		if (!$valutakurs) $valutakurs=100;
 		if ($valuta!=$kontovaluta[$x]) $DKKamount=$amount*$valutakurs/100;
 		else $DKKamount=$amount;
+			    ####################
+				# Filter Open Post
+				
+                  if($kilde =='openpost' && $r['udlignet'] =='1' ) {
+					continue;
+				  } 
+				
+				####################
+
 		if ($r['forfaldsdate']) {
 			$forfaldsdate=$r['forfaldsdate'];
 			$forfaldsdag=dkdato($forfaldsdate);
@@ -296,39 +367,153 @@ for($x=1; $x<=$kontoantal; $x++) {
 		$tmp=dkdecimal($kontosum,2);
 		print "<tr><td></td><td></td><td></td><td> ".findtekst(1165, $sprog_id)."</td><td></td><td></td><td></td><td align=right> $tmp</td></tr>";
 	}
-	print "<tr><td colspan=8><hr></td></tr>";
- 	print "<tr><td colspan=8> email til: <input type=text name=email[$x] value=$email[$x]> Periode: <input type=text style=\"text-align:right\" size=10 name=fra[$x] value=$fra[$x]> - <input type=text style=\"text-align:right\" size=10 name=til[$x] value=$til[$x]></td></tr>";
-	print "<tr><td colspan=8><hr style=\"height: 10px; background-color: rgb(200, 200, 200);\"></td></tr>";
-	print "<tr><td colspan=8><hr></td></tr>";
-	print "<input type = hidden name=konto_id[$x] value=$konto_id[$x]>";
+	#####
+	$footer_email     = htmlspecialchars($email[$x]);
+	$footer_fra       = htmlspecialchars($fra[$x]);
+	$footer_til       = htmlspecialchars($til[$x]);
+	$footer_konto_id  = htmlspecialchars($konto_id[$x]);
+	
+	####
 }
-print "<input type = hidden name=kontoantal value=$kontoantal>";
-print "<input type = hidden name=dato_fra value=$dato_fra>";
-print "<input type = hidden name=dato_til value=$dato_til>";
-#print "<input type = hidden name=regnaar value=$regnaar>";
-print "<tr><td colspan=10 align=center>";
-$spantxt=findtekst(1797, $sprog_id); #20210805
-print "<span title='$spantxt'><input type=\"submit\" style=\"width:110px;\" value=\"Opdat&eacute;r\" name=\"update\">&nbsp;</span>";
-$spantxt=findtekst(1798, $sprog_id); 
-print "<span title='$spantxt'><input type=\"submit\" style=\"width:110px;\" value=\"Send mail(s)\" name=\"send_mails\">&nbsp;</span>";
-$qtxt="select * from formularer where formular='11' and art='5' and lower(sprog)='dansk'";
-$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-$mailtext=$subjekt=NULL;
-while ($r = db_fetch_array($q)) {
-	if (!$subjekt && $r['xa']=='1') $subjekt=$r['beskrivelse'];
-	elseif (!$mailtext && $r['xa']=='2') $mailtext=$r['beskrivelse'];
-}
-if ($mailtext && $subjekt) {
-	$disabled=NULL;
-	$spantxt=findtekst(1799, $sprog_id); 
-} else {
-	$disabled='disabled';
-	$spantxt=findtekst(1800, $sprog_id); 
-}
-print "<span title='$spantxt'><input type=\"submit\" style=\"width:110px;\" value=\"Send som PDF\" name=\"send_pdfs\" $disabled>&nbsp;</span>";
-$spantxt=findtekst(1801, $sprog_id); 
-print "<span title='$spantxt'><input type=\"submit\" style=\"width:110px;\" value=\"Retur\" name=\"retur\"></td></span>";
-print "</form>\n";
+###########
+$footer_fra = date('Y-m-d', strtotime($footer_fra));
+$footer_til = date('Y-m-d', strtotime($footer_til));
+?>
+<div id="fixedFooter" style="background-color: <?php echo $bgcolor; ?>;">
+    <!-- Required Hidden Global Inputs -->
+    <input type="hidden" name="kontoantal" value="<?php echo htmlspecialchars($kontoantal); ?>">
+    <input type="hidden" name="dato_fra" value="<?php echo htmlspecialchars($dato_fra); ?>">
+    <input type="hidden" name="dato_til" value="<?php echo htmlspecialchars($dato_til); ?>">
+
+    <!-- Content Wrapper for vertical layout -->
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+
+        <!-- email + period inputs -->
+        <div style="text-align: center;">
+          <hr style="position: relative; left: 0; width: 100vw; height: 1px; background: #ccc; margin: 0 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
+
+
+			email til: 
+            <input type="text" name="email[<?php echo $x-1; ?>]" value="<?php echo $footer_email; ?>">
+            Periode: 
+            <input type="date" style="text-align:right" size="10" name="fra[<?php echo $x-1; ?>]" value="<?php echo $footer_fra; ?>"> - 
+            <input type="date" style="text-align:right" size="10" name="til[<?php echo $x-1; ?>]" value="<?php echo $footer_til; ?>">
+			<hr style="width: 100vw; height: 10px; background-color: rgb(200, 200, 200); margin: 4px 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
+			<hr style="width: 100vw; height: 1px; background-color: #ccc; margin: 0 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
+
+            <input type="hidden" name="konto_id[<?php echo $x-1; ?>]" value="<?php echo $footer_konto_id; ?>">
+            <input type="hidden" name="kilde" value="<?php echo $kilde; ?>">
+        </div>
+
+        <!-- Dropdown/select -->
+		<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px;">
+			<select name="typeSelect" style="height:inherit; font-size:inherit;" onchange="location.href = this.value;">
+				<?php
+				// If $OpenPost is on, output an option with value and selected if matches current kilde
+				if ($OpenPost == 'on') {
+					$selected = ($current_kilde === 'openpost') ? 'selected' : '';
+					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=openpost\" $selected>Show open Records</option>\n";
+				}
+
+			
+				if ($AllAcount == 'on') {
+					$selected = ($current_kilde === 'show_all') ? 'selected' : '';
+					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=show_all\" $selected>Show all Records</option>\n";
+				}
+
+				
+				if ($OpenPost != 'on') {
+					$selected = ($current_kilde === 'openpost') ? 'selected' : '';
+					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=openpost\" $selected>Show Open Post</option>\n";
+				}
+
+				
+				if ($AllAcount != 'on') {
+					$selected = ($current_kilde === 'show_all') ? 'selected' : '';
+					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=show_all\" $selected>Show All</option>\n";
+				}
+				?>
+			</select>
+
+			<input type="submit" value="Opdatér" name="update"
+				title="<?php echo findtekst(1797, $sprog_id); ?>">
+
+			<input type="submit" value="Send mail(s)" name="send_mails"
+				title="<?php echo findtekst(1798, $sprog_id); ?>">
+
+			<?php
+			// Logic for disabling send_pdfs button
+			$disabled = 'disabled';
+			$spantxt = findtekst(1800, $sprog_id);
+
+			$qtxt = "select * from formularer where formular='11' and art='5' and lower(sprog)='dansk'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			$mailtext = $subjekt = NULL;
+			while ($r = db_fetch_array($q)) {
+				if (!$subjekt && $r['xa'] == '1') $subjekt = $r['beskrivelse'];
+				elseif (!$mailtext && $r['xa'] == '2') $mailtext = $r['beskrivelse'];
+			}
+			if ($mailtext && $subjekt) {
+				$disabled = '';
+				$spantxt = findtekst(1799, $sprog_id);
+			}
+			?>
+
+			<input 
+				type="submit" 
+				style="<?php echo ($disabled ? 'background-color:#ccc; color:#666; cursor:not-allowed;' : ''); ?>" 
+				value="Send som PDF" 
+				name="send_pdfs" 
+				<?php echo $disabled; ?> 
+				title="<?php echo $spantxt; ?>">
+
+			<input type="submit" value="Retur" name="retur" title="<?php echo findtekst(1801, $sprog_id); ?>">
+		</div>
+
+
+        
+    </div>
+</div>
+
+<style>
+  #fixedFooter {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    border-top: 2px solid #ccc;
+    padding: 10px 20px;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+    z-index: 9999;
+    font-size: 14px;
+  }
+
+  #fixedFooter input[type="text"] {
+    margin-left: 4px;
+    margin-right: 8px;
+  }
+
+  #fixedFooter input[type="submit"] {
+    width: 110px;
+  }
+
+  input[type="submit"]:disabled {
+    background-color: #ccc !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+  }
+
+  body {
+    padding-bottom: 120px; /* Slightly more than footer height */
+  }
+</style>
+
+
+<?php
+
+###########
+
 
 function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	 
@@ -339,19 +524,14 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	global $subjekt;
 	global $sprog_id;
 
-	ini_set("include_path", "../phpmailer");
-	require("class.phpmailer.php");
-	
+	$sent_emails = array();
+
 	$tmpmappe="../temp/$db/".str_replace(" ","_",$brugernavn);
 	if (!file_exists($tmpmappe)) mkdir($tmpmappe);
 	$r = db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
 	$afsendermail=$r['email'];
 	$afsendernavn=$r['firmanavn'];
 	$from=$afsendermail;
-	($r['felt_1'])?$smtp=$r['felt_1']:$smtp='localhost';
-	($r['felt_2'])?$smtp_user=$r['felt_2']:$smtp_user=NULL;
-	($r['felt_3'])?$smtp_pwd=$r['felt_3']:$smtp_pwd=NULL;
-	($r['felt_4'])?$smtp_enc=$r['felt_4']:$smtp_enc=NULL;
 
 	for($x=1; $x<=$kontoantal; $x++) {
 		if (!file_exists("$tmpmappe/$x")) mkdir("$tmpmappe/$x");
@@ -472,53 +652,20 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 				$afsendermail=mb_convert_encoding($afsendermail, 'UTF-8', 'ISO-8859-1');
 			}
 			$from = $afsendermail;
+			if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) {
+				$from = $db.'@'.$_SERVER['SERVER_NAME'];
+				$from=str_replace('bizsys_','post_',$from);
+			}
 			$fp=fopen("$tmpmappe/$x/kontoudtog.html","w");
 			fwrite($fp,$mailtext);
 			fclose ($fp);
 
-			$mail = new PHPMailer();
-			$mail->IsSMTP();                                   // send via SMTP
-			$mail->CharSet = "$charset";
-			$mail->SMTPDebug  = 2;
-			$mail->Host  = $smtp; // SMTP servers 
-			if ($smtp!='localhost') {
-				if ($smtp_user) {
-					$mail->SMTPAuth = true;     // turn on SMTP authentication
-					$mail->Username = $smtp_user;  // SMTP username
-					$mail->Password = $smtp_pwd; // SMTP password
-					if ($smtp_enc) $mail->SMTPSecure = $smtp_enc; // SMTP kryptering
-				}
-			} else {
-				$mail->SMTPAuth = false;
-				if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121016
-					$from = $db.'@'.$_SERVER['SERVER_NAME']; #20130731
-					$from=str_replace('bizsys_','post_',$from);
-				}  
-			}
-			$mail->From = $from;
-			$mail->FromName = $afsendernavn;
-			$mail->ReturnPath = $afsendermail;
-			$splitter=NULL;
-			if (strpos($email[$x],";")) $splitter=';';
-			elseif (strpos($email[$x],",")) $splitter=',';
-			if ($splitter) { #20150305-2 + 20161114
-				$tmp=array();
-				$tmp=explode($splitter,$email[$x]);
-				for ($i=0;$i<count($tmp);$i++) {
-					if (strpos($tmp[$i],"@")) $mail->AddAddress($tmp[$i]); 
-				}
-			} else $mail->AddAddress($email[$x]);
-			$mail->AddBCC($afsendermail); 
-			$mail->AddReplyTo($afsendermail,$afsendernavn);
-			$mail->WordWrap = 50;                              // set word wrap
-			$mail->AddAttachment("$tmpmappe/$x/kontoudtog.html");      // attachment
-			$mail->IsHTML(true);                               // send as HTML
+			// --- Build email using PHP mail() ---
+			$mail_subject = "Kontoudtog fra $afsendernavn";
 
-			$mail->Subject  =  "Kontoudtog fra $afsendernavn";
-			
 			$mailbody = "<html><body>\n";
-                        $mailbody .= "<p>Hermed fremsendes kontoudtog fra ".$afsendernavn.".</p>\n";
-                        $mailbody .= "<p>Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
+			$mailbody .= "<p>Hermed fremsendes kontoudtog fra ".$afsendernavn.".</p>\n";
+			$mailbody .= "<p>Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
 			$mailbody .= "ved at dobbeltklikke p&aring; den.</p>\n";
 			$mailbody .= "<hr />\n<p>";
 			$mailbody .= $r['firmanavn']."<br />\n";
@@ -531,7 +678,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			$mailbody .= "</p></body></html>";
 
 			$mailaltbody = "Hermed fremsendes kontoudtog fra ".$afsendernavn.".\n\n";
-                        $mailaltbody .= "Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
+			$mailaltbody .= "Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
 			$mailaltbody .= "ved at dobbeltklikke på den.\n";
 			$mailaltbody .= "-- \n";
 			$mailaltbody .= $r['firmanavn']."\n";
@@ -547,19 +694,69 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 				$mailaltbody=mb_convert_encoding($mailaltbody, 'UTF-8', 'ISO-8859-1');
 			}
 
+			// Build MIME boundaries
+			$boundary = md5(uniqid(time()));
+			$boundary_alt = md5(uniqid(time() . "alt"));
 
-			$mail->Body     =  $mailbody;
-			$mail->AltBody  =  $mailaltbody;
-			echo "<!--";
-			if(!$mail->Send()){
-				echo "-->";
- 				 echo "Fejl i afsendelse til $email[$x]<p>";
-   				echo "Mailer Error: " . $mail->ErrorInfo;
-  		 		exit;
-			} 
-			echo "-->";
-			echo "Kontoudtog sendt til $email[$x]<br>";
-#			sleep(2);
+			// Build recipient list
+			$to_addresses = '';
+			$splitter=NULL;
+			if (strpos($email[$x],";")) $splitter=';';
+			elseif (strpos($email[$x],",")) $splitter=',';
+			if ($splitter) {
+				$tmp_emails=explode($splitter,$email[$x]);
+				$valid_emails=array();
+				for ($i=0;$i<count($tmp_emails);$i++) {
+					if (strpos(trim($tmp_emails[$i]),"@")) $valid_emails[] = trim($tmp_emails[$i]);
+				}
+				$to_addresses = implode(', ', $valid_emails);
+			} else {
+				$to_addresses = trim($email[$x]);
+			}
+
+			// Read attachment file
+			$attachment_content = chunk_split(base64_encode(file_get_contents("$tmpmappe/$x/kontoudtog.html")));
+
+			// Build headers
+			$headers = "From: $afsendernavn <$from>\r\n";
+			$headers .= "Reply-To: $afsendernavn <$afsendermail>\r\n";
+			$headers .= "Return-Path: $afsendermail\r\n";
+			$headers .= "Bcc: $afsendermail\r\n";
+			$headers .= "MIME-Version: 1.0\r\n";
+			$headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
+
+			// Build message body
+			$message = "--$boundary\r\n";
+			$message .= "Content-Type: multipart/alternative; boundary=\"$boundary_alt\"\r\n\r\n";
+
+			// Plain text part
+			$message .= "--$boundary_alt\r\n";
+			$message .= "Content-Type: text/plain; charset=UTF-8\r\n";
+			$message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+			$message .= $mailaltbody . "\r\n\r\n";
+
+			// HTML part
+			$message .= "--$boundary_alt\r\n";
+			$message .= "Content-Type: text/html; charset=UTF-8\r\n";
+			$message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+			$message .= $mailbody . "\r\n\r\n";
+			$message .= "--$boundary_alt--\r\n\r\n";
+
+			// Attachment
+			$message .= "--$boundary\r\n";
+			$message .= "Content-Type: text/html; name=\"kontoudtog.html\"\r\n";
+			$message .= "Content-Transfer-Encoding: base64\r\n";
+			$message .= "Content-Disposition: attachment; filename=\"kontoudtog.html\"\r\n\r\n";
+			$message .= $attachment_content . "\r\n";
+			$message .= "--$boundary--\r\n";
+
+			// Send
+			$mail_subject = mb_encode_mimeheader($mail_subject, 'UTF-8', 'B');
+			if(!mail($to_addresses, $mail_subject, $message, $headers)){
+				echo "Fejl i afsendelse til $email[$x]<p>";
+				exit;
+			}
+			$sent_emails[] = $email[$x];
 		}	
 	}
 	for($x=1; $x<=$kontoantal; $x++) {
@@ -568,6 +765,8 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	}
 	#	unlink("$tmpmappe/kontoudtog.html");
 	rmdir($tmpmappe);
+	
+	return $sent_emails;
 }
 ?>
 

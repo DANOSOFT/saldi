@@ -109,33 +109,33 @@ $company_node->appendChild($child_node_Name);
 /*---------------------- Address ----------------------*/
 $address_node = $dom->createElement('n1:Address');
 
-address($dom, $address_node, $StreetName, $StreetNumber, $AdditionalAddressDetail, $City, $PostalCode, $Region, $Country, $AddressType); // function test
-// $child_node_StreetName = $dom->createElement('n1:StreetName', $StreetName);
-// $address_node->appendChild($child_node_StreetName);
+// address($dom, $address_node, $StreetName, $StreetNumber, $AdditionalAddressDetail, $City, $PostalCode, $Region, $Country, $AddressType); // function test
+$child_node_StreetName = $dom->createElement('n1:StreetName', $StreetName);
+$address_node->appendChild($child_node_StreetName);
 
-// $child_node_Number = $dom->createElement('n1:Number', $StreetNumber);
-// $address_node->appendChild($child_node_Number);
+$child_node_Number = $dom->createElement('n1:Number', $StreetNumber);
+$address_node->appendChild($child_node_Number);
 
-// $child_node_AdditionalAddressDetail = $dom->createElement('n1:AdditionalAddressDetail', $AdditionalAddressDetail);
-// $address_node->appendChild($child_node_AdditionalAddressDetail);
+$child_node_AdditionalAddressDetail = $dom->createElement('n1:AdditionalAddressDetail', $AdditionalAddressDetail);
+$address_node->appendChild($child_node_AdditionalAddressDetail);
 
-// $child_node_Building = $dom->createElement('n1:Building', $address_Building);
-// $address_node->appendChild($child_node_Building);
+$child_node_Building = $dom->createElement('n1:Building', $address_Building);
+$address_node->appendChild($child_node_Building);
 
-// $child_node_City = $dom->createElement('n1:City', $City);
-// $address_node->appendChild($child_node_City);
+$child_node_City = $dom->createElement('n1:City', $City);
+$address_node->appendChild($child_node_City);
 
-// $child_node_PostalCode = $dom->createElement('n1:PostalCode', $PostalCode);
-// $address_node->appendChild($child_node_PostalCode);
+$child_node_PostalCode = $dom->createElement('n1:PostalCode', $PostalCode);
+$address_node->appendChild($child_node_PostalCode);
 
-// $child_node_Region = $dom->createElement('n1:Region', $Region);
-// $address_node->appendChild($child_node_Region);
+$child_node_Region = $dom->createElement('n1:Region', $Region);
+$address_node->appendChild($child_node_Region);
 
-// $child_node_Country = $dom->createElement('n1:Country', $Country);
-// $address_node->appendChild($child_node_Country);
+$child_node_Country = $dom->createElement('n1:Country', $Country);
+$address_node->appendChild($child_node_Country);
 
-// $child_node_AddressType = $dom->createElement('n1:AddressType', $AddressType);
-// $address_node->appendChild($child_node_AddressType);
+$child_node_AddressType = $dom->createElement('n1:AddressType', $AddressType);
+$address_node->appendChild($child_node_AddressType);
 
 $company_node->appendChild($address_node);
 /*-------------------- End Address ------------------------*/

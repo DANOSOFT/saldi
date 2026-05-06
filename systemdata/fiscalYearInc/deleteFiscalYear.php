@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 4.0.4 --- 2024-05-24 --
+// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 4.1.1 --- 2025-07-02 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,8 +21,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------------
+// 20250629 - PHR $basecurrency  & some cleanup
+// 20250702 - PHR Updated deletion of fiscal year
+
 function deleteFinancialYear($year) {
 	
 	$itemId = $variantId = array();
@@ -60,7 +63,7 @@ function deleteFinancialYear($year) {
 	}
 	$qtxt = "update grupper set box10 = '' where box10 is NULL and art = 'RA'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "select * from grupper where art = 'RA' and id < '$groupId' and box10 != 'on' order by id limit 1";
+	$qtxt = "select * from grupper where art = 'RA' and id < '$groupId' and box10 = '' order by id limit 1";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		alert("Regnskabsår $r[kodenr] skal slettes først");
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../systemdata/regnskabsaar.php\">";
@@ -115,12 +118,12 @@ function deleteFinancialYear($year) {
 				$qtxt = "delete from ordrelinjer where ordre_id = '$orderId[$y]'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt = "delete from ordrer where id = '$orderId[$y]'";
-	  		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt = "delete from pos_betalinger where ordre_id = '$orderId[$y]'";
- 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 			$qtxt = "delete from report where date <= '$yearEnd'";
- 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			
 			$deleteAccount = 1;
 			$qtxt = "select id from ordrer where konto_id = '$accountId[$i]' limit 1";
@@ -173,8 +176,8 @@ function deleteFinancialYear($year) {
 					for ($l=0;  $l<count($stockId[$y]);$l++) {
 						for ($v=0; $v<count($variantId);$v++) { 
 							$qtxt = "select count(antal) as qty, sum (pris) as price, sum (rest) as left ";
-							$qty.= "from batch_kob where vare_id = $itemId[$y] and variant_id = '$variantId[$v]' and ";
-							$qty.= "lager = $stockId[$l] and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
+							$qtxt.= "from batch_kob where vare_id = $itemId[$y] and variant_id = '$variantId[$v]' and ";
+							$qtxt.= "lager = $stockId[$l] and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
 							$qtxt.= "or (fakturadate is NULL and kobsdate  >= '2000-01-01' and kobsdate <= '$yearEnd'))";
 							if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 							$qty[$v]      = $r['qty'];
@@ -182,17 +185,17 @@ function deleteFinancialYear($year) {
 							$avgPrice[$v] = $r['price']/$r['qty'];
 				
 							$qtxt = "select count(antal) as qty from batch_salg where vare_id = $itemId[$y] ";
-							$qty.= "and lager = $stockId[$l] and variant_id = '$variantId[$v]' ";
-							$qty.= "and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
+							$qtxt.= "and lager = $stockId[$l] and variant_id = '$variantId[$v]' ";
+							$qtxt.= "and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
 							$qtxt.= "or (fakturadate is NULL and salgsdate  >= '2000-01-01' and salgsdate <= '$yearEnd')";
 							if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $qty[$v]-= $r['qty'];;
 						}
 						$qtxt = "delete from batch_kob where vare_id = $itemId[$y] and variant_id = '$variantId[$v]' ";
-						$qty.= " and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
+						$qtxt.= " and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
 						$qtxt.= "or (fakturadate is NULL and kobsdate  >= '2000-01-01' and kobsdate <= '$yearEnd'))";
-					db_modify(qtxt,__FILE__ . " linje " . __LINE__);
+						db_modify(qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt = "delete from batch_salg where  vare_id = $itemId[$y] and variant_id = '$variantId[$v]' ";
-						$qty.= " and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
+						$qtxt.= " and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
 						$qtxt.= "or (fakturadate is NULL and salgsdate  >= '2000-01-01' and salgsdate <= '$yearEnd')";
 						db_modify(qtxt,__FILE__ . " linje " . __LINE__);
 						if ($qty[$v] > 0) {
@@ -200,7 +203,7 @@ function deleteFinancialYear($year) {
 							$qtxt.= "(kobsdate,fakturadate,vare_id,variant_id,linje_id,ordre_id,pris,antal,rest,lager) values";
 							$qtxt.= "('$yearEnd','$yearEnd','$vareId[$y]','$variantId[$v]',";
 							$qtxt.= "'0','0','$avgPrice[$v]',$qty[$v],$left[$v],$stockId[$l])";
-						db_modify(qtxt,__FILE__ . " linje " . __LINE__);
+							db_modify(qtxt,__FILE__ . " linje " . __LINE__);
 							}
 						}
 					}
@@ -239,14 +242,19 @@ function deleteFinancialYear($year) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "delete from kontoplan where regnskabsaar ='$year'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "update grupper set box10 = 'on' where art = 'RA' and kodenr ='$year'";
+	$qtxt = "update grupper set box10 = '".date('U')."' where art = 'RA' and kodenr ='$year'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "delete from grupper where fiscal_year = '$year'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	transaktion('commit');
+#	return "Not deleted";
 
 }
 function getAccountBalance($accountId,$yearBegin,$yearEnd) {
+
+	global $baseCurrency;
+
+	if (!$baseCurrency) $baseCurrency = 'DKK';
 
 	if (!isset ($todate)) $todate = NULL;
 	if (!isset ($totalsum)) $totalsum = NULL;
@@ -260,14 +268,14 @@ function getAccountBalance($accountId,$yearBegin,$yearEnd) {
 	while ($r = db_fetch_array($q)) {
 		$amount=afrund($r['amount'],2);
 		$oppCurrency=$r['valuta'];
-		if (!$oppCurrency) $oppCurrency='DKK';
+		if (!$oppCurrency) $oppCurrency='$baseCurrency';
 		$oppExRate=$r['valutakurs']*1;
 		if (!$oppExRate) $oppExRate=100;
 		$dkkamount=$amount;
-		if ($oppCurrency=='DKK') $dkkAmount = $amount;
+		if ($oppCurrency=='$baseCurrency') $dkkAmount = $amount;
 		else $dkkAmount = afrund($amount*100/$oppExRate,2);
 		$transdate=$r['transdate'];
-		if ($oppCurrency!='DKK' && $oppExRate!=100) $amount=$amount*$oppExRate/100;
+		if ($oppCurrency!='$baseCurrency' && $oppExRate!=100) $amount=$amount*$oppExRate/100;
 		$accountBalance=afrund($accountBalance+$amount,2);
 	}
 	return ($accountBalance);

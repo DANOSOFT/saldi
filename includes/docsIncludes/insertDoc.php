@@ -30,15 +30,181 @@
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
+// Bootstrap database connection when called directly via AJAX (not included from documents.php)
+if (!function_exists('db_fetch_array')) {
+	ob_start(); // Buffer any HTML output from includes (they output page headers)
+	@session_start();
+	$s_id = session_id();
+	include($sth . "/includes/connect.php");
+	include($sth . "/includes/online.php");
+	include($sth . "/includes/std_func.php");
+	ob_end_clean(); // Discard the HTML output from includes
+}
+
 isset($_GET['bilag_id'])? $bilag_id = $_GET['bilag_id']: $bilag_id = null;
 isset($_GET['bilag'])? $bilag = $_GET['bilag']: $bilag = null;
+$sourceId = isset($_REQUEST['sourceId']) ? $_REQUEST['sourceId'] : (isset($sourceId) ? $sourceId : null);
 if(!isset($globalId)) $globalId =1;
 $qtxt = "select var_value from settings where var_name = 'globalId'";
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $globalId = $r['var_value'];
 else alert ('Missing global ID');
 
+// Extract variables from REQUEST if not already set (for AJAX/POST support without register_globals)
+$source = isset($_REQUEST['source']) ? $_REQUEST['source'] : (isset($source) ? $source : null);
+$kladde_id = isset($_REQUEST['kladde_id']) ? $_REQUEST['kladde_id'] : (isset($kladde_id) ? $kladde_id : null);
+$docFolder = isset($_REQUEST['docFolder']) ? $_REQUEST['docFolder'] : (isset($docFolder) ? $docFolder : null);
+$poolFile = isset($_REQUEST['poolFile']) ? $_REQUEST['poolFile'] : (isset($poolFile) ? $poolFile : null);
+if (isset($_REQUEST['db'])) $db = $_REQUEST['db']; // Ensure db is set if passed
+
+// Debug logging
+file_put_contents('/tmp/debug_insert.log', date('Y-m-d H:i:s') . " - Request: " . print_r($_REQUEST, true) . "\n", FILE_APPEND);
+
 $docFolder.= "/$db";
 if ($poolFile && !$fileName) $fileName = $poolFile;
+
+// Handle updateOnly action (Save button) — early return, no file handling needed
+if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
+    // If source is kassekladde and no sourceId, create a new entry first
+    if ($source == 'kassekladde' && !$sourceId) {
+        if (!$kladde_id) {
+            if (isset($_POST['ajax']) && $_POST['ajax']) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Ingen aktiv kassekladde']);
+                exit;
+            }
+            alert("Ingen aktiv kassekladde");
+            exit;
+        }
+        include_once("../includes/stdFunc/fiscalYear.php");
+        if (!$bilag) {
+            $bilag = 1;
+            if (isset($_POST['bilag']) && $_POST['bilag']) $bilag = (int)$_POST['bilag'];
+            else {
+                list($regnstart, $regnslut) = explode(":", fiscalYear($regnaar));
+                $qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+                $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+                if ($row = db_fetch_array($q)) $bilag = $row['bilag'] + 1;
+            }
+        }
+
+        $transdate_for_insert = (isset($_POST['dato']) && $_POST['dato']) ? usdate($_POST['dato']) : date("Y-m-d");
+
+        // Calculate next pos
+        $pos_qtxt = "SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag'";
+        $pos_result = db_fetch_array(db_select($pos_qtxt, __FILE__ . " linje " . __LINE__));
+        $next_pos = $pos_result ? $pos_result['next_pos'] : 1;
+
+        $qtxt = "insert into kassekladde (bilag,kladde_id,transdate,d_type,k_type,amount,pos) values ";
+        $qtxt .= "('$bilag','$kladde_id','$transdate_for_insert','F','F','0','$next_pos')";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+        $qtxt = "select max(id) as id from kassekladde where kladde_id = '$kladde_id' and bilag = '$bilag'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $sourceId = $r['id'];
+        }
+    }
+
+    // Update kassekladde fields if we have a sourceId
+    if ($sourceId) {
+        if (isset($_POST['bilagsnr']) && $_POST['bilagsnr']) {
+            $qtxt = "update kassekladde set bilag = '" . (int)$_POST['bilagsnr'] . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['dato']) && $_POST['dato']) {
+            $qtxt = "update kassekladde set transdate = '" . usdate($_POST['dato']) . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['beskrivelse']) && $_POST['beskrivelse']) {
+            $qtxt = "update kassekladde set beskrivelse = '" . db_escape_string($_POST['beskrivelse']) . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['debet'])) {
+            if ($_POST['debet'] !== '') {
+                if (!is_numeric(substr($_POST['debet'], 0, 1))) {
+                    $qtxt = "update kassekladde set d_type = '" . substr($_POST['debet'], 0, 1) . "', ";
+                    $qtxt .= "debet = '" . (int)substr($_POST['debet'], 1) . "' where id = '$sourceId'";
+                } else {
+                    $qtxt = "update kassekladde set debet = '" . (int)$_POST['debet'] . "' where id = '$sourceId'";
+                }
+            } else {
+                $qtxt = "update kassekladde set debet = 0, d_type = 'F' where id = '$sourceId'";
+            }
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['kredit'])) {
+            if ($_POST['kredit'] !== '') {
+                if (!is_numeric(substr($_POST['kredit'], 0, 1))) {
+                    $qtxt = "update kassekladde set k_type = '" . substr($_POST['kredit'], 0, 1) . "', ";
+                    $qtxt .= "kredit = '" . (int)substr($_POST['kredit'], 1) . "' where id = '$sourceId'";
+                } else {
+                    $qtxt = "update kassekladde set kredit = '" . (int)$_POST['kredit'] . "' where id = '$sourceId'";
+                }
+            } else {
+                $qtxt = "update kassekladde set kredit = 0, k_type = 'F' where id = '$sourceId'";
+            }
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['sum']) && $_POST['sum']) {
+            $qtxt = "update kassekladde set amount = '" . usdecimal($_POST['sum']) . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['fakturanr']) && $_POST['fakturanr']) {
+            $qtxt = "update kassekladde set faktura = '" . db_escape_string($_POST['fakturanr']) . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['valuta']) && $_POST['valuta']) {
+            $postValuta = trim($_POST['valuta']);
+            if (!is_numeric($postValuta)) {
+                // Currency code (e.g. "EUR") — look up the kodenr number
+                $vkLookup = db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($postValuta)) . "'", __FILE__ . " linje " . __LINE__));
+                $valutaNr = ($vkLookup && $vkLookup['kodenr']) ? (int)$vkLookup['kodenr'] : 0;
+            } else {
+                $valutaNr = (int)$postValuta;
+            }
+            $qtxt = "update kassekladde set valuta = '$valutaNr' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['afd']) && $_POST['afd'] !== '') {
+            $qtxt = "update kassekladde set afd = '" . (int)$_POST['afd'] . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['medarb']) && $_POST['medarb'] !== '') {
+            $qtxt = "update kassekladde set medarb = '" . (int)$_POST['medarb'] . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['projekt']) && $_POST['projekt'] !== '') {
+            $qtxt = "update kassekladde set projekt = '" . (int)$_POST['projekt'] . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['momsfri'])) {
+            $momsfriVal = $_POST['momsfri'] ? 1 : 0;
+            $qtxt = "update kassekladde set momsfri = '$momsfriVal' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+        if (isset($_POST['forfald']) && $_POST['forfald']) {
+            $qtxt = "update kassekladde set forfaldsdate = '" . usdate($_POST['forfald']) . "' where id = '$sourceId'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+    }
+
+    // Return response
+    if (isset($_POST['ajax']) && $_POST['ajax']) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => (bool)$sourceId, 'sourceId' => $sourceId, 'bilag' => $bilag, 'message' => $sourceId ? 'Saved' : 'Bilaget kunne ikke indsættes']);
+        exit;
+    }
+
+    // Non-AJAX fallback redirect
+    $redirectUrl = "docPool.php?source=$source&sourceId=$sourceId&kladde_id=$kladde_id&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
+    echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Redirecting...</title></head><body>';
+    echo '<script type="text/javascript">';
+    echo "window.location.replace('" . addslashes($redirectUrl) . "');";
+    echo '</script>';
+    echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirectUrl) . '"></noscript>';
+    echo '</body></html>';
+    exit;
+}
+
 if ($docFolder && $source == 'creditorOrder') {
 	
 	if (!file_exists("$docFolder"))                 mkdir ("$docFolder/",0777);
@@ -70,6 +236,10 @@ if ($docFolder && $source == 'creditorOrder') {
 		exit;
 	}
 	if (!$sourceId) {
+		// Check if we're adding to an existing bilag (bilag passed from form or URL)
+		$existingBilagPos = null;
+		$existingBilagDate = null;
+		
 		if (!$bilag) {
 			include_once("../includes/stdFunc/fiscalYear.php");
 			$bilag=1;
@@ -80,15 +250,38 @@ if ($docFolder && $source == 'creditorOrder') {
 				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($q)) $bilag=$row['bilag']+1;
 			}
+		} else {
+			// Bilag is already set - check if there's an existing entry to get its pos and date
+			// This preserves position when adding document to an existing bilag entry
+			$qtxt = "SELECT pos, transdate FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag' ORDER BY pos DESC LIMIT 1";
+			$existingEntry = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if ($existingEntry) {
+				$existingBilagPos = $existingEntry['pos'];
+				$existingBilagDate = $existingEntry['transdate'];
+			}
 		}
-		$qtxt = "insert into kassekladde (bilag,kladde_id,transdate,d_type,k_type,amount) values ";
-		$qtxt.= "('$bilag','$kladde_id','". date("Y-m-d") ."','F','F','0')";
+		
+		// Use existing date/pos if available, otherwise calculate new ones
+		$transdate_for_insert = $existingBilagDate ? $existingBilagDate : date("Y-m-d");
+		
+		if ($existingBilagPos !== null) {
+			// Place right after the existing entry with this bilag
+			$next_pos = $existingBilagPos + 1;
+		} else {
+			// Calculate the next pos value for proper ordering
+			$pos_qtxt = "SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$bilag' AND transdate = '$transdate_for_insert'";
+			$pos_result = db_fetch_array(db_select($pos_qtxt, __FILE__ . " linje " . __LINE__));
+			$next_pos = $pos_result ? $pos_result['next_pos'] : 1;
+		}
+		
+		$qtxt = "insert into kassekladde (bilag,kladde_id,transdate,d_type,k_type,amount,pos) values ";
+		$qtxt.= "('$bilag','$kladde_id','$transdate_for_insert','F','F','0','$next_pos')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt = "select max(id) as id from kassekladde where kladde_id = '$kladde_id' and bilag = '$bilag'";
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$sourceId = $r['id'];
 		}
-	} 
+	}
 	if ($sourceId) {
 		if ($_POST['dato']) {
 			$qtxt = "update kassekladde set transdate = '". usdate($_POST['dato']) ."' where id = '$sourceId'";
@@ -120,16 +313,30 @@ if ($docFolder && $source == 'creditorOrder') {
 		}
 		if ($_POST['sum']) {
 			$qtxt = "update kassekladde set amount = '". usdecimal($_POST['sum']) ."' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		if ($_POST['fakturanr']) {
 			$qtxt = "update kassekladde set faktura = '". db_escape_string($_POST['fakturanr']) ."' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		}
+		if ($_POST['valuta']) {
+			$postValuta2 = trim($_POST['valuta']);
+			if (!is_numeric($postValuta2)) {
+				$vkLookup2 = db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE art='VK' AND UPPER(box1) = '" . db_escape_string(strtoupper($postValuta2)) . "'", __FILE__ . " linje " . __LINE__));
+				$valutaNr2 = ($vkLookup2 && $vkLookup2['kodenr']) ? (int)$vkLookup2['kodenr'] : 0;
+			} else {
+				$valutaNr2 = (int)$postValuta2;
+			}
+			$qtxt = "update kassekladde set valuta = '$valutaNr2' where id = '$sourceId'";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=../finans/kassekladde.php?kladde_id=$kladde_id\">";
 	} else {
 		alert("Bilaget kunne ikke indsættes");
 	}
+    
+
+
 	$path = "../bilag/$db/finance/$kladde_id/$sourceId/";
 	$showDoc = $path.$fileName;
 	if(!file_exists("../bilag/$db")) 							mkdir ("../bilag/$db",0777);
@@ -147,10 +354,33 @@ if ($docFolder && $source == 'creditorOrder') {
 #	if (!file_exists("$docFolder/finance/$kladde_id/$sourceId")) #cho "Ku ik oprette $docFolder/finance/$kladde_id/$sourceId<br>";
 	$filePath = "/finance/$kladde_id/$sourceId";
 }
+
+/* // Debug logging
+docPoolLog("insertDoc.php called");
+docPoolLog("  insertFile: " . ($insertFile ?? 'NOT SET'));
+docPoolLog("  poolFile: " . ($poolFile ?? 'NOT SET'));
+docPoolLog("  fileName: " . ($fileName ?? 'NOT SET'));
+docPoolLog("  docFolder: " . ($docFolder ?? 'NOT SET'));
+docPoolLog("  source: " . ($source ?? 'NOT SET'));
+docPoolLog("  sourceId: " . ($sourceId ?? 'NOT SET'));
+docPoolLog("  showDoc: " . ($showDoc ?? 'NOT SET'));
+docPoolLog("  pulje path: $docFolder/pulje/$fileName");
+docPoolLog("  pulje exists: " . (file_exists("$docFolder/pulje/$fileName") ? 'YES' : 'NO'));
+docPoolLog("  showDoc exists: " . (isset($showDoc) && file_exists($showDoc) ? 'YES' : 'NO')); */
+
 if (!file_exists($showDoc)) {
-	if ($insertFile && file_exists("$docFolder/pulje/$fileName")) rename("$docFolder/pulje/$fileName",$showDoc);
-	else move_uploaded_file($_FILES['uploadedFile']['tmp_name'],"$showDoc");
+	/* docPoolLog("showDoc does not exist, proceeding with move/upload"); */
+	
+	if ($insertFile && file_exists("$docFolder/pulje/$fileName")) {
+		$renameResult = rename("$docFolder/pulje/$fileName",$showDoc);
+		/* docPoolLog("rename result: " . ($renameResult ? 'SUCCESS' : 'FAILED')); */
+	} else {
+		/* docPoolLog("trying move_uploaded_file"); */
+		move_uploaded_file($_FILES['uploadedFile']['tmp_name'],"$showDoc");
+	}
+	
 	if(file_exists($showDoc)) {
+		/* docPoolLog("showDoc now exists, inserting into documents table"); */
 		if (!$sourceId) {
 			if ($source == 'kassekladde') {
 				$qtxt = "insert into kassekladde (kladde_id) values ('$kladde_id')";
@@ -159,22 +389,98 @@ if (!file_exists($showDoc)) {
 		$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
 		$qtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','$source','$sourceId','". date('U') ."','$userId')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		/* docPoolLog("document inserted successfully"); */
+
+		// Also attach to sibling lines sharing the same bilag number
+		// If targetSourceIds is provided, only attach to those specific lines (user selected checkboxes)
+		// Otherwise fall back to attaching to all siblings
+		if ($source == 'kassekladde' && $sourceId) {
+			$targetIds = [];
+			if (isset($_POST['targetSourceIds']) && $_POST['targetSourceIds']) {
+				$targetIds = array_map('intval', explode(',', $_POST['targetSourceIds']));
+				$targetIds = array_filter($targetIds, function($id) { return $id > 0; });
+			}
+
+			if (!empty($targetIds)) {
+				// Only attach to the explicitly selected lines (excluding current sourceId which is already done)
+				foreach ($targetIds as $tid) {
+					if ((int)$tid === (int)$sourceId) continue;
+					$alreadyQ = db_fetch_array(db_select("SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$tid' AND filename = '" . db_escape_string($fileName) . "'", __FILE__ . " linje " . __LINE__));
+					if (!$alreadyQ) {
+						$sQtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
+						$sQtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','kassekladde','$tid','". date('U') ."','$userId')";
+						db_modify($sQtxt, __FILE__ . " linje " . __LINE__);
+					}
+				}
+			} else {
+				// No specific targets: attach to all siblings with the same bilag number
+				$qBilag = db_fetch_array(db_select("SELECT bilag, kladde_id FROM kassekladde WHERE id = '$sourceId'", __FILE__ . " linje " . __LINE__));
+				if ($qBilag && $qBilag['bilag'] && $qBilag['kladde_id']) {
+					$siblingBilag   = (int)$qBilag['bilag'];
+					$siblingKladde  = (int)$qBilag['kladde_id'];
+					$qSiblings = db_select("SELECT id FROM kassekladde WHERE kladde_id = '$siblingKladde' AND bilag = '$siblingBilag' AND id != '$sourceId'", __FILE__ . " linje " . __LINE__);
+					while ($sibling = db_fetch_array($qSiblings)) {
+						$alreadyQ = db_fetch_array(db_select("SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '{$sibling['id']}' AND filename = '" . db_escape_string($fileName) . "'", __FILE__ . " linje " . __LINE__));
+						if (!$alreadyQ) {
+							$sQtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
+							$sQtxt.= "('$globalId','". db_escape_string($fileName) ."','$filePath','kassekladde','{$sibling['id']}','". date('U') ."','$userId')";
+							db_modify($sQtxt, __FILE__ . " linje " . __LINE__);
+						}
+					}
+				}
+			}
+		}
+
+		// Clean up pool_files database entry after successful move from pulje
+		if ($insertFile && $fileName) {
+			$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($fileName) ."'";
+			@db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			/* docPoolLog("deleted from pool_files: $fileName"); */
+			
+			// Also delete any orphaned .info file
+			$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+			$infoFile = "$docFolder/pulje/$baseName.info";
+			if (file_exists($infoFile)) {
+				@unlink($infoFile);
+				/* docPoolLog("deleted info file: $infoFile"); */
+			}
+		}
+
 		} else {
+			/* docPoolLog("ERROR: Move from pool Failed"); */
 			alert("Move from pool Failed");
 		}
 	} else {
+		/* docPoolLog("ERROR: showDoc already exists"); */
 	 alert("$showDoc allready exists");
 }
 if (file_exists($showDoc)) {
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$params&showDoc=$showDoc\">";
-	if($source == 'kassekladde'){
-		if ($poolFile) $href = "../finans/kassekladde.php?kladde_id=$kladde_id&fokus=$fokus";
-		else $href = "documents.php?$params&showDoc=$showDoc";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=$href\">";
-//		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$params&showDoc=$showDoc\">";
-		exit;
-	}else{
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?source=creditorOrder&sourceId=$sourceId&showDoc=$showDoc\">";
+	// Check if we're processing multiple files - if so, don't redirect yet
+	if (isset($processingMultiple) && $processingMultiple) {
+		// Return success - let docPool.php handle the redirect after all files are processed
+		// Do nothing here, just continue
+	} else {
+		// Single file processing - redirect as normal
+		if($source == 'kassekladde'){
+			// Always redirect back to kassekladde after insert
+			$redirectUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&fokus=$fokus";
+		}else{
+			$redirectUrl = "documents.php?source=creditorOrder&sourceId=$sourceId&showDoc=$showDoc";
+		}
+		
+		// Clear any existing output buffers
+		while (ob_get_level()) {
+			ob_end_clean();
+		}
+		
+		// Output complete HTML page with immediate JavaScript redirect
+		echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Redirecting...</title></head><body>';
+		echo '<script type="text/javascript">';
+		echo "window.location.replace('" . addslashes($redirectUrl) . "');";
+		echo '</script>';
+		echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirectUrl) . '"></noscript>';
+		echo '</body></html>';
 		exit;
 	}
 } else alert("Move to $showDoc failed");

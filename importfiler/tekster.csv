@@ -3,7 +3,7 @@
 3	Gem	Save	Lagre
 4	Nyt sprog	New language	Nytt språk
 5	Annullér	Cancel	Avbryt
-6	Jobnr.:	Job no.:	Jobbnr:
+6	Jobnr.	Job no.	Jobbnr.
 7	Felt 1	Field 1	Felt 1
 8	Felt 2	Field 2	Felt 2
 9	Felt 3	Field 3	Felt 3
@@ -24,29 +24,29 @@
 24	Bemærkning 2	Note 2	Notat 2
 25	Bemærkning 3	Note 3	Merknad 3
 26	Bemærkning 4	Note 4	Merknad 4
-27	Planlagt til uge:	Scheduled for week:	Planlagt for uken:
+27	Planlagt til uge	Scheduled for week	Planlagt for uken
 28	Firmanavn	Company name	Selskapsnavn
 29	Jobkort	Job card	Jobbkort
 30	Tilbage	Back	Tilbake
 31	Nuværende tekst	Current text	Gjeldende tekst
 32	Ny tekst	New text	Ny tekst
 33	Skriv nyt tekstforslag	Write new text suggestion	Skriv nytt tekstforslag
-34	Debitorliste	Debtor List	Gjeldeliste
+34	Debitorliste	Debtor list	Kundeliste
 35	Kunde	Customer	Kunde
-36	Postnr.	ZIP code	Post nr.
+36	Postnr.	ZIP code	Postnr.
 37	Telefon	Telephone	Telefon
-38	Stillingsliste	Job list	Stillingsliste
+38	Opgaveliste	Task list	Oppgaveliste
 39	Ny	New	Ny
-40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by: (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med: (f.eks. 23:44) for å søke i et intervall
-41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Write a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
-42	Afmærk de felter som skal eksporteres.	Mark the fields to be exported.	Merk feltene som skal eksporteres.
+40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by : (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med : (f.eks. 23:44) for å søke i et intervall
+41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Enter a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
+42	Afmærk de felter som skal eksporteres	Mark the fields to be exported	Merk feltene som skal eksporteres
 43	Kontonr.	Account no.	Kontonr.
 44	Adresse 1	Address 1	Adresse 1
-45	Adresse 2	Address 2	adresse 2
+45	Adresse 2	Address 2	Adresse 2
 46	By	City	By
 47	Land	Country	Land
 48	CVR-nr.	VAT no.	MVA-nr.
-49	Tlf	Phone	Tlf
+49	Tlf.	Phone	Tlf.
 50	Fax	Fax	Faks
 51	Web	Web	Internett
 52	E-mail	Email	E-post
@@ -107,7 +107,7 @@
 107	Ordrer	Orders	Ordrer
 108	Klik her nå½st	Innholdsfortegnelse
 109	
-110	
+110	Varer	Goods	Varer
 111	
 112	Klik her for at se eller rette i kontoplanen.	Click here to view or correct the chart of accounts.	Klikk her for å se eller korrigere kontoplanen.
 113	Kontoplan	Chart of Accounts	Kontooversikt
@@ -145,7 +145,7 @@
 145	Klik her for at sortere på by.	Click here to sort by city.	Klikk her for å sortere etter by.
 146	By	City	By
 147	Klik her for at sortere på kontaktperson.	Click here to sort by contact person.	Klikk her for å sortere etter kontaktperson.
-148	Kontaktperson	Contact Person	Kontaktperson
+148	Kontaktperson	Contact person	Kontaktperson
 149	Klik her for at sortere på telefonnummer.	Click here to sort by phone number.	Klikk her for å sortere etter telefonnummer.
 150	Telefon.	Telephone.	Telefon.
 151	Kundeansvarlig - Klik her for at sortere på dette felt	Customer Manager - Click here to sort in this field	Customer Manager - Klikk her for å sortere i dette feltet
@@ -155,7 +155,7 @@
 155	Vil du slette denne ordre?	Do you want to delete this order?	Vil du slette denne bestillingen?
 156	Klik her for at slette hele ordren. Hvis du blot vil slette en ordrelinje skal du sætte - (minus) som pos.nr.	Click here to delete the entire order. If you just want to delete an order line	Klikk her for å slette hele bestillingen. Hvis du bare vil slette en ordrelinje, må du sette - (minus) som varenr.
 157	Kontonummer for samlekonto | kreditorgruppe ikke gyldig - (Indstillinger -> Deb/Kred-grp)	Account number for collective account | creditor group not valid - (Settings -> Deb / Credit Group)	Kontonummer på kundefordringer | kreditorgruppe ikke gyldig - (Innstillinger -> Deb / kredittgruppe)
-158	Klik på kladde_id for den kassekladde som posteringen skal tilbageføres til.	Click on draft_id for the cash journal to which the entry is to be returned.	Klikk på draft_id for kontantjournalen som oppføringen skal returneres til.
+158	Klik på kladde-ID for den kassekladde som posteringen skal tilbageføres til.	Click on draft-ID for the cash journal to which the entry is to be returned.	Klikk på utkast-ID for den kontantjournalen som posteringen skal føres tilbake til.
 159	Fortryd	Undo	Angre
 160	<- Klik her for at fortryde.	<- Click here to undo.	<- Klikk her for å angre.
 161	Klik her hvis du vil logge ud af SALDI	Click here to log out of SALDI	Klikk her for å logge av SALDI
@@ -209,7 +209,7 @@
 209	Her skriver du de parametrer, der passer bedst til din browsers pop-up funktioner	Enter the parameters that best suit your browser's pop-up features	Her skriver du inn de parameterne, som passer best til din nettlesers pop-up-funksjoner
 210	Popup-indstillinger	Pop-up settings	Pop-up-innstillinger
 211	Intern bilagsopbevaring (mod betaling).	Internal document storage (for a fee).	Intern dokumentlagring (mot avgift).
-212	Afmærk her hvis du vil anvende bilagsscanning og ikke selv vil etablere server til bilagsopbevaring. Samme omkostning som en ekstra bruger pr. GB. 	Check here if you want to use document scanning and do not want to set up a server for document storage yourself. Same cost as an additional user per. GB.	Sjekk her hvis du vil bruke dokumentskanning og ikke ønsker å sette opp en server for dokumentlagring selv. Samme kostnad som en ekstra bruker pr. GB.
+212	Afmærk her hvis du vil anvende bilagsscanning og ikke selv vil etablere server til bilagsopbevaring. Samme omkostning som en ekstra bruger pr. GB. 	Check here if you want to use document scanning and do not want to set up a server for document storage yourself. Same cost as an additional user per GB.	Sjekk her hvis du vil bruke dokumentskanning og ikke ønsker å sette opp en server for dokumentlagring selv. Samme kostnad som en ekstra bruker pr. GB.
 213	Omgående bogføring af købsordrer	Immediate posting of purchase orders	Umiddelbar postering av innkjøpsordrer
 214	Hvis dette felt ikke er afmærket, skal købsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen	If this field is not checked, purchase invoices must be posted through the cash journal with the [Get Orders]-function	Hvis dette feltet ikke er avmerket, skal kjøpsfakturaer bokføres via kassekladden med [Hent ordrer]-funksjonen
 215	Emne og tekst til brug ved udsendelse som e-mail	Subject and text for use when sending by e-mail	Emne og tekst for bruk ved sending via e-post
@@ -328,17 +328,17 @@
 328	Gentag adgangskode	Repeat password	Gjenta passord
 329	Adgang til	Access to	Tilgang til
 330	Administrator	Administrator	Administrator
-331	Kan oprette regnskaber	Can create accounts	Kan opprette kontoer
-332	Kan slette regnskaber	Can delete accounts	Kan slette kontoer
+331	Kan oprette regnskaber	Can create accounts	Kan opprette regnskaper
+332	Kan slette regnskaber	Can delete accounts	Kan slette regnskaper
 333	Ny bruger	New user	Ny bruker
 334	Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til	separated by commas	Sett * for tilgang til alle kontoer, eller skriv en liste med ID for kontoene den må være tilgjengelig for
-335	Afmærk her hvis brugeren er skal have administratorrettigheder	Check here if the user is to have administrator rights	Sjekk her om brukeren skal ha administratorrettigheter
-336	Afmærk her hvis brugeren er skal kunne oprette regnskaber og efterfølgende have adgang til disse	Check here if the user is to be able to create accounts and subsequently have access to these	Sjekk her om brukeren skal kunne opprette kontoer og deretter få tilgang til disse
-337	Afmærk her hvis brugeren er skal kunne slette de regnskaber	this has access to	Sjekk her om brukeren skal kunne slette disse kontoene
+335	Afmærk her, hvis brugeren skal have administratorrettigheder	Check here to grant the user administrator rights	Sjekk her om brukeren skal ha administratorrettigheter
+336	Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse	Check here to allow the user to create accounts and subsequently have access to these	Sjekk her om brukeren skal kunne opprette kontoer og deretter få tilgang til disse
+337	Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til	Check here to allow the user to delete the accounts they have access to	Huk av her hvis brukeren skal kunne slette regnskapene de har tilgang til
 338	Brugernavn	Username	Brukernavn
-339	Opret regnskab	Create accounts	Opprett kontoer
-340	Vis regnskaber	View accounts	Vis kontoer
-341	Slet regnskab	Delete accounts	Slett kontoer
+339	Opret regnskab	Create account	Opprett regnskap
+340	Vis regnskaber	View accounts	Vis regnskaper
+341	Slet regnskab	Delete account	Slett regnskap
 342	Uforudset hændelse - Kontakt venligst SALDI-teamet på telefon 46 90 22 08.	Unforeseen event - Please contact the SALDI team on telephone 46 90 22 08.	Uforutsett hendelse - Ta kontakt med SALDI-teamet på telefon 46 90 22 08.
 343	Skriv evt. ny kategori her	Write if necessary. new category here	Skriv om nødvendig. ny kategori her
 344	Kategorien $ny_kategori eksisterer allerede	The category $ny_kategori already exists	Kategorien $ny_kategori  eksisterer allerede
@@ -347,11 +347,11 @@
 347	Kundeansvarlig ikke valgt!	Customer manager not selected!	Kundesjef ikke valgt!
 348	Debitorgruppe ikke valgt!	Debtor group not selected!	Gjeldegruppe ikke valgt!
 349	Kontonummer $ny_kontonr tildelt automatisk!	Account number $ new_account number assigned automatically!	Kontonummer $ new_account number tildeles automatisk!
-350	Der findes allerede en debitor med Kontonr: $ny_kontonr	There is already a debtor with Account no .: $ new_account no	Det er allerede en skyldner med kontonr.: $ New_account no
+350	Der findes allerede en debitor med Kontonr	There is already a debtor with Account no	Det er allerede en skyldner med kontonr
 351	Kontonummer findes allerede	not changed	Kontonummer eksisterer allerede
 352	Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson	Hint! You must set a - (minus) as item no to delete a contact	Hint! Du må sette et - (minus) som varenr for å slette en kontakt
 353	Privat	Private	Privat
-354	Erhverv	profession	yrke
+354	Erhverv	Business	Bedrift
 355	Vis leveringsadresse	Show delivery address	Vis leveringsadresse
 356	Debitorkort	Debtor card	Debitorkort
 357	Kundenr.	Customer no.	Kundenr.
@@ -362,8 +362,8 @@
 362	Adresse 2	Address 2	Adresse 2
 363	Postnr./By	Zipcode/City	Postnummer/By
 364	Land	Country	Land
-365	E-mail / brug mail	Email / use mail	Send e-post / bruk e-post
-366	Afmærk her hvis modtageren skal modtage tilbud	order	Sjekk her om mottakeren skal motta et tilbud
+365	E-mail / brug mail	Email / use email	Send e-post / bruk e-post
+366	Afmærk her hvis modtageren skal modtage tilbud	Check here if the recipient should receive offers	Sjekk her om mottakeren skal motta et tilbud
 367	Hjemmeside	Homepage	Hjemmeside
 368	Betalingsbetingelse	Payment terms	Betalingsbetingelser
 369	Forud	Prior	I forkant
@@ -380,7 +380,7 @@
 380	Institutionsnr.	Institution no.	Institusjonsnr.
 381	Kreditmax	Max credit	Kreditmax
 382	Bank reg.	Bank reg.	Bankreg.
-383	Bank konto	Bank account	bankkonto
+383	Bankkonto	Bank account	Bankkonto
 384	BS-nr.	BS number.	BS-nummer.
 385	BS	BS	BS
 386	Kundeansvarlig	Customer manager	Kundesjef
@@ -388,11 +388,11 @@
 388	Kategorier	Categories	Kategorier
 389	Omdøb $ny_kategori til:	Rename $ny_kategori to:	Gi nytt navn til $ny_kategori til:
 390	For at oprette en ny kategori skrives navnet på kategorien her. For at oprette en underkategori skrives id på den overstående kategori foran navnet med | som adskillelse	eg 31 | Men's socks. ID is found by holding the mouse over the name of the category.	For å opprette en ny kategori, skriv inn navnet på kategorien her. For å opprette en underkategori, skriv inn ID-en for kategorien ovenfor foran navnet med | som separasjon
-391	Bemærkning	Remark	Merknad
+391	Bemærkning	Note	Merknad
 392	Kontaktpersoner	Contact persons	Kontaktpersoner
 393	Positionsnummer. Primær kontakt har nummer 1	Position number. Primary contact has number 1	Posisjonsnummer. Primærkontakt har nummer 1
 394	Pos.	Pos.	Pos.
-395	Sæt flueben her for at knytte $firmanavn til denne kategori	Check here to associate $firmanavn name with this category	Sjekk her for å knytte $firmanavn til denne kategorien
+395	Afmærk her for at knytte $firmanavn til denne kategori	Check here to associate $firmanavn name with this category	Sjekk her for å knytte $firmanavn til denne kategorien
 396	Klik her for at omdøbe denne kategori	Click here to rename this category	Klikk her for å gi nytt navn til denne kategorien
 397	Klik her for at slette denne kategori	Click here to delete this category	Klikk her for å slette denne kategorien
 398	Kontakt	Contact	Kontakt
@@ -407,7 +407,7 @@
 407	Kontakt by	Contact by	Kontakt innen
 408	Kontakt telefon	Contact telephone	Kontakt telefon
 409	Kontakt telefax	Contact fax	Kontakt faks
-410	Kontakt e-mail	Contact email	Kontakt Epost
+410	Kontakt e-mail	Contact email	Kontakt e-post
 411	Kontakt bemærkning	Contact note	Kontaktnotat
 412	Husnr.	House no.	Husnr.
 413	Etage	Floor	Gulv
@@ -441,8 +441,8 @@
 441	Åbne poster	Open Items	Åpne poster
 442	Kontosaldo	Account balance	Saldo
 443	Kontokort	General ledger	Kontokort
-444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato	Displays an age-distributed list of overdue / unpaid outstanding balances on selected accounts per. the specified date	Viser en aldersfordelt liste over forfalte / ubetalte utestående saldoer på utvalgte kontoer pr. angitt dato
-445	Viser en liste over saldi på valgte konti pr. den angivne dato 	Displays a list of balances on selected accounts per. the specified date	Viser en liste over saldoer på valgte kontoer pr. angitt dato
+444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato	Displays an age-distributed list of overdue / unpaid outstanding balances on selected accounts per the specified date	Viser en aldersfordelt liste over forfalte / ubetalte utestående saldoer på utvalgte kontoer pr. angitt dato
+445	Viser en liste over saldi på valgte konti pr. den angivne dato 	Displays a list of balances on selected accounts per the specified date	Viser en liste over saldoer på valgte kontoer pr. angitt dato
 446	Viser en specifikation af kontobevægelser på valgte konti i det angivne datointerval.	Displays a specification of account movements on selected accounts in the specified date range.	Viser en spesifikasjon av kontotransaksjoner på valgte kontoer i det angitte datoperioden.
 447	Liste over de 100 debitorer med den højeste omsætning de seneste 12 måneder.	List of the 100 debtors with the highest turnover in the last 12 months.	Liste over de 100 debitorer med høyest omsetning de siste 12 månedene.
 448	Top 100	Top 100	Topp 100
@@ -452,7 +452,7 @@
 452	Husk	Remember	Huske
 453	Afmærk her for at finansbogføre hver handel separat. Hvis der ikke er afmærket	bookkeeping is done together by cash counting.	Sjekk her for å legge ut hver handel separat. Hvis ikke merket
 454	Bogfør hver handel.	Post each trade.	Legg ut hver handel.
-455	Kassespor	Checkout tracks	Kassespor
+455	Kassespor	Cash register log	Kassespor
 456	Afmærk her for at for at udskrive bon automatisk. Hvis der ikke er afmærket	vouchers must be printed manually after each trade.	Merk av her for å skrive ut bilag automatisk. Hvis ikke merket
 457	Udskriv bon automatisk.	Print receipt automatically.	Skriv ut kvittering automatisk.
 458	Afmærk her for at vise knappen [Kontant på beløb]. Kan bruges ved kassesalg hvor der ikke skal beregnes returbeløb.	Check here to display the [Cash on Amount] button. Can be used at cash sales where no return amount needs to be calculated.	Sjekk her for å vise [Kontant på beløp] -knappen. Kan brukes ved kontantsalg der ingen returbeløp trenger å beregnes.
@@ -517,7 +517,7 @@
 517	Balance	Balance	Balanse
 518	Resultat	Result	Resultat
 519	Resultat/budget	Result / budget	Resultat / budsjett
-520	Momsangivelse	VAT return	Mva-retur
+520	Momsangivelse	VAT return	MVA-melding
 521	Sikkerhedskopi	Backup	Sikkerhetskopiering
 522	Anvend topmenu	Use top menu	Bruk toppmeny
 523	Hvis dette felt afmærkes vil der fremkomme en menu i toppen af skærmen som letter navigationen	and reduces the working height	Hvis dette feltet er merket av, vil det vises en meny øverst på skjermen som letter navigering
@@ -531,7 +531,7 @@
 531	Betalingslister til bank	where payment ID and date are stated when posting	Betalingslister til bank
 532	Betalingslister	Payment lists	Betalingslister
 533	Salgsmoms 25% 	Sales tax 25%	Moms 25%
-534	Uforudset hændelse, kontakt salditeamet på telefon 4690 2208	Unforeseen event, contact the balance team on telephone 4690 2208	Uforutsett hendelse, kontakt balanseteamet på telefon 4690 2208
+534	Uforudset hændelse, kontakt Saldi-teamet på telefon 4690 2208	Unforeseen event, contact the Saldi team on telephone 4690 2208	Uforutsett hendelse, kontakt Saldi-teamet på telefon 4690 2208
 535	Antal felter på fakturaoversigten	Number of fields on the invoice overview	Antall felt på fakturaoversikten
 536	Antal linjer på fakturaoversigten	Number of lines on the invoice overview	Antall linjer på fakturaoversikten
 537	Vælg hvilke felter der skal være synlige på oversigten	Select which fields should be visible in the overview	Velg hvilke felt som skal være synlige i oversikten
@@ -552,7 +552,7 @@
 552	Valuta / Kurs	Currency / Exchange rate	Valuta / Kurs
 553	Projekt	Project	Prosjekt
 554	Leveringsadresse	Delivery Address	Leveringsadresse
-555	Godkend	Approve	Godkjen
+555	Godkend	Approve	Godkjenn
 556	Alle varegrupper	All product groups	Alle produktgrupper
 557	Forbrugssvarer	Consumer products	Forbruksvarer
 558	Vis søgefelt for kreditorer	Show search box for creditors	Vis søkefelt for kreditorer
@@ -573,7 +573,7 @@
 573	Formularkort	Form card	Skjema kort
 574	Plukliste	Pick list	Plukkliste
 575	Ordrebekræftelse	Order confirmation	Ordrebekreftelse
-576	Følgeseddel	Delivery note	Leveringsmerknad
+576	Følgeseddel	Delivery note	Følgeseddel
 577	Kreditnota	Credit note	Kredittnota
 578	Rykker	Reminder	Påminnelse
 579	Rekvisition	Requisition	Rekvisisjon
@@ -587,7 +587,7 @@
 587	formularskabelon	form template	skjemamal
 588	Pos. Kontakt	Pos. Contact	Pos. Ta kontakt med
 589	Ansat	Employee	Ansatt
-590	Vis fratrådte	Show resigned	Show trakk seg
+590	Vis fratrådte	Show resigned	Vis fratrådte
 591	Kreditornr.	Creditor no.	Kreditornr.
 592	Konto	Account	Konto
 593	Lande	Countries	Land
@@ -598,7 +598,7 @@
 598	-	-	-
 599	Bemærkning	Remark	Bemerke
 600	Finans	Finance	Finansiere
-601	Kassekladde	Cash journal	Kontantjournal
+601	Kassekladde	Cash journal	Kassekladd
 602	Regnskab	Financial Accounting	Finansregnskap
 603	Rapporter	Reports	Rapporter
 604	Debitor	Debtor	Debitor
@@ -611,7 +611,7 @@
 611	Systemdata	System data	Systemdata
 612	Kontoplan	Chart of Accounts	Kontooversikt
 613	Indstillinger	Settings	Innstillinger
-614	Sikkerhedskopi	Backup	Sikkerhetskopiering
+614	Backup	Backup	Backup
 615	Ved at afmærke her får du op til 14 ekstra felter på egne ansattes stamkort	Checking this field enables up to 14 additional fields on the master cards of your own employees	Ved å merke av her får du opptil 14 ekstra felt på ansattes stamkort
 616	Tilføj ekstra felter på ansatte	Add extra fields on employees	Legg til ekstra felt på ansatte
 617	Kørekort Ja/nej	Driving license Yes / no	Førerkort Ja / nei
@@ -626,7 +626,7 @@
 626	Konduktør	Conductor	Dirigent
 627	Faldsikring	Fall protection	Fallbeskyttelse
 628	Førstehjælp	First aid	Førstehjelp
-629	Certificerings uddannelse	Certification training	Sertifiseringstrening
+629	Certificeringsuddannelse	Certification training	Sertifiseringstrening
 630	Andet	Other	Annet
 631	Helbred	Health	Helse
 632	Kontaktperson	Contact Person	Kontaktperson
@@ -653,23 +653,23 @@
 653	Mobil	Mobile phone	Mobiltelefon
 654	Lokalnr.	Local no.	Lokalt nr.
 655	Lokal fax	Local fax	Lokal faks
-656	Privat tlf	Private tel	Privat tlf
+656	Privat tlf.	Private tel.	Privat tlf.
 657	Provision	Commission	Kommisjon
 658	Afdeling	Department	Avdeling
 659	Bemærkning	Remark	Bemerke
 660	Fratrådt	Resigned	Gikk av
-661	Cpr-nr	Social Security No	Social Security No
+661	CPR-nr.	CPR-no.	CPR-nr.
 662	Bank	Bank	Bank
 663	Tiltrådt	Joined	Ble med
-664	Løn	Pay	Betale
+664	Løn	Pay	Lønn
 665	Løntillæg	Wage supplement	Lønnstillegg
-666	Postnr & by	ZIP code & city	Post kode & by
+666	Postnr. & by	ZIP code & city	Postnr. & by
 667	E-mail/brug	Email / use	E-post / bruk
 668	Betalingsbet.	Pay.terms	Betalingsbet.
 669	Ny kontakt	New contact	Ny kontakt
 670	Trainee	Trainee	Lærling
 671	Bilag	Attachment	Bilag
-672	Skriv navn til vedhæftet bilag	when sent per. mail.	Skriv navn for vedlegg
+672	Skriv navn til vedhæftet bilag	when sent per mail.	Skriv navn for vedlegg
 673	Skriv her hvor mange borde der skal registreres	Write here how many tables to register	Skriv her hvor mange tabeller du skal registrere
 674	Antal borde	Number of tables	Antall bord
 675	Beskrivelse af bordene.	Description of the tables.	Beskrivelse av tabellene.
@@ -808,7 +808,7 @@
 808	og vælg &apos;Gem link som ..	and select &apos;Save link as ..	og velg &apos;Lagre lenke som ..
 809	dette link	this link	denne lenken
 810	Vis lagerstatus	View stock status	Se lagerstatus
-811	Samlet omsætning incl./excl. Moms	Total turnover incl./excl. VAT	Total omsetning inkl. Ekskl. Mva
+811	Samlet omsætning inkl./ekskl. moms	Total turnover incl./excl. VAT	Total omsetning inkl./ekskl. MVA
 812	Tilbud	Offer	Tilbud
 813	Visning	Display	Visning
 814	Leveres til	Delivered to	Leveres til
@@ -816,8 +816,8 @@
 816	Projektnr.	Project no.	Prosjektnr.
 817	Afmærkes feltet anvendes HTML/CSS til formulargenerering. 	If the field is checked, HTML / CSS is used for form generation.	Hvis feltet er merket av, brukes HTML / CSS for generering av skjemaer.
 818	Brug HTML/CSS til formulargenerering	Use HTML / CSS for form generation	Bruk HTML / CSS for generering av skjemaer
-819	API Nøgle	API Key	API-nøkkel
-820	API nøglen er en unik nøgle til verificering af din adgang til regnskabet	The API key is a unique key used to verify your access to the accounting system	API-nøkkelen er en unik nøkkel for å verifisere din tilgang til regnskapet
+819	API-nøgle	API Key	API-nøkkel
+820	API-nøglen er en unik nøgle til verificering af din adgang til regnskabet	The API key is a unique key used to verify your access to the accounting system	API-nøkkelen er en unik nøkkel for å verifisere din tilgang til regnskapet
 821	Tilladte IP adresser	Allowed IP addresses	Tillatte IP-adresser
 822	Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator. 	Specify which IP addresses have access to use the API. Use comma as separator.	Spesifiser hvilke IP-adresser som har tilgang til å bruke API. Bruk komma som skilletegn.
 823	Brugernavn	Username	Brukernavn
@@ -834,8 +834,8 @@
 834	Ved at udfylde dette felt med kontonummer for din inkassoadvokat (kreditor)	By filling in this field with the account number of your debt collection lawyer (creditor)	Ved å fylle ut dette feltet med kontonummeret til din inkassoadvokat (kreditor)
 835	Saldi URL:	Saldi URL:	Saldi URL:
 836	Skal sættes som variablen $url i api klienten	Must be set as the variable $url in the api client	Må angis som variabelen $url i api-klienten
-837	Hvis feltet er afmærket vil &apos;udtages fra kasse&apos; som default være 0	If the field is marked, &apos;taken out of box&apos; will by default be 0	Hvis feltet er merket, vil &apos;tas ut av boksen&apos; som standard 0	
-838	Sæt &apos;udtages fra kasse&apos; til 0	Set &apos;taken out of box&apos; to 0	Sett &apos;tatt ut av esken&apos; til 0	
+837	Hvis feltet er afmærket vil &apos;udtages fra kasse&apos; som default være 0	If the field is marked, &apos;taken out of box&apos; will by default be 0	Hvis feltet er merket, vil &apos;tas ut av boksen&apos; som standard 0
+838	Sæt &apos;udtages fra kasse&apos; til 0	Set &apos;taken out of box&apos; to 0	Sett &apos;tatt ut av esken&apos; til 0
 839	Er dette felt afmærket skal der foretages valg af bruger / ekspedient inden ekspedition.	If this field is marked, a choice of user / clerk must be made before dispatch.	Hvis dette feltet er merket, må du velge bruker / ekspeditør før utsendelse.
 840	Tvungen brugervalg	Forced user choice	Tvunget brukervalg
 841	Kreditor kontonummer til inkassoselskab 	Creditor account number for debt collection company	Kreditorens kontonummer for inkassoselskapet
@@ -874,14 +874,14 @@
 874	Skriv dit Kontakt-ID hos GLS	Enter your Contact ID at GLS	Skriv din kontakt-ID på GLS
 875	Sidste faktura	Last invoice	Siste faktura
 876	Importer UBL til ordrer	Import UBL to orders	Importer UBL til bestillinger
-877	Samlet omsætning incl. moms.	Total turnover incl. VAT.	Total omsetning inkl. Mva.
-878	Samlet omsætning / db / dg (excl. moms.)	Total turnover / db / dg (excl. VAT)	Total omsetning / db / dg (eks mva)
+877	Samlet omsætning inkl. moms.	Total turnover incl. VAT.	Total omsetning inkl. Mva.
+878	Samlet omsætning / db / dg (ekskl. moms)	Total turnover / db / dg (excl. VAT)	Total omsetning / db / dg (ekskl. MVA)
 879	Hent fra shop	Pick up from shop	Henting fra butikk
 880	Udskriv	Print	Skriv ut
 881	Ordredato	Order date	Ordredato
 882	Fakt. nr.	Inv. no.	Fakt. nr.
 883	Fakt. dato	Inv. date	Fakt. dato
-884	Sælger	Selling	Selger
+884	Sælger	Seller	Selger
 885	Fakturasum	Invoice_sum	Fakturasum
 886	Dato for levering	Date of delivery	Dato for levering
 887	Ordresum	Order amount	Ordresum
@@ -901,7 +901,7 @@
 901	Konto (til)	Account (to)	Konto (til)
 902	Medtag lagerbevægelser	Include stock movements	Inkluder lagerbevegelser
 903	fra	from	fra
-904	til	to	till
+904	til	to	til
 905	Kontrolspor	Control Track	Kontrollspor
 906	Provisionsrapport	Provisions report	Kommisjonens rapport
 907	Historik	History	Historie
@@ -915,16 +915,16 @@
 915	Pris	Price	Pris
 916	Antal	Quantity	Antall
 917	Varenr.	Item no.	Varenr.
-918	Salgsstat	Sales State	Salgstilstand
+918	Salgsstat	Sales Statistics	Salgsstatistikk
 919	Varetekst	Item text	Varetekst
 920	Vis detaljer	Show details	Vis detaljer
-921	Fortyd	Undo	Fortyd
+921	Fortryd	Undo	Fortryd
 922	Salgstatsstik	Sales Statistics	Salgsstatistikk
 923	Multiroute	Multi-route	Flere ruter
-924	Vis åbne poster	Show open records	Vis åpne poster
+924	Vis åbne poster	Show open items	Vis åpne poster
 925	Kun konti i debet	Only accounts in debit	Bare kontoer som belastes
 926	Kun konti i kredit	Credit accounts only	Bare kredittkontoer
-927	Skjul åbne poster	Hide open entries	Skjul åpne oppføringer
+927	Skjul åbne poster	Hide open items	Skjul åpne poster
 928	Bonnr	Receipt no	Bonnr
 929	Bondato	Receipt Date	Bondato
 930	Tidspkt.	Time	Tid
@@ -939,13 +939,13 @@
 939	Forslagsdato	Proposal Date	Forslagsdato
 940	Modt. nr.	Rec. no.	Modt. nr.
 941	Modt. dato	Rec. date	Modt. dato
-942	Samlet omsætning (excl. moms.)	Total turnover (excl. VAT)	Total omsetning (eks MVA)
+942	Samlet omsætning (ekskl. moms.)	Total turnover (excl. VAT)	Total omsetning (ekskl. MVA)
 943	Importer OIOUBL faktura	Import OIOUBL Invoice	Importer OIOUBL-faktura
 944	kreditorlistevisning	vendor list view	visning av leverandørliste
 945	Enhed	Unit	Enhet
 946	Varemrk.	WARM.	Varemerke.
 947	Ialt	Total	Total
-948	Beholdn.	Retain.	Se.
+948	Beholdn.	Stock	Beholdn.
 949	Salgspris	Sales price	Salgspris
 950	Kostpris	Cost price	Kostpris
 951	Leverandør	Supplier	Leverandør
@@ -955,7 +955,7 @@
 955	Alle varer fra lev.	All products from supl.	Alle varer fra lev.
 956	Kun mangler	Only missing	Bare mangler
 957	Vareliste	Item list	Vareliste
-958	Oprettet af	Created by	Laget av
+958	Oprettet af	Created by	Opprettet av
 959	Modtaget af	Received by	Mottatt av
 960	Modtagelsesdato	Date of receipt	Dato for kvitering
 961	Du opretter en ny modtagelse ved at klikke på <u>Ny</u> øverst til højre.	To create a new receipt, click <u>New</u> at the top right.	For å opprette et nytt mottak, klikk <u>Ny</u> øverst til høyre.
@@ -967,7 +967,7 @@
 967	Varenavn	Item name	Gjenstandsnavn
 968	Detaljeret	Detailed	Detaljert
 969	Kun salg / DB	Sales / DB only	Bare salg / DB
-970	Beregn lagerbeh	Calculate stock	Beregn lager
+970	Beregn lagerbeh.	Calculate stock	Beregn lagerbeh.
 971	Se lagerstatus på vilkårlig dato	See stock status on any date	Se lagerstatus på hvilken som helst dato
 972	Beholdningsrapport med lokation samt min og max	Inventory report with location and min and max	Lagerrapport med plassering og min og maks
 973	Funktion til optælling og regulering af varelager	Function for counting and regulating inventory	Funksjon for telling og regulering av varelager
@@ -981,7 +981,7 @@
 981	Købsdato	Date of purchase	Kjøpsdato
 982	Salgsdato	Sale date	Salgsdato
 983	Summeret	Summed up	Oppsummerte
-984	Samlet til-/afgang i perioden	Total arrival / departure during the period	Total ankomst / avreise i perioden
+984	Samlet til-/afgang i perioden	Total inbound/outbound for period	Samlet til-/avgang i perioden
 985	Åbne ordrer	Open orders	Åpne ordrer
 986	Invoice	Invoiced orders	Fakturerte ordrer
 987	Sagsstyring	Case management	Saksbehandling
@@ -998,7 +998,7 @@
 998	Moms af varekøb i udlandet	VAT on products purchased abroad	MVA på varer kjøpt i utlandet
 999	Intast primotal for 1. regnskabsår:	Enter prime number for 1st financial year:	Angi primtall for 1. regnskapsår:
 1000	Debet	Debit	Debet
-1001	Kredit	Credit	Kreditt
+1001	Kredit	Credit	Kredit
 1002	Opret Regnskabsår:	Create Fiscal Year:	Opprett regnskapsår:
 1003	Overfør åbningsbalance	Transfer opening balance	Overfør åpningsbalansen
 1004	Hent logo	Download logo	Last ned logo
@@ -1061,13 +1061,13 @@
 1061	Når en ordre oprettes flyttes debitors kontonummer over på ordren, hvis der ikke er angivet et telefonnummer på debitorkortet. Kan dog rettes på ordren efterfølgende.	When an order is created, the debtor's account number is transferred to the order if a telephone number is not specified on the debtor card. Can, however, be corrected on the order afterwards.	Når en ordre opprettes, overføres skyldnerens kontonummer til bestillingen hvis et telefonnummer ikke er spesifisert på gjeldskortet. Kan imidlertid korrigeres på bestillingen etterpå.
 1062	Klik her for at synkronisere debitorkort med debitor-informationer fra ordren	Click here to synchronize debtor cards with debtor information from the order	Klikk her for å synkronisere debitorkort med debitorinformasjon fra bestillingen
 1063	Klik her for at synkronisere ordren med debitor-informationer fra debitorkort	Click here to synchronize the order with debtor information from debtor cards	Klikk her for å synkronisere ordren med debitorinformasjon fra debitorkort
-1064	Simuler	Simulate	Simuler
+1064	Simulér	Simulate	Simuler
 1065	Bogfør	Post	Bokfør
 1066	Udlign	Equalize	Utjevner
 1067	Budget	Budget	 Budsjett
 1068	Bilagstekst	Attachment text	Vedleggstekst
 1069	Valuta	Currency	Valuta  
-1070	Forfald	Due_date	Tidsfrist
+1070	Forfald	Due date	Tidsfrist
 1071	Betal	Pay	Betale
 1072	Kassekladde 	Cash journal	Kontantjournal
 1073	Saldo	Balance	Saldo
@@ -1088,7 +1088,7 @@
 1088	Finansbevægelser	Financial movements	Økonomiske bevegelser
 1089	Simulerede kladder	Simulated drafts	Simulerte utkast
 1090	Annuller simulering	Cancel simulation	Avbryt simulering
-1091	Opdater	Update	Oppdater
+1091	Opdatér	Update	Oppdater
 1092	Kundeordre	Sales order	Salgsordre
 1093	Bogførte kladder	Posted drafts	Skrevet utkast
 1094	Fakturadato	Invoice date	Fakturadato
@@ -1098,7 +1098,7 @@
 1098	Jobkort	Job card	Jobbkort
 1099	Slet	Delete	Slett
 1100	Kopier	Copy	Kopier
-1101	Original tilbud	Original offer	Opprinnelig tilbud
+1101	Originalt tilbud	Original offer	Opprinnelig tilbud
 1102	Kreditnota	Credit note	Kredittnota
 1103	Kortterminal	Card terminal	Kortterminal
 1104	Terminal ikke startet	Terminal not started	Terminal ikke startet
@@ -1142,7 +1142,7 @@
 1142	Rapport	Report	Rapportere
 1143	Rykkerbrev	Reminder letter	Påminnelsesbrev
 1144	Inkassosag	Debt collection case	Inkassosak
-1145	Send pr. mail	Send per. mail	Send pr. post
+1145	Send pr. mail	Send per mail	Send pr. post
 1146	Slet valgte	Delete selected	Slett valgte
 1147	inkasso	debt collection	inkasso
 1148	Levering	Delivery	Leveranse
@@ -1163,14 +1163,14 @@
 1163	Tekst	Text	Tekst
 1164	Forfaldsdato	Due date	Tidsfrist
 1165	Primosaldo	Opening Balance	Åpningssaldo
-1166	Omsætning	Turnover	Omsetning
+1166	Omsætning	Revenue	Omsetning
 1167	Skriv fra & til dato som mmddåå:mmddå&å. Hvis der kun skrives én dato, sættes dato til dags dato.	Write from & to date as mmddåå: mmddå & å. If only one date is written, the date is set to today's date.	Skriv fra & til dags dato som mmddåå: mmddå & å. Hvis det bare skrives en dato, settes datoen til dagens dato.
 1168	Vælg period	Select period	Velg periode
 1169	Kreditor	Creditor	Kreditor
 1170	Tilføj ny valuta	Add new currency	Legg til ny valuta
 1171	Valutaer	Currencies	Valutaer
-1172	Valutabetegnelse - f.eks. USD	Currency designation - e.g. USD	Valutabetegnelse - f.eks. USD
-1173	Valutabeskrivelse - f.eks. Amerikanske dollar	Currency description - e.g. US dollars	Valutabeskrivelse - f.eks. Amerikanske dollar
+1172	Valutabetegnelse - f.eks. USD	Currency designation - e.g. USD	Valutabetegnelse - f.eks. USD
+1173	Valutabeskrivelse - f.eks. Amerikanske dollar	Currency description - e.g. US dollars	Valutabeskrivelse - f.eks. Amerikanske dollar
 1174	Kontonummer for valutakursdifferanser og avrunding av øret	Account number for exchange rate differences and year rounding	Kontonummer for valutakursdifferanser og avrunding av øret
 1175	Tilføj	Add	Legg til
 1176	Leverandørnr.	Supplier no.	Leverandørnr.
@@ -1192,18 +1192,18 @@
 1192	Kontotype	Account type	Kontotype
 1193	Sideskift	Page change	Sideskift
 1194	Drift	Operation	Drift
-1195	Overskrift	Headline	Overscrift
+1195	Overskrift	Headline	Overskrift
 1196	Specifikation for	Specification for	Spesifikasjon for
 1197	Kladdenr	Draft no	Utkast nr
 1198	Afd. nr	Dept. no	Gjeld. Nei
-1199	Projekt nr.	Project no.	Prosjekt nr.
+1199	Projektnr.	Project no.	Prosjektnr.
 1200	Næste	Next	Neste
 1201	Ordreliste • Kunder	Order list • Customers	Bestillingsliste • Kunder
 1202	Log	Log	Løk
 1203	Søgetekst	Search text	Søgetekst
 1204	Klik for at åbne, højreklik for at gemme	Click to open, right-click to save	Klikk for å åpne, høyreklikk for å lagre
 1205	Diff. konto	Diff. account	Diff. regnskap
-1206	Ret	Modify	Ret
+1206	Ret	Modify	Rett
 1207	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen.\\nEllers risikerer du at lave rod i dit regnskab	If the exchange rate changes, do not correct the exchange rate, but add a new exchange rate stating the date of the exchange rate change. \\ nOtherwise, you risk messing up your accounts.	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse av dato for kursændringen. \\ nEllers risikerer du at lave rod i dette regnskab
 1208	Start md.	Start mnth.	Start md.
 1209	Start år	Start yr.	Startår
@@ -1229,7 +1229,7 @@
 1229	Primo	First	Først
 1230	Lås lagerværdi	Lock stock value	Lås aksjeverdi
 1231	Primotal for	Initial figures for	Primotal for
-1232	Opret	Create	Skape
+1232	Opret	Create	Opprett
 1233	Der er foretaget	There has been made	Det er laget
 1234	posteringer de sidste 12 mdr.	postings the last 12 months.	posteringer de siste 12 månedene.
 1235	Vælg den tidszone der skal gælde for dette regnskab	Select the time zone to apply to these accounts	Velg tidssonen som skal brukes på disse kontoene
@@ -1333,8 +1333,8 @@
 1333	Ny tjekliste	New checklist	Ny sjekkliste
 1334	Ny tjek gruppe	New check group	Ny sjekkgruppe
 1335	Denne sektion indeholder de informationer, som er nødvendige for at kunne håndtere scannede bilag	This section contains the information needed to handle scanned documents	Denne delen inneholder informasjonen som trengs for å håndtere skannede dokumenter
-1336	Du kan vælge at lade os opbevare dine scannede bilag for kr. 75,- pr. måned pr. GB,	You can choose to let us store your scanned vouchers for € 10 per month per. GB,	Du kan velge å la oss lagre de skannede kupongene for NOK 100 per måned pr. GB,
-1337	hvilket ligeledes giver mulighed for at sende indscannede bilag pr. e-mail til serveren	which also allows you to send scanned vouchers per. email to the server	som også lar deg sende skannede bilag pr. e-post til serveren
+1336	Du kan vælge at lade os opbevare dine scannede bilag for kr. 75,- pr. måned pr. GB,	You can choose to let us store your scanned vouchers for € 10 per month per GB,	Du kan velge å la oss lagre de skannede kupongene for NOK 100 per måned pr. GB,
+1337	hvilket ligeledes giver mulighed for at sende indscannede bilag pr. e-mail til serveren	which also allows you to send scanned vouchers per email to the server	som også lar deg sende skannede bilag pr. e-post til serveren
 1338	og efterfølgende importere dem i kassekladden.	and subsequently import them into the cash journal.	og deretter importere dem til kontantjournalen.
 1339	Bilag sendes til	Attachments are sent to	Vedlegg sendes til
 1340	Du kan også vælge selv at sætte en ftp-server op til formålet eller benytte en eksisterende. Det koster ikke noget.	You can also choose to set up an ftp server for the purpose or use an existing one. It does not cost anything.	Du kan også velge å sette opp en ftp-server for formålet eller bruke en eksisterende. Det koster ingenting.
@@ -1342,7 +1342,7 @@
 1342	Intern opbevaring	Internal storage	Intern lagring
 1343	Egen FTP server	Own FTP server	Egen FTP-server
 1344	Ingen opbevaring	No storage	Ingen lagring
-1345	Begge adgangskoder skal være ens.	Both passwords must be the same.	Begge passordene må være de samme.
+1345	Begge adgangskoder skal være ens	Both passwords must be the same	Begge passordene må være de samme
 1346	Navn eller IP-nummer på ftp-server	Name or IP number of ftp server	Navn eller IP-nummer på ftp-serveren
 1347	Brugernavn på ftpserver	Username on ftpserver	Brukernavn på ftpserver
 1348	Adgangskode til ftpserver	Password for ftpserver	Passord for ftpserver
@@ -1388,7 +1388,7 @@
 1388	Opdater eksisterende	Update existing	Oppdater eksisterende
 1389	Angiv hvilket skilletegn der anvendes til opdeling af kolonner	Specify which delimiter is used to split columns	Spesifiser hvilken avgrenser som skal brukes til å dele kolonner
 1390	Vælg	Select	Velg
-1391	Bankimport 	Bank import 	Bankimport 
+1391	Bankimport	Bank import	Bankimport
 1392	Klik her for at indlæse filen nedefra	Click here to load the file from below	Klikk her for å laste filen nedenfra
 1393	Vælges afdeling lægges alle poster på denne afd.	If a department is chosen, all items are placed on this department.	Hvis en avdeling velges, plasseres alle elementene på denne avdelingen.
 1394	Angiv valuta	Enter currency	Angiv valuta
@@ -1405,10 +1405,10 @@
 1405	Der kan kun være 1 kolonne med Dato	There can only be 1 column with Date	Det kan bare være en kolonne med dato
 1406	Der kan kun være 1 kolonne med Beskrivelse	There can only be 1 column with Description	Det kan bare være en kolonne med beskrivelse
 1407	Der kan kun være 1 kolonne med Beløb	There can only be 1 column with Amount	Det kan bare være 1 kolonne med beløp
-1408	Kassebillag	Cash bill	Kontantregning
+1408	Kassebilag	Cash voucher	Kassebilag
 1409	Mappe til bilag ikke fundet	Folder for attachments not found	Mappen for vedlegg ble ikke funnet
 1410	Der tillades kun bilag af typen PDF	Only PDF attachments are allowed	Bare PDF-vedlegg er tillatt
-1411	Vedhæft bilag	Attach attachment	Legg vedlegg
+1411	Vedhæft bilag	Add attachment	Legg vedlegg
 1412	Vælg bilag fra email	Select attachments from email	Velg vedlegg fra e-post
 1413	Gennemse	Browse	Gjennomse
 1414	Vælg bilag fra enhed	Select attachments from device	Velg vedlegg fra enheten
@@ -1425,8 +1425,8 @@
 1425	Alt leveret, mangler kun at fakturere.	Everything delivered only needs to be invoiced.	Alt levert trenger bare å faktureres.
 1426	Intet modtaget.	Nothing received.	Ingenting mottatt.
 1427	Intet leveret.	Nothing delivered.	Ingenting levert.
-1428	I tilbud	On offer	Et tilbud
-1429	I ordre	In order	I rekkefølge
+1428	I tilbud	On offer	I tilbud
+1429	I ordre	In order	I ordre
 1430	I forslag	In suggestions	I forslag
 1431	Klar til levering (Varer vises ikke)	Ready for delivery (Items not shown)	Klar for levering (varer ikke vist)
 1432	Mangler varer, varer er bestilt	Missing items, items are ordered	Manglende gjenstander, varer bestilles
@@ -1442,7 +1442,7 @@
 1442	Ikke udlignet	Not settled	Ikke avgjort
 1443	Hold musen over de respektive ordrenumre for at se beholdninger mm	Hold the mouse over the respective order numbers to see stocks etc.	Hold musen over respektive bestillingsnummer for å se aksjer etc.
 1444	Er du sikker på at du vil udsende de valgte	Are you sure you want to send the selected 	Er du sikker på at du vil sende de valgte
-1445	Udskriv de valgte	Print the selected 	Skriv ut de valgte
+1445	Udskriv de valgte fakturaer	Print the selected invoices	Skriv ut de valgte fakturaene
 1446	Er du sikker på at du vil slette de valgte	Are you sure you want to delete the selected 	Er du sikker på at du vil slette de valgte
 1447	Vælg på hvilken måde dokumentet skal udskrives, gemmes eller sendes.	Choose how to print, save or send the document.	Velg hvordan du skal skrive ut, lagre eller sende dokumentet.
 1448	Udskrives som PDF uden baggrund	Printed as PDF without background	Skrives ut som PDF uten bakgrunn
@@ -1451,8 +1451,8 @@
 1451	Kun ved fakturering/kreditering	Only for invoicing/crediting	Kun ved fakturering/kreditering
 1452	Opkræves via betalingsservice	Charged via BS payment service	Charged via BS payment service
 1453	Gem en kopi og vedhæft kundens historik	Save a copy and attach the customer's history	Lagre en kopi og legg ved kundens historie
-1454	klik her for at åbne bilaget	click here to open the attachment	Klikk her for å åpne vedlegget
-1455	klik her for at vedhæfte et bilag	click here to add an attachment	Klikk her for å legge ved et vedlegg
+1454	Klik her for at åbne bilaget	Click here to open the attachment	Klikk her for å åpne bilaget
+1455	Klik her for at vedhæfte et bilag	Click here to add an attachment	Klikk her for å legge ved et bilag
 1456	Projektnummer. Vises for ordrelinjer tilknyttet et projekt.	Project number. Appears for order lines associated with a project.	Prosjektnummer. Vises for ordrelinjer tilknyttet et prosjekt.
 1457	Kun denne ordre: når dette felt er afmærket udelades ordrelinjen ved genfakturering	Only this order: when this field is checked, the order line is omitted for re-invoicing	Kun denne ordre: når dette feltet er merket, utelates ordrelinjen for omfakturering
 1458	Hvis feltet vises er kunden underlagt reglerne for omvendt betalingspligt. Er varen afmærkeret er der ikke opkrævet moms for den pågældende vare.	If the field is shown, the customer is subject to the rules for reverse charge. If the item is marked, no VAT has been charged for the item in question.	Hvis feltet vises, er kunden underlagt reglene for omvendt gebyr. Hvis varen er merket, er det ikke belastet merverdiavgift for den aktuelle varen.
@@ -1515,8 +1515,8 @@
 1515	Købsordre	Purchase order	Bestilling
 1516	Klik her for at udskrive ordrelinjer til en tabulatorsepareret fil, som kan importeres i et regneark	Click here to print order lines for a tab-separated file that can be imported into a spreadsheet	Klikk her for å skrive ut ordrelinjer for en fane-separert fil som kan importeres til et regneark
 1517	Klik her for at vise alle varer fra alle leverandører	Click here to view all items from all suppliers	Klikk her for å se alle varene fra alle leverandører
-1518	Klik her for kun at vise alle varer fra denne leverandø 	Click here to display only all items from this supplier	Klikk her for å vise bare alle elementene fra denne leverandøren
-1519	Denne Leverandør	This Supplier	Denne leverandøren
+1518	Klik her for kun at vise alle varer fra denne leverandør 	Click here to display only all items from this supplier	Klikk her for å vise bare alle elementene fra denne leverandøren
+1519	Denne leverandør	This supplier	Denne leverandøren
 1520	Reserveret	Reserved	Reservert
 1521	Vælg hvilke kreditorgrupper som vises i varelisten	Select which creditor groups appear in the item list	Velg hvilke kreditorgrupper som skal vises i varelisten
 1522	Fortsæt med at redigere ordren	Continue to edit order	Fortsett å redigere bestillingen
@@ -1531,16 +1531,16 @@
 1531	Fakturadato er ikke idag!	Invoice date is not today!	Fakturadato er ikke i dag!
 1532	Beløb til betaling stemmer ikke	Amount to be paid does not match	Beløpet som skal betales samsvarer ikke
 1533	Ordre omdannes til kreditnota ved fakturering!	Orders are converted to a credit note upon invoicing!	Bestillinger konverteres til en kreditnota ved fakturering!
-1534	Kreditnota sendes pr. mail til	Credit note sent per. mail to	Kredittnota sendt pr. post til
+1534	Kreditnota sendes pr. mail til	Credit note sent per mail to	Kredittnota sendt pr. post til
 1535	Tilbud udskrives som PDF. Ved fakturering udskrives til OIOUBL	Offers are printed as PDF. When invoicing, print to OIOUBL	Tilbud skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
-1536	Ordrebekrftelse udskrives som PDF. Ved fakturering udskrives til OIOUBL	Order confirmation is printed as a PDF. When invoicing, print to OIOUBL	Bestillingsbekreftelse skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
+1536	Ordrebekræftelse udskrives som PDF. Ved fakturering udskrives til OIOUBL	Order confirmation is printed as a PDF. When invoicing, print to OIOUBL	Bestillingsbekreftelse skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
 1537	Tilbud sendes pr mail til	Offers are sent by email to	Tilbud sendes på e-post til
 1538	Ordrebekræftelse sendes pr mail til	Order confirmation is sent by email to	Ordrebekreftelse sendes på e-post til
 1539	Klik her for at opdele ordren i 2.<br>Den ene vil indeholde ikke leverede varer<br>Den anden vil indeholde leverede varer	Click here to split the order into 2. <br> One will contain undelivered products <br> The other will contain delivered products	Klikk her for å dele ordren i 2. <br> Den ene inneholder varer som ikke er levert <br> Den andre inneholder leverte varer
 1540	Handicappet	Disabled	Funksjonshemmet
 1541	Vælg betalingsmåde	Select payment method	Velg betalingsmåte
 1542	Ordren er i brug af	The order is in use by	Bestillingen er i bruk av
-1543	Angiv belob - klik på opslag for at slå op i åbne poster	Enter amount - click on lookup to look up open records	Angi beløp - klikk på oppslag for å slå opp åpne poster
+1543	Angiv beløb - klik på opslag for at slå op i åbne poster	Enter amount - click on lookup to look up open records	Angi beløp - klikk på oppslag for å slå opp åpne poster
 1544	Klik her for at gemme	Click here to save	Klikk her for å lagre
 1545	Opslag - din markørs placering angiver hvilken tabel, opslag foretages i	Lookup - your cursor&apos;s location indicates which table the lookup is in	Oppslag - markørens plassering indikerer hvilken tabell oppslaget er i
 1546	Simulering af bogføring viser bevægelser i kontoplanen	Posting simulation shows movements in the chart of accounts	Bokføringssimulering viser bevegelser i kontoplanen
@@ -1556,29 +1556,29 @@
 1556	Afmærkes her, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;=&apos; i begge overstående felter!	Marked here, debit and credit are exchanged. Used when returning the entire journal. Put &apos;=&apos; in both of the above fields!	Afmærkes henne, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;=&apos; i begge overstående felter!
 1557	Vend fortegn (tilbagefør)	Flip sign (reverse)	Vend fortegn (tilbagefør)
 1558	Klik her for at lukke kassekladden	Click here to close the checkout journal	Klikk her for at lukke kassekladden
-1559	Her kan skrives en bemærkning til kladden	A comment on the journal can be written here	Hennes kan skrives og bemærkning til kladden
+1559	Her kan du skrive en bemærkning til kladden	Here you can add a note to the journal	Her kan du skrive en merknad til kladden
 1560	Angiv kontonummer til kontrol af kontobevægelser	Enter account number to control account movements	Angiv kontonummer til kontrol af kontobevægelser
-1561	Klik her for at opdatere	Click here to update	Klikk på henne for at opdatere
-1562	Skriv - (minus) for at slette en linje	Type - (minus) to delete a line	Skriv - (minus) for at slette en linje
-1563	Angiv dato som ddmmyy (f.eks 241205)	Enter date as ddmmyy (eg 241205)	Angiv dato som ddmmyy (f.eks. 241205)
-1564	Angiv D for debitor, K for kreditor eller F for finanspostering	Enter D for debtor, K for creditor or F for financial posting	Angiv D for debitor, K for kreditor eller F for finanspostering
-1565	Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek	Type D or K and click on [Lookup] for lookups in the debtor or creditor directory, respectively	Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek
-1566	Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning	Enter invoice number - click on lookup to look up in open records. Write a minus here to suppress automatic equalization	Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus henne for at undertrykke automatisk udligning
-1567	Angiv hvilken afdeling posteringen hører under	Specify which department the posting belongs to	Angiv hvilken afdeling posteringen hører under
-1568	Angiv hvilket ansatejder posteringen hører under	Indicate which employee owner the posting belongs to	Angiv hvilken ansatejder posteringen hører under
-1569	Angiv hvilket projekt posteringen hører under	Specify which project the posting belongs to	Angiv hvilket projekt posteringen hører under
-1570	Angiv valuta for posteringen	Enter currency for posting	Angiv valuta for posteringen
-1571	Betalingsdato for debitor eller kreditorfaktura	Payment date for debtor or creditor invoice	Betalingsdato for debitor eller kreditorfaktura
-1572	Betalingsid fra girokort - Kun nummeret skal skrives	Payment ID from giro card - Only the number must be written	Betalingsid fra girokort - Kun nummeret skal skrives
-1573	Afmærk her, hvis der ikke skal trækkes moms	Check here if VAT is not to be deducted	Afmærk her, hvis der ikke skal trækkes moms
-1574	Tilbagefør postering	Return posting	Tilbagefør postering
+1561	Klik her for at opdatere	Click here to update	Klikk her for å oppdatere
+1562	Skriv - (minus) for at slette en linje	Enter - (minus) to delete a line	Skriv - (minus) for at slette en linje
+1563	Angiv dato som ddmmåå (f.eks 241205)	Enter date as ddmmyy (eg 241205)	Angi dato som ddmmåå (f.eks. 241205)
+1564	Angiv D for debitor, K for kreditor eller F for finanspostering	Enter D for debtor, K for creditor, or F for financial posting	Angi D for debitor, K for kreditor eller F for finanspostering
+1565	Skriv D eller K, og klik på [Opslag] for opslag i hhv. debitor- eller kreditorkartotek	Enter D or K and click on [Lookup] to search in the debtor or creditor directory, respectively	Skriv D eller K, og klikk på [Oppslag] for oppslag i hhv. debitor- eller kreditorkartotek
+1566	Angiv fakturanummer - klik på [Opslag] for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning	Enter invoice number - click on [Lookup] to search in open records. Enter a minus here to suppress automatic equalization	Angi fakturanummer - klikk på [Oppslag] for at søke i åpne poster. Skriv et minus her for å undertrykke automatisk utligning
+1567	Angiv hvilken afdeling posteringen hører under	Specify which department the posting belongs to	Angi hvilken avdeling posteringen hører til
+1568	Angiv hvilken ansat posteringen hører under	Specify which employee the posting belongs to	Angi hvilken ansatt posteringen hører til
+1569	Angiv hvilket projekt posteringen hører under	Specify which project the posting belongs to	Angi hvilket prosjekt posteringen hører til
+1570	Angiv valuta for posteringen	Enter the currency for the posting	Angi valuta for posteringen
+1571	Betalingsdato for debitor- eller kreditorfaktura	Payment date for debtor or creditor invoice	Betalingsdato for debitor- eller kreditorfaktura
+1572	Betalings-ID fra girokort - kun nummeret skal skrives	Payment ID from giro slip - only enter the number	Betalings-ID fra girokort - kun nummeret skal oppgis
+1573	Afmærk her, hvis der ikke skal trækkes moms	Mark here if VAT is not to be deducted	Merk av her hvis det ikke skal beregnes merverdiavgift
+1574	Tilbagefør postering	Return posting	Tilbakefør postering
 1575	En tilsvarende postering er også ført på kladde	A similar entry is also entered on the draft	En tilsvarende postering er også ført på kladde
 1576	Importer data fra DocuBizz?	Import data from DocuBizz?	Importørdata fra DocuBizz?
 1577	Kladden er i brug af	The draft is in use	Kladden er i brug af
 1578	Ulovlig værdi i debetfelt (Bilag nr	Illegal value in debit field (Attachment no	Ulovlig verdi i debetfelt (Bilag nr
 1579	kladde ikke gemt!	draft not saved!	kladde ikke gemt!
 1580	Ulovlig værdi i kreditfelt (Bilag nr	Illegal value in credit field (Attachment no	Ulovlig verdi i kreditfelt (Bilag nr
-1581	Forskellige datoer i bilag	Different dates in appendices	Forskellige datoer i bilag
+1581	Forskellige datoer i bilag	Different dates in attachments	Forskellige datoer i bilag
 1582	Ulovlig værdi i bilagsfelt (Bilag nr	Illegal value in attachment field (Attachment no	Ulovlig verdi i bilagsfelt (Bilag nr
 1583	Brug af refresh konstateret - handling ignoreret	Use of refresh detected - action ignored	Brug af refresh konstateret - håndtering av ignoreret
 1584	Kladden er allerede bogført - kladden lukkes	The journal is already posted - the journal is closed	Kladden er allerede bogført - kladden lukkes
@@ -1602,8 +1602,8 @@
 1602	Klik her for at sortere på ID	Click here to sort by ID	Klikk her for å sortere etter ID
 1603	Klik her for at sortere på dato	Click here to sort by date	Klikk her for å sortere etter dato
 1604	Klik her for at sortere på ejer (den der har oprettet kassekladden)	Click here to sort by owner (the one who created the cash journal)	Klikk her for å sortere etter eier (den som opprettet kontantjournalen)
-1605	Klik her for at sortere på bemårkning	Click here to sort by remark	Klikk her for å sortere etter kommentar
-1606	Klik her for at sortere på \&apos;bogført af	Click here to sort by \ &apos;posted by	Klikk her for å sortere etter \ &apos;skrevet av
+1605	Klik her for at sortere på bemærkning	Click here to sort by remark	Klikk her for å sortere etter kommentar
+1606	Klik her for at sortere på &apos;bogført af&apos;	Click here to sort by &apos;posted by&apos;	Klikk her for å sortere etter &apos;bokført av&apos;
 1607	Kladde er låst af	Draft is locked off	Utkast er låst av
 1608	Klik her for at komme til forsiden af rapporter	Click here to get to the front page of reports	Klikk her for å komme til forsiden av rapporter
 1609	Angiv maksimale antal linjer, som skal vises pr. side	Specify the maximum number of lines to be displayed per page	Angi maksimalt antall linjer som skal vises pr side
@@ -1682,20 +1682,20 @@
 1682	Der er sat	There is set	Det er satt
 1683	til levering men valgt	for delivery but selected	for levering men valgt
 1684	til returnering men valgt	for return but selected	for retur men valgt
-1685	Vare tilhrer ikke nogen varegruppe - kontroller vare og indstillinger!	Item does not belong to any item group - check item and settings!	Varen tilhører ikke noen varegruppe - sjekk element og innstillinger!
+1685	Vare tilhører ikke nogen varegruppe - kontroller vare og indstillinger!	Item does not belong to any item group - check item and settings!	Varen tilhører ikke noen varegruppe - sjekk element og innstillinger!
 1686	Varegruppe ikke opsat korrekt, pos nr	Item group not set up correctly, item no	Varegruppe er ikke riktig konfigurert, varenr
 1687	mangler kontonummer for varekøb og/eller varesalg (Indstillinger -> Varegrp)	missing account number for item purchases and/or item sales (Settings -> Item group)	manglende kontonummer for varekjøp og/eller varesalg (Innstillinger -> Varegruppe)
 1688	Reserveret antal stemmer ikke overens med antal til levering	Reserved number does not match quantity for delivery	Reservert nummer samsvarer ikke med antall for levering
 1689	Hmm - Indkbsordre kan ikke findes - levering kan ikke foretages - Kontakt systemadministrator	Hmm - Purchase order can not be found - delivery can not be made - Contact system administrator	Hmm - Innkjøpsordre kan ikke bli funnet - levering kan ikke gjøres - Kontakt systemadministrator
 1690	Der er observeret en uoverensstemmelse mellem mellem oprindelig ordre og denne	A discrepancy has been observed between the original order and this one	Det er observert et avvik mellom den opprinnelige ordren og denne
 1691	faktura allerede oprettet til ordre-id	invoice allready created for order id	faktura allerede opprettet for bestillings-ID
-1692	manglende faktureringsdato til ordre	missing invoicedate for order	mangler faktureringsdato for bestilling
+1692	manglende faktureringsdato til ordre	missing invoice date for order	mangler faktureringsdato for bestilling
 1693	(kursdiff) eksisterer ikke	(price difference) does not exist	(prisforskjell) eksisterer ikke
 1694	Der er ikke nogen valutakurs for	There is no exchange rate for	Det er ingen valutakurs for
 1695	Manglende leveringsdato	Missing deliverydate	Mangler leveringsdato
 1696	Leveringsdato inden ordredato	Deliverydate prior to orderdate	Leveringsdato før bestillingsdato
-2697	Faktureret inden ordredato	Invoicedate prior to orderdate	Fakturert før bestillingsdato
-1698	Næste_faktureret forud for fakturering	Next_invoicedate prior to invoicedate	Neste_fakturering før fakturering
+1697	Faktureret inden ordredato	Invoice date prior to orderdate	Fakturert før bestillingsdato
+1698	Genfaktureringsdato skal være senere end fakturadato	Next invoice date must be after invoice date	Gjenfaktureringsdato må være senere enn fakturadato
 1699	Kontonummer for Debitorgruppe	Account number for Debtor group	Kontonummer for debitorgruppe
 1700	er ikke gyldigt	is not valid	er ikke gyldig
 1701	Der er konstateret en uoverensstemmelse i posteringssummen, ordre	A discrepancy has been found in the posting sum, order	Det er funnet avvik i konteringssummen, bestillingen
@@ -1793,11 +1793,11 @@
 1793	Klik her for at redigere/opdatere regnskabsår	Click here to edit / update fiscal year	Klikk her for å redigere / oppdatere regnskapsår
 1794	Klik for at sætte regnskabsår	Click to set fiscal year	Klikk for å angi regnskapsår
 1795	aktivt for alle brugere	active for all users	aktiv for alle brukere
-1796	Sæt regnskabsår	Set fiscal year	Sett regnskapsår
+1796	Sæt regnskabsår til	Set fiscal year to	Sett regnskapsår til
 1797	Klik for at se ændringer i perioder eller mailadresser	Click to see changes in periods or email addresses	Klikk for å se endringer i perioder eller e -postadresser
 1798	Send som html. Emne og mailtekst kan ikke ændres.	Send as html. Subject and email text cannot be changed.	Send som html. Emne og e -posttekst kan ikke endres.
-1799	Send som vedhæftet PDF. Emne og mailtekst jf. formularen \&apos;Kontoudtog\&apos;	Send as an attached PDF. Subject and e-mail text, cf. the form \ &apos;Account statement\&apos;	Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet \ &apos;Kontoutskrift\&apos;
-1800	Emne og mailtekst ikke udfyldt for formularen \&apos;Kontoudtog\&apos;	Subject and email text not completed for the \ &apos;Bank Statement\&apos; form	Emne- og e -posttekst er ikke fullført for \ &apos;Kontoutskrift\&apos; -skjemaet
+1799	Send som vedhæftet PDF. Emne og mailtekst jf. formularen &apos;Kontoudtog&apos;	Send as an attached PDF. Subject and e-mail text, cf. the form &apos;Account statement&apos;	Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet &apos;Kontoutskrift&apos;
+1800	Emne og mailtekst ikke udfyldt for formularen &apos;Kontoudtog&apos;	Subject and email text not completed for the &apos;Bank Statement&apos; form	Emne- og e -posttekst er ikke fullført for &apos;Kontoutskrift&apos; -skjemaet
 1801	Klik for at lukke	Click to close	Klikk for å lukke
 1802	Kontoudtog fra	Account statement from	Kontoutskrift fra
 1803	Kontoudtog	account statement	kontoutskrift
@@ -1902,18 +1902,18 @@
 1902	Begræns bruger IP	Restrict User IP	Begrens bruker IP
 1903	Gendan brugers IP	Restore User IP	Gjenopprett bruker IP
 1904	Angiv brugerens tilladte IP adresser	Enter IP address to restrict	Skriv inn IP for å begrense
-1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you have shown nothing to do here! Your IP number, username and accounts are registered!	Hmm du har ikke vist noe å gjøre her! Ditt IP -nummer, brukernavn og kontoer er registrert!
-1906	Skjul Luk	Hide Close	Skjul Lukk
-1907	Vis Luk	Show Close	Vis Lukk
+1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you are not supposed to be here! Your IP number, username and accounts are registered!	Hmm, du har visst ikke noe å gjøre her! Din IP-adresse, brukernavn og regnskap er registrert!
+1906	Skjul 'Luk'	Hide 'Close'	Skjul 'Lukk'
+1907	Vis 'Luk'	Show 'Close'	Vis 'Lukk'
 1908	Lås	Lock	Lås
 1909	Brugerantal	Number of users	Antall brukere
-1910	Posteringer	Entries	Innganger
-1911	Posteret	The poster	Plakaten
+1910	Posteringer	Entries	Posteringer
+1911	Posteret	Posted	Postert
 1912	Sidst	Last	Siste
 1913	Lukkes	Closes	Stenger
 1914	Betalt til	Paid to	Betalt til
 1915	Logintekst	Login text	Innloggingstekst
-1916	Genberegn posteringer	Recalculate entries	Beregn oppføringer på nytt
+1916	Genberegn posteringer	Recalculate entries	Gjenberegn posteringer
 1917	Program til konvertering af PostScript til PDF	Program for converting PostScript to PDF	Program for å konvertere PostScript til PDF
 1918	Program til konvertering af HTML til PDF	HTML to PDF conversion program	Konverteringsprogram for HTML til PDF
 1919	Program til sammenlægning af PDF filer	Program for merging PDF files	Program for sammenslåing av PDF -filer
@@ -1925,7 +1925,7 @@
 1925	Tekst ved 'uforudset hændelse'	Text of 'unforeseen event'	Tekst av 'uforutsett hendelse'
 1926	ikke fundet!	not found!	ikke funnet!
 1927	Admin brugere	Admin users	Administratorbrukere
-1928	Der findes allerede en bruger med brugenavn	A username already exists	Et brukernavn finnes allerede
+1928	Der findes allerede en bruger med dette brugernavn	A user with this username already exists	Det finnes allerede en bruker med dette brukernavnet
 1929	Anonymisér	Anonymize	Anonymiser
 1930	Anonymiser konto $kontonr? \r\nNavn, adresse og telefonnummer fjernes på dette kort og på alle ordrer, rykkere mm. \r\nEventuelle kontakter slettes.	Anonymize account $kontonr?\r\nThe name, address and phone number are removed on this card and on all orders, reminders, etc.\r\nAny contacts will be deleted.	Anonymisere konto $kontonr?\r\nNavn, adresse og telefonnummer fjernes på dette kortet og på alle bestillinger, påminnelser osv.\r\nAlle kontakter vil bli slettet.
 1931	Anvend Paperflow til aflæsning af bilag, Se priser på saldi.dk/paperflow	Use Paperflow til aflæsning af bilag, Check prices at saldi.dk/paperflow	Bruk Paperflow til å lese dokumenter, Se priser på saldi.dk/paperflow
@@ -1993,13 +1993,13 @@
 1993	Velkommen til SALDI	Welcome to SALDI	Velkommen til SALDI
 1994	Hvis du har installeret webserveren Apache med PHP og en af databaseserverne PostgreSQL eller MySQL, kan du nu installere SALDI	If you have installed the Apache web server with PHP and one of the PostgreSQL or MySQL database servers, you can now install SALDI	Hvis du har installert Apache-webserveren med PHP og en av PostgreSQL- eller MySQL-databaseserverne, kan du nå installere SALDI
 1995	Vælg den databaseserver, duønsker at bruge	Select the database server you want to use	Velg databaseserveren du vil bruke
-1996	Tegnsæt</td><td title=\Vælg det tegnsæt du ønsker at bruge. Nyere versioner af PostgreSQL fungerer kun med UTF8	Character set </td> <td title = \Select the character set you want to use. Newer versions of PostgreSQL only work with UTF8	Tegnsett </td> <td title = \Velg tegnsettet du vil bruke. Nyere versjoner av PostgreSQL fungerer kun med UTF8
-1997	Databasenavn</td><td title=\ønsket navn på din hoveddatabase for SALDI	Database name </td> <td title = \desired name of your main SALDI database	Databasenavn </td> <td title = \ønsket navn på SALDI-hoveddatabasen din
-1998	Eksisterende databaseadministrator</td> <td title=\Navn på en bruger, som har i forvejen har tilladelse til at oprette, rette og slette databaser. Typisk er det for PostgreSQL brugeren postgres og for MySQL brugeren root	Existing database administrator </td> <td title = \Name of a user who already has permission to create, correct and delete databases. Typically for the PostgreSQL user it is postgres and for the MySQL user root	Eksisterende databaseadministrator </td> <td title = \Navn på en bruker som allerede har tillatelse til å opprette, korrigere og slette databaser. Typisk for PostgreSQL-brukeren er det postgres og for MySQL-brukerroten
-1999	Adgangskode for databaseadministrator</td><td title=\Adgangskode for ovenstående bruger	Database Administrator Password </td> <td title = \Password for the above user	Databaseadministratorpassord </td> <td title = \Passord for brukeren ovenfor
-2000	SALDI-administratorens brugernavn</td><td title=\ønsket navn på din administratorkonto til dit SALDI-system	SALDI Administrator Username </td> <td title = \desired name of your administrator account for your SALDI system	SALDI-administratorbrukernavn </td> <td title = \ønsket navn på administratorkontoen din for SALDI-systemet
-2001	SALDI-administratorens adgangskode</td><td title=\Ønsket adgangskode for administratoren af dit SALDI-system	SALDI Administrator Password </td> <td title = \Desired password for the administrator of your SALDI system	SALDI administratorpassord </td> <td title = \Ønsket passord for administratoren av ditt SALDI-system
-2002	SALDI-administratorens adgangskode igen</td><td title=\Verificering af ovenstående adgangskode	SALDI Administrator Password Again </td> <td title = \Verifying Password Above	SALDI administratorpassord igjen </td> <td title = \Bekrefter passord ovenfor
+1996	Vælg det tegnsæt du ønsker at bruge. Nyere versioner af PostgreSQL fungerer kun med UTF8	Select the character set you want to use. Newer versions of PostgreSQL only work with UTF8	Velg tegnsettet du vil bruke. Nyere versjoner av PostgreSQL fungerer kun med UTF8
+1997	ønsket navn på din hoveddatabase for SALDI	desired name of your main SALDI database	ønsket navn på SALDI-hoveddatabasen din
+1998	Navn på en bruger, som har i forvejen har tilladelse til at oprette, rette og slette databaser. Typisk er det for PostgreSQL brugeren postgres og for MySQL brugeren root	Name of a user who already has permission to create, correct and delete databases. Typically for the PostgreSQL user it is postgres and for the MySQL user root	Navn på en bruker som allerede har tillatelse til å opprette, korrigere og slette databaser. Typisk for PostgreSQL-brukeren er det postgres og for MySQL-brukerroten
+1999	Adgangskode for ovenstående bruger	Password for the above user	Passord for brukeren ovenfor
+2000	ønsket navn på din administratorkonto til dit SALDI-system	desired name of your administrator account for your SALDI system	ønsket navn på administratorkontoen din for SALDI-systemet
+2001	Ønsket adgangskode for administratoren af dit SALDI-system	Desired password for the administrator of your SALDI system	Ønsket passord for administratoren av ditt SALDI-system
+2002	Verificering af ovenstående adgangskode	Verifying Password Above	Bekrefter passord ovenfor
 2003	Klik her for at oprette dit SALDI-system	Click here to create your SALDI system 	Klikk her for å lage ditt SALDI-system 
 2004	<b>Alle</b> felter skal udfyldes. Hvis du er i tvivl, så udfyld kun de tomme felter	<b> All </b> fields are required. If in doubt, fill in the blanks only	<b> Alle </b> felt er obligatoriske. Hvis du er i tvil, fyll bare ut de tomme feltene
 2005	Installér	Install	Installere
@@ -2057,7 +2057,7 @@
 2057	E-mail tekst:	Email text:	E-posttekst:
 2058	Du kan bruge $navn som navn på modtager,$kontonr som kontonr $sum som det beløb der overføres,<br>$antal som antal solgte enheder samt $start og $slut som hhv start og slutdato	You can use $name as the name of the recipient, $account as the account number $sum as the amount transferred,<br>$qty as the number of units sold and $start and $end as the start and end date respectively	Du kan bruke $navn som navn på mottaker, $kontonummer som kontonummer $sum som overført beløp,<br>$antal som antall solgte enheter og $start og $slut som henholdsvis start- og sluttdato
 2059	Tilbage til betalingsliste	Return to payment list	Tilbake til betalingslisten
-2060	Opdatér	Update	Uppdatera
+2060	Opdatér	Update	Oppdater
 2061	alle varer	all products	alla varor
 2062	kun eksisterende varer	only existing products	endast befintliga objekt
 2063	Beregn salgspris efter købspris plus	Calculate Sales price from purchase price plus	Beräkna försäljningspris med inköpspris plus
@@ -2084,7 +2084,7 @@
 2084	Klik her for at eksportere til csv	Click here to export to csv	Klikk her for å eksportere til csv
 2085	Vejl.pris	Retail price	Vejl.pris
 2086	Vejledende pris	Retail price	Vejledende pris
-2087	Vis	View	Visa
+2087	Vis	View	Vis
 2088	B2B salgspris	B2B sales price	B2B försäljningspris
 2089	B2B salgsprisen	B2B sales price	B2B försäljningspris
 2090	Vis skjulte produkter	View hidden products	Visa dolda varor
@@ -2122,7 +2122,7 @@
 2122	Du er ved at ændre lagerbeholdningen for varenr	You are about to change the stock for product no	Du er i ferd med å endre lagerbeholdning for varenr
 2123	Årsag til ændring	Reason for change	Begrunnelse for endring
 2124	Årsag	Reason	Begrunnelse
-2125	Linjer pr side	Lines per page	Linjer pr side
+2125	Linjer pr. side	Lines per page	Linjer pr. side
 2126	Prisliste	Price list	Prisliste
 2127	Normalpris	Regular price	Normalpris
 2128	Sætpris	Set price	Sett pris
@@ -2134,18 +2134,18 @@
 2134	Udtaget fra kasse	Withdrawn from cash register	Tatt ut av kassa
 2135	Salg på konto	Sales on account	Salg på konto
 2136	Godkend optælling	Approve count	Godkjenn telling
-2137	Udlejnings oversigt	Rental overview	Utleieoversikt
+2137	Udlejningsoversigt	Rental overview	Utleieoversikt
 2138	Daglig oversigt	Daily overview	Daglig oversikt
 2139	Indstillinger	Settings	Instillinger
 2140	Lukkedage	Closed days	Stengte dager
 2141	Udlejningsvare	Rental product	Utleieprodukt
-2142	Søg kunde historik	Search customer history	Søk kundehistorikk
+2142	Søg kundehistorik	Search customer history	Søk kundehistorikk
 2143	Ekstern booking	Remote booking	Ekstern booking
 2144	Intern note	Internal note	Internt notat
 2145	Webfragt	Webfragt	Webfragt
 2146	Vis DG	Show DG	Viss DG
 2147	Afmærkes her vises dækningsgraden for produktet	If ticked here, the degree of coverage for the product is displayed	Hvis det er krysset av her, vises dekningsgraden for produktet
-2148	Rediger	Edit	Rediger
+2148	Redigér	Edit	Rediger
 2149	Åbn kassesystem	Open POS System	Åpne POS-system
 2150	Åbn sagsstyring	Open Case Management	Åpne saksbehandling
 2151	Opsæt din oversigt	Set up your dashboard	Sett opp oversikten din
@@ -2162,7 +2162,7 @@
 2162	Grafer	Graphs	Grafer
 2163	Omsætningsgraf	Revenue graph	Omsetningsgraf
 2164	Kundefordeling	Customer distribution	Kundefordeling
-2165	Din omsætning sammenlignet med sidste år, ekskl. moms	Your revenue compared to last year, excluding VAT	Din omsetning sammenlignet med i fjor, ekskl. MVA
+2165	Omsætning sammenlignet med sidste år, ekskl. moms	Revenue compared to last year, excluding VAT	Omsetning sammenlignet med i fjor, ekskl. MVA
 2166	tusind	thousand	tusen
 2167	millioner	million	millioner
 2168	milliarder	billion	milliarder
@@ -2177,8 +2177,8 @@
 2177	Simulering	Simulation	Simulering
 2178	Pos nr.	Pos no.	Pos nr.
 2179	Klik her for at åbne filen i nyt vindue, højreklik her for at gemme	Click here to open the file in a new window, right-click to save	Klikk her for å åpne filen i et nytt vindu, høyreklikk her for å lagre
-2180	Vis PDF-udskrift	Show PDF Prin	Vis PDF-utskrift
-2181	Klik her for at lukke Top 100	Click here to close Top 100	Klikk her for å lukke Top 100
+2180	Vis PDF-udskrift	Show PDF Print	Vis PDF-utskrift
+2181	Klik her for at lukke &quot;Top 100&quot;	Click here to close &quot;Top 100&quot;	Klikk her for å lukke &quot;Top 100&quot;
 2182	Skan bilag	Scan Attachement	Skann bilag
 2183	Angiv et ordrenummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter an order number, or enter two separated by a colon (e.g. 345:350)	Skriv inn et ordrenummer, eller skriv inn to adskilt med kolon (f.eks. 345:350)
 2184	Angiv et modtagelsesnummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter a receipt number, or enter two separated by a colon (e.g. 345:350)	Skriv inn et kvitteringsnummer, eller skriv inn to adskilt med kolon (f.eks. 345:350)
@@ -2213,7 +2213,7 @@
 2213	Bankafstemning	Bank Reconciliation	Bankavstemming
 2214	Valutakurs	Exch. Rate	Valutakurs
 2215	Varegrænse	Product Limit	Varegrense
-2216	Udskriv kontoudtog som PDF (Åbner i popup)	Print statement as PDF (Opens in popup)	Skriv ut kontoutdrag som PDF (Åpnes i popup)
+2216	Udskriv kontoudtog som PDF (åbner i popup)	Print statement as PDF (opens in popup)	Skriv ut kontoutdrag som PDF (åpnes i popup)
 2217	Sæt grænse for, hvor mange varer en kunde kan oprette	Set a limit on how many items a customer can create	Sett grense for hvor mange varer en kunde kan opprette
 2218	Bestil	Order	Bestill
 2219	Skriv en søgetekst. Der søges efter varer, hvor teksten indgår.	Enter a search term. Products will be searched for where the term appears.	Skriv en søketekst. Det søkes etter varer hvor teksten inngår.
@@ -2249,17 +2249,17 @@
 2249	Skriv bonnummer eller 'S' for sidste bon	Enter receipt number or 'S' for last receipt	Skriv bonnummer eller 'S' for siste bon
 2250	Bon	Receipt	Bon
 2251	Vælg brugernavn og angiv adgangskode	Choose a username and enter a password	Velg brukernavn og angi passord
-2252	Ekspedient	Clerk	Ekspeditør
+2252	Ekspedient	Cashier	Ekspeditør
 2253	Vælg kasse	Choose cash register	Velg kasse
 2254	Indtast nummer	Enter number	Skriv inn nummer
 2255	Gavekortnummer	Gift card number	Gavekortnummer
-2256	Retur til kassespor	Return to checkout tracks	Retur til kassespor
+2256	Retur til kassespor	Return to cash register log	Retur til kassespor
 2257	Afstemning	Reconciliation	Avstemming
 2258	Find bon	Find rcpt.	Find kvitt.
 2259	Del bord	Split table	Del bord
 2260	Flyt bord	Move table	Flytt bord
 2261	Kasseoptælling	Cash count	Kasseoptelling
-2262	Ny kunde	New costumer	Ny kunde
+2262	Ny kunde	New customer	Ny kunde
 2263	Korrektion	Correction	Korreksjon
 2264	Hent bestilling	Retrieve order	Hent bestilling
 2265	Gem bestilling	Save order	Lagre bestilling
@@ -2293,12 +2293,12 @@
 2293	Kopier fra	Copy from	Kopier fra
 2294	POS-ordre	POS order	POS-ordre
 2295	Kontoopslag	Account lookup	Kontooppslag
-2296	Retur	Return	Retur
+2296	Byttepenge	Change	Byttepenge
 2297	Gl. saldo	Old balance	Gl. saldo
 2298	Ny saldo	New balance	Ny saldo
 2299	Indbetaling - (Det beløb der skal indsættes på kontoen!)	Deposit - (The amount to be deposited into the account!)	Innskudd - (Beløpet som skal settes inn på kontoen!)
 2300	Den maxlimale længde en label kan have i bokstaver, over 40 skal saldi teamet kontaktes for at udvidde databaseplads	 The maximum length a label can have in letters, above 40 balances the team must be contacted to expand database space	Den maksimale lengden en etikett kan ha i bokstaver, over 40 balanser må teamet kontaktes for å utvide databaseplassen
-2301	Momsangivelse for året	VAT return for the year	Mva-melding for året
+2301	Momsangivelse for året	VAT return for the year	MVA-melding for året
 2302	Vis enhed	View unit type	Visa enhet
 2303	Valuta	Currency	Valuta
 2304	Valuta hjælpetekst	Currency	Valuta
@@ -2314,8 +2314,8 @@
 2314	Flatpay ID	Flatpay ID	Flatpay ID
 2315	Dit hemmelige Flatpay ID, klik inputtet for at lave en ny	Your secret Flatpay ID, click the input to create a new one	Din hemmelige Flatpay ID, klikk på feltet for å lage en ny
 2316	Terminal IP/ID	Terminal IP/ID	Terminal IP/ID
-2317	Vibrant API nøjle	Virant API Key	Vibrant API Key
-2318	API nøjlen til din Vibrant APP	The API key for your vibrant APP	API-key for din Vibrant APP
+2317	Vibrant API-nøgle	Virant API Key	Vibrant API-nøkkel
+2318	API-nøglen til din Vibrant APP	The API key for your vibrant APP	API-nøkkelen for din Vibrant APP
 2319	Kurs	Exchange rate	Vekslingskurs
 2320	SAF-T	SAF-T	SAF-T
 2321	Dansk SAF-T standart er baseret på OECD standard	Danish SAF-T is based on the OECD standard	Den norske SAF-t-standarden er basert på OECD-standarden
@@ -2330,12 +2330,12 @@
 2330	For at udskrive en csv skal de	To print a csv, the	For å skrive ut en csv må de
 2331	nedenstående kontonumre mappes til <u>standard kontonumre</u>.	account numbers below must be mapped to <u>standard account numbers</u>.	kontonumrene nedenfor tilordnes <u>standard kontonumre</u>.
 2332	Inde i	Inside	Inne i
-2333	systemdata &#8658	 diverse &#8658	 Import & Export	system data &#8658	 miscellaneous &#8658	 Import & Export	systemdata &#8658	 diverse &#8658	 Import & Export
-2334	kan du under	you can under	kan du under
+2333	Systemdata &#8658 Diverse &#8658 Import & Export	System data &#8658 Miscellaneous &#8658 Import & Export	Systemdata &#8658 Diverse &#8658 Import & Export
+2334	kan du under	under	kan du under
 2335	Indlæs/udlæs kontoplan	Load/Export chart of accounts	Laste/Eksportere kontoplan
-2336	Importer mappingfil til offentlig standard kontoplan	Import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
+2336	Importer mappingfil til offentlig standard kontoplan	you can import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
 2337	De kontonumre som <u>ikke</u> kan mappes ændres i	The account numbers that cannot be mapped can be changed in	Kontonumrene som ikke kan kartlegges kan endres i
-2338	systemdata &#8658	 kontoplan	system data &#8658	 chart of accounts	systemdata &#8658	 kontoplan	
+2338	Systemdata &#8658 Kontoplan	System data &#8658 Chart of accounts	Systemdata &#8658 Kontoplan
 2339	Her kan man under det enkelte kontonummer tilføje standard kontonummer i feltet	Here, under the individual account number, you can add the standard account number in the field	Her kan du under det enkelte kontonummeret legge til standard kontonummer i feltet
 2340	Map til	Map to	Map til
 2341	Sidst på siden kan man se en udskrift af Standard Kontoplan	At the end of the page you can see a printout of the Standard Account Plan	På slutten av siden kan du se en utskrift av Standard Account Plan
@@ -2345,15 +2345,15 @@
 2345	Luk Standard Kontoplan	Close Standard Chart of Accounts	Lukk Standard kontoplan
 2346	For at generere en SAF-T fil skal nedenstående kontonummer mappes til <u>standard kontonummer</u>.	To generate a SAF-T file, the account number below must be mapped to <u>standard account number</u>	For å generere en SAF-T-fil, må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>
 2347	For at generere en SAF-T fil skal de	To generate a SAF-T file, the	For å generere en SAF-T-fil, må de
-2348	Her kan du oprette en SAF-T Financial rapport:	Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansiell rapport:
-2349	Opret	Create	Skape
+2348	Her kan du oprette en SAF-T Finansrapport:	Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansrapport:
+2349	Opret	Create	Opprett
 2350	Vis XML-fil	Show XML file	Vis XML-fil
 2351	Luk XML-fil	Close XML file	Lukk XML-fil
 2352	er blevet oprettet.	has been created.	er opprettet.
 2353	Filen er downloadet	The file has been downloaded	Filen er lastet ned
 2354	Import af XML SAF-T fil	Import of XML SAF-T file	Import av XML SAF-T-fil
 2355	Importer SAF-T XML fil til kassekladde.	Import SAF-T XML file to cash journal.	Importer SAF-T XML-fil til kassejournal.
-2356	Periode start:	Period start:	Periodestart:
+2356	Periodestart	Period start	Periodestart
 2357	Periode slut:	Period end:	Periodeslutt:
 2358	Indlæs data til kassekladde her:	Load data to cash journal here:	Last inn data til kassejournal her:
 2359	Filtypenavn ikke tilladt, vælg venligst en XML-fil.	File extension not allowed, please choose a XML file.	Filtypen er ikke tillatt, velg en XML-fil.
@@ -2370,7 +2370,7 @@
 2370	Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en e-mail på en ordre	This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer debitoripadsystemet hvor kundene dine selv kan skrive en e-post på en ordre
 2371	Rumfang	Volume	Volum
 2372	Nettosum	Net sum	Nettosum
-2373	I alt	Total	Totalt
+2373	I alt	Total	I alt
 2374	Fakturér	Invoice	Fakturer
 2375	Sæt	Set	Sett
 2376	Dagens omsætning	Today's turnover	Dagens omsetning
@@ -2380,10 +2380,10 @@
 2380	Har været aktive inden for den sidste time	Have been active within the last hour	Har vært aktive innen den siste timen
 2381	Hvilket svarer til	Which is equivalent to	Som tilsvarer
 2382	ufaktureret	unbilled	ufakturert
-2383	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT	
-2384	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT	
-2385	mere end sidste år til dato	more than last year to date	
-2386	mindre end sidste år til dato	less than last year to date	
+2383	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT	Omsetning for året, ekskl. MVA
+2384	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT	Omsetning denne måneden, ekskl. MVA
+2385	mere end sidste år til dato	more than last year to date	mer enn i fjor til dato
+2386	mindre end sidste år til dato	less than last year to date	mindre enn i fjor til dato
 2387	Optæl kassebeholdning for kasse	Count the cash drawer for register	Telle opp kassebeholdningen for kasse
 2388	Antal mønter/sedler af hver slags	Number of coins/bills of each type	Antall mynter/sedler av hver type
 2389	Morgenbeholdning	Opening cash balance	Morgenbeholdning
@@ -2398,7 +2398,7 @@
 2398	Slet alt og start forfra	Clear all and start over	Slett alt og start på nytt
 2399	Ret	Edit	Rett
 2400	Ordrebek	OrderConf	Ordrebek
-2401	Overblik	Dashboard	Oversikt
+2401	Oversigt	Dashboard	Oversikt
 2402	Vælg hvilke varegrupper og kreditorer som skal vises i varelisten	Select which product groups and creditors are to be displayed in the product list	Velg hvilke produktgrupper og kreditorer som skal vises i produktlisten
 2403	Opret en ny vare	Create a new product	Opprett et nytt produkt
 2404	Luk varelisten og gå tilbage til hovedmenuen	Close the product list and go back to the main menu	Lukk produktlisten og gå tilbake til hovedmenyen
@@ -2564,563 +2564,2463 @@
 2564	Hjælp	Help	Hjelp
 2565	Klik her for at rette nr. eller navn på projektet	Click here to edit the project number or name	Klikk her for å rette nr. eller navn på prosjektet
 2566	Klik her for at slette projektet	Click here to delete the project	Klikk her for å slette prosjektet
-2567	
-2568	
-2569	
-2570	
-2571	
-2572	
-2573	
-2574	
-2575	
-2576	
-2577	
-2578	
-2579	
-2580	
-2581	
-2582	
-2583	
-2584	
-2585	
-2586	
-2587	
-2588	
-2589	
-2590	
-2591	
-2592	
-2593	
-2594	
-2595	
-2596	
-2597	
-2598	
-2599	
-2600	
-2601	
-2602	
-2603	
-2604	
-2605	
-2606	
-2607	
-2608	
-2609	
-2610	
-2611	
-2612	
-2613	
-2614	
-2615	
-2616	
-2617	
-2618	
-2619	
-2620	
-2621	
-2622	
-2623	
-2624	
-2625	
-2626	
-2627	
-2628	
-2629	
-2630	
-2631	
-2632	
-2633	
-2634	
-2635	
-2636	
-2637	
-2638	
-2639	
-2640	
-2641	
-2642	
-2643	
-2644	
-2645	
-2646	
-2647	
-2648	
-2649	
-2650	
-2651	
-2652	
-2653	
-2654	
-2655	
-2656	
-2657	
-2658	
-2659	
-2660	
-2661	
-2662	
-2663	
-2664	
-2665	
-2666	
-2667	
-2668	
-2669	
-2670	
-2671	
-2672	
-2673	
-2674	
-2675	
-2676	
-2677	
-2678	
-2679	
-2680	
-2681	
-2682	
-2683	
-2684	
-2685	
-2686	
-2687	
-2688	
-2689	
-2690	
-2691	
-2692	
-2693	
-2694	
-2695	
-2696	
-2697	
-2698	
-2699	
-2700	
-2701	
-2702	
-2703	
-2704	
-2705	
-2706	
-2707	
-2708	
-2709	
-2710	
-2711	
-2712	
-2713	
-2714	
-2715	
-2716	
-2717	
-2718	
-2719	
-2720	
-2721	
-2722	
-2723	
-2724	
-2725	
-2726	
-2727	
-2728	
-2729	
-2730	
-2731	
-2732	
-2733	
-2734	
-2735	
-2736	
-2737	
-2738	
-2739	
-2740	
-2741	
-2742	
-2743	
-2744	
-2745	
-2746	
-2747	
-2748	
-2749	
-2750	
-2751	
-2752	
-2753	
-2754	
-2755	
-2756	
-2757	
-2758	
-2759	
-2760	
-2761	
-2762	
-2763	
-2764	
-2765	
-2766	
-2767	
-2768	
-2769	
-2770	
-2771	
-2772	
-2773	
-2774	
-2775	
-2776	
-2777	
-2778	
-2779	
-2780	
-2781	
-2782	
-2783	
-2784	
-2785	
-2786	
-2787	
-2788	
-2789	
-2790	
-2791	
-2792	
-2793	
-2794	
-2795	
-2796	
-2797	
-2798	
-2799	
-2800	
-2801	
-2802	
-2803	
-2804	
-2805	
-2806	
-2807	
-2808	
-2809	
-2810	
-2811	
-2812	
-2813	
-2814	
-2815	
-2816	
-2817	
-2818	
-2819	
-2820	
-2821	
-2822	
-2823	
-2824	
-2825	
-2826	
-2827	
-2828	
-2829	
-2830	
-2831	
-2832	
-2833	
-2834	
-2835	
-2836	
-2837	
-2838	
-2839	
-2840	
-2841	
-2842	
-2843	
-2844	
-2845	
-2846	
-2847	
-2848	
-2849	
-2850	
-2851	
-2852	
-2853	
-2854	
-2855	
-2856	
-2857	
-2858	
-2859	
-2860	
-2861	
-2862	
-2863	
-2864	
-2865	
-2866	
-2867	
-2868	
-2869	
-2870	
-2871	
-2872	
-2873	
-2874	
-2875	
-2876	
-2877	
-2878	
-2879	
-2880	
-2881	
-2882	
-2883	
-2884	
-2885	
-2886	
-2887	
-2888	
-2889	
-2890	
-2891	
-2892	
-2893	
-2894	
-2895	
-2896	
-2897	
-2898	
-2899	
-2900	
-2901	
-2902	
-2903	
-2904	
-2905	
-2906	
-2907	
-2908	
-2909	
-2910	
-2911	
-2912	
-2913	
-2914	
-2915	
-2916	
-2917	
-2918	
-2919	
-2920	
-2921	
-2922	
-2923	
-2924	
-2925	
-2926	
-2927	
-2928	
-2929	
-2930	
-2931	
-2932	
-2933	
-2934	
-2935	
-2936	
-2937	
-2938	
-2939	
-2940	
-2941	
-2942	
-2943	
-2944	
-2945	
-2946	
-2947	
-2948	
-2949	
-2950	
-2951	
-2952	
-2953	
-2954	
-2955	
-2956	
-2957	
-2958	
-2959	
-2960	
-2961	
-2962	
-2963	
-2964	
-2965	
-2966	
-2967	
-2968	
-2969	
-2970	
-2971	
-2972	
-2973	
-2974	
-2975	
-2976	
-2977	
-2978	
-2979	
-2980	
-2981	
-2982	
-2983	
-2984	
-2985	
-2986	
-2987	
-2988	
-2989	
-2990	
-2991	
-2992	
-2993	
-2994	
-2995	
-2996	
-2997	
-2998	
-2999	
-3000	
-3001	
-3002	
-3003	
-3004	
-3005	
-3006	
-3007	
-3008	
-3009	
-3010	
-3011	
-3012	
-3013	
-3014	
-3015	
-3016	
-3017	
-3018	
-3019	
-3020	
-3021	
-3022	
-3023	
-3024	
-3025	
-3026	
-3027	
-3028	
-3029	
-3030	
-3031	
-3032	
-3033	
-3034	
-3035	
-3036	
-3037	
-3038	
-3039	
-3040	
-3041	
-3042	
-3043	
-3044	
-3045	
-3046	
-3047	
-3048	
-3049	
-3050	
-3051	
-3052	
-3053	
-3054	
-3055	
-3056	
-3057	
-3058	
-3059	
-3060	
-3061	
-3062	
-3063	
-3064	
-3065	
-3066	
-3067	
-3068	
-3069	
-3070	
-3071	
-3072	
-3073	
-3074	
-3075	
-3076	
-3077	
-3078	
-3079	
-3080	
-3081	
-3082	
-3083	
-3084	
-3085	
-3086	
-3087	
-3088	
-3089	
-3090	
-3091	
-3092	
-3093	
-3094	
-3095	
-3096	
-3097	
-3098	
-3099	
-3100	
-3101	
-3102	
-3103	
-3104	
-3105	
-3106	
-3107	
-3108	
-3109	
-3110	
-3111	
-3112	
-3113	
-3114	
-3115	
-3116	
-3117	
-3118	
-3119	
-3120	
-3121	
-3122	
-3123	
-3124	
-3125	
-3126	
+2567	Indbetaling	Deposit	Innbetaling
+2568	Det beløb, der skal indsættes på kontoen	The amount to be deposited into the account	Beløpet som skal settes inn på kontoen
+2569	Ved udbetaling skal beløbet være negativt	For withdrawals, the amount must be negative	Ved utbetaling må beløpet være negativt
+2570	Det beløb der betales, f.eks. hvis der betales	The amount paid, e.g. if payment is made by card,	Beløpet som betales, f.eks. hvis det betales med
+2571	med kort og kunden samtidig vil hæve kontant	and the customer also wants to withdraw cash	kort og kunden samtidig ønsker å ta ut kontanter
+2572	Feltet kan efterlades tomt for ind-/udbetaling på beløb	The field can be left empty for exact-amount deposits and withdrawals	Feltet kan stå tomt ved inn-/utbetaling av nøyaktig beløp
+2573	Ved udbetaling <b>skal</b> feltet efterlades tomt	For withdrawals, the field <b>must</b> be left empty	Ved utbetaling <b>må</b> feltet stå tomt
+2574	Velkommen	Welcome	Velkommen
+2575	Der er i øjeblikket intet aktivt regnskabsår. Aktivér et regnskabsår gennem System » Indstillinger » Regnskabsår	There is currently no active financial year. Activate a financial year through System » Settings » Financial year	Det er for øyeblikket intet aktivt regnskapsår. Aktiver et regnskapsår via System » Innstillinger » Regnskapsår
+2576	Varegruppeomsætning	Product group revenue	Varegruppeomsetning
+2577	Gennemsnitligt antal kunder pr. time de sidste	Average number of customers per hour over the past	Gjennomsnittlig antall kunder per time de siste
+2578	Dage	Days	Dagene
+2579	Lav	Low	Lav
+2580	Medium	Medium	Middels
+2581	Høj	High	Høy
+2582	Meget høj	Very high	Svært høy
+2583	Ekstrem	Extreme	Ekstrem
+2584	Åbn vareliste	Open product list	Åpne vareliste
+2585	Opret vare	Add product	Opprett vare
+2586	Menu opsætning	Menu setup	Menyoppsett
+2587	Åbn rapporter	Open reports	Åpne rapporter
+2588	Omsætning baseret på varegrupper i det gældene regnskabsår	Revenue based on product groups in the current fiscal year	Omsetning basert på varegrupper i det gjeldende regnskapsåret
+2589	u/m	n/v	u/m
+2590	Betalings- kort	Payment card	Betalings- kort
+2591	Bilag kan sendes til	Attachments can be sent to	Vedlegg kan sendes til
+2592	Dokumentpulje	Document batch	Dokumentpulje
+2593	Træk og slip PDF-fil her	Drop PDF file here	Dra og slipp PDF-fil her
+2594	Projektopslag	Project lookup	Prosjektoppslag
+2595	Regnskab	Ledger	Regnskap
+2596	Posteringen er tilbageført på kladde	The entry has been reversed in journal	Posteringen er ført tilbake i utkast
+2597	Der skal først oprettes en kassekladde som posteringen kan tilbageføres til	A journal must first be created for the entry to be reversed to	Det må først opprettes en kontantjournal som posteringen kan føres tilbake til
+2598	Forrige	Previous	Forrige
+2599	Færdig	Done	Ferdig
+2600	Her kan du tilføje bilag til kladden	Here you can add attachments to the draft	Her kan du legge til bilag i kladden
+2601	Klik her for at tilbageføre denne postering som en ompostering i en åben kassekladde	Click here to reverse this entry as a reclassification in an open cash journal	Klikk her for å tilbakeføre denne posteringen som en ompostering i en åpen kassekladde
+2602	Klik her for yderligere hjælp	Click here for further help	Klikk her for ytterligere hjelp
+2603	Du kan slå op i Debet/Kredit-felterne:<br>Hvis D/K-feltet er tomt eller indeholder 'F', søger systemet i kontoplanen. Hvis feltet viser 'D' (debitor) eller 'K' (kreditor), søges der i henholdsvis kunder eller leverandører.	You can look up values in the Debit/Credit fields:<br>If the D/K field is empty or contains an 'F', the system searches in the chart of accounts.<br>If the field shows 'D' (debtor) or 'K' (creditor), the system searches in customers or suppliers, respectively.	Du kan slå opp i Debet/Kredit-feltene: Hvis D/K-feltet er tomt eller inneholder 'F', søker systemet i kontoplanen. Hvis feltet viser 'D' (debitor) eller 'K' (kreditor), søker systemet henholdsvis i kunder eller leverandører.
+2604	Du kan også selv skrive 'D' eller 'K' for at vælge, hvor der skal søges.<br>Når du begynder at skrive et navn eller kontonummer, vises der kun relevante forslag.	You can also manually enter 'D' or 'K' to choose where the search should be performed.<br>As you begin typing a name or account number, only relevant suggestions will be shown.	Du kan også selv skrive inn 'D' eller 'K' for å velge hvor det skal søkes.<br>Når du begynner å skrive inn et navn eller kontonummer, vises kun relevante forslag.
+2605	Her kan du tilføje et fakturanummer til bilaget.<br>Du kan også slå op i ikke-udlignede fakturaer ved at klikke på knappen 'Opslag' i bunden, mens feltet er markeret.	Here you can add an invoice number to the entry.<br>You can also look up open (unsettled) invoices by clicking the ‘Lookup’ button at the bottom while the field is selected.	Her kan du legge til et fakturanummer på bilaget.<br>Du kan også slå opp i ikke-utlignede fakturaer ved å klikke på knappen ‘Oppslag’ nederst mens feltet er markert.
+2606	Du kan slette linjen ved at skrive '-' i feltet i stedet for et tal og trykke Enter	You can delete the line by typing '-' in the field instead of a number and pressing Enter	Du kan slette linjen ved å skrive '-' i feltet i stedet for et tall og trykke Enter
+2607	Opret ny kassekladde ved at klikke her	Create a new journal entry by clicking here	Opprett ny kassekladde ved å klikke her
+2608	Digital godkendelse af fakturaer gennem NemHandel	Digital approval of invoices via NemHandel	Digital godkjenning av fakturaer gjennom NemHandel
+2609	Du kan se dine kollegers' kladder ved at klikke her	You can view your colleagues' entries by clicking here	Du kan se dine kollegers' kladder ved å klikke her
+2610	Her ser du en liste af alle dine ordrer	Here you can see a list of all your orders	Her ser du en liste over alle ordrene dine
+2611	For at oprette en ny ordre, klik her	To create a new order, click here	For å opprette en ny ordre, klikk her.
+2612	For at ændre, hvad der vises i oversigten, klik her	To create a new order, click here	For å endre hva som vises i oversikten, klikk her
+2613	Når dette felt er aktivt, kan du trykke Enter med det samme for at søge i kundekataloget, eller du kan indtaste et nyt kontonummer og derefter trykke Enter for at oprette en ny kunde	When this input field is active, you can press Enter right away to search the customer catalog, or you can enter a new account number and then press Enter to create a new customer	Når dette feltet er aktivt, kan du trykke Enter med en gang for å søke i kundekatalogen, eller du kan skrive inn et nytt kontonummer og deretter trykke Enter for å opprette en ny kunde
+2614	Når du har oprettet en ordre, kan du klikke her for at se kundens stamdata	After creating an order, you can click here to view the customer's master data	Når du har opprettet en ordre, kan du klikke her for å se kundens stamdata
+2615	Her kan du indtaste et varenummer for at tilføje en vare til ordren	Here you can enter an item number to add a product to the order	Her kan du angi et varenummer for å legge til en vare i ordren
+2616	Når et varenummerfelt er aktivt, kan du foretage et opslag af alle dine varer ved at klikke her	When an item number field is active, you can search through all your products by clicking here	Når et varenummerfelt er aktivt, kan du søke blant alle varene dine ved å klikke her
+2617	Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den – f.eks. til mail, som PDF eller sendt gennem NemHandel med digital fakturering	Here you can select how to print or send the order when invoicing – for example by email, as a PDF, or via NemHandel with digital invoicing	Her kan du velge hvordan ordren skal skrives ut når du fakturerer den – for eksempel på e-post, som PDF, eller sendt via NemHandel med digital fakturering
+2618	Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kundens opsætning.	Here you can select your payment terms. These are automatically retrieved from the customer's settings.	Her kan du velge betalingsbetingelsene dine. Disse hentes automatisk fra kundens oppsett.
+2619	Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kundens opsætning.	Here you can select your payment days. These are automatically retrieved from the customer's settings.	Her kan du velge betalingsdagene dine. Disse hentes automatisk fra kundens oppsett.
+2620	Her kan du indtaste et identifikationsnummer (f.eks. GLN eller EAN), for eksempel hvis du fakturerer offentlige instanser såsom kommuner eller bruger digitale faktureringssystemer. Angiv typen og nummeret, f.eks. 'GLN:123456789102'.	Here you can enter an identification number (such as a GLN or EAN), for example if you are invoicing public institutions or using digital invoicing systems. Enter the type and number, e.g., 'GLN:123456789102'.	Her kan du skrive inn et identifikasjonsnummer (for eksempel GLN eller EAN), for eksempel hvis du fakturerer offentlige instanser slik som kommuner eller bruker digitale faktureringssystemer. Skriv inn typen og nummeret, for eksempel 'GLN:123456789102'.
+2621	Her ser du en liste over alle dine kunder	Here you can see a list of all your customers	Her ser du en liste over alle kundene dine
+2622	For at oprette en ny kunde, klik her	To add a new customer, click here	For å opprette en ny kunde, klikk her
+2623	Tilmeld dine kunder til kommissionssalgssystemet her	Register your customers in the commission sales system here	Meld inn kundene dine i kommisjonssalgssystemet her
+2624	Før du kan inviterer en kunde til 'Mit Salg', skal du aktivere deres konto. Sæt hak i 'aktiver' og tryk OK.	Before you can invite a customer to 'My Sales', you need to activate their account. Check 'Activate' and click OK.	Før du kan invitere en kunde til 'Mitt Salg', må du aktivere kontoen deres. Huk av for 'aktiver' og trykk OK.
+2625	Når en kunde er aktiveret kan du åbne deres konto her	Once a customer is activated, you can view their account here	Når en kunde er aktivert, kan du åpne kontoen deres her
+2626	Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. <br><br>De vil her få et link til 'Mit Salg' og kan oprette deres labels derigennem. <br><br>Det er <b>kun</b> muligt at invitere en kunde, hvis de har en e-mail sat op på deres stamkort.	Once the customer is activated, you will be able to send them an invitation by email.<br><br>They will receive a link to 'My Sales' and can create their labels through it.<br><br>It is <b>only</b> possible to invite a customer if they have an email address set up in their customer profile.	Når kunden er aktivert, vil det være mulig å sende dem en invitasjon på e-post.<br><br>De vil da få en lenke til 'Mitt Salg' og kan opprette etikettene sine der.<br><br>Det er <b>kun</b> mulig å invitere en kunde dersom de har en e-postadresse registrert på stamkortet sitt.
+2627	Her vælger du kundetype (privat eller erhverv)	Here you select the customer type (private or business)	Her velger du kundetype (privat eller bedrift)
+2628	Indsæt kontonummer, eller lad systemet gøre det for dig ved at hoppe videre til næste felt	Enter the account number, or let the system do it for you by moving to the next field	Skriv inn kontonummer, eller la systemet gjøre det for deg ved å gå videre til neste felt
+2629	Angiv kundens navn	Enter the customer's name	Angi kundens navn
+2630	Angiv kundens firmanavn	Enter the customer's company name	Angi kundens firmanavn
+2631	Kundens e-mail indtastes her. Hvis du vil have, at systemet som standard sender e-mails, når du fakturerer en ordre, kan du sætte hak i 'Brug mail'	Enter the customer's email here. If you want the system to send emails by default when invoicing an order, you can check 'Use email'	Kundens e-post skrives inn her. Hvis du ønsker at systemet skal sende e-poster som standard når du fakturerer en ordre, kan du krysse av for 'Bruk e-post'
+2632	Du kan opstille kundens betalingsbetingelser her	You can set the customer's payment terms here	Du kan sette opp kundens betalingsbetingelser her
+2633	Når du indtaster en ny kunde, kan du lave et CVR-opslag ved at sætte '/' før og efter CVR-nummeret.<br><br>Prøv f.eks. med <b>/20756438/</b>	For danish companies: When entering a new customer, you can perform a CVR lookup by placing '/' before and after the CVR number.<br><br>Try, for example, <b>/20756438/</b>	For danske selskaper: Når du registrerer en ny kunde, kan du gjøre et CVR-oppslag ved å sette '/' foran og etter CVR-nummeret.<br><br>Prøv for eksempel <b>/20756438/</b>
+2634	Her kan du oprette op til 5 selvdefinerede felter. Du kan kontakte Saldi-teamet, hvis du ønsker at tilpasse felternes tekst, så den passer til indholdet.	Here you can create up to 5 custom fields. You can contact the Saldi team if you want to adjust the field labels to match the content.	Her kan du opprette opptil 5 egendefinerte felt. Du kan kontakte Saldi-teamet hvis du ønsker å tilpasse feltnavnene så de passer til innholdet.
+2635	Indtast kontonummeret på kreditor, og klik 'Gem' for at hente kreditors oplysninger	Enter the creditor's account number and click 'Save' to retrieve the creditor's information	Angi kontonummeret til kreditor, og klikk på 'Lagre' for å hente kreditors opplysninger
+2636	Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den	Here you can select how to print or send the order when invoicing	Her kan du velge hvordan ordren skal skrives ut når du fakturerer den
+2637	Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment terms. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsbetingelser. Disse hentes automatisk fra kreditoroppsettet
+2638	Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment days. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsdager. Disse hentes automatisk fra kreditoroppsettet
+2639	<b>Vareliste:</b> Den liste du ser forneden.<br><br><b>Ordrevisning:</b> Se, hvilke ordrer dine varer indgår i.<br><br><b>Indkøb:</b> Opret hurtigt indkøbslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administration af serienummer-varer.	<b>Product list:</b> The list you see below.<br><br><b>Order view:</b> See which orders your products are included in.<br><br><b>Purchasing:</b> Quickly create purchase lists automatically or manually.<br><br><b>Serial numbers:</b> Tracking and management of serial-numbered products.	<b>Vareliste:</b> Listen du ser nedenfor.<br><br><b>Ordrevisning:</b> Se hvilke ordre varene dine inngår i.<br><br><b>Innkjøp:</b> Opprett raskt innkjøpslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administrasjon av produkter med serienummer.
+2640	Klik her for at oprette en ny vare	 Click here to add a new product	Klikk her for å opprette et nytt produkt
+2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click a item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
+2642	Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerenheder	Click on a stock quantity to perform an internal transfer of inventory units	Klikk på et lagerantall for å utføre en intern overføring av lagerenheter
+2643	Søg på lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellem 1 og 10.	Search by stock quantity. For example:<br><b>"10"</b> – Shows products with a stock quantity of exactly 10.<br><b>"1:10"</b> – Shows products with a stock quantity between 1 and 10.	Søk etter lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på nøyaktig 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellom 1 og 10.
+2644	Undersøg dækningsgraden for dine varer, for at finde eventuelle optimeringer	Inspect the contribution margin of your products to find potential optimizations	Undersøk dekningsgraden for varene dine for å finne mulige forbedringer
+2645	Klik her for at vende tilbage til varelisten	Click here to return to the product list	Klikk her for å gå tilbake til varelisten
+2646	Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Order status shows how many products are in offers, orders, or purchase suggestions.<br><br>Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Ordrestatus viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.<br><br>Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.
+2647	Viser hvor mange enheder af varen der er på lager	Shows how many units of the product are in stock	Viser hvor mange enheter av varen som er på lager
+2648	Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.	Here you can see how much the system recommends you to reorder. This is calculated based on stock levels, orders, and other factors.	Her ser du hvor mye systemet anbefaler at du bestiller på nytt. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.
+2649	Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned	See how much of the product you have sold over the past 6 months, 3 months, or the most recent month	Se hvor mye du har solgt av varen i løpet av de siste 6 månedene, 3 månedene eller den siste måneden
+2650	Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører.	When you create a new purchase list, only products with an associated supplier will be shown.<br><br>Order suggestions will automatically be linked to the top supplier on the product card if multiple suppliers are listed.	Når du oppretter en ny innkjøpsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag blir automatisk knyttet til den øverste leverandøren på varekortet hvis det finnes flere leverandører.
+2651	Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum.	These are used for reordering. When the stock level drops below the minimum, the system suggests reordering enough to reach the maximum.	Disse brukes til gjenbestilling. Når beholdningen faller under minimum, foreslår systemet å bestille nok til å nå maksimum.
+2652	Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.	If the product needs to be ordered in specific quantities, you can configure the system to order in batches of, for example,	Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i for eksempel partier på f.eks.
+2653	Klik for at autoudfylde alle beregnede genbestillingsværdier	Click to auto-fill all calculated reorder values	Klikk for å autofylle alle beregnede gjenbestillingsverdier
+2654	Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.	Create a purchase suggestion based on the entered product values. It will either create a new order for the supplier or add the product to an open purchase suggestion with today’s date.	Opprett et innkjøpsforslag basert på de registrerte vareverdiene. Det oppretter enten en ny ordre til leverandøren eller legger varen til et åpent innkjøpsforslag med dagens dato.
+2655	Søg efter et eksisterende serienummer i dit system	Search for an existing serial number in your system	Søk etter et eksisterende serienummer i systemet ditt
+2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret
+2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret
+2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
+2659	Søg efter standnavne. Adskil med komma for at søge efter flere.	Search for stall names. Separate with commas to search for multiple.	Søk etter standnavn. Skill med komma for å søke etter flere.
+2660	Se dage, og klik på en dag for at se ledige stande	View days and click on a day to see available stalls	Se dager, og klikk på en dag for å se ledige stander
+2661	Grønne prikker viser ledige dage, og røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag og stand.	Green dots indicate available days, and red dots indicate booked days. Click on a green dot to create a booking for a specific day and stall.	Grønne prikker viser ledige dager, og røde prikker viser bookede dager. Klikk på en grønn prikk for å opprette en booking for en bestemt dag og stand.
+2662	Klik på et standnavn for at se eller oprette bookinger, eller for at spærre standen	Click on a stall name to view or create bookings, or to block the stall	Klikk på et standnavn for å se eller opprette bookinger, eller for å sperre standen
+2663	Her kan du oprette spærringer. En spærring er en form for 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du ønsker at vente med at booke standen, fordi den nuværende lejer muligvis vil forlænge. Standen kan stadig bookes, selvom den er spærret.	Here you can create temporary holds. A hold is a type of 'soft booking' that marks the stall with a yellow dot and serves as a warning. This can be useful if you want to wait before booking the stall, for example because the current tenant may wish to extend. The stall can still be booked, even if it is on hold.	Her kan du opprette sperringer. En sperring er en form for 'soft booking' som markerer standen med en gul prikk og fungerer som en advarsel. Dette kan for eksempel brukes hvis du ønsker å vente med å booke standen fordi den nåværende leietakeren muligens vil forlenge. Standen kan fortsatt bookes, selv om den er sperret.
+2664	Vælg en dag for at se ind- og udflytninger på den pågældende dag. Den grønne markerer dags dato.	Select a day to view move-ins and move-outs on the selected day. The green one indicates today's date.	Velg en dag for å se inn- og utflyttinger på den valgte dagen. Den grønne markerer dagens dato.
+2665	Vælg de dage, hvor butikken har lukket – så kan systemet guide dig, når du opretter bookinger. Hvis en booking falder hen over lukkedage, bliver disse automatisk fratrukket prisen.	Set the days when your store is closed – the system will then guide you when creating bookings. If a booking includes any of these days, they’ll automatically be excluded from the price.	Velg dagene butikken holder stengt – da kan systemet veilede deg når du oppretter bookinger. Hvis en booking overlapper med stengte dager, trekkes disse automatisk fra prisen.
+2666	Her kan du se en liste over de varer, du har sat til udlejning. Klik på 'Rediger' for at oprette stande under de enkelte varer.	Here you can see a list of the items you’ve made available for rental. Click ‘Edit’ to create stalls under each item.	Her kan du se en liste over varene du har gjort tilgjengelige for utleie. Klikk på ‘Rediger’ for å opprette stander under de enkelte varene.
+2667	Klik her for at tilføje nye stande	Click here to add new stalls	Klikk her for å legge til nye stander
+2668	Når du har ændret navnet på én eller flere stande, klik her for at gemme	Once you’ve changed the name of one or more stalls, click here to save	Når du har endret navnet på én eller flere stander, klikk her for å lagre
+2669	Uge	Week	Uke
+2670	Din daglige omsætning sammenlignet med sidste år, ekskl. moms	Your daily revenue compared to last year, excl. VAT	Din daglige omsetning sammenlignet med i fjor, ekskl. mva
+2671	Mandag	Monday	Mandag
+2672	Tirsdag	Tuesday	Tirsdag
+2673	Onsdag	Wednesday	Onsdag
+2674	Torsdag	Thursday	Torsdag
+2675	Fredag	Friday	Fredag
+2676	Lørdag	Saturday	Lørdag
+2677	Søndag	Sunday	Søndag
+2678	Graf over ugentlig omsætning	Weekly revenue graph	Graf over ukentlig omsetning
+2679	Omsætning denne uge, ekskl. moms	Revenue this week, excl. VAT	Omsetning denne uke, ekskl. mva
+2680	Gl. design	Old design	Gl. design
+2681	Klik på brugernavn for at ændre password eller slette bruger	Click the username to change the password or delete the user	Klikk på brukernavn for å endre passord eller slette bruker
+2682	Regnskab	Account	Regnskap
+2683	findes allerede	already exists	finnes allerede
+2684	Alle felter SKAL udfyldes	All fields MUST be filled out	Alle felter MÅ fylles ut
+2685	Navn på regnskab	Name of account	Navn på regnskap
+2686	Administrators navn	Administrator's name	Administrators navn
+2687	Administrators adgangskode	Administrator's password	Administrators passord
+2688	Gentag adgangskode	Repeat password	Gjenta passord
+2689	Opret standardkontoplan	Create default chart of accounts	Oppret standard kontoplan
+2690	Regnskab med ID	Account with ID	Regnskap med ID
+2691	mangler indhold	has no content	mangler innhold
+2692	Tilbage til oversigt	Back to overview	Tilbake til oversikt
+2693	Åbn regnskab	Open account	Åpne regnskap
+2694	Bruttoavance	Gross profit	Bruttoavance
+2695	Kreditorliste	Creditor list	Leverandørliste
+2696	Er du sikker på, at du vil slette denne ansatte?	Are you sure you want to delete this employee?	Er du sikker på at du vil slette denne ansatte?
+2697	Er du sikker på, at du vil slette alle ansatte tilhørende denne konto?	Are you sure you want to delete all employees associated with this account?	Er du sikker på at du vil slette alle ansatte tilknyttet denne kontoen?
+2698	Slet alt	Delete all	Slett alt
+2699	Vis alle poster	Show all items	Vis alle poster
+2700	Send mail(s)	Send email(s)	Send e-post(er)
+2701	Send som PDF	Send as PDF	Send som PDF
+2702	E-mail til	Email to	E-post til
+2703	Send som e-mail (åbner i popup)	Send as email (opens in popup)	Send som e-post (åpnes i popup)
+2704	Klik her for at åbne &quot;Top 100&quot;	Click here to open &quot;Top 100&quot;	Klikk her for å åpne &quot;Topp 100&quot;
+2705	Oversigt over POS-transaktioner	Overview of POS transactions	Oversikt over POS-transaksjoner
+2706	Filnavn	File name	Filnavn
+2707	Dato og klokkeslæt for oprettelse	Date and time of creation	Dato og klokkeslett for opprettelse
+2708	Download	Download	Last ned
+2709	Opret SAF-T fil	Create SAF-T file	Oprett SAF-T fil
+2710	Kalender	Calendar	Kalender
+2711	SAF-T kasserapport	SAF-T cash register report	SAF-T kasserapport
+2712	Her kan du oprette en SAF-T kasserapport	Here you can create a SAF-T Cash Register report	Her kan du opprette en SAF-T kasserapport
+2713	Ingen booking	No booking	Ingen booking
+2714	Sprogindstillinger	Language preferences	Språkindstillinger
+2715	Vælg dit foretrukne sprog	Set your preferred language	Velg ditt foretrukne språk
+2716	Nuværende sprog	Current language	Nåværende språk
+2717	Klik her for at rette tekster	Click here to edit texts	Klikk her for å redigere tekster
+2718	Følgesedler	Delivery notes	Følgesedler
+2719	Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen skal du tillade pop-up vinduer for denne side.	Your browser is blocking pop-up windows. To use the report feature, you need to allow pop-up windows for this site.	Nettleseren din blokkerer for pop-up vinduer. For å bruke rapportfunksjonen må du tillate pop-up vinduer for dette nettstedet.
+2720	Listen er åbnet fra debitorkort – søgefelt deaktiveret	The list has been opened from the customer card – search field disabled	Listen er åpnet fra kundekortet – søkefelt deaktivert
+2721	Skriv enten et enkelt nummer, eller to numre adskilt af kolon (f.eks. 345:350)	Enter either a single number, or two numbers separated by a colon (e.g. 345:350)	Skriv inn enten et enkelt nummer, eller to numre adskilt med kolon (f.eks. 345:350)
+2722	Skriv enten et enkelt beløb, eller to beløb adskilt af kolon (f.eks. 525,25:525,50)	Enter either a single amount, or two amounts separated by a colon (e.g. 525.25:525.50)	Skriv inn enten et enkelt beløp, eller to beløp adskilt med kolon (f.eks. 525,25:525,50)
+2723	Klik for at udskrive	Click to print	Klik for å skrive ut
+2724	Klik for at sende ordrebekræftelse via e-mail	Click to send order confirmation via email	Klikk for å sende ordrebekreftelse via e-post
+2725	Er du sikker på at du vil sende ordrebekræftelsen?\nKundens e-mail:	Are you sure you want to send the order confirmation?\nCustomer\'s email:	Er du sikker på at du vil sende ordrebekreftelsen?\nKundens e-post:
+2726	Klik for at sende faktura via e-mail	Click to send invoice via email	Klikk for å sende faktura via e-post
+2727	Er du sikker på at du vil sende fakturaen?\nKundens e-mail:	Are you sure you want to send the invoice?\nCustomer\'s email:	Er du sikker på at du vil sende fakturaen?\nKundens e-post:
+2728	Klik for at sende tilbud via e-mail	Click to send offer via email	Klikk for å sende tilbud via e-post
+2729	Er du sikker på at du vil sende tilbuddet?\nKundens e-mail:	Are you sure you want to send the offer?\nCustomer\'s email:	Er du sikker på at du vil sende tilbudet?\nKundens e-post:
+2730	Ingen ordrer matcher de angivne søgekriterier	No orders match the specified search criteria	Ingen ordre samsvarer med de angitte søkekriteriene
+2731	Indstillingerne er gemt	The settings have been saved	Innstillingene er lagret
+2732	Indstillinger for betalingsdato	Payment date settings	Innstillinger for betalingsdato
+2733	Standard betalingsfrist (dage)	Standard payment term (days)	Standard betalingsfrist (dager)
+2734	Angiv hvor mange dage der som standard skal gå fra dags dato til betalingsdatoen	Specify the default number of days between today's date and the payment due date	Angi hvor mange dager det som standard skal gå fra dagens dato til betalingsdatoen
+2735	Dags dato	Today's date	Dagens dato
+2736	Betalingsdato	Payment date	Betalingsdato
+2737	Eksempel (ud fra aktuelle indstillinger)	Example (based on current settings)	Eksempel (basert på gjeldende innstillinger)
+2738	Betalinger til bank	Payments to bank	Betalinger til bank
+2739	Fra liste	From list	Fra liste
+2740	Fra kontokort	From general ledger	Fra kontokort
+2741	Sæt en * i slutningen af datoen i det øverste datofelt for at sætte alle datoer til denne dato. F.eks.: 01042021*	Add an * at the end of the date in the top date field to apply this date to all entries. For example: 01042021*	Sett en * på slutten av datoen i det øverste datofeltet for å sette alle datoer til denne datoen. For eksempel: 01042021*
+2742	Betalingstype	Payment type	Betalingstype
+2743	Modtager	Recipient	Mottaker
+2744	Tilgang	Inbound	Tilgang
+2745	Afgang	Outbound	Avgang
+2746	Varesalg	Product sales	Varesalg
+2747	Inkl. moms	Incl. VAT	Inkl. MVA
+2748	Samlet lagerværdi	Total inventory value	Samlet lagerverdi
+2749	Se	View	Se
+2750	Se i nyt vindue	View in new window	Vis i nytt vindu 
+2751	Slet linjen fra listen	Delete line from list	Slett linjen fra listen
+2752	Vælg i feltet foroven til højre, hvorfra du vil trække betalingsinformationer	Select in the field above to the right where you want to retrieve payment information from	Velg i feltet oppe til høyre hvor du vil hente betalingsinformasjon fra
+2753	Vil du trække betalinger dannet i en kassekladde, vælges 'fra liste'	To retrieve payments created in a cash journal, select 'from list'	For å hente betalinger opprettet i en kassekladd, velg 'fra liste'
+2754	Vil du i stedet trække alle registrerede skyldige beløb til kunder, vælges 'fra kontokort'	To retrieve all registered amounts owed to customers instead, select 'from general ledger'	For å hente alle registrerte skyldige beløp til kunder i stedet, velg 'fra kontokort'
+2755	Ryd søgning	Clear search	Tøm søk
+2756	Eksportér til CSV	Export to CSV	Eksporter til CSV
+2757	Eksportér til PDF	Export to PDF	Eksporter til PDF
+2758	Kolonner	Columns	Kolonner
+2759	Filtre	Filters	Filtre
+2760	Vis SQL	Show SQL	Vis SQL
+2761	Vælg hvilke felter der skal være synlige i tabellen	Select which fields should be visible in the table	Velg hvilke felter som skal være synlige i tabellen
+2762	Valgfri overskrift	Optional heading	Valgfri overskrift
+2763	Valgfri beskrivelse	Optional description	Valgfri beskrivelse
+2764	Vælg hvilke filtre der skal være aktive	Select which filters should be active	Velg hvilke filtre som skal være aktive
+2765	Markér alle	Select all	Merk alle
+2766	Fjern alle	Clear all	Fjern alle
+2767	Af	Of	Av
+2768	Massehandlinger	Bulk actions	Massehandlinger
+2769	Ordretype	Order type	Ordretype
+2770	Tilbud	Offers	Tilbud
+2771	POS-muligheder	POS options	POS-muligheter
+2772	db / dg (ekskl. moms)	db / dg (excl. VAT)	db / dg (ekskl. MVA)
+2773	I dag	Today	I dag
+2774	Sager	Projects	Saker
+2775	Planlægning	Planning	Planlegging
+2776	Dagbog	Daily Log	Dagbok
+2777	Certificering	Certification	Sertifisering
+2778	Regnskab	Accounting	Regnskap
+2779	Medarbejdermappe	Employee folder	Medarbeidermappe
+2780	Du er logget ind som	You are logged in as	Du er logget inn som
+2781	Hjem	Home	Hjem
+2782	Satser	Rates	Satser
+2783	Stillads	Scaffolding	Stillas
+2784	Løn	Wages	Lønn
+2785	Lønindtastning	Wage Entry	Lønnsregistrering
+2786	Lønafregning	Wage Settlement	Lønnsoppgjør
+2787	Lønliste	Wage List	Lønnsliste
+2788	Udskriv skema	Print form	Skriv ut skjema
+2789	Løndato	Wage date	Lønnsdato
+2790	Overført	Transferred	Overført
+2791	Godk./Afv.	Appr./Rej.	Godk./Avv.
+2792	Sag	Project	Sak
+2793	Ansvarlig	Responsible	Ansvarlig
+2794	Medarb.	Empl.	Medarb.
+2795	Sum	Total	Sum
+2796	Slet sortering	Clear sorting	Slett sortering
+2797	Vælg antal viste linjer	Select number of displayed lines	Velg antall viste linjer
+2798	Ingen resultater	No results	Ingen resultater
+2799	Ved søgning efter opgave i sag, tastes opgavenummer efter sagsnummer adskilt med '-'. F.eks. 12345-1	When searching for a task in a project, enter the task number after the project number separated by '-'. E.g. 12345-1	Ved søk etter oppgave i sak, skriv inn oppgavenummer etter saksnummer adskilt med '-'. F.eks. 12345-1
+2800	Opgave	Task	Oppgave
+2801	Timepris&comma; Akkord	Hourly rate&comma; Piecework	Timepris&comma; Akkord
+2802	Timeløn	Hourly wage	Timelønn
+2803	Timeløn&comma; Tørretid	Hourly wage&comma; Drying time	Timelønn&comma; Tørketid
+2804	Pladsarbejde	Site work	Plassarbeid
+2805	Skoleophold	School stay	Skoleopphold
+2806	Sygdom	Illness	Sykdom
+2807	Barn syg	Child sick	Barn syk
+2808	Ferie	Holiday	Ferie
+2809	Dyrtid	Premium time	Dyrtid
+2810	Akkordafregning	Piecework settlement	Akkordoppgjør
+2811	Akkord med dyrtid	Piecework with premium time	Akkord med dyrtid
+2812	Plads	Site	Plass
+2813	Tilbage til sag	Back to project	Tilbake til sak
+2814	Tilbage til tilbud	Back to offer	Tilbake til tilbud
+2815	Kopi til sag	Copy to project	Kopi til sak
+2816	Print akkordliste	Print piecework list	Skriv ut akkordliste
+2817	Sagsinformation	Project information	Saksinformasjon
+2818	Ret status	Edit status	Rediger status
+2819	Sagsnr.	Project no.	Saksnr.
+2820	Opstillingsadresse	Installation address	Monteringsadresse
+2821	Avanceret søgning	Advanced search	Avansert søk
+2822	Find sag	Find project	Finn sak
+2823	Kontrol	Inspection	Kontroll
+2824	Skema	Form	Skjema
+2825	Tid	Time	Tid
+2826	Kontrolleret af	Inspected by	Kontrollert av
+2827	Opret skema til sagen her	Create form for the project here	Opprett skjema for saken her
+2828	Opret skema	Create form	Opprett skjema
+2829	Nyt skema	New form	Nytt skjema
+2830	Skrevet af	Written by	Skrevet av
+2831	Kopi	Copy	Kopi
+2832	Opret tilbud til sagen her	Create offer for the project here	Opprett tilbud for saken her
+2833	Opret Tilbud	Create Offer	Opprett Tilbud
+2834	Nyt Tilbud	New Offer	Nytt Tilbud
+2835	fra Tilbud	from Offer	fra Tilbud
+2836	Fase	Phase	Fase
+2837	Kategori	Category	Kategori
+2838	Tilføjet af	Added by	Lagt til av
+2839	Klik her for at slette dette bilag	Click here to delete this attachment	Klikk her for å slette dette vedlegget
+2840	Vil du slette bilag	Do you want to delete attachment	Vil du slette vedlegg
+2841	Ret fase, kategori og tilknyt bilag til kontrolskema	Edit phase, category and attach document to inspection form	Rediger fase, kategori og knytt vedlegg til kontrollskjema
+2842	Opret bilag til sagen her	Create attachment for the project here	Opprett vedlegg for saken her
+2843	Opret bilag	Create attachment	Opprett vedlegg
+2844	Nyt bilag	New attachment	Nytt vedlegg
+2845	Klik her for at slette notatet fra sagen	Click here to delete the note from the project	Klikk her for å slette notatet fra saken
+2846	Vil du slette notatet fra sagen	Do you want to delete the note from the project	Vil du slette notatet fra saken
+2847	Opret notat til sagen her	Create note for the project here	Opprett notat for saken her
+2848	Opret notat	Create note	Opprett notat
+2849	Nyt notat	New note	Nytt notat
+2850	Opgavenavn	Task name	Oppgavenavn
+2851	Hurtigsøgning	Quick search	Hurtigsøk
+2852	Find kunde	Find customer	Finn kunde
+2853	Opret ny, eller vælg eksisterende kunde til sag her!	Create new, or select existing customer for the project here!	Opprett ny, eller velg eksisterende kunde for sak her!
+2854	Ingen beskrivelse	No description	Ingen beskrivelse
+2855	Ingen ansvarlig	No responsible person	Ingen ansvarlig
+2856	Intet telefonnummer	No phone number	Intet telefonnummer
+2857	Ingen e-mailadresse	No email address	Ingen e-postadresse
+2858	Sagens omkostninger	Project costs	Sakens kostnader
+2859	Tilbudspris	Offer price	Tilbudspris
+2860	Allrisk	All-risk	Allrisk
+2861	Tilbudspris u. moms	Offer price excl. VAT	Tilbudspris u. mva.
+2862	Tilbudspris m. moms	Offer price incl. VAT	Tilbudspris m. mva.
+2863	Faktureret i alt	Invoiced total	Fakturert totalt
+2864	Lønudgifter	Wage expenses	Lønnsutgifter
+2865	Lønudgifter u. sociale	Wage expenses excl. social costs	Lønnsutgifter u. sosiale
+2866	Lønudgifter m. sociale	Wage expenses incl. social costs	Lønnsutgifter m. sosiale
+2867	Vis akkordlister	Show piecework lists	Vis akkordlister
+2868	Tilbudsnr.	Offer no.	Tilbudsnr.
+2869	Opgaver	Tasks	Oppgaver
+2870	Opgavenr.	Task no.	Oppgavenr.
+2871	Start / Slut	Start / End	Start / Slutt
+2872	Montage	Assembly	Montasje
+2873	Demontage	Disassembly	Demontasje
+2874	Omfang	Scope	Omfang
+2875	Kontakt tlf.	Contact Phone	Kontakt tlf.
+2876	Kontakt e-mail	Contact email	Kontakt e-post
+2877	Slet opgave	Delete task	Slett oppgave
+2878	Vil du slette denne opgave	Do you want to delete this task	Vil du slette denne oppgaven
+2879	Ændr eksisterende kunde på sagen	Change existing customer for the project	Endre eksisterende kunde på saken
+2880	Kontaktpersoner til sagen	Contact persons for the project	Kontaktpersoner for saken
+2881	Notat	Note	Notat
+2882	d. 	-	d. 
+2883	kl.	at	kl.
+2884	Oprettet af	Created by	Opprettet av
+2885	Planlægningsinformation til opgave	Planning information for task	Planleggingsinformasjon for oppgave
+2886	Her tastes den planlagte start- og slut dato for opgaven, som vises i planlægningsskemaet	Enter the planned start and end date for the task, which is shown in the planning schedule	Skriv inn planlagt start- og sluttdato for oppgaven, som vises i planleggingsskjemaet
+2887	Vis som	Show as	Vis som
+2888	Den planlagte dato for sagen er	The planned date for the project is	Den planlagte datoen for saken er
+2889	Der er ingen planlagt start- og slut dato for sagen	There is no planned start and end date for the project	Det er ingen planlagt start- og sluttdato for saken
+2890	Ingen dækningsgrad	No coverage ratio	Ingen dekningsgrad
+2891	Ingen dækningsbidrag	No contribution margin	Ingen dekningsbidrag
+2892	Planlægningsinformation	Planning information	Planleggingsinformasjon
+2893	Her tastes informationer til beregning, som vises under planlægning	Enter calculation information to be displayed during planning	Her legger du inn beregningsinformasjon som vises under planlegging
+2894	Planlæg beregning	Schedule calculation	Planlegg beregning
+2895	Her tastes den planlagte start- og slut dato for sagen, som vises under planlægning	Enter the planned start and end date for the project, displayed during planning	Her legger du inn planlagt start- og sluttdato for saken, som vises under planlegging
+2896	Løbetid for hele sagen	Duration for the entire project	Varighet for hele saken
+2897	Planlæg sager	Schedule projects	Planlegg saker
+2898	Her tastes den planlagte start- og slut dato for montage og demontage af stilladset, som vises i planlægningsskemaet	Enter the planned start and end date for scaffolding assembly and disassembly, displayed in the planning schedule	Her legger du inn planlagt start- og sluttdato for montering og demontering av stillaset, som vises i planleggingsskjemaet
+2899	Vil du slette denne sag	Do you want to delete this project	Vil du slette dette saken
+2900	Vælg sag som tilbud skal kopieres til	Select project to copy offer to	Velg sak som tilbudet skal kopieres til
+2901	Er du sikker på du vil slette denne kontakt	Are you sure you want to delete this contact	Er du sikker på at du vil slette denne kontakten
+2902	Vælg den opgave som skal vises	Select the task to display	Velg oppgaven som skal vises
+2903	Vælg opgave som skal vises med	Select task to display with	Velg oppgave som skal vises med
+2904	Vælg fra/til dato for akkordlister som skal vises	Select from/to date for piecework lists to display	Velg fra/til dato for akkordlister som skal vises
+2905	Akkordlister på sagen	Piecework lists for the project	Akkordlister på saken
+2906	Der er ikke valgt en kunde	No customer has been selected	Ingen kunde er valgt
+2907	Vil du ændre kunde på denne sag	Do you want to change customer for this project	Vil du endre kunde på dette saken
+2908	Gå til kundekortet her	Go to customer card here	Gå til kundekortet her
+2909	Til kunde	To customer	Til kunde
+2910	Ulæst	Unread	Ulest
+2911	Skal være et tal	Must be a number	Må være et tall
+2912	Opgavetilbud	Task offer	Oppgavetilbud
+2913	Opret tilbud til opgaven her	Create offer for task here	Opprett tilbud for oppgaven her
+2914	Klik her for at se den samlede akkordliste på sagen	Click here to see the complete piecework list for the project	Klikk her for å se den fullstendige akkordlisten for saken
+2915	Klik her for at se alle bilag fra sagen	Click here to see all attachments for the project	Klikk her for å se alle vedlegg for saken
+2916	Generelt for sagen	General project information	Generelt for saken
+2917	Indtastet af	Entered by	Tastet inn av
+2918	Den	Date	Den
+2919	Sag oprettet	Project created	Sak opprettet
+2920	Tilbud gives	Offer provided	Tilbud gis
+2921	Beregner	Calculator	Beregner
+2922	Opstillingsinformation	Installation information	Opstillingsinformasjon
+2923	Stilladstype	Scaffolding type	Stillastype
+2924	Kundeinformation	Customer information	Kundeinformasjon
+2925	Kunde tlf.	Customer phone	Kunde tlf.
+2926	Kunde ref. nr.	Customer ref. no.	Kunde ref. nr.
+2927	Kunde e-mail	Customer email	Kunde e-post
+2928	Opret kontaktperson her	Create contact person here	Opprett kontaktperson her
+2929	Kontaktperson til sag	Contact person for project	Kontaktperson for sak
+2930	Ret oplysninger og status til sagen her	Edit information and status for the project here	Rediger informasjon og status for saken her
+2931	Klik her for at oprette kontrolskema til sagen	Click here to create inspection form for the project	Klikk her for å opprette kontrollskjema for saken
+2932	Klik her for at oprette et nyt kontrolskema til sagen	Click here to create a new inspection form for the project	Klikk her for å opprette et nytt kontrollskjema for saken
+2933	Klik her for at oprette et tilbud til sagen	Click here to create an offer for the project	Klikk her for å opprette et tilbud for saken
+2934	Klik her for at oprette et nyt tilbud til sagen	Click here to create a new offer for the project	Klikk her for å opprette et nytt tilbud for saken
+2935	Klik her for at oprette et notat til sagen	Click here to create a note for the project	Klikk her for å opprette et notat for saken
+2936	Beregning	Estimate	Beregning
+2937	Godkendt	Approved	Godkjent
+2938	Afmeldt	Deregistered	Avmeldt
+2939	Drivgods	Surplus materials	Drivgods
+2940	Afsluttet	Completed	Avsluttet
+2941	Kreditnotabekræftelse	Credit note confirmation	Kreditnotabekreftelse
+2942	Kreditnota modtaget	Credit note received	Kreditnota mottatt
+2943	Sagsnummer eksisterer i forvejen	Project number already exists	Saksnummer eksisterer allerede
+2944	Navn er påkrævet	Name is required	Navn er påkrevd
+2945	Samlede antal timer	Total number of hours	Samlet antall timer
+2946	Lønudgifter i alt	Total wage expenses	Lønnsutgifter totalt
+2947	Diff.	Diff.	Diff.
+2948	Ingen akkordliste	No piecework list	Ingen akkordliste
+2949	Alle opgaver	All tasks	Alle oppgaver
+2950	Ingen opgave	No task	Ingen oppgave
+2951	Akkordliste dato	Piecework list date	Akkordliste dato
+2952	Infotekst på Dashboard	Info text on Dashboard	Infotekst på Dashboard
+2953	Slet sag	Delete project	Slett sak
+2954	Viser	Showing	Viser
+2955	Sagsliste	Project list	Saksliste
+2956	Retur	Return	Retur
+2957	Ændr	Change	Endre
+2958	Akkordsedler	Piecework slips	Akkordsedler
+2959	Akkordlister	Piecework lists	Akkordlister
+2960	Sagsinfo	Project info	Saksinfo
+2961	Kundekort	Customer card	Kundekort
+2962	Notater	Notes	Notater
+2963	Mine	My	Mine
+2964	Notatliste	Note list	Notatliste
+2965	Kundeliste	Customer list	Kundeliste
+2966	Medarbejder	Employee	Medarbeider
+2967	Medarbejderliste	Employee list	Medarbeiderliste
+2968	Brugergrupper	User groups	Brukergrupper
+2969	Tilret stamkort	Edit information card	Rett stamkort
+2970	Skemaliste	Form list	Skjemaliste
+2971	Lønseddel	Pay slip	Lønnsseddel
+2972	Overførte	Transferred	Overførte
+2973	Sedler	Slips	Sedler
+2974	Afviste	Rejected	Avviste
+2975	Udbetalte	Paid	Utbetalte
+2976	Udbetaling	Payment	Utbetaling
+2977	Aktive	Active	Aktive
+2978	Afsluttede	Completed	Avsluttede
+2979	Lønopgørelse	Wage statement	Lønnsoppgave
+2980	Timer	Hours	Timer
+2981	Mm.	Etc.	Mm.
+2982	Beregning	Estimates	Beregning
+2983	Planlægning af sag	Project planning	Planlegging av sak
+2984	Lønafregning timer	Wage settlement hours	Lønnsoppgjør timer
+2985	Lønafregning beløb	Wage settlement amounts	Lønnsoppgjør beløp
+2986	Afregnet d.	Settled on	Avregnet d.
+2987	Sted	Location	Sted
+2988	Akkord	Piecework	Akkord
+2989	Kørsel	Transport	Kjøring
+2990	Skur	Site cabin	Skur
+2991	Mentor	Mentor	Mentor
+2992	Skole	School	Skole
+2993	Afregn	Settle	Avregn
+2994	Løntype	Wage type	Lønnstype
+2995	Type	Type	Type
+2996	Km	Km	Km
+2997	Timetillæg	Hourly supplement	Timetillegg
+2998	Aconto	On account	Akonto
+2999	Kontorarbejde	Office work	Kontorarbeid
+3000	Regulering	Adjustment	Regulering
+3001	Betegnelse	Description	Betegnelse
+3002	Pris op	Price up	Pris opp
+3003	Pris ned	Price down	Pris ned
+3004	Stk.	Qty.	Stk.
+3005	Stykpris	Unit price	Stykkpris
+3006	Lønlinjer ialt	Pay lines&comma; total	Lønnslinjer i alt
+3007	Andet ialt	Other&comma; total	Annet i alt
+3008	Akkord ialt	Piecework&comma; total	Akkord i alt
+3009	Til fordeling	For distribution	Til fordeling
+3010	Afvis	Reject	Avvis
+3011	Afvist	Rejected	Avvist
+3012	Bekræft overførsel	Confirm transfer	Bekreft overføring
+3013	Bekræft godkendelse	Confirm approval	Bekreft godkjenning
+3014	Bekræft afvisning	Confirm rejection	Bekreft avvisning
+3015	Vil du afvise denne godkendte seddel?	Do you want to reject this approved slip?	Vil du avvise denne godkjente seddelen?
+3016	Sedlen er godkendt	The slip has been approved	Seddelen er godkjent
+3017	Sedlen er slettet	The slip has been deleted	Seddelen er slettet
+3018	Skriv årsag til afvisning og klik afvis igen	Enter reason for rejection and click reject again	Skriv begrunnelse for avvisning og klikk avvis igjen
+3019	Dato ikke udfyldt	Date not filled in	Dato ikke utfylt
+3020	Sagsnr. ikke valgt	Project no. not selected	Saksnr. ikke valgt
+3021	Opgave ikke valgt	Task not selected	Oppgave ikke valgt
+3022	Ferie &apos;Fra&apos; er ikke valgt	Holiday &apos;From&apos; is not selected	Ferie &apos;Fra&apos; er ikke valgt
+3023	Ferie &apos;Til&apos; er ikke valgt	Holiday &apos;To&apos; is not selected	Ferie &apos;Til&apos; er ikke valgt
+3024	Ferie &apos;Fra&apos; og &apos;Til&apos; er ikke valgt	Holiday &apos;From&apos; and &apos;To&apos; are not selected	Ferie &apos;Fra&apos; og &apos;Til&apos; er ikke valgt
+3025	&apos;Udført&apos; er ikke udfyldt	&apos;Performed&apos; is not filled in	&apos;Utført&apos; er ikke utfylt
+3026	Afventer godk.	Awaiting appr.	Avventer godk.
+3027	Under indtast.	Being entered	Under registrering
+3028	Udført	Performed	Utført
+3029	Årsag til afvisning	Reason for rejection	Begrunnelse for avvisning
+3030	Afvist pga.	Rejected due to	Avvist pga.
+3031	Fra/Til	From/To	Fra/Til
+3032	Vis akkordliste	Show piecework list	Vis akkordliste
+3033	Under oplæring	In training	Under opplæring
+3034	Afr. på	Settled on	Avr. på
+3035	Aconto beløb	On account amount	Akonto beløp
+3036	Bekræft sletning	Confirm deletion	Bekreft sletting
+3037	Denne seddel er afvist af	This slip has been rejected by	Denne seddelen er avvist av
+3038	Der eksisterer allerede en uafsluttet akkordseddel	An unfinished piecework slip already exists	Det eksisterer allerede en uavsluttet akkordseddel
+3039	for den	on	for den
+3040	på sag nr.	for project no.	på sak nr.
+3041	opgave nr.	task no.	oppgave nr.
+3042	Der eksisterer allerede en uafsluttet akkordtimeseddel	An unfinished piecework hour slip already exists	Det eksisterer allerede en uavsluttet akkordtimeseddel
+3043	Der er allerede registreret skur	Site cabin already registered	Skur er allerede registrert
+3044	for medarb. nr.	for employee no.	for medarb. nr.
+3045	på seddel	on slip	på seddel
+3046	Anvendes hvis en anden sats end medarbejderens timeløn benyttes	Used when a rate other than the employee hourly wage is applied	Brukes når en annen sats enn medarbeiderens timelønn benyttes
+3047	Skur - lav sats	Site cabin - low rate	Skur - lav sats
+3048	Skur - høj sats	Site cabin - high rate	Skur - høy sats
+3049	Mentortillæg	Mentor supplement	Mentortillegg
+3050	Akkordseddel nr.	Piecework slip no.	Akkordseddel nr.
+3051	Fratrukket	Deducted	Fratrukket
+3052	Kilometer	Kilometres	Kilometer
+3053	Sagsadresse	Project address	Saksadresse
+3054	Med. nr.	Emp. no.	Med. nr.
+3055	Medarbejdernavn	Employee name	Medarbeidernavn
+3056	Transport	Transport	Transport
+3057	Sum inkl. transport	Total incl. transport	Sum inkl. transport
+3058	Telttillæg	Tent surcharge	Telttillegg
+3059	Skjul lønsatser	Hide wage rates	Skjul lønnssatser
+3060	Skjuler lønsatser på lønseddel	Hides wage rates on pay slip	Skjuler lønnssatser på lønnsseddel
+3061	Timesats	Hourly rate	Timesats
+3062	Vælg dato for 1. dag i 1. lønperiode	Select date for 1st day of 1st pay period	Velg dato for 1. dag i 1. lønnsperiode
+3063	Oplæringsperiode (mdr)	Training period (months)	Opplæringsperiode (mnd)
+3064	Oplæringsperiode for nye medarbejdere uden branchekendskab	Training period for new employees without industry experience	Opplæringsperiode for nye medarbeidere uten bransjekjennskap
+3065	Oplæringssats	Training rate	Opplæringssats
+3066	Løn% i oplæringsperiode	Wage% during training period	Lønn% i opplæringsperiode
+3067	Kilometersats	Mileage rate	Kilometersats
+3068	Km beregnes efter	Km calculated from	Km beregnes etter
+3069	Overtidstillæg	Overtime supplement	Overtidstillegg
+3070	Mdr.	Months	Mnd.
+3071	Til ansatteliste	To employee list	Til ansattliste
+3072	Opret medarbejder	Create employee	Opprett medarbeider
+3073	Intet navn	No name	Intet navn
+3074	Stamkort	Information card	Stamkort
+3075	Find ansat	Find employee	Finn ansatt
+3076	MA-nr.	Emp. no.	MA-nr.
+3077	Kodeord skal angives	Password must be entered	Passord må oppgis
+3078	Kodeord ikke ens	Passwords do not match	Passord er ikke like
+3079	Login	Login	Innlogging
+3080	Brugergruppe	User group	Brukergruppe
+3081	Der er brugere tilknyttet denne gruppe - kan ikke slettes	Users are linked to this group - cannot be deleted	Det er brukere tilknyttet denne gruppen - kan ikke slettes
+3082	Gruppenavn	Group name	Gruppenavn
+3083	Opret/ret	Create/edit	Opprett/rediger
+3084	Akkordseddel	Piecework slip	Akkordseddel
+3085	Ny gruppe	New group	Ny gruppe
+3086	Feltnavn	Field name	Feltnavn
+3087	Felttype	Field type	Felttype
+3088	Tekstlinje	Text line	Tekstlinje
+3089	Valgfelt	Selection field	Valgfelt
+3090	Afmærkningsfelt	Checkbox	Avmerkingsfelt
+3091	Tekstfelt	Text area	Tekstfelt
+3092	Medarbejderinformation	Employee information	Medarbeiderinformasjon
+3093	Medarbejdermappe menu	Employee folder menu	Medarbeidermappe meny
+3094	Vælg ansat	Select employee	Velg ansatt
+3095	Slet ansat	Remove employee	Slett ansatt
+3096	Fællesmappe	Shared folder	Fellesmappe
+3097	Gå til medarbejderhåndbog her	Go to employee handbook here	Gå til medarbeiderhåndbok her
+3098	Gå til medarbejdermappe her	Go to employee folder here	Gå til medarbeidermappe her
+3099	Arbejdssedler	Worksheets	Arbeidssedler
+3100	Gå til arbejdssedler her	Go to worksheets here	Gå til arbeidssedler her
+3101	Kontrolsedler	Inspection sheets	Kontrollsedler
+3102	Gå til kontrolsedler her	Go to inspection sheets here	Gå til kontrollsedler her
+3103	Mappe skal have en beskrivelse	Folder must have a description	Mappe må ha en beskrivelse
+3104	Ret mappe	Edit folder	Rediger mappe
+3105	Der er ingen mapper	There are no folders	Det er ingen mapper
+3106	Ret mappetekst	Edit folder text	Rediger mappetekst
+3107	Slet mappe og al indhold	Delete folder and all content	Slett mappe og alt innhold
+3108	Vil du slette denne mappe?\n\nADVARSEL!\n Al indhold i mappen vil også blive slettet	Do you want to delete this folder?\n\nWARNING!\nAll content in the folder will also be deleted	Vil du slette denne mappen? \n\nADVARSEL!\n Alt innhold i mappen vil også bli slettet
+3109	Ny mappe	New folder	Ny mappe
+3110	Hvis teksten skal være fed sættes <b> foran teksten og </b> efter teksten (F.eks. <b>Lorem ipsum</b>). Det samme gøres ved kursiv, bare med <i> og </i>.	To make text bold, place <b> before the text and </b> after it (e.g. <b>Lorem ipsum</b>). The same applies for italic, using <i> and </i>.	For å gjøre teksten fet, sett <b> foran teksten og </b> etter den (f.eks. <b>Lorem ipsum</b>). Det samme gjelder for kursiv, bare med <i> og </i>.
+3111	Fællesmappe liste	Shared folder list	Fellesmappeliste
+3112	Bilag skal have en beskrivelse	Attachment must have a description	Vedlegg må ha en beskrivelse
+3113	Ret bilagstekst	Edit attachment text	Rediger vedleggstekst
+3114	Ret mappeindhold	Edit folder content	Rediger mappeinnhold
+3115	Der er ingen bilag	There are no attachments	Det er ingen vedlegg
+3116	Uploadet af	Uploaded by	Lastet opp av
+3117	Slet bilag	Delete attachment	Slett vedlegg
+3118	Vil du slette dette bilag	Do you want to delete this attachment	Vil du slette dette vedlegget
+3119	Hent bilag til mappe her	Upload attachment to folder here	Last opp vedlegg til mappe her
+3120	Medarbejdermappe liste	Employee folder list	Medarbeidermappeliste
+3121	Mappenavn	Folder name	Mappenavn
+3122	Find skema	Find form	Finn skjema
+3123	Sjak	Crew	Sjak
+3124	Fejl	Error	Feil
+3125	Kritisk	Critical	Kritisk
+3126	Liste med arbejdssedler	List of worksheets	Liste med arbeidssedler
+3127	Knap navn	Button name	Knappnavn
+3128	Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.	Enter the name to display on the button on the order page. If empty, company name or city is used.	Angi navnet som skal vises på knappen på ordresiden. Hvis tom, brukes firmanavn eller bynavn.
+3129	API URL	API URL	API URL
+3130	URL for den API-server som skal benyttes til Danske Fragtmænd. Skal starte med https:// og slutte uden skråstreg.	URL for the API server to be used for Danske Fragtmænd. Must start with https:// and end without a slash.	URL for API-serveren som skal brukes for Danske Fragtmænd. Må starte med https:// og slutte uten skråstrek.
+3131	til	for	til
+3132	Udførelsesdato	Execution date	Utførelsesdato
+3133	Konduktør	Foreman	Bas
+3134	Opgavebeskrivelse	Task description	Oppgavebeskrivelse
+3135	Manuel transport	Manual transport	Manuell transport
+3136	Print skema	Print form	Skriv ut skjema
+3137	Stillads til	Scaffolding for	Stillads til
+3138	Gange	Times	Ganger
+3139	Hvis mere end forventet, skal der ringes til ansvarlig konduktør	If more than expected, call the responsible foreman	Hvis mer enn forventet skal ansvarlig bas ringes
+3140	Husk hver dag at	Remember every day to	Husk hver dag å
+3141	Kontrollere bilen for fejl/mangler	Check the vehicle for defects/deficiencies	Kontrollere bilen for feil/mangler
+3142	Kontrollere eget udstyr og værktøj	Check own equipment and tools	Kontrollere eget utstyr og verktøy
+3143	Evt. tegning	Opt. drawing	Evt. tegning
+3144	Liste med kontrolsedler	List of inspection sheets	Liste med kontrollsedler
+3145	Opgavens art	Type of task	Oppgavens art
+3146	Vælg én eller flere filer der skal uploades	Select one or more files to upload	Velg én eller flere filer som skal lastes opp
+3147	Beskrivelse er ikke udfyldt	Description is not filled in	Beskrivelse er ikke utfylt
+3148	Der mangler både beskrivelse og filer	Both description and files are missing	Det mangler både beskrivelse og filer
+3149	Vedhæft bilag til mappe	Attach document to folder	Legg vedlegg til mappe
+3150	Vælg bilag	Select attachment	Velg vedlegg
+3151	Ret fase & kategori i bilag	Edit phase & category in attachment	Rediger fase & kategori i vedlegg
+3152	Der er sket en fejl under upload, prøv venligst igen	An error occurred during upload, please try again	Det oppsto en feil under opplastingen, prøv igjen
+3153	Medarbejderhåndbog	Employee handbook	Medarbeiderhåndbok
+3154	Evt. ny kategori	New category (opt.)	Evt. ny kategori
+3155	Tilknyt bilag til skema	Attach document to form	Knytt vedlegg til skjema
+3156	Certificeringsmenu	Certification menu	Sertifiseringsmeny
+3157	Kontrolskemaer	Checklists	Kontrollskjemaer
+3158	Gå til kontrolskemaer her	Go to checklists here	Gå til kontrollskjemaer her
+3159	Sagsnummer	Project number	Saksnummer
+3160	Find notat	Find note	Finn notat
+3161	Dato/tid	Date/time	Dato/tid
+3162	Der er ikke tilknyttet en sag til notatet	No project is linked to the note	Det er ikke knyttet en sak til notatet
+3163	Denne note er tilknyttet sag	This note is linked to project	Dette notatet er knyttet til sak
+3164	Vis sag	View project	Vis sak
+3165	Kollegaer	Colleagues	Kollegaer
+3166	Kundekontakter	Customer contacts	Kundekontakter
+3167	Der er ingen kontakter tilknyttet kunde	There are no contacts linked to customer	Det er ingen kontakter knyttet til kunde
+3168	Der er ingen e-mailadresse	There is no email address	Det er ingen e-postadresse
+3169	Er ikke en gyldig e-mailadresse	Is not a valid email address	Er ikke en gyldig e-postadresse
+3170	Vedrørende	Regarding	Vedrørende
+3171	Der er en besked til dig fra	You have received a message from	Det er en beskjed til deg fra
+3172	Venlig hilsen	Kind regards	Vennlig hilsen
+3173	Besked sendt til	Message sent to	Beskjed sendt til
+3174	Til sag	To project	Til sak
+3175	Besked til	Message to	Beskjed til
+3176	Gem som kladde	Save as draft	Lagre som utkast
+3177	Slet kladde	Delete draft	Slett utkast
+3178	Vil du slette dette notat	Do you want to delete this note	Vil du slette dette notatet
+3179	Tilknyt en sag til notatet her	Link a project to the note here	Knytt en sak til notatet her
+3180	Du er ved at gemme og afslutte notat. Det er ikke muligt at rette eller slette notat herefter!	You are about to save and close the note. Editing or deleting this note will not be possible after this!	Du er i ferd med å lagre og avslutte notatet. Det vil ikke være mulig å redigere eller slette notatet etter dette!
+3181	Gem og afslut	Save and close	Lagre og avslutt
+3182	Er indlæst	Has been loaded	Er lastet inn
+3183	Indlæsning af	Loading of	Innlasting av
+3184	Fejlet	Failed	Feilet
+3185	Sag-ID ikke angivet	Project ID not specified	Sak-ID ikke angitt
+3186	Kontrolskema	Checklist	Kontrollskjema
+3187	Til skema	To form	Til skjema
+3188	Til sagen her	For the project here	For saken her
+3189	E-mail skema	Email form	Send skjema på e-post
+3190	Vælg hvilken opgave skemaet hører til	Select a task to attach this form to	Velg hvilken oppgave skjemaet hører til
+3191	Tilbage til kontrolskema-liste	Back to checklist overview	Tilbake til kontrollskjema-oversikt
+3192	Slet kontrolskema	Delete checklist	Slett kontrollskjema
+3193	Vil du slette kontrolskemaet	Do you want to delete the checklist	Vil du slette kontrollskjemaet
+3194	Vil du slette arbejdssedlen	Do you want to delete the work order	Vil du slette arbeidsseddelen
+3195	Vedr.	Re.	Vedr.
+3196	Tilbage til certificerings-menu	Back to certification menu	Tilbake til sertifiseringsmeny
+3197	Send arbejdsseddel (e-mail)	Email work order	Send arbeidsseddel (e-post)
+3198	Send kontrolskema (e-mail)	Email checklist	Send kontrollskjema (e-post)
+3199	Sagskontakter	Project contacts	Sakskontakter
+3200	Der er ingen kontakter tilknyttet sagen	There are no contacts linked to the project	Det er ingen kontakter knyttet til saken
+3201	Indtast evt. e-mail	Enter email (opt.)	Skriv inn evt. e-post
+3202	Indtast evt. tekst	Enter text (opt.)	Skriv inn evt. tekst
+3203	Til kontrolskema-liste	To checklist overview	Til kontrollskjema-oversikt
+3204	Slet kunde	Delete customer	Slett kunde
+3205	Vil du slette denne kunde	Do you want to delete this customer	Vil du slette denne kunden
+3206	Liste med sager fra	List of projects from	Liste med saker fra
+3207	Indtastet	Entered	Inntastet
+3208	Tilbage til planlægningsmenu	Back to planning menu	Tilbake til planleggingsmeny
+3209	Planlægning: beregning	Planning: estimation	Planlegging: beregning
+3210	Print &apos;Planlægning: beregning&apos;	Print &apos;Planning: estimation&apos;	Skriv ut &apos;Planlegging: beregning&apos;
+3211	Afl. dato	Del. date	Avl. dato
+3212	Planlægning til sager med &apos;beregning&apos; som status	Planning for projects with &apos;estimation&apos; as status	Planlegging for saker med &apos;beregning&apos; som status
+3213	Her vises dato for oprettelse af sager, og dato for aflevering af tilbud	The creation date for projects and the delivery date for offers are displayed here	Her vises dato for opprettelse av saker, og dato for levering av tilbud
+3214	For at bruge &apos;Planlægning: beregning&apos; skal sagerne der vises have status &apos;beregning&apos;. Ved start af sag kan der vælges dato for oprettelse af sagen og afleveringsdato af tilbud under &apos;Planlægningsinformation&apos;.	To use &apos;Planning: estimation&apos;, the displayed projects must have &apos;estimation&apos; as their status. When starting a project, the creation date and offer delivery date can be selected under &apos;Planning information&apos;.	For å bruke &apos;Planlegging: beregning&apos; må sakene som vises ha status &apos;beregning&apos;. Ved oppstart av sak kan man velge dato for opprettelse av saken og leveringsdato for tilbud under &apos;Planleggingsinformasjon&apos;.
+3215	Planlægning: opgaver	Planning: tasks	Planlegging: oppgaver
+3216	Planlagt	Scheduled	Planlagt
+3217	Udf. adr.	Site addr.	Utf. adr.
+3218	Planlægning til opgaver for sager med aktiv status	Planning of tasks for projects with active status	Planlegging for oppgaver på saker med aktiv status
+3219	Her vises start- og slutdato for aktive opgaver	The start and end dates for active tasks are displayed here	Her vises start- og sluttdato for aktive oppgaver
+3220	For at bruge &apos;Planlægning: opgaver&apos; skal sagerne til opgaverne der vises have en aktiv status. Når status på en opgave er aktiv kan der vælges start- og slutdato for opgavens løbetid under &apos;Planlægningsinformation&apos;.	To use &apos;Planning: tasks&apos;, the projects for the displayed tasks must have an active status. When a task has an active status, the start and end dates for the task duration can be selected under &apos;Planning information&apos;.	For å bruke &apos;Planlegging: oppgaver&apos; må sakene til oppgavene som vises ha en aktiv status. Når status på en oppgave er aktiv kan man velge start- og sluttdato for oppgavens løpetid under &apos;Planleggingsinformasjon&apos;.
+3221	Planlægningsmenu	Planning menu	Planleggingsmeny
+3222	Planlægning: sager	Planning: projects	Planlegging: saker
+3223	Gå til &apos;Planlægning: sager&apos; her	Go to &apos;Planning: projects&apos; here	Gå til &apos;Planlegging: saker&apos; her
+3224	Gå til &apos;Planlægning: opgaver&apos; her	Go to &apos;Planning: tasks&apos; here	Gå til &apos;Planlegging: oppgaver&apos; her
+3225	Gå til &apos;Planlægning: beregning&apos; her	Go to &apos;Planning: estimation&apos; here	Gå til &apos;Planlegging: beregning&apos; her
+3226	Planlægning til sager med aktiv status	Planning for projects with active status	Planlegging for saker med aktiv status
+3227	Her vises start- og slutdato for aktive sager og opgaver	The start and end dates for active projects and tasks are displayed here	Her vises start- og sluttdato for aktive saker og oppgaver
+3228	For at bruge &apos;Planlægning: sager&apos; skal sagerne der vises have en aktiv status. Når status på en sag er aktiv kan der vælges start- og slutdato for sagens løbetid under &apos;Planlægningsinformation&apos;.	To use &apos;Planning: projects&apos;, the displayed projects must have an active status. When a project has an active status, the start and end dates for the project duration can be selected under &apos;Planning information&apos;.	For å bruke &apos;Planlegging: saker&apos; må sakene som vises ha en aktiv status. Når status på en sak er aktiv kan man velge start- og sluttdato for sakens løpetid under &apos;Planleggingsinformasjon&apos;.
+3229	Løbetid	Duration	Varighet
+3230	Ingen aktive opgaver på sagen	No active tasks on the project	Ingen aktive oppgaver på saken
+3231	HUSK at vælge start- og slutdato på opgave, hvis den skal vises	REMEMBER to select start and end dates on a task for it to be displayed	HUSK å velge start- og sluttdato på oppgave, hvis den skal vises
+3232	Planlægning af sagen	Project planning	Planlegging av saken
+3233	Her vises sagens længde + start- og slutdato for opgaverne på sagen	The project duration and start and end dates for the project's tasks are displayed here	Her vises sakens lengde + start- og sluttdato for oppgavene på saken
+3234	For at bruge &apos;Planlægning&apos; skal sagens status være aktiv. Når status på sagen er aktiv kan der vælges start- og slutdato under &apos;Planlægningsinformation&apos;.	To use &apos;Planning&apos;, the project status must be active. When the project status is active, start and end dates can be selected under &apos;Planning information&apos;.	For å bruke &apos;Planlegging&apos; må sakens status være aktiv. Når status på saken er aktiv kan man velge start- og sluttdato under &apos;Planleggingsinformasjon&apos;.
+3235	Det samme gør sig gældende for opgaver. Når opgavens status er aktiv kan start- og slutdato vælges.	The same applies to tasks. When a task status is active, start and end dates can be selected.	Det samme gjelder for oppgaver. Når oppgavens status er aktiv kan start- og sluttdato velges.
+3236	Ingen skabelon	No template	Ingen mal
+3237	Udfyld skabelonnavn	Fill in template name	Fyll ut malnavn
+3238	Udfyld skabelon	Fill in template	Fyll ut mal
+3239	Ret skabelon	Edit template	Rediger mal
+3240	Opret ny skabelon	Create new template	Opprett ny mal
+3241	Opret/ret skabeloner	Create/edit templates	Opprett/rediger maler
+3242	Retur til tilbud	Return to offer	Retur til tilbud
+3243	Tilbage til opret/ret skabeloner	Back to create/edit templates	Tilbake til opprett/rediger maler
+3244	Skabelonnavn	Template name	Malnavn
+3245	Gem/ret skabelon	Save/edit template	Lagre/rediger mal
+3246	Opret skabelon	Create template	Opprett mal
+3247	Slet denne skabelon	Delete this template	Slett denne malen
+3248	Er du sikker på du vil slette denne	Are you sure you want to delete this	Er du sikker på at du vil slette denne
+3249	Ret denne skabelon	Edit this template	Rediger denne malen
+3250	Der er ingen skabeloner	There are no templates	Det er ingen maler
+3251	Nyt tilbud	New offer	Nytt tilbud
+3252	Retur til sag	Return to project	Retur til sak
+3253	Tilbud til	Offer for	Tilbud til
+3254	Din browser kan ikke vise denne fil	Your browser cannot display this file	Nettleseren din kan ikke vise denne filen
+3255	Hent filen herunder	Download the file below	Last ned filen nedenfor
+3256	Inkl. telttillæg	incl. tent surcharge	inkl. telttillegg
+3257	Indtast et navn på den baggrund, du vil tilføje	Enter a name for the background you want to add	Skriv inn et navn på bakgrunnen du vil legge til
+3258	Vælg skabelon	Select template	Velg mal
+3259	Viser filer for	Showing files for	Viser filer for
+3260	
+3261	
+3262	
+3263	
+3264	
+3265	
+3266	
+3267	
+3268	
+3269	
+3270	
+3271	
+3272	
+3273	
+3274	
+3275	
+3276	
+3277	
+3278	
+3279	
+3280	
+3281	
+3282	
+3283	
+3284	
+3285	
+3286	
+3287	
+3288	
+3289	
+3290	
+3291	
+3292	
+3293	
+3294	
+3295	
+3296	
+3297	
+3298	
+3299	
+3300	
+3301	
+3302	
+3303	
+3304	
+3305	
+3306	
+3307	
+3308	
+3309	
+3310	
+3311	
+3312	
+3313	
+3314	
+3315	
+3316	
+3317	
+3318	
+3319	
+3320	
+3321	
+3322	
+3323	
+3324	
+3325	
+3326	
+3327	
+3328	
+3329	
+3330	
+3331	
+3332	
+3333	
+3334	
+3335	
+3336	
+3337	
+3338	
+3339	
+3340	
+3341	
+3342	
+3343	
+3344	
+3345	
+3346	
+3347	
+3348	
+3349	
+3350	
+3351	
+3352	
+3353	
+3354	
+3355	
+3356			
+3357			
+3358			
+3359			
+3360			
+3361			
+3362			
+3363			
+3364			
+3365			
+3366			
+3367			
+3368			
+3369			
+3370			
+3371			
+3372			
+3373			
+3374			
+3375			
+3376			
+3377			
+3378			
+3379			
+3380			
+3381			
+3382			
+3383			
+3384			
+3385			
+3386			
+3387			
+3388			
+3389			
+3390			
+3391			
+3392			
+3393			
+3394			
+3395			
+3396			
+3397			
+3398			
+3399			
+3400			
+3401			
+3402			
+3403			
+3404			
+3405			
+3406			
+3407			
+3408			
+3409			
+3410			
+3411			
+3412			
+3413			
+3414			
+3415			
+3416			
+3417			
+3418			
+3419			
+3420			
+3421			
+3422			
+3423			
+3424			
+3425			
+3426			
+3427			
+3428			
+3429			
+3430			
+3431			
+3432			
+3433			
+3434			
+3435			
+3436			
+3437			
+3438			
+3439			
+3440			
+3441			
+3442			
+3443			
+3444			
+3445			
+3446			
+3447			
+3448			
+3449			
+3450			
+3451			
+3452			
+3453			
+3454			
+3455			
+3456			
+3457			
+3458			
+3459			
+3460			
+3461			
+3462			
+3463			
+3464			
+3465			
+3466			
+3467			
+3468			
+3469			
+3470			
+3471			
+3472			
+3473			
+3474			
+3475			
+3476			
+3477			
+3478			
+3479			
+3480			
+3481			
+3482			
+3483			
+3484			
+3485			
+3486			
+3487			
+3488			
+3489			
+3490			
+3491			
+3492			
+3493			
+3494			
+3495			
+3496			
+3497			
+3498			
+3499			
+3500			
+3501			
+3502			
+3503			
+3504			
+3505			
+3506			
+3507			
+3508			
+3509			
+3510			
+3511			
+3512			
+3513			
+3514			
+3515			
+3516			
+3517			
+3518			
+3519			
+3520			
+3521			
+3522			
+3523			
+3524			
+3525			
+3526			
+3527			
+3528			
+3529			
+3530			
+3531			
+3532			
+3533			
+3534			
+3535			
+3536			
+3537			
+3538			
+3539			
+3540			
+3541			
+3542			
+3543			
+3544			
+3545			
+3546			
+3547			
+3548			
+3549			
+3550			
+3551			
+3552			
+3553			
+3554			
+3555			
+3556			
+3557			
+3558			
+3559			
+3560			
+3561			
+3562			
+3563			
+3564			
+3565			
+3566			
+3567			
+3568			
+3569			
+3570			
+3571			
+3572			
+3573			
+3574			
+3575			
+3576			
+3577			
+3578			
+3579			
+3580			
+3581			
+3582			
+3583			
+3584			
+3585			
+3586			
+3587			
+3588			
+3589			
+3590			
+3591			
+3592			
+3593			
+3594			
+3595			
+3596			
+3597			
+3598			
+3599			
+3600			
+3601			
+3602			
+3603			
+3604			
+3605			
+3606			
+3607			
+3608			
+3609			
+3610			
+3611			
+3612			
+3613			
+3614			
+3615			
+3616			
+3617			
+3618			
+3619			
+3620			
+3621			
+3622			
+3623			
+3624			
+3625			
+3626			
+3627			
+3628			
+3629			
+3630			
+3631			
+3632			
+3633			
+3634			
+3635			
+3636			
+3637			
+3638			
+3639			
+3640			
+3641			
+3642			
+3643			
+3644			
+3645			
+3646			
+3647			
+3648			
+3649			
+3650			
+3651			
+3652			
+3653			
+3654			
+3655			
+3656			
+3657			
+3658			
+3659			
+3660			
+3661			
+3662			
+3663			
+3664			
+3665			
+3666			
+3667			
+3668			
+3669			
+3670			
+3671			
+3672			
+3673			
+3674			
+3675			
+3676			
+3677			
+3678			
+3679			
+3680			
+3681			
+3682			
+3683			
+3684			
+3685			
+3686			
+3687			
+3688			
+3689			
+3690			
+3691			
+3692			
+3693			
+3694			
+3695			
+3696			
+3697			
+3698			
+3699			
+3700			
+3701			
+3702			
+3703			
+3704			
+3705			
+3706			
+3707			
+3708			
+3709			
+3710			
+3711			
+3712			
+3713			
+3714			
+3715			
+3716			
+3717			
+3718			
+3719			
+3720			
+3721			
+3722			
+3723			
+3724			
+3725			
+3726			
+3727			
+3728			
+3729			
+3730			
+3731			
+3732			
+3733			
+3734			
+3735			
+3736			
+3737			
+3738			
+3739			
+3740			
+3741			
+3742			
+3743			
+3744			
+3745			
+3746			
+3747			
+3748			
+3749			
+3750			
+3751			
+3752			
+3753			
+3754			
+3755			
+3756			
+3757			
+3758			
+3759			
+3760			
+3761			
+3762			
+3763			
+3764			
+3765			
+3766			
+3767			
+3768			
+3769			
+3770			
+3771			
+3772			
+3773			
+3774			
+3775			
+3776			
+3777			
+3778			
+3779			
+3780			
+3781			
+3782			
+3783			
+3784			
+3785			
+3786			
+3787			
+3788			
+3789			
+3790			
+3791			
+3792			
+3793			
+3794			
+3795			
+3796			
+3797			
+3798			
+3799			
+3800			
+3801			
+3802			
+3803			
+3804			
+3805			
+3806			
+3807			
+3808			
+3809			
+3810			
+3811			
+3812			
+3813			
+3814			
+3815			
+3816			
+3817			
+3818			
+3819			
+3820			
+3821			
+3822			
+3823			
+3824			
+3825			
+3826			
+3827			
+3828			
+3829			
+3830			
+3831			
+3832			
+3833			
+3834			
+3835			
+3836			
+3837			
+3838			
+3839			
+3840			
+3841			
+3842			
+3843			
+3844			
+3845			
+3846			
+3847			
+3848			
+3849			
+3850			
+3851			
+3852			
+3853			
+3854			
+3855			
+3856			
+3857			
+3858			
+3859			
+3860			
+3861			
+3862			
+3863			
+3864			
+3865			
+3866			
+3867			
+3868			
+3869			
+3870			
+3871			
+3872			
+3873			
+3874			
+3875			
+3876			
+3877			
+3878			
+3879			
+3880			
+3881			
+3882			
+3883			
+3884			
+3885			
+3886			
+3887			
+3888			
+3889			
+3890			
+3891			
+3892			
+3893			
+3894			
+3895			
+3896			
+3897			
+3898			
+3899			
+3900			
+3901			
+3902			
+3903			
+3904			
+3905			
+3906			
+3907			
+3908			
+3909			
+3910			
+3911			
+3912			
+3913			
+3914			
+3915			
+3916			
+3917			
+3918			
+3919			
+3920			
+3921			
+3922			
+3923			
+3924			
+3925			
+3926			
+3927			
+3928			
+3929			
+3930			
+3931			
+3932			
+3933			
+3934			
+3935			
+3936			
+3937			
+3938			
+3939			
+3940			
+3941			
+3942			
+3943			
+3944			
+3945			
+3946			
+3947			
+3948			
+3949			
+3950			
+3951			
+3952			
+3953			
+3954			
+3955			
+3956			
+3957			
+3958			
+3959			
+3960			
+3961			
+3962			
+3963			
+3964			
+3965			
+3966			
+3967			
+3968			
+3969			
+3970			
+3971			
+3972			
+3973			
+3974			
+3975			
+3976			
+3977			
+3978			
+3979			
+3980			
+3981			
+3982			
+3983			
+3984			
+3985			
+3986			
+3987			
+3988			
+3989			
+3990			
+3991			
+3992			
+3993			
+3994			
+3995			
+3996			
+3997			
+3998			
+3999			
+4000			
+4001			
+4002			
+4003			
+4004			
+4005			
+4006			
+4007			
+4008			
+4009			
+4010			
+4011			
+4012			
+4013			
+4014			
+4015			
+4016			
+4017			
+4018			
+4019			
+4020			
+4021			
+4022			
+4023			
+4024			
+4025			
+4026			
+4027			
+4028			
+4029			
+4030			
+4031			
+4032			
+4033			
+4034			
+4035			
+4036			
+4037			
+4038			
+4039			
+4040			
+4041			
+4042			
+4043			
+4044			
+4045			
+4046			
+4047			
+4048			
+4049			
+4050			
+4051			
+4052			
+4053			
+4054			
+4055			
+4056			
+4057			
+4058			
+4059			
+4060			
+4061			
+4062			
+4063			
+4064			
+4065			
+4066			
+4067			
+4068			
+4069			
+4070			
+4071			
+4072			
+4073			
+4074			
+4075			
+4076			
+4077			
+4078			
+4079			
+4080			
+4081			
+4082			
+4083			
+4084			
+4085			
+4086			
+4087			
+4088			
+4089			
+4090			
+4091			
+4092			
+4093			
+4094			
+4095			
+4096			
+4097			
+4098			
+4099			
+4100			
+4101			
+4102			
+4103			
+4104			
+4105			
+4106			
+4107			
+4108			
+4109			
+4110			
+4111			
+4112			
+4113			
+4114			
+4115			
+4116			
+4117			
+4118			
+4119			
+4120			
+4121			
+4122			
+4123			
+4124			
+4125			
+4126			
+4127			
+4128			
+4129			
+4130			
+4131			
+4132			
+4133			
+4134			
+4135			
+4136			
+4137			
+4138			
+4139			
+4140			
+4141			
+4142			
+4143			
+4144			
+4145			
+4146			
+4147			
+4148			
+4149			
+4150			
+4151			
+4152			
+4153			
+4154			
+4155			
+4156			
+4157			
+4158			
+4159			
+4160			
+4161			
+4162			
+4163			
+4164			
+4165			
+4166			
+4167			
+4168			
+4169			
+4170			
+4171			
+4172			
+4173			
+4174			
+4175			
+4176			
+4177			
+4178			
+4179			
+4180			
+4181			
+4182			
+4183			
+4184			
+4185			
+4186			
+4187			
+4188			
+4189			
+4190			
+4191			
+4192			
+4193			
+4194			
+4195			
+4196			
+4197			
+4198			
+4199			
+4200			
+4201			
+4202			
+4203			
+4204			
+4205			
+4206			
+4207			
+4208			
+4209			
+4210			
+4211			
+4212			
+4213			
+4214			
+4215			
+4216			
+4217			
+4218			
+4219			
+4220			
+4221			
+4222			
+4223			
+4224			
+4225			
+4226			
+4227			
+4228			
+4229			
+4230			
+4231			
+4232			
+4233			
+4234			
+4235			
+4236			
+4237			
+4238			
+4239			
+4240			
+4241			
+4242			
+4243			
+4244			
+4245			
+4246			
+4247			
+4248			
+4249			
+4250			
+4251			
+4252			
+4253			
+4254			
+4255			
+4256			
+4257			
+4258			
+4259			
+4260			
+4261			
+4262			
+4263			
+4264			
+4265			
+4266			
+4267			
+4268			
+4269			
+4270			
+4271			
+4272			
+4273			
+4274			
+4275			
+4276			
+4277			
+4278			
+4279			
+4280			
+4281			
+4282			
+4283			
+4284			
+4285			
+4286			
+4287			
+4288			
+4289			
+4290			
+4291			
+4292			
+4293			
+4294			
+4295			
+4296			
+4297			
+4298			
+4299			
+4300			
+4301			
+4302			
+4303			
+4304			
+4305			
+4306			
+4307			
+4308			
+4309			
+4310			
+4311			
+4312			
+4313			
+4314			
+4315			
+4316			
+4317			
+4318			
+4319			
+4320			
+4321			
+4322			
+4323			
+4324			
+4325			
+4326			
+4327			
+4328			
+4329			
+4330			
+4331			
+4332			
+4333			
+4334			
+4335			
+4336			
+4337			
+4338			
+4339			
+4340			
+4341			
+4342			
+4343			
+4344			
+4345			
+4346			
+4347			
+4348			
+4349			
+4350			
+4351			
+4352			
+4353			
+4354			
+4355			
+4356			
+4357			
+4358			
+4359			
+4360			
+4361			
+4362			
+4363			
+4364			
+4365			
+4366			
+4367			
+4368			
+4369			
+4370			
+4371			
+4372			
+4373			
+4374			
+4375			
+4376			
+4377			
+4378			
+4379			
+4380			
+4381			
+4382			
+4383			
+4384			
+4385			
+4386			
+4387			
+4388			
+4389			
+4390			
+4391			
+4392			
+4393			
+4394			
+4395			
+4396			
+4397			
+4398			
+4399			
+4400			
+4401			
+4402			
+4403			
+4404			
+4405			
+4406			
+4407			
+4408			
+4409			
+4410			
+4411			
+4412			
+4413			
+4414			
+4415			
+4416			
+4417			
+4418			
+4419			
+4420			
+4421			
+4422			
+4423			
+4424			
+4425			
+4426			
+4427			
+4428			
+4429			
+4430			
+4431			
+4432			
+4433			
+4434			
+4435			
+4436			
+4437			
+4438			
+4439			
+4440			
+4441			
+4442			
+4443			
+4444			
+4445			
+4446			
+4447			
+4448			
+4449			
+4450			
+4451			
+4452			
+4453			
+4454			
+4455			
+4456			
+4457			
+4458			
+4459			
+4460			
+4461			
+4462			
+4463			
+4464			
+4465			
+4466			
+4467			
+4468			
+4469			
+4470			
+4471			
+4472			
+4473			
+4474			
+4475			
+4476			
+4477			
+4478			
+4479			
+4480			
+4481			
+4482			
+4483			
+4484			
+4485			
+4486			
+4487			
+4488			
+4489			
+4490			
+4491			
+4492			
+4493			
+4494			
+4495			
+4496			
+4497			
+4498			
+4499			
+4500			
+4501			
+4502			
+4503			
+4504			
+4505			
+4506			
+4507			
+4508			
+4509			
+4510			
+4511			
+4512			
+4513			
+4514			
+4515			
+4516			
+4517			
+4518			
+4519			
+4520			
+4521			
+4522			
+4523			
+4524			
+4525			
+4526			
+4527			
+4528			
+4529			
+4530			
+4531			
+4532			
+4533			
+4534			
+4535			
+4536			
+4537			
+4538			
+4539			
+4540			
+4541			
+4542			
+4543			
+4544			
+4545			
+4546			
+4547			
+4548			
+4549			
+4550			
+4551			
+4552			
+4553			
+4554			
+4555			
+4556			
+4557			
+4558			
+4559			
+4560			
+4561			
+4562			
+4563			
+4564			
+4565			
+4566			
+4567			
+4568			
+4569			
+4570			
+4571			
+4572			
+4573			
+4574			
+4575			
+4576			
+4577			
+4578			
+4579			
+4580			
+4581			
+4582			
+4583			
+4584			
+4585			
+4586			
+4587			
+4588			
+4589			
+4590			
+4591			
+4592			
+4593			
+4594			
+4595			
+4596			
+4597			
+4598			
+4599			
+4600			
+4601			
+4602			
+4603			
+4604			
+4605			
+4606			
+4607			
+4608			
+4609			
+4610			
+4611			
+4612			
+4613			
+4614			
+4615			
+4616			
+4617			
+4618			
+4619			
+4620			
+4621			
+4622			
+4623			
+4624			
+4625			
+4626			
+4627			
+4628			
+4629			
+4630			
+4631			
+4632			
+4633			
+4634			
+4635			
+4636			
+4637			
+4638			
+4639			
+4640			
+4641			
+4642			
+4643			
+4644			
+4645			
+4646			
+4647			
+4648			
+4649			
+4650			
+4651			
+4652			
+4653			
+4654			
+4655			
+4656			
+4657			
+4658			
+4659			
+4660			
+4661			
+4662			
+4663			
+4664			
+4665			
+4666			
+4667			
+4668			
+4669			
+4670			
+4671			
+4672			
+4673			
+4674			
+4675			
+4676			
+4677			
+4678			
+4679			
+4680			
+4681			
+4682			
+4683			
+4684			
+4685			
+4686			
+4687			
+4688			
+4689			
+4690			
+4691			
+4692			
+4693			
+4694			
+4695			
+4696			
+4697			
+4698			
+4699			
+4700			
+4701			
+4702			
+4703			
+4704			
+4705			
+4706			
+4707			
+4708			
+4709			
+4710			
+4711			
+4712			
+4713			
+4714			
+4715			
+4716			
+4717			
+4718			
+4719			
+4720			
+4721			
+4722			
+4723			
+4724			
+4725			
+4726			
+4727			
+4728			
+4729			
+4730			
+4731			
+4732			
+4733			
+4734			
+4735			
+4736			
+4737			
+4738			
+4739			
+4740			
+4741			
+4742			
+4743			
+4744			
+4745			
+4746			
+4747			
+4748			
+4749			
+4750			
+4751			
+4752			
+4753			
+4754			
+4755			
+4756			
+4757			
+4758			
+4759			
+4760			
+4761			
+4762			
+4763			
+4764			
+4765			
+4766			
+4767			
+4768			
+4769			
+4770			
+4771			
+4772			
+4773			
+4774			
+4775			
+4776			
+4777			
+4778			
+4779			
+4780			
+4781			
+4782			
+4783			
+4784			
+4785			
+4786			
+4787			
+4788			
+4789			
+4790			
+4791			
+4792			
+4793			
+4794			
+4795			
+4796			
+4797			
+4798			
+4799			
+4800			
+4801			
+4802			
+4803			
+4804			
+4805			
+4806			
+4807			
+4808			
+4809			
+4810			
+4811			
+4812			
+4813			
+4814			
+4815			
+4816			
+4817			
+4818			
+4819			
+4820			
+4821			
+4822			
+4823			
+4824			
+4825			
+4826			
+4827			
+4828			
+4829			
+4830			
+4831			
+4832			
+4833			
+4834			
+4835			
+4836			
+4837			
+4838			
+4839			
+4840			
+4841			
+4842			
+4843			
+4844			
+4845			
+4846			
+4847			
+4848			
+4849			
+4850			
+4851			
+4852			
+4853			
+4854			
+4855			
+4856			
+4857			
+4858			
+4859			
+4860			
+4861			
+4862			
+4863			
+4864			
+4865			
+4866			
+4867			
+4868			
+4869			
+4870			
+4871			
+4872			
+4873			
+4874			
+4875			
+4876			
+4877			
+4878			
+4879			
+4880			
+4881			
+4882			
+4883			
+4884			
+4885			
+4886			
+4887			
+4888			
+4889			
+4890			
+4891			
+4892			
+4893			
+4894			
+4895			
+4896			
+4897			
+4898			
+4899			
+4900			
+4901			
+4902			
+4903			
+4904			
+4905			
+4906			
+4907			
+4908			
+4909			
+4910			
+4911			
+4912			
+4913			
+4914			
+4915			
+4916			
+4917			
+4918			
+4919			
+4920			
+4921			
+4922			
+4923			
+4924			
+4925			
+4926			
+4927			
+4928			
+4929			
+4930			
+4931			
+4932			
+4933			
+4934			
+4935			
+4936			
+4937			
+4938			
+4939			
+4940			
+4941			
+4942			
+4943			
+4944			
+4945			
+4946			
+4947			
+4948			
+4949			
+4950			
+4951			
+4952			
+4953			
+4954			
+4955			
+4956			
+4957			
+4958			
+4959			
+4960			
+4961			
+4962			
+4963			
+4964			
+4965			
+4966			
+4967			
+4968			
+4969			
+4970			
+4971			
+4972			
+4973			
+4974			
+4975			
+4976			
+4977			
+4978			
+4979			
+4980			
+4981			
+4982			
+4983			
+4984			
+4985			
+4986			
+4987			
+4988			
+4989			
+4990			
+4991			
+4992			
+4993			
+4994			
+4995			
+4996			
+4997			
+4998			
+4999			
+5000			
+5001	Udløbsdato	Expiry date	Utløpsdato
+5002	Varen har udløbsdato	Item has expiry date	Varen har utløpsdato
+5003	Standard holdbarhed (dage)	Default shelf life (days)	Standard holdbarhet (dager)
+5004	Batch oversigt	Batch overview	Batch oversikt
+5005	Batchnr.	Batch no.	Batchnr.
+5006	Advar om udløb (dage før)	Warn about expiry (days before)	Advar om utløp (dager før)
+5007	Dage til udløb	Days to expiry	Dager til utløp
+5008	Restlager	Remaining stock	Restlager
+5009	Købsdato	Purchase date	Kjøpsdato
+5010	Lager	Warehouse	Lager
+5011	Købsordre	Purchase order	Kjøpsordre
+5012	Hovedlager	Main warehouse	Hovedlager
+5013	Total restlager	Total remaining stock	Total restlager
+5014	Udløbsrapport	Expiry report	Utløpsrapport
+5015	Udløber inden	Expires within	Utløper innen
+5016	Vis kun udløbne	Show expired only	Vis kun utløpte
+5017	Eksporter CSV	Export CSV	Eksporter CSV
+5018	Lagerværdi	Stock value	Lagerverdi
+5019	I alt	Total	Totalt
+5020	linjer	lines	linjer
+5021	Advarsel	Warning	Advarsel
+5022	batch(er) er udløbet	batch(es) expired	batch(er) er utløpt
+5023	batch(er) på	batch(es) on	batch(er) på
+5024	vare(r) udløber inden for	item(s) expiring within	vare(r) utløper innen
+5025	dage	days	dager
+5026	Klik for at se udløbsrapporten	Click to view the expiry report	Klikk for å se utløpsrapporten

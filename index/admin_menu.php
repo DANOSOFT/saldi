@@ -85,7 +85,9 @@ if ($revisorregnskab || $forhandlerregnskab) {
 	print"</tr><tr>";
 	print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/admin_brugere.php\"><big>".findtekst(777, $sprog_id)."</big></td>"; #Brugere 20210916
 	print"</tr><tr>";
-	print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/admin_settings.php\"><big>".findtekst(613, $sprog_id)."</big></td>"; #Indstillinger
+	print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/admin_settings.php\"><big>".findtekst(613, $sprog_id)."</big></a></td>"; #Indstillinger
+	print"</tr><tr>";
+	print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/admin_panel.php\"><big>Admin Panel</big></a></td>";
 	if (isset($mastername) && $mastername=="ROTARY") {
 		print"</tr><tr>";
 		print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/bankfordeling.php\"><big>".findtekst(567, $sprog_id)."</big></td>";#Kortbetalinger

@@ -34,6 +34,8 @@ $qtxt.= "lev_addr1 = '', lev_addr2 = '', lev_bynavn='', lev_postnr='', lev_konta
 $qtxt.= "where id = '$id'";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
 $qtxt = "delete from ansatte where konto_id = '$id'";
-db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
+db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+$qtxt = "delete from kontakt_emails where konto_id = '$id'";
+db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 ?>

@@ -33,8 +33,8 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
-$returside="../diverse.php";
+include("../includes/topline_settings.php");
+$returside="diverse.php?sektion=div_io";
 
 $filnavn="../temp/variantvarer.csv";
 (isset($_GET['start']))?$start=$_GET['start']:$start=1;
@@ -83,7 +83,7 @@ if ($charset=="UTF-8") $overskrift=mb_convert_encoding($overskrift, 'ISO-8859-1'
 
 if (fwrite($fp, "$overskrift\r\n")) {
 	$z=0;
-	$q=db_select("select varer.id,varer.varenr,varer.beskrivelse,variant_varer.variant_stregkode,variant_varer.variant_type,variant_varer.variant_salgspris,variant_varer.variant_kostpris,variant_varer.variant_vejlpris from varer,variant_varer where varer.id=variant_varer.vare_id order by varer.varenr,variant_varer.variant_stregkode",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select varer.id,varer.varenr,varer.beskrivelse,varer.varenr_alias,variant_varer.variant_stregkode,variant_varer.variant_type,variant_varer.variant_salgspris,variant_varer.variant_kostpris,variant_varer.variant_vejlpris from varer,variant_varer where varer.id=variant_varer.vare_id order by varer.varenr,variant_varer.variant_stregkode",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$z++;
 		if ($z>=$start && $z<=$slut) {
@@ -91,10 +91,11 @@ if (fwrite($fp, "$overskrift\r\n")) {
 			$varenr=$r['varenr'];
 			$beskrivelse=$r['beskrivelse'];
 			$variant_stregkode=$r['variant_stregkode'];
+			$varenr_alias=$r['varenr_alias'];
 			$variant_type=explode(chr(9),$r['variant_type']);
 
 #			$variant_lager=$r['lager'];
-			$linje='"'.$varenr.'"'.chr(9).'"'.$beskrivelse.'"'.chr(9).'"'.$variant_stregkode.'"'.chr(9).dkdecimal($r['variant_kostpris']).chr(9).dkdecimal($r['variant_salgspris']).chr(9).dkdecimal($r['variant_vejlpris']);
+			$linje='"'.$varenr.'"'.chr(9).'"'.$beskrivelse.'"'.chr(9).'"'.$variant_stregkode.'"'.$varenr_alias.'"'.chr(9).dkdecimal($r['variant_kostpris']).chr(9).dkdecimal($r['variant_salgspris']).chr(9).dkdecimal($r['variant_vejlpris']);
 			for ($x=0;$x<count($varianter_id);$x++) {
 #			$linje.=chr(9)."$varianter_beskrivelse[$x]";
 				$tmp=NULL;
@@ -121,14 +122,20 @@ if ($z>$slut) {
 }			
 
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=diverse.php?sektion=div_io accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210714
-print "<td width=\"80%\" $top_bund>".findtekst(1375, $sprog_id)."</td>"; 
-print "<td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
+print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
+
+print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
+
+       <td align='center' style='$topStyle'>".findtekst(1375, $sprog_id)."<br></td>
+
+       <td width=\"170px\" style='$topStyle'><br></td></tr>
+       </tbody></table></td></tr>"; # <- tabel 1.1.1
+
+print "</tr></tbody></table></td></tr>";
 print "<td align=center valign=top>";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 $xa=findtekst(1375, $sprog_id); $variantvarer = explode(" ", $xa);

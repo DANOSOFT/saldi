@@ -4,26 +4,24 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// ------- finans/listeangivelse.php ------------- lap 3.5.6 --- 2016-06-02 ---
-// LICENS
+// --- finans/listeangivelse.php --- lap 5.0.0 --- 2026-03-03 ---
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2016 DANOSOFT ApS
+// Copyright (c) 2010-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------------
 // 
 // 20130210 Break ændret til break 
@@ -31,6 +29,7 @@
 // 20160602 PHR	- Tilføjet hhv "$euvarekonto &&" & "$euydelseskonto &&" da der blev lavet lister på varelinjer uden kontonr.  
 // 20160824 PHR	- Hack til at vise lister hvis $euvarekonto mm ikke er udfyldt. #20160824
 // 20171130 PHR - varer.varenr ændret til varer.vare_id så varer der har ændret varenr også kommer med. Søg 20171130
+// 20260303 PHR - PHP8
 
 @session_start();
 $s_id=session_id();
@@ -128,7 +127,7 @@ while ($row = db_fetch_array($query)) {
 	} else { 
 		continue;
 	}
-	$debughtml.="<p>Debitor: ".$row[id]."</p>\n";
+	$debughtml.="<p>Debitor: ".$row['id']."</p>\n";
 	$debughtml.= "\n<table>\n";
 	$debughtml.= "<tr><th>Dato</th><th>Cvrnr.</th><th>Bel&oslash;b</th><th>Valuta</th></tr>\n";
 	$q=db_select("select id, fakturadate, kontonr,firmanavn, sum, cvrnr, valuta, valutakurs from ordrer where konto_id = '$row[id]' and fakturadate >= '$liste_startdato' and fakturadate <= '$liste_slutdato' and status = '4' order by cvrnr",__FILE__ . " linje " . __LINE__); # 20140729 afsnit 2
@@ -238,7 +237,7 @@ $debughtml .= "<pre>$datafil</pre>\n\n";
 
 $debughtml .= "</div>\n<!-- DEBUG INFO - end -->\n\n";
 
-if ( isset($_POST[debug]) || isset($_GET[debug]) ) {
+if ( isset($_POST['debug']) || isset($_GET['debug']) ) {
 	print $tophtml.$bodyhtml.$debughtml.$bottomhtml;
 } else {
 	print $tophtml.$bodyhtml.$bottomhtml;

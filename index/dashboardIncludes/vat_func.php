@@ -5,8 +5,8 @@ function vat_info($regnstart, $regnslut) {
 
     $qtxt = "select * from grupper where art = 'MR' and fiscal_year = $regnaar";
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-    $kontomin = $r["box1"];
-    $kontomaks = $r["box2"];
+    $kontomin = (int)$r["box1"];
+    $kontomaks = (int)$r["box2"];
 
     // Definer første og sidste dag for regnskabsåret
     $firstDayOfYear = date('Y-m-d', strtotime($regnstart)); // Første dag i regnskabsåret
@@ -47,10 +47,10 @@ function vat_info($regnstart, $regnslut) {
     // Beregn forskellen mellem indeværende regnskabsår og sidste regnskabsår
     $revenue_diff = $revenue - $revenue_last;
     $revenue_status = $revenue_diff > 0 ? 
-        "<span style='color: #15b79f'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst(2385, $sprog_id)."</span>" 
+        "<span style='color: #15b79f'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst('2385|mere end sidste år til dato', $sprog_id)."</span>" 
         : 
-        "<span style='color: #ea3c3c'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst(2386, $sprog_id)."</span>";
+        "<span style='color: #ea3c3c'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst('2386|mindre end sidste år til dato', $sprog_id)."</span>";
 
-    key_value(findtekst(2301, $sprog_id), formatNumber($revenue ? $revenue : 0)." kr", "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'>$revenue_status");
+    key_value(findtekst('2301|Momsangivelse for året', $sprog_id), formatNumber($revenue ? $revenue : 0)." kr", "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'>$revenue_status");
 }
 

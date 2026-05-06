@@ -1040,7 +1040,7 @@ function lagerreguler($vare_id,$ny_beholdning,$kostpris,$lager,$transdate,$varia
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	} else {
 		$diff*=-1;
-		$qtxt="select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by kobsdate,id";
+		$qtxt="select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by " . fefo_order_clause();
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while($diff && $r=db_fetch_array($q)){
 			if ($diff-$r['rest']>=0){

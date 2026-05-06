@@ -34,6 +34,8 @@ class CustomerModel
     private $kontakt;
     private $art;
     private $gruppe;
+    private $kontonr;
+    private $kontakt_emails = [];
 
     /**
      * Constructor - can create an empty customer or load an existing one by ID
@@ -91,6 +93,20 @@ class CustomerModel
             $this->lev_email = $r['lev_email'];
             $this->lev_land = $r['lev_land'];
             $this->kontakt = $r['kontakt'];
+            $this->kontonr = $r['kontonr'];
+
+            // Load kontakt_emails
+            $this->kontakt_emails = [];
+            $qe = db_select("SELECT id, email, email_type FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id", __FILE__ . " linje " . __LINE__);
+            if ($qe) {
+                while ($re = db_fetch_array($qe)) {
+                    $this->kontakt_emails[] = [
+                        'id' => (int)$re['id'],
+                        'email' => $re['email'],
+                        'email_type' => $re['email_type']
+                    ];
+                }
+            }
 
             return true;
         }
@@ -147,6 +163,7 @@ class CustomerModel
         $lev_land = db_escape_string($this->lev_land ?: '');
         $kontakt = db_escape_string($this->kontakt ?: '');
         $art = db_escape_string($this->art ?: '');
+        $kontonr = db_escape_string($this->kontonr ?: $tlf); // Default to phone number if not set
 
         // If ID is set, we are updating an existing customer
         if ($this->id) {
@@ -182,6 +199,7 @@ class CustomerModel
             if ($this->lev_land !== null) $updateFields[] = "lev_land = '$lev_land'";
             if ($this->kontakt !== null) $updateFields[] = "kontakt = '$kontakt'";
             if ($this->gruppe !== null) $updateFields[] = "gruppe = $gruppe";
+            if ($this->kontonr !== null) $updateFields[] = "kontonr = '$kontonr'";
             
             // Only proceed if there are fields to update
             if (!empty($updateFields)) {
@@ -190,10 +208,14 @@ class CustomerModel
                 $resultArray = explode("\t", $result);
                 // Check if update was successful
                 if ($resultArray[0] == "0") {
+                    // Save kontakt_emails if they were set
+                    if (!empty($this->kontakt_emails)) {
+                        $this->saveKontaktEmails();
+                    }
                     return true; // Update successful
                 }
             }
-            
+
             return false; // Update failed or no fields to update
         }
 
@@ -202,13 +224,13 @@ class CustomerModel
             firmanavn, tlf, email, addr1, addr2, postnr, bynavn, cvrnr, land,
             bank_navn, bank_reg, bank_konto, bank_fi, notes, betalingsbet, betalingsdage,
             ean, fornavn, efternavn, lev_firmanavn, lev_addr1, lev_addr2, lev_postnr,
-            lev_bynavn, lev_tlf, lev_email, lev_land, kontakt, art, gruppe
+            lev_bynavn, lev_tlf, lev_email, lev_land, kontakt, art, gruppe, kontonr
         ) VALUES (
             '$firmanavn', '$tlf', '$email', '$addr1', '$addr2', '$postnr', '$bynavn',
             '$cvrnr', '$land', '$bank_navn', '$bank_reg', '$bank_konto', '$bank_fi',
             '$notes', '$betalingsbet', $betalingsdage, '$ean', '$fornavn',
             '$efternavn', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr',
-            '$lev_bynavn', '$lev_tlf', '$lev_email', '$lev_land', '$kontakt', '$art', $gruppe
+            '$lev_bynavn', '$lev_tlf', '$lev_email', '$lev_land', '$kontakt', '$art', $gruppe, '$kontonr'
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -222,12 +244,13 @@ class CustomerModel
             
             if ($q && ($r = db_fetch_array($q))) {
                 $this->id = (int)$r['id'];
-                return true;
             }
-            
+
+            // Save kontakt_emails for new customer
+            $this->saveKontaktEmails();
             return true;
         }
-        
+
         return false;
     }
 
@@ -236,13 +259,15 @@ class CustomerModel
      * 
      * @return bool Success status
      */
-    public function delete()
+    public function delete($art)
     {
         if (!$this->id) {
             return false;
         }
 
-        $qtxt = "DELETE FROM adresser WHERE id = $this->id AND art = 'D'";
+        db_modify("DELETE FROM kontakt_emails WHERE konto_id = $this->id", __FILE__ . " linje " . __LINE__);
+
+        $qtxt = "DELETE FROM adresser WHERE id = $this->id AND art = '$art'";
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         return explode("\t", $q)[0] == "0";
@@ -255,13 +280,31 @@ class CustomerModel
      * @param string $orderDirection Sort direction (default: ASC)
      * @return CustomerModel[] Array of CustomerModel objects
      */
-    public static function getAllItems($art, $orderBy = 'firmanavn', $orderDirection = 'ASC', $limit = 20)
+    public static function getAllItems($art, $search = null, $limit = 50, $offset = 0, $orderBy = 'firmanavn', $orderDirection = 'ASC')
     {
         $allowedOrderBy = ['id', 'firmanavn', 'tlf', 'email'];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'firmanavn';
         $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
+        $limit = (int)$limit;
+        $offset = (int)$offset;
 
-        $qtxt = "SELECT id FROM adresser WHERE art = '$art' ORDER BY $orderBy $orderDirection LIMIT $limit";
+        $qtxt = "SELECT id FROM adresser WHERE art = '$art'";
+        
+        // Add search condition if provided
+        if ($search && !empty(trim($search))) {
+            $search = db_escape_string(trim($search));
+            $qtxt .= " AND (
+                firmanavn ILIKE '%$search%' OR 
+                email ILIKE '%$search%' OR 
+                tlf ILIKE '%$search%' OR 
+                cvrnr ILIKE '%$search%' OR
+                kontonr ILIKE '%$search%' OR
+                CONCAT(fornavn, ' ', efternavn) ILIKE '%$search%'
+            )";
+        }
+        
+        $qtxt .= " ORDER BY $orderBy $orderDirection LIMIT $limit OFFSET $offset";
+        
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
@@ -343,7 +386,10 @@ class CustomerModel
             'efternavn' => $this->efternavn,
             'kontakt' => $this->kontakt,
             'notes' => $this->notes,
-            'gruppe' => $this->gruppe
+            'gruppe' => $this->gruppe,
+            'kontonr' => $this->kontonr,
+            'kundenr' => $this->kontonr,
+            'kontakt_emails' => $this->kontakt_emails
         );
     }
 
@@ -360,7 +406,7 @@ class CustomerModel
         $qtxt = "SELECT id FROM adresser WHERE art = 'D' AND email = '$email'";
         
         if ($excludeId) {
-            $qtxt .= " AND id != $excludeId";
+            $qtxt .= " AND id NOT IN ($excludeId)";
         }
         
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -387,6 +433,32 @@ class CustomerModel
         return db_fetch_array($q) !== false;
     }
 
+    /**
+     * Save kontakt_emails - replaces all existing emails for this customer
+     */
+    private function saveKontaktEmails()
+    {
+        if (!$this->id) return;
+
+        // Delete existing
+        db_modify("DELETE FROM kontakt_emails WHERE konto_id = $this->id", __FILE__ . " linje " . __LINE__);
+
+        // Insert new
+        foreach ($this->kontakt_emails as $entry) {
+            if (is_object($entry)) $entry = (array)$entry;
+            $email = db_escape_string(trim($entry['email'] ?? ''));
+            $email_type = db_escape_string(trim($entry['email_type'] ?? ''));
+            if ($email) {
+                db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$this->id', '$email', '$email_type')", __FILE__ . " linje " . __LINE__);
+            }
+        }
+
+        // Sync primary email back to adresser.email for backward compatibility
+        $r = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$this->id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
+        $sync_email = $r ? db_escape_string($r['email']) : '';
+        db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$this->id'", __FILE__ . " linje " . __LINE__);
+    }
+
     // Getters
     public function getId() { return $this->id; }
     public function getFirmanavn() { return $this->firmanavn; }
@@ -411,6 +483,7 @@ class CustomerModel
     public function getKontakt() { return $this->kontakt; }
     public function getGruppe() { return $this->gruppe; }
     public function getArt() { return $this->art; }
+    public function getKontaktEmails() { return $this->kontakt_emails; }
 
     // Setters for required fields
     public function setFirmanavn($firmanavn) { $this->firmanavn = $firmanavn; }
@@ -437,6 +510,7 @@ class CustomerModel
     public function setEfternavn($efternavn) { $this->efternavn = $efternavn; }
     public function setKontakt($kontakt) { $this->kontakt = $kontakt; }
     public function setGruppe($gruppe) { $this->gruppe = $gruppe; }
+    public function setKontonr($kontonr) { $this->kontonr = $kontonr; }
 
     // Delivery address setters
     public function setLevFirmanavn($lev_firmanavn) { $this->lev_firmanavn = $lev_firmanavn; }
@@ -447,4 +521,5 @@ class CustomerModel
     public function setLevTlf($lev_tlf) { $this->lev_tlf = $lev_tlf; }
     public function setLevEmail($lev_email) { $this->lev_email = $lev_email; }
     public function setLevLand($lev_land) { $this->lev_land = $lev_land; }
+    public function setKontaktEmails($kontakt_emails) { $this->kontakt_emails = $kontakt_emails; }
 }

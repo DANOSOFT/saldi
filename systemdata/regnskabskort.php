@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- lap 4.1.1 -- 2025-05-22 --
+// --- systemdata/regnskabskort.php --- lap 4.1.1 -- 2025-07-02 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20230609 PHR - php8
 // 20231230 PHR - Added individual groups for each year.
 // 20250522	PHR	- (int)$id
+// 20250702 PHR - PHP8
 
 @session_start();
 $s_id=session_id();
@@ -235,7 +236,7 @@ if ($_POST) {
 						$overfor_til[$x]=(int)$overfor_til[$x];
 						$kontonr[$x]=$kontonr[$x]*1;
 						if ($overfor_til[$x]) {
-							$saldo[$x]*=1; #phr 20110605
+							$saldo[$x]=(float)$saldo[$x]; #phr 20110605
 							$qtxt = "update kontoplan set overfor_til='$overfor_til[$x]' ";
 							$qtxt.= "where kontonr='$kontonr[$x]' and (regnskabsaar=$kodenr-1 or regnskabsaar='$kodenr')";
 							db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
@@ -291,7 +292,7 @@ if ($setFiscialYear) {
 if ($id > 0) {
 	$qtxt = "select kodenr from grupper where id = '$id' and art = 'RA'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$preNo = $r['kodenr'] -1;
+	$preNo = (int)$r['kodenr'];
 	if ($preNo) {
 		$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -313,6 +314,7 @@ if ($id > 0) {
 		}
 	}
 } else {
+	// Create a new fical year
 #	Print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 #	print "<BODY onLoad=\"javascript:velkommen=window.open('velkommen.html','velkommen','".$jsvars."';) velkommen.focus();\";"
 	print "<BODY onLoad=\"javascript:docChange = true;\">";
@@ -323,6 +325,7 @@ if ($id > 0) {
 	}
 	$query = db_select("select * from grupper where art = 'RA' and kodenr='$x'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
+		// Create the next fiscal year using last year as month values
 		$x++;
 		if ($row['box3']==12) {
 			$startmd  = 1;
@@ -335,16 +338,19 @@ if ($id > 0) {
 		$slutaar = $row['box4']+1;
 		$deleted = $row['box10'];
 	} else {
-		$beskrivelse = date(Y);
-		$startaar    = date(Y);
+		// Create the first year with sensable defaults
+		$beskrivelse = date('Y');
+		$startaar    = date('Y');
 		$startmd     = '01';
-		$slutaar     = date(Y);
+		$slutaar     = date('Y');
 		$slutmd      = '12';
 		$aaben       = 'on';
 	}
 
-	if ($x==0) year1($id, 1, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager);
-	else {
+	if ($x==0) {
+		include_once("fiscalYearInc/year1.php");
+		year1($id, 1, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager);
+	} else {
 		include_once("fiscalYearInc/yearX.php");
 		yearX($id, $x, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager);
 	}

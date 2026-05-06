@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- debitor/pos_ordre_includes/posTxtPrint/setTextVar.php --- lap 3.8.9----2020.02.11-------
+// --- debitor/pos_ordre_includes/posTxtPrint/setTextVar.php --- lap 4.1.1 --- 2025.10.07 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,13 +23,15 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2020 saldi.dk aps
+// Copyright (c) 2004-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20190705 LN Handle txt variables
 // 20200211 PHR	Corrected error in parameters 
 
-    $sum+=$moms;
+// this file is called from postTxtPrintFunc.php
+
+  $sum+=$moms;
 	if ($konto_id) {
 		if (!$x) $indbetaling=$sum;
 		$gl_saldo=dkdecimal($betaling2,2);
