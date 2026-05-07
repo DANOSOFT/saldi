@@ -1,9 +1,4 @@
 <?php
-// --- includes/emballage_schema.php ---
-// Ensures the packaging-tax (emballage) schema is in place: emballage,
-// emballage_cat, and the adresser.enduser_type column. Idempotent — safe
-// to call from any page that touches the packaging module.
-
 function ensure_emballage_schema() {
 	$q = db_select("SELECT table_name FROM information_schema.tables WHERE table_name='emballage'", __FILE__ . " linje " . __LINE__);
 	if (!db_fetch_array($q)) {
