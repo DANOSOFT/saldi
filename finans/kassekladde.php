@@ -3343,7 +3343,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		#if ($sletrest) $bilag='-';
 		if ($bilag && $bilag != '0' && substr($bilag, -1) != 'r' && $bilag != '-') {
 			$bilag = (int) $bilag; 	//20160909 undtaget * til bilagsrenum
-		#}
+		}
 		$debet = trim($debet);
 		$kredit = trim($kredit);
 		if (($bilag != "-") && (($bilag) || ($beskrivelse) || ($kredit) || ($debet) || ($faktura) || ($belob))) {
