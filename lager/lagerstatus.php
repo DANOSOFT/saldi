@@ -249,7 +249,7 @@ print "<tr><td width=8%>".findtekst('917|Varenr.', $sprog_id).".</td><td width=5
 if ($csv) {
 	$fp=fopen("../temp/$db/lagerstatus.csv","w");
 	$linje="Varenr".";"."Enhed".";"."Beskrivelse".";"."Købt".";"."Solgt".";"."Antal".";"."Købspris".";"."Kostpris".";"."Salgspris";
-	$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
+#	$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 	fwrite($fp,"$linje\n");
 }
  
@@ -420,7 +420,7 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		<td align=right>".dkdecimal($salgspris[$x]*$batch_t_antal[$x])."<br></td></tr>";
 		if ($csv) {
 			$linje="$varenr[$x]".";"."$enhed[$x]".";"."$beskrivelse[$x]".";"."$batch_k_antal[$x]".";"."$batch_s_antal[$x]".";".$batch_t_antal[$x].";".dkdecimal($batch_pris[$x]).";".dkdecimal($kostpris[$x]*$batch_t_antal[$x]).";".dkdecimal($salgspris[$x]*$batch_t_antal[$x]);
-			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
+#			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			fwrite($fp,"$linje\n");
 		}
 		$lagervalue=$lagervalue+$batch_pris[$x];$kostvalue=$kostvalue+$kostpris[$x]*$batch_t_antal[$x]; $salgsvalue=$salgsvalue+($salgspris[$x]*$batch_t_antal[$x]);

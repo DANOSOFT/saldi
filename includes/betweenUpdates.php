@@ -31,10 +31,12 @@
 // 20260512 NTR Merged Live/POS into prod_test
 // 20260517 NTR Fixed crittical error when trying to migrate delivery_addresses data (again)
 
-
-
-$qtxt = "CREATE SEQUENCE IF NOT EXISTS regnskab_id_seq";
+$qtxt = "update grupper set box8 = '' where art = 'DIV' and kodenr = '2' and box8 like 'ftp2.ebconnect.dk%'";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+$qtxt = "update varer set lukket = '0' where lukket is NULL";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
 
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'provision'";
