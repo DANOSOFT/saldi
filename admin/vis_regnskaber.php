@@ -24,6 +24,7 @@ $s_id=session_id();
 // 20210916 LOE Translated some texts
 // 20250201 Add hostname to psql
 // 20250503 LOE Updated with improved if_isset func.
+// 20260507 CL/PHR Blå topline med hvid tekst. Admin Panel link styres af settings.useAdminPanel. Fjernet apostroffer fra Vis/Skjul Luk.
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -92,34 +93,40 @@ if (isset($_POST['submit'])) {
 	$qtxt="update regnskab set lukket='' where lukket is NULL";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
+$vr_topStyle = "background-color:#2563eb;color:#ffffff;border:0;padding:2px 6px;border-radius:5px;";
+$vr_btnStyle = "background-color:#1d4ed8;color:#ffffff;border:0;border-radius:5px;";
+$vr_topBund  = "style=\"background-color:#2563eb;color:#ffffff;padding:2px 6px;text-decoration:none;\" align=\"center\"";
+$r_ap = db_fetch_array(db_select("select var_value from settings where var_name='useAdminPanel'", __FILE__ . " linje " . __LINE__));
+$showAdminPanel = ($r_ap && $r_ap['var_value']) ? true : false;
+
 if (isset($menu) && $menu=='S') {
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 	print "<tr><td align='center' valign='top' height='25px'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
 	print "<td width='10%'><a href=../index/admin_menu.php accesskey=L>
-		    <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		    <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
-	print "<td width='80%' align='center' style='$topStyle'>".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
-	print "<td width='5%' align = 'center' style='$topStyle'>";
+	print "<td width='80%' align='center' style='$vr_topStyle'>".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
+	print "<td width='5%' align = 'center' style='$vr_topStyle'>";
 
 	if ($showClosed) {
 		print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('1906|Skjul \'Luk\'', $sprog_id)."</button></a>";#Skjul Luk
+			   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   .findtekst('1906|Skjul Luk', $sprog_id)."</button></a>";#Skjul Luk
 	} else {
 		print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('1907|Vis \'Luk\'', $sprog_id)."</button></a>";#Vis Luk
+			   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   .findtekst('1907|Vis Luk', $sprog_id)."</button></a>";#Vis Luk
 	}
-	print "</td><td align='center' style='$topStyle'>";
+	print "</td><td align='center' style='$vr_topStyle'>";
 
 	if ($rediger) {
 		print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' >
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('1908|Lås', $sprog_id)."</button></a>"; #Lås
+			   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('1908|Lås', $sprog_id)."</button></a>"; #Lås
 	} else {
 		print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('1206|Ret', $sprog_id)."</button></a>";#Ret
+			   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('1206|Ret', $sprog_id)."</button></a>";#Ret
 	}
 	print "</td>";
 	print "</tbody></table>";
@@ -131,15 +138,15 @@ if (isset($menu) && $menu=='S') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\" valign=\"top\" height=\"25px\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=../index/admin_menu.php accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
-	print "<td width=\"75%\" $top_bund align=\"center\">".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
-	print "<td width='5%' $top_bund><a href='admin_panel.php'>Admin Panel</a></td>";
-	print "<td width=\"5%\" $top_bund align = \"center\">";
-	if ($showClosed) print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>".findtekst('1906|Skjul \'Luk\'', $sprog_id)." </a>";#Skjul Luk
-	else print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>".findtekst('1907|Vis \'Luk\'', $sprog_id)." </a>";#Vis Luk
-	print "</td><td $top_bund align = \"center\">";
-	if ($rediger) print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' > ".findtekst('1908|Lås', $sprog_id)."</a>"; #Lås
-	else print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R> ".findtekst('1206|Ret', $sprog_id)."</a>";#Ret
+	print "<td width=\"10%\" $vr_topBund><a href=../index/admin_menu.php accesskey=L style='color:#ffffff;'>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+	print "<td width=\"75%\" $vr_topBund align=\"center\">".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
+	if ($showAdminPanel) print "<td width='5%' $vr_topBund><a href='admin_panel.php' style='color:#ffffff;'>Admin Panel</a></td>";
+	print "<td width=\"5%\" $vr_topBund align = \"center\">";
+	if ($showClosed) print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger' style='color:#ffffff;'>".findtekst('1906|Skjul Luk', $sprog_id)." </a>";#Skjul Luk
+	else print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on' style='color:#ffffff;'>".findtekst('1907|Vis Luk', $sprog_id)." </a>";#Vis Luk
+	print "</td><td $vr_topBund align = \"center\">";
+	if ($rediger) print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' style='color:#ffffff;'> ".findtekst('1908|Lås', $sprog_id)."</a>"; #Lås
+	else print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R style='color:#ffffff;'> ".findtekst('1206|Ret', $sprog_id)."</a>";#Ret
 	print "</td>";
 	print "</tbody></table>";
 	print "</td></tr>";
