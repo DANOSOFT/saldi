@@ -3259,7 +3259,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $debetvat, $kreditvat, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {
 		global $baseCurrency,$bilagscount,$bilagsrenum;
 		global $connection;
-		global $debitornr;
 		global $fejl;
 		global $find;
 		global $fokus;
@@ -3274,7 +3273,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $aarslut;
 
 		$lukket = NULL;
-		if (!$debitornr) $debitornr = array();
 
 		if ($kladde_id) {
 			$qtxt = "select bogfort from kladdeliste where id = $kladde_id";
@@ -3311,31 +3309,21 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		#if ($sletrest) $bilag='-';
 		if ($bilag && $bilag != '0' && substr($bilag, -1) != 'r' && $bilag != '-')
 			$bilag = (int) $bilag; 	//20160909 undtaget * til bilagsrenum
+		}
 		$debet = trim($debet);
 		$kredit = trim($kredit);
 		if (($bilag != "-") && (($bilag) || ($beskrivelse) || ($kredit) || ($debet) || ($faktura) || ($belob))) {
-			if ((!$bilag) && ($bilag != '0'))
-				$bilag = $prebilag;
-			if (!$bilag)
-				$bilag = '0';
-			if ((strstr($d_type, "d")) || (strstr($d_type, "D")))
-				$d_type = "D";
-			elseif ((strstr($d_type, "k")) || (strstr($d_type, "K")))
-				$d_type = "K";
-			else {
-				$d_type = "F";
-			}
+			if ((!$bilag) && ($bilag != '0')) $bilag = $prebilag;
+			if (!$bilag) $bilag = '0';
+			if ((strstr($d_type, "d")) || (strstr($d_type, "D"))) $d_type = "D";
+			elseif ((strstr($d_type, "k")) || (strstr($d_type, "K"))) $d_type = "K";
+			else $d_type = "F";
 
-			if ((strstr($k_type, "d")) || (strstr($k_type, "D")))
-				$k_type = "D";
-			elseif ((strstr($k_type, "k")) || (strstr($k_type, "K")))
-				$k_type = "K";
-			else
-				$k_type = "F";
-			if (!$debet)
-				$debet = 0;
-			if (!$kredit)
-				$kredit = 0;
+			if ((strstr($k_type, "d")) || (strstr($k_type, "D"))) $k_type = "D";
+			elseif ((strstr($k_type, "k")) || (strstr($k_type, "K"))) $k_type = "K";
+			else $k_type = "F";
+			if (!$debet) $debet = 0;
+			if (!$kredit) $kredit = 0;
 			if (!$lukket) {
 				$lukket = array();
 				$y = 0;
@@ -3352,8 +3340,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 	
 			if (($d_type == "D") || ($k_type == "D") || ($d_type == "K") || ($k_type == "K")) {
-				$z = 0;
-				$y = 0;
+				$y = $z = 0; 
+				$debitornr = $kreditornr = array();
 				$query = db_select("select kontonr, art from adresser", __FILE__ . " linje " . __LINE__);
 				while ($row = db_fetch_array($query)) {
 					if (strstr($row['art'], "D")) {
