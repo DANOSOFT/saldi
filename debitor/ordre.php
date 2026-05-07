@@ -3113,7 +3113,7 @@ if (strstr($b_submit, 'Lev') && $bogfor != 0 && $status < 3) {
 			$fast_db[$x]    = $r['fast_db'];
 			$lev_varenr[$x] = $r['lev_varenr'];
 		}
-*/
+	*/
 	$q = db_select("select * from ordrelinjer where ordre_id = '$id' order by posnr,id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
