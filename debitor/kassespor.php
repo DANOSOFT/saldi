@@ -632,40 +632,40 @@ $total_gross_profit = 0;
 						$retursum+=$retur;
 	
 					$q_dg = db_fetch_array(db_select("
-			SELECT
-			COALESCE(SUM(pris * antal), 0) AS total_sales,
-			COALESCE(SUM(
-			    CASE 
-			    WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
-			    ELSE (pris * rabat / 100) * antal
-			    END
-			), 0) AS discount,
-			COALESCE(SUM(kostpris * antal), 0) AS kostpris,
-			COALESCE(SUM(
-			    (
-			    pris - 
-			    CASE 
-			        WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
-			        ELSE (pris * rabat / 100)
-			    END
-			    - kostpris
-			    ) * antal
-			), 0) AS dg
-			FROM ordrelinjer
-			WHERE ordre_id = '{$id[$x]}'
-			  AND NOT (pris = 0 AND kostpris > 0)
-			", __FILE__ . ' linje ' . __LINE__));
-
-        $discount_val = $q_dg['discount'];
-        $gross_profit_val = $q_dg['dg'];
-        $net_sales = $q_dg['total_sales'] - $q_dg['discount'];
-        $dg_percent = 0;
-        if ($net_sales > 0) {
-            $dg_percent = ($gross_profit_val / $net_sales) * 100;
-        }
-
-        print "<td align=right>".dkdecimal($discount_val, 2)."<br></td>\n";
-        print "<td align=right>" . dkdecimal($dg_percent, 2) . " %</td>\n";
+						SELECT
+						COALESCE(SUM(pris * antal), 0) AS total_sales,
+						COALESCE(SUM(
+						    CASE 
+						    WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
+						    ELSE (pris * rabat / 100) * antal
+						    END
+						), 0) AS discount,
+						COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+						COALESCE(SUM(
+						    (
+						    pris - 
+						    CASE 
+						        WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
+						        ELSE (pris * rabat / 100)
+						    END
+						    - kostpris
+						    ) * antal
+						), 0) AS dg
+						FROM ordrelinjer
+						WHERE ordre_id = '{$id[$x]}'
+						  AND NOT (pris = 0 AND kostpris > 0)
+						", __FILE__ . ' linje ' . __LINE__));
+			
+			        $discount_val = $q_dg['discount'];
+			        $gross_profit_val = $q_dg['dg'];
+			        $net_sales = $q_dg['total_sales'] - $q_dg['discount'];
+			        $dg_percent = 0;
+			        if ($net_sales > 0) {
+			            $dg_percent = ($gross_profit_val / $net_sales) * 100;
+			        }
+			
+			        print "<td align=right>".dkdecimal($discount_val, 2)."<br></td>\n";
+			        print "<td align=right>" . dkdecimal($dg_percent, 2) . " %</td>\n";
 					} else {
 						print "<td align=right><br></td>\n";
 					}
