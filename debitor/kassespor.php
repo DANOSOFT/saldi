@@ -545,38 +545,37 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 		$dkksum[$x]=dkdecimal($sum[$x]+$moms[$x],2);
 	
 
-					$q_dg = db_fetch_array(db_select("
-					SELECT
-					COALESCE(SUM(pris * antal), 0) AS total_sales,
-					COALESCE(SUM(
-						CASE 
-						WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
-						ELSE (pris * rabat / 100) * antal
-						END
-					), 0) AS discount,
-					COALESCE(SUM(kostpris * antal), 0) AS kostpris,
-					COALESCE(SUM(
-						(
-						pris - 
-						CASE 
-							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
-							ELSE (pris * rabat / 100)
-						END
-						- kostpris
-						) * antal
-					), 0) AS dg
-					FROM ordrelinjer
-					WHERE ordre_id = '{$id[$x]}'
-
-			        ", __FILE__ . ' linje ' . __LINE__));
-
-                    $discount[$x] = $q_dg['discount'];
-					$gross_profit[$x] = $q_dg['dg'];
-					$kostpris[$x] = $q_dg['kostpris'];
-                    $total_discount += $discount[$x];
-				    $total_gross_profit += $gross_profit[$x];
-
-
+		$q_dg = db_fetch_array(db_select(<<<qtxt
+			SELECT
+			COALESCE(SUM(pris * antal), 0) AS total_sales,
+			COALESCE(SUM(
+			    CASE 
+			    WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
+			    ELSE (pris * rabat / 100) * antal
+			    END
+			), 0) AS discount,
+			COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+			COALESCE(SUM(
+			    (
+			    pris - 
+			    CASE 
+			        WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
+			        ELSE (pris * rabat / 100)
+			    END
+			    - kostpris
+			    ) * antal
+			), 0) AS dg
+			FROM ordrelinjer
+			WHERE ordre_id = '{$id[$x]}'
+			  AND NOT (pris = 0 AND kostpris > 0)
+		qtxt,
+			__FILE__ . ' linje ' . __LINE__));
+		
+		$discount[$x] = $q_dg['discount'];
+		$gross_profit[$x] = $q_dg['dg'];
+		$kostpris[$x] = $q_dg['kostpris'];
+		$total_discount += $discount[$x];
+		$total_gross_profit += $gross_profit[$x];
 		$x++;
 	}
 	for ($x=0;$x<count($id);$x++) {
@@ -668,32 +667,33 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						print "<td align=right>".dkdecimal($retur,2)."<br></td>\n";
 						$retursum+=$retur;
 	
-						$q_dg = db_fetch_array(db_select("
-						SELECT
-						COALESCE(SUM(pris * antal), 0) AS total_sales,
-						COALESCE(SUM(
-							CASE 
-							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
-							ELSE (pris * rabat / 100) * antal
-							END
-						), 0) AS discount,
-						COALESCE(SUM(kostpris * antal), 0) AS kostpris,
-						COALESCE(SUM(
-							(
-							pris - 
-							CASE 
-								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
-								ELSE (pris * rabat / 100)
-							END
-							- kostpris
-							) * antal
-						), 0) AS dg
-						FROM ordrelinjer
-						WHERE ordre_id = '{$id[$x]}'
-						", __FILE__ . ' linje ' . __LINE__));
+						$q_dg = db_fetch_array(db_select(<<<SQL
+							SELECT
+							COALESCE(SUM(pris * antal), 0) AS total_sales,
+							COALESCE(SUM(
+							    CASE 
+							    WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
+							    ELSE (pris * rabat / 100) * antal
+							    END
+							), 0) AS discount,
+							COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+							COALESCE(SUM(
+							    (
+							    pris - 
+							    CASE 
+							        WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
+							        ELSE (pris * rabat / 100)
+							    END
+							    - kostpris
+							    ) * antal
+							), 0) AS dg
+							FROM ordrelinjer
+							WHERE ordre_id = '{$id[$x]}'
+						  	AND NOT (pris = 0 AND kostpris > 0)
+						SQL,
+							__FILE__ . ' linje ' . __LINE__));
 
-						$discount_val = $q_dg['discount'];	
-						$gross_profit_val = $q_dg['dg'];
+						$discount_val = $q_dg['discount'];
 						
 						if ($rabat_varenr && $vis_saet) {
 								$q_rabat = db_fetch_array(db_select(
