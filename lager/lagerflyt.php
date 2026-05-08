@@ -71,13 +71,18 @@ transaktion("begin");
 		$sum=0;
 		$nyt_antal=$antal;
 		$dd=date("Y-m-d");
-		$qtxt="select * from batch_kob where vare_id = '$vare_id' and lager = '$lager' and rest > '0' order by id";
+		$_flyt_due_date = NULL;
+		$_flyt_batch_no = NULL;
+		$qtxt="select * from batch_kob where vare_id = '$vare_id' and lager = '$lager' and rest > '0' order by " . fefo_order_clause();
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 		if ($nyt_antal*1){
 				$bk_pris[$x]=(float)$r['pris'];
 				$bk_rest[$x]=(float)$r['rest'];
 				$bk_id[$x]=(int)$r['id'];
+				// Carry earliest due_date and first batch_no for the new batch_kob record
+				if ($r['due_date'] && ($_flyt_due_date === NULL || $r['due_date'] < $_flyt_due_date)) $_flyt_due_date = $r['due_date'];
+				if ($_flyt_batch_no === NULL && $r['batch_no']) $_flyt_batch_no = $r['batch_no'];
 				if ($nyt_antal>=$bk_rest[$x]) {
 					$qtxt="update batch_kob set  rest = '0' where id='$bk_id[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -132,9 +137,11 @@ transaktion("begin");
 		}
 		*/
 		if ($nyt_antal) {
-			$qtxt="insert into batch_kob (kobsdate,fakturadate,vare_id,linje_id,ordre_id,pris,antal,lager,rest,variant_id)";
+			$_dd_sql = $_flyt_due_date ? "'" . pg_escape_string($_flyt_due_date) . "'" : "NULL";
+			$_bn_sql = $_flyt_batch_no ? "'" . pg_escape_string($_flyt_batch_no) . "'" : "NULL";
+			$qtxt="insert into batch_kob (kobsdate,fakturadate,vare_id,linje_id,ordre_id,pris,antal,lager,rest,variant_id,due_date,batch_no)";
 			$qtxt.=" values ";
-			$qtxt.="('$dd','$dd','$vare_id','0','0','$stkpris','$nyt_antal','$nyt_lager','$nyt_antal','$variant_id')";
+			$qtxt.="('$dd','$dd','$vare_id','0','0','$stkpris','$nyt_antal','$nyt_lager','$nyt_antal','$variant_id',$_dd_sql,$_bn_sql)";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		$qtxt="select beholdning from lagerstatus where vare_id=$vare_id and lager=$lager and variant_id = '$variant_id'";

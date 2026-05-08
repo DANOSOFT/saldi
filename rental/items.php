@@ -16,7 +16,7 @@
     $steps = array();
     $steps[] = array(
         "selector" => ".table",
-        "content" => "Her kan du se en liste over de varer, du har sat til udlejning. Klik på 'Rediger' for at oprette stande under de enkelte varer."
+        "content" => findtekst('2666|Her kan du se en liste over de varer, du har sat til udlejning. Klik på \'Rediger\' for at oprette stande under de enkelte varer.', $sprog_id)
     );
     ?>
         <div class="width-80">

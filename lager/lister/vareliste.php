@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.1 --- 2025.05.26 ---
+// ---- index/main.php --- lap 5.0.0 --- 2026.04.15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2025 saldi.dk aps
+// Copyright (c) 2024-2026 saldi.dk aps 
 // ----------------------------------------------------------------------
-// 17042024 MMK  - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
-// 17102024 PBLM - Added link to booking
-// 26052025 LOE  - Sets v.lukket to '' instead of v.lukket.
+// 20240417 MMK  - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
+// 20241017 PBLM - Added link to booking
+// 20250526 LOE  - Sets v.lukket to '' instead of v.lukket.
+// 20250617 PBLM - Fixed bug where you could not search for leverandør in vareliste.
+// 20260213 LOE  - Added returside as variable used in topLineVarer.php and optimized search with supplied varenr.
+// 20260415 LOE  - Added Categories column with search functionality in vareliste. 
 
 @session_start();
 $s_id = session_id();
@@ -38,6 +41,7 @@ include("../../includes/online.php");
 include("../../includes/stdFunc/dkDecimal.php");
 
 $valg = "Vareliste";
+$returside = if_isset($_GET,  get_relative()."index/menu.php", "returside");
 include("topLineVarer.php");
 // Performance logging
 $start_time = microtime(true);
@@ -78,8 +82,48 @@ $columns[] = array(
         $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },
-    "sqlOverride" => "v.varenr"
+    "sqlOverride" => "v.varenr",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        // Split search term into words and match all words
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "(v.varenr ILIKE '%$word%' OR v.varenr_alias ILIKE '%$word%' OR stregkode ILIKE '%$word%')";
+            }
+        }
+        return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
+    },
 );
+
+$columns[] = array(
+    "field" => "varenr_alias",
+    "headerName" => "Vare Nr. (alias)",
+    "render" => function ($value, $row, $column) {
+        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+
+        $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
+        return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
+    },
+    "sqlOverride" => "v.varenr",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        // Split search term into words and match all words
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "(v.varenr ILIKE '%$word%' OR v.varenr_alias ILIKE '%$word%')";
+            }
+        }
+        return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
+    },
+    "hidden" => true,
+);
+
 $columns[] = array(
     "field" => "beskrivelse",
     "headerName" => "Navn",
@@ -90,8 +134,49 @@ $columns[] = array(
         $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
     },
-    "sqlOverride" => "v.beskrivelse"
+    "sqlOverride" => "v.beskrivelse",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        // Split search term into words and match all words
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "(v.beskrivelse ILIKE '%$word%' OR v.beskrivelse_alias ILIKE '%$word%')";
+            }
+        }
+        return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
+    },
 );
+
+$columns[] = array(
+    "field" => "beskrivelse_alias",
+    "headerName" => "Navn (alias)",
+    "width" => "3",
+    "render" => function ($value, $row, $column) {
+        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+
+        $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
+        return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
+    },
+    "sqlOverride" => "v.beskrivelse",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        // Split search term into words and match all words
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "(v.beskrivelse ILIKE '%$word%' OR v.beskrivelse_alias ILIKE '%$word%')";
+            }
+        }
+        return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
+    },
+    "hidden" => true,
+);
+
 $columns[] = array(
     "field" => "trademark",
     "headerName" => "Varemærke",
@@ -132,7 +217,7 @@ $columns[] = array(
     "field" => "leverandør",
     "headerName" => "Leverandør",
     "width" => "1.5",
-    "sqlOverride" => "levs.lev",
+    "sqlOverride" => "ol.lev", // Fixed: changed from "levs.lev" to "ol.lev"
     "render" => function ($value, $row, $column) {
         $html = "<td align='$column[align]'>";
         if ($value) {
@@ -147,10 +232,54 @@ $columns[] = array(
     },
 );
 $columns[] = array(
+    "field" => "lev_varenr",
+    "headerName" => "Lev. varenr",
+    "width" => "1",
+    "sqlOverride" => "ol.lev_varenr",
+    "render" => function ($value, $row, $column) {
+        $html = "<td align='$column[align]'>";
+        if ($value) {
+            foreach (explode("\n", $value) as $nr) {
+                if (trim($nr) !== '') {
+                    $html .= "<span>" . trim($nr) . "</span><br>";
+                }
+            }
+        }
+        $html .= "</td>";
+        return $html;
+    },
+);
+$columns[] = array(
     "field" => "enhed",
     "headerName" => "Enhed",
     "width" => "0.5",
-    "sqlOverride" => "v.enhed"
+    "sqlOverride" => "v.enhed" 
+);
+$columns[] = array(
+    "field"      => "kategorier",
+    "headerName" => "Categories",
+    "width"      => "2",
+    "hidden"     => false,
+    "sqlOverride" => "(SELECT string_agg(g.box1, ', ' ORDER BY g.box1) FROM grupper g WHERE g.art = 'V_CAT' AND g.id::text = ANY(string_to_array(v.kategori, chr(9))))",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "EXISTS (
+                    SELECT 1 FROM grupper g 
+                    WHERE g.art = 'V_CAT' 
+                    AND g.id::text = ANY(string_to_array(v.kategori, chr(9)))
+                    AND g.box1 ILIKE '%$word%'
+                )";
+            }
+        }
+        return !empty($conditions)
+            ? "(" . implode(" AND ", $conditions) . ")"
+            : "1=1";
+    },
 );
 
 // Loop to generate lager fields (lager1, lager2, lager3, ...)
@@ -163,7 +292,7 @@ $lagere = array();
 $q = db_select($query, __FILE__ . " line " . __LINE__);
 while ($row = db_fetch_array($q)) {
     $SQLLagerFetch .= "COALESCE(ls$row[kodenr].beholdning, 0) AS lager$row[kodenr],\n";
-    $SQLLagerJoin .= "LEFT JOIN lagerstatus ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
+    $SQLLagerJoin .= "LEFT JOIN lagerstatus_grouped ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
     $lagere[] = "lager" . $row['kodenr'];
 
     $columns[] = array(
@@ -286,6 +415,7 @@ $filters[] = array(
     "joinOperator" => "or",
     "options" => $VGs
 );
+
 log_performance("Varegrupper filter query", $varegrupper_start);
 
 $leverandor_start = microtime(true);
@@ -303,7 +433,7 @@ while ($row = db_fetch_array($q)) {
     $levs[] = array(
         "name" => $row["firmanavn"],
         "checked" => "",
-        "sqlOn" => "ol.kontonr_concat LIKE '%$row[kontonr]%'", // Use optimized_levs alias
+        "sqlOn" => "ol.kontonr_concat = '$row[kontonr]'", // Fixed: changed from levs.lev to ol.kontonr_concat
         "sqlOff" => "",
     );
 }
@@ -312,6 +442,7 @@ $filters[] = array(
     "joinOperator" => "or",
     "options" => $levs
 );
+
 log_performance("Leverandøre filter query", $leverandor_start);
 
 // Misc
@@ -334,31 +465,42 @@ $data_start = microtime(true);
 $data = array(
     "table_name" => "varer",
     "query" => "WITH optimized_levs AS (
-    -- Simplified supplier aggregation - only when needed
-    SELECT 
-        vl.vare_id, 
+    SELECT
+        vl.vare_id,
         string_agg(a.kontonr::TEXT, ' ') AS kontonr_concat,
-        string_agg(a.id || '\t' || a.kontonr::TEXT || '\t' || a.firmanavn, '\n') AS lev
-    FROM 
+        string_agg(a.id || '\t' || a.kontonr::TEXT || '\t' || a.firmanavn, '\n') AS lev,
+        string_agg(COALESCE(vl.lev_varenr, ''), '\n') AS lev_varenr
+    FROM
         vare_lev vl
-    LEFT JOIN 
+    LEFT JOIN
         adresser a ON vl.lev_id = a.id AND a.art = 'K'
-    GROUP BY 
+    GROUP BY
         vl.vare_id
 ),
 lager_totals AS (
-    -- Single calculation of lager totals
+    -- Single calculation of lager totals 
     SELECT 
         vare_id,
         SUM(beholdning) AS lager_total
     FROM lagerstatus
     GROUP BY vare_id
+),
+lagerstatus_grouped AS (
+    -- Group lagerstatus by vare_id and lager to avoid duplicates
+    SELECT 
+        vare_id, 
+        lager, 
+        SUM(beholdning) AS beholdning
+    FROM lagerstatus
+    GROUP BY vare_id, lager
 )
-SELECT 
+SELECT DISTINCT
     v.id AS id,                     
-    v.varenr AS varenr,             
+    v.varenr AS varenr,
+    v.varenr_alias AS varenr_alias,
     v.lukket AS lukket,             
-    v.beskrivelse AS beskrivelse,   
+    v.beskrivelse AS beskrivelse,
+    v.beskrivelse_alias AS beskrivelse_alias,
     v.trademark AS trademark,       
     v.stregkode AS stregkode,       
     v.enhed AS enhed,               
@@ -368,7 +510,13 @@ SELECT
     $SQLLagerFetch
     COALESCE(lt.lager_total, 0) AS lager_total,  
     v.salgspris AS salgspris,       
-    v.kostpris AS kostpris,         
+    v.kostpris AS kostpris, 
+    (
+    SELECT string_agg(g.box1, ', ' ORDER BY g.box1)
+    FROM grupper g
+    WHERE g.art = 'V_CAT'
+    AND g.id::text = ANY(string_to_array(v.kategori, chr(9)))
+    ) AS kategorier,    
     CASE 
         WHEN v.salgspris = 0 THEN 0  
         ELSE (v.salgspris - v.kostpris) / v.salgspris * 100  
@@ -386,7 +534,8 @@ SELECT
         WHEN vg.box7 = 'on' THEN v.salgspris  
         ELSE (100 + sm.box2::float) / 100 * v.salgspris  
     END AS momspris,                  
-    ol.lev as leverandør                          
+    ol.lev as leverandør,
+    ol.lev_varenr as lev_varenr
 FROM varer v
 $SQLLagerJoin
 LEFT JOIN lager_totals lt ON v.id = lt.vare_id  -- Use optimized CTE
@@ -401,7 +550,7 @@ LEFT JOIN grupper sm
     AND sm.fiscal_year = $regnaar 
     AND sm.art = 'SM'
 LEFT JOIN optimized_levs ol ON v.id = ol.vare_id  -- Use optimized CTE
-WHERE {{WHERE}}  
+WHERE {{WHERE}} 
 ORDER BY {{SORT}}
 ",
 
@@ -418,7 +567,29 @@ ORDER BY {{SORT}}
 );
 
 log_performance("Data array configuration completed", $data_start);
+####################
+$initial_search = array();
+// Only use varenr GET param as initial search when NOT returning from varekort.
+// When returning from varekort, vare_id is set in the URL and the stored DB search should be preserved.
+if (isset($_GET['varenr']) && !empty($_GET['varenr']) && !isset($_GET['vare_id'])) {
+    $varenr_param = trim($_GET['varenr']);
+    $initial_search['varenr'] = $varenr_param;
+}
 
+// Merge with any existing search parameters
+if (isset($_GET['search']['varelst' . $vatOnItemCard])) {
+    $initial_search = array_merge(
+        $initial_search,
+        $_GET['search']['varelst' . $vatOnItemCard]
+    );
+}
+
+// Set the search parameter if we have initial search values
+if (!empty($initial_search)) {
+    $_GET['search']['varelst' . $vatOnItemCard] = $initial_search;
+}
+
+################
 $grid_render_start = microtime(true);
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid("varelst$vatOnItemCard", $data);
@@ -428,29 +599,29 @@ log_performance("Grid rendering completed", $grid_render_start);
 $steps = array();
 $steps[] = array(
     "selector" => ".navbtn-top",
-    "content" => "<b>Vareliste:</b> Den liste du ser forneden.<br><br><b>Ordrevisning:</b> Se, hvilke ordrer dine varer indgår i.<br><br><b>Indkøb:</b> Opret hurtigt indkøbslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administration af serienummer-varer."
+    "content" => findtekst('2639|Vareliste: Den liste du ser forneden. Ordrevisning: Se, hvilke ordrer dine varer indgår i. Indkøb: Opret hurtigt indkøbslister automatisk eller manuelt. Serienumre: Sporing og administration af serienummer-varer', $sprog_id)
 );
 $steps[] = array(
     "selector" => "#create-new",
-    "content" => "Klik her for at oprette en ny vare."
+    "content" => findtekst('2640|Klik her for at oprette en ny vare', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".varenr,.beskrivelse",
-    "content" => "Din vareliste vises her. Klik på et varenummer for at åbne det."
+    "content" => findtekst('2641|Din vareliste vises her. Klik på et varenummer for at åbne det.', $sprog_id)
 );
 if ($lagere) {
     $steps[] = array(
         "selector" => "." . implode(",.", $lagere),
-        "content" => "Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerværdier"
+        "content" => findtekst('2642|Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerenheder', $sprog_id)."."
     );
 }
 $steps[] = array(
     "selector" => ".lager_total",
-    "content" => "Søg på lagerbeholdning. For eksempel:<br><b>'10'</b> - Vis varer med præcis 10 på lager.<br><b>'1:10'</b> - Vis varer med lager mellem 1 og 10."
+    "content" => findtekst('2643|Søg på lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellem 1 og 10.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".dg",
-    "content" => "Undersøg dækningsgraden for dine vare, for at finde eventuelle optimeringer."
+    "content" => findtekst('2644|Undersøg dækningsgraden for dine vare, for at finde eventuelle optimeringer', $sprog_id)."."
 );
 
 

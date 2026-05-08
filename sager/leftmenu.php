@@ -50,52 +50,52 @@ if (!isset($s_loendateTil)) $s_loendateTil = NULL;
 print "<div class=\"leftmenu\">";
 ################################## MENU SAGER ###############################
 	if ($menu_sager) {
-		print "<div class=\"leftmenuhead link\">Sagsliste</div>";
+		print "<div class=\"leftmenuhead link\">".findtekst('2955|Sagsliste', $sprog_id)."</div>";
 		print "<ul>";
 		if ($funktion=='opret_sag') { 
-			print "<li><a href=\"kunder.php?funktion=ret_kunde\">Opret kunde</a></li>";
-			print "<li><a href=\"sager.php\">Sagsliste</a></li>";
+			print "<li><a href=\"kunder.php?funktion=ret_kunde\">".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('35|Kunde', $sprog_id))."</a></li>"; #Opret kunde
+			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 		} elseif ($funktion=='ret_sag') {
-			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Retur til sag</a></li>";
-			print "<li><a href=\"planlaeg_sag.php?sag_id=$sag_id\">Planlægning sag</a></li>";
-			print "<li><a href=\"sager.php\">Sagsliste</a></li>";
+			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Retur til sag
+			print "<li><a href=\"planlaeg_sag.php?sag_id=$sag_id\">".findtekst('2983|Planlægning af sag', $sprog_id)."</a></li>";
+			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"sager.php?funktion=ny_kunde&amp;sag_id=$sag_id&amp;konto_id=$konto_id\">Ændre kunde</a></li>";
+			print "<li><a href=\"sager.php?funktion=ny_kunde&amp;sag_id=$sag_id&amp;konto_id=$konto_id\">".findtekst('2957|Ændr', $sprog_id)." ".lcfirst(findtekst('35|Kunde', $sprog_id))."</a></li>"; #Ændr kunde
 			print "<li><hr></li>";
-			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id\">Til akkordsedler</a></li>";
+			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2958|Akkordsedler', $sprog_id))."</a></li>"; #Til akkordsedler
 		} elseif ($funktion=='ret_opgave') {
 			$opgave_id=if_isset($_GET['opgave_id']);
-			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Retur til sag</a></li>";
-			print "<li><a href=\"planlaeg_sag.php?sag_id=$sag_id\">Planlægning sag</a></li>";
-			print "<li><a href=\"sager.php\">Sagsliste</a></li>";
+			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Retur til sag
+			print "<li><a href=\"planlaeg_sag.php?sag_id=$sag_id\">".findtekst('2983|Planlægning af sag', $sprog_id)."</a></li>";
+			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id&amp;opgave_id=$opgave_id\">Til akkordsedler</a></li>";
+			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id&amp;opgave_id=$opgave_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2958|Akkordsedler', $sprog_id))."</a></li>"; #Til akkordsedler
 		} elseif ($funktion=='vis_sag') {
-			print "<li><a href=\"sager.php?funktion=ret_opgave&amp;sag_id=$sag_id\">Opret opgave</a></li>";
-			print "<li><a href=\"planlaeg_sag.php?sag_id=$sag_id\">Planlægning sag</a></li>";
-			print "<li><a href=\"sager.php\">Sagsliste</a></li>";
+			print "<li><a href=\"sager.php?funktion=ret_opgave&amp;sag_id=$sag_id\">".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('2800|Opgave', $sprog_id))."</a></li>"; #Opret opgave
+			print "<li><a href=\"planlaeg_sag.php?sag_id=$sag_id\">".findtekst('2983|Planlægning af sag', $sprog_id)."</a></li>";
+			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id\">Til akkordsedler</a></li>";
+			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2958|Akkordsedler', $sprog_id))."</a></li>"; #Til akkordsedler
 		} elseif ($funktion=='kontrolskema') {
-			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Retur til sag</a></li>";
+			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Retur til sag
 			if (isset($_GET['opgave_id'])) {
 				$opgave_id = $_GET['opgave_id']; 
-				print "<li><a href=\"sager.php?funktion=ret_opgave&amp;sag_id=$sag_id&amp;opgave_id=$opgave_id\">Retur til opgave</a></li>";
+				print "<li><a href=\"sager.php?funktion=ret_opgave&amp;sag_id=$sag_id&amp;opgave_id=$opgave_id\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2800|Opgave', $sprog_id))."</a></li>"; #Retur til opgave
 			}
-			print "<li><a href=\"sager.php\">Sagsliste</a></li>";
+			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 		} elseif ($funktion=='kopi_ordre') {
-			if ($vis!='beregning') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=beregning&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">Vis beregning</a></li>";
-			if ($vis!='tilbud') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=tilbud&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">Vis tilbud</a></li>";
-			if ($vis!='aktiv') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=aktiv&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">Vis aktive</a></li>";
-			if ($vis!='afsluttede') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=afsluttede&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">Vis afsluttede</a></li>";
-			if ($vis!=NULL && $vis!='alle') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alle&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">Vis alle</a></li>";
+			if ($vis!='beregning') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=beregning&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2982|Beregning', $sprog_id))."</a></li>"; #Vis beregning
+			if ($vis!='tilbud') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=tilbud&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2770|Tilbud', $sprog_id))."</a></li>"; #Vis tilbud
+			if ($vis!='aktiv') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=aktiv&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2977|Aktive', $sprog_id))."</a></li>"; #Vis aktive
+			if ($vis!='afsluttede') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=afsluttede&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2978|Afsluttede', $sprog_id))."</a></li>"; #Vis afsluttede
+			if ($vis!=NULL && $vis!='alle') print "<li><a href=\"sager.php?funktion=kopi_ordre&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alle&amp;returside=ordre&amp;sag_id=$sag_id&amp;ordre_id=$ordre_id\">".findtekst('636|Vis alle', $sprog_id)."</a></li>";
 		} elseif ($funktion=='sag_kontakt') {
 			if(isset($_POST['konto_id'])) $konto_id = $_POST['konto_id'];
-			print "<li><a href=\"sager.php?funktion=ret_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\">Retur til saginfo</a></li>";
-			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Retur til sag</a></li>";
-			print "<li><a href=\"sager.php\">Sagsliste</a></li>";
+			print "<li><a href=\"sager.php?funktion=ret_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2960|Sagsinfo', $sprog_id))."</a></li>"; #Retur til sagsinfo
+			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Retur til sag
+			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id\">Til akkordsedler</a></li>";
+			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2958|Akkordsedler', $sprog_id))."</a></li>"; #Til akkordsedler
 		} elseif ($funktion=='akkordliste') {
 			if(isset($_POST['akkordfraSoeg'])) $akkordfraSoeg = $_POST['akkordfraSoeg'];
 			if(isset($_POST['akkordtilSoeg'])) $akkordtilSoeg = $_POST['akkordtilSoeg'];
@@ -103,13 +103,13 @@ print "<div class=\"leftmenu\">";
 			if (!$akkordfraSoeg) $akkordfraSoeg=if_isset($_GET['akkordfraSoeg']);
 			if (!$akkordtilSoeg) $akkordtilSoeg=if_isset($_GET['akkordtilSoeg']);
 			if (!$opg_id) $opg_id=if_isset($_GET['opg_id']);
-			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Retur til sag</a></li>";
-			print "<li><a href=\"sager.php\">Sagsliste</a></li>";
+			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Retur til sag
+			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id&amp;opgave_id=$opg_id&amp;loendate=$akkordfraSoeg&amp;loendateFra=$akkordfraSoeg&amp;loendateTil=$akkordtilSoeg\">Til akkordsedler</a></li>";
+			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id&amp;opgave_id=$opg_id&amp;loendate=$akkordfraSoeg&amp;loendateFra=$akkordfraSoeg&amp;loendateTil=$akkordtilSoeg\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2958|Akkordsedler', $sprog_id))."</a></li>"; #Til akkordsedler
 		} elseif ($funktion=='ny_kunde') {
-			print "<li><a href=\"sager.php?funktion=ret_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\">Retur til saginfo</a></li>";
-			print "<li><a href=\"sager.php\">Sagsliste</a></li>";
+			print "<li><a href=\"sager.php?funktion=ret_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2960|Sagsinfo', $sprog_id))."</a></li>"; #Retur til sagsinfo
+			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 			
 		} else {
 			$unsetsort=if_isset($_GET['unsetsort']);
@@ -133,46 +133,46 @@ print "<div class=\"leftmenu\">";
 			elseif (isset($_SESSION['aktivL'])      && $_SESSION['aktivL'])      $vis=$_SESSION['aktivL'];
 			elseif (isset($_SESSION['afsluttedeL']) && $_SESSION['afsluttedeL']) $vis=$_SESSION['afsluttedeL'];
 			
-			print "<li><a href=\"sager.php?funktion=opret_sag&amp;sag_id=\">Opret sag</a></li>";
+			print "<li><a href=\"sager.php?funktion=opret_sag&amp;sag_id=\">".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Opret sag
 			//if ($vis!='ordrebekraeftelse') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=ordrebekraeftelse\">Vis ordrebekræft.</a></li>";
-			if ($vis!='beregningL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=beregningL\">Vis beregning</a></li>";
-			if ($vis!='tilbudL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=tilbudL\">Vis tilbud</a></li>";
-			if ($vis!='aktivL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=aktivL\">Vis aktive</a></li>";
-			if ($vis!='afsluttedeL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=afsluttedeL\">Vis afsluttede</a></li>";
-			if ($vis!=NULL && $vis!='alleL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alleL\">Vis alle</a></li>";
+			if ($vis!='beregningL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=beregningL\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2982|Beregning', $sprog_id))."</a></li>"; #Vis beregning
+			if ($vis!='tilbudL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=tilbudL\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2770|Tilbud', $sprog_id))."</a></li>"; #Vis tilbud
+			if ($vis!='aktivL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=aktivL\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2977|Aktive', $sprog_id))."</a></li>"; #Vis aktive
+			if ($vis!='afsluttedeL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=afsluttedeL\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('2978|Afsluttede', $sprog_id))."</a></li>"; #Vis afsluttede
+			if ($vis!=NULL && $vis!='alleL') print "<li><a href=\"sager.php?funktion=sagsliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alleL\">".findtekst('636|Vis alle', $sprog_id)."</a></li>";
 		}
 		print "</ul>";
 ################################## MENU DAGBOG ###############################
 	} elseif ($menu_dagbog) {
-		print "<div class=\"leftmenuhead link\">Dagbog</div>";
+		print "<div class=\"leftmenuhead link\">".findtekst('2776|Dagbog', $sprog_id)."</div>";
 		print "<ul>";
-		if ($mine_notater) print "<li><a href=\"notat.php\">Alle notater</a></li>";
-		else print "<li><a href=\"notat.php?mine_notater=on\">Mine notater</a></li>";
-		print "<li><a href=\"notat.php?funktion=ret_note\">Nyt notat</a></li>";
-		if ($funktion=='find_person') print "<li><a href=\"notat.php?id=$id\">Til notat</a></li>";
-		if ($funktion=='ret_note'||$id) print "<li><a href=\"notat.php\">Notatliste</a></li>";
+		if ($mine_notater) print "<li><a href=\"notat.php\">".findtekst('2498|Alle', $sprog_id)." ".lcfirst(findtekst('2962|Notater', $sprog_id))."</a></li>"; #Alle notater
+		else print "<li><a href=\"notat.php?mine_notater=on\">".findtekst('2963|Mine', $sprog_id)." ".lcfirst(findtekst('2962|Notater', $sprog_id))."</a></li>"; #Mine notater
+		print "<li><a href=\"notat.php?funktion=ret_note\">".findtekst('2849|Nyt notat', $sprog_id)."</a></li>";
+		if ($funktion=='find_person') print "<li><a href=\"notat.php?id=$id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2881|Notat', $sprog_id))."</a></li>"; #Til notat
+		if ($funktion=='ret_note'||$id) print "<li><a href=\"notat.php\">".findtekst('2964|Notatliste', $sprog_id)."</a></li>";
 		print "</ul>";
 ################################## MENU KUNDER ###############################
 	} elseif ($menu_kunder) {
-		print "<div class=\"leftmenuhead link\">Kunder</div>";
+		print "<div class=\"leftmenuhead link\">".findtekst('991|Kunder', $sprog_id)."</div>";
 		print "<ul>";
-		if ($funktion=='kontrolskema') print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sagid\">Retur til sag</a></li>";
-		elseif ($funktion=='kundeliste') print "<li><a href=\"kunder.php?funktion=ret_kunde\">Opret kunde</a></li>";
+		if ($funktion=='kontrolskema') print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sagid\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Retur til sag
+		elseif ($funktion=='kundeliste') print "<li><a href=\"kunder.php?funktion=ret_kunde\">".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('35|Kunde', $sprog_id))."</a></li>"; #Opret kunde
 		elseif (strstr($funktion,'ret_kunde')) {
-			print "<li><a href=\"kunder.php?funktion=kundeliste\">Kundeliste</a></li>";
-			print "<li><a href=\"sager.php?funktion=ret_sag&amp;konto_id=$konto_id&amp;sag_id=0\">Opret sag</a></li>";
+			print "<li><a href=\"kunder.php?funktion=kundeliste\">".findtekst('2965|Kundeliste', $sprog_id)."</a></li>";
+			print "<li><a href=\"sager.php?funktion=ret_sag&amp;konto_id=$konto_id&amp;sag_id=0\">".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Opret sag
 		}
 		if ($funktion=='ret_kunde_ansat') {
-			print "<li><a href=\"kunder.php?funktion=ret_kunde&amp;konto_id=$konto_id&amp;sag_id=$sagid\">Retur til kundekort</a></li>";
+			print "<li><a href=\"kunder.php?funktion=ret_kunde&amp;konto_id=$konto_id&amp;sag_id=$sagid\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2961|Kundekort', $sprog_id))."</a></li>"; #Retur til kundekort
 		}
 		if ($sagid) {
 			print "<li><hr></li>";
-			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sagid\">Til sag</a></li>";
+			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sagid\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Til sag
 		}
 		print "</ul>";
 ##################################  MENU LOEN  ###############################
 	} elseif ($menu_loen) {
-	 print "<div class=\"leftmenuhead link\">Løn</div>";
+	 print "<div class=\"leftmenuhead link\">".findtekst('2784|Løn', $sprog_id)."</div>";
 		print "<ul>"; 
 		if ($funktion=='loenliste') {
 			
@@ -308,30 +308,30 @@ print "<div class=\"leftmenu\">";
 // Udbetalt 
 // Afviste 
 //	heunder perioder
-			print "<li><a href=\"loen.php?funktion=ret_loen&amp;id=0\">Ny lønseddel</a></li>";
-			if ($vis!='overforte') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=overforte\">Overførte sedler</a></li>";
-			if ($vis!='afviste') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=afviste\">Afviste sedler</a></li>";
-			if ($vis!='betalte') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=betalte\">Udbetalte</a></li>";
-			if ($vis!='godkendte') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=godkendte\">Til udbetaling</a></li>";
-			if ($vis!=NULL && $vis!='alle') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alle\">Vis alle</a></li>";
+			print "<li><a href=\"loen.php?funktion=ret_loen&amp;id=0\">".findtekst('39|Ny', $sprog_id)." ".lcfirst(findtekst('2971|Lønseddel', $sprog_id))."</a></li>"; #Ny lønseddel
+			if ($vis!='overforte') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=overforte\">".findtekst('2972|Overførte', $sprog_id)." ".lcfirst(findtekst('2973|Sedler', $sprog_id))."</a></li>"; #Overførte sedler
+			if ($vis!='afviste') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=afviste\">".findtekst('2974|Afviste', $sprog_id)." ".lcfirst(findtekst('2973|Sedler', $sprog_id))."</a></li>"; #Afviste sedler
+			if ($vis!='betalte') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=betalte\">".findtekst('2975|Udbetalte', $sprog_id)."</a></li>";
+			if ($vis!='godkendte') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=godkendte\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2976|Udbetaling', $sprog_id))."</a></li>"; #Til udbetaling
+			if ($vis!=NULL && $vis!='alle') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alle\">".findtekst('636|Vis alle', $sprog_id)."</a></li>";
 			if (substr($sag_rettigheder,6,1)) {
-				print "<li><a href=\"loen.php?funktion=loenafregning&amp;refresh=on\">Lønafregning</a></li>";
+				print "<li><a href=\"loen.php?funktion=loenafregning&amp;refresh=on\">".findtekst('2786|Lønafregning', $sprog_id)."</a></li>";
 #				print "<li><a href=\"loen.php?funktion=d_loenafregning\">Løn (datoindelt)</a></li>";
-				print "<li><a href=\"loen.php?funktion=satser\">Ret satser mm.</a></li>";
+				print "<li><a href=\"loen.php?funktion=satser\">".findtekst('1206|Ret', $sprog_id)." ".lcfirst(findtekst('2782|Satser', $sprog_id))." ".lcfirst(findtekst('2981|Mm.', $sprog_id))."</a></li>"; #Ret satser mm.
 			} else {
-				print "<li><a href=\"loen.php?funktion=loenafregning&amp;refresh=on\">Lønafregning</a></li>";
+				print "<li><a href=\"loen.php?funktion=loenafregning&amp;refresh=on\">".findtekst('2786|Lønafregning', $sprog_id)."</a></li>";
 			}
 			if (substr($sag_rettigheder,3,1)) {
 				print "<li><hr></li>";
-				print "<li><a href=\"ansatte.php\">Til ansatte</a></li>";
+				print "<li><a href=\"ansatte.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('1262|Ansatte', $sprog_id))."</a></li>"; #Til ansatte
 				if ($sag_id) {
-					print "<li id=\"sagidLink\"><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Til sag</a></li>";
+					print "<li id=\"sagidLink\"><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Til sag
 				}
 				if ($opgave_id) {
-					print "<li id=\"opgaveLink\"><a href=\"sager.php?funktion=ret_opgave&amp;sag_id=$sag_id&amp;opgave_id=$opgave_id\">Til opgave</a></li>";
+					print "<li id=\"opgaveLink\"><a href=\"sager.php?funktion=ret_opgave&amp;sag_id=$sag_id&amp;opgave_id=$opgave_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2800|Opgave', $sprog_id))."</a></li>"; #Til opgave
 				}
 				if ($loendate && $sag_id) {
-					print "<li id=\"akkordlisteLink\"><a href=\"sager.php?funktion=akkordliste&amp;sag_id=$sag_id&amp;opg_id=$opgave_id&amp;akkordfraSoeg=$loendateFra&amp;akkordtilSoeg=$loendateTil\">Til akkordlister</a></li>";
+					print "<li id=\"akkordlisteLink\"><a href=\"sager.php?funktion=akkordliste&amp;sag_id=$sag_id&amp;opg_id=$opgave_id&amp;akkordfraSoeg=$loendateFra&amp;akkordtilSoeg=$loendateTil\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2959|Akkordlister', $sprog_id))."</a></li>"; #Til akkordlister
 				}
 			}
 		} elseif ($funktion=='loenafregning') {
@@ -350,34 +350,34 @@ print "<div class=\"leftmenu\">";
 			//echo "ansatid: $ansatte_id<br>";
 			if (!$ansatte_id && (!$visalle=='on')) {
 				print "<span class=\"loenafregningVis\"><span>"; // Her bliver resultat fra ajax_loenafregning.php skrevet
-				print "<li><a href=\"loen.php?funktion=loenafregning&amp;periode=$periode&amp;alle_ansatte_id=$alle_ansatte_id\">Lønafregning (Timer)</a></li>";
-				print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=belob&amp;periode=$periode&amp;alle_ansatte_id=$alle_ansatte_id\">Lønafregning (Beløb)</a></li>";
-				if ($alle_ansatte_id && (!$refresh=='on') && (substr($sag_rettigheder,3,1))) print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=$vis&amp;alle_ansatte_id=".rtrim($alle_ansatte_id, ",")."&amp;periode=$periode&amp;visalle=on\">Lønopgørelse (Alle&nbsp;ansatte)</a></li>";
+				print "<li><a href=\"loen.php?funktion=loenafregning&amp;periode=$periode&amp;alle_ansatte_id=$alle_ansatte_id\">".findtekst('2786|Lønafregning', $sprog_id)." (".findtekst('2980|Timer', $sprog_id).")"."</a></li>"; #Lønafregning (Timer)
+				print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=belob&amp;periode=$periode&amp;alle_ansatte_id=$alle_ansatte_id\">".findtekst('2786|Lønafregning', $sprog_id)." (".findtekst('934|Beløb', $sprog_id).")"."</a></li>"; #Lønafregning (Beløb)
+				if ($alle_ansatte_id && (!$refresh=='on') && (substr($sag_rettigheder,3,1))) print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=$vis&amp;alle_ansatte_id=".rtrim($alle_ansatte_id, ",")."&amp;periode=$periode&amp;visalle=on\">".findtekst('2979|Lønopgørelse', $sprog_id)." (".findtekst('2498|Alle', $sprog_id)."&nbsp;".lcfirst(findtekst('1262|Ansatte', $sprog_id)).")"."</a></li>"; #Lønopgørelse (Alle ansatte)
 			} elseif ($visalle=='on') {
-				print "<li><a href=\"loen.php?funktion=loenafregning&amp;alle_ansatte_id=$alle_ansatte_id&amp;visalle=$visalle&amp;periode=$periode\">Lønafregning alle (Timer)</a></li>";
-				print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=belob&amp;alle_ansatte_id=$alle_ansatte_id&amp;visalle=$visalle&amp;periode=$periode\">Lønafregning alle (Beløb)</a></li>";
-				print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=$vis&amp;alle_ansatte_id=$alle_ansatte_id&amp;periode=$periode\">Lønafregning</a></li>";
+				print "<li><a href=\"loen.php?funktion=loenafregning&amp;alle_ansatte_id=$alle_ansatte_id&amp;visalle=$visalle&amp;periode=$periode\">".findtekst('2786|Lønafregning', $sprog_id).", ".lcfirst(findtekst('2498|Alle', $sprog_id))." (".findtekst('2980|Timer', $sprog_id).")"."</a></li>"; #Lønafregning, alle (Timer)
+				print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=belob&amp;alle_ansatte_id=$alle_ansatte_id&amp;visalle=$visalle&amp;periode=$periode\">".findtekst('2786|Lønafregning', $sprog_id).", ".lcfirst(findtekst('2498|Alle', $sprog_id))." (".findtekst('934|Beløb', $sprog_id).")"."</a></li>"; #Lønafregning, alle (Beløb)
+				print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=$vis&amp;alle_ansatte_id=$alle_ansatte_id&amp;periode=$periode\">".findtekst('2786|Lønafregning', $sprog_id)."</a></li>";
 			} else {
-				print "<li><a href=\"loen.php?funktion=loenafregning&amp;ansat_id=$ansatte_id&amp;periode=$periode\">Lønafregning ansat (Timer)</a></li>";
-				print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=belob&amp;ansat_id=$ansatte_id&amp;periode=$periode\">Lønafregning ansat (Beløb)</a></li>";
-				if (substr($sag_rettigheder,3,1)) print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=$vis&amp;periode=$periode&amp;refresh=on\">Lønafregning</a></li>";
+				print "<li><a href=\"loen.php?funktion=loenafregning&amp;ansat_id=$ansatte_id&amp;periode=$periode\">".findtekst('2786|Lønafregning', $sprog_id)." ".lcfirst(findtekst('589|Ansat', $sprog_id))." (".findtekst('2980|Timer', $sprog_id).")"."</a></li>"; #Lønafregning ansat (Timer)
+				print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=belob&amp;ansat_id=$ansatte_id&amp;periode=$periode\">".findtekst('2786|Lønafregning', $sprog_id)." ".lcfirst(findtekst('589|Ansat', $sprog_id))." (".findtekst('934|Beløb', $sprog_id).")"."</a></li>"; #Lønafregning ansat (Beløb)
+				if (substr($sag_rettigheder,3,1)) print "<li><a href=\"loen.php?funktion=loenafregning&amp;vis=$vis&amp;periode=$periode&amp;refresh=on\">".findtekst('2786|Lønafregning', $sprog_id)."</a></li>";
 			}
-				print "<li><a href=\"loen.php?funktion=loenliste\">L&oslash;nliste</a></li>";
+				print "<li><a href=\"loen.php?funktion=loenliste\">".findtekst('2787|Lønliste', $sprog_id)."</a></li>";
 				if (substr($sag_rettigheder,3,1)) {
 					print "<li><hr></li>";
-					print "<li><a href=\"ansatte.php\">Til ansatte</a></li>";
+					print "<li><a href=\"ansatte.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('1262|Ansatte', $sprog_id))."</a></li>"; #Til ansatte
 				}
 		} else {
-			print "<li><a href=\"loen.php?funktion=loenliste\">L&oslash;nliste</a></li>";
+			print "<li><a href=\"loen.php?funktion=loenliste\">".findtekst('2787|Lønliste', $sprog_id)."</a></li>";
 				if (substr($sag_rettigheder,3,1)) {
 					print "<li><hr></li>";
-					print "<li><a href=\"ansatte.php\">Til ansatte</a></li>";
+					print "<li><a href=\"ansatte.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('1262|Ansatte', $sprog_id))."</a></li>"; #Til ansatte
 				}
 			}
 		print "</ul>";
 	 ################################## MENU ANSATTE ###############################
 	} elseif ($menu_ansatte) {
-		print "<div class=\"leftmenuhead link\">Ansatte</div>";
+		print "<div class=\"leftmenuhead link\">".findtekst('1262|Ansatte', $sprog_id)."</div>";
 		print "<ul>";
 		if ($funktion=='ansatliste') {
 		
@@ -395,33 +395,33 @@ print "<div class=\"leftmenu\">";
 			elseif ($_SESSION['alleA']) $vis=$_SESSION['alleA'];
 			elseif ($_SESSION['fratraadteA']) $vis=$_SESSION['fratraadteA'];
 			
-			print "<li><a href=\"ansatte.php?funktion=ret_ansat\">Opret medarbejder</a></li>";
-			if ($vis!='fratraadteA') print "<li><a href=\"ansatte.php?funktion=ansatliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=fratraadteA\">Vis fratrådte</a></li>";
-			if ($vis!='alleA') print "<li><a href=\"ansatte.php?funktion=ansatliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alleA\">Vis alle</a></li>";
-			if ($vis!=NULL && $vis!='ansatteA') print "<li><a href=\"ansatte.php?funktion=ansatliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=ansatteA\">Vis ansatte</a></li>";
-			print "<li><a href=\"ansatte.php?funktion=brugergrupper\">Brugergrupper</a></li>";
-			print "<li><a href=\"ansatte.php?funktion=stamkort\">Tilret stamkort</a></li>";
+			print "<li><a href=\"ansatte.php?funktion=ret_ansat\">".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('2966|Medarbejder', $sprog_id))."</a></li>"; #Opret medarbejder
+			if ($vis!='fratraadteA') print "<li><a href=\"ansatte.php?funktion=ansatliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=fratraadteA\">".findtekst('590|Vis fratrådte', $sprog_id)."</a></li>";
+			if ($vis!='alleA') print "<li><a href=\"ansatte.php?funktion=ansatliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alleA\">".findtekst('636|Vis alle', $sprog_id)."</a></li>";
+			if ($vis!=NULL && $vis!='ansatteA') print "<li><a href=\"ansatte.php?funktion=ansatliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=ansatteA\">".findtekst('1133|Vis', $sprog_id)." ".lcfirst(findtekst('1262|Ansatte', $sprog_id))."</a></li>"; #Vis ansatte
+			print "<li><a href=\"ansatte.php?funktion=brugergrupper\">".findtekst('2968|Brugergrupper', $sprog_id)."</a></li>";
+			print "<li><a href=\"ansatte.php?funktion=stamkort\">".findtekst('2969|Tilret stamkort', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"loen.php\">Til Løn</a></li>";
+			print "<li><a href=\"loen.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2784|Løn', $sprog_id))."</a></li>"; #Til løn
 		} elseif ($funktion=='ret_ansat') {
-			print "<li><a href=\"ansatte.php?funktion=ret_ansat\">Opret medarbejder</a></li>";
-			print "<li><a href=\"ansatte.php?funktion=ansatliste\">Medarbejderliste</a></li>";
-			print "<li><a href=\"ansatte.php?funktion=brugergrupper\">Brugergrupper</a></li>";
-			print "<li><a href=\"ansatte.php?funktion=stamkort\">Tilret stamkort</a></li>";
+			print "<li><a href=\"ansatte.php?funktion=ret_ansat\">".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('2966|Medarbejder', $sprog_id))."</a></li>"; #Opret medarbejder
+			print "<li><a href=\"ansatte.php?funktion=ansatliste\">".findtekst('2967|Medarbejderliste', $sprog_id)."</a></li>";
+			print "<li><a href=\"ansatte.php?funktion=brugergrupper\">".findtekst('2968|Brugergrupper', $sprog_id)."</a></li>";
+			print "<li><a href=\"ansatte.php?funktion=stamkort\">".findtekst('2969|Tilret stamkort', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"loen.php\">Til Løn</a></li>";
+			print "<li><a href=\"loen.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2784|Løn', $sprog_id))."</a></li>"; #Til løn
 		} elseif ($funktion=='stamkort') {
-			print "<li><a href=\"ansatte.php?funktion=ret_ansat\">Opret medarbejder</a></li>";
-			print "<li><a href=\"ansatte.php?funktion=ansatliste\">Medarbejderliste</a></li>";
-			print "<li><a href=\"ansatte.php?funktion=brugergrupper\">Brugergrupper</a></li>";
+			print "<li><a href=\"ansatte.php?funktion=ret_ansat\">".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('2966|Medarbejder', $sprog_id))."</a></li>"; #Opret medarbejder
+			print "<li><a href=\"ansatte.php?funktion=ansatliste\">".findtekst('2967|Medarbejderliste', $sprog_id)."</a></li>";
+			print "<li><a href=\"ansatte.php?funktion=brugergrupper\">".findtekst('2968|Brugergrupper', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"loen.php\">Til Løn</a></li>";
+			print "<li><a href=\"loen.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2784|Løn', $sprog_id))."</a></li>"; #Til løn
 		} elseif ($funktion=='brugergrupper') {
-			print "<li><a href=\"ansatte.php?funktion=ret_ansat\">Opret medarbejder</a></li>";
-			print "<li><a href=\"ansatte.php?funktion=ansatliste\">Medarbejderliste</a></li>";
-			print "<li><a href=\"ansatte.php?funktion=stamkort\">Tilret stamkort</a></li>";
+			print "<li><a href=\"ansatte.php?funktion=ret_ansat\">".findtekst('1232|Opret', $sprog_id)." ".lcfirst(findtekst('2966|Medarbejder', $sprog_id))."</a></li>"; #Opret medarbejder
+			print "<li><a href=\"ansatte.php?funktion=ansatliste\">".findtekst('2967|Medarbejderliste', $sprog_id)."</a></li>";
+			print "<li><a href=\"ansatte.php?funktion=stamkort\">".findtekst('2969|Tilret stamkort', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"loen.php\">Til Løn</a></li>";
+			print "<li><a href=\"loen.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2784|Løn', $sprog_id))."</a></li>"; #Til løn
 		}	
 		print "</ul>";
 	################################## MENU CERTIFICERING ############################
@@ -436,7 +436,7 @@ print "<div class=\"leftmenu\">";
 		}
 		$antal_fase=$x;
 		
-		print "<div class=\"leftmenuhead link\">Certificering</div>";
+		print "<div class=\"leftmenuhead link\">".findtekst('2777|Certificering', $sprog_id)."</div>";
 		print "<ul>";
 		if ($funktion=='kontrolskemaliste') {
 			for ($x=1;$x<=$antal_fase;$x++) {
@@ -447,13 +447,13 @@ print "<div class=\"leftmenu\">";
 			if ($vis!='2') print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=2\">Arbejdsmiljøkontrol</a></li>";
 			if ($vis!='3') print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=3\">Løbende kontrol</a></li>";
 			*/
-			if ($vis!=NULL && $vis!='alle') print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alle\">Vis alle</a></li>";
+			if ($vis!=NULL && $vis!='alle') print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alle\">".findtekst('636|Vis alle', $sprog_id)."</a></li>";
 		} elseif ($funktion=='vis_arbejdsseddel') {
-			print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste\">Skemaliste</a></li>";
-			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Til sag</a></li>";
+			print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste\">".findtekst('2970|Skemaliste', $sprog_id)."</a></li>";
+			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Til sag
 		} elseif ($funktion=='vis_kontrolskema') {
-			print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste\">Skemaliste</a></li>";
-			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Til sag</a></li>";
+			print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste\">".findtekst('2970|Skemaliste', $sprog_id)."</a></li>";
+			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Til sag
 		}
 		print "</ul>";
 	################################## MENU MEDARBEJDERMAPPE ############################
@@ -485,7 +485,7 @@ print "<div class=\"leftmenu\">";
 		}
 		$antal_fase=$x;
 		*/
-		print "<div class=\"leftmenuhead link\">Medarbejdermappe</div>";
+		print "<div class=\"leftmenuhead link\">".findtekst('2779|Medarbejdermappe', $sprog_id)."</div>";
 		print "<ul>";
 		if ($funktion=='kontrolseddelskemaliste') {
 			for ($x=1;$x<=$antal_fase;$x++) {
@@ -496,24 +496,24 @@ print "<div class=\"leftmenu\">";
 			if ($vis!='2') print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=2\">Arbejdsmiljøkontrol</a></li>";
 			if ($vis!='3') print "<li><a href=\"kontrolskemaer.php?funktion=kontrolskemaliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=3\">Løbende kontrol</a></li>";
 			*/
-			if ($vis!=NULL && $vis!='alle') print "<li><a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alle\">Vis alle</a></li>";
+			if ($vis!=NULL && $vis!='alle') print "<li><a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alle\">".findtekst('636|Vis alle', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
-			print "<li><a href=\"medarbejdermappe.php\">Medarbejdermappe</a></li>";
-			print "<li><a href=\"loen.php\">Til Løn</a></li>";
+			print "<li><a href=\"medarbejdermappe.php\">".findtekst('2779|Medarbejdermappe', $sprog_id)."</a></li>";
+			print "<li><a href=\"loen.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2784|Løn', $sprog_id))."</a></li>"; #Til løn
 		} elseif ($funktion=='arbejdsseddelskemaliste') {
-			print "<li><a href=\"medarbejdermappe.php\">Medarbejdermappe</a></li>";
+			print "<li><a href=\"medarbejdermappe.php\">".findtekst('2779|Medarbejdermappe', $sprog_id)."</a></li>";
 			//print "<li><hr></li>";
-			print "<li><a href=\"loen.php\">Til Løn</a></li>";
+			print "<li><a href=\"loen.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2784|Løn', $sprog_id))."</a></li>"; #Til løn
 		} elseif ($funktion=='vis_arbejdsseddel') {
-			print "<li><a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste\">Skemaliste</a></li>";
-			if (substr($sag_rettigheder,3,1)) print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Til sag</a></li>";
+			print "<li><a href=\"mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste\">".findtekst('2970|Skemaliste', $sprog_id)."</a></li>";
+			if (substr($sag_rettigheder,3,1)) print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Til sag
 			//print "<li><hr></li>";
-			print "<li><a href=\"loen.php\">Til Løn</a></li>";
+			print "<li><a href=\"loen.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2784|Løn', $sprog_id))."</a></li>"; #Til løn
 		} elseif ($funktion=='vis_kontrolskema') {
-			print "<li><a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste\">Skemaliste</a></li>";
-			if (substr($sag_rettigheder,3,1)) print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">Til sag</a></li>";
+			print "<li><a href=\"mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste\">".findtekst('2970|Skemaliste', $sprog_id)."</a></li>";
+			if (substr($sag_rettigheder,3,1)) print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Til sag
 			//print "<li><hr></li>";
-			print "<li><a href=\"loen.php\">Til Løn</a></li>";
+			print "<li><a href=\"loen.php\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2784|Løn', $sprog_id))."</a></li>"; #Til løn
 		}
 		print "</ul>";
 	}

@@ -13,15 +13,38 @@ class OrderEndpoint extends BaseEndpoint
     protected function handleGet($id = null)
     {
         if ($id) {
-            $order = new OrderModel($id);
+            $order = new OrderModel($id, 'DO');
             if ($order->getId()) {
                 $this->sendResponse(true, $order->toArray());
             } else {
-                $this->sendResponse(false, null, 'Order not found', 404);
+                $this->sendResponse(
+                    false,
+                    null,
+                    "Order with ID $id not found or is not a debitor order", 
+                    404
+                );
             }
         } else {
-            // Get all orders
-            $orders = OrderModel::getAllItems();
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+            $orderBy = isset($_GET['orderBy']) ? $_GET['orderBy'] : 'ordrenr';
+            $orderDirection = isset($_GET['orderDirection']) ? $_GET['orderDirection'] : 'ASC';
+
+            // get order based on dates 
+            $fromDate = isset($_GET['fromDate']) ? $_GET['fromDate'] : null;
+            $toDate = isset($_GET['toDate']) ? $_GET['toDate'] : null;
+
+            if ($fromDate && $toDate) {
+                // Validate date format
+                if (!DateTime::createFromFormat('Y-m-d', $fromDate) || !DateTime::createFromFormat('Y-m-d', $toDate)) {
+                    $this->sendResponse(false, null, 'Invalid date format. Use YYYY-MM-DD', 400);
+                    return;
+                }
+            }else{
+                $fromDate = null;
+                $toDate = null;
+            }
+            // Get all orders with art = 'DO' for debitor
+            $orders = OrderModel::getAllItems('DO', $limit, $orderBy, $orderDirection, $fromDate, $toDate);
             $items = [];
             foreach ($orders as $order) {
                 $items[] = $order->toArray();
@@ -32,6 +55,8 @@ class OrderEndpoint extends BaseEndpoint
 
     protected function handlePost($data)
     {
+        // Set art to DO for debitor orders
+        $data->art = 'DO';
         $result = OrderService::createOrder($data);
         
         if ($result['success']) {
@@ -43,49 +68,16 @@ class OrderEndpoint extends BaseEndpoint
 
     protected function handlePut($data)
     {
-        if (!isset($data->id)) {
-            $this->sendResponse(false, null, 'Order ID is required for update', 400);
-            return;
-        }
-
-        $order = new OrderModel($data->id);
-        if (!$order->getId()) {
-            $this->sendResponse(false, null, 'Order not found', 404);
-            return;
-        }
-
-        // Update fields
-        if (isset($data->firmanavn)) $order->setFirmanavn($data->firmanavn);
-        if (isset($data->telefon)) $order->setTelefon($data->telefon);
-        if (isset($data->email)) $order->setEmail($data->email);
-        if (isset($data->notes)) $order->setNotes($data->notes);
-        if (isset($data->status)) $order->setStatus($data->status);
-
-        if ($order->save()) {
-            $this->sendResponse(true, $order->toArray(), 'Order updated successfully');
-        } else {
-            $this->sendResponse(false, null, 'Failed to update order', 500);
-        }
+        // there is no put method for Debitor orders
+        $this->sendResponse(false, null, 'PUT method is not supported for Debitor orders', 405);
+        return;
     }
 
     protected function handleDelete($data)
     {
-        if (!isset($data->id)) {
-            $this->sendResponse(false, null, 'Order ID is required for deletion', 400);
-            return;
-        }
-
-        $order = new OrderModel($data->id);
-        if (!$order->getId()) {
-            $this->sendResponse(false, null, 'Order not found', 404);
-            return;
-        }
-
-        if ($order->delete()) {
-            $this->sendResponse(true, null, 'Order deleted successfully');
-        } else {
-            $this->sendResponse(false, null, 'Failed to delete order', 500);
-        }
+        // there is no delete method for Debitor orders
+        $this->sendResponse(false, null, 'DELETE method is not supported for Debitor orders', 405);
+        return;
     }
 }
 

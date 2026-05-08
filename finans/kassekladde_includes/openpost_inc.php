@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/openpost_inc.php --- ver 4.1.1 --- 2025.05.09 ---
+// --- finans/kassekladde_includes/openpost_inc.php --- ver 4.1.1 --- 2025.06.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,14 +27,19 @@
 // 20230604 PHR Added offsetAccount to kredit,
 // 20230828 PHR Gets Company name from inviince instead of order.
 // 20250509 PHR Fiscal year
+// 20250626 PHR '==' replaved by '='
 
 function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr){
 # ($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr) {
+
+	include("../includes/topline_settings.php");
+
 	global $bgcolor, $bgcolor2, $bgcolor5;
 	global $charset;
 	global $menu;
 	global $regnaar;
 	global $top_bund;
+	global $sprog_id;
 
 	$linjebg=NULL;
 
@@ -66,7 +71,6 @@ function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$bes
 		$belob   = dkdecimal($r['amount'],2);
 	} else $alignThis = array();
 print "<center>";
-include("../includes/topline_settings.php");
 #	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 #	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	$lnktxt = "&funktion=openpost&x=$x&fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&";
@@ -76,7 +80,7 @@ include("../includes/topline_settings.php");
 		include_once '../includes/top_menu.php';
 		include_once '../includes/top_header.php';
 		print "<div id=\"header\"><div class=\"headerbtnLft\">";
-		print "<a href='../finans/kassekladde.php?$lnktxt' class=\"button red small left\" accesskey=L>Luk</a></div>";
+		print "<a href='../finans/kassekladde.php?$lnktxt' class=\"button red small left\" accesskey=L>".findtekst('2172|Luk', $sprog_id)."</a></div>";
 		print "<span class=\"headerTxt\">".findtekst('441|Åbne poster', $sprog_id)."</span>";
 		print "<div class=\"headerbtnRght\"></div>";
 		print "</div><!-- end of header --><div class=\"maincontentLargeHolder\">\n";
@@ -85,8 +89,8 @@ include("../includes/topline_settings.php");
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 
 		print "<td width=\"10%\"><a href='../finans/kassekladde.php?$lnktxt' accesskey=L>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
-		print "<td width=\"80%\" style=$topStyle align='center'>&Aring;benposter</td>";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+		print "<td width=\"80%\" style=$topStyle align='center'>".findtekst('441|Åbne poster', $sprog_id)."</td>";
 		print "<td width=\"10%\" style=$topStyle align='center' align='right'><br></td>";
 
 		print "</tbody></table>";
@@ -95,8 +99,8 @@ include("../includes/topline_settings.php");
 		print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0	\" width=\"800px\" valign = \"top\">";
 	} else {
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-		print "<td width=\"10%\" $top_bund><a href='../finans/kassekladde.php?$lnktxt' accesskey=L>Luk</a></td>";
-		print "<td width=\"80%\" $top_bund>&Aring;benposter</td>";
+		print "<td width=\"10%\" $top_bund><a href='../finans/kassekladde.php?$lnktxt' accesskey=L>".findtekst('2172|Luk', $sprog_id)."</a></td>";
+		print "<td width=\"80%\" $top_bund>".findtekst('441|Åbne poster', $sprog_id)."</td>";
 		print "<td width=\"10%\" $top_bund align=\"right\"><br></td>";
 		print "</tbody></table>";
 		print "</td></tr>\n";
@@ -244,7 +248,7 @@ include("../includes/topline_settings.php");
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor;}
 		elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5;}
 		if ($openAamount[$x]<0) {
-			($kredit)?$newCredit==$kredit:$newCredit=$offsetAccount[$x];
+			($kredit)?$newCredit=$kredit:$newCredit=$offsetAccount[$x];
 			($amount)?$newAmount=dkdecimal($belob):$newAmount=dkdecimal($openAamount[$x]*-1,2);
 			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskr";
 			$lnktxt.= "&d_type=$accountType[$x]&debet=$accountNo[$x]&k_type=$k_type&kredit=$newCredit&faktura=$invoiceNo[$x]";
@@ -254,7 +258,7 @@ include("../includes/topline_settings.php");
 			$newAmount=dkdecimal($openAamount[$x],2);
 		} else {
 			($amount)?$newAmount=dkdecimal($belob):$newAmount=dkdecimal($openAamount[$x],2);
-			($debet)?$newDebet==$debet:$newDebet=$offsetAccount[$x];
+			($debet)?$newDebet=$debet:$newDebet=$offsetAccount[$x];
 			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskr";
 			$lnktxt.= "&d_type=$d_type&debet=$newDebet&k_type=$accountType[$x]&kredit=$accountNo[$x]&faktura=$invoiceNo[$x]";
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";

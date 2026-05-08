@@ -5,10 +5,9 @@ logolib/*
 nedlagte regnskaber/*
 nedlagte_regnskaber/*
 certs/*
-opret/*
-*/opret/*
 includes/connect.php
-
+testshop.php
+saldiinfo.php
 phpmailer/*
 */phpmailer/*
 includes/vendor/
@@ -28,6 +27,17 @@ includes/connect.php
 kreditor/betalinger_old.php
 logolib/
 
+#test
+price.txt
+test/
+testing/
+SÆT i HMS - SÆT.csv
+adminpanel.txt
+nyteEmailSystem.txt
+bilag
+invoice.json
+ordre.php
+
 paperpdf/
 temp/
 utils/
@@ -42,7 +52,8 @@ phpmailerOld/
 phpmailer/
 mappe/
 bilag/
-
+utils/
+/utils/
 # Python stuff
 __pycache__/
 .pytest_cache
@@ -51,3 +62,10 @@ __pycache__/
 .vscode/
 .htaccess
 converter/exitsound_5.sql
+
+# Opret
+opret/
+
+# Dandomain and mysaleX
+dandomain/
+mysaleX/

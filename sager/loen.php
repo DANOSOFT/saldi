@@ -139,6 +139,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("loenliste.php");
 include('loenIncludes/footer.php');
+include("../includes/topline_settings.php");
 
 
 $qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name='loen_enheder' and column_name = 'op_70'";
@@ -231,51 +232,51 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 					color: #FFF;
 				}
 			</style>
-			<title>Stillads</title>
+			<title>".findtekst('2783|Stillads', $sprog_id)."</title>
 		</head>
 		<body>
 		<div id=\"wrapper\">";
 include("../includes/sagsmenu.php");
-print "<div id=\"breadcrumbbar\">
-			<ul id=\"breadcrumb\">
+print "<div id='breadcrumbbar'>
+			<ul id='breadcrumb'>
 				<li>";
 if (substr($sag_rettigheder, 2, 1))
-	print "<a href=\"sager.php\" title=\"Sager\"><img src=\"../img/home.png\" alt=\"Sager\" class=\"home\" /></a>\n";
+	print "<a href='sager.php' title='".findtekst('2774|Sager', $sprog_id)."'><img src='../img/home.png' alt='".findtekst('2774|Sager', $sprog_id)."' class='home' /></a>\n";
 else
-	print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+	print "<a href='#' title='".findtekst('2781|Hjem', $sprog_id)."'><img src='../img/home.png' alt='".findtekst('2781|Hjem', $sprog_id)."' class='home' /></a>";
 print "</li>";
 if ($funktion == 'ret_loen') {
 	include('loenIncludes/retLoen.php');
-	print "<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li>Lønindtastning</li>";
+	print "<li><a href='loen.php' title='".findtekst('2787|Lønliste', $sprog_id)."'>".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li>".findtekst('2785|Lønindtastning', $sprog_id)."</li>";
 } elseif ($funktion == 'loenafregning') {
 	include('loenIncludes/afregning.php');
-	print "<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li>Lønafregning</li>";
+	print "<li><a href='loen.php' title='".findtekst('2787|Lønliste', $sprog_id)."'>".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li>".findtekst('2786|Lønafregning', $sprog_id)."</li>";
 } elseif ($funktion == 'satser') {
 	include('loenIncludes/rates.php');
-	print "<li><a href=\"loen.php\" title=\"Lønliste\">Løn</a></li>
-					<li>Satser</li>";
+	print "<li><a href='loen.php' title='".findtekst('2787|Lønliste', $sprog_id)."'>".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li>".findtekst('2782|Satser', $sprog_id)."</li>";
 } else {
 	include('loenIncludes/visListe.php');
 	print "
-				<!--<li><a href=\"#\" title=\"Sample page 2\">Sample page 2</a></li>
-				<li><a href=\"#\" title=\"Sample page 3\">Sample page 3</a></li>
+				<!--<li><a href='#' title='Sample page 2'>Sample page 2</a></li>
+				<li><a href='#' title='Sample page 3'>Sample page 3</a></li>
 				<li>Current page</li>-->
-				<li>Løn</li>";
+				<li>".findtekst('2784|Løn', $sprog_id)."</li>";
 }
 if ($funktion == 'ret_loen')
-	print "<li style=\"float:right;\"><a href=\"#\" title=\"Print skema\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"Print skema\" class=\"printIcon\" /></a></li>"; #20150623-2
+	print "<li style='float:right;'><a href='#' title='".findtekst('2788|Udskriv skema', $sprog_id)."' onclick='printDiv('printableArea')' style='background-image: none;'><img src='../img/printIcon2.png' alt='".findtekst('2788|Udskriv skema', $sprog_id)."' class='printIcon' /></a></li>"; #20150623-2
 if ($funktion == 'loenafregning')
-	print "<li style=\"float:right;\"><a href=\"#\" title=\"Print skema\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"Print skema\" class=\"printIcon\" /></a></li>";
+	print "<li style='float:right;'><a href='#' title='".findtekst('2788|Udskriv skema', $sprog_id)."' onclick='printDiv('printableArea')' style='background-image: none;'><img src='../img/printIcon2.png' alt='".findtekst('2788|Udskriv skema', $sprog_id)."' class='printIcon' /></a></li>";
 print "
 			</ul>
 			</div><!-- end of breadcrumbbar -->
-				<div id=\"leftmenuholder\">";
+				<div id='leftmenuholder'>";
 include("leftmenu.php");
 print "</div><!-- end of leftmenuholder -->
 
-				<div class=\"maincontent\">";
+				<div class='maincontent'>";
 $funktion();
 print "</div><!-- end of maincontent -->
 

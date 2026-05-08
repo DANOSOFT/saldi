@@ -46,6 +46,20 @@ $egen_bank_konto=trim ($row['bank_konto']);
 if ($id) {
   $query = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
   $row = db_fetch_array($query);
+  
+  // Check if PBS is set and if setting is enabled to replace payment info
+  $pbs = trim($row['pbs']);
+  
+  if ($pbs && ($pbs == 'BS' || $pbs == 'FI' || strstr($row['udskriv_til'], 'PBS'))) {
+      // Replace payment information with PBS text
+      $PBSSettings = get_settings_value("pbs_auto_email","invoice_settings","off");
+      
+      if ($PBSSettings == 'on') {
+        $egen_bank_navn = '';
+        $egen_bank_reg = '';
+        $egen_bank_konto = 'Fakturaen er tilmeldt betalingsservice';
+      }
+  }
   $firmanavn=trim($row['firmanavn']);
   $addr1=trim($row['addr1']);
   $addr2=trim($row['addr2']);

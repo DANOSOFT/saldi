@@ -55,6 +55,7 @@
 
 include("posmenufunc_includes/buttonFunc.php");
 
+
 if (!function_exists('menubuttons')) {
 	function menubuttons($id, $menu_id, $vare_id, $plads)
 	{
@@ -194,6 +195,7 @@ if (!function_exists('menubuttons')) {
 		#		background-color: $bgcolor;\"";
 		$twidth = $width * $cols . "px";
 		$theight = $height * $rows . "px";
+		$found_any = false;
 		print "<table border=\"0\" cellspacing=\"$cellspacing\" cellpadding=\"1\" width=\"$twidth\" height=\"$theight\" valign=\"top\"><tbody>\n"; # table 1 ->
 		if (substr($beskrivelse, 0, 1) != "!")
 			print "<tr><td colspan=\"$cols\" align=\"center\" bgcolor=\"$bgcolor5\">$beskrivelse</td></tr>\n";
@@ -204,6 +206,7 @@ if (!function_exists('menubuttons')) {
 				$c = $d = 0;
 				$qtxt = "select * from pos_buttons where menu_id=$menuid and row='$x' and col='$y'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$found_any = true;
 					$a = str_replace("\n", "\n ", $r['beskrivelse']);
 					$b = $r['color'];
 					$c = $r['vare_id'] * 1;
@@ -319,7 +322,7 @@ if (!function_exists('menubuttons')) {
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
 							print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"bordvalg\" VALUE=\"$txt\"><!-- arr = $regnaar -->";
 						} elseif ($c == '2') {
-							$txt = str_replace('$brugernavn', findtekst('990|Bruger', $sprog_id), $a);
+							$txt = str_replace('$brugernavn', $brugernavn, $a);
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
 							print "<td><INPUT $disabled onclick=\"window.location.href='pos_ordre.php?id=$id&skift_bruger=1&bordnr=$bordnr'\" type=\"button\" $tmp value= \"$txt\">\n";
 						} elseif ($c == '3') {
@@ -367,7 +370,7 @@ if (!function_exists('menubuttons')) {
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
 						} elseif ($c == '11') {
-							$txt = findtekst('3090|Skuffe', $sprog_id);
+							$txt = findtekst('2391|Skuffe', $sprog_id);
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
 							print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"skuffe\" VALUE=\"$txt\">";
 						} elseif ($c == '12') {
@@ -377,7 +380,7 @@ if (!function_exists('menubuttons')) {
 						} elseif ($c == '13') {
 							$txt = findtekst('2116|Forfra', $sprog_id);
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
-							print "<td onclick=\"return confirm('" . findtekst('3097|Slet alt og start forfra', $sprog_id) . "')\"><INPUT TYPE=\"submit\" $tmp NAME=\"forfra\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 'f';pos_ordre.$fokus.focus();\">\n";
+							print "<td onclick=\"return confirm('" . findtekst('2398|Slet alt og start forfra', $sprog_id) . "?')\"><INPUT TYPE=\"submit\" $tmp NAME=\"forfra\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 'f';pos_ordre.$fokus.focus();\">\n";
 						} elseif ($c == '14') {
 							$knap = "<input $disabled onclick=\"window.location.href='pos_ordre.php?id=$id&skift_bruger=2&brugernavn=$a&bordnr=$bordnr&$menu=$menu_id'\" type=\"button\" $stil value= \"$a\">\n";
 							if (strtolower($brugernavn) == strtolower($a))
@@ -604,7 +607,7 @@ if (!function_exists('menubuttons')) {
 							($betalingsbet == 'Kontant' || !$sum) ? $tmp2 = "disabled=disabled " . $tmp : $tmp2 = $tmp;
 							print "<TD><INPUT TYPE=\"submit\" $tmp2 NAME='betaling' VALUE=\"$a\" OnClick=\"pos_ordre.$fokus.value += 'c';pos_ordre.$fokus.focus();\">\n";
 						} elseif ($a == 'Betalingskort') {
-							print "<TD><INPUT TYPE=\"submit\" $tmp2 NAME='betaling' VALUE=\"" . findtekst('2270|Betalings-\nkort', $sprog_id) . " OnClick=\"pos_ordre.$fokus.value += 'c';pos_ordre.$fokus.focus();\">\n";
+							print "<TD><INPUT TYPE=\"submit\" $tmp2 NAME='betaling' VALUE=\"" . findtekst('2590|Betalings- kort', $sprog_id) . "\" OnClick=\"pos_ordre.$fokus.value += 'c';pos_ordre.$fokus.focus();\">\n";
 						} elseif ($a == 'Gem som tilbud') {
 							print "<TD onclick=\"return confirm('Gem ordre som tilbud?')\"><INPUT TYPE=\"submit\" $tmp NAME=\"gem\" VALUE=\"" . findtekst('2271|Gem som tilbud', $sprog_id) . "\">\n";
 						} elseif ($a == 'Gavekort') {
@@ -656,10 +659,10 @@ if (!function_exists('systemknap')) {
 			$href = "../index/menu.php";
 			$return = "onclick=\"window.location.href='$href'\"";
 		} elseif ($system_id == 11) {
-			$txt = findtekst('3090|Skuffe', $sprog_id);
+			$txt = findtekst('2391|Skuffe', $sprog_id);
 			$return = "TYPE=\"submit\" NAME=\"skuffe\"VALUE=\"$txt\"";
 		} elseif ($system_id == 13) {
-			$txt = findtekst('3090|Skuffe', $sprog_id);
+			$txt = findtekst('2391|Skuffe', $sprog_id);
 			$return = "TYPE=\"submit\" NAME=\"skuffe\"VALUE=\"$txt\"";
 		}
 
@@ -815,7 +818,7 @@ if (!function_exists('tastatur')) {
 		$vis_kontoopslag = $r['box11'];
 		$vis_hurtigknap = $r['box12'];
 		$vis_indbetaling = $r['box14'];
-		$timeout = $r['box13'] * 1;
+		$timeout = (int) $r['box13'];
 		$r = db_fetch_array(db_select("select var_value from settings where var_name = 'card_enabled'", __FILE__ . " linje " . __LINE__));
 		$card_enabled = explode(chr(9), $r['var_value']);
 
@@ -836,7 +839,7 @@ if (!function_exists('tastatur')) {
 			if ($vis_saet)
 				print "<td><INPUT $disabled " . find_stil('knap', 1, 0.7) . " TYPE=\"submit\" NAME=\"saet\"VALUE=\"Sæt\"></td>\n";
 			elseif ($db == 'bizsys_48') {
-				$txt = findtekst('3090|Skuffe', $sprog_id);
+				$txt = findtekst('2391|Skuffe', $sprog_id);
 				print "<td><INPUT $disabled $stil TYPE=\"submit\" NAME=\"skuffe\"VALUE=$txt></td>\n";
 			}
 			print "</tr>\n";

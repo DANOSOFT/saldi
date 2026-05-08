@@ -86,9 +86,9 @@ td.position-cell {
 
 .drag-handle {
     opacity: 0;
-    transition: opacity 0.2s, color 0.2s ease;
-    pointer-events: none;
+    cursor: grab;
     color: #4A90E2;
+    transition: opacity 0.2s ease, color 0.2s ease;
 }
 
 /* Show drag handle on row hover or while dragging */
@@ -106,4 +106,30 @@ tr.dragging .drag-handle {
     cursor: grabbing;
     color: #3A7BC8;
 }
+
+
+/* Show all drag handles when hovering over any drag handle */
+tbody:has(.drag-handle:hover) .drag-handle {
+    opacity: 1 !important;
+}
+
+/* Show all handles when hovering over the table body */
+.formnavi.dataTableForm:hover .drag-handle,
+#kassekladde-tbody:hover .drag-handle {
+    opacity: 1;
+}
+
+
+/* Base state - handles are hidden */
+.drag-handle {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+/* Individual row hover (as fallback) */
+tr:hover .drag-handle {
+    opacity: 1;
+}
+
+
 </style>";

@@ -49,6 +49,14 @@ if (count($afd_nr)) {
 	}
 	print "</SELECT></td>";
 } 
+if (isset($bg_options) && count($bg_options) > 0) {
+	print "<tr><td>".findtekst('571|Baggrund',$sprog_id)."<!--baggrund--></td><td><SELECT style=\"width:180px\" NAME=\"sprog\">";
+	foreach ($bg_options as $bg_opt) {
+		$bg_selected = (isset($ansat_sprog) && $ansat_sprog == $bg_opt) ? ' selected' : '';
+		print "<option value=\"$bg_opt\"$bg_selected>$bg_opt</option>";
+	}
+	print "</SELECT></td></tr>";
+}
 print "</tbody></table><!-- <- TABEL body 1 --></td>";
 print "<td colspan=\"2\" width=\"315px\" valign=\"top\"><table valign=\"top\"><!-- TABEL body 2 -> --><tbody>";
 if (findtekst(661,$sprog_id)) print "<td width=\"150px\">".findtekst(661,$sprog_id)."<!--tekst 661--></td><td><input class=\"inputbox\" type=\"text\" style=\"width:180px\" name=\"cprnr\" value=\"$cprnr\"></td></tr>\n";

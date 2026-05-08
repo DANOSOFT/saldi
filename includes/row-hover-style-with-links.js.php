@@ -2,7 +2,7 @@
 print <<<HTML
 <style>
 .hover-highlight:hover {
-  outline: 2px solid #000;
+  outline: 2px solid #b2b2b2;
   background-color: #f9f9f9;
   cursor: pointer;
 }
@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const tds = row.querySelectorAll('td');
       if (tds.length <= 1) return;
       if (row.offsetParent === null) return;
-
+      if (row.classList.contains('noHover')) return;
+      
       let hasLabel = false;
       let skip = false;
 

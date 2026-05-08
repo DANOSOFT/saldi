@@ -57,7 +57,7 @@ $columns[] =    array(
     "field" => "varenr",
     "headerName" => "Vare Nr.",
     "render" => function ($value, $row, $column) {
-        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/indkøb.php";
+        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/ordrestatus.php";
 
         $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]'><a href='$url'>$value</a></td>";
@@ -503,10 +503,9 @@ $data = array(
     SELECT 
         vare_id,          
         lager,            
-        beholdning,       
-        SUM(beholdning) OVER (PARTITION BY vare_id) AS lager_total  
+        SUM(beholdning) AS beholdning
     FROM lagerstatus
-    GROUP BY vare_id, lager, beholdning
+    GROUP BY vare_id, lager
 ),
 levs AS (
     SELECT 
@@ -752,23 +751,23 @@ print "</div>";
 $steps = array();
 $steps[] = array(
     "selector" => "#back-btn",
-    "content" => "Klik her for at vende tilbage til varelisten."
+    "content" => findtekst('2645|Klik her for at vende tilbage til varelisten', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => "Ordrestatus viser hvor mange varer der er i tilbud, ordre eller indkøbsforslag. <br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer."
+    "content" => findtekst('2646|Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag. <br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".lager_total",
-    "content" => "I alt viser, hvor mange enheder du har på lager af varen."
+    "content" => findtekst('2647|Viser hvor mange enheder af varen der er på lager', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".genbestil",
-    "content" => "Genbestillingstallet beskriver hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordre og andre faktorer."
+    "content" => findtekst('2648|Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".sales_last_6_months,.sales_last_1_month",
-    "content" => "Se, hvor meget du har solgt af varen over de sidste 6 måneder, 3 måneder eller 1 måned."
+    "content" => findtekst('2649|Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned', $sprog_id)."."
 );
 
 include (get_relative()."includes/tutorial.php");

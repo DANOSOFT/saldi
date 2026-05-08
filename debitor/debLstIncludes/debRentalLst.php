@@ -71,14 +71,14 @@ for($x=0;$x<$dgcount;$x++) {
 		$tmp=$colspan + 1;
 		print "<tr><td colspan='$tmp'><table><tbody>";
 		$linjebg=linjefarve($linjebg,$bgcolor,$bgcolor5,'0','0');
-		print "<tr bgcolor='$linjebg'><td>Måned</td><td></td>";
+		print "<tr bgcolor='$linjebg'><td>".findtekst('1217|Måned', $sprog_id)."</td><td></td>";
 		for ($d=$dd;$d<$dd60;$d+=$H24) {
 			print "<td style='width:15px'>";
 			if (date('d',$d)=='1') print date('m',$d);
 			print "</td>";
 		}
 		$linjebg=linjefarve($linjebg,$bgcolor,$bgcolor5,'0','0');
-		print "</tr><tr bgcolor='$linjebg'><td>Dato</td><td></td>";
+		print "</tr><tr bgcolor='$linjebg'><td>".findtekst('438|Dato', $sprog_id)."</td><td></td>";
 		for ($d=$dd;$d<$dd60;$d+=$H24) {
 			print "<td style='width:15px'>";
 			print date('d',$d);
@@ -119,7 +119,7 @@ for($x=0;$x<$dgcount;$x++) {
 				else $tmp = mb_convert_encoding($rpCustName[$x], 'ISO-8859-1', 'UTF-8');
 				print "<td title='$rpCustName[$x]'>". mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1') ."</td>";
 				for ($d=$dd;$d<$dd60;$d+=$H24) {
-					$title   = "Ingen booking";
+					$title   = findtekst('2713|Ingen booking', $sprog_id);
 					$tdcolor = 'green';
 					$tdtxt   = NULL;
 					for ($y=0;$y<count($rpId[$x]);$y++) {
@@ -138,7 +138,7 @@ for($x=0;$x<$dgcount;$x++) {
 		}}
 		print "</tbody></table></td></tr>";
 		if ($search && !$lnr) {
-			print "<tr><td colspan='$colspan' align='center'><b><big>Ingen debitorer opfylder de angivne søgekriterier</big></b></td></tr>";
+			print "<tr><td colspan='$colspan' align='center'><b><big>".findtekst('912|Ingen debitorer opfylder de angivne søgekriterier', $sprog_id)."</big></b></td></tr>";
 		}
 	} 
 }	

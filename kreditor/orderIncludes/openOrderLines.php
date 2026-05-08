@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.10 --- 2025-05-24 ----
+// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.10 --- 2025-11-13 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,8 +33,17 @@
 // 20240628 PHR 'recieve' is not shown if $bogfor == 1
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250524 PHR Bogfor now set to 0 if tidl_lev (Delivered) differs from antal (qty)
+// 20251113 PHR Corrected error in $tidl_lev for creditnotas
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
+
+// Add button styling with border-radius
+print "<style>
+    input[type='submit'] {
+        border-radius: 4px;
+    }
+</style>";
+
 $kreditmax=NULL;
 for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) {
@@ -62,8 +71,12 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   print "<td><input class='inputbox' type='text' style='text-align:right' size=3 name=posn$x value='$x' onchange='javascript:docChange = true;'></td>";
   print "<td title='".findtekst(1513, $sprog_id)."'><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=7 name=vare$x onfocus='document.forms[0].fokus.value=this.name;' value='".htmlentities($varenr[$x])."'></td>"; #20180305
   print "<td><input class='inputbox' type='text' size=7 name=lev_varenr$x value=\"".htmlentities($lev_varenr[$x])."\" ";
-  print "onchange='javascript:docChange = true;'></td>";
-  print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x value='$dkantal[$x]' "; print "onchange='javascript:docChange = true;'></td>";
+  print "onfocus='document.forms[0].fokus.value=this.name;' onchange='javascript:docChange = true;'></td>";
+  if ($fokus == 'anta' . $x) {
+    print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x placeholder='$dkantal[$x]' value='' onchange='javascript:docChange = true;'></td>";
+  } else {
+    print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x value='$dkantal[$x]' onchange='javascript:docChange = true;'></td>";
+  }
   print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=3 value='$enhed[$x]'></td>";
   print "<td><input class='inputbox' type='text' size=58 name=beskrivelse$x value= \"".htmlentities($beskrivelse[$x])."\" onchange='javascript:docChange = true;'></td>";
   print "<td><input class='inputbox' type='text' style='text-align:right' size=10 name=pris$x value='$dkpris' onchange='javascript:docChange = true;'></td>";
@@ -72,13 +85,8 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) $tmp=dkdecimal($ialt,2);
   else $tmp=NULL;
   print "<td align=right><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee;text-align:right' readonly='readonly' size=10 value='$tmp'></td>";
-  if ($vis_projekt && !$projekt[0]) {
-  print "<td><select class='inputbox' NAME=projekt[$x]>";
-  for ($a=0; $a<=$prj_antal; $a++) {
-    if ($projekt[$x]!=$list[$a]) print "<option  value='$list[$a]' title='$beskriv[$a]'>$list[$a]</option>";
-    else print "<option value='$list[$a]' title='$beskriv[$a]' selected='selected'>$list[$a]</option>";
-  }
-  print "</option></td>";
+  if ($vis_projekt) {
+  print "<td><input class='inputbox' style='width:50px;' name='projekt[$x]' value='{$projekt[$x]}' onfocus='document.forms[0].fokus.value=this.name;'></td>";
 }
 if ($status>=1) {
   if ($vare_id[$x]) {
@@ -131,13 +139,17 @@ if ($status>=1) {
       $qtxt = "select antal from batch_kob where linje_id = '$linje_id[$x]'";
       $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
       while ($r = db_fetch_array($q)) {
-        if ($art=='KK') $tidl_lev[$x] = $tidl_lev[$x] - $r['antal'];
-        else $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
+ #       if ($art=='KK') $tidl_lev[$x] = $tidl_lev[$x] - $r['antal'];
+  #      else $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
+         $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
       }
     }
-    if ($antal[$x] != $tidl_lev[$x]) $bogfor = 0;
-
-    $dk_tidl_lev[$x] = dkdecimal($tidl_lev[$x],2);
+    // make it so antal and tidl_lev have the same number of decimal places
+    $antal[$x] = round($antal[$x],2);
+    $tidl_lev[$x] = round($tidl_lev[$x],2);
+     if ($antal[$x] != $tidl_lev[$x]) $bogfor = 0;
+    if ($art=='KK') $tidl_lev[$x] *=-1;
+     $dk_tidl_lev[$x] = dkdecimal($tidl_lev[$x],2);
     if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-1);
     if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-2);
     if (afrund(abs($antal[$x])-abs($tidl_lev[$x]),3)!=0) {
@@ -156,6 +168,35 @@ if ($status>=1) {
       print "text-align:right' size='4' name='leve$x' value='$dklev[$x]' onchange='javascript:docChange = true;'></td>\n";
     }
   print "<td>($dk_tidl_lev[$x])</td>";
+  // Expiry date fields for items with has_due_date
+  if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+    $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
+    $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
+    if (!$batch_due_date_val) {
+      // Pre-fill with default shelf life if set
+      $shelf_days = item_default_shelf_life($vare_id[$x]);
+      if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
+    }
+    print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+    print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+    print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+    print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
+  }
+  }
+} else {
+  if (!$vis_projekt) print "<td></td>";
+  // Expiry date fields for status 0 (draft orders)
+  if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+    $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
+    $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
+    if (!$batch_due_date_val) {
+      $shelf_days = item_default_shelf_life($vare_id[$x]);
+      if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
+    }
+    print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+    print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+    print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+    print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
   }
 }
 if ($omlev) {
@@ -186,7 +227,7 @@ print "<tr>";
 print "<td><input class='inputbox' type='text' style='text-align:right' size=3 name=posn0 value=$x></td>";
 if ($art!='KK') {
   print "<td><input class='inputbox' type='text' size=7 name=vare0 onfocus='document.forms[0].fokus.value=this.name;'></td>";
-  print "<td><input class='inputbox' type='text' size=7 name=lev_v0></td>";
+  print "<td><input class='inputbox' type='text' size=7 name=lev_varenr0 onfocus='document.forms[0].fokus.value=this.name;'></td>";
   print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta0></td>";
   print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=3></td>";
 }
@@ -234,11 +275,10 @@ print "value='Gem' name='save' onclick='javascript:docChange = false;'></td>";
 print "<td align='center'><input type=submit style = 'width:120px;' accesskey='o' ";
 print "value='Opslag' name='lookup' onclick='javascript:docChange = false;'></td>";
 
-echo __line__." $bogfor<br>";
 if ($status > 1 && $bogfor==1){
   print "<td align=center><input type=submit style = 'width:120px;'accesskey='b' value='".findtekst(1065, $sprog_id)."' ";
   print "name='postNow' onclick='javascript:docChange = false;'></td>";
-} else {
+} elseif ($status >= 1) {
   if ($art=='KK') {
     print "<td align='center'>";
     print "<!--Returnér --><input type='submit' style = 'width:120px;' accesskey='m' ";
@@ -246,7 +286,7 @@ if ($status > 1 && $bogfor==1){
     print "name='return' onclick='javascript:docChange = false;'></td>";
   } else {
     print "<td align=center><input type=submit style = 'width:120px;'";
-    print "accesskey='m' value='".findtekst(1485, $sprog_id)."' ";
+    print "accesskey='m' value='".findtekst('1485|Modtag', $sprog_id)."' ";
     print "name='receive' onclick='javascript:docChange = false;'></td>";
   }
 }

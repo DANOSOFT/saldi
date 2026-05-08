@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/posTxtPrint/postTxtPrintFunc.php --- lap 4.0.0 --- 2021.02.26 ---
+// --- debitor/pos_ordre_includes/posTxtPrint/postTxtPrintFunc.php --- lap 4.1.1 --- 2025.09.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2021 saldi.dk aps
+// Copyright (c) 2019-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20190508 LN Move pos_txt_print function to this seperate file
 // 20210226 PHR Added $reportNumber
+// 20250926 PHR Updated call to function getVatArray
 
 include("pos_ordre_includes/posTxtPrint/posTxtFunctions.php"); #20190506
 function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$type = "standard") {
@@ -73,7 +74,7 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	include("pos_ordre_includes/posTxtPrint/posPayments.php"); #20190507
 	include("pos_ordre_includes/posTxtPrint/ordrerData.php"); #20190506
 
-	if (getCountry() == "Norway") {
+	if (getCountry() == "Norway" && $bruger_id != -1) {
 		$doNotPrint = setReceiptAsCopied($r, $type, $id);
 	}
 
@@ -115,7 +116,7 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	if (isset($_POST['proforma']) && $_POST['proforma'] == 'Proforma') {
 		proformaCount($x, $dkkpris, $kasse);
 	}
-	$linjeantal=$x;
+	$linjeantal = $linecount = $x;
 	if ($rvnr) {
 		$x++;
 		$qtxt = "select * from ordrelinjer where ordre_id = '$id' and varenr = 'R'";
@@ -129,11 +130,12 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 		$linjeantal=$x;
 	}
 	include_once("pos_ordre_includes/boxCountMethods/findBoxSale.php");
+// fucntions is located in: debitor/pos_ordre_includes/helperMethods/helperFuncII.php
 	$temp = findBoxSale($kasse, 0,'DKK');
 	$omsatning=$temp[1] + $temp[7];
 	$reportArray = setupReport($type, $kasse,$reportNumber); #Make report if that was the case
   $uniqueShopId = getUniqueBoxId($kasse);
-	$vatRate = getVatArray($linjeantal, $dkkpris, $vatArray);
+	$vatRate = getVatArray($id);
 	include("pos_ordre_includes/posTxtPrint/setTextVar.php"); #20190507
 }
 

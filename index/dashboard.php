@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.0 --- 2025.04.15 ---
+// ---- index/dashboard.php --- lap 4.1.1 --- 2025.08.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 //20241004 MMK  
 //20241018 LOE checks that some variables are set before using. 
 //20250513 Sawaneh display number of users online. 
+//20250805 LOE added close button to settings popup. and also added weekly graph snippet
 @session_start();
 $s_id = session_id();
 
@@ -86,6 +87,7 @@ $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
 include ("dashboardIncludes/revenue_graph.php");
 include ("dashboardIncludes/customer_graph.php");
+
 include ("dashboardIncludes/pos_row.php");
 
 
@@ -101,7 +103,7 @@ function check_permissions($permarr) {
 
 
 # If the user has finans -> regnskab or finans -> reports level access
-if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
+ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 	$qtxt = "SELECT firmanavn FROM adresser WHERE art='S'";
 	$name = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
@@ -109,9 +111,9 @@ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 
 	# Titlebar
 	print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap'>";
-	print "<h1>Velkommen - $name</h1>";
+	print "<h1>".findtekst('2574|Velkommen', $sprog_id)." - $name</h1>";
   	if (is_null($regnaar)) {
-		print "<p>Der er ikke et aktivt rengskabsår, aktiver et regnskabsår gennem System » Indstillinger » Regnskabsår</p>";
+		print "<p>".findtekst('2575|Der er i øjeblikket intet aktivt regnskabsår. Aktivér et regnskabsår gennem System » Indstillinger » Regnskabsår', $sprog_id)."</p>";
 	}
 	print "<div style='display: flex; gap: 2em'>";
 	$qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
@@ -119,17 +121,45 @@ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 	$qtxt = "SELECT id FROM settings WHERE var_name = 'orderXpress' AND var_value='on'";
 	$orderXpress = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if ($state) {
-		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>Åben kassesystem</button>";
+		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>".findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 	} elseif ($orderXpress) {
-		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>Åben sagsstyring</button>";
+		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>".findtekst('2150|Åbn sagsstyring', $sprog_id)."</button>";
 	}
 
 	print "</div>";
 	print "</div>";
+
+	// Expiry warning for users without finance access but with inventory access
+	if (check_permissions(array(12))) {
+		$_expiry_warn_days = get_due_date_warning_days($bruger_id);
+		$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, COUNT(*) AS batch_count
+		                 FROM batch_kob bk
+		                 WHERE bk.due_date IS NOT NULL AND bk.rest > 0
+		                 AND bk.due_date <= CURRENT_DATE + interval '$_expiry_warn_days days'";
+		$_expiry_r = db_fetch_array(db_select($_expiry_qtxt, __FILE__ . " linje " . __LINE__));
+		if ($_expiry_r && intval($_expiry_r['batch_count']) > 0) {
+			$_exp_items = intval($_expiry_r['item_count']);
+			$_exp_batches = intval($_expiry_r['batch_count']);
+			$_expired_qtxt = "SELECT COUNT(*) FROM batch_kob WHERE due_date IS NOT NULL AND rest > 0 AND due_date < CURRENT_DATE";
+			$_expired_r = db_fetch_array(db_select($_expired_qtxt, __FILE__ . " linje " . __LINE__));
+			$_exp_expired = intval($_expired_r[0]);
+			$_exp_bg = $_exp_expired > 0 ? '#ffcccc' : '#ffffcc';
+			$_exp_border = $_exp_expired > 0 ? '#e00' : '#cc0';
+			$_exp_msg = findtekst('5021|Advarsel', $sprog_id) . ': ';
+			if ($_exp_expired > 0) {
+				$_exp_msg .= $_exp_expired . ' ' . findtekst('5022|batch(er) er udl&oslash;bet', $sprog_id) . '. ';
+			}
+			$_exp_msg .= $_exp_batches . ' ' . findtekst('5023|batch(er) p&aring;', $sprog_id) . ' ' . $_exp_items . ' ' . findtekst('5024|vare(r) udl&oslash;ber inden for', $sprog_id) . ' ' . $_expiry_warn_days . ' ' . findtekst('5025|dage', $sprog_id) . '.';
+			print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; margin-top:1em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.href='../lager/udlobsrapport.php'\">";
+			print "<b>$_exp_msg</b> " . findtekst('5026|Klik for at se udl&oslash;bsrapporten', $sprog_id) . ".";
+			print "</div>";
+		}
+	}
+
 //	print "<p title='For at få adgang skal du aktivere finansmodulet for brugeren'>Du har ikke adgang til at se virksomhedsoversigten</p>";
 	print "<img src='../img/Saldi_Main_Logo.png' style='position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40%'></img>";
 	exit;
-}
+ }
 
 
 print '<script src="../javascript/chart.js"></script>';
@@ -144,11 +174,12 @@ function generateArray() {
     return $result;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['cookieLanguageId'])) {
+   // Only process dashboard settings if this is NOT a language change request
    $data = file_get_contents("php://input");
    update_settings_value("kontomin",         "dashboard_values", if_isset($_POST['kontomin'],          "0"),    "Show the revenue this month per last month");
    update_settings_value("kontomaks",        "dashboard_values", if_isset($_POST['kontomaks'],         "2000"), "Show the revenue this month per last month");
-
+   update_settings_value("revweek",          "dashboard_toggles", if_isset($_POST['revweek'],          "off"),  "Show the revenue this week per last week");
    update_settings_value("revmonth",         "dashboard_toggles", if_isset($_POST['revmonth'],         "off"),  "Show the revenue this month per last month");
    update_settings_value("revyear",          "dashboard_toggles", if_isset($_POST['revyear'],          "off"),  "Show the revenue this year per last year");
    update_settings_value("ordercount",       "dashboard_toggles", if_isset($_POST['ordercount'],       "off"),  "Show the amount of orders currently active that are not older than 30 days");
@@ -172,6 +203,7 @@ if (isset($_GET['hidden']) && $_GET['hidden'] == '0') {
 $kontomin = get_settings_value("kontomin", "dashboard_values", 0);
 $kontomaks = get_settings_value("kontomaks", "dashboard_values", 2000);
 
+$revweek = get_settings_value("revweek", "dashboard_toggles", "on");
 $revmonth = get_settings_value("revmonth", "dashboard_toggles", "on");
 $revyear = get_settings_value("revyear", "dashboard_toggles", "on");
 $ordercount = get_settings_value("ordercount", "dashboard_toggles", "on");
@@ -247,6 +279,35 @@ if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) &
 	print "<div id='newsbar'><span><b>Nyt i saldi:</b> $newssnippet</span><span id='closebtn' onClick=\"document.location.href = 'dashboard.php?close_snippet=1'\">x</span></div>";
 }
 
+# Expiry warning banner — show if user has inventory access (module 12)
+if (check_permissions(array(12))) {
+	$_expiry_warn_days = get_due_date_warning_days($bruger_id);
+	$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, COUNT(*) AS batch_count
+	                 FROM batch_kob bk
+	                 WHERE bk.due_date IS NOT NULL AND bk.rest > 0
+	                 AND bk.due_date <= CURRENT_DATE + interval '$_expiry_warn_days days'";
+	$_expiry_r = db_fetch_array(db_select($_expiry_qtxt, __FILE__ . " linje " . __LINE__));
+	if ($_expiry_r && intval($_expiry_r['batch_count']) > 0) {
+		$_exp_items = intval($_expiry_r['item_count']);
+		$_exp_batches = intval($_expiry_r['batch_count']);
+		// Count already expired
+		$_expired_qtxt = "SELECT COUNT(*) FROM batch_kob WHERE due_date IS NOT NULL AND rest > 0 AND due_date < CURRENT_DATE";
+		$_expired_r = db_fetch_array(db_select($_expired_qtxt, __FILE__ . " linje " . __LINE__));
+		$_exp_expired = intval($_expired_r[0]);
+
+		$_exp_bg = $_exp_expired > 0 ? '#ffcccc' : '#ffffcc';
+		$_exp_border = $_exp_expired > 0 ? '#e00' : '#cc0';
+		$_exp_msg = findtekst('5021|Advarsel', $sprog_id) . ': ';
+		if ($_exp_expired > 0) {
+			$_exp_msg .= $_exp_expired . ' ' . findtekst('5022|batch(er) er udl&oslash;bet', $sprog_id) . '. ';
+		}
+		$_exp_msg .= $_exp_batches . ' ' . findtekst('5023|batch(er) p&aring;', $sprog_id) . ' ' . $_exp_items . ' ' . findtekst('5024|vare(r) udl&oslash;ber inden for', $sprog_id) . ' ' . $_expiry_warn_days . ' ' . findtekst('5025|dage', $sprog_id) . '.';
+		print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.href='../lager/udlobsrapport.php'\">";
+		print "<b>$_exp_msg</b> " . findtekst('5026|Klik for at se udl&oslash;bsrapporten', $sprog_id) . ".";
+		print "</div>";
+	}
+}
+
 # Titlebar
 print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em; align-items: center;'>";
 print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
@@ -255,9 +316,9 @@ print "<div style='display: flex; gap: 2em;'>";
 
 # Regnaar selector
 include "dashboardIncludes/regnaar.php";
-
-print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".findtekst('2224|Oversigt', $sprog_id)."</button>";
-if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .findtekst('2224|Oversigt', $sprog_id). "</button>";
+include "dashboardIncludes/language.php";
+print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
+if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
 
 # Kassesystem eller ej
 $qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
@@ -265,11 +326,11 @@ $state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 $qtxt = "SELECT id FROM settings WHERE var_name = 'orderXpress' AND var_value='on'";
 $orderXpress = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($state) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>" .findtekst('2149|Åben kassesystem', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>".findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 } elseif ($orderXpress) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>" .findtekst('2150|Åben sagsstyring', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>".findtekst('2150|Åbn sagsstyring', $sprog_id)."</button>";
 } else {
-	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åben kassesystem', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 }
 	
 print "</div>";
@@ -280,6 +341,13 @@ if ($hide_dash === "1" || is_null($regnaar)) {
 }
 
 print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
+
+# #######################################
+#  Omsætning for ugen         
+# #######################################
+if( $revweek === "on") {
+  include("./dashboardIncludes/revenue_week.php");
+}
 
 # #######################################
 #
@@ -324,7 +392,7 @@ if ($ordercount === "on") {
 	$data = db_fetch_array($q);
 	$active_orders = formatNumber((int)$data[0], $dkFormat=false);
 	$active_total = formatNumber($data[1]);
-	key_value(findtekst('3077|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('3080|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('3081|ufaktureret', $sprog_id)."</span>");
+	key_value(findtekst('2378|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2381|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('2382|ufaktureret', $sprog_id)."</span>");
 }
 
 # #######################################
@@ -345,7 +413,7 @@ if ($vat_count == "on") {
 # #######################################
 
 if ($onlineusers === "on") {
-	key_value(findtekst('3078|Aktive medarbejdere', $sprog_id), $online_people_amount, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('3079|Har været aktive inden for den sidste time', $sprog_id)."</span>");
+	key_value(findtekst('2379|Aktive medarbejdere', $sprog_id), $online_people_amount, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2380|Har været aktive inden for den sidste time', $sprog_id)."</span>");
 }
 
 # Close the contianer div
@@ -363,6 +431,11 @@ if ($revgraph === "on") {
 }
 if ($customergraph === "on") {
 	customer_graph();
+}
+
+if ($revweek === "on") {
+  include ("dashboardIncludes/weekly_graph.php");
+	weekly_graph($regnstart, $regnslut);
 }
 
 if ($varegrp_doughnut === "on") {
@@ -388,12 +461,16 @@ print "</div>";
 print "
 <div style='display: none' id='settingpopup'>
   <!-- Popup Background -->
-  <div style='top: 0; position: fixed; height: 100vh; width: 100vw; background-color: #00000030'></div>
+  <div onclick=\"document.getElementById('settingpopup').style.display='none'\" style='top: 0; position: fixed; height: 100vh; width: 100vw; background-color: #00000030'></div>
   
   <!-- Popup Content -->
-  <div style='width: 600px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em'>
-    <h3>".findtekst('2151|Opsæt din oversigt', $sprog_id)."</h3>
+  <div style='width: 600px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed;'>
+    <!-- Close Button -->
+    <button onclick=\"document.getElementById('settingpopup').style.display='none'\"
+        style='position: absolute; top: 0.5em; right: 0.5em; border: none; background: transparent; font-size: 1.2em; cursor: pointer; color: #e00;'>&times;</button>
 
+    
+    <h3>" . findtekst('2151|Opsæt din oversigt', $sprog_id) . "</h3>
 <form method='post'>
   <table>
         <!-- Kontonumre Section -->
@@ -430,11 +507,11 @@ print "
           <td><input type='checkbox' name='ordercount' " . ($ordercount === "on" ? "checked" : "") . " /></td>
     </tr>
     <tr>
-      <td>".findtekst('3078|Aktive medarbejdere', $sprog_id)."</td>
+      <td>".findtekst('2379|Aktive medarbejdere', $sprog_id)."</td>
           <td><input type='checkbox' name='onlineusers' " . ($onlineusers === "on" ? "checked" : "") . " /></td>
     </tr>
         <tr>
-          <td>Momsangivelse</td>
+          <td>".findtekst('520|Momsangivelse', $sprog_id)."</td>
           <td><input type='checkbox' name='vatcount' " . ($vat_count === "on" ? "checked" : "") . " /></td>
         </tr>
         
@@ -442,6 +519,10 @@ print "
     <tr>
       <th>".findtekst('2162|Grafer', $sprog_id)."</th>
       <th></th>
+    </tr>
+    <tr>
+          <td>".findtekst('2678|Graf over ugentlig omsætning', $sprog_id)."</td> 
+          <td><input type='checkbox' name='revweek' " . ($revweek === "on" ? "checked" : "") . " /></td>
     </tr>
     <tr>
       <td>".findtekst('2163|Omsætningsgraf', $sprog_id)."</td>
@@ -452,7 +533,7 @@ print "
           <td><input type='checkbox' name='customergraph' " . ($customergraph === "on" ? "checked" : "") . " /></td>
         </tr>
         <tr>
-          <td>Varegruppe omsætning</td>
+          <td>".findtekst('2576|Varegruppeomsætning', $sprog_id)."</td>
           <td><input type='checkbox' name='varegrpdoughnut' " . ($varegrp_doughnut === "on" ? "checked" : "") . " /></td>
     </tr>
   </table> 

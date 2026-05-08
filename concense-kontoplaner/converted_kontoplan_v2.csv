@@ -1,0 +1,365 @@
+kontonr	beskrivelse	kontotype	momskode	fra_konto
+1000	RESULTATOPGØRELSE	H		100
+1010	Salg af varer/ydelser m/moms	D	S1	100
+1011	Salg af varer/ydelser m/moms (manuel)	D	S1	100
+1020	Salg af varer til udland	D		100
+1021	Salg af ydelser til udland	D		100
+1025	Salg af varer til EU	D		100
+1026	Salg af ydelser til EU	D		100
+1030	Salg til kunder u/moms	D		100
+1049	Periodisering indtægter	D		100
+1050	Regulering igangværende arbejder	D		100
+1068	Besætningsforskydning	D		100
+1302	Nedskrivning besætning primo	D		100
+1303	Nedskrivning besætning ultimo	D		100
+1305	Fremmed arbejde m/moms	D	K1	100
+1306	Direkte omkostninger ydelser u/moms indenfor EU	D		100
+1307	Direkte omkostninger ydelser u/moms 3. lande	D		100
+1308	Fremmed arbejde u/moms	D		100
+2010	Direkte omkostninger m/moms	D	K1	1999
+1312	Direkte omkostninger u/moms	D		100
+1015	Fragt m/moms	D	K1	100
+1316	Fragt u/moms	D		100
+1317	Fragt o.a. hjemtagelsesomkostninger EU	D		100
+1318	Fragt o.a. hjemtagelsesomkostninger udlandet	D		100
+1320	Direkte omkostninger varer u/moms indenfor EU	D		100
+1321	Direkte omkostninger ydelser u/moms indenfor EU	D		100
+1324	Direkte omkostninger varer u/moms 3. lande	D		100
+1325	Direkte omkostninger ydelser u/moms 3. lande	D		100
+1326	Lønninger, afsluttede projekter (projekt)	D		100
+1327	Omkostninger, afsluttede projekter (projekt)	D		100
+1329	Direkte omkostninger varer/ydelser u/moms	D		100
+2010	Vareforbrug (lagermodul)	D		1999
+1331	Told mv.	D		100
+7010	Lønninger	D		6999
+2211	Feriepenge & SH	D		1999
+2212	Sygedagpenge mv.	D		1999
+2213	B-honorar	D		1999
+2214	Personalegoder og multimedier	D		1999
+7165	Pensioner, arbejdsgiver	D		6999
+2219	Vendekonto løn	D		1999
+2222	AER (Samlet betaling)	D		1999
+7055	ATP	D		6999
+2224	DA-barsel	D		1999
+2230	KM-penge	D		1999
+2241	Personaleudgifter	D		1999
+2242	Projektførte lønninger (projekt)	D		1999
+2250	Bespisning under kursus/faglige møder mv. i virksomhedens lokaler	D	K1	1999
+2251	Personalearrangementer mv., restaurant, Danmak	D		1999
+2252	Anden bespisning (ikke faglige møder i virksomhedens lokaler)	D		1999
+2253	Arbejdstøj	D	K1	1999
+2254	Gaver mv. til personale	D		1999
+2255	Kurser o.a. uddannelsesudgifter m/moms	D	K1	1999
+2256	Kurser o.a. uddannelsesudgifter u/moms	D		1999
+2280	Feriepengeforpligtelse, reg.	D		1999
+2290	Lønrefusioner	D		1999
+2750	Restaurationsbesøg (forretningsmøder)	D		1999
+2751	Forretningsmøder i virksomhedens lokaler, Danmark	D	K1	1999
+2753	Bespisning, øvrige lande (forretningsmøder)	D		1999
+2754	Gaver og blomster	D		1999
+2760	Restaurationsbesøg under rejser, Danmark	D		1999
+2761	Bespisning i øvrigt (ej restauration) under rejser i Danmark	D		1999
+2762	Diæter (kost og ophold)	D		1999
+2769	Bespisning under rejser, øvrige lande	D		1999
+2770	Rejseudgifter	D		1999
+2771	Hotelophold, Danmark	D		1999
+2772	Hotelophold, Finland, 10% moms (manuel afløftning)	D		1999
+2773	Hotelophold, udland (ingen momsfradrag)	D		1999
+2775	Transport, Finland, 10% moms (manuel afløftning)	D		1999
+2776	Transport  (ingen momsfradrag)	D		1999
+2800	Annoncer og reklame	D	K1	1999
+2801	Internetannoncer, sociale medier mv. EU	D		1999
+2802	Internetannoncer, sociale medier mv. udland	D		1999
+2803	Fragt, porto m/moms	D	K1	1999
+2804	Fragt, porto u/moms	D		1999
+2805	Fragt, porto mv. EU	D		1999
+2806	Fragt, porto mv. 3. lande	D		1999
+2850	Kørselsgodtgørelse	D		1999
+3100	Autodrift - personbiler	D		3998
+3110	Brændstof	D		3998
+3120	Bilforsikring	D		3998
+3130	Vægtafgift	D		3998
+3131	Broafgift og færge	D		3998
+3140	Reparation/vedligeholdelse	D		3998
+3141	Øvrige driftsomkostninger, hvidpladebil	D		3998
+3142	Brændstof, papegøje- og gulpladebiler	D	K1	3998
+3143	Bilforsikring, papegøje- og gulpladebiler	D		3998
+3144	Vægtafgift, papegøje- og gulpladebiler	D		3998
+3145	Reparation/vedligeholdelse, papegøje- og gulpladebiler	D	K1	3998
+3146	Broafgift og færge	D	K1	3998
+3148	Øvrige driftsomkostninger m. moms, papegøje- og gulpladebiler	D	K1	3998
+3149	Øvrige driftsomkostninger u. moms, papegøje- og gulpladebiler	D		3998
+3150	Fradrag erhvervsmæssig kørsel efter statens takster	D		3998
+3160	Parkering	D		3998
+3161	Parkering	D	K1	3998
+3162	Broafgift m/moms, hvidpladebiler (Øresund)	D	K1	3998
+4010	Husleje m/moms	D	K1	3999
+3411	Husleje u/moms	D		3998
+4030	El, vand og gas	D	K1	3999
+3421	Refunderet vandafgift	D		3998
+3422	Refunderet elafgift	D		3998
+3430	Vedligeholdelse og rengøring	D	K1	3998
+3431	Lokaleomkostninger u/moms	D		3998
+3435	Reparation og vedligeholdelse	D	K1	3998
+3450	Forsikringer (lokale)	D		3998
+6010	Kontorartikler og tryksager	D	K1	5999
+3601	Avishold	D		3998
+3602	Kontorartikler og tryksager mv. u/momsfradrag	D		3998
+3604	Edb-udgifter / software	D	K1	3998
+3605	Småanskaffelser, edb mv.	D	K1	3998
+3606	Edb-udgifter / software, EU (reverse charge)	D		3998
+3607	Edb-udgifter / software, 3. lande  (reverse charge)	D		3998
+3608	Edb-udgifter / software, uden momsfradrag	D		3998
+3610	Rep./vedligeholdelse af inventar	D	K1	3998
+3617	Mindre anskaffelser	D	K1	3998
+3618	Mindre anskaffelser, omvendt betalingspligt	D		3998
+6020	Telefon	D	K1	5999
+3621	Internetforbindelse	D	K1	3998
+3623	Telefon u. moms	D		3998
+3626	Bankgebyrer	D		3998
+3627	Offentlige gebyrer m/skattemæssigt  fradrag	D		3998
+3628	Porto og gebyrer	D		3998
+3629	Gebyrer skat u/skattemæssigt fradrag	D		3998
+3630	Inkasso, debitorer	D	K1	3998
+3631	Depotgebyrer/porteføljepleje	D		3998
+6130	Revisor / regnskabsassistance	D	K1	5999
+3641	Regulering skyldig revisor / regnskabsassistance	D		3998
+3645	Advokat	D	K1	3998
+3646	Øvrig konsulentbistand	D	K1	3998
+6085	Forsikringer	D		5999
+3651	Øvrige sikringsudgifter	D		3998
+3652	Øvrige sikringsudgifter	D		3998
+3659	Kontingent vedrørende virksomhed og fradrag for syge- og arbejdsskadeforsikringer	D		3998
+3660	Faglitteratur m/moms	D	K1	3998
+3661	Faglitteratur u/moms	D		3998
+3662	Kontingenter m/moms	D	K1	3998
+3663	Kontingenter u/moms	D		3998
+3664	Web-hotel og domænenavne	D	K1	3998
+3670	Leje/leasing af driftsmidler	D	K1	3998
+3720	Tab på debitorer	D		3998
+3725	Regulering af hensættelse til imødegåelse af tab, fordringer (lagerprincip)	D		3998
+3768	Øvrige eksterne omkostninger m/moms	D	K1	3998
+3769	Øvrige eksterne omkostninger u/moms	D		3998
+3770	Kassedifferencer mv.	D		3998
+3780	Ej fradragsberettigede omkostninger	D		3998
+3781	Stiftelsesomkostninger	D	K1	3998
+3782	Stiftelsesomkostninger u/moms	D		3998
+3910	Afskrivning, indretning lejede lokaler	D		3998
+3940	Afskrivning, driftsmidler og inventar	D		3998
+3950	Afskrivning, edb	D		3998
+9070	Renteindtægt, bank	D		8999
+4311	Udbytter fra danske tilknyttede virksomheder	D		3999
+4312	Indtægter af kapitalandele i danske tilknyttede virksomheder	D		3999
+4313	Udbytter fra danske associerede virksomheder	D		3999
+4314	Indtægter af kapitalandele i danske associerede virksomheder	D		3999
+4315	Renteindtægter tilknyttede virksomheder	D		3999
+4316	Renteindtægter tilknyttede virksomheder	D		3999
+4317	Renteindtægter tilknyttede virksomheder	D		3999
+4318	Renteindtægter associerede virksomheder	D		3999
+4319	Renteindtægter associerede virksomheder	D		3999
+4330	Dansk aktieudbytte uden indeholdt udbytteskat	D		3999
+4331	Dansk aktieudbytte med 15,4% indeholdt udbytteskat	D		3999
+4332	Dansk aktieudbytte med 22% indeholdt udbytteskat	D		3999
+4333	Dansk aktieudbytte med 25% indeholdt udbytteskat	D		3999
+4334	Dansk aktieudbytte med 24% indeholdt udbytteskat	D		3999
+4335	Udenlandsk aktieudbytte uden indeholdt udbytteskat	D		3999
+4336	Udenlandsk aktieudbytte med 15% indeholdt udbytteskat	D		3999
+4337	Udenlandsk aktieudbytte i øvrigt med indeholdt udbytteskat	D		3999
+4338	Udlodninger fra investeringsselskaber og obligationsbaserede investeringsbeviser (indeholdt udbytteskat)	D		3999
+4339	Dansk udbytteskat	D		3999
+4340	Beregnet lempelse udenlandsk udbytte Saxo Bank	D		3999
+4341	Kursgevinster aktier	D		3999
+4342	Urealiserede kursgevinster aktier	D		3999
+4343	Modpost udbytteskat	D		3999
+4360	Renteindtægt, debitorer	D		3999
+4365	Rykkergebyr, debitorer	D		3999
+4370	Rentegodtgørelse selskabsskat	D		3999
+4380	Valutakursdifference, debitorer gevinst	D		3999
+4381	Valutakursdifference, kreditorer gevinst	D		3999
+9250	Renteudgift, bank	D		8999
+4411	Renteudgift, bank2	D		3999
+4415	Renteomkostninger tilknyttede virksomheder	D		3999
+4416	Renteomkostninger tilknyttede virksomheder	D		3999
+4417	Renteomkostninger tilknyttede virksomheder	D		3999
+4418	Renteomkostninger associerede virksomheder	D		3999
+4419	Renteomkostninger associerede virksomheder	D		3999
+4420	Renteomkostninger mellemregning med ejere Andre finansielle omkostninger	D		3999
+4421	Renteomkostninger mellemregning med ejere Andre finansielle omkostninger	D		3999
+4430	Kautionspræmie / provision	D		3999
+4450	Låneomkostninger	D		3999
+4460	Renteudgift, kreditorer	D		3999
+4461	Rykkergebyrer	D		3999
+4465	Renteudgift, Told & Skat, uden fradrag	D		3999
+4470	Finansieringstillæg, selskabsskat	D		3999
+4475	Renteomkostninger, SKAT, uden fradrag	D		3999
+4476	Renteomkostninger, SKAT, med fradrag	D		3999
+4477	Øvrige renteomkostninger	D		3999
+4480	Valutakursdifference, debitorer tab	D		3999
+4481	Valutakursdifference, kreditorer tab	D		3999
+4610	Ekstraordinære indtægter m/moms	D	S1	3999
+4620	Ekstraordinære indtægter u/moms	D		3999
+4630	Ekstraordinære udgifter m/moms	D	K1	3999
+4640	Ekstraordinære udgifter u/moms	D		3999
+4670	Avance ved salg anlægsaktiver	D		3999
+4671	Tab ved salg anlægsaktiver	D		3999
+4810	Selskabsskat, aktuel	D		3999
+4815	Skattekredit forskning og udvikling	D		3999
+4820	Reg. af udskudt skat	D		3999
+4899	RESULTAT EFTER SKAT	Z		3999
+4940	RESULTATDISPONERING	H		3999
+4950	Nettoopskrivning efter den indre værdis metode	R		3999
+4951	Nettoopskrivning af investeringsaktiver	R		3999
+4952	Overkurs ved emission	R		3999
+4953	Årets henlæggelse til øvrige lovpligtige reserver	R		3999
+4954	Årets henlæggelse til vedtægtsmæssige reserver	R		3999
+4955	Årets henlæggelse til øvrige reserver	R		3999
+4956	Årets henlæggelse til reserve for iværksætterselskab	R		3999
+4957	Overført til sikringsfond	R		3999
+4958	Overført til reservefond	R		3999
+4959	Overført til dispositionsfond	R		3999
+4960	Årets resultat vedrørende bunden fondskapital	R		3999
+4961	Årets resultat vedrørende disponibel fondskapital	R		3999
+4962	Hensat af fondskapitalen til senere uddeling	R		3999
+4963	Ekstraordinært udbytte for regnskabsåret (EK)	R		3999
+4964	Udbytte for regnskabsåret (EK)	R		3999
+4965	Overført af årets resultat	R		3999
+4966	Minoritetsinteresser andel af årets resultat	R		3999
+4940	RESULTATDISPONERING I ALT	Z		3999
+5000	AKTIVER	H		4999
+10305	Goodwill, primo	A		10001
+5002	Goodwill, tilgang i året	A	K1	4999
+5003	Goodwill, afgang i året	A		4999
+5004	Goodwill, årets afskrivninger	A		4999
+5021	Immaterielle anlægsaktiver primo	A		4999
+5022	Immaterielle, tilgang i året	A	K1	4999
+5023	Immaterielle, afgang i året	A		4999
+5024	Immaterielle, årets afskrivninger	A		4999
+5091	Immaterielle anlægsaktiver primo	A		4999
+5092	Immaterielle, tilgang i året	A	K1	4999
+5094	Immaterielle, afgang i året	A		4999
+5097	Immaterielle, årets afskrivninger	A		4999
+11110	Grunde og bygninger, anskaffelse primo	A		10001
+5102	Grunde og bygninger, årets tilgang	A		4999
+5103	Grunde og bygninger, årets afgang	A		4999
+5106	Grunde og bygninger, afskrivning primo	A		4999
+5107	Grunde og bygninger, årets afskrivninger	A		4999
+5111	Indretning, anskaffelse primo	A		4999
+5112	Indretning, årets tilgang	A	K1	4999
+5113	Indretning, årets afgang	A		4999
+5115	Indretning, afskrivning primo	A		4999
+5116	Indretning, afskrivning tilgang	A		4999
+5117	Indretning, årets afskrivninger	A		4999
+11505	Driftsmidler, anskaffelse primo	A		10001
+5222	Driftsmidler, årets tilgang	A	K1	4999
+5223	Driftsmidler, årets afgang	A		4999
+5226	Driftsmidler, afskrivning primo	A		4999
+5227	Driftsmidler, årets afskrivninger	A		4999
+11610	Edb-anlæg, anskaffelse primo	A		10001
+5232	Edb-anlæg, årets tilgang	A	K1	4999
+5233	Edb-anlæg, årets afgang	A		4999
+5236	Edb-anlæg, afskrivning primo	A		4999
+5237	Edb-anlæg, årets afskrivninger	A		4999
+5312	Huslejedepositum m/moms	A	K1	4999
+5313	Huslejedepositum u/moms	A		4999
+5322	Leasingdepositum	A	K1	4999
+5400	Kapitalandele i tilknyttede virksomheder	A		4999
+5401	Kapitalandele i tilknyttede virksomheder 2	A		4999
+5402	Kapitalandele i tilknyttede virksomheder 3,	A		4999
+5410	Kapitalandele i associerede virksomheder	A		4999
+5411	Kapitalandele i associerede virksomheder 2	A		4999
+5420	Tilgodehavender hos tilknyttede virksomheder	A		4999
+5421	Tilgodehavender hos tilknyttede virksomheder2	A		4999
+5429	Tilgodehavender hos tilknyttede virksomheder, sambeskatningsbidrag	A		4999
+5430	Tilgodehavender hos associerede virksomheder	A		4999
+5431	Tilgodehavender hos associerede virksomheder2	A		4999
+5440	Aktier	A		4999
+5441	Investeringsforeningsbeviser	A		4999
+5442	Obligationer	A		4999
+5512	Kornbeholdning	A		4999
+5514	Besætninger	A		4999
+5515	Nedskrivning besætninger	A		4999
+5516	Olie- og gasbeholdning	A		4999
+5518	Gødning og kemikaliebeholdning	A		4999
+5520	Varelager	A		4999
+16110	Debitorer	A		10001
+5605	Hensat til tab på debitorer	A		4999
+5610	Udskudt skatteaktiv	A		4999
+5611	Selskabsskat tilgode	A		4999
+5612	Selskabsskat tilgode, lang	A		4999
+5613	Selskabsskat tilgode skattekreditordningen forskning og udvikling	A		4999
+5645	Tilgodehavende moms	A		4999
+5650	Andre tilgodehavender	A		4999
+5651	Tilgodehavender hos ejere og ledelse	A		4999
+5654	Igangværende arbejder - aktiviteter (projekt)	A		4999
+5655	Igangværende arbejder - omkostninger (projekt)	A		4999
+5660	Forudbetalte poster	A		4999
+5665	Personaletilgodehavender	A		4999
+18010	Kassebeholdning	A		10001
+18025	Bankkonto	A		10001
+5821	Bankkonto 2	A		4999
+5825	Bank værdipapirdepot 1	A		4999
+5826	Bank værdipapirdepot 2	A		4999
+5990	AKTIVER I ALT	Z		4999
+6100	EGENKAPITAL	H		5999
+20010	Selskabskapital	P		19999
+6120	Overkursfond	P		5999
+6125	Reserve for nettoopskrivning efter den indre værdis metode	P		5999
+6128	Reserve for udviklingsomkostninger	P		5999
+20810	Overført resultat tidligere år	P		19999
+6135	Udbytte	P		5999
+6140	Periodens resultat efter skat	P		5999
+6199	EGENKAPITAL I ALT	Z		5999
+6300	HENSATTE FORPLIGTELSER	H		5999
+6310	Udskudt skat	H		5999
+6311	Hensættelser vedrørende kapitalandele i tilknyttede virksomheder	H		5999
+6312	Hensættelser vedrørende kapitalandele i associerede virksomheder	H		5999
+6320	Øvrige hensættelser	H		5999
+6399	HENSATTE FORPLIGTELSER I ALT	Z		5999
+6600	GÆLDSFORPLIGTELSER	H		5999
+6609	Selskabsskat, langfristet	P		5999
+26830	Skyldig selskabsskat	P		19999
+6611	Skattekonto	P		5999
+6750	Kassekredit	P		5999
+26010	Kreditorer	P		19999
+6830	Skyldige omkostninger	P		5999
+6831	Skyldig revisor	P		5999
+6835	Skyldige medarbejderudlæg	P		5999
+6840	Gæld til tilknyttede virksomheder, lang	P		5999
+6842	Gæld til associerede virksomheder, lang	P		5999
+6844	Gæld til tilknyttede virksomheder	P		5999
+6845	Gæld til tilknyttede virksomheder2	P		5999
+6846	Gæld til tilknyttede virksomheder3	P		5999
+6850	Gæld til associerede virksomheder	P		5999
+6851	Gæld til associerede virksomheder2	P		5999
+6860	Mellemregning med anpartshaver	P		5999
+6861	Mellemregning med anpartshaver2	P		5999
+27110	Moms og afgifter	P		19999
+6901	Skyldig moms, primo	P		5999
+6902	Udgående (salg) moms	P		5999
+6903	Indgående (køb) moms	P		5999
+6906	Erhvervelsesmoms (køb i udland)	P		5999
+6907	Erhvervelsesmoms (modkonto)	P		5999
+6910	Olieafgift	P		5999
+6911	Elafgift	P		5999
+6912	Gasafgift	P		5999
+6914	CO2-afgift	P		5999
+6915	Vandafgift	P		5999
+6916	Omposteret til tilgodehavende moms	P		5999
+6917	Betalt moms	P		5999
+6920	Skyldig A-skat	P		5999
+6921	Skyldig ATP	P		5999
+6922	Skyldig pension	P		5999
+6923	Skyldige feriepenge & SH	P		5999
+6924	Skyldig DA-barsel	P		5999
+6925	Skyldig sociale bidrag	P		5999
+6930	Skyldig AM-bidrag	P		5999
+6940	Skyldige lønninger	P		5999
+6945	Andre skyldige løn poster	P		5999
+6946	Hensat feriepengeforpligtelse	P		5999
+6947	Anden gæld	P		5999
+6948	Vendekonto bank	P		5999
+6949	Vendekonto depot / bank	P		5999
+6950	Vendekonto skattekonto	P		5999
+7999	GÆLDSFORPLIGTELSER I ALT	Z		6999
+8999	PASSIVER I ALT	H		7999
+9900	Analyse/fejlkonto	P		8999

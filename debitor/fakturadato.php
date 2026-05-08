@@ -25,11 +25,9 @@
 // ----------------------------------------------------------------------
 ?>
 <script language="JavaScript">
-<!--
 function fejltekst(tekst) {
 	alert(tekst);
 }
--->
 </script>
 <?php
 

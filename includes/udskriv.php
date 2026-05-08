@@ -1,29 +1,27 @@
-<?php #topkode_start
+<?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.0.7 --- 2025.05.21 ---
+// --- includes/udskriv.php --- lap 5.0.0 --- 2026.04.28 ---
 // LICENS
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2013.03.20 Tilføjet mulighed for fravalg af logo på udskrift. Søg "PDF-tekst"
 // 2013.12.02	Efter udskrivning af kreditorordre, åbnes ordre som debitorordre. Tilføjer $art. Søg $art.
@@ -38,11 +36,16 @@
 // 2019.11.05 PHR - Varius cleanup
 // 2020.01.13 PHR - Print from 'genfakturer' returned to includes/ordreliste.php which does not exist. 20200113
 // 20230522 PHR php8
+// 20260102 LOE Added alert to install pdftk if not already done.
+// 20260217 LOE Updated the $href for 'DO' type.
+// 20260320 PHR cleanup (pdftk)
+// 20260428 LOE added more options for 'DO' type and updated faktura navigation for pick list.
+
 
 @session_start();
 $s_id=session_id();
 header('Expires: Mon, 01 Jan 2017 05:00:00 GMT'); 
-header('Cache-Control: no-store, no-cache, must-revalidate'); 
+header('Cache-Control: no-store, no-cache, must-revalidate');  
 header('Cache-Control: post-check=0, pre-check=0', FALSE); 
 header('Pragma: no-cache');
 
@@ -53,20 +56,39 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 
 if (!isset($exec_path)) $exec_path="/usr/bin";
-$localPrint=if_isset($_COOKIE['localPrint']);
+$localPrint=if_isset($_COOKIE, NULL, 'localPrint');
 $udfil=$zx=NULL;
 
-$ps_fil=if_isset($_GET['ps_fil']);
-$valg=if_isset($_GET['valg']);
-$logoart=if_isset($_GET['logoart']);
-$id=if_isset($_GET['id']);
-$udskriv_til=if_isset($_GET['udskriv_til']);
-$udskrift=if_isset($_GET['udskrift']);
-$bgr=if_isset($_GET['bgr']);# stillads
-$art=if_isset($_GET['art']);
-$ordreliste=if_isset($_GET['ordreliste']);
-$ordre_antal=if_isset($_GET['ordre_antal']);
-$returside=if_isset($_GET['returside']);
+$ps_fil        = if_isset($_GET, NULL, 'ps_fil');
+$valg          = if_isset($_GET, NULL, 'valg');
+$logoart       = if_isset($_GET, NULL, 'logoart');
+$id            = if_isset($_GET, NULL, 'id');
+$udskriv_til   = if_isset($_GET, NULL, 'udskriv_til');
+$udskrift      = if_isset($_GET, NULL, 'udskrift');
+$bgr           = if_isset($_GET, NULL, 'bgr');          # stillads
+$art           = if_isset($_GET, NULL, 'art');
+$ordreliste    = if_isset($_GET, NULL, 'ordreliste');
+$ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
+$returside    = if_isset($_GET, NULL, 'returside');
+$locat      = if_isset($_GET, NULL, 'locat');
+
+if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
+	
+	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
+	elseif (!$returside) $returside = '../debitor/ordreliste.php';
+    if (!$pdftk || !file_exists($pdftk)) {
+        error_log("ERROR: pdftk is not installed. Please install pdftk first.");
+        
+        // Use JavaScript to alert and then redirect
+        echo "<script>
+                alert('ERROR: pdftk is not installed. Please install pdftk first.');
+                setTimeout(function() {
+                    window.location.href = '$returside';
+                }, 1000); // 1 second delay
+              </script>";
+        exit();
+    }
+}
 
 if ($returside=='ordreliste.php') { #20200113
 	if ($art=='KO' || $art=='KK') $returside="../kreditor/ordreliste.php";
@@ -157,7 +179,7 @@ if ($valg) {
 				$udfil="../temp/$a/$b/udskrift.pdf";
 				fwrite($log,__line__." $udfil=\"../temp/$a/$b/udskrift.pdf\"\n");
 				$ps_fil="/$a/$b/udskrift";
-				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n");
+				fwrite($log,__line__." $ps_fil=\"/$a/$b/udskrift\"\n"); 
 			} else $udfil=NULL;
 		} 
 		if ($udfil) {
@@ -217,26 +239,52 @@ if ($valg) {
 	if ($zx) { # Brug PostScript 
 		$tmp = system ("ls");
 			fwrite($log,__line__." system (\"$ps2pdf ../temp/$ps_fil.ps ../temp/$ps_fil.pdf\")\n");
-			system ("$ps2pdf ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
+			
+			
+			#system ("$ps2pdf ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
+			if (file_exists("../temp/$ps_fil.ps") && filesize("../temp/$ps_fil.ps") > 0) {
+				system ("$ps2pdf ../temp/$ps_fil.ps ../temp/$ps_fil.pdf");
+			} else {
+				fwrite($log, "Error: PS file not found or empty: ../temp/$ps_fil.ps\n");
+			}
 		}
 
 		fwrite($log,__line__." if (file_exists(\"../temp/$ps_fil.pdf\")\n");
 		$ps_fil=str_replace("../temp/$db","",$ps_fil);
-		if (file_exists("../temp/$ps_fil.pdf")) {
-			if (strpos($ps_fil,'tilbud') && file_exists("../logolib/$db_id/tilbud_bg.pdf")) $bg_fil="../logolib/$db_id/tilbud_bg.pdf";
-			elseif (strpos($ps_fil,'ordre') && file_exists("../logolib/$db_id/ordrer_bg.pdf")) $bg_fil="../logolib/$db_id/ordrer_bg.pdf";
-			elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
-			elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
+		// if (file_exists("../temp/$ps_fil.pdf")) {
+		// 	if (strpos($ps_fil,'tilbud') && file_exists("../logolib/$db_id/tilbud_bg.pdf")) $bg_fil="../logolib/$db_id/tilbud_bg.pdf";
+		// 	elseif (strpos($ps_fil,'ordre') && file_exists("../logolib/$db_id/ordrer_bg.pdf")) $bg_fil="../logolib/$db_id/ordrer_bg.pdf";
+		// 	elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
+		// 	elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
+if (file_exists("../temp/$ps_fil.pdf")) {
+    // Use the background file from GET if provided and exists
+    // if (isset($_GET['bgr']) && $_GET['bgr'] && file_exists($_GET['bgr'])) {
+    //     $bg_fil = $_GET['bgr'];
+    // }
+
+	if (isset($_GET['bgr']) && $_GET['bgr']) {
+    $bgr_param = urldecode($_GET['bgr']);
+	
+    if (file_exists($bgr_param)) {
+        $bg_fil = $bgr_param;
+    }
+}
+	 elseif (strpos($ps_fil,'tilbud') && file_exists("../logolib/$db_id/tilbud_bg.pdf")) $bg_fil="../logolib/$db_id/tilbud_bg.pdf";
+    elseif (strpos($ps_fil,'ordre') && file_exists("../logolib/$db_id/ordrer_bg.pdf")) $bg_fil="../logolib/$db_id/ordrer_bg.pdf";
+    elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
+    elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
 			print "<!-- kommentar for at skjule uddata til siden \n";
-			if (system("which pdftk") && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
-				$out="../temp/".$ps_fil."x.pdf";
-				fwrite($log,__line__." $out=\"../temp/".$ps_fil."x.pdf\"\n");
-				system ("$exec_path/pdftk ../temp/$ps_fil.pdf background $bg_fil output $out");
-				fwrite($log,__line__." system (\"$exec_path/pdftk ../temp/$ps_fil.pdf background $bg_fil output $out\")\n");
-				unlink ("../temp/$ps_fil.pdf");
-				fwrite($log,__line__." unlink (\"../temp/$ps_fil.pdf\")\n");
-				system  ("mv $out ../temp/$ps_fil.pdf");
-				fwrite($log,__line__." system  (\"mv $out ../temp/$ps_fil.pdf\")\n");
+			# $pdftk = trim(shell_exec("which pdftk") ?? '');
+			# error_log("DIAG: pdftk_bin=$pdftk");
+
+			if ($pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+				$out = "../temp/" . $ps_fil . "x.pdf";
+				system("$pdftk ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
+				error_log("DIAG: pdftk rc=$rc, out_exists=" . (file_exists($out) ? 'YES' : 'NO'));
+				if (file_exists($out)) {
+					unlink("../temp/$ps_fil.pdf");
+					rename($out, "../temp/$ps_fil.pdf");
+				}
 			}
 			print "--> \n";
 			
@@ -283,15 +331,34 @@ if ($valg) {
 			global $menu;
 
 			include("../includes/topline_settings.php");
-
+            ############
+			$path = "../temp/$db/area$bruger_id.txt";
+			$value = file_exists($path) ? file_get_contents($path) : null;
+			###########
 			if ($menu == 'S') {
-				print "<table width=100% height=100%><tbody>";
+				print "<table width=100% height=100%><tbody>"; 
+				if ($returside) {
+				 if (substr($art,0,1)=='K'){  
+					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=$returside\" accesskey=\"L\"";
+				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
+					$href = "../debitor/ordreliste.php";
+				 } else {
+					if($art == 'DO'){
+						if($value == 'faktura'){
+							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=$returside";
 
-				if ($returside) $href="\"$returside\" accesskey=\"L\"";
-				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-
+						}else{
+							$href = "../debitor/ordreliste.php";
+						}
+					}else{
+					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
+					}
+				 }  
+				} else { 
+					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
+				} 
 				print "<td width='10%'><a href=$href>
-					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal Luk</button></a></td>";
+					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 				print "<td width='80%' align='center' title='".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id)."'>
 					   <a href=../temp/$ps_fil.pdf target=blank>
@@ -305,7 +372,7 @@ if ($valg) {
 				print "<table width=100% height=100%><tbody>";
 				if ($returside) $href="\"$returside\" accesskey=\"L\"";
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal Luk</a></td>";
+				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</a></td>";
 				print "<td width=\"80%\" $top_bund align=\"center\" title=\"".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id).">";
 				print "<a href=../temp/$ps_fil.pdf target=blank>".findtekst('2180|Vis PDF udskrift', $sprog_id)."</a>";
 				print "</td>";

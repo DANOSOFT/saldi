@@ -23,7 +23,7 @@ include "header.php";
 $steps = array();
 $steps[] = array(
     "selector" => ".flatpickr-calendar",
-    "content" => "Vælg de dage, hvor butikken har lukket – så kan systemet guide dig, når du opretter bookinger. Hvis en booking falder hen over lukkedage, bliver disse automatisk fratrukket prisen."
+    "content" => findtekst('2665|Vælg de dage, hvor butikken har lukket – så kan systemet guide dig, når du opretter bookinger. Hvis en booking falder hen over lukkedage, bliver disse automatisk fratrukket prisen.', $sprog_id)
 );
 
 ?>   

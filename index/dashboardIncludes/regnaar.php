@@ -72,7 +72,7 @@ if (count($regnskabsaar) > 1) {
         }
     }
     
-    echo '<label for="aktiverDropdown">' . findtekst(778, $sprog_id) . ':</label> ';
+    echo '<label for="aktiverDropdown">' . findtekst('778|Regnskabsår', $sprog_id) . ':</label> ';
     echo '<select name="aktiver_regnaar" id="aktiverDropdown" onchange="confirmYearChange(this)">';
     
     foreach ($regnskabsaar as $year) {
@@ -88,7 +88,7 @@ if (count($regnskabsaar) > 1) {
     echo '<script>
     function confirmYearChange(selectElement) {
         var selectedText = selectElement.options[selectElement.selectedIndex].text;
-        if (confirm("' . findtekst(1796, $sprog_id) . ' " + selectedText + "?")) {
+        if (confirm("' . findtekst('1796|Sæt regnskabsår til', $sprog_id) . ' " + selectedText + "?")) {
             document.getElementById("changeRegnskabsaarForm").submit();
         } else {
             // Reset to previously selected value if user cancels

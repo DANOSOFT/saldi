@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- lap 4.1.1 --- 2024-12-16 ---
+// --- debitor/ret_genfakt.php --- lap 5.0.0 --- 2025-01-21 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 saldi.dk ApS
+// Copyright (c) 2003-2026 saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 16.08.2012 søg 20120816 - Udskriv_til i rødt hvis stamkort siger pbs og dette ikke er valgt.
@@ -39,6 +39,7 @@
 // 2017.04.11 fakturadato, genfakt & betalingsbetingelser kan nu rettes for alle med samme dato / bet ved af skrive * efter hhv. Søg '"*"'
 // 2017.05.30 Betalingsdage sættes til 0 hvis ikke sat. Søg 20170530
 // 20241216 PHR PHP8
+// 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
 
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -70,6 +71,31 @@ $gl_dato=NULL;$ny_dato=NULL;
 $ny_betalingsbet=NULL;$ny_betalingsdage=NULL;
 $gl_genfakt=NULL;$ny_genfakt=NULL;
 
+?>
+<script>
+function checkPopupBlocked() {
+    var popup = window.open('', 'test', 'width=1,height=1');
+    
+    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+        // Popup blocked
+        return true;
+    } else {
+        // Popup allowed - close test popup
+        popup.close();
+        return false;
+    }
+}
+
+const res = checkPopupBlocked();
+if (res) {
+	// Alert the user about the popup blocker (Dansk translation)
+	alert("Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen, skal du tillade pop-up vinduer for denne side.");
+} else {
+	// Proceed with the report functionality
+	console.log("Pop-up allowed, proceeding with report functionality.");
+}
+</script>
+<?php
 
 $returside=if_isset($_GET['returside']);
 if ($popup) $returside="../includes/luk.php";
@@ -187,7 +213,7 @@ if ($_GET['ordreliste']) {
 				$ny_betalingsbet=$betalingsbet[$x];
 				$ny_betalingsdage=$betalingsdage[$x];
 			} elseif ($gl_betalingsbet && $ny_betalingsbet &&
-				($betalingsbet[$x]!=$gl_betalingsbet || $betalingsdage[$x]!=$gl_betalingsdage)) {
+				$betalingsbet[$x]==$gl_betalingsbet && $betalingsdage[$x]==$gl_betalingsdage) {
 				$betalingsbet[$x]=$ny_betalingsbet;
 				$betalingsdage[$x]=$ny_betalingsdage;
 			}
@@ -207,6 +233,7 @@ if ($_GET['ordreliste']) {
 			$qtxt.= "email='$email[$x]',udskriv_til='$udskriv_til[$x]',mail_fakt='$mail_fakt[$x]',projekt='$projekt[$x]',";
 			$qtxt.= "betalingsbet='$betalingsbet[$x]',betalingsdage='$betalingsdage[$x]',procenttillag='$procenttillag[$x]'";
 			$qtxt.= "where id='$ordreliste[$x]'";
+#if ($x < 3) echo __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($nextfakt<=$fakturadate) $fejltekst="Genfaktureringsdato skal v&aelig;re efter fakturadato ($firmanavn[$x])";
 			if (!$fejltekst && strstr($udskriv_til[$x],'PBS')) {
@@ -258,9 +285,9 @@ if ($_GET['ordreliste']) {
 	
 	for ($x=0 ; $x<=$ordreantal ; $x++) {
 		if ($ordreliste[$x]) {
-			if (!in_array($ordreliste[$x],$ordre_id)) $ordreliste[$x]=0;
-			else { # 20131001 ->
-				$r=db_fetch_array(db_select("select momssats from ordrer where id = '$ordreliste[$x]'",__FILE__ . " linje " . __LINE__));
+			# Check if order still exists and is valid (status < 3) instead of checking if it has line items
+			$r=db_fetch_array(db_select("select momssats,status from ordrer where id = '$ordreliste[$x]'",__FILE__ . " linje " . __LINE__));
+			if ($r && $r['status'] < '3') { # 20131001 ->
 				$momssats=$r['momssats'];
 				$bl_moms=0;
 				$momssum=0;
@@ -274,6 +301,9 @@ if ($_GET['ordreliste']) {
 				}
 				if($momssats && !$bl_moms) $momssum=$ordresum*$momssats/100;
 				db_modify("update ordrer set sum='$ordresum',moms='$momssum' where id='$ordreliste[$x]' and status < '3'",__FILE__ . " linje " . __LINE__);
+			} else {
+				# Order no longer exists or has been invoiced, remove from list
+				$ordreliste[$x]=0;
 			}
 		}
 	}
@@ -301,7 +331,7 @@ if ($_GET['ordreliste']) {
 						$fp=fopen("../temp/$db/$printfilnavn","w");
 						fwrite($fp,oioubldoc_faktura($ordreliste[$x],'faktura',NULL));
 						fclose($fp);
-#echo "'oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars'<br>";
+#cho "'oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars'<br>";
 #						print "<BODY onLoad=\"JavaScript:window.open('oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars');\">\n";
 						$r=db_fetch_array(db_select("select box8 from grupper where art = 'DIV' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
 						if ($r['box8']) {
@@ -323,11 +353,11 @@ if ($_GET['ordreliste']) {
 								if ($fp) fwrite ($fp, "set confirm-close no\nget $printfilnavn\nbye\n");
 								fclose($fp);
 								$kommando="cd ../temp/$db\n$exec_path/ncftp ftp://".$oiobruger.":".$oiokode."@".$oiourl." < oioftpscript2.$ordreliste[$x] >> oioftplog.$ordreliste[$x]\n";
-#								echo "<br>B ".str_replace("\n","<br>",$kommando)."<br>";
+#cho "<br>B ".str_replace("\n","<br>",$kommando)."<br>";
 								system ($kommando);
 								if (file_exists("../temp/$db/$printfilnavn")) {
 									unlink("../temp/$db/$printfilnavn"); 
-									#echo 'unlink(\"../temp/$db/$printfilnavn\")';
+#cho 'unlink(\"../temp/$db/$printfilnavn\")';
 									print "<tr><td>$printfilnavn overført til $oiourl</td></tr>";
 								} else {
 									print "<BODY onLoad=\"javascript:alert('Afsendelse af $printfilnavn fejlet tjek brugernavn og adgangskode til ftp hos ebConnect')\">";
@@ -470,7 +500,7 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	print "<td><span onmouseover=\"return overlib('$spantekst', WIDTH=800);\" onmouseout=\"return nd();\">";
 	print "<input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:center;width:90px\" name=\"genfakt_$x\" value=\"$genfakt[$x]\">";
 	print "</span></td>";
-	$spantekst="Du kan rette alle samme betalingsbetingelser ved at sætte en * efter dage<br>";
+	$spantekst="Du kan rette alle med samme betalingsbetingelser ved at sætte en * efter dage<br>";
 	$spantekst.="f.eks.: ";
 	$spantekst.= $betalingsdage[$x]+5;
 	$spantekst.="*";
@@ -606,7 +636,7 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	print "</tr>";
 	if ($procenttillag[$x]) {
 		$tillag=$ordresum*$procenttillag[$x]/100;
-#echo htmlentities($procentbeskr)." -> $procenttillag[$x]<br>";
+#cho htmlentities($procentbeskr)." -> $procenttillag[$x]<br>";
 		$pctbesk=str_replace('$procenttillæg;',dkdecimal($procenttillag[$x]),$procentbeskr);
 		print "<tr>";
 		print "<td></td>";

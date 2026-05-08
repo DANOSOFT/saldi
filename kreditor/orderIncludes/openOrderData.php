@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/creditorIncludes/openOrders.php --- lap 4.0.5 --- 2025.05.03 ---
+// --- kreditor/creditorIncludes/openOrderData.php --- lap 5.0.0 --- 2026.03.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20221104 MLH added lookup function for the delivery address fields
@@ -29,22 +29,26 @@
 // 20230105 MLH added mail_text and mail_subj
 // 20250415 LOE Some variables initialized and others checked before using.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20260217 PHR Added 'kundeordrnr'
+// 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
 
+/*
 $attachId    = null;
 $email       = null;
 $kundeordnr  = null;
 $projekt[0]  = null;
-$ref         = null;
 $udskriv_til = null;
-
-
+*/
+include '../includes/topline_settings.php';
+print "<!-- BEGIN orderIncludes/openOrderData.php -->";
+/*
 $attachId    = if_isset($attachId,NULL);
 $email       = if_isset($email,NULL);
 $kundeordnr  = if_isset($kundeordnr,NULL);
 $projekt[0]  = if_isset($projekt[0],NULL);
 $ref         = if_isset($ref,NULL);
 $udskriv_til = if_isset($udskriv_til,'PDF');
-
+*/
 print "<tr><td><table cellpadding='0' cellspacing='0' border='0'style='width:355px' >";
 print "<tr><td style='width:100px'>".findtekst(276,$sprog_id)."</td><td style='width:250px'>";
 if (trim($kontonr)) {
@@ -78,7 +82,7 @@ if (!$id) {
 #20221104 BEGIN
 print "<tr><td>".findtekst(402,$sprog_id)."</td>";
 print "<td><input class='inputbox' type='text' style='width:110px;' name='email' value='$email' onchange='javascript:docChange = true;'></td>";
-print "<td>".findtekst(2306,$sprog_id)."</td><td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='this.form.submit()'>\n";
+print "<td>".findtekst(2306,$sprog_id)."</td><td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='javascript:docChange = true;'>\n";  #onchange='this.form.submit()'
 print "<option value='PDF' ".((!$email || $udskriv_til=="PDF")?"selected='selected'":"").">PDF</option>\n";
 print "<option value='email' ".(($email && $udskriv_til=="email")?"selected='selected'":"")." title=\"".findtekst(1450, $sprog_id)."\">".findtekst(652, $sprog_id)."</option>\n";
 print "</SELECT></td></tr>\n";
@@ -108,12 +112,7 @@ if ($x>0) {
 	$list[0]='DKK';
 	$beskriv[0]='Danske kroner';
 	print "<tr><td>Valuta</td>";
-	print "<td><select class='inputbox' name=valuta>";
-	for ($x=0; $x<=$tmp; $x++) {
-if ($valuta!=$list[$x]) print "<option title='$beskriv[$x]' onchange='javascript:docChange = true;'>$list[$x]</option>";
-else print "<option title='$beskriv[$x]' selected='selected' onchange='javascript:docChange = true;'>$list[$x]</option>";
-	}
-	print "</SELECT></td>";
+	print "<td><input class='inputbox' style='width:110px;' name='valuta' value='$valuta' onfocus='document.forms[0].fokus.value=this.name;'></td>";
 } else print "<tr><td width=200></tr>";
 $list=array();
 $beskriv=array();
@@ -128,14 +127,7 @@ $prj_antal=$x;
 if ($x>0) {
 	$vis_projekt='1';
 	print "<td><span title= '".findtekst(950, $sprog_id)."';>".findtekst(553, $sprog_id)."</span></td>";
-	print "<td><select class='inputbox' name=projekt[0]>";
-	for ($x=0; $x<=$prj_antal; $x++) {
-		if (!isset($beskriv[$x])) $beskriv[$x] = NULL;
-		if (!isset($list[$x])   ) $list[$x]    = NULL;
-		if ($projekt[0]!=$list[$x]) print "<option title='$beskriv[$x]' onchange='javascript:docChange = true;'>$list[$x]</option>";
-		else print "<option title='$beskriv[$x]' selected='selected' onchange='javascript:docChange = true;'>$list[$x]</option>";
-	}
-	print "</SELECT></td></tr>";
+	print "<td><input class='inputbox' style='width:110px;' name='projekt[0]' value='{$projekt[0]}' onfocus='document.forms[0].fokus.value=this.name;'></td></tr>";
 } else print "<tr><td</tr>";
 
 print "<tr><td>".findtekst(935,$sprog_id)."</td>";
@@ -185,40 +177,48 @@ if ($id) {
 	print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></a>";
 }
 print "</td></tr>";
-if (!$ref) {
-	$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
-	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && if_isset($r,NULL,'ansat_id')) {
-		$r = db_fetch_array(db_select("select navn from ansatte where id = $r[ansat_id]",__FILE__ . " linje " . __LINE__));
-		if ($r['navn']) $ref=$r['navn'];
+
+$txt1097 = findtekst('1097|Vor ref.', $sprog_id);
+print "<tr><td>$txt1097</td>";
+#print "<td><input class='inputbox' style='width:110px;' name='ref' value='$ref' onfocus='document.forms[0].fokus.value=this.name;'></td>";
+print "<td>";
+print "<input type = 'hidden' name = 'oldRef' value = '$ref'>";
+if (count($employees)) {
+	print "<select class='inputbox' style='width:110px;'  name = 'ref'>";
+	for ($i=0;$i<count($employees);$i++) {
+		if ($ref == $employees[$i]) print "<option value='$employees[$i]'>$employees[$i]</option>";
 	}
+	for ($i=0;$i<count($employees);$i++) {
+		if ($ref != $employees[$i]) print "<option value='$employees[$i]'>$employees[$i]</option>";
+	}
+	print "<select>";
+} else print $ref;
+print "</td>";
+if (count($depNumbers)) {
+	print "<td>Afd</td>";
+#print "<td><input class='inputbox' style='width:110px;' name='adf' value='$afd' onfocus='document.forms[0].fokus.value=this.name;'></td>";
+print "<td>";
+print "<input type = 'hidden' name = 'oldDep' value = '$afd'>";
+	print "<select class='inputbox' style='width:110px;'  name = 'afd'>";
+	for ($i=0;$i<count($depNumbers);$i++) {
+		if ($afd == $depNumbers[$i]) print "<option value='$depNumbers[$i]'>$depNumbers[$i] : $depNames[$i]</option>";
+	}
+	for ($i=0;$i<count($depNumbers);$i++) {
+		if ($afd != $depNumbers[$i]) print "<option value='$depNumbers[$i]'>$depNumbers[$i] : $depNames[$i]</option>";
+	}
+	print "<select>";
 }
-$q = db_select("select id from adresser where art = 'S'",__FILE__ . " linje " . __LINE__);
-if ($r = db_fetch_array($q)) {
-	$q2 = db_select("select navn,afd from ansatte where konto_id = '$r[id]' and lukket != 'on' order by navn",__FILE__ . " linje " . __LINE__);
-	$x=0;
-	while ($r2 = db_fetch_array($q2)) {
-$x++;
-if ($x==1) {
-	$txt1097 = findtekst('1097|Vor ref.', $sprog_id);
-	print "<tr><td>$txt1097</td>";
-	print "<td colspan=3><select style='text-align:right;width:110px;' class='inputbox' name=ref>";
-	if ($ref) print "<option>$ref</option>";
-}
-if ($ref!=$r2['navn']) print "<option> $r2[navn]</option>";
+print "</tr>";
+if (count($lager_nr)) {
+	print "<tr><td>Lager</td>";
+	print "<td colspan='1'><select style='text-align:right;width:110px;' class='inputbox' name='lager'>";
+	for ($x=0;$x<count($lager_nr);$x++) {
+		if ($lager==$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
 	}
-	print "</SELECT>";
-	if ($x) print "</td></tr>";
-if (count($afd_nr)) {
-	print "<tr><td>Afd.</td>";
-	print "<td colspan='1'><select style='text-align:right;width:110px;' class='inputbox' name='afd'>";
-	for ($x=0;$x<count($afd_nr);$x++) {
-if ($afd==$afd_nr[$x]) print "<option value='$afd_nr[$x]'>$afd_nr[$x]: $afd_navn[$x]</option>";
-	}
-	for ($x=0;$x<count($afd_nr);$x++) {
-if ($afd!=$afd_nr[$x]) print "<option value='$afd_nr[$x]'>$afd_nr[$x]: $afd_navn[$x]</option>";
+	for ($x=0;$x<count($lager_nr);$x++) {
+		if ($lager!=$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
 	}
 	print "</td></tr>";
-}
 }
 
 if ($status==0){print "<tr><td>".findtekst('555|Godkend', $sprog_id)."</td><td><input class='inputbox' type=checkbox name=godkend></td></tr>\n";}
@@ -236,12 +236,12 @@ else {
 }
 print "</tbody></table></td>";
 print "<td align=center><table border = '0' cellpadding= '0' cellspacing= '0'>";
-print "<tr><tdcolspan='2' ><a href='orderIncludes/dropshipping.php?id=$id'>".findtekst('554|Leveringsadresse', $sprog_id)."</a></td></tr>\n";
+print "<tr><td colspan='2' ><button type='button' class='button gray medium' style='width:100%; cursor: pointer; $buttonStyle' onclick=\"window.location.href='orderIncludes/dropshipping.php?id=$id'\">".findtekst('554|Leveringsadresse', $sprog_id)."</button></td></tr>\n";
 print "<tr><td colspan='2' align=center><hr></td></tr>\n";
 print "<tr><td>".findtekst('360|Firmanavn', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_navn value='$lev_navn' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr1 value='$lev_addr1' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td></td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr2 value='$lev_addr2' onchange='javascript:docChange = true;'></td></tr>\n";
-print "<tr><td>".findtekst('549|Postnr, by', $sprog_id)."</td><td><input class='inputbox' type='text' size=4 name=lev_postnr value='$lev_postnr' onchange='javascript:docChange = true;'><input class='inputbox' type='text' size=19 name=lev_bynavn value='$lev_bynavn' onchange='javascript:docChange = true;'></td></tr>\n";
+print "<tr><td>".findtekst('549|Postnr, by', $sprog_id)."</td><td><input class='inputbox' type='text' size=4 name=lev_postnr value='$lev_postnr' onchange='javascript:docChange = true;'>&nbsp;<input class='inputbox' type='text' size=16 name=lev_bynavn value='$lev_bynavn' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>Att.:</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_kontakt value='$lev_kontakt' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst('2129|Rekv. nr.', $sprog_id).":</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='kundeordnr' value='$kundeordnr' onchange='javascript:docChange = true;'></td></tr>\n"; #20221104
 print "</td></tr></tbody></table></td>";
@@ -285,7 +285,7 @@ print "<tr>";
 
 if ($status==1) {
 	print "<td align=center title='".findtekst('1502|Position (ordrelinjenummer)', $sprog_id)."'>Pos.</td><td align=center title='".findtekst(320, $sprog_id)."'>".findtekst(917, $sprog_id).".</td><td align=center title='".findtekst(1511, $sprog_id)."'>".findtekst(952, $sprog_id).".</td><td align=center>".findtekst(916, $sprog_id)."</td><td align=center>".findtekst(945, $sprog_id)."</td><td align=center>".findtekst(914,$sprog_id)."</td><td align=center>".findtekst(915, $sprog_id)."</td><td align=center title='".findtekst(1503, $sprog_id)."'>%</td><td align=center>".findtekst(947, $sprog_id)."</td>";
-	if ($vis_projekt && !$projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
+	if ($vis_projekt && $projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
 	if ($art=='KK') print "<td colspan='2' align='center' title='".findtekst(1508, $sprog_id)."'>".findtekst(937, $sprog_id)."</td>";
 	elseif ($submit == 'split') {
 		print "<td colspan='2' align='center' title='".findtekst(200, $sprog_id)."'>".findtekst(2009, $sprog_id)."</td>";
@@ -293,11 +293,26 @@ if ($status==1) {
 }
 else {
 	print "<td align=center title='".findtekst(1502, $sprog_id)."'>Pos.</td><td align=center title='".findtekst(320, $sprog_id)."'>".findtekst(917, $sprog_id).".</td><td align=center title='".findtekst(1511, $sprog_id)."'>".findtekst(952, $sprog_id).".</td><td align=center>".findtekst(916, $sprog_id)."</td><td>".findtekst(945, $sprog_id)."</td><td align=center>".findtekst(914,$sprog_id)."</td><td align=center>".findtekst(915, $sprog_id)."</td><td align=center title='".findtekst(1503, $sprog_id)."'>%</td><td align=center>".findtekst(947, $sprog_id)."</td>";
-	if ($vis_projekt && !$projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
+	if ($vis_projekt && $projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
 	else print "<td></td>";
 }
 if ($omlev) print "<td title ='".findtekst(1512, $sprog_id)."'>O/B</td>";
 
+// Check if any items on this order have expiry date tracking
+// Query DB directly since order line data is loaded after this header
+$has_expiry_items = false;
+if ($id) {
+	$_eq = db_select("SELECT ol.vare_id FROM ordrelinjer ol JOIN varer v ON v.id = ol.vare_id WHERE ol.ordre_id = '$id' AND v.has_due_date = true LIMIT 1", __FILE__ . " linje " . __LINE__);
+	if (db_fetch_array($_eq)) $has_expiry_items = true;
+}
+if ($has_expiry_items) {
+	print "<td align='center' style='min-width:130px;white-space:nowrap;'>".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."</td>";
+	print "<td align='center' style='min-width:90px;white-space:nowrap;'>".findtekst('5005|Batchnr.', $sprog_id)."</td>";
+}
+if ($labelprint) print "<td></td>";
+
 print "</tr>\n";
+print "<!-- END orderIncludes/openOrderData.php -->";
+
 ?>
 	

@@ -121,6 +121,7 @@ if ($slet && $vare_id && $varenr) {
 			}
 			if ($varenr) {
 				$qtxt = "select varenr from varer where lower(varenr) like '$varenr' or stregkode='$varenr'";
+				$qtxt.= " or varenr_alias like '$varenr' or lower(varenr_alias) like '$varenr'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
 					$varenr = $r['varenr'];
 				else {
@@ -217,7 +218,7 @@ if ($vare_id && ($optalt || $optalt == '0')) {
 	#	if ($optalt) { # remmet 20120913 saa det er muligt at optaelle til 0.
 	$optalt = usdecimal($optalt, 2);
 	$beholdning *= 1;
-	$lager *= 1;
+	$lager = (int)$lager;
 	$variant_id *= 1;
 	$qtxt = "select id from regulering where vare_id='$vare_id' and variant_id='$variant_id' and optalt='$optalt' and lager= '$lager' and beholdning='$beholdning' and tidspkt='$tidspkt' and bogfort='0'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -302,6 +303,7 @@ if ($varenr = trim($varenr)) {
 		$beholdning -= $r2['antal'];
 
 		$l = 0;
+		$ls_id = array();
 		$q2 = db_select("select id from lagerstatus where vare_id='$r[id]' and lager='$lager' order by id", __FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 			$ls_id[$l] = $r2['id'];
@@ -310,7 +312,7 @@ if ($varenr = trim($varenr)) {
 		for ($l = 1; $l < count($ls_id); $l++) {
 			db_modify("delete from lagerstatus where id = '$ls_id[$l]'", __FILE__ . " linje " . __LINE__);
 		}
-		if ($ls_id[0])
+		if (isset($ls_id[0]) && $ls_id[0])
 			$qtxt = "update lagerstatus set beholdning='$beholdning' where id='$ls_id[0]'";
 		else
 			$qtxt = "insert into lagerstatus (vare_id,variant_id,beholdning,lager) values ('$r[id]','0','$beholdning','$lager')";
@@ -822,8 +824,8 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 							$qtxt .= "($vare_id[$v],'0','$transdate','$transdate','0','$tmp','$kostpris[$v]','$tmp','$lager','$variant_id[$v]')";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 						} else {
-							$y = 0;
-							$restsum = 0;
+							$bk_id = array();
+							$restsum = $y = 0;
 							$qtxt = "select id,rest from batch_kob where vare_id='$vare_id[$v]' and variant_id='$variant_id[$v]'  and kobsdate <= '$transdate' and rest > '0' and lager='$lager' ";
 							$qtxt .= "order by kobsdate";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -862,7 +864,7 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 							}
 
 							if ($reguleres[0]) {
-								$lager *= 1;
+								$lager = (int)$lager;
 								#									db_modify("insert into batch_kob(vare_id,linje_id,kobsdate,fakturadate,ordre_id, antal,rest,pris,lager) 
 #										values 
 #										('$vare_id[$v]','0','$transdate','$transdate','0','0','$reguleres[0]','$kostpris','$lager[$id]')",__FILE__ . " linje " . __LINE__);

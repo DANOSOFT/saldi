@@ -23,6 +23,7 @@ class OrderLineModel
     private $vat_account;
     private $lager;
     private $serienr;
+    private $kontonr;
 
     public function __construct($id = null)
     {
@@ -78,21 +79,34 @@ class OrderLineModel
                 WHERE id = $this->id";
 
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
             return explode("\t", $q)[0] == "0";
         }
         return false;
     }
 
-    public function delete()
+    /* public function delete()
     {
         if (!$this->id) {
             return false;
         }
 
+        // check if status is less than 2
+        $qtxt = "SELECT status FROM ordre WHERE id = $this->ordre_id";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        if ($q) {
+            $r = db_fetch_array($q);
+            if ($r['status'] >= 2) {
+                return false; // Cannot delete line if order status is 2 or higher
+            }
+        } else {
+            return false; // Order not found
+        }
+
         $qtxt = "DELETE FROM ordrelinjer WHERE id = $this->id";
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
         return explode("\t", $q)[0] == "0";
-    }
+    } */
 
     public static function getByOrderId($orderId)
     {
@@ -110,26 +124,26 @@ class OrderLineModel
     {
         return [
             'id' => $this->id,
-            'ordre_id' => $this->ordre_id,
-            'vare_id' => $this->vare_id,
-            'varenr' => $this->varenr,
-            'enhed' => $this->enhed,
-            'beskrivelse' => $this->beskrivelse,
-            'antal' => $this->antal,
-            'rabat' => $this->rabat,
-            'rabatart' => $this->rabatart,
-            'procent' => $this->procent,
-            'pris' => $this->pris,
-            'vat_price' => $this->vat_price,
-            'kostpris' => $this->kostpris,
-            'momsfri' => $this->momsfri,
-            'momssats' => $this->momssats,
-            'posnr' => $this->posnr,
-            'variant_id' => $this->variant_id,
-            'bogf_konto' => $this->bogf_konto,
-            'vat_account' => $this->vat_account,
+            'orderId' => $this->ordre_id,
+            'productId' => $this->vare_id,
+            'sku' => $this->varenr,
+            'unit' => $this->enhed,
+            'description' => $this->beskrivelse,
+            'quantity' => $this->antal,
+            'discount' => $this->rabat,
+            'discountType' => $this->rabatart,
+            'percentage' => $this->procent,
+            'price' => $this->pris,
+            'vatPrice' => $this->vat_price,
+            'costPrice' => $this->kostpris,
+            'vatFree' => $this->momsfri,
+            'vatRate' => $this->momssats,
+            'posNo' => $this->posnr,
+            'variantId' => $this->variant_id,
+            'bogfKonto' => $this->bogf_konto,
+            'vatAccount' => $this->vat_account,
             'lager' => $this->lager,
-            'serienr' => $this->serienr
+            'serialNo' => $this->serienr
         ];
     }
 

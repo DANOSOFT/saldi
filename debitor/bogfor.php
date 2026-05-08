@@ -61,7 +61,21 @@ if ($id && $id>0) {
 	if (!$genfakt) {
 		if ($pbs) {
 			pbsfakt($id);
-			print "<BODY onLoad=\"javascript:alert('Faktura er tilf&oslash;jet liste over PBS betalinger')\">";
+			// Check if setting is enabled to automatically send email for PBS invoices
+			$qtxt = "select var_value from settings where var_name = 'pbs_auto_email' and var_grp = 'invoice_settings'";
+			$r_setting = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			
+			if ($r_setting && $r_setting['var_value'] == 'on') {
+				// Get order information to check if email should be sent
+				$r = db_fetch_array(db_select("select email, status, art from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
+				
+				if ($r['email'] && $r['status'] >= 3 && $r['art'] == 'DO') {
+					// Automatically send invoice as email
+					print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=$id&formular=4&udskriv_til=email' , '' , '$jsvars');\">";
+					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+					exit;
+				}
+			}
 		} elseif ($oioubl) {
 			if ($popup) print "<BODY onLoad=\"JavaScript:window.open('oioubl_dok.php?id=$id&doktype=$oioubl' , '' , '$jsvars');\">";
 			else {

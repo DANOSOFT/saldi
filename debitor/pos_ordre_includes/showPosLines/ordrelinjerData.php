@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- debitor/pos_ordre_includes/showPosLines/ordrelinjerData.php --- lap 4.0.0 --- 2021.02.117 ---
+// ---- debitor/pos_ordre_includes/showPosLines/ordrelinjerData.php --- lap 4.1.1 --- 2025.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2021 Saldi.dk ApS
+// Copyright (c) 2019-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190510 Move part of the function vis-pos_linjer here
+// 20250916 PHR Check if useTotalPrice is enabled
 
-	if ($samlet_pris || $status >= 3) {
+	$qtxt = "select box14 from grupper where art = 'DIV' and kodenr = '3'";
+	($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$useTotalPrice=$r['box14']:$useTotalPrice='';
+	if (($useTotalPrice && $samlet_pris) || $status >= 3) {
+#	if ($samlet_pris || $status >= 3) {
 		$qtxt = "select varenr from ordrelinjer where varenr='R' and ordre_id='$id'";
 		($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$rvnr=$r['varenr']:$rvnr='';
 		$ordresum=if_isset($_POST['sum']);

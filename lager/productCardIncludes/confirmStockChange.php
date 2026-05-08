@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/varekort_includes/confirmStockChange.php---------lap 3.9.4---2020-09-22	-----
+// ----------/lager/productCardIncludes/confirmStockChange.php---------lap 3.9.4---2020-09-22	-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,7 @@
 //
 // Copyright (c) 2020-2020 saldi.dk aps
 // ----------------------------------------------------------------------
+print "<!-- /lager/productCardIncludes/confirmStockChange.php Begin -->";
 print "<script Language=\"JavaScript\">\n";
 print "	<!--\n";
 print "	function Form_Validator(confirmStockChange) {\n";
@@ -64,6 +65,7 @@ print "<input style='width:150px;' type=submit accesskey='a' value='Afbryd' name
 print "onclick=\"return confirm('Fortryd?')\">";
 print "</td></tr>";
 print "</form>";
+print "<!-- /lager/productCardIncludes/confirmStockChange.php End -->";
 exit;
 
 ?>

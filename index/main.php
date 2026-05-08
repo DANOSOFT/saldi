@@ -29,11 +29,11 @@ $s_id = session_id();
 
 $css = "../css/sidebar_style.css?v=20";
 
-include("../includes/std_func.php");
 include("../includes/connect.php");
+include("../includes/license_func.php");
 include("../includes/online.php");
+include("../includes/std_func.php");
 include("../includes/stdFunc/dkDecimal.php");
-
 
 function check_permissions($permarr)
 {
@@ -48,12 +48,102 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   header('Location: ../debitoripad/await.php');
 }
 
+function brightenColor($color, $amount = 0.2) {
+    // Remove # if present
+    $color = ltrim($color, '#');
+    
+    // Convert hex to RGB
+    $r = hexdec(substr($color, 0, 2));
+    $g = hexdec(substr($color, 2, 2));
+    $b = hexdec(substr($color, 4, 2));
+    
+    // Brighten each component
+    $r = min(255, $r + ($amount * (255 - $r)));
+    $g = min(255, $g + ($amount * (255 - $g)));
+    $b = min(255, $b + ($amount * (255 - $b)));
+    
+    // Convert back to hex
+    return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
+}
+
 ?>
+
+<script>
+// Simple cookie-based refresh listener
+function checkRefreshCookie() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'refresh_opener' && value === 'true') {
+            // Clear the cookie and reload
+            document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+            location.reload();
+            return;
+        }
+    }
+}
+
+// Check every 1000ms for the cookie
+setInterval(checkRefreshCookie, 1000);
+</script>
+
+// Check every 500ms
+setInterval(checkRefreshCookie, 500);
+</script>
+<style>
+  .showMenu{
+    background: <?php echo $buttonColor; ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .nav-links{
+    background-color: <?php echo $buttonColor; ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+  .sidebar .nav-links li:hover, .sidebar :not(.closed) .nav-links li.showMenu, .sidebar ul.nav-links li.active {
+    background: <?php echo brightenColor($buttonColor, 0.2); ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .sidebar{
+    background-color: <?php echo $buttonColor; ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .link_name{
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .sidebar a, .sidebar p{
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .sidebar .bx{
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .logo-img {
+    width: 120px;
+    height: 40px; /* ← REQUIRED */
+
+    background-color: <?php echo $buttonTxtColor; ?> !important;
+
+    -webkit-mask: url("../img/sidebar_logo.png") no-repeat center;
+    mask: url("../img/sidebar_logo.png") no-repeat center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  .sidebar:not(.closed) .nav-links li .sub-menu li a::before{
+    background: <?php echo $buttonTxtColor; ?> !important;
+  }
+</style>
+
 <meta charset="utf-8">
 <title>Sidebar</title>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <link rel="icon" href="../img/saldiLogo.png">
-<link href='../css/sidebar_style.css' rel='stylesheet'>
+<link href='../css/sidebar_style.css?v=22' rel='stylesheet'>
 <meta name="viewport" content="width=device-width, initial-scale=0.8">
 
 <div class="modalbg" onclick="
@@ -63,8 +153,8 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
 <div class="sidebar">
 
   <div class="logo wide">
-    <img class="logo-img" src="../img/sidebar_logo.png">
-    <i id="icon-open" class='bx bxs-arrow-from-right'></i>
+    <div class="logo-img"></div>
+    <i id="icon-open" class="bx bxs-arrow-from-right"></i>
   </div>
 
   <div class="logo small" onclick="
@@ -75,15 +165,15 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     <i id="icon-open" class='bx bxs-arrow-from-right'></i>
   </div>
 
-  <ul class="nav-links top-links" style='margin-top: 1em'>
+  <ul class="nav-links top-links" style='margin-top: 1em; background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;'>
     <!-- Finans -->
     <li class="active">
-      <a href="#" id="dashboard" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
+      <a href="#" id="dashboard" style="background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
         <i class='bx bxs-dashboard'></i>
-        <span class="link_name"><?php print findtekst('2401|Oversigt', $sprog_id); ?></span>
+        <span class="link_name"><?php print findtekst('2224|Oversigt', $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
-        <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'><?php print findtekst(2376, $sprog_id); ?></a></li>
+        <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'><?php print findtekst('2224|Oversigt', $sprog_id); ?></a></li>
       </ul>
     </li>
 
@@ -95,21 +185,21 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
       <div class="icon_link" id="finans">
         <a href="#">
           <i class='bx bx-coin-stack'></i>
-          <span class="link_name"><?php print findtekst(600, $sprog_id); ?></span>
+          <span class="link_name"><?php print findtekst('600|Finans', $sprog_id); ?></span>
         </a>
         <i class='bx bxs-chevron-down arrow'> </i>
       </div>
       <ul class="sub-menu">
-        <li><span class="link_name"><?php print findtekst(600, $sprog_id); ?></span></li>
+        <li><span class="link_name"><?php print findtekst('600|Finans', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(2))) {
-          echo '<li><a href="#" id="kladdeliste" onclick=\'update_iframe("/finans/kladdeliste.php")\'>' . findtekst(601, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" id="kladdeliste" onclick=\'update_iframe("/finans/kladdeliste.php")\'>' . findtekst('601|Kassekladde', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(3))) {
-          echo '<li><a href="#" id="regnskab" onclick=\'update_iframe("/finans/regnskab.php")\'>' . findtekst(602, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" id="regnskab" onclick=\'update_iframe("/finans/regnskab.php")\'>' . findtekst('602|Regnskab', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(4))) {
-          echo '<li><a href="#" id="rapport" onclick=\'update_iframe("/finans/rapport.php")\'>' . findtekst(603, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" id="rapport" onclick=\'update_iframe("/finans/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
         }
         ?>
       </ul>
@@ -124,21 +214,21 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
       <div class="icon_link" id="debitor">
         <a href="#">
           <i class='bx bx-group'></i>
-          <span class="link_name"><?php print findtekst(604, $sprog_id); ?></span>
+          <span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span>
         </a>
         <i class='bx bxs-chevron-down arrow'> </i>
       </div>
       <ul class="sub-menu">
-        <li><span class="link_name"><?php print findtekst(604, $sprog_id); ?></span></li>
+        <li><span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(5))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php")\'>' . findtekst(605, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst(606, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(12))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>' . findtekst(603, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/crmkalender.php")\'>CRM</a></li>';
@@ -148,8 +238,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     </li>
     <!-- Booking -->
     <?php
-    $query = db_select("select var_value from settings where var_grp='rental'", __FILE__ . " linje " . __LINE__);
-    if (db_num_rows($query) > 0) {
+    if (is_feature_licensed('booking')) {
     ?>
       <li style="display: <?php if (check_permissions(array(6))) {
                             echo 'block';
@@ -159,26 +248,27 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <div class="icon_link">
           <a href="#">
             <i class='bx bx-calendar'></i>
-            <span class="link_name"><?php print findtekst(1116, $sprog_id); ?></span>
+            <span class="link_name"><?php print findtekst('1116|Booking', $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow'> </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name"><?php print findtekst(1116, $sprog_id); ?></span></li>
+          <li><span class="link_name"><?php print findtekst('1116|Booking', $sprog_id); ?></span></li>
           <?php
           if (check_permissions(array(6))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php?vare")\'>' . findtekst(2137, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php")\'>' . findtekst(2138, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/settings.php")\'>' . findtekst(122, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/daysoff.php")\'>' . findtekst(2140, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/items.php")\'>' . findtekst(2141, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/remote.php")\'>' . findtekst(2143, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/lookupcust.php")\'>' . findtekst(2142, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php?vare")\'>' . findtekst('2137|Udlejningsoversigt', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php")\'>' . findtekst('2138|Daglig oversigt', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/settings.php")\'>' . findtekst('122|Indstillinger', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/daysoff.php")\'>' . findtekst('2140|Lukkedage', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/items.php")\'>' . findtekst('2141|Udlejningsvare', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/remote.php")\'>' . findtekst('2143|Ekstern booking', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/lookupcust.php")\'>' . findtekst('2142|Søg kundehistorik', $sprog_id) . '</a></li>';
           }
           ?>
         </ul>
       <?php } ?>
       <!-- Kreditor -->
+      <?php if (is_feature_licensed('kreditor')) { ?>
       <li style="display: <?php if (check_permissions(array(7, 8, 13))) {
                             echo 'block';
                           } else {
@@ -187,27 +277,29 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <div class="icon_link" id="kreditor">
           <a href="#">
             <i class='bx bx-archive-out'></i>
-            <span class="link_name"><?php print findtekst(607, $sprog_id); ?></span>
+            <span class="link_name"><?php print findtekst('607|Kreditorer', $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow'> </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name"><?php print findtekst(607, $sprog_id); ?></span></li>
+          <li><span class="link_name"><?php print findtekst('607|Kreditorer', $sprog_id); ?></span></li>
           <?php
           if (check_permissions(array(7))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/ordreliste.php")\'>' . findtekst(605, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/ordreliste.php")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(8))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/kreditor.php")\'>' . findtekst(606, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/kreditor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(13))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/rapport.php")\'>' . findtekst(603, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
           }
           ?>
         </ul>
       </li>
+      <?php } ?>
 
-      <!-- Kreditor -->
+      <!-- Lager -->
+      <?php if (is_feature_licensed('lager')) { ?>
       <li style="display: <?php if (check_permissions(array(9, 10, 15))) {
                             echo 'block';
                           } else {
@@ -216,27 +308,28 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <div class="icon_link" id="lager">
           <a href="#">
             <i class='bx bx-package'></i>
-            <span class="link_name"><?php print findtekst(608, $sprog_id); ?></span>
+            <span class="link_name"><?php print findtekst('608|Lager', $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow'> </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name"><?php print findtekst(608, $sprog_id); ?></span></li>
+          <li><span class="link_name"><?php print findtekst('608|Lager', $sprog_id); ?></span></li>
           <?php
           if (check_permissions(array(9))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/lager/varer.php")\'>' . findtekst(609, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/lager/varer.php")\'>' . findtekst('609|Varer', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(10))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/lager/modtageliste.php")\'>' . findtekst(610, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/lager/modtageliste.php")\'>' . findtekst('610|Varemodtagelse', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(15))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/lager/rapport.php")\'>' . findtekst(603, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/lager/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
           }
           ?>
         </ul>
       </li>
+      <?php } ?>
 
-      <!-- Kreditor -->
+      <!-- System -->
       <li style="display: <?php if (check_permissions(array(0, 1, 11))) {
                             echo 'block';
                           } else {
@@ -245,7 +338,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <div class="icon_link" id="system">
           <a href="#">
             <i class='bx bx-cog'></i>
-            <span class="link_name"><?php print findtekst(2377, $sprog_id); ?></span>
+            <span class="link_name"><?php print findtekst('2377|System', $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow'> </i>
         </div>
@@ -253,23 +346,23 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
           <li><span class="link_name">System</span></li>
           <?php
           if (check_permissions(array(0))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/kontoplan.php")\'>' . findtekst(612, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/kontoplan.php")\'>' . findtekst('612|Kontoplan', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(1))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/syssetup.php")\'>' . findtekst(613, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/syssetup.php")\'>' . findtekst('122|Indstillinger', $sprog_id) . '</a></li>';
 
             # Kassesystem eller ej
             $qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
             $state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
             if ($state) {
-              print "<li><a href=\"#\" onclick='update_iframe(\"/systemdata/posmenuer.php\")'>" . findtekst(1940, $sprog_id) . "</a></li>";
+              print "<li><a href=\"#\" onclick='update_iframe(\"/systemdata/posmenuer.php\")'>" . findtekst('1940|POS-menuer', $sprog_id) . "</a></li>";
             }
           }
           if (check_permissions(array(11))) {
-            $restoreRaw = findtekst(1903, $sprog_id);
+            $restoreRaw = findtekst('1903|Gendan brugers IP', $sprog_id);
             $restore1 = explode(" ", $restoreRaw);
             $restore = $restore1[0];
-            echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>' . findtekst(614, $sprog_id) . '/'.$restore.'</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>' . findtekst('614|Sikkerhedskopi', $sprog_id) . '/'.$restore.'</a></li>';
           }
           ?>
         </ul>
@@ -278,9 +371,19 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
 
   <ul class="nav-links">
     <li>
+      <a href="#" onclick="document.getElementById('guideOverlay').classList.add('active'); return false;">
+        <i class='bx bx-book-open'></i>
+        <span class="link_name">Guides</span>
+      </a>
+      <ul class="sub-menu blank">
+        <li><a href="#" onclick="document.getElementById('guideOverlay').classList.add('active'); return false;">Guides</a></li>
+      </ul>
+    </li>
+
+    <li>
       <a href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">
         <i class='bx bx-envelope'></i>
-        <span class="link_name"><?php print findtekst(398, $sprog_id); ?></span>
+        <span class="link_name"><?php print findtekst('398|Kontakt', $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
         <li><a class="" href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">Kontakt</a>
@@ -291,10 +394,10 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     <li>
       <a href="#" onclick='redirect_uri("/index/logud.php")'>
         <i class='bx bx-log-out'></i>
-        <span class="link_name"><?php print findtekst(93, $sprog_id); ?></span>
+        <span class="link_name"><?php print findtekst('93|Log ud', $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
-        <li><a class="" href="#" onclick='redirect_uri("/index/logud.php")'><?php print findtekst(93, $sprog_id); ?></a>
+        <li><a class="" href="#" onclick='redirect_uri("/index/logud.php")'><?php print findtekst('93|Log ud', $sprog_id); ?></a>
         </li>
       </ul>
     </li>
@@ -304,8 +407,36 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   <div id="desc-line">
     <a href="#" onclick="window.frames['iframe_a'].focus();
                            window.frames['iframe_a'].print();">Print</a>
-    <p><a href="menu.php?useMain=off">Gl. design</a></p>
     <p title="DB nummer <?php print $db; ?>">Saldi version <?php print $version; ?></p>
+  </div>
+</div>
+
+<!-- Guide Overlay -->
+<div class="guide-overlay" id="guideOverlay" onclick="if(event.target===this) this.classList.remove('active');">
+  <div class="guide-modal">
+    <div class="guide-modal-header">
+      <h2><i class='bx bx-book-open'></i> Guides</h2>
+      <button class="guide-modal-close" onclick="document.getElementById('guideOverlay').classList.remove('active');">&times;</button>
+    </div>
+    <div class="guide-modal-body">
+      <p><?php echo ($sprog_id == 1) ? 'Vælg en guide for at åbne den i en ny fane.' : 'Select a guide to open it in a new tab.'; ?></p>
+      <ul class="guide-list">
+        <li>
+          <a href="../guides/pdf/finance_guide_da.pdf" target="_blank" onclick="document.getElementById('guideOverlay').classList.remove('active');">
+            <i class='bx bx-coin-stack'></i>
+            <?php echo ($sprog_id == 1) ? 'Regnskab (Finance)' : 'Finance Guide'; ?>
+            <i class='bx bx-link-external guide-arrow'></i>
+          </a>
+        </li>
+        <li>
+          <a href="../guides/pdf/scaffolding_guide_da.pdf" target="_blank" onclick="document.getElementById('guideOverlay').classList.remove('active');">
+            <i class='bx bx-layer'></i>
+            <?php echo ($sprog_id == 1) ? 'Stillads (Scaffolding)' : 'Scaffolding Guide'; ?>
+            <i class='bx bx-link-external guide-arrow'></i>
+          </a>
+        </li>
+      </ul>
+    </div>
   </div>
 </div>
 
@@ -455,6 +586,16 @@ console.log('Locaiton', this.contentWindow.document.location.href);
     // inject the start loading handler when content finished loading
     iframe.contentWindow.onbeforeunload = startLoading;
   };
+
+  // Close guide overlay with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var overlay = document.getElementById('guideOverlay');
+      if (overlay && overlay.classList.contains('active')) {
+        overlay.classList.remove('active');
+      }
+    }
+  });
 </script>
 
 <style>

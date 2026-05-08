@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/glemt_kode.php ---  patch 4.1.0 --- 2025.03.14 ---
-//                           LICENSE
+// --- index/glemt_kode.php ---  patch 5.0.0 --- 2026.02.25 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -20,13 +20,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20150127 tilføjet $bruger_id da man eller får en tom mail hvis brugernavnet ikke er en 
 //		mailadresse og der ikke er tilknyttet en mailadresse 20150137 
 // 20220226 PHR Added 	$mail->CharSet = '$charset';
 // 20250312 LOE Added a Content Security Policy (CSP) header snippet to mitigate DOM-based XSS attacks.
 // 20250313 LOE // converts any special HTML characters (like <, >, &, etc.) into their corresponding HTML entities for $regnskab and $brugernavn and updated some others 
+// 20250616 PHR Removed preg_match as it prevented special chars in user / account name and enabled composer | phpmailer
+// 20260225 PHR Some enhancements...
 $nonce = base64_encode(random_bytes(16));
 header("Content-Security-Policy: script-src 'self' 'nonce-$nonce'; object-src 'none';");
 
@@ -51,20 +53,22 @@ $regnskab=NULL;
 $regnskaber=NULL;
 $navn=NULL;
 
-if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
-if (isset ($_GET['navn'])) $brugernavn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
+#if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
+#if (isset ($_GET['navn'])) $brugernavn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
 
 #Sanitize Inputs with Strict Type Checking 20250313
-if (isset($_GET['regnskab']) && preg_match('/^[a-zA-Z0-9_-]+$/', $_GET['regnskab'])) {
-    $regnskab = htmlspecialchars($_GET['regnskab'], ENT_QUOTES, 'UTF-8');
+if (isset($_GET['regnskab'])) { # && preg_match('/^[a-zA-Z0-9_-]+$/', $_GET['regnskab'])) {
+#    $regnskab = htmlspecialchars($_GET['regnskab'], ENT_QUOTES, 'UTF-8');
+	$regnskab = db_escape_string($_GET['regnskab']);
 } else {
-    $regnskab = '';
+	$regnskab = '';
 }
 
-if (isset($_GET['navn']) && preg_match('/^[a-zA-Z0-9_-]+$/', $_GET['navn'])) {
-    $brugernavn = htmlspecialchars($_GET['navn'], ENT_QUOTES, 'UTF-8');
+if (isset($_GET['navn'])) { # && preg_match('/^[a-zA-Z0-9_-]+$/', $_GET['navn'])) {
+#    $brugernavn = htmlspecialchars($_GET['navn'], ENT_QUOTES, 'UTF-8');
+		$brugernavn = db_escape_string($_GET['navn']);
 } else {
-    $brugernavn = '';
+		$brugernavn = '';
 }
 	
 
@@ -73,13 +77,13 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 } elseif (isset($_POST['send']) && $_POST['send']=='Send') {
 	// if (isset ($_POST['regnskab'])) $regnskab = db_escape_string($_POST['regnskab']);
 	// if (isset ($_POST['navn'])) $brugernavn = db_escape_string($_POST['navn']);
-	if (isset($_POST['regnskab']) && preg_match('/^[a-zA-Z0-9_-]+$/', $_POST['regnskab'])) {
+	if (isset($_POST['regnskab'])) { # && preg_match('/^[a-zA-Z0-9_-]+$/', $_POST['regnskab'])) {
 		$regnskab = db_escape_string($_POST['regnskab']);
 	} else {
 		$regnskab = '';
 	}
 	
-	if (isset($_POST['navn']) && preg_match('/^[a-zA-Z0-9_-]+$/', $_POST['navn'])) {
+	if (isset($_POST['navn'])) { #&& preg_match('/^[a-zA-Z0-9_-]+$/', $_POST['navn'])) {
 		$brugernavn = db_escape_string($_POST['navn']);
 	} else {
 		$brugernavn = '';
@@ -88,11 +92,12 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 
 
 	if ($regnskab) {
-		if ($r = db_fetch_array(db_select("select * from regnskab where regnskab = '$regnskab'",__FILE__ . " linje " . __LINE__))){
+		$qtxt = "select * from regnskab where regnskab = '$regnskab'";
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
 			$db=$r['db'];
 		} elseif ($r = db_fetch_array(db_select("select * from regnskab where lower(regnskab) = '".strtolower($regnskab)."' or  upper(regnskab) = '".strtoupper($regnskab)."'",__FILE__ . " linje " . __LINE__))){
 			$db=$r['db'];
-			$regnskab=$r['regnskab'];
+			$regnskab= db_escape_string($r['regnskab']);
 		}
 	}
 
@@ -206,7 +211,7 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 		}
 		$mailtext.="God fornøjelse fra dit Saldi team<br>";
 #		fclose ($fp);
-		
+/*
 		ini_set("include_path", ".:../phpmailer");
 		require("class.phpmailer.php");
 		if ($charset=="UTF-8" || $webservice) {
@@ -215,6 +220,16 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 #			$firmanavn=utf8_decode($firmanavn);
 		}
 		$mail = new PHPMailer();
+*/
+		require_once "../../vendor/autoload.php"; //PHPMailer Object
+	$mail = new  PHPMailer\PHPMailer\PHPMailer();
+	$mail->SMTPOptions = array(
+	'ssl' => array(
+		'verify_peer' => false,
+		'verify_peer_name' => false,
+		'allow_self_signed' => true
+	)
+	);
 		$mail->IsSMTP();                                   // send via SMTP
 		$mail->CharSet  =  "$charset";
 		if (!$smtp) $smtp='localhost';

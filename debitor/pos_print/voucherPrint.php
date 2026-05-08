@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_print/voucherPrint.php -- lap 3.9.9 -- 2021-01-26 --
+// --- debitor/pos_print/voucherPrint.php -- lap 4.1.1 -- 2025-09-04 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,8 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2021 saldi.dk aps
+// Copyright (c) 2021-2025 saldi.dk aps
 // --------------------------------------------------------------------------
+// 20250909 PHR Added valid to 2 years from dd.
 $dd=date("Y-m-d");
 include ("pos_ordre_includes/posTxtPrint/wrapText.php");
 include ("pos_ordre_includes/posTxtPrint/escPosBarcode.php");
@@ -54,6 +55,12 @@ $txt.= iconv($FromCharset, $ToCharset,trim('#'. $barcode[$v]));;
 $txt.= chr(27).chr(33).chr(0); # Normal
 $bon.= "$txt\n";
 $bon.= escPosBarcode($barcode[$v]);
+$validTo = date("d-m-Y", strtotime("+2 years"));
+$txt = "Gyldigt til $validTo";
+$txt = iconv($FromCharset, $ToCharset,trim($txt));
+while(strlen($txt) < $width) $txt=" ".$txt." ";
+if (strlen($txt) > $width) $txt=substr($txt,0,$width);
+$bon.= "$txt\n\n";
 $txt = "$myName";
 $txt = iconv($FromCharset, $ToCharset,trim($txt));
 while(strlen($txt) < $width) $txt=" ".$txt." ";
@@ -82,5 +89,14 @@ $bon.= "$txt\n";
 #}
 }
 
+// TEST MODE - Uncomment the lines below to see the print content instead of printing
+
+/* echo "<h3>Gift Card Print Preview (Test Mode)</h3>";
+echo "<pre style='background: #f0f0f0; padding: 10px; border: 1px solid #ccc; font-family: monospace;'>";
+echo htmlspecialchars($bon);
+echo "</pre>";
+echo "<p><strong>Note:</strong> This is test mode. No actual printing occurred.</p>";
+exit;
+ */
 
 ?>

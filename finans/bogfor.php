@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 4.0.7 --- 2023.03.04 ---
-//                           LICENSE
+// ---------------finans/bogfor.php---------- patch 5.0.0 --- 2026.03.16 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20121122 - Åbne poster udlignes ikke mere automatisk hvis forskelligt projektnummer. Søg 20121122
 // 20130210 - Break ændret til break 1
@@ -49,6 +49,11 @@
 // 20221018	PHR - Some cleanup.
 // 20230324	PHR - Correted errors in 'findtekst' (wrong text ID) 
 // 20230626 PHR - Moved this part into 'if ($r = db_fetch_array($q)) {' from below as amount was aligned
+// 20250612 PHR	- Extra diff controle
+// 20251210 PHR - Missing financialYear in vat account lookup for E & Y
+// 20260316 PHR Better error handling for missing debitor group
+// 20260417 Sawaneh: overwrite vat selection
+
 
 @session_start();
 $s_id=session_id();
@@ -67,6 +72,13 @@ include("../includes/genberegn.php");
 include("../includes/topline_settings.php");
 
 genberegn($regnaar);
+
+function get_saved_vat_override($row, $field) {
+	if (!is_array($row) || !array_key_exists($field, $row) || $row[$field] === NULL) {
+		return NULL;
+	}
+	return trim((string)$row[$field]);
+}
 
 $funktion=if_isset($_GET['funktion']);
 $kladde_id=if_isset($_GET['kladde_id']);
@@ -120,14 +132,43 @@ if ($menu=='T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu=='S') {
-	print "<tr><td height = '25' align='center' valign='top'>";
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-	print "<td width='10%'>$href<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-		   .findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>$overskrift</td>";
-	print "<td width='10%' align='center' style='$topStyle'></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
+	
+	 ############################
+     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
+    ##########################
+	
+	print "<tr><td align='center' valign='top' height='1%'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n";
+	print "<td width='10%'>$href<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".$icon_back  . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+
+	print "<td width='80%' align=center style='$topStyle'>$overskrift</td>\n";
+
+	print "<td width='10%' align=center style='$buttonStyle;'>
+		   <br></td>\n";
+
+	print "</tbody></table>\n"; 
+	print "</td></tr>\n";
+	print "<tr><td width=\"100%\" valign=\"top\">";
+    ####
+    print "</td></tr>\n";
+    #####
+
+    ?>
+    <style>
+    .headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+
+	}
+	a {
+		text-decoration: none;
+		}
+
+    </style>
+    <?php
 } else {
 print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
@@ -225,6 +266,8 @@ if ($kladde_id) {
 			$faktura[$posteringer]=trim($row['faktura']);
 			$amount[$posteringer]=$row['amount']*1;
 			$momsfri[$posteringer]=trim($row['momsfri']);
+			$debetvat[$posteringer]=get_saved_vat_override($row, 'debetvat');
+			$kreditvat[$posteringer]=get_saved_vat_override($row, 'kreditvat');
 			$valuta[$posteringer]=trim($row['valuta']);
 			if (!$debet[$posteringer]) $d_type[$posteringer]='F';
 			if (!$kredit[$posteringer]) $k_type[$posteringer]='F';
@@ -311,10 +354,10 @@ for ($y=1; $y<=$posteringer; $y++) {
 	if ($debet[$y]>0)  $d_amount[$y]=$dkkamount[$y];
 	if ($kredit[$y]>0) $k_amount[$y]=$dkkamount[$y];
 	if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)) {
-	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y]);
+	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], ((!isset($d_type[$y]) || !$d_type[$y] || $d_type[$y]=='F') && isset($debetvat[$y])) ? $debetvat[$y] : NULL);
 	}
 	if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)){
-		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y]);
+		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], ((!isset($k_type[$y]) || !$k_type[$y] || $k_type[$y]=='F') && isset($kreditvat[$y])) ? $kreditvat[$y] : NULL);
 	}
 }
 /*
@@ -388,7 +431,7 @@ if ($funktion=='bogfor') {
 	print "</tr><tr><td height=10px><hr></td></tr>";
 }
 $d_sum=0; $k_sum=0;
-print "<tr><td align = center valign=\"top\"><center><table class='dataTableSmall' border=1 cellspacing=0 cellpadding=0><tbody>";
+print "<tr><td align = center valign=\"top\"><center><table width='75%' style='margin-top:20px' class='dataTableSmall' border=1 cellspacing=0 cellpadding=0><tbody>";
 print "<tr><td colspan=\"6\" class='tableHeader'><b>".findtekst(1088,$sprog_id)."</b></td></tr>
 	<tr><td class='tableText'>$font ".findtekst(440,$sprog_id)."</td>
 	<td class='tableText'>$font ".(findtekst(914,$sprog_id))."</td>
@@ -500,7 +543,8 @@ if (abs($diff)>=0.01 || count($diffbilag))  { #20131115 ( || count($diffbilag))
 	print "</tbody></table></td></tr>";
 	#$fejl=1;
 	if (abs($diff)>=0.01) $fejl=1;
-} elseif ($b!=$c) {
+} elseif ($b!=$c || abs($d_sum - $k_sum) >= 0.01) {
+echo "$b!=$c $d_sum != $k_sum<br>";
 	$message=$db." | Uoverensstemmelse i posteringssum | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
 	$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 	mail('fejl@saldi.dk', 'SALDI Fejl', $message, $headers);
@@ -679,6 +723,8 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				list($dkkamount[$y],$diffkonto[$y],$valutakurs[$y])=valutaopslag($amount[$y],$row['valuta'],$row['transdate']);
 			} else $dkkamount[$y]=$amount[$y];
 			$momsfri[$y]=$row['momsfri'];
+			$debetvat[$y]=get_saved_vat_override($row, 'debetvat');
+			$kreditvat[$y]=get_saved_vat_override($row, 'kreditvat');
 			$afd[$y]=$row['afd'];
 			$ansat[$y]=$row['ansat']*1;
 			$projekt[$y]=$row['projekt'];
@@ -765,8 +811,8 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			if (!$afd[$y]){$afd[$y]=0;}
 			if (!isset ($d_momsart[$y])) $d_momsart[$y] = NULL;
 			if (!isset ($k_momsart[$y])) $k_momsart[$y] = NULL;
-			if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y]);
-			if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y]);
+			if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], ((!isset($d_type[$y]) || !$d_type[$y] || $d_type[$y]=='F') && isset($debetvat[$y])) ? $debetvat[$y] : NULL);
+			if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], ((!isset($k_type[$y]) || !$k_type[$y] || $k_type[$y]=='F') && isset($kreditvat[$y])) ? $kreditvat[$y] : NULL);
 		} elseif (!$row['debet'] && !$row['kredit'] && $row['id']) { #20170516
 			db_modify("delete from kassekladde where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
 		}
@@ -1082,7 +1128,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	}
 }
 ######################################################################################################################################
-function momsberegning($konto,$amount,$momsart,$kontrol) {
+function momsberegning($konto,$amount,$momsart,$kontrol,$vat_override=NULL) {
 	global $connection;
 	global $regnaar;
 	global $db;
@@ -1091,17 +1137,23 @@ function momsberegning($konto,$amount,$momsart,$kontrol) {
 	$nettoamount=$amount;
 	$errorTxt=$moms=$momskto=$modkto=NULL;
 	
-	$a=substr($momsart,0,1); #Foerste tegn i strengen
-	$b=substr($momsart,1,1); #Andet tegn i strengen
-	
-	$r=db_fetch_array(db_select("select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
-	if (trim($r['moms'])) {
+	$override_used = ($vat_override !== NULL);
+	if ($override_used) {
+		$konto_moms = trim((string)$vat_override);
+	} else {
+		$r=db_fetch_array(db_select("select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
+		$konto_moms = trim(if_isset($r['moms'], ''));
+	}
+
+	if ($konto_moms) {
+		$a=substr($konto_moms,0,1); #Foerste tegn i strengen
+		$b=substr($konto_moms,1);   #Andet tegn i strengen
 		if ((($a=='E')||($a=='Y')) && $b) {
 			$c=$a.'M';
 			$qtxt = "select box1,box2,box3 from grupper where ";
 			$qtxt.= "kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 			$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if($row =	db_fetch_array($query)) { # S�er der moms p�kontoen
+			if($row =	db_fetch_array($query)) { # Så er der moms på kontoen
 				$qtxt="select box1,box2,box3 from grupper where ";
 				$qtxt.= "kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 				$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -1111,24 +1163,18 @@ function momsberegning($konto,$amount,$momsart,$kontrol) {
 				$modkto=trim($row['box3']);
 			}
 		} else {	
-			$qtxt = "select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'";
-			$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if($row =	db_fetch_array($query)){
-				$a=substr($row['moms'],0,1);
-				$b=substr($row['moms'],1);
-			}
 #Hvis en momspligtig vare koebes i EU beregnes der EU moms. $kontrol er kun sat hvis der er tale om en kreditor
 # og nedenst&aring;ende tr&aelig;der s&aring;ledes ikke i kraft naar der er tale om en finanskonto med EU moms.
-			if ($a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
+			if (!$override_used && $a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
 				$a=substr($kontrol,0,1);	
 				$b=substr($kontrol,1.1);
 			} 
 			$c=$a.'M';
-			$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c'";
+			$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if($r =	db_fetch_array($q)) { # Saa er der moms paa kontoen
 				if (($a=='E' || $a=='Y') && (!$r['box1'] || !$r['box2'] || !$r['box3'])) alert("Fejl i kontoopsætning for EU moms");
-				$qtxt="select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c'";
+				$qtxt="select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 				$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				$x=$r['box2'];
 				if ($a=='E' || $a=='Y'){
@@ -1179,14 +1225,16 @@ function gruppeopslag($type, $konto) {
 	elseif ($type=='K') $art='KG';
 	if ($art){
 	$tmp=substr($art,0,1);
-		$query = db_select("select gruppe from adresser where kontonr = '$konto' and art='$tmp'",__FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query))	{
-			$query = db_select("select box1, box2 from grupper where art='$art' and kodenr='$row[gruppe]' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__);
-			if ($row =db_fetch_array($query)) {	
-				$konto=$row['box2'];
-				$momsart=$row['box1'];
-			}
-		}
+		$qtxt = "select gruppe from adresser where kontonr = '$konto' and art='$tmp'";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if ($r['gruppe'])	{
+			$qtxt = "select box1, box2 from grupper where art='$art' and kodenr='$r[gruppe]' and fiscal_year = '$regnaar'";
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			if ($r =db_fetch_array($q)) {	
+				$konto=$r['box2'];
+				$momsart=$r['box1'];
+			} else alert("Fejl i kontoopsætning for konto $konto"); 
+		} else alert("Konto $konto ikke tilknyttet en gruppe");
 	}
 	$svar=array($konto, $momsart);
 	return $svar;

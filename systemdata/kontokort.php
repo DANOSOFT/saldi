@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----patch 4.0.8 ----2024-01-18--------
+// --- systemdata/kontokort.php -----patch 5.0.0 ----2026-02-06------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 2013.02.10 Break ændret til break 1
@@ -33,6 +33,8 @@
 // 20210707 LOE - Translated these texts with findtekst function 
 // 20220605 MSC - Implementing new design
 // 20220605 PHR - php8
+// 20250619 PHR - Somebody broke the code by omitting || in several if statements
+// 20260206	PHR	- discal_year
 
 @session_start();
 $s_id = session_id();
@@ -121,16 +123,16 @@ if (isset($_POST['slet'])) {
 	$kontonr = (int) $_POST['kontonr'];
 	$map_to = (int) $_POST['map_to'];
 	$beskrivelse = addslashes($_POST['beskrivelse']);
-	$kontotype = if_isset($_POST['kontotype']);
+	$kontotype = addslashes(if_isset($_POST['kontotype']));
 	#	$katagori=if_isset($_POST['katagori']);
-	$moms = if_isset($_POST['moms']);
+	$moms = addslashes(if_isset($_POST['moms']));
 	$fra_kto = if_isset($_POST['fra_kto']) * 1;
 	$til_kto = if_isset($_POST['kontonr']);
 	$saldo = if_isset($_POST['saldo']);
-	$valuta = if_isset($_POST['valuta']);
-	$ny_valuta = if_isset($_POST['ny_valuta']);
-	$genvej = if_isset($_POST['genvej']);
-	$lukket = if_isset($_POST['lukket']);
+	$valuta = addslashes(if_isset($_POST['valuta']));
+	$ny_valuta = addslashes(if_isset($_POST['ny_valuta']));
+	$genvej = addslashes(if_isset($_POST['genvej']));
+	$lukket = addslashes(if_isset($_POST['lukket']));
 
 	$regnaar_return = if_isset($_POST['regnaar']);
 	$maaned_fra = if_isset($_POST['maaned_fra']);
@@ -143,7 +145,7 @@ if (isset($_POST['slet'])) {
 	$konto_til = if_isset($_POST['konto_til']);
 	$rapportart = if_isset($_POST['rapportart']);
 
-	if ($kontotype != 'Sum' && $kontotype != 'Resultat') {
+	if ($kontotype != 'Z' && $kontotype != 'R') {
 		$fra_kto = 0;
 		$til_kto = 0;
 	}
@@ -422,7 +424,7 @@ if ($id && $saldo) {
 }
 if ($kontotype == 'D') {
 	if ($map_to && !in_array($map_to,$stdDkt)) $map_to = 0; 
-  print "<tr><td>".findtekst('3039|Map til)', $sprog_id).":</td><td><br></td>";
+  print "<tr><td>".findtekst('2340|Map til)', $sprog_id).":</td><td><br></td>";
 	print "<td colspan=2><SELECT name='map_to' style = 'width:70px'>";
 	print "<OPTION value = '$map_to'>$map_to</OPTION>";
 	for ($i=0;$i<count($stdDkt);$i++) {
@@ -431,7 +433,7 @@ if ($kontotype == 'D') {
 	print "</SELECT>";
 } elseif ($kontotype == 'S') {
 	if ($map_to && !in_array($map_to,$stdSkt)) $map_to = 0; 
-  print "<tr><td>".findtekst('3039|Map til)', $sprog_id).":</td><td><br></td>";
+  print "<tr><td>".findtekst('2340|Map til)', $sprog_id).":</td><td><br></td>";
 	print "<td colspan=2><SELECT name='map_to' style = 'width:70px'>";
 	print "<OPTION value = '$map_to'>$map_to</OPTION>";
 	for ($i=0;$i<count($stdSkt);$i++) {
@@ -488,11 +490,12 @@ if ($saldo) {
 }
 print "</SELECT></td></tr>\n";
 
-if ($kontotype == 'D'  $kontotype == 'S') {
+if ($kontotype == 'D' || $kontotype == 'S') {
   print "<tr><td>" . findtekst('1095|Momssats', $sprog_id) . ":</td><td><br></td>";
 	print "<td colspan=2><SELECT NAME = 'moms' style = 'width:70px'>";
 	print "<OPTION>$moms</OPTION>\n";
-	$qtxt = "select kode, kodenr from grupper where art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM'";
+	$qtxt = "select kode, kodenr from grupper ";
+	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar'";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($moms)
 		print "<OPTION></OPTION>\n";
@@ -509,7 +512,7 @@ if ($kontotype == 'Z') {
 } elseif ($kontotype == 'R') {
   print "<tr><td>" . findtekst('518|Resultat', $sprog_id) . "" . findtekst('592|Konto', $sprog_id) . "_</td><td><br></td><td><input type=text size=6 name=fra_kto value='$fra_kto'></td></tr>\n";
 }
-if (($kontotype == 'D')  ($kontotype == 'S')) {
+if ($kontotype == 'D' || $kontotype == 'S') {
 	$x = 0;
 	$alfabet = array("A", "B", "C", "E", "F", "G", "H", "I", "J", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "X", "Y", "Z");
 	$shortCut = array();
@@ -552,7 +555,7 @@ if (($kontotype == 'D')  ($kontotype == 'S')) {
 	} else
 		print "<input type=\"hidden\" name=\"ny_valuta\" value='DKK'>";
 }
-if ($kontotype == 'D'  $kontotype == 'S') {
+if ($kontotype == 'D' || $kontotype == 'S') {
   print "<tr><td colspan=\"2\">" . findtekst('1073|Saldo', $sprog_id) . "</td>";
 	if ($valutakurs != 0)
 		print "<td>$valuta: " . dkdecimal($saldo * 100 / $valutakurs) . "</td>";

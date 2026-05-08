@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/csv2ordre.php --- lap 4.0.5 --- 2022-07-13 ---
+// --- debitor/csv2ordre.php --- lap 4.1.1 --- 2025-12-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // -----------------------------------------------------------------------
 // 20160502 PHR Sat returnconfirm på [Hent] for at hindre dobbeltimport ved dobbeltklik.
 // 20190812 PHR	More information from address is imported.
 // 20220713 phr '$pris' is now trimmed.  
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20251219 LOE Added new top header design
 
 @session_start();
 $s_id = session_id();
@@ -37,17 +38,60 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");
+include("../includes/topline_settings.php");
+
+$$valg = if_isset($_GET,'ordrer','valg');
+$returside = if_isset($_GET, '../debitor/ordreliste.php', 'returside');
 
 print "<div align=\"center\">";
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=ordreliste.php?valg=tilbud accesskey=L>Luk</a></td>";
-print "<td width=\"80%\" $top_bund>$title</td>";
-print "<td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
+ ############################
+     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
+    ##########################
+	$center = "";
+	$width = "width=10%";
+	print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
+	print "<tr><td align='center' valign='top' height='1%'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
+
+	$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
+	print "<td width='10%' id='headerbtn' align=center><a href=\"javascript:confirmClose('$returside')\" accesskey=L>
+		  <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".$icon_back  . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+
+	print "<td width='80%' align=center style='$topStyle'>" . $title . "</td>\n";
+
+	print "<td width='10%' align=center style='$buttonStyle;'>
+		   <br></td>\n";
+
+	print "</tbody></table>\n"; #tabel2a slut
+	print "</td></tr>\n";
+	print "<tr><td width=\"100%\" valign=\"top\">";
+    ####
+    print "</td></tr>\n";
+
+    print "</tbody></table>\n";  # tabel1 slut
+    #####
+
+    ?>
+    <style>
+    .headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none !important;
+		gap: 5px;
+	}
+	#headerbtn a{
+		text-decoration: none !important;
+	}
+
+    </style>
+    <?php
+
+##########################
+
+
+print "</td></tr>";  //?
 
 if ($_POST) {
 	$submit = if_isset($_POST['submit']);
@@ -77,7 +121,7 @@ function upload()
 		$gruppebeskr[$x] = $r['beskrivelse'];
 		$x++;
 	}
-	print "<tr><td width=100% align=center><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td width=100% align=center><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style='margin-top: 20px; width:75%'><tbody>";
 	print "<tr><td colspan=\"2\">Denne funktion importerer ordrer fra en tabulatorsapareret fil til ordrer</td></tr>";
 	print "<tr><td colspan=\"2\">Filen skal have følgende format:</td></tr>";
 	$txt = HtmlEntities("Kundenr <tab> Ordrenr <tab> Dato <tab> Projekt <tab> Telefon <tab> Navn <tab> Adresse1 <tab> Adresse2 <tab> Postnr <tab> Bynavn <tab> Email <tab> Varenummer <tab> Varenavn <tab> Antal <tab> Pris", ENT_COMPAT, $charset);

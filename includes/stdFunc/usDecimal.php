@@ -24,7 +24,7 @@
 // ----------------------------------------------------------------------
 
 if (!function_exists('usdecimal')) {
-function usdecimal($tal,$decimaler = NULL) {
+	function usdecimal($tal,$decimaler = NULL) {
 	$tal = trim($tal);
 	if (!$decimaler && $decimaler!='0') $decimaler=2;
 	if (!$tal){

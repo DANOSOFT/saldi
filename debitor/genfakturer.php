@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------debitor/genfakturer.php-----lap 3.8.9-----2020-02-20------
+// ---------debitor/genfakturer.php-----lap 3.8.9-----2025-08-15------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // Erstattet addslashes med db_escape_string
 // 2014.03.17 Tilføjet procent til "insert into ordrelinjer... 
@@ -34,6 +34,7 @@
 // 2020.01.13 PHR - Added  check for vat settings - search '$vatAccount'
 // 2020.02.03 PHR - Critical '$vatAccount' was insertet instead of vat_account. 
 // 2020.02.20 PHR - $cvrnr set to '' if not valid; 
+// 20250815 PHR	Fiscal_year;
 
 @session_start();
 $s_id=session_id();
@@ -234,7 +235,8 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 				$r2=db_fetch_array(db_select("select varenr,gruppe from varer where id='$r[vare_id]'",__FILE__ . " linje " . __LINE__));
 				$gruppe=$r2['gruppe'];
 				$varenr=$r2['varenr'];
-				$r2=db_fetch_array(db_select("select box4,box7 from grupper where art='VG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__));
+				$qtxt = "select box4,box7 from grupper where art='VG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
+				$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$bogfkto = $r2['box4'];
 				$momsfri=$r2['box7'];
 				if ($opdat_pris) {

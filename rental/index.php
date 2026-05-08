@@ -27,27 +27,27 @@ include "header.php";
 $steps = array();
 $steps[] = array(
     "selector" => "#search",
-    "content" => "Søg efter stand navne, seperer med komma for at søge efter flere."
+    "content" => findtekst('2659|Søg efter standnavne. Adskil med komma for at søge efter flere.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".th-link",
-    "content" => "Se dage, klik på dem for at se ledige stande på den valgte dag"
+    "content" => findtekst('2660|Se dage, og klik på en dag for at se ledige stande', $sprog_id)."."
 );
 $steps[] = array(
   "selector" => ".bg-success",
-  "content" => "De grønne prikker viser ledige dage, og de røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag/stand."
+  "content" => findtekst('2661|Grønne prikker viser ledige dage, og røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag og stand.', $sprog_id)
 );
 $steps[] = array(
   "selector" => ".searchItem",
-  "content" => "Klik på et standnavn for at se bookinger, oprette nye eller spærre standen."
+  "content" => findtekst('2662|Klik på et standnavn for at se eller oprette bookinger, eller for at spærre standen', $sprog_id)."."
 );
 $steps[] = array(
   "selector" => ".spærring",
-  "content" => "Her kan du oprette spærringer. En spærring er en slags 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du vil vente med at booke standen, fordi den nuværende lejer måske ønsker at forlænge. Standen kan stadig bookes, selvom den er spærret."
+  "content" => findtekst('2663|Her kan du oprette spærringer. En spærring er en slags \'soft booking\', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du vil vente med at booke standen, fordi den nuværende lejer måske ønsker at forlænge. Standen kan stadig bookes, selvom den er spærret.', $sprog_id)
 );
 $steps[] = array(
   "selector" => ".circle",
-  "content" => "Vælg en dag for at se ind- og udflytninger på den pågældende dag. Den grønne markerer dags dato."
+  "content" => findtekst('2664|Vælg en dag for at se ind- og udflytninger på den pågældende dag. Den grønne markerer dags dato.', $sprog_id)
 );
 
 ?>

@@ -94,7 +94,7 @@
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
 		<![endif]-->
-		<title>Stillads</title>
+		<title>".findtekst('2783|Stillads', $sprog_id)."</title>
 	</head>
 	<body>
 		<div id=\"wrapper\">";
@@ -104,11 +104,11 @@
 	print "<div id=\"breadcrumbbar\">
 
 				<ul id=\"breadcrumb\">
-					<li><a href=\"../sager/sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a></li>
+					<li><a href=\"../sager/sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a></li>
 					<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->";
-					print "<li><a href=\"planlaeg.php\" title=\"Tilbage til planlægning menu\">Planlægning</a></li>\n";
-					print "<li>Planlægning beregning</li>\n";
-					if ($beregn_opret) print "<li style=\"float:right;\"><a href=\"#\" title=\"Print planlægning beregning\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"Print planlægning beregning\" class=\"printIcon\" /></a></li>";
+					print "<li><a href=\"planlaeg.php\" title=\"".findtekst('3208|Tilbage til planlægningsmenu', $sprog_id)."\">".findtekst('2775|Planlægning', $sprog_id)."</a></li>\n";
+					print "<li>".findtekst('3209|Planlægning: beregning', $sprog_id)."</li>\n";
+					if ($beregn_opret) print "<li style=\"float:right;\"><a href=\"#\" title=\"".findtekst('3210|Print Planlægning: beregning', $sprog_id)."\" class=\"print-preview\" onclick=\"printDiv('printableArea')\" style=\"background-image: none;\"><img src=\"../img/printIcon2.png\" alt=\"".findtekst('3210|Print Planlægning: beregning', $sprog_id)."\" class=\"printIcon\" /></a></li>";
 				print "</ul>
 				
 	</div><!-- end of breadcrumbbar -->\n";
@@ -121,14 +121,14 @@
 		print "<div class=\"skemadato\">$ddato</div>";
 		print "<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class=\"skematable\">";
 		print "<tr>
-						<th>Oprettet</th>
-						<th>Adresse</th>
-						<th>Beskrivelse</th>
-						<th>Afl.&nbsp;dato</th>
-						<th>Kontakt</th>
-						<th>Kunde</th>
-						<th>Beregner</th>
-						<th>Sags&nbsp;nr</th>
+						<th>".findtekst('65|Oprettet', $sprog_id)."</th>
+						<th>".findtekst('140|Adresse', $sprog_id)."</th>
+						<th>".findtekst('914|Beskrivelse', $sprog_id)."</th>
+						<th>".findtekst('3211|Afl. dato', $sprog_id)."</th>
+						<th>".findtekst('398|Kontakt', $sprog_id)."</th>
+						<th>".findtekst('35|Kunde', $sprog_id)."</th>
+						<th>".findtekst('2921|Beregner', $sprog_id)."</th>
+						<th>".findtekst('2819|Sagsnr.', $sprog_id)."</th>
 					</tr>";
 		for ($x=1;$x<=$antal_sager;$x++) {
 			
@@ -164,7 +164,7 @@
 		print "</table>"; // green #7EE37E red #FF8E8E
 		print "</div><!-- end of printableArea -->\n";
 	} else {
-		print "<div style=\"text-align: center;\"><h3>Planlægning til sager med beregning som status!</h3><br><p style=\"font-size:14px;color:#cd3300;\">Her vises dato for oprettelse af sager, og dato for aflevering af tilbud.</p><br><p>For at bruge planlægning beregning, skal sagerne der vises have status beregning. Ved start af sag kan der vælges dato for oprettelse af sagen og afleveringsdato af tilbud under planlægnings information.</p></div>\n";
+		print "<div style=\"text-align: center;\"><h3>".findtekst('3212|Planlægning til sager med beregning som status', $sprog_id)."!</h3><br><p style=\"font-size:14px;color:#cd3300;\">".findtekst('3213|Her vises dato for oprettelse af sager, og dato for aflevering af tilbud', $sprog_id).".</p><br><p>".findtekst('3214|For at bruge planlægning beregning skal sagerne der vises have status beregning. Ved start af sag kan der vælges dato for oprettelse af sagen og afleveringsdato af tilbud under planlægningsinformation.', $sprog_id)."</p></div>\n";
 	}
 	print "</div><!-- end of skemacontent -->\n";
 	print "</div><!-- end of maincontentLarge -->\n";

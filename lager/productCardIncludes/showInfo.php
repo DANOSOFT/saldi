@@ -22,6 +22,9 @@
         }
     }
     print "</td></tr>";
+    print "<tr><td width='17%'>Beskrivelse Alias</td><td>";
+    print "<input type='hidden' name='beskrivelseAlias' value=\"$beskrivelseAlias\">";
+    print "<input type='text' class='inputbox' style='text-align:left;width:400px;' name='beskrivelseAlias' value=\"$beskrivelseAlias\" onchange=\"javascript:docChange = true;\"></td></tr>";
     for ($x=1;$x<=$vare_sprogantal;$x++) {
         print "<input type=\"hidden\" name=\"vare_tekst_id[$x]\" value=\"$vare_tekst_id[$x]\">";
         print "<tr><td>$vare_sprog[$x]</td><td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:400px;\" name=\"beskrivelse[$x]\" value=\"$beskrivelse[$x]\" onchange=\"javascript:docChange = true;\"></td></tr>";
