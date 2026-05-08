@@ -545,7 +545,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 		$dkksum[$x]=dkdecimal($sum[$x]+$moms[$x],2);
 	
 
-		$q_dg = db_fetch_array(db_select("
+		$q_dg = db_fetch_array(db_select(<<<qtxt
 			SELECT
 			COALESCE(SUM(pris * antal), 0) AS total_sales,
 			COALESCE(SUM(
@@ -568,7 +568,9 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 			FROM ordrelinjer
 			WHERE ordre_id = '{$id[$x]}'
 			  AND NOT (pris = 0 AND kostpris > 0)
-			", __FILE__ . ' linje ' . __LINE__));
+		qtxt,
+			__FILE__ . ' linje ' . __LINE__));
+		
 		$discount[$x] = $q_dg['discount'];
 		$gross_profit[$x] = $q_dg['dg'];
 		$kostpris[$x] = $q_dg['kostpris'];
