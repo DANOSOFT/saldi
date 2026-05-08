@@ -52,6 +52,9 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
+include_once("../includes/emballage_schema.php");
+$packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
@@ -208,6 +211,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
 		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
+		$enduser_type = db_escape_string(if_isset($_POST['enduser_type'], ''));
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
 		list($gruppe) = explode(':', $_POST['gruppe']);
@@ -639,6 +643,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
 				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',kategori='$katString',";
 				$qtxt .= "rabatgruppe='$rabatgruppe',status='$status', productlimit = '" . usdecimal($productlimit) . "' ";
+				if ($packagingModuleEnabled) $qtxt .= ", enduser_type='$enduser_type' ";
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -1055,6 +1060,7 @@ if ($id > 0) {
 	$pbs_date = trim($r['pbs_date']);
 	$kontoansvarlig = trim($r['kontoansvarlig']);
 	$status = trim($r['status']);
+	$enduser_type = isset($r['enduser_type']) ? trim($r['enduser_type']) : '';
 	$oprettet = $r['oprettet'];
 	$productlimit = $r['productlimit'];
 	if (!$kontoansvarlig) $kontoansvarlig = '0';
@@ -1751,6 +1757,18 @@ if ($new_status) {
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
+if ($packagingModuleEnabled) {
+	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+	$eu = isset($enduser_type) ? $enduser_type : '';
+	$opt_blank = ($eu === '') ? ' selected' : '';
+	$opt_hus   = ($eu === 'Husholdning') ? ' selected' : '';
+	$opt_erh   = ($eu === 'Erhverv') ? ' selected' : '';
+	$eu_label = ($sprog_id == 2) ? 'Expected end user (packaging)' : 'Forventet slutbruger (emballage)';
+	$eu_title = ($sprog_id == 2) ? 'Expected end user of packaging delivered to this customer' : 'Forventet slutbruger af emballagen for denne kunde';
+	$eu_hus = ($sprog_id == 2) ? 'Household' : 'Husholdning';
+	$eu_erh = ($sprog_id == 2) ? 'Business' : 'Erhverv';
+	print "<tr bgcolor=$bg><td title='$eu_title'>$eu_label</td><td><select class='inputbox' name='enduser_type' onchange='javascript:docChange = true;'><option value=''$opt_blank></option><option value='Husholdning'$opt_hus>$eu_hus</option><option value='Erhverv'$opt_erh>$eu_erh</option></select></td></tr>\n";
+}
 print "</tbody></table></td>"; # <- TABEL 1.2.2
 print "<td valign=top><table border='0' width='100%'><tbody>"; # TABEL 1.2.3 ->
 $bg = $bgcolor5;
