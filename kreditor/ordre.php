@@ -43,6 +43,7 @@
 // 20260223 LOE Fixed SD-350-creditor-order-lookup-does-not-work-on-new-supplier-order
 // 20260225 PHR Order taken by ---
 // 20260421 LOE Set antal to 1 if empty
+// 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
 @session_start();
 $s_id=session_id();
 
@@ -166,6 +167,49 @@ if ((!$id || $id === 'null') && $konto_id) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=$url\">";
 		exit;
 	}
+}
+
+if (isset($_POST['create_creditor'])) {
+	$ny_kontonr = (int) if_isset($_POST, 0, 'kontonr');
+	$firmanavn  = db_escape_string(trim(if_isset($_POST, '', 'firmanavn')));
+	$addr1      = db_escape_string(trim(if_isset($_POST, '', 'addr1')));
+	$addr2      = db_escape_string(trim(if_isset($_POST, '', 'addr2')));
+	$postnr     = db_escape_string(trim(if_isset($_POST, '', 'postnr')));
+	$bynavn     = trim(if_isset($_POST, '', 'bynavn'));
+	if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
+	$bynavn     = db_escape_string($bynavn);
+	$tlf        = db_escape_string(trim(if_isset($_POST, '', 'tlf')));
+	$kontakt    = db_escape_string(trim(if_isset($_POST, '', 'kontakt')));
+	$email      = db_escape_string(trim(if_isset($_POST, '', 'email')));
+	$cvrnr      = db_escape_string(trim(if_isset($_POST, '', 'cvrnr')));
+	$grp        = (int) if_isset($_POST, 0, 'grp');
+	$betalingsbet  = db_escape_string(if_isset($_POST, 'Netto', 'betalingsbet'));
+	$betalingsdage = (int) if_isset($_POST, 8, 'betalingsdage');
+
+	if (!$firmanavn) {
+		print "<BODY onLoad=\"javascript:alert('Navn er påkrævet'); history.back();\">";
+		exit;
+	}
+	if (!$ny_kontonr) $ny_kontonr = get_next_number('adresser', 'K');
+
+	$qtxt = "select id from adresser where kontonr='$ny_kontonr' and art='K'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$new_konto_id = $r['id'];
+	} else {
+		$qtxt  = "insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,tlf,kontakt,email,cvrnr,gruppe,betalingsbet,betalingsdage,art,lukket) values ";
+		$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$tlf','$kontakt','$email','$cvrnr','$grp','$betalingsbet','$betalingsdage','K','')";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		$r = db_fetch_array(db_select("select id from adresser where kontonr='$ny_kontonr' and art='K'", __FILE__ . " linje " . __LINE__));
+		$new_konto_id = $r['id'];
+	}
+
+	$post_id = (int) if_isset($_POST, 0, 'id');
+	if (!$post_id) {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?konto_id=$new_konto_id\">";
+	} else {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$post_id&konto_id=$new_konto_id\">";
+	}
+	exit;
 }
 if ( !empty($kontakt) && $id ) {
 	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
@@ -557,6 +601,15 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					$momssats='0.00';
 				}
 			} elseif ($konto_id) print "<BODY onLoad=\"javascript:alert('Kreditor ikke tilknyttet en kreditorgruppe')\">";
+		}
+		// If user typed a kontonr/firmanavn that doesn't match any creditor,
+		// open the lookup overlay (which auto-shows the create-new-supplier form).
+		if (!$id && !$konto_id && ($kontonr || $firmanavn)) {
+			include("../includes/kreditorOrderFuncIncludes/accountLookup.php");
+			$lookup_find = $kontonr ? $kontonr : $firmanavn;
+			$lookup_fokus = $kontonr ? 'kontonr' : 'firmanavn';
+			kontoopslag($sort, $lookup_fokus, $id, $lookup_find);
+			exit;
 		}
 		if (!$id && !$konto_id && !$firmanavn && $varenr[0]) {
 			$varenr[0]=strtoupper($varenr[0]);
