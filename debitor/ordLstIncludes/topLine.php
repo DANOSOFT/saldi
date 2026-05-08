@@ -38,8 +38,8 @@ if ($konto_id) {
 	$btkort = true;
 	$backUrl = "debitorkort.php?id=$konto_id";
 }
-// Simplified tab links - pass valg and konto_id so customer context persists
-$konto_param = $konto_id ? "&konto_id=$konto_id" : "";
+// Simplified tab links - pass valg and explicit account context when opened from debitorkort
+$konto_param = $konto_id ? "&konto_id=$konto_id&account_context=1" : "";
 
 if ($btkort) {
 	print "<td width='200px'>

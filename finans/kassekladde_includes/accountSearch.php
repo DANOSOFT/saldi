@@ -23,6 +23,7 @@ header('Content-Type: application/json; charset=utf-8');
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $type = isset($_GET['type']) ? trim($_GET['type']) : 'finance';
 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+$exact = isset($_GET['exact']) ? intval($_GET['exact']) : 0;
 $limit = 50;
 $offset = ($page - 1) * $limit;
 
@@ -46,7 +47,9 @@ if ($type === 'finance' || $type === '') {
              AND regnskabsaar = '$regnaar' 
              AND (lukket IS NULL OR lukket != 'on')";
     
-    if ($search !== '') {
+    if ($search !== '' && $exact) {
+        $baseWhere .= " AND CAST(kontonr AS TEXT) = '$search_escaped'";
+    } elseif ($search !== '') {
         $baseWhere .= " AND (CAST(kontonr AS TEXT) ILIKE '%$search_escaped%' OR beskrivelse ILIKE '%$search_escaped%' OR genvej ILIKE '%$search_escaped%')";
     }
     

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-03-20 --
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-04-29 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,9 +29,16 @@
 // 20210107 PHR Corrected error in 'deferred financial year'.
 // 20210125 PHR Added csv option.
 // 20210211 PHR some cleanup
-// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding 
 // 20260210 PHR Miscalculating when simulating
 // 20260320 PHR Typo
+// 20260429 LOE Updated the top menu and made the report header sticky when scrolling.
+// 20260430 LOE Created standalone version of kontokort report for easy navigation
+
+function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
+                        $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
+                        $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,
+                        $simulering, $lagerbev, $page = 1, $per_page = 50) {
 
 	global $afd_navn,$ansatte,$ansatte_id;
 	global $bgcolor,$bgcolor4,$bgcolor5;
@@ -127,40 +134,73 @@
 	}
 	if ($momsq) $momsq.=")";
 	$momsantal=$x;
+	include("../includes/topline_settings.php");
+	print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: #eeeef0;\">";
+		#########
+		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		#########
+		print "<table bgcolor='#eeeef0' width = 100% cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
+		print "<tr><td colspan=8 align=center>";
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>"; #B
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
-	print "<tr><td colspan=\"6\" height=\"8\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-	print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
-	print "<td width=\"80%\" $top_bund> Rapport - kontokort med moms</td>";
-	print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
+	print "<td width=\"5%\">$color
+			<a href=\"javascript:confirmClose('rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev','')\" accesskey=L>
+			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+	print "<td width='75%' align='center' style='$topStyle'>".findtekst('516|Rapport - kontokort med moms', $sprog_id)."</td>\n";
+	print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
 	print "</tbody></table>"; #B slut
 	print "</td></tr>";
-	print "<tr><td colspan=\"3\"><big><big><big>".findtekst(516,$sprog_id)."</big></big></big></td>";
-	if (!isset ($sprog_id)) $sprog_id = NULL;
-	print "";
-	print "<td colspan='4' align = 'right'><b>Regnskabs&aring;r </b>$regnaar : ";
-	## Finder start og slut paa regnskabsaar
-	if ($startdato < 10) $startdato="0".$startdato*1;	
-	print "$startdato/$mf $startaar - $slutdato/$mt $slutaar</td></tr>";
+	#######################
+		
+		?>
+			<style>
+			/* Existing styles for buttons */
+			.headerbtn, .center-btn {
+				display: flex;
+				align-items: center;
+				text-decoration: none;
+				gap: 5px;
+			}
+			a:link{
+					text-decoration: none; 
+				}
+
+			</style>
+		<?php
+
+	#######################
+	print "<table style='width:100%; border-collapse:collapse;'>";
+
+/* HEADER */
+print "<thead>";
+print "<tr>";
+print "<th colspan='3' style='text-align:left;'>
+        <big><big><big>".findtekst(516,$sprog_id)."</big></big></big>
+      </th>";
+
+print "<th colspan='4' style='text-align:right; white-space:nowrap;'>
+        <b>Regnskabs&aring;r </b>$regnaar
+      </th>";
+print "</tr>";
+print "</thead>";
+
+/* DATA */
+print "<tbody>";
+print "<tr>";
+
+if ($startdato < 10) $startdato = "0".($startdato*1);
+
+print "<td colspan='3'></td>";
+
+print "<td colspan='4' style='text-align:right; white-space:nowrap;'>
+        $startdato/$mf $startaar - $slutdato/$mt $slutaar
+      </td>";
+
+print "</tr>";
+print "</tbody>";
+
+print "</table>";
 	if ($ansat_fra) {
 		if (!$ansat_til || $ansat_fra==$ansat_til) print "<tr><td><b>Medarbejder:</b></td><td>$ansatte</td></tr>";
 		else print "<tr><td><b>Medarbejdere:</b></td><td>$ansatte</td></tr>";
@@ -197,6 +237,13 @@
 			$dim = $dim."and lower(projekt) LIKE '$tmp' ";
 		}
 	}
+	###########
+	 // Pagination tracking (cross-account, same pattern as kontokort)
+    $rows_to_skip = ($page - 1) * $per_page;
+    $rows_printed = 0;
+    $total_rows   = 0;
+
+	#########
 	$x=0;
 	$valdate=array();
 	$valkode=array();
@@ -259,18 +306,78 @@
 
 	$founddate=false;
 	
-	print "<tr><td colspan=6><hr></td></tr>";
-	print "<tr><td width=\"100px\">Dato</td><td width=\"60px\">Bilag</td><td>Tekst</td>";
-	print "<td width=\"100px\" align=\"right\">Bel&oslash;b</td><td width=\"80px\" align=\"right\"> Moms</td>";
-	print "<td width=\"100px\" align=\"right\">Incl. moms</td></tr>";
+
+	#############
+	print "</tbody></table>";
+	print "</div>"; // closes sticky wrapper
+	print "<div style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
+	print "<table width='100%' cellpadding='0' cellspacing='0' border='0' id='datapg' style='table-layout: fixed; border-collapse: collapse;'>";
+	print "<thead style='position: sticky; top: 0; background: white; z-index: 10;'>";
+	print "<tr>";
+	print "  <th style='width: 100px; text-align: left;'>Dato</th>";
+	print "  <th style='width: 80px; text-align: left;'>Bilag</th>";
+	print "  <th style='text-align: left;'>Tekst</th>";
+	print "  <th style='width: 100px; text-align: right;'>Beløb</th>";
+	print "  <th style='width: 90px; text-align: right;'>Moms</th>";
+	print "  <th style='width: 110px; text-align: right;'>Incl. moms</th>";
+	print "</tr>";
+	print "</thead>";
+	print "<tbody>";
+	#############
 	fwrite($csv, "Dato;Bilag;Tekst;". mb_convert_encoding('Beløb', 'ISO-8859-1', 'UTF-8') .";Moms;Incl. moms\n");
+
+		#######
+		for ($x = 1; $x <= $kontoantal; $x++) {
+				if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+					$cnt = db_fetch_array(db_select(
+						"SELECT COUNT(*) as c FROM transaktioner
+						WHERE kontonr=$kontonr[$x]
+						AND transdate>='$regnstart' AND transdate<='$regnslut' $dim",
+						__FILE__ . " linje " . __LINE__
+					));
+					$total_rows += (int)$cnt['c'];
+				}
+			}
+			$total_pages = max(1, ceil($total_rows / $per_page));
+
+		######
 
 	for ($x=1; $x<=$kontoantal; $x++){
 		$linjebg=$bgcolor5;
 		if (in_array($kontonr[$x],$ktonr) || $primo[$x]){
+
+            // Skip entire account if all its rows fall before our page window
+            $acct_cnt = (int)db_fetch_array(db_select(
+                "SELECT COUNT(*) as c FROM transaktioner
+                 WHERE kontonr=$kontonr[$x]
+                   AND transdate>='$regnstart' AND transdate<='$regnslut' $dim",
+                __FILE__ . " linje " . __LINE__
+            ))['c'];
+            if ($rows_to_skip >= $acct_cnt) {
+                $rows_to_skip -= $acct_cnt;
+                continue;
+            }
 			print "<tr><td colspan=6><hr></td></tr>";
-			print "<tr bgcolor=\"$bgcolor5\"><td></td><td></td><td colspan=4>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</tr>";
-			fwrite($csv, ";;". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') ."\n");
+
+				print "<tr bgcolor=\"$bgcolor5\">
+						<td></td>
+						<td></td>
+						<td colspan=4>
+							<b>$kontonr[$x]</b> : 
+							<b>$kontobeskrivelse[$x]</b> : 
+							<b>$kontomoms[$x]</b>
+						</td>
+					</tr>";
+
+				fwrite(
+					$csv,
+					";;" . mb_convert_encoding(
+						"$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]",
+						'ISO-8859-1',
+						'UTF-8'
+					) . "\n"
+				);
+
 			print "<tr><td colspan=6><hr></td></tr>";
 	#		fwrite($csv, ";;;;;;;");
 			$xMomsSum=$momsSum=0;
@@ -404,7 +511,18 @@
 // To here simulation is printed
 			
 			
-			for ($tr=0;$tr<count($transdate);$tr++) {		
+			for ($tr=0;$tr<count($transdate);$tr++) {
+
+                $debet_val  = afrund($debet[$tr], 2);
+                $kredit_val = afrund($kredit[$tr], 2);
+
+                if ($rows_to_skip > 0) {
+                    $kontosum += $debet_val - $kredit_val;
+                    $rows_to_skip--;
+                    continue;
+                }
+                if ($rows_printed >= $per_page) break;
+
 				($linjebg!=$bgcolor5)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 				print "<tr bgcolor=\"$linjebg\"><td>".dkdato($transdate[$tr])."</td>";
 				if ($kladde_id[$tr]) {
@@ -436,6 +554,7 @@
 				$mmoms=$xmoms+$moms[$tr];
 				print "<td align=right>".dkdecimal($mmoms,2)."</td></tr>";
 				fwrite($csv, "\"".dkdecimal($mmoms,2)."\"\n");
+				$rows_printed++;
 				if (in_array($kontonr[$x],$sim_kontonr) && $transdate[$tr]!=$transdate[$tr+1]) {
 					for ($sim=0;$sim<count($sim_kontonr);$sim++) {
 						if ($kontonr[$x]==$sim_kontonr[$sim] && $transdate[$tr] == $sim_transdate[$sim]) {
@@ -482,21 +601,112 @@
 					}
 				}
 			}
-#cho __line__." $xMomsSum<br>";			
-			print "<tr><td colspan='2'></td><td><b>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</b></td>";
-			fwrite($csv, "Sum;;". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') .";");
-			print "<td align='right'><b>". dkdecimal($xMomsSum,2) ."</b></td>";
-			fwrite($csv, "".dkdecimal($xMomsSum,2).";");
-			print "<td align='right'><b>". dkdecimal($momsSum,2) ."</b></td>";
-			fwrite($csv, "".dkdecimal($momsSum,2).";");
-			print "<td align='right'><b>". dkdecimal($xMomsSum+$momsSum,2) ."</b></td>";
-			fwrite($csv, "".dkdecimal($xMomsSum+$momsSum,2)."\n\n");
-			print "</tr>";
+			if ($rows_printed >= $per_page) break; // stop processing further accounts
+		#cho __line__." $xMomsSum<br>";
+				if ($rows_printed > 0 || $xMomsSum != 0) { // only print summary if we actually rendered rows
+				print "<tr><td colspan='2'></td><td><b>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</b></td>";
+				fwrite($csv, "Sum;;". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') .";");
+				print "<td align='right'><b>". dkdecimal($xMomsSum,2) ."</b></td>";
+				fwrite($csv, "".dkdecimal($xMomsSum,2).";");
+				print "<td align='right'><b>". dkdecimal($momsSum,2) ."</b></td>";
+				fwrite($csv, "".dkdecimal($momsSum,2).";");
+				print "<td align='right'><b>". dkdecimal($xMomsSum+$momsSum,2) ."</b></td>";
+				fwrite($csv, "".dkdecimal($xMomsSum+$momsSum,2)."\n\n");
+				print "</tr>";
+			}
+			
 		}
 #if ($kontonr[$x] == 1010) exit;
 	}
-	print "<tr><td colspan=6><hr></td></tr>";
+	#print "<tr><td colspan=6><hr></td></tr>";
 	print "</tbody></table>";
+	// --- Sticky pagination bar ---
+    $base_url = "kontokort_moms_standalone.php?" . http_build_query([
+        'regnaar'     => $regnaar,
+        'maaned_fra'  => $maaned_fra,
+        'maaned_til'  => $maaned_til,
+        'aar_fra'     => $aar_fra,
+        'aar_til'     => $aar_til,
+        'dato_fra'    => $dato_fra,
+        'dato_til'    => $dato_til,
+        'konto_fra'   => $konto_fra,
+        'konto_til'   => $konto_til,
+        'rapportart'  => $rapportart,
+        'ansat_fra'   => $ansat_fra,
+        'ansat_til'   => $ansat_til,
+        'afd'         => $afd,
+        'projekt_fra' => $projekt_fra,
+        'projekt_til' => $projekt_til,
+        'simulering'  => $simulering,
+        'lagerbev'    => $lagerbev,
+    ]);
+
+    $offsetFrom  = (($page - 1) * $per_page) + 1;
+    $offsetTo    = min($total_rows, $page * $per_page);
+    $prevUrl     = $base_url . '&per_page=' . $per_page . '&page=' . ($page - 1);
+    $nextUrl     = $base_url . '&per_page=' . $per_page . '&page=' . ($page + 1);
+
+    // Build rows-per-page options
+    $rowCounts = [25, 50, 100, 250, 500];
+    $rowCountOptions = '';
+    foreach ($rowCounts as $count) {
+        $sel = ($count === $per_page) ? 'selected' : '';
+        $rowCountOptions .= "<option value='{$count}' {$sel}>{$count}</option>";
+    }
+
+    // Build page number buttons with ellipsis — matches render_table_footer pattern
+    $pageRange = 2;
+    $startPage = max(1, $page - $pageRange);
+    $endPage   = min($total_pages, $page + $pageRange);
+
+    $pageButtons = '';
+    if ($startPage > 1) {
+        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page=1' class='navbutton'>1</a>";
+        if ($startPage > 2) $pageButtons .= "<span>...</span>";
+    }
+    for ($p = $startPage; $p <= $endPage; $p++) {
+        $activeStyle = ($p === $page) ? "style='text-decoration:underline; font-weight:bold;'" : "";
+        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
+    }
+    if ($endPage < $total_pages) {
+        if ($endPage < $total_pages - 1) $pageButtons .= "<span>...</span>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
+    }
+
+    print "</div>"; // closes scrollable div — MUST be before the fixed bar
+
+    echo "
+    <div style='position:fixed; bottom:0; left:0; width:100%; background:#f4f4f4;
+                border-top:2px solid #ddd; z-index:200; box-shadow:0 -2px 6px rgba(0,0,0,0.1);'>
+        <div id='footer-box' style='display:flex; align-items:center; gap:10px;
+                                    justify-content:flex-end; padding:6px 16px;'>
+            <span id='page-status' style='display:flex;'>
+                {$offsetFrom}-{$offsetTo}&nbsp;af&nbsp;{$total_rows}
+            </span>
+            |
+            <span style='display:flex; align-items:center; gap:4px;'>
+                <label style='font-size:0.9em; color:#666;'>Linjer pr. side</label>
+                <select onchange=\"window.location.href='{$base_url}&page=1&per_page=' + this.value\"
+                        style='height:24px; cursor:pointer;'>
+                    {$rowCountOptions}
+                </select>
+            </span>
+            |
+            <span id='navbuttons' style='display:flex; align-items:center; gap:3px;'>
+                <a href='{$prevUrl}' " . ($page <= 1 ? "style='pointer-events:none;opacity:0.4;'" : "") . ">
+                    <svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'>
+                        <path d='M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z'/>
+                    </svg>
+                </a>
+                {$pageButtons}
+                <a href='{$nextUrl}' " . ($page >= $total_pages ? "style='pointer-events:none;opacity:0.4;'" : "") . ">
+                    <svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'>
+                        <path d='M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z'/>
+                    </svg>
+                </a>
+            </span>
+        </div>
+    </div>"; // closes scrollable div
 	fclose($csv);
 
 	if ($menu=='T') {
@@ -506,4 +716,62 @@
 	}
  
 #################################################################################################
+} //end function
 ?>
+<style>
+	
+        .navbutton {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 24px;
+            min-width: 24px;
+            padding: 0 4px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #000;
+            text-decoration: none;
+            font-size: 0.85em;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .navbutton:hover {
+            background-color: #e8e8e8;
+        }
+	#datapg td {
+		padding-right: 8px;
+	}
+		#datapg td:nth-child(2), #datapg th:nth-child(2) {
+		padding-right: 15px;
+	}
+	#datapg {
+    border-collapse: collapse;
+    width: 100%;
+}
+#datapg th, #datapg td {
+    /* padding: 6px 8px; */
+    vertical-align: top;
+}
+#datapg th {
+    background-color: #eeeef0;
+}
+/* Right‑align numeric columns */
+#datapg td:nth-child(4),
+#datapg td:nth-child(5),
+#datapg td:nth-child(6),
+#datapg th:nth-child(4),
+#datapg th:nth-child(5),
+#datapg th:nth-child(6) {
+    text-align: right;
+}
+/* Extra spacing for Bilag column */
+#datapg td:nth-child(2), #datapg th:nth-child(2) {
+    padding-right: 20px;
+}
+
+#tableA tr:nth-child(2) td:nth-child(2) {
+    text-align: right;
+    width: 100%;          /* pushes content to the right if the row uses table layout */
+}
+		
+</style>

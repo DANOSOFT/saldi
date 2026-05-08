@@ -117,7 +117,7 @@ function loenliste() {
 		$art_navn[0]='akktimer';
 		$art_alias[0]=findtekst('2809|Dyrtid', $sprog_id); //Akkord timer
 		$art_navn[1]='akk_afr';
-		$art_alias[1]=findtekst('2810|Akkord afregning', $sprog_id);
+		$art_alias[1]=findtekst('2810|Akkordafregning', $sprog_id);
 		$art_navn[2]='akkord';
 		$art_alias[2]=findtekst('2811|Akkord med dyrtid', $sprog_id); //Akkord
 		$art_navn[3]='timer'; 
@@ -485,7 +485,7 @@ function loenliste() {
 	// Title til loendate
 	if ($s_loendate) {
 		if ($s_loendateFra && $s_loendateTil) {
-			$s_loendateTitle = "Fra:	$s_loendateFra\nTil:	$s_loendateTil";
+			$s_loendateTitle = ucfirst(findtekst('903|fra', $sprog_id)).":\t$s_loendateFra\n".ucfirst(findtekst('904|til', $sprog_id)).":\t$s_loendateTil";
 		} else {
 			$s_loendateTitle = "$s_loendateFra";
 		}
@@ -502,7 +502,7 @@ function loenliste() {
 				<a href=\"loen.php?funktion=loenliste&amp;nysort=loendate&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:69px\">".findtekst('2789|Løndato', $sprog_id)."</a>
 				<a href=\"loen.php?funktion=loenliste&amp;nysort=oprettet&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:69px\">".findtekst('65|Oprettet', $sprog_id)."</a>
 				<a href=\"loen.php?funktion=loenliste&amp;nysort=afsluttet&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:69px\">".findtekst('2790|Overført', $sprog_id)."</a>
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=godkendt&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:69px\">".findtekst('2791|Godk/Afv', $sprog_id)."</a>
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=godkendt&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:69px\">".findtekst('2791|Godk./Afv.', $sprog_id)."</a>
 				<a href=\"loen.php?funktion=loenliste&amp;nysort=afregnet&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:69px\">".findtekst('1265|Betalt', $sprog_id)."</a>
 				<a href=\"loen.php?funktion=loenliste&amp;nysort=sag_nr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt07 $sortstyle[6]\" style=\"width:90px\">".findtekst('2792|Sag', $sprog_id)."</a>       
 				<a href=\"loen.php?funktion=loenliste&amp;nysort=art&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[7]\" class=\"felt08 $sortstyle[7]\" style=\"width:80px\">Type</a>       
@@ -606,7 +606,7 @@ function loenliste() {
 		<ul id=\"things\" class=\"paging_content\">";
 		
 		if ($id==NULL) {
-		print "<li><i>".findtekst('2798|Ingen resultat', $sprog_id)."!</i></li>";
+		print "<li><i>".findtekst('2798|Ingen resultater', $sprog_id)."!</i></li>";
 		} else {
 			for ($x=0;$x<count($id);$x++) {
 				$vis=0;

@@ -30,7 +30,7 @@
 
 function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 
-	global $brugernavn,$bgcolor,$db;
+	global $brugernavn,$bgcolor,$db,$sprog_id;
 	$categorySum = array(); 
 /*
  ($listevalg >= 10)?$nyListe = 1:$nyListe = 0;
@@ -381,9 +381,8 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 					<td colspan=\"1\" style=\"text-align:right;\">{$tr_antal[$tr]}</td>
 					<td></td>
 					<td style=\"padding-left: 5px;\" colspan=\"".($colspan-8)."\">
-						{$tr_navn[$tr]} " . findtekst('3056|Transport', $sprog_id)." ".findtekst('2795|Sum', $sprog_id)."
-					</td>
-					<td colspan=\"".(0)."\" style=\"text-align:right;\">$CurrentSum</td> 
+						{$tr_navn[$tr]} " . findtekst('3056|Transport', $sprog_id)." ".findtekst('2795|Sum', $sprog_id)."</td>"; #Transport Sum
+				print "<td colspan=\"".(0)."\" style=\"text-align:right;\">$CurrentSum</td>
 					<td colspan=\"".($colspan-2)."\" style=\"text-align:right;\">" . dkdecimal($tr_antal[$tr] * $tr_pris[$tr], 2) . "</td>
 				</tr>";
 

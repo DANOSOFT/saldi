@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 5.0.0 --- 2026.02.13 ---
+// ---- index/main.php --- lap 5.0.0 --- 2026.04.15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20250526 LOE  - Sets v.lukket to '' instead of v.lukket.
 // 20250617 PBLM - Fixed bug where you could not search for leverandør in vareliste.
 // 20260213 LOE  - Added returside as variable used in topLineVarer.php and optimized search with supplied varenr.
+// 20260415 LOE  - Added Categories column with search functionality in vareliste. 
 
 @session_start();
 $s_id = session_id();
@@ -252,7 +253,33 @@ $columns[] = array(
     "field" => "enhed",
     "headerName" => "Enhed",
     "width" => "0.5",
-    "sqlOverride" => "v.enhed"
+    "sqlOverride" => "v.enhed" 
+);
+$columns[] = array(
+    "field"      => "kategorier",
+    "headerName" => "Categories",
+    "width"      => "2",
+    "hidden"     => false,
+    "sqlOverride" => "(SELECT string_agg(g.box1, ', ' ORDER BY g.box1) FROM grupper g WHERE g.art = 'V_CAT' AND g.id::text = ANY(string_to_array(v.kategori, chr(9))))",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        $words = preg_split('/\s+/', trim($term));
+        $conditions = array();
+        foreach ($words as $word) {
+            if (!empty($word)) {
+                $word = db_escape_string($word);
+                $conditions[] = "EXISTS (
+                    SELECT 1 FROM grupper g 
+                    WHERE g.art = 'V_CAT' 
+                    AND g.id::text = ANY(string_to_array(v.kategori, chr(9)))
+                    AND g.box1 ILIKE '%$word%'
+                )";
+            }
+        }
+        return !empty($conditions)
+            ? "(" . implode(" AND ", $conditions) . ")"
+            : "1=1";
+    },
 );
 
 // Loop to generate lager fields (lager1, lager2, lager3, ...)
@@ -438,7 +465,6 @@ $data_start = microtime(true);
 $data = array(
     "table_name" => "varer",
     "query" => "WITH optimized_levs AS (
-    -- Simplified supplier aggregation - only when needed
     SELECT
         vl.vare_id,
         string_agg(a.kontonr::TEXT, ' ') AS kontonr_concat,
@@ -484,7 +510,13 @@ SELECT DISTINCT
     $SQLLagerFetch
     COALESCE(lt.lager_total, 0) AS lager_total,  
     v.salgspris AS salgspris,       
-    v.kostpris AS kostpris,         
+    v.kostpris AS kostpris, 
+    (
+    SELECT string_agg(g.box1, ', ' ORDER BY g.box1)
+    FROM grupper g
+    WHERE g.art = 'V_CAT'
+    AND g.id::text = ANY(string_to_array(v.kategori, chr(9)))
+    ) AS kategorier,    
     CASE 
         WHEN v.salgspris = 0 THEN 0  
         ELSE (v.salgspris - v.kostpris) / v.salgspris * 100  
@@ -518,7 +550,7 @@ LEFT JOIN grupper sm
     AND sm.fiscal_year = $regnaar 
     AND sm.art = 'SM'
 LEFT JOIN optimized_levs ol ON v.id = ol.vare_id  -- Use optimized CTE
-WHERE {{WHERE}}  
+WHERE {{WHERE}} 
 ORDER BY {{SORT}}
 ",
 

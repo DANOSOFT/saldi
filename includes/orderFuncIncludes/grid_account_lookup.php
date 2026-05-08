@@ -1731,7 +1731,7 @@ function render_ajax_search_script($id) {
         var html = '';
         data.forEach(function(row, index) {
             var rowColor    = (index % 2 === 0) ? '{$bgcolor}' : '{$bgcolor5}';
-            var redirectUrl = '{$href}?konto_id=' + (row.id || '');
+            var redirectUrl = '{$href}?fokus=kontonr&id={$ordre_id}&konto_id=' + (row.id || '');
 
             html += '<tr style="background-color:' + rowColor + ';cursor:pointer;"' +
                     ' onclick="window.location.href=\'' + redirectUrl + '\'"' +

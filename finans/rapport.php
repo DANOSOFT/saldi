@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- lap 5.0.0 --- 2026-03-06 ---
+// --- finans/rapport.php --- lap 5.0.0 --- 2026-04-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,7 +19,7 @@
 //
 // The program is published with the hope that it will be beneficial,
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
-// See GNU General Public License for more details.
+// See GNU General Public License for more details. 
 //
 // Copyright (c) 2003-2026 saldi.dk ApS
 // ----------------------------------------------------------------------
@@ -30,6 +30,7 @@
 // 20241018 LOE Checks that some variables are set before using and other minore modifications
 // 20260227 PHR Moved include("../includes/row-hover-style.js.php") down as it broke saf-t and other using header 
 // 20260306 LOE Updated some variables with if_isset() to avoid excessive undefined variable notices in error logs.
+// 20260329 LOE Added conditions to allow standalone versions of kontokort and kontokort_moms to be used without modifying the code in this file.
 @session_start();
 $s_id = session_id();
 
@@ -314,6 +315,55 @@ if ($submit == 'saft') {
 	header("Location: bankReconcile.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
 } else {
+	
+	#########
+	if ($submit === 'kontokort') {
+        $params = http_build_query([
+            'regnaar'     => $regnaar,
+            'maaned_fra'  => $maaned_fra,
+            'maaned_til'  => $maaned_til,
+            'aar_fra'     => $aar_fra,
+            'aar_til'     => $aar_til,
+            'dato_fra'    => $dato_fra,
+            'dato_til'    => $dato_til,
+            'konto_fra'   => $konto_fra,
+            'konto_til'   => $konto_til,
+            'rapportart'  => $rapportart,
+            'ansat_fra'   => $ansat_fra,
+            'ansat_til'   => $ansat_til,
+            'afd'         => $afd,
+            'projekt_fra' => $projekt_fra,
+            'projekt_til' => $projekt_til,
+            'simulering'  => $simulering,
+            'lagerbev'    => $lagerbev,
+        ]);
+        header("Location: kontokort_standalone.php?$params");
+        exit();
+    }elseif($submit === 'kontokort_moms') {
+		$params = http_build_query([
+			'regnaar'     => $regnaar,
+			'maaned_fra'  => $maaned_fra,
+			'maaned_til'  => $maaned_til,
+			'aar_fra'     => $aar_fra,
+			'aar_til'     => $aar_til,
+			'dato_fra'    => $dato_fra,
+			'dato_til'    => $dato_til,
+			'konto_fra'   => $konto_fra,
+			'konto_til'   => $konto_til,
+			'rapportart'  => $rapportart,
+			'ansat_fra'   => $ansat_fra,
+			'ansat_til'   => $ansat_til,
+			'afd'         => $afd,
+			'projekt_fra' => $projekt_fra,
+			'projekt_til' => $projekt_til,
+			'simulering'  => $simulering,
+			'lagerbev'    => $lagerbev,
+		]);
+		header("Location: kontokort_moms_standalone.php?$params");
+		exit();
+	}
+
+	#########
 	include("../includes/row-hover-style.js.php");
 	include("rapport_includes/$submit.php");
 }

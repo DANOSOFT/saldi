@@ -27,6 +27,7 @@
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
+            "orgNo" => "", //TODO find out what string to put here
             "currency" => "DKK",
             "country" => "DK",
             "webhookUrl" => $webhookUrl,
@@ -112,6 +113,8 @@
             file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             
             return ['success' => false, 'message' => 'Error updating company: ' . $errorMessage];
+        } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
+            return ['success' => false, 'message' => 'CVR is already registered in Peppol elsewhere, you have to cancel that first.', 'response' => $response];
         }
         
         // Save successful response in temp folder for debugging

@@ -1,9 +1,0 @@
-nyt table kontakt_emails with columns such as id, konto_id, email, email_type, and prioritet
-foskellige email typer supported i saldi:
-Debitor:
-1. tilbud
-2. ordre
-3. fakturer/krenota
-4. kontoudtog
-5. rykkerer
-6. lagerstatus (rykkes fra indstillinger til nyt system)

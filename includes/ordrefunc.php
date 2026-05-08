@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-13 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-04-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,8 @@
 // 20260312 PHR	Set valuta if not set in bogfor_nu.  
 // 20260313 Sawaneh SD-369 stock fallback in opret_ordrelinje commented out pending review
 // 20260313 PHR	Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort'
+// 20260415 PHR Modtag (Receive) was set to 0 when delivering a negative quantity
+// 20260227 PHR Added more arguments to funtion call at line 1260, as last 4 was missing
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */
@@ -324,11 +326,10 @@ $fejl=0;
 				}
 				if ($leveres[$x] < 0 && $art == 'DO') {
 					$tidl_lev_do = 0;
-					$query = db_select("select antal from batch_salg where linje_id = '$linje_id[$x]' and ordre_id=$id", __FILE__ . " linje " . __LINE__);
-					while ($row = db_fetch_array($query))
-						$tidl_lev_do = $tidl_lev_do + $row['antal'];
-					if (abs($leveres[$x]) > abs($tidl_lev_do))
-						$leveres[$x] = $tidl_lev_do * -1;
+					$qtxt = "select antal from batch_salg where linje_id = '$linje_id[$x]' and ordre_id='$id'";
+					$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+					while ($row = db_fetch_array($query)) $tidl_lev_do = $tidl_lev_do + $row['antal'];
+					if (abs($leveres[$x]) < abs($tidl_lev_do)) $leveres[$x] = $tidl_lev_do * -1;
 				}
 			}
 			for ($x = 1; $x <= $linjeantal; $x++) {
@@ -545,7 +546,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 				}
 			} else {
 				$tmp = $antal;
-				$qtxt = "select * from batch_kob where vare_id = '$vare_id' and rest > '0' and lager = '$lager' order by id";
+				$qtxt = "select * from batch_kob where vare_id = '$vare_id' and rest > '0' and lager = '$lager' order by " . fefo_order_clause();
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					$ny_rest = $r['rest'];
@@ -1047,9 +1048,9 @@ function batch($linje_id)
 		$rest = array();
 		$lev_rest = $leveres;
 		if ($lager)
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by kobsdate", __FILE__ . " linje " . __LINE__);
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
 		else
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by kobsdate", __FILE__ . " linje " . __LINE__);
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			$x++;
 			$batch_kob_id[$x] = $row['id'];
@@ -1257,8 +1258,7 @@ function bogfor($id, $webservice=false)
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
 				$tmp = str_replace('$procenttillæg;', $procenttillag, $r['beskrivelse']);
-				opret_ordrelinje($id, $r['id'], $r['varenr'], 1, $tmp, $tillag, 0, 100, $art, '', $posnr, '', '', 'on', 'percent', '', $lager); #20140426
-				$r = db_fetch_array(db_select("select max(id) as linje_id from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__));
+				opret_ordrelinje($id, $r['id'], $r['varenr'], 1, $tmp, $tillag, 0, 100, $art, '', $posnr, '', '', 'on', 'percent', '','','','', $lager,__line__); #20260427
 				db_modify("update ordrelinjer set leveres='1' where id='$r[linje_id]'", __FILE__ . " linje " . __LINE__);
 				levering($id, '', '', '');
 				$sum += $tillag;
@@ -1801,7 +1801,7 @@ function batch_salg($id)
 			$y = 0;
 			$mangler = $antal[$x];
 			$kostsum = 0;
-			$qtxt = "select * from batch_kob where rest>'0' and vare_id='$vare_id[$x]' and ordre_id!= '$id' order by fakturadate,id";
+			$qtxt = "select * from batch_kob where rest>'0' and vare_id='$vare_id[$x]' and ordre_id!= '$id' order by " . fefo_order_clause();
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($mangler && $r = db_fetch_array($q)) {
 				$rest = $r['rest'];
@@ -2283,8 +2283,8 @@ function bogfor_nu($id, $kilde) {
 			$valuta = $baseCurrency;
 		$projekt[0] = $r['projekt'];
 		$betalingsbet = $r['betalingsbet'];
-		$betalingsdage = $r['betalingsdage'] * 1;
-		$betalt = $r['betalt'] * 1;
+		$betalingsdage = (int)$r['betalingsdage'];
+		$betalt = (float)$r['betalt'];
 		$felt_1 = $r['felt_1'];
 		$felt_2 = $r['felt_2'];
 		$felt_3 = $r['felt_3'];

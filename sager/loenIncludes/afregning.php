@@ -177,7 +177,7 @@ function loenafregning() {#Summeret lønafregning
 					print "<div style=\"float:left; width:828px;#background-color:lightgreen;\">\n";
 					//print "<div id=\"printableArea\">\n";
 						$tmp = "<h2 class=\"printHeadline\">".findtekst('2979|Lønopgørelse', $sprog_id)."</h2>\n";
-						if ($afregnet) $tmp.="<p class=\"printHeadline\">".lcfirst(findtekst('2986|Afregnet d.', $sprog_id))." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('638|Af', $sprog_id))." $afregnet_af</p>\n";
+						if ($afregnet) $tmp.="<p class=\"printHeadline\">".findtekst('2986|Afregnet d.', $sprog_id)." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('638|Af', $sprog_id))." $afregnet_af</p>\n";
 						print "$tmp\n";
 								print "<table width=\"100%\" border=\"0\" class=\"loenafregning\"><tbody>\n";
 								print "<tr><td colspan=\"14\"><b>".findtekst('899|Periode', $sprog_id)."&nbsp;&nbsp;</b>".date("d-m-Y",$periode)."&nbsp;&ndash;&nbsp;".date("d-m-Y",$periode+1209600-86400)."</td></tr>\n";
@@ -412,7 +412,7 @@ function loenafregning() {#Summeret lønafregning
 			print "<div style=\"float:left; width:828px;#background-color:lightgreen;\">\n";
 			print "<div id=\"printableArea\">\n";
 				$tmp = "<h2 class=\"printHeadline\">".findtekst('2979|Lønopgørelse', $sprog_id)."</h2>\n";
-				if (isset($afregnet) && $afregnet) $tmp.="<p class=\"printHeadline\">".lcfirst(findtekst('2986|Afregnet d.', $sprog_id))." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('638|Af', $sprog_id))." $afregnet_af</p>\n";
+				if (isset($afregnet) && $afregnet) $tmp.="<p class=\"printHeadline\">".findtekst('2986|Afregnet d.', $sprog_id)." ".date("d-m-Y",$afregnet)." ".lcfirst(findtekst('638|Af', $sprog_id))." $afregnet_af</p>\n";
 				print "$tmp\n";
 #					print "<div class=\"contentA\">\n";
 						print "<table width='100%' border='0' class='loenafregning'><tbody>\n";

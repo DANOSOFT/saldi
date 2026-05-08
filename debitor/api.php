@@ -11,6 +11,7 @@
     $query = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $apiKey = $res["var_value"];
+    //echo $apiKey . "<br>";
 
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
@@ -31,6 +32,7 @@
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
+            "orgNo" => "", //TODO find out what string to put here
             "currency" => "DKK",
             "country" => "DK",
             "webhookUrl" => $webhookUrl,
@@ -68,7 +70,7 @@
             "doNotReceiveUBL" => false,
         ];
 
-        /* echo json_encode($data, JSON_PRETTY_PRINT); */
+        // echo json_encode($data, JSON_PRETTY_PRINT) . "<br>";
 
         return $data;
         
@@ -110,12 +112,18 @@
             // An error occurred
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
-            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response];
+            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response, 'status code' => $httpCode];
             
             // Save error response in temp folder
             file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             
             return ['success' => false, 'message' => 'Error updating company: ' . $errorMessage];
+        } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
+            return ['success' => false,
+                'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
+                'response' => $response,
+                'status code' => $httpCode
+            ];
         }
         
         // Save successful response in temp folder for debugging
@@ -140,13 +148,14 @@
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
             $response = curl_exec($ch);
             $response = json_decode($response, true);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             $timestamp = date("Y-m-d-H-i-s");
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
 				$errorNumber = curl_errno($ch);
 				$errorMessage = curl_error($ch);
-				$error = ['error' => $errorNumber, 'message' => $errorMessage];
+				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'statusCode' => $httpCode];
 				json_encode($error, JSON_PRETTY_PRINT);
 				
 				// save response in file in temp folder
@@ -157,7 +166,7 @@
 				</script>
 				<?php
 				exit;
-			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000") {
+			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000" || $httpCode >= 400) {
 				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
@@ -247,7 +256,7 @@
             if($result["message"] !== ""){
             ?>
             <script>
-                alert("<?php echo $result["message"]; ?>");
+                alert("<?php echo "EasyUBL Error Accured: " . $result["message"]; ?>");
             </script>
             <?php
             }else{
@@ -288,7 +297,7 @@
 
     // Setting up the invoice data
     function sendInvoice($id, $type) {
-				global $db;
+            global $db;
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $adresse = db_fetch_array($query);
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
@@ -382,6 +391,8 @@
             "issueDate" => date("c", strtotime($r_faktura["fakturadate"])),
             "dueDate" => usdate(forfaldsdag($r_faktura['fakturadate'], $r_faktura['betalingsbet'], $r_faktura['betalingsdage']))."T00:00:00.000Z",
             "deliveryDate" => date("c", strtotime($r_faktura["levdate"])),
+            "orderReference" => "", //TODO 
+            "invoiceReference" => "", //TODO
             "salesOrderID" => $r_faktura["ordrenr"],
             "note" => $r_faktura["notes"],
             "buyerReference" => $r_faktura["kundeordnr"],
@@ -411,6 +422,31 @@
                     "electronicMail" => $r_faktura["email"]
                 ]
             ],
+            // Not needed when Customer and Payer are the same
+            // "buyerCustomerParty" => [
+            //     "endpointId" => "", //Was missing from JSON structure
+            //     "endpointIdType" => "", //Was missing from JSON structure
+            //     "name" => "", //Was missing from JSON structure
+            //     "companyId" => "", //Was missing from JSON structure
+            //     "postalAddress" => [
+            //         "streetName" => "", //Was missing from JSON structure
+            //         "buildingNumber" => "", //Was missing from JSON structure
+            //         "inhouseMail" => "", //Was missing from JSON structure
+            //         "additionalStreetName" => "", //Was missing from JSON structure
+            //         "attentionName" => "", //Was missing from JSON structure
+            //         "cityName" => "", //Was missing from JSON structure
+            //         "postalCode" => "", //Was missing from JSON structure
+            //         "countrySubentity" => "", //Was missing from JSON structure
+            //         "addressLine" => "", //Was missing from JSON structure
+            //         "countryCode" => "", //Was missing from JSON structure
+            //     ], //Was missing from JSON structure
+            //     "contact" => [
+            //         "initials" => "", //Was missing from JSON structure
+            //         "name" => "", //Was missing from JSON structure
+            //         "telephone" => "", //Was missing from JSON structure
+            //         "electronicMail" => "", //Was missing from JSON structure
+            //     ]
+            // ], //Was missing from JSON structure
             "documentCurrencyCode" => $r_faktura["valuta"],
             //(float)number_format((float)$r_faktura["sum"], 2)
             "totalAmount" => (float)number_format((float)$r_faktura["sum"], 2),
@@ -424,6 +460,28 @@
                 "iban" => "",
                 "creditorIdentifier" => "",
                 "paymentID" => ""
+            ],
+            "additionalDocuments" => [
+                // Template
+                // [
+                // "iD" => "",
+                // "documentType" => "",
+                // "documentDescription" => "",
+                // "fileName" => "",
+                // "base64Object" => "",
+                // ],
+            ],
+            "allowanceCharges" => [
+                //Template
+                //I don't think this needs to be filled unless it's actually has charges
+                //[
+                //    "isCharge" => true,
+                //    "reasonCode" => "",
+                //    "reason": => "",
+                //    "percentage"=> 0,
+                //    "amount" => 0,
+                //    "baseAmount" => 0
+                //],
             ],
         ];
     
@@ -483,7 +541,8 @@
         }
         $data["invoiceLines"] = $line;
         file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
-        /* echo json_encode($data, JSON_PRETTY_PRINT); */
+
+        //die(json_encode($data, JSON_PRETTY_PRINT));
         $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
         
         return $name;

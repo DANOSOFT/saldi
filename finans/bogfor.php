@@ -52,6 +52,8 @@
 // 20250612 PHR	- Extra diff controle
 // 20251210 PHR - Missing financialYear in vat account lookup for E & Y
 // 20260316 PHR Better error handling for missing debitor group
+// 20260417 Sawaneh: overwrite vat selection
+
 
 @session_start();
 $s_id=session_id();
@@ -70,6 +72,13 @@ include("../includes/genberegn.php");
 include("../includes/topline_settings.php");
 
 genberegn($regnaar);
+
+function get_saved_vat_override($row, $field) {
+	if (!is_array($row) || !array_key_exists($field, $row) || $row[$field] === NULL) {
+		return NULL;
+	}
+	return trim((string)$row[$field]);
+}
 
 $funktion=if_isset($_GET['funktion']);
 $kladde_id=if_isset($_GET['kladde_id']);
@@ -257,6 +266,8 @@ if ($kladde_id) {
 			$faktura[$posteringer]=trim($row['faktura']);
 			$amount[$posteringer]=$row['amount']*1;
 			$momsfri[$posteringer]=trim($row['momsfri']);
+			$debetvat[$posteringer]=get_saved_vat_override($row, 'debetvat');
+			$kreditvat[$posteringer]=get_saved_vat_override($row, 'kreditvat');
 			$valuta[$posteringer]=trim($row['valuta']);
 			if (!$debet[$posteringer]) $d_type[$posteringer]='F';
 			if (!$kredit[$posteringer]) $k_type[$posteringer]='F';
@@ -343,10 +354,10 @@ for ($y=1; $y<=$posteringer; $y++) {
 	if ($debet[$y]>0)  $d_amount[$y]=$dkkamount[$y];
 	if ($kredit[$y]>0) $k_amount[$y]=$dkkamount[$y];
 	if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)) {
-	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y]);
+	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], ((!isset($d_type[$y]) || !$d_type[$y] || $d_type[$y]=='F') && isset($debetvat[$y])) ? $debetvat[$y] : NULL);
 	}
 	if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)){
-		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y]);
+		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], ((!isset($k_type[$y]) || !$k_type[$y] || $k_type[$y]=='F') && isset($kreditvat[$y])) ? $kreditvat[$y] : NULL);
 	}
 }
 /*
@@ -712,6 +723,8 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				list($dkkamount[$y],$diffkonto[$y],$valutakurs[$y])=valutaopslag($amount[$y],$row['valuta'],$row['transdate']);
 			} else $dkkamount[$y]=$amount[$y];
 			$momsfri[$y]=$row['momsfri'];
+			$debetvat[$y]=get_saved_vat_override($row, 'debetvat');
+			$kreditvat[$y]=get_saved_vat_override($row, 'kreditvat');
 			$afd[$y]=$row['afd'];
 			$ansat[$y]=$row['ansat']*1;
 			$projekt[$y]=$row['projekt'];
@@ -798,8 +811,8 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			if (!$afd[$y]){$afd[$y]=0;}
 			if (!isset ($d_momsart[$y])) $d_momsart[$y] = NULL;
 			if (!isset ($k_momsart[$y])) $k_momsart[$y] = NULL;
-			if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y]);
-			if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y]);
+			if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], ((!isset($d_type[$y]) || !$d_type[$y] || $d_type[$y]=='F') && isset($debetvat[$y])) ? $debetvat[$y] : NULL);
+			if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], ((!isset($k_type[$y]) || !$k_type[$y] || $k_type[$y]=='F') && isset($kreditvat[$y])) ? $kreditvat[$y] : NULL);
 		} elseif (!$row['debet'] && !$row['kredit'] && $row['id']) { #20170516
 			db_modify("delete from kassekladde where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
 		}
@@ -1115,7 +1128,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	}
 }
 ######################################################################################################################################
-function momsberegning($konto,$amount,$momsart,$kontrol) {
+function momsberegning($konto,$amount,$momsart,$kontrol,$vat_override=NULL) {
 	global $connection;
 	global $regnaar;
 	global $db;
@@ -1124,11 +1137,17 @@ function momsberegning($konto,$amount,$momsart,$kontrol) {
 	$nettoamount=$amount;
 	$errorTxt=$moms=$momskto=$modkto=NULL;
 	
-	$a=substr($momsart,0,1); #Foerste tegn i strengen
-	$b=substr($momsart,1,1); #Andet tegn i strengen
-	
-	$r=db_fetch_array(db_select("select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
-	if (trim($r['moms'])) {
+	$override_used = ($vat_override !== NULL);
+	if ($override_used) {
+		$konto_moms = trim((string)$vat_override);
+	} else {
+		$r=db_fetch_array(db_select("select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
+		$konto_moms = trim(if_isset($r['moms'], ''));
+	}
+
+	if ($konto_moms) {
+		$a=substr($konto_moms,0,1); #Foerste tegn i strengen
+		$b=substr($konto_moms,1);   #Andet tegn i strengen
 		if ((($a=='E')||($a=='Y')) && $b) {
 			$c=$a.'M';
 			$qtxt = "select box1,box2,box3 from grupper where ";
@@ -1144,15 +1163,9 @@ function momsberegning($konto,$amount,$momsart,$kontrol) {
 				$modkto=trim($row['box3']);
 			}
 		} else {	
-			$qtxt = "select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'";
-			$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if($row =	db_fetch_array($query)){
-				$a=substr($row['moms'],0,1);
-				$b=substr($row['moms'],1);
-			}
 #Hvis en momspligtig vare koebes i EU beregnes der EU moms. $kontrol er kun sat hvis der er tale om en kreditor
 # og nedenst&aring;ende tr&aelig;der s&aring;ledes ikke i kraft naar der er tale om en finanskonto med EU moms.
-			if ($a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
+			if (!$override_used && $a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
 				$a=substr($kontrol,0,1);	
 				$b=substr($kontrol,1.1);
 			} 

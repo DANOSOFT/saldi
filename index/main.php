@@ -222,7 +222,7 @@ setInterval(checkRefreshCookie, 500);
         <li><span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(5))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';

@@ -134,6 +134,8 @@ else {
 				$bkQt[$bk]  = (float)$r['antal'];
 				$bkRm[$bk] = (float)$r['rest'];
 				$bkDt[$bk] = $r['kobsdate'];
+				$bkDue[$bk] = $r['due_date'];
+				$bkBno[$bk] = $r['batch_no'];
 				$mvRm     += $bkRm[$bk];
 
 				$bk++;
@@ -159,7 +161,9 @@ else {
 				}
 			}
 			if ($mvQt) {
-				$qtxt = "insert into batch_kob (kobsdate,vare_id,ordre_id,linje_id,antal,rest) values ('$deliveryDate','$vare_id[$x]','$newId','$newLineId','$mvQt','$mvRm')";
+				$_mv_dd = isset($bkDue[$bk-1]) && $bkDue[$bk-1] ? "'" . pg_escape_string($bkDue[$bk-1]) . "'" : "NULL";
+				$_mv_bn = isset($bkBno[$bk-1]) && $bkBno[$bk-1] ? "'" . pg_escape_string($bkBno[$bk-1]) . "'" : "NULL";
+				$qtxt = "insert into batch_kob (kobsdate,vare_id,ordre_id,linje_id,antal,rest,due_date,batch_no) values ('$deliveryDate','$vare_id[$x]','$newId','$newLineId','$mvQt','$mvRm',$_mv_dd,$_mv_bn)";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			$newQty = $antal[$x];

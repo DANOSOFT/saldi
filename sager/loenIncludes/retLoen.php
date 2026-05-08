@@ -174,7 +174,7 @@ function ret_loen() {
 				$qtxt =  "select id,nummer from loen where (art='akk_afr' or art='akkord') ";
 				$qtxt.=  "and sag_nr = '$sag_nr' and opg_nr = '$opg_nr' and afsluttet = '' and afvist = '' and id != '$id'";
 				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && $r['id']) {
-								$fejltxt = findtekst('3038|Der eksisterer allerede en uafsluttet akkordseddel', $sprog_id)." (".lcfirst(findtekst('2248|Nr.', $sprog_id)).": $r[nummer]) ";
+								$fejltxt = findtekst('3038|Der eksisterer allerede en uafsluttet akkordseddel', $sprog_id)." (".lcfirst(findtekst('2248|Nr.', $sprog_id))." $r[nummer]) ";
 								$fejltxt.= findtekst('3039|for den', $sprog_id)." ".$loendate." ".findtekst('3040|på sag nr.', $sprog_id)." $sag_nr, ".findtekst('3041|opgave nr.', $sprog_id)." $opg_nr!";
 								$sag_nr='0';
 #				$sag_id=0;
@@ -185,7 +185,7 @@ function ret_loen() {
 #cho "select id from loen where (art='akktimer' or art='akkord') and loendate='".usdate($loendato)."' and sag_nr = '$sag_nr' and opg_nr = '$opg_nr' and afsluttet = '' and (master_id='$id' or master_id='0' or master_id=NULL) and id != '$id'<br>";
 			$r=db_fetch_array(db_select("select id,nummer from loen where (art='akktimer' or art='akkord') and loendate='".usdate($loendato)."' and sag_nr = '$sag_nr' and opg_nr = '$opg_nr' and afsluttet = '' and afvist = '' and (master_id='$id' or master_id='0' or master_id=NULL) and id != '$id'",__FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
-				$fejltxt = findtekst('3042|Der eksisterer allerede en uafsluttet akkordtimeseddel', $sprog_id)." (".lcfirst(findtekst('2248|Nr.', $sprog_id)).": $r[nummer]) ".findtekst('3039|for den', $sprog_id)." ".$loendate." ".findtekst('3040|på sag nr.', $sprog_id)." $sag_nr, ".findtekst('3041|opgave nr.', $sprog_id)." $opg_nr!";
+				$fejltxt = findtekst('3042|Der eksisterer allerede en uafsluttet akkordtimeseddel', $sprog_id)." (".lcfirst(findtekst('2248|Nr.', $sprog_id))." $r[nummer]) ".findtekst('3039|for den', $sprog_id)." ".$loendate." ".findtekst('3040|på sag nr.', $sprog_id)." $sag_nr, ".findtekst('3041|opgave nr.', $sprog_id)." $opg_nr!";
 #				$sag_nr  = '0';
 #				$sag_id  = 0;
 				$opg_nr  = 0;
@@ -213,7 +213,7 @@ function ret_loen() {
 								$ret_skur[$x] = NULL;
 								if ($sk1[$i]||$sk2[$i]){
 									$ret_skur[$x] = "off";
-									$fejltxt      = findtekst('3043|Der er allerede registreret skur', $sprog_id)." ".findtekst('2882|d.', $sprog_id)." ".dkdato($loendate)." ".findtekst('3044|for medarb. nr.', $sprog_id)." $medarb_nr[$x] ".findtekst('3045|på seddel', $sprog_id)." $r[nummer]";
+									$fejltxt      = findtekst('3043|Der er allerede registreret skur', $sprog_id)." ".findtekst('2882|d.', $sprog_id)."".dkdato($loendate)." ".findtekst('3044|for medarb. nr.', $sprog_id)." $medarb_nr[$x] ".findtekst('3045|på seddel', $sprog_id)." $r[nummer]";
 									#print "<BODY onLoad=\"javascript:alert('$txt')\">";
 									$skur1[$x]    = NULL;
 									$skur2[$x]    = NULL;
@@ -260,7 +260,7 @@ function ret_loen() {
 						$fordeling.= chr(9).$loen_fordeling[$x];
 						$timer    .= chr(9).$loen_timer[$x];
 						$t50pct   .= chr(9).$loen_50pct[$x];
-						$t100pc   .= chr(9).$loen_100pct[$x];
+						$t100pct  .= chr(9).$loen_100pct[$x];
 						$skur_1   .= chr(9).$skur1[$x];
 						$skur_2   .= chr(9).$skur2[$x];
 						$mentor   .= chr(9).$loen_mentor[$x];
@@ -348,7 +348,7 @@ function ret_loen() {
 			$ferietil_error       = NULL;
 		}
 		if(!$loen_tekst && ((strstr($loen_art,'akk')) || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='timer' || $loen_art=='kontor')) {
-			$loentext_errortxt = "<span style=\"color: red;\">".findtekst('3025|&apos;Udført&apos; er ikke udfyldt', $sprog_id)."</span>";
+			$loentext_errortxt = "<span style=\"color: red;\">".findtekst('3025|Udført er ikke udfyldt', $sprog_id)."</span>";
 			$loentext_error    = "style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 			//print "<BODY onLoad=\"javascript:alert('Udført er ikke udfyldt')\">"; // laves o til css-validering??
 		} else {
@@ -928,19 +928,22 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 		$maaneder = array('Januar','Februar','Marts','Maj','Juni', 'Juli','Oktober');
 */
 		$loendato=dkdato($loendate);
-		setlocale(LC_TIME, 'da_DK.UTF-8');
+		if ($sprog_id == 2) { $date_locale = 'en_GB'; $date_pattern = 'EEEE d MMMM y'; }
+		elseif ($sprog_id == 3) { $date_locale = 'nb_NO'; $date_pattern = 'EEEE d. MMMM y'; }
+		else { $date_locale = 'da_DK'; $date_pattern = 'EEEE d. MMMM y'; }
+		setlocale(LC_TIME, $date_locale.'.UTF-8');
 #		setlocale(LC_ALL, );
 		if ($loendate==NULL) {
 			$loen_datotext = NULL;
 		} else {
 
 			$fmt = new IntlDateFormatter(
-				'da_DK',
+				$date_locale,
 				IntlDateFormatter::FULL,
 				IntlDateFormatter::NONE,
 				'Europe/Copenhagen'
 			);
-			$fmt->setPattern('EEEE d. MMMM y');
+			$fmt->setPattern($date_pattern);
 			$loen_datotext = $fmt->format(new DateTime($loendate));
 #			if ($db_encode=='UTF8') $loen_datotext=utf8_encode($loen_datotext);
 
@@ -979,7 +982,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 		$ferietil_error       = NULL;
 	}
 	if(!$loen_tekst && ((strstr($loen_art,'akk')) || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='timer' || $loen_art=='kontor')) {
-		$loentext_errortxt = "<span style=\"color: red;\">".findtekst('3025|&apos;Udført&apos; er ikke udfyldt', $sprog_id)."</span>";
+		$loentext_errortxt = "<span style=\"color: red;\">".findtekst('3025|Udført er ikke udfyldt', $sprog_id)."</span>";
 		$loentext_error = "style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;width: 560px;\"";
 		//print "<BODY onLoad=\"javascript:alert('Udført er ikke udfyldt')\">"; // laves o til css-validering??
 	} else {
@@ -1015,10 +1018,10 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 		}
 		if ($db=='stillads_14' || $db=='udvikling_2') {
 			$loenart_1 = array('akkord','timer','torretid','plads','skole','sygdom','barn_syg','ferie');
-			$loenart_2 = array(findtekst('2801|Timepris Akkord', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2803|Timeløn Tørretid', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
+			$loenart_2 = array(findtekst('2801|Timepris, Akkord', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2803|Timeløn, Tørretid', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
 		} else {
 			$loenart_1 = array('aconto','akktimer','akk_afr','akkord','timer','kontor','plads','skole','sygdom','barn_syg','ferie');
-			$loenart_2 = array(findtekst('2998|Aconto', $sprog_id),findtekst('2809|Dyrtid', $sprog_id),findtekst('2810|Akkord afregning', $sprog_id),findtekst('2811|Akkord med dyrtid', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2999|Kontorarbejde', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
+			$loenart_2 = array(findtekst('2998|Aconto', $sprog_id),findtekst('2809|Dyrtid', $sprog_id),findtekst('2810|Akkordafregning', $sprog_id),findtekst('2811|Akkord med dyrtid', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2999|Kontorarbejde', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
 		}
 		print "<div class=\"content\">
 			<h3>".findtekst('2785|Lønindtastning', $sprog_id)."</h3>
@@ -1162,24 +1165,24 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 				if ($oprettet) {
 						print "<table border=\"0\" cellspacing=\"0\" width=\"780\" style=\"font-size: 12px\">
 						<tr>
-							<td><b>".findtekst('65|Oprettet', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)." ".date("d-m-Y", $oprettet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $oprettet)."</td>
+							<td><b>".findtekst('65|Oprettet', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $oprettet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $oprettet)."</td>
 							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $oprettet_af</td>
 							<td><b>".findtekst('1134|Løbenr.', $sprog_id).":&nbsp;</b>$loen_nr</td>
 							<td><b>".findtekst('494|Status', $sprog_id).":&nbsp;</b>$status</td>
 
 						</tr>";
 					if ($afsluttet) {
-						print "<tr><td><b>".findtekst('2790|Overført', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)." ".date("d-m-Y", $afsluttet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afsluttet)."</td>
+						print "<tr><td><b>".findtekst('2790|Overført', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $afsluttet)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afsluttet)."</td>
 							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afsluttet_af</td></tr>";
 					}
 					if ($godkendt && !$afvist) { #20170524 Tilføjet '&& !$afvist'
-						print "<tr><td><b>".findtekst('2937|Godkendt', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)." ".date("d-m-Y", $godkendt)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $godkendt)."</td>
+						print "<tr><td><b>".findtekst('2937|Godkendt', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $godkendt)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $godkendt)."</td>
 							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $godkendt_af</td>";
  							if ($master_nr) print "<td><b>".findtekst('3034|Afr. på', $sprog_id)."&nbsp;: </b>$master_nr</td>"; #20151215
 							print "</tr>";
 					}
 					if ($afvist) {
-						print "<tr><td><b>".findtekst('3011|Afvist', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)." ".date("d-m-Y", $afvist)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afvist)."</td>
+						print "<tr><td><b>".findtekst('3011|Afvist', $sprog_id).":</b></td><td>".findtekst('2882|d.', $sprog_id)."".date("d-m-Y", $afvist)." ".findtekst('2883|kl.', $sprog_id)." ".date("H:i", $afvist)."</td>
 							<td><b>".lcfirst(findtekst('638|Af', $sprog_id)).":</b> $afvist_af</td></tr>";
 					}
 					print "</table>";
@@ -1345,7 +1348,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					print "<tr>\n";
 						if ($loen_art=='akk_afr') print "<td title='".findtekst('3050|Akkord seddel nr.', $sprog_id).": $akkord_nr[$x]'><input type='text' $beskyttet placeholder='".findtekst('438|Dato', $sprog_id)."' name='loen_date[$x]' class='medarbejdernr printBorderNone' value='".dkdato($loen_date[$x])."' style='width:66px;'></td>\n";
 						print "<td><input type='text' $beskyttet placeholder='".findtekst('3054|Med. nr.', $sprog_id)."' name='medarb_nr[$x]' class='medarbejdernr printBorderNone' value='$medarb_nr[$x]' style='width:56px;'></td>
-						<td><input type='text' $beskyttet placeholder='".findtekst('3055|Medarbejder navn', $sprog_id)."' name='medarb_navn[$x]' class='medarbejdernavn printBorderNone' value='$medarb_navn[$x]' style='width:260px'>\n";
+						<td><input type='text' $beskyttet placeholder='".findtekst('3055|Medarbejdernavn', $sprog_id)."' name='medarb_navn[$x]' class='medarbejdernavn printBorderNone' value='$medarb_navn[$x]' style='width:260px'>\n";
 						if ($loen_art!='ferie') print "</td>\n";
 						if ($loen_art=='timer') {
 							print "<td>";

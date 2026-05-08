@@ -91,7 +91,7 @@ function medarbejdermappeliste() {
 				<table border=\"0\" cellspacing=\"0\" width=\"500\">
 					<thead>
 						<tr>
-							<th width=\"100%\">".findtekst('3055|Medarbejder navn', $sprog_id)."</th>
+							<th width=\"100%\">".findtekst('3055|Medarbejdernavn', $sprog_id)."</th>
 							<th colspan=\"2\">&nbsp;</th>
 						</tr>
 					</thead>

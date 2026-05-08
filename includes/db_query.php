@@ -129,8 +129,8 @@ if (!function_exists('db_modify')) {
 		$temp = get_relative() . 'temp/' . $db;
 
 		$qtext=injecttjek($qtext);
-#20190704 START
-		 if ($db_type == "mysql" || $db_type == "mysqli") {
+		#20190704 START
+		if ($db_type == "mysql" || $db_type == "mysqli") {
 			
             $db_query = mysqli_query($connection, $qtext);  //mysql_query deprecated in php 7 and above
 			if (!$db_query) {
@@ -143,7 +143,7 @@ if (!function_exists('db_modify')) {
 			$qtext=str_replace(' like ',' ilike ',$qtext);
 			$db_query=pg_query($connection, $qtext);
 		}
-#20190704 END
+		#20190704 END
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
@@ -318,7 +318,14 @@ if (!function_exists('db_fetch_array')) {
                 error_log("Error: db_fetch_array() - Invalid query result");
                 return false;
             }
-        } else return pg_fetch_array($qtext);
+        } else {
+            if ($qtext && $qtext !== false) {
+                return pg_fetch_array($qtext);
+            } else {
+                error_log("Error: db_fetch_array() - Invalid query result (pg)");
+                return false;
+            }
+        }
 	}
 }
 

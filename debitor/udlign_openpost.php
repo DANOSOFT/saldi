@@ -18,6 +18,7 @@ $s_id=session_id();
 //
 // Copyright (c) 2004-2006 DanOSoft ApS
 // ----------------------------------------------------------------------
+ini_set('max_execution_time', '300');
 $modulnr=12;
 $title="&Aring;benpostudligning";
 

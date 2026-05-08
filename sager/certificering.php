@@ -68,7 +68,7 @@ function certificeringliste() {
 		print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 		print "</tbody>\n";
 		print "<tbody class=\"dataTableZebra dataTableTopBorder\">\n";
-		print "<tr><td>Kontrolskemaer</td><td class=\"alignRight\"><a href=\"kontrolskemaer.php\" title=\"".findtekst('3158|Gå til kontrolskemaer her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td>".findtekst('3157|Kontrolskemaer', $sprog_id)."</td><td class=\"alignRight\"><a href=\"kontrolskemaer.php\" title=\"".findtekst('3158|Gå til kontrolskemaer her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
 		print "</tbody>\n";
 		print "</table>\n";
 		print "</td></tr>\n";

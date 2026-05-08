@@ -31,6 +31,12 @@ logolib/
 price.txt
 test/
 testing/
+SÆT i HMS - SÆT.csv
+adminpanel.txt
+nyteEmailSystem.txt
+bilag
+invoice.json
+ordre.php
 
 paperpdf/
 temp/
@@ -59,3 +65,7 @@ converter/exitsound_5.sql
 
 # Opret
 opret/
+
+# Dandomain and mysaleX
+dandomain/
+mysaleX/

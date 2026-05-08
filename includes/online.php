@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 5.0.0 --- 2026-04-01---
+// --- includes/online.php --- patch 5.0.0 --- 2026-04-24---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20120905 $ansat_navn bliver nu sat her. Søg 20120905
 // 20130120 $sag_rettigheder bliver nu sat her. Søg 20130120
@@ -60,6 +60,7 @@
 // 20260129 PHR More updates to make it work with very old releases.
 // 20260320 PHR cleanup (pdftk)
 // 20260402 PHR Bypass style if title = 'Bordplan'
+// 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -76,7 +77,6 @@ if ($questionMarkPos !== false) {
 }
 $slashCount = substr_count($path, '/');
 $relativePath = str_repeat('../', max(0, $slashCount - 2));
-
 
 if (isset($_COOKIE['timezone'])) { #20190110
 	$timezone = $_COOKIE['timezone'];
@@ -115,7 +115,6 @@ $r = db_fetch_array(db_select("select var_value from settings where var_name='we
 $r ? $weasyprint = $r['var_value'] : $weasyprint = NULL;
 $r = db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'", __FILE__ . " linje " . __LINE__));
 $r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
-
 
 if (!isset($meta_returside)) $meta_returside = NULL;
 $db_skriv_id = NULL; #bruges til at forhindre at skrivninger til masterbasen logges i de enkelte regnskaber.
@@ -157,7 +156,11 @@ if ($r = db_fetch_array($q)) {
 		}
 	}
 }
-#}
+if (isset($_POST['thisDb']) && $db && strpos($db,'_') && $db != $_POST['thisDb']) {
+	alert ("Du har skiftet regnskab fra $_POST[thisDb] til $db, handling afbrudt");
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
+	$_POST = $_GET = NULL;
+}
 
 $labelprint = 0;
 if ($sqdb == 'udvikling') $labelprint = 1;
@@ -515,8 +518,28 @@ if (isset($pathParts[0])) {
 	print_r($pathParts);
 	exit;
 } */
-// Wrap the style output in the API check:
-if (!$isApiCall && substr($title, 0, 3) != 'POS' && $title != 'Bordplan' && $firstFolder != "sager" && strpos($path, 'pos_ordre.php') === false) {
+// Wrap the style output in the API check.
+// Also skip when the current request is for a scaffolding-context page, so scaffolding button
+// classes (.green/.blue/.gray/.white) are not overridden by the finance color.
+$inScaffoldingContext = !empty($_GET['sag_id']) || !empty($_POST['sag_id']);
+if (
+	!$inScaffoldingContext
+	&& strpos($path, 'debitor/ordre.php') !== false
+	&& (isset($_GET['id']) || isset($_POST['id']) || isset($_GET['tjek']))
+) {
+	$orderContextId = null;
+	if (!empty($_GET['id']) && is_numeric($_GET['id'])) $orderContextId = (int) $_GET['id'];
+	elseif (!empty($_POST['id']) && is_numeric($_POST['id'])) $orderContextId = (int) $_POST['id'];
+	elseif (!empty($_GET['tjek']) && is_numeric($_GET['tjek'])) $orderContextId = (int) $_GET['tjek'];
+	if ($orderContextId) {
+		$r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='$orderContextId'", __FILE__ . " linje " . __LINE__));
+		if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
+			$inScaffoldingContext = true;
+			$_GET['sag_id'] = (int)$r_sag['sag_id'];
+		}
+	}
+}
+if (!$isApiCall && substr($title, 0, 3) != 'POS' && $title != 'Bordplan' && $firstFolder != "sager" && strpos($path, 'pos_ordre.php') === false && !$inScaffoldingContext) {
 ?>
 <style>
 	/* type submit and type button */

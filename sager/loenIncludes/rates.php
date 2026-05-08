@@ -131,20 +131,20 @@ function satser() {
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">".findtekst('2806|Sygdom', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>
-								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
+							   <div class=\"leftLarge\">".findtekst('2806|Sygdom', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>"; #Sygdom, timesats
+						print "<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"sygdom\" value=\"".dkdecimal($sygdom,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">".findtekst('2992|Skole', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>
-								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
+							   <div class=\"leftLarge\">".findtekst('2992|Skole', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>"; #Skole, timesats
+						print "<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"skole\" value=\"".dkdecimal($skole,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">".findtekst('2812|Plads', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>
-								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
+							   <div class=\"leftLarge\">".findtekst('2812|Plads', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>"; #Plads, timesats
+						print "<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"plads\" value=\"".dkdecimal($plads,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
@@ -192,8 +192,8 @@ function satser() {
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
-								<div class=\"leftLarge\">".findtekst('2991|Mentor', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>
-								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
+							   <div class=\"leftLarge\">".findtekst('2991|Mentor', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>"; #Mentor, timesats
+						print "<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:right;width:80px\" name=\"mentorRate\" value=\"".dkdecimal($mentorRate,2)."\"> kr.</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";

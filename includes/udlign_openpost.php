@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// ----------includes/udlign_openpost.php-------patch 4.0.8 ----2023-07-12---
+// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-04-24---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.06 Kontrol for aktivt regnskabsaar v. bogføring af ørediff Søg 20121106
@@ -43,6 +43,7 @@
 // 2016.04.26 PHR Indsat 'desc limit 1'. #20160426-2
 // 2016.04.26 PHR Rettet $diff til $tmp.  #20160426-3
 // 2016.10.28 PHR Rettet < til <=  da den gav posteringsdifference #20161028 
+// 2026.04.24 LOE Updated topline structure and added dynamic text with findtekst(). 
 
 @session_start();
 $s_id=session_id();
@@ -268,19 +269,41 @@ if (!$diffkto) $maxdiff=0;
 if (!isset($submit)) include ("../includes/alignOpenpostIncludes/findMatch.php");
 
 if ($menu=='S') {
-print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
-print "<tr><td colspan=8 align=center>";
-print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+	#########
+    $tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	#########
+	print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
+	print "<tr><td colspan=8 align=center>";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
 
-print "<td width='10%' align=center>
-	   <a href=$retur?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam>
-	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
+	print "<td width=\"10%\">$color
+		<a href=\"javascript:confirmClose('../includes/luk.php?returside=$retur?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+		<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+	print "<td width=\"75%\" align='center' style='$topStyle'>".findtekst(2189, $sprog_id)."</td>";
+	print "<td width=5% style=$buttonStyle>";
+	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print "</button></td>";
+	print "<tr>";
+	print "</tbody></table></td></tr>";
 
-print "<td width='80%' align='center' style='$topStyle'>Udlign åbne poster<br></td>";
+	?>
+		<style>
+		/* Existing styles for buttons */
+		.headerbtn, .center-btn {
+			display: flex;
+			align-items: center;
+			text-decoration: none;
+			gap: 5px;
+		}
+		a:link{
+				text-decoration: none;
+			}
 
-print "<td width='10%' align='center' style='$topStyle'><br></td>";
+		</style>
+	<?php
 
-print " </tr></tbody></table></td></tr>";
+
 } else {
 print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 print "<tr><td colspan=8 align=center>";

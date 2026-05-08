@@ -1,5 +1,5 @@
 <?php
-// -- ---------systemdata/stamdata.php---patch 5.0.0 ----2026-03-28--------
+// -- ---------systemdata/stamdata.php --- patch 5.0.0 --- 2026-04-24 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2012.08.21 Tilføjet leverandørservice - PBS
 // 2014.11.20 Opdater mastersystem ved ændring af email.
@@ -27,6 +27,7 @@
 // 20210628 LOE Translated some texts to English and Norsk
 // 20230530 PHR Employee no is now shown.
 // 20230803 LOE Initialized some varibles and made some modifications
+// 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 
 @session_start();
 $s_id=session_id();
@@ -159,6 +160,7 @@ while(strlen($gruppe)<5) $gruppe='0'.$gruppe;
 #	$id=0;
 
 print "<form name=stamkort action=stamkort.php method=post>";
+print "<input TYPE = 'HIDDEN' NAME = 'thisDb' VALUE = '$db'>";
 print "<tr><td valign=\"top\">\n"; # 20150331
 print "<table border=\"0\" cellspacing=\"0\" class=\"dataTable\"><tbody>"; # 20150331
 print "<input type=hidden name=id value='$id'><input type=\"hidden\" name=\"kontonr\" value=\"0\"><input type=hidden name=email value='$email'>";

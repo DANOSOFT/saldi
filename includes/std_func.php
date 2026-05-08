@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-02-17 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-04-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,13 +53,14 @@
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
 // 20260127 PHR corrected error in function get_next_order_number
 // 20260217 PHR added "(float)$tal" in function afrund
-
+// 20260429 PHR Check for $regnaar in function transtjek()
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
 include('stdFunc/usDecimal.php');
 include('stdFunc/navStack.php');
+include('stdFunc/fefo.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -720,6 +721,11 @@ if (!function_exists('transtjek')) {
 		 */
 
 		global $db,$regnaar;
+		if (!$regnaar) { # 20260429
+			$qtxt = "select max(kodenr) from grupper where art = 'RA'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$regnaar = $r[0];	
+		}
 		$qtxt = "select box1,box2 from grupper where art = 'RA' and kodenr = '$regnaar'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$countFrom = $r['box2'] ."-". $r['box1'] ."-01";
@@ -1511,7 +1517,7 @@ if (!function_exists('lagerreguler')) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
 			$diff *= -1;
-			$qtxt = "select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by kobsdate,id";
+			$qtxt = "select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by " . fefo_order_clause();
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($diff && $r = db_fetch_array($q)) {
 				$pris = (float)$r['pris'];

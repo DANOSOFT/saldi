@@ -553,7 +553,7 @@ while ($r = db_fetch_array($query)) {
 	$saldo_check[$x] = $r['saldo'];
 	$mapto_check[$x] = accountNumberExist($r['map_to'], $csv_kontonr);
 }
-$kontoantal_check = 0; // $x
+$kontoantal_check = $x; // $x - Use 0 if no mapping of standard accountnumber and you want to se header only in SAF-T
 
 if ($kontoantal_check <= 0) {
 	$standardKontoCheck = true;
