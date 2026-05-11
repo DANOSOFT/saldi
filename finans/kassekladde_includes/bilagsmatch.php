@@ -97,6 +97,10 @@
         });
         document.querySelector("#background-dimmer").addEventListener('mousedown', function(e) { hidePreview(); });
     });
+    popuper.onClose.push(function(container){
+        hidePreview();
+    });
+
     function openPopup(){
         let params = new URLSearchParams(document.location.search);
         let kladde_id = params.get("kladde_id");
@@ -121,6 +125,15 @@
 
     #popup-results thead tr th {
         text-align: center;
+    }
+
+    #popup-exit-call-btn {
+        background: #3B3;
+        float: right;
+    }
+
+    #popup-close-btn {
+        background: #E22;
     }
 
     .saldi-button {
