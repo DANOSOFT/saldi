@@ -175,7 +175,7 @@ try {
     while ($row = db_fetch_array($result)) {
         $data[] = $row;
     }
-   
+
     // Clear any output buffers before JSON
     while (ob_get_level()) {
         ob_end_clean();

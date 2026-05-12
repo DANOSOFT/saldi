@@ -67,28 +67,19 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 }
 
 
-############table for managing delivery addresses
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'delivery_addresses'";
+$qtxt = "CREATE SEQUENCE IF NOT EXISTS regnskab_id_seq";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and  column_name = 'iban'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE TABLE delivery_addresses (
-		id            SERIAL PRIMARY KEY,
-		account_id    INTEGER NOT NULL REFERENCES adresser(id) ON DELETE CASCADE,
-		is_primary    BOOLEAN NOT NULL DEFAULT FALSE,
-		sort_order    SMALLINT NOT NULL DEFAULT 0,
-		description   VARCHAR(100),
-		company_name  VARCHAR(255),
-		first_name    VARCHAR(100),
-		last_name     VARCHAR(100),
-		address_line1 VARCHAR(255),
-		address_line2 VARCHAR(255),
-		postal_code   VARCHAR(20),
-		city          VARCHAR(100),
-		country       VARCHAR(100),
-		contact_name  VARCHAR(100),
-		phone         VARCHAR(50),
-		email         VARCHAR(255),
-		created_at    TIMESTAMP DEFAULT NOW()
-	)";
+	$qtxt = "ALTER TABLE adresser ADD iban varchar(40)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and  column_name = 'swift'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE adresser ADD swift varchar(15)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
@@ -338,6 +329,7 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE batch_kob ADD due_date date";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);

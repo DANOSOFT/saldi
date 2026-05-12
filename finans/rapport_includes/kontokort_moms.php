@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-04-29 --
+// --- finans/rapport_includes/kontokort_moms.php -- ver 5.0.0 -- 2026-05-10 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,7 +29,7 @@
 // 20210107 PHR Corrected error in 'deferred financial year'.
 // 20210125 PHR Added csv option.
 // 20210211 PHR some cleanup
-// 20250130 migrate utf8_en-/decode() to mb_convert_encoding 
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260210 PHR Miscalculating when simulating
 // 20260320 PHR Typo
 // 20260429 LOE Updated the top menu and made the report header sticky when scrolling.
@@ -172,35 +172,35 @@ function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 	#######################
 	print "<table style='width:100%; border-collapse:collapse;'>";
 
-/* HEADER */
-print "<thead>";
-print "<tr>";
-print "<th colspan='3' style='text-align:left;'>
-        <big><big><big>".findtekst(516,$sprog_id)."</big></big></big>
-      </th>";
+	/* HEADER */
+	print "<thead>";
+	print "<tr>";
+	print "<th colspan='3' style='text-align:left;'>
+			<big><big><big>".findtekst(516,$sprog_id)."</big></big></big>
+		</th>";
 
-print "<th colspan='4' style='text-align:right; white-space:nowrap;'>
-        <b>Regnskabs&aring;r </b>$regnaar
-      </th>";
-print "</tr>";
-print "</thead>";
+	print "<th colspan='4' style='text-align:right; white-space:nowrap;'>
+			<b>Regnskabs&aring;r </b>$regnaar
+		</th>";
+	print "</tr>";
+	print "</thead>";
 
-/* DATA */
-print "<tbody>";
-print "<tr>";
+	/* DATA */
+	print "<tbody>";
+	print "<tr>";
 
-if ($startdato < 10) $startdato = "0".($startdato*1);
+	if ($startdato < 10) $startdato = "0".($startdato*1);
 
-print "<td colspan='3'></td>";
+	print "<td colspan='3'></td>";
 
-print "<td colspan='4' style='text-align:right; white-space:nowrap;'>
-        $startdato/$mf $startaar - $slutdato/$mt $slutaar
-      </td>";
+	print "<td colspan='4' style='text-align:right; white-space:nowrap;'>
+			$startdato/$mf $startaar - $slutdato/$mt $slutaar
+		</td>";
 
-print "</tr>";
-print "</tbody>";
+	print "</tr>";
+	print "</tbody>";
 
-print "</table>";
+	print "</table>";
 	if ($ansat_fra) {
 		if (!$ansat_til || $ansat_fra==$ansat_til) print "<tr><td><b>Medarbejder:</b></td><td>$ansatte</td></tr>";
 		else print "<tr><td><b>Medarbejdere:</b></td><td>$ansatte</td></tr>";
@@ -592,7 +592,7 @@ print "</table>";
 				}
 			}
 			if ($rows_printed >= $per_page) break; // stop processing further accounts
-		#cho __line__." $xMomsSum<br>";
+				// echo __line__." $xMomsSum<br>";
 				if ($rows_printed > 0 || $xMomsSum != 0) { // only print summary if we actually rendered rows
 				print "<tr><td colspan='2'></td><td><b>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</b></td>";
 				fwrite($csv, "Sum;;". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') .";");
@@ -604,7 +604,6 @@ print "</table>";
 				fwrite($csv, "".dkdecimal($xMomsSum+$momsSum,2)."\n\n");
 				print "</tr>";
 			}
-			
 		}
 	}
 	// print "<tr><td colspan=6><hr></td></tr>";
@@ -703,9 +702,9 @@ print "</table>";
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
+} //end function
  
 #################################################################################################
-} //end function
 ?>
 <style>
 	
