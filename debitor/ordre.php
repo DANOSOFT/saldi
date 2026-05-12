@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-05-05 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-05-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,11 +60,13 @@
 // 20260219 LOE removed setting sprog(background) from tekster.csv to formularsprog as they both refer to different things.
 // 20260219 PHR	Fixed AFD (Department) 
 // 20260223 Sawaneh SD-338 account lookup: create customer overlay with backdrop, selectAccount fix, AJAX row click handlers
-// 20260223 Sawaneh SD-335: fixed bynavn POST using wrong field, fixed SQL bug , added buttonname field to DFM pickup address buttons and related fixes
-// 20260225 PHR Order taken by ---
-// 20260227 PHR if (isset($kontonr)) changed to if (isset($kontonr) && $kontonr)
-// 20260227 PHR Scroll to bottom if focus is set to botom orderline  
-// 20260302 LOE SD-368: Sets tmp to value_type if set for navigation 
+// 20260223 Sawaneh SD-335 fixed bynavn POST using wrong field, fixed SQL bug , ($_POST['tlf'] -> $_POST['bynavn'])
+// 20260223 Sawaneh SD-335 fixed SQL bug: lev_land/lev_email missing column names in UPDATE query
+// 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address buttons (buttonname -> name1 -> town fallback) and related fixes
+// 20250225 PHR Order taken by ---
+// 20250227 PHR if (isset($kontonr)) changed to if (isset($kontonr) && $kontonr)
+// 20250227 PHR Scroll to bottom if focus is set to botom orderline   
+// 20260302 LOE SD-368: Sets tmp to value_type if set for navigation
 // 20260303 PHR Fixed ordrlst (arrows)
 // 20260304 Sawaneh SD-369 dfm_url override from pickup address
 // 20260305 PHR removed quickfix 20260304 as it made delivey when order was saved
@@ -81,6 +83,9 @@
 // 20260429 LOE Updated plukliste conditions for both orders and invoices
 // 20260502 LOE Delivery note button under orders now more visible with styling
 // 20260505 LOE Added select option for delivery addresses and logic to save it. SD-483
+// 20260509 PHR Hack to prevent order beeing created twice when using account lookup in to create the order.
+// 20260512 NTR MERGED Live/POS into PROD_TEST
+
 @session_start();
 $s_id = session_id();
 
@@ -757,6 +762,13 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		db_modify("update ordrer set lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt', lev_land='$lev_land' where id=$id", __FILE__ . " linje " . __LINE__);
 	}
 }
+if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) { // 20260509
+	// Hack to prevent order beeing created twice when using account lookup in to create the order.
+	$qtxt = "select id from ordrer where konto_id = '$konto_id' and kontonr = '$kontonr' and sum = '0' ";
+	$qtxt.= " and status = '0'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $id = $r['id'];
+}
+
 if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	if (!is_numeric($default_procenttillag)) $default_procenttillag = 0;
 	$ordrenr = get_next_order_number('DO');
@@ -1571,7 +1583,13 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		if ($felt_1 == 'Konto' && ($betalingsbet == 'Kreditkort' || $betalingsbet == 'Kontant')) $b_submit = 'Gem';
 		$qtxt = "select moms from ordrer where id='$id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if (afrund($sum + $r['moms'] - ($felt_2 + $felt_4), 2)) $b_submit = 'Gem';
+		if (afrund($sum + $r['moms'] - ($felt_2 + $felt_4), 2)) {
+			$b_submit = 'Gem';
+			$a = $sum + $r['moms'];
+			$b = $felt_2 + $felt_4;
+			if ($art == 'DK' && $felt_2 > 0 && $sum < 0) alert ("Betalt beløb er positivt, det skal være negativt på en kreditota");
+			else alert ("Betalt beløb ($b stemmer ikke med sum $a)");
+		}
 	}
 	if ($id && $ny_valuta != $valuta && $status < 3) {
 		if ($ny_valuta != $baseCurrency) {
@@ -3855,7 +3873,7 @@ function ordreside($id, $regnskab)
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		if (($pbs || $lev_pbs_nr) && $udskriv_til != "PBS") print "<option value=\"PBS\">PBS</option>\n";
 		#		if ($udskriv_til!="ingen") print "<option>ingen</option>\n"; #PHR 20170501
-		//if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803 #NTR 20260429 removed option
+		if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803
 		if ($udskriv_til != "Digitalt") print "<option value='Digitalt' title='" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "'>" . findtekst('2532|Digitalt', $sprog_id) . "</option>\n"; #PBLM 12/06-2023
 		#		if ($udskriv_til!="edifakt") print "<option title=\"".findtekst('1451|Kun ved fakturering/kreditering', $sprog_id)."\">edifakt</option>\n"; #20140201
 		$tmp = if_isset($pbs_nr, 0);

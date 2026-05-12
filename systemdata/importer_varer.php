@@ -42,9 +42,11 @@
 // 20230523 PHR php8
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20251007 PHR aliases
+// 202605## PHR Added Max_execution_time setting.
 
 @session_start();
 $s_id=session_id();
+ini_set('max_execution_time', 120);
 $css="../css/standard.css";
 
 $title="Import&eacute;r varer";
