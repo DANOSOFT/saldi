@@ -77,3 +77,6 @@ dandomain/
 mysaleX/
 
 email.php
+
+# Live Service
+index/redirect.php
