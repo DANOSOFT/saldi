@@ -78,6 +78,7 @@
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
 // 20250924 LOE - Modify select url to use window.location.href instead of window.open to fit into main frame.
 // 20260324 LOE - Updated returside for general ledger from debitor's card if users came from ordre.php
+// 20260507 CL/PHR - Vis åbne poster now only shows unaligned posts (udlignet != '1'). Added 'Vis alle poster' option for full view.
 include("../includes/reportFunc/showOpenPosts.php"); 
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -138,6 +139,10 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		$a = $_GET['vis_aabenpost'];
 		$f = NULL;
 		$g = NULL;
+	} elseif (isset($_GET['vis_alle_poster'])) {
+		$a = 'alle';
+		$f = NULL;
+		$g = NULL;
 	} elseif (isset($_GET['skjul_aabenpost'])) {
 		$a = NULL;
 		$f = NULL;
@@ -160,7 +165,8 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	$qtxt = "update grupper set box7='$box7' where art='$tekst' and kodenr='1'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-	$vis_aabenpost = $a;
+	$vis_aabenpost = ($a == 'on') ? 'on' : NULL;
+	$vis_alle_poster = ($a == 'alle') ? 'on' : NULL;
 	$vis_aaben_rykker = $b;
 	$vis_inkasso = $c;
 	$vis_bogfort_rykker = $d;
@@ -197,6 +203,10 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		$title = "Skjul åbne poster";
 	}
 
+	if ($vis_alle_poster == 'on') {
+		$title = "Alle poster";
+	}
+
 	include("../includes/topline_settings.php");
 
 	if ($menu == 'T') {
@@ -230,8 +240,10 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
 	elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
 	elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
+	elseif ($vis_alle_poster == 'on') print "<option>" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
 	else print "<option>" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
-	if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n"; #20210701
+	if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
+	if (!$vis_alle_poster) print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
 	if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
 	if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
 	if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
@@ -240,7 +252,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	else print "</div>\n";
 	print "</tr>";
 	if ($menu != 'T') print "</tbody></table></td></tr><!--Tabel 1.2 slut-->\n\n"; // <- Tabel 1.2
-	if ($skjul_aabenpost != 'on') vis_aabne_poster($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart, $kun_debet, $kun_kredit);
+	if ($skjul_aabenpost != 'on') vis_aabne_poster($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart, $kun_debet, $kun_kredit, ($vis_alle_poster == 'on'));
 
 	//-------------------------------------- Rykkeroversigt ----------------------------------------------
 	if (usdate($dato_til) >= date("Y-m-d")) {

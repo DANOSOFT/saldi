@@ -3257,7 +3257,7 @@
 3257	Indtast et navn på den baggrund, du vil tilføje	Enter a name for the background you want to add	Skriv inn et navn på bakgrunnen du vil legge til
 3258	Vælg skabelon	Select template	Velg mal
 3259	Viser filer for	Showing files for	Viser filer for
-3260	
+3260	Lagerhistorik	Inventory history	Lagerhistorikk
 3261	
 3262	
 3263	
@@ -5024,3 +5024,4 @@
 5024	vare(r) udløber inden for	item(s) expiring within	vare(r) utløper innen
 5025	dage	days	dager
 5026	Klik for at se udløbsrapporten	Click to view the expiry report	Klikk for å se utløpsrapporten
+10000   bilagsmatch batch invoice   vedleggsmatch

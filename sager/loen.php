@@ -211,7 +211,8 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 			
 			/* jQuery funktion til autosize på textarea */
 			$(document).ready(function(){
-				$('.autosize').autosize();
+
+			if(typeof $('.autosize') !== 'undefined' && typeof $('.autosize').autosize !== 'undefined') $('.autosize').autosize();
 			});
 		
 			/* javascript funktion til print */

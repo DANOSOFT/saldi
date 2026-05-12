@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-04-08 ---
+// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-05-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -52,7 +52,7 @@
 // 20260326 PHR Added & '$vis_saet' as just POS orders must be listed for most systems
 // 20260326 PHR Removed sum shown bottom left
 // 20260408 PHR Trimming $_POST & made a quickfix for missing or wrong 'tidspkt'
-
+// 20260509 PHR '$svis_saet' was fetched from 'kodenr' 1. Changed to kodenr 2 annd added fiacal_year
 ob_start();
 @session_start();
 $s_id=session_id();
@@ -77,9 +77,9 @@ if ($r && $r['box2']) {
     }
 }
 
-$r = db_fetch_array(db_select("select box12 from grupper where art = 'POS' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
+$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($r && $r['box12'] == 'on') $vis_saet = 1;
-
 
 $status = if_isset($_GET['status']);
 $id = if_isset($_GET['id']);
@@ -527,8 +527,8 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	else $udvaelg=$udvaelg." and";
 	$x=0;
 	$id=array();
-	if ($straksbogfor && $vis_saet) $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
-	else $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
+	if ($vis_saet) $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
+	else $qtxt="select * from ordrer $udvaelg (art = 'PO') order by $sort limit 10000";
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$ordrestatus[$x]=$r['status'];

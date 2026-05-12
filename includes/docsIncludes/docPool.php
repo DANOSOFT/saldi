@@ -1199,7 +1199,7 @@ if (strpos($currentFile, $docRoot) === 0) {
     $insertDocPath = '/pblm/includes/docsIncludes/insertDoc.php';
 }
 
-print "<div id='docPoolContainer'>";
+print "<div id='docPoolContainer' style='overflow: auto;'>";
 print "<script>console.time('docPoolRender');</script>";
 
 // ---- KASSEBILAG TOP BAR (above the left/right split) ----
@@ -1590,196 +1590,196 @@ print <<<JS
         return parseFloat(s);
     }
     const containerId = 'fileListContainer';
-		// Get poolFile from URL if present (user clicked on a row), otherwise null (no auto-selection)
-		const urlParams = new URLSearchParams(window.location.search);
-		const poolFile = urlParams.get('poolFile') || null;
-		const totalSum = {$JsSum};
-		const targetDate = {$JsDato}; // kassekladde date for matching
-		const buttonColor = {$buttonColorJs};
-		const buttonTxtColor = {$buttonTxtColorJs};
-		const lightButtonColor = {$lightButtonColorJs};
+	// Get poolFile from URL if present (user clicked on a row), otherwise null (no auto-selection)
+	const urlParams = new URLSearchParams(window.location.search);
+	const poolFile = urlParams.get('poolFile') || null;
+	const totalSum = {$JsSum};
+	const targetDate = {$JsDato}; // kassekladde date for matching
+	const buttonColor = {$buttonColorJs};
+	const buttonTxtColor = {$buttonTxtColorJs};
+	const lightButtonColor = {$lightButtonColorJs};
+	
+	// View mode state (table or card) - default to table, save preference in localStorage
+	let viewMode = localStorage.getItem('docPoolViewMode') || 'table';
+	let searchFilter = '';
+	let previewTimeout = null;
+	let currentPreviewPath = null;
+	const docFolder = '{$docFolder}';
+	const db = '{$db}';
+	
+	// SVG icons for JavaScript use
+	const svgIcons = {
+		star: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>',
+		check: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+		calendar: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg>',
+		plus: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>',
+		pointer: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"></path><path d="M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1"></path><path d="M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10"></path><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>',
+		pencil: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>',
+		trash: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
+		save: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
+		x: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+		file: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>',
+		scan: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>'
+	};
+	
+	// Initialize view mode toggle buttons on page load
+	document.addEventListener('DOMContentLoaded', function() {
+		updateViewModeButtons();
+		updatePanelLayout();
+	});
+	
+	// Set view mode and re-render
+	window.setViewMode = function(mode) {
+		viewMode = mode;
+		localStorage.setItem('docPoolViewMode', mode);
+		updateViewModeButtons();
+		updatePanelLayout();
+		renderCurrentView();
+	};
+	
+	// Update toggle button styles
+	function updateViewModeButtons() {
+		const tableBtn = document.getElementById('tableViewBtn');
+		const cardBtn = document.getElementById('cardViewBtn');
+		if (tableBtn && cardBtn) {
+			if (viewMode === 'table') {
+				tableBtn.style.backgroundColor = buttonColor;
+				tableBtn.style.color = buttonTxtColor;
+				cardBtn.style.backgroundColor = '#e9ecef';
+				cardBtn.style.color = '#495057';
+			} else {
+				cardBtn.style.backgroundColor = buttonColor;
+				cardBtn.style.color = buttonTxtColor;
+				tableBtn.style.backgroundColor = '#e9ecef';
+				tableBtn.style.color = '#495057';
+			}
+		}
+	}
+	
+	// Update panel layout based on view mode (hide right panel in card mode)
+	function updatePanelLayout() {
+		const leftPanel = document.getElementById('leftPanel');
+		const rightPanel = document.getElementById('rightPanel');
+		const resizer = document.getElementById('resizer');
 		
-		// View mode state (table or card) - default to table, save preference in localStorage
-		let viewMode = localStorage.getItem('docPoolViewMode') || 'table';
-		let searchFilter = '';
-		let previewTimeout = null;
-		let currentPreviewPath = null;
-		const docFolder = '{$docFolder}';
-		const db = '{$db}';
+		if (viewMode === 'card') {
+			// Card mode: hide right panel and resizer, make left panel full width
+			if (rightPanel) rightPanel.style.display = 'none';
+			if (resizer) resizer.style.display = 'none';
+			if (leftPanel) {
+				leftPanel.style.flex = '1 1 100%';
+				leftPanel.style.maxWidth = '100%';
+			}
+		} else {
+			// Table mode: show right panel and resizer, restore split layout
+			if (rightPanel) rightPanel.style.display = 'flex';
+			if (resizer) resizer.style.display = 'block';
+			if (leftPanel) {
+				leftPanel.style.flex = '0 0 35%';
+				leftPanel.style.width = '50%';
+			}
+		}
 		
-		// SVG icons for JavaScript use
-		const svgIcons = {
-			star: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>',
-			check: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
-			calendar: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg>',
-			plus: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>',
-			pointer: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"></path><path d="M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1"></path><path d="M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10"></path><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>',
-			pencil: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>',
-			trash: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
-			save: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
-			x: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-			file: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>',
-			scan: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>'
-		};
+		// Update fixed div after layout change
+		if (typeof updateFixedDiv === 'function') {
+			setTimeout(updateFixedDiv, 100);
+		}
+	}
+	
+	// Render based on current view mode
+	function renderCurrentView() {
+		if (viewMode === 'card') {
+			renderFilesCard();
+		} else {
+			renderFiles();
+		}
+	}
+	
+	// Filter pool files based on search input
+	window.filterPoolFiles = function() {
+		const searchBox = document.getElementById('poolSearchBox');
+		searchFilter = searchBox ? searchBox.value.toLowerCase() : '';
+		renderCurrentView();
+	};
+	
+	// Preview popup functions for card view
+	window.showPreview = function(element, event) {
+		const filepath = element.getAttribute('data-filepath');
+		const filename = element.getAttribute('data-filename');
 		
-		// Initialize view mode toggle buttons on page load
-		document.addEventListener('DOMContentLoaded', function() {
-			updateViewModeButtons();
-			updatePanelLayout();
-		});
+		if (!filepath) return;
 		
-		// Set view mode and re-render
-		window.setViewMode = function(mode) {
-			viewMode = mode;
-			localStorage.setItem('docPoolViewMode', mode);
-			updateViewModeButtons();
-			updatePanelLayout();
-			renderCurrentView();
-		};
+		// Clear any existing timeout
+		if (previewTimeout) clearTimeout(previewTimeout);
 		
-		// Update toggle button styles
-		function updateViewModeButtons() {
-			const tableBtn = document.getElementById('tableViewBtn');
-			const cardBtn = document.getElementById('cardViewBtn');
-			if (tableBtn && cardBtn) {
-				if (viewMode === 'table') {
-					tableBtn.style.backgroundColor = buttonColor;
-					tableBtn.style.color = buttonTxtColor;
-					cardBtn.style.backgroundColor = '#e9ecef';
-					cardBtn.style.color = '#495057';
+		// Delay showing preview slightly to avoid flickering
+		previewTimeout = setTimeout(function() {
+			const popup = document.getElementById('previewPopup');
+			const content = document.getElementById('previewContent');
+			const title = document.getElementById('previewTitle');
+			
+			// Only reload if different file
+			if (currentPreviewPath !== filepath) {
+				currentPreviewPath = filepath;
+				if (title) title.textContent = filename || 'Forhåndsvisning';
+				
+				// Check file extension
+				const ext = filepath.split('.').pop().toLowerCase();
+				
+				if (ext === 'pdf') {
+					content.innerHTML = '<embed src=\"' + filepath + '#pagemode=none\" type=\"application/pdf\" style=\"width:480px;height:550px;\">';
+				} else if (['jpg', 'jpeg', 'png', 'gif'].indexOf(ext) !== -1) {
+					content.innerHTML = '<img src=\"' + filepath + '\" style=\"max-width:480px;max-height:550px;display:block;margin:0 auto;\">';
+				} else if (ext === 'xml') {
+					content.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:480px;height:550px;background:#f0f8ff;color:#004085;font-size:14px;gap:12px;"><svg style="width:48px;height:48px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 13l2 2-2 2"></path><path d="M16 13l-2 2 2 2"></path></svg><strong>XML-dokument</strong><span style="font-size:12px;color:#666;">Klik for at se dokumentet i panelet</span></div>';
 				} else {
-					cardBtn.style.backgroundColor = buttonColor;
-					cardBtn.style.color = buttonTxtColor;
-					tableBtn.style.backgroundColor = '#e9ecef';
-					tableBtn.style.color = '#495057';
+					content.innerHTML = '<div style=\"display:flex;align-items:center;justify-content:center;width:480px;height:550px;background:#f5f5f5;color:#666;font-size:14px;\">Forhåndsvisning ikke tilgængelig</div>';
 				}
 			}
+			
+			if (popup) {
+				popup.style.display = 'block';
+				movePreview(event);
+			}
+		}, 300);
+	};
+	
+	window.hidePreview = function() {
+		if (previewTimeout) {
+			clearTimeout(previewTimeout);
+			previewTimeout = null;
+		}
+		const popup = document.getElementById('previewPopup');
+		if (popup) popup.style.display = 'none';
+	};
+	
+	window.movePreview = function(event) {
+		const popup = document.getElementById('previewPopup');
+		if (!popup || popup.style.display === 'none') return;
+		
+		let x = event.clientX + 20;
+		let y = event.clientY - 100;
+		
+		// Keep within viewport
+		const viewportWidth = window.innerWidth;
+		const viewportHeight = window.innerHeight;
+		
+		// If would go off right edge, show on left side of cursor
+		if (x + 520 > viewportWidth) {
+			x = event.clientX - 520;
 		}
 		
-		// Update panel layout based on view mode (hide right panel in card mode)
-		function updatePanelLayout() {
-			const leftPanel = document.getElementById('leftPanel');
-			const rightPanel = document.getElementById('rightPanel');
-			const resizer = document.getElementById('resizer');
-			
-			if (viewMode === 'card') {
-				// Card mode: hide right panel and resizer, make left panel full width
-				if (rightPanel) rightPanel.style.display = 'none';
-				if (resizer) resizer.style.display = 'none';
-				if (leftPanel) {
-					leftPanel.style.flex = '1 1 100%';
-					leftPanel.style.maxWidth = '100%';
-				}
-			} else {
-				// Table mode: show right panel and resizer, restore split layout
-				if (rightPanel) rightPanel.style.display = 'flex';
-				if (resizer) resizer.style.display = 'block';
-				if (leftPanel) {
-					leftPanel.style.flex = '0 0 35%';
-					leftPanel.style.width = '50%';
-				}
-			}
-			
-			// Update fixed div after layout change
-			if (typeof updateFixedDiv === 'function') {
-				setTimeout(updateFixedDiv, 100);
-			}
+		// If would go off bottom, adjust y
+		if (y + 620 > viewportHeight) {
+			y = viewportHeight - 630;
 		}
 		
-		// Render based on current view mode
-		function renderCurrentView() {
-			if (viewMode === 'card') {
-				renderFilesCard();
-			} else {
-				renderFiles();
-			}
-		}
+		// Don't go above viewport
+		if (y < 10) y = 10;
 		
-		// Filter pool files based on search input
-		window.filterPoolFiles = function() {
-			const searchBox = document.getElementById('poolSearchBox');
-			searchFilter = searchBox ? searchBox.value.toLowerCase() : '';
-			renderCurrentView();
-		};
-		
-		// Preview popup functions for card view
-		window.showPreview = function(element, event) {
-			const filepath = element.getAttribute('data-filepath');
-			const filename = element.getAttribute('data-filename');
-			
-			if (!filepath) return;
-			
-			// Clear any existing timeout
-			if (previewTimeout) clearTimeout(previewTimeout);
-			
-			// Delay showing preview slightly to avoid flickering
-			previewTimeout = setTimeout(function() {
-				const popup = document.getElementById('previewPopup');
-				const content = document.getElementById('previewContent');
-				const title = document.getElementById('previewTitle');
-				
-				// Only reload if different file
-				if (currentPreviewPath !== filepath) {
-					currentPreviewPath = filepath;
-					if (title) title.textContent = filename || 'Forhåndsvisning';
-					
-					// Check file extension
-					const ext = filepath.split('.').pop().toLowerCase();
-					
-					if (ext === 'pdf') {
-						content.innerHTML = '<embed src=\"' + filepath + '#pagemode=none\" type=\"application/pdf\" style=\"width:480px;height:550px;\">';
-					} else if (['jpg', 'jpeg', 'png', 'gif'].indexOf(ext) !== -1) {
-						content.innerHTML = '<img src=\"' + filepath + '\" style=\"max-width:480px;max-height:550px;display:block;margin:0 auto;\">';
-					} else if (ext === 'xml') {
-						content.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:480px;height:550px;background:#f0f8ff;color:#004085;font-size:14px;gap:12px;"><svg style="width:48px;height:48px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 13l2 2-2 2"></path><path d="M16 13l-2 2 2 2"></path></svg><strong>XML-dokument</strong><span style="font-size:12px;color:#666;">Klik for at se dokumentet i panelet</span></div>';
-					} else {
-						content.innerHTML = '<div style=\"display:flex;align-items:center;justify-content:center;width:480px;height:550px;background:#f5f5f5;color:#666;font-size:14px;\">Forhåndsvisning ikke tilgængelig</div>';
-					}
-				}
-				
-				if (popup) {
-					popup.style.display = 'block';
-					movePreview(event);
-				}
-			}, 300);
-		};
-		
-		window.hidePreview = function() {
-			if (previewTimeout) {
-				clearTimeout(previewTimeout);
-				previewTimeout = null;
-			}
-			const popup = document.getElementById('previewPopup');
-			if (popup) popup.style.display = 'none';
-		};
-		
-		window.movePreview = function(event) {
-			const popup = document.getElementById('previewPopup');
-			if (!popup || popup.style.display === 'none') return;
-			
-			let x = event.clientX + 20;
-			let y = event.clientY - 100;
-			
-			// Keep within viewport
-			const viewportWidth = window.innerWidth;
-			const viewportHeight = window.innerHeight;
-			
-			// If would go off right edge, show on left side of cursor
-			if (x + 520 > viewportWidth) {
-				x = event.clientX - 520;
-			}
-			
-			// If would go off bottom, adjust y
-			if (y + 620 > viewportHeight) {
-				y = viewportHeight - 630;
-			}
-			
-			// Don't go above viewport
-			if (y < 10) y = 10;
-			
-			popup.style.left = x + 'px';
-			popup.style.top = y + 'px';
-		};
+		popup.style.left = x + 'px';
+		popup.style.top = y + 'px';
+	};
 
     async function fetchFiles() {
         const dir = '{$encodedDir}'; 
@@ -2247,474 +2247,474 @@ print <<<JS
 		// Ensure rows are ordered by priority: active, perfect match, amount match, date match, combination, others
 		html += activeRows + perfectMatchHeader + perfectMatchRows + matchingHeader + matchingAmountRows + dateMatchHeader + dateMatchRows + combinationHeader + combinationRows + otherRows;
 
-			html += "</tbody></table>";
-			
-			// Add bulk action button container at the bottom of the list (sticky so it's always visible)
-			html += "<div id='bulkActionsContainer' style='margin-top: 12px; padding: 8px; background-color: " + lightButtonColor + "; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;'>";
-			html += "<button type='button' id='bulkInsertButton' onclick='chooseMultipleBilag()' style='padding: 8px 16px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.02)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"'>";
-			html += "Indsæt valgte (<span id='selectedCount'>0</span>)";
-			html += "</button>";
-			html += "</div>";
+		html += "</tbody></table>";
+		
+		// Add bulk action button container at the bottom of the list (sticky so it's always visible)
+		html += "<div id='bulkActionsContainer' style='margin-top: 12px; padding: 8px; background-color: " + lightButtonColor + "; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;'>";
+		html += "<button type='button' id='bulkInsertButton' onclick='chooseMultipleBilag()' style='padding: 8px 16px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.02)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"'>";
+		html += "Indsæt valgte (<span id='selectedCount'>0</span>)";
+		html += "</button>";
+		html += "</div>";
 
-			// Dynamic styles for selected/editing rows (using CSS variables from docpool.css)
-			html += "<style>\
-				table tbody tr:hover { background-color: " + lightButtonColor + " !important; }\
-				table tbody tr[data-selected='true'] { background-color: " + lightButtonColor + " !important; color: #000000 !important; }\
-				table tbody tr[data-selected='true'] td { color: #000000 !important; }\
-				table tbody tr[data-selected='true']:hover { background-color: " + lightButtonColor + " !important; }\
-				table tbody tr[data-selected='true']:hover td { color: #000000 !important; }\
-				table tbody tr[data-editing='true'] { background-color: " + lightButtonColor + " !important; }\
-				table tbody tr[data-perfect-match='true'] { background-color: #cce5ff !important; border-left: 4px solid #004085 !important; }\
-				table tbody tr[data-perfect-match='true']:hover { background-color: #b8daff !important; }\
-				table tbody tr[data-perfect-match='true'] td { color: #004085 !important; }\
-				table tbody tr[data-amount-match='true'] { background-color: #d4edda !important; }\
-				table tbody tr[data-amount-match='true']:hover { background-color: #c3e6cb !important; }\
-				table tbody tr[data-amount-match='true'] td { color: #155724 !important; }\
-				table tbody tr[data-date-match='true'] { background-color: #e7f3ff !important; }\
-				table tbody tr[data-date-match='true']:hover { background-color: #d1e7ff !important; }\
-				table tbody tr[data-date-match='true'] td { color: #0c5460 !important; }\
-				table tbody tr[data-combination-match='true'] { background-color: #fff3cd !important; }\
-				table tbody tr[data-combination-match='true']:hover { background-color: #ffe69c !important; }\
-				table tbody tr[data-combination-match='true'] td { color: #856404 !important; }\
-				table tbody tr:hover td { background-color:  }\
-				.edit-input { border-color: " + buttonColor + "; }\
-				.edit-input:focus { outline-color: " + buttonColor + "; }\
-			</style>";
+		// Dynamic styles for selected/editing rows (using CSS variables from docpool.css)
+		html += "<style>\
+			table tbody tr:hover { background-color: " + lightButtonColor + " !important; }\
+			table tbody tr[data-selected='true'] { background-color: " + lightButtonColor + " !important; color: #000000 !important; }\
+			table tbody tr[data-selected='true'] td { color: #000000 !important; }\
+			table tbody tr[data-selected='true']:hover { background-color: " + lightButtonColor + " !important; }\
+			table tbody tr[data-selected='true']:hover td { color: #000000 !important; }\
+			table tbody tr[data-editing='true'] { background-color: " + lightButtonColor + " !important; }\
+			table tbody tr[data-perfect-match='true'] { background-color: #cce5ff !important; border-left: 4px solid #004085 !important; }\
+			table tbody tr[data-perfect-match='true']:hover { background-color: #b8daff !important; }\
+			table tbody tr[data-perfect-match='true'] td { color: #004085 !important; }\
+			table tbody tr[data-amount-match='true'] { background-color: #d4edda !important; }\
+			table tbody tr[data-amount-match='true']:hover { background-color: #c3e6cb !important; }\
+			table tbody tr[data-amount-match='true'] td { color: #155724 !important; }\
+			table tbody tr[data-date-match='true'] { background-color: #e7f3ff !important; }\
+			table tbody tr[data-date-match='true']:hover { background-color: #d1e7ff !important; }\
+			table tbody tr[data-date-match='true'] td { color: #0c5460 !important; }\
+			table tbody tr[data-combination-match='true'] { background-color: #fff3cd !important; }\
+			table tbody tr[data-combination-match='true']:hover { background-color: #ffe69c !important; }\
+			table tbody tr[data-combination-match='true'] td { color: #856404 !important; }\
+			table tbody tr:hover td { background-color:  }\
+			.edit-input { border-color: " + buttonColor + "; }\
+			.edit-input:focus { outline-color: " + buttonColor + "; }\
+		</style>";
 
-			document.getElementById(containerId).innerHTML = html;
-			
-			// Restore checkbox states from sessionStorage
-			const checkboxes = document.querySelectorAll('.file-checkbox');
-			checkboxes.forEach(cb => {
-				const savedChecked = sessionStorage.getItem('docPool_checked_' + cb.value) === 'true';
-				if (savedChecked) {
-					cb.checked = true;
-				}
-			});
-			
-			// Update select all checkbox state
-			const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-			if (selectAllCheckbox && checkboxes.length > 0) {
-				const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-				selectAllCheckbox.checked = allChecked;
+		document.getElementById(containerId).innerHTML = html;
+		
+		// Restore checkbox states from sessionStorage
+		const checkboxes = document.querySelectorAll('.file-checkbox');
+		checkboxes.forEach(cb => {
+			const savedChecked = sessionStorage.getItem('docPool_checked_' + cb.value) === 'true';
+			if (savedChecked) {
+				cb.checked = true;
 			}
-			
-			// Update bulk button state after rendering
-			if (typeof updateBulkButton === 'function') {
-				updateBulkButton();
-			}
-			
-			// Update padding after rendering
-			if (typeof updateFixedDiv === 'function') {
-				setTimeout(updateFixedDiv, 100);
+		});
+		
+		// Update select all checkbox state
+		const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+		if (selectAllCheckbox && checkboxes.length > 0) {
+			const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+			selectAllCheckbox.checked = allChecked;
+		}
+		
+		// Update bulk button state after rendering
+		if (typeof updateBulkButton === 'function') {
+			updateBulkButton();
+		}
+		
+		// Update padding after rendering
+		if (typeof updateFixedDiv === 'function') {
+			setTimeout(updateFixedDiv, 100);
+		}
+	}
+
+	// Card layout render function (similar to linkBilag style)
+	function renderFilesCard() {
+		if (!docData.length) {
+			document.getElementById(containerId).innerHTML = '<em>No files found.</em>';
+			return;
+		}
+		
+		// Get current poolFile from URL for highlighting
+		const currentUrlParams = new URLSearchParams(window.location.search);
+		const allCurrentPoolFiles = currentUrlParams.getAll('poolFile');
+		let currentPoolFile = null;
+		for (let i = allCurrentPoolFiles.length - 1; i >= 0; i--) {
+			if (allCurrentPoolFiles[i] && allCurrentPoolFiles[i].trim() !== '') {
+				currentPoolFile = allCurrentPoolFiles[i];
+				break;
 			}
 		}
-
-		// Card layout render function (similar to linkBilag style)
-		function renderFilesCard() {
-			if (!docData.length) {
-				document.getElementById(containerId).innerHTML = '<em>No files found.</em>';
-				return;
-			}
-			
-			// Get current poolFile from URL for highlighting
-			const currentUrlParams = new URLSearchParams(window.location.search);
-			const allCurrentPoolFiles = currentUrlParams.getAll('poolFile');
-			let currentPoolFile = null;
-			for (let i = allCurrentPoolFiles.length - 1; i >= 0; i--) {
-				if (allCurrentPoolFiles[i] && allCurrentPoolFiles[i].trim() !== '') {
-					currentPoolFile = allCurrentPoolFiles[i];
-					break;
+		
+		// Amount and date matching logic (reuse from renderFiles)
+		const normalizedTotal = parseFloat(totalSum?.replace(/\\./g, '').replace(',', '.') || 0);
+		const hasAmountToMatch = normalizedTotal !== 0 && !isNaN(normalizedTotal);
+		
+		// Normalize target date for card view
+		let cardNormalizedTargetDate = null;
+		if (targetDate) {
+			const dateParts = targetDate.split('-');
+			if (dateParts.length === 3) {
+				if (dateParts[0].length === 4) {
+					cardNormalizedTargetDate = targetDate;
+				} else {
+					cardNormalizedTargetDate = dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0];
 				}
 			}
-			
-			// Amount and date matching logic (reuse from renderFiles)
-			const normalizedTotal = parseFloat(totalSum?.replace(/\\./g, '').replace(',', '.') || 0);
-			const hasAmountToMatch = normalizedTotal !== 0 && !isNaN(normalizedTotal);
-			
-			// Normalize target date for card view
-			let cardNormalizedTargetDate = null;
-			if (targetDate) {
-				const dateParts = targetDate.split('-');
-				if (dateParts.length === 3) {
-					if (dateParts[0].length === 4) {
-						cardNormalizedTargetDate = targetDate;
-					} else {
-						cardNormalizedTargetDate = dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0];
-					}
-				}
-			}
-			const cardHasDateToMatch = cardNormalizedTargetDate !== null;
-			
-			let exactMatches = [];
-			let perfectMatches = [];
-			let dateOnlyMatches = [];
-			let combinationMatches = new Set();
-			let combinationGroups = [];
-			
-			if (hasAmountToMatch || cardHasDateToMatch) {
-				const docsWithAmounts = [];
-				for (let i = 0; i < docData.length; i++) {
-					const row = docData[i];
-					const normalizedAmount = parseAmountToFloat(row.amount);
-					const filename = row.filename || '';
-					
-					// Normalize row date
-					let rowDate = null;
-					if (row.date) {
-						const dateStr = row.date.split(' ')[0];
-						const parts = dateStr.split('-');
-						if (parts.length === 3) {
-							rowDate = parts[0].length === 4 ? dateStr : parts[2] + '-' + parts[1] + '-' + parts[0];
-						}
-					}
-					
-					const isDateMatch = cardHasDateToMatch && rowDate === cardNormalizedTargetDate;
-					const isAmountMatch = hasAmountToMatch && !isNaN(normalizedAmount) && Math.abs(normalizedAmount - normalizedTotal) < 0.01;
-					
-					if (!isNaN(normalizedAmount) && normalizedAmount > 0) {
-						docsWithAmounts.push({
-							index: i,
-							filename: filename,
-							amount: normalizedAmount,
-							row: row
-						});
-					}
-					
-					if (isAmountMatch && isDateMatch) {
-						perfectMatches.push(filename);
-					} else if (isAmountMatch) {
-						exactMatches.push(filename);
-					} else if (isDateMatch) {
-						dateOnlyMatches.push(filename);
-					}
-				}
-				
-				// Find combinations if no exact or perfect matches
-				if (exactMatches.length === 0 && perfectMatches.length === 0 && docsWithAmounts.length >= 2) {
-					for (let i = 0; i < docsWithAmounts.length; i++) {
-						for (let j = i + 1; j < docsWithAmounts.length; j++) {
-							const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount;
-							if (Math.abs(sum - normalizedTotal) < 0.01) {
-								combinationMatches.add(docsWithAmounts[i].filename);
-								combinationMatches.add(docsWithAmounts[j].filename);
-								combinationGroups.push({
-									files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename],
-									sum: sum
-								});
-							}
-						}
-					}
-				}
-			}
-			
-			let html = '<div class="doc-card-list" style="display: flex; flex-direction: column; gap: 8px; padding: 0 4px 80px 4px;">';
-			
-			// Add select all and bulk area
-			html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: ' + buttonColor + '; border-radius: 6px; margin-bottom: 4px;">';
-			html += '<label style="display: flex; align-items: center; gap: 8px; color: ' + buttonTxtColor + '; font-size: 13px; cursor: pointer;">';
-			html += '<input type="checkbox" id="selectAllCheckboxCard" onclick="toggleSelectAll(this)" style="width: 18px; height: 18px; cursor: pointer;">';
-			html += '<span>Vælg alle</span>';
-			html += '</label>';
-			html += '<span style="color: ' + buttonTxtColor + '; font-size: 12px;">' + docData.length + ' filer</span>';
-			html += '</div>';
-			
-			// Perfect match header (amount + date) if applicable
-			if (perfectMatches.length > 0) {
-				const perfectFilesJson = JSON.stringify(perfectMatches).replace(/'/g, "&#39;");
-				html += '<div onclick="selectCombinationFiles(' + perfectFilesJson + ')" style="cursor: pointer; padding: 10px; background: #007bff; color: white; border-radius: 6px; margin-bottom: 8px;">';
-				html += '<span style="margin-right: 6px;">' + svgIcons.star + '</span>';
-				html += '<strong>Perfekt match</strong> - ' + perfectMatches.length + ' bilag matcher beløb ' + escapeHTML(totalSum) + ' og dato ' + escapeHTML(targetDate);
-				html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
-				html += '</div>';
-			}
-			
-			// Amount-only match header if applicable
-			if (hasAmountToMatch && exactMatches.length > 0) {
-				const exactFilesJson = JSON.stringify(exactMatches).replace(/'/g, "&#39;");
-				html += '<div onclick="selectCombinationFiles(' + exactFilesJson + ')" style="cursor: pointer; padding: 10px; background: #28a745; color: white; border-radius: 6px; margin-bottom: 8px;">';
-				html += '<span style="margin-right: 6px;">' + svgIcons.check + '</span>';
-				html += '<strong>Beløb match</strong> - ' + exactMatches.length + ' bilag matcher beløbet ' + escapeHTML(totalSum);
-				html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
-				html += '</div>';
-			}
-			
-			// Date-only match header if applicable
-			if (dateOnlyMatches.length > 0) {
-				const dateFilesJson = JSON.stringify(dateOnlyMatches).replace(/'/g, "&#39;");
-				html += '<div onclick="selectCombinationFiles(' + dateFilesJson + ')" style="cursor: pointer; padding: 10px; background: #17a2b8; color: white; border-radius: 6px; margin-bottom: 8px;">';
-				html += '<span style="margin-right: 6px;">' + svgIcons.calendar + '</span>';
-				html += '<strong>Dato match</strong> - ' + dateOnlyMatches.length + ' bilag matcher datoen ' + escapeHTML(targetDate);
-				html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
-				html += '</div>';
-			}
-			
-			// Combination match header if applicable
-			if (combinationMatches.size > 0 && combinationGroups.length > 0) {
-				const comboFilesJson = JSON.stringify(combinationGroups[0].files).replace(/'/g, "&#39;");
-				html += '<div onclick="selectCombinationFiles(' + comboFilesJson + ')" style="cursor: pointer; padding: 10px; background: #ffc107; color: #212529; border-radius: 6px; margin-bottom: 8px;">';
-				html += '<span style="margin-right: 6px;">' + svgIcons.plus + '</span>';
-				html += '<strong>Kombination fundet</strong> - ' + combinationMatches.size + ' bilag giver tilsammen ' + escapeHTML(totalSum);
-				html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
-				html += '</div>';
-			}
-			
-			// Render each file as a card
-			for (const row of docData) {
+		}
+		const cardHasDateToMatch = cardNormalizedTargetDate !== null;
+		
+		let exactMatches = [];
+		let perfectMatches = [];
+		let dateOnlyMatches = [];
+		let combinationMatches = new Set();
+		let combinationGroups = [];
+		
+		if (hasAmountToMatch || cardHasDateToMatch) {
+			const docsWithAmounts = [];
+			for (let i = 0; i < docData.length; i++) {
+				const row = docData[i];
+				const normalizedAmount = parseAmountToFloat(row.amount);
 				const filename = row.filename || '';
-				const subject = row.subject || filename;
-				const account = row.account || '';
-				const amount = row.amount || '';
-				const parsedAmt = parseFloat(amount);
-				const formattedAmount = (!isNaN(parsedAmt) && amount) ? parsedAmt.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : amount;
-				const dateFormatted = (row.date || '').split(' ')[0];
 				
-				// Apply search filter
-				if (searchFilter) {
-					const searchText = (filename + ' ' + subject + ' ' + account + ' ' + amount).toLowerCase();
-					if (searchText.indexOf(searchFilter) === -1) {
-						continue;
+				// Normalize row date
+				let rowDate = null;
+				if (row.date) {
+					const dateStr = row.date.split(' ')[0];
+					const parts = dateStr.split('-');
+					if (parts.length === 3) {
+						rowDate = parts[0].length === 4 ? dateStr : parts[2] + '-' + parts[1] + '-' + parts[0];
 					}
 				}
 				
-				// Build file path for preview
-				const filePath = docFolder + '/' + db + '/pulje/' + filename;
+				const isDateMatch = cardHasDateToMatch && rowDate === cardNormalizedTargetDate;
+				const isAmountMatch = hasAmountToMatch && !isNaN(normalizedAmount) && Math.abs(normalizedAmount - normalizedTotal) < 0.01;
 				
-				// Check matches
-				const isSelected = currentPoolFile && filename === currentPoolFile;
-				const isPerfectMatch = perfectMatches.includes(filename);
-				const isAmountMatch = exactMatches.includes(filename);
-				const isDateMatch = dateOnlyMatches.includes(filename);
-				const isCombinationMatch = combinationMatches.has(filename);
+				if (!isNaN(normalizedAmount) && normalizedAmount > 0) {
+					docsWithAmounts.push({
+						index: i,
+						filename: filename,
+						amount: normalizedAmount,
+						row: row
+					});
+				}
 				
-				// Card styling based on state (priority order)
-				let cardStyle = 'display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: #fff; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.2s;';
-				if (isSelected) {
-					cardStyle += ' background: ' + lightButtonColor + '; border-color: ' + buttonColor + ';';
-				} else if (isPerfectMatch) {
-					cardStyle += ' background: #cce5ff; border-color: #007bff; border-left: 4px solid #004085;';
+				if (isAmountMatch && isDateMatch) {
+					perfectMatches.push(filename);
 				} else if (isAmountMatch) {
-					cardStyle += ' background: #d4edda; border-color: #28a745;';
+					exactMatches.push(filename);
 				} else if (isDateMatch) {
-					cardStyle += ' background: #e7f3ff; border-color: #17a2b8;';
-				} else if (isCombinationMatch) {
-					cardStyle += ' background: #fff3cd; border-color: #ffc107;';
+					dateOnlyMatches.push(filename);
 				}
-				
-				// Check if checkbox was previously checked
-				const savedChecked = sessionStorage.getItem('docPool_checked_' + filename) === 'true';
-				const checkedAttr = savedChecked ? ' checked' : '';
-				
-				// Delete URL
-				const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(filename);
-				
-				html += '<div class="doc-card-item" data-pool-file="' + escapeHTML(filename) + '" data-filepath="' + escapeHTML(filePath) + '" data-filename="' + escapeHTML(filename) + '" style="' + cardStyle + '" onmouseenter="showPreview(this, event)" onmouseleave="hidePreview()" onmousemove="movePreview(event)" onclick="if(!event.target.closest(\\'button\\') && !event.target.closest(\\'input\\') && !event.target.closest(\\'.card-actions\\')) { toggleCardCheckbox(this); }">';
-				
-				// Checkbox
-				html += '<div style="flex-shrink: 0;" onclick="event.stopPropagation();">';
-				html += '<input type="checkbox" class="file-checkbox" value="' + escapeHTML(filename) + '"' + checkedAttr + ' onchange="saveCheckboxState(); updateBulkButton();" onclick="event.stopPropagation();" style="width: 20px; height: 20px; cursor: pointer;">';
-				html += '</div>';
-				
-				// Icon - different for XML vs PDF
-				const fileExt = filename.split('.').pop().toLowerCase();
-				html += '<div style="flex-shrink: 0; color: ' + buttonColor + ';">';
-				if (fileExt === 'xml') {
-					html += '<svg class="icon-svg" style="width: 32px; height: 32px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 13l2 2-2 2"></path><path d="M16 13l-2 2 2 2"></path></svg>';
-				} else {
-					html += '<svg class="icon-svg" style="width: 32px; height: 32px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-				}
-				html += '</div>';
-				
-				// Content
-				html += '<div style="flex: 1; min-width: 0;">';
-				html += '<div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHTML(subject) + '">' + escapeHTML(subject) + '</div>';
-				html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
-				if (account) html += '<span><strong>Konto:</strong> ' + escapeHTML(account) + '</span>';
-				if (amount) {
-					let amountHtml = '<span><strong>Beløb:</strong> ';
-					if (isPerfectMatch) {
-						amountHtml += '<span style="color: #007bff;">' + svgIcons.star + ' ' + escapeHTML(formattedAmount) + '</span>';
-					} else if (isAmountMatch) {
-						amountHtml += '<span style="color: #28a745;">' + svgIcons.check + ' ' + escapeHTML(formattedAmount) + '</span>';
-					} else if (isCombinationMatch) {
-						amountHtml += '<span style="color: #ffc107;">' + svgIcons.plus + ' ' + escapeHTML(formattedAmount) + '</span>';
-					} else {
-						amountHtml += escapeHTML(formattedAmount);
-					}
-					amountHtml += '</span>';
-					html += amountHtml;
-				}
-				if (dateFormatted) {
-					let dateHtml = '<span><strong>Dato:</strong> ';
-					if (isPerfectMatch || isDateMatch) {
-						dateHtml += '<span style="color: #007bff;">' + svgIcons.calendar + ' ' + escapeHTML(dateFormatted) + '</span>';
-					} else {
-						dateHtml += escapeHTML(dateFormatted);
-					}
-					dateHtml += '</span>';
-					html += dateHtml;
-				}
-				html += '</div>';
-				html += '</div>';
-				
-				// Actions
-				html += '<div class="card-actions" style="flex-shrink: 0; display: flex; gap: 4px;" onclick="event.stopPropagation();">';
-				html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); enableCardEdit(\\'' + escapeHTML(filename) + '\\', \\'' + escapeHTML(subject) + '\\', \\'' + escapeHTML(account) + '\\', \\'' + escapeHTML(amount) + '\\', \\'' + escapeHTML(dateFormatted) + '\\'); return false;" style="padding: 6px 10px; background: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Rediger">' + svgIcons.pencil + '</button>';
-				html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); deletePoolFile(\\'' + escapeHTML(filename) + '\\', ' + JSON.stringify(subject) + ', \\'' + escapeHTML(deleteUrl) + '\\'); return false;" style="padding: 6px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Slet">' + svgIcons.trash + '</button>';
-				html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); extractPoolFile(\\'' + escapeHTML(filename) + '\\'); return false;" style="padding: 6px 10px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Udtræk fakturadata">' + svgIcons.scan + '</button>';
-				html += '</div>';
-				
-				html += '</div>';
 			}
 			
-			html += '</div>';
-			
-			// Bulk actions
-			html += '<div id="bulkActionsContainer" style="margin-top: 12px; padding: 8px; background-color: ' + lightButtonColor + '; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;">';
-			html += '<button type="button" id="bulkInsertButton" onclick="chooseMultipleBilag()" style="padding: 8px 16px; background-color: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">';
-			html += 'Indsæt valgte (<span id="selectedCount">0</span>)';
-			html += '</button>';
-			html += '</div>';
-			
-			// Dynamic styles for cards
-			html += '<style>';
-			html += '.doc-card-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); transform: translateY(-1px); }';
-			html += '</style>';
-			
-			document.getElementById(containerId).innerHTML = html;
-			
-			// Restore checkboxes and update UI
-			const checkboxes = document.querySelectorAll('.file-checkbox');
-			checkboxes.forEach(cb => {
-				const saved = sessionStorage.getItem('docPool_checked_' + cb.value) === 'true';
-				if (saved) cb.checked = true;
-			});
-			
-			const selectAllCheckbox = document.getElementById('selectAllCheckboxCard');
-			if (selectAllCheckbox && checkboxes.length > 0) {
-				const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-				selectAllCheckbox.checked = allChecked;
+			// Find combinations if no exact or perfect matches
+			if (exactMatches.length === 0 && perfectMatches.length === 0 && docsWithAmounts.length >= 2) {
+				for (let i = 0; i < docsWithAmounts.length; i++) {
+					for (let j = i + 1; j < docsWithAmounts.length; j++) {
+						const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount;
+						if (Math.abs(sum - normalizedTotal) < 0.01) {
+							combinationMatches.add(docsWithAmounts[i].filename);
+							combinationMatches.add(docsWithAmounts[j].filename);
+							combinationGroups.push({
+								files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename],
+								sum: sum
+							});
+						}
+					}
+				}
 			}
-			
-			if (typeof updateBulkButton === 'function') updateBulkButton();
-			if (typeof updateFixedDiv === 'function') setTimeout(updateFixedDiv, 100);
 		}
 		
+		let html = '<div class="doc-card-list" style="display: flex; flex-direction: column; gap: 8px; padding: 0 4px 80px 4px;">';
 		
-		// Toggle checkbox when clicking a card in card view (kortvisning)
-		window.toggleCardCheckbox = function(cardElement) {
-			const checkbox = cardElement.querySelector('.file-checkbox');
-			if (checkbox) {
-				checkbox.checked = !checkbox.checked;
-				saveCheckboxState();
-				updateBulkButton();
-				
-				// Update card styling based on checkbox state
-				const filename = cardElement.dataset.poolFile;
-				if (checkbox.checked) {
-					cardElement.style.background = lightButtonColor;
-					cardElement.style.borderColor = buttonColor;
-				} else {
-					// Reset to default or match state
-					cardElement.style.background = '#fff';
-					cardElement.style.borderColor = '#ddd';
+		// Add select all and bulk area
+		html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: ' + buttonColor + '; border-radius: 6px; margin-bottom: 4px;">';
+		html += '<label style="display: flex; align-items: center; gap: 8px; color: ' + buttonTxtColor + '; font-size: 13px; cursor: pointer;">';
+		html += '<input type="checkbox" id="selectAllCheckboxCard" onclick="toggleSelectAll(this)" style="width: 18px; height: 18px; cursor: pointer;">';
+		html += '<span>Vælg alle</span>';
+		html += '</label>';
+		html += '<span style="color: ' + buttonTxtColor + '; font-size: 12px;">' + docData.length + ' filer</span>';
+		html += '</div>';
+		
+		// Perfect match header (amount + date) if applicable
+		if (perfectMatches.length > 0) {
+			const perfectFilesJson = JSON.stringify(perfectMatches).replace(/'/g, "&#39;");
+			html += '<div onclick="selectCombinationFiles(' + perfectFilesJson + ')" style="cursor: pointer; padding: 10px; background: #007bff; color: white; border-radius: 6px; margin-bottom: 8px;">';
+			html += '<span style="margin-right: 6px;">' + svgIcons.star + '</span>';
+			html += '<strong>Perfekt match</strong> - ' + perfectMatches.length + ' bilag matcher beløb ' + escapeHTML(totalSum) + ' og dato ' + escapeHTML(targetDate);
+			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
+			html += '</div>';
+		}
+		
+		// Amount-only match header if applicable
+		if (hasAmountToMatch && exactMatches.length > 0) {
+			const exactFilesJson = JSON.stringify(exactMatches).replace(/'/g, "&#39;");
+			html += '<div onclick="selectCombinationFiles(' + exactFilesJson + ')" style="cursor: pointer; padding: 10px; background: #28a745; color: white; border-radius: 6px; margin-bottom: 8px;">';
+			html += '<span style="margin-right: 6px;">' + svgIcons.check + '</span>';
+			html += '<strong>Beløb match</strong> - ' + exactMatches.length + ' bilag matcher beløbet ' + escapeHTML(totalSum);
+			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
+			html += '</div>';
+		}
+		
+		// Date-only match header if applicable
+		if (dateOnlyMatches.length > 0) {
+			const dateFilesJson = JSON.stringify(dateOnlyMatches).replace(/'/g, "&#39;");
+			html += '<div onclick="selectCombinationFiles(' + dateFilesJson + ')" style="cursor: pointer; padding: 10px; background: #17a2b8; color: white; border-radius: 6px; margin-bottom: 8px;">';
+			html += '<span style="margin-right: 6px;">' + svgIcons.calendar + '</span>';
+			html += '<strong>Dato match</strong> - ' + dateOnlyMatches.length + ' bilag matcher datoen ' + escapeHTML(targetDate);
+			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
+			html += '</div>';
+		}
+		
+		// Combination match header if applicable
+		if (combinationMatches.size > 0 && combinationGroups.length > 0) {
+			const comboFilesJson = JSON.stringify(combinationGroups[0].files).replace(/'/g, "&#39;");
+			html += '<div onclick="selectCombinationFiles(' + comboFilesJson + ')" style="cursor: pointer; padding: 10px; background: #ffc107; color: #212529; border-radius: 6px; margin-bottom: 8px;">';
+			html += '<span style="margin-right: 6px;">' + svgIcons.plus + '</span>';
+			html += '<strong>Kombination fundet</strong> - ' + combinationMatches.size + ' bilag giver tilsammen ' + escapeHTML(totalSum);
+			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
+			html += '</div>';
+		}
+		
+		// Render each file as a card
+		for (const row of docData) {
+			const filename = row.filename || '';
+			const subject = row.subject || row.description || filename;
+			const account = row.account || '';
+			const amount = row.amount || '';
+			const parsedAmt = parseFloat(amount);
+			const formattedAmount = (!isNaN(parsedAmt) && amount) ? parsedAmt.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : amount;
+			const dateFormatted = (row.date || '').split(' ')[0];
+			
+			// Apply search filter
+			if (searchFilter) {
+				const searchText = (filename + ' ' + subject + ' ' + account + ' ' + amount).toLowerCase();
+				if (searchText.indexOf(searchFilter) === -1) {
+					continue;
 				}
 			}
-		};
-		
-		// Enable editing for a card item - opens a modal/inline form
-		window.enableCardEdit = function(poolFile, subject, account, amount, date) {
-			// For simplicity, reuse the table row edit via renderFiles mode temporarily
-			// Switch to table mode, enable edit, then user can save and switch back
-			// Or we can show a simple prompt/modal
 			
-			const newSubject = prompt('Emne:', subject);
-			if (newSubject === null) return; // Cancelled
+			// Build file path for preview
+			const filePath = docFolder + '/' + db + '/pulje/' + filename;
 			
-			const newAccount = prompt('Konto:', account);
-			if (newAccount === null) return;
+			// Check matches
+			const isSelected = currentPoolFile && filename === currentPoolFile;
+			const isPerfectMatch = perfectMatches.includes(filename);
+			const isAmountMatch = exactMatches.includes(filename);
+			const isDateMatch = dateOnlyMatches.includes(filename);
+			const isCombinationMatch = combinationMatches.has(filename);
 			
-			const newAmount = prompt('Beløb:', amount);
-			if (newAmount === null) return;
+			// Card styling based on state (priority order)
+			let cardStyle = 'display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: #fff; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.2s;';
+			if (isSelected) {
+				cardStyle += ' background: ' + lightButtonColor + '; border-color: ' + buttonColor + ';';
+			} else if (isPerfectMatch) {
+				cardStyle += ' background: #cce5ff; border-color: #007bff; border-left: 4px solid #004085;';
+			} else if (isAmountMatch) {
+				cardStyle += ' background: #d4edda; border-color: #28a745;';
+			} else if (isDateMatch) {
+				cardStyle += ' background: #e7f3ff; border-color: #17a2b8;';
+			} else if (isCombinationMatch) {
+				cardStyle += ' background: #fff3cd; border-color: #ffc107;';
+			}
 			
-			const newDate = prompt('Dato (ÅÅÅÅ-MM-DD):', date);
-			if (newDate === null) return;
+			// Check if checkbox was previously checked
+			const savedChecked = sessionStorage.getItem('docPool_checked_' + filename) === 'true';
+			const checkedAttr = savedChecked ? ' checked' : '';
 			
-			const newDescription = prompt('Beskrivelse:', description);
-			if (newDescription === null) return;
+			// Delete URL
+			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(filename);
 			
-			const newInvoiceNumber = prompt('Fakturanummer:', invoiceNumber);
-			if (newInvoiceNumber === null) return;
+			html += '<div class="doc-card-item" data-pool-file="' + escapeHTML(filename) + '" data-filepath="' + escapeHTML(filePath) + '" data-filename="' + escapeHTML(filename) + '" style="' + cardStyle + '" onmouseenter="showPreview(this, event)" onmouseleave="hidePreview()" onmousemove="movePreview(event)" onclick="if(!event.target.closest(\\'button\\') && !event.target.closest(\\'input\\') && !event.target.closest(\\'.card-actions\\')) { toggleCardCheckbox(this); }">';
 			
-			// Save via AJAX (reuse existing save logic)
-			const form = document.forms['gennemse'];
-			if (!form) return;
+			// Checkbox
+			html += '<div style="flex-shrink: 0;" onclick="event.stopPropagation();">';
+			html += '<input type="checkbox" class="file-checkbox" value="' + escapeHTML(filename) + '"' + checkedAttr + ' onchange="saveCheckboxState(); updateBulkButton();" onclick="event.stopPropagation();" style="width: 20px; height: 20px; cursor: pointer;">';
+			html += '</div>';
 			
-			const formAction = form.getAttribute('action');
-			const url = new URL(formAction, window.location.href);
-			url.searchParams.set('poolFile', poolFile);
+			// Icon - different for XML vs PDF
+			const fileExt = filename.split('.').pop().toLowerCase();
+			html += '<div style="flex-shrink: 0; color: ' + buttonColor + ';">';
+			if (fileExt === 'xml') {
+				html += '<svg class="icon-svg" style="width: 32px; height: 32px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 13l2 2-2 2"></path><path d="M16 13l-2 2 2 2"></path></svg>';
+			} else {
+				html += '<svg class="icon-svg" style="width: 32px; height: 32px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+			}
+			html += '</div>';
 			
-			const formData = new FormData();
-			formData.append('rename', 'Ret filnavn');
-			formData.append('poolFile', poolFile);
-			formData.append('newFileName', poolFile);
-			formData.append('newSubject', newSubject);
-			formData.append('newAccount', newAccount);
-			formData.append('newAmount', newAmount);
-			formData.append('newDescription', newDescription);
-			formData.append('newInvoiceNumber', newInvoiceNumber);
-			formData.append('newDate', newDate);
-			
-			url.searchParams.forEach((value, key) => {
-				formData.append(key, value);
-			});
-			
-			fetch(url.toString(), {
-				method: 'POST',
-				body: formData,
-				redirect: 'follow'
-			})
-			.then(response => {
-				if (response.ok) {
-					// Refresh the file list
-					fetchFiles();
+			// Content
+			html += '<div style="flex: 1; min-width: 0;">';
+			html += '<div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHTML(subject) + '">' + escapeHTML(subject) + '</div>';
+			html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
+			if (account) html += '<span><strong>Konto:</strong> ' + escapeHTML(account) + '</span>';
+			if (amount) {
+				let amountHtml = '<span><strong>Beløb:</strong> ';
+				if (isPerfectMatch) {
+					amountHtml += '<span style="color: #007bff;">' + svgIcons.star + ' ' + escapeHTML(formattedAmount) + '</span>';
+				} else if (isAmountMatch) {
+					amountHtml += '<span style="color: #28a745;">' + svgIcons.check + ' ' + escapeHTML(formattedAmount) + '</span>';
+				} else if (isCombinationMatch) {
+					amountHtml += '<span style="color: #ffc107;">' + svgIcons.plus + ' ' + escapeHTML(formattedAmount) + '</span>';
 				} else {
-					alert('Fejl ved gemning. Prøv igen.');
+					amountHtml += escapeHTML(formattedAmount);
 				}
-			})
-			.catch(error => {
-				console.error('Error saving:', error);
-				alert('Fejl ved gemning: ' + error.message);
-			});
-		};
+				amountHtml += '</span>';
+				html += amountHtml;
+			}
+			if (dateFormatted) {
+				let dateHtml = '<span><strong>Dato:</strong> ';
+				if (isPerfectMatch || isDateMatch) {
+					dateHtml += '<span style="color: #007bff;">' + svgIcons.calendar + ' ' + escapeHTML(dateFormatted) + '</span>';
+				} else {
+					dateHtml += escapeHTML(dateFormatted);
+				}
+				dateHtml += '</span>';
+				html += dateHtml;
+			}
+			html += '</div>';
+			html += '</div>';
+			
+			// Actions
+			html += '<div class="card-actions" style="flex-shrink: 0; display: flex; gap: 4px;" onclick="event.stopPropagation();">';
+			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); enableCardEdit(\\'' + escapeHTML(filename) + '\\', \\'' + escapeHTML(subject) + '\\', \\'' + escapeHTML(account) + '\\', \\'' + escapeHTML(amount) + '\\', \\'' + escapeHTML(dateFormatted) + '\\'); return false;" style="padding: 6px 10px; background: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Rediger">' + svgIcons.pencil + '</button>';
+			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); deletePoolFile(\\'' + escapeHTML(filename) + '\\', ' + JSON.stringify(subject) + ', \\'' + escapeHTML(deleteUrl) + '\\'); return false;" style="padding: 6px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Slet">' + svgIcons.trash + '</button>';
+			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); extractPoolFile(\\'' + escapeHTML(filename) + '\\'); return false;" style="padding: 6px 10px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Udtræk fakturadata">' + svgIcons.scan + '</button>';
+			html += '</div>';
+			
+			html += '</div>';
+		}
+		
+		html += '</div>';
+		
+		// Bulk actions
+		html += '<div id="bulkActionsContainer" style="margin-top: 12px; padding: 8px; background-color: ' + lightButtonColor + '; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;">';
+		html += '<button type="button" id="bulkInsertButton" onclick="chooseMultipleBilag()" style="padding: 8px 16px; background-color: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">';
+		html += 'Indsæt valgte (<span id="selectedCount">0</span>)';
+		html += '</button>';
+		html += '</div>';
+		
+		// Dynamic styles for cards
+		html += '<style>';
+		html += '.doc-card-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); transform: translateY(-1px); }';
+		html += '</style>';
+		
+		document.getElementById(containerId).innerHTML = html;
+		
+		// Restore checkboxes and update UI
+		const checkboxes = document.querySelectorAll('.file-checkbox');
+		checkboxes.forEach(cb => {
+			const saved = sessionStorage.getItem('docPool_checked_' + cb.value) === 'true';
+			if (saved) cb.checked = true;
+		});
+		
+		const selectAllCheckbox = document.getElementById('selectAllCheckboxCard');
+		if (selectAllCheckbox && checkboxes.length > 0) {
+			const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+			selectAllCheckbox.checked = allChecked;
+		}
+		
+		if (typeof updateBulkButton === 'function') updateBulkButton();
+		if (typeof updateFixedDiv === 'function') setTimeout(updateFixedDiv, 100);
+	}
+		
+		
+	// Toggle checkbox when clicking a card in card view (kortvisning)
+	window.toggleCardCheckbox = function(cardElement) {
+		const checkbox = cardElement.querySelector('.file-checkbox');
+		if (checkbox) {
+			checkbox.checked = !checkbox.checked;
+			saveCheckboxState();
+			updateBulkButton();
+			
+			// Update card styling based on checkbox state
+			const filename = cardElement.dataset.poolFile;
+			if (checkbox.checked) {
+				cardElement.style.background = lightButtonColor;
+				cardElement.style.borderColor = buttonColor;
+			} else {
+				// Reset to default or match state
+				cardElement.style.background = '#fff';
+				cardElement.style.borderColor = '#ddd';
+			}
+		}
+	};
+	
+	// Enable editing for a card item - opens a modal/inline form
+	window.enableCardEdit = function(poolFile, subject, account, amount, date) {
+		// For simplicity, reuse the table row edit via renderFiles mode temporarily
+		// Switch to table mode, enable edit, then user can save and switch back
+		// Or we can show a simple prompt/modal
+		
+		const newSubject = prompt('Emne:', subject);
+		if (newSubject === null) return; // Cancelled
+		
+		const newAccount = prompt('Konto:', account);
+		if (newAccount === null) return;
+		
+		const newAmount = prompt('Beløb:', amount);
+		if (newAmount === null) return;
+		
+		const newDate = prompt('Dato (ÅÅÅÅ-MM-DD):', date);
+		if (newDate === null) return;
+		
+		const newDescription = prompt('Beskrivelse:', description);
+		if (newDescription === null) return;
+		
+		const newInvoiceNumber = prompt('Fakturanummer:', invoiceNumber);
+		if (newInvoiceNumber === null) return;
+		
+		// Save via AJAX (reuse existing save logic)
+		const form = document.forms['gennemse'];
+		if (!form) return;
+		
+		const formAction = form.getAttribute('action');
+		const url = new URL(formAction, window.location.href);
+		url.searchParams.set('poolFile', poolFile);
+		
+		const formData = new FormData();
+		formData.append('rename', 'Ret filnavn');
+		formData.append('poolFile', poolFile);
+		formData.append('newFileName', poolFile);
+		formData.append('newSubject', newSubject);
+		formData.append('newAccount', newAccount);
+		formData.append('newAmount', newAmount);
+		formData.append('newDescription', newDescription);
+		formData.append('newInvoiceNumber', newInvoiceNumber);
+		formData.append('newDate', newDate);
+		
+		url.searchParams.forEach((value, key) => {
+			formData.append(key, value);
+		});
+		
+		fetch(url.toString(), {
+			method: 'POST',
+			body: formData,
+			redirect: 'follow'
+		})
+		.then(response => {
+			if (response.ok) {
+				// Refresh the file list
+				fetchFiles();
+			} else {
+				alert('Fejl ved gemning. Prøv igen.');
+			}
+		})
+		.catch(error => {
+			console.error('Error saving:', error);
+			alert('Fejl ved gemning: ' + error.message);
+		});
+	};
 
 
 	
-		function sortFiles(field) {
-			const asc = currentSort.field === field ? !currentSort.asc : true;
+	function sortFiles(field) {
+		const asc = currentSort.field === field ? !currentSort.asc : true;
 
-			docData.sort((a, b) => {
-				let valA = a[field];
-				let valB = b[field];
+		docData.sort((a, b) => {
+			let valA = a[field];
+			let valB = b[field];
 
-				if (field === 'amount') {
-						valA = parseFloat(valA) || 0;
-						valB = parseFloat(valB) || 0;
-				} else if (field === 'date') {
-						valA = new Date(valA).getTime() || 0;
-						valB = new Date(valB).getTime() || 0;
-				} else {
-						if (typeof valA === 'string') valA = valA.toLowerCase();
-						if (typeof valB === 'string') valB = valB.toLowerCase();
-				}
+			if (field === 'amount') {
+					valA = parseFloat(valA) || 0;
+					valB = parseFloat(valB) || 0;
+			} else if (field === 'date') {
+					valA = new Date(valA).getTime() || 0;
+					valB = new Date(valB).getTime() || 0;
+			} else {
+					if (typeof valA === 'string') valA = valA.toLowerCase();
+					if (typeof valB === 'string') valB = valB.toLowerCase();
+			}
 
-				if (valA === valB) return 0;
-				return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
-			});
+			if (valA === valB) return 0;
+			return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+		});
 
-			currentSort = { field, asc };
-			renderCurrentView();
-		}
+		currentSort = { field, asc };
+		renderCurrentView();
+	}
 
 
     function escapeHTML(str) {
@@ -3258,6 +3258,7 @@ window.extractPoolFile = function(poolFile) {
 	});
 };
 
+
 // Extract invoice data from ALL pool files
 window.extractAllPoolFiles = async function() {
 	// Get all pool files from the docData array
@@ -3282,90 +3283,97 @@ window.extractAllPoolFiles = async function() {
 	};
 	
 	updateProgress();
+
 	
 	// Process each file sequentially
-	for (const file of docData) {
-		const poolFile = file.filename;
-		
-		try {
-			// Extract data
-			const extractFormData = new FormData();
-			extractFormData.append('action', 'extract');
-			extractFormData.append('poolFile', poolFile);
-			extractFormData.append('db', db);
-			
-			const extractResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
-				method: 'POST',
-				body: extractFormData
-			});
-			
-			const extractResult = await extractResponse.json();
-			
-			if (extractResult.success && extractResult.data) {
-				const extracted = extractResult.data;
-				
-				// Only save if we got some data
-				if (extracted.amount || extracted.date || extracted.vendor) {
-					// Save the extracted data to the .info file
-					const saveData = new FormData();
-					saveData.append('action', 'save');
-					saveData.append('poolFile', poolFile);
-					saveData.append('db', db);
-					if (extracted.amount) saveData.append('newAmount', extracted.amount);
-					if (extracted.date) saveData.append('newDate', extracted.date);
-					if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
-					if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
-					if (extracted.description) saveData.append('newDescription', extracted.description);
-					if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+	let queue = docData.slice();
 
-					const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
-						method: 'POST',
-						body: saveData
-					});
+	const THREADS = 4;
+	const promises = Array.from({length: THREADS}, async () => { 
+		while('undefined' !== typeof (file = queue.pop())){
+			const poolFile = file.filename;
+			
+			try {
+				// Extract data
+				const extractFormData = new FormData();
+				extractFormData.append('action', 'extract');
+				extractFormData.append('poolFile', poolFile);
+				extractFormData.append('db', db);
+				
+				const extractResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
+					method: 'POST',
+					body: extractFormData
+				});
+				
+				const extractResult = await extractResponse.json();
+				
+				if (extractResult.success && extractResult.data) {
+					const extracted = extractResult.data;
 					
-					const saveResult = await saveResponse.json();
-					if (saveResult.success) {
-						successful++;
+					// Only save if we got some data
+					if (extracted.amount || extracted.date || extracted.vendor) {
+						// Save the extracted data to the .info file
+						const saveData = new FormData();
+						saveData.append('action', 'save');
+						saveData.append('poolFile', poolFile);
+						saveData.append('db', db);
+						if (extracted.amount) saveData.append('newAmount', extracted.amount);
+						if (extracted.date) saveData.append('newDate', extracted.date);
+						if (extracted.vendor) saveData.append('newSubject', extracted.vendor);
+						if (extracted.invoiceNumber) saveData.append('newInvoiceNumber', extracted.invoiceNumber);
+						if (extracted.description) saveData.append('newDescription', extracted.description);
+						if (extracted.currency) saveData.append('newCurrency', extracted.currency);
+
+						const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
+							method: 'POST',
+							body: saveData
+						});
+						
+						const saveResult = await saveResponse.json();
+						if (saveResult.success) {
+							successful++;
+						} else {
+							failed++;
+							console.error('Failed to save data for ' + poolFile + ': ' + (saveResult.error || 'Unknown error'));
+						}
 					} else {
+						// No data extracted
 						failed++;
-						console.error('Failed to save data for ' + poolFile + ': ' + (saveResult.error || 'Unknown error'));
 					}
 				} else {
-					// No data extracted
 					failed++;
+					console.error('Failed to extract data from ' + poolFile + ': ' + (extractResult.error || 'Unknown error'));
 				}
-			} else {
+			} catch (error) {
 				failed++;
-				console.error('Failed to extract data from ' + poolFile + ': ' + (extractResult.error || 'Unknown error'));
+				console.error('Error processing ' + poolFile + ': ' + error.message);
 			}
-		} catch (error) {
-			failed++;
-			console.error('Error processing ' + poolFile + ': ' + error.message);
+			processed++;
+			updateProgress();
+		}
+	});
+	
+	await Promise.all(promises).then((messages) => {
+		// Restore button
+		btn.innerHTML = originalContent;
+		btn.disabled = false;
+		btn.style.opacity = '1';
+		
+		// Show summary
+		let message = 'Opdatering afsluttet!';
+		message += 'Behandlet: ' + total + ' filer';
+		message += 'Succesfulde: ' + successful;
+		if (failed > 0) {
+			message += 'Fejlede: ' + failed;
 		}
 		
-		processed++;
-		updateProgress();
-	}
-	
-	// Restore button
-	btn.innerHTML = originalContent;
-	btn.disabled = false;
-	btn.style.opacity = '1';
-	
-	// Show summary
-	let message = 'Opdatering afsluttet!';
-	message += 'Behandlet: ' + total + ' filer';
-	message += 'Succesfulde: ' + successful;
-	if (failed > 0) {
-		message += 'Fejlede: ' + failed;
-	}
-	
-	alert(message);
-	
-	// Reload the page to show updated data
-	if (successful > 0) {
-		window.location.reload();
-	}
+		alert(message);
+		
+		// Reload the page to show updated data
+		if (successful > 0) {
+			window.location.reload();
+		}
+	});
 };
 
 // Delete selected files

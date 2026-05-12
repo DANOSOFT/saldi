@@ -497,7 +497,12 @@ include_once '../includes/oldDesign/footer.php';
         'lev_postnr' => 'Levering postnr',
         'lev_bynavn' => 'Levering by',
         'kontoansvarlig' => 'Kontoansvarlig',
-        'tlf' => 'Telefon' // Ensure tlf is available if not already
+        'tlf' => 'Telefon', // Ensure tlf is available if not already
+        'felt_1' => findtekst('255|Ekstrafelt 1', $sprog_id),
+        'felt_2' => findtekst('256|Ekstrafelt 2', $sprog_id),
+        'felt_3' => findtekst('257|Ekstrafelt 3', $sprog_id),
+        'felt_4' => findtekst('258|Ekstrafelt 4', $sprog_id),
+        'felt_5' => findtekst('259|Ekstrafelt 5', $sprog_id),
     );
 
     // Get list of already added fields to avoid duplicates

@@ -294,6 +294,11 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "regnskabbasis")
 		print "<option title='" . findtekst(2327, $sprog_id) . "' value='regnskabbasis'>" . findtekst(2326, $sprog_id) . "</option>\n";
+	$packagingModuleEnabled_local = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+	$emb_opt_label = ($sprog_id == 2) ? 'Packaging' : 'Emballage';
+	$emb_opt_title = ($sprog_id == 2) ? 'Packaging tax report (extended producer responsibility)' : 'Emballagerapport (producentansvar)';
+	if ($packagingModuleEnabled_local && $rapportart == "emballage")
+		print "<option title='$emb_opt_title' value='emballage'>$emb_opt_label</option>\n";
 	#	elseif ($rapportart=="momskontrol") print "<option title='".findtekst(514,$sprog_id)."' value='momskontrol'>momskontrol</option>\n";
 	listeangivelser($regnaar, $rapportart, "matcher");
 	if ($rapportart != "kontokort")
@@ -316,6 +321,8 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	if ($rapportart != "regnskabbasis")
 		print "<option title='" . findtekst(2327, $sprog_id) . "' value='regnskabbasis'>" . findtekst(2326, $sprog_id) . "</option>\n";
+	if ($packagingModuleEnabled_local && $rapportart != "emballage")
+		print "<option title='$emb_opt_title' value='emballage'>$emb_opt_label</option>\n";
 	#	if ($rapportart!="momskontrol") print "<option title='".findtekst(514,$sprog_id)."' value='momskontrol'>momskontrol</option>\n";
 	listeangivelser($regnaar, $rapportart, "alle andre");
 
