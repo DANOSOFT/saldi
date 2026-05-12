@@ -43,7 +43,8 @@
 // 2016.04.26 PHR Indsat 'desc limit 1'. #20160426-2
 // 2016.04.26 PHR Rettet $diff til $tmp.  #20160426-3
 // 2016.10.28 PHR Rettet < til <=  da den gav posteringsdifference #20161028 
-// 2026.04.24 LOE Updated topline structure and added dynamic text with findtekst(). 
+// 2026.04.24 LOE Updated topline structure and added dynamic text with findtekst().
+// 2026.05.07 CL findMatch.php køres ikke længere automatisk ved sideload - tilføjet knap 'Find modposter'.
 
 @session_start();
 $s_id=session_id();
@@ -266,7 +267,9 @@ $maxdiff=$r['box1']*1;
 $diffkto=$r['box2']*1;
 if (!$diffkto) $maxdiff=0;
 
-if (!isset($submit)) include ("../includes/alignOpenpostIncludes/findMatch.php");
+$findMatchTimeLimit = (isset($_POST['findmatch_timelimit']) && intval($_POST['findmatch_timelimit']) > 60) ? intval($_POST['findmatch_timelimit']) : 60;
+$findMatchTimeout = false;
+if (isset($submit) && $submit=='find modposter') include ("../includes/alignOpenpostIncludes/findMatch.php");
 
 if ($menu=='S') {
 	#########
@@ -320,6 +323,13 @@ if (isset($submit) && $submit=='udlign') {
 	include ("../includes/alignOpenpostIncludes/doAlign.php");
 }
 print "<form name='alignOpenpost' action='../includes/udlign_openpost.php' method='post'>";
+if (isset($findMatchTimeout) && $findMatchTimeout) {
+	$nextLimit = $findMatchTimeLimit * 2;
+	print "<tr><td colspan=6 style='color:#900'><b>S&oslash;gning stoppede efter {$findMatchTimeLimit} sekunder - ingen modpost fundet automatisk.</b>&nbsp;";
+	print "<button type='button' onclick=\"document.getElementById('findmatch_timelimit').value={$nextLimit};document.getElementById('btn_findmodposter').click();\">Fors&oslash;g med {$nextLimit} sek.</button></td></tr>";
+} elseif (isset($findMatchNoResult) && $findMatchNoResult) {
+	print "<tr><td colspan=6 style='color:#900'><b>Ingen modpost fundet (s&oslash;gning gennemf&oslash;rt p&aring; {$findMatchElapsed} sek.).</b>&nbsp;Marker venligst posteringer manuelt.</td></tr>";
+}
 if ($diff==0 || abs($diff)<$maxdiff) print "<tr><td colspan=6>F&oslash;lgende poster vil blive udlignet:</td></tr>";
 else print "<tr><td colspan=6>S&aelig;t \"flueben\" ud for de posteringer der skal udligne f&oslash;lgende post:</td></tr>";
 print "<tr><td colspan=6><br></td>";
@@ -394,6 +404,7 @@ print "<input type = hidden name=konto_til value=$konto_til>";
 print "<input type = hidden name=retur value=$retur>";
 print "<input type = hidden name=returside value=$returside>";
 print "<input type = hidden name=layout value=$layout>";
+print "<input type='hidden' name='findmatch_timelimit' id='findmatch_timelimit' value='$findMatchTimeLimit'>";
 print "<input type = hidden name=diff value=$diff>";
 print "<input type = hidden name=dkkdiff value=$dkkdiff>";
 print "<input type = hidden name=maxdiff value=$maxdiff>";
@@ -411,11 +422,12 @@ if ($diff != $dkkdiff && $bogfor!='OK' && $dkkdiff >= 0.005) {
 	print "<input type=\"hidden\" name=\"stop\" value=\"on\">";
 }
 
-if (abs($diff)<0.005) print "<span title=\"".findtekst(178,$sprog_id)."\"><input type=\"submit\"  $onclick style=\"width:100px\" value=\"Udlign\" name=\"submit\"></span>&nbsp;";
+if (abs($diff)<0.005) print "<span title=\"".findtekst(178,$sprog_id)."\"><input type=\"submit\"  $onclick style=\"width:150px\" value=\"Udlign\" name=\"submit\"></span>&nbsp;";
 elseif (abs($dkkdiff)<$maxdiff) {
-	print "<span title=\"".findtekst(179,$sprog_id)."\"><input type=\"submit\" $onclick style=\"width:100px\" value=\"Udlign\" name=\"submit\"></span>&nbsp;";
+	print "<span title=\"".findtekst(179,$sprog_id)."\"><input type=\"submit\" $onclick style=\"width:150px\" value=\"Udlign\" name=\"submit\"></span>&nbsp;";
 }
-print "<span title=\"".findtekst(180,$sprog_id)."\"><input type=\"submit\" style=\"width:100px\" value=\"Opdater\" name=\"submit\"></span>";
+print "<span title=\"".findtekst(180,$sprog_id)."\"><input type=\"submit\" style=\"width:150px\" value=\"Opdater\" name=\"submit\"></span>";
+print "&nbsp;<input type=\"submit\" id=\"btn_findmodposter\" style=\"width:150px\" value=\"Find modposter\" name=\"submit\">";
 print "</td></tr></form>\n";
 
 ?>

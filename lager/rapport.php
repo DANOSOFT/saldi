@@ -66,6 +66,7 @@
 // 20250820 PHR Added some line ident comments
 // 20251206 LOE some topline codes moved to ../includes/S_topLine.php also used by other files
 // 20260408 PHR set max_execution_time to 300
+// 20260507 CL Rettet forskydning i summary-række: tilføjet $tt_kost (Kostpris), flyttet $tt_k_pris til korrekt kolonne (Købspris), tilføjet manglende Solgt-celle
 
 ini_set('max_execution_time', '300');
 @session_start();
@@ -141,8 +142,8 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 
 #if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";}
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
-elseif ($submit == findtekst('992|Lagerstatus', $sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
-elseif ($submit == findtekst('2082|Prisliste', $sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
+elseif ($submit == strtolower(findtekst('992|Lagerstatus', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
+elseif ($submit == strtolower(findtekst('2082|Prisliste', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
 elseif ($inventoryCount) print print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 
@@ -835,7 +836,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					if ($ko_ant[$y]) {
 						$kostpris[$y]=0;
 						for($z=0;$z<$ko_ant[$y];$z++) {
-							$kostpris[$y]+=$kobs_ordre_pris[$z];
+							$kostpris[$y]+=(float)$kobs_ordre_pris[$z];
 						}
 						$kostpris[$y]/=$ko_ant[$y];
 					} elseif ($vk_kost) $kostpris[$y]=$v_kostpris;
@@ -1139,9 +1140,10 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		if (!$kun_salg) {
 #			print "<td align='right'> <b>".dkdecimal($tt_kobt,2)."</b></td>";
 #			fwrite($csvfile, dkdecimal($tt_kobt,2).";");
+			print "<td align='right'> <b>".dkdecimal($tt_kost,2)."</b></td>";
 			print "<td align='right'><b></b></td>";
 			print "<td align='right'><b></b></td>";
-			fwrite($csvfile,";;");
+			fwrite($csvfile, dkdecimal($tt_kost,2).";;");
 			print "<td align='right'> <b>".dkdecimal($tt_k_pris,2)."</b></td>";
 			fwrite($csvfile, ";". dkdecimal($tt_k_pris,2));
 			print "<td align='right'> <b></b></td>";

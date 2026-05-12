@@ -142,7 +142,7 @@ function countPriceCorrection($id, $price, $kasse)
     if (isset($_SESSION['price_correction'])) {
         $temp = $_SESSION['price_correction'];
         if ($temp == true) {
-            db_modify("insert into price_correction (id, price, kasse) values ($id, $price, $kasse)", __LINE__ . "linje" . __LINE__);
+            db_modify("insert into price_correction (id, price, kasse) values ($id, $price, $kasse)", __FILE__ . " linje " . __LINE__);
             unset($_SESSION['price_correction']);
         }
     }
@@ -150,9 +150,9 @@ function countPriceCorrection($id, $price, $kasse)
 function countCorrection($id, $kasse)
 {
     if (isset($_SESSION['savingCorrection']) && $_SESSION['savingCorrection'] == true) {
-        $sum = isset($_POST['sum']) ? (float) $_POST['sum'] : 0;
+        $sum = isset($_POST['sum']) ? $_POST['sum'] : 0;
         $id = getReceiptId("corrections");
-        db_modify("insert into corrections (id, price, kasse) values ($id, $sum, $kasse)", __LINE__ . "linje" . __LINE__);
+        if (is_numeric($sum)) db_modify("insert into corrections (id, price, kasse) values ($id, $sum, $kasse)", __FILE__ . " linje " . __LINE__);
         unset($_SESSION['savingCorrection']);
     } else {
         $_SESSION['savingCorrection'] = true;
@@ -162,7 +162,7 @@ function countCorrection($id, $kasse)
 function getReceiptId($table)
 {
     $id = 0;
-    $query = db_select("select * from $table", __LINE__ . "linje" . __LINE__);
+    $query = db_select("select * from $table", __FILE__ . " linje " . __LINE__);
     while(db_fetch_array($query)) {
         $id++;
     }
@@ -180,8 +180,8 @@ function proformaCount($x, $dkkpris, $kasse) {
     if (isset($proformaQuery['id'])) {
         $totalPrice = $totalPrice + $proformaQuery['price'];
         $count = $proformaQuery['count'] + 1;
-        db_modify("update proforma set price='$totalPrice' where id='$kasse'", __LINE__ . "linje" . __LINE__);
-        db_modify("update proforma set count='$count' where id='$kasse'", __LINE__ . "linje" . __LINE__);
+        db_modify("update proforma set price='$totalPrice' where id='$kasse'", __FILE__ . " linje " . __LINE__);
+        db_modify("update proforma set count='$count' where id='$kasse'", __FILE__ . " linje " . __LINE__);
     } else {
         db_modify("insert into proforma (id, price, count) values ($kasse, $totalPrice, '1')",__FILE__."linje".__LINE__);
     }
