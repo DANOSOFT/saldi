@@ -1,6 +1,29 @@
 <?php
-// kreditor/accountLookupData.php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- kreditor/accountLookupData.php --- Patch 5.0.0. --- 2026.05.12 ---
+/// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under thefrom kontoplan where regnskabsaar terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+//
+// Copyright (c) 2015-2026 saldi.dk ApS
+// -----------------------------------------------------------------------------------
 // 20260304 LOE Updated to work with grid framework (same pattern as debitor/accountLookupData.php)
+// 20260512 CL/PHR Fixed error in search
 
 header('Content-Type: application/json');
 
@@ -101,7 +124,7 @@ try {
 
     // Handle search parameters - only creditors (art = 'K')
     $searchParams = $requestParams['search'];
-    $whereClauses = ["art = 'K'", "lukket != 'on' OR lukket IS NULL"]; 
+    $whereClauses = ["art = 'K'", "(lukket != 'on' OR lukket IS NULL)"];
 
 
     foreach ($validColumns as $col) {

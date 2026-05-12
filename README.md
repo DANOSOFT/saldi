@@ -25,7 +25,7 @@ To use SALDI, clone the repository:
 
 
 ## Installation 
-- [INSTALLATION/](INSTALLATION.md): INSTALLATION.md
+- [INSTALLATION/](INSTALLATION.txt): INSTALLATION.txt
 
 
 ```bash

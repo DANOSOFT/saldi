@@ -62,6 +62,7 @@ utils/
 # Python stuff
 __pycache__/
 .pytest_cache
+testing/*
 
 # VS Code
 .vscode/
@@ -74,3 +75,4 @@ opret/
 # Dandomain and mysaleX
 dandomain/
 mysaleX/
+email.php
