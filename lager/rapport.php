@@ -143,10 +143,10 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 
 #if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";} 
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
-elseif ($submit == strtolower(findtekst('992|Lagerstatus', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
-elseif ($submit == strtolower(findtekst('2082|Prisliste', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
-elseif($submit == "salg pr. postnummer") print print "<meta http-equiv=\"refresh\" content=\"0;URL=salg_rapport.php?varegruppe=$varegruppe&afd=$afd&ref=$ref&lev=$lev&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
-elseif ($inventoryCount) print print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
+elseif (strtolower($submit) == strtolower(findtekst('992|Lagerstatus', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
+elseif (strtolower($submit) == strtolower(findtekst('2082|Prisliste', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
+elseif(strtolower($submit) == "salg pr. postnummer") print "<meta http-equiv=\"refresh\" content=\"0;URL=salg_rapport.php?varegruppe=$varegruppe&afd=$afd&ref=$ref&lev=$lev&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
+elseif ($inventoryCount) print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 
 #############################################################################################################
