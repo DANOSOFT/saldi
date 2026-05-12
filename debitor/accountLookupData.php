@@ -135,10 +135,7 @@ try {
 
     // Handle search parameters
     $searchParams = $requestParams['search'];
-    $whereClauses = [
-                        "art IN ('D', 'K')",
-                        "COALESCE(lukket, '') != 'on'"
-                    ];
+    $whereClauses = ["art='D'", "lukket != 'on'"];
 
     foreach ($validColumns as $col) {
         if (!empty($searchParams[$col])) {
@@ -178,7 +175,7 @@ try {
     while ($row = db_fetch_array($result)) {
         $data[] = $row;
     }
-   
+
     // Clear any output buffers before JSON
     while (ob_get_level()) {
         ob_end_clean();

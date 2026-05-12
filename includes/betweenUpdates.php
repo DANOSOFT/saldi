@@ -361,6 +361,12 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrer' and  column_name = 'digital_status'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE ordrer ADD digital_status varchar(25)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'group_id'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE settings ADD group_id integer";
