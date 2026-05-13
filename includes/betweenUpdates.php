@@ -72,12 +72,12 @@ if (!$already_migrated) {
             $account_id    = intval($row['id']);
             $company_name  = db_escape_string(trim($row['lev_firmanavn']));
             $address_line1 = db_escape_string(trim($row['lev_addr1']));
-            $address_line2 = db_escape_string(trim($row['lev_addr2']));
+            $address_line2 = db_escape_string(trim($row['lev_addr2'] ?? ''));
             $postal_code   = db_escape_string(trim($row['lev_postnr']));
             $city          = db_escape_string(trim($row['lev_bynavn']));
             $country       = db_escape_string(trim($row['lev_land']));
-            $contact_name  = db_escape_string(trim($row['lev_kontakt']));
-            $email         = db_escape_string(trim($row['lev_email']));
+            $contact_name  = db_escape_string(strlen(trim($row['lev_kontakt'])) <= 100 ? trim($row['lev_kontakt']) : ''); // 20260513 NTR - If data is corrupt, clear it instead of crashing.
+            $email         = db_escape_string(trim($row['lev_email'] ?? ''));
 
             if (!$company_name && !($address_line1 || $address_line2)) continue;
 
