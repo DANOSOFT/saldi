@@ -36,6 +36,7 @@
 // 20260430 LOE Created standalone version of kontokort report for easy navigation
 // 20260510 PHR Wraped all into finction.
 // 20260512 NTR Merged Live/POS into prod_test. 
+// 20260513 PK Fixed style on csv button.
 
 function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                         $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -150,7 +151,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 	print "<td width='75%' align='center' style='$topStyle'>".findtekst('516|Rapport - kontokort med moms', $sprog_id)."</td>\n";
-	print "<td width=\"10%\" $top_bund><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
+	print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>"; #20260513
 	print "</tbody></table>"; #B slut
 	print "</td></tr>";
 	#######################
