@@ -49,6 +49,7 @@
 // 20260423 LOE Reordered and added some codes to adjust for lines not yet saved to the database.
 // 20260507 NTR - Added batch Invoice Matching (bilagsmatch)
 // 20260513 PK - Removed background color in sticky header and changed commenting to the correct one
+// 20260513-2 PK - Removed 'button' in css as it created double border-radius on the pagination buttons
 
 
 ob_start(); //Starter output buffering
@@ -1921,10 +1922,10 @@ print '<style>
         border-top: 1px solid #ccc;
     }
 
-    /* Border radius for buttons */
+    /* Border radius for buttons #20260513-2*/
     input[type="submit"],
     input[type="button"],
-    button,
+   
     .button {
         border-radius: 4px;
     }
