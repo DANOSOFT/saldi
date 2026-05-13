@@ -48,6 +48,7 @@
 // 20260417 Sawaneh: Added a cloumn for vat with a dropwdown select
 // 20260423 LOE Reordered and added some codes to adjust for lines not yet saved to the database.
 // 20260507 NTR - Added batch Invoice Matching (bilagsmatch)
+// 20260513 PK - Removed background color in sticky header and changed commenting to the correct one
 
 
 ob_start(); //Starter output buffering
@@ -4179,11 +4180,10 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* Sticky header inside the scroll container */
-.kassekladde-scroll-container thead.kassekladde-thead {
+.kassekladde-scroll-container thead.kassekladde-thead { /* #20260513 */
     position: sticky;
     top: 0;
     z-index: 10;
-	background-color: <?php echo $bgcolor; ?> !important;
 }
 .datatable thead tr, .datatable thead th{
 	background-color: <?php echo $bgcolor; ?> !important;
@@ -4614,7 +4614,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ?>
 
-// Add clip drag-and-drop JavaScript for linking documents between lines
+<!-- Add clip drag-and-drop JavaScript for linking documents between lines #20260513 --> 
 <style>
 	/* Clip drag and drop styles */
 	.clip-cell {
