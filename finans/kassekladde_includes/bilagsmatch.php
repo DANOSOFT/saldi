@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 
 // 20260507 NTR - Added batch invoice matching (this)
+// 20260513 PK - Changed padding from 20px to 8px
 ?>
 
 <script src='../javascript/popupManager.js'></script>
@@ -274,7 +275,7 @@
 </script>
 
 <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 8px; background: #f5f5f5; } /* #20260513 */
     .header { background: $buttonColor; color: $buttonTxtColor; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
     .header h2 { margin: 0; }
     .doc-list { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
