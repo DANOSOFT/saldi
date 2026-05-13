@@ -61,7 +61,6 @@ phpmailer/
 mappe/
 /utils/
 
-
 # Python stuff
 __pycache__/
 .pytest_cache
@@ -86,8 +85,11 @@ email.php
 .ht*
 
 # Live Service
-/index/redirect.php
-/stock.txt
-/vareFlytning.txt
-/varenr_alias.txt
-/varer.csv
+index/redirect.php
+docker-compose.yml
+docker-entrypoint.sh
+Dockerfile
+stock.txt
+vareFlytning.txt
+varenr_alias.txt
+varer.csv
