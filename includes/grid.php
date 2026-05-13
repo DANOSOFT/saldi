@@ -16,6 +16,7 @@ lager/lister/indkøb.php, lager/lister/vareliste.php, lager/lister/ordrestatus.p
 includes/grid.php, finans/kontospec.php, finans/kassekladde.php, finans/regnskab.php, finans/budget.php
 finans/kladdeliste.php, systemdata/kontoplan.php, kreditor/kreditor.php, kreditor/productLookup.php, kreditor/orderIncludes/dropshipping.php, etc.
 Regards:) 20260220 LOE
+20260513 PK - Added class="navbutton" to the navigation buttons with svg, as those buttons were too high compared to the page selector buttons
 */
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
@@ -1182,11 +1183,11 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
                         </span>
                         |
                         <span id='navbuttons'>
-                            <button type='button' onclick="setOffset$id($lastpage)" $lastpagestatus>
+                            <button type='button' onclick="setOffset$id($lastpage)" class="navbutton" $lastpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
                             </button>
                             $pageLinks
-                            <button type='button' onclick="setOffset$id($nextpage)" $nextpagestatus>
+                            <button type='button' onclick="setOffset$id($nextpage)" class="navbutton" $nextpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                             </button>
                         </span>
