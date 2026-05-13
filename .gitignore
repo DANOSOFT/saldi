@@ -59,6 +59,7 @@ mappe/
 bilag/
 utils/
 /utils/
+
 # Python stuff
 __pycache__/
 .pytest_cache
@@ -80,3 +81,10 @@ email.php
 
 # Live Service
 index/redirect.php
+docker-compose.yml
+docker-entrypoint.sh
+Dockerfile
+stock.txt
+vareFlytning.txt
+varenr_alias.txt
+varer.csv
