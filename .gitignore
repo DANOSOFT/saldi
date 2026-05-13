@@ -1,4 +1,3 @@
-bilag
 bilag/
 bilag/*
 *temp/*
@@ -33,20 +32,18 @@ kreditor/betalinger_old.php
 logolib/
 
 #test
-price.txt
+/price.txt
 test/
 testing/
-SÆT i HMS - SÆT.csv
-adminpanel.txt
-nyteEmailSystem.txt
-bilag
-invoice.json
-ordre.php
+/SÆT i HMS - SÆT.csv
+/adminpanel.txt
+/nyteEmailSystem.txt
+/invoice.json
+/ordre.php
 
 paperpdf/
 temp/
 utils/
-bilag/
 logolib/
 vouchers/
 /temp/
@@ -56,8 +53,6 @@ SaldiAPI/
 phpmailerOld/
 phpmailer/
 mappe/
-bilag/
-utils/
 /utils/
 
 # Python stuff
@@ -81,8 +76,8 @@ mysaleX/
 email.php
 
 # Live Service
-index/redirect.php
-stock.txt
-vareFlytning.txt
-varenr_alias.txt
-varer.csv
+/index/redirect.php
+/stock.txt
+/vareFlytning.txt
+/varenr_alias.txt
+/varer.csv
