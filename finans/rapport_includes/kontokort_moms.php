@@ -34,8 +34,8 @@
 // 20260320 PHR Typo
 // 20260429 LOE Updated the top menu and made the report header sticky when scrolling.
 // 20260430 LOE Created standalone version of kontokort report for easy navigation
-// 20260510 PHR Wraped all into function.
-// 20260512 NTR Merged Live/POS into prod_test.
+// 20260510 PHR Wraped all into finction.
+// 20260512 NTR Merged Live/POS into prod_test. 
 // 20260513 PK Fixed style on csv button.
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 50) {
