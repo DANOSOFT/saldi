@@ -32,6 +32,7 @@
 // 20230522 PHR php8
 // 01072025 PBLM Added openKreditorKort function to open creditor card in same window
 // 20251127 LOE Modified to use grid table structure. 
+// 20260506 sawaneh fixed not directing to new account creation when the look for that account does not exist
 
 #ob_start();
 @session_start();

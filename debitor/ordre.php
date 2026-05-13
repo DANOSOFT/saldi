@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-29 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-05-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,11 +60,13 @@
 // 20260219 LOE removed setting sprog(background) from tekster.csv to formularsprog as they both refer to different things.
 // 20260219 PHR	Fixed AFD (Department) 
 // 20260223 Sawaneh SD-338 account lookup: create customer overlay with backdrop, selectAccount fix, AJAX row click handlers
-// 20260223 Sawaneh SD-335: fixed bynavn POST using wrong field, fixed SQL bug , added buttonname field to DFM pickup address buttons and related fixes
-// 20260225 PHR Order taken by ---
-// 20260227 PHR if (isset($kontonr)) changed to if (isset($kontonr) && $kontonr)
-// 20260227 PHR Scroll to bottom if focus is set to botom orderline  
-// 20260302 LOE SD-368: Sets tmp to value_type if set for navigation 
+// 20260223 Sawaneh SD-335 fixed bynavn POST using wrong field, fixed SQL bug , ($_POST['tlf'] -> $_POST['bynavn'])
+// 20260223 Sawaneh SD-335 fixed SQL bug: lev_land/lev_email missing column names in UPDATE query
+// 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address buttons (buttonname -> name1 -> town fallback) and related fixes
+// 20250225 PHR Order taken by ---
+// 20250227 PHR if (isset($kontonr)) changed to if (isset($kontonr) && $kontonr)
+// 20250227 PHR Scroll to bottom if focus is set to botom orderline   
+// 20260302 LOE SD-368: Sets tmp to value_type if set for navigation
 // 20260303 PHR Fixed ordrlst (arrows)
 // 20260304 Sawaneh SD-369 dfm_url override from pickup address
 // 20260305 PHR removed quickfix 20260304 as it made delivey when order was saved
@@ -79,6 +81,11 @@
 // 20260429 PHR Changed 'PBS' to 'BS' as colunm is varchar(2)
 // 20260429 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
 // 20260429 LOE Updated plukliste conditions for both orders and invoices
+// 20260502 LOE Delivery note button under orders now more visible with styling
+// 20260505 LOE Added select option for delivery addresses and logic to save it. SD-483
+// 20260509 PHR Hack to prevent order beeing created twice when using account lookup in to create the order.
+// 20260512 NTR MERGED Live/POS into PROD_TEST
+
 @session_start();
 $s_id = session_id();
 
@@ -122,7 +129,7 @@ if (empty($_GET['sag_id']) && empty($_POST['sag_id'])) {
     if ($sag_id_lookup !== null && is_numeric($sag_id_lookup) && (int)$sag_id_lookup > 0) {
         $r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='" . db_escape_string($sag_id_lookup) . "'", __FILE__ . " linje " . __LINE__));
         if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
-            $_GET['sag_id'] = $r_sag['sag_id'];   
+            $_GET['sag_id'] = $r_sag['sag_id'];  
         }
     }
 }
@@ -755,6 +762,13 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		db_modify("update ordrer set lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt', lev_land='$lev_land' where id=$id", __FILE__ . " linje " . __LINE__);
 	}
 }
+if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) { // 20260509
+	// Hack to prevent order beeing created twice when using account lookup in to create the order.
+	$qtxt = "select id from ordrer where konto_id = '$konto_id' and kontonr = '$kontonr' and sum = '0' ";
+	$qtxt.= " and status = '0'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $id = $r['id'];
+}
+
 if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	if (!is_numeric($default_procenttillag)) $default_procenttillag = 0;
 	$ordrenr = get_next_order_number('DO');
@@ -1549,11 +1563,11 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$qtxt = "select box6 from grupper where art='DG' and kodenr='$grp'";
 			($kontonr && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $rabatsats = $r['box6'] : $rabatsats == 0;
 		}
-#	} else {
-#		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
-#		// Reload the current page.
-#		header("Refresh:0");
-#		exit;
+		#	} else {
+		#		print "<BODY onLoad=\"javascript:alert('Kontonr must not be empty')\">\n";
+		#		// Reload the current page.
+		#		header("Refresh:0");
+		#		exit;
 	}
 	if (strstr($b_submit, 'Slet')) {
 		slet_ordre($id);
@@ -1569,7 +1583,13 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		if ($felt_1 == 'Konto' && ($betalingsbet == 'Kreditkort' || $betalingsbet == 'Kontant')) $b_submit = 'Gem';
 		$qtxt = "select moms from ordrer where id='$id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if (afrund($sum + $r['moms'] - ($felt_2 + $felt_4), 2)) $b_submit = 'Gem';
+		if (afrund($sum + $r['moms'] - ($felt_2 + $felt_4), 2)) {
+			$b_submit = 'Gem';
+			$a = $sum + $r['moms'];
+			$b = $felt_2 + $felt_4;
+			if ($art == 'DK' && $felt_2 > 0 && $sum < 0) alert ("Betalt beløb er positivt, det skal være negativt på en kreditota");
+			else alert ("Betalt beløb ($b stemmer ikke med sum $a)");
+		}
 	}
 	if ($id && $ny_valuta != $valuta && $status < 3) {
 		if ($ny_valuta != $baseCurrency) {
@@ -2366,6 +2386,59 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			db_modify("update ordrelinjer set rabat=$samlet_rabatpct where ordre_id = '$id'", __FILE__ . " linje " . __LINE__);
 		}
 	}
+	// ------------------------------------------------------------------
+	// Save/update delivery address based on company name + account_id
+	// ------------------------------------------------------------------
+	if (($b_submit == 'Gem' || $b_submit == 'save') && $id && $konto_id) {
+		// Only proceed if essential fields are filled
+		if (!empty($lev_navn) && !empty($lev_addr1) && !empty($lev_postnr) && !empty($lev_bynavn)) {
+			
+			// Demote all existing primary addresses for this customer
+			db_modify("UPDATE delivery_addresses 
+					SET is_primary = 'f' 
+					WHERE account_id = '" . db_escape_string($konto_id) . "'", 
+					__FILE__ . " L " . __LINE__);
+			
+			// Look for existing address with same account_id and company_name
+			$qtxt_find = "SELECT id FROM delivery_addresses 
+						WHERE account_id = '" . db_escape_string($konto_id) . "'
+							AND company_name = '" . db_escape_string($lev_navn) . "'
+						LIMIT 1";
+			$existing = db_fetch_array(db_select($qtxt_find, __FILE__ . " L " . __LINE__));
+			
+			if ($existing) {
+				// Update the existing row with current values
+				$qtxt_update = "UPDATE delivery_addresses SET
+									address_line1 = '" . db_escape_string($lev_addr1) . "',
+									address_line2 = '" . db_escape_string($lev_addr2) . "',
+									postal_code   = '" . db_escape_string($lev_postnr) . "',
+									city          = '" . db_escape_string($lev_bynavn) . "',
+									country       = '" . db_escape_string($lev_land) . "',
+									contact_name  = '" . db_escape_string($lev_kontakt) . "',
+									email         = '" . db_escape_string($lev_email) . "',
+									is_primary    = 't'
+								WHERE id = " . (int)$existing['id'];
+				db_modify($qtxt_update, __FILE__ . " L " . __LINE__);
+			} else {
+				// Insert new address as primary
+				$qtxt_insert = "INSERT INTO delivery_addresses 
+								(account_id, company_name, address_line1, address_line2, 
+								postal_code, city, country, contact_name, email, is_primary, sort_order)
+								VALUES (
+									'" . db_escape_string($konto_id) . "',
+									'" . db_escape_string($lev_navn) . "',
+									'" . db_escape_string($lev_addr1) . "',
+									'" . db_escape_string($lev_addr2) . "',
+									'" . db_escape_string($lev_postnr) . "',
+									'" . db_escape_string($lev_bynavn) . "',
+									'" . db_escape_string($lev_land) . "',
+									'" . db_escape_string($lev_kontakt) . "',
+									'" . db_escape_string($lev_email) . "',
+									't', 0)";
+				db_modify($qtxt_insert, __FILE__ . " L " . __LINE__); 
+			}
+		}
+	}
 	transaktion("commit");
 }
 ########################## KOPIER #################################
@@ -3058,7 +3131,7 @@ if (strstr($b_submit, 'Lev') && $bogfor != 0 && $status < 3) {
 			$fast_db[$x]    = $r['fast_db'];
 			$lev_varenr[$x] = $r['lev_varenr'];
 		}
-*/
+	*/
 	$q = db_select("select * from ordrelinjer where ordre_id = '$id' order by posnr,id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -3788,7 +3861,7 @@ function ordreside($id, $regnskab)
 		if ($udskriv_til!="email" && $email) print "<option>email</option>\n";
 		if ($udskriv_til!="oioxml" && strlen($ean)==13) print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n";
 		print "</SELECT></td></tr>\n";
-*/
+		*/
 		if ($showLocalPrint && $localPrint == 'on') {
 			$udskriv_til = 'localPrint';
 			print "<option value=\"localPrint\">" . findtekst('2531|Lokal printer', $sprog_id) . "</option>\n";
@@ -3800,7 +3873,7 @@ function ordreside($id, $regnskab)
 		#		if ($udskriv_til!="oioxml") print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n"; #PHR 20090803
 		if (($pbs || $lev_pbs_nr) && $udskriv_til != "PBS") print "<option value=\"PBS\">PBS</option>\n";
 		#		if ($udskriv_til!="ingen") print "<option>ingen</option>\n"; #PHR 20170501
-		//if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803 #NTR 20260429 removed option
+		if ($udskriv_til != "oioubl") print "<option value='oioubl' title=\"" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "\">oioubl</option>\n"; #PHR 20090803
 		if ($udskriv_til != "Digitalt") print "<option value='Digitalt' title='" . findtekst('1451|Kun ved fakturering/kreditering', $sprog_id) . "'>" . findtekst('2532|Digitalt', $sprog_id) . "</option>\n"; #PBLM 12/06-2023
 		#		if ($udskriv_til!="edifakt") print "<option title=\"".findtekst('1451|Kun ved fakturering/kreditering', $sprog_id)."\">edifakt</option>\n"; #20140201
 		$tmp = if_isset($pbs_nr, 0);
@@ -3831,7 +3904,7 @@ function ordreside($id, $regnskab)
 			if ($pbs_nr && !$pbs_fi) print "<td colspan=\"2\" title=\"$title\">Opkr&aelig;v via PBS (BS)</td><td title=\"$title\"><input class=\"inputbox\" type=\"checkbox\" name=\"pbs_bs\" \"$pbs_bs\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 		} else print "</tr>\n";
 		 
-*/
+		*/
 
 		// 
 		print "<tr class='tableTexting'><td width=\"100\"><b>" . findtekst('881|Ordredato', $sprog_id) . "</b></td><td width=\"100\">$ordredato</td>\n"; #20210629
@@ -4997,9 +5070,11 @@ function ordreside($id, $regnskab)
 			print "<tr><td>" . findtekst('2542|Restordre', $sprog_id) . "</td><td><input class = 'inputbox' type=\"checkbox\" name=\"restordre\" $restordre></td>\n";
 		}
 		print "</tbody></table></td>\n"; # <- Tabel 4.2
-		print "<td width=\"31%\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" valign = 'top'>\n"; # Tabel 4.3 ->
+		print "<td width=\"31%\"><table id=\"delivery_addresses_table\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" valign = 'top'>\n"; # Tabel 4.3 ->
 		$vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 		if ($vis_addr == "on") {
+
+		// implementing selected delivery address in delivery_address table.  
 			$txt28 = findtekst('28|Firmanavn', $sprog_id);
 			$txt140 = findtekst('140|Adresse', $sprog_id);
 			$txt666 = findtekst('666|Postnr & by', $sprog_id);
@@ -5007,6 +5082,104 @@ function ordreside($id, $regnskab)
 			print "<tr><td colspan=\"2\"><hr><td></tr>\n";
 			print "<tr><td colspan=\"2\" align=\"center\"><b>" . findtekst('554|Leveringsadresse', $sprog_id) . "</b></td></tr>\n";
 			print "<tr><td colspan=\"2\"><hr></b></tr>\n";
+			#######
+			$da_options = [];
+				$da_primary = null;
+				if ($konto_id) {
+					$q_da = db_select(
+						"SELECT * FROM delivery_addresses WHERE account_id = '$konto_id' ORDER BY is_primary DESC, sort_order ASC, id ASC",
+						__FILE__ . " linje " . __LINE__
+					);
+					while ($r_da = db_fetch_array($q_da)) {
+						$da_options[] = $r_da;
+						if ($r_da['is_primary'] && !$da_primary) $da_primary = $r_da;
+					}
+				}
+
+				// Auto-populate delivery fields if no delivery address set on order yet
+				$need_autofill = (!$lev_navn && !$lev_addr1 && !$lev_postnr);
+				if ($need_autofill && $da_primary) {
+					$lev_navn    = htmlspecialchars($da_primary['company_name']);
+					$lev_addr1   = htmlspecialchars($da_primary['address_line1']);
+					$lev_addr2   = htmlspecialchars($da_primary['address_line2']);
+					$lev_postnr  = htmlspecialchars($da_primary['postal_code']);
+					$lev_bynavn  = htmlspecialchars($da_primary['city']);
+					$lev_land    = htmlspecialchars($da_primary['country']);
+					$lev_kontakt = htmlspecialchars($da_primary['contact_name']);
+					$lev_email   = htmlspecialchars($da_primary['email']);
+					// Persist to order
+					$s_comp  = db_escape_string($da_primary['company_name']);
+					$s_a1    = db_escape_string($da_primary['address_line1']);
+					$s_a2    = db_escape_string($da_primary['address_line2']);
+					$s_post  = db_escape_string($da_primary['postal_code']);
+					$s_city  = db_escape_string($da_primary['city']);
+					$s_land  = db_escape_string($da_primary['country']);
+					$s_cont  = db_escape_string($da_primary['contact_name']);
+					$s_em    = db_escape_string($da_primary['email']);
+					if ($id) {
+						db_modify("UPDATE ordrer SET lev_navn='$s_comp', lev_addr1='$s_a1', lev_addr2='$s_a2', lev_postnr='$s_post', lev_bynavn='$s_city', lev_land='$s_land', lev_kontakt='$s_cont', lev_email='$s_em' WHERE id='$id'", __FILE__ . " linje " . __LINE__);
+					}
+				}
+
+				// Build JS map of addresses for client-side population
+				$da_js_map = 'var daAddrMap = {};' . "\n";
+				foreach ($da_options as $da_opt) {
+					$js_key = (int)$da_opt['id'];
+					$da_js_map .= "daAddrMap[$js_key] = " . json_encode([
+						'lev_navn'    => $da_opt['company_name'],
+						'lev_addr1'   => $da_opt['address_line1'],
+						'lev_addr2'   => $da_opt['address_line2'],
+						'lev_postnr'  => $da_opt['postal_code'],
+						'lev_bynavn'  => $da_opt['city'],
+						'lev_land'    => $da_opt['country'],
+						'lev_kontakt' => $da_opt['contact_name'],
+						'lev_email'   => $da_opt['email'],
+					]) . ";\n";
+				}
+
+				if (count($da_options) > 0) {
+					print "<tr>";
+					print "<td colspan='1'></td>";  
+					print "<td id='delivery_dropdown' colspan='1' align='left' style='padding:0;'>\n";
+					print "<select id='da_select' class='inputbox' style='width:200px;' onchange='daFillDelivery(this.value)'>\n";
+					print "<option value=''>-- Choose delivery address --</option>\n";
+					foreach ($da_options as $da_opt) {
+						$label = htmlspecialchars($da_opt['description'] ?: $da_opt['company_name'] ?: $da_opt['city']);
+						if ($da_opt['is_primary']) $label .= ' ★';
+						$selected = ($need_autofill && $da_opt['is_primary']) ? ' selected' : '';
+						print "<option value='" . (int)$da_opt['id'] . "'$selected>$label</option>\n";
+					}
+					print "</select></td></tr>\n";
+					print "<script>\n$da_js_map\n";
+					print "function daFillDelivery(id) {
+						if (!id || !daAddrMap[id]) return;
+						var a = daAddrMap[id];
+						var f = document.forms['ordre'];
+						if (!f) return;
+						function set(name, val) {
+							var el = f.elements[name];
+							if (el) el.value = val;
+						}
+						set('lev_navn',    a.lev_navn);
+						set('lev_addr1',   a.lev_addr1);
+						set('lev_addr2',   a.lev_addr2);
+						set('lev_postnr',  a.lev_postnr);
+						set('lev_bynavn',  a.lev_bynavn);
+						set('lev_land',    a.lev_land);
+						set('lev_kontakt', a.lev_kontakt);
+						set('lev_email',   a.lev_email);
+						// Set the hidden field to the selected address ID
+						var idField = f.elements['delivery_address_id'];
+						if (idField) idField.value = id;
+						docChange = true;
+					}
+					</script>\n";
+				} else {
+					// No delivery addresses saved — show empty placeholder row
+					print "<tr><td id='delivery_dropdown' colspan='2' align='right' style='padding-right:11px; color:#999; font-size:11px;'>";
+					
+				}
+			#######
 			print "<tr><td>$txt28</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_navn\" value=\"$lev_navn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 			print "<tr><td>$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_addr1\" value=\"$lev_addr1\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 			print "<tr><td></td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"lev_addr2\" value=\"$lev_addr2\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
@@ -5228,6 +5401,7 @@ function ordreside($id, $regnskab)
 		if ($lev_max > 0) {
 			print "<tr class='tableTexting2'><td colspan=\"2\">&nbsp;</td></tr>\n";
 			for ($levnr = 1; $levnr <= $lev_max; $levnr++) {
+				include("../includes/topline_settings.php");
 				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=$levnr&formular=3'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>" . findtekst('576|Følgeseddel', $sprog_id) . " $levnr</button></td></tr>\n";
 			}
 		}
@@ -6889,7 +7063,7 @@ if ($menu == 'T') {
 
 
 <link rel="stylesheet" href="orderIncludes/ordre_dragdrop.css">
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="../javascript/Sortable.min.js"></script>
 <script src="orderIncludes/ordre_dragdrop.js"></script>
 <!-- <script src ="orderIncludes/invoice_dragdrop.js"></script> -->
 <?php if (empty($sag_id)) { ?>

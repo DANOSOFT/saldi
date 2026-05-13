@@ -1,6 +1,6 @@
 <?php
-// ----------kreditor/kreditorkort.php---patch 4.1.1 --- 2025-11-26 ------
-// 							LICENSE
+// ----------kreditor/kreditorkort.php---patch 4.1.1 --- 2026-05-01 ------
+// 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20130224 Tilføjet kontofusion
 // 20140319 addslashes erstattet med db_escape_string
@@ -26,6 +26,7 @@
 // 20220505 MSC - Implementing new top design
 // 20220722 MSC - Implementing new top design
 // 20251125 LOE Datagrid used to handle the main tables.
+// 20260501 PHR fidscal_year
 
 @session_start();
 $s_id = session_id();
@@ -192,7 +193,7 @@ if ($menu == 'T') {
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
 	print "<div class=\"headerbtnLft headLink\"><a href=javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id') accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
-	print "<div class=\"headerTxt\">$title swhhshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh</div>";
+	print "<div class=\"headerTxt\">$title</div>";
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
 	print "<div class='content-noside'>";
@@ -368,11 +369,11 @@ print "<tr bgcolor=$bg><td>" . findtekst('1183|Kreditorgruppe', $sprog_id) . "</
 if (!$gruppe) {
 	$gruppe = 1;
 }
-$q = db_select("select beskrivelse from grupper where art='KG' and kodenr='$gruppe'", __FILE__ . " linje " . __LINE__);
+$q = db_select("select beskrivelse from grupper where art='KG' and kodenr='$gruppe' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
 print "<td><SELECT NAME=gruppe value=\"$gruppe\"  onchange=\"javascript:docChange = true;\">\n";
 print "<option>$gruppe:$r[beskrivelse]</option>\n";
-$q = db_select("select * from grupper where art='KG' and kodenr!='$gruppe' order by kodenr", __FILE__ . " linje " . __LINE__);
+$q = db_select("select * from grupper where art='KG' and kodenr!='$gruppe'  and fiscal_year = '$regnaar' order by kodenr", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	print "<option>$r[kodenr]:$r[beskrivelse]</option>\n";
 }

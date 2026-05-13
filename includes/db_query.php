@@ -87,6 +87,7 @@ if (!function_exists('db_connect')) {
 					if ($l_password) $connection = pg_connect ("host=$l_host dbname=$l_database user=$l_bruger password=$l_password");
 					else $connection = pg_connect ("host=$l_host dbname=$l_database user=$l_bruger");
 				} elseif ($l_host) $connection = pg_connect ($l_host); # til systemer installert pre maj 09
+				if ($connection) pg_set_client_encoding($connection, $db_encode == 'UTF8' ? 'UTF8' : 'LATIN9');
 			} else {
 				$errTxt="<h1>Fejl: PHP-funktionen <b>pg_connect()</b> kunne ikke findes</h1>".
 				"<p>Er b&aring;de postgres og php-pgsql installeret?</p>";
@@ -264,7 +265,7 @@ if (!function_exists('db_select')) {
 				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
 				fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
 				fclose($fp);
-#				if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
+				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
 				if (file_exists("$temp/selectfejl.txt")) {
 					$ff=fopen("$temp/selectfejl.txt","r");
 					$lastmail=trim(fgets($ff));

@@ -755,6 +755,12 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$lagertrigger                    = if_isset($_POST['lagertrigger']);
 		$lagertime                       = if_isset($_POST['lagertime']);
 		$minBeholdning                   = if_isset($_POST["minBeholdning"]);
+		$packagingModuleEnabled          = if_isset($_POST, null, 'packagingModuleEnabled');
+		update_settings_value("packagingModuleEnabled", "items", $packagingModuleEnabled, "Enable the packaging tax reporting module");
+		if ($packagingModuleEnabled === "on") {
+			include_once("../includes/emballage_schema.php");
+			ensure_emballage_schema();
+		}
 
 		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
 		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
