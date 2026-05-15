@@ -41,6 +41,13 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	global $prj_navn_fra;
 	global $prj_navn_til;
 	global $menu;
+	global $sprog_id;
+	global $db;
+	global $buttonStyle;
+
+	// Setup CSV export file
+	$csvfile = "../temp/$db/momsangivelse.csv";
+	$csv = fopen($csvfile, "w");
 
 	$medtag_primo = if_isset($_GET['medtag_primo']);
 
@@ -123,28 +130,53 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	#	$regnstart = $startaar. "-" . $startmaaned . "-" . $startdato;
 #	$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
-	#	print "  <a accesskey=L href=\"rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&afd=$afd\">Luk</a><br><br>";
-
+	// load topline settings for menu
+	include("../includes/topline_settings.php");
 	if ($menu == 'T') {
 		$title = "Rapport • Momsangivelse";
 
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
+		
+		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
+		$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
+		$rightbutton = "<a href='$csvfile' title='CSV' style='color:#ffffff; text-decoration: none;'><i class='fa fa-download fa-lg'></i> CSV</a>";
+		
 		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
-		print "<div class=\"headerTxt\">$title</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
+		print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
+		print "<div class=\"headerbtnRght headLink\">$rightbutton</div>";
 		print "</div>";
 		print "<div class='content-noside'>";
+		print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
 		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
-#	} elseif ($menu == 'S') {
-#		include("../includes/sidemenu.php");
+	} elseif ($menu == 'S') {
+		$title = findtekst(895, $sprog_id);
+		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		
+		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
+		
+		print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
+		print "<tr><td colspan=8 align=center>";
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+		
+		print "<td width=\"5%\"><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style='text-decoration: none;'>";
+		print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+		print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		
+		print "<td width='75%' align='center' style='$topStyle'>" . findtekst('895|Finansrapport', $sprog_id) . "</td>";
+		print "<td width='5%' align='center' style='$topStyle'><a href='$csvfile' style='color:#ffffff; text-decoration: none;'>csv</a></td>";
+		
+		print "</tbody></table>";
+		print "</td></tr></tbody></table>";
+		print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 	} else {
 		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
 		print "<tr><td colspan=\"6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
 		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
-		print "<td width=\"80%\" $top_bund> Rapport - " . ucfirst($rapportart) . "</td>";
+		print "<td width=\"80%\" $top_bund> Rapport - " . findtekst(895, $sprog_id) . "</td>";
 		print "<td width=\"10%\" $top_bund><br></td>";
 		print "</tbody></table>"; #B slut
 		print "</td></tr>";
@@ -422,6 +454,8 @@ XML;
 
 		print "<tr><td colspan=6><hr></td></tr>";
 		print "</tbody></table>";
+		print "</div>"; // close sticky wrapper
+
 		if ($menu == 'T') {
 			include_once '../includes/topmenu/footer.php';
 		} else {
