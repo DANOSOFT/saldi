@@ -45,9 +45,10 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	global $db;
 	global $buttonStyle;
 
-	// Setup CSV export file
+	// Setup CSV export file path.
+	// Do not open/truncate the file until CSV content is actually generated.
 	$csvfile = "../temp/$db/momsangivelse.csv";
-	$csv = fopen($csvfile, "w");
+	$csv = null;
 
 	$medtag_primo = if_isset($_GET['medtag_primo']);
 
@@ -454,7 +455,9 @@ XML;
 
 		print "<tr><td colspan=6><hr></td></tr>";
 		print "</tbody></table>";
-		print "</div>"; // close sticky wrapper
+		if ($menu == 'T' || $menu == 'S') {
+			print "</div>"; // close sticky wrapper
+		}
 
 		if ($menu == 'T') {
 			include_once '../includes/topmenu/footer.php';
