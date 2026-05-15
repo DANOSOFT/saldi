@@ -28,6 +28,7 @@
 // 20220119 PHR	Made i possible to use SUM accounts inside the this repport
 // 20230110 MSC - Implementing new design
 // 20230829 MSC - Copy pasted new design into code
+// 20260515 PK - Removed csv button as it should not be possible to print csv from here
 
 
 function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev)
@@ -47,8 +48,8 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 	// Setup CSV export file path.
 	// Do not open/truncate the file until CSV content is actually generated.
-	$csvfile = "../temp/$db/momsangivelse.csv";
-	$csv = null;
+	// $csvfile = "../temp/$db/momsangivelse.csv";
+	// $csv = null;
 
 	$medtag_primo = if_isset($_GET['medtag_primo']);
 
@@ -141,7 +142,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		
 		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
 		$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
-		$rightbutton = "<a href='$csvfile' title='CSV' style='color:#ffffff; text-decoration: none;'><i class='fa fa-download fa-lg'></i> CSV</a>";
+		// $rightbutton = "<a href='$csvfile' title='CSV' style='color:#ffffff; text-decoration: none;'><i class='fa fa-download fa-lg'></i> CSV</a>";
 		
 		print "<div id=\"header\">";
 		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
@@ -166,7 +167,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
 		
 		print "<td width='75%' align='center' style='$topStyle'>" . findtekst('895|Finansrapport', $sprog_id) . "</td>";
-		print "<td width='5%' align='center' style='$topStyle'><a href='$csvfile' style='color:#ffffff; text-decoration: none;'>csv</a></td>";
+		print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
 		
 		print "</tbody></table>";
 		print "</td></tr></tbody></table>";
