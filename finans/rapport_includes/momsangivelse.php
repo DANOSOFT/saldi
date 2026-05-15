@@ -141,7 +141,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		
 		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
 		$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
-		$rightbutton = "<a href='$csvfile' title='CSV' style='color:#ffffff; text-decoration: none;'><i class='fa fa-download fa-lg'></i> CSV</a>";
+		// $rightbutton = "<a href='$csvfile' title='CSV' style='color:#ffffff; text-decoration: none;'><i class='fa fa-download fa-lg'></i> CSV</a>";
 		
 		print "<div id=\"header\">";
 		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
