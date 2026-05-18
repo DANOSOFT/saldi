@@ -48,6 +48,8 @@
 // 20260417 Sawaneh: Added a cloumn for vat with a dropwdown select
 // 20260423 LOE Reordered and added some codes to adjust for lines not yet saved to the database.
 // 20260507 NTR - Added batch Invoice Matching (bilagsmatch)
+// 20260513 PK - Removed background color in sticky header and changed commenting to the correct one
+// 20260513-2 PK - Removed 'button' in css as it created double border-radius on the pagination buttons
 
 
 ob_start(); //Starter output buffering
@@ -1920,10 +1922,10 @@ print '<style>
         border-top: 1px solid #ccc;
     }
 
-    /* Border radius for buttons */
+    /* Border radius for buttons #20260513-2*/
     input[type="submit"],
     input[type="button"],
-    button,
+   
     .button {
         border-radius: 4px;
     }
@@ -2308,27 +2310,23 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		print "
 		.kk-cols-picker{position:fixed;top:70px;right:18px;z-index:9999;text-align:right;}
-		.kk-cols-btn{cursor:pointer;padding:6px 14px;border:1px solid #999;background:#fff;border-radius:4px;font-size:13px;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,.15);}
-		.kk-cols-btn:hover{background:#f0f0f0;}
-		.kk-cols-menu{display:none;position:absolute;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #ccc;box-shadow:0 2px 8px rgba(0,0,0,.2);padding:10px 14px;z-index:10000;min-width:180px;text-align:left;}
-		.kk-cols-menu.open{display:block;}
+		.kk-cols-menu{display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid #ccc;box-shadow:0px 8px 16px rgba(0,0,0,.2);padding:10px 14px;z-index:10000;min-width:180px;text-align:left;}
+		.kk-cols-picker:hover .kk-cols-menu{display:block;}
 		.kk-cols-menu label{display:block;padding:3px 0;font-size:12px;cursor:pointer;white-space:nowrap;}
-		.kk-cols-menu input{margin-right:6px;vertical-align:middle;}
+		.kk-cols-menu input{margin-right:10px;vertical-align:middle;}
+		#kk-turn-arrow{transition:transform 0.1s ease-in-out;}
+		.kk-cols-picker:hover #kk-turn-arrow{transform:rotate(90deg);}
+		.kk-cols-picker .kk-cols-menu{min-width:180px;white-space:nowrap;}
 		</style>";
-		print "<div style='text-align:right;'><div class='kk-cols-picker'>";
-		print "<button type='button' class='kk-cols-btn' onclick='kkToggleColsMenu(event)'>&#x1F4CB; Columns</button>";
-		print "<div class='kk-cols-menu' id='kk-cols-menu'>";
+		print "<div style='text-align:right;'><div class='kk-cols-picker' style='position:fixed;top:70px;right:18px;z-index:9999;display:inline-block;'>";
+		print "<svg id='kk-turn-arrow' xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='34px' fill='#000000'><path d='M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z'/></svg>";
+		print "<div class='kk-cols-menu'>";
 		foreach ($kk_toggle_cols as $ckey => $clabel) {
 			$checked = in_array($ckey, $kk_hidden_cols, true) ? '' : 'checked';
 			print "<label><input type='checkbox' class='kk-col-toggle' data-col='" . htmlspecialchars($ckey, ENT_QUOTES, $charset) . "' $checked> " . htmlspecialchars($clabel, ENT_QUOTES, $charset) . "</label>";
 		}
 		print "</div></div></div>";
 		print "<script>
-		function kkToggleColsMenu(e){e.stopPropagation();document.getElementById('kk-cols-menu').classList.toggle('open');}
-		document.addEventListener('click',function(e){
-			var m=document.getElementById('kk-cols-menu');
-			if(m && !m.contains(e.target) && !e.target.classList.contains('kk-cols-btn')) m.classList.remove('open');
-		});
 		document.addEventListener('change',function(e){
 			if(!e.target.classList.contains('kk-col-toggle')) return;
 			var col=e.target.getAttribute('data-col');
@@ -4179,11 +4177,10 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* Sticky header inside the scroll container */
-.kassekladde-scroll-container thead.kassekladde-thead {
+.kassekladde-scroll-container thead.kassekladde-thead { /* #20260513 */
     position: sticky;
     top: 0;
     z-index: 10;
-	background-color: <?php echo $bgcolor; ?> !important;
 }
 .datatable thead tr, .datatable thead th{
 	background-color: <?php echo $bgcolor; ?> !important;
@@ -4614,7 +4611,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ?>
 
-// Add clip drag-and-drop JavaScript for linking documents between lines
+<!-- Add clip drag-and-drop JavaScript for linking documents between lines #20260513 --> 
+
 <style>
 	/* Clip drag and drop styles */
 	.clip-cell {

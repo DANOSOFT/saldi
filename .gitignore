@@ -1,3 +1,4 @@
+bilag
 bilag/
 bilag/*
 *temp/*
@@ -21,8 +22,6 @@ bordplaner/bordplan_*
 debitor/pos_print/*_*.php
 helm/saldi/charts
 
-bilag
-bilag/
 includes/connect.php
 includes/temp/
 index/ch/
