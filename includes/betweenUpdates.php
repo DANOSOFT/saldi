@@ -29,6 +29,7 @@
 // 20260504 NTR Fixed error on login due to missing regnskab's table
 // 20260507 PHR Removed above as table regskab must not be created en sub bases
 // 20260512 NTR Merged Live/POS into prod_test
+// 20260517 NTR Fixed crittical error when trying to migrate delivery_addresses data (again)
 
 
 
@@ -75,33 +76,45 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
-$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'delivery_addresses'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE TABLE delivery_addresses (id SERIAL NOT NULL, account_id integer NOT NULL,";
-	$qtxt.= " is_primary boolean NOT NULL DEFAULT false, sort_order smallint NOT NULL DEFAULT 0,";
-	$qtxt.= " description varchar(100), company_name varchar(255), first_name varchar(100),";
-	$qtxt.= " last_name varchar(100), address_line1 varchar(255), address_line2 varchar(255),";
-	$qtxt.= " postal_code varchar(20), city varchar(100), country varchar(100),";
-	$qtxt.= " contact_name varchar(100), phone varchar(50), email varchar(255),";
-	$qtxt.= " created_at timestamp DEFAULT CURRENT_TIMESTAMP,";
-	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
-$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'delivery_addresses' AND indexname = 'idx_delivery_addresses_account_id'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE INDEX idx_delivery_addresses_account_id ON delivery_addresses(account_id)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
 //migrate all delivery addresses in adresser to delivery_addresses and link them to the corresponding account
 // Only run migration once
 $already_migrated = db_fetch_array(db_select(
     "SELECT var_value FROM settings WHERE var_name = 'delivery_addr_migrated' AND var_grp = 'system'",
     __FILE__ . " linje " . __LINE__
 ));
+
 error_log("Delivery address migration already done: " . ($already_migrated ? 'yes' : 'no'));
 if (!$already_migrated) {
+
+	// Drop and Recreate
+	db_modify('DROP TABLE IF EXISTS "delivery_addresses"', __FILE__ . " linje " . __LINE__);
+	db_modify('DROP SEQUENCE IF EXISTS delivery_addresses_id_seq', __FILE__ . " linje " . __LINE__);
+	db_modify('CREATE SEQUENCE delivery_addresses_id_seq INCREMENT 1 MINVALUE 1 MAXVALUE 2147483647 START 51 CACHE 1', __FILE__ . " linje " . __LINE__);
+	$qtxt = <<<SQL
+		CREATE TABLE "public"."delivery_addresses" (
+			"id" integer DEFAULT nextval('delivery_addresses_id_seq') NOT NULL,
+			"account_id" integer NOT NULL,
+			"is_primary" boolean DEFAULT false NOT NULL,
+			"sort_order" smallint DEFAULT '0' NOT NULL,
+			"description" character varying(100),
+			"company_name" character varying(255),
+			"first_name" character varying(100),
+			"last_name" character varying(100),
+			"address_line1" character varying(255),
+			"address_line2" character varying(255),
+			"postal_code" character varying(20),
+			"city" character varying(100),
+			"country" character varying(100),
+			"contact_name" character varying(100),
+			"phone" character varying(50),
+			"email" character varying(255),
+			"created_at" timestamp DEFAULT now(),
+			CONSTRAINT "delivery_addresses_pkey" PRIMARY KEY ("id")
+		) WITH (oids = false)
+	SQL;
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	// Transfer Data
     $qtxt = "SELECT id, lev_firmanavn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, lev_kontakt, lev_email 
              FROM adresser 
              WHERE (lev_firmanavn IS NOT NULL AND lev_firmanavn != '') 
