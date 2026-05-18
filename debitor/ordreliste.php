@@ -47,6 +47,7 @@
 // 20260311 PHR Fixed revenue and cover ratio again
 // 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly
 // 20260317 AJ Updated hover text for order number
+// 20260518 CL/PHR account_context springer kontonr pre-populate over. Kontonr-søgning finder nu alle ordrer for kunder med samme kontonr.
 
 @session_start();
 $s_id = session_id();
@@ -591,8 +592,11 @@ if ($konto_id) {
 
     $debug_log[] = "Current search values: " . json_encode($_GET['search'][$grid_id]);
 
-    // Only pre-populate if search fields are empty
-    if (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
+    // In account_context mode, konto_id is already used in base WHERE (line ~1449) so all
+    // orders for the customer are found regardless of kontonr changes — skip kontonr search.
+    if ($account_context) {
+        $debug_log[] = "account_context active: konto_id filter in base WHERE, skipping kontonr pre-populate";
+    } elseif (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
         $konto_id_escaped = db_escape_string($konto_id);
         $qtxt = "SELECT  kontonr FROM adresser WHERE id = '$konto_id_escaped'";
         $debug_log[] = "Query to fetch customer: $qtxt";
@@ -930,6 +934,18 @@ $custom_columns = array(
         "width" => "1",
         "type" => "text",
         "sqlOverride" => "o.kontonr",
+        "generateSearch" => function ($column, $term) {
+            $term = db_escape_string($term);
+            $ids = array();
+            $q = db_select("SELECT id FROM adresser WHERE kontonr = '$term'", __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                if ($r['id']) $ids[] = db_escape_string($r['id']);
+            }
+            if (!empty($ids)) {
+                return "o.konto_id IN ('" . implode("','", $ids) . "')";
+            }
+            return "o.kontonr ILIKE '%$term%'";
+        },
         "render" => function ($value, $row, $column) {
             return "<td align='$column[align]'>$value</td>";
         }

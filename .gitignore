@@ -59,6 +59,7 @@ mappe/
 bilag/
 utils/
 /utils/
+
 # Python stuff
 __pycache__/
 .pytest_cache
@@ -68,6 +69,7 @@ testing/*
 .vscode/
 .htaccess
 converter/exitsound_5.sql
+.claude/
 
 # Opret
 opret/
@@ -75,7 +77,12 @@ opret/
 # Dandomain and mysaleX
 dandomain/
 mysaleX/
+
 email.php
 
 # Live Service
 index/redirect.php
+stock.txt
+vareFlytning.txt
+varenr_alias.txt
+varer.csv
