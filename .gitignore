@@ -69,6 +69,7 @@ testing/*
 .vscode/
 .htaccess
 converter/exitsound_5.sql
+.claude/
 
 # Opret
 opret/
