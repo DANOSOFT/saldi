@@ -71,6 +71,18 @@ $qtxt = "CREATE SEQUENCE IF NOT EXISTS regnskab_id_seq";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_due_date'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE ordrelinjer ADD batch_due_date date default NULL";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_batch_no'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE ordrelinjer ADD batch_batch_no varchar(100)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and  column_name = 'iban'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE adresser ADD iban varchar(40)";
@@ -80,6 +92,19 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and  column_name = 'swift'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE adresser ADD swift varchar(15)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'delivery_addresses'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE delivery_addresses (id SERIAL NOT NULL, account_id integer NOT NULL,";
+	$qtxt.= " is_primary boolean NOT NULL DEFAULT false, sort_order smallint NOT NULL DEFAULT 0,";
+	$qtxt.= " description varchar(100), company_name varchar(255), first_name varchar(100),";
+	$qtxt.= " last_name varchar(100), address_line1 varchar(255), address_line2 varchar(255),";
+	$qtxt.= " postal_code varchar(20), city varchar(100), country varchar(100),";
+	$qtxt.= " contact_name varchar(100), phone varchar(50), email varchar(255),";
+	$qtxt.= " created_at timestamp DEFAULT CURRENT_TIMESTAMP,";
+	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
