@@ -66,18 +66,6 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and  column_name = 'iban'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE adresser ADD iban varchar(40)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and  column_name = 'swift'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE adresser ADD swift varchar(15)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_due_date'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE ordrelinjer ADD batch_due_date date default NULL";
