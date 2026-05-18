@@ -260,6 +260,7 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 			}
+			
 			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "ALTER TABLE batch_kob ADD due_date date";
@@ -277,19 +278,13 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				$qtxt = "ALTER TABLE variant_varer ADD variant_salgspris numeric(15,3)";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
+
 			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'variant_varer' and  column_name = 'variant_text'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "ALTER TABLE variant_varer ADD variant_text varchar(25)";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
-			/*
-			$qtxt = "SELECT id FROM formularer WHERE formular = 9 AND art = '3' AND beskrivelse = 'leveret' AND sprog = 'Dansk' LIMIT 1";
-			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			    $qtxt = "INSERT INTO formularer (formular, art, beskrivelse, justering, xa, ya, xb, yb, str, color, font, fed, kursiv, side, sprog)
-			             VALUES (9, '3', 'leveret', 'V', 163.000, 0.000, 0.000, 0.000, 9.000, 0, 'Helvetica', '', '', '0', 'Dansk')";
-			    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-			*/
+
 			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'kontoplan' and  column_name = 'map_to'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "ALTER TABLE kontoplan ADD column map_to numeric(15)";
@@ -308,21 +303,9 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 
-			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'digital_status'";
-			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "ALTER TABLE settings ADD digital_status varchar(25)";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-
 			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrer' and  column_name = 'digital_status'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "ALTER TABLE ordrer ADD digital_status varchar(25)";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-
-			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'group_id'";
-			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "ALTER TABLE settings ADD group_id integer";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 
