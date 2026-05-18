@@ -1,5 +1,4 @@
 <?php
-// 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
 
     // This file is used to send invoices to EasyUBL
 //                ___   _   _   ___  _     ___  _ _
@@ -29,6 +28,7 @@
 
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
+// 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
 
     @session_start();
     $s_id=session_id();
