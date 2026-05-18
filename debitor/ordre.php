@@ -4795,7 +4795,7 @@ function ordreside($id, $regnskab)
 		print "<input class='inputbox' style='text-align:right;width:60px' type='text' name='momssats' ";
 		print "value=\"" . dkdecimal($momssats, 2) . "\" onchange='javascript:docChange = true;' $disabled>%</td></tr>\n";
 		/*
-    print "<tr><td colspan=2>Send pr. mail&nbsp;</td><td><input class = 'inputbox' type=\"checkbox\" name=\"mail_fakt\" onchange=\"javascript:docChange = true;\" $mail_fakt></td>\n";
+    	print "<tr><td colspan=2>Send pr. mail&nbsp;</td><td><input class = 'inputbox' type=\"checkbox\" name=\"mail_fakt\" onchange=\"javascript:docChange = true;\" $mail_fakt></td>\n";
 		if ($lev_pbs_nr) {
 			if ($pbs == "FI") $pbs_fi='checked';
 			elseif ($pbs == "BS") $pbs_bs='checked';
@@ -5587,8 +5587,8 @@ function ordreside($id, $regnskab)
 						}
 					}
 					/*					
-				db_modify("update ordrelinjer set kostpris='$kostpris[$x]' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
-*/
+					db_modify("update ordrelinjer set kostpris='$kostpris[$x]' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+					*/
 					if ($rabatart[$x] == 'amount') $dbi[$x] = $pris[$x] - $rabat[$x]; #20140424 -= 
 					else $dbi[$x] = $pris[$x] - ($pris[$x] * $rabat[$x] / 100); #20140424 -= 
 					$dbi[$x] -= $kostpris[$x]; #20140424 -= 
@@ -6077,7 +6077,7 @@ function ordreside($id, $regnskab)
 				print "onclick=\"javascript:docChange = false;\"></td>\n";
 			}
 
-			if ($status == 1 && $bogfor != 0 && $hurtigfakt != 'on' && $leveres_ialt) {
+			if ($status <= 3 && $bogfor != 0 && $hurtigfakt != 'on' && $leveres_ialt) {
 				if ($art == 'DO') print "<td align=\"center\"  width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1483|Levér', $sprog_id) . "\" name=\"deliver\" onclick=\"javascript:docChange = false;\"></td>\n";
 				else print "<td align=\"center\" width=$width title=\"" . findtekst('1491|Klik her for at tage varer retur', $sprog_id) . "\"><input type=\"submit\"  class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1485|Modtag', $sprog_id) . "\" name=\"receive\" onclick=\"javascript:docChange = false;\"></td>\n";
 			}
@@ -6590,9 +6590,9 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 					if (!$stockQty) $stockQty = $r['beholdning'];
 				}
 				// Check if ordered quantity exceeds available stock
-				if (in_array($gruppe, $stockGrp) && $antal > $stockQty) {
+				if (in_array($gruppe, $stockGrp) && ($antal - $leveret) > $stockQty) { ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
 					$txtColor = 'red';
-					$qtyTitle = "Obs!! Antal (" . dkdecimal($antal, 0) . ") overstiger beholdning (" . dkdecimal($stockQty, 0) . ")";
+					$qtyTitle = "Obs!! Antal (" . dkdecimal($antal - $leveret, 0) . ") overstiger beholdning (" . dkdecimal($$stockQty, 0) . ")"; ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
 				} elseif (in_array($gruppe, $stockGrp) && $min_lager > 0 && $stockQty < $min_lager) {
 					$txtColor = 'red';
 					$qtyTitle = "Obs!! Beholdning (" . dkdecimal($stockQty, 0) . ") mindre end " . dkdecimal($min_lager, 0);
@@ -6793,26 +6793,19 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -1);
 			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -2);
 			if (!$lagervare) $beholdning = "ikke lagerført";
-			$tmp = afrund(abs($antal) - abs($tidl_lev), 2); #20131004
+			$levdiff = afrund(abs($antal) - abs($tidl_lev), 2) != 0; #NTR - 20260518
 			if ($samlevare && $saet) {
 
 				$tmp = NULL;
 			} else {
-				if ($tmp) {
-					if (abs($antal) != abs($tidl_lev)) {
-						print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Mangler fortsat at " . $lever_modtag . "e resten.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
-					} else {
-						print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Intet " . $lever_modtag . "et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
-					}
-					print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
-					if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
-					elseif ($serienr) print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"" . findtekst('1501|Vælg serienr', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
-					$levdiff = 1;
+				if (abs($antal) != abs($tidl_lev)) {
+					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Mangler fortsat at " . $lever_modtag . "e resten.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				} else {
-					if ($antal == $tidl_lev) $dklev = 0;
-					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Alt " . $lever_modtag . "et. Brug negativt tal (fx -1) for at trække fra.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
-					print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
+					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Intet " . $lever_modtag . "et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				}
+				print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
+				if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
+				elseif ($serienr) print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"" . findtekst('1501|Vælg serienr', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
 
 				if ($linje_id && $leveret != $tidl_lev) db_modify("update ordrelinjer set leveret=$tidl_lev where id=$linje_id", __FILE__ . " linje " . __LINE__);
 			}
