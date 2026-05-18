@@ -324,12 +324,13 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 					if ($leveres[$x] > $tidl_lev + $antal[$x])
 						$leveres[$x] = $antal[$x] - $tidl_lev;
 				}
+				// Limit return delivery, to amounts delivered.
 				if ($leveres[$x] < 0 && $art == 'DO') {
 					$tidl_lev_do = 0;
 					$qtxt = "select antal from batch_salg where linje_id = '$linje_id[$x]' and ordre_id='$id'";
 					$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 					while ($row = db_fetch_array($query)) $tidl_lev_do = $tidl_lev_do + $row['antal'];
-					if (abs($leveres[$x]) < abs($tidl_lev_do)) $leveres[$x] = $tidl_lev_do * -1;
+					if ($tidl_lev_do > 0 && -$leveres[$x] > $tidl_lev_do) $leveres[$x] = $tidl_lev_do * -1;
 				}
 			}
 			for ($x = 1; $x <= $linjeantal; $x++) {
