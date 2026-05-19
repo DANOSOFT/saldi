@@ -50,7 +50,7 @@
 // 20260507 NTR - Added batch Invoice Matching (bilagsmatch)
 // 20260513 PK - Removed background color in sticky header and changed commenting to the correct one
 // 20260513-2 PK - Removed 'button' in css as it created double border-radius on the pagination buttons
-
+// 20260519 CL/NTR - Moved Balance Ledger, Balance Bank and Balance Diff to before moms column. Added Header to Balance Diff.
 
 ob_start(); //Starter output buffering
 
@@ -2372,8 +2372,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($vis_bet_id)
 				print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalings-ID fra girokort - kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td>";
 		}
-		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
-		print "<td align='center' width='60px'><b>Position</b></td>";
 		if ($kontrolkonto) {
 			print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>".findtekst('2595|Regnskab', $sprog_id)."</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 			$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
@@ -2381,9 +2379,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td style = 'width:20px'></td>";
 				print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 			}
+			print "<td align='right' width='30px'><b><span></b></td>";
+			print "<td align='center' width='30px'><b><span>Balance Diff</span></b></td>"; // Need FindText
 		}
-		print "<td align='right' width='30px'><b> <span></b></td>";
-		print "<td align='right' width='30px'><b> <span></b></td>";
+		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
+		print "<td align='center' width='60px'><b>Position</b></td>";
 		print "<td align='right' width='30px'><b> <span></b></td>";
 		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'></b></td>";
 		print "</tr>\n";
@@ -2811,6 +2811,23 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($vis_bet_id)
 				print "<td><input class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
+		if ($control_bal_fetched) {
+			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
+			$titletxt .= $control_record_date;
+			$titletxt .= findtekst(", fordi der blev bogført på kontrolkontoen denne dato!", $sprog_id); # " because there was transactions on the control account this date!"
+			print "<td style='text-align:right;font-weight:bold' title='" . $titletxt . "'>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
+			$control_bal_fetched = FALSE;
+		} elseif ($kontrolkonto && $kontrolsaldo) {
+			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
+		}
+		if ($kontrolkonto && abs((float)$saldo[$y]) > 0) {
+			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
+			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
+			print "<td>&nbsp;</td><td align='right'><div $color>" . dkdecimal($saldo[$y]) . "</div></td>\n";
+			if ($saldoDiff)
+				print "<td>&nbsp;</td><td align='right'><div $color>(" . dkdecimal($saldoDiff) . ")</div></td>\n";
+		}
+
 		if ($momsfri[$y] == 'on') {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='javascript:docChange = true;' ></td>\n";
 
@@ -2829,23 +2846,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 
 		######
-
-		if ($control_bal_fetched) {
-			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
-			$titletxt .= $control_record_date;
-			$titletxt .= findtekst(", fordi der blev bogført på kontrolkontoen denne dato!", $sprog_id); # " because there was transactions on the control account this date!"
-			print "<td style='text-align:right;font-weight:bold' title='" . $titletxt . "'>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
-			$control_bal_fetched = FALSE;
-		} elseif ($kontrolkonto && $kontrolsaldo) {
-			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
-		}
-		if ($kontrolkonto && abs((float)$saldo[$y]) > 0) {
-			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
-			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
-			print "<td>&nbsp;</td><td align='right'><div $color>" . dkdecimal($saldo[$y]) . "</div></td>\n";
-			if ($saldoDiff)
-				print "<td>&nbsp;</td><td align='right'><div $color>(" . dkdecimal($saldoDiff) . ")</div></td>\n";
-		}
 
 		// Add Plus and Delete buttons
 		// Plus button - always enabled
