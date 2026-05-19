@@ -2851,7 +2851,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			//$control_bal_fetched = FALSE;
 		} elseif ($kontrolkonto && $kontrolsaldo) {
 			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
-		}
+		} 
 		if ($kontrolkonto && abs((float)$saldo[$y]) > 0) {
 			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
 			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
