@@ -212,7 +212,7 @@ foreach ($grid_params as $param) {
 		unset($_GET[$param]);
 	}
 }
-
+ 
 // Also filter array parameters that start with search, sort, etc.
 foreach ($_GET as $key => $value) {
 	if (is_array($value) || preg_match('/^(search|sort|offset|rowcount|menu)\[/', $key)) {
@@ -220,7 +220,7 @@ foreach ($_GET as $key => $value) {
 	}
 }
 #################
-
+ 
 $funktion = if_isset($_GET, NULL, 'funktion');
 $tidspkt = date("U"); #20210719
 
@@ -2288,6 +2288,37 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 
 					// If the order is created with an error display
 					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
+
+					// Auto-populate item note on order line if 'note_on_orderline' is enabled on the item card
+					if (is_numeric($svar)) {
+						$noteQtxt = "SELECT notes, note_on_orderline FROM varer 
+									WHERE varenr = '" . db_escape_string($varenr[0]) . "' 
+									OR varenr_alias = '" . db_escape_string($varenr[0]) . "' 
+									OR stregkode = '" . db_escape_string($varenr[0]) . "' 
+									LIMIT 1";
+						if ($noteVare = db_fetch_array(db_select($noteQtxt, __FILE__ . " linje " . __LINE__))) {
+							$noteEnabled = (
+								$noteVare['note_on_orderline'] === 't' ||
+								$noteVare['note_on_orderline'] === true ||
+								$noteVare['note_on_orderline'] == 1
+							);
+							if ($noteEnabled && !empty(trim($noteVare['notes']))) {
+								$noteOrdrelinje = db_fetch_array(db_select(
+									"SELECT id, beskrivelse FROM ordrelinjer WHERE ordre_id='$id' ORDER BY id DESC LIMIT 1",
+									__FILE__ . " linje " . __LINE__
+								));
+								if ($noteOrdrelinje['id']) {
+									$noteItem     = db_escape_string(trim($noteVare['notes']));
+									$noteExisting = db_escape_string($noteOrdrelinje['beskrivelse']);
+									$noteNewDesc  = $noteExisting ? $noteExisting . "\n" . $noteItem : $noteItem;
+									db_modify(
+										"UPDATE ordrelinjer SET beskrivelse='$noteNewDesc' WHERE id='$noteOrdrelinje[id]'",
+										__FILE__ . " linje " . __LINE__
+									);
+								}
+							}
+						}
+					}
 					// Else link serial from GS1 barcode
 					else {
 						// Check the serial number was detected by GS1 parsing and the item is a serial number dependent item
