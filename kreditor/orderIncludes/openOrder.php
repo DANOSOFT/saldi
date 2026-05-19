@@ -108,6 +108,8 @@ while ($r = db_fetch_array($q))	{
 		$projekt[$x]       = $r['projekt'];
 		$serienr[$x]       = $r['serienr'];
 		$samlevare[$x]     = $r['samlevare'];
+		$batch_due_date[$x]= isset($r['batch_due_date']) ? $r['batch_due_date'] : '';
+		$batch_batch_no[$x]= isset($r['batch_batch_no']) ? $r['batch_batch_no'] : '';
 		($r['omvbet'])?$omvbet[$x]='checked':$omvbet[$x]='';
 	}
 }
