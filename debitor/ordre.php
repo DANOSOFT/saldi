@@ -129,22 +129,6 @@ if (empty($_GET['sag_id']) && empty($_POST['sag_id'])) {
     if ($sag_id_lookup !== null && is_numeric($sag_id_lookup) && (int)$sag_id_lookup > 0) {
         $r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='" . db_escape_string($sag_id_lookup) . "'", __FILE__ . " linje " . __LINE__));
         if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
-            $_GET['sag_id'] = $r_sag['sag_id'];
-        }
-    }
-}
-
-include("../includes/online.php");
-
-// Restore scaffolding context (sag_id) from the order record itself when the URL/POST didn't carry it.
-// Many flows redirect back to ordre.php without sag_id (levering.php, bogfor.php, accountLookup,
-// sync_stamkort.php, etc.), which used to drop us back into finance styling. Resolving here — before
-// online.php runs and emits the finance-button color override — keeps scaffolding styling stable.
-if (empty($_GET['sag_id']) && empty($_POST['sag_id'])) {
-    $sag_id_lookup = isset($_GET['id']) ? $_GET['id'] : (isset($_POST['id']) ? $_POST['id'] : null);
-    if ($sag_id_lookup !== null && is_numeric($sag_id_lookup) && (int)$sag_id_lookup > 0) {
-        $r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='" . db_escape_string($sag_id_lookup) . "'", __FILE__ . " linje " . __LINE__));
-        if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
             $_GET['sag_id'] = $r_sag['sag_id'];  
         }
     }
@@ -228,7 +212,7 @@ foreach ($grid_params as $param) {
 		unset($_GET[$param]);
 	}
 }
-
+ 
 // Also filter array parameters that start with search, sort, etc.
 foreach ($_GET as $key => $value) {
 	if (is_array($value) || preg_match('/^(search|sort|offset|rowcount|menu)\[/', $key)) {
@@ -236,7 +220,7 @@ foreach ($_GET as $key => $value) {
 	}
 }
 #################
-
+ 
 $funktion = if_isset($_GET, NULL, 'funktion');
 $tidspkt = date("U"); #20210719
 
@@ -2296,6 +2280,37 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 
 					// If the order is created with an error display
 					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
+
+					// Auto-populate item note on order line if 'note_on_orderline' is enabled on the item card
+					if (is_numeric($svar)) {
+						$noteQtxt = "SELECT notes, note_on_orderline FROM varer 
+									WHERE varenr = '" . db_escape_string($varenr[0]) . "' 
+									OR varenr_alias = '" . db_escape_string($varenr[0]) . "' 
+									OR stregkode = '" . db_escape_string($varenr[0]) . "' 
+									LIMIT 1";
+						if ($noteVare = db_fetch_array(db_select($noteQtxt, __FILE__ . " linje " . __LINE__))) {
+							$noteEnabled = (
+								$noteVare['note_on_orderline'] === 't' ||
+								$noteVare['note_on_orderline'] === true ||
+								$noteVare['note_on_orderline'] == 1
+							);
+							if ($noteEnabled && !empty(trim($noteVare['notes']))) {
+								$noteOrdrelinje = db_fetch_array(db_select(
+									"SELECT id, beskrivelse FROM ordrelinjer WHERE ordre_id='$id' ORDER BY id DESC LIMIT 1",
+									__FILE__ . " linje " . __LINE__
+								));
+								if ($noteOrdrelinje['id']) {
+									$noteItem     = db_escape_string(trim($noteVare['notes']));
+									$noteExisting = db_escape_string($noteOrdrelinje['beskrivelse']);
+									$noteNewDesc  = $noteExisting ? $noteExisting . "\n" . $noteItem : $noteItem;
+									db_modify(
+										"UPDATE ordrelinjer SET beskrivelse='$noteNewDesc' WHERE id='$noteOrdrelinje[id]'",
+										__FILE__ . " linje " . __LINE__
+									);
+								}
+							}
+						}
+					}
 					// Else link serial from GS1 barcode
 					else {
 						// Check the serial number was detected by GS1 parsing and the item is a serial number dependent item

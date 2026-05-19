@@ -168,6 +168,12 @@ $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='va
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER table varer ADD column notesinternal text", __FILE__ . " linje " . __LINE__);
 }
+
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='note_on_orderline'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("ALTER TABLE varer ADD COLUMN note_on_orderline boolean DEFAULT false", __FILE__ . " linje " . __LINE__);
+}
+
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='colli_webfragt'";
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER table varer ADD column colli_webfragt float DEFAULT 0", __FILE__ . " linje " . __LINE__);
@@ -336,6 +342,7 @@ if ($saveItem || $submit = trim($submit)) {
     else $default_shelf_life_days = null;
     #   list ($gruppe)           =  explode (':', if_isset($_POST['gruppe']));
     $notes = db_escape_string(trim(if_isset($_POST['notes'])));
+    $note_on_orderline = (if_isset($_POST['note_on_orderline']) == 'on') ? true : false;
     $notesInternal = db_escape_string(trim(if_isset($_POST['notesInternal'])));
     $ordre_id = if_isset($_POST['ordre_id']);
     $returside = if_isset($_POST['returside']);
@@ -937,9 +944,11 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "salgspris_rounding='$salgspris_rounding',salgspris_multiplier='$salgspris_multiplier',";// 20221004
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
             $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision',";// 20221004
-            $qtxt .= "has_due_date=$has_due_date,";
-            $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL");
+            $qtxt .= "has_due_date=$has_due_date,";            
+            $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
+            $qtxt .= "note_on_orderline=" . ($note_on_orderline ? 'true' : 'false');
             $qtxt .= " where id = '$id'";
+
          $saved  =  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             if ($submit == 'copy') {
                 $copyItemNo = "kopi_af_$varenr";
@@ -1284,6 +1293,9 @@ if ($id > 0) {
     $lukket = $row['lukket'];
     $notes = $row['notes'];
     $notesInternal = $row['notesinternal'];
+
+    $note_on_orderline = ($row['note_on_orderline'] === 't' || $row['note_on_orderline'] === true || $row['note_on_orderline'] == 1);
+
     $delvare = $row['delvare'];
     $samlevare = $row['samlevare'];
     $min_lager = $row['min_lager'];

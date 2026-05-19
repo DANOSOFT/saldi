@@ -280,7 +280,7 @@ if ($menu=='S') {
 	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
 
 	print "<td width=\"10%\">$color
-		<a href=\"javascript:confirmClose('../includes/luk.php?returside=$retur?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+		<a href=\"javascript:confirmClose('$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
 		<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 	print "<td width=\"75%\" align='center' style='$topStyle'>".findtekst(2189, $sprog_id)."</td>";

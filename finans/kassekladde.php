@@ -3019,10 +3019,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&sum="       . urlencode($belob ?? '')
                 . "&fokus=bila$x&openPool=1";
 				########################
-			print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
-            print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
-            print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
-        	// print "</tr>";
+        print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+        print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+        print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
+        // print "</tr>";
 			} else {
 				print "<td></td>\n";
 			}
@@ -4610,7 +4610,10 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>";
 ?>
 
+?>
+
 <!-- Add clip drag-and-drop JavaScript for linking documents between lines #20260513 --> 
+
 <style>
 	/* Clip drag and drop styles */
 	.clip-cell {
