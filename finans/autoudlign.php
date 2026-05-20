@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------lap 3.9.5--------2020.11.07----------
+// -----------------finans/autoudlign.php------------lap 5.0.0--------2026.05.19----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20170607 PHR genkender nu også kontonr. Søg 20170707
 // 2018.12.20 MSC - Rettet isset fejl og rettet topmenu design til
@@ -31,7 +31,7 @@
 // 2020.09.11 PHR - Added query without Payment ID if no marching order found. 20200911 
 // 2020.09.14 PHR - Added search for account if 'afr:' in text
 // 2020.11.07 PHR - Added controle for duplicates when displaying matching openposts 'distinct(openpost.id)'
-
+// 20260519 CL/PHR Fixet problem that it did not find some openposts.
 
 @session_start();
 $s_id=session_id();
@@ -78,11 +78,11 @@ if ($kladde_id)	{
 	$brugt=array();
 	$q = db_select("select * from kassekladde where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if ($r['faktura']) {
+		if ($r['faktura'] && ($r['d_type']=='K' || $r['d_type']=='D' || $r['k_type']=='K' || $r['k_type']=='D')) {
 			$x++;
 			$brugt[$x]=$r['faktura'];
 		}
-	} 
+	}
 	$x=0;
 	$q = db_select("select * from kassekladde where kladde_id=$kladde_id and id > $id order by id",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
