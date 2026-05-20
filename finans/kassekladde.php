@@ -2995,7 +2995,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 		if ($vis_bilag && !$fejl) { #20140425
 			#if ($kladde_id && $intern_bilag) print "<td title='".findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id)."'><a href='../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$x]&bilag=$bilag[$x]&ny=ja&kilde_id=$kladde_id&fokus=bila$x'><img  style='border: 0px solid' src='../ikoner/clip.png'></a></td>\n";
-			if ($kladde_id && $intern_bilag) {
+			if ($intern_bilag) {
 				$id[$y]        = (int)if_isset($id[$y],0);
 				$dokument[$y] = if_isset($dokument[$y],NULL);
 				$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
@@ -3227,7 +3227,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td align='center'><span title='" . findtekst('3261|Bilags Match', $sprog_id) . "'><input type='button' class='button green medium' style='width:120px;' value='" . findtekst('3261|Bilags Match', $sprog_id) . "' name='bilagsmatch' onclick='openPopup(); // from ./kassekladde_includes/bilagsmatch.php '></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1544|Klik her for at gemme', $sprog_id) . "'><input type='submit' class='button green medium' style='width:120px;' accesskey='g' value='" . findtekst('3|Gem', $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1545|Opslag - din markørs placering angiver hvilken tabel, opslag foretages i', $sprog_id) . "'><input type='submit' class='button blue medium' style='width:120px;' accesskey='o' value='" . findtekst('644|Opslag', $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span></td>";
-			if ($kladde_id && !$fejl) {
+			if (!$fejl) {
 				print "<td align='center'><span title='" . findtekst('1546|Simulering af bogføring viser bevægelser i kontoplanen', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='s' value='" . findtekst('1064|Simulér', $sprog_id) . "' name='simulate' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1547|Bogfør - der foretages først en simulering, som du skal bekræfte', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='b' value='" . findtekst('1065|Bogfør', $sprog_id) . "' name='doPost' onclick='javascript:docChange = false;'></span></td>";
 				$qtxt = "select box5 from grupper where art = 'DIV' and kodenr = '3'";
@@ -4155,7 +4155,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ?>
 <style>
-	
+
+body {
+    padding: 8px !important;
+}
+
 /*scrollable container for the editable form */
 .kassekladde-scroll-container {
     height: calc(100vh - 98px);
