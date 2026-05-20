@@ -31,11 +31,40 @@
 // 20260512 NTR Merged Live/POS into prod_test
 // 20260517 NTR Fixed crittical error when trying to migrate delivery_addresses data (again)
 
-
-
-$qtxt = "CREATE SEQUENCE IF NOT EXISTS regnskab_id_seq";
+$qtxt = "update grupper set box8 = '' where art = 'DIV' and kodenr = '2' and box8 like 'ftp2.ebconnect.dk%'";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+$qtxt = "update varer set lukket = '0' where lukket is NULL";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'provision'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE varer ADD provision integer";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_due_date'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE ordrelinjer ADD batch_due_date date default NULL";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_batch_no'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE ordrelinjer ADD batch_batch_no varchar(100)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'has_due_date'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE varer ADD has_due_date bool default false";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'default_shelf_life_days'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE varer ADD default_shelf_life_days integer";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and  column_name = 'iban'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -49,6 +78,24 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'delivery_addresses'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE delivery_addresses (id SERIAL NOT NULL, account_id integer NOT NULL,";
+	$qtxt.= " is_primary boolean NOT NULL DEFAULT false, sort_order smallint NOT NULL DEFAULT 0,";
+	$qtxt.= " description varchar(100), company_name varchar(255), first_name varchar(100),";
+	$qtxt.= " last_name varchar(100), address_line1 varchar(255), address_line2 varchar(255),";
+	$qtxt.= " postal_code varchar(20), city varchar(100), country varchar(100),";
+	$qtxt.= " contact_name varchar(100), phone varchar(50), email varchar(255),";
+	$qtxt.= " created_at timestamp DEFAULT CURRENT_TIMESTAMP,";
+	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'delivery_addresses' AND indexname = 'idx_delivery_addresses_account_id'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE INDEX idx_delivery_addresses_account_id ON delivery_addresses(account_id)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 //migrate all delivery addresses in adresser to delivery_addresses and link them to the corresponding account
 // Only run migration once
