@@ -50,7 +50,7 @@
 // 20260507 NTR - Added batch Invoice Matching (bilagsmatch)
 // 20260513 PK - Removed background color in sticky header and changed commenting to the correct one
 // 20260513-2 PK - Removed 'button' in css as it created double border-radius on the pagination buttons
-
+// 20260519 CL/NTR - Moved Balance Ledger, Balance Bank and Balance Diff to before moms column. Added Header to Balance Diff.
 
 ob_start(); //Starter output buffering
 
@@ -2372,8 +2372,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($vis_bet_id)
 				print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalings-ID fra girokort - kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td>";
 		}
-		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
-		print "<td align='center' width='60px'><b>Position</b></td>";
 		if ($kontrolkonto) {
 			print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>".findtekst('2595|Regnskab', $sprog_id)."</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 			$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
@@ -2381,9 +2379,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td style = 'width:20px'></td>";
 				print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 			}
+			print "<td align='right' width='30px'><b><span></b></td>";
+			print "<td align='center' width='30px'><b><span>Balance Diff</span></b></td>"; // Need FindText
 		}
-		print "<td align='right' width='30px'><b> <span></b></td>";
-		print "<td align='right' width='30px'><b> <span></b></td>";
+		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
+		print "<td align='center' width='60px'><b>Position</b></td>";
 		print "<td align='right' width='30px'><b> <span></b></td>";
 		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'></b></td>";
 		print "</tr>\n";
@@ -2800,17 +2800,38 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='proj$y' 
 			$de_fok value =\"$projekt[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if ($vis_valuta)
+		if ($vis_valuta) {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:40px;' name='valu$y' $de_fok value =\"$valuta[$y]\" onchange='javascript:docChange = true;'></td>\n";
+		}
 		if ($k_type[$y] == 'K' || $d_type[$y] == 'D') {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='forf$y' $de_fok value =\"$forfaldsdato[$y]\" onchange='javascript:docChange = true;'></td>\n";
-			if ($vis_bet_id)
+			if ($vis_bet_id) {
 				print "<td><input class='inputbox' type='text' style='text-align:left;width:100px;' name='b_id$y' $de_fok value =\"$betal_id[$y]\" onchange='javascript:docChange = true;'></td>\n";
+			}
 		} elseif ($vis_forfald) {
 			print "<td><input class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
-			if ($vis_bet_id)
+			if ($vis_bet_id) {
 				print "<td><input class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
+			}
 		}
+		if ($control_bal_fetched) {
+			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
+			$titletxt .= $control_record_date;
+			$titletxt .= findtekst(", fordi der blev bogført på kontrolkontoen denne dato!", $sprog_id); # " because there was transactions on the control account this date!"
+			print "<td style='text-align:right;font-weight:bold' title='" . $titletxt . "'>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
+			//$control_bal_fetched = FALSE;
+		} elseif ($kontrolkonto && $kontrolsaldo) {
+			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
+		} 
+		if ($kontrolkonto && abs((float)$saldo[$y]) > 0) {
+			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
+			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
+			print "<td>&nbsp;</td><td align='right'><div $color>" . dkdecimal($saldo[$y]) . "</div></td>\n";
+			if ($saldoDiff) {
+				print "<td>&nbsp;</td><td align='right'><div $color>(" . dkdecimal($saldoDiff) . ")</div></td>\n";
+			}
+		}
+
 		if ($momsfri[$y] == 'on') {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='javascript:docChange = true;' ></td>\n";
 
@@ -2829,23 +2850,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 
 		######
-
-		if ($control_bal_fetched) {
-			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
-			$titletxt .= $control_record_date;
-			$titletxt .= findtekst(", fordi der blev bogført på kontrolkontoen denne dato!", $sprog_id); # " because there was transactions on the control account this date!"
-			print "<td style='text-align:right;font-weight:bold' title='" . $titletxt . "'>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
-			$control_bal_fetched = FALSE;
-		} elseif ($kontrolkonto && $kontrolsaldo) {
-			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
-		}
-		if ($kontrolkonto && abs((float)$saldo[$y]) > 0) {
-			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
-			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
-			print "<td>&nbsp;</td><td align='right'><div $color>" . dkdecimal($saldo[$y]) . "</div></td>\n";
-			if ($saldoDiff)
-				print "<td>&nbsp;</td><td align='right'><div $color>(" . dkdecimal($saldoDiff) . ")</div></td>\n";
-		}
 
 		// Add Plus and Delete buttons
 		// Plus button - always enabled
@@ -2971,25 +2975,25 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		##################
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
 				
-				// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
-				if (isset($bilag[$x]) && $bilag[$x]) {
-					// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
-					$next = $bilag[$x];
-				} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
-					$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-					$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-					if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
-					if ($x == 1) {
-						$next = $last_bilag;
-					} else {
-						$next = $bilag[$x-1] + 1;
-					}
-				} else {
-					$next = $bilag[$x-1] + 1;	
-				}
-				if($dato[$x] == ''){
-					$dato[$x] = dkdato(date("Y-m-d"));
-				}
+		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
+		if (isset($bilag[$x]) && $bilag[$x]) {
+			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
+			$next = $bilag[$x];
+		} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
+			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
+			if ($x == 1) {
+				$next = $last_bilag;
+			} else {
+				$next = $bilag[$x-1] + 1;
+			}
+		} else {
+			$next = $bilag[$x-1] + 1;	
+		}
+		if($dato[$x] == ''){
+			$dato[$x] = dkdato(date("Y-m-d"));
+		}
 
 		#################
 
@@ -3077,6 +3081,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($vis_bet_id)
 				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
+		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
+			print "<td></td>\n";
+		} 
+		if ($kontrolkonto) {
+			print "<td></td>\n";
+			print "<td></td>\n";
+			if ($saldoDiff){
+				print "<td></td>\n";
+				print "<td></td>\n";
+			}
+		}
 		if ($momsfri[$x] == 'on') {
 			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' checked onchange='javascript:docChange = true;'></td>\n";
 		} else {
@@ -3143,6 +3158,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input  class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
 				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
+		}
+		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
+			print "<td></td>\n";
+		} 
+		if ($kontrolkonto) {
+			print "<td></td>\n";
+			print "<td></td>\n";
+			if ($saldoDiff){
+				print "<td></td>\n";
+				print "<td></td>\n";
+			}
 		}
 		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='javascript:docChange = true;'></td>\n";
 		
