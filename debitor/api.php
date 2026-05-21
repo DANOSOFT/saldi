@@ -349,7 +349,7 @@
             
             ?>
             <script>
-                alert("Transmission fejl:\n\n<?php echo htmlspecialchars($displayError); ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.");
+                alert('Transmission fejl:\n\n<?= $displayError; ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.');
             </script>
             <?php
             exit;
