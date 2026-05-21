@@ -256,7 +256,7 @@
             if($result["message"] !== ""){
             ?>
             <script>
-                alert("<?php echo "EasyUBL Error Accured: " . $result["message"]; ?>");
+                alert("<?php echo "EasyUBL Error Occured: " . json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE); ?>");
             </script>
             <?php
             }else{
@@ -360,7 +360,8 @@
         }
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
-                "streetName" => $r_faktura["lev_addr1"],
+                
+                "streetName" => implode(" ", explode(" ", $r_faktura["lev_addr1"], -1)), ## 20260518 - NTR - Street name without building number.
                 "buildingNumber" => end(explode(" ", $r_faktura["lev_addr1"])),
                 "inhouseMail" => $r_faktura["email"],
                 "additionalStreetName" => $r_faktura["lev_addr2"],
@@ -404,8 +405,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
-                    "streetName" => explode(" ", $r_faktura["addr1"])[0],
-                    "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
+                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["kontakt"],
@@ -449,7 +450,7 @@
             // ], //Was missing from JSON structure
             "documentCurrencyCode" => $r_faktura["valuta"],
             //(float)number_format((float)$r_faktura["sum"], 2)
-            "totalAmount" => (float)number_format((float)$r_faktura["sum"], 2),
+            "totalAmount" => round((float)$r_faktura["sum"], 2), ## 20260518 - NTR - Fix values over a thousand being truncated to the thousands.
 
             "deliverAddress" => $deliverAddress,
             "paymentMeans" => [
@@ -526,7 +527,7 @@
                 "quantity" => $res["antal"],
                 "quantityUnitCode" => "EA",
                 "price" => $price,
-                "discountPercent" => $discPrct,
+                "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails.
                 "discountAmount" => $discAmount,
                 "vatPercent" => ($res["momssats"] != "" && $res["momssats"] != null) ? $res["momssats"] : 0,
                 "lineAmount" => $lineAmount,
@@ -570,8 +571,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK $r_faktura[ean]",
                 "postalAddress" => [
-                    "streetName" => explode(" ", $r_faktura["addr1"])[0],
-                    "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
+                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -641,8 +642,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK$r_faktura[cvrnr]",
                 "postalAddress" => [
-                    "streetName" => explode(" ", $r_faktura["addr1"])[0],
-                    "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
+                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -665,8 +666,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK$r_faktura[cvrnr]33557799",
                 "postalAddress" => [
-                    "streetName" => explode(" ", $r_faktura["addr1"])[0],
-                    "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
+                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -706,7 +707,7 @@
                 "quantityUnitCode" => "EA",
                 "price" => $price,
                 "discountPercent" => round((float)$discPrct, 0),
-                "discountAmount" => $discAmount,
+                "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails.
                 "vatPercent" => round($res["momssats"], 0),
                 "lineAmount" => $price,
                 "priceInclTax" => true,
