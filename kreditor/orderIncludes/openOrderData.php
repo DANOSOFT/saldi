@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/creditorIncludes/openOrderData.php --- lap 5.0.0 --- 2026.03.12 ---
+// --- kreditor/creditorIncludes/openOrderData.php --- lap 5.0.0 --- 2026.05.21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260217 PHR Added 'kundeordrnr'
 // 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
+// 20260521 LOE Added check to set afd based on first employee if no match is found for ref in employees list
 
 /*
 $attachId    = null;
@@ -186,7 +187,12 @@ print "<input type = 'hidden' name = 'oldRef' value = '$ref'>";
 if (count($employees)) {
 	print "<select class='inputbox' style='width:110px;'  name = 'ref'>";
 	for ($i=0;$i<count($employees);$i++) {
-		if ($ref == $employees[$i]) print "<option value='$employees[$i]'>$employees[$i]</option>";
+		if ($ref == $employees[$i]){
+			 print "<option value='$employees[$i]'>$employees[$i]</option>";
+		}else{
+			//store the first employee in the list as default if no match is found
+			if ($i == 0)  $firstEmployee = $employees[$i];
+		}
 	}
 	for ($i=0;$i<count($employees);$i++) {
 		if ($ref != $employees[$i]) print "<option value='$employees[$i]'>$employees[$i]</option>";
@@ -194,6 +200,15 @@ if (count($employees)) {
 	print "<select>";
 } else print $ref;
 print "</td>";
+
+//use the $firstEmployee to get the afd
+if(!$afd && $firstEmployee){
+	$query = db_select("SELECT afd FROM ansatte WHERE navn = '$firstEmployee'",__FILE__ . " linje " . __LINE__);
+	if($r = db_fetch_array($query)){
+		$afd = $r['afd'];
+	}
+}
+
 if (count($depNumbers)) {
 	print "<td>Afd</td>";
 #print "<td><input class='inputbox' style='width:110px;' name='adf' value='$afd' onfocus='document.forms[0].fokus.value=this.name;'></td>";

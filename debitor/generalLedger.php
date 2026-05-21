@@ -309,7 +309,17 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 
 	print "<div class='debitor-ledger-page'>";
 	print "<div class='debitor-ledger-sticky-header'>";
-	print "<div class='debitor-ledger-page-title'>" . debitorGeneralLedgerEscape($pageTitle) . "</div>";
+	// print "<div class='debitor-ledger-page-title'>" . debitorGeneralLedgerEscape($pageTitle) . "</div>";
+	###
+	print "<div class='debitor-ledger-page-title'>";
+print "<span class='debitor-ledger-title-text'>" . debitorGeneralLedgerEscape($pageTitle) . "</span>";
+$filterValue = if_isset($_GET['postfilter'], 'all');
+print "<select class='debitor-ledger-filter-select' id='debitorPostFilter' onchange='debitorFilterPosts(this.value)'>";
+print "<option value='all'" . ($filterValue == 'all' ? " selected" : "") . ">Alle posteringer</option>";
+print "<option value='open'" . ($filterValue == 'open' ? " selected" : "") . ">&Aring;bne poster</option>";
+print "</select>";
+print "</div>";
+	###
 	print "<div class='debitor-ledger-info-wrap'>";
 	print "<div class='debitor-ledger-info-left'>";
 	print "<div class='debitor-ledger-company-name'>" . debitorGeneralLedgerEscape(stripslashes($account['firmanavn'])) . "</div>";
@@ -358,7 +368,12 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 	print "<th class='text-right'>" . debitorGeneralLedgerEscape(findtekst(1073, $sprog_id)) . "</th>";
 	print "</tr></thead>";
 	print "<tbody>";
-
+	####
+	$contains = false;
+	if (strpos($backUrl, 'debitorkort.php') !== false) {
+		$contains = true;
+	}
+	###
 	foreach ($periodEntries as $index => $entry) {
 
 		$visiblerows++;
@@ -385,7 +400,11 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 		$creditCell = "0";
 		if ($entry['amount'] > 0) {
 			if ($entry['udlignet'] != '1') {
-				$debitCell = "<a class='debitor-ledger-open-link' title='Klik her for at udligne åbne poster' href='" . debitorGeneralLedgerEscape("../includes/udlign_openpost.php?post_id=" . (int)$entry['id'] . "&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&layout=grid&returside=" . urlencode($backUrl) . "&retur=../debitor/rapport.php") . "'>$displayAmount</a>";
+				if($contains) {
+					$debitCell = "<a class='debitor-ledger-open-link' title='Klik her for at udligne åbne poster' href='" . debitorGeneralLedgerEscape("../includes/udlign_openpost.php?post_id=" . (int)$entry['id'] . "&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&layout=grid&returside=" . urlencode($backUrl) . "&retur=../debitor/debitorkort.php") . "'>$displayAmount</a>";
+				}else {
+				    $debitCell = "<a class='debitor-ledger-open-link' title='Klik her for at udligne åbne poster' href='" . debitorGeneralLedgerEscape("../includes/udlign_openpost.php?post_id=" . (int)$entry['id'] . "&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&layout=grid&returside=" . urlencode($backUrl) . "&retur=../debitor/rapport.php") . "'>$displayAmount</a>";
+				}
 			} else {
 				$unAlignUrl = debitorGeneralLedgerUrl(array_merge($baseParams, array(
 					'unAlign' => (int)$entry['udlign_id'],
@@ -396,7 +415,14 @@ function renderDebitorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto
 			}
 		} else {
 			if ($entry['udlignet'] != '1') {
-				$creditCell = "<a class='debitor-ledger-open-link' title='Klik her for at udligne åbne poster' href='" . debitorGeneralLedgerEscape("../includes/udlign_openpost.php?post_id=" . (int)$entry['id'] . "&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&layout=grid&returside=" . urlencode($backUrl) . "&retur=../debitor/rapport.php") . "'>$displayAmount</a>";
+				if($contains){
+
+					$creditCell = "<a class='debitor-ledger-open-link' title='Klik her for at udligne åbne poster' href='" . debitorGeneralLedgerEscape("../includes/udlign_openpost.php?post_id=" . (int)$entry['id'] . "&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&layout=grid&returside=" . urlencode($backUrl) . "&retur=../debitor/debitorkort.php") . "'>$displayAmount</a>";
+				}else{
+
+					$creditCell = "<a class='debitor-ledger-open-link' title='Klik her for at udligne åbne poster' href='" . debitorGeneralLedgerEscape("../includes/udlign_openpost.php?post_id=" . (int)$entry['id'] . "&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&layout=grid&returside=" . urlencode($backUrl) . "&retur=../debitor/rapport.php") . "'>$displayAmount</a>";
+				}
+				
 			} else {
 				$unAlignUrl = debitorGeneralLedgerUrl(array_merge($baseParams, array(
 					'unAlign' => (int)$entry['udlign_id'],
@@ -513,8 +539,39 @@ function proceedKontoprint() {
   window.addEventListener("resize", updateLedgerStickyOffset);
   updateLedgerStickyOffset();
 })();
+
+function debitorFilterPosts(val) {
+    var rows = document.querySelectorAll(".debitor-ledger-table tbody tr:not(.debitor-ledger-empty-row)");
+    var emptyRow = document.querySelector(".debitor-ledger-empty-row");
+    var visible = 0;
+    rows.forEach(function(row) {
+        if (val === "open") {
+            var hasOpenLink = row.querySelector(".debitor-ledger-open-link");
+            if (hasOpenLink) {
+                row.style.display = "";
+                visible++;
+            } else {
+                row.style.display = "none";
+            }
+        } else {
+            row.style.display = "";
+            visible++;
+        }
+    });
+    if (emptyRow) {
+        emptyRow.style.display = visible === 0 ? "" : "none";
+    }
+}
+document.addEventListener("DOMContentLoaded", function() {
+    var sel = document.getElementById("debitorPostFilter");
+    if (sel && sel.value !== "all") {
+        debitorFilterPosts(sel.value);
+    }
+});
+
 </script>
 ';
+
 
 	print "<style>
 	html, body {
@@ -556,15 +613,37 @@ function proceedKontoprint() {
 	}
 
 	.debitor-ledger-page-title {
-		font-size: 1.15rem;
-		font-weight: 700;
-		color: #1f3c74;
-		margin-bottom: 1px;
-		padding: 0 0 1px;
-		border-bottom: 1px solid #8d8d8d;
-		text-align: center;
-		line-height: 1.2;
-	}
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1f3c74;
+    margin-bottom: 1px;
+    padding: 0 0 1px;
+    border-bottom: 1px solid #8d8d8d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+    position: relative;
+}
+
+.debitor-ledger-title-text {
+    flex: 1;
+    text-align: center;
+}
+
+.debitor-ledger-filter-select {
+    position: absolute;
+    right: 4px;
+    font-size: 0.82rem;
+    font-weight: 400;
+    color: #1f3c74;
+    border: 1px solid #b0b8d0;
+    border-radius: 4px;
+    padding: 1px 4px;
+    background: #fff;
+    cursor: pointer;
+    line-height: 1.3;
+}
 
 	.debitor-ledger-sticky-header {
 		position: sticky;
@@ -870,3 +949,5 @@ function proceedKontoprint() {
 		include_once '../includes/oldDesign/footer.php';
 	}
 }
+
+

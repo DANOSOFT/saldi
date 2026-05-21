@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-29 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-05-21 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -51,7 +51,7 @@
 // 20260513 PK - Removed background color in sticky header and changed commenting to the correct one
 // 20260513-2 PK - Removed 'button' in css as it created double border-radius on the pagination buttons
 // 20260519 CL/NTR - Moved Balance Ledger, Balance Bank and Balance Diff to before moms column. Added Header to Balance Diff.
-
+// 20260521 LOE Fixed a bug from extra added closing brace and updated background color for thead
 ob_start(); //Starter output buffering
 
 @session_start();
@@ -3335,7 +3335,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		#if ($sletrest) $bilag='-';
 		if ($bilag && $bilag != '0' && substr($bilag, -1) != 'r' && $bilag != '-')
 			$bilag = (int) $bilag; 	//20160909 undtaget * til bilagsrenum
-		}
+		#}
 		$debet = trim($debet);
 		$kredit = trim($kredit);
 		if (($bilag != "-") && (($bilag) || ($beskrivelse) || ($kredit) || ($debet) || ($faktura) || ($belob))) {
@@ -4199,6 +4199,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 10;
+	background-color: <?php echo $bgcolor; ?> !important;
 }
 .datatable thead tr, .datatable thead th{
 	background-color: <?php echo $bgcolor; ?> !important;
