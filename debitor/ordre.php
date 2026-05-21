@@ -1186,7 +1186,6 @@ if ($b_submit) {
 	}
 	if (($godkend == "on") && ($status == 0) && ($art == 'DO' || $art == 'DK') && $sag_id) { # Kopi af original Tilbud. 20140716
 		$r = db_fetch_array(db_select("select tilbudnr from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
-		//cho "tilbudnr: $r[tilbudnr]"; exit();
 
 		$x = 0;
 		$q = db_select("select art from ordrer where tilbudnr = '$r[tilbudnr]'", __FILE__ . " linje " . __LINE__);
@@ -1194,7 +1193,7 @@ if ($b_submit) {
 			$art_tjk[$x] = $r['art'];
 			$x++;
 		}
-		//print_r ($art_tjk); exit();
+		
 		if (!$konto_id) { #20150302
 			if ($incl_moms) {
 				$qtxt = "grupper.box1 from grupper,adresser where";
@@ -1310,7 +1309,6 @@ if ($b_submit) {
 
 			for ($x = 1; $x <= $ordrelinjeantal; $x++) {
 				if ($ordrelinje_id[$x]) {
-					//print_r($ordrelinje_id);exit();
 					if ($pris_OT[$x] != NULL) {
 						$pris_tbl[$x] = "pris,";
 						$pris_value[$x] = "'$pris_OT[$x]',";
@@ -1403,7 +1401,6 @@ if ($b_submit) {
 						$folgevare_value[$x] = NULL;
 					}
 					db_modify("insert into ordrelinjer (varenr,beskrivelse,enhed,posnr,$pris_tbl[$x] $rabat_tbl[$x] lev_varenr,ordre_id,serienr,$vare_id_tbl[$x] $antal_tbl[$x] $leveres_tbl[$x] $leveret_tbl[$x] $bogf_konto_tbl[$x] oprettet_af,bogfort_af,hvem,tidspkt,$kred_linje_id_tbl[$x] momsfri,$momssats_tbl[$x] $kostpris_tbl[$x] samlevare,projekt,$m_rabat_tbl[$x] $rabatgruppe_tbl[$x] $folgevare_tbl[$x] kdo,rabatart,variant_id,procent) values ('$varenr_OT[$x]','$beskrivelse_OT[$x]','$enhed_OT[$x]','$posnr_OT[$x]',$pris_value[$x] $rabat_value[$x] '$lev_varenr_OT[$x]','$ordre_id','$serienr_OT[$x]',$vare_id_value[$x] $antal_value[$x] $leveres_value[$x] $leveret_value[$x] $bogf_konto_value[$x] '$oprettet_af_OT[$x]','$bogfort_af_OT[$x]','$hvem_OT[$x]','$tidspkt_OT[$x]',$kred_linje_id_value[$x] '$momsfri_OT[$x]',$momssats_value[$x] $kostpris_value[$x] '$samlevare_OT[$x]','$projekt_OT[$x]',$m_rabat_value[$x] $rabatgruppe_value[$x] $folgevare_value[$x] '$kdo_OT[$x]','$rabatart_OT[$x]','$variant_id_OT[$x]','$procent_OT[$x]')", __FILE__ . " linje " . __LINE__);
-					//db_modify("insert into ordrelinjer (varenr,beskrivelse,enhed,posnr,pris,rabat,lev_varenr,ordre_id,serienr,vare_id,antal,leveres,leveret,bogf_konto,oprettet_af,bogfort_af,hvem,tidspkt,kred_linje_id,momsfri,momssats,kostpris,samlevare,projekt,m_rabat,rabatgruppe,folgevare,kdo,rabatart,variant_id,procent) values ('$varenr[$x]','$beskrivelse[$x]','$enhed[$x]','$posnr[$x]','$pris[$x]','$rabat[$x]','$lev_varenr[$x]','$ordre_id','$serienr[$x]','$vare_id[$x]','$antal[$x]','$leveres[$x]','$leveret[$x]','$bogf_konto[$x]','$oprettet_af[$x]','$bogfort_af[$x]','$hvem[$x]','$tidspkt[$x]','$kred_linje_id[$x]','$momsfri[$x]','$momssats[$x]','$kostpris[$x]','$samlevare[$x]','$projekt[$x]','$m_rabat[$x]','$rabatgruppe[$x]','$folgevare[$x]','$kdo[$x]','$rabatart[$x]','$variant_id[$x]','$procent[$x]')",__FILE__ . " linje " . __LINE__);
 				}
 			}
 		}
@@ -1423,7 +1420,7 @@ if ($b_submit) {
 		#$posnr_ny[$x]=trim(if_isset($_POST[$y])); 
 		$rb = trim(if_isset($_POST[$y]));
 		$posnr_ny[$x] = (int)$rb; #20210719
-*/
+		*/
 		$posnr_ny[$x] = trim(if_isset($_POST[$y], 0));
 		if ($posnr_ny[$x] != "-" && $posnr_ny[$x] != "->" && $posnr_ny[$x] != "<-" && !strpos($posnr_ny[$x], '+')) {
 			if ($posnr_ny[$x] == '0') $posnr_ny[$x] = "0,01";
@@ -1806,11 +1803,6 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$pris[$x] = 0;
 				$rabat[$x] = 0;
 			}
-			# -> udkommenteret 20180913	
-			#      elseif ((($antal[$x]>=0)&&($leveres[$x]<0))||(($antal[$x]<=0)&&($leveres[$x]>0))) {
-			#        print "<BODY onLoad=\"javascript:alert('Der skal v&aelig;re samme fortegen i antal og l&eacute;ver! (Position $posnr_ny[$x] nulstillet)')\">\n";
-			#        $leveres[$x]=0;
-			#      } 
 			elseif ($vare_id[$x] || isset($_GET['varenr'])) { #20241229
 				if ($art == 'DK') { # DK = Kreditnota
 					#          if ($antal[$x]>0) {
@@ -1844,7 +1836,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
 				}
 				if (
-					!$negativt_lager && $leveres[$x] > $beholdning[$x] && (!$hurtigfakt || $b_submit == "doInvoice") && $leveres[$x] > $beholdning[$x] && $leveres[$x] > 0 &&
+					!$negativt_lager && $leveres[$x] > $beholdning[$x] && (!$hurtigfakt || $b_submit == "doInvoice") && $leveres[$x] > 0 &&
 					db_fetch_array(db_select("select id from grupper where kodenr='$vare_grp[$x]' and art='VG' and box8='on' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__))
 				) {
 					if ($beholdning[$x] <= 0) $leveres[$x] = 0;
@@ -1920,7 +1912,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					$lagerfort = $r['box8'];
 				}
 				if ($lagerfort) {
-					$query = db_select("select * from batch_kob where linje_id = $linje_id[$x] and antal != 0", __FILE__ . " linje " . __LINE__);
+					$query = db_select("select 1 from batch_kob where linje_id = $linje_id[$x] and antal != 0 LIMIT 1", __FILE__ . " linje " . __LINE__); // SELECT 1 is more effective than select * for existance checks
 					if ($row = db_fetch_array($query)) {
 						$txt = findtekst('1839|Du kan ikke slette en varelinje, når der ér modtaget', $sprog_id) . $row['antal'] . ' varer fra linjen.';
 						alert("$txt");
@@ -2048,7 +2040,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 						}
 					}
 					$sum = $sum + ($pris[$x] - ($pris[$x] / 100 * $rabat[$x])) * $antal[$x];
-					if (!$leveres[$x]) $leveres[$x] = 0;
+					if (!isset($leveres[$x])) $leveres[$x] = 0;
 					elseif ($antal[$x] > 0 && $leveres[$x] > $antal[$x]) {
 						$leveres[$x] = $antal[$x];
 					} elseif ($leveres[$x] < 0) {
@@ -3246,7 +3238,7 @@ function ordreside($id, $regnskab)
 	if ($menu == 'T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
-		#  } else {
+	#  } else {
 	}
 
 	$dkb = 0; #dækningsbidrag;
@@ -4757,7 +4749,7 @@ function ordreside($id, $regnskab)
 		print "<input class='inputbox' style='text-align:right;width:60px' type='text' name='momssats' ";
 		print "value=\"" . dkdecimal($momssats, 2) . "\" onchange='javascript:docChange = true;' $disabled>%</td></tr>\n";
 		/*
-    print "<tr><td colspan=2>Send pr. mail&nbsp;</td><td><input class = 'inputbox' type=\"checkbox\" name=\"mail_fakt\" onchange=\"javascript:docChange = true;\" $mail_fakt></td>\n";
+    	print "<tr><td colspan=2>Send pr. mail&nbsp;</td><td><input class = 'inputbox' type=\"checkbox\" name=\"mail_fakt\" onchange=\"javascript:docChange = true;\" $mail_fakt></td>\n";
 		if ($lev_pbs_nr) {
 			if ($pbs == "FI") $pbs_fi='checked';
 			elseif ($pbs == "BS") $pbs_bs='checked';
@@ -4769,7 +4761,7 @@ function ordreside($id, $regnskab)
 			$title="Opkr&aelig;ves via PBS betalingsservice";
 			if ($pbs_nr && !$pbs_fi) print "<td colspan=\"2\" title=\"$title\">Opkr&aelig;v via PBS (BS)</td><td title=\"$title\"><input class = 'inputbox' type=\"checkbox\" name=\"pbs_bs\" \"$pbs_bs\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 		} else print "</tr>\n";
-*/
+		*/
 		if (!$hurtigfakt && $status <= 1) $std_bilag = "tilbud";
 		elseif ($status <= 2) $std_bilag = "ordrer";
 		elseif ($status >= 4) $std_bilag = "faktura";
@@ -4952,8 +4944,8 @@ function ordreside($id, $regnskab)
 		 *		if (!$id) {
 		 *			$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
 		 *
-	}
-	*/
+		}
+		*/
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr) > 1) {
 			print "</td><td></td>\n";
@@ -5305,17 +5297,37 @@ function ordreside($id, $regnskab)
 			if ($betalings_id) print "<tr><td>" . findtekst('2534|Betalings-ID', $sprog_id) . ":</td><td>&nbsp;$betalings_id</td></tr>";
 			// Plukliste buttons
 			include("../includes/topline_settings.php");
-			$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
-			print "<tr><td colspan=\"2\"><hr></td></tr>\n";
-			print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
-			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-			print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
-			print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-			if ($pluklisteEmail) {
-				print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
-				print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
-				print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
-				print "</td></tr>\n";
+			$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", ""); 
+			
+				if ($hurtigfakt == 'on' && $opValue == 'faktura') {
+					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+					// plukliste email
+					print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
+					print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
+					print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
+					print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
+				}elseif($hurtigfakt != "on" && $opValue != 'tilbud') {
+					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
+					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+					if ($pluklisteEmail) {
+						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
+						print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
+						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
+						print "</td></tr>\n";
+					}
+				}
+				print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
+				print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
+				print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
+				print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
+			
 			}
 			print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
 			print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
@@ -5421,7 +5433,7 @@ function ordreside($id, $regnskab)
 		print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
 		print "<input type=\"hidden\" name=\"id\" value=\"$id\">\n";
 
-$x = 0;
+		$x = 0;
 		if (!$ordre_id) $ordre_id = 0;
 		$kostpris[0] = $kostsum = 0;
 		$blandet_moms = $lagervarer = $tGrossWeight = $tNetWeight = $tVolume = 0;
@@ -5454,6 +5466,7 @@ $x = 0;
 				$procent[$x]         = $row['procent'] * 1;
 				$antal[$x]           = $row['antal'] * 1;
 				$leveres[$x]         = $row['leveres'];
+				$leveret[$x]         = $row['leveret'];
 				$vare_id[$x]         = $row['vare_id'];
 				$momsfri[$x]         = $row['momsfri'];
 				$rabatgruppe[$x]     = $row['rabatgruppe'];
@@ -5525,8 +5538,8 @@ $x = 0;
 						}
 					}
 					/*					
-				db_modify("update ordrelinjer set kostpris='$kostpris[$x]' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
-*/
+					db_modify("update ordrelinjer set kostpris='$kostpris[$x]' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+					*/
 					if ($rabatart[$x] == 'amount') $dbi[$x] = $pris[$x] - $rabat[$x]; #20140424 -= 
 					else $dbi[$x] = $pris[$x] - ($pris[$x] * $rabat[$x] / 100); #20140424 -= 
 					$dbi[$x] -= $kostpris[$x]; #20140424 -= 
@@ -6012,7 +6025,7 @@ $x = 0;
 				print "onclick=\"javascript:docChange = false;\"></td>\n";
 			}
 
-			if ($status == 1 && $bogfor != 0 && $hurtigfakt != 'on' && $leveres_ialt) {
+			if ($status <= 3 && $bogfor != 0 && $hurtigfakt != 'on' && $leveres_ialt) {
 				if ($art == 'DO') print "<td align=\"center\"  width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1483|Levér', $sprog_id) . "\" name=\"deliver\" onclick=\"javascript:docChange = false;\"></td>\n";
 				else print "<td align=\"center\" width=$width title=\"" . findtekst('1491|Klik her for at tage varer retur', $sprog_id) . "\"><input type=\"submit\"  class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" accesskey=\"l\" value=\"" . findtekst('1485|Modtag', $sprog_id) . "\" name=\"receive\" onclick=\"javascript:docChange = false;\"></td>\n";
 			}
@@ -6514,9 +6527,9 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 					if (!$stockQty) $stockQty = $r['beholdning'];
 				}
 				// Check if ordered quantity exceeds available stock
-				if (in_array($gruppe, $stockGrp) && $antal > $stockQty) {
+				if (in_array($gruppe, $stockGrp) && ($antal - $leveret) > $stockQty) { ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
 					$txtColor = 'red';
-					$qtyTitle = "Obs!! Antal (" . dkdecimal($antal, 0) . ") overstiger beholdning (" . dkdecimal($stockQty, 0) . ")";
+					$qtyTitle = "Obs!! Antal (" . dkdecimal($antal - $leveret, 0) . ") overstiger beholdning (" . dkdecimal($$stockQty, 0) . ")"; ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
 				} elseif (in_array($gruppe, $stockGrp) && $min_lager > 0 && $stockQty < $min_lager) {
 					$txtColor = 'red';
 					$qtyTitle = "Obs!! Beholdning (" . dkdecimal($stockQty, 0) . ") mindre end " . dkdecimal($min_lager, 0);
@@ -6717,26 +6730,19 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -1);
 			if (substr($beholdning, -1) == '0') $beholdning = substr($beholdning, 0, -2);
 			if (!$lagervare) $beholdning = "ikke lagerført";
-			$tmp = afrund(abs($antal) - abs($tidl_lev), 2); #20131004
+			$levdiff = afrund(abs($antal) - abs($tidl_lev), 2) != 0; #NTR - 20260518
 			if ($samlevare && $saet) {
 
 				$tmp = NULL;
 			} else {
-				if ($tmp) {
-					if (abs($antal) != abs($tidl_lev)) {
-						print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Mangler fortsat at " . $lever_modtag . "e resten.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
-					} else {
-						print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Intet " . $lever_modtag . "et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
-					}
-					print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
-					if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
-					elseif ($serienr) print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"" . findtekst('1501|Vælg serienr', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
-					$levdiff = 1;
+				if (abs($antal) != abs($tidl_lev)) {
+					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Mangler fortsat at " . $lever_modtag . "e resten.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				} else {
-					if ($antal == $tidl_lev) $dklev = 0;
-					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Alt " . $lever_modtag . "et. Brug negativt tal (fx -1) for at trække fra.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
-					print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
+					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Intet " . $lever_modtag . "et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 				}
+				print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
+				if ($batchvare && $antal > 0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"" . findtekst('1496|Vælg fra købsordre', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
+				elseif ($serienr) print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"" . findtekst('1501|Vælg serienr', $sprog_id) . "\"><img alt=\"" . findtekst('1497|Serienummer', $sprog_id) . "\" src=\"../ikoner/serienr.png\"></td>\n";
 
 				if ($linje_id && $leveret != $tidl_lev) db_modify("update ordrelinjer set leveret=$tidl_lev where id=$linje_id", __FILE__ . " linje " . __LINE__);
 			}
