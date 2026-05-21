@@ -1,4 +1,3 @@
-<!doctype html>
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
@@ -180,7 +179,10 @@ if (isset($_POST['delete_kladde'])) {
         exit;
     }
 }
-	
+?>
+<!doctype html>
+<?php
+
 $css="../css/standard.css";		
 $modulnr=2;	
 $title="kladdeliste";	

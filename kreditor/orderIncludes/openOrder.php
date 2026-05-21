@@ -56,9 +56,11 @@ if ($ref && $oldRef && $ref != $oldRef) {
 if (!$ref) {
 	$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$r = db_fetch_array(db_select("select navn, afd from ansatte where id = $r[ansat_id]",__FILE__ . " linje " . __LINE__));
-		$ref = $r['navn'];
-		$afd = $r['afd'];
+		if ($r['ansat_id']) {
+			$r = db_fetch_array(db_select("select navn, afd from ansatte where id = '$r[ansat_id]'",__FILE__ . " linje " . __LINE__));
+			$ref = $r['navn'];
+			$afd = $r['afd'];
+		}
 	}
 }
 if (($afd && $oldDep && $afd != $oldDep) || ($afd && !$lager)) {
