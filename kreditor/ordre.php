@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-02-25---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-05-06---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1233,9 +1233,9 @@ function prepareSearchTerm($searchTerm) {
     }
     */
 
-   if (!$id) $fokus='kontonr';
-	print "<form name='ordre' action='ordre.php' method='post'>";
-	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
+	if (!$id) $fokus='kontonr';
+		print "<form name='ordre' action='ordre.php' method='post'>";
+		print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
 	if ($id)	{
 		$q = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
@@ -1358,7 +1358,7 @@ function prepareSearchTerm($searchTerm) {
 	print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
 	print "<input type=\"hidden\" name=\"id\" value=\"$id\">";
 	print "<input type=\"hidden\" name=\"art\" value=\"$art\">";
-#	print "<input type=\"hidden\" name=momssats value=$momssats>";
+	// print "<input type=\"hidden\" name=momssats value=$momssats>";
 	print "<input type=\"hidden\" name=\"konto_id\" value=\"$konto_id\">";
 	print "<input type=\"hidden\" name=\"kred_ord_id\" value=\"$kred_ord_id\">";
 	print "<input type=\"hidden\" name=\"lager\" value=\"$lager\">";
