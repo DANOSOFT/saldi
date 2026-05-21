@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// --- admin/vis_regnskaber.php --- patch 4.1.1 --- 2025.05.03 ---
+// --- admin/vis_regnskaber.php --- patch 4.1.1 --- 2025.05.21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,8 +24,8 @@ $s_id=session_id();
 // 20210916 LOE Translated some texts
 // 20250201 Add hostname to psql
 // 20250503 LOE Updated with improved if_isset func.
-// 20260507 CL/PHR Blå topline med hvid tekst. Admin Panel link styres af settings.useAdminPanel. Fjernet apostroffer fra Vis/Skjul Luk.
-
+// 20260507 CL/PHR Blå topline med hvid tekst. Admin Panel link styres af settings.showAdminPanel. Fjernet apostroffer fra Vis/Skjul Luk.
+// 20260521 PHR Added email.
 $css="../css/standard.css";
 $title="vis regnskaber";
 
@@ -72,9 +72,9 @@ if (isset($_POST['submit'])) {
 
 
 	for ($x=1;$x<=$db_antal; $x++) {
-		if (!isset($lukket[$x]) || !$lukkes[$x]) $lukkes[$x]="2099-12-31"; 
+		if (!isset($lukket[$x]) || !$lukkes[$x]) $lukkes[$x]="2099-12-31";
 		else $lukkes[$x]=usdate($lukkes[$x]);
-		if (!isset($betalt_til[$x]) || !$betalt_til[$x]) $betalt_til[$x]="2099-12-31"; 
+		if (!isset($betalt_til[$x]) || !$betalt_til[$x]) $betalt_til[$x]="2099-12-31";
 		else $betalt_til[$x]=usdate($betalt_til[$x]);
 			if (
 				$gl_brugerantal[$x]!=$brugerantal[$x] ||
@@ -89,7 +89,7 @@ if (isset($_POST['submit'])) {
 			if ($id[$x]) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
-} else { # 2020090 can be removed  
+} else { # 2020090 can be removed
 	$qtxt="update regnskab set lukket='' where lukket is NULL";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
@@ -175,13 +175,14 @@ if ($sort==$sort2) {
 }
 
 print "<tr><td><b><a href=vis_regnskaber.php?sort=id&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>id</a></b></td>
-	<td><b><a href=vis_regnskaber.php?sort=regnskab&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('2682|Regnskab', $sprog_id)."</a></b></td> 
+	<td><b><a href=vis_regnskaber.php?sort=regnskab&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('2682|Regnskab', $sprog_id)."</a></b></td>
 	<td><a href=vis_regnskaber.php?sort=brugerantal&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('777|Brugere', $sprog_id)."</a></td>
 	<td><a href=vis_regnskaber.php?sort=posteringer&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1910|Posteringer', $sprog_id)."</a></td>
 	<td><a href=vis_regnskaber.php?sort=posteret&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1911|Posteret', $sprog_id)."</a></td>
 	<td><a href=vis_regnskaber.php?sort=sidst&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1912|Sidst', $sprog_id)."</a></td>
-	<td><a href=vis_regnskaber.php?sort=booking&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1116|Booking', $sprog_id)."</a></td>";
-	
+	<td><a href=vis_regnskaber.php?sort=booking&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1116|Booking', $sprog_id)."</a></td>
+	<td>e-mail</td>";
+
 if ($showClosed) print "<td><a href=vis_regnskaber.php?sort=lukket&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('387|Lukket', $sprog_id)."</a></td>";
 if ($saldiregnskab) {
 	print "<td><a href=vis_regnskaber.php?sort=lukkes&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1913|Lukkes', $sprog_id)."</a></td>
@@ -196,7 +197,7 @@ list($admin,$oprette,$slette,$tmp)=explode(",",$r['rettigheder'],4);
 $adgang_til=explode(",",$tmp);
 $x=0;
 $qtxt = "select * from regnskab where db != '$sqdb'";
-if (!$showClosed) $qtxt.= " and lukket != 'on'"; 
+if (!$showClosed) $qtxt.= " and lukket != 'on'";
 $qtxt.= " $order";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
@@ -247,9 +248,7 @@ if ($beregn) {
 	for ($x=0;$x<count($id);$x++) {
 		if (in_array($db_navn[$x],$dbliste)) {
 			$qtxt = "SELECT datname FROM pg_database WHERE datname = '$db_navn[$x]'";
-echo "$qtxt<br>";
 			if (db_fetch_array($q = db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-echo "$db_navn[$x] eksisterer<br>";
 				db_connect ("$sqhost", "$squser", "$sqpass", "$db_navn[$x]", __FILE__ . " linje " . __LINE__);
 				$qtxt="select * from pg_tables where tablename='transaktioner'";
 				if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -257,18 +256,18 @@ echo "$db_navn[$x] eksisterer<br>";
 					$posteringer[$x]=$r['transantal']*1;
 					if ($r=db_fetch_array(db_select("select max(logdate) as logdate from transaktioner",__FILE__ . " linje " . __LINE__))) {
 						$sidst[$x]=strtotime($r['logdate']);
-					} 
+					}
 					if ($r=db_fetch_array(db_select("select * from batch_salg order by id desc limit 1",__FILE__ . " linje " . __LINE__))) {
 						if (isset($r['modtime']) &&  $r['modtime']) {
 							if (strtotime($r['modtime']) > $sidst[$x]) $sidst[$x]=strtotime($r['modtime']);
 						}
-					} 
+					}
 				} else $sidst[$x]=NULL;
 				include("../includes/connect.php");
 			} else {
 				echo "opretter $db_navn[$x]<br>";
 				db_create($db_navn[$x]);
-			}	
+			}
 		} else {
 			echo "opretter $db_navn[$x]<br>";
 			db_create($db_navn[$x]);
@@ -315,6 +314,7 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 					print "<td align='right'>$posteret[$x]<br></td>";
 					print "<td align='right'>".date("d-m-Y",$sidst[$x])."<br></td>";
 					print "<td align='center'>$lukket[$x]<br></td>";
+					print "<td align='left'>$email[$x]<br></td>";
 					if ($saldiregnskab) {
 						print "<td align='right'>$betalt_til[$x]<br></td>";
 // 						print "<td align='right'>$lukkes[$x]<br></td>";
@@ -335,7 +335,7 @@ if ($rediger) {
 	print "</form></tbody></table>";
 } else {
 	print "</tbody></table>";
-	print "<a href=\"vis_regnskaber.php?beregn=1\">".findtekst('1916|Genberegn posteringer', $sprog_id)."</a>"; 
+	print "<a href=\"vis_regnskaber.php?beregn=1\">".findtekst('1916|Genberegn posteringer', $sprog_id)."</a>";
 }
 ?>
 </body></html>
