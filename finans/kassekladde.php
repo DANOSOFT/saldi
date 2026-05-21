@@ -4629,8 +4629,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>";
 ?>
 
-?>
-
 <!-- Add clip drag-and-drop JavaScript for linking documents between lines #20260513 --> 
 
 <style>
