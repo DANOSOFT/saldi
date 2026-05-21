@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-04-23 --- 
+// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-05-15 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,7 +32,7 @@
 // 20260212 PHR Added: if (date('U') - $skip > 600) $skip = 0;
 // 20260326 LOE Handle malformed numbers like 1.234.56 to 1.234,56 
 // 20260423 LOE Added GET parameters for handling journal line not already saved to db.
-
+// 20260515 LOE Added a feature to allow users to extract pool lines to visible journal line for easier matching.
 /**
  * Log message to a file in temp/$db/docPool.log
  */
@@ -1380,6 +1380,7 @@ if ($source == 'kassekladde') {
 	if (!$readOnly) {
 		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus Ny linje</a>";
 		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp;Gem alle</a>";
+		print "<a href='#' id='transferDataBtn' onclick='transferDataFromSelectedFile(); return false;' style=\"$btnStyle\">$svgPointer &nbsp;Overfør data</a>";
 	} else {
 		print "<span style='color:#999; font-size:12px; font-weight:bold; padding:3px 8px;'>Bogført</span>";
 	}
@@ -1589,6 +1590,7 @@ print <<<JS
         }
         return parseFloat(s);
     }
+	window.parseAmountToFloat = parseAmountToFloat; // expose to global scope
     const containerId = 'fileListContainer';
 	// Get poolFile from URL if present (user clicked on a row), otherwise null (no auto-selection)
 	const urlParams = new URLSearchParams(window.location.search);
@@ -1796,6 +1798,7 @@ print <<<JS
             }
 
             docData = data;
+			window.docData = docData;
             renderCurrentView();
         } catch (error) {
             document.getElementById(containerId).innerHTML = '<div style="color:red;">Error loading files</div>';
@@ -4898,6 +4901,188 @@ HTML;
     }
     window.duplicateRow = duplicateRow;
     window.duplicateEntry = duplicateRow;
+
+	//### 
+	window.transferDataFromSelectedFile = function() {
+    
+    
+		let sourceRow = null;
+		let sourceData = null;
+
+		// Check docData for the currently selected file (from URL poolFile param)
+		const urlParams = new URLSearchParams(window.location.search);
+		const allPoolFiles = urlParams.getAll('poolFile');
+		let currentPoolFile = null;
+		for (let i = allPoolFiles.length - 1; i >= 0; i--) {
+			if (allPoolFiles[i] && allPoolFiles[i].trim() !== '') {
+				currentPoolFile = allPoolFiles[i];
+				break;
+			}
+		}
+
+		// Try to find data from the selected file in docData
+		if (currentPoolFile && typeof docData !== 'undefined' && docData.length) {
+			sourceData = docData.find(d => d.filename === currentPoolFile);
+		}
+
+		// Fallback: check if a single checkbox is checked
+		if (!sourceData) {
+			const checked = document.querySelectorAll('.file-checkbox:checked');
+			if (checked.length === 1) {
+				const filename = checked[0].value;
+				if (typeof docData !== 'undefined') {
+					sourceData = docData.find(d => d.filename === filename);
+				}
+			}
+		}
+
+		// Fallback: use first perfect-match or amount-match row's data-pool-file
+		if (!sourceData) {
+			const matchRow = document.querySelector(
+				'tr[data-perfect-match="true"], tr[data-amount-match="true"], tr[data-date-match="true"]'
+			);
+			if (matchRow) {
+				const filename = matchRow.getAttribute('data-pool-file');
+				if (filename && typeof docData !== 'undefined') {
+					sourceData = docData.find(d => d.filename === filename);
+				}
+			}
+		}
+
+		if (!sourceData) {
+			alert('Ingen fil valgt i listen. Klik på en fil i listen til venstre først.');
+			return;
+		}
+
+		// Find the active (checked) kassebilag-entry rows to populate
+		const targetCheckboxes = document.querySelectorAll('.targetLineCheckbox:checked');
+		const targetIds = Array.from(targetCheckboxes).map(cb => cb.value);
+
+		// If no checkbox is checked, populate all visible entries
+		const entriesToFill = targetIds.length > 0
+			? targetIds.map(id => document.getElementById('bilagEntry_' + id)).filter(Boolean)
+			: Array.from(document.querySelectorAll('.kassebilag-entry'));
+
+		if (!entriesToFill.length) {
+			alert('Ingen kassebilag-linjer at overføre data til.');
+			return;
+		}
+
+		// Parse and format values from sourceData
+		let transferAmount = '';
+		if (sourceData.amount) {
+			const raw = sourceData.amount.toString().trim();
+			const parsed = parseAmountToFloat(raw);
+			if (!isNaN(parsed)) {
+				// Reformat to Danish display format matching what the input field expects
+				transferAmount = parsed.toLocaleString('da-DK', {
+					minimumFractionDigits: 2,
+					maximumFractionDigits: 2
+				});
+			} else {
+				transferAmount = raw;
+			}
+		}
+
+		// Date: convert yyyy-mm-dd to dd-mm-yyyy for the Danish date input
+		let transferDate = '';
+		if (sourceData.date) {
+			const datePart = sourceData.date.split(' ')[0]; // strip time if present
+			const parts = datePart.split('-');
+			if (parts.length === 3 && parts[0].length === 4) {
+				transferDate = parts[2] + '-' + parts[1] + '-' + parts[0];
+			} else {
+				transferDate = datePart;
+			}
+		}
+
+		const transferInvoice     = sourceData.invoiceNumber || '';
+		const transferDescription = sourceData.description || sourceData.subject || '';
+		const transferSubject     = sourceData.subject       || '';
+
+		// Populate each target entry
+		const existing = document.getElementById('transferConfirmPopup');
+			if (existing) existing.remove();
+
+			const overlay = document.createElement('div');
+			overlay.id = 'transferConfirmPopup';
+			overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center;';
+
+			const lines = [];
+			if (transferAmount)      lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beløb</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferAmount + '</td></tr>');
+			if (transferDate)        lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Dato</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferDate + '</td></tr>');
+			if (transferInvoice)     lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Faktura</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferInvoice + '</td></tr>');
+			if (transferDescription) lines.push('<tr><td style="padding:6px 12px 6px 0;color:#666;font-size:13px;">Beskrivelse</td><td style="padding:6px 0;font-size:13px;font-weight:600;">' + transferDescription + '</td></tr>');
+
+			overlay.innerHTML = `
+				<div style="background:#fff;border-radius:10px;padding:24px;min-width:320px;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+					<div style="font-size:15px;font-weight:600;margin-bottom:16px;color:#222;">Overfør data til kassebilag?</div>
+					<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+						${lines.join('')}
+					</table>
+					<div style="display:flex;gap:10px;justify-content:flex-end;">
+						<button id="transferCancelBtn" style="padding:8px 20px;border:1px solid #ccc;border-radius:6px;background:#fff;color:#444;font-size:13px;cursor:pointer;">Annuller</button>
+						<button id="transferOkBtn" style="padding:8px 20px;border:none;border-radius:6px;background:#17a2b8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">OK</button>
+					</div>
+				</div>`;
+
+			document.body.appendChild(overlay);
+
+			// Cancel
+			document.getElementById('transferCancelBtn').addEventListener('click', function() {
+				overlay.remove();
+			});
+
+			// OK — populate fields
+			document.getElementById('transferOkBtn').addEventListener('click', function() {
+				overlay.remove();
+
+				let populated = 0;
+				entriesToFill.forEach(function(entry) {
+					const rowId = entry.id.replace('bilagEntry_', '');
+					const pfx   = 'row_' + rowId + '_';
+
+					function setField(id, value) {
+						const el = document.getElementById(id);
+						if (el && value) {
+							el.value = value;
+							el.dispatchEvent(new Event('change', { bubbles: true }));
+						}
+					}
+
+					if (transferAmount)      setField(pfx + 'Amount',      transferAmount);
+					if (transferDate)        setField(pfx + 'Dato',        transferDate);
+					if (transferInvoice)     setField(pfx + 'Faktura',     transferInvoice);
+					if (transferDescription) setField(pfx + 'Beskrivelse', transferDescription);
+
+					populated++;
+				});
+
+				// Visual feedback on the button
+				const btn = document.getElementById('transferDataBtn');
+				if (btn) {
+					const original = btn.innerHTML;
+					btn.innerHTML = '✓ Overført!';
+					btn.style.backgroundColor = '#28a745';
+					btn.style.borderColor     = '#28a745';
+					btn.style.pointerEvents   = 'none';
+					setTimeout(function() {
+						btn.innerHTML             = original;
+						btn.style.backgroundColor = '#17a2b8';
+						btn.style.borderColor     = '#17a2b8';
+						btn.style.pointerEvents   = 'auto'; 
+					}, 2000);
+				}
+
+			});
+
+			// Also close on overlay click outside the dialog
+			overlay.addEventListener('click', function(e) {
+				if (e.target === overlay) overlay.remove();
+			});
+	};
+
+	//###
 	</script>
 	<?php
 	file_put_contents($perfLog, sprintf("Time: %.4f - End of PHP execution\n", microtime(true) - $startTime), FILE_APPEND);
