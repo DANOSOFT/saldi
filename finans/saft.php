@@ -714,8 +714,9 @@ if ($menu == 'T') {
 	
 	// Get CVR number
 	$query = db_select("select cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query))
+	if ($row = db_fetch_array($query)) {
 		$cvrnr = $row['cvrnr'];
+	}
 	
 	// STICKY HEADER - Close button, title, empty space
 	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
