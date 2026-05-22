@@ -826,7 +826,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+            if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
                 $term = addslashes($searchTerms[$column['field']]);
                 // Convert both the column value and the search term to lowercase
                 if ($term) {
@@ -854,7 +854,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         
         $orderCases = array();
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+            if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
                 $term = addslashes($searchTerms[$column['field']]);
                 $field = $column['sqlOverride'] == '' ? $column['field'] : $column['sqlOverride'];
                 
@@ -968,7 +968,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+            if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
                 $term = addslashes($searchTerms[$column['field']]);
                 if ($term) {
                     $searchConditions[] = $column['generateSearch']($column, $term);
@@ -1153,17 +1153,17 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
         $width = ($column['width'] / $totalWidth) * 100;
         if ($column["sortable"]) {
             echo "<th 
-                class='$column[field] sortable-td' 
+                class='{$column['field']} sortable-td' 
                 style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;' 
-                onclick=\"setSort$id('$column[field]')\"
+                onclick=\"setSort$id('{$column['field']}')\"
             >";
-            echo "<span class='sortable'>$column[headerName]</span>";
+            echo "<span class='sortable'>{$column['headerName']}</span>";
         } else {
-            echo "<th class='$column[field]' style='text-align: {$column['align']}; width: {$width}%;'>";
-            echo "<span>$column[headerName]</span>";
+            echo "<th class='{$column['field']}' style='text-align: {$column['align']}; width: {$width}%;'>";
+            echo "<span>{$column['headerName']}</span>";
         }
         if ($column["description"]) {
-            echo "<br><span style='font-weight: normal;'>$column[description]</span>";
+            echo "<br><span style='font-weight: normal;'>{$column['description']}</span>";
         }
         echo "</th>";
     }
@@ -1171,13 +1171,13 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
     print "</tr>";
    print "<tr style='background-color: #f4f4f4'>";
     foreach ($columns as $column) {
-        echo "<th class='$column[field]'>";
+        echo "<th class='{$column['field']}'>";
         if ($column["searchable"]) {
-            $columnSearchTerm = if_isset($searchTerms[$column['field']], '');
+            $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
             
             if ($column["type"] == "dropdown" && isset($column['dropdownOptions'])) {
                 // Dropdown select for ref/sælger field AND date fields
-                echo "<select class='inputbox' style='text-align: $column[align]; width: 100%;' name='search[$id][{$column['field']}]' onchange='this.form.submit()'>";
+                echo "<select class='inputbox' style='text-align: {$column['align']}; width: 100%;' name='search[$id][{$column['field']}]' onchange='this.form.submit()'>";
                 echo "<option value=''></option>";
                 
                 $options = $column['dropdownOptions']();
@@ -1189,11 +1189,11 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
                 
             } elseif ($column["type"] == "date") {
                 // Date field with date picker
-                // echo "<input class='inputbox date-picker' style='text-align: $column[align]; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder='dd-mm-yyyy eller dd-mm-yyyy:dd-mm-yyyy'>";
-                 echo "<input class='inputbox date-picker' style='text-align: $column[align]; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+                // echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder='dd-mm-yyyy eller dd-mm-yyyy:dd-mm-yyyy'>";
+                 echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
             } else {
                 // Regular text input
-                echo "<input class='inputbox' style='text-align: $column[align]; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+                echo "<input class='inputbox' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
             }
         }
         echo "</th>";
@@ -1522,7 +1522,7 @@ function render_columns($id, $columns, $all_columns) {
     // Create all column options as a select
     $selectOptions = "";
     foreach ($all_columns as $column) {
-        $selectOptions .= "<option value='$column[field]'>$column[field]</option>";
+        $selectOptions .= "<option value='{$column['field']}'>{$column['field']}</option>";
     }
 
     $i = 0;
@@ -1551,7 +1551,7 @@ function render_columns($id, $columns, $all_columns) {
                 </td>
                 <td>
                     <select name='rows[$id][$i][field]' class="inputbox">
-                        <option value='$column[field]'>$column[field]</option>
+                        <option value='{$column['field']}'>{$column['field']}</option>
                         {$selectOptions}
                     </select>
                 </td>
@@ -1566,7 +1566,7 @@ function render_columns($id, $columns, $all_columns) {
                 </td>
                 <td align='left'>
                     <select name='rows[$id][$i][align]' class="inputbox">
-                        <option value='$column[align]'>$column[align]</option>
+                        <option value='{$column['align']}'>{$column['align']}</option>
                         <option value='left'>left</option>
                         <option value='center'>center</option>
                         <option value='right'>right</option>

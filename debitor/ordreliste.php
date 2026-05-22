@@ -790,7 +790,7 @@ $custom_columns = array(
                 $display = "<span onmouseover=\"return overlib('" . $spantxt . "', WIDTH=800);\" onmouseout=\"return nd();\">" . $display . "</span>";
             }
             
-            return "<td align='$column[align]' style='$style' title='$title'><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
+            return "<td align='{$column['align']}' style='$style' title='$title'><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
         }
     ),
     
@@ -805,7 +805,7 @@ $custom_columns = array(
             return generateDateRangeSearch($column, $term);
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ),
     
@@ -816,7 +816,7 @@ $custom_columns = array(
         "type" => "date",
         "searchable" => true,
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ),
     
@@ -850,7 +850,7 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -862,7 +862,7 @@ $custom_columns = array(
         "searchable" => true,
         "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ),
     
@@ -912,7 +912,7 @@ $custom_columns = array(
             }
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -924,7 +924,7 @@ $custom_columns = array(
         "searchable" => true,
         "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ), 
     
@@ -947,7 +947,7 @@ $custom_columns = array(
             return "o.kontonr ILIKE '%$term%'";
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -983,7 +983,7 @@ $custom_columns = array(
             return $options;
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -1016,7 +1016,7 @@ $custom_columns = array(
             $kurs_factor = ($valutakurs > 0) ? $valutakurs / 100 : 1;
             $dkk_value = floatval($row['sum_m_moms']) * $kurs_factor;
             $formatted = dkdecimal($dkk_value, 2);
-            return "<td align='$column[align]'>$formatted</td>";
+            return "<td align='{$column['align']}'>$formatted</td>";
         }
     ),
 
@@ -1054,7 +1054,7 @@ $custom_columns = array(
             return "(o.betalingsbet = '$term')";
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -1100,9 +1100,9 @@ $custom_columns = array(
 
                 $style = $udlignet ? "color: #000000;" : "color: #FF0000;";
                 $title = $udlignet ? "db: $dk_db - dg: $dk_dg%" : findtekst('1442|Ikke udlignet', $sprog_id) . "\r\ndb: $dk_db - dg: $dk_dg%";
-                return "<td align='$column[align]' style='$style' title='$title'>" . htmlspecialchars($formatted) . "</td>";
+                return "<td align='{$column['align']}' style='$style' title='$title'>" . htmlspecialchars($formatted) . "</td>";
             }
-            return "<td align='$column[align]'>" . htmlspecialchars($formatted) . "</td>";
+            return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
         }
     ),
     
