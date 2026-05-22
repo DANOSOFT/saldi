@@ -674,10 +674,10 @@ if ($menu == 'T') {
 	print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='4' border='0'><tbody>";
 	print "<tr>";
 	print "<td width=\"5%\" align='center'><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style=\"text-decoration: none;\">";
-	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; justify-content: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
 	print "<td width='75%' align='center' style='$topStyle'>SAF-T Financial Reporting</td>";
-	// print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
+	print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
 	print "</tr>";
 	print "</tbody></table>";
 	print "</div>";
@@ -693,11 +693,11 @@ if ($menu == 'T') {
 	print "<tr>";
 	print "<td width='50%' valign='top'>";
 	print "<div class='saftTitle'>" . $newTitle . "</div>";
-	print "<div style='margin-top: 5px;'><b class='saftFirmName'>cvr: $cvrnr | $firmanavn</b></div>";
+	print "<div style='margin-top: 5px;' class='saftFirmName'>cvr: $cvrnr | $firmanavn</div>";
 	print "</td>";
 	print "<td width='50%' align='right' valign='top'>";
-	print "<div>Regnskabsår: $regnaar</div>";
-	print "<div style='margin-top: 5px;'>Periode: $startdato_fmt/$mf $aar_fra - $slutdato_fmt/$mt $aar_til</div>";
+	print "<div style='margin: 5px 4px 0 0;'>Regnskabsår: $regnaar</div>";
+	print "<div style='margin: 5px 4px 0 0;'>Periode: $startdato_fmt/$mf $aar_fra - $slutdato_fmt/$mt $aar_til</div>";
 	print "</td>";
 	print "</tr>";
 	print "<tr><td colspan='2'><hr></td></tr>";
