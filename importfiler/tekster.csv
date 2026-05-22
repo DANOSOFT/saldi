@@ -1904,7 +1904,7 @@
 1904	Angiv brugerens tilladte IP adresser	Enter IP address to restrict	Skriv inn IP for å begrense
 1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you are not supposed to be here! Your IP number, username and accounts are registered!	Hmm, du har visst ikke noe å gjøre her! Din IP-adresse, brukernavn og regnskap er registrert!
 1906	Skjul 'Luk'	Hide 'Close'	Skjul 'Lukk'
-1907	Vis 'Luk'	Show 'Close'	Vis 'Lukk'
+1907	Vis lukkede	Show closed	Vis lukkede
 1908	Lås	Lock	Lås
 1909	Brugerantal	Number of users	Antall brukere
 1910	Posteringer	Entries	Posteringer
@@ -5024,4 +5024,3 @@
 5024	vare(r) udløber inden for	item(s) expiring within	vare(r) utløper innen
 5025	dage	days	dager
 5026	Klik for at se udløbsrapporten	Click to view the expiry report	Klikk for å se utløpsrapporten
-10000   bilagsmatch batch invoice   vedleggsmatch

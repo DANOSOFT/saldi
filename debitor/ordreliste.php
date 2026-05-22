@@ -410,8 +410,8 @@ if (!$returside) {
     if ($popup) $returside = "../includes/luk.php";
     else $returside = "../index/menu.php";
 } elseif (!$popup && $returside == "../includes/luk.php") $returside = "../index/menu.php";
-$qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
-db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+#$qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
+#db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 if (!$popup) {
     $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'D%' and status < '3'";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__); #20150308
@@ -1125,6 +1125,61 @@ $custom_columns = array(
             return "<td align='{$column['align']}'>$display</td>";
         }
     ),
+    "felt_1" => array(
+        "field" => "felt_1",
+        "headerName" => findtekst('255|Ekstrafelt 1', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "a.felt_1",
+    ),
+    "felt_2" => array(
+        "field" => "felt_2",
+        "headerName" => findtekst('256|Ekstrafelt 2', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "a.felt_2",
+    ),
+    "felt_3" => array(
+        "field" => "felt_3",
+        "headerName" => findtekst('257|Ekstrafelt 3', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "a.felt_3",
+    ),
+    "felt_4" => array(
+        "field" => "felt_4",
+        "headerName" => findtekst('258|Ekstrafelt 4', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "a.felt_4",
+    ),
+    "felt_5" => array(
+        "field" => "felt_5",
+        "headerName" => findtekst('259|Ekstrafelt 5', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "a.felt_5",
+    ),
 );
 
 // Build the FINAL $columns array dynamically
@@ -1489,6 +1544,8 @@ foreach ($all_db_columns as $field_name => $data_type) {
         $select_fields .= ", o.$field_name as $field_name";
     }
 }
+// Add adresser felt fields
+$select_fields .= ", a.felt_1 as felt_1, a.felt_2 as felt_2, a.felt_3 as felt_3, a.felt_4 as felt_4, a.felt_5 as felt_5";
 // Add calculated fields
 $select_fields .= ", (o.sum::numeric + o.moms::numeric) as sum_m_moms";
 $select_fields .= ", CASE 
