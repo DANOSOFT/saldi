@@ -30,6 +30,7 @@
 // 20160824 PHR	- Hack til at vise lister hvis $euvarekonto mm ikke er udfyldt. #20160824
 // 20171130 PHR - varer.varenr ændret til varer.vare_id så varer der har ændret varenr også kommer med. Søg 20171130
 // 20260303 PHR - PHP8
+// 20260522 PHR - Fiscal Year
 
 @session_start();
 $s_id=session_id();
@@ -143,7 +144,7 @@ while ($row = db_fetch_array($query)) {
 		$modtagercvrnr = strtoupper(substr($modtagercvrnr, 2));
 		$qtxt="select ordrelinjer.pris as pris, ordrelinjer.antal as antal, ordrelinjer.rabat as rabat, grupper.box12 as konto from "; #20171130
 		$qtxt.="ordrelinjer, varer, grupper where ordrelinjer.ordre_id = '$r[id]' and ordrelinjer.vare_id=varer.id ";
-		$qtxt.="and varer.gruppe=grupper.kodenr and grupper.art='VG' order by ordrelinjer.posnr";
+		$qtxt.="and varer.gruppe=grupper.kodenr and grupper.art='VG' and grupper.fiscal_year='$regnaar' order by ordrelinjer.posnr";
 		$qq=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($rr = db_fetch_array($qq)) {
 			$debughtml.="<tr><td>".$rr['antal']." a ".$rr['pris']." (-".$rr['rabat']."</td><td>Konto: ".$rr['konto']."</td></tr>\n";
