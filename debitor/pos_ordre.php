@@ -1499,12 +1499,49 @@ if ($vare_id) {
 				}
 				$qtxt = "select id,samlevare from varer where varenr = '$varenr_ny' or stregkode = '$varenr_ny'"; #20200929
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				if ($r['samlevare'])
-					opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny);
-				else {
-					($beskrivelse_ny) ? $textNew = $beskrivelse_ny : $textNew = $beskrivelse_old; #20210906
-					$svar = opret_ordrelinje($id, '', $varenr_ny, $antal_ny, $textNew, usdecimal($pris_ny, 2), usdecimal($rabat_ny, 2), 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226 + 20140814 + 20200603
+				#-- Out-of-stock warning gate (Håndtering af salg af udsolgte varer) --
+				$stockWarningConfirmed = (isset($_POST['stock_warning_confirmed']) && $_POST['stock_warning_confirmed'] == '1');
+				$stockWarningNote      = isset($_POST['stock_warning_note']) ? trim($_POST['stock_warning_note']) : '';
+				$stockWarningOn        = is_stock_warning_enabled();
+				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id']) : array('out_of_stock' => false);
+				$blockOnStockWarning   = ($stockWarningOn && $stockInfo['out_of_stock'] && !$stockWarningConfirmed);
+				if ($blockOnStockWarning) {
+					$swPayload = array(
+						'formName'    => 'pos_ordre',
+						'varenr'      => (string)$stockInfo['varenr'],
+						'beskrivelse' => (string)$stockInfo['beskrivelse'],
+						'extra' => array(
+							'varenr_ny' => (string)$varenr_ny,
+							'antal_ny'  => (string)$antal_ny,
+							'pris_ny'   => (string)$pris_ny,
+							'rabat_ny'  => (string)$rabat_ny,
+							'lager_ny'  => (string)$lager_ny,
+						),
+					);
+					$swPayloadJson = json_encode($swPayload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+					if ($swPayloadJson === false) $swPayloadJson = '{}';
+					$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+					if ($swTextsJson === false) $swTextsJson = '{}';
+					print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
+					print "<script type=\"application/json\" id=\"saldi-sw-pos-payload\">$swPayloadJson</script>\n";
+					print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
+					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['varenr_ny'])f.elements['varenr_ny'].value='';if(f.elements['antal_ny'])f.elements['antal_ny'].value='';}};SaldiStockWarning.show(__sw);});</script>\n";
 				}
+				if (!$blockOnStockWarning) {
+					if ($r['samlevare'])
+						opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny);
+					else {
+						($beskrivelse_ny) ? $textNew = $beskrivelse_ny : $textNew = $beskrivelse_old; #20210906
+						$svar = opret_ordrelinje($id, '', $varenr_ny, $antal_ny, $textNew, usdecimal($pris_ny, 2), usdecimal($rabat_ny, 2), 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226 + 20140814 + 20200603
+					}
+					if ($stockWarningConfirmed && $stockWarningNote !== '' && $stockInfo['out_of_stock']) {
+						$swLinjeId = 0;
+						$rSW = db_fetch_array(db_select("select max(id) as lid from ordrelinjer where ordre_id = '$id' and varenr = '$varenr_ny'", __FILE__ . " linje " . __LINE__));
+						if ($rSW && $rSW['lid']) $swLinjeId = $rSW['lid'];
+						log_stock_warning($id, $r['id'], $stockWarningNote, $swLinjeId);
+					}
+				}
+				if (!$blockOnStockWarning) {
 				if (usdecimal($pris_ny, 2) == 0.00)
 					$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
 				if ($svar && !is_numeric($svar)) {
@@ -1516,11 +1553,12 @@ if ($vare_id) {
 					if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
 						$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					}					
+					}
 					$varenr_ny = $next_varenr;
 					$tmp = $antal_ny; #Til kundedisplay
 					$antal_ny = NULL;
 					#			$sum=0;
+				}
 				}
 				/*
 											if ($kundedisplay) {

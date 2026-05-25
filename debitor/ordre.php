@@ -2421,6 +2421,25 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			}
 		}
 	}
+	// -- Out-of-stock approval logging (Håndtering af salg af udsolgte varer) --
+	// The JS preflight attached one note per varenr the user approved. We now
+	// look up each of those varenr in this order's lines and write a log row.
+	if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()
+		&& isset($_POST['stock_warning_note']) && is_array($_POST['stock_warning_note']) && $id) {
+		foreach ($_POST['stock_warning_note'] as $swVarenr => $swNote) {
+			$swNote = trim((string)$swNote);
+			if ($swNote === '') continue;
+			$swVarenrEsc = db_escape_string($swVarenr);
+			$rSW = db_fetch_array(db_select("select id, vare_id from ordrelinjer where ordre_id = '$id' and varenr = '$swVarenrEsc' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+			if (!$rSW || !$rSW['vare_id']) continue;
+			$swInfo = check_stock_warning((int)$rSW['vare_id']);
+			if (empty($swInfo['out_of_stock'])) continue; // line is fine now; nothing to log
+			// Skip if we already logged this exact line (idempotent on re-save).
+			$rDup = db_fetch_array(db_select("select id from order_stock_warning_log where ordre_id = '$id' and linje_id = '$rSW[id]' limit 1", __FILE__ . " linje " . __LINE__));
+			if ($rDup && $rDup['id']) continue;
+			log_stock_warning($id, (int)$rSW['vare_id'], $swNote, (int)$rSW['id']);
+		}
+	}
 	transaktion("commit");
 }
 ########################## KOPIER #################################
@@ -3682,6 +3701,31 @@ function ordreside($id, $regnskab)
 		if ($returside == "ordreliste.php") sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 		else sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 	}
+	// -- Stock-warning banner: sits between the title bar (rendered by sidehoved()) and the order form.
+	if ($id && function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
+		$rSWtop = db_fetch_array(db_select("select count(*) as cnt from order_stock_warning_log where ordre_id = '$id'", __FILE__ . " linje " . __LINE__));
+		if ($rSWtop && $rSWtop['cnt'] > 0) {
+			$swTopCnt = (int)$rSWtop['cnt'];
+			$swTopTexts = stock_warning_texts(isset($sprog_id) ? $sprog_id : null);
+		
+			print "<div id='saldi-sw-banner' style='margin:8px auto;padding:10px 14px;max-width:1400px;background:#fff4f4;border:1px solid #d99;border-left:5px solid #b00;border-radius:4px;font-size:14px;font-family:Arial,Helvetica,sans-serif;'>";
+			print "<a href='#' onclick=\"saldiSwOpenLog($id);return false;\" style='color:#900;text-decoration:none;'><b>⚠ " . $swTopTexts['banner_text'] . ":</b> $swTopCnt " . $swTopTexts['banner_suffix'] . "</a>";
+			print "</div>\n";
+			print "<script>\n";
+			print "function saldiSwOpenLog(orderId){\n";
+			print "  var uri='/debitor/stockWarningLog.php?id='+orderId;\n";
+			print "  if(window.parent && typeof window.parent.update_iframe==='function'){\n";
+			print "    window.parent.update_iframe(uri); return;\n";
+			print "  }\n";
+			print "  // Fallback when not inside the saldi SPA iframe: navigate this window directly.\n";
+			print "  var origin = window.location.origin;\n";
+			print "  var path = window.location.pathname; // e.g. /saul/debitor/ordre.php\n";
+			print "  var root = path.split('/').slice(0,2).join('/'); // /saul\n";
+			print "  window.location.href = origin + root + uri;\n";
+			print "}\n";
+			print "</script>\n";
+		}
+	}
 	if (!$status)  $status = 0;
     $formularsprog = if_isset($formularsprog, 'Dansk');
 
@@ -3695,6 +3739,17 @@ function ordreside($id, $regnskab)
 			$formAction = "ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside";
 		}
 		print "<form name=\"ordre\" id=\"1\" action=\"$formAction\" method=\"post\">\n";
+		
+		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
+			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+			if ($swTextsJson === false) $swTextsJson = '{}';
+			// Use a <script type="application/json"> tag rather than executable inline JS so any
+			// edge-case in the JSON body cannot cause a JavaScript parse error in the page.
+			print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
+			print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
+			print "<script src=\"../javascript/orderStockWarningSave.js\"></script>\n";
+			
+		}
 
 		// print "<form name=\"ordre\" id=\"$formId\" action=\"$formAction\" method=\"post\">\n";
 		// print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
@@ -4447,6 +4502,14 @@ function ordreside($id, $regnskab)
 		($r['antal'] < 0) ? $dan_kn = 1 : $dan_kn = NULL;
 		print "<div class=\"ordreform\">\n";
 		print "<form name=\"ordre\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
+		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
+			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+			if ($swTextsJson === false) $swTextsJson = '{}';
+			
+			print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
+			print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
+			print "<script src=\"../javascript/orderStockWarningSave.js\"></script>\n";
+		}
 		print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
 		print "<input type=\"hidden\" name=\"update_positions\" value=\"0\" id=\"update_positions\">\n"; #20140716
 		print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
