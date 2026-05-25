@@ -36,8 +36,8 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 	global $db_type;
 	$s_id=session_id();
 
-	$nextver='4.2.4';
-	if ($fixNo<"4"){
+	$nextver='4.2.5';
+	if ($fixNo<"5"){
 		include("../includes/connect.php");
 		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
 		$tmp=$r['version'];
@@ -92,6 +92,28 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 			$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrelinjer' AND column_name='batch_batch_no'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				db_modify("ALTER TABLE ordrelinjer ADD COLUMN batch_batch_no VARCHAR(100) NULL", __FILE__ . " linje " . __LINE__);
+			}
+
+			// --- order_stock_warning_log: audit trail for out-of-stock sales approvals ---
+			$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='order_stock_warning_log'";
+			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$qtxt = "CREATE TABLE order_stock_warning_log (
+					id serial NOT NULL,
+					ordre_id integer NOT NULL,
+					linje_id integer NULL,
+					vare_id integer NULL,
+					varenr varchar(50) NULL,
+					beskrivelse varchar(255) NULL,
+					beholdning numeric(15,3) NULL,
+					min_lager numeric(15,3) NULL,
+					employee_id integer NULL,
+					employee_name varchar(100) NULL,
+					note text NOT NULL,
+					logged_at timestamp DEFAULT CURRENT_TIMESTAMP,
+					PRIMARY KEY (id)
+				)";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				db_modify("CREATE INDEX idx_oswl_ordre ON order_stock_warning_log(ordre_id)", __FILE__ . " linje " . __LINE__);
 			}
 
 			// --- Update version ---
