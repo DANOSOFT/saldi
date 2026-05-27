@@ -125,18 +125,18 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 	$varenr       = trim($varenr);
 	$varenavn     = trim($varenavn);
 } else {
-	$varegruppe=isset($_GET['varegruppe']) ? $_GET['varegruppe'] : null;
-	$afd       =isset($_GET['afd']) ? $_GET['afd'] : null;
-	$ref       =isset($_GET['ref']) ? $_GET['ref'] : null;
-	$lev       =isset($_GET['lev']) ? $_GET['lev'] : null;
-	$date_from =isset($_GET['date_from']) ? $_GET['date_from'] : null;
-	$date_to   =isset($_GET['date_to']) ? $_GET['date_to'] : null;
-	$varenr    =isset($_GET['varenr']) ? $_GET['varenr'] : null;
-	$varenavn  =isset($_GET['varenavn']) ? $_GET['varenavn'] : null;
-	$detaljer  =isset($_GET['detaljer']) ? $_GET['detaljer'] : null;
-	$kun_salg  =isset($_GET['kun_salg']) ? $_GET['kun_salg'] : null;
-	$lagertal  =isset($_GET['lagertal']) ? $_GET['lagertal'] : null;
-	$submit    =isset($_GET['submit']) ? $_GET['submit'] : null;
+	$varegruppe = isset($_GET['varegruppe']) ? $_GET['varegruppe'] : null;
+	$afd        = isset($_GET['afd'])        ? $_GET['afd']        : null;
+	$ref        = isset($_GET['ref'])        ? $_GET['ref']        : null;
+	$lev        = isset($_GET['lev'])        ? $_GET['lev']        : null;
+	$date_from  = isset($_GET['date_from'])  ? $_GET['date_from']  : null;
+	$date_to    = isset($_GET['date_to'])    ? $_GET['date_to']    : null;
+	$varenr     = isset($_GET['varenr'])     ? $_GET['varenr']     : null;
+	$varenavn   = isset($_GET['varenavn'])   ? $_GET['varenavn']   : null;
+	$detaljer   = isset($_GET['detaljer'])   ? $_GET['detaljer']   : null;
+	$kun_salg   = isset($_GET['kun_salg'])   ? $_GET['kun_salg']   : null;
+	$lagertal   = isset($_GET['lagertal'])   ? $_GET['lagertal']   : null;
+	$submit     = isset($_GET['submit'])     ? $_GET['submit']     : null;
 }
 
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
