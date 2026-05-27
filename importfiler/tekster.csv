@@ -1171,7 +1171,7 @@
 1171	Valutaer	Currencies	Valutaer
 1172	Valutabetegnelse - f.eks. USD	Currency designation - e.g. USD	Valutabetegnelse - f.eks. USD
 1173	Valutabeskrivelse - f.eks. Amerikanske dollar	Currency description - e.g. US dollars	Valutabeskrivelse - f.eks. Amerikanske dollar
-1174	Kontonummer for valutakursdifferanser og avrunding av øret	Account number for exchange rate differences and year rounding	Kontonummer for valutakursdifferanser og avrunding av øret
+1174	Kontonummer for valutakursdifferencer og øreafrunding	Account number for exchange rate differences and rounding	Kontonummer for valutakursdifferanser og øreavrunding
 1175	Tilføj	Add	Legg til
 1176	Leverandørnr.	Supplier no.	Leverandørnr.
 1177	FI kreditor nr.	FI creditor no.	FI kreditor nr.
@@ -1202,9 +1202,9 @@
 1202	Log	Log	Løk
 1203	Søgetekst	Search text	Søgetekst
 1204	Klik for at åbne, højreklik for at gemme	Click to open, right-click to save	Klikk for å åpne, høyreklikk for å lagre
-1205	Diff. konto	Diff. account	Diff. regnskap
+1205	Diff. konto	Diff. account	Diff. konto
 1206	Ret	Modify	Rett
-1207	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen.\\nEllers risikerer du at lave rod i dit regnskab	If the exchange rate changes, do not correct the exchange rate, but add a new exchange rate stating the date of the exchange rate change. \\ nOtherwise, you risk messing up your accounts.	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse av dato for kursændringen. \\ nEllers risikerer du at lave rod i dette regnskab
+1207	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen.\\nEllers risikerer du at lave rod i dit regnskab	If the exchange rate changes, do not correct the exchange rate, but add a new exchange rate stating the date of the exchange rate change.\\nOtherwise, you risk messing up your accounts.	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse av dato for kursændringen.\\nEllers risikerer du at lave rod i ditt regnskap
 1208	Start md.	Start mnth.	Start md.
 1209	Start år	Start yr.	Startår
 1210	Slut md.	End mnth.	Slutt md.
@@ -1702,17 +1702,17 @@
 1702	kontakt Saldi på telefon 4690 2208	Contact Saldi on telephone 46902208	kontakt Saldi på telefon 4690 2208
 1703	Den dato kursen er gældende fra	The date the rate is valid from	Datoen prisen er gyldig fra
 1704	Værdien i DKK af 100	The value in DKK of 100	Verdien i DKK på 100
-1705	Kontonummer fra kontoplanen som skal bruges til valutakursdifferencer og øreafrunding	Account number from the chart of accounts to be used for exchange rate differences and year rounding	Kontonummer fra kontoplanen som skal brukes til valutakursdifferanser og øreavrunding
+1705	Kontonummer fra kontoplanen som skal bruges til valutakursdifferencer og øreafrunding	Account number from the chart of accounts to be used for exchange rate differences and rounding	Kontonummer fra kontoplanen som skal brukes til valutakursdifferanser og øreavrunding
 1706	Det er foretaget posteringer i	Entries have been made in	Det er gjort oppføringer i
 1707	efter	after	etter
-1708	Kursændring afbrudt	Price change interrupted	Prisendring avbrutt
+1708	Kursændring afbrudt	Exchange rate change interrupted	Kursendring avbrutt
 1709	Driftkonto	Operating account	Driftskonto
-1710	Det er foretaget posteringer på	Entries have been made	Påmeldinger er gjort
+1710	Det er foretaget posteringer på	Entries have been made on	Det er gjort posteringer på
 1711	Afmærk dette felt for at bruge ordrebemærkning til intern brug	Check this field to use order notes for internal use	Merk av dette feltet for å bruke ordrenotater til intern bruk
 1712	Bemærkning til ordre	Order note	Ordrenotat
 1713	Udvid tekstfeltet ved at hive i hjørnet	Enhance the textarea by stretching the corner	Trek i hjørnet for å forstørre tekstfeltet
 1714	Anvend ordrebemærkning til internt brug	Use order notes for internal use	Bruk ordrenotat til intern bruk
-1715	eksisterer allerede	already exist	Finnes allerede
+1715	eksisterer allerede	already exists	Finnes allerede
 1716	er reserveret og kan ikke anvendes som valutakode	is reserved and cannot be used as a currency code	er reservert og kan ikke brukes som valutakode
 1717	Provision beregnes på fakturerede ordrer	Commission is calculated on invoiced orders	Provisjon beregnes på fakturerte bestillinger
 1718	Provision beregnes på betalte ordrer	Commission is calculated on paid orders	Kommisjonen beregnes på betalte bestillinger
@@ -3276,68 +3276,68 @@
 3276	Forhåndsvisning	Preview	Forhåndsvisning
 3277	Indlæser	Loading	Laster
 3278	Filer	Files	Filer
-3279	Lagerhistorik	Inventory history	Lagerhistorikk
-3280	
-3281	
-3282	
-3283	
-3284	
-3285	
-3286	
-3287	
-3288	
-3289	
-3290	
-3291	
-3292	
-3293	
-3294	
-3295	
-3296	
-3297	
-3298	
-3299	
-3300	
-3301	
-3302	
-3303	
-3304	
-3305	
-3306	
-3307	
-3308	
-3309	
-3310	
-3311	
-3312	
-3313	
-3314	
-3315	
-3316	
-3317	
-3318	
-3319	
-3320	
-3321	
-3322	
-3323	
-3324	
-3325	
-3326	
-3327	
-3328	
-3329	
-3330	
-3331	
-3332	
-3333	
-3334	
-3335	
-3336	
-3337	
-3338	
-3339	
-3340	
+3279	XML-dokument	XML document	XML-dokument
+3280	Klik for at se dokumentet i panelet	Click to view the document in the panel	Klikk for å se dokumentet i panelet
+3281	Forhåndsvisning ikke tilgængelig	Preview not available	Forhåndsvisning ikke tilgjengelig
+3282	Fejl ved indlæsning af filer	Error loading files	Feil ved innlasting av filer
+3283	Ingen filer fundet	No files found	Ingen filer funnet
+3284	Fil	File	Fil
+3285	Handlinger	Actions	Handlinger
+3286	Udtræk fakturadata	Extract invoice data	Uttrekk fakturadata
+3287	Perfekt	Perfect	Perfekt
+3288	Fundet	Found	Funnet
+3289	Klik for at vælge	Click to select	Klikk for å velge
+3290	Kombination	Combination	Kombinasjon
+3291	Bilag giver	Attachments give	Vedlegg gir
+3292	Indsæt valgte	Insert selected	Sett inn valgte
+3293	Klik for at vælge alle bilag med	Click to select all attachments with	Klikk for å velge alle vedlegg med
+3294	Klik for at vælge alle bilag i denne kombination	Click to select all attachments in this combination	Klikk for å velge alle vedlegg i denne kombinasjonen
+3295	Lagerhistorik	Inventory history	Lagerhistorikk
+3296	Bilag matcher beløbet	Attachments match the amount	Vedlegg matcher beløpet
+3297	Og datoen	And the date	Og datoen
+3298	Bilag matcher datoen	Attachments match the date	Vedlegg matcher datoen
+3299	Bilag giver tilsammen	Attachments total	Vedlegg gir til sammen
+3300	ÅÅÅÅ-MM-DD	YYYY-MM-DD	ÅÅÅÅ-MM-DD
+3301	Fakturanummer	Invoice number	Fakturanummer
+3302	Fejl ved gemning	Error saving	Feil ved lagring
+3303	Prøv igen	Try again	Prøv igjen
+3304	Vælg mindst ét bilag	Select at least one attachment	Velg minst ett bilag
+3305	Fejl ved indsætning	Error inserting	Feil ved innsetting
+3306	Er du sikker på at du vil slette	Are you sure you want to delete	Er du sikker på at du vil slette
+3307	Udtrukket data	Extracted data	Uttrukket data
+3308	Vil du opdatere filen med disse data?	Do you want to update the file with this data?	Vil du oppdatere filen med disse dataene?
+3309	Ukendt fejl	Unknown error	Ukjent feil
+3310	Fejl ved udtræk	Extraction error	Feil ved uttrekk
+3311	Ingen data kunne udtrækkes	No data could be extracted	Ingen data kunne trekkes ut
+3312	Ingen filer i puljen at opdatere	No files in the pool to update	Ingen filer i puljen å oppdatere
+3313	Opdatering afsluttet	Update completed	Oppdatering fullført
+3314	Behandlet	Processed	Behandlet
+3315	Succesfulde	Successful	Vellykkede
+3316	Fejlede	Failed	Feilet
+3317	Ingen filer valgt. Vælg venligst de filer du vil slette.	No files selected. Please select the files you want to delete.	Ingen filer valgt. Vennligst velg filene du vil slette.
+3318	Fil(er)	File(s)	Fil(er)
+3319	Sletning afsluttet	Deletion completed	Sletting fullført
+3320	Slettet	Deleted	Slettet
+3321	Gemmer	Saving	Lagrer
+3322	Gemt	Saved	Lagret
+3323	Duplikerer	Duplicating	Dupliserer
+3324	Fejl ved duplikering	Error duplicating	Feil ved duplisering
+3325	Vælg fra enhed	Choose from device	Velg fra enhet
+3326	Eller	Or	Eller
+3327	Filtypen er ikke tilladt. Vælg kun PDF eller billedfiler (jpg, png).	File type not allowed. Please select only PDF or image files (jpg, png).	Filtypen er ikke tillatt. Velg kun PDF eller bildefiler (jpg, png).
+3328	Uploader	Uploading	Laster opp
+3329	Upload færdig	Upload complete	Opplasting fullført
+3330	Fil(er) uploadet	File(s) uploaded successfully	Fil(er) lastet opp
+3331	Fil(er) fejlet	File(s) failed	Fil(er) feilet
+3332	Link bilag fra anden linje	Link attachment from another line	Koble vedlegg fra annen linje
+3333	Kunne ikke konvertere XML-dokument	Could not convert XML document	Kunne ikke konvertere XML-dokument
+3334	Filen	The file	Filen
+3335	Kunne ikke læse XML-filen	Could not read the XML file	Kunne ikke lese XML-filen
+3336	Rå visning	Raw view	Rå visning
+3337	API-nøgle mangler	API key missing	API-nøkkel mangler
+3338	Kode	Code	Kode
+3339	Overfør data	Transfer data	Overfør data
+3340	Valutakort	Currency card	Valutakort
 3341	
 3342	
 3343	
