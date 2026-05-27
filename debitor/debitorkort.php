@@ -2460,8 +2460,8 @@ function split_navn($firmanavn)
 	return ($fornavn . "," . $efternavn);
 }
 
-echo "CVR $cvrnr<br>";
-echo substr($cvrnr,0,1)."<br>";
+// echo "CVR $cvrnr<br>";
+// echo substr($cvrnr,0,1)."<br>";
 
 
 if (!$id || substr($cvrnr,0,1)  == '*') {
