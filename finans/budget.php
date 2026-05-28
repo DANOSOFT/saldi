@@ -73,7 +73,7 @@ if (!isset($_POST['udfyld']) && isset($_POST['gem'])) {
 			if ($setall[$x] || $setall[$x]=='0') $amount[$x][$z]=$setall[$x];
 			$tmp=substr($amount[$x][$z],-4);
 			if(strpos($tmp,",")) $amount[$x][$z]=usdecimal($amount[$x][$z]);
-			$tal=round((float)if_isset($amount,0,[$x,$z],0),0);
+			$tal=round((float)if_isset($amount, 0, [$x,$z],0),0);
 			if ($b_id) {
 				db_modify("update budget set amount='$tal' where id='$b_id'",__FILE__ . " linje " . __LINE__);
 			} elseif ($tal) {
