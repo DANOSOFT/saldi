@@ -133,7 +133,7 @@ if ($menu == 'T') {
     print "<tr><td colspan='5' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
         <td width='10%'><a href='../lager/rapport.php' accesskey='L'><button style='$buttonStyle; width:100%'>" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>
         <td width='80%' style='$topStyle' align='center'>$title</td>
-        <td width='5%' style='$topStyle'><br></td>
+        <td width='10%' style='$topStyle'><br></td>
     </table>";
 } else {
     print "<tr><td colspan='4' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
