@@ -378,6 +378,7 @@ if ($tjek = if_isset($_GET['tjek'])) {
 	if ($r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__))) {
 		$kksort = $r['box1'];
 		$kontrolkonto = $r['box2'];
+		$kkdir = $r['box4'] ? $r['box4'] : 'asc';
 	} else {
 		db_modify("insert into grupper (beskrivelse,art,kode,kodenr) values ('Kassekladde','KASKL','1','$bruger_id')", __FILE__ . " linje " . __LINE__);
 	}
@@ -433,11 +434,16 @@ if ($_GET) {
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
 	$sort            =       if_isset($_GET['sort']);
 	$kksort          =       if_isset($_GET['kksort']); #sortering i kassekladde
+	$kkdir_get       =       if_isset($_GET['kkdir']);
+	$kladde_id       = (int) if_isset($_GET,0,'kladde_id');
+	if ($kksort) {
+		if ($kkdir_get == 'desc') $kkdir = 'desc'; else $kkdir = 'asc';
+		db_modify("update grupper set box1='" . db_escape_string($kksort) . "', box4='" . db_escape_string($kkdir) . "' where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+	}
 	$funktion        =       if_isset($_GET['funktion']);
 	$x               = (int) if_isset($_GET['x'], 0);
 	$id[$x]          =       if_isset($_GET['id']);
 	$lobenr[$x]      =       if_isset($_GET['lobenr']);
-	$kladde_id       = (int) if_isset($_GET,0,'kladde_id');
 	$bilag[$x]       = (int) if_isset($_GET,0,'bilag');
 	$dato[$x]        =       if_isset($_GET,'','dato');
 	$beskrivelse[$x] =       if_isset($_GET,'','beskrivelse');
@@ -542,6 +548,7 @@ if ($_GET) {
 	if ($r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__))) {
 		$kksort = $r['box1'];
 		$kontrolkonto = $r['box2'];
+		$kkdir = $r['box4'] ? $r['box4'] : 'asc';
 	}
 }
 
@@ -2344,11 +2351,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		
 		print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
 		print "<tr class='table-krow'><td colspan='24' style='padding: 10px 0;'></td></tr>";
+		$_next_dir   = ($kkdir == 'asc') ? 'desc' : 'asc';
+		$_bilag_dir  = $_next_dir;
+		$_date_dir   = $_next_dir;
+		$_amount_dir = $_next_dir;
 		print "<tr>";
 		if ($vis_bilag && !$fejl && !$udskriv)
 			print "<td></td>";
-		print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmyy (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
+		print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&kkdir=$_bilag_dir&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
+		print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmyy (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&kkdir=$_date_dir&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
 		print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
@@ -2357,7 +2368,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Debet', $sprog_id)) . "</b></td>";
 		print "<td align = center class='kk-col-vat_k'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
+		print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&kkdir=$_amount_dir&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
 
 		if ($vis_afd)
 			print "<td align = left class='kk-col-afd'><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
@@ -2406,9 +2417,11 @@ $r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kod
 if ($r)
 	$kksort = $r['box1'];
 if ($r) $kontrolkonto = $r['box2'];
+if ($r) $kkdir = ($r['box4'] == 'desc') ? 'desc' : 'asc';
 if ($kladde_id) {
 	if ($kksort != 'transdate,bilag' && $kksort != 'amount')
 		$kksort = 'bilag,transdate';
+	if (!isset($kkdir) || ($kkdir != 'asc' && $kkdir != 'desc')) $kkdir = 'asc';
 	$id = array();
 	$bilag = array();
 	$dato = array();
@@ -2469,19 +2482,20 @@ if ($kladde_id) {
 		$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 		$fejl = 1;
 	} else {
-		// Order by pos (global position) as primary sort, then by bilag/transdate/id as fallback
-		// This ensures user-defined order is preserved
+		$_dir = ($kkdir == 'desc') ? 'DESC' : 'ASC';
 		if ($kksort == 'bilag,transdate') {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag, transdate, pos, id";
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
+		} elseif ($kksort == 'transdate,bilag') {
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by transdate $_dir, bilag $_dir, id $_dir";
+		} elseif ($kksort == 'amount') {
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} else {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, pos, id";
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
 		}
 	}
-	#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$bilagssum = 0;
 	$x = 0;
-	#cho __line__." $qtxt<br>";
 	while ($row = db_fetch_array($q)) {
 		$x++;
 		$id[$x] = $row['id'];
