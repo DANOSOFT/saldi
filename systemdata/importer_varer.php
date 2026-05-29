@@ -42,9 +42,11 @@
 // 20230523 PHR php8
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20251007 PHR aliases
+// 202605## PHR Added Max_execution_time setting.
 
 @session_start();
 $s_id=session_id();
+ini_set('max_execution_time', 120);
 $css="../css/standard.css";
 
 $title="Import&eacute;r varer";
@@ -221,6 +223,7 @@ if ($feltnavn) {
 	$feltnavn=explode(";",$tmp);
 }
 $v = 0;
+$v_nr = array();
 $q = db_select("select varenr from varer",__FILE__ . " linje " . __LINE__); #20161015 -> 4 linjer
 while($r=db_fetch_array($q)){
 	$v_nr[$v]=$r['varenr'];
@@ -331,8 +334,8 @@ $felt_antal=count($felt_navn);
 for ($y=0; $y<=$feltantal; $y++) {
 	$feltnavn[$y] = if_isset($feltnavn[$y],NULL);
 	for ($x=0; $x < $felt_antal; $x++) {
-		$felt_navn[$x]  = if_isset($felt_navn[$x],NULL);
-		$felt_aktiv[$x] = if_isset($felt_aktiv[$x],NULL);
+		if (!isset($felt_navn[$x])) $felt_navn[$x] = '';
+		if (!isset($felt_aktiv[$x])) $felt_aktiv[$x] = '';
 		if ($felt_navn[$x] && $feltnavn[$y]==$felt_navn[$x] && $felt_aktiv[$x]==1) {
 			print "<body onLoad=\"javascript:alert('Der kan kun v&aelig;re &eacute;n kolonne med $felt_navn[$x]')\">"; #20151210
 			$feltnavn[$y]='';
@@ -354,6 +357,8 @@ for ($y=0; $y<count($feltnavn); $y++) {
 	if ($feltnavn[$y] && $feltnavn[$y] != '-') print "<option>$feltnavn[$y]</option>\n";
 		print "<option value = '-'></option>\n";
 	for ($x=0; $x<=$felt_antal; $x++) {
+		if (!isset($feltnavn[$y]))  $feltnavn[$y]  ='';
+		if (!isset($felt_navn[$x])) $felt_navn[$x] ='';
 		if ($feltnavn[$y]!=$felt_navn[$x]) print "<option>$felt_navn[$x]</option>\n";
 	}
 	print "</td>\n";
@@ -553,11 +558,12 @@ elseif ($splitter=='Komma') {$splitter=',';}
 elseif ($splitter=='Tabulator') {$splitter=chr(9);}
 
 transaktion('begin');
-$v=0;
+$v = 0;
+$v_id = array();
 $q=db_select("select id,varenr from varer",__FILE__ . " linje " . __LINE__);
 while($r=db_fetch_array($q)){
-	$v_id[$v]=$r['id'];
-	$v_nr[$v]=$r['varenr'];
+	$v_id[$v] = $r['id'];
+	$v_nr[$v] = $r['varenr'];
 	$v++;
 }
 
@@ -710,7 +716,7 @@ if ($fp) {
 			$upd='';
 			for ($y=0; $y<=$feltantal; $y++) {
 				if ($feltnavn[$y] && $medtag_felt[$y] && $feltnavn[$y]!='leverandor' && $feltnavn[$y]!='-') {
-					($nyt_feltnavn[$y])?$fName=$nyt_feltnavn[$y]:$fName=$feltnavn[$y];
+					((isset($nyt_feltnavn[$y])) && $nyt_feltnavn[$y])?$fName=$nyt_feltnavn[$y]:$fName=$feltnavn[$y];
 					$felt[$y]=db_escape_string($felt[$y]);
 					($vare_a)?$vare_a.=",".$fName:$vare_a=$fName;
 					($vare_b)?$vare_b.=",'".$felt[$y]."'":$vare_b="'".$felt[$y]."'";
@@ -780,14 +786,15 @@ if ($fp) {
 				}
 				$dd=date("Y-m-d");
 				$qtxt="select id,kostpris,transdate from kostpriser where vare_id='$vare_id' order by transdate desc limit 1"; #20150224
-				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				if ($r['transdate'] != $dd && $r['kostpris'] != $kostpris) {
-					$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
-				}	elseif ($r['transdate'] == $dd && $r['kostpris'] != $kostpris) {
-					$qtxt="update kostpriser set kostpris=$kostpris where id = '$r[id]'";
-				} else $qtxt=NULL;
+				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					if ($r['transdate'] != $dd && $r['kostpris'] != $kostpris) {
+						$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
+					}	elseif ($r['transdate'] == $dd && $r['kostpris'] != $kostpris) {
+						$qtxt="update kostpriser set kostpris=$kostpris where id = '$r[id]'";
+					} else $qtxt=NULL;
+				}	else $qtxt=NULL;
 				if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				if ($leverandor) {
+				if (isset($leverandor) && $leverandor) {
 					if (!is_numeric($leverandor)) $leverandor = 0;
 					if ($r=db_fetch_array(db_select("select id from vare_lev where vare_id='$vare_id' and lev_id='$leverandor'",__FILE__ . " linje " . __LINE__))) {
 						db_modify("update vare_lev set kostpris='$kostpris' where id='$r[id]'",__FILE__ . " linje " . __LINE__);

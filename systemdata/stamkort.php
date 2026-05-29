@@ -87,7 +87,7 @@ if ($_POST) {
 	$vis_lukket=trim(if_isset($_POST['vis_lukket']));
 	$pbs_nr=trim($_POST['pbs_nr']);
 	$pbs=trim(if_isset($_POST['pbs']));
-	$gruppe=if_isset($_POST['gruppe'])*1;
+	$gruppe=(int)if_isset($_POST['gruppe'],0);
 	$fi_nr=trim($_POST['fi_nr']);
 	if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
 	if ($id==0) {

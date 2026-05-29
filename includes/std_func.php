@@ -54,6 +54,7 @@
 // 20260127 PHR corrected error in function get_next_order_number
 // 20260217 PHR added "(float)$tal" in function afrund
 // 20260429 PHR Check for $regnaar in function transtjek()
+// 20260518 CL/PHR copy_row() springer batch_due_date og batch_batch_no over ved kopiering af ordrelinjer
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -644,7 +645,9 @@ if (!function_exists('copy_row')) {
 				$x++;
 				$fieldName[$x] = db_field_name($q, $r);
 				$fieldType[$x] = db_field_type($q, $r);
-				($fieldstring) ? $fieldstring .= "," . $fieldName[$x] : $fieldstring = $fieldName[$x];
+				if ($fieldName[$x] != 'batch_due_date' && $fieldName[$x] != 'batch_batch_no') {
+					($fieldstring) ? $fieldstring .= "," . $fieldName[$x] : $fieldstring = $fieldName[$x];
+				}
 			}
 			$r++;
 		}
@@ -670,8 +673,10 @@ if (!function_exists('copy_row')) {
 				}
 				if ($fieldName[$y] == 'ordre_id')
 					$ordre_id = $felt[$y];
-				($fieldvalues) ? $fieldvalues .= ",'" . $felt[$y] . "'" : $fieldvalues = "'" . $felt[$y] . "'";
-				($selectstring) ? $selectstring .= " and " . $fieldName[$y] . "='" . $felt[$y] . "'" : $selectstring = $fieldName[$y] . "='" . $felt[$y] . "'";
+				if ($fieldName[$y] != 'batch_due_date' && $fieldName[$y] != 'batch_batch_no') {
+					($fieldvalues) ? $fieldvalues .= ",'" . $felt[$y] . "'" : $fieldvalues = "'" . $felt[$y] . "'";
+					($selectstring) ? $selectstring .= " and " . $fieldName[$y] . "='" . $felt[$y] . "'" : $selectstring = $fieldName[$y] . "='" . $felt[$y] . "'";
+				}
 			}
 		}
 		if ($posnr && $ordre_id)
