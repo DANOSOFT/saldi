@@ -967,11 +967,12 @@ $qtxt = "select id, ordredate from ordrer where art = ''";
 #cho "$qtxt<br>";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-	if ($r['orderdate'] >= '2026-01-01') {
-		$qtxt = "update orders set art = 'KO' where id = '$r[id]'";
+	if ($r['ordredate'] >= '2026-01-01') {
+		$qtxt = "update ordrer set art = 'KO' where id = '$r[id]'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }
+
 $qtxt = "select id from settings where var_grp = 'colors' and var_value = '#' limit 1";
 if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "delete from settings where var_grp = 'colors'";
