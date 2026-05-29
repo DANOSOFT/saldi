@@ -15,23 +15,36 @@
 			var v = (el.value || '').trim();
 			if (!v) continue;
 			var idx = m[1];
-			var qtyEl =
-				f.elements['dkan' + idx] ||
-				f.elements['antal[' + idx + ']'] ||
-				f.elements['dkantal[' + idx + ']'];
-			var qtyVal = qtyEl ? (qtyEl.value || '0').replace(',', '.') : '1';
-			var qty = parseFloat(qtyVal);
-			if (!qty || qty <= 0) continue;
+			// Per-line delete marks posn<idx> as '-'; saldi may render a mirror input, scan all.
+			var posnEls = document.getElementsByName('posn' + idx);
+			var isDeleted = false;
+			for (var pi = 0; pi < posnEls.length; pi++) {
+				var pv = (posnEls[pi].value || '').trim();
+				if (pv === '-' || pv === '-1') { isDeleted = true; break; }
+			}
+			if (isDeleted) continue;
+			var lidEl = f.elements['linje_id[' + idx + ']'];
+			var lid = lidEl ? parseInt((lidEl.value || '0').trim(), 10) || 0 : 0;
+			// Skip already-saved lines; only prompt for newly added ones.
+			if (lid > 0) continue;
 			if (seen[v]) continue;
 			seen[v] = true;
-			items.push({ varenr: v, idx: idx });
+			items.push({ varenr: v, idx: idx, linje_id: lid });
 		}
 		return items;
 	}
 
-	function alreadyApproved(f, varenr) {
-		var el = f.elements['stock_warning_note[' + varenr + ']'];
-		return el && (el.value || '').trim() !== '';
+	function alreadyApproved(f, item) {
+		// Approved if a fresh note is attached, or the server marked this line/varenr as preapproved.
+		var note = f.elements['stock_warning_note[' + item.varenr + ']'];
+		if (note && (note.value || '').trim() !== '') return true;
+		if (item.linje_id) {
+			var preL = f.elements['stock_warning_preapproved_line[' + item.linje_id + ']'];
+			if (preL) return true;
+		}
+		var preV = f.elements['stock_warning_preapproved_varenr[' + item.varenr + ']'];
+		if (preV) return true;
+		return false;
 	}
 
 	function attachNote(f, varenr, note) {
@@ -98,11 +111,9 @@
 	}
 
 	function submitFormNative(f) {
-	
 		f.dataset.swApproved = '1';
 		var btn = currentSubmitter;
 		if (!isSubmitButton(btn) || (btn && btn.form !== f)) {
-			// Fallback chain: a real submit button on this form.
 			if (document.activeElement && document.activeElement.form === f && isSubmitButton(document.activeElement)) {
 				btn = document.activeElement;
 			} else {
@@ -128,7 +139,7 @@
 
 	function logApprovalDirect(varenr, note) {
 		var idMatch = (window.location.href || '').match(/[?&]id=(\d+)/);
-		if (!idMatch) return; // no order id in URL -> nothing to log against
+		if (!idMatch) return;
 		var ordre_id = idMatch[1];
 		var endpoint = 'orderIncludes/stockWarningSave.php';
 		var fd = new FormData();
@@ -139,34 +150,42 @@
 			try {
 				var ok = navigator.sendBeacon(endpoint, fd);
 				if (ok) return;
-			} catch (e) { /* fall through to XHR fallback */ }
+			} catch (e) {}
 		}
-	
 		try {
 			var xhr = new XMLHttpRequest();
-			xhr.open('POST', endpoint, false); // synchronous
+			xhr.open('POST', endpoint, false);
 			xhr.send(fd);
 		} catch (e) {
 			console && console.warn && console.warn('direct log write failed', e);
 		}
 	}
 
+	// Submitters that must bypass the popup (delete/credit/copy/lookup/print).
+	var BYPASS_SUBMITTERS = { 'delete': 1, 'credit': 1, 'copy': 1, 'lookUp': 1, 'print': 1 };
+
 	function onSubmit(ev) {
 		var f = ev.target;
 		if (!f || f.tagName !== 'FORM') return;
 		if (f.dataset.swApproved === '1') {
-		
 			f.dataset.swApproved = '';
 			return;
 		}
+		// Per-line delete sets this flag right before submitting; skip the preflight entirely.
+		if (f.dataset.swSkipPreflight === '1') {
+			f.dataset.swSkipPreflight = '';
+			return;
+		}
+		var earlySubmitter = ev.submitter ||
+		                     (document.activeElement && document.activeElement.form === f ? document.activeElement : null);
+		if (earlySubmitter && earlySubmitter.name && BYPASS_SUBMITTERS[earlySubmitter.name]) return;
 
 		var items = collectLineItems(f);
 		if (!items.length) return;
 
-		var unapproved = items.filter(function (it) { return !alreadyApproved(f, it.varenr); });
+		var unapproved = items.filter(function (it) { return !alreadyApproved(f, it); });
 		if (!unapproved.length) return;
-		currentSubmitter = ev.submitter ||
-		                   (document.activeElement && document.activeElement.form === f ? document.activeElement : null);
+		currentSubmitter = earlySubmitter;
 
 		ev.preventDefault();
 		ev.stopPropagation();
@@ -207,14 +226,11 @@
 
 	function init() {
 		if (!window.SaldiStockWarning) {
-			// Popup helper not loaded yet — retry shortly.
 			setTimeout(init, 100);
 			return;
 		}
-		// Bind every <form name="ordre"> currently in the DOM.
 		var forms = document.getElementsByName('ordre');
 		for (var i = 0; i < forms.length; i++) attachToForm(forms[i]);
-		// In case the form is injected later, observe.
 		if (window.MutationObserver) {
 			new MutationObserver(function () {
 				var fs = document.getElementsByName('ordre');

@@ -5444,11 +5444,44 @@ function stock_warning_texts($sprog_id = null)
 
 function is_stock_warning_enabled()
 {
+	// Make sure the log table exists before any caller starts querying it.
+	// (Migration may not have run on older opdat versions — without this the
+	// missing relation generates PHP warnings that break print/PDF headers
+	// and crash the quick-invoice flow.)
+	if (function_exists('_sw_ensure_log_table')) _sw_ensure_log_table();
 	if (function_exists('get_settings_value')) {
 		return get_settings_value("stockWarningEnabled", "ordre", "off") === "on";
 	}
 	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'stockWarningEnabled' and grp = 'ordre'", __FILE__ . " linje " . __LINE__));
 	return ($r && $r['var_value'] === 'on');
+}
+
+// Self-healing schema check: creates order_stock_warning_log if it doesn't
+// exist yet. Cached so it only runs the existence query once per request.
+function _sw_ensure_log_table()
+{
+	static $checked = false;
+	if ($checked) return true;
+	$checked = true;
+	$r = @db_fetch_array(@db_select("SELECT table_name FROM information_schema.tables WHERE table_name='order_stock_warning_log' LIMIT 1", __FILE__ . " linje " . __LINE__));
+	if ($r) return true;
+	@db_modify("CREATE TABLE IF NOT EXISTS order_stock_warning_log (
+		id serial NOT NULL,
+		ordre_id integer NOT NULL,
+		linje_id integer NULL,
+		vare_id integer NULL,
+		varenr varchar(50) NULL,
+		beskrivelse varchar(255) NULL,
+		beholdning numeric(15,3) NULL,
+		min_lager numeric(15,3) NULL,
+		employee_id integer NULL,
+		employee_name varchar(100) NULL,
+		note text NOT NULL,
+		logged_at timestamp DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (id)
+	)", __FILE__ . " linje " . __LINE__);
+	@db_modify("CREATE INDEX IF NOT EXISTS idx_oswl_ordre ON order_stock_warning_log(ordre_id)", __FILE__ . " linje " . __LINE__);
+	return true;
 }
 
 function check_stock_warning($vare_id)
@@ -5463,8 +5496,14 @@ function check_stock_warning($vare_id)
 	$result['beholdning']  = $r['beholdning'];
 	$result['min_lager']   = $r['min_lager'];
 	$gruppe = $r['gruppe'];
+	// STRICT trigger rule: the item must belong to a stock-tracked product
+	// group AND have beholdning <= 0. Items with positive stock -- even if
+	// below an explicit min_lager threshold -- are treated as "in stock" and
+	// added to the order line without a popup. This matches the literal
+	// user expectation: "if there's stock, it's in stock; if there isn't,
+	// require approval to sell anyway."
 	$r2 = db_fetch_array(db_select("select kodenr from grupper where art = 'VG' and box8 = 'on' and kodenr = '$gruppe'", __FILE__ . " linje " . __LINE__));
-	if ($r2 && $r['beholdning'] < $r['min_lager']) {
+	if ($r2 && (float)$r['beholdning'] <= 0) {
 		$result['out_of_stock'] = true;
 	}
 	return $result;
@@ -5474,6 +5513,7 @@ function check_stock_warning($vare_id)
 function log_stock_warning($ordre_id, $vare_id, $note, $linje_id = null)
 {
 	global $brugernavn;
+	if (function_exists('_sw_ensure_log_table')) _sw_ensure_log_table();
 	if (!$ordre_id || $note === null || trim($note) === '') return false;
 	$ordre_id = (int)$ordre_id;
 	$vare_id  = $vare_id ? (int)$vare_id : 0;

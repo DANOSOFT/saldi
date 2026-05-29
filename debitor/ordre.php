@@ -81,6 +81,8 @@
 // 20260429 LOE Updated plukliste conditions for both orders and invoices
 // 20260502 LOE Delivery note button under orders now more visible with styling
 // 20260505 LOE Added select option for delivery addresses and logic to save it. SD-483
+// 20260528 Sawaneh Stock warning popup skips already-saved lines and cache-busts stockWarning JS includes via filemtime
+
 @session_start();
 $s_id = session_id();
 
@@ -3703,13 +3705,37 @@ function ordreside($id, $regnskab)
 	}
 	// -- Stock-warning banner: sits between the title bar (rendered by sidehoved()) and the order form.
 	if ($id && function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
-		$rSWtop = db_fetch_array(db_select("select count(*) as cnt from order_stock_warning_log where ordre_id = '$id'", __FILE__ . " linje " . __LINE__));
-		if ($rSWtop && $rSWtop['cnt'] > 0) {
-			$swTopCnt = (int)$rSWtop['cnt'];
+		// Count active vs. deleted approvals. Deleted-line approvals stay in the
+		// log for audit trail, but the banner must reflect what's actually on
+		// the order right now.
+		$rSWtop = db_fetch_array(db_select(
+			"select " .
+			"  sum(case when ol.id is not null then 1 else 0 end) as active_cnt, " .
+			"  sum(case when ol.id is null     then 1 else 0 end) as deleted_cnt, " .
+			"  count(*) as total_cnt " .
+			"from order_stock_warning_log sw " .
+			"left join ordrelinjer ol on ol.id = sw.linje_id " .
+			"where sw.ordre_id = '$id'",
+			__FILE__ . " linje " . __LINE__
+		));
+		if ($rSWtop && $rSWtop['total_cnt'] > 0) {
+			$swActive  = (int)$rSWtop['active_cnt'];
+			$swDeleted = (int)$rSWtop['deleted_cnt'];
+			$swTotal   = (int)$rSWtop['total_cnt'];
 			$swTopTexts = stock_warning_texts(isset($sprog_id) ? $sprog_id : null);
-		
+			$enLang = ((int)(isset($sprog_id) ? $sprog_id : 0) === 2);
+			$labelActive  = $enLang ? 'active'  : 'aktiv';
+			$labelDeleted = $enLang ? 'deleted' : 'slettet';
+			// Build the count text: split shown only when both kinds exist.
+			if ($swActive > 0 && $swDeleted > 0) {
+				$countTxt = "$swTotal ($swActive $labelActive, $swDeleted $labelDeleted)";
+			} elseif ($swActive === 0 && $swDeleted > 0) {
+				$countTxt = "0 $labelActive ($swDeleted $labelDeleted)";
+			} else {
+				$countTxt = (string)$swActive;
+			}
 			print "<div id='saldi-sw-banner' style='margin:8px auto;padding:10px 14px;max-width:1400px;background:#fff4f4;border:1px solid #d99;border-left:5px solid #b00;border-radius:4px;font-size:14px;font-family:Arial,Helvetica,sans-serif;'>";
-			print "<a href='#' onclick=\"saldiSwOpenLog($id);return false;\" style='color:#900;text-decoration:none;'><b>⚠ " . $swTopTexts['banner_text'] . ":</b> $swTopCnt " . $swTopTexts['banner_suffix'] . "</a>";
+			print "<a href='#' onclick=\"saldiSwOpenLog($id);return false;\" style='color:#900;text-decoration:none;'><b>⚠ " . $swTopTexts['banner_text'] . ":</b> $countTxt " . $swTopTexts['banner_suffix'] . "</a>";
 			print "</div>\n";
 			print "<script>\n";
 			print "function saldiSwOpenLog(orderId){\n";
@@ -3746,9 +3772,43 @@ function ordreside($id, $regnskab)
 			// Use a <script type="application/json"> tag rather than executable inline JS so any
 			// edge-case in the JSON body cannot cause a JavaScript parse error in the page.
 			print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
-			print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
-			print "<script src=\"../javascript/orderStockWarningSave.js\"></script>\n";
-			
+			$swJsV = @filemtime(__DIR__ . '/../javascript/orderStockWarningSave.js') ?: time();
+			$swPopV = @filemtime(__DIR__ . '/../javascript/stockWarningPopup.js') ?: time();
+			print "<script src=\"../javascript/stockWarningPopup.js?v=$swPopV\"></script>\n";
+			print "<script src=\"../javascript/orderStockWarningSave.js?v=$swJsV\"></script>\n";
+			// Emit two kinds of pre-approval markers:
+			//   (1) per linje_id  -- the line is still on the order and still has an active log row
+			//   (2) per varenr    -- this varenr has been approved on this order at least once,
+			//                       even if the original line was deleted (audit trail still
+			//                       captures every add separately)
+			// The JS treats either as "approved" so the popup is silent. This prevents the
+			// popup from re-firing for already-approved varenrs when you add or modify
+			// other lines on a mixed order.
+			if ($id) {
+				$qPre = db_select(
+					"select sw.linje_id " .
+					"from order_stock_warning_log sw " .
+					"join ordrelinjer ol on ol.id = sw.linje_id " .
+					"where sw.ordre_id = '$id' and sw.linje_id is not null",
+					__FILE__ . " linje " . __LINE__
+				);
+				while ($rPre = db_fetch_array($qPre)) {
+					$preLid = (int)$rPre['linje_id'];
+					if ($preLid > 0) {
+						print "<input type=\"hidden\" name=\"stock_warning_preapproved_line[$preLid]\" value=\"1\">\n";
+					}
+				}
+				$qPreV = db_select(
+					"select distinct sw.varenr " .
+					"from order_stock_warning_log sw " .
+					"where sw.ordre_id = '$id' and sw.varenr is not null and sw.varenr <> ''",
+					__FILE__ . " linje " . __LINE__
+				);
+				while ($rPreV = db_fetch_array($qPreV)) {
+					$preVnr = htmlspecialchars($rPreV['varenr'], ENT_QUOTES);
+					print "<input type=\"hidden\" name=\"stock_warning_preapproved_varenr[$preVnr]\" value=\"1\">\n";
+				}
+			}
 		}
 
 		// print "<form name=\"ordre\" id=\"$formId\" action=\"$formAction\" method=\"post\">\n";
@@ -4505,10 +4565,29 @@ function ordreside($id, $regnskab)
 		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
 			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 			if ($swTextsJson === false) $swTextsJson = '{}';
-			
+
 			print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
-			print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
-			print "<script src=\"../javascript/orderStockWarningSave.js\"></script>\n";
+			$swJsV = @filemtime(__DIR__ . '/../javascript/orderStockWarningSave.js') ?: time();
+			$swPopV = @filemtime(__DIR__ . '/../javascript/stockWarningPopup.js') ?: time();
+			print "<script src=\"../javascript/stockWarningPopup.js?v=$swPopV\"></script>\n";
+			print "<script src=\"../javascript/orderStockWarningSave.js?v=$swJsV\"></script>\n";
+			// Pre-approved markers (same as in the other form path) -- prevents the
+			// popup from re-firing for varenrs that already have an active approval
+			// on this order. Uses a distinct field name so the server-side log
+			// writer never treats it as a real, user-entered note.
+			if ($id) {
+				$qPre2 = db_select(
+					"select distinct sw.varenr " .
+					"from order_stock_warning_log sw " .
+					"join ordrelinjer ol on ol.id = sw.linje_id " .
+					"where sw.ordre_id = '$id' and sw.varenr is not null and sw.varenr <> ''",
+					__FILE__ . " linje " . __LINE__
+				);
+				while ($rPre2 = db_fetch_array($qPre2)) {
+					$preVnr2 = htmlspecialchars($rPre2['varenr'], ENT_QUOTES);
+					print "<input type=\"hidden\" name=\"stock_warning_preapproved[$preVnr2]\" value=\"1\">\n";
+				}
+			}
 		}
 		print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
 		print "<input type=\"hidden\" name=\"update_positions\" value=\"0\" id=\"update_positions\">\n"; #20140716
@@ -6171,7 +6250,8 @@ $x = 0;
 						} else {
 							if ($fakturadate && $fakturadate != date('Y-m-d')) $tmp = "onclick=\"return confirm('$confirm9\\\n $confirm8')\"";
 						}
-						$diff = abs($felt_2 + $felt_4 - ($sum + $moms));
+						// PHP 8 fatal on new orders where these are NULL/string -- cast to float first.
+						$diff = abs((float)$felt_2 + (float)$felt_4 - ((float)$sum + (float)$moms));
 						if ($diff > 0.01) {
 							$disabled = 'disabled';
 							$titletext = "$tiltext ($felt_2+$felt_4 - $sum+$moms = $diff)";
@@ -6894,6 +6974,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		print "<td valign = 'top' align='right' title='$txt2130'>";
 		print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
 		print "onclick=\"if (confirm('Slet linje $x?')) { document.getElementsByName('posn$x')[1].value='-'; ";
+		print "var __swF=document.getElementsByName('ordre')[0]; if(__swF){__swF.dataset.swSkipPreflight='1';} ";
 		print "document.getElementsByName('ordre')[0].submit.click(); }\">$delBtn</button></td>\n";
 	} else print "<td></td>";
 	if (!$rabat && $m_rabat && !$rabatgruppe) {
