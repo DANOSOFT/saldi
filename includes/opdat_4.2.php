@@ -94,6 +94,27 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				db_modify("ALTER TABLE ordrelinjer ADD COLUMN batch_batch_no VARCHAR(100) NULL", __FILE__ . " linje " . __LINE__);
 			}
 
+			// --- Update version ---
+			$qtxt="UPDATE grupper set box1='$nextver' where art = 'VE'";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		}
+		include("../includes/connect.php");
+		$qtxt="UPDATE regnskab set version = '$nextver' where db = '$db'";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	}
+
+	$nextver='4.2.6';
+	if ($fixNo<"6"){
+		include("../includes/connect.php");
+		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+		$tmp=$r['version'];
+		if ($tmp<$nextver) {
+			echo "opdaterer hovedregnskab til ver $nextver<br />";
+			$qtxt = "UPDATE regnskab set version = '$nextver' where id = '1'";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		}
+		include("../includes/online.php");
+		if ($db!=$sqdb){
 			// --- order_stock_warning_log: audit trail for out-of-stock sales approvals ---
 			$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='order_stock_warning_log'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -116,7 +137,6 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				db_modify("CREATE INDEX idx_oswl_ordre ON order_stock_warning_log(ordre_id)", __FILE__ . " linje " . __LINE__);
 			}
 
-			// --- Update version ---
 			$qtxt="UPDATE grupper set box1='$nextver' where art = 'VE'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
