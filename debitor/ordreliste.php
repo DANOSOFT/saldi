@@ -48,6 +48,7 @@
 // 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly
 // 20260317 AJ Updated hover text for order number
 // 20260518 CL/PHR account_context springer kontonr pre-populate over. Kontonr-søgning finder nu alle ordrer for kunder med samme kontonr.
+// 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
 
 @session_start();
 $s_id = session_id();
@@ -1134,7 +1135,7 @@ $custom_columns = array(
         "sortable" => true,
         "searchable" => true,
         "hidden" => true,
-        "sqlOverride" => "a.felt_1",
+        "sqlOverride" => "o.felt_1",
     ),
     "felt_2" => array(
         "field" => "felt_2",
@@ -1145,7 +1146,7 @@ $custom_columns = array(
         "sortable" => true,
         "searchable" => true,
         "hidden" => true,
-        "sqlOverride" => "a.felt_2",
+        "sqlOverride" => "o.felt_2",
     ),
     "felt_3" => array(
         "field" => "felt_3",
@@ -1156,7 +1157,7 @@ $custom_columns = array(
         "sortable" => true,
         "searchable" => true,
         "hidden" => true,
-        "sqlOverride" => "a.felt_3",
+        "sqlOverride" => "o.felt_3",
     ),
     "felt_4" => array(
         "field" => "felt_4",
@@ -1167,7 +1168,7 @@ $custom_columns = array(
         "sortable" => true,
         "searchable" => true,
         "hidden" => true,
-        "sqlOverride" => "a.felt_4",
+        "sqlOverride" => "o.felt_4",
     ),
     "felt_5" => array(
         "field" => "felt_5",
@@ -1178,7 +1179,7 @@ $custom_columns = array(
         "sortable" => true,
         "searchable" => true,
         "hidden" => true,
-        "sqlOverride" => "a.felt_5",
+        "sqlOverride" => "o.felt_5",
     ),
 );
 
@@ -1544,8 +1545,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         $select_fields .= ", o.$field_name as $field_name";
     }
 }
-// Add adresser felt fields
-$select_fields .= ", a.felt_1 as felt_1, a.felt_2 as felt_2, a.felt_3 as felt_3, a.felt_4 as felt_4, a.felt_5 as felt_5";
+// felt_1-5 are already selected from ordrer in the loop above; not pulled from adresser.
 // Add calculated fields
 $select_fields .= ", (o.sum::numeric + o.moms::numeric) as sum_m_moms";
 $select_fields .= ", CASE 
