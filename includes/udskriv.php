@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 5.0.0 --- 2026.04.28 ---
+// --- includes/udskriv.php --- lap 5.0.0 --- 2026.05.12 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -40,7 +40,7 @@
 // 20260217 LOE Updated the $href for 'DO' type.
 // 20260320 PHR cleanup (pdftk)
 // 20260428 LOE added more options for 'DO' type and updated faktura navigation for pick list.
-
+// 20260512 LOE Updated the code to allow printing multiple files no matter the state of 'Use HTML / CSS for form generation-SD-490'
 
 @session_start();
 $s_id=session_id();
@@ -195,7 +195,8 @@ if ($valg) {
 			}
 		}
 	} else { # Brug PostScript 
-		$ps_fil=str_replace("../temp/","",$ps_fil);
+		/*
+	    $ps_fil=str_replace("../temp/","",$ps_fil);
 		$ps_fil=str_replace("$db/$db","$db",$ps_fil);
 		if (file_exists("../temp/".$ps_fil."_*.pdf")) {
 			unlink("../temp/".$ps_fil."_*.pdf");
@@ -234,6 +235,65 @@ if ($valg) {
 			}
 			}
 		}
+		*/
+
+		########################
+
+		 $ps_fil=str_replace("../temp/","",$ps_fil);
+			$ps_fil=str_replace("$db/$db","$db",$ps_fil);
+			list($a,$b,$c)=explode("/",$ps_fil);
+
+			$indfil='';
+
+			// Convert single .ps file 
+			$psfil = "../temp/$a/$b/$c.ps";
+			$pdffil_p1 = "../temp/$a/$b/$c.pdf";
+			
+			if (file_exists($psfil) && filesize($psfil)) {
+				fwrite($log,__line__." system (\"$ps2pdf $psfil $pdffil_p1\")\n");
+				system ("$ps2pdf $psfil $pdffil_p1");
+				fwrite($log,__line__." ps2pdf done, pdf exists: ".(file_exists($pdffil_p1)?'YES':'NO')."\n");
+				$indfil = $pdffil_p1;
+			}
+
+			// find any extra pages in .htm files (_2.htm, _3.htm etc)
+			$htmfil = glob("../temp/$a/$b/".$c."_*.htm");
+			if ($htmfil) sort($htmfil);
+			
+			foreach ($htmfil as $hf) fwrite($log,__line__." htm file: $hf size:".filesize($hf)."\n");
+
+			$extra_pdfs = array();
+			foreach ($htmfil as $hf) {
+				if (filesize($hf)) {
+					$hpdf = str_replace(".htm", ".pdf", $hf);
+					system ("weasyprint -e UTF-8 $hf $hpdf");
+					$extra_pdfs[] = $hpdf;
+					$indfil .= " " . $hpdf;
+				}
+			}
+
+			// If we have multiple pages, merge them all with pdftk
+			if (!empty($extra_pdfs)) {
+				$udfil = "../temp/$a/$b/udskrift.pdf";
+				$ps_fil = "/$a/$b/udskrift";
+				system ("pdftk $indfil output $udfil", $pdftk_rc);
+				
+				// Cleanup intermediate files
+				if (file_exists($psfil)) unlink($psfil);
+				if (file_exists($pdffil_p1)) unlink($pdffil_p1);
+				foreach ($htmfil as $hf) {
+					if (file_exists($hf)) unlink($hf);
+				}
+				foreach ($extra_pdfs as $ep) {
+					if (file_exists($ep)) unlink($ep);
+				}
+			} else {
+				
+				$udfil = NULL;
+				fwrite($log,__line__." single page only, no merge needed\n");
+				if (file_exists($psfil)) unlink($psfil);
+			}
+		########################
 	}
 	
 	if ($zx) { # Brug PostScript 

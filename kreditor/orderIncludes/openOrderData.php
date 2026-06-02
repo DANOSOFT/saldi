@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/creditorIncludes/openOrderData.php --- lap 5.0.0 --- 2026.03.12 ---
+// --- kreditor/creditorIncludes/openOrderData.php --- lap 5.0.0 --- 2026.05.21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260217 PHR Added 'kundeordrnr'
 // 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
+// 20260521 LOE Added check to set afd based on first employee if no match is found for ref in employees list
 
 /*
 $attachId    = null;
@@ -186,7 +187,12 @@ print "<input type = 'hidden' name = 'oldRef' value = '$ref'>";
 if (count($employees)) {
 	print "<select class='inputbox' style='width:110px;'  name = 'ref'>";
 	for ($i=0;$i<count($employees);$i++) {
-		if ($ref == $employees[$i]) print "<option value='$employees[$i]'>$employees[$i]</option>";
+		if ($ref == $employees[$i]){
+			 print "<option value='$employees[$i]'>$employees[$i]</option>";
+		}else{
+			//store the first employee in the list as default if no match is found
+			if ($i == 0)  $firstEmployee = $employees[$i];
+		}
 	}
 	for ($i=0;$i<count($employees);$i++) {
 		if ($ref != $employees[$i]) print "<option value='$employees[$i]'>$employees[$i]</option>";
@@ -194,6 +200,15 @@ if (count($employees)) {
 	print "<select>";
 } else print $ref;
 print "</td>";
+
+//use the $firstEmployee to get the afd
+if(!$afd && $firstEmployee){
+	$query = db_select("SELECT afd FROM ansatte WHERE navn = '$firstEmployee'",__FILE__ . " linje " . __LINE__);
+	if($r = db_fetch_array($query)){
+		$afd = $r['afd'];
+	}
+}
+
 if (count($depNumbers)) {
 	print "<td>Afd</td>";
 #print "<td><input class='inputbox' style='width:110px;' name='adf' value='$afd' onfocus='document.forms[0].fokus.value=this.name;'></td>";
@@ -294,15 +309,19 @@ if ($status==1) {
 else {
 	print "<td align=center title='".findtekst(1502, $sprog_id)."'>Pos.</td><td align=center title='".findtekst(320, $sprog_id)."'>".findtekst(917, $sprog_id).".</td><td align=center title='".findtekst(1511, $sprog_id)."'>".findtekst(952, $sprog_id).".</td><td align=center>".findtekst(916, $sprog_id)."</td><td>".findtekst(945, $sprog_id)."</td><td align=center>".findtekst(914,$sprog_id)."</td><td align=center>".findtekst(915, $sprog_id)."</td><td align=center title='".findtekst(1503, $sprog_id)."'>%</td><td align=center>".findtekst(947, $sprog_id)."</td>";
 	if ($vis_projekt && $projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
-	else print "<td></td>";
+	elseif ($status < 1) print "<td></td>";
+	if ($status >= 2) {
+		if ($art=='KK') print "<td colspan='2' align='center' title='".findtekst(1508, $sprog_id)."'>".findtekst(937, $sprog_id)."</td>";
+		else print "<td colspan='2' align='center' title='".findtekst(1510, $sprog_id)."'>".findtekst(1485, $sprog_id)."</td>";
+	}
 }
 if ($omlev) print "<td title ='".findtekst(1512, $sprog_id)."'>O/B</td>";
 
-// Check if any items on this order have expiry date tracking
-// Query DB directly since order line data is loaded after this header
+// Check if any items on this order belong to a product group with batch tracking enabled
+// (grupper.box9 = 'on' for art='VG'). Query DB directly since line data is loaded after this header.
 $has_expiry_items = false;
 if ($id) {
-	$_eq = db_select("SELECT ol.vare_id FROM ordrelinjer ol JOIN varer v ON v.id = ol.vare_id WHERE ol.ordre_id = '$id' AND v.has_due_date = true LIMIT 1", __FILE__ . " linje " . __LINE__);
+	$_eq = db_select("SELECT ol.vare_id FROM ordrelinjer ol JOIN varer v ON v.id = ol.vare_id JOIN grupper g ON g.kodenr = v.gruppe AND g.art = 'VG' AND g.fiscal_year = '$regnaar' WHERE ol.ordre_id = '$id' AND g.box9 = 'on' LIMIT 1", __FILE__ . " linje " . __LINE__);
 	if (db_fetch_array($_eq)) $has_expiry_items = true;
 }
 if ($has_expiry_items) {

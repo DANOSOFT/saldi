@@ -55,6 +55,34 @@ include("../includes/grid.php");
 
 include_once '../includes/oldDesign/header.php';
 
+if (!isset($_POST['udfyld']) && isset($_POST['gem'])) {
+	$kontoantal=$_POST['kontoantal'];
+	$maanedantal=$_POST['maanedantal'];
+	$kontonr=$_POST['kontonr'];
+	$amount=$_POST['amount'];
+	$id=$_POST['id'];
+	for ($x=1;$x<=$kontoantal;$x++) {
+		for ($z=1;$z<=$maanedantal;$z++) {
+			if (!isset($amount[$x][$z])) $amount[$x][$z]=0;
+			if (!isset($id[$x][$z])) $id[$x][$z]=0;
+			$b_id=$id[$x][$z]*1;
+			if ($z==1 && substr($amount[$x][$z],-1)=='*') {
+				$setall[$x]=str_replace('*','',$amount[$x][$z]);
+			} elseif($z==1) $setall[$x]=NULL;
+			if ($setall[$x] || $setall[$x]=='0') $amount[$x][$z]=$setall[$x];
+			$tmp=substr($amount[$x][$z],-4);
+			if(strpos($tmp,",")) $amount[$x][$z]=usdecimal($amount[$x][$z]);
+			$tal=round((float)if_isset($amount[$x][$z],0),0);
+			if ($b_id) {
+				db_modify("update budget set amount='$tal' where id='$b_id'",__FILE__ . " linje " . __LINE__);
+			} elseif ($tal) {
+				db_modify("insert into budget(regnaar,kontonr,md,amount) values ($regnaar,'$kontonr[$x]','$z','$tal')",__FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+	db_modify("delete from budget where amount = 0",__FILE__ . " linje " . __LINE__);
+}
+
 $icon_regnskab = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M319-250h322v-60H319v60Zm0-170h322v-60H319v60ZM220-80q-24 0-42-18t-18-42v-680q0-24 18-42t42-18h361l219 219v521q0 24-18 42t-42 18H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186 680-680Z"/></svg>';
 $help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
 $icon_budget = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M560-440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35ZM280-320q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80h400q0-33 23.5-56.5T840-480v-160q-33 0-56.5-23.5T760-720H360q0 33-23.5 56.5T280-640v160q33 0 56.5 23.5T360-400Zm440 240H120q-33 0-56.5-23.5T40-240v-440h80v440h680v80ZM280-400v-320 320Z"/></svg>';
@@ -74,33 +102,6 @@ $slutdato=31;
 $filnavn="../temp/$db/budget_".$startaar.$startmaaned."-".$slutaar.$slutmaaned."_".$bruger_id.".csv"; # 20150622 del 1 start
 $fp=fopen($filnavn,"w"); # 20150622 del 1 slut
 		
-if (!$udfyld && isset($_POST['gem'])) {
-	$kontoantal=$_POST['kontoantal'];
-	$maanedantal=$_POST['maanedantal'];
-	$kontonr=$_POST['kontonr'];
-	$amount=$_POST['amount'];
-	$id=$_POST['id'];
-	for ($x=1;$x<=$kontoantal;$x++) {
-		for ($z=1;$z<=$maanedantal;$z++) {
-			if (!isset($amount[$x][$z])) $amount[$x][$z]=0;
-			if (!isset($id[$x][$z])) $id[$x][$z]=0;
-			$b_id=$id[$x][$z]*1;
-			if ($z==1 && substr($amount[$x][$z],-1)=='*') {
-				$setall[$x]=str_replace('*','',$amount[$x][$z]);
-			} elseif($z==1) $setall[$x]=NULL;
-			if ($setall[$x] || $setall[$x]=='0') $amount[$x][$z]=$setall[$x];
-			$tmp=substr($amount[$x][$z],-4);
-			if(strpos($tmp,",")) $amount[$x][$z]=usdecimal($amount[$x][$z]);
-			$tal=round(if_isset($amount[$x][$z],0),0);
-			if ($b_id) {
-				db_modify("update budget set amount='$tal' where id='$b_id'",__FILE__ . " linje " . __LINE__);
-			} elseif ($tal) {
-				db_modify("insert into budget(regnaar,kontonr,md,amount) values ($regnaar,'$kontonr[$x]','$z','$tal')",__FILE__ . " linje " . __LINE__);
-			}
-		}
-	}
-	db_modify("delete from budget where amount = 0",__FILE__ . " linje " . __LINE__);
-}
 
 $x=0;
 $md=array(); #20140923
@@ -307,9 +308,9 @@ print "<style>
 </style>";
 
 print "<div class='budget-wrapper' id='budget-wrapper'>";
+print "<form name=budget action='budget.php?regnaar=$regnaar&returside=$returside' method=post>";
 print "<table width='100%' cellpadding='0' cellspacing='1px' border='0' valign='top'>";
 print "<thead>";
-print "<form name=udfyld action=budget.php?regnaar=$regnaar&returside=$returside method=post>";
 print "<tr><td><br></td><td colspan=15>".findtekst(806, $sprog_id)." ";
 print "<select class=\"inputbox\" NAME=\"plusminus\">";
 if ($plusminus) print "<option value=\"$plusminus\">$plusminus</option>";
@@ -321,7 +322,6 @@ print " &nbsp;<input class=\"inputbox\" type=\"text\" style=\"text-align:right\"
 print "<input class='button blue small' type=submit name=udfyld value=OK>";
 
 print "</td></tr>";
-print "</form>";
 print "<tr>";
 print "<td><b>".findtekst(804, $sprog_id)."</b></td>";
 print "<td><b>".findtekst(805, $sprog_id)."</b></td>";
@@ -345,7 +345,6 @@ print "<tbody>";
 // print "</tr>";
 
 $y='';
-print "<form name=budget action=budget.php?regnaar=$regnaar&returside=$returside method=post>";
 for ($x=1; $x<=$kontoantal; $x++){
 	$budget_csvdata.="\"$kontonr[$x]\";\"$beskrivelse[$x]\";"; #20150622
 	print "<input type=\"hidden\" name=\"kontonr[$x]\" value=\"$kontonr[$x]\">";
@@ -412,8 +411,8 @@ for ($x=1; $x<=$kontoantal; $x++){
 
 if ($fp) { # 20150622 del 3 start
 	fwrite ($fp, mb_convert_encoding($budget_csvdata, 'ISO-8859-1', 'UTF-8'));
+	fclose($fp);
 }
-fclose($fp);
 
 // print "<input type='hidden' name='kontoantal' value='$kontoantal'>\n";
 // print "<input type='hidden' name='maanedantal' value='$maanedantal'>\n";
@@ -434,10 +433,10 @@ print "<br><br>";
 print findtekst('807|Hent budget som datafil ved at højreklikke på', $sprog_id)." <a href='".$filnavn."'>".findtekst('809|dette link', $sprog_id)."</a> ".findtekst('808|og vælg &apos;Gem link som ..', $sprog_id)."'";
 print "</td></tr>";
 print "</tfoot>";
-print "</form>\n";
 ####################################################################################################
 
 print "</table>";
+print "</form>\n";
 print "</div>";
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';

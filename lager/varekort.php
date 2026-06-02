@@ -151,6 +151,9 @@ include("../includes/stykliste.php");
 include("../includes/fuld_stykliste.php");
 include("productCardIncludes/itemVat.php");
 include("productCardIncludes/percentageField.php");
+include_once("../includes/emballage_schema.php");
+$packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='specialtype'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -165,6 +168,12 @@ $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='va
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER table varer ADD column notesinternal text", __FILE__ . " linje " . __LINE__);
 }
+
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='note_on_orderline'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("ALTER TABLE varer ADD COLUMN note_on_orderline boolean DEFAULT false", __FILE__ . " linje " . __LINE__);
+}
+
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='colli_webfragt'";
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER table varer ADD column colli_webfragt float DEFAULT 0", __FILE__ . " linje " . __LINE__);
@@ -333,6 +342,7 @@ if ($saveItem || $submit = trim($submit)) {
     else $default_shelf_life_days = null;
     #   list ($gruppe)           =  explode (':', if_isset($_POST['gruppe']));
     $notes = db_escape_string(trim(if_isset($_POST['notes'])));
+    $note_on_orderline = (if_isset($_POST['note_on_orderline']) == 'on') ? true : false;
     $notesInternal = db_escape_string(trim(if_isset($_POST['notesInternal'])));
     $ordre_id = if_isset($_POST['ordre_id']);
     $returside = if_isset($_POST['returside']);
@@ -934,9 +944,11 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "salgspris_rounding='$salgspris_rounding',salgspris_multiplier='$salgspris_multiplier',";// 20221004
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
             $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision',";// 20221004
-            $qtxt .= "has_due_date=$has_due_date,";
-            $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL");
+            $qtxt .= "has_due_date=$has_due_date,";            
+            $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
+            $qtxt .= "note_on_orderline=" . ($note_on_orderline ? 'true' : 'false');
             $qtxt .= " where id = '$id'";
+
          $saved  =  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             if ($submit == 'copy') {
                 $copyItemNo = "kopi_af_$varenr";
@@ -1281,6 +1293,9 @@ if ($id > 0) {
     $lukket = $row['lukket'];
     $notes = $row['notes'];
     $notesInternal = $row['notesinternal'];
+
+    $note_on_orderline = ($row['note_on_orderline'] === 't' || $row['note_on_orderline'] === true || $row['note_on_orderline'] == 1);
+
     $delvare = $row['delvare'];
     $samlevare = $row['samlevare'];
     $min_lager = $row['min_lager'];
@@ -1800,6 +1815,7 @@ if (!$varenr) {
             $be_af_enhed[$x] = $row2['enhed'];
             $be_af_ant[$x] = $row['antal'];
             $be_af_id[$x] = $row2['id'];
+            $be_af_stykliste_id[$x] = $row['id'];
             $be_af_kostpris[$x] = $row2['kostpris'];
             $be_af_sum += $be_af_kostpris[$x] * $be_af_ant[$x];
             print "<input type = 'hidden' name=be_af_id[$x] value='$row[id]'>";
@@ -1847,27 +1863,24 @@ if (!$varenr) {
         ($beholdning) ? $readonly = 'readonly' : $readonly = '';
         print "<tr><td valign=top><table width=20%><tbody><tr><td> <a href=stykliste.php?id=$id>Stykliste</a></td></tr>";
         print "</tbody></table></td>";
-        print "<td></td><td><table border=0 width=80%><tbody>";
-        print "<tr><td> Pos.</td><td width=80> V.nr.</td><td width=300> Beskrivelse</td><td> Antal</td></tr>";
+        print "<td></td><td><table border=0 width=80%><tbody id='stykliste-tbody'>";
+        print "<tr><td width=20></td><td> Pos.</td><td width=80> V.nr.</td><td width=300> Beskrivelse</td><td> Antal</td></tr>";
         for ($x = 1; $x <= $ant_be_af; $x++) {
             $dkantal = dkdecimal($be_af_ant[$x], 2);
             if (substr($dkantal, -1) == '0')
                 $dkantal = substr($dkantal, 0, -1);
             if (substr($dkantal, -1) == '0')
                 $dkantal = substr($dkantal, 0, -2);
-            print "<tr>";
+            print "<tr class='stykliste-row' data-stykliste-id='$be_af_stykliste_id[$x]' data-vare-id='$id'>";
+            print "<td class='stykliste-drag-handle'><b>⋮⋮</b></td>";
             print "<td><input class=\"inputbox\" type=\"text\" size=2 style=\"text-align:right\" name=\"be_af_pos[$x]\" value=\"$x\" $readonly></td>";
             print "<td><a href='?opener=&id=$be_af_id[$x]&returside=varer.php&vis_samlevarer=on'>$be_af_vnr[$x]</a></td><td>$be_af_beskrivelse[$x]</td>";
             print "<td><input class=\"inputbox\" type=\"text\" size=\"2\" style=\"text-align:right\" name=\"be_af_ant[$x]\" value=\"$dkantal\" $readonly>&nbsp;$be_af_enhed[$x]</td>";
-            if ($x === $ant_be_af) {
-                print "<td align='right' title='Varens kostpris' style='border-bottom: 1px #151515 solid'>" . dkdecimal($be_af_kostpris[$x] * $be_af_ant[$x], 2) . "</td>";
-            } else {
-                print "<td align='right' title='Varens kostpris'>" . dkdecimal($be_af_kostpris[$x] * $be_af_ant[$x], 2) . "</td>";
-            }
+            print "<td align='right' title='Varens kostpris'>" . dkdecimal($be_af_kostpris[$x] * $be_af_ant[$x], 2) . "</td>";
             print "</tr>";
         }
-        print "<tr><td colspan='3'></td><td>Kostpris i alt:</td>";
-        print "<td align='right'>" . dkdecimal($be_af_sum, 2) . "</td><tr>";
+        print "<tr><td colspan='4'></td><td>Kostpris i alt:</td>";
+        print "<td align='right' style='border-top: 1px #151515 solid'>" . dkdecimal($be_af_sum, 2) . "</td><tr>";
         $be_af_pos[0] = $ant_be_af + 1;
         print "</tr>";
         print "</tr></tbody></table></td></tr>";
@@ -1933,8 +1946,10 @@ if ($varenr && $samlevare == 'on') {
 } elseif ($varenr) {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
     $txt2049 = findtekst('2049|Leverandøropslag', $sprog_id); //Leverandøropslag
+    $txt3056 = findtekst('3260|Lagerhistorik', $sprog_id); //Lagerhistorik
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;' $noEdit></td>";
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=button accesskey='o' value='$txt3056' name='stockHistory' onclick='javascript:docChange = false;location.href = \"productCardIncludes/stockLog.php?id=$id\"'></td>";
 }
 if ($id) {
     $txt1099 = findtekst('1099|Slet', $sprog_id); //Slet
@@ -1943,6 +1958,11 @@ if ($id) {
         print "<td align=center><input style='width:150px;' class='button red medium' type=submit ";
         print "value=\"$txt1099\" name=\"deleteItem\" OnClick=\"return confirm('Slet varenr $varenr ?')\"></td>";
     }
+}
+if ($id && $packagingModuleEnabled) {
+    $emb_btn   = ($sprog_id == 2) ? 'Packaging' : 'Emballage';
+    $emb_btn_t = ($sprog_id == 2) ? 'Manage packaging for this product' : 'Administrér emballage for denne vare';
+    print "<td align=center><a href='emballage.php?id=$id' style='text-decoration:none;'><input style='width:150px;' class='button blue medium' type='button' value='$emb_btn' title='$emb_btn_t'></a></td>";
 }
 print "</form>";
 print "</tr></tbody></table></td></tr>";
@@ -2309,3 +2329,22 @@ document.varekort.$fokus.focus();
         return "";
     }
 </script>
+<script src="../javascript/Sortable.min.js"></script>
+<script src="../javascript/stykliste_dragdrop.js"></script>
+<style>
+.stykliste-drag-handle {
+    cursor: grab;
+    text-align: center;
+    vertical-align: middle;
+    width: 20px;
+    color: #666;
+    font-size: 14px;
+    user-select: none;
+}
+.stykliste-drag-handle:active,
+body.is-dragging .stykliste-drag-handle {
+    cursor: grabbing;
+}
+.stykliste-row.sortable-ghost { opacity: 0.4; }
+.stykliste-row.sortable-chosen { background-color: #f0f0f0; }
+</style>

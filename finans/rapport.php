@@ -41,7 +41,11 @@ $css = "../css/standard.css";
 include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
+include("../includes/topline_settings.php");
 include("../includes/std_func.php");
+include_once("../includes/emballage_schema.php");
+$packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 
 $aar_fra = "";
 $maaned_fra = "";

@@ -640,6 +640,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$ordreAutocomplete = if_isset($_POST, null, 'ordreAutocomplete');
 		$gs1parsing        = if_isset($_POST, null, 'gs1_parsing');
 		$ourRefStockSwitch = if_isset($_POST, null, 'ourRefStockSwitch');
+		$stockWarningEnabled = if_isset($_POST, null, 'stockWarningEnabled');
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
@@ -650,6 +651,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("ordreAutocomplete", "ordre", $ordreAutocomplete, "Enable or disable autocomplete search on order pages", $bruger_id);
 		update_settings_value("gs1_parsing", "ordre", $gs1parsing, "Enable GS1 barcode parsing on order line item entry");
 		update_settings_value("ourRefStockSwitch", "ordre", $ourRefStockSwitch, "Update order stock/warehouse from Our ref when the reference changes"); // Removed single quotes from description to avoid SQL syntax error
+		update_settings_value("stockWarningEnabled", "ordre", $stockWarningEnabled, "Show popup and require approval note when selling out-of-stock items (POS + Debtor/Order)");
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
 		} elseif ($box2) {
@@ -755,6 +757,12 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$lagertrigger                    = if_isset($_POST['lagertrigger']);
 		$lagertime                       = if_isset($_POST['lagertime']);
 		$minBeholdning                   = if_isset($_POST["minBeholdning"]);
+		$packagingModuleEnabled          = if_isset($_POST, null, 'packagingModuleEnabled');
+		update_settings_value("packagingModuleEnabled", "items", $packagingModuleEnabled, "Enable the packaging tax reporting module");
+		if ($packagingModuleEnabled === "on") {
+			include_once("../includes/emballage_schema.php");
+			ensure_emballage_schema();
+		}
 
 		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
 		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");

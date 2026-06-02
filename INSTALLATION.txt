@@ -1,6 +1,11 @@
 Installation of SALDI
 ================================================= ===========================
 
+NOTICE:
+See updated installation guide at INSTALLATION.md, this installation guide 
+includes how to setup optional docker container for saldi, and what is essentially 
+a one command install of the system
+
 System requirements for server:
 ----------------------
 Linux or other Unix-like system with web server with PHP support

@@ -56,9 +56,11 @@ if ($ref && $oldRef && $ref != $oldRef) {
 if (!$ref) {
 	$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$r = db_fetch_array(db_select("select navn, afd from ansatte where id = $r[ansat_id]",__FILE__ . " linje " . __LINE__));
-		$ref = $r['navn'];
-		$afd = $r['afd'];
+		if ($r['ansat_id']) {
+			$r = db_fetch_array(db_select("select navn, afd from ansatte where id = '$r[ansat_id]'",__FILE__ . " linje " . __LINE__));
+			$ref = $r['navn'];
+			$afd = $r['afd'];
+		}
 	}
 }
 if (($afd && $oldDep && $afd != $oldDep) || ($afd && !$lager)) {
@@ -108,6 +110,8 @@ while ($r = db_fetch_array($q))	{
 		$projekt[$x]       = $r['projekt'];
 		$serienr[$x]       = $r['serienr'];
 		$samlevare[$x]     = $r['samlevare'];
+		$batch_due_date[$x]= isset($r['batch_due_date']) ? $r['batch_due_date'] : '';
+		$batch_batch_no[$x]= isset($r['batch_batch_no']) ? $r['batch_batch_no'] : '';
 		($r['omvbet'])?$omvbet[$x]='checked':$omvbet[$x]='';
 	}
 }
