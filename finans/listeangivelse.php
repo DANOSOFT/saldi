@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// --- finans/listeangivelse.php --- lap 5.0.0 --- 2026-03-03 ---
+// --- finans/listeangivelse.php --- lap 5.0.0 --- 2026-05-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
