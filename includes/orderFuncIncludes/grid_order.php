@@ -1,6 +1,7 @@
 <?php
 //..includes/orderFuncIncludes/grid_order.php
 // 20260203 @LOE Updated build_query to return exact searches first before related matches.
+// 20260601 Sawaneh Applied sqlOverride in build_count_query so ORDER BY uses the qualified column and avoids ambiguous-column error
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -984,7 +985,16 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $query = str_replace("{{WHERE}}", $filterstring == "" ? "1=1" : $filterstring, $query);
     }
 
-    // Replace sort placeholder with an empty string (count query doesn't need sorting)
+    // Apply sqlOverride to sort field so ORDER BY uses the qualified column (mirrors build_query).
+    $sortParts = preg_split('/\s+/', trim($sort), 2);
+    $sortField = $sortParts[0];
+    $sortDirection = isset($sortParts[1]) ? ' ' . $sortParts[1] : '';
+    foreach ($columns as $column) {
+        if (isset($column['field']) && $column['field'] === $sortField && !empty($column['sqlOverride'])) {
+            $sort = $column['sqlOverride'] . $sortDirection;
+            break;
+        }
+    }
     $query = str_replace("{{SORT}}", $sort, $query);
 
     // Remove the LIMIT clause to count all rows

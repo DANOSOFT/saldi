@@ -742,11 +742,33 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
     }
 
     # Is always set due to get_default_sort
+    $sort = apply_sort_sqlOverride($sort, $columns);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     $query .= " LIMIT $rowCount OFFSET $offset"; // Add limit for performance
 
     return $query;
+}
+
+# Replace the bare sort field with its sqlOverride when defined, so ORDER BY is unambiguous.
+function apply_sort_sqlOverride($sort, $columns) {
+    if (!$sort || !is_array($columns)) return $sort;
+    $parts = preg_split('/\s+/', trim($sort), 2);
+    $field = $parts[0];
+    $dir   = isset($parts[1]) ? $parts[1] : '';
+    $override = null;
+    if (isset($columns[$field]) && is_array($columns[$field]) && !empty($columns[$field]['sqlOverride'])) {
+        $override = $columns[$field]['sqlOverride'];
+    } else {
+        foreach ($columns as $col) {
+            if (is_array($col) && isset($col['field']) && $col['field'] === $field && !empty($col['sqlOverride'])) {
+                $override = $col['sqlOverride'];
+                break;
+            }
+        }
+    }
+    if ($override) $field = $override;
+    return trim($field . ' ' . $dir);
 }
 
 
@@ -822,7 +844,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $query = str_replace("{{WHERE}}", $filterstring == "" ? "1=1" : $filterstring, $query);
     }
 
-    // Replace sort placeholder with an empty string (count query doesn't need sorting)
+    $sort = apply_sort_sqlOverride($sort, $columns);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     // Remove the LIMIT clause to count all rows

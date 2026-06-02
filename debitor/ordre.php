@@ -85,6 +85,7 @@
 // 20260505 LOE Added select option for delivery addresses and logic to save it. SD-483
 // 20260509 PHR Hack to prevent order beeing created twice when using account lookup in to create the order.
 // 20260512 NTR MERGED Live/POS into PROD_TEST
+// 20260528 Sawaneh Stock warning popup skips already-saved lines and cache-busts stockWarning JS includes via filemtime
 
 @session_start();
 $s_id = session_id();
@@ -2457,6 +2458,25 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			}
 		}
 	}
+	// -- Out-of-stock approval logging (Håndtering af salg af udsolgte varer) --
+	// The JS preflight attached one note per varenr the user approved. We now
+	// look up each of those varenr in this order's lines and write a log row.
+	if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()
+		&& isset($_POST['stock_warning_note']) && is_array($_POST['stock_warning_note']) && $id) {
+		foreach ($_POST['stock_warning_note'] as $swVarenr => $swNote) {
+			$swNote = trim((string)$swNote);
+			if ($swNote === '') continue;
+			$swVarenrEsc = db_escape_string($swVarenr);
+			$rSW = db_fetch_array(db_select("select id, vare_id from ordrelinjer where ordre_id = '$id' and varenr = '$swVarenrEsc' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+			if (!$rSW || !$rSW['vare_id']) continue;
+			$swInfo = check_stock_warning((int)$rSW['vare_id']);
+			if (empty($swInfo['out_of_stock'])) continue; // line is fine now; nothing to log
+			// Skip if we already logged this exact line (idempotent on re-save).
+			$rDup = db_fetch_array(db_select("select id from order_stock_warning_log where ordre_id = '$id' and linje_id = '$rSW[id]' limit 1", __FILE__ . " linje " . __LINE__));
+			if ($rDup && $rDup['id']) continue;
+			log_stock_warning($id, (int)$rSW['vare_id'], $swNote, (int)$rSW['id']);
+		}
+	}
 	transaktion("commit");
 }
 ########################## KOPIER #################################
@@ -3677,6 +3697,55 @@ function ordreside($id, $regnskab)
 		if ($returside == "ordreliste.php") sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 		else sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 	}
+	// -- Stock-warning banner: sits between the title bar (rendered by sidehoved()) and the order form.
+	if ($id && function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
+		// Count active vs. deleted approvals. Deleted-line approvals stay in the
+		// log for audit trail, but the banner must reflect what's actually on
+		// the order right now.
+		$rSWtop = db_fetch_array(db_select(
+			"select " .
+			"  sum(case when ol.id is not null then 1 else 0 end) as active_cnt, " .
+			"  sum(case when ol.id is null     then 1 else 0 end) as deleted_cnt, " .
+			"  count(*) as total_cnt " .
+			"from order_stock_warning_log sw " .
+			"left join ordrelinjer ol on ol.id = sw.linje_id " .
+			"where sw.ordre_id = '$id'",
+			__FILE__ . " linje " . __LINE__
+		));
+		if ($rSWtop && $rSWtop['total_cnt'] > 0) {
+			$swActive  = (int)$rSWtop['active_cnt'];
+			$swDeleted = (int)$rSWtop['deleted_cnt'];
+			$swTotal   = (int)$rSWtop['total_cnt'];
+			$swTopTexts = stock_warning_texts(isset($sprog_id) ? $sprog_id : null);
+			$enLang = ((int)(isset($sprog_id) ? $sprog_id : 0) === 2);
+			$labelActive  = $enLang ? 'active'  : 'aktiv';
+			$labelDeleted = $enLang ? 'deleted' : 'slettet';
+			// Build the count text: split shown only when both kinds exist.
+			if ($swActive > 0 && $swDeleted > 0) {
+				$countTxt = "$swTotal ($swActive $labelActive, $swDeleted $labelDeleted)";
+			} elseif ($swActive === 0 && $swDeleted > 0) {
+				$countTxt = "0 $labelActive ($swDeleted $labelDeleted)";
+			} else {
+				$countTxt = (string)$swActive;
+			}
+			print "<div id='saldi-sw-banner' style='margin:8px auto;padding:10px 14px;max-width:1400px;background:#fff4f4;border:1px solid #d99;border-left:5px solid #b00;border-radius:4px;font-size:14px;font-family:Arial,Helvetica,sans-serif;'>";
+			print "<a href='#' onclick=\"saldiSwOpenLog($id);return false;\" style='color:#900;text-decoration:none;'><b>⚠ " . $swTopTexts['banner_text'] . ":</b> $countTxt " . $swTopTexts['banner_suffix'] . "</a>";
+			print "</div>\n";
+			print "<script>\n";
+			print "function saldiSwOpenLog(orderId){\n";
+			print "  var uri='/debitor/stockWarningLog.php?id='+orderId;\n";
+			print "  if(window.parent && typeof window.parent.update_iframe==='function'){\n";
+			print "    window.parent.update_iframe(uri); return;\n";
+			print "  }\n";
+			print "  // Fallback when not inside the saldi SPA iframe: navigate this window directly.\n";
+			print "  var origin = window.location.origin;\n";
+			print "  var path = window.location.pathname; // e.g. /saul/debitor/ordre.php\n";
+			print "  var root = path.split('/').slice(0,2).join('/'); // /saul\n";
+			print "  window.location.href = origin + root + uri;\n";
+			print "}\n";
+			print "</script>\n";
+		}
+	}
 	if (!$status)  $status = 0;
     $formularsprog = if_isset($formularsprog, 'Dansk');
 
@@ -3690,6 +3759,51 @@ function ordreside($id, $regnskab)
 			$formAction = "ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside";
 		}
 		print "<form name=\"ordre\" id=\"1\" action=\"$formAction\" method=\"post\">\n";
+		
+		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
+			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+			if ($swTextsJson === false) $swTextsJson = '{}';
+			// Use a <script type="application/json"> tag rather than executable inline JS so any
+			// edge-case in the JSON body cannot cause a JavaScript parse error in the page.
+			print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
+			$swJsV = @filemtime(__DIR__ . '/../javascript/orderStockWarningSave.js') ?: time();
+			$swPopV = @filemtime(__DIR__ . '/../javascript/stockWarningPopup.js') ?: time();
+			print "<script src=\"../javascript/stockWarningPopup.js?v=$swPopV\"></script>\n";
+			print "<script src=\"../javascript/orderStockWarningSave.js?v=$swJsV\"></script>\n";
+			// Emit two kinds of pre-approval markers:
+			//   (1) per linje_id  -- the line is still on the order and still has an active log row
+			//   (2) per varenr    -- this varenr has been approved on this order at least once,
+			//                       even if the original line was deleted (audit trail still
+			//                       captures every add separately)
+			// The JS treats either as "approved" so the popup is silent. This prevents the
+			// popup from re-firing for already-approved varenrs when you add or modify
+			// other lines on a mixed order.
+			if ($id) {
+				$qPre = db_select(
+					"select sw.linje_id " .
+					"from order_stock_warning_log sw " .
+					"join ordrelinjer ol on ol.id = sw.linje_id " .
+					"where sw.ordre_id = '$id' and sw.linje_id is not null",
+					__FILE__ . " linje " . __LINE__
+				);
+				while ($rPre = db_fetch_array($qPre)) {
+					$preLid = (int)$rPre['linje_id'];
+					if ($preLid > 0) {
+						print "<input type=\"hidden\" name=\"stock_warning_preapproved_line[$preLid]\" value=\"1\">\n";
+					}
+				}
+				$qPreV = db_select(
+					"select distinct sw.varenr " .
+					"from order_stock_warning_log sw " .
+					"where sw.ordre_id = '$id' and sw.varenr is not null and sw.varenr <> ''",
+					__FILE__ . " linje " . __LINE__
+				);
+				while ($rPreV = db_fetch_array($qPreV)) {
+					$preVnr = htmlspecialchars($rPreV['varenr'], ENT_QUOTES);
+					print "<input type=\"hidden\" name=\"stock_warning_preapproved_varenr[$preVnr]\" value=\"1\">\n";
+				}
+			}
+		}
 
 		// print "<form name=\"ordre\" id=\"$formId\" action=\"$formAction\" method=\"post\">\n";
 		// print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
@@ -4419,6 +4533,33 @@ function ordreside($id, $regnskab)
 		($r['antal'] < 0) ? $dan_kn = 1 : $dan_kn = NULL;
 		print "<div class=\"ordreform\">\n";
 		print "<form name=\"ordre\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
+		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
+			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+			if ($swTextsJson === false) $swTextsJson = '{}';
+
+			print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
+			$swJsV = @filemtime(__DIR__ . '/../javascript/orderStockWarningSave.js') ?: time();
+			$swPopV = @filemtime(__DIR__ . '/../javascript/stockWarningPopup.js') ?: time();
+			print "<script src=\"../javascript/stockWarningPopup.js?v=$swPopV\"></script>\n";
+			print "<script src=\"../javascript/orderStockWarningSave.js?v=$swJsV\"></script>\n";
+			// Pre-approved markers (same as in the other form path) -- prevents the
+			// popup from re-firing for varenrs that already have an active approval
+			// on this order. Uses a distinct field name so the server-side log
+			// writer never treats it as a real, user-entered note.
+			if ($id) {
+				$qPre2 = db_select(
+					"select distinct sw.varenr " .
+					"from order_stock_warning_log sw " .
+					"join ordrelinjer ol on ol.id = sw.linje_id " .
+					"where sw.ordre_id = '$id' and sw.varenr is not null and sw.varenr <> ''",
+					__FILE__ . " linje " . __LINE__
+				);
+				while ($rPre2 = db_fetch_array($qPre2)) {
+					$preVnr2 = htmlspecialchars($rPre2['varenr'], ENT_QUOTES);
+					print "<input type=\"hidden\" name=\"stock_warning_preapproved[$preVnr2]\" value=\"1\">\n";
+				}
+			}
+		}
 		print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
 		print "<input type=\"hidden\" name=\"update_positions\" value=\"0\" id=\"update_positions\">\n"; #20140716
 		print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
@@ -5322,17 +5463,11 @@ function ordreside($id, $regnskab)
 						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
 						print "</td></tr>\n";
 					}
+					print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
+					print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
+					print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
+					print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
 				}
-				print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
-				print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
-				print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
-				print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
-			
-			}
-			print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
-			print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
-			print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
-			print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
 		}
 		$lev_max = 0;
 		$q = db_select("select lev_nr from batch_salg where ordre_id = $id", __FILE__ . " linje " . __LINE__);
@@ -6067,7 +6202,8 @@ function ordreside($id, $regnskab)
 						} else {
 							if ($fakturadate && $fakturadate != date('Y-m-d')) $tmp = "onclick=\"return confirm('$confirm9\\\n $confirm8')\"";
 						}
-						$diff = abs($felt_2 + $felt_4 - ($sum + $moms));
+						// PHP 8 fatal on new orders where these are NULL/string -- cast to float first.
+						$diff = abs((float)$felt_2 + (float)$felt_4 - ((float)$sum + (float)$moms));
 						if ($diff > 0.01) {
 							$disabled = 'disabled';
 							$titletext = "$tiltext ($felt_2+$felt_4 - $sum+$moms = $diff)";
@@ -6370,7 +6506,7 @@ function ordreside($id, $regnskab)
 	if (($gls_user) || (($dfm_user) && ($status >= 3))) print "</tr></td>\n";
 
 	print "<!--Function ordreside slut-->";
-
+}
 
 function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $leveres_ialt, $tidl_lev_ialt, $levdiff, $masterprojekt, $linje_id, $kred_linje_id, $posnr, $varenr, $beskrivelse, $enhed, $lager, $pris, $rabat, $rabatart, $procent, $antal, $leveres, $leveret, $vare_id, $momsfri, $rabatgruppe, $m_rabat, $varemomssats, $serienr, $samlevare, $folgevare, $projekt, $kdo, $kobs_ordre_pris, $ko_ant, $kostpris, $dkb, $dg, $dk_db, $dk_dg, $readonly, $omvbet, $saet, $saetnr, $grossWeight, $netWeight, $itemLength, $itemWidth, $itemHeight, $volume, $linje)
 {
@@ -6772,6 +6908,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 		print "<td valign = 'top' align='right' title='$txt2130'>";
 		print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
 		print "onclick=\"if (confirm('Slet linje $x?')) { document.getElementsByName('posn$x')[1].value='-'; ";
+		print "var __swF=document.getElementsByName('ordre')[0]; if(__swF){__swF.dataset.swSkipPreflight='1';} ";
 		print "document.getElementsByName('ordre')[0].submit.click(); }\">$delBtn</button></td>\n";
 	} else print "<td></td>";
 	if (!$rabat && $m_rabat && !$rabatgruppe) {

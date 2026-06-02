@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- patch 5.0.0 --- 2026.04.08---
+// --- lager/rapport.php --- patch 5.0.0 --- 2026.05.26---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20130318 $modulnr ændret fra 12  til 15
@@ -67,7 +67,7 @@
 // 20251206 LOE some topline codes moved to ../includes/S_topLine.php also used by other files
 // 20260408 PHR set max_execution_time to 300
 // 20260507 CL Rettet forskydning i summary-række: tilføjet $tt_kost (Kostpris), flyttet $tt_k_pris til korrekt kolonne (Købspris), tilføjet manglende Solgt-celle
-
+// 20260526 LOE Added salg_rapport.php with sales report based on postnr and departments, to handle sales report for customers with postnr and departments. Based on datagrid, with flexible search and sorting.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -135,15 +135,16 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 	$detaljer = $_GET['detaljer'];
 	$kun_salg = $_GET['kun_salg'];
 	$lagertal = $_GET['lagertal'];
-	$submit=if_isset($_GET['submit']);
+	$submit=if_isset($_GET['submit']); 
 }
 
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
 
-#if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";}
+#if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";} 
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 elseif ($submit == strtolower(findtekst('992|Lagerstatus', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
 elseif ($submit == strtolower(findtekst('2082|Prisliste', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
+elseif($submit == "salg pr. postnummer") print print "<meta http-equiv=\"refresh\" content=\"0;URL=salg_rapport.php?varegruppe=$varegruppe&afd=$afd&ref=$ref&lev=$lev&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
 elseif ($inventoryCount) print print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 
@@ -378,6 +379,11 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	print "<tr><td><hr></td></tr>\n";
 	$txt = "<tr><td ALIGN=center title='".findtekst('971|Se lagerstatus på vilkårlig dato', $sprog_id)."'>";
 	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst('2082|Prisliste', $sprog_id)."\" name='submit'>";
+	$txt.= "</td></tr>\n";
+	print $txt;
+	print "<tr><td><hr></td></tr>\n";
+	$txt = "<tr><td ALIGN=center title='Se salg på postnumre'>";
+	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"Salg pr. postnummer\" name='submit'>";
 	$txt.= "</td></tr>\n";
 	print $txt;
 	print "</form>";
