@@ -46,14 +46,38 @@ print "<td width=5% style='$buttonStyle'>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 	$icon_back ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
-print "<td width=75% style='$topStyle' align=left><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
 
-print "<td width = '200px' align=center id='kassekladde-btn'>
-	<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-	$icon_kassekladde ".findtekst('1072|Kassekladde', $sprog_id)." $kladde_id
-	</button></td>";
-
-print "</tbody></table></td>\n"; # <- Tabel 1.1.1
+?>
+	<td width='100%' style='<?php echo $topStyle ?>' align=left>
+		<div style='display:flex; align-items:center;'>
+			<div style='width: 200px; padding: 2px;' align=center id='back-btn'>
+				<button class='headerbtn navbtn-top' style='<?php echo $butDownStyle ?>; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
+					<?php print $icon_kassekladde . findtekst('1072|Kassekladde', $sprog_id) . $kladde_id ?>
+				</button>
+			</div>
+			<?php if (
+				$bogfort == "-" // not yet bogfort
+				|| $bogfort == "" // new kassekladde
+				) { ?>
+			<style>
+				.auth-status-icon {
+					display: inline-flex;
+					align-items: center;
+					gap: 4px;
+					margin-left: auto;
+					padding: 6px;
+					color: white;
+				}
+				.auth-status-icon img {
+					width: 16px;
+					height: 16px;
+				}
+			</style>
+			<?php include(__DIR__ . '/../../bank_integration/includes/auth_check_icon.php'); ?>
+			<?php } // bogfort == "-" || $bogfort == "" ?>
+		</div>
+	</td>
+<?php
 
 print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
 print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";

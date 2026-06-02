@@ -32,6 +32,9 @@ includes/connect.php
 kreditor/betalinger_old.php
 logolib/
 
+#services
+.claude/
+
 #test
 /price.txt
 test/
@@ -77,9 +80,12 @@ mysaleX/
 
 email.php
 
+# hidden files
+.ht*
+
 # Live Service
-/index/redirect.php
-/stock.txt
-/vareFlytning.txt
-/varenr_alias.txt
-/varer.csv
+index/redirect.php
+stock.txt
+vareFlytning.txt
+varenr_alias.txt
+varer.csv

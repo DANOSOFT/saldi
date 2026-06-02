@@ -1943,7 +1943,8 @@ print '<style>
     /* Border radius for buttons #20260513-2*/
     input[type="submit"],
     input[type="button"],
-   
+	button[type="submit"],
+	button,
     .button {
         border-radius: 4px;
     }
@@ -3295,6 +3296,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				}
 				print "<td align='center'><span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
+				?>
+				<td align='center'><span title='<?= "Importer bankposteringer via Aiia" ?>'><button id='Aiia_Import' type='button' class='menu_button button' style='width:120px;' accesskey='z' onclick='window.location.href="../bank_integration/aiia_import.php?kladde_id=<?= intval($kladde_id) ?>"'><?= "Bank Import"	// findtekst('????|Bank Import', $sprog_id) ?></button></span></td>
+				<?php
 			}
 		}
 		print "</form>";
@@ -4224,10 +4228,11 @@ body {
     position: sticky;
     top: 0;
     z-index: 10;
-	background-color: <?php echo $bgcolor; ?> !important;
+	background-color: <?= $bgcolor; ?> !important;
 }
+
 .datatable thead tr, .datatable thead th{
-	background-color: <?php echo $bgcolor; ?> !important;
+	background-color: <?= $bgcolor; ?> !important;
 }
 
 /* Sticky footer outside the scroll container */
