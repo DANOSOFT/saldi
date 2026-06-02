@@ -32,6 +32,9 @@ includes/connect.php
 kreditor/betalinger_old.php
 logolib/
 
+#services
+.claude/
+
 #test
 /price.txt
 test/
@@ -76,6 +79,9 @@ dandomain/
 mysaleX/
 
 email.php
+
+# hidden files
+.ht*
 
 # Live Service
 /index/redirect.php
