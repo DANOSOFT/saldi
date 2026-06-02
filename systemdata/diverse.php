@@ -2263,6 +2263,11 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
 
+			   // TODO: Translation Tekst til bank integration
+		print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   ."Bank Integration" ."</button></a></td></tr>\n";
+
 		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('170|Øredifferencer', $sprog_id)."</button></a><!--tekst 170--></td></tr>\n";
@@ -2350,6 +2355,7 @@ if ($sektion == "rykker_valg") rykker_valg();
 if ($sektion == "div_valg") div_valg(); # Kalder sys_div_valg.php
 if ($sektion == "docubizz") docubizz();
 if ($sektion == "bilag") bilag();
+if ($sektion == "bank_integration") include('diverseIncludes/bank_integration.php');
 //if ($sektion=="barcodescan") barcodescan();
 if ($sektion == "orediff") orediff($diffkto);
 if ($sektion == "massefakt") massefakt();

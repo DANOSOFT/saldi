@@ -1,13 +1,14 @@
 <?php
-// This file is used to login to the bank integration module.
-// It checks if the user is logged in and has the necessary permissions to access the module.
-// If not, it redirects the user to the login page.
+// Handles OAuth Initialization: calls /v1/authentication/initialize and redirects
+// the browser to the bank auth URL. Always ends with exit.
+//
+// Accessed directly via a link. Never included.
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/login.php --- patch 0.0.1 --- 2026-05-21 ---
+// --- bank_integration/login.php --- patch 0.0.2 --- 2026-05-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,111 +28,123 @@
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
-// 20260518 NTR - Initial version.
-// 20260521 NTR - OAuth session check and initialization logic.
+// 20260526 NTR - Initial version. Redirects to Aiia (Nordic API Gateway) for bank authentication.
 
 @session_start();
 
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
-
-$OAuth = isset($_SESSION['OAuth']) ? $_SESSION['OAuth'] : null;
-
-$now = new DateTime();
-$needsInit        = ($OAuth === null || $OAuth === false);
-$needsInteraction = false;
-
-if (!$needsInit) {
-    $expires          = new DateTime($OAuth['expires']);
-    $next_interaction = new DateTime($OAuth['next_interaction']);
-
-    if ($now >= $expires) {
-        $needsInit = true;
-    } elseif ($now >= $next_interaction) {
-        $needsInteraction = true;
-    }
+if (isset($_GET['check'])) {
+    header('Content-Type: application/json');
+    echo json_encode(['authenticated' => !empty($_SESSION['OAuth'])]);
+    exit;
 }
 
-if ($needsInit || $needsInteraction) {
-    include("../includes/connect.php");
-    include("../includes/std_func.php");
+// Relative-only: reject absolute URLs to prevent open redirect
+$returnUrl = (isset($_GET['return']) && !preg_match('/^https?:\/\//i', $_GET['return']))
+    ? $_GET['return']
+    : null;
 
-    $globalConn = db_connect($sqhost, $squser, $sqpass, 'develop');
-    $sql = "SELECT
-                MAX(CASE WHEN var_name = 'ClientID'     THEN var_value END),
-                MAX(CASE WHEN var_name = 'ClientSecret' THEN var_value END)
-            FROM settings
-            WHERE var_grp = 'OAuth'
-              AND var_name IN ('ClientID', 'ClientSecret')";
-    $result = pg_query($globalConn, $sql);
-    [$clientID, $clientSecret] = pg_fetch_row($result);
-    pg_close($globalConn);
+if (!empty($_SESSION['OAuth'])) {
+    $now          = new DateTime();
+    $oauthLoginExpires = new DateTime($_SESSION['OAuth']['login']['expires']);
+    $oauthSessionExpires = new DateTime($_SESSION['OAuth']['session']['expires']);
 
-    if ($needsInit) {
-        $redirectUrl = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
-        $body = json_encode([
-            'userHash'    => session_id(),
-            'redirectUrl' => $redirectUrl,
-        ]);
+    $supportsUnattended = isset($OAuth['login']['supportsUnattended']) && $OAuth['login']['supportsUnattended'] === true;
 
-        $ch = curl_init('https://api.nordicapigateway.com/v1/authentication/initialize');
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $body,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => [
-                'Content-Type: application/json',
-                'X-Client-Id: ' . $clientID,
-                'X-Client-Secret: ' . $clientSecret,
-            ],
-        ]);
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        $data = json_decode($response, true);
-
-        // TODO: replace 'authorizationUri' with the actual field name once confirmed
-        $authUrl = $data['authorizationUri']
-            ?? $data['redirectUri']
-            ?? $data['url']
-            ?? null;
-
-        if ($authUrl) {
-            header('Location: ' . $authUrl);
+    if ($now < $oauthLoginExpires) {
+        // Still valid — navigate to return URL, or referer if no return param
+        $redirect = $returnUrl ?? ($_SERVER['HTTP_REFERER'] ?? '/');
+        echo "<script>window.location.href = " . json_encode($redirect) . ";</script>";
+        exit;
+    } else if ($supportsUnattended && $now >= $oauthSessionExpires) {
+        // Expired but supports unattended re-auth — redirect to trigger refresh flow in auth_check.php
+        ['needsInit' => $needsInit, 'needsInteraction' => $needsInteraction] = include("includes/auth_check.php");
+        if (!$needsInit && !$needsInteraction) {
+            $redirect = $returnUrl ?? ($_SERVER['HTTP_REFERER'] ?? '/');
+            echo "<script>window.location.href = " . json_encode($redirect) . ";</script>";
             exit;
         }
-
-        // Debug: remove once flow is confirmed working
-        echo '<pre>HTTP ' . $httpCode . "\n" . htmlspecialchars($response) . '</pre>';
-        exit;
-    } else {
-        // next_interaction: silent background refresh, no redirect
-        $body = json_encode(['userHash' => session_id()]);
-
-        $ch = curl_init('https://api.nordicapigateway.com/v1/authentication/initialize');
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $body,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => [
-                'Content-Type: application/json',
-                'X-Client-Id: ' . $clientID,
-                'X-Client-Secret: ' . $clientSecret,
-            ],
-        ]);
-        $response = curl_exec($ch);
-        curl_close($ch);
-
-        $data = json_decode($response, true);
-
-        if (!empty($data)) {
-            $data['next_interaction'] = (new DateTime('+5 minutes'))->format(DateTime::ATOM);
-            $_SESSION['OAuth'] = $data;
-        }
     }
+
+    // Expired — purge from DB and session, then fall through to re-authenticate
+    include_once(__DIR__ . '/../includes/connect.php');
+    include_once(__DIR__ . '/../includes/std_func.php');
+    include_once(__DIR__ . '/includes/persist.php');
+    oauthSessionDelete();
+    $_SESSION['OAuth'] = null;
 }
 
+include_once(__DIR__ . '/../includes/connect.php');
+include_once(__DIR__ . '/../includes/std_func.php');
 
+$sql = "SELECT
+            MAX(CASE WHEN var_name = 'Client ID'     THEN var_value END),
+            MAX(CASE WHEN var_name = 'Client Secret' THEN var_value END)
+        FROM settings
+        WHERE var_grp = 'OAuth'
+          AND var_name IN ('Client ID', 'Client Secret')";
+[$clientID, $clientSecret] = db_fetch_row(db_select($sql, __FILE__ . " linje " . __LINE__, true));
+
+$redirectUrl = "https://ssl12.saldi.dk/ntr/bank_integration/webhook.php";
+$body = json_encode([
+    'userHash'       => session_id(),
+    'redirectUrl'    => $redirectUrl,
+    'isCodeExcluded' => false,
+]);
+
+$ch = curl_init('https://api.nordicapigateway.com/v1/authentication/initialize');
+curl_setopt_array($ch, [
+    CURLOPT_POST           => true,
+    CURLOPT_POSTFIELDS     => $body,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_HTTPHEADER     => [
+        'Content-Type: application/json',
+        'X-Client-Id: '     . $clientID,
+        'X-Client-Secret: ' . $clientSecret,
+    ],
+]);
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+$data = json_decode($response, true);
+
+if ($httpCode === 200 && !empty($data['authUrl'])) {
+    ?>
+        <!DOCTYPE html>
+        <html>
+        <head><title>Bank Authentication</title></head>
+        <body>
+        <p>A new window has been opened for bank authentication. Return here when complete.</p>
+        <script>
+            const topUrl    = window.top.location.href;
+            const returnUrl = <?= json_encode($returnUrl) ?>;
+            window.open(<?= json_encode($data['authUrl']) ?>, "_blank", "width=520,height=700,resizable=yes,scrollbars=yes");
+
+            (function poll() {
+                fetch("?check=1")
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.authenticated) {
+                            if (returnUrl) {
+                                window.location.href = returnUrl;
+                            } else {
+                                window.top.location.href = topUrl;
+                            }
+                        } else {
+                            setTimeout(poll, 2000);
+                        }
+                    })
+                    .catch(() => setTimeout(poll, 2000));
+            })();
+        </script>
+        </body>
+        </html>
+    <?php
+    exit;
+} elseif (!empty($data['error'])) {
+    echo '<p>Aiia error: ' . htmlspecialchars($data['error']) . '</p>';
+    exit;
+} else {
+    echo '<p>Unexpected response from authentication initialization.</p>';
+    exit;
+}
 ?>

@@ -120,29 +120,36 @@ if (!function_exists('db_close')) {
 }
 
 if (!function_exists('db_modify')) {
-	function db_modify($qtext, $spor) {
+	function db_modify($qtext, $spor, $global = false) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_skriv_id,$db_type;
-		global $sqdb;
+		global $sqdb,$sqhost,$squser,$sqpass;
 		global $webservice;
 
 		$temp = get_relative() . 'temp/' . $db;
 
 		$qtext=injecttjek($qtext);
+
+		// When $global=true, run the query against the global database instead of the user's database
+		$use_connection = $connection;
+		if ($global && isset($sqdb) && $db !== $sqdb) {
+			$use_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
+		}
+
 		#20190704 START
 		if ($db_type == "mysql" || $db_type == "mysqli") {
-			
-            $db_query = mysqli_query($connection, $qtext);  //mysql_query deprecated in php 7 and above
+
+            $db_query = mysqli_query($use_connection, $qtext);  //mysql_query deprecated in php 7 and above
 			if (!$db_query) {
-				$error_message = "Error executing query: " . mysqli_error($connection) . " | Query: $qtext";
-				error_log($error_message);	
-				
+				$error_message = "Error executing query: " . mysqli_error($use_connection) . " | Query: $qtext";
+				error_log($error_message);
+
 			}
-			
+
 		}else {
 			$qtext=str_replace(' like ',' ilike ',$qtext);
-			$db_query=pg_query($connection, $qtext);
+			$db_query=pg_query($use_connection, $qtext);
 		}
 		#20190704 END
 		
@@ -214,15 +221,21 @@ if (!function_exists('db_modify')) {
 }
 
 if (!function_exists('db_select')) {
-	function db_select($qtext,$spor) {
+	function db_select($qtext, $spor, $global = false) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_type;
-		global $s_id,$sqdb;
+		global $s_id,$sqdb,$sqhost,$squser,$sqpass;
 
 		if (!function_exists('alert')) include('std_func.php'); #20230730
 
 		$qtext=injecttjek($qtext);
+
+		// When $global=true, run the query against the global database instead of the user's database
+		$use_connection = $connection;
+		if ($global && isset($sqdb) && $db !== $sqdb) {
+			$use_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
+		}
 
 		$temp = get_relative() . 'temp/' . $db;
 
@@ -234,12 +247,12 @@ if (!function_exists('db_select')) {
 		}
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 			// Use mysqli for MySQL as mysql_query() is deprecated
-			$query = mysqli_query($connection, $qtext);
-			$errtxt = mysqli_error($connection);  // Use mysqli_error for both MySQL and MySQLi
+			$query = mysqli_query($use_connection, $qtext);
+			$errtxt = mysqli_error($use_connection);  // Use mysqli_error for both MySQL and MySQLi
 		} else {
 			$qtext = str_replace(' like ', ' ilike ', $qtext);
-			$query = pg_query($connection, $qtext);
-			$errtxt = pg_last_error($connection);
+			$query = pg_query($use_connection, $qtext);
+			$errtxt = pg_last_error($use_connection);
 if ($errtxt) echo "$qtext<br>";
 		}
 
