@@ -90,7 +90,7 @@ include("../includes/row-hover-style.js.php");
 if_isset ($_GET, null, 'detaljer');
 if_isset ($_GET, null, 'kun_salg');
 if_isset ($_GET, null, 'lagertal');
-$backUrl = if_isset($_GET, '../index/menu.php', 'returside');
+$backUrl = if_isset($_GET, null, 'returside');
 if ($popup) $returside="../includes/luk.php";
 
 else $returside = $backUrl;
