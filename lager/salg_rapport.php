@@ -162,12 +162,11 @@ $grid_data = [
         'searchable' => true,
 
         'generateSearch' => function($col, $term) {
+                $term = db_escape_string($term);
 
-            $term = db_escape_string($term);
-
-            return "v.varenr ILIKE '%$term%'";
-        }
-    ],
+                return "v.varenr ILIKE '%$term%'";
+            }
+        ],
 
        
 
@@ -269,7 +268,11 @@ $grid_data = [
             'width'      => '1.2',
             'align'      => 'center',
             'sortable'   => true,
-            'searchable' => true,
+            'generateSearch' => function($col, $term) {
+                if (!$term) return '1=1';
+                $t = db_escape_string($term);
+                return "a.bynavn ILIKE '%$t%'";
+            },
         ],
         
         // column: date range 
