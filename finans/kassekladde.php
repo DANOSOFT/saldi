@@ -52,6 +52,8 @@
 // 20260513-2 PK - Removed 'button' in css as it created double border-radius on the pagination buttons
 // 20260519 CL/NTR - Moved Balance Ledger, Balance Bank and Balance Diff to before moms column. Added Header to Balance Diff.
 // 20260521 LOE Fixed a bug from extra added closing brace and updated background color for thead
+// 20260529 SZ - Added Persistent Sorting on Kassekladde (Added by NTR, Don't know what else was changed)
+
 ob_start(); //Starter output buffering
 
 @session_start();
@@ -432,43 +434,46 @@ if ($_GET) {
 	$returside = if_isset($_GET['returside']);
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
-	$sort            =       if_isset($_GET['sort']);
-	$kksort          =       if_isset($_GET['kksort']); #sortering i kassekladde
-	$kkdir_get       =       if_isset($_GET['kkdir']);
-	$kladde_id       = (int) if_isset($_GET,0,'kladde_id');
+	$sort            =       if_isset($_GET, 		null,   ['sort']);
+	$kksort          =       if_isset($_GET,        null,   ['kksort']); #sortering i kassekladde
+	$kkdir_get       =       if_isset($_GET,        null,   ['kkdir']);
+	$kladde_id       = (int) if_isset($_GET,        0,      'kladde_id');
+	$funktion        =       if_isset($_GET, 		null,	['funktion']);
+	$x               = (int) if_isset($_GET, 		0,      ['x']);
+	$id[$x]          =       if_isset($_GET, 		null,	['id']);
+	$lobenr[$x]      =       if_isset($_GET, 		null,	['lobenr']);
+	$kladde_id       = (int) if_isset($_GET, 		0,		'kladde_id');
+	$bilag[$x]       = (int) if_isset($_GET, 		0,		'bilag');
+	$dato[$x]        =       if_isset($_GET, 		'',		'dato');
+	$beskrivelse[$x] =       if_isset($_GET, 		'',		'beskrivelse');
+	$d_type[$x]      =       if_isset($_GET, 		'',		'd_type');
+	$debet[$x]       =       if_isset($_GET, 		'',		'debet');
+	$k_type[$x]      =       if_isset($_GET, 		'',		'k_type');
+	$kredit[$x]      =       if_isset($_GET, 		'',		'kredit');
+	$debetvat_param  = 		 if_isset($_GET, 		null,	'dvat');
+	$kreditvat_param = 		 if_isset($_GET, 		null,	'kvat');
+	$faktura[$x]     =       if_isset($_GET, 		'',		'faktura');
+	$belob[$x]       =       if_isset($_GET, 		'',		'belob');
+	$momsfri[$x]     =       if_isset($_GET, 		'',		'momsfri');
+	$afd[$x]         =       if_isset($_GET, 		'',		'afd');
+	$projekt[$x]     =       if_isset($_GET, 		'',		'projekt');
+	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
+	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
+	$find            =       if_isset($_GET, 		'',		'find');
+	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		[$x]));
+	$d_type[$x]      =  trim(if_isset($d_type, 		'',		[$x]));
+	$debet[$x]       =  trim(if_isset($debet, 		'',		[$x]));
+	$k_type[$x]      =  trim(if_isset($k_type, 		'',		[$x]));
+	$kredit[$x]      =  trim(if_isset($kredit, 		'',		[$x]));
+	$faktura[$x]     =  trim(if_isset($faktura, 	'',		[$x]));
+	$belob[$x]       =  trim(if_isset($belob, 		'',		[$x]));
+	$existing_row = null;
+
+	// Persistent Sorting
 	if ($kksort) {
 		if ($kkdir_get == 'desc') $kkdir = 'desc'; else $kkdir = 'asc';
 		db_modify("update grupper set box1='" . db_escape_string($kksort) . "', box4='" . db_escape_string($kkdir) . "' where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
 	}
-	$funktion        =       if_isset($_GET['funktion']);
-	$x               = (int) if_isset($_GET['x'], 0);
-	$id[$x]          =       if_isset($_GET['id']);
-	$lobenr[$x]      =       if_isset($_GET['lobenr']);
-	$bilag[$x]       = (int) if_isset($_GET,0,'bilag');
-	$dato[$x]        =       if_isset($_GET,'','dato');
-	$beskrivelse[$x] =       if_isset($_GET,'','beskrivelse');
-	$d_type[$x]      =       if_isset($_GET,'','d_type');
-	$debet[$x]       =       if_isset($_GET,'','debet');
-	$k_type[$x]      =       if_isset($_GET,'','k_type');
-	$kredit[$x]      =       if_isset($_GET,'','kredit');
-	$debetvat_param  = array_key_exists('dvat', $_GET) ? $_GET['dvat'] : null;
-	$kreditvat_param = array_key_exists('kvat', $_GET) ? $_GET['kvat'] : null;
-	$faktura[$x]     =       if_isset($_GET,'','faktura');
-	$belob[$x]       =       if_isset($_GET['belob']);
-	$momsfri[$x]     =       if_isset($_GET,'','momsfri');
-	$afd[$x]         =       if_isset($_GET,'','afd');
-	$projekt[$x]     =       if_isset($_GET,'','projekt');
-	$ansat[$x]       =       if_isset($_GET,'','ansat');
-	$valuta[$x]      =       if_isset($_GET,'','valuta');
-	$find            =       if_isset($_GET,'','find');
-	$beskrivelse[$x] =  trim(if_isset($beskrivelse[$x], ''));
-	$d_type[$x]      =  trim(if_isset($d_type[$x], ''));
-	$debet[$x]       =  trim(if_isset($debet[$x], ''));
-	$k_type[$x]      =  trim(if_isset($k_type[$x], ''));
-	$kredit[$x]      =  trim(if_isset($kredit[$x], ''));
-	$faktura[$x]     =  trim(if_isset($faktura[$x], ''));
-	$belob[$x]       =  trim(if_isset($belob[$x], ''));
-	$existing_row = null;
 
 	if ($kladde_id && ($id[$x] || $lobenr[$x] || $x)) {
 		if ($id[$x]) {
@@ -485,9 +490,9 @@ if ($_GET) {
 		$debetvat_param,
 		$debet[$x],
 		$d_type[$x],
-		if_isset($existing_row['debet'], ''),
-		if_isset($existing_row['d_type'], ''),
-		if_isset($existing_row['debetvat'], ''),
+		if_isset($existing_row, '', ['debet']),
+		if_isset($existing_row, '', ['d_type']),
+		if_isset($existing_row, '', ['debetvat']),
 		$regnaar,
 		$vat_codes
 	);
@@ -495,9 +500,9 @@ if ($_GET) {
 		$kreditvat_param,
 		$kredit[$x],
 		$k_type[$x],
-		if_isset($existing_row['kredit'], ''),
-		if_isset($existing_row['k_type'], ''),
-		if_isset($existing_row['kreditvat'], ''),
+		if_isset($existing_row, '', 'kredit'),
+		if_isset($existing_row, '', 'k_type'),
+		if_isset($existing_row, '', 'kreditvat'),
 		$regnaar,
 		$vat_codes
 	);

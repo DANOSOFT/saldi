@@ -55,13 +55,16 @@
 // 20260217 PHR added "(float)$tal" in function afrund
 // 20260429 PHR Check for $regnaar in function transtjek()
 // 20260518 CL/PHR copy_row() springer batch_due_date og batch_batch_no over ved kopiering af ordrelinjer
+// 20260602 NTR Changed if_isset to accept nested keys as an array, so you can do if_isset($array, $default, ['key1', 'key2']) to check for $array['key1']['key2']
+// -------- As well as adding the ability to check for object properties if you pass an object instead of an array and the key is a string, so you can do if_isset($object, $default, 'property') to check for $object->property
+// -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
 
-include('stdFunc/dkDecimal.php');
-include('stdFunc/nrCast.php');
-include('stdFunc/strStartsWith.php');
-include('stdFunc/usDecimal.php');
-include('stdFunc/navStack.php');
-include('stdFunc/fefo.php');
+include(__DIR__ . '/stdFunc/dkDecimal.php');
+include(__DIR__ . '/stdFunc/nrCast.php');
+include(__DIR__ . '/stdFunc/strStartsWith.php');
+include(__DIR__ . '/stdFunc/usDecimal.php');
+include(__DIR__ . '/stdFunc/navStack.php');
+include(__DIR__ . '/stdFunc/fefo.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -143,31 +146,6 @@ if (!function_exists('get_relative')) {
     }
 }
 
-// if (!function_exists('if_isset')) {
-// 	function if_isset(&$var, $return = NULL)
-// 	{
-		/**
-		 * Checks if a variable is set and not empty.
-		 * If set and not empty, returns the value of the variable.
-		 * Otherwise, returns the default value provided.
-		 *
-		 * @param mixed $var - The variable to check.
-		 * @param mixed $return - The value to return if the variable is not set or is empty (default: NULL).
-		 *
-		 * @return mixed - The value of the variable if set and not empty, otherwise the default value.
-		 * ######## Known Behaviour #######, 
-		 * This doesn't return True if $var === 0 as 0 is considered Falsy in PHP. But 0 can be set and retrieved as value in $return param.
-		 * Same thing for False value.
-		 * if_isset(false) //NULL
-		 * if_isset(0)     //NULL
-		 * #################
-		 */
-// 		if ($var)
-// 			return ($var);
-// 		else
-// 			return ($return);
-// 	}
-// }
 
 if (!function_exists('if_isset')) {
     function if_isset($arrayOrVar, $default = null, $key = null) {
@@ -179,7 +157,7 @@ if (!function_exists('if_isset')) {
          *
          * Behavior for special values:
          * ----------------------------------------
-         * - `false`: Treated as "not set" and returns NULL . Explicitly set for single values
+         * - `false`: Treated as "set".
          * - `null`: If the variable or array key is explicitly `null`
          * - `0`: Considered a valid value, returned as-is (0 is treated as set).
          * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
@@ -189,29 +167,39 @@ if (!function_exists('if_isset')) {
 		 * ########################################
 		 * 
          * @param mixed $arrayOrVar The array or variable to check.
-         * @param mixed $default    The default value to return if the variable or key is not set.
+         * @param mixed $default    The default value to return if the variable or array's key is not set.
          * @param mixed $key        The key (if array is passed).
          * @return mixed           The actual value or the default.
          */
 
-        // Case 1: One argument — treat as a single variable fallback
+        // Case 1: One/Two argument — treat as a single variable fallback
         if ($key === null) {
-            // If key is not provided, we're dealing with just a single variable
-          
-			 // Check if the variable is explicitly false and return NULL
-			 if ($arrayOrVar === false) {
-				return NULL;
-			}
-	
+            // If key is not provided, we're dealing with just a single variable.
 			return isset($arrayOrVar) ? $arrayOrVar : $default;
         }
 
-        // Case 2: Two arguments — array + key
-        if (is_array($arrayOrVar) && array_key_exists($key, $arrayOrVar)) {
-            // If it's an array and the key exists, return the value or NULL if it's false
-            $value = $arrayOrVar[$key];
-            return $value === false ? null : $value;
-        }
+        // Case 2: Three arguments — array + key or object + property
+		if(!is_array($key)){
+			if (isset($arrayOrVar) && is_array($arrayOrVar)) {
+				return array_key_exists($key, $arrayOrVar) ? $arrayOrVar[$key] : $default;
+			}
+			if (is_object($arrayOrVar)) {
+				return property_exists($arrayOrVar, $key) ? $arrayOrVar->$key : $default;
+			}
+		} else {
+			// Case 3: If $key is an array, we want to check nested keys
+			$current = $arrayOrVar;
+			foreach ($key as $k) {
+				if (is_array($current) && array_key_exists($k, $current)) {
+					$current = $current[$k];
+				} elseif (is_object($current) && property_exists($current, $k)) {
+					$current = $current->$k;
+				} else {
+					return $default; // Key doesn't exist at some level
+				}
+			}
+			return $current; // All keys exist, return the final value
+		}
 
         // Default case: Return the default value
         return $default;
@@ -2096,7 +2084,7 @@ if (!function_exists('create_debtor')) {
 	 * 
 	 * @return int|null - Returns the ID of the created debtor record if successful, or NULL if there was an error.
 	 */
-	include_once('stdFunc/createDebitor.php');
+	include_once(__DIR__ . '/stdFunc/createDebitor.php');
 }
 
 //                   ----------------------------- get_next_number ------------------------------
