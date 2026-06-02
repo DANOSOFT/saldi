@@ -27,6 +27,9 @@ includes/connect.php
 kreditor/betalinger_old.php
 logolib/
 
+#services
+.claude/
+
 #test
 price.txt
 test/
@@ -69,3 +72,15 @@ opret/
 # Dandomain and mysaleX
 dandomain/
 mysaleX/
+
+email.php
+
+# hidden files
+.ht*
+
+# Live Service
+index/redirect.php
+stock.txt
+vareFlytning.txt
+varenr_alias.txt
+varer.csv

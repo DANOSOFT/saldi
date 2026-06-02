@@ -322,7 +322,7 @@
         if (window.location.pathname.includes('/finans/')) {
             return 'kassekladde_includes/accountSearch.php';
         }
-        if (window.location.pathname.includes('/includes/')) {
+        if (window.location.pathname.includes('/includes/') || window.location.pathname.includes('/bank_integration/')) {
             return '../finans/kassekladde_includes/accountSearch.php';
         }
         return 'finans/kassekladde_includes/accountSearch.php';
@@ -535,7 +535,7 @@
         let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/accountSearch.php';
-        } else if (window.location.pathname.includes('/includes/')) {
+        } else if (window.location.pathname.includes('/includes/') || window.location.pathname.includes('/bank_integration/')) {
             basePath = '../finans/kassekladde_includes/accountSearch.php';
         } else {
             basePath = 'finans/kassekladde_includes/accountSearch.php';
