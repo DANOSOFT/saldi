@@ -87,7 +87,7 @@ include("../includes/row-hover-style.js.php");
 
 #	include("../includes/db_query.php");
 
-$backUrl = isset($_GET['returside']) ? $_GET['returside'] : null;
+$backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 if ($popup) $returside="../includes/luk.php";
 
 else $returside = $backUrl;
