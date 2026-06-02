@@ -689,8 +689,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK$r_faktura[cvrnr]33557799",
                 "postalAddress" => [
-                    "streetName" => explode(" ", $r_faktura["addr1"])[0],
-                    "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
+                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
