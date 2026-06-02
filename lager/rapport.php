@@ -87,53 +87,50 @@ include("../includes/row-hover-style.js.php");
 
 #	include("../includes/db_query.php");
 
-if_isset ($_GET, null, 'detaljer');
-if_isset ($_GET, null, 'kun_salg');
-if_isset ($_GET, null, 'lagertal');
-$backUrl = if_isset($_GET, '../index/menu.php', 'returside');
+$backUrl = isset($_GET['returside']) ? $_GET['returside'] : null;
 if ($popup) $returside="../includes/luk.php";
 
 else $returside = $backUrl;
 
-$inventoryCount = if_isset($_POST, null, ['inventoryCount']);
-$lokMinMax        = if_isset($_POST, null, ['lokMinMax']);
+$inventoryCount = isset($_POST['inventoryCount']) ? $_POST['inventoryCount'] : null;
+$lokMinMax      = isset($_POST['lokMinMax']) ? $_POST['lokMinMax'] : null;
 if ($lokMinMax) {
 	$varegruppe = trim($_POST['varegruppe']);
-	$varenr     = if_isset($_POST, null, 'varenr');
-	$varenavn   = if_isset($_POST, null, 'varenavn');
-	$afd        = if_isset($_POST, null, 'afd');
+	$varenr     = isset($_POST['varenr']) ? $_POST['varenr']: null;
+	$varenavn   = isset($_POST['varenavn']) ? $_POST['varenavn'] : null;
+	$afd        = isset($_POST['afd']) ? $_POST['afd'] : null;
 	print print "<meta http-equiv=\"refresh\" content=\"0;URL=minmaxstock.php?vgrp=$varegruppe&vnr=$varenr&vname=$varenavn&afd=$afd\">";
 }
 if (isset($_POST['submit']) && $_POST['submit']) {
 	$submit=strtolower(trim($_POST['submit']));
 	$varegruppe=trim($_POST['varegruppe']);
-	$afd=if_isset($_POST, null, 'afd');
-	$ref=if_isset($_POST, null, 'ref');
-	$lev=if_isset($_POST, null, 'lev');
+	$afd=isset($_POST['afd']) ? $_POST['afd'] : null;
+	$ref=isset($_POST['ref']) ? $_POST['ref'] : null;
+	$lev=isset($_POST['lev']) ? $_POST['lev'] : null;
 	$date_from=usdate($_POST['dato_fra']);
 	$date_to=usdate($_POST['dato_til']);
 #	$md=$_POST['md'];
-	$varenr       = if_isset($_POST, null, 'varenr');
-	$varenavn     = if_isset($_POST, null, 'varenavn');
-	$detaljer     = if_isset($_POST, null, 'detaljer');
-	$kun_salg     = if_isset($_POST, null, 'kun_salg');
-	$lagertal     = if_isset($_POST, null, 'lagertal');
-	$vk_kost      = if_isset($_POST, null, 'vk_kost');
+	$varenr       = isset($_POST['varenr']) ? $_POST['varenr'] : null;
+	$varenavn     = isset($_POST['varenavn']) ? $_POST['varenavn'] : null;
+	$detaljer     = isset($_POST['detaljer']) ? $_POST['detaljer'] : null;
+	$kun_salg     = isset($_POST['kun_salg']) ? $_POST['kun_salg'] : null;
+	$lagertal     = isset($_POST['lagertal']) ? $_POST['lagertal'] : null;
+	$vk_kost      = isset($_POST['vk_kost']) ? $_POST['vk_kost'] : null;
 	$varenr       = trim($varenr);
 	$varenavn     = trim($varenavn);
 } else {
-	$varegruppe=if_isset($_GET, null, 'varegruppe');
-	$afd=if_isset($_GET, null, 'afd');
-	$ref=if_isset($_GET, null, 'ref');
-	$lev=if_isset($_GET, null, 'lev');
-	$date_from=if_isset($_GET, null, 'date_from');
-	$date_to=if_isset($_GET, null, 'date_to');
-	$varenr=if_isset($_GET, null, 'varenr');
-	$varenavn=if_isset($_GET, null, 'varenavn');
-	$detaljer = $_GET['detaljer'];
-	$kun_salg = $_GET['kun_salg'];
-	$lagertal = $_GET['lagertal'];
-	$submit=if_isset($_GET, null, 'submit');
+	$varegruppe=isset($_GET['varegruppe']) ? $_GET['varegruppe'] : null;
+	$afd       =isset($_GET['afd']) ? $_GET['afd'] : null;
+	$ref       =isset($_GET['ref']) ? $_GET['ref'] : null;
+	$lev       =isset($_GET['lev']) ? $_GET['lev'] : null;
+	$date_from =isset($_GET['date_from']) ? $_GET['date_from'] : null;
+	$date_to   =isset($_GET['date_to']) ? $_GET['date_to'] : null;
+	$varenr    =isset($_GET['varenr']) ? $_GET['varenr'] : null;
+	$varenavn  =isset($_GET['varenavn']) ? $_GET['varenavn'] : null;
+	$detaljer  =isset($_GET['detaljer']) ? $_GET['detaljer'] : null;
+	$kun_salg  =isset($_GET['kun_salg']) ? $_GET['kun_salg'] : null;
+	$lagertal  =isset($_GET['lagertal']) ? $_GET['lagertal'] : null;
+	$submit    =isset($_GET['submit']) ? $_GET['submit'] : null;
 }
 
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
@@ -256,7 +253,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		$x++;
 	}
 	$x=1;
-	$$lev_id=array();
+	$lev_id=array();
 	$q = db_select("select * from adresser where art = 'K' order by firmanavn",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (in_array($r['id'],$l_id)) {
@@ -325,7 +322,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 		print "<tr bgcolor='$trbg'><td>".findtekst('884|Sælger', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"ref\" style=\"width:200px;\">";
 		for ($x=0;$x<=count($ref_nr);$x++) {
-			if ($ref == $ref_nr[$x]) print "<option value=$ref_nr[$x]>$ref_brugernavn[$x]</option>";
+			if (isset($ref_nr[$x]) && $ref == $ref_nr[$x]) print "<option value=$ref_nr[$x]>$ref_brugernavn[$x]</option>";
 		}
 		for ($x=0;$x<=count($ref_nr);$x++) {
 			if(isset($ref_brugernavn[$x])){
