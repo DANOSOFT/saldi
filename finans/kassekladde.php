@@ -431,37 +431,37 @@ if ($_GET) {
 	$returside = if_isset($_GET['returside']);
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
-	$sort            =       if_isset($_GET['sort']);
-	$kksort          =       if_isset($_GET['kksort']); #sortering i kassekladde
-	$funktion        =       if_isset($_GET['funktion']);
-	$x               = (int) if_isset($_GET['x'], 0);
-	$id[$x]          =       if_isset($_GET['id']);
-	$lobenr[$x]      =       if_isset($_GET['lobenr']);
-	$kladde_id       = (int) if_isset($_GET,0,'kladde_id');
-	$bilag[$x]       = (int) if_isset($_GET,0,'bilag');
-	$dato[$x]        =       if_isset($_GET,'','dato');
-	$beskrivelse[$x] =       if_isset($_GET,'','beskrivelse');
-	$d_type[$x]      =       if_isset($_GET,'','d_type');
-	$debet[$x]       =       if_isset($_GET,'','debet');
-	$k_type[$x]      =       if_isset($_GET,'','k_type');
-	$kredit[$x]      =       if_isset($_GET,'','kredit');
-	$debetvat_param  = array_key_exists('dvat', $_GET) ? $_GET['dvat'] : null;
-	$kreditvat_param = array_key_exists('kvat', $_GET) ? $_GET['kvat'] : null;
-	$faktura[$x]     =       if_isset($_GET,'','faktura');
-	$belob[$x]       =       if_isset($_GET['belob']);
-	$momsfri[$x]     =       if_isset($_GET,'','momsfri');
-	$afd[$x]         =       if_isset($_GET,'','afd');
-	$projekt[$x]     =       if_isset($_GET,'','projekt');
-	$ansat[$x]       =       if_isset($_GET,'','ansat');
-	$valuta[$x]      =       if_isset($_GET,'','valuta');
-	$find            =       if_isset($_GET,'','find');
-	$beskrivelse[$x] =  trim(if_isset($beskrivelse[$x], ''));
-	$d_type[$x]      =  trim(if_isset($d_type[$x], ''));
-	$debet[$x]       =  trim(if_isset($debet[$x], ''));
-	$k_type[$x]      =  trim(if_isset($k_type[$x], ''));
-	$kredit[$x]      =  trim(if_isset($kredit[$x], ''));
-	$faktura[$x]     =  trim(if_isset($faktura[$x], ''));
-	$belob[$x]       =  trim(if_isset($belob[$x], ''));
+	$sort            =       if_isset($_GET, 		null, ['sort']);
+	$kksort          =       if_isset($_GET, 		null, ['kksort']); #sortering i kassekladde		
+	$funktion        =       if_isset($_GET, 		null,	['funktion']);
+	$x               = (int) if_isset($_GET, 		null,	['x'], 0);
+	$id[$x]          =       if_isset($_GET, 		null,	['id']);
+	$lobenr[$x]      =       if_isset($_GET, 		null,	['lobenr']);
+	$kladde_id       = (int) if_isset($_GET, 		0,		'kladde_id');
+	$bilag[$x]       = (int) if_isset($_GET, 		0,		'bilag');
+	$dato[$x]        =       if_isset($_GET, 		'',		'dato');
+	$beskrivelse[$x] =       if_isset($_GET, 		'',		'beskrivelse');
+	$d_type[$x]      =       if_isset($_GET, 		'',		'd_type');
+	$debet[$x]       =       if_isset($_GET, 		'',		'debet');
+	$k_type[$x]      =       if_isset($_GET, 		'',		'k_type');
+	$kredit[$x]      =       if_isset($_GET, 		'',		'kredit');
+	$debetvat_param  = 		 if_isset($_GET, 		null,	'dvat');
+	$kreditvat_param = 		 if_isset($_GET, 		null,	'kvat');
+	$faktura[$x]     =       if_isset($_GET, 		'',		'faktura');
+	$belob[$x]       =       if_isset($_GET, 		'',		'belob');
+	$momsfri[$x]     =       if_isset($_GET, 		'',		'momsfri');
+	$afd[$x]         =       if_isset($_GET, 		'',		'afd');
+	$projekt[$x]     =       if_isset($_GET, 		'',		'projekt');
+	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
+	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
+	$find            =       if_isset($_GET, 		'',		'find');
+	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		[$x]));
+	$d_type[$x]      =  trim(if_isset($d_type, 		'',		[$x]));
+	$debet[$x]       =  trim(if_isset($debet, 		'',		[$x]));
+	$k_type[$x]      =  trim(if_isset($k_type, 		'',		[$x]));
+	$kredit[$x]      =  trim(if_isset($kredit, 		'',		[$x]));
+	$faktura[$x]     =  trim(if_isset($faktura, 	'',		[$x]));
+	$belob[$x]       =  trim(if_isset($belob, 		'',		[$x]));
 	$existing_row = null;
 
 	if ($kladde_id && ($id[$x] || $lobenr[$x] || $x)) {
@@ -479,9 +479,9 @@ if ($_GET) {
 		$debetvat_param,
 		$debet[$x],
 		$d_type[$x],
-		if_isset($existing_row['debet'], ''),
-		if_isset($existing_row['d_type'], ''),
-		if_isset($existing_row['debetvat'], ''),
+		if_isset($existing_row, '', ['debet']),
+		if_isset($existing_row, '', ['d_type']),
+		if_isset($existing_row, '', ['debetvat']),
 		$regnaar,
 		$vat_codes
 	);
@@ -489,9 +489,9 @@ if ($_GET) {
 		$kreditvat_param,
 		$kredit[$x],
 		$k_type[$x],
-		if_isset($existing_row['kredit'], ''),
-		if_isset($existing_row['k_type'], ''),
-		if_isset($existing_row['kreditvat'], ''),
+		if_isset($existing_row, '', 'kredit'),
+		if_isset($existing_row, '', 'k_type'),
+		if_isset($existing_row, '', 'kreditvat'),
 		$regnaar,
 		$vat_codes
 	);
