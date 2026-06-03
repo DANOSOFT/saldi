@@ -48,6 +48,8 @@
 // 20260422 LOE added leveret to show up when printing.
 // 20260424 LOE populate leveres and leveret from batch_salg if empty, for invoice printing.
 // 20260426 PHR Outcommented change by PBLM as it has to be modified
+// 20260528 Sawaneh Print out-of-stock approval note under item description; fall back to formular 3 when requested formularer layout is missing
+
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
 
@@ -1501,39 +1503,20 @@ if (!function_exists('formularprint')) {
 				}
 				$var_antal = $x;
 			}
-			# Fallback for plukliste (formular 9) to use følgeseddel (formular 3) if not found OR if no field definitions
-			if ((!$found || $var_antal == 0) && $formular == 9) {
-
-
-				// Try with current language
-				$query = db_select("select * from formularer where formular = '3' and art = '3' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__);
-				while ($row = db_fetch_array($query)) {
-					$found = true;
-					if ($row['beskrivelse'] == 'generelt') {
-						$antal_ordrelinjer = $row['xa'];
-						$ya = $row['ya'];
-						$linjeafstand = $row['xb'];
-						#		$Opkt=$y-($antal_ordrelinjer*$linjeafstand);
-					} else {
-						$x++;
-						$variabel[$x] = $row['beskrivelse'];
-
-						$justering[$x] = $row['justering'];
-						$xa[$x] = $row['xa'];
-						$str[$x] = $row['str'];
-						$laengde[$x] = $row['xb'];
-						$color[$x] = $row['color'];
-						$fed[$x] = $row['fed'];
-						$kursiv[$x] = $row['kursiv'];
-						$form_font[$x] = $row['font'];
-					}
-					$var_antal = $x;
-				}
-
-				// If still not found or still no field definitions, try 'dansk'
-				if (!$found || $var_antal == 0) {
-
-					$query = db_select("select * from formularer where formular = '3' and art = '3' and lower(sprog)='dansk'", __FILE__ . " linje " . __LINE__);
+			# Fall back to other languages, then to formular 3, when the requested layout is missing.
+			if (!$found || $var_antal == 0) {
+				$fallback_queries = array(
+					"select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='dansk'",
+					"select * from formularer where formular = '$formular' and art = '3'",
+					"select * from formularer where formular = '3' and art = '3' and lower(sprog)='$formularsprog'",
+					"select * from formularer where formular = '3' and art = '3' and lower(sprog)='dansk'",
+					"select * from formularer where formular = '3' and art = '3'",
+				);
+				foreach ($fallback_queries as $fq) {
+					if ($found && $var_antal > 0) break;
+					$found = false;
+					$x = 0;
+					$query = db_select($fq, __FILE__ . " linje " . __LINE__);
 					while ($row = db_fetch_array($query)) {
 						$found = true;
 						if ($row['beskrivelse'] == 'generelt') {
@@ -1543,7 +1526,6 @@ if (!function_exists('formularprint')) {
 						} else {
 							$x++;
 							$variabel[$x] = $row['beskrivelse'];
-
 							$justering[$x] = $row['justering'];
 							$xa[$x] = $row['xa'];
 							$str[$x] = $row['str'];
@@ -1558,8 +1540,7 @@ if (!function_exists('formularprint')) {
 				}
 			}
 
-			if (!$found) {
-
+			if (!$found || $var_antal == 0) {
 				echo "<script>alert('Background values not set for this form');</script>";
 				echo "<button onclick='window.history.go(-3)'>Go Back</button>";
 				exit;
@@ -1733,6 +1714,14 @@ if (!function_exists('formularprint')) {
 							$lev_varenr[$x] = trim($row['lev_varenr']);
 							$projekt[$x] = ($row['projekt']);
 							$beskrivelse[$x] = trim($row['beskrivelse']);
+							// Append the out-of-stock approval note (if any) under the item description.
+							$_sw_lid = (int)$row['id'];
+							if ($_sw_lid > 0) {
+								$_sw_r = @db_fetch_array(@db_select("select note from order_stock_warning_log where linje_id = '$_sw_lid' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+								if ($_sw_r && isset($_sw_r['note']) && trim($_sw_r['note']) !== '') {
+									$beskrivelse[$x] .= "\n" . trim($_sw_r['note']);
+								}
+							}
 							$enhed[$x] = trim($row['enhed']);
 							$serienr[$x] = trim($row['serienr']);
 

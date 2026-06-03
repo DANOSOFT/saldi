@@ -179,7 +179,10 @@ if (isset($_POST['delete_kladde'])) {
         exit;
     }
 }
-	
+?>
+<!doctype html>
+<?php
+
 $css="../css/standard.css";		
 $modulnr=2;	
 $title="kladdeliste";	
@@ -193,7 +196,7 @@ $apiKey = db_fetch_array($query)["var_value"];
 include("../includes/online.php");
 include("../includes/topline_settings.php"); 
 
-print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
+print "<script LANGUAGE=\"show JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';

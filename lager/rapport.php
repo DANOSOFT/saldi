@@ -135,7 +135,7 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
 
-#if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";}
+#if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";} 
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 elseif ($submit == strtolower(findtekst('992|Lagerstatus', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
 elseif ($submit == strtolower(findtekst('2082|Prisliste', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";

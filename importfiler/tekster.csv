@@ -1904,7 +1904,7 @@
 1904	Angiv brugerens tilladte IP adresser	Enter IP address to restrict	Skriv inn IP for å begrense
 1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you are not supposed to be here! Your IP number, username and accounts are registered!	Hmm, du har visst ikke noe å gjøre her! Din IP-adresse, brukernavn og regnskap er registrert!
 1906	Skjul 'Luk'	Hide 'Close'	Skjul 'Lukk'
-1907	Vis 'Luk'	Show 'Close'	Vis 'Lukk'
+1907	Vis lukkede	Show closed	Vis lukkede
 1908	Lås	Lock	Lås
 1909	Brugerantal	Number of users	Antall brukere
 1910	Posteringer	Entries	Posteringer
@@ -3257,8 +3257,8 @@
 3257	Indtast et navn på den baggrund, du vil tilføje	Enter a name for the background you want to add	Skriv inn et navn på bakgrunnen du vil legge til
 3258	Vælg skabelon	Select template	Velg mal
 3259	Viser filer for	Showing files for	Viser filer for
-3260	
-3261	
+3260	Lagerhistorik	Inventory history	Lagerhistorikk
+3261	Bilags match	Batch invoice	Vedleggsmatch
 3262	
 3263	
 3264	

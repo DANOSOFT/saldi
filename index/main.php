@@ -1,3 +1,4 @@
+<!doctype html>
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
@@ -69,26 +70,22 @@ function brightenColor($color, $amount = 0.2) {
 ?>
 
 <script>
-// Simple cookie-based refresh listener
-function checkRefreshCookie() {
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'refresh_opener' && value === 'true') {
-            // Clear the cookie and reload
-            document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-            location.reload();
-            return;
-        }
-    }
-}
+  // Simple cookie-based refresh listener
+  function checkRefreshCookie() {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+          const [name, value] = cookie.trim().split('=');
+          if (name === 'refresh_opener' && value === 'true') {
+              // Clear the cookie and reload
+              document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+              location.reload();
+              return;
+          }
+      }
+  }
 
-// Check every 1000ms for the cookie
-setInterval(checkRefreshCookie, 1000);
-</script>
-
-// Check every 500ms
-setInterval(checkRefreshCookie, 500);
+  // Check every 1000ms for the cookie
+  setInterval(checkRefreshCookie, 1000);
 </script>
 <style>
   .showMenu{
@@ -449,7 +446,7 @@ setInterval(checkRefreshCookie, 500);
     <iframe
       onLoad="
       document.title = 'Saldi - ' + this.contentWindow.document.title; 
-console.log('Locaiton', this.contentWindow.document.location.href);
+      console.log('Locaiton', this.contentWindow.document.location.href);
       trigger_iframe_load();
       stopLoading();
       content_finished_loading(this);"

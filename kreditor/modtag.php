@@ -57,6 +57,8 @@ function fejltekst(tekst) {
 </script>
 <?php
 
+$aarstart = '';
+$aarslut  = '';
 $query = db_select("select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__);
 if ($row = db_fetch_array($query)) {
 	$year=substr(str_replace(" ","",$row['box2']),-2);
@@ -91,7 +93,7 @@ $levdate=$row['levdate'];
 list ($year, $month, $day) = explode ('-', $row['levdate']);
 $year=substr($year,-2);
 $ym=$year.$month;
-if (($ym<$aarstart)||($ym>$aarslut)) {
+if (empty($aarstart) || empty($aarslut) || ($ym<$aarstart) || ($ym>$aarslut)) {
 	print "<BODY onLoad=\"fejltekst('Leveringsdato udenfor regnskabs&aring;r')\">";
 	 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 	exit;
@@ -407,11 +409,11 @@ function reservation($linje_id, $leveres, $vare_id, $serienr,$lager) {
 	$y=0;
 	$query = db_select("select batch_kob_id, antal, batch_salg_id from reservation where linje_id=$linje_id",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
-		$batch_kob_id=$row[batch_kob_id];
-		if ($row[batch_salg_id]>0) {
+		$batch_kob_id=$row['batch_kob_id'];
+		if ($row['batch_salg_id']>0) {
 			$y++;
-			$res_antal[$y]=$row[antal];
-			$res_sum=$res_sum+$row[antal];
+			$res_antal[$y]=$row['antal'];
+			$res_sum=$res_sum+$row['antal'];
 		}
 	}
 	$res_linje_antal=$y;
@@ -423,7 +425,7 @@ function reservation($linje_id, $leveres, $vare_id, $serienr,$lager) {
 	if (!$batch_kob_id) {
 		db_modify("insert into batch_kob(linje_id, ordre_id, vare_id, kobsdate, antal, rest, lager, due_date, batch_no) values ($linje_id, $id, $vare_id, '$levdate', $leveres, $rest, $lager $_due_val $_bno_val)",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array(db_select("select id from batch_kob where linje_id=$linje_id and ordre_id=$id and kobsdate='$levdate' and	antal=$leveres and rest=$rest",__FILE__ . " linje " . __LINE__));
-		$batch_kob_id=$row[id];
+		$batch_kob_id=$row['id'];
 	}
 	else {
 		$_due_set = ($_ol && $_ol['batch_due_date']) ? ",due_date='$_ol[batch_due_date]'" : ",due_date=NULL";
