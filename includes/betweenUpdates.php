@@ -26,6 +26,7 @@
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 // 20260429 LOE added leveret to formularer table
 // 20260504 NTR Fixed error on login due to missing regnskab's table
+// 20260603 NTR Added missing note_on_orderline column to ordrelinjer table as otherwise it crashed on added a linje.
 
 
 $qtxt = "CREATE SEQUENCE IF NOT EXISTS regnskab_id_seq";

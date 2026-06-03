@@ -86,6 +86,7 @@
 // 20260509 PHR Hack to prevent order beeing created twice when using account lookup in to create the order.
 // 20260512 NTR MERGED Live/POS into PROD_TEST
 // 20260528 Sawaneh Stock warning popup skips already-saved lines and cache-busts stockWarning JS includes via filemtime
+// 20260603 NTR Changed Varenr to posnr in SellerItemID in OIOUBL generation as per Jørgen's email.
 
 @session_start();
 $s_id = session_id();
