@@ -151,7 +151,7 @@ function check_permissions($permarr) {
 				$_exp_msg .= $_exp_expired . ' ' . findtekst('5022|batch(er) er udl&oslash;bet', $sprog_id) . '. ';
 			}
 			$_exp_msg .= $_exp_batches . ' ' . findtekst('5023|batch(er) p&aring;', $sprog_id) . ' ' . $_exp_items . ' ' . findtekst('5024|vare(r) udl&oslash;ber inden for', $sprog_id) . ' ' . $_expiry_warn_days . ' ' . findtekst('5025|dage', $sprog_id) . '.';
-			print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; margin-top:1em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.href='../lager/udlobsrapport.php'\">";
+			print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; margin-top:1em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.hash='/lager/udlobsrapport.php'\">";
 			print "<b>$_exp_msg</b> " . findtekst('5026|Klik for at se udl&oslash;bsrapporten', $sprog_id) . ".";
 			print "</div>";
 		}
@@ -303,7 +303,7 @@ if (check_permissions(array(12))) {
 			$_exp_msg .= $_exp_expired . ' ' . findtekst('5022|batch(er) er udl&oslash;bet', $sprog_id) . '. ';
 		}
 		$_exp_msg .= $_exp_batches . ' ' . findtekst('5023|batch(er) p&aring;', $sprog_id) . ' ' . $_exp_items . ' ' . findtekst('5024|vare(r) udl&oslash;ber inden for', $sprog_id) . ' ' . $_expiry_warn_days . ' ' . findtekst('5025|dage', $sprog_id) . '.';
-		print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.href='../lager/udlobsrapport.php'\">";
+		print "<div style='background-color:$_exp_bg; border-left:4px solid $_exp_border; padding:0.8em 1.2em; border-radius:4px; cursor:pointer;' onclick=\"parent.location.hash='/lager/udlobsrapport.php'\">";
 		print "<b>$_exp_msg</b> " . findtekst('5026|Klik for at se udl&oslash;bsrapporten', $sprog_id) . ".";
 		print "</div>";
 	}

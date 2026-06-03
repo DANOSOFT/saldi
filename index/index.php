@@ -218,12 +218,12 @@ fclose($fp);
 
 if (!is_numeric($languageId)) $languageId = 1;
 for ($x=1; $x<count($a); $x++){
-if ($x == $languageId){
-print "<option selected value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
-}
-else {
-print "<option value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
-}
+	if ($x == $languageId){
+		print "<option selected value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
+	}
+	else {
+		print "<option value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
+	}
 }
 print "</select>\n";
 print "				</div>\n";    

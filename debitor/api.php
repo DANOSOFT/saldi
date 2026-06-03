@@ -1,6 +1,33 @@
 <?php
 
     // This file is used to send invoices to EasyUBL
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- debitor/api.php --- patch 5.0.0 --- 2026-05-12 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Saldi.dk ApS
+// ----------------------------------------------------------------------
+
+// 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
+// &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
 
     @session_start();
     $s_id=session_id();
@@ -262,7 +289,6 @@
             }else{
             ?>
             <script>
-
                 alert("Der opdstod en fejl under sending af fakturaen. kontakt support. Tlf: 46902208");
             </script>
             <?php
@@ -360,7 +386,6 @@
         }
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
-                
                 "streetName" => implode(" ", explode(" ", $r_faktura["lev_addr1"], -1)), ## 20260518 - NTR - Street name without building number.
                 "buildingNumber" => end(explode(" ", $r_faktura["lev_addr1"])),
                 "inhouseMail" => $r_faktura["email"],
@@ -449,9 +474,7 @@
             //     ]
             // ], //Was missing from JSON structure
             "documentCurrencyCode" => $r_faktura["valuta"],
-            //(float)number_format((float)$r_faktura["sum"], 2)
             "totalAmount" => round((float)$r_faktura["sum"], 2), ## 20260518 - NTR - Fix values over a thousand being truncated to the thousands.
-
             "deliverAddress" => $deliverAddress,
             "paymentMeans" => [
                 "bankName" => $adresse["bank_navn"],
@@ -527,8 +550,8 @@
                 "quantity" => $res["antal"],
                 "quantityUnitCode" => "EA",
                 "price" => $price,
+                "discountPercent" => $discPrct,
                 "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails.
-                "discountAmount" => $discAmount,
                 "vatPercent" => ($res["momssats"] != "" && $res["momssats"] != null) ? $res["momssats"] : 0,
                 "lineAmount" => $lineAmount,
                 "priceInclTax" => false,

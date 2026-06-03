@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-29 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-05-21 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -48,7 +48,11 @@
 // 20260417 Sawaneh: Added a cloumn for vat with a dropwdown select
 // 20260423 LOE Reordered and added some codes to adjust for lines not yet saved to the database.
 // 20260507 NTR - Added batch Invoice Matching (bilagsmatch)
-
+// 20260513 PK - Removed background color in sticky header and changed commenting to the correct one
+// 20260513-2 PK - Removed 'button' in css as it created double border-radius on the pagination buttons
+// 20260519 CL/NTR - Moved Balance Ledger, Balance Bank and Balance Diff to before moms column. Added Header to Balance Diff.
+// 20260521 LOE Fixed a bug from extra added closing brace and updated background color for thead
+// 20260529 SZ - Added Persistent Sorting on Kassekladde (Added by NTR, Don't know what else was changed)
 
 ob_start(); //Starter output buffering
 
@@ -376,6 +380,7 @@ if ($tjek = if_isset($_GET['tjek'])) {
 	if ($r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__))) {
 		$kksort = $r['box1'];
 		$kontrolkonto = $r['box2'];
+		$kkdir = $r['box4'] ? $r['box4'] : 'asc';
 	} else {
 		db_modify("insert into grupper (beskrivelse,art,kode,kodenr) values ('Kassekladde','KASKL','1','$bruger_id')", __FILE__ . " linje " . __LINE__);
 	}
@@ -429,38 +434,46 @@ if ($_GET) {
 	$returside = if_isset($_GET['returside']);
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
-	$sort            =       if_isset($_GET['sort']);
-	$kksort          =       if_isset($_GET['kksort']); #sortering i kassekladde
-	$funktion        =       if_isset($_GET['funktion']);
-	$x               = (int) if_isset($_GET['x'], 0);
-	$id[$x]          =       if_isset($_GET['id']);
-	$lobenr[$x]      =       if_isset($_GET['lobenr']);
-	$kladde_id       = (int) if_isset($_GET,0,'kladde_id');
-	$bilag[$x]       = (int) if_isset($_GET,0,'bilag');
-	$dato[$x]        =       if_isset($_GET,'','dato');
-	$beskrivelse[$x] =       if_isset($_GET,'','beskrivelse');
-	$d_type[$x]      =       if_isset($_GET,'','d_type');
-	$debet[$x]       =       if_isset($_GET,'','debet');
-	$k_type[$x]      =       if_isset($_GET,'','k_type');
-	$kredit[$x]      =       if_isset($_GET,'','kredit');
-	$debetvat_param  = array_key_exists('dvat', $_GET) ? $_GET['dvat'] : null;
-	$kreditvat_param = array_key_exists('kvat', $_GET) ? $_GET['kvat'] : null;
-	$faktura[$x]     =       if_isset($_GET,'','faktura');
-	$belob[$x]       =       if_isset($_GET['belob']);
-	$momsfri[$x]     =       if_isset($_GET,'','momsfri');
-	$afd[$x]         =       if_isset($_GET,'','afd');
-	$projekt[$x]     =       if_isset($_GET,'','projekt');
-	$ansat[$x]       =       if_isset($_GET,'','ansat');
-	$valuta[$x]      =       if_isset($_GET,'','valuta');
-	$find            =       if_isset($_GET,'','find');
-	$beskrivelse[$x] =  trim(if_isset($beskrivelse[$x], ''));
-	$d_type[$x]      =  trim(if_isset($d_type[$x], ''));
-	$debet[$x]       =  trim(if_isset($debet[$x], ''));
-	$k_type[$x]      =  trim(if_isset($k_type[$x], ''));
-	$kredit[$x]      =  trim(if_isset($kredit[$x], ''));
-	$faktura[$x]     =  trim(if_isset($faktura[$x], ''));
-	$belob[$x]       =  trim(if_isset($belob[$x], ''));
+	$sort            =       if_isset($_GET, 		null,   ['sort']);
+	$kksort          =       if_isset($_GET,        null,   ['kksort']); #sortering i kassekladde
+	$kkdir_get       =       if_isset($_GET,        null,   ['kkdir']);
+	$kladde_id       = (int) if_isset($_GET,        0,      'kladde_id');
+	$funktion        =       if_isset($_GET, 		null,	['funktion']);
+	$x               = (int) if_isset($_GET, 		0,      ['x']);
+	$id[$x]          =       if_isset($_GET, 		null,	['id']);
+	$lobenr[$x]      =       if_isset($_GET, 		null,	['lobenr']);
+	$kladde_id       = (int) if_isset($_GET, 		0,		'kladde_id');
+	$bilag[$x]       = (int) if_isset($_GET, 		0,		'bilag');
+	$dato[$x]        =       if_isset($_GET, 		'',		'dato');
+	$beskrivelse[$x] =       if_isset($_GET, 		'',		'beskrivelse');
+	$d_type[$x]      =       if_isset($_GET, 		'',		'd_type');
+	$debet[$x]       =       if_isset($_GET, 		'',		'debet');
+	$k_type[$x]      =       if_isset($_GET, 		'',		'k_type');
+	$kredit[$x]      =       if_isset($_GET, 		'',		'kredit');
+	$debetvat_param  = 		 if_isset($_GET, 		null,	'dvat');
+	$kreditvat_param = 		 if_isset($_GET, 		null,	'kvat');
+	$faktura[$x]     =       if_isset($_GET, 		'',		'faktura');
+	$belob[$x]       =       if_isset($_GET, 		'',		'belob');
+	$momsfri[$x]     =       if_isset($_GET, 		'',		'momsfri');
+	$afd[$x]         =       if_isset($_GET, 		'',		'afd');
+	$projekt[$x]     =       if_isset($_GET, 		'',		'projekt');
+	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
+	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
+	$find            =       if_isset($_GET, 		'',		'find');
+	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		[$x]));
+	$d_type[$x]      =  trim(if_isset($d_type, 		'',		[$x]));
+	$debet[$x]       =  trim(if_isset($debet, 		'',		[$x]));
+	$k_type[$x]      =  trim(if_isset($k_type, 		'',		[$x]));
+	$kredit[$x]      =  trim(if_isset($kredit, 		'',		[$x]));
+	$faktura[$x]     =  trim(if_isset($faktura, 	'',		[$x]));
+	$belob[$x]       =  trim(if_isset($belob, 		'',		[$x]));
 	$existing_row = null;
+
+	// Persistent Sorting
+	if ($kksort) {
+		if ($kkdir_get == 'desc') $kkdir = 'desc'; else $kkdir = 'asc';
+		db_modify("update grupper set box1='" . db_escape_string($kksort) . "', box4='" . db_escape_string($kkdir) . "' where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+	}
 
 	if ($kladde_id && ($id[$x] || $lobenr[$x] || $x)) {
 		if ($id[$x]) {
@@ -477,9 +490,9 @@ if ($_GET) {
 		$debetvat_param,
 		$debet[$x],
 		$d_type[$x],
-		if_isset($existing_row['debet'], ''),
-		if_isset($existing_row['d_type'], ''),
-		if_isset($existing_row['debetvat'], ''),
+		if_isset($existing_row, '', ['debet']),
+		if_isset($existing_row, '', ['d_type']),
+		if_isset($existing_row, '', ['debetvat']),
 		$regnaar,
 		$vat_codes
 	);
@@ -487,9 +500,9 @@ if ($_GET) {
 		$kreditvat_param,
 		$kredit[$x],
 		$k_type[$x],
-		if_isset($existing_row['kredit'], ''),
-		if_isset($existing_row['k_type'], ''),
-		if_isset($existing_row['kreditvat'], ''),
+		if_isset($existing_row, '', 'kredit'),
+		if_isset($existing_row, '', 'k_type'),
+		if_isset($existing_row, '', 'kreditvat'),
 		$regnaar,
 		$vat_codes
 	);
@@ -540,6 +553,7 @@ if ($_GET) {
 	if ($r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__))) {
 		$kksort = $r['box1'];
 		$kontrolkonto = $r['box2'];
+		$kkdir = $r['box4'] ? $r['box4'] : 'asc';
 	}
 }
 
@@ -1920,10 +1934,10 @@ print '<style>
         border-top: 1px solid #ccc;
     }
 
-    /* Border radius for buttons */
+    /* Border radius for buttons #20260513-2*/
     input[type="submit"],
     input[type="button"],
-    button,
+   
     .button {
         border-radius: 4px;
     }
@@ -2308,27 +2322,23 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		print "
 		.kk-cols-picker{position:fixed;top:70px;right:18px;z-index:9999;text-align:right;}
-		.kk-cols-btn{cursor:pointer;padding:6px 14px;border:1px solid #999;background:#fff;border-radius:4px;font-size:13px;font-weight:bold;box-shadow:0 1px 3px rgba(0,0,0,.15);}
-		.kk-cols-btn:hover{background:#f0f0f0;}
-		.kk-cols-menu{display:none;position:absolute;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #ccc;box-shadow:0 2px 8px rgba(0,0,0,.2);padding:10px 14px;z-index:10000;min-width:180px;text-align:left;}
-		.kk-cols-menu.open{display:block;}
+		.kk-cols-menu{display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid #ccc;box-shadow:0px 8px 16px rgba(0,0,0,.2);padding:10px 14px;z-index:10000;min-width:180px;text-align:left;}
+		.kk-cols-picker:hover .kk-cols-menu{display:block;}
 		.kk-cols-menu label{display:block;padding:3px 0;font-size:12px;cursor:pointer;white-space:nowrap;}
-		.kk-cols-menu input{margin-right:6px;vertical-align:middle;}
+		.kk-cols-menu input{margin-right:10px;vertical-align:middle;}
+		#kk-turn-arrow{transition:transform 0.1s ease-in-out;}
+		.kk-cols-picker:hover #kk-turn-arrow{transform:rotate(90deg);}
+		.kk-cols-picker .kk-cols-menu{min-width:180px;white-space:nowrap;}
 		</style>";
-		print "<div style='text-align:right;'><div class='kk-cols-picker'>";
-		print "<button type='button' class='kk-cols-btn' onclick='kkToggleColsMenu(event)'>&#x1F4CB; Columns</button>";
-		print "<div class='kk-cols-menu' id='kk-cols-menu'>";
+		print "<div style='text-align:right;'><div class='kk-cols-picker' style='position:fixed;top:70px;right:18px;z-index:9999;display:inline-block;'>";
+		print "<svg id='kk-turn-arrow' xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='34px' fill='#000000'><path d='M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z'/></svg>";
+		print "<div class='kk-cols-menu'>";
 		foreach ($kk_toggle_cols as $ckey => $clabel) {
 			$checked = in_array($ckey, $kk_hidden_cols, true) ? '' : 'checked';
 			print "<label><input type='checkbox' class='kk-col-toggle' data-col='" . htmlspecialchars($ckey, ENT_QUOTES, $charset) . "' $checked> " . htmlspecialchars($clabel, ENT_QUOTES, $charset) . "</label>";
 		}
 		print "</div></div></div>";
 		print "<script>
-		function kkToggleColsMenu(e){e.stopPropagation();document.getElementById('kk-cols-menu').classList.toggle('open');}
-		document.addEventListener('click',function(e){
-			var m=document.getElementById('kk-cols-menu');
-			if(m && !m.contains(e.target) && !e.target.classList.contains('kk-cols-btn')) m.classList.remove('open');
-		});
 		document.addEventListener('change',function(e){
 			if(!e.target.classList.contains('kk-col-toggle')) return;
 			var col=e.target.getAttribute('data-col');
@@ -2346,11 +2356,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		
 		print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
 		print "<tr class='table-krow'><td colspan='24' style='padding: 10px 0;'></td></tr>";
+		$_next_dir   = ($kkdir == 'asc') ? 'desc' : 'asc';
+		$_bilag_dir  = $_next_dir;
+		$_date_dir   = $_next_dir;
+		$_amount_dir = $_next_dir;
 		print "<tr>";
 		if ($vis_bilag && !$fejl && !$udskriv)
 			print "<td></td>";
-		print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmyy (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
+		print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&kkdir=$_bilag_dir&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
+		print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmyy (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&kkdir=$_date_dir&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
 		print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
@@ -2359,7 +2373,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Debet', $sprog_id)) . "</b></td>";
 		print "<td align = center class='kk-col-vat_k'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
+		print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&kkdir=$_amount_dir&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
 
 		if ($vis_afd)
 			print "<td align = left class='kk-col-afd'><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
@@ -2374,8 +2388,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($vis_bet_id)
 				print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalings-ID fra girokort - kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td>";
 		}
-		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
-		print "<td align='center' width='60px'><b>Position</b></td>";
 		if ($kontrolkonto) {
 			print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>".findtekst('2595|Regnskab', $sprog_id)."</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 			$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
@@ -2383,9 +2395,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td style = 'width:20px'></td>";
 				print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 			}
+			print "<td align='right' width='30px'><b><span></b></td>";
+			print "<td align='center' width='30px'><b><span>Balance Diff</span></b></td>"; // Need FindText
 		}
-		print "<td align='right' width='30px'><b> <span></b></td>";
-		print "<td align='right' width='30px'><b> <span></b></td>";
+		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
+		print "<td align='center' width='60px'><b>Position</b></td>";
 		print "<td align='right' width='30px'><b> <span></b></td>";
 		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'></b></td>";
 		print "</tr>\n";
@@ -2408,9 +2422,11 @@ $r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kod
 if ($r)
 	$kksort = $r['box1'];
 if ($r) $kontrolkonto = $r['box2'];
+if ($r) $kkdir = ($r['box4'] == 'desc') ? 'desc' : 'asc';
 if ($kladde_id) {
 	if ($kksort != 'transdate,bilag' && $kksort != 'amount')
 		$kksort = 'bilag,transdate';
+	if (!isset($kkdir) || ($kkdir != 'asc' && $kkdir != 'desc')) $kkdir = 'asc';
 	$id = array();
 	$bilag = array();
 	$dato = array();
@@ -2471,19 +2487,20 @@ if ($kladde_id) {
 		$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 		$fejl = 1;
 	} else {
-		// Order by pos (global position) as primary sort, then by bilag/transdate/id as fallback
-		// This ensures user-defined order is preserved
+		$_dir = ($kkdir == 'desc') ? 'DESC' : 'ASC';
 		if ($kksort == 'bilag,transdate') {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag, transdate, pos, id";
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
+		} elseif ($kksort == 'transdate,bilag') {
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by transdate $_dir, bilag $_dir, id $_dir";
+		} elseif ($kksort == 'amount') {
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} else {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, pos, id";
+		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
 		}
 	}
-	#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$bilagssum = 0;
 	$x = 0;
-	#cho __line__." $qtxt<br>";
 	while ($row = db_fetch_array($q)) {
 		$x++;
 		$id[$x] = $row['id'];
@@ -2802,17 +2819,38 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='proj$y' 
 			$de_fok value =\"$projekt[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if ($vis_valuta)
+		if ($vis_valuta) {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:40px;' name='valu$y' $de_fok value =\"$valuta[$y]\" onchange='javascript:docChange = true;'></td>\n";
+		}
 		if ($k_type[$y] == 'K' || $d_type[$y] == 'D') {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='forf$y' $de_fok value =\"$forfaldsdato[$y]\" onchange='javascript:docChange = true;'></td>\n";
-			if ($vis_bet_id)
+			if ($vis_bet_id) {
 				print "<td><input class='inputbox' type='text' style='text-align:left;width:100px;' name='b_id$y' $de_fok value =\"$betal_id[$y]\" onchange='javascript:docChange = true;'></td>\n";
+			}
 		} elseif ($vis_forfald) {
 			print "<td><input class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
-			if ($vis_bet_id)
+			if ($vis_bet_id) {
 				print "<td><input class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
+			}
 		}
+		if ($control_bal_fetched) {
+			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
+			$titletxt .= $control_record_date;
+			$titletxt .= findtekst(", fordi der blev bogført på kontrolkontoen denne dato!", $sprog_id); # " because there was transactions on the control account this date!"
+			print "<td style='text-align:right;font-weight:bold' title='" . $titletxt . "'>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
+			//$control_bal_fetched = FALSE;
+		} elseif ($kontrolkonto && $kontrolsaldo) {
+			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
+		} 
+		if ($kontrolkonto && abs((float)$saldo[$y]) > 0) {
+			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
+			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
+			print "<td>&nbsp;</td><td align='right'><div $color>" . dkdecimal($saldo[$y]) . "</div></td>\n";
+			if ($saldoDiff) {
+				print "<td>&nbsp;</td><td align='right'><div $color>(" . dkdecimal($saldoDiff) . ")</div></td>\n";
+			}
+		}
+
 		if ($momsfri[$y] == 'on') {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='javascript:docChange = true;' ></td>\n";
 
@@ -2831,23 +2869,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 
 		######
-
-		if ($control_bal_fetched) {
-			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
-			$titletxt .= $control_record_date;
-			$titletxt .= findtekst(", fordi der blev bogført på kontrolkontoen denne dato!", $sprog_id); # " because there was transactions on the control account this date!"
-			print "<td style='text-align:right;font-weight:bold' title='" . $titletxt . "'>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
-			$control_bal_fetched = FALSE;
-		} elseif ($kontrolkonto && $kontrolsaldo) {
-			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
-		}
-		if ($kontrolkonto && abs((float)$saldo[$y]) > 0) {
-			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
-			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
-			print "<td>&nbsp;</td><td align='right'><div $color>" . dkdecimal($saldo[$y]) . "</div></td>\n";
-			if ($saldoDiff)
-				print "<td>&nbsp;</td><td align='right'><div $color>(" . dkdecimal($saldoDiff) . ")</div></td>\n";
-		}
 
 		// Add Plus and Delete buttons
 		// Plus button - always enabled
@@ -2973,31 +2994,31 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		##################
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
 				
-				// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
-				if (isset($bilag[$x]) && $bilag[$x]) {
-					// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
-					$next = $bilag[$x];
-				} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
-					$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
-					$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-					if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
-					if ($x == 1) {
-						$next = $last_bilag;
-					} else {
-						$next = $bilag[$x-1] + 1;
-					}
-				} else {
-					$next = $bilag[$x-1] + 1;	
-				}
-				if($dato[$x] == ''){
-					$dato[$x] = dkdato(date("Y-m-d"));
-				}
+		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
+		if (isset($bilag[$x]) && $bilag[$x]) {
+			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
+			$next = $bilag[$x];
+		} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
+			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
+			if ($x == 1) {
+				$next = $last_bilag;
+			} else {
+				$next = $bilag[$x-1] + 1;
+			}
+		} else {
+			$next = $bilag[$x-1] + 1;	
+		}
+		if($dato[$x] == ''){
+			$dato[$x] = dkdato(date("Y-m-d"));
+		}
 
 		#################
 
 		if ($vis_bilag && !$fejl) { #20140425
 			#if ($kladde_id && $intern_bilag) print "<td title='".findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id)."'><a href='../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$x]&bilag=$bilag[$x]&ny=ja&kilde_id=$kladde_id&fokus=bila$x'><img  style='border: 0px solid' src='../ikoner/clip.png'></a></td>\n";
-			if ($kladde_id && $intern_bilag) {
+			if ($intern_bilag) {
 				$id[$y]        = (int)if_isset($id[$y],0);
 				$dokument[$y] = if_isset($dokument[$y],NULL);
 				$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
@@ -3021,10 +3042,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&sum="       . urlencode($belob ?? '')
                 . "&fokus=bila$x&openPool=1";
 				########################
-                print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
-                print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
-                print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
-        	    // print "</tr>";
+        print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+        print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+        print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
+        // print "</tr>";
 			} else {
 				print "<td></td>\n";
 			}
@@ -3078,6 +3099,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input  class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
 				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
+		}
+		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
+			print "<td></td>\n";
+		} 
+		if ($kontrolkonto) {
+			print "<td></td>\n";
+			print "<td></td>\n";
+			if ($saldoDiff){
+				print "<td></td>\n";
+				print "<td></td>\n";
+			}
 		}
 		if ($momsfri[$x] == 'on') {
 			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' checked onchange='javascript:docChange = true;'></td>\n";
@@ -3145,6 +3177,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input  class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
 				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
+		}
+		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
+			print "<td></td>\n";
+		} 
+		if ($kontrolkonto) {
+			print "<td></td>\n";
+			print "<td></td>\n";
+			if ($saldoDiff){
+				print "<td></td>\n";
+				print "<td></td>\n";
+			}
 		}
 		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='javascript:docChange = true;'></td>\n";
 		
@@ -3229,7 +3272,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td align='center'><span title='" . findtekst('3261|Bilags Match', $sprog_id) . "'><input type='button' class='button green medium' style='width:120px;' value='" . findtekst('3261|Bilags Match', $sprog_id) . "' name='bilagsmatch' onclick='openPopup(); // from ./kassekladde_includes/bilagsmatch.php '></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1544|Klik her for at gemme', $sprog_id) . "'><input type='submit' class='button green medium' style='width:120px;' accesskey='g' value='" . findtekst('3|Gem', $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1545|Opslag - din markørs placering angiver hvilken tabel, opslag foretages i', $sprog_id) . "'><input type='submit' class='button blue medium' style='width:120px;' accesskey='o' value='" . findtekst('644|Opslag', $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span></td>";
-			if ($kladde_id && !$fejl) {
+			if (!$fejl) {
 				print "<td align='center'><span title='" . findtekst('1546|Simulering af bogføring viser bevægelser i kontoplanen', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='s' value='" . findtekst('1064|Simulér', $sprog_id) . "' name='simulate' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1547|Bogfør - der foretages først en simulering, som du skal bekræfte', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='b' value='" . findtekst('1065|Bogfør', $sprog_id) . "' name='doPost' onclick='javascript:docChange = false;'></span></td>";
 				$qtxt = "select box5 from grupper where art = 'DIV' and kodenr = '3'";
@@ -3261,7 +3304,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $debetvat, $kreditvat, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {
 		global $baseCurrency,$bilagscount,$bilagsrenum;
 		global $connection;
-		global $debitornr;
 		global $fejl;
 		global $find;
 		global $fokus;
@@ -3276,7 +3318,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $aarslut;
 
 		$lukket = NULL;
-		if (!$debitornr) $debitornr = array();
 
 		if ($kladde_id) {
 			$qtxt = "select bogfort from kladdeliste where id = $kladde_id";
@@ -3313,31 +3354,21 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		#if ($sletrest) $bilag='-';
 		if ($bilag && $bilag != '0' && substr($bilag, -1) != 'r' && $bilag != '-')
 			$bilag = (int) $bilag; 	//20160909 undtaget * til bilagsrenum
+		#}
 		$debet = trim($debet);
 		$kredit = trim($kredit);
 		if (($bilag != "-") && (($bilag) || ($beskrivelse) || ($kredit) || ($debet) || ($faktura) || ($belob))) {
-			if ((!$bilag) && ($bilag != '0'))
-				$bilag = $prebilag;
-			if (!$bilag)
-				$bilag = '0';
-			if ((strstr($d_type, "d")) || (strstr($d_type, "D")))
-				$d_type = "D";
-			elseif ((strstr($d_type, "k")) || (strstr($d_type, "K")))
-				$d_type = "K";
-			else {
-				$d_type = "F";
-			}
+			if ((!$bilag) && ($bilag != '0')) $bilag = $prebilag;
+			if (!$bilag) $bilag = '0';
+			if ((strstr($d_type, "d")) || (strstr($d_type, "D"))) $d_type = "D";
+			elseif ((strstr($d_type, "k")) || (strstr($d_type, "K"))) $d_type = "K";
+			else $d_type = "F";
 
-			if ((strstr($k_type, "d")) || (strstr($k_type, "D")))
-				$k_type = "D";
-			elseif ((strstr($k_type, "k")) || (strstr($k_type, "K")))
-				$k_type = "K";
-			else
-				$k_type = "F";
-			if (!$debet)
-				$debet = 0;
-			if (!$kredit)
-				$kredit = 0;
+			if ((strstr($k_type, "d")) || (strstr($k_type, "D"))) $k_type = "D";
+			elseif ((strstr($k_type, "k")) || (strstr($k_type, "K"))) $k_type = "K";
+			else $k_type = "F";
+			if (!$debet) $debet = 0;
+			if (!$kredit) $kredit = 0;
 			if (!$lukket) {
 				$lukket = array();
 				$y = 0;
@@ -3354,8 +3385,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 	
 			if (($d_type == "D") || ($k_type == "D") || ($d_type == "K") || ($k_type == "K")) {
-				$z = 0;
-				$y = 0;
+				$y = $z = 0; 
+				$debitornr = $kreditornr = array();
 				$query = db_select("select kontonr, art from adresser", __FILE__ . " linje " . __LINE__);
 				while ($row = db_fetch_array($query)) {
 					if (strstr($row['art'], "D")) {
@@ -4169,7 +4200,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ?>
 <style>
-	
+
+body {
+    padding: 8px !important;
+}
+
 /*scrollable container for the editable form */
 .kassekladde-scroll-container {
     height: calc(100vh - 98px);
@@ -4179,7 +4214,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* Sticky header inside the scroll container */
-.kassekladde-scroll-container thead.kassekladde-thead {
+.kassekladde-scroll-container thead.kassekladde-thead { /* #20260513 */
     position: sticky;
     top: 0;
     z-index: 10;
@@ -4611,10 +4646,10 @@ document.addEventListener('DOMContentLoaded', function() {
    
 });
 </script>";
-
 ?>
 
-// Add clip drag-and-drop JavaScript for linking documents between lines
+<!-- Add clip drag-and-drop JavaScript for linking documents between lines #20260513 --> 
+
 <style>
 	/* Clip drag and drop styles */
 	.clip-cell {

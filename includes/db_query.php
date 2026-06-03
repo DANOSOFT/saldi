@@ -240,6 +240,7 @@ if (!function_exists('db_select')) {
 			$qtext = str_replace(' like ', ' ilike ', $qtext);
 			$query = pg_query($connection, $qtext);
 			$errtxt = pg_last_error($connection);
+if ($errtxt) echo "$qtext<br>";
 		}
 
 		if ($errtxt)	{		

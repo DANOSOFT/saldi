@@ -103,8 +103,8 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT id, regnskab, global_id FROM regnskab WHERE id = '$tmp_db_id'";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-if (if_isset($r,NULL,'id')) {
-	$dbLocation="://".$_SERVER['SERVER_NAME'].=$_SERVER['PHP_SELF'];
+if (if_isset($r,NULL,'id') && ($_SERVER['SERVER_NAME'] != 'ssl12.saldi.dk')) {
+	$dbLocation="://".$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF'];
 	$dbLocation=str_replace("/admin/aaben_regnskab.php","",$dbLocation);
 	if ($_SERVER['HTTPS']) $dbLocation="s".$dbLocation;
 	$dbLocation="http".$dbLocation;

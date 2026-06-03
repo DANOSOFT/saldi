@@ -43,9 +43,10 @@
 // 2016.04.26 PHR Indsat 'desc limit 1'. #20160426-2
 // 2016.04.26 PHR Rettet $diff til $tmp.  #20160426-3
 // 2016.10.28 PHR Rettet < til <=  da den gav posteringsdifference #20161028 
-// 2026.04.24 LOE Updated topline structure and added dynamic text with findtekst().
+// 2026.04.24 LOE Updated topline structure and added dynamic text with findtekst(). 
 // 2026.05.07 CL findMatch.php køres ikke længere automatisk ved sideload - tilføjet knap 'Find modposter'.
-
+// 2026.05.18 LOE Updated close link location for credit and debit if coming from debitorkort.php or rapport.php.
+ 
 @session_start();
 $s_id=session_id();
 
@@ -62,7 +63,6 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
-
 if (isset($_POST['submit'])) {
  	$submit=strtolower(trim($_POST['submit']));
 	$post_id=if_isset($_POST['post_id']);
@@ -89,6 +89,7 @@ if (isset($_POST['submit'])) {
 	$valuta=$_POST['valuta'];
 	$omregningskurs=$_POST['omregningskurs'];
 	$belob=if_isset($_POST['belob']);
+	$id = $_POST['id'] ?? null; 
 	if ($belob) $ny_amount = usdecimal($belob);
 	else $ny_amount = 0;
 	$faktnr[0]=trim($faktnr[0]);
@@ -274,15 +275,45 @@ if (isset($submit) && $submit=='find modposter') include ("../includes/alignOpen
 if ($menu=='S') {
 	#########
     $tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-	#########
 	print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
 	print "<tr><td colspan=8 align=center>";
 	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+	$contains = false;
+	if (strpos($retur, 'debitorkort.php') !== false) {
+		$contains = true;
+	}
+	if (!isset($_POST['submit'])) {
+		$returside = $_GET['returside'] ?? '';
+	}
+	$decoded = urldecode($returside);
+	$parts = parse_url($decoded);
+	parse_str($parts['query'] ?? '', $queryParams); 
+	$id = $queryParams['id'] ?? null;
+	######
+	if($contains){
+			$post_id1=$_GET['post_id'] ?? null;
+			$post_id1 = $post_id1 ?? $post_id1 =$_POST['post_id'][0] ?? null;
+			$returside = $returside ?? $returside = $_POST['returside'] ?? null;
+			$id = $id ?? $id = $_POST['id'][0] ?? null;	
+		if($id ){
+			print "<td width=\"10%\">$color
+				<a href=\"javascript:confirmClose('../debitor/rapport.php?rapportart=kontokort&layout=grid&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+				<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+			print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		}else{
+			print "<td width=\"10%\">$color
+			<a href=\"javascript:confirmClose('../debitor/rapport.php?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+			print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+			
+		}
 
-	print "<td width=\"10%\">$color
-		<a href=\"javascript:confirmClose('$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
-		<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+	}else{
+		print "<td width=\"10%\">$color
+			<a href=\"javascript:confirmClose('$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+	}
 	print "<td width=\"75%\" align='center' style='$topStyle'>".findtekst(2189, $sprog_id)."</td>";
 	print "<td width=5% style=$buttonStyle>";
 	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
@@ -411,6 +442,18 @@ print "<input type = hidden name=maxdiff value=$maxdiff>";
 print "<input type = hidden name=diffkto value=$diffkto>";
 print "<input type = hidden name=valuta[0] value=$valuta[0]>";
 print "<input type = hidden name=basisvaluta value=$basisvaluta>";
+print "<input type = hidden name=post_id[0] value=$post_id[0]>";
+print "<input type = hidden name=id[0] value=$id[0]>";
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    ? "https://"
+    : "http://";
+$currentUrl = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+if(!$returside){
+parse_str(parse_url($currentUrl, PHP_URL_QUERY), $params);
+
+$returside = $params['returside'];
+}
+print "<input type = hidden name=returside value='$returside'>";
 print "<tr><td colspan=10 align=center>";
 
 $onclick='';

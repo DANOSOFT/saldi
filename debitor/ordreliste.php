@@ -48,6 +48,7 @@
 // 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly
 // 20260317 AJ Updated hover text for order number
 // 20260518 CL/PHR account_context springer kontonr pre-populate over. Kontonr-søgning finder nu alle ordrer for kunder med samme kontonr.
+// 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
 
 @session_start();
 $s_id = session_id();
@@ -410,8 +411,8 @@ if (!$returside) {
     if ($popup) $returside = "../includes/luk.php";
     else $returside = "../index/menu.php";
 } elseif (!$popup && $returside == "../includes/luk.php") $returside = "../index/menu.php";
-$qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
-db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+#$qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
+#db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 if (!$popup) {
     $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'D%' and status < '3'";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__); #20150308
@@ -790,7 +791,7 @@ $custom_columns = array(
                 $display = "<span onmouseover=\"return overlib('" . $spantxt . "', WIDTH=800);\" onmouseout=\"return nd();\">" . $display . "</span>";
             }
             
-            return "<td align='$column[align]' style='$style' title='$title'><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
+            return "<td align='{$column['align']}' style='$style' title='$title'><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
         }
     ),
     
@@ -805,7 +806,7 @@ $custom_columns = array(
             return generateDateRangeSearch($column, $term);
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ),
     
@@ -816,7 +817,7 @@ $custom_columns = array(
         "type" => "date",
         "searchable" => true,
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ),
     
@@ -850,7 +851,7 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -862,7 +863,7 @@ $custom_columns = array(
         "searchable" => true,
         "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ),
     
@@ -912,7 +913,7 @@ $custom_columns = array(
             }
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -924,7 +925,7 @@ $custom_columns = array(
         "searchable" => true,
         "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ), 
     
@@ -947,7 +948,7 @@ $custom_columns = array(
             return "o.kontonr ILIKE '%$term%'";
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -983,7 +984,7 @@ $custom_columns = array(
             return $options;
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -1016,7 +1017,7 @@ $custom_columns = array(
             $kurs_factor = ($valutakurs > 0) ? $valutakurs / 100 : 1;
             $dkk_value = floatval($row['sum_m_moms']) * $kurs_factor;
             $formatted = dkdecimal($dkk_value, 2);
-            return "<td align='$column[align]'>$formatted</td>";
+            return "<td align='{$column['align']}'>$formatted</td>";
         }
     ),
 
@@ -1054,7 +1055,7 @@ $custom_columns = array(
             return "(o.betalingsbet = '$term')";
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -1100,9 +1101,9 @@ $custom_columns = array(
 
                 $style = $udlignet ? "color: #000000;" : "color: #FF0000;";
                 $title = $udlignet ? "db: $dk_db - dg: $dk_dg%" : findtekst('1442|Ikke udlignet', $sprog_id) . "\r\ndb: $dk_db - dg: $dk_dg%";
-                return "<td align='$column[align]' style='$style' title='$title'>" . htmlspecialchars($formatted) . "</td>";
+                return "<td align='{$column['align']}' style='$style' title='$title'>" . htmlspecialchars($formatted) . "</td>";
             }
-            return "<td align='$column[align]'>" . htmlspecialchars($formatted) . "</td>";
+            return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
         }
     ),
     
@@ -1124,6 +1125,61 @@ $custom_columns = array(
             $display = (is_numeric($value) && $value !== '') ? intval($value) : $value;
             return "<td align='{$column['align']}'>$display</td>";
         }
+    ),
+    "felt_1" => array(
+        "field" => "felt_1",
+        "headerName" => findtekst('255|Ekstrafelt 1', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_1",
+    ),
+    "felt_2" => array(
+        "field" => "felt_2",
+        "headerName" => findtekst('256|Ekstrafelt 2', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_2",
+    ),
+    "felt_3" => array(
+        "field" => "felt_3",
+        "headerName" => findtekst('257|Ekstrafelt 3', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_3",
+    ),
+    "felt_4" => array(
+        "field" => "felt_4",
+        "headerName" => findtekst('258|Ekstrafelt 4', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_4",
+    ),
+    "felt_5" => array(
+        "field" => "felt_5",
+        "headerName" => findtekst('259|Ekstrafelt 5', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_5",
     ),
 );
 
@@ -1489,6 +1545,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         $select_fields .= ", o.$field_name as $field_name";
     }
 }
+// felt_1-5 are already selected from ordrer in the loop above; not pulled from adresser.
 // Add calculated fields
 $select_fields .= ", (o.sum::numeric + o.moms::numeric) as sum_m_moms";
 $select_fields .= ", CASE 

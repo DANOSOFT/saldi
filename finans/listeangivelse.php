@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// --- finans/listeangivelse.php --- lap 5.0.0 --- 2026-03-03 ---
+// --- finans/listeangivelse.php --- lap 5.0.0 --- 2026-05-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,7 +30,7 @@
 // 20160824 PHR	- Hack til at vise lister hvis $euvarekonto mm ikke er udfyldt. #20160824
 // 20171130 PHR - varer.varenr ændret til varer.vare_id så varer der har ændret varenr også kommer med. Søg 20171130
 // 20260303 PHR - PHP8
-// 20260522 PHR - Fiscal year
+// 20260522 PHR - Fiscal Year
 
 @session_start();
 $s_id=session_id();

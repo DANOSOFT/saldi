@@ -182,9 +182,14 @@ if ($status>=1) {
     print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
     print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
   }
+  } else {
+    // status>=1 but no vare_id: pad columns to align with vare_id rows (leve + dk_tidl_lev)
+    print "<td></td><td></td>";
   }
 } else {
-  if (!$vis_projekt) print "<td></td>";
+  // Pad to match leve + dk_tidl_lev cells used in status>=1 rows so trailing
+  // columns (like the delete button) align across all rows
+  print "<td></td><td></td>";
   // Expiry date fields for status 0 (draft orders)
   if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
     $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
@@ -221,6 +226,12 @@ if (($status>0)&&($serienr[$x])) {
 $txt = "<span title= '".findtekst(1496, $sprog_id)."'><img alt='".findtekst(1515, $sprog_id)."' src=../ikoner/serienr.png>";
 print "<td align=center onClick='batch($linje_id[$x])'>$txt</td>";
   }
+  $delBtn = "<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#d0021b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg>";
+  $delTitle = findtekst('2130|Slet ordrelinje', $sprog_id);
+  $delConfirm = addslashes($delTitle . " $x?");
+  print "<td valign='top' align='right' title='$delTitle'>";
+  print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
+  print "onclick=\"if (confirm('$delConfirm')) { document.getElementsByName('posn$x')[0].value='-'; document.getElementsByName('save')[0].click(); }\">$delBtn</button></td>\n";
   print "</tr>\n";
 }
 print "<tr>";
@@ -246,6 +257,7 @@ print "<td><input class='inputbox' type='text' style='text-align:right' size=10 
 print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=raba0></td>";
 print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=10></td>";
 #if ($status==1) {print "<td><input class='inputbox' type='text' style='text-align:right' size=2 name=modt0></td>";}
+print "<td></td>";
 print "</tr>\n";
 print "<input type='hidden' name='sum' value='$sum'>";
 $moms=floatval($momssum)/100*floatval($momssats);
