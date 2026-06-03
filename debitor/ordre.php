@@ -235,7 +235,7 @@ $qtxt = "select box1 from grupper where art='PV'";
 
 
 
-if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && $r['box1'] == 'on') $showLocalPrint = 'on';
+if (($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && $r['box1'] == 'on') $showLocalPrint = 'on';
 $title = findtekst('1092|Kundeordre', $sprog_id);
 
 
@@ -302,7 +302,7 @@ if (isset($_GET['id']) && isset($_POST['insertItems'])) {
 		}
 	}
 }
-$q = db_SELECT("select box2,box4,box9,box12,box13,box14 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__);
+$q = db_select("select box2,box4,box9,box12,box13,box14 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
 
 // Get VAT settings from settings table
@@ -817,7 +817,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	} else {
 		$query = db_select("select hvem from ordrer where id='$id' and hvem != '' and hvem != '$brugernavn'", __FILE__ . " linje " . __LINE__);
 		$alert = findtekst('1823|Ordren er overtaget af', $sprog_id);
-		if ($row = db_fetch_array($query) && $row['hvem']) {
+		if (($row = db_fetch_array($query)) && $row['hvem']) {
 			print "<BODY onLoad=\"javascript:alert('$alert $row[hvem]')\">\n";
 		} elseif ($row['hvem']) {
 			$alert1 = findtekst('1824|Du er blevet smidt af', $sprog_id); #20210809
