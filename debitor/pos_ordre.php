@@ -3512,7 +3512,7 @@ function posvaluta($modtaget) {
 	if ($betvalkurs != $prevalkurs) {
 		$modtaget = NULL;
 		$valmodt = NULL;
-if (isset($_GET['printXreport']) && $_GET['printXreport']) {
+//if (isset($_GET['printXreport']) && $_GET['printXreport']) {
 
 	} elseif ($betvalkurs != 100)
 		$modtaget *= $betvalkurs / 100;
