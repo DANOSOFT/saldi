@@ -76,7 +76,7 @@
 // 20260415 PHR Modtag (Receive) was set to 0 in creditnote
 // 20260420 PHR Removed GLS codes
 // 20260422 PHR Defined $fast_db as array; 
-// 20260432	PHR Warning when $ref id changes
+// 20260423	PHR Warning when $ref id changes
 // 20260427 PHR Fixed vat added twice when open order was copies. ($sourceStatus)
 // 20260429 PHR Changed 'PBS' to 'BS' as colunm is varchar(2)
 // 20260429 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
@@ -801,6 +801,13 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		db_modify("update ordrer set lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt', lev_land='$lev_land' where id=$id", __FILE__ . " linje " . __LINE__);
 	}
 }
+if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) { // 20260509
+	// Hack to prevent order beeing created twice when using account lookup in to create the order.
+	$qtxt = "select id from ordrer where konto_id = '$konto_id' and kontonr = '$kontonr' and sum = '0' ";
+	$qtxt.= " and status = '0'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $id = $r['id'];
+}
+
 if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	if (!is_numeric($default_procenttillag)) $default_procenttillag = 0;
 	$ordrenr = get_next_order_number('DO');
@@ -5525,34 +5532,34 @@ function ordreside($id, $regnskab)
 			include("../includes/topline_settings.php");
 			$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", ""); 
 			
-				if ($hurtigfakt == 'on' && $opValue == 'faktura') {
-					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
-					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					// plukliste email
-					print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
-					print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
-					print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
-					print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
-				}elseif($hurtigfakt != "on" && $opValue != 'tilbud') {
-					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
-					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					if ($pluklisteEmail) {
-						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
-						print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
-						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
-						print "</td></tr>\n";
-					}
-					print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
-					print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
-					print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
-					print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
+			if ($hurtigfakt == 'on' && $opValue == 'faktura') {
+				print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+				print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+				// plukliste email
+				print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
+				print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
+				print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
+				print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
+			}elseif($hurtigfakt != "on" && $opValue != 'tilbud') {
+				print "<tr><td colspan=\"2\"><hr></td></tr>\n";
+				print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
+				print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
+				if ($pluklisteEmail) {
+					print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
+					print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
+					print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
+					print "</td></tr>\n";
 				}
+				print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
+				print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
+				print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
+				print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
+			}
 		}
 		$lev_max = 0;
 		$q = db_select("select lev_nr from batch_salg where ordre_id = $id", __FILE__ . " linje " . __LINE__);
@@ -6592,7 +6599,7 @@ function ordreside($id, $regnskab)
 	if (($gls_user) || (($dfm_user) && ($status >= 3))) print "</tr></td>\n";
 
 	print "<!--Function ordreside slut-->";
-}
+
 
 function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $leveres_ialt, $tidl_lev_ialt, $levdiff, $masterprojekt, $linje_id, $kred_linje_id, $posnr, $varenr, $beskrivelse, $enhed, $lager, $pris, $rabat, $rabatart, $procent, $antal, $leveres, $leveret, $vare_id, $momsfri, $rabatgruppe, $m_rabat, $varemomssats, $serienr, $samlevare, $folgevare, $projekt, $kdo, $kobs_ordre_pris, $ko_ant, $kostpris, $dkb, $dg, $dk_db, $dk_dg, $readonly, $omvbet, $saet, $saetnr, $grossWeight, $netWeight, $itemLength, $itemWidth, $itemHeight, $volume, $linje)
 {
