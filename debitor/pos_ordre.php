@@ -3456,7 +3456,7 @@ function aabn_skuffe($id, $kasse)
 	countDrawOpening($kasse);
 	if ($tracelog)
 		fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls $printserver/saldiprint.php (openDrawer)\n");
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
+	//print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
 	exit;
 }
 
@@ -3528,8 +3528,9 @@ function posvaluta($modtaget) {
 	if ($betvalkurs != $prevalkurs) {
 		$modtaget = NULL;
 		$valmodt = NULL;
-	} elseif ($betvalkurs != 100)
+	} elseif ($betvalkurs != 100) {
 		$modtaget *= $betvalkurs / 100;
+	}
 
 	return ($modtaget . chr(9) . $valmodt . chr(9) . $betvaluta . chr(9) . $betvalkurs);
 }
