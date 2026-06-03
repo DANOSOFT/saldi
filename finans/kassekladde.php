@@ -2961,7 +2961,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<tr>";
 		##################
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
-
 		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
 		if (isset($bilag[$x]) && $bilag[$x]) {
 			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)

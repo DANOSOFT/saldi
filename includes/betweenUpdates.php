@@ -55,6 +55,7 @@ $qtxt = "update varer set lukket = '0' where lukket is NULL";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 
+
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'provision'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE varer ADD provision integer";
@@ -223,11 +224,6 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE batch_kob ADD due_date date";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'group_id'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -238,11 +234,6 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'variant_varer' and  column_name = 'variant_salgspris'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE variant_varer ADD variant_salgspris numeric(15,3)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'variant_varer' and  column_name = 'variant_text'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE variant_varer ADD variant_text varchar(25)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
