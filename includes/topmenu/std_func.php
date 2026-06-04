@@ -2161,7 +2161,7 @@ if (!function_exists('get_next_order_number')) {
 				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
 				
 
-#				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
+				//$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
 				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) AS max_ordrenr ";
 				$qtxt.= "FROM (SELECT ordrenr FROM ordrer WHERE art = '$art' OR art = '$art2' FOR UPDATE) t";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2341,11 +2341,8 @@ if (!function_exists('barcode')) {
 		 * The barcode image will be saved in the `../temp/$db/` directory.
 		 *
 		 * @param string $stregkode - The barcode string to generate the image for.
-		 * 
+		 *
 		 * @return string|null - The path to the generated PNG file, or null if an error occurs.
-		 */
-
-		global $bruger_id, $db, $exec_path;
 		$ean13 = NULL;
 		#(strpos($stregkode,';'))?$stregkoder=explode(";",$stregkode):$stregkoder[0]=$stregkode;
 		$stregkoder = explode(";", $stregkode);

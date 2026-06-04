@@ -1203,7 +1203,7 @@
 1203	Søgetekst	Search text	Søgetekst
 1204	Klik for at åbne, højreklik for at gemme	Click to open, right-click to save	Klikk for å åpne, høyreklikk for å lagre
 1205	Diff. konto	Diff. account	Diff. regnskap
-1206	Ret	Modify	Rett
+1206	Ret	Modify	Ret
 1207	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen.\\nEllers risikerer du at lave rod i dit regnskab	If the exchange rate changes, do not correct the exchange rate, but add a new exchange rate stating the date of the exchange rate change. \\ nOtherwise, you risk messing up your accounts.	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse av dato for kursændringen. \\ nEllers risikerer du at lave rod i dette regnskab
 1208	Start md.	Start mnth.	Start md.
 1209	Start år	Start yr.	Startår
@@ -2879,7 +2879,7 @@
 2879	Ændr eksisterende kunde på sagen	Change existing customer for the project	Endre eksisterende kunde på saken
 2880	Kontaktpersoner til sagen	Contact persons for the project	Kontaktpersoner for saken
 2881	Notat	Note	Notat
-2882	d. 	-	d. 
+2882	d.	&nbsp;	d.
 2883	kl.	at	kl.
 2884	Oprettet af	Created by	Opprettet av
 2885	Planlægningsinformation til opgave	Planning information for task	Planleggingsinformasjon for oppgave
@@ -2966,7 +2966,7 @@
 2966	Medarbejder	Employee	Medarbeider
 2967	Medarbejderliste	Employee list	Medarbeiderliste
 2968	Brugergrupper	User groups	Brukergrupper
-2969	Tilret stamkort	Edit information card	Rett stamkort
+2969	Tilret stamkort	Edit information card	Tilrett stamkort
 2970	Skemaliste	Form list	Skjemaliste
 2971	Lønseddel	Pay slip	Lønnsseddel
 2972	Overførte	Transferred	Overførte
@@ -3036,8 +3036,8 @@
 3036	Bekræft sletning	Confirm deletion	Bekreft sletting
 3037	Denne seddel er afvist af	This slip has been rejected by	Denne seddelen er avvist av
 3038	Der eksisterer allerede en uafsluttet akkordseddel	An unfinished piecework slip already exists	Det eksisterer allerede en uavsluttet akkordseddel
-3039	for den	on	for den
-3040	på sag nr.	for project no.	på sak nr.
+3039	for den	for	for den
+3040	på sag nr.	on project no.	på sak nr.
 3041	opgave nr.	task no.	oppgave nr.
 3042	Der eksisterer allerede en uafsluttet akkordtimeseddel	An unfinished piecework hour slip already exists	Det eksisterer allerede en uavsluttet akkordtimeseddel
 3043	Der er allerede registreret skur	Site cabin already registered	Skur er allerede registrert
