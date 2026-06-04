@@ -278,7 +278,7 @@
             ];
             
             // save response in file in temp folder with full details for debugging
-            file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE),__FILE__ . " line " . __LINE__);
             
             // Determine which error to show
             $displayError = "";
