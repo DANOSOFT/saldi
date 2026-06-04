@@ -245,27 +245,36 @@
             $randomString .= $characters[rand(0, 4)];
         }
         if(!isset($result["base64EncodedDocumentXml"]) || $result["base64EncodedDocumentXml"] == ""){
-            // An error occurred
+            // An error occurred - check for easyUBL or Semantic error messages
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
-            $error = ['error' => $errorNumber, 'message' => $errorMessage];
-            json_encode($error, JSON_PRETTY_PRINT);
+            $easyUBLError = isset($result["errorMessage"]) ? $result["errorMessage"] : "";
+            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'easyUBL_error' => $easyUBLError];
             
-            // save response in file in temp folder
-            file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-            if($result["message"] !== ""){
-            ?>
-            <script>
-                alert("<?php echo "EasyUBL Error Occured: " . json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE); ?>");
-            </script>
-            <?php
+            // 20260604 - Improved error logging for E-APS24003 errors
+            // save response in file in temp folder with full details
+            file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE)."\n---RESPONSE---\n".json_encode($result, JSON_UNESCAPED_UNICODE));
+            
+            if(!empty($easyUBLError)){
+                // easyUBL specific error - likely validation issue
+                ?>
+                <script>
+                    alert("<?php echo "easyUBL fejl:\n" . htmlspecialchars($easyUBLError); ?>\n\nKontakt support hvis problemet persister.");
+                </script>
+                <?php
+            }else if($result["message"] !== "" || $errorNumber !== 0){
+                // curl error
+                ?>
+                <script>
+                    alert("<?php echo "Transmission fejl: " . htmlspecialchars($errorMessage); ?>");
+                </script>
+                <?php
             }else{
-            ?>
-            <script>
-
-                alert("Der opdstod en fejl under sending af fakturaen. kontakt support. Tlf: 46902208");
-            </script>
-            <?php
+                ?>
+                <script>
+                    alert("Der opstod en fejl under sending af fakturaen. Kontakt support. Tlf: 46902208");
+                </script>
+                <?php
             }
             exit;
         }
@@ -344,7 +353,14 @@
                     $cvrnr_with_prefix = $r_faktura["cvrnr"];
                 }
             }else{
-                $cvrnr_with_prefix = "";
+                // 20260604 - CVR is required for Peppol transmission
+                file_put_contents("../temp/$db/missing-cvr-error-" . date("Y-m-d-H-i-s") . ".json", json_encode(["error" => "Missing CVR number", "order_id" => $id, "customer" => $r_faktura["firmanavn"]], JSON_PRETTY_PRINT));
+                ?>
+                <script>
+                    alert("Fejl: Kunden mangler CVR-nummer. Dette kræves til Peppol-transmission. Venligst opdater kundens CVR-nummer og prøv igen.");
+                </script>
+                <?php
+                exit;
             }
         }
         // country code should be the same as prefix for cvrnr
@@ -358,7 +374,9 @@
             $cvrnr_with_prefix = "DK" . substr($cvrnr_with_prefix, 2);
             $countryCode = "DK";
         }
-        if($r_faktura["lev_addr1"] !== ""){
+        // 20260604 - Validate recipient address to prevent E-APS24003 transmission errors
+        // Delivery address should be populated, if not use main address
+        if($r_faktura["lev_addr1"] !== "" && $r_faktura["lev_bynavn"] !== "" && $r_faktura["lev_postnr"] !== ""){
             $deliverAddress = [
                 
                 "streetName" => implode(" ", explode(" ", $r_faktura["lev_addr1"], -1)), ## 20260518 - NTR - Street name without building number.
@@ -368,6 +386,20 @@
                 "attentionName" => $r_faktura["lev_kontakt"],
                 "cityName" => $r_faktura["lev_bynavn"],
                 "postalCode" => $r_faktura["lev_postnr"],
+                "countrySubentity" => "",
+                "addressLine" => "",
+                "countryCode" => $countryCode
+            ];
+        }else if($r_faktura["addr1"] !== "" && $r_faktura["bynavn"] !== "" && $r_faktura["postnr"] !== ""){
+            // 20260604 - Fallback to main address if delivery address is incomplete
+            $deliverAddress = [
+                "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)),
+                "buildingNumber" => end(explode(" ", $r_faktura["addr1"])),
+                "inhouseMail" => $r_faktura["email"],
+                "additionalStreetName" => $r_faktura["addr2"],
+                "attentionName" => $r_faktura["kontakt"],
+                "cityName" => $r_faktura["bynavn"],
+                "postalCode" => $r_faktura["postnr"],
                 "countrySubentity" => "",
                 "addressLine" => "",
                 "countryCode" => $countryCode
@@ -524,11 +556,12 @@
             $beskrivelse = var2str($res["beskrivelse"], $id, $res['posnr'], $res["varenr"], $res["antal"], $res["enhed"], $price, $res["rabat"], $res["procent"], $res["serienr"], $res["momssats"]);
             $line[] = array(
                 "id" => $res["id"],
+                "posnr" => $res["posnr"], ## 20260604 - Added posnr field to match UBL structure change
                 "quantity" => $res["antal"],
                 "quantityUnitCode" => "EA",
                 "price" => $price,
-                "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails.
-                "discountAmount" => $discAmount,
+                "discountPercent" => $discPrct,
+                "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails. 20260604 - Removed duplicate discountAmount
                 "vatPercent" => ($res["momssats"] != "" && $res["momssats"] != null) ? $res["momssats"] : 0,
                 "lineAmount" => $lineAmount,
                 "priceInclTax" => false,
@@ -542,6 +575,35 @@
         }
         $data["invoiceLines"] = $line;
         file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
+
+        // 20260604 - Validate required fields before transmission to prevent E-APS24003 errors
+        $missingFields = [];
+        
+        if(empty($cvrnr_with_prefix) || $cvrnr_with_prefix === "DK"){
+            $missingFields[] = "CVR-nummer";
+        }
+        if(empty($data["accountingCustomerParty"]["postalAddress"]["streetName"])){
+            $missingFields[] = "Gadeadresse";
+        }
+        if(empty($data["accountingCustomerParty"]["postalAddress"]["cityName"])){
+            $missingFields[] = "By";
+        }
+        if(empty($data["accountingCustomerParty"]["postalAddress"]["postalCode"])){
+            $missingFields[] = "Postnummer";
+        }
+        if(empty($data["invoiceLines"]) || count($data["invoiceLines"]) === 0){
+            $missingFields[] = "Ordrelinjer";
+        }
+        
+        if(!empty($missingFields)){
+            file_put_contents("../temp/$db/missing-fields-error-" . date("Y-m-d-H-i-s") . ".json", json_encode(["error" => "Påkrævede felter mangler", "missing_fields" => $missingFields, "order_id" => $id], JSON_PRETTY_PRINT));
+            ?>
+            <script>
+                alert("Fejl ved sending til Peppol:\n\nManglende felter: <?php echo htmlspecialchars(implode(', ', $missingFields)); ?>\n\nKontroller venligst ordren og kundeoplysningerne før transmission.");
+            </script>
+            <?php
+            exit;
+        }
 
         //die(json_encode($data, JSON_PRETTY_PRINT));
         $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
