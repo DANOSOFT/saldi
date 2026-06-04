@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/importer.php --- ver 4.1.1 -- 2025.05.03 ---
-// 								LICENSE
+// --- finans/importer.php --- ver 5.0.0 -- 2026.05.25 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20130415 - Fejl hvis linje starter med separatortegn.
@@ -39,6 +39,8 @@
 // 20240419 PHR Some claeanup
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20260525 CL/PHR - Debitor/kreditor bruger debet/kredit(konto) som fallback hvis feltet er tomt
+// 20260525 CL/PHR - Kolonnevalg gemmes nu også ved Flyt (ikke kun ved Vis)
 
 @session_start();
 $s_id = session_id();
@@ -587,7 +589,12 @@ function vis_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $bilag
 
 function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $bilag, $datoformat) {
 
-	global $charset, $fieldnames;
+	global $charset, $fieldnames, $bruger_id;
+
+	$box2 = $feltnavn[0];
+	for ($y = 1; $y <= $feltantal; $y++)
+		$box2 .= "," . $feltnavn[$y];
+	db_modify("update grupper set box1='$feltantal',box2='$box2',box3='$datoformat' where ART='KASKL' and kode='2' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
 
 	$afd = $fakturanr = $d_type = $k_type = $forfaldsdate = $komma = $semikolon = $tabulator = NULL;
 	transaktion('begin');
@@ -656,11 +663,15 @@ function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $bila
 						$d_type = "F";
 						$kredit = $felt[$y];
 					} elseif ($feltnavn[$y] == "debitor") {
-						$d_type = "D";
-						$debet = $felt[$y];
+						if ($felt[$y]) {
+							$d_type = "D";
+							$debet = $felt[$y];
+						}
 					} elseif ($feltnavn[$y] == "kreditor") {
-						$k_type = "K";
-						$kredit = $felt[$y];
+						if ($felt[$y]) {
+							$k_type = "K";
+							$kredit = $felt[$y];
+						}
 					} elseif ($feltnavn[$y] == "fakturanr")
 						$fakturanr = $felt[$y];
 					elseif ($feltnavn[$y] == "forfaldsdag") {

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-04-03 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-06-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -94,6 +94,11 @@
 // 20260225 PHR Updated cashCount
 // 20260316 PHR Corrected Currency error in cashCount
 // 20260403 PHR Added && '$leveres[0] != 0' as leveres else is set to 0 if qty was changed and kokkelprint became reset.
+// 20260523 CL/PHR function posbogfor: Changed payment type query to LEFT JOIN with COALESCE(felt_1) so orders
+//                 without pos_betalinger rows are included when finding distinct betaling types
+// 20260523 CL/PHR function posbogfor: Changed order lookup query to LEFT JOIN with COALESCE(felt_1/valuta)
+//                 so art='DO' orders without pos_betalinger are passed to bogfor_nu
+// 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -2630,9 +2635,10 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	for ($x = 0; $x < count($fakturadate); $x++) {
 		$y = 0;
 		$betaling[$x] = array();
-		$qtxt = "select distinct(pos_betalinger.betalingstype) as betaling from pos_betalinger,ordrer where ";
-		$qtxt.= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate >= '$regnstart' and ";
-		$qtxt.= "ordrer.id=pos_betalinger.ordre_id order by pos_betalinger.betalingstype";
+		$qtxt = "select distinct COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) as betaling ";
+		$qtxt.= "from ordrer left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id where ";
+		$qtxt.= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate >= '$regnstart' ";
+		$qtxt.= "order by betaling";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($r['betaling']) {
@@ -2715,11 +2721,12 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 				$id = $kto_id = NULL;
 				$k = 0;
 
-				$qtxt = "select ordrer.id,ordrer.konto_id from ordrer,pos_betalinger where ordrer.felt_5='$kasse' ";
+				$qtxt = "select ordrer.id, ordrer.konto_id from ordrer ";
+				$qtxt .= "left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id ";
+				$qtxt .= "where ordrer.felt_5='$kasse' ";
 				$qtxt .= "and ordrer.fakturadate='$fakturadate[$x]' ";
-				$qtxt .= "and pos_betalinger.betalingstype='" . $betaling[$x][$y] . "' ";
-				$qtxt .= "and pos_betalinger.valuta='$valuta[$z]' and ordrer.status='3' ";
-				$qtxt .= "and ordrer.id=pos_betalinger.ordre_id"; #20150306 + 20150310
+				$qtxt .= "and COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) = '" . $betaling[$x][$y] . "' ";
+				$qtxt .= "and COALESCE(pos_betalinger.valuta, ordrer.valuta) = '$valuta[$z]' and ordrer.status='3'";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					if (strtolower($betaling[$x][$y]) == 'konto') {
@@ -3104,9 +3111,9 @@ function kasseoptalling( // Called from cashBalance.php
 	$kortdiff = 0;
 	if ($change_cardvalue) {
 		for ($x = 0; $x < count($kortsum); $x++) {
-			$ny_kortsum[$x] = (float)$ny_kortsum[$x];
+			$ny_kortsum[$x] = usdecimal($ny_kortsum[$x], 2);
 			$kortsum[$x] = (float)$kortsum[$x];
-			$kortdiff += $kortsum[$x] - usdecimal($ny_kortsum[$x], 2);
+			$kortdiff += $kortsum[$x] - $ny_kortsum[$x];
 		}
 		$kortdiff = afrund($kortdiff, 2);
 	}

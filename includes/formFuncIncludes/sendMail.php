@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 4.1.1 --- 2025-0607-31 ---
+// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-06-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,8 @@
 //
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
+//20260603 CL/PHR Bilagsvedhæftning opdateret: tjekker nu documents-tabellen
+//                  (source=debitorOrdrer) før fallback til gammelt bilag-system
 //
 // 20211028 PHR moved this function rom ../formfunc,php  
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
@@ -198,32 +200,47 @@ print "<!--function send_mails start-->";
 	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 	$fakturanavn=basename($filnavn);
 	
-	if ($mailbilag && $ordre_id) {
-		$ftpfilnavn="bilag_".$ordre_id;
-		$r=db_fetch_array(db_select("select * from grupper where art='bilag'",__FILE__ . " linje " . __LINE__));
-			if($box6=$r['box6']) {
-			$mappe='bilag';
-			$undermappe="ordrer";
-			$bilagfilnavn="bilag_".$bilag_id;
-			$google_docs=$r['box7'];
-			$fra="../bilag/".$db."/".$mappe."/".$undermappe."/".$ftpfilnavn;
-			$til="../temp/".$db."/".$mailbilag;
-			system ("cp '$fra' '$til'\n");
-		} else {
-			$r=db_fetch_array(db_select("select * from grupper where art='FTP'",__FILE__ . " linje " . __LINE__));
-			$box1=$r['box1'];
-			$box2=$r['box2'];
-			$box3=$r['box3'];
-			$mappe=$r['box4'];
-			$undermappe="ordrer";
-			$ftpfilnavn="bilag_".$ordre_id;
-			$fp=fopen("../temp/$db/ftpscript.$bruger_id","w");
-			if ($fp) {
-			fwrite ($fp, "cd $mappe\ncd $undermappe\nget $ftpfilnavn\nbye\n");
+	if ($ordre_id) {
+		// Nyt documents-system (source=debitorOrdrer)
+		$sth_path = dirname(dirname(dirname(__FILE__)));
+		$newDocFolder = null;
+		if      (file_exists("$sth_path/documents")) $newDocFolder = "$sth_path/documents";
+		elseif  (file_exists("$sth_path/owncloud"))  $newDocFolder = "$sth_path/owncloud";
+		elseif  (file_exists("$sth_path/bilag"))     $newDocFolder = "$sth_path/bilag";
+
+		if ($newDocFolder) {
+			$qtxt = "SELECT filename, filepath FROM documents WHERE source = 'debitorOrdrer' AND source_id = '$ordre_id' ORDER BY id LIMIT 1";
+			if ($docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$srcFile = $newDocFolder . '/' . $db . '/' . ltrim($docRow['filepath'], '/') . '/' . $docRow['filename'];
+				if (file_exists($srcFile)) {
+					$mailbilag = $docRow['filename'];
+					$til = "../temp/$db/$mailbilag";
+					system("cp '" . str_replace("'", "'\\''", $srcFile) . "' '$til'\n");
+				}
 			}
-			fclose($fp);
-			$kommando="cd ../temp/$db\n$exec_path/ncftp ftp://".$box2.":".$box3."@".$box1." < ftpscript.$bruger_id > ftplog\nmv \"$ftpfilnavn\" \"$mailbilag\"\n";
-			system ($kommando);
+		}
+
+		// Fallback: gammelt bilag-system (bilag/{db}/bilag/ordrer/bilag_{id}[_*])
+		if (!$mailbilag) {
+			$r = db_fetch_array(db_select("select * from grupper where art='bilag'", __FILE__ . " linje " . __LINE__));
+			if ($box6 = $r['box6']) {
+				$oldFiles = glob("../bilag/$db/bilag/ordrer/bilag_{$ordre_id}") ?: array();
+				$oldFiles = array_merge($oldFiles, glob("../bilag/$db/bilag/ordrer/bilag_{$ordre_id}_*") ?: array());
+				if ($oldFiles) {
+					$fra = $oldFiles[0];
+					$mailbilag = basename($fra);
+					$til = "../temp/$db/$mailbilag";
+					system("cp '$fra' '$til'\n");
+				}
+			} else {
+				$r2 = db_fetch_array(db_select("select * from grupper where art='FTP'", __FILE__ . " linje " . __LINE__));
+				$box1 = $r2['box1']; $box2 = $r2['box2']; $box3 = $r2['box3']; $mappe = $r2['box4'];
+				$ftpfilnavn = "bilag_" . $ordre_id;
+				$fp = fopen("../temp/$db/ftpscript.$bruger_id", "w");
+				if ($fp) { fwrite($fp, "cd $mappe\ncd ordrer\nget $ftpfilnavn\nbye\n"); fclose($fp); }
+				$kommando = "cd ../temp/$db\n$exec_path/ncftp ftp://$box2:$box3@$box1 < ftpscript.$bruger_id > ftplog\nmv \"$ftpfilnavn\" \"$mailbilag\"\n";
+				system($kommando);
+			}
 		}
 	}
 	

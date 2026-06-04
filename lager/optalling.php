@@ -1200,8 +1200,13 @@ function importer($lager, $dato)
 #	print tekstboks("Vent - det kan tage lang tid !!");
 #	ob_end_flush();
 		$filnavn = "../temp/" . $db . "/" . $bruger_id . ".csv";
-		if (move_uploaded_file($_FILES['uploadfile']['tmp_name'], $filnavn)) {
-			$fp = fopen("$filnavn", "r");
+		if (!move_uploaded_file($_FILES['uploadfile']['tmp_name'], $filnavn)) {
+			$uploadError = $_FILES['uploadfile']['error'];
+			print "<BODY onLoad=\"javascript:alert('Upload fejlede (kode $uploadError) - filen er muligvis for stor eller ugyldig')\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"3;URL=optalling.php?importer=1&lager=$lager&dato=$dato\">";
+			return;
+		}
+		$fp = fopen("$filnavn", "r");
 			if ($fp) {
 				$komma = 0;
 				$semikolon = 0;
@@ -1364,7 +1369,6 @@ function importer($lager, $dato)
 			}
 			print "<BODY onLoad=\"javascript:alert('$indsat varenumre importeret i liste, $ej_indsat varenumre ikke fundet i vareliste')\">\n";
 			print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?vis_ej_exist=1&lager=$lager\">";
-		}
 	} else {
 		if (!$dato)
 			$dato = date("d-m-Y");
@@ -1376,7 +1380,7 @@ function importer($lager, $dato)
 		#		print " Er der flere lagre, vælges hvilket lager optællingen vedrører<br>";
 		print findtekst('2204|Datoen skal være den dato hvor optællingen blev udført.', $sprog_id) . " ";
 		print findtekst('2205|Hvis optællingen er sket mellem midnat og dagens 1. varebevægelse, skal den foregående dags dato anføres.', $sprog_id) . "<br><hr></td></tr>";
-		print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"100000\">";
+		print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"104857600\">";
 		print "<tr><td>" . findtekst('2206|Dato for optælling', $sprog_id) . "</td><td><input class=\"inputbox\" style=\"text-align:left\" type=\"text\" name=\"dato\" value=\"$dato\"></td></tr>";
 		#		$r=db_fetch_array(db_select("select count(kodenr) as lagerantal from grupper where art='LG'",__FILE__ . " linje " . __LINE__));
 #		if ($lagerantal=$r['lagerantal']){

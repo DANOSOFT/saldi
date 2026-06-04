@@ -249,6 +249,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	elseif (oioubl_vej($addr_2, "vejnavn")) $l_retur.="<cbc:StreetName>".oioubl_vej($addr_2, "vejnavn")."</cbc:StreetName>\n";
 	else $l_retur.="<cbc:StreetName>?</cbc:StreetName>\n";
 	if (oioubl_vej($addr_1, "husnummer")) $l_retur.="<cbc:BuildingNumber>".oioubl_vej($addr_1, "husnummer")."</cbc:BuildingNumber>\n";
+#	if (oioubl_vej($addr_2, "vejnavn")) $l_retur.="<cbc:AdditionalStreetName>".oioubl_vej($addr_2, "vejnavn")."</cbc:AdditionalStreetName>\n";
 	elseif (!oioubl_vej($addr_1, "husnummer") && oioubl_vej($addr_2, "husnummer")) $l_retur.="<cbc:BuildingNumber>".oioubl_vej($addr_2, "husnummer")."</cbc:BuildingNumber>\n";
 	else $l_retur.="<cbc:BuildingNumber>0</cbc:BuildingNumber>\n";
 	$l_retur.="<cbc:CityName>".$bynavn."</cbc:CityName>\n";
