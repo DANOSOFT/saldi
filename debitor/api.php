@@ -447,7 +447,7 @@
             // 20260604 - Fallback to main address if delivery address is incomplete
             $deliverAddress = [
                 "streetName" => implode(" ", explode(" ", $customerAddr1, -1)),
-                "buildingNumber" => end(explode(" ", $customerAddr1)),
+                "buildingNumber" => array_slice(explode(" ", $customerAddr1), -1)[0],
                 "inhouseMail" => $r_faktura["email"],
                 "additionalStreetName" => $customerAddr2,
                 "attentionName" => $customerKontakt,
@@ -491,7 +491,7 @@
                 "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $customerAddr1, -1)), ## 20260604 - Updated to use fallback address logic
-                    "buildingNumber" => end(explode(" ", $customerAddr1)), ## 20260604 - Updated to use fallback address logic
+                    "buildingNumber" => array_slice(explode(" ", $customerAddr1), -1)[0], ## 20260604 - Updated to use fallback address logic
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $customerAddr2,
                     "attentionName" => $customerKontakt,
@@ -671,7 +671,7 @@
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
                 "streetName" => $r_faktura["lev_addr1"],
-                "buildingNumber" => end(explode(" ", $r_faktura["lev_addr1"])),
+                "buildingNumber" => array_slice(explode(" ", $r_faktura["lev_addr1"]), -1)[0],
                 "inhouseMail" => $r_faktura["email"],
                 "additionalStreetName" => $r_faktura["lev_addr2"],
                 "attentionName" => $r_faktura["lev_kontakt"],
@@ -688,7 +688,7 @@
                 "companyId" => "DK $r_faktura[ean]",
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "buildingNumber" => array_slice(explode(" ", $r_faktura["addr1"]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -759,7 +759,7 @@
                 "companyId" => "DK$r_faktura[cvrnr]",
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "buildingNumber" => array_slice(explode(" ", $r_faktura["addr1"]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -783,7 +783,7 @@
                 "companyId" => "DK$r_faktura[cvrnr]33557799",
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "buildingNumber" => array_slice(explode(" ", $r_faktura["addr1"]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
