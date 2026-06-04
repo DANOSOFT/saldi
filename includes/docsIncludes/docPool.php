@@ -317,28 +317,16 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$poolFile = $_POST['poolFile'];
 	}
 
-	// $afd         = if_isset($_POST,NULL,'afd');
-	// $bilag       = if_isset($_POST,NULL,'bilag');
-	// $beskrivelse = if_isset($_POST,NULL,'beskrivelse');
-	// $dato        = if_isset($_POST,NULL,'dato');
-	// $debet       = if_isset($_POST,NULL,'debet');
-	// $fakturanr   = if_isset($_POST,NULL,'fakturanr');
-	// $kredit      = if_isset($_POST,NULL,'kredit');
-	// $projekt     = if_isset($_POST,NULL,'projekt');
-	// $sag         = if_isset($_POST,NULL,'sag');
-	// $sum         = if_isset($_POST,NULL,'sum');
-	##########################################
-	$afd         = if_isset($_POST,NULL,'afd')         ?? if_isset($_GET,NULL,'afd');
-	$bilag       = if_isset($_POST,NULL,'bilag')        ?? if_isset($_GET,NULL,'bilag');
-	$beskrivelse = if_isset($_POST,NULL,'beskrivelse')  ?? if_isset($_GET,NULL,'beskrivelse');
-	$dato        = if_isset($_POST,NULL,'dato')         ?? if_isset($_GET,NULL,'dato');
-	$debet       = if_isset($_POST,NULL,'debet')        ?? if_isset($_GET,NULL,'debet');
-	$fakturanr   = if_isset($_POST,NULL,'fakturanr')    ?? if_isset($_GET,NULL,'fakturanr');
-	$kredit      = if_isset($_POST,NULL,'kredit')        ?? if_isset($_GET,NULL,'kredit');
-	$projekt     = if_isset($_POST,NULL,'projekt')       ?? if_isset($_GET,NULL,'projekt');
-	$sag         = if_isset($_POST,NULL,'sag')           ?? if_isset($_GET,NULL,'sag');
-	$sum         = if_isset($_POST,NULL,'sum')            ?? if_isset($_GET,NULL,'sum');
-	#########################################
+	$afd         = if_isset($_POST,NULL,'afd');
+	$bilag       = if_isset($_POST,NULL,'bilag');
+	$beskrivelse = if_isset($_POST,NULL,'beskrivelse');
+	$dato        = if_isset($_POST,NULL,'dato');
+	$debet       = if_isset($_POST,NULL,'debet');
+	$fakturanr   = if_isset($_POST,NULL,'fakturanr');
+	$kredit      = if_isset($_POST,NULL,'kredit');
+	$projekt     = if_isset($_POST,NULL,'projekt');
+	$sag         = if_isset($_POST,NULL,'sag');
+	$sum         = if_isset($_POST,NULL,'sum');
 
 	if ($insertFile) {
 		// Log when user tries to add a bilag to a line

@@ -928,17 +928,17 @@ if (!function_exists('tekstboks')) {
 
 		if ($boksflytbar === 'td') {
 			# Nedenstående linjer er forsøg på at påvirker det originale udseende så lidt som muligt 
-# ved brug af den flytbare boks med <table> inden i en <div>. Læser man dokumentationen, 
-# så skulle et element med display:none ikke have nogen indflydelse på udseendet, men det 
-# har det i både Opera 25.0 og Chrome 38.0.2125.111 m. 
-# 
-# Claus Agerskov 20141121.
-#		$boksindhold.="<div style='display:none'><table style='display:none'><tr><td>Test</td></tr></table></div>\n";
-#		$boksindhold.="<table style='display:none'><tr><td>Test</td></tr></table>\n";
-			$boksindhold .= "<table style='display:none'></table>\n"; # Giver mindst indvirkning på udseendet.
-#		$boksindhold.="<tr style='display:none'><td>Test</td></tr>\n";
-#		$boksindhold.="<table><tr><td>Test</td></tr></table>\n";
-#		$boksindhold.="<div style='display:none'>Test2</div>\n";
+			# ved brug af den flytbare boks med <table> inden i en <div>. Læser man dokumentationen, 
+			# så skulle et element med display:none ikke have nogen indflydelse på udseendet, men det 
+			# har det i både Opera 25.0 og Chrome 38.0.2125.111 m. 
+			# 
+			# Claus Agerskov 20141121.
+			#		$boksindhold.="<div style='display:none'><table style='display:none'><tr><td>Test</td></tr></table></div>\n";
+			#		$boksindhold.="<table style='display:none'><tr><td>Test</td></tr></table>\n";
+						$boksindhold .= "<table style='display:none'></table>\n"; # Giver mindst indvirkning på udseendet.
+			#		$boksindhold.="<tr style='display:none'><td>Test</td></tr>\n";
+			#		$boksindhold.="<table><tr><td>Test</td></tr></table>\n";
+			#		$boksindhold.="<div style='display:none'>Test2</div>\n";
 		}
 
 		if ($bokstype === 'fejl') {
@@ -1228,36 +1228,36 @@ if (!function_exists('find_lagervaerdi')) {
 		}
 		$vare_id = array();
 		/////////////////////////////////////
-/*
-	$x=0;
-	$qtxt="select kostpriser.vare_id,kostpriser.kostpris,varer.gruppe from kostpriser,varer";
-	$qtxt.=" where ";
-	$qtxt.="kostpriser.transdate<='$slut' and varer.id=kostpriser.vare_id";
-	$qtxt.=" order by ";
-	$qtxt.="kostpriser.transdate desc";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		if (!in_array($r['vare_id'],$vare_id) && in_array($r['gruppe'],$gruppe)) {
-			$vare_id[$x]=$r['vare_id'];
-			$kostpris[$x]=$r['kostpris'];
-			$antal[$x]=0;
-			$x++;
-		}
-	}
-	$qtxt="select id,kostpris,gruppe from varer";
-	$qtxt.=" order by ";
-	$qtxt.="id";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		if (!in_array($r['id'],$vare_id) && in_array($r['gruppe'],$gruppe)) {
-			$vare_id[$x]=$r['id'];
-			$kostpris[$x]=$r['kostpris'];
-			$antal[$x]=0;
-			$x++;
-		}
-	}
-/////////////////////////
-*/
+		/*
+			$x=0;
+			$qtxt="select kostpriser.vare_id,kostpriser.kostpris,varer.gruppe from kostpriser,varer";
+			$qtxt.=" where ";
+			$qtxt.="kostpriser.transdate<='$slut' and varer.id=kostpriser.vare_id";
+			$qtxt.=" order by ";
+			$qtxt.="kostpriser.transdate desc";
+			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r=db_fetch_array($q)) {
+				if (!in_array($r['vare_id'],$vare_id) && in_array($r['gruppe'],$gruppe)) {
+					$vare_id[$x]=$r['vare_id'];
+					$kostpris[$x]=$r['kostpris'];
+					$antal[$x]=0;
+					$x++;
+				}
+			}
+			$qtxt="select id,kostpris,gruppe from varer";
+			$qtxt.=" order by ";
+			$qtxt.="id";
+			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r=db_fetch_array($q)) {
+				if (!in_array($r['id'],$vare_id) && in_array($r['gruppe'],$gruppe)) {
+					$vare_id[$x]=$r['id'];
+					$kostpris[$x]=$r['kostpris'];
+					$antal[$x]=0;
+					$x++;
+				}
+			}
+		/////////////////////////
+		*/
 		$y = 0;
 		for ($x = 0; $x < count($gruppe); $x++) {
 			$q = db_select("select id,kostpris from varer where gruppe = '$gruppe[$x]' order by id", __FILE__ . " linje " . __LINE__);
