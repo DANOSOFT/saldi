@@ -96,6 +96,7 @@
 // 20260523 CL/PHR function bogfor_nu: Fixed $id used instead of $ordre_id in INSERT INTO pos_betalinger,
 //                 causing SQL error "invalid input syntax for integer" when $id is a comma-separated list
 // 20260604 CL/PHR function batch_salg: reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr so domestic CVRs are not routed to EU/export accounts
+// 20260604 CL/PHR function bogfor_nu: tightened POS-detection condition - felt_4, felt_5 must also be numeric and felt_5 > 0 to avoid regular orders being treated as POS
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -2300,8 +2301,9 @@ function bogfor_nu($id, $kilde) {
 		$felt_2 = $r['felt_2'];
 		$felt_3 = $r['felt_3'];
 		$felt_4 = $r['felt_4'];
+		$felt_5 = $r['felt_5'];
 		$betalings_id = $r['betalings_id'];
-		if ($felt_1 && is_numeric($felt_2)) { #20171004 Alm. ordre der behandles som pos
+		if ($felt_1 && is_numeric($felt_2) && is_numeric($felt_4) && is_numeric($felt_5) && (int)$felt_5 > 0) { #20171004 Alm. ordre der behandles som pos
 			$qtxt = "select id from pos_betalinger where ordre_id='$ordre_id' limit 1";
 			if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$art = 'PO';
