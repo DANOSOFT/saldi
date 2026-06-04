@@ -4,29 +4,28 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------patch 3.5.7-------2017.04.25------
-// LICENS
+// ------------------lager/lagerflyt.php-----------patch 5.0.0-------2026-06-03------
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.saldi.dk/dok/GNU_GPL_v2.html
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Copyright (c) 2003-2017 saldi.dk aps
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2014-2026 Danosoft aps
 // ----------------------------------------------------------------------
 
 // 20170425 - total omskrivning
+// 20260526 PHR Fixed bug. In rare cases qty was not removed from the giving stock but just added to the recieving stock
+// 20260603 PHR Fixed: $nyt_antal[$x] → $nyt_antal (array-access på scalar gav kun første ciffer → commit fejlede ved antal ≥ 10)
 /* 
 Ved flytning af varer fra et lager et andet nedskrives rest for disse i det nødvendige antal batch_kob linjer for 
 det lager der flyttes fra, 
@@ -69,20 +68,16 @@ transaktion("begin");
 	if ($antal<=$max_antal && $antal>0 && $_POST['opdater']){
 		$x=0;
 		$sum=0;
+		$reg = 0;
 		$nyt_antal=$antal;
 		$dd=date("Y-m-d");
-		$_flyt_due_date = NULL;
-		$_flyt_batch_no = NULL;
-		$qtxt="select * from batch_kob where vare_id = '$vare_id' and lager = '$lager' and rest > '0' order by " . fefo_order_clause();
+		$qtxt="select * from batch_kob where vare_id = '$vare_id' and lager = '$lager' and rest > '0' order by id";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-		if ($nyt_antal*1){
+		if ((float)$nyt_antal){
 				$bk_pris[$x]=(float)$r['pris'];
 				$bk_rest[$x]=(float)$r['rest'];
 				$bk_id[$x]=(int)$r['id'];
-				// Carry earliest due_date and first batch_no for the new batch_kob record
-				if ($r['due_date'] && ($_flyt_due_date === NULL || $r['due_date'] < $_flyt_due_date)) $_flyt_due_date = $r['due_date'];
-				if ($_flyt_batch_no === NULL && $r['batch_no']) $_flyt_batch_no = $r['batch_no'];
 				if ($nyt_antal>=$bk_rest[$x]) {
 					$qtxt="update batch_kob set  rest = '0' where id='$bk_id[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -91,7 +86,8 @@ transaktion("begin");
 					$qtxt.= " values ";
 					$qtxt.= "('$dd','$dd','$bk_id[$x]','$vare_id','0','0','$bk_pris[$x]','$bk_rest[$x]','1','$lager','$variant_id')";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					$sum+=$bk_pris[$x]*$bk_rest[$x];
+					$reg-= $bk_rest[$x];
+					$sum+= $bk_pris[$x]*$bk_rest[$x];
 					$nyt_antal-=$bk_rest[$x];
 				} else {
 					$ny_rest=$bk_rest[$x]-$nyt_antal;
@@ -102,6 +98,7 @@ transaktion("begin");
 					$qtxt.= " values ";
 					$qtxt.= "('$dd','$dd','$bk_id[$x]','$vare_id','0','0','$bk_pris[$x]','$nyt_antal','1','$lager','$variant_id')";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					$reg-= $nyt_antal;
 					$sum+=$bk_pris[$x]*$nyt_antal;
 					$nyt_antal=0;
 					$qtxt=NULL;
@@ -109,9 +106,21 @@ transaktion("begin");
 				$x++;
 			}
 		}
-		$stkpris=$sum/$antal;
-		$x=0;
+		$stkpris = $sum/$antal;
+		if (!$x) { #20260526
+				$qtxt = "select kostpris from varer where id = '$vare_id'";
+				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+				$stkpris=(float)$r['kostpris'];
+				$qtxt = "insert into batch_salg ";
+				$qtxt.= "(salgsdate,fakturadate,batch_kob_id,vare_id,linje_id,ordre_id,pris,antal,lev_nr,lager,variant_id)";
+				$qtxt.= " values ";
+				$qtxt.= "('$dd','$dd','0','$vare_id','0','0','$stkpris','$antal','1','$lager','$variant_id')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				$reg-= $antal;
+				$sum = $antal*$stkpris;
+		}
 		$nyt_antal=$antal;
+		$x=0;
 /*
 		$bk_id=array();
 		$qtxt="select * from batch_kob where vare_id = '$vare_id' and kobsdate is NULL and antal='0' and lager = '$nyt_lager' and rest < '0' order by id";
@@ -137,13 +146,12 @@ transaktion("begin");
 		}
 		*/
 		if ($nyt_antal) {
-			$_dd_sql = $_flyt_due_date ? "'" . pg_escape_string($_flyt_due_date) . "'" : "NULL";
-			$_bn_sql = $_flyt_batch_no ? "'" . pg_escape_string($_flyt_batch_no) . "'" : "NULL";
-			$qtxt="insert into batch_kob (kobsdate,fakturadate,vare_id,linje_id,ordre_id,pris,antal,lager,rest,variant_id,due_date,batch_no)";
+			$qtxt="insert into batch_kob (kobsdate,fakturadate,vare_id,linje_id,ordre_id,pris,antal,lager,rest,variant_id)";
 			$qtxt.=" values ";
-			$qtxt.="('$dd','$dd','$vare_id','0','0','$stkpris','$nyt_antal','$nyt_lager','$nyt_antal','$variant_id',$_dd_sql,$_bn_sql)";
+			$qtxt.="('$dd','$dd','$vare_id','0','0','$stkpris','$nyt_antal','$nyt_lager','$nyt_antal','$variant_id')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
+		$reg+= $nyt_antal;
 		$qtxt="select beholdning from lagerstatus where vare_id=$vare_id and lager=$lager and variant_id = '$variant_id'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$qtxt = "update lagerstatus set beholdning = $r[beholdning]-$antal ";
@@ -161,7 +169,14 @@ transaktion("begin");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
-	transaktion('commit');
+	if ($reg) {
+		alert("Der er sket en fejl ved flytning mellem lagre - Ring til Danosoft på tlf 4690 2208 for opklaring");
+	} elseif ($antal > $max_antal) {
+		alert("Du kan maks flytte ". dkdecimal($max_antal) ."");
+	} else {
+		alert("$antal flyttet fra lager $lager til lager $nyt_lager");
+		transaktion('commit');
+	}
 }
 $x=0;
 $qtxt="select beskrivelse, kodenr from grupper where art='LG' order by kodenr";

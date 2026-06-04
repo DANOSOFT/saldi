@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.04.29
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.05.07
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,45 +26,54 @@
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 // 20260429 LOE added leveret to formularer table
 // 20260504 NTR Fixed error on login due to missing regnskab's table
+// 20260507 PHR Removed above as table regskab must not be created en sub bases
 
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'provision'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE varer ADD provision integer";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_due_date'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE ordrelinjer ADD batch_due_date date default NULL";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_batch_no'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE ordrelinjer ADD batch_batch_no varchar(100)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'has_due_date'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE varer ADD has_due_date bool default false";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
-$qtxt = "CREATE SEQUENCE IF NOT EXISTS regnskab_id_seq";
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'default_shelf_life_days'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE varer ADD default_shelf_life_days integer";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and  column_name = 'iban'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE adresser ADD iban varchar(40)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'adresser' and  column_name = 'swift'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE adresser ADD swift varchar(15)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "update grupper set box8 = '' where art = 'DIV' and kodenr = '2' and box8 like 'ftp2.ebconnect.dk%'";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'regnskab'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE TABLE IF NOT EXISTS regnskab (";
-	$qtxt .= "id integer PRIMARY KEY,"; //[nextval('regnskab_id_seq')]
-	$qtxt .= "regnskab varchar(60) NULL,";
-	$qtxt .= "dbhost varchar(25) NULL,";
-	$qtxt .= "dbuser varchar(25) NULL,";
-	$qtxt .= "db varchar(25) NULL,";
-	$qtxt .= "version varchar(10) NULL,";
-	$qtxt .= "sidst varchar(16) NULL,";
-	$qtxt .= "brugerantal numeric(5,0) NULL,";
-	$qtxt .= "posteringer numeric(10,0) NULL,";
-	$qtxt .= "posteret numeric(10,0) NULL,";
-	$qtxt .= "mysale numeric(1,0) NULL,";
-	$qtxt .= "lukket varchar(2) NULL,";
-	$qtxt .= "administrator varchar(2) NULL,";
-	$qtxt .= "lukkes date NULL,";
-	$qtxt .= "betalt_til date NULL,";
-	$qtxt .= "logintekst text NULL,";
-	$qtxt .= "email varchar(60) NULL,";
-	$qtxt .= "bilag numeric(1,0) NULL,";
-	$qtxt .= "sms integer NULL,";
-	$qtxt .= "invoices integer NULL DEFAULT 0,";
-	$qtxt .= "global_id integer NULL DEFAULT 0,";
-	$qtxt .= "lukkes_kommentar text NULL";
-	$qtxt .= ")";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
+$qtxt = "update varer set lukket = '0' where lukket is NULL";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE batch_kob ADD due_date integer";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
+
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'batch_no'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE batch_kob ADD batch_no varchar(100)";
@@ -72,8 +81,15 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 }
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	if ($r[0] != 'date') {
+		$qtxt = "ALTER TABLE batch_kob DROP column due_date";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE batch_kob ADD due_date integer";
+	$qtxt = "ALTER TABLE batch_kob ADD due_date date";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
@@ -93,12 +109,14 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE variant_varer ADD variant_text varchar(25)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+/*
 $qtxt = "SELECT id FROM formularer WHERE formular = 9 AND art = '3' AND beskrivelse = 'leveret' AND sprog = 'Dansk' LIMIT 1";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $qtxt = "INSERT INTO formularer (formular, art, beskrivelse, justering, xa, ya, xb, yb, str, color, font, fed, kursiv, side, sprog)
              VALUES (9, '3', 'leveret', 'V', 163.000, 0.000, 0.000, 0.000, 9.000, 0, 'Helvetica', '', '', '0', 'Dansk')";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+*/
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'kontoplan' and  column_name = 'map_to'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE kontoplan ADD column map_to numeric(15)";
@@ -124,16 +142,15 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE batch_kob ADD due_date integer";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
-
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'digital_status'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE settings ADD digital_status varchar(25)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrer' and  column_name = 'digital_status'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE ordrer ADD digital_status varchar(25)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
@@ -324,6 +341,10 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$qtxt.= "('flatpay_print', 'POS', '$flatpay_print', 'If 1, Saldi will print the terminal receipt else it is printed by the termanal')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
+}
+$qtxt = "Select id from tekster where sprog_id = '1' and tekst_id = '1001' and tekst = 'Krediter'";
+if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	db_modify("update tekster set tekst = '' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 }
 $qtxt = "Select id from tekster where sprog_id = '1' and tekst_id = '2401' and tekst like 'Varen t%'";
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {

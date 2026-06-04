@@ -42,6 +42,7 @@ $s_id=session_id();
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20250206 PHR Removed obsolete section that inserted values in accounts for product purchase and sale!
 // 20260304 PHR Costprice is from now only updated on positive qty og price.
+// 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -90,6 +91,8 @@ $levdate=$row['levdate'];
 $valuta=$row['valuta'];
 $projekt[0]=$row['projekt'];
 $cvrnr=$row['cvrnr'];
+$r_bc = db_fetch_array(db_select("select var_value from settings where var_name='baseCountry' limit 1",__FILE__ . " linje " . __LINE__));
+$baseCountry = $r_bc['var_value'] ?: 'dk';
 if ($valuta && $valuta!='DKK') {
 	if ($r= db_fetch_array(db_select("select valuta.kurs as kurs, grupper.box3 as difkto from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=".nr_cast("grupper.kodenr",__FILE__ . " linje " . __LINE__)." and valuta.valdate <= '$levdate' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
 		$valutakurs=$r['kurs']*1;
@@ -207,8 +210,8 @@ if (!$row['levdate']){
 				}
 				$box1=$box3;
 				$box2=$box4;
-				if ($box11 && cvrnr_omr(cvrnr_land($cvrnr)) == "EU") $bf_kto=$box11;
-				elseif ($box13 && cvrnr_omr(cvrnr_land($cvrnr)) == "UD") $bf_kto=$box13;
+				if ($box11 && cvrnr_omr(cvrnr_land($cvrnr, $baseCountry), $baseCountry) == "EU") $bf_kto=$box11;
+				elseif ($box13 && cvrnr_omr(cvrnr_land($cvrnr, $baseCountry), $baseCountry) == "UD") $bf_kto=$box13;
 				else $bf_kto=$box3;
 				if ($box8!='on'){
 					db_modify("update ordrelinjer set bogf_konto='$bf_kto' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);

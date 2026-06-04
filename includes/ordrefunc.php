@@ -87,6 +87,15 @@
 // 20260313 PHR	Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort'
 // 20260415 PHR Modtag (Receive) was set to 0 when delivering a negative quantity
 // 20260227 PHR Added more arguments to funtion call at line 1260, as last 4 was missing
+// 20260523 CL/PHR function bogfor: Separated $kasse assignment from pos_betalinger insert condition so
+//                 orders with felt_5 set but NULL felt_2/felt_4 (eg. Netto/account orders) still get
+//                 $kasse set and are processed by postEachSale/straksbogfor
+// 20260523 CL/PHR function bogfor_nu: Relaxed pos_betalinger insert condition from ($felt_1 && $felt_3 ...)
+//                 to ($felt_1 && is_numeric($felt_2)) so single-payment orders (felt_3=NULL) also get
+//                 pos_betalinger inserted and are posted to the correct card account instead of kassekonto
+// 20260523 CL/PHR function bogfor_nu: Fixed $id used instead of $ordre_id in INSERT INTO pos_betalinger,
+//                 causing SQL error "invalid input syntax for integer" when $id is a comma-separated list
+// 20260604 CL/PHR function batch_salg: reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr so domestic CVRs are not routed to EU/export accounts
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -547,7 +556,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 				}
 			} else {
 				$tmp = $antal;
-				$qtxt = "select * from batch_kob where vare_id = '$vare_id' and rest > '0' and lager = '$lager' order by " . fefo_order_clause();
+				$qtxt = "select * from batch_kob where vare_id = '$vare_id' and rest > '0' and lager = '$lager' order by id";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					$ny_rest = $r['rest'];
@@ -1049,9 +1058,9 @@ function batch($linje_id)
 		$rest = array();
 		$lev_rest = $leveres;
 		if ($lager)
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by kobsdate", __FILE__ . " linje " . __LINE__);
 		else
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by kobsdate", __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			$x++;
 			$batch_kob_id[$x] = $row['id'];
@@ -1206,9 +1215,8 @@ function bogfor($id, $webservice=false)
 				$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) values ('$id','$row[felt_3]','$row[felt_4]','$baseCurrency','100')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
-			$kasse = $row['felt_5'];
-		} else
-			$kasse = NULL;
+		}
+		$kasse = is_numeric($row['felt_5']) ? (int)$row['felt_5'] : NULL;
 	}
 	if ($ref && $r = db_fetch_array(db_select("select ansat_id from brugere where brugernavn='$ref'", __FILE__ . " linje " . __LINE__))) {
 		if ($r['ansat_id'] && $r = db_fetch_array(db_select("select navn from ansatte where id='$r[ansat_id]'", __FILE__ . " linje " . __LINE__))) {
@@ -1654,6 +1662,8 @@ function batch_salg($id)
 	$r = db_fetch_array(db_select("select art,cvrnr from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 	$cvrnr = $r['cvrnr'];
 	$art = $r['art'];
+	$r_bc = db_fetch_array(db_select("select var_value from settings where var_name='baseCountry' limit 1", __FILE__ . " linje " . __LINE__));
+	$baseCountry = $r_bc['var_value'] ?: 'dk';
 
 	$r = db_fetch_array(db_select("select box6 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
 	$fifo = $r['box6'];
@@ -1754,9 +1764,9 @@ function batch_salg($id)
 		$box9 = trim($row2['box9']);
 		$box12 = trim($row2['box12']);
 		$box14 = trim($row2['box14']);
-		if ($box12 && cvrnr_omr(cvrnr_land($cvrnr, '')) == "EU")
+		if ($box12 && cvrnr_omr(cvrnr_land($cvrnr, $baseCountry), $baseCountry) == "EU")
 			$bf_kto = $box12;
-		elseif ($box14 && cvrnr_omr(cvrnr_land($cvrnr, '')) == "UD")
+		elseif ($box14 && cvrnr_omr(cvrnr_land($cvrnr, $baseCountry), $baseCountry) == "UD")
 			$bf_kto = $box14;
 		elseif ($bogf_konto)
 			$bf_kto = $bogf_konto;
@@ -1802,7 +1812,7 @@ function batch_salg($id)
 			$y = 0;
 			$mangler = $antal[$x];
 			$kostsum = 0;
-			$qtxt = "select * from batch_kob where rest>'0' and vare_id='$vare_id[$x]' and ordre_id!= '$id' order by " . fefo_order_clause();
+			$qtxt = "select * from batch_kob where rest>'0' and vare_id='$vare_id[$x]' and ordre_id!= '$id' order by fakturadate,id";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($mangler && $r = db_fetch_array($q)) {
 				$rest = $r['rest'];
@@ -2291,15 +2301,15 @@ function bogfor_nu($id, $kilde) {
 		$felt_3 = $r['felt_3'];
 		$felt_4 = $r['felt_4'];
 		$betalings_id = $r['betalings_id'];
-		if ($felt_1 && $felt_3 && is_numeric($felt_2) && is_numeric($felt_4)) { #20171004 Alm. ordre der behandles som pos
+		if ($felt_1 && is_numeric($felt_2)) { #20171004 Alm. ordre der behandles som pos
 			$qtxt = "select id from pos_betalinger where ordre_id='$ordre_id' limit 1";
 			if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$art = 'PO';
 			} else {
-				$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs)values('$id','$felt_1','$felt_2','$baseCurrency','100')";
+				$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs)values('$ordre_id','$felt_1','$felt_2','$baseCurrency','100')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				if ($felt_4 > 0) {
-					$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs)values('$id','$felt_3','$felt_4','$baseCurrency','100')";
+				if ($felt_3 && $felt_4 > 0) {
+					$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs)values('$ordre_id','$felt_3','$felt_4','$baseCurrency','100')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 				$art = 'PO';
