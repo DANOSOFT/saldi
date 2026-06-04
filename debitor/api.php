@@ -650,7 +650,7 @@
         }
         
         if(!empty($missingFields)){
-            file_put_contents("../temp/$db/missing-fields-error-" . date("Y-m-d-H-i-s") . ".json", json_encode(["error" => "Påkrævede felter mangler", "missing_fields" => $missingFields, "order_id" => $id], JSON_PRETTY_PRINT));
+            error_log(json_encode(["error" => "Påkrævede felter mangler", "missing_fields" => $missingFields, "order_id" => $id], JSON_PRETTY_PRINT), __FILE__ . " line " . __LINE__);
             ?>
             <script>
                 alert("Fejl ved sending til Peppol:\n\nManglende felter: <?php echo htmlspecialchars(implode(', ', $missingFields)); ?>\n\nKontroller venligst ordren og kundeoplysningerne før transmission.");
