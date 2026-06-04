@@ -217,10 +217,13 @@
         }
         $ch = curl_init();
 
-        curl_setopt($ch, CURLOPT_URL, $url.$companyID);
+        $fullUrl = $url.$companyID;
+        curl_setopt($ch, CURLOPT_URL, $fullUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE));
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30); // 20260604 - Add timeout to prevent hanging
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // 20260604 - Connection timeout
 
         $headers = array();
         $headers[] = 'Authorization: '.$apiKey;
@@ -228,16 +231,29 @@
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         $result = curl_exec($ch);
-
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
-        file_put_contents("../temp/$db/fakture-result-$ranStr.json", $result);
-        $result = json_decode($result, true);
+        
+        // 20260604 - Save raw response before JSON decoding for better error diagnosis
+        file_put_contents("../temp/$db/fakture-result-raw-$ranStr.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---RAW RESPONSE---\n" . $result);
+        
         if (curl_errno($ch)) {
-            echo 'Error: ' . curl_error($ch);
-            file_put_contents("../temp/$db/fakture-error-$ranStr.json", curl_error($ch));
+            // Curl connection error - don't continue
+            $errorNumber = curl_errno($ch);
+            $errorMessage = curl_error($ch);
+            file_put_contents("../temp/$db/fakture-curl-error-$ranStr.json", json_encode(['error' => $errorNumber, 'message' => $errorMessage, 'http_code' => $httpCode], JSON_PRETTY_PRINT));
+            ?>
+            <script>
+                alert("Forbindelsesfejl:\n\n<?php echo htmlspecialchars($errorMessage); ?>\n\nKontroller internetforbindelsen og prøv igen.");
+            </script>
+            <?php
+            curl_close($ch);
             exit();
         }
+        
+        $result = json_decode($result, true);
         
         $randomString = '';
 
@@ -249,33 +265,45 @@
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
             $easyUBLError = isset($result["errorMessage"]) ? $result["errorMessage"] : "";
-            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'easyUBL_error' => $easyUBLError];
+            $errorDetails = isset($result["error"]) ? $result["error"] : "";
             
             // 20260604 - Improved error logging for E-APS24003 errors
-            // save response in file in temp folder with full details
-            file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE)."\n---RESPONSE---\n".json_encode($result, JSON_UNESCAPED_UNICODE));
+            // Capture all possible error information
+            $error = [
+                'curl_error_number' => $errorNumber, 
+                'curl_error_message' => $errorMessage, 
+                'easyUBL_errorMessage' => $easyUBLError,
+                'easyUBL_error' => $errorDetails,
+                'full_response' => $result
+            ];
             
-            if(!empty($easyUBLError)){
-                // easyUBL specific error - likely validation issue
-                ?>
-                <script>
-                    alert("<?php echo "easyUBL fejl:\n" . htmlspecialchars($easyUBLError); ?>\n\nKontakt support hvis problemet persister.");
-                </script>
-                <?php
-            }else if($result["message"] !== "" || $errorNumber !== 0){
+            // save response in file in temp folder with full details for debugging
+            file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            
+            // Determine which error to show
+            $displayError = "";
+            
+            if(!empty($errorMessage)){
                 // curl error
-                ?>
-                <script>
-                    alert("<?php echo "Transmission fejl: " . htmlspecialchars($errorMessage); ?>");
-                </script>
-                <?php
+                $displayError = "Forbindelsesfejl: " . $errorMessage;
+            }else if(!empty($easyUBLError)){
+                // easyUBL specific error - likely validation issue
+                $displayError = "easyUBL fejl: " . $easyUBLError;
+            }else if(!empty($errorDetails)){
+                // Alternative error field
+                $displayError = "API fejl: " . (is_array($errorDetails) ? json_encode($errorDetails) : $errorDetails);
+            }else if(is_array($result) && !empty($result)){
+                // Show full response if nothing else works
+                $displayError = "Uventet svar fra server: " . json_encode($result);
             }else{
-                ?>
-                <script>
-                    alert("Der opstod en fejl under sending af fakturaen. Kontakt support. Tlf: 46902208");
-                </script>
-                <?php
+                $displayError = "Ukendt fejl - kontakt support";
             }
+            
+            ?>
+            <script>
+                alert("Transmission fejl:\n\n<?php echo htmlspecialchars($displayError); ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.");
+            </script>
+            <?php
             exit;
         }
         // decode base64
