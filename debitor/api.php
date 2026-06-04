@@ -375,31 +375,56 @@
             $countryCode = "DK";
         }
         // 20260604 - Validate recipient address to prevent E-APS24003 transmission errors
-        // Delivery address should be populated, if not use main address
-        if($r_faktura["lev_addr1"] !== "" && $r_faktura["lev_bynavn"] !== "" && $r_faktura["lev_postnr"] !== ""){
+        // Prepare customer address with fallback logic
+        $customerAddr1 = trim($r_faktura["addr1"]);
+        $customerBynavn = trim($r_faktura["bynavn"]);
+        $customerPostnr = trim($r_faktura["postnr"]);
+        $customerAddr2 = trim($r_faktura["addr2"]);
+        $customerKontakt = trim($r_faktura["kontakt"]);
+        
+        $levAddr1 = trim($r_faktura["lev_addr1"]);
+        $levBynavn = trim($r_faktura["lev_bynavn"]);
+        $levPostnr = trim($r_faktura["lev_postnr"]);
+        $levAddr2 = trim($r_faktura["lev_addr2"]);
+        $levKontakt = trim($r_faktura["lev_kontakt"]);
+        
+        // If customer main address is empty, use delivery address for customer postal address
+        if(empty($customerAddr1) || empty($customerBynavn) || empty($customerPostnr)){
+            if(!empty($levAddr1) && !empty($levBynavn) && !empty($levPostnr)){
+                // Use delivery address as fallback for customer address
+                $customerAddr1 = $levAddr1;
+                $customerBynavn = $levBynavn;
+                $customerPostnr = $levPostnr;
+                $customerAddr2 = $levAddr2;
+                $customerKontakt = $levKontakt;
+            }
+        }
+        
+        // Delivery address - use best available address
+        if($levAddr1 !== "" && $levBynavn !== "" && $levPostnr !== ""){
             $deliverAddress = [
                 
-                "streetName" => implode(" ", explode(" ", $r_faktura["lev_addr1"], -1)), ## 20260518 - NTR - Street name without building number.
-                "buildingNumber" => end(explode(" ", $r_faktura["lev_addr1"])),
+                "streetName" => implode(" ", explode(" ", $levAddr1, -1)), ## 20260518 - NTR - Street name without building number.
+                "buildingNumber" => end(explode(" ", $levAddr1)),
                 "inhouseMail" => $r_faktura["email"],
-                "additionalStreetName" => $r_faktura["lev_addr2"],
-                "attentionName" => $r_faktura["lev_kontakt"],
-                "cityName" => $r_faktura["lev_bynavn"],
-                "postalCode" => $r_faktura["lev_postnr"],
+                "additionalStreetName" => $levAddr2,
+                "attentionName" => $levKontakt,
+                "cityName" => $levBynavn,
+                "postalCode" => $levPostnr,
                 "countrySubentity" => "",
                 "addressLine" => "",
                 "countryCode" => $countryCode
             ];
-        }else if($r_faktura["addr1"] !== "" && $r_faktura["bynavn"] !== "" && $r_faktura["postnr"] !== ""){
+        }else if($customerAddr1 !== "" && $customerBynavn !== "" && $customerPostnr !== ""){
             // 20260604 - Fallback to main address if delivery address is incomplete
             $deliverAddress = [
-                "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)),
-                "buildingNumber" => end(explode(" ", $r_faktura["addr1"])),
+                "streetName" => implode(" ", explode(" ", $customerAddr1, -1)),
+                "buildingNumber" => end(explode(" ", $customerAddr1)),
                 "inhouseMail" => $r_faktura["email"],
-                "additionalStreetName" => $r_faktura["addr2"],
-                "attentionName" => $r_faktura["kontakt"],
-                "cityName" => $r_faktura["bynavn"],
-                "postalCode" => $r_faktura["postnr"],
+                "additionalStreetName" => $customerAddr2,
+                "attentionName" => $customerKontakt,
+                "cityName" => $customerBynavn,
+                "postalCode" => $customerPostnr,
                 "countrySubentity" => "",
                 "addressLine" => "",
                 "countryCode" => $countryCode
@@ -437,20 +462,20 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
-                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "streetName" => implode(" ", explode(" ", $customerAddr1, -1)), ## 20260604 - Updated to use fallback address logic
+                    "buildingNumber" => end(explode(" ", $customerAddr1)), ## 20260604 - Updated to use fallback address logic
                     "inhouseMail" => $r_faktura["email"],
-                    "additionalStreetName" => $r_faktura["addr2"],
-                    "attentionName" => $r_faktura["kontakt"],
-                    "cityName" => $r_faktura["bynavn"],
-                    "postalCode" => $r_faktura["postnr"],
+                    "additionalStreetName" => $customerAddr2,
+                    "attentionName" => $customerKontakt,
+                    "cityName" => $customerBynavn,
+                    "postalCode" => $customerPostnr,
                     "countrySubentity" => "",
                     "addressLine" => "",
                     "countryCode" => $countryCode
                 ],
                 "contact" => [
                     "initials" => ($initials !== null && $initials !== "") ? $initials : "",
-                    "name" => ($r_faktura["kontakt"] !== "") ? $r_faktura["kontakt"] : $r_faktura["firmanavn"],
+                    "name" => ($customerKontakt !== "") ? $customerKontakt : $r_faktura["firmanavn"],
                     "telephone" => strval($r_faktura["phone"]),
                     "electronicMail" => $r_faktura["email"]
                 ]
@@ -582,13 +607,14 @@
         if(empty($cvrnr_with_prefix) || $cvrnr_with_prefix === "DK"){
             $missingFields[] = "CVR-nummer";
         }
-        if(empty($data["accountingCustomerParty"]["postalAddress"]["streetName"])){
+        // Check customer address (which may have been set to delivery address as fallback)
+        if(empty($customerAddr1)){
             $missingFields[] = "Gadeadresse";
         }
-        if(empty($data["accountingCustomerParty"]["postalAddress"]["cityName"])){
+        if(empty($customerBynavn)){
             $missingFields[] = "By";
         }
-        if(empty($data["accountingCustomerParty"]["postalAddress"]["postalCode"])){
+        if(empty($customerPostnr)){
             $missingFields[] = "Postnummer";
         }
         if(empty($data["invoiceLines"]) || count($data["invoiceLines"]) === 0){
