@@ -2747,14 +2747,14 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			if ($digital_status == "Sent") {
 			?>
 				<script>
-					if (confirm('fakturen er allerede sendt digitalt vil du sende igen?') == true)
-						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+					if (confirm('kreditnotaen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php
 			} else {
 			?>
 				<script>
-					window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank')
+					window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank')
 				</script>
 			<?php
 			}
@@ -2775,14 +2775,14 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			if ($digital_status == "Sent") {
 			?>
 				<script>
-					if (confirm('fakturen er allerede sendt digitalt vil du sende igen?') == true)
-						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+					if (confirm('kreditnotaen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php
 			} else {
 			?>
 				<script>
-					window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank')
+					window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank')
 				</script>
 			<?php
 			}

@@ -46,7 +46,7 @@
                 "department" => "",
                 "streetName" => explode(" ",$res["addr1"])[0],
                 "additionalStreetName" => $res["addr2"],
-                "buildingNumber" => end(explode(" ", $res["addr1"])),
+                "buildingNumber" => array_slice(explode(" ", $res["addr1"]),-1)[0],
                 "inhouseMail" => "",
                 "cityName" => $res["bynavn"],
                 "postalCode" => $res["postnr"],
@@ -156,7 +156,6 @@
 				$errorNumber = curl_errno($ch);
 				$errorMessage = curl_error($ch);
 				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'statusCode' => $httpCode];
-				json_encode($error, JSON_PRETTY_PRINT);
 				
 				// save response in file in temp folder
 				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
@@ -229,15 +228,19 @@
         $headers[] = 'Authorization: '.$apiKey;
         $headers[] = 'Content-Type: application/json';
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_HEADER, 1);
 
-        $result = curl_exec($ch);
+        $rawResponse = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $responseHeaders = substr($rawResponse, 0, $headerSize);
+        $result = substr($rawResponse, $headerSize);
+
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
-        
+
         // 20260604 - Save raw response before JSON decoding for better error diagnosis
-        file_put_contents("../temp/$db/fakture-result-raw-$ranStr.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---RAW RESPONSE---\n" . $result);
+        file_put_contents("../temp/$db/fakture-result-raw-$ranStr.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---HEADERS---\n" . $responseHeaders . "\n---RAW RESPONSE---\n" . $result);
         
         if (curl_errno($ch)) {
             // Curl connection error - don't continue
@@ -253,6 +256,7 @@
             exit();
         }
         
+        $rawJsonResponse = $result;
         $result = json_decode($result, true);
         
         $randomString = '';
@@ -260,7 +264,7 @@
         for ($i = 0; $i < 10; $i++) {
             $randomString .= $characters[rand(0, 4)];
         }
-        if(!isset($result["base64EncodedDocumentXml"]) || $result["base64EncodedDocumentXml"] == ""){
+        if(!isset($result["base64EncodedDocumentXml"]) || trim($result["base64EncodedDocumentXml"]) == ""){
             // An error occurred - check for easyUBL or Semantic error messages
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
@@ -278,7 +282,7 @@
             ];
             
             // save response in file in temp folder with full details for debugging
-            error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE),__FILE__ . " line " . __LINE__);
+            error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             
             // Determine which error to show
             $displayError = "";
@@ -307,7 +311,27 @@
             exit;
         }
         // decode base64
-        $xml = base64_decode($result["base64EncodedDocumentXml"]);
+        $xml = base64_decode($result["base64EncodedDocumentXml"], true);
+        if($xml === false || trim($xml) == ""){
+            $error = [
+                'error' => 'Empty or invalid XML returned from EasyUBL',
+                'http_code' => $httpCode,
+                'json_error' => json_last_error_msg(),
+                'base64_length' => strlen($result["base64EncodedDocumentXml"]),
+                'decoded_xml_length' => ($xml === false) ? false : strlen($xml),
+                'full_response' => $result,
+                'raw_response' => $rawJsonResponse,
+                'sent_data' => $data
+            ];
+            file_put_contents("../temp/$db/fakture-empty-xml-error-$randomString.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            curl_close($ch);
+            ?>
+            <script>
+                alert("Transmission fejl:\n\nEasyUBL returnerede en tom eller ugyldig XML-fil. Dokumentet er derfor ikke sendt videre.\n\nFejllogging gemt til debugging.");
+            </script>
+            <?php
+            exit;
+        }
         file_put_contents("../temp/$db/xml-$randomString.xml", $xml);
         curl_close($ch);
         $ch = curl_init();
@@ -345,7 +369,8 @@
         }
         $initials = implode("", $initials);
 
-        if($r_faktura["art"] == "DK"){
+        $type = strtolower(trim($type));
+        if($type == "creditnote"){
             $creditNote = "Cre";
         }else{
             $creditNote = "Inv";
@@ -433,7 +458,7 @@
             $deliverAddress = [
                 
                 "streetName" => implode(" ", explode(" ", $levAddr1, -1)), ## 20260518 - NTR - Street name without building number.
-                "buildingNumber" => end(explode(" ", $levAddr1)),
+                "buildingNumber" => array_slice(explode(" ", $levAddr1), -1)[0],
                 "inhouseMail" => $r_faktura["email"],
                 "additionalStreetName" => $levAddr2,
                 "attentionName" => $levKontakt,
@@ -608,8 +633,7 @@
             
             $beskrivelse = var2str($res["beskrivelse"], $id, $res['posnr'], $res["varenr"], $res["antal"], $res["enhed"], $price, $res["rabat"], $res["procent"], $res["serienr"], $res["momssats"]);
             $line[] = array(
-                "id" => $res["id"],
-                "posnr" => $res["posnr"], ## 20260604 - Added posnr field to match UBL structure change
+                "id" => strval($res["posnr"]),
                 "quantity" => $res["antal"],
                 "quantityUnitCode" => "EA",
                 "price" => $price,
@@ -624,6 +648,14 @@
                 "accountingCost" => "",
                 "commodityCode" => "",
                 "isAllowanceCharge" => false,
+                "item" => [
+                    "buyersItemID" => "",
+                    "sellersItemID" => ($res["varenr"] != "" && $res["varenr"] != null && $res["varenr"] != "null") ? strval($res["varenr"]) : "",
+                    "standardItemID" => "",
+                    "standardItemScheme" => "",
+                    "cN8" => "",
+                    "additionalItemProperti" => [],
+                ],
             );
         }
         $data["invoiceLines"] = $line;
@@ -650,7 +682,7 @@
         }
         
         if(!empty($missingFields)){
-            error_log(json_encode(["error" => "Påkrævede felter mangler", "missing_fields" => $missingFields, "order_id" => $id], JSON_PRETTY_PRINT), __FILE__ . " line " . __LINE__);
+            error_log(json_encode(["error" => "Påkrævede felter mangler", "missing_fields" => $missingFields, "order_id" => $id], JSON_PRETTY_PRINT));
             ?>
             <script>
                 alert("Fejl ved sending til Peppol:\n\nManglende felter: <?php echo htmlspecialchars(implode(', ', $missingFields)); ?>\n\nKontroller venligst ordren og kundeoplysningerne før transmission.");
