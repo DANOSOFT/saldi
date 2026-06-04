@@ -17,7 +17,7 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
@@ -31,14 +31,14 @@
 // 20220628 PHR Function usdate. Corrected type $slutaar was $slutadaar ???
 // 20220716 PHR Function tekster. Texts is not fetched from 'inportfiler/egne_tekster.csv' if file exists
 // 20220716 PHR Function usdecimal. $tal (number) is now trimmed as it returned 0 if space in either end.
-// 20230224 CA  Function findtekst. If tekstid has other characters than digits it returns tekstid. 
+// 20230224 CA  Function findtekst. If tekstid has other characters than digits it returns tekstid.
 //              So when developing just write findtekst('Text showed', $sprog_id)
 // 20230321 PHR Added "-colorspace RGB" in function barcode to make it work in Ubuntu 20; #20230321
 // 20230623 PHR Addad function 'str_starts_with' (included in php8)
 // 20230707 PHR Moved some functions to stdFunc/
-// 20230730 LOE Minor modifications, absolute path for stdFunc* 
+// 20230730 LOE Minor modifications, absolute path for stdFunc*
 // 20230801 LOE locateDir() created, this assists to search for a file with relation to accounting directory
-// 20240416 LOE Converted some strings to int before maths operation and also Initialized $bynavn = null 
+// 20240416 LOE Converted some strings to int before maths operation and also Initialized $bynavn = null
 // 20240726 PHR function findtekst now accepts textstring as first argument
 // 20240815 PHR function findtekst moved to stdFunc/findTxt.php
 // 20240925 PBLM we now send price to the api aswell
@@ -54,25 +54,21 @@
 // 20260127 PHR corrected error in function get_next_order_number
 // 20260217 PHR added "(float)$tal" in function afrund
 // 20260429 PHR Check for $regnaar in function transtjek()
-// 20260518 CL/PHR copy_row() springer batch_due_date og batch_batch_no over ved kopiering af ordrelinjer
-// 20260602 NTR Changed if_isset to accept nested keys as an array, so you can do if_isset($array, $default, ['key1', 'key2']) to check for $array['key1']['key2']
-// -------- As well as adding the ability to check for object properties if you pass an object instead of an array and the key is a string, so you can do if_isset($object, $default, 'property') to check for $object->property
-// -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
 // 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
 
-include(__DIR__ . '/stdFunc/dkDecimal.php');
-include(__DIR__ . '/stdFunc/nrCast.php');
-include(__DIR__ . '/stdFunc/strStartsWith.php');
-include(__DIR__ . '/stdFunc/usDecimal.php');
-include(__DIR__ . '/stdFunc/navStack.php');
-include(__DIR__ . '/stdFunc/fefo.php');
+include('stdFunc/dkDecimal.php');
+include('stdFunc/nrCast.php');
+include('stdFunc/strStartsWith.php');
+include('stdFunc/usDecimal.php');
+include('stdFunc/navStack.php');
+include('stdFunc/fefo.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
 		 * Locates a directory by moving up the directory tree.
-		 * 
-		 * This function starts with a given relative directory and checks if it exists. 
-		 * If it doesn't, the function keeps moving one directory level up by prepending `../` 
+		 *
+		 * This function starts with a given relative directory and checks if it exists.
+		 * If it doesn't, the function keeps moving one directory level up by prepending `../`
 		 * to the directory path. It stops after 5 iterations or if the directory is found.
 		 *
 		 * @param string $baseRelativeDir - The relative directory to locate.
@@ -127,7 +123,7 @@ if (!function_exists('get_relative')) {
     function get_relative() {
 		/**
 		 * Gets the relative path to navigate up the directory structure based on the current URL.
-		 * It calculates the number of directory levels in the current URL's path and returns a relative path 
+		 * It calculates the number of directory levels in the current URL's path and returns a relative path
 		 * consisting of `../` that allows you to move up in the directory structure.
 		 * Usefull for includes inside include files, as it returns a relative path to the project root.
 		 *
@@ -147,6 +143,31 @@ if (!function_exists('get_relative')) {
     }
 }
 
+// if (!function_exists('if_isset')) {
+// 	function if_isset(&$var, $return = NULL)
+// 	{
+		/**
+		 * Checks if a variable is set and not empty.
+		 * If set and not empty, returns the value of the variable.
+		 * Otherwise, returns the default value provided.
+		 *
+		 * @param mixed $var - The variable to check.
+		 * @param mixed $return - The value to return if the variable is not set or is empty (default: NULL).
+		 *
+		 * @return mixed - The value of the variable if set and not empty, otherwise the default value.
+		 * ######## Known Behaviour #######,
+		 * This doesn't return True if $var === 0 as 0 is considered Falsy in PHP. But 0 can be set and retrieved as value in $return param.
+		 * Same thing for False value.
+		 * if_isset(false) //NULL
+		 * if_isset(0)     //NULL
+		 * #################
+		 */
+// 		if ($var)
+// 			return ($var);
+// 		else
+// 			return ($return);
+// 	}
+// }
 
 if (!function_exists('if_isset')) {
     function if_isset($arrayOrVar, $default = null, $key = null) {
@@ -158,7 +179,7 @@ if (!function_exists('if_isset')) {
          *
          * Behavior for special values:
          * ----------------------------------------
-         * - `false`: Treated as "set".
+         * - `false`: Treated as "not set" and returns NULL . Explicitly set for single values
          * - `null`: If the variable or array key is explicitly `null`
          * - `0`: Considered a valid value, returned as-is (0 is treated as set).
          * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
@@ -166,41 +187,31 @@ if (!function_exists('if_isset')) {
          * #############USECASE####################
 		 * $sektion = if_isset($_GET,null,'sektion');
 		 * ########################################
-		 * 
+		 *
          * @param mixed $arrayOrVar The array or variable to check.
-         * @param mixed $default    The default value to return if the variable or array's key is not set.
+         * @param mixed $default    The default value to return if the variable or key is not set.
          * @param mixed $key        The key (if array is passed).
          * @return mixed           The actual value or the default.
          */
 
-        // Case 1: One/Two argument — treat as a single variable fallback
+        // Case 1: One argument — treat as a single variable fallback
         if ($key === null) {
-            // If key is not provided, we're dealing with just a single variable.
+            // If key is not provided, we're dealing with just a single variable
+
+			 // Check if the variable is explicitly false and return NULL
+			 if ($arrayOrVar === false) {
+				return NULL;
+			}
+
 			return isset($arrayOrVar) ? $arrayOrVar : $default;
         }
 
-        // Case 2: Three arguments — array + key or object + property
-		if(!is_array($key)){
-			if (isset($arrayOrVar) && is_array($arrayOrVar)) {
-				return array_key_exists($key, $arrayOrVar) ? $arrayOrVar[$key] : $default;
-			}
-			if (is_object($arrayOrVar)) {
-				return property_exists($arrayOrVar, $key) ? $arrayOrVar->$key : $default;
-			}
-		} else {
-			// Case 3: If $key is an array, we want to check nested keys
-			$current = $arrayOrVar;
-			foreach ($key as $k) {
-				if (is_array($current) && array_key_exists($k, $current)) {
-					$current = $current[$k];
-				} elseif (is_object($current) && property_exists($current, $k)) {
-					$current = $current->$k;
-				} else {
-					return $default; // Key doesn't exist at some level
-				}
-			}
-			return $current; // All keys exist, return the final value
-		}
+        // Case 2: Two arguments — array + key
+        if (is_array($arrayOrVar) && array_key_exists($key, $arrayOrVar)) {
+            // If it's an array and the key exists, return the value or NULL if it's false
+            $value = $arrayOrVar[$key];
+            return $value === false ? null : $value;
+        }
 
         // Default case: Return the default value
         return $default;
@@ -212,7 +223,7 @@ if (!function_exists('usdate')) {
 	{
 		/**
 		 * Standardizes and validates a date string and returns it in "Y-m-d" format.
-		 * The function handles various date formats, adjusts for incorrect or missing dates, 
+		 * The function handles various date formats, adjusts for incorrect or missing dates,
 		 * and checks if the date is valid within the given month and year.
 		 *
 		 * @param string $date - The date string to be validated and standardized.
@@ -356,7 +367,7 @@ if (!function_exists('afrund')) {
 		 *
 		 * @return float - The number rounded to the specified number of decimal places.
 		 */
-		# Korrigerer afrundingsfejl i php 
+		# Korrigerer afrundingsfejl i php
 		$tal       = (float)$tal;
 		$decimaler = (int)$decimaler;
 		$tmp = 0.001;
@@ -480,7 +491,7 @@ if (!function_exists('farvenuance')) {
 		 * Adjusts the color by applying a specified nuance to its red, green, and blue components.
 		 *
 		 * This function takes a color and a nuance value to modify the color's components (red, green, blue).
-		 * The color and nuance values are expected to be in hexadecimal format. The nuance is applied to each 
+		 * The color and nuance values are expected to be in hexadecimal format. The nuance is applied to each
 		 * component of the color individually, allowing the creation of lighter or darker shades.
 		 * The function returns a new color in hexadecimal format after the nuance is applied.
 		 *
@@ -489,7 +500,7 @@ if (!function_exists('farvenuance')) {
 		 * a positive sign indicates an increase in that component.
 		 *
 		 * @param string $farve - The base color in hexadecimal format (e.g., "#ff5733").
-		 * @param string $nuance - The nuance value to apply to the color. The format is a string like "-33+33-33", where 
+		 * @param string $nuance - The nuance value to apply to the color. The format is a string like "-33+33-33", where
 		 *                         each pair of characters represents adjustments for red, green, and blue components.
 		 *
 		 * @return string - The modified color in hexadecimal format (e.g., "#ff5733").
@@ -567,10 +578,10 @@ if (!function_exists('linjefarve')) {
 		/**
 		 * Determines the line color based on the background color and specified nuance values.
 		 *
-		 * This function checks whether the provided `$linjefarve` matches the odd or even background color. 
-		 * If it does, it adjusts the background color by applying a nuance to the even background (`$lige_bg`). 
-		 * If it doesn't match, it adjusts the background color by applying a nuance to the odd background (`$ulige_bg`). 
-		 * The function uses a helper function `farvenuance` to apply the nuance, if specified. 
+		 * This function checks whether the provided `$linjefarve` matches the odd or even background color.
+		 * If it does, it adjusts the background color by applying a nuance to the even background (`$lige_bg`).
+		 * If it doesn't match, it adjusts the background color by applying a nuance to the odd background (`$ulige_bg`).
+		 * The function uses a helper function `farvenuance` to apply the nuance, if specified.
 		 * The default nuance and standard nuance values can be adjusted for custom color adjustments.
 		 *
 		 * @param string $linjefarve - The current line color that is being evaluated.
@@ -581,7 +592,7 @@ if (!function_exists('linjefarve')) {
 		 *
 		 * @return string - The adjusted background color, with or without nuance applied.
 		 *
-		 * @note The function compares `$linjefarve` with `$ulige_bg` or a nuanced version of it, and applies `$nuance` if specified. 
+		 * @note The function compares `$linjefarve` with `$ulige_bg` or a nuanced version of it, and applies `$nuance` if specified.
 		 *       If no nuance is applied, it simply returns the appropriate background color (`$lige_bg` or `$ulige_bg`).
 		 */
 
@@ -634,7 +645,7 @@ if (!function_exists('copy_row')) {
 				$x++;
 				$fieldName[$x] = db_field_name($q, $r);
 				$fieldType[$x] = db_field_type($q, $r);
-				if ($fieldName[$x] != 'batch_due_date' && $fieldName[$x] != 'batch_batch_no') {
+				if ($fieldName[$x] != 'batch_due_date' && $fieldName[$x] !='batch_batch_no') {
 					($fieldstring) ? $fieldstring .= "," . $fieldName[$x] : $fieldstring = $fieldName[$x];
 				}
 			}
@@ -662,7 +673,8 @@ if (!function_exists('copy_row')) {
 				}
 				if ($fieldName[$y] == 'ordre_id') {
 					$ordre_id = $felt[$y];
-				if ($fieldName[$y] != 'batch_due_date' && $fieldName[$y] != 'batch_batch_no') {
+				}
+				if ($fieldName[$y] != 'batch_due_date' && $fieldName[$y] !='batch_batch_no') {
 					($fieldvalues) ? $fieldvalues .= ",'" . $felt[$y] . "'" : $fieldvalues = "'" . $felt[$y] . "'";
 					($selectstring) ? $selectstring .= " and " . $fieldName[$y] . "='" . $felt[$y] . "'" : $selectstring = $fieldName[$y] . "='" . $felt[$y] . "'";
 				}
@@ -682,8 +694,8 @@ if (!function_exists('reducer')) {
 		/**
 		 * Removes trailing zeros and decimal points from a number string.
 		 *
-		 * This function takes a string representation of a number, and removes any trailing zeros 
-		 * or decimal points (either period `.` or comma `,`). The function works by checking if the 
+		 * This function takes a string representation of a number, and removes any trailing zeros
+		 * or decimal points (either period `.` or comma `,`). The function works by checking if the
 		 * number ends with these characters and then removing them one by one until the conditions are met.
 		 *
 		 * @param string $tal - The number as a string to be reduced by removing trailing zeros and decimal points.
@@ -702,14 +714,14 @@ if (!function_exists('transtjek')) {
 		/**
 		 * Checks for any imbalance in the accounting transactions.
 		 *
-		 * This function calculates the difference between the total debet and kredit values 
-		 * in the `transaktioner` table. If the absolute difference is greater than or equal to 1, 
-		 * it sends an email notification regarding the imbalance. The function returns the absolute 
+		 * This function calculates the difference between the total debet and kredit values
+		 * in the `transaktioner` table. If the absolute difference is greater than or equal to 1,
+		 * it sends an email notification regarding the imbalance. The function returns the absolute
 		 * difference between debet and kredit.
 		 *
 		 * @return float - The absolute difference between the debet and kredit values in the database.
 		 *                 If the difference is less than 1, the return value will be 0.
-		 * 
+		 *
 		 * @note The function sends an email notification to 'fejl@saldi.dk' if the imbalance is detected.
 		 *       The email contains details of the database and the imbalance amount.
 		 */
@@ -718,7 +730,7 @@ if (!function_exists('transtjek')) {
 		if (!$regnaar) { # 20260429
 			$qtxt = "select max(kodenr) from grupper where art = 'RA'";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$regnaar = $r[0];	
+			$regnaar = $r[0];
 		}
 		$qtxt = "select box1,box2 from grupper where art = 'RA' and kodenr = '$regnaar'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -843,7 +855,7 @@ if (!function_exists('cvrnr_land')) {
 		if (!$cvrnr) {
 			$retur = "";
 		} elseif (is_numeric(substr($cvrnr, 0, 1))) {
-			$retur = $baseCountry;
+			$retur = $baseCountry; // numerisk første tegn = indenlandsk CVR
 		} elseif (is_numeric(substr($cvrnr, 1, 1))) {
 			$retur = $baseCountry; // bogstav + cifre = indenlandsk NIF-format (fx spansk B93248185)
 		} else {
@@ -908,18 +920,18 @@ if (!function_exists('str2up')) {
 }
 
 # Tekstvinduer i CSS i stedet for JavaScript Alert - 20141031 - 20141121 - 20141212
-# boksflytbar=span giver kun div, boksflytbar=td giver en tabel i en div boksflybar=0 giver ingen mulighed for at flytte. 
+# boksflytbar=span giver kun div, boksflytbar=td giver en tabel i en div boksflybar=0 giver ingen mulighed for at flytte.
 if (!function_exists('tekstboks')) {
 	function tekstboks($bokstekst, $bokstype = 'advarsel', $boksid = 'boks1', $boksflytbar = 'span', $boksplacering = 'mm')
 	{
 		$boksindhold = "\n<!-- Tekstboks " . $boksid . " - start -->\n";
 
 		if ($boksflytbar === 'td') {
-			# Nedenstående linjer er forsøg på at påvirker det originale udseende så lidt som muligt 
-# ved brug af den flytbare boks med <table> inden i en <div>. Læser man dokumentationen, 
-# så skulle et element med display:none ikke have nogen indflydelse på udseendet, men det 
-# har det i både Opera 25.0 og Chrome 38.0.2125.111 m. 
-# 
+			# Nedenstående linjer er forsøg på at påvirker det originale udseende så lidt som muligt
+# ved brug af den flytbare boks med <table> inden i en <div>. Læser man dokumentationen,
+# så skulle et element med display:none ikke have nogen indflydelse på udseendet, men det
+# har det i både Opera 25.0 og Chrome 38.0.2125.111 m.
+#
 # Claus Agerskov 20141121.
 #		$boksindhold.="<div style='display:none'><table style='display:none'><tr><td>Test</td></tr></table></div>\n";
 #		$boksindhold.="<table style='display:none'><tr><td>Test</td></tr></table>\n";
@@ -1023,9 +1035,9 @@ if (!function_exists('bokshjoerne')) {
 		 * @param string $kant_venstre - The horizontal position (left) of the box. Default is '1%'.
 		 * @param string $kant_hoejre - The horizontal position (right) of the box. Default is '68%'.
 		 * @param string $kant_midt - A middle position for the box. Default is '40%' (not used in this implementation).
-		 * 
+		 *
 		 * @return string - The HTML for the clickable corner icon element that triggers the box movement.
-		 * 
+		 *
 		 * @note The `onClick` event changes the position of the box with the specified ID to the selected corner when clicked.
 		 */
 
@@ -1069,14 +1081,14 @@ if (!function_exists('find_varemomssats')) {
 		 * Retrieves and sets the VAT rate for an order line item.
 		 *
 		 * This function calculates the VAT rate for a specific order line based on various conditions,
-		 * including whether the item is exempt from VAT, the VAT rate associated with the order, and the 
-		 * VAT rate associated with the item's group. The function updates the VAT rate for the order line 
+		 * including whether the item is exempt from VAT, the VAT rate associated with the order, and the
+		 * VAT rate associated with the item's group. The function updates the VAT rate for the order line
 		 * in the database and returns the determined VAT rate.
 		 *
 		 * @param int $linje_id - The ID of the order line whose VAT rate is to be determined.
-		 * 
+		 *
 		 * @return string - The calculated VAT rate (as a string) for the given order line.
-		 * 
+		 *
 		 * @note This function directly updates the `ordrelinjer` table with the determined VAT rate.
 		 */
 
@@ -1148,7 +1160,7 @@ if (!function_exists('infoboks')) {
 		 * @param string $kant_hoejre - The right margin (default is '68%').
 		 * @param string $kant_midt - The horizontal position (default is '40%').
 		 * @param string $boksid - The unique ID for the information box, used to show/hide the box (default is an empty string).
-		 * 
+		 *
 		 * @return string - The HTML markup for the clickable element with the information symbol and the tooltip functionality.
 		 */
 
@@ -1169,14 +1181,14 @@ if (!function_exists('find_lagervaerdi')) {
 		/**
 		 * Calculates the total inventory value for a given account number and date.
 		 *
-		 * This function computes the total value of inventory by considering purchases 
-		 * and sales for the specified account number, based on a specific cutoff date (`$slut`). 
+		 * This function computes the total value of inventory by considering purchases
+		 * and sales for the specified account number, based on a specific cutoff date (`$slut`).
 		 * It fetches the relevant data from multiple tables and returns the inventory value.
 		 *
 		 * @param string $kontonr - The account number for which the inventory value should be calculated.
 		 * @param string $slut - The cutoff date for the inventory value calculation in 'YYYY-MM-DD' format.
 		 * @param string $tidspkt - Specifies the time point ('start' or other) for the calculation.
-		 * 
+		 *
 		 * @return float|string - The total inventory value if calculations are successful, or 'stop' if no cutoff date is provided.
 		 */
 
@@ -1261,7 +1273,7 @@ if (!function_exists('find_lagervaerdi')) {
 				if ($tidspkt == 'start')
 					$qtxt = "select sum(antal) as antal from batch_kob where vare_id = $vare_id[$x] and kobsdate < '$slut'and kobsdate < '$slut'"; # or kobsdate < '$slut'
 				else
-					$qtxt = "select sum(antal) as antal from batch_kob where vare_id = $vare_id[$x] and kobsdate > '1970-01-01' and kobsdate <= '$slut'"; # or kobsdate <= '$slut'	
+					$qtxt = "select sum(antal) as antal from batch_kob where vare_id = $vare_id[$x] and kobsdate > '1970-01-01' and kobsdate <= '$slut'"; # or kobsdate <= '$slut'
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$antal[$x] += $r['antal'];
 			}
@@ -1292,7 +1304,7 @@ if (!function_exists('mb_ucfirst')) {
 		 *
 		 * @param string $str - The input string where the first character should be converted to uppercase.
 		 * @param string $encoding - The character encoding to be used (default is UTF-8).
-		 * 
+		 *
 		 * @return string - The string with the first character converted to uppercase, and the rest unchanged.
 		 */
 
@@ -1308,12 +1320,12 @@ if (!function_exists('mb_ucwords')) {
 		/**
 		 * Capitalizes the first letter of each word in a string.
 		 *
-		 * This function performs a title case conversion on a string, meaning it capitalizes 
-		 * the first letter of each word while keeping the rest of the letters in lowercase. 
+		 * This function performs a title case conversion on a string, meaning it capitalizes
+		 * the first letter of each word while keeping the rest of the letters in lowercase.
 		 * It uses multibyte string handling to support UTF-8 encoded characters and danish æøå.
 		 *
 		 * @param string $str - The input string to be converted.
-		 * 
+		 *
 		 * @return string - The string with each word capitalized.
 		 */
 
@@ -1336,7 +1348,7 @@ if (!function_exists('ftptest')) {
 		 * @param string $server - The FTP server address.
 		 * @param string $bruger - The FTP username.
 		 * @param string $kode - The FTP password.
-		 * 
+		 *
 		 * @return void - This function prints an alert message indicating whether the FTP connection was successful or not.
 		 */
 
@@ -1369,15 +1381,15 @@ if (!function_exists('valutaopslag')) {
 		/**
 		 * Retrieves and applies the exchange rate for a given currency on a specific transaction date.
 		 *
-		 * This function checks the `valuta` table for the exchange rate (`kurs`) of a given currency (`$valuta`) 
-		 * on or before the specified transaction date (`$transdate`). If a valid exchange rate is found, it calculates 
-		 * the amount in the base currency by multiplying the amount by the exchange rate, and returns the adjusted amount 
+		 * This function checks the `valuta` table for the exchange rate (`kurs`) of a given currency (`$valuta`)
+		 * on or before the specified transaction date (`$transdate`). If a valid exchange rate is found, it calculates
+		 * the amount in the base currency by multiplying the amount by the exchange rate, and returns the adjusted amount
 		 * along with a relevant account code. If no exchange rate is found, an error message is displayed.
 		 *
 		 * @param float $amount - The amount in the foreign currency to be converted.
 		 * @param string $valuta - The currency code for which the exchange rate is being looked up.
 		 * @param string $transdate - The transaction date for which the exchange rate should be applied.
-		 * 
+		 *
 		 * @return array - An array containing:
 		 *                 - The converted amount after applying the exchange rate.
 		 *                 - A currency-related account code (`diffkonto`).
@@ -1415,7 +1427,7 @@ if (!function_exists('regnstartslut')) {
 		 * The result is returned as a string with the start and end dates separated by a tab character.
 		 *
 		 * @param string $regnaar - The financial year identifier (typically a code or number).
-		 * 
+		 *
 		 * @return string - A string containing the start and end dates for the financial year,
 		 *                  formatted as "YYYY-MM-DD	YYYY-MM-DD".
 		 */
@@ -1435,7 +1447,7 @@ if (!function_exists('lagerreguler')) {
 		/**
 		 * Adjusts the stock levels of an item in the inventory system.
 		 *
-		 * This function updates the stock levels of a given product (identified by its `vare_id`) in the 
+		 * This function updates the stock levels of a given product (identified by its `vare_id`) in the
 		 * inventory system, considering factors like variant, stock location, and transaction date. It handles
 		 * both stock increases and decreases, and updates related tables like `lagerstatus`, `batch_kob`, and `batch_salg`.
 		 * It also ensures synchronization with an external system by calling `sync_shop_vare` and updates the overall stock level.
@@ -1446,7 +1458,7 @@ if (!function_exists('lagerreguler')) {
 		 * @param int $lager - The stock location identifier.
 		 * @param string $transdate - The transaction date of the stock adjustment.
 		 * @param int $variant_id - The variant identifier of the item (if applicable).
-		 * 
+		 *
 		 * @return void - This function does not return any value but modifies the stock levels in the database.
 		 */
 
@@ -1554,7 +1566,7 @@ if (!function_exists('saldikrypt')) {
 		 *
 		 * @param int $id - A numeric ID used in the transformation process.
 		 * @param string $pw - The password to be encrypted.
-		 * 
+		 *
 		 * @return string - The resulting MD5 hash after all transformations.
 		 */
 
@@ -1582,7 +1594,7 @@ if (!function_exists('find_beholdning')) {
 		 * Fetches the current stock levels of an item based on various sales and purchase orders.
 		 * This function calculates and returns the stock levels by evaluating open and closed orders
 		 * and the quantity of items related to those orders.
-		 * 
+		 *
 		 * The stock levels are categorized into:
 		 * - In sales offer
 		 * - Sales offer #
@@ -1592,12 +1604,12 @@ if (!function_exists('find_beholdning')) {
 		 * - Buy proposal #
 		 * - In buy order
 		 * - Buy order #
-		 * 
+		 *
 		 * @param int $vare_id - The item ID for which the stock levels are being calculated.
 		 * @param bool $udskriv - Flag to indicate whether the results should be printed (not used in the function).
-		 * 
-		 * @return array $beholdning - An associative array with stock levels for various categories. 
-		 * Each index represents a category (e.g., 'in sales offer', 'sales order', etc.) and contains 
+		 *
+		 * @return array $beholdning - An associative array with stock levels for various categories.
+		 * Each index represents a category (e.g., 'in sales offer', 'sales order', etc.) and contains
 		 * the corresponding stock or order information.
 		 */
 
@@ -1622,7 +1634,7 @@ if (!function_exists('find_beholdning')) {
 		$beholdning[2] = 0;  // sales offer#
 		$beholdning[3] = 0;  // in sales order
 		$beholdning[4] = 0;  // sales ordre#
-		$beholdning[5] = ''; // in buy proposal  
+		$beholdning[5] = ''; // in buy proposal
 		$beholdning[6] = ''; // buy proposal#
 		$beholdning[7] = ''; // in buy order
 		$beholdning[8] = ''; // buy order#
@@ -1679,7 +1691,7 @@ if (!function_exists('hent_shop_ordrer')) {
 		  if ($from_date)
 			$api_txt .= "&from_date=$from_date";
 		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-		  
+
 		  if($r["box5"]){
 			$api_txt = "$r[box5]?put_new_orders=1";
 		  if ($shop_ordre_id)
@@ -1700,18 +1712,18 @@ if (!function_exists('hent_shop_ordrer')) {
 	  }
 	}
   } #endfunc hent_shop_ordrer()
-  
+
 
 if (!function_exists('alert')) {
 	function alert($msg)
 	{
 		/**
 		 * Displays a JavaScript alert message on the client's browser.
-		 * This function generates a JavaScript `alert()` that will display a message 
+		 * This function generates a JavaScript `alert()` that will display a message
 		 * to the user in a popup dialog box.
-		 * 
+		 *
 		 * @param string $msg - The message to be displayed in the alert dialog.
-		 * 
+		 *
 		 * @return void - This function does not return a value; it simply outputs JavaScript.
 		 */
 		echo "<script type='text/javascript'>alert('$msg');</script>";
@@ -1760,7 +1772,7 @@ if(!function_exists("sync_shop_price")){
 	  }
 	}
   }
-  
+
 
 if (!function_exists('sync_shop_vare')) {
 	function sync_shop_vare($vare_id, $variant_id, $lager) {
@@ -1773,19 +1785,19 @@ if (!function_exists('sync_shop_vare')) {
 		$api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
 		$api_fil2 = trim($r["box5"]);
 		$api_fil3 = trim($r["box6"]);
-		
+
 		if (!$api_fil) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 			fclose($log);
 			return ('no api');
 		}
-		
+
 		$qtxt = "select delvare,gruppe from varer where id='$vare_id'"; #20220110
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$itemGroup = (int) $r['gruppe'];
 		$partOfItem = $r['delvare'];
-		#if ($partOfItem) echo __line__." Id $vare_id is part of another item<br>";  	
+		#if ($partOfItem) echo __line__." Id $vare_id is part of another item<br>";
 		$qtxt = "select box8 from grupper where kodenr='$itemGroup' and art = 'VG' AND fiscal_year = $regnaar";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
 		// echo $qtxt;  // Debug line removed
@@ -1795,7 +1807,7 @@ if (!function_exists('sync_shop_vare')) {
 			fclose($log);
 			return ('no stock');
 		}
-		
+
 		$header = "User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
 		if ($variant_id) {
 			$qtxt = "select shop_variant from shop_varer where saldi_variant='$variant_id'";
@@ -1964,16 +1976,16 @@ if (!function_exists('sync_shop_vare')) {
 							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
 							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						}
-						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
+						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
 #if ($bruger_id == '-1') echo __line__." $txt<br>";
 						shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						if($api_fil2){
-							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
+							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
 #if ($bruger_id == '-1') echo __line__." $txt<br>";
 							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						}
 						if($api_fil3){
-							$txt = "$api_fil3?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
+							$txt = "$api_fil3?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
 #if ($bruger_id == '-1') echo __line__." $txt<br>";
 							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						}
@@ -1991,10 +2003,10 @@ if (!function_exists('getAvailable')) {
 		/**
 		 * Calculates the available quantity of an item and its total availability across all warehouses.
 		 * It checks the stock for each part of the item and returns the available quantity in the given stock and the total available quantity across all stocks.
-		 * 
+		 *
 		 * @param int $itemId - The ID of the item whose availability is being checked.
 		 * @param string $stockNo - The warehouse number where the availability is being checked.
-		 * 
+		 *
 		 * @return string - A pipe-separated string containing the total available quantity and the available quantity in the specified stock.
 		 */
 
@@ -2053,7 +2065,7 @@ if (!function_exists('create_debtor')) {
 	 * Creates a new debtor record in the 'adresser' table.
 	 * This function either generates a new account number or checks if a provided one is available.
 	 * It inserts the debtor's details, including company name, address, contact information, and payment terms.
-	 * 
+	 *
 	 * @param string $kontonr - The account number for the debtor. If not provided, a new number is generated.
 	 * @param string $firmanavn - The name of the debtor's company.
 	 * @param string $addr1 - The first line of the debtor's address.
@@ -2068,10 +2080,10 @@ if (!function_exists('create_debtor')) {
 	 * @param string $betalingsbet - The debtor's payment terms (e.g., "Net 30", "COD").
 	 * @param int $betalingsdage - The number of payment days allowed for the debtor.
 	 * @param string $kontakt - The name or contact information of the debtor's contact person.
-	 * 
+	 *
 	 * @return int|null - Returns the ID of the created debtor record if successful, or NULL if there was an error.
 	 */
-	include_once(__DIR__ . '/stdFunc/createDebitor.php');
+	include_once('stdFunc/createDebitor.php');
 }
 
 //                   ----------------------------- get_next_number ------------------------------
@@ -2081,10 +2093,10 @@ if (!function_exists('get_next_number')) {
 		/**
 		 * Generates the next available account number (kontonr) for a given 'art' (type).
 		 * It checks the existing account numbers in the specified table and ensures the new number is unique.
-		 * 
+		 *
 		 * @param string $table - The table name to search for existing account numbers.
 		 * @param string $art - The type/category associated with the account numbers.
-		 * 
+		 *
 		 * @return int - The next available account number.
 		 */
 
@@ -2111,14 +2123,14 @@ if (!function_exists('get_next_order_number')) {
 		/**
 		 * Generates the next available order number (ordrenr) for a given 'art' (type).
 		 * Uses database transactions and table locking to prevent race conditions and duplicate numbers.
-		 * 
+		 *
 		 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
-		 * 
+		 *
 		 * @return int - The next available order number.
 		 * @throws Exception - If unable to generate unique order number after maximum attempts.
 		 */
 		global $db_type;
-		
+
 		$max_attempts = 10;
 		$attempt = 0;
 		$ordrenr = null;
@@ -2147,18 +2159,18 @@ if (!function_exists('get_next_order_number')) {
 				// Use LOCK TABLE to ensure uniqueness and prevent race conditions
 				// FOR UPDATE with aggregate functions is not allowed in PostgreSQL
 				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
-				
+
 
 #				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
 				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) AS max_ordrenr ";
 				$qtxt.= "FROM (SELECT ordrenr FROM ordrer WHERE art = '$art' OR art = '$art2' FOR UPDATE) t";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
-				
+
 				// Double-check that this order number doesn't exist (extra safety)
 				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND (art = '$art' OR art = '$art2')";
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				
+
 				if (!$check_r || !$check_r['id']) {
 					// Order number is unique, commit transaction and return
 					transaktion('commit');
@@ -2171,11 +2183,11 @@ if (!function_exists('get_next_order_number')) {
 					usleep($rand); // Small random delay to reduce contention
 				}
 			}
-			
+
 			// If we get here, we couldn't generate a unique number
 			transaktion('rollback');
 			throw new Exception("Could not generate unique order number after $max_attempts attempts");
-			
+
 		} catch (Exception $e) {
 			transaktion('rollback');
 			throw $e;
@@ -2191,14 +2203,14 @@ if (!function_exists('get_next_invoice_number')) {
 		 * Generates the next available invoice number (fakturanr) for a given 'art' (type).
 		 * Uses database transactions and locking to prevent race conditions and duplicate numbers.
 		 * Handles non-numeric fakturanr field by using string comparison and conversion.
-		 * 
+		 *
 		 * @param string $art - The order type ('DO', 'DK', 'PO', etc.)
 		 * @param int $id - The order ID to exclude from checks (optional)
-		 * 
+		 *
 		 * @return int - The next available invoice number.
 		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
 		 */
-		
+
 		global $db, $bruger_id;
 
 		$debug = ($bruger_id == -1);
@@ -2323,13 +2335,13 @@ if (!function_exists('barcode')) {
 		/**
 		 * Generates a barcode image (PNG) for the given barcode string.
 		 * It checks if the input is a valid EAN-13 code and creates a barcode image using external tools.
-		 * 
+		 *
 		 * The function will first check if the required tools (`barcode` or `tbarcode`) are available and if
 		 * the barcode string is valid. It will then generate the barcode in EPS format and convert it to PNG.
 		 * The barcode image will be saved in the `../temp/$db/` directory.
 		 *
 		 * @param string $stregkode - The barcode string to generate the image for.
-		 * 
+		 *
 		 * @return string|null - The path to the generated PNG file, or null if an error occurs.
 		 */
 
@@ -2398,15 +2410,15 @@ if (!function_exists('trim_utf8')) {
 		/**
 		 * Recursively trims a specified HTML entity (default `&nbsp;`) from both ends of a UTF-8 encoded string.
 		 *
-		 * - This function is useful for cleaning up strings that may have leading or trailing non-visible characters 
+		 * - This function is useful for cleaning up strings that may have leading or trailing non-visible characters
 		 *   (like non-breaking spaces) which are commonly represented as HTML entities.
 		 * - The function operates recursively to ensure all instances of the specified entity are removed.
 		 *
 		 * @param string $textstring - The input string to trim.
 		 * @param string $htmlentity - The HTML entity to trim from the string (default is `&nbsp;`).
-		 * @param bool   $showiteration - If set to `TRUE`, the function will output the string at each iteration 
+		 * @param bool   $showiteration - If set to `TRUE`, the function will output the string at each iteration
 		 *                                to help with debugging (default is `FALSE`).
-		 * 
+		 *
 		 * @return string - The trimmed string.
 		 */
 
@@ -2648,7 +2660,7 @@ if (!function_exists('restore_user_ip')) { #20210831 + 20210909
 	}
 }
 
-if (!function_exists('authenticate_user_ip')) { #20210901 
+if (!function_exists('authenticate_user_ip')) { #20210901
 	function authenticate_user_ip($user_ip)
 	{
 		/**
@@ -2687,7 +2699,7 @@ if (!function_exists('input_ip')) { #20210908
 		 *
 		 * @return void
 		 */
-		#global $ret_id;	
+		#global $ret_id;
 		$d = new DateTime('NOW');
 		$created_ip_date = $d->format('c'); // ISO8601 formated datetime
 		$query = db_select("select * from users_ip where ip_values = '$ip' ", __FILE__ . " linje " . __LINE__);
@@ -2747,20 +2759,20 @@ if(!function_exists('check_and_sanitize_input')){
 		 * @return string|null - The sanitized input if valid, or null if not found.
 		 */
 
-		if (isset($_POST[$input_name])) { 
-			if (strlen($_POST[$input_name]) > 80) { 
-				
+		if (isset($_POST[$input_name])) {
+			if (strlen($_POST[$input_name]) > 80) {
+
 				$sanitized_message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
-				
+
 				echo "<script nonce='{$nonce}'>alert('$sanitized_message');</script>";
-			
+
 				echo "<script nonce='{$nonce}'>window.location.href = 'index.php';</script>";
-				exit; 
+				exit;
 			}
-			
+
 			return htmlspecialchars($_POST[$input_name], ENT_QUOTES, 'UTF-8');
 		}
-		
+
 		return null;
 	}
 }
@@ -2787,7 +2799,7 @@ if(!function_exists('update_settings_value')){
                 if ($user !== NULL)  $qtxt .= " AND user_id=$user";
 				if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
                 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				
+
                 # If the row already exsists
                 if ($r) {
                         $qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND var_grp = '$var_grp'";
@@ -2810,7 +2822,7 @@ if(!function_exists('update_settings_value')){
         }
 }
 
-if (!function_exists('clean_phone_number')) { 
+if (!function_exists('clean_phone_number')) {
 	function clean_phone_number($phoneNumber, $countryCode = "45") {
 		/**
 		 * Cleans and formats a phone number for use in the messaging system.
@@ -2828,12 +2840,12 @@ if (!function_exists('clean_phone_number')) {
 		if (strpos($cleanedNumber, $countryCode) !== 0) {
 			$cleanedNumber = $countryCode . $cleanedNumber;
 		}
-		
+
 		return $cleanedNumber;
 	}
 }
 
-if (!function_exists('send_sms')) { 
+if (!function_exists('send_sms')) {
 	function send_sms($from, $to, $message)
 	{
 		/**
@@ -2919,7 +2931,7 @@ if (!function_exists('send_sms')) {
 	}
 }
 
-if (!function_exists('send_email')) { 
+if (!function_exists('send_email')) {
 	function send_email($to, $subject, $message)
 	{
 		/**
@@ -2956,17 +2968,17 @@ if (!function_exists('brightenColor')) {
     function brightenColor($color, $amount = 0.2) {
         // Remove # if present
         $color = ltrim($color, '#');
-        
+
         // Convert hex to RGB
         $r = hexdec(substr($color, 0, 2));
         $g = hexdec(substr($color, 2, 2));
         $b = hexdec(substr($color, 4, 2));
-        
+
         // Brighten each component
         $r = min(255, $r + ($amount * (255 - $r)));
         $g = min(255, $g + ($amount * (255 - $g)));
         $b = min(255, $b + ($amount * (255 - $b)));
-        
+
         // Convert back to hex
         return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
     }
@@ -2982,17 +2994,17 @@ if (!function_exists('darkenColor')) {
     function darkenColor($color, $amount = 0.2) {
         // Remove # if present
         $color = ltrim($color, '#');
-        
+
         // Convert hex to RGB
         $r = hexdec(substr($color, 0, 2));
         $g = hexdec(substr($color, 2, 2));
         $b = hexdec(substr($color, 4, 2));
-        
+
         // Darken each component
         $r = max(0, $r - ($amount * $r));
         $g = max(0, $g - ($amount * $g));
         $b = max(0, $b - ($amount * $b));
-        
+
         // Convert back to hex
         return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
     }

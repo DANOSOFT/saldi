@@ -548,7 +548,7 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 				}
 			} else {
 				$tmp = $antal;
-				$qtxt = "select * from batch_kob where vare_id = '$vare_id' and rest > '0' and lager = '$lager' order by " . fefo_order_clause();
+				$qtxt = "select * from batch_kob where vare_id = '$vare_id' and rest > '0' and lager = '$lager' order by id";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					$ny_rest = $r['rest'];
@@ -1050,9 +1050,9 @@ function batch($linje_id)
 		$rest = array();
 		$lev_rest = $leveres;
 		if ($lager)
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by kobsdate", __FILE__ . " linje " . __LINE__);
 		else
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by kobsdate", __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			$x++;
 			$batch_kob_id[$x] = $row['id'];
@@ -1207,9 +1207,8 @@ function bogfor($id, $webservice=false)
 				$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) values ('$id','$row[felt_3]','$row[felt_4]','$baseCurrency','100')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
-			$kasse = $row['felt_5'];
-		} else
-			$kasse = NULL;
+		}
+		$kasse = is_numeric($row['felt_5']) ? (int)$row['felt_5'] : NULL;
 	}
 	if ($ref && $r = db_fetch_array(db_select("select ansat_id from brugere where brugernavn='$ref'", __FILE__ . " linje " . __LINE__))) {
 		if ($r['ansat_id'] && $r = db_fetch_array(db_select("select navn from ansatte where id='$r[ansat_id]'", __FILE__ . " linje " . __LINE__))) {
@@ -1805,7 +1804,7 @@ function batch_salg($id)
 			$y = 0;
 			$mangler = $antal[$x];
 			$kostsum = 0;
-			$qtxt = "select * from batch_kob where rest>'0' and vare_id='$vare_id[$x]' and ordre_id!= '$id' order by " . fefo_order_clause();
+			$qtxt = "select * from batch_kob where rest>'0' and vare_id='$vare_id[$x]' and ordre_id!= '$id' order by fakturadate,id";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($mangler && $r = db_fetch_array($q)) {
 				$rest = $r['rest'];
@@ -2300,10 +2299,10 @@ function bogfor_nu($id, $kilde) {
 			if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$art = 'PO';
 			} else {
-				$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs)values('$id','$felt_1','$felt_2','$baseCurrency','100')";
+				$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs)values('$ordre_id','$felt_1','$felt_2','$baseCurrency','100')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				if ($felt_4 > 0) {
-					$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs)values('$id','$felt_3','$felt_4','$baseCurrency','100')";
+				if ($felt_3 && $felt_4 > 0) {
+					$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs)values('$ordre_id','$felt_3','$felt_4','$baseCurrency','100')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 				$art = 'PO';

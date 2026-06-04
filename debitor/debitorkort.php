@@ -1721,14 +1721,18 @@ if ($pbs) {
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('386|Kundeansvarlig', $sprog_id) . "<!--tekst 386--></td>\n";
 print "<td><select class='inputbox' NAME=kontoansvarlig value=\"$kontoansvarlig\"  onchange=\"javascript:docChange = true;\">\n";
-if ($r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__))) {
-	$r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__));
+$qtxt = "select initialer from ansatte where id='$kontoansvarlig'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	print "<option>$r[initialer]</option>\n";
 }
 print "<option></option>\n";
-if ($r = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__))) $q = db_select("select id, initialer from ansatte where konto_id='$r[id]'", __FILE__ . " linje " . __LINE__);
-while ($r = db_fetch_array($q)) {
+$qtxt = "select id from adresser where art='S'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "select id, initialer from ansatte where konto_id='$r[id]' and lukket = ''";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
 	print "<option>$r[initialer]</option>\n";
+}
 }
 print "</SELECT></td></tr>\n";
 ##################### STATUS ##################### 
@@ -2468,7 +2472,7 @@ if (!$id || substr($cvrnr,0,1)  == '*') {
 	$cvrnr = trim($cvrnr,"*");
 	echo substr($cvrnr,0,1)."<br>";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
-}
+#}
 
 ##################
 
