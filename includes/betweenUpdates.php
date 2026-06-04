@@ -96,17 +96,15 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE adresser ADD swift varchar(15)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
-
-$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'delivery_addresses'";
+$qtxt = "SELECT id FROM formularer WHERE formular = 9 AND art = '3' AND beskrivelse = 'leveret' AND sprog = 'Dansk' LIMIT 1";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE TABLE delivery_addresses (id SERIAL NOT NULL, account_id integer NOT NULL,";
-	$qtxt.= " is_primary boolean NOT NULL DEFAULT false, sort_order smallint NOT NULL DEFAULT 0,";
-	$qtxt.= " description varchar(100), company_name varchar(255), first_name varchar(100),";
-	$qtxt.= " last_name varchar(100), address_line1 varchar(255), address_line2 varchar(255),";
-	$qtxt.= " postal_code varchar(20), city varchar(100), country varchar(100),";
-	$qtxt.= " contact_name varchar(100), phone varchar(50), email varchar(255),";
-	$qtxt.= " created_at timestamp DEFAULT CURRENT_TIMESTAMP,";
-	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
+    $qtxt = "INSERT INTO formularer (formular, art, beskrivelse, justering, xa, ya, xb, yb, str, color, font, fed, kursiv, side, sprog)
+             VALUES (9, '3', 'leveret', 'V', 163.000, 0.000, 0.000, 0.000, 9.000, 0, 'Helvetica', '', '', '0', 'Dansk')";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'kontoplan' and  column_name = 'map_to'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE kontoplan ADD column map_to numeric(15)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
@@ -217,11 +215,22 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 }
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
-if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	if ($r[0] != 'date') {
-		$qtxt = "ALTER TABLE batch_kob DROP column due_date";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	}
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE batch_kob ADD due_date integer";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'digital_status'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE settings ADD digital_status varchar(25)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrer' and  column_name = 'digital_status'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE ordrer ADD digital_status varchar(25)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'group_id'";
@@ -645,11 +654,4 @@ if ($mp_client_id) {
 		}
 	}
 }
-
-$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='rentalsettings' and column_name='toggle_order'";
-if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-db_modify("ALTER table rentalsettings ADD column toggle_order int DEFAULT 1",__FILE__ . " linje " . __LINE__);
-db_modify("UPDATE rentalsettings SET toggle_order = 1 WHERE toggle_order IS NULL",__FILE__ . " linje " . __LINE__);
-}
-
 ?>

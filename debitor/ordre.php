@@ -801,13 +801,6 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		db_modify("update ordrer set lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt', lev_land='$lev_land' where id=$id", __FILE__ . " linje " . __LINE__);
 	}
 }
-if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) { // 20260509
-	// Hack to prevent order beeing created twice when using account lookup in to create the order.
-	$qtxt = "select id from ordrer where konto_id = '$konto_id' and kontonr = '$kontonr' and sum = '0' ";
-	$qtxt.= " and status = '0'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $id = $r['id'];
-}
-
 if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	if (!is_numeric($default_procenttillag)) $default_procenttillag = 0;
 	$ordrenr = get_next_order_number('DO');
@@ -5615,7 +5608,9 @@ function ordreside($id, $regnskab)
 			if ($bilag) {
 				$qtxt_doc = "select id from documents where source = 'debitorOrdrer' and source_id = '$id'";
 				$clip = db_fetch_array(db_select($qtxt_doc, __FILE__ . " linje " . __LINE__)) ? 'paper.png' : 'clip.png';
-				print "<td title=\"" . findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id) . "\"><a href=\"../includes/documents.php?source=debitorOrdrer&ny=ja&sourceId=$id\"><img style=\"border: 0px solid; width:20px; height:20px;\" src=\"../ikoner/$clip\"></a></td>";
+				if ($clip == 'clip.png') $titleTxt = findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
+				else $titleTxt = findtekst('1454|klik her for at se bilag', $sprog_id);
+				print "<td title=\"" . $titleTxt . "\"><a href=\"../includes/documents.php?source=debitorOrdrer&ny=ja&sourceId=$id\"><img style=\"border: 0px solid; width:20px; height:20px;\" src=\"../ikoner/$clip\"></a></td>";
 			}
 			print "</tr><tr><td valign = 'top'  title=\"$text_title\">'" . findtekst('585|Mail tekst', $sprog_id) . "'</td><td title='\"$std_txt_title\"'>";
 			if ($mail_text) print "<textarea style=\"width:1000px;\" rows=\"2\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_text\" onchange=\"javascript:docChange = true;\">$mail_text</textarea>\n";

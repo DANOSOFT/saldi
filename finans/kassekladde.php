@@ -115,8 +115,6 @@ include("../includes/row-hover-style.js.php");
 
 include("./kassekladde_includes/bilagsmatch.php");
 
-include("./kassekladde_includes/bilagsmatch.php");
-
 include("../includes/grid.php");
 
 // Build VAT codes list from grupper table (art 2nd char = 'M')
@@ -3010,10 +3008,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&sum="       . urlencode($belob ?? '')
                 . "&fokus=bila$x&openPool=1";
 				########################
-				print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
-				print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
-				print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
-				// print "</tr>";
+			print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+            print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+            print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
+        	// print "</tr>";
 			} else {
 				print "<td></td>\n";
 			}
