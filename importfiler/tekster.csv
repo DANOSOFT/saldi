@@ -230,11 +230,11 @@
 230	Skriv det varenummer som bruges til renteopkrævning.	Write the item number used for interest collection.	Skriv varenummeret som ble brukt til interesseoppsamling.
 231	Varenummer for rente	Item number for interest	Varenummer for interesse
 232	Antal dage betalingsfristen skal være overskredet, før der påmindes om 1. rykker	Number of days the payment deadline must be overdue before being reminded of the 1st payment notice	Antall dager betalingsfristen må være overskredet, før det gis en påminnelse om 1. purring
-233	Frist for rykker 1	Deadline for reminder 1	Frist for purring 1
+233	Påmindelse for rykker 1	Notification for reminder 1	Påminnelse for purring 1
 234	Antal dage betalingsfristen for rykker 1 skal være overskredet, før der påmindes om 2. rykker	Number of days the payment deadline for the 1st payment notice must be overdue before being reminded of the 2nd notice	Antall dager betalingsfristen for 1. purring må være overskredet, før det gis en påminnelse om 2. purring
-235	Frist for rykker 2	Deadline for reminder 2	Frist for purring 2
+235	Påmindelse for rykker 2	Notification for reminder 2	Påminnelse for purring 2
 236	Antal dage betalingsfristen for rykker 2 skal være overskredet, før der påmindes om 3. rykker	Number of days the payment deadline for the 2nd payment notice must be overdue before being reminded of the 3rd notice	Antall dager betalingsfristen for 2. purring må være overskredet, før det gis en påminnelse om 3. purring
-237	Frist for rykker 3	Deadline for reminder 3	Frist for purring 3
+237	Påmindelse for rykker 3	Notification for reminder 3	Påminnelse for purring 3
 238	Rykkerpåmindelse	Reminder	Purringspåminnelse
 239	Der er rykkere klar til udsendelse i SALDI.	There are reminders ready for broadcast in SALDI.	Det er påminnelser klare for sending i SALDI.
 240	Der er rykkere klar til udsendelse.	There are reminders ready for broadcast.	Det er påminnelser klare for sending.
@@ -3339,14 +3339,14 @@
 3339	Overfør data	Transfer data	Overfør data
 3340	Valutakort	Currency card	Valutakort
 3341	Bilags match	Batch invoice	Vedleggsmatch
-3342	
-3343	
-3344	
-3345	
-3346	
-3347	
-3348	
-3349	
+3342	Disse indstillinger styrer påmindelser til den rykkeransvarlige om at sende rykkere. Vær opmærksom på at rykkere ikke sendes automatisk af systemet.	These settings control notifications to the person responsible for sending reminders. Please note that reminders are not sent automatically by the system.	Disse innstillingene styrer påminnelser til den purreansvarlige om å sende purringer. Vær oppmerksom på at purringer ikke sendes automatisk av systemet.
+3343	Rykkergebyr	Reminder fee	Purregebyr
+3344	Rentegebyr	Interest fee	Rentegebyr
+3345	en vare til rykkergebyret og angiv varenummeret her.	a product for the reminder fee and enter the product number here.	en vare for purregebyret og angi varenummeret her
+3346	en vare med salgspris 0 kr. og angiv varenummeret her. Rentesatsen (%) angives i feltet ved siden af.	a product with sales price 0 and enter the product number here. The interest rate (%) is entered in the field next to it.	en vare med salgspris 0 kr. og angi varenummeret her. Rentesatsen (%) angis i feltet ved siden av.
+3347	Åbner &apos;Formularer&apos; i ny fane	Opens &apos;Forms&apos; in a new tab	Åpner &apos;Formularer&apos; i ny fane
+3348	Rykkergebyr og rente tilføjes under rykkernes	Reminder fee and interest are added under the reminders&apos;	Purregebyr og rente legges til under purringenes
+3349	System > Indstillinger > Formularer > vælg &apos;Rykker&apos;	System > Settings > Forms > select &apos;Reminder&apos;	System > Innstillinger > Formularer > velg &apos;Purring&apos;
 3350	
 3351	
 3352	
