@@ -1377,10 +1377,11 @@ function prepareSearchTerm($searchTerm) {
 	}
 	print "</tbody></table></td></tr>\n";
 	print "</form>";
+	print "<script>docChange = false;</script>";
 	print "</tbody></table></td></tr></tbody></table></td></tr>\n";
 	print "<tr><td></td></tr>\n";
 
-		
+
 }# end function ordreside
 ######################################################################################################################################
 
