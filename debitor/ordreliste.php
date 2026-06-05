@@ -49,6 +49,7 @@
 // 20260317 AJ Updated hover text for order number
 // 20260518 CL/PHR account_context springer kontonr pre-populate over. Kontonr-søgning finder nu alle ordrer for kunder med samme kontonr.
 // 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
+// 20260603 Sawaneh Whole order line is now clickable (and right-clickable for "open in new tab/window"), not just the order number.
 
 @session_start();
 $s_id = session_id();
@@ -218,6 +219,7 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></scr
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 include("../includes/row-hover-style-with-links.js.php");
+include("../includes/order-row-clickable.js.php"); // 20260603 Sawaneh whole order line clickable
 include("../includes/datepkr.php");
 
 
