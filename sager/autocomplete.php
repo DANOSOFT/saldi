@@ -24,9 +24,9 @@
 // Copyright (c) 2003-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
-	$bg="nix";
-	$header='nix';
-	$modulnr=0;
+	$bg      = "nix";
+	$header  = 'nix';
+	$modulnr = 0;
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
@@ -34,8 +34,8 @@
 	$q=$_GET['q'];
 	switch ($_GET['mode']) {
 		case 'sagsnr': // til søgning af sagsnummer i loen.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT id, sagsnr, udf_addr1, udf_postnr, udf_bynavn, status FROM sager WHERE status != 'Ordrebekræftelse' AND status != 'Tilbud' AND status != 'Beregning' AND status != 'Afsluttet' AND sagsnr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  id, sagsnr, udf_addr1, udf_postnr, udf_bynavn, status FROM sager WHERE status != 'Ordrebekræftelse' AND status != 'Tilbud' AND status != 'Beregning' AND status != 'Afsluttet' AND sagsnr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -46,8 +46,8 @@
 			} 
 			break;
 		case 'sagsaddr': // til søgning af sagsaddresse i loen.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT id, sagsnr, udf_addr1, udf_postnr, udf_bynavn, status FROM sager WHERE status != 'Ordrebekræftelse' AND status != 'Tilbud' AND status != 'Beregning' AND status != 'Afsluttet' AND (udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%') ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT id, sagsnr, udf_addr1, udf_postnr, udf_bynavn, status FROM sager WHERE status != 'Ordrebekræftelse' AND status != 'Tilbud' AND status != 'Beregning' AND status != 'Afsluttet' AND (udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%') ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -59,8 +59,8 @@
 			break;
 /*
 		case 'opgnr': // til søgning af opgavenummer i loen.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT id, nr, beskrivelse FROM opgaver WHERE nr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  id, nr, beskrivelse FROM opgaver WHERE nr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -71,8 +71,8 @@
 			} 
 			break;
 		case 'opgbesk': // til søgning af opgavenummer i loen.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT id, nr, beskrivelse FROM opgaver WHERE beskrivelse LIKE '%$my_data%' ORDER BY beskrivelse",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  id, nr, beskrivelse FROM opgaver WHERE beskrivelse LIKE '%$my_data%' ORDER BY beskrivelse",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -84,8 +84,8 @@
 			break;
 */			
 		case 'medarbejdernr': // til søgning af medarbejdernummer i loen.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT id, konto_id, navn, nummer, lukket FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND nummer::text LIKE '%$my_data%' ORDER BY nummer",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT id, konto_id, navn, nummer, lukket FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND nummer::text LIKE '%$my_data%' ORDER BY nummer",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -96,8 +96,8 @@
 			}
 			break;
 		case 'medarbejdernavn': // til søgning af medarbejdernavn i loen.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT id, konto_id, navn, nummer, lukket FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND navn ILIKE '%$my_data%' ORDER BY navn",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT id, konto_id, navn, nummer, lukket FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND navn ILIKE '%$my_data%' ORDER BY navn",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -108,8 +108,8 @@
 			}
 			break;
 		case 'sager': // til søgning af sager i notat.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE sagsnr::text LIKE '%$my_data%' OR udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%' ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT * FROM sager WHERE sagsnr::text LIKE '%$my_data%' OR udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%' ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -120,8 +120,8 @@
 			} 
 			break;
 		case 'medarbejder': // til søgning af medarbejdernr og medarbejdernavn i notat.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT id, konto_id, navn, nummer FROM ansatte WHERE konto_id = 1 AND medarbejdernr::text LIKE '%$my_data%' OR konto_id = 1 AND navn ILIKE '%$my_data%' ORDER BY navn",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT id, konto_id, navn, nummer FROM ansatte WHERE konto_id = 1 AND medarbejdernr::text LIKE '%$my_data%' OR konto_id = 1 AND navn ILIKE '%$my_data%' ORDER BY navn",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -132,8 +132,8 @@
 			}
 			break;
 		case 'kontonr': // til søgning af kontonummer i kunder.php og i sager.php under 'opret sag'
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM adresser WHERE art='D' AND kontonr::text LIKE '%$my_data%' ORDER BY kontonr",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT * FROM adresser WHERE art='D' AND kontonr::text LIKE '%$my_data%' ORDER BY kontonr",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -144,8 +144,8 @@
 			} 
 			break;
 		case 'firmanavn': // til søgning af firmanavn i kunder.php og i sager.php under 'opret sag'
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM adresser WHERE art='D' AND firmanavn ILIKE '%$my_data%' ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT * FROM adresser WHERE art='D' AND firmanavn ILIKE '%$my_data%' ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -156,8 +156,8 @@
 			} 
 			break;
 		case 'firmaadresse': // til søgning af firmaadresse i kunder.php og i sager.php under 'opret sag'
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM adresser WHERE art='D' AND addr1 ILIKE '%$my_data%' OR postnr ILIKE '%$my_data%' OR bynavn ILIKE '%$my_data%' ORDER BY addr1",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT * FROM adresser WHERE art='D' AND addr1 ILIKE '%$my_data%' OR postnr ILIKE '%$my_data%' OR bynavn ILIKE '%$my_data%' ORDER BY addr1",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -168,8 +168,8 @@
 			} 
 			break;
 		case 'sagsagsnr': // til søgning af sagsnummer i sager.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE sagsnr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT * FROM sager WHERE sagsnr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -180,8 +180,8 @@
 			} 
 			break;
 		case 'sagfirmanavn': // til søgning af firmanavn i sager.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE firmanavn ILIKE '%$my_data%' ORDER BY firmanavn,sagsnr DESC",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT * FROM sager WHERE firmanavn ILIKE '%$my_data%' ORDER BY firmanavn,sagsnr DESC",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -192,8 +192,8 @@
 			} 
 			break;
 		case 'sagadresse': // til søgning af sagsaddresse i sager.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%' ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT * FROM sager WHERE udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%' ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -204,8 +204,8 @@
 			} 
 			break;
 		case 'n_dato': // til søgning af dato i notat.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT noter.id as n_id,noter.datotid,noter.hvem as n_hvem,noter.beskrivelse,noter.assign_id,noter.assign_to,sager.id,sager.sagsnr FROM noter 
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT noter.id as n_id,noter.datotid,noter.hvem as n_hvem,noter.beskrivelse,noter.assign_id,noter.assign_to,sager.id,sager.sagsnr FROM noter 
 														LEFT JOIN sager ON noter.assign_id = sager.id
 														WHERE assign_to='sager' AND datotid::text LIKE '%$my_data%' ORDER BY datotid DESC",__FILE__ . " linje " . __LINE__);
 			
@@ -218,8 +218,8 @@
 			} 
 			break;
 		case 'n_sagsnr': // til søgning af sagsnummer i notat.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT noter.id as n_id,noter.datotid,noter.hvem as n_hvem,noter.beskrivelse,noter.assign_id,noter.assign_to,sager.id,sager.sagsnr FROM noter 
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  noter.id as n_id,noter.datotid,noter.hvem as n_hvem,noter.beskrivelse,noter.assign_id,noter.assign_to,sager.id,sager.sagsnr FROM noter 
 														INNER JOIN sager ON noter.assign_id = sager.id
 														WHERE assign_to='sager' AND sager.sagsnr::text LIKE '%$my_data%' ORDER BY sagsnr DESC",__FILE__ . " linje " . __LINE__);
 			
@@ -232,8 +232,8 @@
 			} 
 			break;
 		case 'n_af': // til søgning af forfatter i notat.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT noter.id as n_id,noter.datotid,noter.hvem as n_hvem,noter.beskrivelse,noter.assign_id,noter.assign_to,sager.id,sager.sagsnr FROM noter 
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  noter.id as n_id,noter.datotid,noter.hvem as n_hvem,noter.beskrivelse,noter.assign_id,noter.assign_to,sager.id,sager.sagsnr FROM noter 
 														LEFT JOIN sager ON noter.assign_id = sager.id
 														WHERE assign_to='sager' AND noter.hvem ILIKE '%$my_data%' ORDER BY noter.hvem DESC",__FILE__ . " linje " . __LINE__);
 			
@@ -246,8 +246,8 @@
 			} 
 			break;
 		case 'n_beskrivelse': // til søgning af beskrivelse i notat.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT noter.id as n_id,noter.datotid,noter.hvem as n_hvem,noter.beskrivelse,noter.assign_id,noter.assign_to,sager.id,sager.sagsnr FROM noter 
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  noter.id as n_id,noter.datotid,noter.hvem as n_hvem,noter.beskrivelse,noter.assign_id,noter.assign_to,sager.id,sager.sagsnr FROM noter 
 														LEFT JOIN sager ON noter.assign_id = sager.id
 														WHERE assign_to='sager' AND noter.beskrivelse ILIKE '%$my_data%' ORDER BY noter.beskrivelse DESC",__FILE__ . " linje " . __LINE__);
 			
@@ -260,8 +260,8 @@
 			} 
 			break;
 		case 'n_sagsagsnr': // til søgning af sagsnummer i notat.php i 'find sag'
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE sagsnr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  * FROM sager WHERE sagsnr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -272,8 +272,8 @@
 			} 
 			break;
 		case 'n_sagfirmanavn': // til søgning af firmanavn i notat.php i 'find sag'
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE firmanavn ILIKE '%$my_data%' ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  * FROM sager WHERE firmanavn ILIKE '%$my_data%' ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -284,8 +284,8 @@
 			} 
 			break;
 		case 'n_sagadresse': // til søgning af sagsaddresse i notat.php i 'find sag'
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%' ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  * FROM sager WHERE udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%' ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -296,8 +296,8 @@
 			} 
 			break;
 		case 'medarbejdernr2': // til søgning af medarbejdernr i ansatte.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM ansatte WHERE konto_id = 1 AND nummer::text LIKE '%$my_data%' ORDER BY nummer",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  * FROM ansatte WHERE konto_id = 1 AND nummer::text LIKE '%$my_data%' ORDER BY nummer",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -308,8 +308,8 @@
 			} 
 			break;
 		case 'medarbejdernavn2': // til søgning af medarbejdernavn i ansatte.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM ansatte WHERE konto_id = 1 AND navn ILIKE '%$my_data%' ORDER BY navn",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  * FROM ansatte WHERE konto_id = 1 AND navn ILIKE '%$my_data%' ORDER BY navn",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -320,8 +320,8 @@
 			} 
 			break;
 		case 'medarbejderadresse': // til søgning af medarbejderadresse i ansatte.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM ansatte WHERE konto_id = 1 AND addr1 ILIKE '%$my_data%' OR postnr ILIKE '%$my_data%' OR bynavn ILIKE '%$my_data%' ORDER BY addr1",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  * FROM ansatte WHERE konto_id = 1 AND addr1 ILIKE '%$my_data%' OR postnr ILIKE '%$my_data%' OR bynavn ILIKE '%$my_data%' ORDER BY addr1",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -332,8 +332,8 @@
 			} 
 			break;
 		case 'k_dato': // til søgning af dato i kontrolskemaer.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND datotid::text LIKE '%$my_data%' ORDER BY datotid DESC",__FILE__ . " linje " . __LINE__);
@@ -349,8 +349,8 @@
 			} 
 			break;
 		case 'k_sagsnr': // til søgning af sagsnummer i kontrolskemaer.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND sager.sagsnr::text LIKE '%$my_data%' ORDER BY sagsnr DESC",__FILE__ . " linje " . __LINE__);
@@ -366,8 +366,8 @@
 			} 
 			break;
 		case 'k_af': // til søgning af forfatter i kontrolskemaer.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekskema.hvem ILIKE '%$my_data%' ORDER BY tjekskema.hvem DESC",__FILE__ . " linje " . __LINE__);
@@ -383,8 +383,8 @@
 			} 
 			break;
 		case 'k_adresse': // til søgning af sagsaddresse i kontrolskemaer.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND sager.udf_addr1 ILIKE '%$my_data%' OR sager.udf_postnr ILIKE '%$my_data%' OR sager.udf_bynavn ILIKE '%$my_data%' ORDER BY sager.udf_addr1",__FILE__ . " linje " . __LINE__);
@@ -400,8 +400,8 @@
 			} 
 			break;
 		case 'sjak': // til søgning af sjak i kontrol_sager.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT id, navn, initialer, lukket FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND navn ILIKE '%$my_data%' ORDER BY initialer",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  id, navn, initialer, lukket FROM ansatte WHERE konto_id = 1 AND lukket < '0' AND navn ILIKE '%$my_data%' ORDER BY initialer",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -412,8 +412,8 @@
 			}
 			break;
 		case 'ordre_kopi_sagsnr': // til søgning af sagsnummer i sager.php i 'kopi_ordre'
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE sagsnr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  * FROM sager WHERE sagsnr::text LIKE '%$my_data%' ORDER BY id",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -424,8 +424,8 @@
 			} 
 			break;
 		case 'ordre_kopi_firmanavn': // til søgning af firmanavn i sager.php i 'kopi_ordre'
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE firmanavn ILIKE '%$my_data%' ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  * FROM sager WHERE firmanavn ILIKE '%$my_data%' ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -436,8 +436,8 @@
 			} 
 			break;
 		case 'ordre_kopi_adresse': // til søgning af sagsaddresse i sager.php i 'kopi_ordre'
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT * FROM sager WHERE udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%' ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  * FROM sager WHERE udf_addr1 ILIKE '%$my_data%' OR udf_postnr ILIKE '%$my_data%' OR udf_bynavn ILIKE '%$my_data%' ORDER BY udf_addr1",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -448,22 +448,22 @@
 			} 
 			break;
 		case 'ma_dato': // til søgning af dato i mm_kontrolskemaer.php i 'vis_arbejdsseddel'
-			$my_data=db_escape_string($q);
-			$ans_id=if_isset($_SESSION['ans_id']);
+			$my_data = db_escape_string($q);
+			$ans_id  = if_isset($_SESSION['ans_id']);
 			
 			if ($ans_id) {
-				$tmp1=$ans_id.chr(59);
-				$tmp2=chr(59).$ans_id;
-				$tmp3=chr(59).$ans_id.chr(59);
+				$tmp1  = $ans_id.chr(59);
+				$tmp2  = chr(59).$ans_id;
+				$tmp3  = chr(59).$ans_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ans_id')";
 			} else {
-				$tmp1=$ansat_id.chr(59);
-				$tmp2=chr(59).$ansat_id;
-				$tmp3=chr(59).$ansat_id.chr(59);
+				$tmp1  = $ansat_id.chr(59);
+				$tmp2  = chr(59).$ansat_id;
+				$tmp3  = chr(59).$ansat_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase = '1' AND $where AND datotid::text LIKE '%$my_data%' ORDER BY datotid DESC",__FILE__ . " linje " . __LINE__);
@@ -479,22 +479,22 @@
 			} 
 			break;
 		case 'ma_sagsnr': // til søgning af sagsnummer i mm_kontrolskemaer.php i 'vis_arbejdsseddel'
-			$my_data=db_escape_string($q);
-			$ans_id=if_isset($_SESSION['ans_id']);
+			$my_data = db_escape_string($q);
+			$ans_id  = if_isset($_SESSION['ans_id']);
 			
 			if ($ans_id) {
-				$tmp1=$ans_id.chr(59);
-				$tmp2=chr(59).$ans_id;
-				$tmp3=chr(59).$ans_id.chr(59);
+				$tmp1  = $ans_id.chr(59);
+				$tmp2  = chr(59).$ans_id;
+				$tmp3  = chr(59).$ans_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ans_id')";
 			} else {
-				$tmp1=$ansat_id.chr(59);
-				$tmp2=chr(59).$ansat_id;
-				$tmp3=chr(59).$ansat_id.chr(59);
+				$tmp1  = $ansat_id.chr(59);
+				$tmp2  = chr(59).$ansat_id;
+				$tmp3  = chr(59).$ansat_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase = '1' AND $where AND sager.sagsnr::text LIKE '%$my_data%' ORDER BY sagsnr DESC",__FILE__ . " linje " . __LINE__);
@@ -510,22 +510,22 @@
 			} 
 			break;
 		case 'ma_af': // til søgning af forfatter i mm_kontrolskemaer.php i 'vis_arbejdsseddel'
-			$my_data=db_escape_string($q);
-			$ans_id=if_isset($_SESSION['ans_id']);
+			$my_data = db_escape_string($q);
+			$ans_id  = if_isset($_SESSION['ans_id']);
 			
 			if ($ans_id) {
-				$tmp1=$ans_id.chr(59);
-				$tmp2=chr(59).$ans_id;
-				$tmp3=chr(59).$ans_id.chr(59);
+				$tmp1  = $ans_id.chr(59);
+				$tmp2  = chr(59).$ans_id;
+				$tmp3  = chr(59).$ans_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ans_id')";
 			} else {
-				$tmp1=$ansat_id.chr(59);
-				$tmp2=chr(59).$ansat_id;
-				$tmp3=chr(59).$ansat_id.chr(59);
+				$tmp1  = $ansat_id.chr(59);
+				$tmp2  = chr(59).$ansat_id;
+				$tmp3  = chr(59).$ansat_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase = '1' AND $where AND tjekskema.hvem ILIKE '%$my_data%' ORDER BY tjekskema.hvem DESC",__FILE__ . " linje " . __LINE__);
@@ -541,22 +541,22 @@
 			} 
 			break;
 		case 'ma_adresse': // til søgning af sagsaddresse i mm_kontrolskemaer.php i 'vis_arbejdsseddel'
-			$my_data=db_escape_string($q);
-			$ans_id=if_isset($_SESSION['ans_id']);
+			$my_data = db_escape_string($q);
+			$ans_id  = if_isset($_SESSION['ans_id']);
 			
 			if ($ans_id) {
-				$tmp1=$ans_id.chr(59);
-				$tmp2=chr(59).$ans_id;
-				$tmp3=chr(59).$ans_id.chr(59);
+				$tmp1  = $ans_id.chr(59);
+				$tmp2  = chr(59).$ans_id;
+				$tmp3  = chr(59).$ans_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ans_id')";
 			} else {
-				$tmp1=$ansat_id.chr(59);
-				$tmp2=chr(59).$ansat_id;
-				$tmp3=chr(59).$ansat_id.chr(59);
+				$tmp1  = $ansat_id.chr(59);
+				$tmp2  = chr(59).$ansat_id;
+				$tmp3  = chr(59).$ansat_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase = '1' AND $where AND (sager.udf_addr1 ILIKE '%$my_data%' OR sager.udf_postnr ILIKE '%$my_data%' OR sager.udf_bynavn ILIKE '%$my_data%') ORDER BY sager.udf_addr1",__FILE__ . " linje " . __LINE__);
@@ -572,22 +572,22 @@
 			} 
 			break;
 		case 'mk_dato': // til søgning af dato i mm_kontrolskemaer.php i 'vis_kontrolskema'
-			$my_data=db_escape_string($q);
-			$ans_id=if_isset($_SESSION['ans_id']);
+			$my_data = db_escape_string($q);
+			$ans_id  = if_isset($_SESSION['ans_id']);
 			
 			if ($ans_id) {
-				$tmp1=$ans_id.chr(59);
-				$tmp2=chr(59).$ans_id;
-				$tmp3=chr(59).$ans_id.chr(59);
+				$tmp1  = $ans_id.chr(59);
+				$tmp2  = chr(59).$ans_id;
+				$tmp3  = chr(59).$ans_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ans_id')";
 			} else {
-				$tmp1=$ansat_id.chr(59);
-				$tmp2=chr(59).$ansat_id;
-				$tmp3=chr(59).$ansat_id.chr(59);
+				$tmp1  = $ansat_id.chr(59);
+				$tmp2  = chr(59).$ansat_id;
+				$tmp3  = chr(59).$ansat_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase != '1' AND $where AND datotid::text LIKE '%$my_data%' ORDER BY datotid DESC",__FILE__ . " linje " . __LINE__);
@@ -603,22 +603,22 @@
 			} 
 			break;
 		case 'mk_sagsnr': // til søgning af sagsnummer i mm_kontrolskemaer.php i 'vis_kontrolskema'
-			$my_data=db_escape_string($q);
-			$ans_id=if_isset($_SESSION['ans_id']);
+			$my_data = db_escape_string($q);
+			$ans_id  = if_isset($_SESSION['ans_id']);
 			
 			if ($ans_id) {
-				$tmp1=$ans_id.chr(59);
-				$tmp2=chr(59).$ans_id;
-				$tmp3=chr(59).$ans_id.chr(59);
+				$tmp1  = $ans_id.chr(59);
+				$tmp2  = chr(59).$ans_id;
+				$tmp3  = chr(59).$ans_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ans_id')";
 			} else {
-				$tmp1=$ansat_id.chr(59);
-				$tmp2=chr(59).$ansat_id;
-				$tmp3=chr(59).$ansat_id.chr(59);
+				$tmp1  = $ansat_id.chr(59);
+				$tmp2  = chr(59).$ansat_id;
+				$tmp3  = chr(59).$ansat_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase != '1' AND $where AND sager.sagsnr::text LIKE '%$my_data%' ORDER BY sagsnr DESC",__FILE__ . " linje " . __LINE__);
@@ -634,22 +634,22 @@
 			} 
 			break;
 		case 'mk_af': // til søgning af forfatter i mm_kontrolskemaer.php i 'vis_kontrolskema'
-			$my_data=db_escape_string($q);
-			$ans_id=if_isset($_SESSION['ans_id']);
+			$my_data = db_escape_string($q);
+			$ans_id  = if_isset($_SESSION['ans_id']);
 			
 			if ($ans_id) {
-				$tmp1=$ans_id.chr(59);
-				$tmp2=chr(59).$ans_id;
-				$tmp3=chr(59).$ans_id.chr(59);
+				$tmp1  = $ans_id.chr(59);
+				$tmp2  = chr(59).$ans_id;
+				$tmp3  = chr(59).$ans_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ans_id')";
 			} else {
-				$tmp1=$ansat_id.chr(59);
-				$tmp2=chr(59).$ansat_id;
-				$tmp3=chr(59).$ansat_id.chr(59);
+				$tmp1  = $ansat_id.chr(59);
+				$tmp2  = chr(59).$ansat_id;
+				$tmp3  = chr(59).$ansat_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase != '1' AND $where AND tjekskema.hvem ILIKE '%$my_data%' ORDER BY tjekskema.hvem DESC",__FILE__ . " linje " . __LINE__);
@@ -665,22 +665,22 @@
 			} 
 			break;
 		case 'mk_adresse': // til søgning af sagsaddresse i mm_kontrolskemaer.php i 'vis_kontrolskema'
-			$my_data=db_escape_string($q);
-			$ans_id=if_isset($_SESSION['ans_id']);
+			$my_data = db_escape_string($q);
+			$ans_id  = if_isset($_SESSION['ans_id']);
 			
 			if ($ans_id) {
-				$tmp1=$ans_id.chr(59);
-				$tmp2=chr(59).$ans_id;
-				$tmp3=chr(59).$ans_id.chr(59);
+				$tmp1  = $ans_id.chr(59);
+				$tmp2  = chr(59).$ans_id;
+				$tmp3  = chr(59).$ans_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ans_id')";
 			} else {
-				$tmp1=$ansat_id.chr(59);
-				$tmp2=chr(59).$ansat_id;
-				$tmp3=chr(59).$ansat_id.chr(59);
+				$tmp1  = $ansat_id.chr(59);
+				$tmp2  = chr(59).$ansat_id;
+				$tmp3  = chr(59).$ansat_id.chr(59);
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase != '1' AND $where AND (sager.udf_addr1 ILIKE '%$my_data%' OR sager.udf_postnr ILIKE '%$my_data%' OR sager.udf_bynavn ILIKE '%$my_data%') ORDER BY sager.udf_addr1",__FILE__ . " linje " . __LINE__);
@@ -696,8 +696,8 @@
 			} 
 			break;
 		case 'mm_medarbejdernavn': // til søgning af medarbejdernavn i medarbejdermappe.php
-			$my_data=db_escape_string($q);
-			$result = db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND navn ILIKE '%$my_data%' ORDER BY initialer",__FILE__ . " linje " . __LINE__);
+			$my_data = db_escape_string($q);
+			$result  = db_select("SELECT  id, navn, initialer FROM ansatte WHERE konto_id = 1 AND navn ILIKE '%$my_data%' ORDER BY initialer",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -708,15 +708,15 @@
 			}
 			break;
 		case 'ss_sagfirmanavn': // til søgning af kunde i sager.php i avanceret søg i sagsliste
-			$my_data=db_escape_string($q);
-			$AND = NULL;
+			$my_data = db_escape_string($q);
+			$AND     = NULL;
 			
-			$ss_sagsagsnr=if_isset($_SESSION['ss_sagsagsnr']);
-			$ss_sagadresse=if_isset($_SESSION['ss_sagadresse']);
-			$ss_sagpostnr=if_isset($_SESSION['ss_sagpostnr']);
-			$ss_sagby=if_isset($_SESSION['ss_sagby']);
-			$ss_ansvarlig=if_isset($_SESSION['ss_ansvarlig']);
-			$ss_status=if_isset($_SESSION['ss_status']);
+			$ss_sagsagsnr  = if_isset($_SESSION['ss_sagsagsnr']);
+			$ss_sagadresse = if_isset($_SESSION['ss_sagadresse']);
+			$ss_sagpostnr  = if_isset($_SESSION['ss_sagpostnr']);
+			$ss_sagby      = if_isset($_SESSION['ss_sagby']);
+			$ss_ansvarlig  = if_isset($_SESSION['ss_ansvarlig']);
+			$ss_status     = if_isset($_SESSION['ss_status']);
 			
 			if ($ss_sagsagsnr) $AND.= " AND sagsnr = '$ss_sagsagsnr'";
 			if ($ss_sagadresse) {
@@ -729,12 +729,12 @@
 					$AND.= " and udf_addr1 ILIKE '%$ss_sagadresse%'";
 				}
 			}
-			if ($ss_sagpostnr) $AND.= " AND udf_postnr = '$ss_sagpostnr'"; 
-			if ($ss_sagby) $AND.= " AND udf_bynavn ILIKE '%$ss_sagby%'";
-			if ($ss_ansvarlig) $AND.= " AND ref = '$ss_ansvarlig'";
-			if ($ss_status) $AND.= " AND status = '$ss_status'";
+			if ($ss_sagpostnr) $AND.= " AND udf_postnr      = '$ss_sagpostnr'"; 
+			if ($ss_sagby)     $AND.= " AND udf_bynavn ILIKE '%$ss_sagby%'";
+			if ($ss_ansvarlig) $AND.= " AND ref             = '$ss_ansvarlig'";
+			if ($ss_status)    $AND.= " AND status          = '$ss_status'";
 			
-			$result = db_select("SELECT DISTINCT firmanavn FROM sager WHERE firmanavn ILIKE '%$my_data%' $AND ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
+			$result = db_select("SELECT  DISTINCT firmanavn FROM sager WHERE firmanavn ILIKE '%$my_data%' $AND ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -745,17 +745,17 @@
 			}
 			break;
 		case 'ss_sagpostnr': // til søgning af postnr i sager.php i avanceret søg i sagsliste
-			$my_data=db_escape_string($q);
-			$AND = NULL;
+			$my_data = db_escape_string($q);
+			$AND     = NULL;
 			
-			$ss_sagsagsnr=if_isset($_SESSION['ss_sagsagsnr']);
-			$ss_sagfirmanavn=if_isset($_SESSION['ss_sagfirmanavn']);
-			$ss_sagadresse=if_isset($_SESSION['ss_sagadresse']);
-			$ss_sagby=if_isset($_SESSION['ss_sagby']);
-			$ss_ansvarlig=if_isset($_SESSION['ss_ansvarlig']);
-			$ss_status=if_isset($_SESSION['ss_status']);
+			$ss_sagsagsnr    = if_isset($_SESSION['ss_sagsagsnr']);
+			$ss_sagfirmanavn = if_isset($_SESSION['ss_sagfirmanavn']);
+			$ss_sagadresse   = if_isset($_SESSION['ss_sagadresse']);
+			$ss_sagby        = if_isset($_SESSION['ss_sagby']);
+			$ss_ansvarlig    = if_isset($_SESSION['ss_ansvarlig']);
+			$ss_status       = if_isset($_SESSION['ss_status']);
 			
-			if ($ss_sagsagsnr) $AND.= " AND sagsnr = '$ss_sagsagsnr'";
+			if ($ss_sagsagsnr)    $AND.= " AND sagsnr    = '$ss_sagsagsnr'";
 			if ($ss_sagfirmanavn) $AND.= " AND firmanavn = '$ss_sagfirmanavn'";
 			if ($ss_sagadresse) {
 				if (preg_match('/[A-Za-z]\s/', $ss_sagadresse) && preg_match('/[0-9]/', $ss_sagadresse)) {
@@ -767,11 +767,11 @@
 					$AND.= " and udf_addr1 ILIKE '%$ss_sagadresse%'";
 				}
 			}
-			if ($ss_sagby) $AND.= " AND udf_bynavn ILIKE '%$ss_sagby%'";
-			if ($ss_ansvarlig) $AND.= " AND ref = '$ss_ansvarlig'";
-			if ($ss_status) $AND.= " AND status = '$ss_status'";
+			if ($ss_sagby)     $AND.= " AND udf_bynavn ILIKE '%$ss_sagby%'";
+			if ($ss_ansvarlig) $AND.= " AND ref    = '$ss_ansvarlig'";
+			if ($ss_status)    $AND.= " AND status = '$ss_status'";
 			
-			$result = db_select("SELECT DISTINCT(TRIM(udf_postnr, ' ')) udf_postnr FROM sager WHERE udf_postnr ILIKE '$my_data%' $AND ORDER BY udf_postnr",__FILE__ . " linje " . __LINE__);
+			$result = db_select("SELECT  DISTINCT(TRIM(udf_postnr, ' ')) udf_postnr FROM sager WHERE udf_postnr ILIKE '$my_data%' $AND ORDER BY udf_postnr",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -782,8 +782,8 @@
 			}
 			break;
 		case 'ss_sagby': // til søgning af bynavn i sager.php i avanceret søg i sagsliste
-			$my_data=db_escape_string($q);
-			$AND = NULL;
+			$my_data = db_escape_string($q);
+			$AND     = NULL;
 			
 			/*
 			function mb_ucfirst($string, $encoding='UTF-8')
@@ -796,12 +796,12 @@
 				return mb_convert_case($str, MB_CASE_TITLE, "UTF-8");
 			}
 			*/
-			$ss_sagsagsnr=if_isset($_SESSION['ss_sagsagsnr']);
-			$ss_sagfirmanavn=if_isset($_SESSION['ss_sagfirmanavn']);
-			$ss_sagadresse=if_isset($_SESSION['ss_sagadresse']);
-			$ss_sagpostnr=if_isset($_SESSION['ss_sagpostnr']);
-			$ss_ansvarlig=if_isset($_SESSION['ss_ansvarlig']);
-			$ss_status=if_isset($_SESSION['ss_status']);
+			$ss_sagsagsnr    = if_isset($_SESSION['ss_sagsagsnr']);
+			$ss_sagfirmanavn = if_isset($_SESSION['ss_sagfirmanavn']);
+			$ss_sagadresse   = if_isset($_SESSION['ss_sagadresse']);
+			$ss_sagpostnr    = if_isset($_SESSION['ss_sagpostnr']);
+			$ss_ansvarlig    = if_isset($_SESSION['ss_ansvarlig']);
+			$ss_status       = if_isset($_SESSION['ss_status']);
 			
 			if ($ss_sagsagsnr) $AND.= " AND sagsnr = '$ss_sagsagsnr'";
 			if ($ss_sagfirmanavn) $AND.= " AND firmanavn = '$ss_sagfirmanavn'";
@@ -816,11 +816,11 @@
 				}
 			}
 			if ($ss_sagpostnr) $AND.= " AND udf_postnr = '$ss_sagpostnr'"; 
-			if ($ss_ansvarlig) $AND.= " AND ref = '$ss_ansvarlig'";
-			if ($ss_status) $AND.= " AND status = '$ss_status'";
+			if ($ss_ansvarlig) $AND.= " AND ref        = '$ss_ansvarlig'";
+			if ($ss_status)    $AND.= " AND status     = '$ss_status'";
 			
-			//$result = db_select("SELECT DISTINCT(LOWER(TRIM(REPLACE(udf_bynavn, '.', '')))) udf_bynavn FROM sager WHERE udf_bynavn ILIKE '%$my_data%' $AND ORDER BY udf_bynavn",__FILE__ . " linje " . __LINE__);
-			$result = db_select("SELECT DISTINCT(LOWER(TRIM(TRIM(TRAILING '.' FROM udf_bynavn)))) udf_bynavn FROM sager WHERE udf_bynavn ILIKE '%$my_data%' $AND ORDER BY udf_bynavn",__FILE__ . " linje " . __LINE__); //DISTINCT(LOWER(TRIM(udf_bynavn, ' '))) 
+			//$result = db_select("SELECT  DISTINCT(LOWER(TRIM(REPLACE(udf_bynavn, '.', '')))) udf_bynavn FROM sager WHERE udf_bynavn ILIKE '%$my_data%' $AND ORDER BY udf_bynavn",__FILE__ . " linje " . __LINE__);
+			$result = db_select("SELECT  DISTINCT(LOWER(TRIM(TRIM(TRAILING '.' FROM udf_bynavn)))) udf_bynavn FROM sager WHERE udf_bynavn ILIKE '%$my_data%' $AND ORDER BY udf_bynavn",__FILE__ . " linje " . __LINE__); //DISTINCT(LOWER(TRIM(udf_bynavn, ' '))) 
 			
 			if($result)
 			{

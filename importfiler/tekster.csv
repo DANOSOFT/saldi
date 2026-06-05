@@ -21,7 +21,7 @@
 21	Tabelfelt 4	Table 4	Tabell 4
 22	Tabelfelt 5	Table field 5	Tabellfelt 5
 23	Tabelfelt 6	Table field 6	Tabellfelt 6
-24	Bemærkning 2	Note 2	Notat 2
+24	Bemærkning 2	Note 2	Merknad 2
 25	Bemærkning 3	Note 3	Merknad 3
 26	Bemærkning 4	Note 4	Merknad 4
 27	Planlagt til uge	Scheduled for week	Planlagt for uken
@@ -141,7 +141,7 @@
 141	Klik her for at sortere på adresse 2.	Click here to sort by address 2.	Klikk her for å sortere etter adresse 2.
 142	Adresse 2	Address 2	adresse 2
 143	Klik her for at sortere på postnr.	Click here to sort by postal code.	Klikk her for å sortere etter postnummer
-144	Postnr	ZIP code	post kode
+144	Postnr	ZIP code	Postkode
 145	Klik her for at sortere på by.	Click here to sort by city.	Klikk her for å sortere etter by.
 146	By	City	By
 147	Klik her for at sortere på kontaktperson.	Click here to sort by contact person.	Klikk her for å sortere etter kontaktperson.
@@ -596,7 +596,7 @@
 596	Lagerværdi	Inventory Value	Lagerverdi
 597	Du kan se dine kollegers kladder ved at klikke på	You can see your colleagues' drafts by clicking	Du kan se kollegaenes utkast ved å klikke
 598	-	-	-
-599	Bemærkning	Remark	Bemerke
+599	Bemærkning	Remark	Merknad
 600	Finans	Finance	Finansiere
 601	Kassekladde	Cash journal	Kassekladd
 602	Regnskab	Financial Accounting	Finansregnskap
@@ -642,25 +642,25 @@
 642	øverst til højre	at the top right	øverst til høyre
 643	Faktura	Invoice	Faktura
 644	Opslag	Lookup	Oppslag
-645	Medarbejdernr.	Employee no.	Ansatt nummer.
+645	Medarbejdernr.	Employee no.	Ansattnr.
 646	Navn	Name	Navn
 647	Initialer	Initials	Initialer
 648	Adresse	Address	Adresse
 649	Adresse 2	Address 2	Adresse 2
-650	Postnr.	ZIP code	post kode
+650	Postnr.	ZIP code	Postkode
 651	By	City	By
 652	E-mail	Email	E-post
 653	Mobil	Mobile phone	Mobiltelefon
-654	Lokalnr.	Local no.	Lokalt nr.
+654	Lokalnr.	Local no.	Lokalnr.
 655	Lokal fax	Local fax	Lokal faks
 656	Privat tlf.	Private tel.	Privat tlf.
 657	Provision	Commission	Kommisjon
 658	Afdeling	Department	Avdeling
-659	Bemærkning	Remark	Bemerke
-660	Fratrådt	Resigned	Gikk av
+659	Bemærkning	Remark	Merknad
+660	Fratrådt	Resigned	Fratrådt
 661	CPR-nr.	CPR-no.	CPR-nr.
 662	Bank	Bank	Bank
-663	Tiltrådt	Joined	Ble med
+663	Tiltrådt	Joined	Tiltrådt
 664	Løn	Pay	Lønn
 665	Løntillæg	Wage supplement	Lønnstillegg
 666	Postnr. & by	ZIP code & city	Postnr. & by

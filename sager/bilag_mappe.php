@@ -36,18 +36,18 @@ include("../includes/std_func.php");
 //$konto_id=if_isset($_GET['konto_id']);
 $mappe_id = if_isset($_GET['mappe_id']);
 
-		$bg="nix";
-		$header='nix';
+		$bg     ="nix";
+		$header ='nix';
 
-		$menu_sager=NULL;
-		$menu_dagbog=NULL;
-		$menu_kunder=NULL;
-		$menu_loen=NULL;
-		$menu_ansatte=NULL;
-		$menu_certificering=NULL;
-		$menu_medarbejdermappe='id="menuActive"';
+		$menu_sager            = NULL;
+		$menu_dagbog           = NULL;
+		$menu_kunder           = NULL;
+		$menu_loen             = NULL;
+		$menu_ansatte          = NULL;
+		$menu_certificering    = NULL;
+		$menu_medarbejdermappe = 'id="menuActive"';
 		
-		$modulnr=0;
+		$modulnr = 0;
 		
 		global $brugernavn;
 		global $db;
@@ -61,8 +61,8 @@ $mappe_id = if_isset($_GET['mappe_id']);
 		$udf_bynavn=htmlspecialchars($r['udf_bynavn']);
 		*/
 		
-		$r=db_fetch_array(db_select("select * from mappe where id='$mappe_id'",__FILE__ . " linje " . __LINE__));
-		$mappebeskrivelse=htmlspecialchars($r['beskrivelse']);
+		$r = db_fetch_array(db_select("select * from mappe where id='$mappe_id'",__FILE__ . " linje " . __LINE__));
+		$mappebeskrivelse = htmlspecialchars($r['beskrivelse']);
 		
 		include_once '../includes/top_header_sager_small.php';
 		include_once '../includes/sagsmenu.php';
@@ -89,27 +89,27 @@ $filnavn = NULL;
 
 if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 	if ($_GET['kilde_id']) {
-		$kilde_id=if_isset($_GET['kilde_id']);
-		$kilde=if_isset($_GET['kilde']);
-		$bilag_id=if_isset($_GET['bilag_id']);
-		$bilag=if_isset($_GET['bilag']);
-		$fokus=if_isset($_GET['fokus']);
-		$ny=if_isset($_GET['ny']);
-		$vis=if_isset($_GET['vis']);
-		$filnavn=if_isset($_GET['filnavn']);
-		$fase=if_isset($_GET['fase']);
+		$kilde_id = if_isset($_GET['kilde_id']);
+		$kilde    = if_isset($_GET['kilde']);
+		$bilag_id = if_isset($_GET['bilag_id']);
+		$bilag    = if_isset($_GET['bilag']);
+		$fokus    = if_isset($_GET['fokus']);
+		$ny       = if_isset($_GET['ny']);
+		$vis      = if_isset($_GET['vis']);
+		$filnavn  = if_isset($_GET['filnavn']);
+		$fase     = if_isset($_GET['fase']);
 	} else {
-		$submit=$_POST['submit'];
-		$kilde_id=$_POST['kilde_id'];
-		$kilde=$_POST['kilde'];
-		$bilag_id=$_POST['bilag_id'];
-		$bilag=$_POST['bilag'];
-		$fokus=$_POST['fokus'];
-		$kategori=trim(if_isset($_POST['ny_kategori']));
-		if (!$kategori) $kategori=if_isset($_POST['kategori']);
-		$beskrivelse=if_isset($_POST['beskrivelse']);
-		$fase=if_isset($_POST['fase']);
-		$bilag_fase=if_isset($_POST['bilag_fase']);
+		$submit   = $_POST['submit'];
+		$kilde_id = $_POST['kilde_id'];
+		$kilde    = $_POST['kilde'];
+		$bilag_id = $_POST['bilag_id'];
+		$bilag    = $_POST['bilag'];
+		$fokus    = $_POST['fokus'];
+		$kategori = trim(if_isset($_POST['ny_kategori']));
+		if (!$kategori) $kategori = if_isset($_POST['kategori']);
+		$beskrivelse = if_isset($_POST['beskrivelse']);
+		$fase        = if_isset($_POST['fase']);
+		$bilag_fase  = if_isset($_POST['bilag_fase']);
 	} 
 	
 	
@@ -134,18 +134,18 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 				$messages = findtekst('3148|Der mangler både beskrivelse og filer', $sprog_id)."!";
 				upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse);
 			} else {
-			$count=count($_FILES['uploadedfile']['name']);
+			$count = count($_FILES['uploadedfile']['name']);
 			
 			for($x =0; $x< $count;$x++){
-				$filnavn=basename($_FILES['uploadedfile']['name'][$x]);
-				$filnavn=htmlentities($filnavn,ENT_COMPAT,$charset);
-				$i=strlen($filnavn);
+				$filnavn = basename($_FILES['uploadedfile']['name'][$x]);
+				$filnavn = htmlentities($filnavn,ENT_COMPAT,$charset);
+				$i       = strlen($filnavn);
 			
-				$t="";
-				$filtype="";
+				$t = "";
+				$filtype = "";
 				while ($i>0 && $t!='.'){
-				$filtype=$t.$filtype;
-					$t=substr($filnavn,$i,1);
+					$filtype = $t.$filtype;
+					$t       = substr($filnavn,$i,1);
 					$i--;
 				}
 				// Hvis der er flere end 1 fil for filerne et nr foran navnet
@@ -157,8 +157,8 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 				
 				$datotid=date('U');
 				db_modify("insert into mappebilag(navn,filtype,beskrivelse,datotid,assign_to,assign_id,hvem) values('".db_escape_string($nyfilnavn)."','".db_escape_string($filtype)."','".db_escape_string($beskrivelse)."','$datotid','sager','$kilde_id','$ansat_navn')",__FILE__ . " linje " . __LINE__);
-				$r=db_fetch_array(db_select("select max(id) as id from mappebilag where assign_to = 'sager' and datotid='$datotid'",__FILE__ . " linje " . __LINE__));
-				$ny_id=$r['id']; // lægger 1 til ved hver gang den kører
+				$r     = db_fetch_array(db_select("select max(id) as id from mappebilag where assign_to = 'sager' and datotid='$datotid'",__FILE__ . " linje " . __LINE__));
+				$ny_id = $r['id']; // lægger 1 til ved hver gang den kører
 				if (!file_exists("../mappe/".$db."/".$kilde_id)) {
 					if (!file_exists("../mappe")) mkdir("../mappe",0777); 
 					if (!file_exists("../mappe/".$db)) mkdir("../mappe/".$db,0777);
@@ -368,27 +368,27 @@ function vis_bilag($kilde_id,$kilde,$bilag_id,$fokus,$filnavn){
 	
 	if (!isset($exec_path)) $exec_path="/usr/bin";
 
-	$ftpfilnavn="bilag_".$bilag_id;
-	$r=db_fetch_array(db_select("select * from grupper where art='FTP'",__FILE__ . " linje " . __LINE__));
-	$box1=$r['box1'];
-	$box2=$r['box2'];
-	$box3=$r['box3'];
+	$ftpfilnavn = "bilag_".$bilag_id;
+	$r          = db_fetch_array(db_select("select * from grupper where art='FTP'",__FILE__ . " linje " . __LINE__));
+	$box1       = $r['box1'];
+	$box2       = $r['box2'];
+	$box3       = $r['box3'];
 	if ($kilde=="kassekladde") {
-		$mappe=$r['box4'];
-		$undermappe="kladde_$kilde_id";
-		$ftpfilnavn="bilag_".$bilag_id;
+		$mappe      = $r['box4'];
+		$undermappe = "kladde_$kilde_id";
+		$ftpfilnavn = "bilag_".$bilag_id;
 	} else {
-		$mappe=$r['box5'];
-		$undermappe="debitor_$kilde_id";
-		$ftpfilnavn="doc_".$bilag_id;
+		$mappe      = $r['box5'];
+		$undermappe = "debitor_$kilde_id";
+		$ftpfilnavn = "doc_".$bilag_id;
 	}
 	
-	$fp=fopen("../temp/$db/ftpscript.$bruger_id","w");
+	$fp = fopen("../temp/$db/ftpscript.$bruger_id","w");
 	if ($fp) {
 		fwrite ($fp, "cd $mappe\ncd $undermappe\nget $ftpfilnavn\nbye\n");
 	}
 	fclose($fp);
-	$kommando="cd ../temp/$db\n$exec_path/ncftp ftp://".$box2.":".$box3."@".$box1." < ftpscript.$bruger_id > ftplog\nmv \"$ftpfilnavn\" \"$filnavn\"\n";
+	$kommando = "cd ../temp/$db\n$exec_path/ncftp ftp://".$box2.":".$box3."@".$box1." < ftpscript.$bruger_id > ftplog\nmv \"$ftpfilnavn\" \"$filnavn\"\n";
 	system ($kommando);
 	print "<tr><td width=100% height=100% align=\"center\" valign=\"middle\"><iframe frameborder=\"no\" width=\"100%\" height=\"100%\" scrolling=\"auto\" src=\"vis_bilag.php?filnavn=$filnavn&db=$db&bilag_id=$bilag_id&kilde_id=$kilde_id&kilde=$kilde\"></iframe></td></tr>";
 }
@@ -397,9 +397,9 @@ function ret_bilag() {
 	global $charset;
 	global $sprog_id;
 	
-	$bilag_id=if_isset($_GET['bilag_id']);
-	$kilde=if_isset($_GET['kilde']);
-	$kilde_id=if_isset($_GET['kilde_id']);
+	$bilag_id = if_isset($_GET['bilag_id']);
+	$kilde    = if_isset($_GET['kilde']);
+	$kilde_id = if_isset($_GET['kilde_id']);
 	/*
 // Query til kategori
 	if ($kilde=='sager') {
