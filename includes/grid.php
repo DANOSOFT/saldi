@@ -1,6 +1,24 @@
 <?php
 
 #..includes/grid.php
+######################### >>>>>>>Notice before editing this file<<<<<<###############
+
+// This file contains the core logic for creating and managing data grids on Saldi.
+// If you have a specific logic or feature you want to implement just for a single file, please consider the following before making changes:
+// 1. If the logic is specific to a single page, consider implementing it directly in that page's PHP file instead of here.
+// 2. If the logic is related to data manipulation or retrieval, consider creating a separate function in a relevant file and then calling that function from the page where it's needed.   
+// This approach helps keep the grid.php file focused on its core responsibility of managing data grids, while allowing for flexibility and separation of concerns in the application.
+#P.S If you are very sure the logic you want to implement is generic and can be reused across multiple pages, then you can consider adding it here, but please ensure to properly document it and ensure it does not introduce unnecessary complexity to the grid management logic.
+//ensure to test it on these pages after implementation: 
+/*
+debitor/debitor.php, debitor/productLookup.php, debitor/debitor_kommission.php, debitor/debitorkort.php, debitor/debitor_historik.php
+lager/lister/indkøb.php, lager/lister/vareliste.php, lager/lister/ordrestatus.php, lager/lister/serialnumber.php
+includes/grid.php, finans/kontospec.php, finans/kassekladde.php, finans/regnskab.php, finans/budget.php
+finans/kladdeliste.php, systemdata/kontoplan.php, kreditor/kreditor.php, kreditor/productLookup.php, kreditor/orderIncludes/dropshipping.php, etc.
+Regards:) 20260220 LOE
+20260513 PK - Added class="navbutton" to the navigation buttons with svg, as those buttons were too high compared to the page selector buttons
+*/
+######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -400,6 +418,10 @@ function create_datagrid($id, $grid_data) {
         $sqlquery = db_select($query, __FILE__ . " line " . __LINE__);
         $rows = fetch_rows_from_query($sqlquery);
 
+        // Optional preload hook: allows bulk data loading before per-row rendering callbacks fire
+        $preloadFn = if_isset($grid_data, NULL, 'preload');
+        if ($preloadFn) $preloadFn($rows);
+
         // Fetch total row count
         $countQuery = build_count_query($grid_data, $columns_updated, $filters_updated, $searchTerms, $sort);
         $countResult = db_select($countQuery, __FILE__ . " line " . __LINE__);
@@ -667,16 +689,21 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         $i++;
         $tmp = "(";
         foreach ($filter["options"] as $filterItem) {
-            if ($filterItem["checked"] == "checked" && $filterItem["sqlOn"] != "") {
-                $tmp .= $filterItem["sqlOn"];
-                $tmp .= " " .$filter['joinOperator']. " ";
+            $sqlOn = isset($filterItem["sqlOn"]) ? $filterItem["sqlOn"] : "";
+            $sqlOff = isset($filterItem["sqlOff"]) ? $filterItem["sqlOff"] : "";
+            $joinOp = isset($filter['joinOperator']) ? $filter['joinOperator'] : "";
+            
+            if ($filterItem["checked"] == "checked" && $sqlOn != "") {
+                $tmp .= $sqlOn;
+                $tmp .= " " . $joinOp . " ";
             }
-            if ($filterItem["checked"] == "" && $filterItem["sqlOff"] != "") {
-                $tmp .= $filterItem["sqlOff"];
-                $tmp .= " " .$filter['joinOperator']. " ";
+            if ($filterItem["checked"] == "" && $sqlOff != "") {
+                $tmp .= $sqlOff;
+                $tmp .= " " . $joinOp . " ";
             }
         }
-        $tmp = rtrim($tmp, " " .$filter['joinOperator']. " ");
+        $joinOp = isset($filter['joinOperator']) ? $filter['joinOperator'] : "";
+        $tmp = rtrim($tmp, " " . $joinOp . " ");
         $tmp .= ")";
         if ($tmp != "()") {
             $filterstring .= $tmp;
@@ -699,7 +726,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+            if (!empty($searchTerms[$column['field']]) || (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] == '0')) {
                 $term = addslashes($searchTerms[$column['field']]);
                 // Convert both the column value and the search term to lowercase
                 if ($term) {
@@ -717,11 +744,33 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
     }
 
     # Is always set due to get_default_sort
+    $sort = apply_sort_sqlOverride($sort, $columns);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     $query .= " LIMIT $rowCount OFFSET $offset"; // Add limit for performance
 
     return $query;
+}
+
+# Replace the bare sort field with its sqlOverride when defined, so ORDER BY is unambiguous.
+function apply_sort_sqlOverride($sort, $columns) {
+    if (!$sort || !is_array($columns)) return $sort;
+    $parts = preg_split('/\s+/', trim($sort), 2);
+    $field = $parts[0];
+    $dir   = isset($parts[1]) ? $parts[1] : '';
+    $override = null;
+    if (isset($columns[$field]) && is_array($columns[$field]) && !empty($columns[$field]['sqlOverride'])) {
+        $override = $columns[$field]['sqlOverride'];
+    } else {
+        foreach ($columns as $col) {
+            if (is_array($col) && isset($col['field']) && $col['field'] === $field && !empty($col['sqlOverride'])) {
+                $override = $col['sqlOverride'];
+                break;
+            }
+        }
+    }
+    if ($override) $field = $override;
+    return trim($field . ' ' . $dir);
 }
 
 
@@ -745,16 +794,21 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $i++;
         $tmp = "(";
         foreach ($filter["options"] as $filterItem) {
-            if ($filterItem["checked"] == "checked" && $filterItem["sqlOn"] != "") {
-                $tmp .= $filterItem["sqlOn"];
-                $tmp .= " " .$filter['joinOperator']. " ";
+            $sqlOn = isset($filterItem["sqlOn"]) ? $filterItem["sqlOn"] : "";
+            $sqlOff = isset($filterItem["sqlOff"]) ? $filterItem["sqlOff"] : "";
+            $joinOp = isset($filter['joinOperator']) ? $filter['joinOperator'] : "";
+            
+            if ($filterItem["checked"] == "checked" && $sqlOn != "") {
+                $tmp .= $sqlOn;
+                $tmp .= " " . $joinOp . " ";
             }
-            if ($filterItem["checked"] == "" && $filterItem["sqlOff"] != "") {
-                $tmp .= $filterItem["sqlOff"];
-                $tmp .= " " .$filter['joinOperator']. " ";
+            if ($filterItem["checked"] == "" && $sqlOff != "") {
+                $tmp .= $sqlOff;
+                $tmp .= " " . $joinOp . " ";
             }
         }
-        $tmp = rtrim($tmp, " " .$filter['joinOperator']. " ");
+        $joinOp = isset($filter['joinOperator']) ? $filter['joinOperator'] : "";
+        $tmp = rtrim($tmp, " " . $joinOp . " ");
         $tmp .= ")";
         if ($tmp != "()") {
             $filterstring .= $tmp;
@@ -776,7 +830,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+            if (!empty($searchTerms[$column['field']]) || (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] == '0')) {
                 $term = addslashes($searchTerms[$column['field']]);
                 if ($term) {
                     $searchConditions[] = $column['generateSearch']($column, $term);
@@ -792,7 +846,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $query = str_replace("{{WHERE}}", $filterstring == "" ? "1=1" : $filterstring, $query);
     }
 
-    // Replace sort placeholder with an empty string (count query doesn't need sorting)
+    $sort = apply_sort_sqlOverride($sort, $columns);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     // Remove the LIMIT clause to count all rows
@@ -993,11 +1047,12 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
     }
     print "<th class='filler-row'></th>";
     print "</tr>";
-    print "<tr style='background-color: $bgColor !important;'>";
+    $bgColorSafe = isset($bgColor) ? $bgColor : '';
+    print "<tr style='background-color: $bgColorSafe !important;'>";
     foreach ($columns as $column) {
         echo "<th class='$column[field]'>";
         if ($column["searchable"]) {
-            $columnSearchTerm = if_isset($searchTerms[$column['field']], '');
+            $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
             echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
         }
         echo "</th>";
@@ -1160,11 +1215,11 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
                         </span>
                         |
                         <span id='navbuttons'>
-                            <button type='button' onclick="setOffset$id($lastpage)" $lastpagestatus>
+                            <button type='button' onclick="setOffset$id($lastpage)" class="navbutton" $lastpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
                             </button>
                             $pageLinks
-                            <button type='button' onclick="setOffset$id($nextpage)" $nextpagestatus>
+                            <button type='button' onclick="setOffset$id($nextpage)" class="navbutton" $nextpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                             </button>
                         </span>
@@ -1943,8 +1998,19 @@ function render_dropdown_script($id, $query) {
                 tbody.innerHTML += '<b><a href="' + window.location.href.split('?')[0] + '">back</a></b>';
 
             } else if (action === 'clear') {
-                // Redirect to the base URL with clear_grid parameter to delete the datatable entry
-                window.location.href = window.location.href.split('?')[0] + '?clear_grid=$id';
+              // Redirect to the base URL with clear_grid parameter to delete the datatable entry
+               // window.location.href = window.location.href.split('?')[0] + '?clear_grid=$id';
+                 
+                 // Select all input fields matching the name pattern `search[test][...]`
+                const searchFields = document.querySelectorAll('input[name^="search[$id]"]');
+                console.log(searchFields);
+
+                // Loop through each field and clear its value
+                searchFields.forEach(field => {
+                    field.value = "";
+                });
+
+                searchFields[0].form.submit();
 
             } else if (action === 'exportCSV') {
                 // Get the table element

@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php -----patch 4.0.8 ----2023-07-22--
-//                           LICENSE
+// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 5.0.0 --- 2026-02-25 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,12 +21,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190312 Make functions to print the box count
 // 20190314	PHR	Varius changes in function 'setPrintTxt' according to 'changeCardValue'
 // 20230623 PHR Added (float) to $omsatning, $byttepenge & $tilgang
+// 20260225 PHR Updated cashCount
 
 function setSpecifiedPrintText() 
 { 
@@ -71,8 +72,7 @@ function acceptPrint() {
 
 function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval,$changeCardValue,$reportNumber) {
 
-	echo __line__ ."$reportNumber<br>";
-
+	global $baseCurrency;
 
 	$dd=date("Y-m-d");
 	$specifiedCashTxt = setSpecifiedPrintText();
@@ -103,6 +103,10 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 	}
 	if ($reportNumber) {
 		$qtxt  = "insert into report (date,type,description,count,total,report_number) values ";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[tenth]','0','". $ore_10*1 ."','$reportNumber')";
+		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fiveth]','0','". $ore_20*1 ."','$reportNumber')";
+		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
 		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". $ore_50*1 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[one]','0','". $kr_1*1 ."','$reportNumber')";
@@ -182,6 +186,14 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 				if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		}
 	}
+	if ($baseCurrency == 'EUR') {
+		$tmp = iconv($FromCharset, $ToCharset,$specifiedCashTxt['tenth']);
+		fwrite($fp,"  $tmp:  $ore_10\n");
+		fwrite($log,"  $tmp:  $ore_10\n");
+		$tmp = iconv($FromCharset, $ToCharset,$specifiedCashTxt['fiveth']);
+		fwrite($fp,"  $tmp:  $ore_20\n");
+		fwrite($log,"  $tmp:  $ore_20\n");
+	}
 	$tmp = iconv($FromCharset, $ToCharset,$specifiedCashTxt['half']);
 	fwrite($fp,"  $tmp:  $ore_50\n");
 	fwrite($log,"  $tmp:  $ore_50\n");
@@ -203,8 +215,10 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 	fwrite($log,"  $specifiedCashTxt[twoHundred]  $kr_200\n");
 	fwrite($fp,"   $specifiedCashTxt[fiveHundred]  $kr_500\n");
 	fwrite($log,"  $specifiedCashTxt[fiveHundred]  $kr_500\n");
-	fwrite($fp,"   $specifiedCashTxt[thousand]  $kr_1000\n");
-	fwrite($log,"  $specifiedCashTxt[thousand]  $kr_1000\n");
+	if ($baseCurrency != 'DKK') {
+		fwrite($fp,"   $specifiedCashTxt[thousand]  $kr_1000\n");
+		fwrite($log,"  $specifiedCashTxt[thousand]  $kr_1000\n");
+	}
 	fwrite($fp,"$specifiedCashTxt[other]  ".dkdecimal($kr_andet,2)."\n\n");
 	fwrite($log,"$specifiedCashTxt[other]  ".dkdecimal($kr_andet,2)."\n\n");
 	if (count($valuta)) {

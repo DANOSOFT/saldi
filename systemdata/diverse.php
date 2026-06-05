@@ -87,7 +87,10 @@
 // 20250513 Sawaneh add max user update in kontoindstillinger()
 // 20250526 PHR 'nyt_navn' changed to 'newName'
 // 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
-
+// 20260223 Sawaneh SD-335 added buttonname field to DFM pickup addresses
+// 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
+// 20260306 Sawaneh - Added Simple guides feature: sidebar overlay with hardcoded Finance + Scaffolding PDF links
+// 20260326 Sawaneh -Added ourRefStockSwitch setting
 
 @session_start();
 $s_id = session_id();
@@ -244,6 +247,13 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 	#######################################################################################
 	} elseif ($sektion == 'div_valg') {
+		// DEBUG: Log POST data for pickup addresses
+		$debug_log = "/tmp/saldi_debug_pickup.log";
+		file_put_contents($debug_log, date('Y-m-d H:i:s') . " POST data:\n", FILE_APPEND);
+		file_put_contents($debug_log, "dfm_pickup_group_id: " . print_r(isset($_POST['dfm_pickup_group_id']) ? $_POST['dfm_pickup_group_id'] : 'NOT SET', true) . "\n", FILE_APPEND);
+		file_put_contents($debug_log, "dfm_pickup_name1: " . print_r(isset($_POST['dfm_pickup_name1']) ? $_POST['dfm_pickup_name1'] : 'NOT SET', true) . "\n", FILE_APPEND);
+		file_put_contents($debug_log, "dfm_pickup_buttonname: " . print_r(isset($_POST['dfm_pickup_buttonname']) ? $_POST['dfm_pickup_buttonname'] : 'NOT SET', true) . "\n", FILE_APPEND);
+		file_put_contents($debug_log, "---\n", FILE_APPEND);
 		$id      = (int) $_POST['id'];
 		$box1    = $_POST['box1']; #gruppevalg
 		$box2    = $_POST['box2']; #kuansvalg
@@ -283,6 +293,20 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$dfm_pickup_street2s  = isset($_POST['dfm_pickup_street2']) && is_array($_POST['dfm_pickup_street2']) ? $_POST['dfm_pickup_street2'] : array();
 		$dfm_pickup_towns     = isset($_POST['dfm_pickup_town']) && is_array($_POST['dfm_pickup_town']) ? $_POST['dfm_pickup_town'] : array();
 		$dfm_pickup_zipcodes  = isset($_POST['dfm_pickup_zipcode']) && is_array($_POST['dfm_pickup_zipcode']) ? $_POST['dfm_pickup_zipcode'] : array();
+		$dfm_pickup_buttonnames = isset($_POST['dfm_pickup_buttonname']) && is_array($_POST['dfm_pickup_buttonname']) ? $_POST['dfm_pickup_buttonname'] : array();
+		
+		$dfm_pickup_ids = isset($_POST['dfm_pickup_id']) && is_array($_POST['dfm_pickup_id']) ? $_POST['dfm_pickup_id'] : array();
+		$dfm_pickup_users = isset($_POST['dfm_pickup_user']) && is_array($_POST['dfm_pickup_user']) ? $_POST['dfm_pickup_user'] : array();
+		$dfm_pickup_passes = isset($_POST['dfm_pickup_pass']) && is_array($_POST['dfm_pickup_pass']) ? $_POST['dfm_pickup_pass'] : array();
+		$dfm_pickup_agrees = isset($_POST['dfm_pickup_agree']) && is_array($_POST['dfm_pickup_agree']) ? $_POST['dfm_pickup_agree'] : array();
+		$dfm_pickup_urls = isset($_POST['dfm_pickup_url']) && is_array($_POST['dfm_pickup_url']) ? $_POST['dfm_pickup_url'] : array();
+		$dfm_pickup_hubs = isset($_POST['dfm_pickup_hub']) && is_array($_POST['dfm_pickup_hub']) ? $_POST['dfm_pickup_hub'] : array();
+		$dfm_pickup_ships = isset($_POST['dfm_pickup_ship']) && is_array($_POST['dfm_pickup_ship']) ? $_POST['dfm_pickup_ship'] : array();
+		$dfm_pickup_goods = isset($_POST['dfm_pickup_good']) && is_array($_POST['dfm_pickup_good']) ? $_POST['dfm_pickup_good'] : array();
+		$dfm_pickup_gooddess = isset($_POST['dfm_pickup_gooddes']) && is_array($_POST['dfm_pickup_gooddes']) ? $_POST['dfm_pickup_gooddes'] : array();
+		$dfm_pickup_pays = isset($_POST['dfm_pickup_pay']) && is_array($_POST['dfm_pickup_pay']) ? $_POST['dfm_pickup_pay'] : array();
+		$dfm_pickup_sercodes = isset($_POST['dfm_pickup_sercode']) && is_array($_POST['dfm_pickup_sercode']) ? $_POST['dfm_pickup_sercode'] : array();
+		
 		$mySale             = if_isset($_POST['mySale']);
 		$mySaleLabel        = if_isset($_POST['mySaleLabel']);
 		$paperflow          = if_isset($_POST['paperflow']);
@@ -480,7 +504,19 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					'dfm_pickup_street1' => isset($dfm_pickup_street1s[$idx]) ? $dfm_pickup_street1s[$idx] : '',
 					'dfm_pickup_street2' => isset($dfm_pickup_street2s[$idx]) ? $dfm_pickup_street2s[$idx] : '',
 					'dfm_pickup_town' => isset($dfm_pickup_towns[$idx]) ? $dfm_pickup_towns[$idx] : '',
-					'dfm_pickup_zipcode' => isset($dfm_pickup_zipcodes[$idx]) ? $dfm_pickup_zipcodes[$idx] : ''
+					'dfm_pickup_zipcode' => isset($dfm_pickup_zipcodes[$idx]) ? $dfm_pickup_zipcodes[$idx] : '',
+					'dfm_pickup_buttonname' => isset($dfm_pickup_buttonnames[$idx]) ? $dfm_pickup_buttonnames[$idx] : '',
+					'dfm_id' => isset($dfm_pickup_ids[$idx]) ? $dfm_pickup_ids[$idx] : '',
+					'dfm_user' => isset($dfm_pickup_users[$idx]) ? $dfm_pickup_users[$idx] : '',
+					'dfm_pass' => isset($dfm_pickup_passes[$idx]) ? $dfm_pickup_passes[$idx] : '',
+					'dfm_agree' => isset($dfm_pickup_agrees[$idx]) ? $dfm_pickup_agrees[$idx] : '',
+					'dfm_url' => isset($dfm_pickup_urls[$idx]) ? $dfm_pickup_urls[$idx] : '',
+					'dfm_hub' => isset($dfm_pickup_hubs[$idx]) ? $dfm_pickup_hubs[$idx] : '',
+					'dfm_ship' => isset($dfm_pickup_ships[$idx]) ? $dfm_pickup_ships[$idx] : '',
+					'dfm_good' => isset($dfm_pickup_goods[$idx]) ? $dfm_pickup_goods[$idx] : '',
+					'dfm_gooddes' => isset($dfm_pickup_gooddess[$idx]) ? $dfm_pickup_gooddess[$idx] : '',
+					'dfm_pay' => isset($dfm_pickup_pays[$idx]) ? $dfm_pickup_pays[$idx] : '',
+					'dfm_sercode' => isset($dfm_pickup_sercodes[$idx]) ? $dfm_pickup_sercodes[$idx] : ''
 				);
 				
 				foreach ($pickup_fields as $field_name => $field_value) {
@@ -600,8 +636,11 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$showDB           = if_isset($_POST, null, 'showDB');
 		$showDG           = if_isset($_POST, null, 'showDG');
 		$pluklisteEmail   = if_isset($_POST, null, 'pluklisteEmail');
-		$lockPayment 	  = if_isset($_POST["lockPayment"]);
+		$lockPayment       = if_isset($_POST["lockPayment"]);
 		$ordreAutocomplete = if_isset($_POST, null, 'ordreAutocomplete');
+		$gs1parsing        = if_isset($_POST, null, 'gs1_parsing');
+		$ourRefStockSwitch = if_isset($_POST, null, 'ourRefStockSwitch');
+		$stockWarningEnabled = if_isset($_POST, null, 'stockWarningEnabled');
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
@@ -610,6 +649,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("showDG", "ordre", $showDG, "Weather or not to show the DG on the order page");
 		update_settings_value("lockedInvoiceButton", "debitor", $lockPayment, "Locks the invoice button until payment has occured");
 		update_settings_value("ordreAutocomplete", "ordre", $ordreAutocomplete, "Enable or disable autocomplete search on order pages", $bruger_id);
+		update_settings_value("gs1_parsing", "ordre", $gs1parsing, "Enable GS1 barcode parsing on order line item entry");
+		update_settings_value("ourRefStockSwitch", "ordre", $ourRefStockSwitch, "Update order stock/warehouse from Our ref when the reference changes"); // Removed single quotes from description to avoid SQL syntax error
+		update_settings_value("stockWarningEnabled", "ordre", $stockWarningEnabled, "Show popup and require approval note when selling out-of-stock items (POS + Debtor/Order)");
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
 		} elseif ($box2) {
@@ -715,6 +757,12 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$lagertrigger                    = if_isset($_POST['lagertrigger']);
 		$lagertime                       = if_isset($_POST['lagertime']);
 		$minBeholdning                   = if_isset($_POST["minBeholdning"]);
+		$packagingModuleEnabled          = if_isset($_POST, null, 'packagingModuleEnabled');
+		update_settings_value("packagingModuleEnabled", "items", $packagingModuleEnabled, "Enable the packaging tax reporting module");
+		if ($packagingModuleEnabled === "on") {
+			include_once("../includes/emballage_schema.php");
+			ensure_emballage_schema();
+		}
 
 		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
 		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
@@ -1091,33 +1139,36 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		header("Location: diverse.php?sektion=variant_valg");
 		exit;
 	#######################################################################################
-	} elseif ($sektion == 'shop_valg') {
-		$id = if_isset($_POST['id']);
-#		$box1 = if_isset($_POST['box1']);   #incl_moms (legacy - not used for VAT anymore)
-		$box2 = if_isset($_POST['box2']);   #Shop url
-		$box3 = if_isset($_POST['box3']);   #shop valg
-		$box4 = if_isset($_POST['box4']);   #merchant id
-		$box5 = if_isset($_POST['box5']);   #md5 secret
-#		$box6 = if_isset($_POST['box6']);   #Bruges ved productOptions
-		$box7 = if_isset($_POST['box7']);   #Tegnsæt for webshop
-#		$box8 = if_isset($_POST['box8']);   #Bruges ved ordre_valg
-		$box9 = if_isset($_POST['box9']);   #Agreement ID
-		$box10 = if_isset($_POST['box10']); #ledig
+	} 
+	
+// 	elseif ($sektion == 'shop_valg') {
+// 		$id = if_isset($_POST['id']);
+// #		$box1 = if_isset($_POST['box1']);   #incl_moms (legacy - not used for VAT anymore)
+// 		$box2 = if_isset($_POST['box2']);   #Shop url
+// 		$box3 = if_isset($_POST['box3']);   #shop valg
+// 		$box4 = if_isset($_POST['box4']);   #merchant id
+// 		$box5 = if_isset($_POST['box5']);   #md5 secret
+// #		$box6 = if_isset($_POST['box6']);   #Bruges ved productOptions
+// 		$box7 = if_isset($_POST['box7']);   #Tegnsæt for webshop
+// #		$box8 = if_isset($_POST['box8']);   #Bruges ved ordre_valg
+// 		$box9 = if_isset($_POST['box9']);   #Agreement ID
+// 		$box10 = if_isset($_POST['box10']); #ledig
 
-		if ($box3 == '1')
-			$box2 = '!';
-		$qtxt = NULL;
-		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))))
-			$id = $r['id'];
-		if (!$id) {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box2,box3,box4,box5,box7,box9) values ('Div_valg (Varer)','5','DIV','$box2','$box3','$box4','$box5','$box7','$box9')";
-		} elseif ($id > 0) {
-			$qtxt = "update grupper set box2='$box2',box3='$box3',box4='$box4',box5='$box5',box7='$box7',box9='$box9' WHERE id = '$id'";
-		}
-		if ($qtxt)
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		#######################################################################################
-	} elseif ($sektion == 'api_valg') {
+// 		if ($box3 == '1')
+// 			$box2 = '!';
+// 		$qtxt = NULL;
+// 		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))))
+// 			$id = $r['id'];
+// 		if (!$id) {
+// 			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box2,box3,box4,box5,box7,box9) values ('Div_valg (Varer)','5','DIV','$box2','$box3','$box4','$box5','$box7','$box9')";
+// 		} elseif ($id > 0) {
+// 			$qtxt = "update grupper set box2='$box2',box3='$box3',box4='$box4',box5='$box5',box7='$box7',box9='$box9' WHERE id = '$id'";
+// 		}
+// 		if ($qtxt)
+// 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+// 		#######################################################################################
+// 	} 
+	elseif ($sektion == 'api_valg') {
 		$id = if_isset($_POST['id']);
 		$box1 = db_escape_string(if_isset($_POST['api_key']));
 		$box2 = db_escape_string(if_isset($_POST['ip_list']));
@@ -2176,9 +2227,9 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('788|Variantrelaterede valg', $sprog_id)."</button></a></td></tr>\n";
 
-		print "<tr><td align=left><a href=diverse.php?sektion=shop_valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('789|Shoprelaterede valg', $sprog_id)."</button></a></td></tr>\n";
+		// print "<tr><td align=left><a href=diverse.php?sektion=shop_valg>
+		// 	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		// 	   .findtekst('789|Shoprelaterede valg', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=api_valg>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
@@ -2251,7 +2302,7 @@ if ($menu != 'T') {
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=ordre_valg>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=productOptions>".findtekst('787|Varerelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst('788|Variantrelaterede valg', $sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
+		// print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
@@ -2290,7 +2341,7 @@ if ($sektion == "productOptions" || $sektion == "label") {
 	productOptions($defaultProvision);
 }
 if ($sektion == "variant_valg") variant_valg();
-if ($sektion == "shop_valg") shop_valg();
+// if ($sektion == "shop_valg") shop_valg();
 if ($sektion == "api_valg") api_valg();
 if ($sektion == "labels") labels($valg);
 if ($sektion == "pricelists") {

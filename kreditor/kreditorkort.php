@@ -1,6 +1,6 @@
 <?php
-// ----------kreditor/kreditorkort.php---patch 4.1.1 --- 2025-11-26 ------
-// 							LICENSE
+// ----------kreditor/kreditorkort.php---patch 4.1.1 --- 2026-05-01 ------
+// 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20130224 Tilføjet kontofusion
 // 20140319 addslashes erstattet med db_escape_string
@@ -26,6 +26,7 @@
 // 20220505 MSC - Implementing new top design
 // 20220722 MSC - Implementing new top design
 // 20251125 LOE Datagrid used to handle the main tables.
+// 20260501 PHR fidscal_year
 
 @session_start();
 $s_id = session_id();
@@ -192,17 +193,17 @@ if ($menu == 'T') {
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
 	print "<div class=\"headerbtnLft headLink\"><a href=javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id') accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
-	print "<div class=\"headerTxt\">$title swhhshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh</div>";
+	print "<div class=\"headerTxt\">$title</div>";
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
 	print "<div class='content-noside'>";
 	print "
 	<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style='width:100%' class='dataTableSmall'><tbody>
 	<tr><td style='width:50%'>
-	<input type='button' style='width:150px;' onclick=\"location.href='rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id'\" value='" . findtekst(133, $sprog_id) . "'>
+	<input type='button' style='width:150px;' onclick=\"location.href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id'\" value='" . findtekst(133, $sprog_id) . "'>
 	</td>
 	<td style='width:50%; text-align:right;'>
-	<input type='button' style='width:150px;' onclick=\"location.href='ordreliste.php?kontonumre=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id'\" value='" . findtekst(134, $sprog_id) . "'>
+	<input type='button' style='width:150px;' onclick=\"location.href='ordreliste.php?konto_id=$id&kontonumre=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id'\" value='" . findtekst(134, $sprog_id) . "'>
 	</td></tr>
 	</tbody>
 	</table>
@@ -368,11 +369,11 @@ print "<tr bgcolor=$bg><td>" . findtekst('1183|Kreditorgruppe', $sprog_id) . "</
 if (!$gruppe) {
 	$gruppe = 1;
 }
-$q = db_select("select beskrivelse from grupper where art='KG' and kodenr='$gruppe'", __FILE__ . " linje " . __LINE__);
+$q = db_select("select beskrivelse from grupper where art='KG' and kodenr='$gruppe' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
 print "<td><SELECT NAME=gruppe value=\"$gruppe\"  onchange=\"javascript:docChange = true;\">\n";
 print "<option>$gruppe:$r[beskrivelse]</option>\n";
-$q = db_select("select * from grupper where art='KG' and kodenr!='$gruppe' order by kodenr", __FILE__ . " linje " . __LINE__);
+$q = db_select("select * from grupper where art='KG' and kodenr!='$gruppe'  and fiscal_year = '$regnaar' order by kodenr", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	print "<option>$r[kodenr]:$r[beskrivelse]</option>\n";
 }
@@ -503,12 +504,12 @@ if ($menu == 'T') {
 	$tekst = findtekst(132, $sprog_id);
 
 	print "<td width='50%' align='right' title='$tekst'>
-		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>" . findtekst(133, $sprog_id) . "</a></td>\n";
+		   <a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>" . findtekst(133, $sprog_id) . "</a></td>\n";
 
 	if (substr($rettigheder, 5, 1) == '1') {
 		$tekst = findtekst(129, $sprog_id);
 		print "<td width='50%' title='$tekst'>
-			   <a href=ordreliste.php?search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>
+			   <a href=ordreliste.php?konto_id=$id&search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>
 			   " . findtekst(134, $sprog_id) . "</a></td>\n";
 	} else {
 		print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>" . findtekst(134, $sprog_id) . "</span></td>\n";
@@ -519,12 +520,12 @@ if ($menu == 'T') {
 	print	"<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>"; #tabel 1.3. start
 	print "<td width=\"40%\" $top_bund>&nbsp;</td>";
 	$tekst = findtekst(132, $sprog_id);
-	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\"><!--tekst 132-->" . findtekst(133, $sprog_id) . "<!--tekst 133--></td>\n";
-	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id>" . findtekst(133, $sprog_id) . "</td>\n";
+	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\"><!--tekst 132-->" . findtekst(133, $sprog_id) . "<!--tekst 133--></td>\n";
+	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id>" . findtekst(133, $sprog_id) . "</td>\n";
 	if (substr($rettigheder, 5, 1) == '1') {
 		$tekst = findtekst(129, $sprog_id);
-	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst(134, $sprog_id) . "</td>\n";
-		else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><a href=ordreliste.php?search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id>" . findtekst(134, $sprog_id) . "</td>\n";
+	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?konto_id=$id&search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst(134, $sprog_id) . "</td>\n";
+		else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><a href=ordreliste.php?konto_id=$id&search[kredorliste_faktura][kontonr]=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id>" . findtekst(134, $sprog_id) . "</td>\n";
 	} else print "<td width=\"10%\" $stor_knap_bg><span style=\"color:#999;\">" . findtekst(134, $sprog_id) . "</span></td>\n";
 	print "<td width=\"40%\" $top_bund>&nbsp;</td>";
 }

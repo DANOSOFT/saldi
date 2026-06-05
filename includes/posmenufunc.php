@@ -322,7 +322,7 @@ if (!function_exists('menubuttons')) {
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
 							print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"bordvalg\" VALUE=\"$txt\"><!-- arr = $regnaar -->";
 						} elseif ($c == '2') {
-							$txt = str_replace('$brugernavn', findtekst('990|Bruger', $sprog_id), $a);
+							$txt = str_replace('$brugernavn', $brugernavn, $a);
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
 							print "<td><INPUT $disabled onclick=\"window.location.href='pos_ordre.php?id=$id&skift_bruger=1&bordnr=$bordnr'\" type=\"button\" $tmp value= \"$txt\">\n";
 						} elseif ($c == '3') {

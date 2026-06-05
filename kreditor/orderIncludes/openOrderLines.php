@@ -71,8 +71,12 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   print "<td><input class='inputbox' type='text' style='text-align:right' size=3 name=posn$x value='$x' onchange='javascript:docChange = true;'></td>";
   print "<td title='".findtekst(1513, $sprog_id)."'><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=7 name=vare$x onfocus='document.forms[0].fokus.value=this.name;' value='".htmlentities($varenr[$x])."'></td>"; #20180305
   print "<td><input class='inputbox' type='text' size=7 name=lev_varenr$x value=\"".htmlentities($lev_varenr[$x])."\" ";
-  print "onchange='javascript:docChange = true;'></td>";
-  print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x value='$dkantal[$x]' "; print "onchange='javascript:docChange = true;'></td>";
+  print "onfocus='document.forms[0].fokus.value=this.name;' onchange='javascript:docChange = true;'></td>";
+  if ($fokus == 'anta' . $x) {
+    print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x placeholder='$dkantal[$x]' value='' onchange='javascript:docChange = true;'></td>";
+  } else {
+    print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x value='$dkantal[$x]' onchange='javascript:docChange = true;'></td>";
+  }
   print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=3 value='$enhed[$x]'></td>";
   print "<td><input class='inputbox' type='text' size=58 name=beskrivelse$x value= \"".htmlentities($beskrivelse[$x])."\" onchange='javascript:docChange = true;'></td>";
   print "<td><input class='inputbox' type='text' style='text-align:right' size=10 name=pris$x value='$dkpris' onchange='javascript:docChange = true;'></td>";
@@ -81,7 +85,7 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) $tmp=dkdecimal($ialt,2);
   else $tmp=NULL;
   print "<td align=right><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee;text-align:right' readonly='readonly' size=10 value='$tmp'></td>";
-  if ($vis_projekt && !$projekt[0]) {
+  if ($vis_projekt) {
   print "<td><input class='inputbox' style='width:50px;' name='projekt[$x]' value='{$projekt[$x]}' onfocus='document.forms[0].fokus.value=this.name;'></td>";
 }
 if ($status>=1) {
@@ -164,6 +168,40 @@ if ($status>=1) {
       print "text-align:right' size='4' name='leve$x' value='$dklev[$x]' onchange='javascript:docChange = true;'></td>\n";
     }
   print "<td>($dk_tidl_lev[$x])</td>";
+  // Expiry date fields for items with has_due_date
+  if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+    $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
+    $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
+    if (!$batch_due_date_val) {
+      // Pre-fill with default shelf life if set
+      $shelf_days = item_default_shelf_life($vare_id[$x]);
+      if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
+    }
+    print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+    print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+    print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+    print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
+  }
+  } else {
+    // status>=1 but no vare_id: pad columns to align with vare_id rows (leve + dk_tidl_lev)
+    print "<td></td><td></td>";
+  }
+} else {
+  // Pad to match leve + dk_tidl_lev cells used in status>=1 rows so trailing
+  // columns (like the delete button) align across all rows
+  print "<td></td><td></td>";
+  // Expiry date fields for status 0 (draft orders)
+  if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+    $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
+    $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
+    if (!$batch_due_date_val) {
+      $shelf_days = item_default_shelf_life($vare_id[$x]);
+      if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
+    }
+    print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+    print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+    print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+    print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
   }
 }
 if ($omlev) {
@@ -188,13 +226,19 @@ if (($status>0)&&($serienr[$x])) {
 $txt = "<span title= '".findtekst(1496, $sprog_id)."'><img alt='".findtekst(1515, $sprog_id)."' src=../ikoner/serienr.png>";
 print "<td align=center onClick='batch($linje_id[$x])'>$txt</td>";
   }
+  $delBtn = "<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#d0021b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg>";
+  $delTitle = findtekst('2130|Slet ordrelinje', $sprog_id);
+  $delConfirm = addslashes($delTitle . " $x?");
+  print "<td valign='top' align='right' title='$delTitle'>";
+  print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
+  print "onclick=\"if (confirm('$delConfirm')) { document.getElementsByName('posn$x')[0].value='-'; document.getElementsByName('save')[0].click(); }\">$delBtn</button></td>\n";
   print "</tr>\n";
 }
 print "<tr>";
 print "<td><input class='inputbox' type='text' style='text-align:right' size=3 name=posn0 value=$x></td>";
 if ($art!='KK') {
   print "<td><input class='inputbox' type='text' size=7 name=vare0 onfocus='document.forms[0].fokus.value=this.name;'></td>";
-  print "<td><input class='inputbox' type='text' size=7 name=lev_v0></td>";
+  print "<td><input class='inputbox' type='text' size=7 name=lev_varenr0 onfocus='document.forms[0].fokus.value=this.name;'></td>";
   print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta0></td>";
   print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=3></td>";
 }
@@ -213,6 +257,7 @@ print "<td><input class='inputbox' type='text' style='text-align:right' size=10 
 print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=raba0></td>";
 print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=10></td>";
 #if ($status==1) {print "<td><input class='inputbox' type='text' style='text-align:right' size=2 name=modt0></td>";}
+print "<td></td>";
 print "</tr>\n";
 print "<input type='hidden' name='sum' value='$sum'>";
 $moms=floatval($momssum)/100*floatval($momssats);

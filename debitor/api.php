@@ -1,6 +1,33 @@
 <?php
 
     // This file is used to send invoices to EasyUBL
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- debitor/api.php --- patch 5.0.0 --- 2026-05-12 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Saldi.dk ApS
+// ----------------------------------------------------------------------
+
+// 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
+// &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
 
     @session_start();
     $s_id=session_id();
@@ -11,6 +38,7 @@
     $query = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $apiKey = $res["var_value"];
+    //echo $apiKey . "<br>";
 
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
@@ -31,6 +59,7 @@
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
+            "orgNo" => "", //TODO find out what string to put here
             "currency" => "DKK",
             "country" => "DK",
             "webhookUrl" => $webhookUrl,
@@ -68,7 +97,7 @@
             "doNotReceiveUBL" => false,
         ];
 
-        /* echo json_encode($data, JSON_PRETTY_PRINT); */
+        // echo json_encode($data, JSON_PRETTY_PRINT) . "<br>";
 
         return $data;
         
@@ -106,16 +135,22 @@
         
         $timestamp = date("Y-m-d-H-i-s");
         
-        if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "") {
+        if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || trim($response) === "") {
             // An error occurred
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
-            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response];
+            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response, 'status code' => $httpCode];
             
             // Save error response in temp folder
             file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             
-            return ['success' => false, 'message' => 'Error updating company: ' . $errorMessage];
+            return ['success' => false, 'message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT)];
+        } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
+            return ['success' => false,
+                'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
+                'response' => $response,
+                'status code' => $httpCode
+            ];
         }
         
         // Save successful response in temp folder for debugging
@@ -140,13 +175,14 @@
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
             $response = curl_exec($ch);
             $response = json_decode($response, true);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             $timestamp = date("Y-m-d-H-i-s");
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
 				$errorNumber = curl_errno($ch);
 				$errorMessage = curl_error($ch);
-				$error = ['error' => $errorNumber, 'message' => $errorMessage];
+				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'statusCode' => $httpCode];
 				json_encode($error, JSON_PRETTY_PRINT);
 				
 				// save response in file in temp folder
@@ -157,7 +193,7 @@
 				</script>
 				<?php
 				exit;
-			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000") {
+			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000" || $httpCode >= 400) {
 				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
@@ -194,6 +230,14 @@
     // Sending the invoice to the recipient through easyUBL
     function getInvoicesOrder($data, $url, $orderId) {
         global $bruger_id, $db, $apiKey;
+        $query = db_select("SELECT var_value FROM settings WHERE var_name = 'updatedCompany' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+        if(db_num_rows($query) == 0){
+            $query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+            if(db_num_rows($query) > 0){
+                updateCompany();
+                $query = db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('updatedCompany', 'easyUBL', 'true')", __FILE__ . " linje " . __LINE__);
+            }
+        }
         $companyID = getCompanyID();
         if($companyID == "error"){
             die("Der er sket en fejl. Kontakt support.");
@@ -239,13 +283,12 @@
             if($result["message"] !== ""){
             ?>
             <script>
-                alert("<?php echo $result["message"]; ?>");
+                alert("<?php echo "EasyUBL Error Occured: " . json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE); ?>");
             </script>
             <?php
             }else{
             ?>
             <script>
-
                 alert("Der opdstod en fejl under sending af fakturaen. kontakt support. Tlf: 46902208");
             </script>
             <?php
@@ -280,7 +323,7 @@
 
     // Setting up the invoice data
     function sendInvoice($id, $type) {
-				global $db;
+            global $db;
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $adresse = db_fetch_array($query);
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
@@ -336,9 +379,14 @@
         if($cvrnr_with_prefix !== ""){
             $countryCode = substr($cvrnr_with_prefix, 0, 2);
         }
+        // Greenland (GL) and Faroe Islands (FO) should be sent as DK in companyId
+        if($countryCode == "GL" || $countryCode == "FO"){
+            $cvrnr_with_prefix = "DK" . substr($cvrnr_with_prefix, 2);
+            $countryCode = "DK";
+        }
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
-                "streetName" => $r_faktura["lev_addr1"],
+                "streetName" => implode(" ", explode(" ", $r_faktura["lev_addr1"], -1)), ## 20260518 - NTR - Street name without building number.
                 "buildingNumber" => end(explode(" ", $r_faktura["lev_addr1"])),
                 "inhouseMail" => $r_faktura["email"],
                 "additionalStreetName" => $r_faktura["lev_addr2"],
@@ -369,6 +417,8 @@
             "issueDate" => date("c", strtotime($r_faktura["fakturadate"])),
             "dueDate" => usdate(forfaldsdag($r_faktura['fakturadate'], $r_faktura['betalingsbet'], $r_faktura['betalingsdage']))."T00:00:00.000Z",
             "deliveryDate" => date("c", strtotime($r_faktura["levdate"])),
+            "orderReference" => "", //TODO 
+            "invoiceReference" => "", //TODO
             "salesOrderID" => $r_faktura["ordrenr"],
             "note" => $r_faktura["notes"],
             "buyerReference" => $r_faktura["kundeordnr"],
@@ -380,8 +430,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
-                    "streetName" => explode(" ", $r_faktura["addr1"])[0],
-                    "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
+                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["kontakt"],
@@ -398,10 +448,33 @@
                     "electronicMail" => $r_faktura["email"]
                 ]
             ],
+            // Not needed when Customer and Payer are the same
+            // "buyerCustomerParty" => [
+            //     "endpointId" => "", //Was missing from JSON structure
+            //     "endpointIdType" => "", //Was missing from JSON structure
+            //     "name" => "", //Was missing from JSON structure
+            //     "companyId" => "", //Was missing from JSON structure
+            //     "postalAddress" => [
+            //         "streetName" => "", //Was missing from JSON structure
+            //         "buildingNumber" => "", //Was missing from JSON structure
+            //         "inhouseMail" => "", //Was missing from JSON structure
+            //         "additionalStreetName" => "", //Was missing from JSON structure
+            //         "attentionName" => "", //Was missing from JSON structure
+            //         "cityName" => "", //Was missing from JSON structure
+            //         "postalCode" => "", //Was missing from JSON structure
+            //         "countrySubentity" => "", //Was missing from JSON structure
+            //         "addressLine" => "", //Was missing from JSON structure
+            //         "countryCode" => "", //Was missing from JSON structure
+            //     ], //Was missing from JSON structure
+            //     "contact" => [
+            //         "initials" => "", //Was missing from JSON structure
+            //         "name" => "", //Was missing from JSON structure
+            //         "telephone" => "", //Was missing from JSON structure
+            //         "electronicMail" => "", //Was missing from JSON structure
+            //     ]
+            // ], //Was missing from JSON structure
             "documentCurrencyCode" => $r_faktura["valuta"],
-            //(float)number_format((float)$r_faktura["sum"], 2)
-            "totalAmount" => (float)number_format((float)$r_faktura["sum"], 2),
-
+            "totalAmount" => round((float)$r_faktura["sum"], 2), ## 20260518 - NTR - Fix values over a thousand being truncated to the thousands.
             "deliverAddress" => $deliverAddress,
             "paymentMeans" => [
                 "bankName" => $adresse["bank_navn"],
@@ -411,6 +484,28 @@
                 "iban" => "",
                 "creditorIdentifier" => "",
                 "paymentID" => ""
+            ],
+            "additionalDocuments" => [
+                // Template
+                // [
+                // "iD" => "",
+                // "documentType" => "",
+                // "documentDescription" => "",
+                // "fileName" => "",
+                // "base64Object" => "",
+                // ],
+            ],
+            "allowanceCharges" => [
+                //Template
+                //I don't think this needs to be filled unless it's actually has charges
+                //[
+                //    "isCharge" => true,
+                //    "reasonCode" => "",
+                //    "reason": => "",
+                //    "percentage"=> 0,
+                //    "amount" => 0,
+                //    "baseAmount" => 0
+                //],
             ],
         ];
     
@@ -456,7 +551,7 @@
                 "quantityUnitCode" => "EA",
                 "price" => $price,
                 "discountPercent" => $discPrct,
-                "discountAmount" => $discAmount,
+                "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails.
                 "vatPercent" => ($res["momssats"] != "" && $res["momssats"] != null) ? $res["momssats"] : 0,
                 "lineAmount" => $lineAmount,
                 "priceInclTax" => false,
@@ -470,7 +565,8 @@
         }
         $data["invoiceLines"] = $line;
         file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
-        /* echo json_encode($data, JSON_PRETTY_PRINT); */
+
+        //die(json_encode($data, JSON_PRETTY_PRINT));
         $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
         
         return $name;
@@ -498,8 +594,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK $r_faktura[ean]",
                 "postalAddress" => [
-                    "streetName" => explode(" ", $r_faktura["addr1"])[0],
-                    "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
+                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -569,8 +665,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK$r_faktura[cvrnr]",
                 "postalAddress" => [
-                    "streetName" => explode(" ", $r_faktura["addr1"])[0],
-                    "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
+                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -593,8 +689,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK$r_faktura[cvrnr]33557799",
                 "postalAddress" => [
-                    "streetName" => explode(" ", $r_faktura["addr1"])[0],
-                    "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
+                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -634,7 +730,7 @@
                 "quantityUnitCode" => "EA",
                 "price" => $price,
                 "discountPercent" => round((float)$discPrct, 0),
-                "discountAmount" => $discAmount,
+                "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails.
                 "vatPercent" => round($res["momssats"], 0),
                 "lineAmount" => $price,
                 "priceInclTax" => true,

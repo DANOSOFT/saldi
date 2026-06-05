@@ -21,9 +21,9 @@ class AccountEndpointTest
         // Set your actual authorization headers
         $this->headers = [
             'Content-Type: application/json',
-            'Authorization: 4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD',
-            'X-SaldiUser: api',
-            'X-DB: test_4'
+            // TODO: Replace with JWT token from POST /auth/login
+            
+            // Headers will be set after login
         ];
     }
 

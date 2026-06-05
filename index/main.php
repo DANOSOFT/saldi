@@ -1,3 +1,4 @@
+<!doctype html>
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
@@ -69,26 +70,22 @@ function brightenColor($color, $amount = 0.2) {
 ?>
 
 <script>
-// Simple cookie-based refresh listener
-function checkRefreshCookie() {
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'refresh_opener' && value === 'true') {
-            // Clear the cookie and reload
-            document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-            location.reload();
-            return;
-        }
-    }
-}
+  // Simple cookie-based refresh listener
+  function checkRefreshCookie() {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+          const [name, value] = cookie.trim().split('=');
+          if (name === 'refresh_opener' && value === 'true') {
+              // Clear the cookie and reload
+              document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+              location.reload();
+              return;
+          }
+      }
+  }
 
-// Check every 1000ms for the cookie
-setInterval(checkRefreshCookie, 1000);
-</script>
-
-// Check every 500ms
-setInterval(checkRefreshCookie, 500);
+  // Check every 1000ms for the cookie
+  setInterval(checkRefreshCookie, 1000);
 </script>
 <style>
   .showMenu{
@@ -114,11 +111,11 @@ setInterval(checkRefreshCookie, 500);
     color: <?php echo $buttonTxtColor; ?> !important;
   }
 
-  a, p{
+  .sidebar a, .sidebar p{
     color: <?php echo $buttonTxtColor; ?> !important;
   }
 
-  .bx{
+  .sidebar .bx{
     color: <?php echo $buttonTxtColor; ?> !important;
   }
 
@@ -143,7 +140,7 @@ setInterval(checkRefreshCookie, 500);
 <title>Sidebar</title>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <link rel="icon" href="../img/saldiLogo.png">
-<link href='../css/sidebar_style.css' rel='stylesheet'>
+<link href='../css/sidebar_style.css?v=22' rel='stylesheet'>
 <meta name="viewport" content="width=device-width, initial-scale=0.8">
 
 <div class="modalbg" onclick="
@@ -222,7 +219,7 @@ setInterval(checkRefreshCookie, 500);
         <li><span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(5))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';
@@ -238,8 +235,7 @@ setInterval(checkRefreshCookie, 500);
     </li>
     <!-- Booking -->
     <?php
-    $query = db_select("select var_value from settings where var_grp='rental'", __FILE__ . " linje " . __LINE__);
-    if (db_num_rows($query) > 0 && is_feature_licensed('booking')) {
+    if (is_feature_licensed('booking')) {
     ?>
       <li style="display: <?php if (check_permissions(array(6))) {
                             echo 'block';
@@ -372,6 +368,16 @@ setInterval(checkRefreshCookie, 500);
 
   <ul class="nav-links">
     <li>
+      <a href="#" onclick="document.getElementById('guideOverlay').classList.add('active'); return false;">
+        <i class='bx bx-book-open'></i>
+        <span class="link_name">Guides</span>
+      </a>
+      <ul class="sub-menu blank">
+        <li><a href="#" onclick="document.getElementById('guideOverlay').classList.add('active'); return false;">Guides</a></li>
+      </ul>
+    </li>
+
+    <li>
       <a href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">
         <i class='bx bx-envelope'></i>
         <span class="link_name"><?php print findtekst('398|Kontakt', $sprog_id); ?></span>
@@ -402,6 +408,35 @@ setInterval(checkRefreshCookie, 500);
   </div>
 </div>
 
+<!-- Guide Overlay -->
+<div class="guide-overlay" id="guideOverlay" onclick="if(event.target===this) this.classList.remove('active');">
+  <div class="guide-modal">
+    <div class="guide-modal-header">
+      <h2><i class='bx bx-book-open'></i> Guides</h2>
+      <button class="guide-modal-close" onclick="document.getElementById('guideOverlay').classList.remove('active');">&times;</button>
+    </div>
+    <div class="guide-modal-body">
+      <p><?php echo ($sprog_id == 1) ? 'Vælg en guide for at åbne den i en ny fane.' : 'Select a guide to open it in a new tab.'; ?></p>
+      <ul class="guide-list">
+        <li>
+          <a href="../guides/pdf/finance_guide_da.pdf" target="_blank" onclick="document.getElementById('guideOverlay').classList.remove('active');">
+            <i class='bx bx-coin-stack'></i>
+            <?php echo ($sprog_id == 1) ? 'Regnskab (Finance)' : 'Finance Guide'; ?>
+            <i class='bx bx-link-external guide-arrow'></i>
+          </a>
+        </li>
+        <li>
+          <a href="../guides/pdf/scaffolding_guide_da.pdf" target="_blank" onclick="document.getElementById('guideOverlay').classList.remove('active');">
+            <i class='bx bx-layer'></i>
+            <?php echo ($sprog_id == 1) ? 'Stillads (Scaffolding)' : 'Scaffolding Guide'; ?>
+            <i class='bx bx-link-external guide-arrow'></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
 <section class="home-section">
   <div class="topbar">
     <a href="javascript:void(0)" onclick="document.getElementsByClassName('sidebar')[0].setAttribute(`style`, `width: 210px !important; height: ${window.screen.availHeight+1}px`); document.getElementsByClassName('modalbg')[0].style.display='block'; "><i class='bx bx-menu' style="color: white; font-size: 50px"></i></a>
@@ -411,7 +446,7 @@ setInterval(checkRefreshCookie, 500);
     <iframe
       onLoad="
       document.title = 'Saldi - ' + this.contentWindow.document.title; 
-console.log('Locaiton', this.contentWindow.document.location.href);
+      console.log('Locaiton', this.contentWindow.document.location.href);
       trigger_iframe_load();
       stopLoading();
       content_finished_loading(this);"
@@ -548,6 +583,16 @@ console.log('Locaiton', this.contentWindow.document.location.href);
     // inject the start loading handler when content finished loading
     iframe.contentWindow.onbeforeunload = startLoading;
   };
+
+  // Close guide overlay with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var overlay = document.getElementById('guideOverlay');
+      if (overlay && overlay.classList.contains('active')) {
+        overlay.classList.remove('active');
+      }
+    }
+  });
 </script>
 
 <style>

@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formularkort --- patch 4.1.1 --- 2026-02-20 --- 
-// 							LICENSE
+// --- systemdata/formularkort --- patch 5.0.0 --- 2026-03-03 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -53,6 +53,9 @@
 // 20231003 PHR Added ordre_valuta
 // 20260103 LOE User can now set language based on already defined languages
 // 20260220 LOE Background terms now used instead of language terms for clarity, as this is more accurate for what the settings do. The term 'language(sprog)' is still used in the database and code for backwards compatibility, but the user interface now refers to 'backgrounds' instead of 'languages'.
+// 20260303 PHP8
+// 20260313 Sawaneh SD-420 Added ordre_email and ordre_tlf to form dropdown
+// 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
 @session_start();
 $s_id=session_id();
 
@@ -63,7 +66,15 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
-	
+
+function bg_display_name($sprog_value) {
+	global $sprog_id;
+	if ($sprog_value === 'Dansk') {
+		return ($sprog_id == 1) ? 'Standard' : 'Default';
+	}
+	return $sprog_value;
+}
+
 $art=$art_nr=$form_nr=$linjeantal=$nyt_sprog=$submit=$x=$form_sprog_id=NULL;
 $id=$db_id;
 	
@@ -77,12 +88,7 @@ if (isset($_GET['nyt_sprog']) && $_GET['nyt_sprog']) {
 	$nyt_sprog=$_GET['nyt_sprog'];
 }
 $id = if_isset($_GET['id']);
-if(isset($_GET['returside']) && $_GET['returside']) {
-	$returside= $_GET['returside'];
-#	$ordre_id = $_GET['ordre_id'];
-#	$fokus = $_GET['fokus'];
-} 
-else {$returside="syssetup.php";}
+$returside = nav_back_url((isset($_GET['returside']) && $_GET['returside']) ? $_GET['returside'] : null);
 $navn=if_isset($_GET['navn']);
 
 if (isset($_POST) && $_POST) {
@@ -106,7 +112,8 @@ if (isset($_POST) && $_POST) {
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=formularkort.php?nyt_sprog=yes\">";
 				exit;
 			} else {
-				print "<BODY onLoad=\"javascript:alert('".findtekst('2516|Dansk kan ikke slettes', $sprog_id).".')\">";
+				$cannot_delete_default = str_replace('Dansk', bg_display_name('Dansk'), findtekst('2516|Dansk kan ikke slettes', $sprog_id));
+				print "<BODY onLoad=\"javascript:alert('" . $cannot_delete_default . ".')\">";
 			}
 		}
 	   #####
@@ -161,7 +168,8 @@ if (isset($_POST) && $_POST) {
 		} else {
 			$r=db_fetch_array($q=db_select("select max(kodenr) as kodenr from grupper where art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
 			$form_sprog_id=$r['kodenr']+1;
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1) values ('Formular og varesprog','$form_sprog_id','VSPR','$formularsprog')");
+			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1) values ('Formular og varesprog','$form_sprog_id','VSPR','$formularsprog')";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}else{
 		$form_sprog_id = 0;
@@ -304,7 +312,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<div id=\"header\">\n";
 	print "<div class=\"headerbtnLft\">";
     print "<a class='button blue small' class=\"button red small left\" href=\"formular_indlaes_std.php\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</a> &nbsp;";
-    print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a> &nbsp;";
+    print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</a> &nbsp;"; #Bg. navn
     print "<a title=\"Email indstillinger for sprog\" class='button blue small' href=\"email_settings.php\" accesskey=\"e\">Email</a></div>\n";
 	print "<span class=\"headerTxt\"></span>\n";     
 	print "<div class=\"headerbtnRght\"><a title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\" class='button blue small' href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></div>";    
@@ -331,7 +339,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<td width='76%' align='center' style='$topStyle'>".findtekst('573|Formularkort', $sprog_id)."</td>\n";
 
 	print "<td width='6%'><span title='".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."'><a href=formularkort.php?nyt_sprog=yes accesskey='s'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.".findtekst('646|Navn', $sprog_id)."</button></a></span></td>\n";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</button></a></span></td>\n"; #Bg. navn
 
 	print "<td width='6%'><span title='Email indstillinger for sprog'><a href=email_settings.php accesskey='e'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></a></span></td>\n";
@@ -354,7 +362,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<table width=\"100%\" height=\"1%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
 	print "<td width=\"12%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=$returside accesskey=\"l\">".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('573|Formularkort', $sprog_id)."</td>\n";
-	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a></span></td>\n";
+	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</a></span></td>\n"; #Bg. navn
 	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></span></td>\n";#20210804
 	print "</tbody></table></td></tr>\n";
 }
@@ -408,13 +416,13 @@ print "<option value=\"1:Streger\">".findtekst('583|Streger', $sprog_id)."</opti
 print "<option value=\"4:Flyt center\">".findtekst('584|Flyt center', $sprog_id)."</option>\n";
 print "<option value=\"5:Mail tekst\">".findtekst('585|Mail tekst', $sprog_id)."</option>\n";
 print "</SELECT></td>\n";
-print "<td>Bg.".findtekst('646|Navn', $sprog_id)."</td>\n";
+print "<td>Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</td>\n"; #Bg. navn
 print "<td><SELECT class='inputbox' NAME=\"sprog\">\n";
 if (!isset($formularsprog) || !$formularsprog) $formularsprog="Dansk";
-print "<option value=\"". $formularsprog ."\">". $formularsprog ."</option>\n";
+print "<option value=\"". $formularsprog ."\">". bg_display_name($formularsprog) ."</option>\n";
 $q=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
-	if ($formularsprog!=$r['sprog']) print "<option value=\"". $r['sprog'] ."\">". $r['sprog'] ."</option>\n";
+	if ($formularsprog!=$r['sprog']) print "<option value=\"". $r['sprog'] ."\">". bg_display_name($r['sprog']) ."</option>\n";
 }
 	print "</SELECT></td>\n";
 print "<td><input class='button gray medium' type=\"submit\" accesskey=\"v\" value=\"".findtekst('586|Vælg', $sprog_id)."\" name=\"formularvalg\"></td></tr>\n";
@@ -652,7 +660,8 @@ if ($tmp!=$nyt_sprog) {
 		db_modify("delete from grupper where art = 'VSPR' and box1 = '$skabelon'",__FILE__ . " linje " . __LINE__);
 		print "<BODY onLoad=\"javascript:alert('$skabelon er slettet!')\">";
 	} else {
-		print "<BODY onLoad=\"javascript:alert('Danish cannot be deleted.')\">";
+		$cannot_delete_default = str_replace('Dansk', bg_display_name('Dansk'), findtekst('2516|Dansk kan ikke slettes', $sprog_id));
+		print "<BODY onLoad=\"javascript:alert('" . $cannot_delete_default . ".')\">";
 	}
 } else {
 	
@@ -660,16 +669,16 @@ if ($tmp!=$nyt_sprog) {
     print "<tr><td width=100% align=center><table border=0><tbody>";
 
     // Free-text input: user types their own background/sprog name
-    print "<tr><td>Enter a background name you want to add:</td><td>";
+    print "<tr><td>".findtekst('3257|Indtast et navn på den baggrund, du vil tilføje', $sprog_id).":</td><td>";
     print "<input class='inputbox' type='text' name='nyt_sprog' size='20'>";
     print "</td></tr>";
 
     // Template dropdown (also used for deletion)
-    print "<tr><td>Background (Select template):</td>";
+    print "<tr><td>".findtekst('571|Baggrund', $sprog_id)." (".findtekst('3258|Vælg skabelon', $sprog_id)."):</td>"; #Baggrund (Vælg skabelon)
     print "<td><SELECT class='inputbox' NAME='skabelon'>";
     $q = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
     while ($r = db_fetch_array($q)) {
-        print "<option value='" . htmlspecialchars($r['sprog'], ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars($r['sprog'], ENT_QUOTES, 'UTF-8') . "</option>";
+        print "<option value='" . htmlspecialchars($r['sprog'], ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars(bg_display_name($r['sprog']), ENT_QUOTES, 'UTF-8') . "</option>";
     }
     print "<option value=''></option>";
     print "</SELECT></td></tr>";
@@ -754,6 +763,8 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ordre_land'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('47|Land', $sprog_id))."</option>";                                       #Ordre land
 		print "<option value = 'ordre_kontakt'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('398|Kontakt', $sprog_id))."</option>";                                #Ordre kontakt
 		print "<option value = 'ordre_cvrnr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('48|Cvr-nr.', $sprog_id))."</option>";                                   #Ordre cvr nr.
+		print "<option value = 'ordre_email'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                    #Ordre e-mail
+		print "<option value = 'ordre_tlf'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                         #Ordre tlf
 	}
 	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
 		print "<option value = 'ordre_ean'>".findtekst('605|Ordre', $sprog_id)." EAN</option>";                                                                                    #Ordre EAN
@@ -1248,7 +1259,7 @@ if ($menu=='T') {
 	print "<td width='24%' style='$topStyle'></td>\n";
 
 	print "<td width=\"7%\"><title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.".findtekst('646|Navn', $sprog_id)."</button></a></td>\n";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</button></a></td>\n"; #Bg. navn
 
 	print "<td width=\"7%\"><title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></td>\n";
@@ -1262,7 +1273,7 @@ if ($menu=='T') {
 	print "<td width='24%' ".$top_bund.">&nbsp;</td>\n";
   # 20150331 start bund
 		print "<td width=\"7%\" ".$top_bund."><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span ";
-		print "title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a></span></td>\n";
+		print "title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</a></span></td>\n"; #Bg. navn
 		print "<td width=\"7%\" ".$top_bund."><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span ";
 		print "title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></span></td>\n";
 		print "    <td width='14%' ".$top_bund.">&nbsp;</td>\n";

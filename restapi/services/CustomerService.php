@@ -48,7 +48,10 @@ class CustomerService
             'deliveryCity' => 'lev_bynavn',
             'deliveryPhone' => 'lev_tlf',
             'deliveryEmail' => 'lev_email',
-            'deliveryCountry' => 'lev_land'
+            'deliveryCountry' => 'lev_land',
+
+            // Contact emails
+            'contactEmails' => 'kontakt_emails'
         ];
         
         $mappedData = new stdClass();
@@ -162,6 +165,11 @@ class CustomerService
             if (isset($mappedData->lev_email)) $customer->setLevEmail(trim($mappedData->lev_email));
             if (isset($mappedData->lev_land)) $customer->setLevLand(trim($mappedData->lev_land));
 
+            // Set kontakt_emails if provided
+            if (isset($mappedData->kontakt_emails) && is_array($mappedData->kontakt_emails)) {
+                $customer->setKontaktEmails($mappedData->kontakt_emails);
+            }
+
             // Save customer
             if ($customer->save()) {
                 return [
@@ -267,6 +275,11 @@ class CustomerService
             if (isset($mappedData->lev_tlf)) $customer->setLevTlf(trim($mappedData->lev_tlf));
             if (isset($mappedData->lev_email)) $customer->setLevEmail(trim($mappedData->lev_email));
             if (isset($mappedData->lev_land)) $customer->setLevLand(trim($mappedData->lev_land));
+
+            // Set kontakt_emails if provided
+            if (isset($mappedData->kontakt_emails) && is_array($mappedData->kontakt_emails)) {
+                $customer->setKontaktEmails($mappedData->kontakt_emails);
+            }
 
             // if id is in data object, set it to the customer
             $id = isset($data->id) ? (int)$data->id : null;

@@ -87,6 +87,7 @@ body {
 
 #docPoolContainer {
   display: flex;
+  flex-direction: column;
   width: calc(100% - 16px);
   height: calc(100vh - var(--docpool-header-height));
   gap: 0;
@@ -100,6 +101,101 @@ body {
   right: 0;
   bottom: 0;
   background-color: var(--docpool-bg-secondary);
+}
+
+/* ============================================
+   KASSEBILAG TOP BAR
+   ============================================ */
+
+#kassebilagTopBar {
+  flex-shrink: 0;
+  width: 100%;
+  overflow-y: hidden;
+  background-color: var(--docpool-bg-secondary);
+  border-bottom: 1px solid var(--docpool-border);
+  padding: 4px 10px 5px 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+}
+
+#kassebilagTopBar .topbar-title {
+  font-weight: bold;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+#kassebilagTopBar .topbar-fields-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+#kassebilagTopBar .topbar-field {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: nowrap;
+}
+
+#kassebilagTopBar .topbar-field label {
+  font-weight: bold;
+  font-size: 12px;
+  color: #555;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+#kassebilagTopBar .topbar-field input[type="text"] {
+  padding: 2px 4px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 13px;
+  height: 26px;
+  box-sizing: border-box;
+}
+
+#kassebilagTopBar .topbar-field input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+
+#kassebilagTopBar .topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#kassebilagTopBar .topbar-nav a,
+#kassebilagTopBar .topbar-nav span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: bold;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* ============================================
+   MAIN ROW (leftPanel + resizer + rightPanel)
+   ============================================ */
+
+#docPoolMain {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
 }
 
 /* ============================================

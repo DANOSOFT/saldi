@@ -412,3 +412,113 @@ body {
         width: calc(100% - 72px);
     }  */
   }
+
+/* ---- Guide Overlay ---- */
+.guide-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+.guide-overlay.active {
+    display: flex !important;
+}
+.guide-modal {
+    background: #fff !important;
+    border-radius: 12px;
+    width: 440px;
+    max-width: 92vw;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    animation: guideSlideIn 0.25s ease;
+}
+@keyframes guideSlideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.guide-modal-header {
+    background: #114691 !important;
+    color: #fff !important;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.guide-modal-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff !important;
+}
+.guide-modal-header h2 i {
+    font-size: 22px;
+    color: #fff !important;
+}
+.guide-modal-close {
+    background: none;
+    border: none;
+    color: #fff !important;
+    font-size: 26px;
+    cursor: pointer;
+    opacity: 0.8;
+    line-height: 1;
+}
+.guide-modal-close:hover {
+    opacity: 1;
+}
+.guide-modal-body {
+    padding: 16px 24px 24px;
+}
+.guide-modal-body p {
+    color: #666 !important;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+.guide-list {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+.guide-list li {
+    margin-bottom: 8px;
+}
+.guide-list li a {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: #f5f7fa !important;
+    color: #333 !important;
+    text-decoration: none !important;
+    font-size: 15px;
+    font-weight: 500;
+    transition: background 0.2s, transform 0.15s;
+    border: 1px solid #e8ecf1;
+}
+.guide-list li a:hover {
+    background: #e8eef6 !important;
+    transform: translateX(4px);
+    border-color: #c5d3e8;
+    color: #333 !important;
+}
+.guide-list li a i {
+    font-size: 22px;
+    color: #114691 !important;
+    min-width: 28px;
+    text-align: center;
+}
+.guide-list li a .guide-arrow {
+    margin-left: auto;
+    font-size: 16px;
+    color: #999 !important;
+}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pbsfile.php --- patch 4.1.1 --- 2025-08-20 ---
+// --- debitor/pbsfile.php --- patchh 5.0.0 --- 2026-03-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 23.08.2012 Tilretning til Leverandørservice
@@ -36,7 +36,8 @@
 // 2018.01.17 Tjekker ordrestatus - hvis ikke faktureret slettes filen fra listen. 20180117
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250820 PHP8
-
+// 20260320 PHR Replaced kontonr(numeric) with ktonr(varchar)
+// 20260321 PHR Reversed above as ktonr does not exist in all accounts
 
 @session_start();
 $s_id=session_id();

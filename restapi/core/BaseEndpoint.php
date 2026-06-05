@@ -7,12 +7,17 @@ include_once __DIR__ . "/auth.php";
 include_once __DIR__ . "/logging.php";
 include_once __DIR__ . "/cors.php";
 require_once __DIR__ . '/ApiException.php';
+require_once __DIR__ . '/JWT.php';
+require_once __DIR__ . '/JWTAuth.php';
 
 
 abstract class BaseEndpoint
 {
     protected $conn;
     protected $model;
+    protected $db;
+    protected $userId;
+    protected $username;
 
     public function __construct()
     {
@@ -52,7 +57,12 @@ abstract class BaseEndpoint
 
     protected function getLogDb()
     {
-        // Try JWT tenant database first (for new authentication)
+        // Use the db property if already set from JWT auth
+        if ($this->db) {
+            return $this->db;
+        }
+        
+        // Try JWT tenant database
         try {
             $tenantDb = JWTAuth::getTenantDatabase();
             if ($tenantDb) {
@@ -64,9 +74,9 @@ abstract class BaseEndpoint
             // PHP error, continue to fallback
         }
         
-        // Fall back to legacy x-db header or X-Tenant-ID header
+        // Fall back to X-Tenant-ID header
         $headers = array_change_key_case(getallheaders(), CASE_LOWER);
-        return $headers['x-db'] ?? $headers['x-tenant-id'] ?? 'api';
+        return $headers['x-tenant-id'] ?? 'api';
     }
 
     public function handleRequestMethod()
@@ -206,70 +216,35 @@ abstract class BaseEndpoint
             return false;
         }
 
-        // Try JWT authentication first (for new mobile app endpoints)
-        if (isset($headers['authorization']) && preg_match('/Bearer\s+/i', $headers['authorization'])) {
-            // JWT token authentication
-            require_once __DIR__ . '/JWT.php';
-            require_once __DIR__ . '/JWTAuth.php';
+        // JWT authentication (primary method)
+        $payload = JWTAuth::validateToken();
+        if ($payload) {
+            // JWT authentication successful
+            $this->userId = $payload['user_id'];
+            $this->username = $payload['username'];
             
-            $payload = JWTAuth::validateToken();
-            if ($payload) {
-                // JWT authentication successful
-                // Store user info for later use
-                $this->userId = $payload['user_id'];
-                $this->username = $payload['username'];
-                
-                // Get tenant database if X-Tenant-ID is provided
-                if (isset($headers['x-tenant-id'])) {
-                    $this->tenantDb = JWTAuth::getTenantDatabase();
-                }
-                
-                return true;
-            }
-        }
-
-        // Fall back to legacy API key authentication (for backward compatibility)
-        // Check for required headers
-        $requiredHeaders = ['authorization', 'x-saldiuser', 'x-db'];
-        foreach ($requiredHeaders as $header) {
-            if (!isset($headers[$header])) {
-                $this->sendResponse(false, array(), "Missing required header: '{$header}'", 401);
+            // Get tenant database from JWT token or X-Tenant-ID header
+            $this->db = JWTAuth::getTenantDatabase();
+            if (!$this->db) {
+                $this->sendResponse(false, null, 'Tenant database not found. Set X-Tenant-ID header.', 400);
                 return false;
             }
+            
+            // Connect to tenant database (same as legacy access_check did)
+            global $sqhost, $squser, $sqpass;
+            $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
+            if (!$conn) {
+                $this->sendResponse(false, null, 'Database connection failed', 500);
+                return false;
+            }
+            
+            write_log("JWT auth successful for user: {$this->username}, db: {$this->db}", $this->db, 'INFO');
+            return true;
         }
 
-        // Extract header values
-        $authorization = $headers['authorization'];
-        $user = $headers['x-saldiuser'];
-        $db = $headers['x-db'];
-
-        // Validate Authorization header
-        if (empty($authorization)) {
-            $this->sendResponse(false, array(), "Authorization header cannot be empty", 401);
-            return false;
-        }
-
-        // Additional optional validations
-        if (empty($user)) {
-            $this->sendResponse(false, array(), "User identifier cannot be empty", 401);
-            return false;
-        }
-
-        if (empty($db)) {
-            $this->sendResponse(false, array(), "Database identifier cannot be empty", 401);
-            return false;
-        }
-
-        // Log authorization attempt
-        write_log("Authorization attempt for user: $user", $db, 'INFO');
-
-        $result = access_check($db, $user, $authorization) === 'OK';
-        
-        if (!$result) {
-            write_log("Authorization failed for user: $user", $db, 'WARNING');
-        }
-        
-        return $result;
+        // No valid authentication provided
+        $this->sendResponse(false, null, 'Valid Bearer token required. Login via POST /auth/login with username, password and account_name.', 401);
+        return false;
     }
 
     protected function sendResponse($success, $data = null, $message = '', $httpCode = 200)

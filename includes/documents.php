@@ -1,6 +1,7 @@
+<!doctype html>
 <?php
-// --- includes/documents.php -----patch 4.1.1 ----2025-10-10------------
-//                           LICENSE
+// --- includes/documents.php --- patch 5.0.0 --- 2026-03-04 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -16,13 +17,15 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //20230622 - LOE Updated file path and some related modifications.
 //20240412 - PHR Various modifications
 //20250815 - LOE Create 'bilag' file specifically for kassekladde and , others can be created based  on what is needed
 //20250824 - LOE Clean up to reduce the error logs with if_isset()
 //20250827 - LOE Implement creating .info files for existing pool pdf without it. 
+//20260304 PHR Someone removed the convertOldDoc section.
+
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -34,6 +37,9 @@ $jsFile = '../javascript/dragAndDrop.js';
 $version = file_exists($jsFile) ? filemtime($jsFile) : time();
 print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"{$jsFile}?v={$version}\"></script>";
 
+$fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=$unlinkDoc=null;
+
+$globalId = 0;
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -42,7 +48,6 @@ include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
-$fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=$unlinkDoc=null;
 if (!isset($menu)) $menu = null;
 
 if(($_GET)||($_POST)) {
@@ -78,6 +83,34 @@ if(($_GET)||($_POST)) {
 		$poolFile = $_GET['poolFile'];
 	}
 }
+
+if (file_exists('../owncloud')) $docFolder = '../owncloud';
+elseif (file_exists('../bilag')) $docFolder = '../bilag';
+elseif (file_exists('../documents')) $docFolder = '../documents';
+else $docFolder = '../bilag'; // Default fallback
+
+$qtxt = "select var_value from settings where var_name = 'globalId'";
+if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	$globalId = $r['var_value'];
+}
+
+
+if (file_exists("$docFolder/$db/bilag/kladde_$kladde_id/bilag_$sourceId")) {
+	$qtxt = "select dokument from kassekladde where id = '$sourceId'";
+	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		$dokument = $r['dokument'];
+	}
+}
+
+if ($dokument) {
+	if (file_exists("$docFolder/$db/bilag/kladde_$kladde_id/bilag_$sourceId")) {
+	echo 	"Konverterer $docFolder/$db/bilag/kladde_$kladde_id/bilag_$sourceId fundet!<br>";
+		include("docsIncludes/convertOldDoc.php");
+	}
+	# else print "dokument ".findtekst('1740|ikke fundet', $sprog_id);
+}
+
+
 $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&fokus=$fokus";
 
 // Handle AJAX file uploads BEFORE any HTML output (for drag and drop)
@@ -110,19 +143,15 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 		
 		if ($isAllowedType) {
 			// Determine docFolder early
-			if (file_exists('../owncloud')) $docFolder = '../owncloud';
-			elseif (file_exists('../bilag')) $docFolder = '../bilag';
-			elseif (file_exists('../documents')) $docFolder = '../documents';
-			else $docFolder = '../bilag'; // Default fallback
 			
 			// Create folder if it doesn't exist
 			if (!file_exists($docFolder)) {
-				mkdir($docFolder, 0755, true); 
+				mkdir($docFolder, 0777, true);
 			}
 			
 			$poolDir = "$docFolder/$db/pulje";
 			if (!is_dir($poolDir)) {
-				mkdir($poolDir, 0755, true);
+				mkdir($poolDir, 0777, true);
 			}
 			
 			// Sanitize filename
@@ -135,24 +164,30 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 			
 			// Try to extract invoice data via API
 			$extractedData = null;
-			
+			$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
+
 			// Convert images to PDF if needed
 			if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
 				$tempFile = "$poolDir/$baseName.$ext";
 				if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
-					// Extract data from ORIGINAL image before converting to PDF
-					error_log("documents.php (AJAX): Calling extractInvoiceData for ORIGINAL image: $tempFile");
-					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-					$extractedData = extractInvoiceData($tempFile, $invoiceId);
-					if ($extractedData) {
-						error_log("documents.php (AJAX): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+					if ($autoExtract) {
+						// Extract data from ORIGINAL image before converting to PDF
+						error_log("documents.php (AJAX): Calling extractInvoiceData for ORIGINAL image: $tempFile");
+						$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+						$extractedData = extractInvoiceData($tempFile, $invoiceId);
+						if ($extractedData) {
+							error_log("documents.php (AJAX): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+						} else {
+							error_log("documents.php (AJAX): API extraction returned null for file: $tempFile");
+						}
 					} else {
-						error_log("documents.php (AJAX): API extraction returned null for file: $tempFile");
+						error_log("documents.php (AJAX): Auto-extract disabled, skipping for: $tempFile");
 					}
-					
+
+
 					// Now convert to PDF
-					system("convert '$tempFile' '$targetFile'");
-					if (file_exists($targetFile)) {
+					exec("convert '$tempFile' '$targetFile'", $output, $return_var);
+					if ($return_var === 0 && file_exists($targetFile)) {
 						unlink($tempFile);
 					} else {
 						$targetFile = $tempFile; // Fallback to original if conversion fails
@@ -162,7 +197,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				// For PDF files, move directly
 				move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
 				// Extract data from PDF
-				if (file_exists($targetFile)) {
+				if ($autoExtract && file_exists($targetFile)) {
 					error_log("documents.php (AJAX): Calling extractInvoiceData for PDF: $targetFile");
 					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
 					$extractedData = extractInvoiceData($targetFile, $invoiceId);
@@ -171,6 +206,8 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					} else {
 						error_log("documents.php (AJAX): API extraction returned null for file: $targetFile");
 					}
+				} elseif (!$autoExtract) {
+					error_log("documents.php (AJAX): Auto-extract disabled, skipping for: $targetFile");
 				}
 			}
 			
@@ -298,6 +335,18 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 					}
 				}
 				
+				// Save extracted currency directly to pool_files (currency not stored in .info files)
+				if ($extractedData !== null && !empty($extractedData['currency'])) {
+					$uploadFilename = $baseName . '.pdf';
+					$uploadCurrency = $extractedData['currency'];
+					$qtxt = "SELECT id FROM pool_files WHERE filename = '" . db_escape_string($uploadFilename) . "'";
+					$existingRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					if ($existingRow) {
+						$qtxt = "UPDATE pool_files SET currency = '" . db_escape_string($uploadCurrency) . "' WHERE id = '" . $existingRow['id'] . "'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					}
+				}
+
 				// Return JSON response for AJAX
 				header('Content-Type: application/json');
 				echo json_encode([
@@ -402,6 +451,7 @@ print "<div align=\"center\"  style=''>";
 
 if (isset($_GET['test'])) exit;
 #xit;
+/*
 $qtxt = "select var_value from settings where var_name = 'globalId'";
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $globalId = $r['var_value'];
 #else alert ('Missing global ID');
@@ -409,7 +459,7 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $global
 if (file_exists('../owncloud')) $docFolder = '../owncloud';
 elseif (file_exists('../bilag')) $docFolder = '../bilag';
 elseif (file_exists('../documents')) $docFolder = '../documents';
-
+*/
 
 if (($source === 'kassekladde' || $source === 'creditorOrder') && empty($docFolder)) {  
     $docFolder = "../bilag";
@@ -511,24 +561,30 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 		
 		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
 		$extractedData = null;
-		
+		$autoExtract = !isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0';
+
 		// Convert images to PDF if needed
 		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
 			$tempFile = "$poolDir/$baseName.$ext";
 			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
-				// Extract data from ORIGINAL image before converting to PDF
-				error_log("documents.php (block2): Calling extractInvoiceData for ORIGINAL image: $tempFile");
-				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-				$extractedData = extractInvoiceData($tempFile, $invoiceId);
-				if ($extractedData) {
-					error_log("documents.php (block2): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+				if ($autoExtract) {
+					// Extract data from ORIGINAL image before converting to PDF
+					error_log("documents.php (block2): Calling extractInvoiceData for ORIGINAL image: $tempFile");
+					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+					$extractedData = extractInvoiceData($tempFile, $invoiceId);
+					if ($extractedData) {
+						error_log("documents.php (block2): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+					} else {
+						error_log("documents.php (block2): API extraction returned null for file: $tempFile");
+					}
 				} else {
-					error_log("documents.php (block2): API extraction returned null for file: $tempFile");
+					error_log("documents.php (block2): Auto-extract disabled, skipping for: $tempFile");
 				}
-				
+
+
 				// Now convert to PDF
-				system("convert '$tempFile' '$targetFile'");
-				if (file_exists($targetFile)) {
+				exec("convert '$tempFile' '$targetFile'", $output, $return_var);
+				if ($return_var === 0 && file_exists($targetFile)) {
 					unlink($tempFile);
 				} else {
 					$targetFile = $tempFile; // Fallback to original if conversion fails
@@ -538,7 +594,7 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 			// For PDF files, move directly
 			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
 			// Extract data from PDF
-			if (file_exists($targetFile)) {
+			if ($autoExtract && file_exists($targetFile)) {
 				error_log("documents.php (block2): Calling extractInvoiceData for PDF: $targetFile");
 				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
 				$extractedData = extractInvoiceData($targetFile, $invoiceId);
@@ -547,6 +603,8 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 				} else {
 					error_log("documents.php (block2): API extraction returned null for file: $targetFile");
 				}
+			} elseif (!$autoExtract) {
+				error_log("documents.php (block2): Auto-extract disabled, skipping for: $targetFile");
 			}
 		}
 		

@@ -116,6 +116,7 @@ if (isset($_POST['linje_id']) && $linje_id=$_POST['linje_id']) {
 	$leveres=if_isset($_POST['leveres']);
 	$leveret=$_POST['leveret'];
 	$beskrivelse=$_POST['beskrivelse'];
+	$kds_beskrivelse=$_POST['beskrivelse'];
 	$tilfravalg=$_POST['tilfravalg'];
 	$notes=$_POST['notes'];
 	$koekkenprinter=$_POST['koekkenprinter'];
@@ -180,11 +181,9 @@ if (isset($_POST['linje_id']) && $linje_id=$_POST['linje_id']) {
 					}
 				} else $kp[0]=$koekkenprinter;
 			} 
-			if ($db == 'develop_27' || $db == 'pos_98') koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori,$varenr);
-			else {
-				echo "Sender til køkken<br>";
-				koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori);
-			}
+			echo "Sender til køkken<br>";
+			koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori,$kds_beskrivelse);
+
 		} else print "<BODY onLoad=\"javascript:alert('Der er ikke noget på bestillingslisten til køkken for $bordnavn')\">\n";
 		(count($kp)>1)?$next=1:$next=NULL;
 		$pfnavn="../temp/".$db."/".abs($bruger_id).".0";
@@ -326,7 +325,7 @@ print "<input style=\"width:100%;height:40px;font-size:120%\" type=\"submit\" na
 print "</form>";
 print "</tbody></table></td><td style=\"width:100px\"></td>";
 kptastatur();
-	
+
 #}
 
 function kptastatur() {

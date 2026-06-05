@@ -1,10 +1,11 @@
+
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- lap 4.1.1 --- 2025-03-24 ---
+// --- finans/rapport.php --- lap 5.0.0 --- 2026-04-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,40 +19,18 @@
 //
 // The program is published with the hope that it will be beneficial,
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
-// See GNU General Public License for more details.
+// See GNU General Public License for more details. 
 //
-// Copyright (c) 2003-2025 saldi.dk ApS
+// Copyright (c) 2003-2026 saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 20120927 Hvis budgettal indsat og konto lukket blev konto alligevel vist under budget
-// 20130210 Break ændret til break 1
-// 20130918	Diverse tilretninger til simulering - Søg $simulering
-// 20130919	Fejl i søgefunktion ved opdelte projektnumre. Søg 20130919
-// 20140729 Listeangivelse ændret fra kvartal til måned - ca. Søg 20140729
-// 20140825 Resultatkonto viste årssaldo uanset om den var valgt periode. PHR Søg 20140825
-// 20140909 Resultat fra resultatkto kom ikke med i sum. PHR Søg 20140909
-// 20150104 Tilføjet dynamisk vagerværdi - Søg /*aut_lager*/
-// 20150125 Fejl i lagerberegning i statusrapport- lagetræk blev lagt til værdi, ombyttet + & - - Søg 20150125
-// 20150408 Fejl i lagerberegning i statusrapport- medtog sidste dag i foregående md - tilføjet 'start'/'slut' til find_lagervaerdi. Søg find_lagervaerdi
-// 20150825 Transaktioner med ens bilag, tekst og kontonummer blev samlet sammen til linje. Ved ikke hvorfor men det gør det svært at kontrollere bank
-// 20151001 Sat fast bredde på felter i overskrifter.
-// 20160116	Diverse i forbindelse med indførelse af valutakonti	Søg 'valuta'
-// 20160515 Oprydning dk- og uscecimal, indsat ',2'
-// 20170516 PHR Fakturadate ændret til kobsdate i søgning efter lagerbevægelser for bedre overensstemmelse med svar fra 'find_lagervaerdi' Søg 20170516
-// 20180226 PHR - Bortkommenteret if (!$dim) så primo vises på afdelinger.
-// 20180424 PHR - Tilføjet "regnskab" (Resultat + bufget i et).
-// 20181031 PHR - Tilføjet  "&& $kontotype[$x]=='D'" så den kun søger i driftskonti da der kan ligge budgettal i andre konti hvis kontoplan ændret. 20181031
-// 20181220 MSC - Rettet topmenu design til
-// 20181221 MSC - Rettet topmenu design til og rettet isset fejl
-// 20190207 MSC - Rettet array fejl (linje 815) - rettelse (linje 813)
-// 20190220 PHR tilføjet " || ($kontotype[$x] == 'Z' && $x==$kontoantal) " Da balancekonto ellers ikke vises hvis sum=0 - 20190220
-// 20190412 PHR Moved functions to 'rapport_includes' and added 'Resultat/Sidste år' 
-// 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0' 
-// 20210110 PHR some minor changes related til 'deferred financial year'
+// 20210110 PHR some minor changes related til 'deferred financial year' 
 // 20230611 +20230619 PHR php8
 // 20240403 PHR Changet bankReconcile to $[POST]
 // 20241018 LOE Checks that some variables are set before using and other minore modifications
-
+// 20260227 PHR Moved include("../includes/row-hover-style.js.php") down as it broke saf-t and other using header 
+// 20260306 LOE Updated some variables with if_isset() to avoid excessive undefined variable notices in error logs.
+// 20260329 LOE Added conditions to allow standalone versions of kontokort and kontokort_moms to be used without modifying the code in this file.
 @session_start();
 $s_id = session_id();
 
@@ -62,8 +41,11 @@ $css = "../css/standard.css";
 include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
+include("../includes/topline_settings.php");
 include("../includes/std_func.php");
-include("../includes/row-hover-style.js.php");
+include_once("../includes/emballage_schema.php");
+$packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 
 $aar_fra = "";
 $maaned_fra = "";
@@ -79,6 +61,9 @@ $projekt_fra = "";
 $projekt_til = "";
 $simulering = "";
 $lagerbev = "";
+$konto_fra2 = "";
+$aar_til = "";
+
 
 if (!isset($find))
 	$find = NULL;
@@ -102,31 +87,32 @@ if ($_POST) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=provisionsrapport.php\">";
 		exit;
 	}
-	$submit = str2low(trim($_POST['submit']));
-	$rapportart = if_isset($_POST['rapportart']);
-	$aar_fra = if_isset($_POST['aar_fra']);
-	$aar_til = if_isset($_POST['aar_til']);
-	$maaned_fra = trim(if_isset($_POST['maaned_fra']));
-	$maaned_til = trim(if_isset($_POST['maaned_til']));
+	$submit = str2low(trim(if_isset($_POST, NULL, 'submit')));
+	$rapportart = if_isset($_POST, NULL, 'rapportart');
+	$aar_fra = if_isset($_POST, NULL, 'aar_fra');
+	$aar_til = if_isset($_POST, NULL, 'aar_til');
+	$maaned_fra = trim(if_isset($_POST, NULL, 'maaned_fra'));
+	$maaned_til = trim(if_isset($_POST, NULL, 'maaned_til'));
 	if (strpos($maaned_fra, '|')) {
 		list($aar_fra, $maaned_fra) = explode('|', $maaned_fra);
 	}
 	if (strpos($maaned_til, '|')) {
 		list($aar_til, $maaned_til) = explode('|', $maaned_til);
 	}
-	$dato_fra = if_isset($_POST['dato_fra']);
-	$dato_til = if_isset($_POST['dato_til']);
-	$md = if_isset($_POST['md']);
-	$ansat_id = if_isset($_POST['ansat_id']);
-	$ansat_init = if_isset($_POST['ansat_init']);
-	$antal_ansatte = if_isset($_POST['antal_ansatte']);
-	$ansat_fra = if_isset($_POST['ansat_fra']);
-	$projekt_fra = if_isset($_POST['projekt_fra']);
-	$projekt_til = if_isset($_POST['projekt_til']);
-	$simulering = if_isset($_POST['simulering']);
-	$lagerbev = if_isset($_POST['lagerbev']);
 
-	$bankReconcile  = if_isset($_POST['bankReconcile']);
+	$dato_fra = if_isset($_POST, NULL, 'dato_fra');
+	$dato_til = if_isset($_POST, NULL, 'dato_til');
+	$md = if_isset($_POST, NULL, 'md');
+	$ansat_id = if_isset($_POST, NULL, 'ansat_id');
+	$ansat_init = if_isset($_POST, NULL, 'ansat_init');
+	$antal_ansatte = if_isset($_POST, NULL, 'antal_ansatte');
+	$ansat_fra = if_isset($_POST, NULL, 'ansat_fra');
+	$projekt_fra = if_isset($_POST, NULL, 'projekt_fra');
+	$projekt_til = if_isset($_POST, NULL, 'projekt_til');
+	$simulering = if_isset($_POST, NULL, 'simulering');
+	$lagerbev = if_isset($_POST, NULL, 'lagerbev');
+
+	$bankReconcile  = if_isset($_POST, NULL, 'bankReconcile');
 	
 	if (stristr($rapportart, "Listeangivelse")) {
 		$listeperiode = preg_replace('/[^0-9.]*/', '', $rapportart); # 20140729 afsnit 1
@@ -169,7 +155,7 @@ if ($_POST) {
 		list($afd, $afd_navn) = explode(":", $afd);
 		$afd = trim($afd);
 	}
-	$delprojekt = if_isset($_POST['delprojekt']);
+	$delprojekt = if_isset($_POST,NULL,'delprojekt');
 	if ($projekt_til)
 		$delprojekt = NULL;
 	elseif ($delprojekt) {
@@ -180,7 +166,7 @@ if ($_POST) {
 		}
 	}
 	if ($find) {
-		$prj_cfg = if_isset($_POST['prj_cfg']);
+		$prj_cfg = if_isset($_POST,NULL,'prj_cfg');
 		$prcfg = explode("|", $prj_cfg);
 		$b = count($delprojekt);
 		$projekt_fra = NULL;
@@ -195,12 +181,12 @@ if ($_POST) {
 		}
 		$projekt_til = $projekt_fra;
 	} else {
-		$projekt_fra = if_isset($_POST['projekt_fra']);
+		$projekt_fra = if_isset($_POST,NULL,'projekt_fra');
 		if (strpos($projekt_fra, ":")) {
 			list($projekt_fra, $prj_navn_fra) = explode(":", $projekt_fra);
 			$projekt_fra = trim($projekt_fra);
 		}
-		$projekt_til = if_isset($_POST['projekt_til']);
+		$projekt_til = if_isset($_POST,NULL,'projekt_til');
 		if (strpos($projekt_til, ":")) {
 			list($projekt_til, $prj_navn_til) = explode(":", $projekt_til);
 			$projekt_til = trim($projekt_til);
@@ -237,24 +223,29 @@ if ($_POST) {
 	#+
 }
 
-if (isset($_GET['rapportart']))  $rapportart = $_GET['rapportart'];
-if (isset($_GET['dato_fra']))    $dato_fra = $_GET['dato_fra'];
-if (isset($_GET['maaned_fra']))  $maaned_fra = $_GET['maaned_fra'];
-if (isset($_GET['aar_fra']))     $aar_fra = $_GET['aar_fra'];
-if (isset($_GET['konto_fra']))	 $konto_fra = $_GET['konto_fra'];
-if (isset($_GET['konto_fra2']) && $_GET['konto_fra2']) $konto_fra = $_GET['konto_fra2'];
-if (isset($_GET['ansat_fra']))   $ansat_fra = $_GET['ansat_fra'];
-if (isset($_GET['projekt_fra'])) $projekt_fra = $_GET['projekt_fra'];
-if (isset($_GET['dato_til']))    $dato_til = $_GET['dato_til'];
-if (isset($_GET['maaned_til']))  $maaned_til = $_GET['maaned_til'];
-if (isset($_GET['aar_til']))     $aar_til = $_GET['aar_til'];
-if (isset($_GET['konto_til']))   $konto_til = $_GET['konto_til'];
-if (isset($_GET['ansat_til']))   $ansat_til = $_GET['ansat_til'];
-if (isset($_GET['projekt_til'])) $projekt_til = $_GET['projekt_til'];
-if (isset($_GET['regnaar']))     $regnaar = $_GET['regnaar'];
-if (isset($_GET['afd']))         $afd = $_GET['afd'];
-if (isset($_GET['simulering']))  $simulering = $_GET['simulering'];
-if (isset($_GET['lagerbev']))    $lagerbev = $_GET['lagerbev'];
+
+
+################
+$rapportart   = if_isset($_GET, $rapportart, 'rapportart');
+$dato_fra     = if_isset($_GET, $dato_fra, 'dato_fra');
+$maaned_fra   = if_isset($_GET, $maaned_fra, 'maaned_fra');
+$aar_fra      = if_isset($_GET, $aar_fra, 'aar_fra');
+$konto_fra    = if_isset($_GET, $konto_fra, 'konto_fra');
+$konto_fra2   = if_isset($_GET, $konto_fra2, 'konto_fra2');
+if ($konto_fra2) $konto_fra = $konto_fra2;  
+$ansat_fra    = if_isset($_GET, $ansat_fra, 'ansat_fra');
+$projekt_fra  = if_isset($_GET, $projekt_fra, 'projekt_fra');
+$dato_til     = if_isset($_GET, $dato_til, 'dato_til');
+$maaned_til   = if_isset($_GET, $maaned_til, 'maaned_til');
+$aar_til      = if_isset($_GET, $aar_til, 'aar_til');
+$konto_til    = if_isset($_GET, $konto_til, 'konto_til');
+$ansat_til    = if_isset($_GET, $ansat_til, 'ansat_til');
+$projekt_til  = if_isset($_GET, $projekt_til, 'projekt_til');
+$regnaar      = if_isset($_GET, $regnaar, 'regnaar');
+$afd          = if_isset($_GET, $afd, 'afd');
+$simulering   = if_isset($_GET, $simulering, 'simulering');
+$lagerbev     = if_isset($_GET, $lagerbev, 'lagerbev');
+#############
 
 $regnaar = (int) $regnaar;
 $md[1] = "januar";
@@ -294,6 +285,7 @@ elseif ($rapportart) {
 		$submit = "regnskab";
 	} else $submit = str2low($rapportart);
 }
+
 /*
 elseif ($rapportart) {
 	if ($rapportart == "balance" || $rapportart == "resultat" || $rapportart == "budget" || $rapportart == "lastYear") {
@@ -320,17 +312,65 @@ if (!$aar_fra || !$aar_til) {
 if ($submit == 'saft') {
 	header("Location: saft.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
-}
-if ($submit == 'regnskabbasis') {
+} elseif ($submit == 'regnskabbasis') {
 	header("Location: regnskabbasis.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
-}
-if (isset($bankReconcile) && $bankReconcile) {
+} elseif (isset($bankReconcile) && $bankReconcile) {
 	header("Location: bankReconcile.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
-}
-include("rapport_includes/$submit.php");
+} else {
+	
+	#########
+	if ($submit === 'kontokort') {
+        $params = http_build_query([
+            'regnaar'     => $regnaar,
+            'maaned_fra'  => $maaned_fra,
+            'maaned_til'  => $maaned_til,
+            'aar_fra'     => $aar_fra,
+            'aar_til'     => $aar_til,
+            'dato_fra'    => $dato_fra,
+            'dato_til'    => $dato_til,
+            'konto_fra'   => $konto_fra,
+            'konto_til'   => $konto_til,
+            'rapportart'  => $rapportart,
+            'ansat_fra'   => $ansat_fra,
+            'ansat_til'   => $ansat_til,
+            'afd'         => $afd,
+            'projekt_fra' => $projekt_fra,
+            'projekt_til' => $projekt_til,
+            'simulering'  => $simulering,
+            'lagerbev'    => $lagerbev,
+        ]);
+        header("Location: kontokort_standalone.php?$params");
+        exit();
+    }elseif($submit === 'kontokort_moms') {
+		$params = http_build_query([
+			'regnaar'     => $regnaar,
+			'maaned_fra'  => $maaned_fra,
+			'maaned_til'  => $maaned_til,
+			'aar_fra'     => $aar_fra,
+			'aar_til'     => $aar_til,
+			'dato_fra'    => $dato_fra,
+			'dato_til'    => $dato_til,
+			'konto_fra'   => $konto_fra,
+			'konto_til'   => $konto_til,
+			'rapportart'  => $rapportart,
+			'ansat_fra'   => $ansat_fra,
+			'ansat_til'   => $ansat_til,
+			'afd'         => $afd,
+			'projekt_fra' => $projekt_fra,
+			'projekt_til' => $projekt_til,
+			'simulering'  => $simulering,
+			'lagerbev'    => $lagerbev,
+		]);
+		header("Location: kontokort_moms_standalone.php?$params");
+		exit();
+	}
 
+	#########
+	include("../includes/row-hover-style.js.php");
+	include("rapport_includes/$submit.php");
+}
 $submit($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev);
 #################################################################################################
 function kontobemaerkning($l_kontonavn)

@@ -478,7 +478,7 @@ function create_datagrid($id, $grid_data) {
 
     // Render dropdown script for interactions
     $dropdown_start = microtime(true);
-    render_dropdown_script($id, $query);
+   // render_dropdown_script($id, $query);
     log_grid_performance("Dropdown script rendering", $dropdown_start);
 
     // Final grid performance log
@@ -1032,64 +1032,17 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
     }
 
     global $sprog_id;
-    $txt1 = findtekst('913|Søg', $sprog_id);
+ 
     $txt2 = findtekst('2755|Ryd søgning', $sprog_id);
-    $txt3 = findtekst('2756|Eksportér til CSV', $sprog_id);
-    $txt4 = findtekst('2757|Eksportér til PDF', $sprog_id);
-    $txt5 = findtekst('2148|Redigér', $sprog_id);
-    $txt6 = findtekst('2758|Kolonner', $sprog_id);
-    $txt7 = findtekst('2759|Filtre', $sprog_id);
-    $txt8 = findtekst('2760|Vis SQL', $sprog_id);
-
+   
     echo <<<HTML
-                        <th>
-                            <div class="dropdown">
-                                <svg id="turn-arrow" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
-                                <div class="dropdown-content">
-                                    <button type="submit" class="dropdown-btn">
-                                        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
-                                        {$txt1}
-                                    </button>
-                                    <button type="button" onclick="handleAction{$id}('clear')">
-                                        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
-                                        {$txt2}
-                                    </button>
-                                    <button type="button" onclick="handleAction{$id}('exportCSV')">
-                                        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm240-240H200v160h240v-160Zm80 0v160h240v-160H520Zm-80-80v-160H200v160h240Zm80 0h240v-160H520v160ZM200-680h560v-80H200v80Z"/></svg>
-                                        {$txt3}
-                                    </button>
-                                    <button type="button" onclick="handleAction{$id}('exportPDF')">
-                                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/></svg>
-                                        {$txt4}
-                                    </button>
-                                    <div id='edit-button' class="has-secondary-dropdown">
-                                        <span>
-                                            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
-                                            {$txt5}
-                                        </span>
-
-                                        <svg id="turn-arrow2" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
-                                        <div class="secondary-dropdown">
-                                            <button type="button" onclick="handleAction{$id}('kolonner')">
-                                                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M121-280v-400q0-33 23.5-56.5T201-760h559q33 0 56.5 23.5T840-680v400q0 33-23.5 56.5T760-200H201q-33 0-56.5-23.5T121-280Zm79 0h133v-400H200v400Zm213 0h133v-400H413v400Zm213 0h133v-400H626v400Z"/></svg>
-                                                {$txt6}
-                                            </button>
-                                            <button type="button" onclick="handleAction{$id}('filtre')">
-                                            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M440-160q-17 0-28.5-11.5T400-200v-240L168-736q-15-20-4.5-42t36.5-22h560q26 0 36.5 22t-4.5 42L560-440v240q0 17-11.5 28.5T520-160h-80Zm40-308 198-252H282l198 252Zm0 0Z"/></svg>
-                                                {$txt7}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <button type="button" onclick="handleAction{$id}('showSQL')">
-                                        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M560-160v-80h120q17 0 28.5-11.5T720-280v-80q0-38 22-69t58-44v-14q-36-13-58-44t-22-69v-80q0-17-11.5-28.5T680-720H560v-80h120q50 0 85 35t35 85v80q0 17 11.5 28.5T840-560h40v160h-40q-17 0-28.5 11.5T800-360v80q0 50-35 85t-85 35H560Zm-280 0q-50 0-85-35t-35-85v-80q0-17-11.5-28.5T120-400H80v-160h40q17 0 28.5-11.5T160-600v-80q0-50 35-85t85-35h120v80H280q-17 0-28.5 11.5T240-680v80q0 38-22 69t-58 44v14q36 13 58 44t22 69v80q0 17 11.5 28.5T280-240h120v80H280Z"/></svg>
-                                        {$txt8}
-                                    </button>
-                                </div>
-                            </div>
-                        </th>
-                    </tr>
-HTML;
+                    <th>
+                        <button type="button" title="{$txt2}" onclick="clearSearch{$id}()" style="background:none; border:none; cursor:pointer; padding:2px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
+                        </button>
+                    </th>
+                </tr>
+    HTML;
 }
 
 /**
@@ -1113,13 +1066,13 @@ HTML;
  */
 function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
     // Define the possible row count options
-    $rowCounts = [50, 100, 250, 500, 1000, 5000, 999999999];
+    $rowCounts = [50, 100, 250, 500, 1200];
 
     // Build the options dynamically
     $options = '';
     foreach ($rowCounts as $count) {
         $selected = ($selectedrowcount == $count) ? 'selected' : '';
-        $label = ($count == 999999999) ? 'Alle' : $count; // Use "Alle" for the max value
+        $label = ($count == 1200) ? 'Alle' : $count; // Use "Alle" for the max value
         $options .= "<option value=\"$count\" $selected>$label</option>";
     }
 
@@ -1420,8 +1373,8 @@ function render_dropdown_style() {
         }
         .dropdown {
             position: relative;
-            // display: inline-block;
-            display: none;
+            display: inline-block;
+            //display: none;
         }
         .dropdown-content {
             display: none;
@@ -1585,241 +1538,8 @@ STYLE;
 }
 
 
-/**
- * Outputs JavaScript code for handling various actions within the dropdown menu.
- *
- * This function generates a block of JavaScript code that provides functionalities
- * for different actions within a dropdown interface associated with a specific table.
- * It includes handling for showing SQL queries, clearing search fields, exporting
- * data to CSV and PDF, and managing the scroll position of the table.
- *
- * Supported actions:
- * - 'showSQL': Displays the SQL query in a table.
- * - 'clear': Clears the input fields matching the search pattern and submits the form.
- * - 'exportCSV': Exports the table data to a CSV file.
- * - 'exportPDF': Exports the table data to a PDF file.
- * - 'kolonner': Submits a form with the action to manage columns.
- * - 'filtre': Submits a form with the action to manage filters.
- *
- * Additionally, this function handles saving and restoring the scroll position
- * of the table to ensure a consistent user experience.
- *
- * @param string $id The unique identifier for the table, used to target specific elements in the DOM.
- * @param string $query The SQL query to display when the 'showSQL' action is triggered.
- * @return void Outputs the embedded JavaScript for handling dropdown actions and table behavior.
- */
-function render_dropdown_script($id, $query) {
-    $escapedQuery = addslashes($query);
-
-    echo <<<SCRIPT
-    <script>
-        function handleAction$id(action) {
-            if (action === 'showSQL') {
-                const tbody = document.querySelector('div#datatable-wrapper-$id.datatable-wrapper form div.datatable-search-wrapper table#datatable-$id.datatable tbody');
-                tbody.innerHTML = `<pre>$escapedQuery</pre>`;
-                tbody.innerHTML += '<b><a href="' + window.location.href.split('?')[0] + '">back</a></b>';
-
-            } else if (action === 'clear') {
-                 // Select all input fields matching the name pattern `search[test][...]`
-                const searchFields = document.querySelectorAll('input[name^="search[$id]"]');
-                
-
-                // Loop through each field and clear its value
-                searchFields.forEach(field => {
-                    field.value = "";
-                });
-
-                searchFields[0].form.submit();
-
-            } else if (action === 'exportCSV') {
-                // Get the table element
-                const table = document.querySelector('div#datatable-wrapper-$id.datatable-wrapper form div.datatable-search-wrapper table#datatable-$id.datatable');
-
-                if (!table) {
-                    alert('Error: Table not found.');
-                    return;
-                }
-
-                // Clone the table to avoid modifying the original
-                const cleanTable = table.cloneNode(true);
-
-                // Remove the second <tr> in the <thead>
-                const thead = cleanTable.querySelector('thead');
-                if (thead) {
-                    const rows = thead.querySelectorAll('tr');
-                    if (rows.length > 1) {
-                        thead.removeChild(rows[1]); // Remove the second <tr>
-                    }
-                }
-
-                // Remove filler rows
-                const fillerRows = cleanTable.getElementsByClassName('filler-row');
-                while (fillerRows[0]) {
-                    fillerRows[0].parentNode.removeChild(fillerRows[0]);
-                }
-
-                // Keep only the 'page-status' element in the footer-box
-                const footerBox = cleanTable.querySelector('#footer-box');
-                if (footerBox) {
-                    const pageStatus = footerBox.querySelector('#page-status');
-                    footerBox.innerHTML = ''; // Clear all content
-                    if (pageStatus) {
-                        footerBox.appendChild(pageStatus); // Keep only the 'page-status'
-                    }
-                }
-
-                // Extract rows from the cleaned table
-                const rows = Array.from(cleanTable.querySelectorAll('tr'));
-
-                // Convert rows to CSV format
-                const csvContent = rows
-                    .map(row => {
-                        const cells = Array.from(row.querySelectorAll('th, td'));
-                        return cells.map(cell => {
-                            // Escape quotes and handle special characters
-                            return '"' + cell.textContent.replace(/"/g, '""') + '"';
-                        }).join(',');
-                    })
-                    .join('\\n'); // Escape newline properly
-
-                // Create a Blob from the CSV content
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-
-                // Create a download link
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'datagrid_$id.csv';
-                a.style.display = 'none';
-
-                // Append the link to the document, click it, and remove it
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-
-            } else if (action === 'exportPDF') {
-                const table = document.querySelector('div#datatable-wrapper-$id.datatable-wrapper form div.datatable-search-wrapper table#datatable-$id.datatable');
-
-                if (!table) {
-                    alert('Error: Table not found.');
-                    return;
-                }
-
-                const PDFname = prompt('PDF tekst');
-
-                // Clone the table to avoid modifying the original
-                const printableTable = table.cloneNode(true);
-
-                // Remove the second <tr> in the <thead>
-                const thead = printableTable.querySelector('thead');
-                if (thead) {
-                    const rows = thead.querySelectorAll('tr');
-                    if (rows.length > 1) {
-                        thead.removeChild(rows[1]); // Remove the second <tr>
-                    }
-                }
-
-                var paras = printableTable.getElementsByClassName('filler-row');
-
-                while(paras[0]) {
-                    paras[0].parentNode.removeChild(paras[0]);
-                }
 
 
-                // Remove all elements except the one with id 'page-status'
-                const footerBox = printableTable.querySelector('#footer-box');
-                if (footerBox) {
-                    const pageStatus = footerBox.querySelector('#page-status');
-                    footerBox.innerHTML = ''; // Clear all content
-                    if (pageStatus) {
-                        footerBox.appendChild(pageStatus); // Keep only the 'page-status'
-                    }
-                }
-                
-                // Create a new print window
-                const printWindow = window.open('', '_blank');
-                printWindow.document.open();
-
-                const html = printableTable.outerHTML;
-
-                // Write the HTML content for the print window
-                printWindow.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>Export PDF</title>
-                        <style>
-                            table {
-                                width: 100%;
-                                border-collapse: collapse;
-                            }
-                            th, td {
-                                border: 1px solid black;
-                                padding: 8px;
-                                text-align: left;
-                            }
-                            th {
-                                background-color: #f2f2f2;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>\${PDFname}</h1>
-                        \${html}
-                    </body>
-                    </html>
-                `);
-
-                // Print the content
-                printWindow.print();
-
-                // Close the print window after printing
-                printWindow.onmousemove = (e) => printWindow.close();
-            } else if (action === 'kolonner') {
-                const field = document.getElementsByName('menu[$id]')[0];
-                field.value = 'kolonner';
-                field.form.submit();
-
-            } else if (action === 'filtre') {
-                const field = document.getElementsByName('menu[$id]')[0];
-                field.value = 'filtre';
-                field.form.submit();
-            }
-
-        }
-
-        document.addEventListener("DOMContentLoaded", function() { 
-          
-            var element = document.getElementById('datatable-wrapper-$id');
-            var scrollpos = localStorage.getItem('scrollpos-datatable-$id');
-            if (scrollpos && element) {
-                element.scrollTo(0, parseInt(scrollpos, 10));
-            }
-        });
-
-function saveScrollPosition() {
-    var element = document.getElementById('datatable-wrapper-$id');
-    if (element) {
-        var scrollKey = 'scrollpos-datatable-$id';
-        localStorage.setItem(scrollKey, element.scrollTop);
-        
-    }
-}
-
-document.addEventListener("visibilitychange", function() {
-    if (document.visibilityState === 'hidden') {
-        saveScrollPosition();
-    }
-});
-
-window.addEventListener("beforeunload", function() {
-    saveScrollPosition();
-});
-
-
-    </script>
-SCRIPT;
-}
 
 
 /**
@@ -1834,271 +1554,380 @@ SCRIPT;
 
 function render_ajax_search_script($id) {
     global $o_art_global, $fokus, $bgcolor, $bgcolor5, $ordre_id;
-    
-    // Determine the correct href based on order type
-    $href = ($o_art_global === 'PO' || $o_art_global == 'KO') ? "pos_ordre.php" : "ordre.php";
-    
-    // For POS orders, always set fokus to 'kontonr' when selecting an account
+    global $ajax_lookup_url; // Allow overriding the AJAX endpoint (e.g. for creditor lookup)
+    global $account_lookup_href; // Allow overriding the href for row click navigation
+
+    if (!$ajax_lookup_url) {
+        $ajax_lookup_url = '../debitor/accountLookupData.php';
+    }
+
+    if ($account_lookup_href) {
+        $href = $account_lookup_href;
+    } else {
+        $href = ($o_art_global === 'PO')
+            ? "pos_ordre.php"
+            : "ordre.php";
+    }
+
     if ($o_art_global === 'PO') {
         $fokus = 'kontonr';
     }
-    
+
     echo <<<SCRIPT
     <script>
-    $(document).ready(function() {
-        var searchTimeout;
-        var gridId = '$id';
-        var currentRequest = null;
-        var isInitialDataLoaded = false;
-        
-        // Add real-time AJAX search to grid inputs
-        $(document).on('input', 'input[name^="search[' + gridId + ']"]', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(function() {
-                performAjaxSearch(gridId);
-            }, 500);
+    // ── state ────────────────────────────────────────────────────────────────
+    var currentRequest_{$id} = null;
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    /** Collect every grid-relevant parameter from the form */
+    function getAllParameters_{$id}() {
+        var params = {};
+
+        // Search inputs for THIS grid
+        document.querySelectorAll(
+            'input[name^="search[{$id}]"], ' +
+            'input[name^="sort[{$id}]"], ' +
+            'input[name^="offset[{$id}]"], ' +
+            'input[name^="menu[{$id}]"]'
+        ).forEach(function(el) {
+            params[el.name] = el.value;
         });
+
+        // Row-count select
+        var rcSel = document.querySelector('select[name="rowcount[{$id}]"]');
+        if (rcSel) params['rowcount[{$id}]'] = rcSel.value;
+
+        return params;
+    }
+
+    /**
+     * Fully rebuilds the #navbuttons HTML and updates status text after every
+     * AJAX response.
+     *
+     * WHY: PHP renders footer buttons with HARDCODED onclick values, e.g.
+     *   onclick="setOffset_xxx(100)"
+     * Those never change after the initial render, so "next" was re-requesting
+     * the same page forever.  We must replace the button markup with fresh
+     * values based on the current offset returned by the server.
+     */
+    function updatePaginationInfo_{$id}(currentCount, totalRows, offset, rowsPerPage) {
+        offset      = parseInt(offset)      || 0;
+        rowsPerPage = parseInt(rowsPerPage) || 100;
+        totalRows   = parseInt(totalRows)   || 0;
+
+        var offsetFrom   = offset + 1;
+        var offsetTo     = Math.min(totalRows, offset + parseInt(currentCount));
+        var currentPage  = Math.floor(offset / rowsPerPage) + 1;
+        var totalPages   = Math.ceil(totalRows / rowsPerPage) || 1;
+        var prevOffset   = Math.max(0, offset - rowsPerPage);
+        var nextOffset   = offset + rowsPerPage;           // raw; clamped by disabled
+        var prevDisabled = (offset <= 0)                       ? 'disabled' : '';
+        var nextDisabled = (offset + rowsPerPage >= totalRows) ? 'disabled' : '';
+
+        // page-status text
+        var pageStatus = document.querySelector('#datatable-{$id} tfoot #page-status');
+        if (pageStatus) {
+            pageStatus.textContent = offsetFrom + '-' + offsetTo + ' af ' + totalRows;
+        }
+
+        // keep hidden offset field in sync
+        var offsetField = document.querySelector(
+            '#datatable-{$id} tfoot input[name="offset[{$id}]"]'
+        );
+        if (offsetField) offsetField.value = offset;
+
+        // rebuild navbuttons with live offset values so every click is correct
+        var navbuttons = document.querySelector('#datatable-{$id} tfoot #navbuttons');
+        if (!navbuttons) return;
+
+        var pageRange = 2;
+        var startPage = Math.max(1, currentPage - pageRange);
+        var endPage   = Math.min(totalPages, currentPage + pageRange);
+        var svgLeft   = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
+        var svgRight  = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
+
+        var html = '';
+
+        // prev arrow
+        html += '<button type="button" ' + prevDisabled +
+                ' onclick="setOffset{$id}(' + prevOffset + ')">' + svgLeft + '</button>';
+
+        // first-page shortcut
+        if (startPage > 1) {
+            html += '<button class="navbutton" type="button" onclick="setOffset{$id}(0)">1</button>';
+            if (startPage > 2) html += '<span>...</span>';
+        }
+
+        // numbered page buttons
+        for (var p = startPage; p <= endPage; p++) {
+            var pOffset = (p - 1) * rowsPerPage;
+            var active  = (p === currentPage) ? ' style="text-decoration:underline;"' : '';
+            html += '<button class="navbutton" type="button"' + active +
+                    ' onclick="setOffset{$id}(' + pOffset + ')">' + p + '</button>';
+        }
+
+        // last-page shortcut
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += '<span>...</span>';
+            var lastOffset = (totalPages - 1) * rowsPerPage;
+            html += '<button class="navbutton" type="button"' +
+                    ' onclick="setOffset{$id}(' + lastOffset + ')">' + totalPages + '</button>';
+        }
+
+        // next arrow
+        html += '<button type="button" ' + nextDisabled +
+                ' onclick="setOffset{$id}(' + nextOffset + ')">' + svgRight + '</button>';
+
+        navbuttons.innerHTML = html;
+    }
+
+    /**
+     * Mirrors PHP render_table_row()'s yellow highlight logic in JS.
+     * Reads the current value of search[{$id}][field] inputs so the
+     * highlighted term always matches what the user typed.
+     *
+     * @param {string} rawValue  - cell text (already HTML-escaped)
+     * @param {string} field     - column field name
+     * @returns {string} HTML with <span> wrappers around matched text
+     */
+    function highlightTerm_{$id}(rawValue, field) {
+        var input = document.querySelector('input[name="search[{$id}][' + field + ']"]');
+        if (!input) return rawValue;
+        var term = input.value.trim();
+        if (!term) return rawValue; 
+
         
-        // Handle Enter key in search fields
-        $(document).on('keypress', 'input[name^="search[' + gridId + ']"]', function(e) {
-            if (e.which === 13) {
-                e.preventDefault();
-                clearTimeout(searchTimeout);
-                performAjaxSearch(gridId);
-            }
-        });
-        
-        // AJAX search function
-        function performAjaxSearch(gridId) {
-            // Abort previous request if still running
-            if (currentRequest !== null) {
-                currentRequest.abort();
-            }
-            
-            // Show loading indicator in table body only
-            $('#datatable-' + gridId + ' tbody').html('<tr><td colspan="100" style="text-align:center; padding:20px;"><i>Loading...</i></td></tr>');
-            
-            // Collect ALL parameters
-            var allParams = getAllParameters();
-            allParams.ajax = '1';
-            allParams.grid_id = gridId;
-            
-           
-            
-            // Perform AJAX request to the data endpoint
-            currentRequest = $.ajax({
-                url: '../debitor/accountLookupData.php',
-                method: 'GET',
-                data: allParams,
-                dataType: 'json',
-                success: function(response) {
-                    currentRequest = null;
-                    
-                    
-                    if (response.success && response.data) {
-                       
-                        if (response.data.length > 0) {
-                            
-                        }
-                        updateTableBodyOnly(gridId, response.data, response.totalRows, response.offset, response.rowsPerPage);
-                        isInitialDataLoaded = true;
-                    } else {
-                       
-                        $('#datatable-' + gridId + ' tbody').html('<tr><td colspan="100" style="text-align:center; padding:20px; color:red;">No data found</td></tr>');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    currentRequest = null;
-                    if (status !== 'abort') {
-                        console.error('AJAX Error:', error);
-                        $('#datatable-' + gridId + ' tbody').html('<tr><td colspan="100" style="text-align:center; padding:20px; color:red;">Search error: ' + error + '</td></tr>');
-                    }
+     try {
+            var re = new RegExp(
+                term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'),
+                'gi'
+            );
+            return rawValue.replace(re, function(match) {
+                return '<span style="background-color:#FF0">' + match + '</span>';
+            });
+        } catch (e) {
+            return rawValue;
+        }
+    }
+
+    /** Rebuild <tbody> from raw JSON rows */
+    function updateTableBody_{$id}(data, totalRows, offset, rowsPerPage) {
+        var tbody = document.querySelector('#datatable-{$id} tbody');
+        if (!tbody) return;
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML =
+                '<tr><td colspan="100" style="text-align:center;padding:20px;">' +
+                'No results found</td></tr>';
+
+            if (typeof toggleCreateForm === 'function') toggleCreateForm(true);
+            updatePaginationInfo_{$id}(0, totalRows, offset, rowsPerPage);
+            return;
+        }
+
+        if (typeof toggleCreateForm === 'function') toggleCreateForm(false);
+
+        var html = '';
+        data.forEach(function(row, index) {
+            var rowColor    = (index % 2 === 0) ? '{$bgcolor}' : '{$bgcolor5}';
+            var redirectUrl = '{$href}?fokus=kontonr&id={$ordre_id}&konto_id=' + (row.id || '');
+
+            html += '<tr style="background-color:' + rowColor + ';cursor:pointer;"' +
+                    ' onclick="window.location.href=\'' + redirectUrl + '\'"' +
+                    ' onmouseover="this.style.backgroundColor=\'#f5f5f5\'"' +
+                    ' onmouseout="this.style.backgroundColor=\'' + rowColor + '\'">';
+
+            ['kontonr','firmanavn','addr1','addr2','postnr','bynavn','land','kontakt','tlf']
+            .forEach(function(field) {
+                // Escape first, then highlight so the highlight spans are not escaped
+                var safeVal = escapeHtml_{$id}(String(row[field] || ''));
+                var displayVal = highlightTerm_{$id}(safeVal, field);
+
+                if (field === 'kontonr') {
+                    html += '<td style="padding:4px;text-align:left;">' +
+                            '<a href="' + redirectUrl + '" style="color:inherit;text-decoration:none;display:block;">' +
+                            displayVal + '</a></td>';
+                } else {
+                    html += '<td style="padding:4px;text-align:left;">' +
+                            displayVal + '</td>';
                 }
             });
+
+            html += '<td class="filler-row"></td></tr>';
+        });
+
+        // Filler rows to keep table height stable
+        var selectedRowCount = parseInt(
+            (document.querySelector('select[name="rowcount[{$id}]"]') || {value:100}).value
+        ) || 100;
+        if (selectedRowCount < 1000 && data.length < selectedRowCount) {
+            for (var i = 0; i < selectedRowCount - data.length; i++) {
+                html += '<tr style="background-color:unset;pointer-events:none;" class="filler-row">' +
+                        '<td colspan="100">-&nbsp;</td></tr>';
+            }
         }
-        
-        // Function to update ONLY the table body (not footer)
-        function updateTableBodyOnly(gridId, data, totalRows, offset, rowsPerPage) {
-            var tbody = $('#datatable-' + gridId + ' tbody').css({'border-collapse': 'collapse'});
-            tbody.empty();
-            
-            if (!data || data.length === 0) {
-                tbody.html('<tr><td colspan="100" style="text-align:center; padding:20px;">No results found</td></tr>');
-                updatePaginationInfo(gridId, 0, totalRows, offset, rowsPerPage);
+
+        tbody.innerHTML = html;
+        updatePaginationInfo_{$id}(data.length, totalRows, offset, rowsPerPage);
+    }
+
+    function escapeHtml_{$id}(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // ── core AJAX function (called from everywhere) ───────────────────────────
+    function performAjaxSearch_{$id}(clearParam) {
+        // Abort any in-flight request
+        if (currentRequest_{$id} !== null) {
+            currentRequest_{$id}.abort();
+            currentRequest_{$id} = null;
+        }
+
+        var tbody = document.querySelector('#datatable-{$id} tbody');
+        if (tbody) {
+            tbody.innerHTML =
+                '<tr><td colspan="100" style="text-align:center;padding:20px;">' +
+                '<i>Loading...</i></td></tr>';
+        }
+
+        var params = getAllParameters_{$id}();
+        // Merge clearParam if provided
+        if (clearParam) {
+            for (var key in clearParam) {
+                params[key] = clearParam[key];
+            }
+        }
+        params['ajax']    = '1';
+        params['grid_id'] = '{$id}';
+
+        // Build query string
+        var qs = Object.keys(params).map(function(k) {
+            return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+        }).join('&');
+
+        var xhr = new XMLHttpRequest();
+        currentRequest_{$id} = xhr;
+
+        xhr.open('GET', '{$ajax_lookup_url}?' + qs, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4) return;
+            currentRequest_{$id} = null;
+
+            if (xhr.status === 0) return; // aborted
+
+            if (xhr.status !== 200) {
+                if (tbody) tbody.innerHTML =
+                    '<tr><td colspan="100" style="text-align:center;padding:20px;color:red;">' +
+                    'Server error (' + xhr.status + ')</td></tr>';
                 return;
             }
-            
-         
-            
-            // Build rows from data
-            $.each(data, function(index, row) {
-                var tr = $('<tr>');
-                
-                // Alternate row background color
-                var rowColor = (index % 2 === 0) ? '$bgcolor' : '$bgcolor5';
-                tr.css('background-color', rowColor);
-                
-               
-                
-                // Add each column as clickable cells
-                var columns = ['kontonr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'land', 'kontakt', 'tlf'];
-                
-                $.each(columns, function(i, field) {
-                    var td = $('<td>').css({
-                        'cursor': 'pointer',
-                        'padding': '4px',
-                        'text-align': 'left'
-                    });
-                    
-                    // Make kontonr a link, others plain text
-                    if (field === 'kontonr') {
-                        // Use row.id for konto_id parameter (this is the account ID from database)
-                        var link = $('<a>')
-                            .attr('href', '$href?id=$ordre_id&fokus=$fokus&konto_id=' + (row.id || ''))
-                            .text(row[field] || '')
-                            .css('color', 'inherit')
-                            .css('text-decoration', 'none')
-                            .css('display', 'block');
-                        td.append(link);
-                    } else {
-                        td.text(row[field] || '');
-                    }
-                    
-                    tr.append(td);
-                });
-                
-                // Add filler column if needed
-                tr.append($('<td>').addClass('filler-row'));
-                
-                // Make entire row clickable (except the kontonr link)
-                tr.on('click', function(e) {
-                    // Don't trigger if clicking the kontonr link
-                    if (!$(e.target).is('a') && !$(e.target).parents('a').length) {
-                       
-                        // Use row.id for konto_id parameter
-                        var redirectUrl = '$href?id=$ordre_id&fokus=$fokus&konto_id=' + (row.id || '');
-                        
-                        window.location.href = redirectUrl;
-                    }
-                });
-                
-                // Hover effect
-                tr.hover(
-                    function() { 
-                        $(this).css('background-color', '#f5f5f5'); 
-                    },
-                    function() { 
-                        $(this).css('background-color', rowColor); 
-                    }
-                );
-                
-                tbody.append(tr);
-            });
-            
-            // Add filler rows if needed (to maintain table height)
-            var currentRowCount = data.length;
-            var selectedRowCount = parseInt($('select[name="rowcount[' + gridId + ']"]').val()) || 100;
-            
-            if (selectedRowCount < 1000 && currentRowCount < selectedRowCount) {
-                for (var i = 0; i < selectedRowCount - currentRowCount; i++) {
-                    var fillerRow = $('<tr style="background-color: unset; pointer-events: none;" class="filler-row">');
-                    fillerRow.append($('<td colspan="100">').html('-&nbsp;'));
-                    tbody.append(fillerRow);
+
+            try {
+                var response = JSON.parse(xhr.responseText);
+                if (response.success && response.data) {
+                    updateTableBody_{$id}(
+                        response.data,
+                        response.totalRows,
+                        response.offset,
+                        response.rowsPerPage
+                    );
+                } else {
+                    if (tbody) tbody.innerHTML =
+                        '<tr><td colspan="100" style="text-align:center;padding:20px;color:red;">' +
+                        'No data returned</td></tr>';
                 }
+            } catch (e) {
+                if (tbody) tbody.innerHTML =
+                    '<tr><td colspan="100" style="text-align:center;padding:20px;color:red;">' +
+                    'Parse error</td></tr>';
             }
-            
-            // Update pagination info without touching footer structure
-            updatePaginationInfo(gridId, data.length, totalRows, offset, rowsPerPage);
-        }
-        
-        // Function to update pagination information WITHOUT modifying footer structure
-        function updatePaginationInfo(gridId, currentCount, totalRows, offset, rowsPerPage) {
-            var offsetFrom = parseInt(offset) + 1;
-            var offsetTo = Math.min(totalRows, parseInt(offset) + currentCount);
-            
-            // Update the page status display - find it within the existing footer
-            var pageStatus = $('#datatable-' + gridId + ' tfoot #page-status');
-            if (pageStatus.length) {
-                pageStatus.text(offsetFrom + '-' + offsetTo + ' af ' + totalRows);
-            }
-            
-            // Update offset hidden field in the footer
-            var offsetField = $('#datatable-' + gridId + ' tfoot input[name="offset[' + gridId + ']"]');
-            if (offsetField.length) {
-                offsetField.val(offset);
-            }
-            
-            // Update pagination buttons state
-            updatePaginationButtons(gridId, offset, rowsPerPage, totalRows);
-        }
-        
-        // Function to update pagination buttons state
-        function updatePaginationButtons(gridId, offset, rowsPerPage, totalRows) {
-            var currentPage = Math.floor(offset / rowsPerPage) + 1;
-            var totalPages = Math.ceil(totalRows / rowsPerPage);
-            
-            // Update next/previous button states
-            var nextButton = $('#datatable-' + gridId + ' tfoot button[onclick*="setOffset' + gridId + '"]').last();
-            var prevButton = $('#datatable-' + gridId + ' tfoot button[onclick*="setOffset' + gridId + '"]').first();
-            
-            // Disable previous button on first page
-            if (offset <= 0) {
-                prevButton.prop('disabled', true).css('opacity', '0.5');
-            } else {
-                prevButton.prop('disabled', false).css('opacity', '1');
-            }
-            
-            // Disable next button on last page
-            if (offset + rowsPerPage >= totalRows) {
-                nextButton.prop('disabled', true).css('opacity', '0.5');
-            } else {
-                nextButton.prop('disabled', false).css('opacity', '1');
-            }
-        }
-        
-        // Function to get ALL parameters
-        function getAllParameters() {
-            var params = {};
-            
-            // Get grid-specific parameters from form
-            $('form').first().find('input[name^="search[' + gridId + ']"], input[name^="sort[' + gridId + ']"], input[name^="offset[' + gridId + ']"], input[name^="rowcount[' + gridId + ']"], input[name^="menu[' + gridId + ']"]').each(function() {
-                var \$el = $(this);
-                var name = \$el.attr('name');
-                if (name) {
-                    params[name] = \$el.val();
-                }
-            });
-            
-            return params;
-        }
-        
-        // Override the setOffset function to use AJAX
-        var originalSetOffset = window['setOffset' + gridId];
-        if (originalSetOffset) {
-            window['setOffset' + gridId] = function(offset) {
-                // Update the offset field
-                var offsetField = $('input[name="offset[' + gridId + ']"]');
-                if (offsetField.length) {
-                    offsetField.val(offset);
-                }
-                // Trigger search with new offset
-                performAjaxSearch(gridId);
-            };
-        }
-        
-        // Override rowcount change to use AJAX
-        $('select[name="rowcount[' + gridId + ']"]').off('change').on('change', function() {
-            // Reset to first page when changing row count
-            $('input[name="offset[' + gridId + ']"]').val(0);
-            performAjaxSearch(gridId);
+        };
+        xhr.send();
+    }
+
+    // Public alias used by clearSearch (called from render_dropdown_script)
+    function performAjaxSearch(gridId, clearParam) {
+        // if (gridId === '{$id}') performAjaxSearch_{$id}();
+        if (gridId === '{$id}') performAjaxSearch_{$id}(clearParam);
+    }
+
+    // ── clearSearch (also exported globally) ────────────────────────────────
+    function clearSearch{$id}() {
+        document.querySelectorAll('input[name^="search[{$id}]"]').forEach(function(el) {
+            el.value = '';
         });
-        
-        // REMOVED: Initial data load - let the PHP-generated content stay as is
-        // The initial data is already loaded by PHP, only use AJAX for subsequent interactions
+        // Reset to first page
+        var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+        if (offsetField) offsetField.value = 0;
+
+        performAjaxSearch_{$id}({ clear: 1 });
+    }
+
+    // ── setOffset: declared at SCRIPT SCOPE so onclick="setOffset{$id}(n)"
+    //    on footer buttons can call it the moment they fire, without waiting
+    //    for DOMContentLoaded.  render_pagination_script() must NOT also
+    //    declare this function (see replacement below).
+    function setOffset{$id}(offset) {
+        var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+        if (offsetField) offsetField.value = offset;
+        performAjaxSearch_{$id}();
+    }
+
+    // ── wire up events after DOM ready ───────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // Debounced search-as-you-type
+        var searchTimer_{$id};
+        document.addEventListener('input', function(e) {
+            var name = e.target && e.target.name;
+            if (!name || name.indexOf('search[{$id}]') === -1) return;
+
+            clearTimeout(searchTimer_{$id});
+            searchTimer_{$id} = setTimeout(function() {
+                var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+                if (offsetField) offsetField.value = 0;
+                performAjaxSearch_{$id}();
+            }, 400);
+        });
+
+        // Enter key fires immediately
+        document.addEventListener('keypress', function(e) {
+            var name = e.target && e.target.name;
+            if (!name || name.indexOf('search[{$id}]') === -1) return;
+            if (e.which === 13 || e.keyCode === 13) {
+                e.preventDefault();
+                clearTimeout(searchTimer_{$id});
+                var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+                if (offsetField) offsetField.value = 0;
+                performAjaxSearch_{$id}();
+            }
+        });
+
+        // Row-count select — clone to strip any leftover listeners from
+        // render_pagination_script's initializeRowCountHandler
+        var rcSel = document.querySelector('select[name="rowcount[{$id}]"]');
+        if (rcSel) {
+            var newSel = rcSel.cloneNode(true);
+            rcSel.parentNode.replaceChild(newSel, rcSel);
+            newSel.addEventListener('change', function() {
+                var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+                if (offsetField) offsetField.value = 0;
+                performAjaxSearch_{$id}();
+            });
+        }
+
+        // ── INITIAL LOAD ────────────────────────────────────────────────────
+        performAjaxSearch_{$id}();
     });
     </script>
 SCRIPT;
 }
+
 
 /**
  * Outputs JavaScript code for setting the offset value in pagination.
@@ -2119,229 +1948,16 @@ SCRIPT;
 function render_pagination_script($id) {
     echo <<<SCRIPT
     <script>
-        function setOffset$id(offset) {
-            const offsetBox = document.getElementsByName('offset[$id]')[0];
-            if (offsetBox) {
-                offsetBox.value = offset;
-                submitGridForm$id();
+        // saveScrollPosition is still referenced in some inline onscroll handlers
+        function saveScrollPosition{$id}() {
+            var el = document.getElementById('datatable-wrapper-{$id}');
+            if (el) {
+                localStorage.setItem('scrollpos-datatable-{$id}', el.scrollTop);
             }
         }
-        
-        // Initialize event listeners when DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeRowCountHandler$id();
-        });
-        
-        function initializeRowCountHandler$id() {
-            const rowCountSelect = document.querySelector('select[name="rowcount[$id]"]');
-            if (rowCountSelect) {
-                // Store the current value before removing listeners
-                const currentValue = rowCountSelect.value;
-                
-                // Remove all existing event listeners by replacing the element
-                const newSelect = rowCountSelect.cloneNode(true);
-                rowCountSelect.parentNode.replaceChild(newSelect, rowCountSelect); 
-                
-                // Set the value on the new select element
-                newSelect.value = currentValue;
-                
-                // Add event listener to the new select
-                newSelect.addEventListener('change', function() {
-                     
-                    
-                    // Reset to first page when changing row count
-                    const offsetBox = document.getElementsByName('offset[$id]')[0];
-                    if (offsetBox) {
-                        offsetBox.value = 0;
-                    }
-                    
-                    // Submit via AJAX
-                    submitGridForm$id();
-                });
-                
-                
-            }
-        }
-        
-        function submitGridForm$id() {
-            const form = document.querySelector('#datatable-wrapper-$id form');
-            if (!form) {
-                
-                return;
-            }
-            
-            // Show loading indicator
-            showLoading$id(true);
-            
-            // Collect all form data
-            const formData = new FormData(form);
-            formData.append('ajax', '1');
-            formData.append('grid_id', '$id');
-            
-            // Add any additional parameters that might be in URL
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.forEach((value, key) => {
-                if (!formData.has(key)) {
-                    formData.append(key, value);
-                }
-            });
-            
-            // Send AJAX request
-            fetch('../debitor/accountLookupData.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    updateTableContent$id(data);
-                } else {
-                    
-                    // Fallback to regular form submission
-                    form.submit();
-                }
-            })
-            .catch(error => {
-                
-                // Fallback to regular form submission
-                form.submit();
-            })
-            .finally(() => {
-                showLoading$id(false);
-            });
-        }
-        
-        function showLoading$id(show) {
-            const wrapper = document.getElementById('datatable-wrapper-$id');
-            const tbody = document.querySelector('#datatable-$id tbody');
-            
-            if (show) {
-                // Add loading state
-                wrapper.classList.add('loading');
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="100" style="text-align:center; padding:20px;"><i>Loading...</i></td></tr>';
-                }
-            } else {
-                wrapper.classList.remove('loading');
-            }
-        }
-        
-       function updateTableContent$id(data) {
-            if (!data || !data.success) {
-                console.error('AJAX request failed:', data);
-                return;
-            }
-            
-            // Use the raw data to build HTML on the frontend
-            buildTableFromData$id(data.data, data.totalRows, data.offset, data.rowsPerPage);
-        }
-            ////////
-            function buildTableFromData$id(data, totalRows, offset, rowsPerPage) {
-                const tbody = document.querySelector('#datatable-$id tbody');
-                if (!tbody) return;
-                
-                let html = '';
-                
-                if (!data || data.length === 0) {
-                    html = '<tr><td colspan="100" style="text-align:center; padding:20px;">No results found</td></tr>';
-                } else {
-                    // Build table rows from raw data
-                    data.forEach((row, index) => {
-                        const rowColor = (index % 2 === 0) ? '#ffffff' : '#e0e0f0';
-                        html += `<tr style="background-color: ${rowColor}">`;
-                        
-                        const columns = ['kontonr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'land', 'kontakt', 'tlf'];
-                        columns.forEach(field => {
-                            // Your existing cell rendering logic here
-                            html += '<td>' + (row[field] || '') + '</td>';
-                        });
-                        
-                        html += `<td class="filler-row"></td></tr>`;
-                    });
-                }
-                
-                tbody.innerHTML = html;
-                updatePaginationInfo$id(data.length, totalRows, offset, rowsPerPage);
-            }
-
-            /// build table from data end
-        
-        function updatePaginationInfo$id(data) {
-            // Update the page status display
-            const offsetFrom = parseInt(data.offset) + 1;
-            const offsetTo = Math.min(data.totalRows, parseInt(data.offset) + data.rowsPerPage);
-            
-            const pageStatus = document.querySelector('#datatable-$id tfoot #page-status');
-            if (pageStatus) {
-                pageStatus.textContent = offsetFrom + '-' + offsetTo + ' af ' + data.totalRows;
-            }
-            
-            // Update pagination buttons state
-            updatePaginationButtons$id(data.offset, data.rowsPerPage, data.totalRows);
-        }
-        
-        function updatePaginationButtons$id(offset, rowsPerPage, totalRows) {
-            const currentPage = Math.floor(offset / rowsPerPage) + 1;
-            const totalPages = Math.ceil(totalRows / rowsPerPage);
-            
-            // Update next/previous button states
-            const nextButton = document.querySelector('#datatable-$id tfoot button:last-child');
-            const prevButton = document.querySelector('#datatable-$id tfoot button:first-child');
-            
-            if (prevButton) {
-                if (offset <= 0) {
-                    prevButton.disabled = true;
-                    prevButton.style.opacity = '0.5';
-                } else {
-                    prevButton.disabled = false;
-                    prevButton.style.opacity = '1';
-                }
-            }
-            
-            if (nextButton) {
-                if (offset + rowsPerPage >= totalRows) {
-                    nextButton.disabled = true;
-                    nextButton.style.opacity = '0.5';
-                } else {
-                    nextButton.disabled = false;
-                    nextButton.style.opacity = '1';
-                }
-            }
-        }
-        
-        function updateURL$id() {
-            // Update browser URL without reloading
-            if (history.pushState) {
-                const url = new URL(window.location);
-                const form = document.querySelector('#datatable-wrapper-$id form');
-                
-                if (form) {
-                    const formData = new FormData(form);
-                    
-                    // Update URL parameters for this grid
-                    for (let [key, value] of formData.entries()) {
-                        if (key.includes('[$id]')) {
-                            url.searchParams.set(key, value);
-                        }
-                    }
-                    
-                    history.pushState({}, '', url);
-                }
-            }
-        }
-        
-        function saveScrollPosition() {
-            var element = document.getElementById('datatable-wrapper-$id');
-            if (element) {
-                var scrollKey = 'scrollpos-datatable-$id';
-                localStorage.setItem(scrollKey, element.scrollTop);
-            }
-        }
+        // setOffset{$id} is intentionally NOT declared here.
+        // It is declared in render_ajax_search_script() at script scope
+        // so that footer button onclick="setOffset{$id}(n)" works immediately.
     </script>
 SCRIPT;
 }
@@ -2360,15 +1976,25 @@ SCRIPT;
 function render_sort_script($id) {
     echo <<<SCRIPT
     <script>
-        function setSort$id(header) {
-            const sortBox = document.getElementsByName('sort[$id]')[0];
-            if (sortBox.value !== header) {
-                sortBox.value=header;
-            } else if (sortBox.value === header) {
-                sortBox.value=header + " desc";
-            }
-            sortBox.form.submit();
+    function setSort{$id}(header) {
+        var sortBox = document.querySelector('input[name="sort[{$id}]"]');
+        if (!sortBox) return;
+
+        if (sortBox.value === header) {
+            sortBox.value = header + ' desc';
+        } else if (sortBox.value === header + ' desc') {
+            sortBox.value = header;
+        } else {
+            sortBox.value = header;
         }
+
+        var offsetField = document.querySelector('input[name="offset[{$id}]"]');
+        if (offsetField) offsetField.value = 0;
+
+        if (typeof performAjaxSearch_{$id} === 'function') {
+            performAjaxSearch_{$id}();
+        }
+    }
     </script>
 SCRIPT;
 }

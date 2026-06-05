@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-02-20--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-03-11--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,7 +38,18 @@
 // 20260127 LOE Selected calender type now saved for the user.
 // 20260207 LOE Fixed a bug created by git merge
 // 20260212 PHR Disabled popup checker
-// 20260216 LOE Updated delivery note navigation behaviour. 20260220 + locat
+// 20260216 LOE Updated delivery note navigation behaviour. 20260220 + location
+// 20260223 AJ Updated Revenue and cover ratio to match
+// 20260225 LOE Added initialized shop link  for shop pickup display  
+// 20260228 LOE Updated box1 in grupper to store the order of the orders for next/prev navigation in order details page.
+// 20260303 PHR Fixed revenue and cover ratio
+// 20260305 LOE Fixed pagination items not selecting because of screen sizes added more flexibility to account for smaller screens.
+// 20260311 PHR Fixed revenue and cover ratio again
+// 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly
+// 20260317 AJ Updated hover text for order number
+// 20260518 CL/PHR account_context springer kontonr pre-populate over. Kontonr-søgning finder nu alle ordrer for kunder med samme kontonr.
+// 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
+
 @session_start();
 $s_id = session_id();
 
@@ -71,11 +82,107 @@ $find = array(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 $padding2 = $padding = $padding1_5 = null; #20211018
 include("../includes/connect.php");
 include("../includes/std_func.php");
+
+// Helper function: escapes HTML but preserves search term highlight spans
+function ordreliste_safe_output($value) {
+    if (strpos($value, '<span style="background-color:#FF0">') !== false) {
+        // Value contains search highlighting - escape everything except the highlight spans
+        $value = str_replace(
+            array('<span style="background-color:#FF0">', '</span>'),
+            array('__HIGHLIGHT_OPEN__', '__HIGHLIGHT_CLOSE__'),
+            $value
+        );
+        $value = htmlspecialchars($value);
+        $value = str_replace(
+            array('__HIGHLIGHT_OPEN__', '__HIGHLIGHT_CLOSE__'),
+            array('<span style="background-color:#FF0">', '</span>'),
+            $value
+        );
+        return $value;
+    }
+    return htmlspecialchars($value);
+}
+
+/**
+ * Returns color + tooltip line data for an order, with static per-request cache.
+ * Both the rowStyle callback and the tooltip render callback share this result,
+ * so DB work is done once per order per request instead of twice.
+ *
+ * Accepts optional $preseed to allow bulk preloading (Tier 3).
+ */
+function get_order_lagerstatus_cache($ordre_id, $ls_vgr, $preseed = null) {
+    static $cache = [];
+    if ($preseed !== null && !isset($cache[$ordre_id])) {
+        $cache[$ordre_id] = $preseed;
+    }
+    if (isset($cache[$ordre_id])) return $cache[$ordre_id];
+
+    $result = ['color' => '#FF33FF', 'lines' => []];
+    $linjebg = null;
+
+    $q = db_select(
+        "SELECT ol.*, v.beholdning, v.gruppe
+         FROM ordrelinjer ol
+         LEFT JOIN varer v ON v.id = ol.vare_id
+         WHERE ol.ordre_id = '$ordre_id' AND ol.antal != '0'",
+        __FILE__ . " linje " . __LINE__
+    );
+    if (!$q) {
+        $cache[$ordre_id] = $result;
+        return $result;
+    }
+
+    while ($r = db_fetch_array($q)) {
+        if (!$r['vare_id']) continue;
+        $beholdning  = $r['beholdning'];
+        $antal       = $r['antal'];
+        $leveret     = $r['leveret'];
+        $needed      = $antal - $leveret;
+        $is_lagerfrt = in_array($r['gruppe'], $ls_vgr);
+        $tmp         = find_beholdning($r['vare_id'], NULL);
+
+        if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
+            $linjefarve = '#FFFF66';
+        } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
+            $linjefarve = '#FF4D4D';
+        } elseif ($antal != $leveret) {
+            $linjefarve = '#66FF66';
+        } else {
+            $linjefarve = '#FF33FF';
+        }
+
+        // Row color priority: red > yellow > green > magenta
+        if ($linjefarve === '#FF4D4D') {
+            $linjebg = '#FF4D4D';
+        } elseif ($linjefarve === '#FFFF66' && $linjebg !== '#FF4D4D') {
+            if ($linjebg === null || $linjebg === '#66FF66') $linjebg = '#FFFF66';
+        } elseif ($linjefarve === '#66FF66' && $linjebg === null) {
+            $linjebg = '#66FF66';
+        }
+
+        $result['lines'][] = [
+            'varenr'     => $r['varenr'],
+            'beholdning' => $beholdning,
+            'antal'      => $antal,
+            'leveret'    => $leveret,
+            'tmp'        => $tmp,
+            'linjefarve' => $linjefarve,
+        ];
+    }
+
+    $result['color'] = $linjebg ?: '#FF33FF';
+    $cache[$ordre_id] = $result;
+    return $result;
+}
+
 $title = findtekst('1201|Ordreliste • Kunder', $sprog_id);
 include("../includes/online.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style-with-links.js.php");
 $sprog_id = if_isset($sprog_id, 1);
+
+if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) unlink("../temp/$db/ordrlst$bruger_id.txt");
+
 /* 
 * check for popup blocker 
 */
@@ -151,17 +258,32 @@ $nextfakt1    = strtolower(str_replace(' ', '_', $kk));
 
 $id = if_isset($_GET, NULL, 'id');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
-if ($konto_id) {
+$account_context = if_isset($_GET, NULL, 'account_context'); # sync
+$menu_entry = if_isset($_GET, NULL, 'menu_entry');
+$reset_context = if_isset($_GET, NULL, 'reset_context');
+$returside = if_isset($_GET, NULL, 'returside');
+
+$account_context = ($account_context == '1');
+$menu_entry = ($menu_entry == '1');
+$reset_context = ($reset_context == '1');
+$is_plain_entry = $menu_entry || $reset_context;
+
+if ($account_context && $konto_id) {
     $qtxt = "update settings set var_value = '$konto_id' where ";
     $qtxt .= "var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    $returside = "../debitor/debitorkort.php?id=$konto_id";
 } else {
-    $qtxt = "select var_value from settings where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
-    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $konto_id  = $r['var_value'];
-    #	(isset($_SESSION['debitorId']) && $_SESSION['debitorId']) $konto_id  = $_SESSION['debitorId'];
+    $qtxt = "update settings set var_value = '' where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    $konto_id = NULL;
 }
-if ($konto_id) $returside = "../debitor/debitorkort.php?id=$konto_id";
-else $returside = if_isset($_GET, NULL, 'returside');
+
+if ($is_plain_entry) {
+    $konto_id = NULL;
+    $account_context = false;
+}
+
 if (!$returside) $returside = '../index/menu.php';
 $valg = strtolower(if_isset($_GET, NULL, 'valg'));
 $sort = if_isset($_GET, NULL, 'sort');
@@ -186,8 +308,10 @@ if (!$returside && $konto_id && !$popup) {
 }
 
 // View selection - stored in database settings for persistence
-// Priority: 1) URL parameter (user clicked tab), 2) Database setting, 3) Default 'ordrer'
-if (isset($_GET['valg']) && $_GET['valg']) {
+// Priority: 1) forced plain entry, 2) URL parameter, 3) Database setting, 4) Default
+if ($is_plain_entry) {
+    $valg = 'ordrer';
+} elseif (isset($_GET['valg']) && $_GET['valg']) {
     // User explicitly clicked a tab - use this value
     $valg = strtolower($_GET['valg']);
 } else {
@@ -200,7 +324,7 @@ if (isset($_GET['valg']) && $_GET['valg']) {
     
     // If no saved setting, check special cases or default to 'ordrer'
     if (!$valg) {
-        if (isset($_GET['konto_id']) && $_GET['konto_id']) {
+        if ($account_context && isset($_GET['konto_id']) && $_GET['konto_id']) {
             $valg = "faktura";
         } else {
             $valg = "ordrer";
@@ -217,6 +341,11 @@ if (!$valg) $valg = "ordrer";
 $tjek = array("tilbud", "ordrer", "faktura", "pbs");
 if (!in_array($valg, $tjek)) $valg = "ordrer";
 
+if ($is_plain_entry) {
+    db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
+    db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
+}
+
 // Save the validated valg to database setting for persistence
 $qtxt = "SELECT id FROM settings WHERE var_name = 'ordreliste_valg' AND var_grp = 'debitor' AND user_id = '$bruger_id'";
 if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -230,7 +359,6 @@ if ($nysort == 'sum_m_moms') $nysort = 'sum';
 $sort = str_replace("ordrer.", "", $sort);
 if ($sort && $nysort == $sort) $sort = $sort . " desc";
 elseif ($nysort) $sort = $nysort;
-db_modify("update ordrer set betalt = '0' where betalt is NULL", __FILE__ . " linje " . __LINE__);
 
 $r2 = db_fetch_array(db_select("select max(id) as id from grupper", __FILE__ . " linje " . __LINE__));
 
@@ -268,7 +396,7 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
     if (!$returside) {
         $returside = $r['box2'];
-        if (strstr($returside, "debitorkort.php?id=") && !$konto_id) {
+        if ($account_context && strstr($returside, "debitorkort.php?id=") && !$konto_id) {
             list($tmp, $konto_id) = explode("=", $returside);
         }
     }
@@ -283,8 +411,8 @@ if (!$returside) {
     if ($popup) $returside = "../includes/luk.php";
     else $returside = "../index/menu.php";
 } elseif (!$popup && $returside == "../includes/luk.php") $returside = "../index/menu.php";
-$qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
-db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+#$qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
+#db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 if (!$popup) {
     $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'D%' and status < '3'";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__); #20150308
@@ -432,8 +560,8 @@ $gem_fra = $gem_til = NULL;
 if (in_array('kundeordnr', $vis_felt)) {
     for ($i = 0; $i < count($vis_felt); $i++) {
         if ($vis_felt[$i] == 'kundeordnr') {
-            if (strpos($find[$i], ":")) list($gem_fra, $gem_til) = explode(":", $find[$i]);
-            elseif ($find) $gem_fra = $find[$i];
+            if (isset($find[$i]) && strpos($find[$i], ":")) list($gem_fra, $gem_til) = explode(":", $find[$i]);
+            elseif (!empty($find[$i])) $gem_fra = $find[$i];
         }
     }
     if ($gem_fra && $gem_til && $gem_til - $gem_fra > 10) $gem_fra = $gem_til = NULL;
@@ -449,9 +577,9 @@ if (in_array('kundeordnr', $vis_felt)) {
 $grid_id = "ordrelst_$valg";
 
 
-// If konto_id is in GET and search fields are not already set, pre-populate from adresser
-if (isset($_GET['konto_id']) && $_GET['konto_id']) {
-    $debug_log[] = "konto_id found in GET, processing...";
+// If konto_id is available (from GET or saved in settings), pre-populate search from adresser
+if ($konto_id) {
+    $debug_log[] = "konto_id found ($konto_id), processing...";
 
     // Initialize search array if it doesn't exist
     if (!isset($_GET['search'])) {
@@ -465,39 +593,37 @@ if (isset($_GET['konto_id']) && $_GET['konto_id']) {
 
     $debug_log[] = "Current search values: " . json_encode($_GET['search'][$grid_id]);
 
-    // Only pre-populate if search fields are empty
-    if (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
-        $konto_id_from_get = db_escape_string($_GET['konto_id']);
-        // $qtxt = "SELECT firmanavn, kontonr FROM adresser WHERE id = '$konto_id_from_get'";
-         $qtxt = "SELECT  kontonr FROM adresser WHERE id = '$konto_id_from_get'";
+    // In account_context mode, konto_id is already used in base WHERE (line ~1449) so all
+    // orders for the customer are found regardless of kontonr changes — skip kontonr search.
+    if ($account_context) {
+        $debug_log[] = "account_context active: konto_id filter in base WHERE, skipping kontonr pre-populate";
+    } elseif (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
+        $konto_id_escaped = db_escape_string($konto_id);
+        $qtxt = "SELECT  kontonr FROM adresser WHERE id = '$konto_id_escaped'";
         $debug_log[] = "Query to fetch customer: $qtxt";
 
         if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
             $debug_log[] = "Customer found: " . json_encode($r);
 
-            // if (!empty($r['firmanavn'])) {
-            //     $_GET['search'][$grid_id]['firmanavn'] = $r['firmanavn'];
-            //     $debug_log[] = "Set firmanavn search: " . $r['firmanavn'];
-            // }
             if (!empty($r['kontonr'])) {
                 $_GET['search'][$grid_id]['kontonr'] = $r['kontonr'];
                 $debug_log[] = "Set kontonr search: " . $r['kontonr'];
             }
         } else {
-            $debug_log[] = "ERROR: No customer found with id = $konto_id_from_get";
+            $debug_log[] = "ERROR: No customer found with id = $konto_id_escaped";
         }
     } else {
         $debug_log[] = "Search fields already populated, skipping";
     }
 } else {
-    $debug_log[] = "konto_id NOT in GET or empty";
+    $debug_log[] = "konto_id NOT available";
 }
 
-$grid_search = if_isset($_GET['search'][$grid_id], array());
+$grid_search = isset($_GET['search'][$grid_id]) ? $_GET['search'][$grid_id] : array();
 
-$grid_offset = if_isset($_GET['offset'][$grid_id], 0);
-$grid_rowcount = if_isset($_GET['rowcount'][$grid_id], 100);
-$grid_sort = if_isset($_GET['sort'][$grid_id], '');
+$grid_offset = isset($_GET['offset'][$grid_id]) ? $_GET['offset'][$grid_id] : 0;
+$grid_rowcount = isset($_GET['rowcount'][$grid_id]) ? $_GET['rowcount'][$grid_id] : 100;
+$grid_sort = isset($_GET['sort'][$grid_id]) ? $_GET['sort'][$grid_id] : '';
 
 // Also check how many orders exist for this konto_id
 if ($konto_id) {
@@ -612,9 +738,12 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            global $brugernavn;
-            global $vis_lagerstatus, $ls_vgr, $sprog_id;
-            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=" . urlencode($_SERVER["REQUEST_URI"]);
+             global $brugernavn,$bruger_id,$db;
+            global $vis_lagerstatus, $ls_vgr, $sprog_id, $valg;
+
+            file_put_contents("../temp/$db/ordrlst$bruger_id.txt","$row[id];",FILE_APPEND);
+
+            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&valg=$valg&returside=" . urlencode($_SERVER["REQUEST_URI"]);
             
             $timestamp = $row['tidspkt'];
             if (strpos($timestamp, ':')) {
@@ -622,19 +751,12 @@ $custom_columns = array(
             } else {
                 $timestamp = strtotime($timestamp);
             }
-            $current_time = time();
-            $who = $row['hvem'];
-            
-            $is_editable = ($row['status'] >= 3 || ($current_time - $timestamp) > 3600 || $who == $brugernavn || $who == '');
-            
-            if ($is_editable) {
-                $style = "cursor: pointer; text-decoration: underline;";
-                $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
-                $onclick = "onClick=\"window.location.href='$href'\"";
-            } else {
-                $style = "color: #FF0000; cursor: not-allowed;";
-                $title = findtekst('1421|Ordre er i brug af', $sprog_id) . " $who";
-                $onclick = "";
+
+            $style = "cursor: pointer;";
+            $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
+
+            if($valg == "faktura"){
+                $title = 'View order details';
             }
             
             if ($row['art'] == 'DK') {
@@ -648,35 +770,15 @@ $custom_columns = array(
             // vis_lagerstatus: wrap display in overlib span with stock details tooltip
             if ($vis_lagerstatus && $row['art'] != 'DK' && $row['restordre'] != '1') {
                 $id = $row['id'];
+                $cached_ls = get_order_lagerstatus_cache($id, $ls_vgr);
                 $spantxt = "<table><tbody>";
                 $spantxt .= "<tr><td>Varenr</td><td>" . findtekst('948|Beholdning', $sprog_id) . "</td><td>" . findtekst('916|Antal', $sprog_id) . "</td><td>" . findtekst('1190|Leveret', $sprog_id) . "</td><td>" . findtekst('1428|Bestilt', $sprog_id) . "</td><td>" . findtekst('1429|Reserveret', $sprog_id) . "</td><td>" . findtekst('1430|I bestilling', $sprog_id) . "</td><td>" . findtekst('976|Disponibel', $sprog_id) . "</td></tr>";
-                $q_ls = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
-                if ($q_ls) while ($r_ls = db_fetch_array($q_ls)) {
-                    if (!$r_ls['vare_id']) continue;
-                    $q2_ls = db_select("select beholdning, gruppe from varer where id='{$r_ls['vare_id']}'", __FILE__ . " linje " . __LINE__);
-                    if (!$q2_ls) continue;
-                    $r2_ls = db_fetch_array($q2_ls);
-                    if (!$r2_ls) continue;
-                    $tmp_ls = find_beholdning($r_ls['vare_id'], NULL);
-                    $beholdning = $r2_ls['beholdning'];
-                    $antal = $r_ls['antal'];
-                    $leveret = $r_ls['leveret'];
-                    $needed = $antal - $leveret;
-                    $is_lagerfrt = in_array($r2_ls['gruppe'], $ls_vgr);
-
-                    if ($beholdning - $needed < 0 && $beholdning + $tmp_ls[4] - $needed >= 0 && $is_lagerfrt) {
-                        $spanbg = '#FFFF66';
-                    } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
-                        $spanbg = '#FF4D4D';
-                    } elseif ($antal != $leveret) {
-                        $spanbg = '#66FF66';
-                    } else {
-                        $spanbg = '#FF33FF';
-                    }
-
+                foreach ($cached_ls['lines'] as $line) {
+                    $spanbg = $line['linjefarve'];
                     if ($spanbg != '#FF33FF' && $spanbg != '#66FF66') {
-                        $spantxt .= "<tr bgcolor=$spanbg><td>$r_ls[varenr]</td><td align=right>" . dkdecimal($beholdning * 1, 0) . "</td>";
-                        $spantxt .= "<td align=right>" . dkdecimal($antal * 1, 0) . "</td><td align=right>" . dkdecimal($leveret * 1, 0) . "</td>";
+                        $tmp_ls = $line['tmp'];
+                        $spantxt .= "<tr bgcolor=$spanbg><td>{$line['varenr']}</td><td align=right>" . dkdecimal($line['beholdning'] * 1, 0) . "</td>";
+                        $spantxt .= "<td align=right>" . dkdecimal($line['antal'] * 1, 0) . "</td><td align=right>" . dkdecimal($line['leveret'] * 1, 0) . "</td>";
                         $spantxt .= "<td align=right>$tmp_ls[1]</td><td align=right>$tmp_ls[2]</td><td align=right>$tmp_ls[3]</td><td align=right>$tmp_ls[4]</td></tr>";
                     }
                 }
@@ -689,7 +791,7 @@ $custom_columns = array(
                 $display = "<span onmouseover=\"return overlib('" . $spantxt . "', WIDTH=800);\" onmouseout=\"return nd();\">" . $display . "</span>";
             }
             
-            return "<td align='$column[align]' style='$style' $onclick title='$title'>$display</td>";
+            return "<td align='{$column['align']}' style='$style' title='$title'><a href='$href' style='display:block; color:inherit; text-decoration:underline;'>$display</a></td>";
         }
     ),
     
@@ -704,7 +806,7 @@ $custom_columns = array(
             return generateDateRangeSearch($column, $term);
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ),
     
@@ -715,7 +817,7 @@ $custom_columns = array(
         "type" => "date",
         "searchable" => true,
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ),
     
@@ -749,7 +851,7 @@ $custom_columns = array(
             return $value;
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -761,7 +863,7 @@ $custom_columns = array(
         "searchable" => true,
         "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ),
     
@@ -811,7 +913,7 @@ $custom_columns = array(
             }
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -823,7 +925,7 @@ $custom_columns = array(
         "searchable" => true,
         "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+            return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
     ), 
     
@@ -831,9 +933,22 @@ $custom_columns = array(
         "field" => "kontonr",
         "headerName" => findtekst('804|Kontonr.', $sprog_id),
         "width" => "1",
+        "type" => "text",
         "sqlOverride" => "o.kontonr",
+        "generateSearch" => function ($column, $term) {
+            $term = db_escape_string($term);
+            $ids = array();
+            $q = db_select("SELECT id FROM adresser WHERE kontonr = '$term'", __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                if ($r['id']) $ids[] = db_escape_string($r['id']);
+            }
+            if (!empty($ids)) {
+                return "o.konto_id IN ('" . implode("','", $ids) . "')";
+            }
+            return "o.kontonr ILIKE '%$term%'";
+        },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -844,13 +959,22 @@ $custom_columns = array(
         "type" => "dropdown",
         "searchable" => true,
         "dropdownOptions" => function () use ($valg) {
+            global $hurtigfakt;
             $options = array();
-            if ($valg == "tilbud") {
-                $status_condition = "status < 1";
-            } elseif ($valg == "faktura") {
-                $status_condition = "status >= 3";
-            } else {
-                $status_condition = "(status = 1 OR status = 2)";
+            if($hurtigfakt){
+                if ($valg == "faktura") {
+                    $status_condition = "status >= 3";
+                } else {
+                    $status_condition = "status < 3";
+                }
+            }else{
+                if ($valg == "tilbud") {
+                    $status_condition = "status < 1";
+                } elseif ($valg == "faktura") {
+                    $status_condition = "status >= 3";
+                } else {
+                    $status_condition = "(status = 1 OR status = 2)";
+                }
             }
             $qtxt = "SELECT DISTINCT ref FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND ref IS NOT NULL AND ref != '' ORDER BY ref";
             $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -860,7 +984,7 @@ $custom_columns = array(
             return $options;
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -888,11 +1012,15 @@ $custom_columns = array(
             }
         },
         "render" => function ($value, $row, $column) {
-            $formatted = is_numeric($value) ? dkdecimal($value, 2) : $value;
-            return "<td align='$column[align]'>$formatted</td>";
+            // Convert to DKK using raw DB values
+            $valutakurs = floatval($row['valutakurs']);
+            $kurs_factor = ($valutakurs > 0) ? $valutakurs / 100 : 1;
+            $dkk_value = floatval($row['sum_m_moms']) * $kurs_factor;
+            $formatted = dkdecimal($dkk_value, 2);
+            return "<td align='{$column['align']}'>$formatted</td>";
         }
     ),
-    
+
     "betalingsbet" => array(
         "field" => "betalingsbet",
         "headerName" => findtekst('56|Betalingsbet.', $sprog_id),
@@ -927,7 +1055,7 @@ $custom_columns = array(
             return "(o.betalingsbet = '$term')";
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'>$value</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -947,9 +1075,15 @@ $custom_columns = array(
                 $row['kostpris'] = $kostpris;
             }
 
-            $formatted = dkdecimal($value, 2);
-            $ialt += floatval($value);
-            $ialt_m_moms += $row['sum_m_moms'];
+            // Convert to DKK using raw DB values (not the pre-formatted $value string)
+            // valutakurs=100 for DKK, e.g. 64.42 for SEK → factor = 64.42/100
+            $valutakurs = floatval($row['valutakurs']);
+            $kurs_factor = ($valutakurs > 0) ? $valutakurs / 100 : 1;
+            $dkk_value = floatval($row['sum']) * $kurs_factor;
+
+            $formatted = dkdecimal($dkk_value, 2);
+            $ialt += $dkk_value;
+            $ialt_m_moms += floatval($row['sum_m_moms']) * $kurs_factor;
             $ialt_kostpris += $row['kostpris'];
 
             if ($valg == "faktura") {
@@ -957,9 +1091,9 @@ $custom_columns = array(
                 $kostpris = $row['kostpris'];
                 $dk_db = '0,00';
                 $dk_dg = '0,00';
-                $value_numeric = is_numeric($value) ? floatval($value) : floatval(str_replace(',', '.', $value));
+                $value_numeric = $dkk_value;
 
-                if (!empty($kostpris) && !empty($value) && $value_numeric != 0) {
+                if (!empty($kostpris) && $value_numeric != 0) {
                     $kostpris_numeric = is_numeric($kostpris) ? floatval($kostpris) : floatval(str_replace(',', '.', $kostpris));
                     $dk_db = dkdecimal($value_numeric - $kostpris_numeric, 2);
                     $dk_dg = dkdecimal(($value_numeric - $kostpris_numeric) * 100 / $value_numeric, 2);
@@ -967,9 +1101,9 @@ $custom_columns = array(
 
                 $style = $udlignet ? "color: #000000;" : "color: #FF0000;";
                 $title = $udlignet ? "db: $dk_db - dg: $dk_dg%" : findtekst('1442|Ikke udlignet', $sprog_id) . "\r\ndb: $dk_db - dg: $dk_dg%";
-                return "<td align='$column[align]' style='$style' title='$title'>" . htmlspecialchars($formatted) . "</td>";
+                return "<td align='{$column['align']}' style='$style' title='$title'>" . htmlspecialchars($formatted) . "</td>";
             }
-            return "<td align='$column[align]'>" . htmlspecialchars($formatted) . "</td>";
+            return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
         }
     ),
     
@@ -991,6 +1125,61 @@ $custom_columns = array(
             $display = (is_numeric($value) && $value !== '') ? intval($value) : $value;
             return "<td align='{$column['align']}'>$display</td>";
         }
+    ),
+    "felt_1" => array(
+        "field" => "felt_1",
+        "headerName" => findtekst('255|Ekstrafelt 1', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_1",
+    ),
+    "felt_2" => array(
+        "field" => "felt_2",
+        "headerName" => findtekst('256|Ekstrafelt 2', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_2",
+    ),
+    "felt_3" => array(
+        "field" => "felt_3",
+        "headerName" => findtekst('257|Ekstrafelt 3', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_3",
+    ),
+    "felt_4" => array(
+        "field" => "felt_4",
+        "headerName" => findtekst('258|Ekstrafelt 4', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_4",
+    ),
+    "felt_5" => array(
+        "field" => "felt_5",
+        "headerName" => findtekst('259|Ekstrafelt 5', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.felt_5",
     ),
 );
 
@@ -1089,7 +1278,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         // render: Display as plain text, empty if no value
         $column_def['render'] = function ($value, $row, $column) {
             if ($value === null || $value === '' || $value == 0 || $value === 0) return "<td align='{$column['align']}'></td>";
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
         };
     }elseif ($field_name == 'konto_id') {
         // konto_id should be text, not number
@@ -1103,7 +1292,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         
         // render: Escape HTML
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
         };
     }elseif (in_array($field_name, ['ordrenr', 'fakturanr', 'kontonr', 'kundeordnr', 'cvrnr'])) {
         // These "nr" fields should be displayed as plain text/integers without decimal formatting
@@ -1187,7 +1376,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         
         // render: Escape HTML
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
         };
     }
     
@@ -1327,6 +1516,26 @@ if ($valg == "tilbud") {
     $base_where_conditions = "(o.status = 1 OR o.status = 2)";
 }
 
+if ($account_context && $konto_id) {
+    $konto_id_escaped = db_escape_string($konto_id);
+    $base_where_conditions .= " AND o.konto_id = '$konto_id_escaped'";
+}
+
+
+$totals_query = "SELECT
+    COALESCE(SUM(o.sum::numeric * COALESCE(NULLIF(o.valutakurs::numeric, 0), 100) / 100), 0) as total_sum,
+    COALESCE(SUM((o.sum::numeric + o.moms::numeric) * COALESCE(NULLIF(o.valutakurs::numeric, 0), 100) / 100), 0) as total_sum_m_moms,
+    COALESCE(SUM(o.kostpris::numeric), 0) as total_kostpris
+FROM ordrer o
+WHERE (o.art = 'DO' OR o.art = 'DK' OR (o.art = 'PO' AND o.konto_id > '0'))
+AND $base_where_conditions";
+
+$totals_result = db_fetch_array(db_select($totals_query, __FILE__ . " linje " . __LINE__));
+
+$ialt_total = floatval($totals_result['total_sum']);
+$ialt_m_moms_total = floatval($totals_result['total_sum_m_moms']);
+$ialt_kostpris_total = floatval($totals_result['total_kostpris']);
+
 $debug_log[] = "base_where_conditions: $base_where_conditions";
 
 // IMPORTANT: Update the SQL query to include ALL columns dynamically
@@ -1336,6 +1545,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         $select_fields .= ", o.$field_name as $field_name";
     }
 }
+// felt_1-5 are already selected from ordrer in the loop above; not pulled from adresser.
 // Add calculated fields
 $select_fields .= ", (o.sum::numeric + o.moms::numeric) as sum_m_moms";
 $select_fields .= ", CASE 
@@ -1391,45 +1601,121 @@ $data = array(
 
     "rowStyle" => function ($row) use ($valg, $vis_lagerstatus, $ls_vgr, $sprog_id) {
         if (!$vis_lagerstatus) return "";
+        $cached = get_order_lagerstatus_cache($row['id'], $ls_vgr);
+        return "background-color: {$cached['color']};";
+    },
+    "preload" => function ($rows) use ($vis_lagerstatus, $ls_vgr) {
+        if (!$vis_lagerstatus || empty($rows)) return;
 
-        $id = $row['id'];
-        $linjebg = null;
+        // Collect all order IDs on this page
+        $ordre_ids = array_unique(array_map(fn($r) => (int)$r['id'], $rows));
+        $ordre_id_list = implode(',', $ordre_ids);
 
-        // Fetch order lines with non-zero quantities
-        $q = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
-        if (!$q) return "";
-        while ($r = db_fetch_array($q)) {
-            if (!$r['vare_id']) continue;
-            $q2 = db_select("select beholdning, gruppe from varer where id='{$r['vare_id']}'", __FILE__ . " linje " . __LINE__);
-            if (!$q2) continue;
-            $r2 = db_fetch_array($q2);
-            if (!$r2) continue;
-
-            $tmp = find_beholdning($r['vare_id'], NULL);
-            $beholdning = $r2['beholdning'];
-            $antal = $r['antal'];
-            $leveret = $r['leveret'];
-            $needed = $antal - $leveret;
-            $is_lagerfrt = in_array($r2['gruppe'], $ls_vgr);
-
-            if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
-                // Yellow: Low stock but sufficient with pending
-                if ($linjebg === null || $linjebg === '#66FF66') {
-                    $linjebg = '#FFFF66';
-                }
-            } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
-                // Red: Insufficient stock - overrides yellow/green
-                if ($linjebg === null || $linjebg === '#FFFF66' || $linjebg === '#FF33FF' || $linjebg === '#66FF66') {
-                    $linjebg = '#FF4D4D';
-                }
-            } elseif ($antal != $leveret && $linjebg === null) {
-                // Green: In stock, not yet delivered
-                $linjebg = '#66FF66';
+        // Bulk query 1: all ordrelinjer + varer for all orders on the page (1 query vs N×M)
+        $q_bulk = db_select(
+            "SELECT ol.ordre_id, ol.vare_id, ol.varenr, ol.antal, ol.leveret,
+                    v.beholdning, v.gruppe
+             FROM ordrelinjer ol
+             LEFT JOIN varer v ON v.id = ol.vare_id
+             WHERE ol.ordre_id IN ($ordre_id_list) AND ol.antal != '0'",
+            __FILE__ . " linje " . __LINE__
+        );
+        $lines_by_order = [];
+        $all_vare_ids = [];
+        if ($q_bulk) {
+            while ($r = db_fetch_array($q_bulk)) {
+                if (!$r['vare_id']) continue;
+                $lines_by_order[$r['ordre_id']][] = $r;
+                $all_vare_ids[$r['vare_id']] = true;
             }
         }
 
-        if (!$linjebg) $linjebg = '#FF33FF'; // Magenta: All delivered / sufficient
-        return "background-color: $linjebg;";
+        // Bulk query 2: find_beholdning equivalent for all relevant products (1 query vs N×M)
+        if (!empty($all_vare_ids)) {
+            $vare_id_list = implode(',', array_map('intval', array_keys($all_vare_ids)));
+            $q_beh = db_select(
+                "SELECT ol.vare_id, ol.antal, ol.leveret, o.ordrenr, o.status, o.art
+                 FROM ordrelinjer ol
+                 INNER JOIN ordrer o ON o.id = ol.ordre_id
+                 WHERE ol.vare_id IN ($vare_id_list)",
+                __FILE__ . " linje " . __LINE__
+            );
+            $bulk_rows_by_vare = [];
+            if ($q_beh) {
+                while ($rb = db_fetch_array($q_beh)) {
+                    $bulk_rows_by_vare[$rb['vare_id']][] = $rb;
+                }
+            }
+            // Build beholdning arrays matching find_beholdning() logic and prime its cache
+            foreach ($bulk_rows_by_vare as $vare_id => $vare_rows) {
+                $b = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => '', 6 => '', 7 => '', 8 => ''];
+                foreach ($vare_rows as $vr) {
+                    if ($vr['status'] < 1 && $vr['art'] == 'DO') {
+                        $b[1] += $vr['antal'];
+                        $b[5] = $b[5] ? $b[5] . ',' . $vr['ordrenr'] : $vr['ordrenr'];
+                    } elseif ($vr['status'] < 3 && $vr['art'] == 'DO') {
+                        $b[2] += $vr['antal'] - $vr['leveret'];
+                        $b[6] = $b[6] ? $b[6] . ',' . $vr['ordrenr'] : $vr['ordrenr'];
+                    } elseif ($vr['status'] < 1 && $vr['art'] == 'KO') {
+                        $b[3] += $vr['antal'];
+                        $b[7] = $b[7] ? $b[7] . ',' . $vr['ordrenr'] : $vr['ordrenr'];
+                    } elseif ($vr['status'] < 3 && $vr['art'] == 'KO') {
+                        $b[4] += $vr['antal'] - $vr['leveret'];
+                        $b[8] = $b[8] ? $b[8] . ',' . $vr['ordrenr'] : $vr['ordrenr'];
+                    }
+                }
+                find_beholdning($vare_id, NULL, $b); // primes Tier-1 static cache
+            }
+            // Prime cache for products with no order lines at all
+            foreach (array_keys($all_vare_ids) as $vare_id) {
+                if (!isset($bulk_rows_by_vare[$vare_id])) {
+                    find_beholdning($vare_id, NULL, [1=>0,2=>0,3=>0,4=>0,5=>'',6=>'',7=>'',8=>'']);
+                }
+            }
+        }
+
+        // Prime per-order cache (Tier-2) for all orders on the page
+        foreach ($ordre_ids as $ordre_id) {
+            $lines = $lines_by_order[$ordre_id] ?? [];
+            $linjebg = null;
+            $result_lines = [];
+            foreach ($lines as $r) {
+                $beholdning  = $r['beholdning'];
+                $antal       = $r['antal'];
+                $leveret     = $r['leveret'];
+                $needed      = $antal - $leveret;
+                $is_lagerfrt = in_array($r['gruppe'], $ls_vgr);
+                $tmp         = find_beholdning($r['vare_id'], NULL); // O(1) — Tier-1 cache
+                if ($beholdning - $needed < 0 && $beholdning + $tmp[4] - $needed >= 0 && $is_lagerfrt) {
+                    $linjefarve = '#FFFF66';
+                } elseif ($beholdning - $needed < 0 && $is_lagerfrt) {
+                    $linjefarve = '#FF4D4D';
+                } elseif ($antal != $leveret) {
+                    $linjefarve = '#66FF66';
+                } else {
+                    $linjefarve = '#FF33FF';
+                }
+                if ($linjefarve === '#FF4D4D') {
+                    $linjebg = '#FF4D4D';
+                } elseif ($linjefarve === '#FFFF66' && $linjebg !== '#FF4D4D') {
+                    if ($linjebg === null || $linjebg === '#66FF66') $linjebg = '#FFFF66';
+                } elseif ($linjefarve === '#66FF66' && $linjebg === null) {
+                    $linjebg = '#66FF66';
+                }
+                $result_lines[] = [
+                    'varenr'     => $r['varenr'],
+                    'beholdning' => $beholdning,
+                    'antal'      => $antal,
+                    'leveret'    => $leveret,
+                    'tmp'        => $tmp,
+                    'linjefarve' => $linjefarve,
+                ];
+            }
+            get_order_lagerstatus_cache($ordre_id, $ls_vgr, [
+                'color' => $linjebg ?: '#FF33FF',
+                'lines' => $result_lines,
+            ]);
+        }
     },
     "columns" => $columns,
     "filters" => $filters,
@@ -1516,7 +1802,7 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
     $api_fil=trim($r['box4']);
     $api_fil2=trim($r['box5']);
     $api_fil3=trim($r['box6']);
-    
+   $show_shop_link = true; 
     if (file_exists("../temp/$db/shoptidspkt.txt")) {
         $fp=fopen("../temp/$db/shoptidspkt.txt","r");
         $tidspkt=fgets($fp);
@@ -1558,7 +1844,26 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
 
 // The grid will create its own form - no outer form needed
 // Create the grid first (it creates its own form for pagination/search)
-create_datagrid($grid_id, $data);
+$rows = create_datagrid($grid_id, $data);
+#######
+// Build ordreliste for box1 (used by other parts of the system)
+
+// Build ordreliste from the SAME rows the grid returned (respects all active search/filter)
+$ordreliste = "";
+foreach ($rows as $row) {
+    if (!empty($row['id'])) {
+        $ordreliste = $ordreliste ? $ordreliste . "," . $row['id'] : $row['id'];
+    }
+}
+
+// Update box1 in grupper with only the currently visible/filtered IDs
+$qtxt = "SELECT id FROM grupper WHERE art = 'OLV' AND kode = '$valg' AND kodenr = '$bruger_id'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    $qtxt = "UPDATE grupper SET box1 = '$ordreliste' WHERE id = '$r[id]'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+// End of ordreliste box1 update
+
 
 ########
 if (preg_match('/background-color:([a-fA-F0-9#]+)/', $topStyle, $matches)) {
@@ -1682,15 +1987,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 
-                // Set input value from saved preference ONLY if there's a search value in the URL
+                // Set input value - prioritize URL search param, fallback to saved preference
                 var urlParams = new URLSearchParams(window.location.search);
                 var searchKey = 'search[' + gridId + '][' + field + ']';
                 var urlSearchValue = urlParams.get(searchKey);
                 
                 if (urlSearchValue && urlSearchValue.trim() !== '') {
+                    // URL has explicit search value - use it
                     input.value = urlSearchValue;
+                } else if (preference && preference.date_value && preference.date_value.trim() !== '') {
+                    // No URL search value, but we have a saved preference - restore it
+                    input.value = preference.date_value;
                 } else {
-                    // URL has no search value (empty or cleared), so leave input empty
+                    // No URL search value and no saved preference
                     input.value = '';
                 }
             }
@@ -1767,14 +2076,34 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // When user clicks "Søg" (Apply) button
             $(input).on('apply.daterangepicker', function(ev, picker) {
-                // Handle Clear action - just clear input and submit
+                // Handle Clear action - clear input and delete saved preference
                 if (picker.chosenLabel === 'Clear') {
                     $(this).val('');
                     
-                    var form = $(this).closest('form');
-                    if (form.length > 0) {
-                        form.submit();
-                    }
+                    // Delete the saved preference from database
+                    $.ajax({
+                        url: 'save_date_settings.php',
+                        type: 'POST',
+                        data: {
+                            action: 'clear_date_preference',
+                            grid_id: gridId,
+                            field: field,
+                            bruger_id: bruger_id
+                        },
+                        success: function(response) {
+                            var form = $(input).closest('form');
+                            if (form.length > 0) {
+                                form.submit();
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.log('Error clearing date preference:', error);
+                            var form = $(input).closest('form');
+                            if (form.length > 0) {
+                                form.submit();
+                            }
+                        }
+                    });
                     
                     picker.hide();
                     return;
@@ -1826,10 +2155,30 @@ document.addEventListener('DOMContentLoaded', function() {
             $(input).on('cancel.daterangepicker', function(ev, picker) {
                 $(this).val('');
                 
-                var form = $(this).closest('form');
-                if (form.length > 0) {
-                    form.submit();
-                }
+                // Delete the saved preference from database
+                $.ajax({
+                    url: 'save_date_settings.php',
+                    type: 'POST',
+                    data: {
+                        action: 'clear_date_preference',
+                        grid_id: gridId,
+                        field: field,
+                        bruger_id: bruger_id
+                    },
+                    success: function(response) {
+                        var form = $(input).closest('form');
+                        if (form.length > 0) {
+                            form.submit();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('Error clearing date preference:', error);
+                        var form = $(input).closest('form');
+                        if (form.length > 0) {
+                            form.submit();
+                        }
+                    }
+                });
             });
             
             // Visual feedback when opening - reload saved preference
@@ -2028,7 +2377,7 @@ print "<script>
 document.addEventListener('DOMContentLoaded', function() {
     var bulkForm = document.getElementById('bulkActionForm');
     var checkboxes = document.querySelectorAll('input.deliveryNoteSelect');
-    
+        
     checkboxes.forEach(function(checkbox) {
         // Clone checkbox to bulk form
         var clone = checkbox.cloneNode(true);
@@ -2043,17 +2392,41 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>";
 
+if (file_exists("../temp/$db/ordrlst$bruger_id.txt")) {
+    $ialt_total = $ialt_m_moms_total = $ialt_kostpris_total = 0;
+    $ordrlst = explode(";",file_get_contents("../temp/$db/ordrlst$bruger_id.txt"));
+    for ($i=0;$i<count($ordrlst);$i++) {
+        if ($ordrlst[$i]) {
+            $qtxt = "SELECT sum,moms,kostpris,valutakurs FROM ordrer WHERE id = '$ordrlst[$i]'";
+            $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+            $kf = (floatval($r['valutakurs']) > 0) ? floatval($r['valutakurs']) / 100 : 1;
+            $ialt_total         += $r['sum'] * $kf;
+            $ialt_m_moms_total  += ($r['sum'] + $r['moms']) * $kf;
+            if ($r['kostpris']) {
+                $ialt_kostpris_total+= $r['kostpris'];
+            } else {
+                $qtxt = "SELECT sum(antal*kostpris) as kostpris FROM ordrelinjer WHERE ordre_id = '$ordrlst[$i]'";
+                $r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+                if ($r2['kostpris']) {
+                    $qtxt = "update ordrer set kostpris = '$r2[kostpris]' where id = '$ordrlst[$i]'";
+                    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+                    $ialt_kostpris_total+= $r['kostpris'];
+                }
+            }
+        }
+    }
+}
 ########
 
-// Calculate and display turnover summary
-$dk_db = dkdecimal($ialt - $ialt_kostpris, 2);
-if ($ialt != 0) {
-    $dk_dg = dkdecimal(($ialt - $ialt_kostpris) * 100 / $ialt, 2);
+// Calculate and display turnover summary using TOTAL values (all matching orders, not just rendered rows)
+$dk_db = dkdecimal($ialt_total - $ialt_kostpris_total, 2);
+if ($ialt_total != 0) {
+    $dk_dg = dkdecimal(($ialt_total - $ialt_kostpris_total) * 100 / $ialt_total, 2);
 } else {
     $dk_dg = '0,00';
 }
-$ialt_formatted = dkdecimal($ialt, 2);
-$ialt_m_moms_formatted = dkdecimal($ialt_m_moms, 2);
+$ialt_formatted = dkdecimal($ialt_total, 2);
+$ialt_m_moms_formatted = dkdecimal($ialt_m_moms_total, 2);
 
 // NEW unified top control bar
 print "<div id='top-control-bar'>";
@@ -2066,7 +2439,7 @@ print "<div id='left-controls' >";
 
 if ($valg == "ordrer" && !$vis_lagerstatus) {
     print "<a href='ordreliste.php?vis_lagerstatus=on&valg=$valg'>"
-          . findtekst('810|Vis lagerstatus', $sprog_id) . "</a>  ";
+          . findtekst('810|Vis lagerstatus', $sprog_id) . "</a> | ";
 }
 
 if ($valg == "ordrer") {
@@ -2077,7 +2450,7 @@ if ($valg == "ordrer") {
 
     if ($r) {
         // print "<a href='csv2ordre.php' target='_blank'>CSV import</a>";
-         print "<a href='csv2ordre.php?valg=$valg'>CSV import</a>";
+         print "<a href='csv2ordre.php?valg=$valg'>CSV import</a> |";
 
         if ($r['box1'] && $ialt != '0,00') {
             $tekst = "Fakturér alt som kan leveres?";
@@ -2089,7 +2462,7 @@ if ($valg == "ordrer") {
 
 // Add Shop Fetch Link if active 
 if ($show_shop_link) {
-    print "  <a href='ordreliste.php?sort=$sort&hent_nu=1&valg=$valg'>" . findtekst('879|Hent ordrer', $sprog_id) . "</a>";
+    print "  <a href='ordreliste.php?hent_nu=1&valg=$valg'>" . findtekst('879|Hent ordrer', $sprog_id) . "</a>";
 }
 
 print "</div>";  // END LEFT
@@ -2099,8 +2472,6 @@ print "</div>";  // END LEFT
 // ------------------------------------------------------------
 // CENTER — Turnover Summary
 // ------------------------------------------------------------
-
-
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
 print "<div>";
@@ -2396,12 +2767,12 @@ function select_valg($valg, $box)
 
 
 
-    // Add 'valg' parameter to all forms in the datagrid
+    // Add 'valg' and 'konto_id' parameters to all forms in the datagrid
     document.addEventListener('DOMContentLoaded', function() {
-        if (valgParam) {
-            const forms = document.querySelectorAll('.datatable-wrapper form');
+        const forms = document.querySelectorAll('.datatable-wrapper form');
 
-            forms.forEach(form => {
+        forms.forEach(form => {
+            if (valgParam) {
                 let valgInput = form.querySelector('input[name="valg"]');
                 if (!valgInput) {
                     valgInput = document.createElement('input');
@@ -2410,8 +2781,28 @@ function select_valg($valg, $box)
                     form.appendChild(valgInput);
                 }
                 valgInput.value = valgParam;
-            });
-        }
+            }
+
+            <?php if ($konto_id): ?>
+            let kontoInput = form.querySelector('input[name="konto_id"]');
+            if (!kontoInput) {
+                kontoInput = document.createElement('input');
+                kontoInput.type = 'hidden';
+                kontoInput.name = 'konto_id';
+                form.appendChild(kontoInput);
+            }
+            kontoInput.value = "<?php echo addslashes($konto_id); ?>";
+
+            let accountContextInput = form.querySelector('input[name="account_context"]');
+            if (!accountContextInput) {
+                accountContextInput = document.createElement('input');
+                accountContextInput.type = 'hidden';
+                accountContextInput.name = 'account_context';
+                form.appendChild(accountContextInput);
+            }
+            accountContextInput.value = "<?php echo $account_context ? '1' : '0'; ?>";
+            <?php endif; ?>
+        });
     });
 </script>
 
@@ -2515,14 +2906,18 @@ function select_valg($valg, $box)
 
 #top-control-bar {
     position: fixed;
-    bottom: 10px;
+    bottom: 5px;
     left: 0;
     right: 0;
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; 
     align-items: center;
     padding: 10px;
     z-index: 1000; 
+    pointer-events: none;
+}
+#top-control-bar > * {
+    pointer-events: auto;
 }
 html, body{
     overflow: hidden;
@@ -2533,11 +2928,12 @@ body {
 
 #left-controls {
     display: flex;         
-    flex-direction: column; 
-    gap: 5px;              
-    align-items: flex-start; 
-    flex:1;
-    text-align:left;'
+    flex-direction: row;    
+    flex-wrap: wrap;        
+    gap: 8px;              
+    align-items: center; 
+    flex: 1;
+    text-align: left;
 }
 
 #toggleButton{
@@ -2546,5 +2942,52 @@ body {
 
 }
 
+.datatable tfoot {
+    z-index: 1001 !important;
+
+}
+
+@media (max-width: 900px) {
+    #top-control-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px;
+    }
+
+    #left-controls {
+        flex: unset;
+        width: 100%;
+        flex-direction: row;   
+        flex-wrap: wrap;       
+        gap: 8px;
+        align-items: center;
+    }
+
+    #center-turnover,
+    #center-turnover-f,
+    #right-bulk-actions {
+        flex: unset;
+        width: 100%;
+        text-align: left !important;
+    }
+    
+
+    #right-bulk-actions form,
+    .bulk-actions {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .datatable-wrapper {
+        height: calc(100vh - 160px) !important;
+    }
+
+    body {
+        padding-bottom: 200px;
+    }
+}
 
 </style>

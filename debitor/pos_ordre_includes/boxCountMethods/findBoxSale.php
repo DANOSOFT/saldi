@@ -1,4 +1,29 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- lap 5.0.0 - 2026.02.17 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2003-2026 Saldi.dk ApS
+// ----------------------------------------------------------------------
+//
+
 // PHR Changed DKK to $baseCurrency
 function findBoxSale ($kasse,$optalt,$valuta) {
 	echo "<!-- function findBoxSale begin -->"; 
@@ -39,23 +64,6 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	($byttepenge=$r['box1'])?$fast_morgen=1:$fast_morgen=0;
 	$otherCardsAccount = (int)$r['box6'];
-
-/* 20231210 replaced by above lines
-	$qtxt = "select * from grupper where art = 'POS' and kodenr = '2'";
-	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	if ($byttepenge=$r['box1']) $fast_morgen=1; # 20160215-2 Tilføjet 'if' & $fast_morgen
-	else $fast_morgen=0;
-	$betalingskort=explode(chr(9),$r['box5']);
-	if (in_array('on',$betalingskort)){ #20170317
-		$x=count($kortnavn);
-		$kortnavn[$x]='Betalingskort';
-		$kortnavne.=chr(9).$kortnavn[$x];
-		$kortsum[$x]=0;
-		$kortkonto[$x]=$r['box6'];
-		$kortkonti.=chr(9).$kortkonto[$x];
-		$kortantal++;
-	}
-*/
 	$acountExists = $kortsum = array();
 	for ($i=0;$i<count($kortnavn);$i++) {
 		if (!in_array($kortkonto[$i],$acountExists)) {
@@ -138,11 +146,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 						$chkSum += $turnover[$i];
 					}
 				}
-#				if ($chkSum != $osum[$o]) echo __line__." $chkSum != $oSum[$o]<br>";
-#				else echo __line__." $chkSum = $oSum[$o]<br>";
 			}
-			# <-- 20150519
-#			} # 20170102
 			$qtxt="select sum(debet) as debet,sum(kredit) as kredit from transaktioner where transdate >= '$regnstart' and kontonr = '$kassekonti[$k]'"; # and kasse_nr='$kasse'
 			if ($logdate && $logtime) $qtxt.=" and (kladde_id != '0' or (logdate < '$logdate' or (logdate = '$logdate' and logtime <= '$logtime')))"; # 20161116 #20150519 #20151211 Tilføjet if...
 		}
@@ -287,9 +291,9 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$valutasummer.=chr(9).$valutasum[$x];
 	}
 */	
+	echo "<!-- function findBoxSale end -->";
 
 #	if ($kontosalg) $kontosalg=trim($kontosalg,chr(9));
 	return array($byttepenge,$tilgang,$diff,$kortantal,$kortkonti,$kortnavne,$kortsummer,$kontosum,$valutaer,$valutasummer,$vatRates,$vatAmounts,$accountPayment);
 } # endfunc findBoxSale
-	echo "<!-- function findBoxSale end -->"; 
 ?>

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-02-11 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-04-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -91,7 +91,9 @@
 // 20251007 PHR Changed "$_POST['proforma'] == 'Proforma')" to "$_POST['proforma'])" 
 // 20260204 PHR Back button did not work if focus was 'Modtaget'
 // 20260211 PHR Updated cashCount 
-
+// 20260225 PHR Updated cashCount
+// 20260316 PHR Corrected Currency error in cashCount
+// 20260403 PHR Added && '$leveres[0] != 0' as leveres else is set to 0 if qty was changed and kokkelprint became reset.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -210,7 +212,8 @@ if ($menu == 'T') {
 	<script type="text/javascript">
 		// jQuery funktion til autosize på textarea 
 		$(document).ready(function () {
-			$('.autosize').autosize();
+
+			if(typeof $('.autosize') !== 'undefined' && typeof $('.autosize').autosize !== 'undefined') $('.autosize').autosize();
 		});
 		// jQuery funktion til ordrelinjer i ordre.php. Ved tryk på enter submitter formen og ved shift+enter laver den ny linje i textarea
 		$(function () {
@@ -605,11 +608,11 @@ $kassebeholdning = if_isset($_GET['kassebeholdning']);
 if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 	$calc = findtekst('2390|Beregn',$sprog_id);
 	if (isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id))) {
-		$cookievalue = (int)$_POST['ore_10'] . chr(9) . (int)$_POST['ore_20'] . chr(9) . $_POST['ore_50'] . chr(9) . $_POST['kr_1'] . chr(9) . $_POST['kr_2'] . chr(9) . $_POST['kr_5'] .
-			chr(9) . $_POST['kr_10'] . chr(9) . $_POST['kr_20'] . chr(9) . $_POST['kr_50'] . chr(9) . $_POST['kr_100'] .
-			chr(9) . $_POST['kr_200'] . chr(9) . $_POST['kr_500'] . chr(9) . $_POST['kr_1000'] .
-			chr(9) . usdecimal($_POST['kr_andet'], 2) . chr(9) . if_isset($_POST['rappen_5'], 0) .
-			chr(9) . if_isset($_POST['rappen_10'], 0) . chr(9) . if_isset($_POST['rappen_20'], 0);
+		$cookievalue = (int)$_POST['ore_10'] . chr(9) . (int)$_POST['ore_20'] . chr(9) . (int)$_POST['ore_50'] . chr(9) . (int)$_POST['kr_1'] .
+		chr(9) . (int)$_POST['kr_2'] . chr(9) . (int)$_POST['kr_5'] . chr(9) . (int)$_POST['kr_10'] . chr(9) . (int)$_POST['kr_20'] .
+		chr(9) . (int)$_POST['kr_50'] . chr(9) . (int)$_POST['kr_100'] . chr(9) . (int)$_POST['kr_200'] . chr(9) . (int)$_POST['kr_500'] .
+		chr(9) . $_POST['kr_1000'] . chr(9) . usdecimal($_POST['kr_andet'], 2) . chr(9) . if_isset($_POST['rappen_5'], 0) .
+		chr(9) . if_isset($_POST['rappen_10'], 0) . chr(9) . if_isset($_POST['rappen_20'], 0);
 		$optval = if_isset($_POST['optval'], array());
 		$reportNumber = if_isset($_POST['reportNumber']);
 		if (count($optval)) {
@@ -633,7 +636,7 @@ if ($kasse && $kassebeholdning && !isset($_POST['zRapport'])) {
 			(int) $_POST['kr_500'] * 500 +
 			(int) $_POST['kr_1000'] * 1000 +
 			(float) usdecimal($_POST['kr_andet'], 2);
-		(int) $_POST['rappen_5'] * 0.05 +
+			(int) $_POST['rappen_5'] * 0.05 +
 			(int) $_POST['rappen_10'] * 0.1 +
 			(int) $_POST['rappen_20'] * 0.2;
 		(isset($_POST['optael']) && $_POST['optael'] == findtekst('555|Godkend',$sprog_id)) ? $godkendt = 1 : $godkendt = 0;
@@ -798,8 +801,6 @@ if ($vare_id_ny && !$vare_id) {
 } elseif (($vare_id_ny && $vare_id) || (!$id && isset($_POST['afslut']) && $_POST['afslut'])) { #20161014-4
 	if (!$id || $id == 0)
 		$id = opret_posordre(NULL, $kasse);
-#		include("pos_ordre_includes/showPosLines/productLines.php");
-#echo "pos_ordre_includes/showPosLines/productLines.php<br>";
 	if (!isset($momssats)) { #20140526
 		$r = db_fetch_array(db_select("select momssats from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 		$momssats = $r['momssats'];
@@ -1405,8 +1406,8 @@ if ($vare_id) {
 		#		if (!$modtaget2) $modtaget2=$sum;
 	} else
 		$modtaget = usdecimal($modtaget, 2);
-	$modtaget *= 1;
-	$betalt = $modtaget + $modtaget2;
+		$modtaget = floatval($modtaget);
+		$betalt   = $modtaget + $modtaget2;
 	if ($betaling == 'Konto' && $sum && !$modtaget * 1)
 		$modtaget = $sum;
 
@@ -1498,25 +1499,66 @@ if ($vare_id) {
 				}
 				$qtxt = "select id,samlevare from varer where varenr = '$varenr_ny' or stregkode = '$varenr_ny'"; #20200929
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				if ($r['samlevare'])
-					opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny);
-				else {
-					($beskrivelse_ny) ? $textNew = $beskrivelse_ny : $textNew = $beskrivelse_old; #20210906
-					$svar = opret_ordrelinje($id, '', $varenr_ny, $antal_ny, $textNew, usdecimal($pris_ny, 2), usdecimal($rabat_ny, 2), 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226 + 20140814 + 20200603
+				#-- Out-of-stock warning gate (Håndtering af salg af udsolgte varer) --
+				$stockWarningConfirmed = (isset($_POST['stock_warning_confirmed']) && $_POST['stock_warning_confirmed'] == '1');
+				$stockWarningNote      = isset($_POST['stock_warning_note']) ? trim($_POST['stock_warning_note']) : '';
+				$stockWarningOn        = is_stock_warning_enabled();
+				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id']) : array('out_of_stock' => false);
+				$blockOnStockWarning   = ($stockWarningOn && $stockInfo['out_of_stock'] && !$stockWarningConfirmed);
+				if ($blockOnStockWarning) {
+					$swPayload = array(
+						'formName'    => 'pos_ordre',
+						'varenr'      => (string)$stockInfo['varenr'],
+						'beskrivelse' => (string)$stockInfo['beskrivelse'],
+						'extra' => array(
+							'varenr_ny' => (string)$varenr_ny,
+							'antal_ny'  => (string)$antal_ny,
+							'pris_ny'   => (string)$pris_ny,
+							'rabat_ny'  => (string)$rabat_ny,
+							'lager_ny'  => (string)$lager_ny,
+						),
+					);
+					$swPayloadJson = json_encode($swPayload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+					if ($swPayloadJson === false) $swPayloadJson = '{}';
+					$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+					if ($swTextsJson === false) $swTextsJson = '{}';
+					print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
+					print "<script type=\"application/json\" id=\"saldi-sw-pos-payload\">$swPayloadJson</script>\n";
+					print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
+					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['varenr_ny'])f.elements['varenr_ny'].value='';if(f.elements['antal_ny'])f.elements['antal_ny'].value='';}};SaldiStockWarning.show(__sw);});</script>\n";
 				}
+				if (!$blockOnStockWarning) {
+					if ($r['samlevare'])
+						opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny);
+					else {
+						($beskrivelse_ny) ? $textNew = $beskrivelse_ny : $textNew = $beskrivelse_old; #20210906
+						$svar = opret_ordrelinje($id, '', $varenr_ny, $antal_ny, $textNew, usdecimal($pris_ny, 2), usdecimal($rabat_ny, 2), 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226 + 20140814 + 20200603
+					}
+					if ($stockWarningConfirmed && $stockWarningNote !== '' && $stockInfo['out_of_stock']) {
+						$swLinjeId = 0;
+						$rSW = db_fetch_array(db_select("select max(id) as lid from ordrelinjer where ordre_id = '$id' and varenr = '$varenr_ny'", __FILE__ . " linje " . __LINE__));
+						if ($rSW && $rSW['lid']) $swLinjeId = $rSW['lid'];
+						log_stock_warning($id, $r['id'], $stockWarningNote, $swLinjeId);
+					}
+				}
+				if (!$blockOnStockWarning) {
 				if (usdecimal($pris_ny, 2) == 0.00)
 					$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
 				if ($svar && !is_numeric($svar)) {
 					print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
 					$fokus = "pris_ny";
 				} else {
-					$r = db_fetch_array(db_select("select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'", __FILE__ . " linje " . __LINE__));
-					if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]))
-						db_modify("update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'", __FILE__ . " linje " . __LINE__);
+					$qtxt = "select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'";
+					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
+						$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					}
 					$varenr_ny = $next_varenr;
 					$tmp = $antal_ny; #Til kundedisplay
 					$antal_ny = NULL;
 					#			$sum=0;
+				}
 				}
 				/*
 											if ($kundedisplay) {
@@ -2702,8 +2744,6 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 						$alert1 = findtekst(1869, $sprog_id);
 						$txt1 = findtekst(1870, $sprog_id);
 						$txt2 = findtekst(1871, $sprog_id);
-						#						echo "$svar<br>\n";
-#						print "$txt1, ID $ordre_id ordre $ordrenr, d=$d_kontrol, k=$k_kontrol $txt2";
 						print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
 						exit;
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
@@ -2939,9 +2979,11 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?udskriv_kasseopg=$pfnavn&kasse=$kasse\">\n"; #20190813
 } #?id=$id&udskriv_kasseopg=$pfnavn&kasse=$kasse
 
-function kasseoptalling(
+function kasseoptalling( // Called from cashBalance.php
 	$kasse,
 	$optalt,
+	$ore_10,
+	$ore_20,
 	$ore_50,
 	$kr_1,
 	$kr_2,
@@ -3106,11 +3148,10 @@ function kasseoptalling(
 		$omsatning += $kortsum[$x];
 	}
 	if (!$optalt && $_COOKIE['saldi_kasseoptael']) {
-		$kr = array(0.1, 0,2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 1);
+		$kr = array(0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 1);
 		$ot = explode(chr(9), $_COOKIE['saldi_kasseoptael']);
 		for ($o = 0; $o < count($ot); $o++) {
-			if (!isset($kr[$o]))
-				$kr[$o] = 0;
+			if (!isset($kr[$o])) $kr[$o] = 0;
 			$optalt += (float) $kr[$o] * (float) $ot[$o];
 		}
 		$kr = $ot = NULL;
@@ -3471,6 +3512,8 @@ function posvaluta($modtaget) {
 	if ($betvalkurs != $prevalkurs) {
 		$modtaget = NULL;
 		$valmodt = NULL;
+//if (isset($_GET['printXreport']) && $_GET['printXreport']) {
+
 	} elseif ($betvalkurs != 100)
 		$modtaget *= $betvalkurs / 100;
 

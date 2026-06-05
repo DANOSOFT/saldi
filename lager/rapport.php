@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- patch 4.1.1 --- 2025.08.20---
+// --- lager/rapport.php --- patch 5.0.0 --- 2026.05.26---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20130318 $modulnr ændret fra 12  til 15
@@ -65,7 +65,10 @@
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20250820 PHR Added some line ident comments
 // 20251206 LOE some topline codes moved to ../includes/S_topLine.php also used by other files
-
+// 20260408 PHR set max_execution_time to 300
+// 20260507 CL Rettet forskydning i summary-række: tilføjet $tt_kost (Kostpris), flyttet $tt_k_pris til korrekt kolonne (Købspris), tilføjet manglende Solgt-celle
+// 20260526 LOE Added salg_rapport.php with sales report based on postnr and departments, to handle sales report for customers with postnr and departments. Based on datagrid, with flexible search and sorting.
+ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -84,63 +87,59 @@ include("../includes/row-hover-style.js.php");
 
 #	include("../includes/db_query.php");
 
-if (!isset ($_GET['detaljer'])) $_GET['detaljer'] = NULL;
-if (!isset ($_GET['kun_salg'])) $_GET['kun_salg'] = NULL;
-if (!isset ($_GET['lagertal'])) $_GET['lagertal'] = NULL;
-$backUrl = isset($_GET['returside'])
-? $_GET['returside']
-: '../index/menu.php';
+$backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 if ($popup) $returside="../includes/luk.php";
 
 else $returside = $backUrl;
 
-$inventoryCount = if_isset($_POST['inventoryCount']);
-$lokMinMax        = if_isset($_POST['lokMinMax']);
+$inventoryCount = isset($_POST['inventoryCount']) ? $_POST['inventoryCount'] : null;
+$lokMinMax      = isset($_POST['lokMinMax']) ? $_POST['lokMinMax'] : null;
 if ($lokMinMax) {
 	$varegruppe = trim($_POST['varegruppe']);
-	$varenr     = if_isset($_POST['varenr']);
-	$varenavn   = if_isset($_POST['varenavn']);
-	$afd        = if_isset($_POST['afd']);
+	$varenr     = isset($_POST['varenr']) ? $_POST['varenr']: null;
+	$varenavn   = isset($_POST['varenavn']) ? $_POST['varenavn'] : null;
+	$afd        = isset($_POST['afd']) ? $_POST['afd'] : null;
 	print print "<meta http-equiv=\"refresh\" content=\"0;URL=minmaxstock.php?vgrp=$varegruppe&vnr=$varenr&vname=$varenavn&afd=$afd\">";
 }
 if (isset($_POST['submit']) && $_POST['submit']) {
 	$submit=strtolower(trim($_POST['submit']));
 	$varegruppe=trim($_POST['varegruppe']);
-	$afd=if_isset($_POST['afd']);
-	$ref=if_isset($_POST['ref']);
-	$lev=if_isset($_POST['lev']);
+	$afd=isset($_POST['afd']) ? $_POST['afd'] : null;
+	$ref=isset($_POST['ref']) ? $_POST['ref'] : null;
+	$lev=isset($_POST['lev']) ? $_POST['lev'] : null;
 	$date_from=usdate($_POST['dato_fra']);
 	$date_to=usdate($_POST['dato_til']);
 #	$md=$_POST['md'];
-	$varenr       = if_isset($_POST['varenr']);
-	$varenavn     = if_isset($_POST['varenavn']);
-	$detaljer     = if_isset($_POST['detaljer']);
-	$kun_salg     = if_isset($_POST['kun_salg']);
-	$lagertal     = if_isset($_POST['lagertal']);
-	$vk_kost      = if_isset($_POST['vk_kost']);
+	$varenr       = isset($_POST['varenr']) ? $_POST['varenr'] : null;
+	$varenavn     = isset($_POST['varenavn']) ? $_POST['varenavn'] : null;
+	$detaljer     = isset($_POST['detaljer']) ? $_POST['detaljer'] : null;
+	$kun_salg     = isset($_POST['kun_salg']) ? $_POST['kun_salg'] : null;
+	$lagertal     = isset($_POST['lagertal']) ? $_POST['lagertal'] : null;
+	$vk_kost      = isset($_POST['vk_kost']) ? $_POST['vk_kost'] : null;
 	$varenr       = trim($varenr);
 	$varenavn     = trim($varenavn);
 } else {
-	$varegruppe=if_isset($_GET['varegruppe']);
-	$afd=if_isset($_GET['afd']);
-	$ref=if_isset($_GET['ref']);
-	$lev=if_isset($_GET['lev']);
-	$date_from=if_isset($_GET['date_from']);
-	$date_to=if_isset($_GET['date_to']);
-	$varenr=if_isset($_GET['varenr']);
-	$varenavn=if_isset($_GET['varenavn']);
-	$detaljer = $_GET['detaljer'];
-	$kun_salg = $_GET['kun_salg'];
-	$lagertal = $_GET['lagertal'];
-	$submit=if_isset($_GET['submit']);
+	$varegruppe=isset($_GET['varegruppe']) ? $_GET['varegruppe'] : null;
+	$afd       =isset($_GET['afd']) ? $_GET['afd'] : null;
+	$ref       =isset($_GET['ref']) ? $_GET['ref'] : null;
+	$lev       =isset($_GET['lev']) ? $_GET['lev'] : null;
+	$date_from =isset($_GET['date_from']) ? $_GET['date_from'] : null;
+	$date_to   =isset($_GET['date_to']) ? $_GET['date_to'] : null;
+	$varenr    =isset($_GET['varenr']) ? $_GET['varenr'] : null;
+	$varenavn  =isset($_GET['varenavn']) ? $_GET['varenavn'] : null;
+	$detaljer  =isset($_GET['detaljer']) ? $_GET['detaljer'] : null;
+	$kun_salg  =isset($_GET['kun_salg']) ? $_GET['kun_salg'] : null;
+	$lagertal  =isset($_GET['lagertal']) ? $_GET['lagertal'] : null;
+	$submit    =isset($_GET['submit']) ? $_GET['submit'] : null;
 }
 
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
 
-#if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";}
+#if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";} 
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
-elseif ($submit == findtekst('992|Lagerstatus', $sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
-elseif ($submit == findtekst('2082|Prisliste', $sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
+elseif ($submit == strtolower(findtekst('992|Lagerstatus', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
+elseif ($submit == strtolower(findtekst('2082|Prisliste', $sprog_id))) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
+elseif($submit == "salg pr. postnummer") print print "<meta http-equiv=\"refresh\" content=\"0;URL=salg_rapport.php?varegruppe=$varegruppe&afd=$afd&ref=$ref&lev=$lev&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
 elseif ($inventoryCount) print print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 
@@ -254,7 +253,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		$x++;
 	}
 	$x=1;
-	$$lev_id=array();
+	$lev_id=array();
 	$q = db_select("select * from adresser where art = 'K' order by firmanavn",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (in_array($r['id'],$l_id)) {
@@ -323,7 +322,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 		print "<tr bgcolor='$trbg'><td>".findtekst('884|Sælger', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"ref\" style=\"width:200px;\">";
 		for ($x=0;$x<=count($ref_nr);$x++) {
-			if ($ref == $ref_nr[$x]) print "<option value=$ref_nr[$x]>$ref_brugernavn[$x]</option>";
+			if (isset($ref_nr[$x]) && $ref == $ref_nr[$x]) print "<option value=$ref_nr[$x]>$ref_brugernavn[$x]</option>";
 		}
 		for ($x=0;$x<=count($ref_nr);$x++) {
 			if(isset($ref_brugernavn[$x])){
@@ -375,6 +374,11 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	print "<tr><td><hr></td></tr>\n";
 	$txt = "<tr><td ALIGN=center title='".findtekst('971|Se lagerstatus på vilkårlig dato', $sprog_id)."'>";
 	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst('2082|Prisliste', $sprog_id)."\" name='submit'>";
+	$txt.= "</td></tr>\n";
+	print $txt;
+	print "<tr><td><hr></td></tr>\n";
+	$txt = "<tr><td ALIGN=center title='Se salg på postnumre'>";
+	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"Salg pr. postnummer\" name='submit'>";
 	$txt.= "</td></tr>\n";
 	print $txt;
 	print "</form>";
@@ -833,7 +837,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					if ($ko_ant[$y]) {
 						$kostpris[$y]=0;
 						for($z=0;$z<$ko_ant[$y];$z++) {
-							$kostpris[$y]+=$kobs_ordre_pris[$z];
+							$kostpris[$y]+=(float)$kobs_ordre_pris[$z];
 						}
 						$kostpris[$y]/=$ko_ant[$y];
 					} elseif ($vk_kost) $kostpris[$y]=$v_kostpris;
@@ -1137,9 +1141,10 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		if (!$kun_salg) {
 #			print "<td align='right'> <b>".dkdecimal($tt_kobt,2)."</b></td>";
 #			fwrite($csvfile, dkdecimal($tt_kobt,2).";");
+			print "<td align='right'> <b>".dkdecimal($tt_kost,2)."</b></td>";
 			print "<td align='right'><b></b></td>";
 			print "<td align='right'><b></b></td>";
-			fwrite($csvfile,";;");
+			fwrite($csvfile, dkdecimal($tt_kost,2).";;");
 			print "<td align='right'> <b>".dkdecimal($tt_k_pris,2)."</b></td>";
 			fwrite($csvfile, ";". dkdecimal($tt_k_pris,2));
 			print "<td align='right'> <b></b></td>";

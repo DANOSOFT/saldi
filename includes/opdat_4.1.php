@@ -117,6 +117,23 @@ function opdat_4_1($majorNo, $subNo, $fixNo){
 				db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
 			}
 			db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
+			$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='pool_files'";
+			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$qtxt = "CREATE TABLE IF NOT EXISTS pool_files (
+					id serial NOT NULL,
+					filename varchar(255) NOT NULL,
+					subject text,
+					account varchar(50),
+					amount varchar(50),
+					file_date varchar(50),
+					invoice_number varchar(100),
+					description text,
+					updated timestamp DEFAULT CURRENT_TIMESTAMP,
+					PRIMARY KEY (id),
+					UNIQUE(filename)
+				)";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
 			$qtxt="UPDATE grupper set box1='$nextver' where art = 'VE'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}

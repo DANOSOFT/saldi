@@ -51,6 +51,7 @@ $konto_fra=if_isset($_GET['konto_fra']);
 $konto_til=if_isset($_GET['konto_til']); 
 $retur=if_isset($_GET['retur']);
 $returside=if_isset($_GET['returside']);
+$layout=if_isset($_GET['layout']);
 $ny_kurs=if_isset($_GET['ny_kurs']);
 if ($ny_kurs) $ny_kurs=afrund($ny_kurs,3);
 $dkkdiff=if_isset($_GET['diff']);
@@ -61,7 +62,7 @@ $afbryd=if_isset($_POST['afbryd']);
 
 if ($afbryd) {
 	print "<meta http-equiv=\"refresh\" content=\"0;";
-	print "URL=$retur?rapportart=Kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok\">";
+	print "URL=$retur?rapportart=Kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok&layout=$layout\">";
 	exit;
 }
 
@@ -81,11 +82,11 @@ if ($row = db_fetch_array($query)) {
 	if (!$valutakurs) $valutakurs=100;
 	$udlign='on';
 	print "<input type = hidden name=konto_id value=$konto_id>";
-} else print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php\">";
+} else print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php&layout=$layout\">";
 	$r=db_fetch_array(db_select("select box3 from grupper where art='VK' and box1='$valuta'",__FILE__ . " linje " . __LINE__));
  if (!$diffkto=$r['box3']) {
 	print "<BODY onLoad=\"javascript:alert('Kontonummer for valutadifferencer ikke fundet')\">";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php\">";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php&layout=$layout\">";
 	exit;
  }
 #}
@@ -96,7 +97,7 @@ if ($row = db_fetch_array(db_select("select box1, box2, box3, box4 from grupper 
 } else {
 	$alerttekst='Regnskabs&aring;r ikke oprettet!';
 	print "<BODY onLoad=\"javascript:alert('$alerttekst')\">";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php\">";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php&layout=$layout\">";
 }
 if (!$bfdate) {
 	if ($transdate<$regnstart) $bfdate=$regnstart;
@@ -141,10 +142,10 @@ $tmp=$r['debet']-$r['kredit'];
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #exit;
 	transaktion('commit');
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapportart=Kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok\">";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapportart=Kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok&layout=$layout\">";
 } else {
 	print "<center>";
-	print "<form name=\"ret_valutadiff\" method=\"post\" autocomplete=\"off\" action=\"ret_valutadiff.php?bfdate=$bfdate&retur=$retur&post_id=$post_id&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&valuta=$valuta&diff=$dkkdiff\">";
+	print "<form name=\"ret_valutadiff\" method=\"post\" autocomplete=\"off\" action=\"ret_valutadiff.php?bfdate=$bfdate&retur=$retur&post_id=$post_id&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&valuta=$valuta&diff=$dkkdiff&layout=$layout\">";
 	print "<table><tbody>";
 	print "<tr><td colspan=\"3\">Nedenstående vil blive bogført pr. ".dkdato($bfdate)." hvis du klikker OK<br>";
 	print "Kontroller tallene og afbryd hvis det ser forkert ud</td></td></tr>";
@@ -162,4 +163,3 @@ $tmp=$r['debet']-$r['kredit'];
 	print "</form>";
 }
 ?>
-

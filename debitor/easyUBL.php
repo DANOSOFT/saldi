@@ -62,7 +62,7 @@
         $db = $output["db_name"];
         $dbLocation = $output["db_location"];
         $connection=db_connect($sqhost,$squser,$sqpass,$db);
-        $query = db_select("SELECT email FROM adresser WHERE art = 'S'");
+        $query = db_select("SELECT email FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $r = db_fetch_array($query);
         $email = $r["email"];
         if(!file_exists("../temp/$db")){
@@ -96,7 +96,8 @@
             5170 => 'Rejected',
             5180 => 'Approved',
             5199 => 'Parked',
-            5130 => "Sending"
+            5130 => "Sending",
+            5135 => "Error",
         );
         
         if (array_key_exists((int)$base64["documentStatusCode"], $incStatus)) {

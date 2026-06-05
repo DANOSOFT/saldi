@@ -1,5 +1,30 @@
 <?php
-// accountLookupData.php 
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- debitor/accountLookupData.php --- patch 5.0.0--- 2026.05.01
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Saldi.dk ApS
+// ----------------------------------------------------------------------
+// 20260501 PHR removed K (creditors) from address lookup
+
 
 header('Content-Type: application/json');
 
@@ -14,7 +39,6 @@ try {
     if (!function_exists('db_escape_string')) {
         throw new Exception('Database functions not loaded');
     }
-
     // Get grid ID from request - use $_REQUEST for both GET/POST
     $grid_id = $_REQUEST['grid_id'] ?? 'account_lookup';
 
@@ -30,8 +54,20 @@ try {
         'menu' => $_REQUEST['menu'][$grid_id] ?? 'main',
         'o_art' => $_REQUEST['o_art'] ?? null,
         'direction' => $_REQUEST['direction'] ?? 'ASC',
-        'ajax' => $_REQUEST['ajax'] ?? '0'
+        'ajax'  => $_REQUEST['ajax']  ?? '0',
+        'clear' => $_REQUEST['clear'] ?? '0',   
+        
     ];
+
+    $isClear = $requestParams['clear'] === '1';
+
+    if ($isClear) {
+            //  reset saved search in DB
+        db_modify("UPDATE datatables SET search_setup = '{}' 
+                WHERE tabel_id = '" . db_escape_string($grid_id) . "' 
+                AND user_id = '$bruger_id'",
+                __FILE__ . " linje " . __LINE__);
+    }
 
     // Check if this is a search action (has search parameters or is not just pagination)
     $hasSearchParams = !empty(array_filter($requestParams['search']));
@@ -56,6 +92,10 @@ try {
     // Handle rowcount - only update DB if it's a search action
     $rowcount = $requestParams['rowcount'];
     error_log("Rowcount from request: " . var_export($ss, true));
+    // check if rowcount is > 1200 and if so, set it to 1200
+    if (is_numeric($ss) && $ss > 1200) {
+        $rowcount = 1200; 
+    }
     if ($rowcount !== null) {
         $shouldModifyDatabase = true;
         // Only update database when there's a search action
@@ -95,7 +135,7 @@ try {
 
     // Handle search parameters
     $searchParams = $requestParams['search'];
-    $whereClauses = ["art IN ('D', 'K')", "lukket != 'on'"];
+    $whereClauses = ["art='D'", "lukket != 'on'"];
 
     foreach ($validColumns as $col) {
         if (!empty($searchParams[$col])) {

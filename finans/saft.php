@@ -36,7 +36,8 @@ $title = "SAF-T Finance";
 include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");  
+include("../includes/std_func.php");
+include_once '../includes/topline_settings.php';
 
 global $db;
 global $bruger_id;
@@ -44,6 +45,8 @@ global $md, $menu;
 global $top_bund;
 global $bgcolor, $bgcolor4, $bgcolor5;
 global $sprog_id;
+global $topStyle;
+global $buttonStyle;
 
 $regnaar = "";
 $maaned_fra = "";
@@ -553,7 +556,7 @@ while ($r = db_fetch_array($query)) {
 	$saldo_check[$x] = $r['saldo'];
 	$mapto_check[$x] = accountNumberExist($r['map_to'], $csv_kontonr);
 }
-$kontoantal_check = 0; // $x
+$kontoantal_check = $x; // $x - Use 0 if no mapping of standard accountnumber and you want to se header only in SAF-T
 
 if ($kontoantal_check <= 0) {
 	$standardKontoCheck = true;
@@ -636,21 +639,73 @@ if (isset($_SESSION['fileName']) && isset($_SESSION['filePath'])) {
 }
 
 if ($rapportart == "saft")
-	$newTitle = "SAF-T Finance";
+	$newTitle = "SAF-T Financial Report";
 if ($menu == 'T') {
 	$title = "Rapport • $newTitle";
 
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
+	
+	$backUrl = "rapport.php?rapportart=saft&regnaar=$regnaar&maaned_fra=$mf&aar_fra=$aar_fra&maaned_til=$mt&aar_til=$aar_til&dato_fra=$startdato&dato_til=$slutdato&konto_fra=$konto_fra&konto_til=$konto_til";
+	$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
+	$rightbutton = "";
+	
+	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
 	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href=rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=&ansat_til=&projekt_fra=&projekt_til=&simulering=&lagerbev= accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>"; // &ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev
-	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+	print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
+	print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
+	print "<div class=\"headerbtnRght headLink\">$rightbutton</div>";
 	print "</div>";
+	print "</div>"; // close sticky header
 	print "<div class='content-noside'>";
 	print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 } elseif ($menu == 'S') {
-	include("../includes/sidemenu.php");
+	$backUrl = "rapport.php?rapportart=saft&regnaar=$regnaar&maaned_fra=$mf&aar_fra=$aar_fra&maaned_til=$mt&aar_til=$aar_til&dato_fra=$startdato&dato_til=$slutdato&konto_fra=$konto_fra&konto_til=$konto_til";
+	
+	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	
+	// Get CVR number
+	$query = db_select("select cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
+	if ($row = db_fetch_array($query))
+		$cvrnr = $row['cvrnr'];
+	
+	// STICKY HEADER - Close button, title, empty space
+	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+	print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='4' border='0'><tbody>";
+	print "<tr>";
+	print "<td width=\"5%\" align='center'><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style=\"text-decoration: none;\">";
+	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+	print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+	print "<td width='75%' align='center' style='$topStyle'>SAF-T Financial Reporting</td>";
+	print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
+	print "</tr>";
+	print "</tbody></table>";
+	print "</div>";
+	
+	// Format dates
+	if ($startdato < 10) $startdato_fmt = "0" . (int)$startdato;
+	else $startdato_fmt = $startdato;
+	if ($slutdato < 10) $slutdato_fmt = "0" . (int)$slutdato;
+	else $slutdato_fmt = $slutdato;
+	
+	// NON-STICKY INFO SECTION - Left side: title & CVR, Right side: year & period
+	print "<table width='100%' cellpadding='4' cellspacing='0' border='0'>";
+	print "<tr>";
+	print "<td width='50%' valign='top'>";
+	print "<div class='saftTitle'>" . $newTitle . "</div>";
+	print "<div style='margin-top: 5px;' class='saftFirmName'>cvr: $cvrnr | $firmanavn</div>";
+	print "</td>";
+	print "<td width='50%' align='right' valign='top'>";
+	print "<div style='margin: 5px 4px 0 0;'>Regnskabsår: $regnaar</div>";
+	print "<div style='margin: 5px 4px 0 0;'>Periode: $startdato_fmt/$mf $aar_fra - $slutdato_fmt/$mt $aar_til</div>";
+	print "</td>";
+	print "</tr>";
+	print "<tr><td colspan='2'><hr></td></tr>";
+	print "</table>";
+	
+	// Scrollable data table
+	print "<div style=\"overflow-y: auto; max-height: calc(100vh - 128px);\">";
+	print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 } else {
 	print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
 	print "<tr><td height=\"8\" colspan=\"2\">";
@@ -668,27 +723,20 @@ if ($menu == 'T') {
 $downloadMessage = "" . findtekst(2353, $sprog_id) . "";
 print "<div class=\"popup\"><span class=\"popuptext\" id=\"createMessage\">$fileCreatedMessage</span><span class=\"popuptext\" id=\"downloadMessage\"></span></div>";
 
-
-print "<table class=\"saftHeader\">\n";
-print "<tr><td rowspan=\"3\" class=\"saftTitle\">$newTitle</td><td>Regnskabs&aring;r</td><td>$regnaar.</td></tr>\n";
-if ($startdato < 10)
-	$startdato = "0" . $startdato * 1;
-print "<tr><td rowspan=\"2\">Periode</td><td>Fra " . $startdato . ". $mf $aar_fra</td></tr>\n";
-print "<tr><td>Til " . $slutdato . ". $mt $aar_til</td></tr>";
-print "<tr><td colspan=\"3\" class=\"saftFirmName\">$firmanavn</td>\n"; 
 if ($standardKontoCheck != true) {
-	print "<tr><td colspan=\"3\"><hr></td></tr>";
-	print "<tr><td colspan=\"3\"><h2>" . findtekst(2328, $sprog_id) . "<h2></td></tr>";
+	print "<div style=\"margin: 10px 0;\">";
+	print "<h2>" . findtekst(2328, $sprog_id) . "</h2>";
 	if ($kontoantal_check <= 1) {
-		print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2346, $sprog_id) . "</td></tr>";
+		print "<p>" . findtekst(2346, $sprog_id) . "</p>";
 	} else {
-		print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2347, $sprog_id) . " <b>$kontoantal_check</b> " . findtekst(2331, $sprog_id) . "</td></tr>";
+		print "<p>" . findtekst(2347, $sprog_id) . " <b>$kontoantal_check</b> " . findtekst(2331, $sprog_id) . "</p>";
 	}
-	print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2332, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2333, $sprog_id) . "</b></mark> " . findtekst(2334, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2335, $sprog_id) . "</b></mark> " . findtekst(2336, $sprog_id) . " <a href=\"../systemdata/diverse.php?sektion=div_io\" style=\"color:blue;\">Her</a></td></tr>";
-	print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2337, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2338, $sprog_id) . "</b></mark>. " . findtekst(2339, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2340, $sprog_id) . "</b></mark>.</td></tr>";
-	print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2341, $sprog_id) . ".</td></tr>";
+	print "<p>" . findtekst(2332, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2333, $sprog_id) . "</b></mark> " . findtekst(2334, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2335, $sprog_id) . "</b></mark> " . findtekst(2336, $sprog_id) . " <a href=\"../systemdata/diverse.php?sektion=div_io\" style=\"color:blue;\">Her</a></p>";
+	print "<p>" . findtekst(2337, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2338, $sprog_id) . "</b></mark>. " . findtekst(2339, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2340, $sprog_id) . "</b></mark>.</p>";
+	print "<p>" . findtekst(2341, $sprog_id) . ".</p>";
+	print "</div>";
 }
-print "</table>\n";
+print "</div>"; // close overflow wrapper
 
 $showXMLFile = "" . findtekst(2350, $sprog_id) . ""; // Vis XML fil
 $closeXMLFile = "" . findtekst(2351, $sprog_id) . ""; // Luk XML fil

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- lap 4.1.1 --- 2025.06.27 ---
+// --- includes/reportFunc/showOpenPosts.php --- lap 5.0.0 --- 2026.05.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,16 +20,18 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 - 2025 Saldi.dk ApS
+// Copyright (c) 2023 - 2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20240207 PHR Accounts was not shown if all was alligned, evet if alligned after $todate.
 // 20240411 PHR	'if (abs($y)' changed to 'if (abs($y) >= 0.01'
 // 20240529	PHR Unalignet account with sum = 0 was not shown
 // 20250527 PHR Fixed problem with small corrency diffs that listed alligned accounts at unequal
+// 20260507 CL/PHR Added $vis_alle parameter: false = only show udlignet != '1' (Vis åbne poster), true = show all (Vis alle poster).
+// 20260518 CL/PHR PBS-kolonne printes kun hvis $usePBS er sat. isset()-check tilføjet for $kontoudtog.
 
 if (!function_exists('vis_aabne_poster')) {
-function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit) {
+function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
 	global $baseCurrency,$bgcolor,$bgcolor5,$bruger_id;
 	global $db;
 	global $menu;
@@ -87,52 +89,17 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<tr><td colspan=10><hr></td></tr>\n";
 	}
 		
-	$x = 0;
-	$op_id = array();
-/*
-	$qtxt = "select distinct(konto_id) as konto_id from openpost ";
-  if (!$todate || $todate >= $currentdate) $qtxt.= "where udlignet = '0'"; #20200103
-	else $qtxt.= "where transdate <= '$todate'"; #20240207
- 	$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$op_id[$x]=$r['konto_id'];
-		$x++;
-	}
-*/
-	if ($todate < $currentdate) {
-		$qtxt = "select konto_id, amount*valutakurs/100 as amount from openpost where transdate <= '$todate' order by konto_id";
-	} else {
-		$qtxt = "select konto_id, amount*valutakurs/100 as amount from openpost order by konto_id";
-	}
-	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		if (!in_array($r['konto_id'],$op_id)) {
-			if (abs($r['amount']) > 0.01) {
-				$op_amount[$x]+= $r['amount'];
-			}
-		} else {
-			$op_id[$x]     = $r['konto_id'];
-			$op_amount[$x]+= $r['amount'];
-			$x++;
-		}
-	}
 	$opAmount = $opId = array();
 	$x = 0;
-	for ($i=0;$i<count($op_id);$i++) {
-		if (abs($op_amount) > 0.01) {
-			$opId[$x] = $op_id[$i];
-			$opAmount[$x] = $op_amount[$i];
-			$x++;
-		}
+	if ($vis_alle) {
+		$qtxt = "select distinct konto_id from openpost";
+	} else {
+		$qtxt = "select distinct konto_id from openpost where udlignet != '1'";
 	}
-	$qtxt = "select * from openpost where udlignet = '0'";
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (!in_array($r['konto_id'],$opId)) {
-			$opId[$x]=$r['konto_id'];
-			$opAmount[$x]=0;
-			$x++;
-		}
+		$opId[$x] = $r['konto_id'];
+		$x++;
 	}
 
 
@@ -187,9 +154,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		if ($kontoart=='D') $tmp="";
 		else $tmp="desc";
 
+		$udlignetFilter = $vis_alle ? "" : " and (udlignet is null or udlignet != '1')";
 		if ($todate != $currentdate) {
-			$qtxt="select * from openpost where transdate<='$todate' and konto_id='$konto_id[$x]' order by faktnr,amount $tmp";
-		} else $qtxt="select * from openpost where konto_id='$konto_id[$x]' order by faktnr,amount $tmp";
+			$qtxt="select * from openpost where transdate<='$todate' and konto_id='$konto_id[$x]'$udlignetFilter order by faktnr,amount $tmp";
+		} else $qtxt="select * from openpost where konto_id='$konto_id[$x]'$udlignetFilter order by faktnr,amount $tmp";
 #cho __line__." $qtxt<br>",
 		$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 		$ks=0;
@@ -272,7 +240,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			print "<tr bgcolor=\"$linjebg\">";
 			print "<td><a href=rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$konto_fra&kilde_kto_til=$konto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kontonr[$x]&konto_til=$kontonr[$x]&submit=ok>";
 			print "<span title='Klik for detaljer'>$kontonr[$x]</span></a></td>";
-			print "<td>$pbs[$x]</td>";
+			if ($usePBS) print "<td>$pbs[$x]</td>";
 			print "<td>$firmanavn[$x]</td>";
 			$forfalden_plus90=afrund($forfalden_plus90,2);
 			$forfalden_plus60=afrund($forfalden_plus60,2);
@@ -328,7 +296,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&udlign=$konto_id[$x]\">$tmp</a></td>";
 			}
 			else {print "<td align=right>$tmp</td>";}
-			if (($kontoudtog[$x]=='on')&&($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$x] checked><span class='checkmarkOrdreliste'></span></label>";
+			if ((isset($kontoudtog[$x]) && $kontoudtog[$x]=='on') && ($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$x] checked><span class='checkmarkOrdreliste'></span></label>";
 			elseif($kontoart=="D")  print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$x]><span class='checkmarkOrdreliste'></span></label>";
 			print "</tr>\n";
 		}

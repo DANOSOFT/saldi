@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort.php-----patch 4.1.1 ----2025-03-24-----
+// --- finans/rapport_includes/kontokort.php-----patch 5.0.0 ----2026-04-30----- 
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0'
@@ -30,9 +30,13 @@
 // 20210211 PHR some cleanup
 // 20210301 PHR error in csv.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260309 LOE Fixed execessive error logging relating to undefined array keys.
+// 20260430 LOE Updated the top menu and made the report header sticky when scrolling. 
 
-
-function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
+function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
+                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
+                   $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,
+                   $simulering, $lagerbev, $page = 1, $per_page = 50){
 
 	global $afd_navn, $ansatte, $ansatte_id;
 	global $bgcolor, $bgcolor4, $bgcolor5;
@@ -167,6 +171,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	$title = "Rapport • Kontokort";
 
 	include("../includes/topline_settings.php");
+#print "<div style=\"position: sticky; top: 0; z-index: 100; background-color: white;\">";
 
 	#	print "  <a accesskey=L href=\"rapport.php?rapportart=Kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&afd=$afd\">Luk</a><br><br>";
 	$csvfile = "../temp/$db/rapport.csv";
@@ -178,28 +183,52 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 		print "<div id=\"header\">";
 		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
 		print "<div class=\"headerTxt\">$title</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>"; 
 		print "</div>";
 		print "<div class='content-noside'>";
 	} elseif ($menu == 'S') {
-		print "<table width=100% cellpadding='0' cellspacing='1px' border='0' valign = 'top' align='center'> ";
-		print "<tr><td colspan='6' height='8'>";
-		print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
+		
+		#########
+		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		#########
+		print "<table bgcolor='#eeeef0' width = 100% cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
+		print "<tr><td colspan=8 align=center>";
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
 
-		print "<td width='10%'>
-			   <a accesskey=L href='rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev'>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>\n";
+		print "<td width=\"5%\">$color
+			<a href=\"javascript:confirmClose('rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev','')\" accesskey=L>
+			   <button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
-		print "<td width='80%' align='center' style='$topStyle'>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>\n";
-		print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
+		print "<td width='75%' align='center' style='$topStyle'>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>\n";
+		print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
 
 		print "</tbody></table>";
 		print "</td></tr>";
 		($simulering) ? $tmp = "Simuleret kontokort" : $tmp = "Kontokort";
 		print "<tr><td colspan='4'><big><big><big>  $tmp</big></big></big></td>";
 		print "<td colspan=6 align=right>";
+		#######################
+		
+		?>
+			<style>
+			/* Existing styles for buttons */
+			.headerbtn, .center-btn {
+				display: flex;
+				align-items: center;
+				text-decoration: none;
+				gap: 5px;
+			}
+			a:link{
+					text-decoration: none;
+				}
+
+			</style>
+		<?php
+
+		#######################
 	} else {
-		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
+		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center' id='tableTop'> ";
 		print "<tr><td colspan=\"6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
 		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">".findtekst('2172|Luk', $sprog_id)."</a></td>";
@@ -212,47 +241,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 		#		fwrite($csv,"$tmp;");
 		print "<td colspan=6 align=right>";
 	}
-	print "<table style=\"text-align: left; width: 100%;\" class='dataTable' border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody><tr>";
-	print "<td colspan=0 width=10%><b>Regnskabs&aring;r:</td><td> $regnaar.</td></tr>";
-	if ($csv)
-		fwrite($csv, ";;" . mb_convert_encoding("Regnskabsår", 'ISO-8859-1', 'UTF-8') . "$regnaar\n");
-#	print "<tr><td colspan=0 width=10%><b>Periode:</b></td>";
-	## Finder start og slut paa regnskabsaar
-	if ($startdato < 10) $startdato = "0" . (int)$startdato;
-	$a=substr($startaar,-2);
-	$b=substr($slutaar,-2);
-	print "<td colspan=6> $startdato/$mf $startaar - $slutdato/$mt $slutaar</td></tr>";
-	if ($csv)
-		fwrite($csv, ";; $startdato / $mf - $slutdato / $mt\n");
-	if ($ansat_fra) {
-		if (!$ansat_til || $ansat_fra == $ansat_til)
-			print "<tr><td>Medarbejder</td><td>$ansatte</td></tr>";
-		else
-			print "<tr><td>Medarbejdere</td><td>$ansatte</td></tr>";
-	}
-	if ($afd || $afd == '0')
-		print "<tr><td>Afdeling</td><td>$afd_navn</td></tr>";
-	if ($projekt_fra) {
-		print "<td>Projekt:</td><td>";
-		#		print "<tr><td>Projekt $prj_navn_fra</td>";
-		if (!strstr($projekt_fra, "?")) {
-			if ($projekt_til && $projekt_fra != $projekt_til)
-				print "Fra: $projekt_fra, $prj_navn_fra<br>Til : $projekt_til, $prj_navn_til";
-			else
-				print "$projekt_fra, $prj_navn_fra";
-		} else
-			print "$projekt_fra, $prj_navn_fra";
-		print "</td></tr>";
-	}
-
-	if ($menu == 'T') {
-		print "";
-	} else {
-		print "</tbody></table>";
-	}
-	print "</td></tr>";
-	print "<tr><td colspan=5><big><b>cvr: $vatNo | $firmanavn</b></big></td></tr>";
-
+	
 	$dim = '';
 	if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
 		if ($afd || $afd == '0')
@@ -282,7 +271,8 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	$q = db_select("select * from valuta order by gruppe,valdate desc", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$y = $x - 1;
-		if ((!$x) || $r['gruppe'] != $valkode[$x] || $valdate[$x] >= $regnstart) {
+		//compare with y, already set.
+		if ((!$x) || $r['gruppe'] != ($valkode[$y] ?? null) || ($valdate[$y] ?? null) >= $regnstart) {
 			$valkode[$x] = $r['gruppe'];
 			$valkurs[$x] = $r['kurs'];
 			$valdate[$x] = $r['valdate'];
@@ -359,17 +349,129 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	sort($kontonr);
 	$kontosum = 0;
 	$founddate = false;
-	print "<tr><td colspan=6><hr></td></tr>";
-	print "<tr><td width=\"100px\"><b>Dato</b></td><td width=\"60px\"><b>Bilag</b></td><td><b>Tekst</b></td><td width=\"100px\" align=\"right\"><b>Debet</b></td>";
-	print "<td width=\"100px\" align=\"right\"><b>Kredit</b></td><td width=\"100px\" align=\"right\"><b>Saldo</b></td></tr>";
+	######
+	// Open sticky wrapper for the top section 
+print "<div style=\"position: sticky; top: 0; z-index: 100; \">";
+
+print "<table style='width:100%;' class='dataTable1' border='0' cellspacing='1' cellpadding='1'>";
+print "<tr>";
+print "<td style='width:70%;'></td>"; 
+print "<th style='text-align:right; white-space:nowrap;'>
+        <b>Regnskabs&aring;r</b> $regnaar
+      </th>";
+print "</tr>";
+
+/* DATA ROW */
+print "<tr>";
+if ($startdato < 10) $startdato = "0" . (int)$startdato;
+
+print "<td></td>"; 
+
+print "<td style='text-align:right; white-space:nowrap;'>
+        $startdato/$mf $startaar - $slutdato/$mt $slutaar
+      </td>";
+
+print "</tr>";
+print "</table>";
+if ($csv) fwrite($csv, ";; $startdato / $mf - $slutdato / $mt\n");
+if ($ansat_fra) {
+    if (!$ansat_til || $ansat_fra == $ansat_til)
+        print "<tr><td>Medarbejder</td><td>$ansatte</td></tr>";
+    else
+        print "<tr><td>Medarbejdere</td><td>$ansatte</td></tr>";
+}
+if ($afd || $afd == '0')
+    print "<tr><td>Afdeling</td><td>$afd_navn</td></tr>";
+if ($projekt_fra) {
+    print "<td>Projekt:</td><td>";
+    if (!strstr($projekt_fra, "?")) {
+        if ($projekt_til && $projekt_fra != $projekt_til)
+            print "Fra: $projekt_fra, $prj_navn_fra<br>Til : $projekt_til, $prj_navn_til";
+        else
+            print "$projekt_fra, $prj_navn_fra";
+    } else
+        print "$projekt_fra, $prj_navn_fra";
+    print "</td></tr>";
+}
+if ($menu != 'T') print "</tbody></table>";
+print "<tr><td colspan=5><big><b>cvr: $vatNo | $firmanavn</b></big></td></tr>";
+print "</tbody></table>";   // close the info table
+
+// Close the sticky wrapper 
+print "</div>";
+
+// scrollable data table with sticky thead 
+
+
+
+	######
+print "<div style=\"overflow-y: auto; max-height: calc(100vh - 140px);\">";
+print "<table style=\"width:100%; border-collapse:collapse;\" class='dataTable' id='datapg'>";
+
+// Sticky header
+print "<thead style=\"position: sticky; top: 0; background-color: #eeeef0; z-index: 10;\">";
+print "<tr>";
+print "<th style=\"text-align:left; padding:8px 4px;\"><b>Dato</b></th>";
+print "<th style=\"text-align:left; padding:8px 4px;\"><b>Bilag</b></th>";
+print "<th style=\"text-align:left; padding:8px 4px;\"><b>Tekst</b></th>";
+print "<th style=\"text-align:right; padding:8px 4px;\"><b>Debet</b></th>";
+print "<th style=\"text-align:right; padding:8px 4px;\"><b>Kredit</b></th>";
+print "<th style=\"text-align:right; padding:8px 4px;\"><b>Saldo</b></th>";
+print "</tr>";
+print "</thead>";
+
+// Data body
+print "<tbody>";
 	fwrite($csv, "\"Dato\";\"Bilag\";\"Tekst\";\"Debet\";\"Kredit\";\"Saldo\"\n");
-	for ($x = 0; $x < count($kontonr); $x++) {
-		$linjebg = $bgcolor5;
-		if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+	####
+	$total_rows = 0;
+    for ($x = 0; $x < count($kontonr); $x++) {
+        if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+            $cnt = db_fetch_array(db_select(
+                "SELECT COUNT(*) as c FROM transaktioner 
+                 WHERE kontonr=$kontonr[$x] 
+                   AND transdate>='$regnstart' AND transdate<='$regnslut' $dim",
+                __FILE__ . " linje " . __LINE__
+            ));
+            $total_rows += (int)$cnt['c'];
+        }
+    }
+    $total_pages  = max(1, ceil($total_rows / $per_page));
+   
+    $rows_to_skip = ($page - 1) * $per_page;
+    $rows_printed = 0;
+	####
+	
+   for ($x = 0; $x < count($kontonr); $x++) {
+	if (in_array($kontonr[$x], $ktonr) || $primo[$x]) {
+ 		$linjebg = $bgcolor5;
+            // Count rows for this account to see if we can skip it entirely
+            $acct_cnt = (int)db_fetch_array(db_select(
+                "SELECT COUNT(*) as c FROM transaktioner
+                 WHERE kontonr=$kontonr[$x]
+                   AND transdate>='$regnstart' AND transdate<='$regnslut' $dim",
+                __FILE__ . " linje " . __LINE__
+            ))['c'];
+
+            if ($rows_to_skip >= $acct_cnt) {
+                $rows_to_skip -= $acct_cnt;
+                continue;  // skip header, primosaldo, everything for this account
+            }
+
 			print "<tr><td colspan=6><hr></td></tr>";
 			fwrite($csv, "-----------\n");
-			print "<tr bgcolor=\"$bgcolor5\"><td></td><td></td><td colspan=4>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</tr>";
+			print "<tr bgcolor=\"$bgcolor5\">
+					<td></td>
+					<td></td>
+					<td colspan=4>
+						<b>$kontonr[$x]</b> : 
+						<b>$kontobeskrivelse[$x]</b> : 
+						<b>$kontomoms[$x]</b>
+					</td>
+				</tr>";
+
 			fwrite($csv, ";;$kontonr[$x] : " . mb_convert_encoding($kontobeskrivelse[$x], 'ISO-8859-1', 'UTF-8') . " : $kontomoms[$x]\n");
+
 			print "<tr><td colspan=6><hr></td></tr>";
 			fwrite($csv, "-----------\n");
 			$kontosum = $primo[$x];
@@ -391,9 +493,17 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 			$print = 1;
 			$tr = 0;
 			$transdate = array();
-			$qtxt = "select * from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim ";
-			$qtxt .= "order by transdate,pos,bilag,id";
-			$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			// $qtxt = "select * from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim ";
+			// $qtxt .= "order by transdate,pos,bilag,id";
+			// $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			#########
+			$qtxt  = "SELECT * FROM transaktioner 
+           WHERE kontonr=$kontonr[$x] 
+             AND transdate>='$regnstart' AND transdate<='$regnslut' $dim ";
+			$qtxt .= "ORDER BY transdate, pos, bilag, id";
+			// No LIMIT — fetch all rows so kontosum stays accurate across pages
+			$query = db_select($qtxt, __FILE__ . " linje " . __LINE__); 
+			###########
 			while ($row = db_fetch_array($query)) {
 				$transdate[$tr] = $row['transdate'];
 				$bilag[$tr] = $row['bilag'];
@@ -662,22 +772,26 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 					$sim++;
 				}
 			}
-			/* 20150825
-										  for ($tr=0;$tr<count($transdate)+count($sim_transdate);$tr++) {		
-											  if ($transdate[$tr]) {
-												  if ($bilag[$tr]==$bilag[$tr+1] && $transdate[$tr]==$transdate[$tr+1] && $beskrivelse[$tr]==$beskrivelse[$tr+1]) {
-													  $debet[$tr+1]+=$debet[$tr];
-													  $kredit[$tr+1]+=$kredit[$tr];
-													  $debet[$tr]=0;
-													  $kredit[$tr]=0;
-												  }
-											  }
-										  }
-							  */
+		
 			for ($tr = 0; $tr < count($transdate) + count($sim_transdate); $tr++) {
-				if ($transdate[$tr] && ($debet[$tr] || $kredit[$tr])) {
-					($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
-					print "<tr bgcolor=\"$linjebg\"><td>  " . dkdato($transdate[$tr]) . " </td>";
+			if ($transdate[$tr] && ($debet[$tr] || $kredit[$tr])) {
+
+                // Always accumulate kontosum — even for skipped rows
+                // (moved up so it runs before the skip check)
+                $debet_val  = afrund($debet[$tr], 2);
+                $kredit_val = afrund($kredit[$tr], 2);
+
+                if ($rows_to_skip > 0) {
+                    $kontosum += $debet_val - $kredit_val;
+                    $rows_to_skip--;
+                    continue;
+                }
+                if ($rows_printed >= $per_page) {
+                    break;
+                }
+
+				($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
+				print "<tr bgcolor=\"$linjebg\"><td>  " . dkdato($transdate[$tr]) . " </td>";
 					fwrite($csv, dkdato($transdate[$tr]) . ";");
 					($kladde_id[$tr]) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id=$kladde_id[$tr]&visipop=on')\"" : $js = NULL;
 					print "<td title='Kladde: $kladde_id[$tr]' $js>$bilag[$tr]</td><td>$kontonr[$x] : $beskrivelse[$tr] </td>";
@@ -706,7 +820,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 					}
 					print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td>";
 					fwrite($csv, dkdecimal($tmp, 2) . ";");
-					$kontosum = $kontosum + afrund($debet[$tr], 2) - afrund($kredit[$tr], 2);
+					#$kontosum = $kontosum + afrund($debet[$tr], 2) - afrund($kredit[$tr], 2);
 					if ($kontovaluta[$x]) {
 						$tmp = $kontosum * 100 / $transkurs[$tr];
 						$title = "DKK " . dkdecimal($kontosum, 2) . " Kurs: " . dkdecimal($transkurs[$tr], 2);
@@ -716,29 +830,113 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 					}
 					print "<td align=\"right\" title=\"$title\">" . dkdecimal($tmp, 2) . "</td></tr>";
 					fwrite($csv, dkdecimal($tmp, 2) . "\n");
-				}
-				/*
-														if (in_array($kontonr[$x],$sim_kontonr) && ($transdate[$tr]!=$transdate[$tr+1])) {
-														for ($sim=0;$sim<count($sim_kontonr);$sim++) {
-																if ($kontonr[$x]==$sim_kontonr[$sim] && ($transdate[$tr] == $sim_transdate[$sim])) {
-																	($linjebg!=$bgcolor5)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-																	print "<tr bgcolor=\"$linjebg\"><td>  ".dkdato($sim_transdate[$sim])." </td><td>$sim_bilag[$sim] </td><td>$sim_kontonr[$sim] : $sim_beskrivelse[$sim] (simuleret) </td>";
-																	$tmp=dkdecimal($sim_debet[$sim]);
-																	print "<td align=right>$tmp </td>";
-																	$tmp=dkdecimal($sim_kredit[$sim]);
-																	print "<td align=right>$tmp </td>";
-																	$kontosum=$kontosum+afrund($sim_debet[$sim],2)-afrund($sim_kredit[$sim],2);
-																	$tmp=dkdecimal($kontosum);
-																	print "<td align=right>$tmp </td></tr>";
-																}
-															}
-														}
-										*/
+                $rows_printed++;
 			}
+			
+		}
+          if ($rows_printed >= $per_page) break; // stop processing more rows once we've printed enough for the current page
 		}
 	}
-	print "<tr><td colspan=6><hr></td></tr>";
+				   			   
+	print "<tr><td colspan=6></td></tr>";
 	print "</tbody></table>";
+	#####
+	$base_url = "kontokort_standalone.php?" . http_build_query([
+        'regnaar'     => $regnaar,
+        'maaned_fra'  => $maaned_fra,
+        'maaned_til'  => $maaned_til,
+        'aar_fra'     => $aar_fra,
+        'aar_til'     => $aar_til,
+        'dato_fra'    => $dato_fra,
+        'dato_til'    => $dato_til,
+        'konto_fra'   => $konto_fra,
+        'konto_til'   => $konto_til,
+        'rapportart'  => $rapportart,
+        'ansat_fra'   => $ansat_fra,
+        'ansat_til'   => $ansat_til,
+        'afd'         => $afd,
+        'projekt_fra' => $projekt_fra,
+        'projekt_til' => $projekt_til,
+        'simulering'  => $simulering,
+        'lagerbev'    => $lagerbev,
+    ]);
+
+    ####
+	// --- Pagination calculations (matches render_table_footer pattern) ---
+    $offsetFrom  = (($page - 1) * $per_page) + 1;
+    $offsetTo    = min($total_rows, $page * $per_page);
+    $nextpage    = min($total_rows, $page * $per_page);           // offset value for next
+    $lastpage    = max(0, ($page - 2) * $per_page);               // offset value for prev
+    $nextpagestatus = ($page >= $total_pages) ? 'disabled' : '';
+    $lastpagestatus = ($page <= 1)            ? 'disabled' : '';
+
+   
+    // Build page number buttons with ellipsis — matches render_table_footer pattern
+    $pageRange = 2;
+    $startPage = max(1, $page - $pageRange);
+    $endPage   = min($total_pages, $page + $pageRange);
+
+    $pageButtons = '';
+    if ($startPage > 1) {
+        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page=1' class='navbutton'>1</a>";
+        if ($startPage > 2) $pageButtons .= "<span>...</span>";
+    }
+    for ($p = $startPage; $p <= $endPage; $p++) {
+        $activeStyle = ($p === $page) ? "style='text-decoration:underline; font-weight:bold;'" : "";
+        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$p}' class='navbutton' {$activeStyle}>{$p}</a>";
+    }
+    if ($endPage < $total_pages) {
+        if ($endPage < $total_pages - 1) $pageButtons .= "<span>...</span>";
+        $pageButtons .= "<a href='{$base_url}&per_page={$per_page}&page={$total_pages}' class='navbutton'>{$total_pages}</a>";
+    }
+
+    $prevUrl = $base_url . '&page=' . ($page - 1);
+    $nextUrl = $base_url . '&page=' . ($page + 1);
+
+   // Build rows-per-page options
+    $rowCounts = [25, 50, 100, 250, 500];
+    $rowCountOptions = '';
+    foreach ($rowCounts as $count) {
+        $sel = ($count === $per_page) ? 'selected' : '';
+        $rowCountOptions .= "<option value='{$count}' {$sel}>{$count}</option>";
+    }
+
+    echo "
+    <div style='position:fixed; bottom:0; left:0; width:100%; background:#f4f4f4;
+                border-top:2px solid #ddd; z-index:200; box-shadow:0 -2px 6px rgba(0,0,0,0.1);'>
+        <div id='footer-box' style='display:flex; align-items:center; gap:10px;
+                                    justify-content:flex-end; padding:6px 16px;'>
+            <span id='page-status' style='display:flex;'>
+                {$offsetFrom}-{$offsetTo}&nbsp;af&nbsp;{$total_rows} 
+            </span>
+            |
+            <span style='display:flex; align-items:center; gap:4px;'>
+                <label style='font-size:0.9em; color:#666;'>Linjer pr. side</label>
+                <select onchange=\"window.location.href='{$base_url}&page=1&per_page=' + this.value\"
+                        style='height:24px; cursor:pointer;'>
+                    {$rowCountOptions}
+                </select>
+            </span>
+            |
+            <span id='navbuttons' style='display:flex; align-items:center; gap:3px;'>
+                <a href='{$prevUrl}' " . ($page <= 1 ? "style='pointer-events:none;opacity:0.4;'" : "") . ">
+                    <svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'>
+                        <path d='M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z'/>
+                    </svg>
+                </a>
+                {$pageButtons}
+                <a href='{$nextUrl}' " . ($page >= $total_pages ? "style='pointer-events:none;opacity:0.4;'" : "") . ">
+                    <svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'>
+                        <path d='M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z'/>
+                    </svg>
+                </a>
+            </span>
+        </div>
+    </div>";
+	####
+	print "</tbody>";
+	print "</table>";
+	print "</div>"; // closes scrollable div
 	fclose($csv);
 
 	if ($menu == 'T') {
@@ -746,6 +944,31 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
-} # endfunc kontokort
+}# endfunc kontokort
 #################################################################################################
 ?>
+<style>
+	
+        .navbutton {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 24px;
+            min-width: 24px;
+            padding: 0 4px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #000;
+            text-decoration: none;
+            font-size: 0.85em;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .navbutton:hover {
+            background-color: #e8e8e8;
+        }
+	#datapg td {
+     padding-right: 8px;
+	}
+    
+</style>

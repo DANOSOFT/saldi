@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-02-17 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-04-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,12 +53,18 @@
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
 // 20260127 PHR corrected error in function get_next_order_number
 // 20260217 PHR added "(float)$tal" in function afrund
+// 20260429 PHR Check for $regnaar in function transtjek()
+// 20260518 CL/PHR copy_row() springer batch_due_date og batch_batch_no over ved kopiering af ordrelinjer
+// 20260602 NTR Changed if_isset to accept nested keys as an array, so you can do if_isset($array, $default, ['key1', 'key2']) to check for $array['key1']['key2']
+// -------- As well as adding the ability to check for object properties if you pass an object instead of an array and the key is a string, so you can do if_isset($object, $default, 'property') to check for $object->property
+// -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
 
-
-include('stdFunc/dkDecimal.php');
-include('stdFunc/nrCast.php');
-include('stdFunc/strStartsWith.php');
-include('stdFunc/usDecimal.php');
+include(__DIR__ . '/stdFunc/dkDecimal.php');
+include(__DIR__ . '/stdFunc/nrCast.php');
+include(__DIR__ . '/stdFunc/strStartsWith.php');
+include(__DIR__ . '/stdFunc/usDecimal.php');
+include(__DIR__ . '/stdFunc/navStack.php');
+include(__DIR__ . '/stdFunc/fefo.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -140,31 +146,6 @@ if (!function_exists('get_relative')) {
     }
 }
 
-// if (!function_exists('if_isset')) {
-// 	function if_isset(&$var, $return = NULL)
-// 	{
-		/**
-		 * Checks if a variable is set and not empty.
-		 * If set and not empty, returns the value of the variable.
-		 * Otherwise, returns the default value provided.
-		 *
-		 * @param mixed $var - The variable to check.
-		 * @param mixed $return - The value to return if the variable is not set or is empty (default: NULL).
-		 *
-		 * @return mixed - The value of the variable if set and not empty, otherwise the default value.
-		 * ######## Known Behaviour #######, 
-		 * This doesn't return True if $var === 0 as 0 is considered Falsy in PHP. But 0 can be set and retrieved as value in $return param.
-		 * Same thing for False value.
-		 * if_isset(false) //NULL
-		 * if_isset(0)     //NULL
-		 * #################
-		 */
-// 		if ($var)
-// 			return ($var);
-// 		else
-// 			return ($return);
-// 	}
-// }
 
 if (!function_exists('if_isset')) {
     function if_isset($arrayOrVar, $default = null, $key = null) {
@@ -176,7 +157,7 @@ if (!function_exists('if_isset')) {
          *
          * Behavior for special values:
          * ----------------------------------------
-         * - `false`: Treated as "not set" and returns NULL . Explicitly set for single values
+         * - `false`: Treated as "set".
          * - `null`: If the variable or array key is explicitly `null`
          * - `0`: Considered a valid value, returned as-is (0 is treated as set).
          * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
@@ -186,29 +167,39 @@ if (!function_exists('if_isset')) {
 		 * ########################################
 		 * 
          * @param mixed $arrayOrVar The array or variable to check.
-         * @param mixed $default    The default value to return if the variable or key is not set.
+         * @param mixed $default    The default value to return if the variable or array's key is not set.
          * @param mixed $key        The key (if array is passed).
          * @return mixed           The actual value or the default.
          */
 
-        // Case 1: One argument — treat as a single variable fallback
+        // Case 1: One/Two argument — treat as a single variable fallback
         if ($key === null) {
-            // If key is not provided, we're dealing with just a single variable
-          
-			 // Check if the variable is explicitly false and return NULL
-			 if ($arrayOrVar === false) {
-				return NULL;
-			}
-	
+            // If key is not provided, we're dealing with just a single variable.
 			return isset($arrayOrVar) ? $arrayOrVar : $default;
         }
 
-        // Case 2: Two arguments — array + key
-        if (is_array($arrayOrVar) && array_key_exists($key, $arrayOrVar)) {
-            // If it's an array and the key exists, return the value or NULL if it's false
-            $value = $arrayOrVar[$key];
-            return $value === false ? null : $value;
-        }
+        // Case 2: Three arguments — array + key or object + property
+		if(!is_array($key)){
+			if (isset($arrayOrVar) && is_array($arrayOrVar)) {
+				return array_key_exists($key, $arrayOrVar) ? $arrayOrVar[$key] : $default;
+			}
+			if (is_object($arrayOrVar)) {
+				return property_exists($arrayOrVar, $key) ? $arrayOrVar->$key : $default;
+			}
+		} else {
+			// Case 3: If $key is an array, we want to check nested keys
+			$current = $arrayOrVar;
+			foreach ($key as $k) {
+				if (is_array($current) && array_key_exists($k, $current)) {
+					$current = $current[$k];
+				} elseif (is_object($current) && property_exists($current, $k)) {
+					$current = $current->$k;
+				} else {
+					return $default; // Key doesn't exist at some level
+				}
+			}
+			return $current; // All keys exist, return the final value
+		}
 
         // Default case: Return the default value
         return $default;
@@ -642,7 +633,9 @@ if (!function_exists('copy_row')) {
 				$x++;
 				$fieldName[$x] = db_field_name($q, $r);
 				$fieldType[$x] = db_field_type($q, $r);
-				($fieldstring) ? $fieldstring .= "," . $fieldName[$x] : $fieldstring = $fieldName[$x];
+				if ($fieldName[$x] != 'batch_due_date' && $fieldName[$x] != 'batch_batch_no') {
+					($fieldstring) ? $fieldstring .= "," . $fieldName[$x] : $fieldstring = $fieldName[$x];
+				}
 			}
 			$r++;
 		}
@@ -668,8 +661,10 @@ if (!function_exists('copy_row')) {
 				}
 				if ($fieldName[$y] == 'ordre_id')
 					$ordre_id = $felt[$y];
-				($fieldvalues) ? $fieldvalues .= ",'" . $felt[$y] . "'" : $fieldvalues = "'" . $felt[$y] . "'";
-				($selectstring) ? $selectstring .= " and " . $fieldName[$y] . "='" . $felt[$y] . "'" : $selectstring = $fieldName[$y] . "='" . $felt[$y] . "'";
+				if ($fieldName[$y] != 'batch_due_date' && $fieldName[$y] != 'batch_batch_no') {
+					($fieldvalues) ? $fieldvalues .= ",'" . $felt[$y] . "'" : $fieldvalues = "'" . $felt[$y] . "'";
+					($selectstring) ? $selectstring .= " and " . $fieldName[$y] . "='" . $felt[$y] . "'" : $selectstring = $fieldName[$y] . "='" . $felt[$y] . "'";
+				}
 			}
 		}
 		if ($posnr && $ordre_id)
@@ -719,6 +714,11 @@ if (!function_exists('transtjek')) {
 		 */
 
 		global $db,$regnaar;
+		if (!$regnaar) { # 20260429
+			$qtxt = "select max(kodenr) from grupper where art = 'RA'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$regnaar = $r[0];	
+		}
 		$qtxt = "select box1,box2 from grupper where art = 'RA' and kodenr = '$regnaar'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$countFrom = $r['box2'] ."-". $r['box1'] ."-01";
@@ -1510,7 +1510,7 @@ if (!function_exists('lagerreguler')) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
 			$diff *= -1;
-			$qtxt = "select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by kobsdate,id";
+			$qtxt = "select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by " . fefo_order_clause();
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($diff && $r = db_fetch_array($q)) {
 				$pris = (float)$r['pris'];
@@ -1589,7 +1589,7 @@ if (!function_exists('saldikrypt')) {
 	}
 }
 if (!function_exists('find_beholdning')) {
-	function find_beholdning($vare_id, $udskriv)
+	function find_beholdning($vare_id, $udskriv, $preseed = null)
 	{
 		/**
 		 * Fetches the current stock levels of an item based on various sales and purchase orders.
@@ -1623,9 +1623,15 @@ if (!function_exists('find_beholdning')) {
 				$x++;
 			}
 		*/
+		static $cache = [];
+		if ($preseed !== null && !isset($cache[$vare_id])) {
+			$cache[$vare_id] = $preseed;
+		}
+		if (isset($cache[$vare_id])) return $cache[$vare_id];
+
 		$x = 0;
 		$y = '';
-		$beholdning[1] = 0;  // in salesoffer 
+		$beholdning[1] = 0;  // in salesoffer
 		$beholdning[2] = 0;  // sales offer#
 		$beholdning[3] = 0;  // in sales order
 		$beholdning[4] = 0;  // sales ordre#
@@ -1659,6 +1665,7 @@ if (!function_exists('find_beholdning')) {
 #			while ($row3=db_fetch_array($query3)) {$beholdning[4]-=$row3['antal'];}
 			}
 		}
+		$cache[$vare_id] = $beholdning;
 		return $beholdning;
 	}
 } #endfunc find_beholdning()
@@ -2027,11 +2034,11 @@ if (!function_exists('getAvailable')) {
 			}
 			if (!$stock && $box8)
 				$available = 0;
-			elseif ($stock && $stock / $IemQty[$x] < $available)
+			elseif ($stock && $IemQty[$x] && $stock / $IemQty[$x] < $available)
 				$available = $stock / $IemQty[$x];
 			if (!$totalStock && $box8)
 				$totalAvailable = 0;
-			elseif ($totalStock && $totalStock / $IemQty[$x] < $totalAvailable)
+			elseif ($totalStock && $IemQty[$x] && $totalStock / $IemQty[$x] < $totalAvailable)
 				$totalAvailable = $totalStock / $IemQty[$x];
 			$x++;
 		}
@@ -2077,7 +2084,7 @@ if (!function_exists('create_debtor')) {
 	 * 
 	 * @return int|null - Returns the ID of the created debtor record if successful, or NULL if there was an error.
 	 */
-	include_once('stdFunc/createDebitor.php');
+	include_once(__DIR__ . '/stdFunc/createDebitor.php');
 }
 
 //                   ----------------------------- get_next_number ------------------------------
@@ -2128,28 +2135,41 @@ if (!function_exists('get_next_order_number')) {
 		$max_attempts = 10;
 		$attempt = 0;
 		$ordrenr = null;
-		
+
 		// Start transaction to ensure atomicity
 		transaktion('begin');
-		
 		try {
 			while ($attempt < $max_attempts) {
 				$attempt++;
-				
+				if($art == 'DO') {
+					$art2 = "DK";
+				} elseif($art == "DK") {
+					$art2 = "DO";
+				} elseif($art == "KO") {
+					$art2 = "KK";
+				}else if($art == "KK") {
+					$art2 = "KO";
+				} elseif($art == "PO") {
+					$art2 = "PO";
+				}else{
+					$art2 = $art;
+				}
+
 				// Use SELECT FOR UPDATE to lock relevant rows - works on both PostgreSQL and MySQL
 				// This locks the rows being read until the transaction is committed
 				// Use LOCK TABLE to ensure uniqueness and prevent race conditions
 				// FOR UPDATE with aggregate functions is not allowed in PostgreSQL
 				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
 				
+
 #				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
 				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) AS max_ordrenr ";
-				$qtxt.= "FROM (SELECT ordrenr FROM ordrer WHERE art = '$art' FOR UPDATE) t";
+				$qtxt.= "FROM (SELECT ordrenr FROM ordrer WHERE art = '$art' OR art = '$art2' FOR UPDATE) t";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
 				
 				// Double-check that this order number doesn't exist (extra safety)
-				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art'";
+				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND (art = '$art' OR art = '$art2')";
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				
 				if (!$check_r || !$check_r['id']) {
@@ -2192,70 +2212,118 @@ if (!function_exists('get_next_invoice_number')) {
 		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
 		 */
 		
+		global $db, $bruger_id;
+
+		$debug = ($bruger_id == -1);
 		$max_attempts = 10;
 		$attempt = 0;
 		$fakturanr = null;
-		
-		// Start transaction to ensure atomicity
-		transaktion('begin');
-		
+
+		// Fix for medshop (saldi_390): fakturanr jumped from 234504 to 1423006538 by mistake.
+		// Exclude the erroneous number so MAX() falls back to 234504 and continues from 234505.
+		// All other databases are unaffected.
+		$ekstra = "";
+		if ($db == "saldi_390") {
+			$ekstra = " AND CAST(fakturanr AS INTEGER) < 1423006538";
+		}
+		if($db == "saldi_1004"){
+			$ekstra = " AND CAST(fakturanr AS INTEGER) < 9873561";
+		}
+
+		if($art == 'DO') {
+			$art2 = "DK";
+		} elseif($art == "DK") {
+			$art2 = "DO";
+		} elseif($art == "KO") {
+			$art2 = "KK";
+		}else if($art == "KK") {
+			$art2 = "KO";
+		} elseif($art == "PO") {
+			$art2 = "PO";
+		}else{
+			$art2 = $art;
+		}
+
+		if ($debug) echo "<pre>get_next_invoice_number(art=$art, id=$id) db=$db art2=$art2 ekstra=$ekstra</pre>";
+
 		try {
 			while ($attempt < $max_attempts) {
 				$attempt++;
-				
+				if ($debug) echo "<pre>  Attempt $attempt/$max_attempts</pre>";
+
+				// Start a fresh transaction for each attempt
+				transaktion('begin');
+
 				// Lock the ordrer table to prevent concurrent access
-				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
-				
+				global $connection;
+				$lock_result = @pg_query($connection, "LOCK TABLE ordrer IN EXCLUSIVE MODE");
+				if (!$lock_result) {
+					$err = pg_last_error($connection);
+					if ($debug) echo "<pre>  LOCK failed: $err — rollback and retry</pre>";
+					transaktion('rollback');
+					usleep(rand(50000, 200000));
+					continue;
+				}
+				if ($debug) echo "<pre>  LOCK acquired</pre>";
+
 				// Get the maximum invoice number for the given art type
-				// Use MAX with CAST to properly find the highest numeric invoice number
-				// This queries ALL records, not just recent ones, to avoid missing higher numbers
-				$qtxt = "SELECT MAX(CAST(fakturanr AS INTEGER)) as max_fakturanr FROM ordrer WHERE (art = '$art' OR art = 'DK' OR art = 'DO') AND fakturanr != '' AND fakturanr IS NOT NULL AND fakturanr ~ '^[0-9]+$'";
+				$qtxt = "SELECT MAX(CAST(fakturanr AS INTEGER)) as max_fakturanr FROM ordrer WHERE (art = '$art' OR art = '$art2') AND fakturanr != '' AND fakturanr IS NOT NULL AND fakturanr ~ '^[0-9]+$'$ekstra";
 				if ($id) {
 					$qtxt .= " AND id != '$id'";
 				}
-				
+
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				if (!$r) {
+					$err = pg_last_error($connection);
+					if ($debug) echo "<pre>  SELECT MAX failed: $err — rollback and retry</pre>";
+					transaktion('rollback');
+					usleep(rand(50000, 200000));
+					continue;
+				}
 				$fakturanr = ($r['max_fakturanr'] ? (int)$r['max_fakturanr'] : 0) + 1;
-				
+				if ($debug) echo "<pre>  MAX fakturanr=" . ($r['max_fakturanr'] ?? 'NULL') . " => next=$fakturanr</pre>";
+
+				// Check minimum invoice number from settings
+				$r = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'RB' AND kodenr='1'", __FILE__ . " linje " . __LINE__));
+				if ($r && $fakturanr < (int)$r['box1']) {
+					if ($debug) echo "<pre>  Min fakturanr from settings: " . $r['box1'] . " (was $fakturanr)</pre>";
+					$fakturanr = (int)$r['box1'];
+				}
+				if ($fakturanr < 1) {
+					$fakturanr = 1;
+				}
+
 				// Double-check that this invoice number doesn't exist (extra safety)
-				$qtxt = "SELECT id FROM ordrer WHERE (art = '$art' OR art = 'DK' OR art = 'DO') AND fakturanr = '$fakturanr'";
+				$qtxt = "SELECT id FROM ordrer WHERE (art = '$art' OR art = '$art2') AND fakturanr = '$fakturanr'";
 				if ($id) {
 					$qtxt .= " AND id != '$id'";
 				}
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				
-				if (!$check_r['id']) {
-					// Check minimum invoice number from settings
-					$r = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'RB' AND kodenr='1'", __FILE__ . " linje " . __LINE__));
-					if ($r && $fakturanr < (int)$r['box1']) {
-						$fakturanr = (int)$r['box1'];
-					}
-					if ($fakturanr < 1) {
-						$fakturanr = 1;
-					}
-					
+
+				if (!$check_r || !$check_r['id']) {
 					// If order ID is provided, set the fakturanr on the order NOW while table is locked
-					// This prevents race conditions between getting and setting the number
 					if ($id) {
 						db_modify("UPDATE ordrer SET fakturanr='$fakturanr' WHERE id='$id'", __FILE__ . " linje " . __LINE__);
 					}
-					
+
 					// Invoice number is unique, commit transaction and return
 					transaktion('commit');
+					if ($debug) echo "<pre>  OK — returning fakturanr=$fakturanr (attempt $attempt)</pre>";
 					return $fakturanr;
 				} else {
-					// Invoice number already exists, increment and try again
-					$fakturanr++;
-					usleep(rand(10000, 50000)); // Small random delay to reduce contention
+					if ($debug) echo "<pre>  Duplicate! fakturanr=$fakturanr already on order id=" . $check_r['id'] . " — rollback and retry</pre>";
+					transaktion('rollback');
+					usleep(rand(10000, 50000));
 				}
 			}
-			
+
 			// If we get here, we couldn't generate a unique number
-			transaktion('rollback');
+			if ($debug) echo "<pre>  FAILED after $max_attempts attempts</pre>";
 			throw new Exception("Could not generate unique invoice number after $max_attempts attempts");
-			
+
 		} catch (Exception $e) {
 			transaktion('rollback');
+			if ($debug) echo "<pre>  EXCEPTION: " . $e->getMessage() . "</pre>";
 			throw $e;
 		}
 	}

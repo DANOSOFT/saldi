@@ -1,6 +1,6 @@
 <?php
 
-// -- lager/optalling.php ------------------- patch 4.0.7 -- 2024-01-18 --
+// -- lager/optalling.php ------------------- patch 5.0.0 -- 2026-05-18 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@
 // 20200905 PHR Updating api now witten to apilog and & removed from  exec command as call was interrupted?
 // 20230224 CA  Case insensitive and 'like' search using % and _. Searching for _vd% gets DVD, Vd, dvd-player
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260518 CL/PHR Bedre fejlhåndtering ved fil-upload: viser fejlkode og returnerer. MAX_FILE_SIZE øget til 100 MB.
 
 @session_start();
 $s_id = session_id();
@@ -303,6 +304,7 @@ if ($varenr = trim($varenr)) {
 		$beholdning -= $r2['antal'];
 
 		$l = 0;
+		$ls_id = array();
 		$q2 = db_select("select id from lagerstatus where vare_id='$r[id]' and lager='$lager' order by id", __FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 			$ls_id[$l] = $r2['id'];
@@ -311,7 +313,7 @@ if ($varenr = trim($varenr)) {
 		for ($l = 1; $l < count($ls_id); $l++) {
 			db_modify("delete from lagerstatus where id = '$ls_id[$l]'", __FILE__ . " linje " . __LINE__);
 		}
-		if ($ls_id[0])
+		if (isset($ls_id[0]) && $ls_id[0])
 			$qtxt = "update lagerstatus set beholdning='$beholdning' where id='$ls_id[0]'";
 		else
 			$qtxt = "insert into lagerstatus (vare_id,variant_id,beholdning,lager) values ('$r[id]','0','$beholdning','$lager')";
@@ -1199,9 +1201,14 @@ function importer($lager, $dato)
 #	print tekstboks("Vent - det kan tage lang tid !!");
 #	ob_end_flush();
 		$filnavn = "../temp/" . $db . "/" . $bruger_id . ".csv";
-		if (move_uploaded_file($_FILES['uploadfile']['tmp_name'], $filnavn)) {
-			$fp = fopen("$filnavn", "r");
-			if ($fp) {
+		if (!move_uploaded_file($_FILES['uploadfile']['tmp_name'], $filnavn)) {
+			$uploadError = $_FILES['uploadfile']['error'];
+			print "<BODY onLoad=\"javascript:alert('Upload fejlede (kode $uploadError) - filen er muligvis for stor eller ugyldig')\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"3;URL=optalling.php?importer=1&lager=$lager&dato=$dato\">";
+			return;
+		}
+		$fp = fopen("$filnavn", "r");
+		if ($fp) {
 				$komma = 0;
 				$semikolon = 0;
 				$kolon = 0;
@@ -1375,7 +1382,7 @@ function importer($lager, $dato)
 		#		print " Er der flere lagre, vælges hvilket lager optællingen vedrører<br>";
 		print findtekst('2204|Datoen skal være den dato hvor optællingen blev udført.', $sprog_id) . " ";
 		print findtekst('2205|Hvis optællingen er sket mellem midnat og dagens 1. varebevægelse, skal den foregående dags dato anføres.', $sprog_id) . "<br><hr></td></tr>";
-		print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"100000\">";
+		print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"104857600\">";
 		print "<tr><td>" . findtekst('2206|Dato for optælling', $sprog_id) . "</td><td><input class=\"inputbox\" style=\"text-align:left\" type=\"text\" name=\"dato\" value=\"$dato\"></td></tr>";
 		#		$r=db_fetch_array(db_select("select count(kodenr) as lagerantal from grupper where art='LG'",__FILE__ . " linje " . __LINE__));
 #		if ($lagerantal=$r['lagerantal']){

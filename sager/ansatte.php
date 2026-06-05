@@ -1,26 +1,24 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------lap 3.3.0 ------2013-02-01------14:22---------
-// LICENS
+// ------ SAGER/ANSATTE.php-------lap 5.0.0 ------2026-03-18-------------
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Copyright (c) 2003-2013 Danosoft ApS
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
  
 // Nyt flueben - ny i branchen. reduceret løn 80% i x mdr.½
@@ -31,19 +29,19 @@ $s_id=session_id();
 // 20140924 PK - Tilrettet breadcrumb 
 // 20151007 PK - Der er sat session på alle og aftrådte i leftmenu, så den husker søgning. Søg alleA eller tiltraadteA
 // 20170911 PK - Har sat validering på brugernavn så der ikke kommer duplikater. Søg 20170911 
-
+// 20260318 LOE  Added functionality to toggle between password visibility.
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
 
-	$menu_sager=NULL;
-	$menu_planlaeg=NULL;
-	$menu_dagbog=NULL;
-	$menu_kunder=NULL;
-	$menu_loen=NULL;
-	$menu_ansatte='id="menuActive"';
-	$menu_certificering=NULL;
-	$menu_medarbejdermappe=NULL;
+	$menu_sager            = NULL;
+	$menu_planlaeg         = NULL;
+	$menu_dagbog           = NULL;
+	$menu_kunder           = NULL;
+	$menu_loen             = NULL;
+	$menu_ansatte          = 'id="menuActive"';
+	$menu_certificering    = NULL;
+	$menu_medarbejdermappe = NULL;
 
 	$modulnr=0;
 	include("../includes/connect.php");
@@ -76,7 +74,7 @@ $s_id=session_id();
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
 		<![endif]-->
-		<title>Stillads</title>
+		<title>".findtekst('2783|Stillads', $sprog_id)."</title>
 	</head>
 	<body>
 		<div id=\"wrapper\">";  
@@ -85,35 +83,35 @@ $s_id=session_id();
 
 				<ul id=\"breadcrumb\">
 					<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-					else print "<a href=\"\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+					else print "<a href=\"\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 					print "</li>\n";
 					if ($funktion=="ret_ansat" && !$id) {
-						print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"Til ansatteliste\">Ansatte</a></li>\n";
-						print "<li>Opret medarbejder</li>";
+						print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"".findtekst('3071|Til ansatteliste', $sprog_id)."\">".findtekst('1262|Ansatte', $sprog_id)."</a></li>\n";
+						print "<li>".findtekst('3072|Opret medarbejder', $sprog_id)."</li>";
 					} elseif ($funktion=="ret_ansat" && $id) {
 						$r=db_fetch_array(db_select("select navn from ansatte where id='$id'",__FILE__ . " linje " . __LINE__));
 						$navn=$r['navn'];
 						if ($navn) {
-							print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"Til ansatteliste\">Ansatte</a></li>\n";
+							print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"".findtekst('3071|Til ansatteliste', $sprog_id)."\">".findtekst('1262|Ansatte', $sprog_id)."</a></li>\n";
 							print "<li>$navn</li>";
 						} else {
-							print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"Til ansatteliste\">Ansatte</a></li>\n";
-							print "<li>Ingen navn</li>";
+							print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"".findtekst('3071|Til ansatteliste', $sprog_id)."\">".findtekst('1262|Ansatte', $sprog_id)."</a></li>\n";
+							print "<li>".findtekst('3073|Intet navn', $sprog_id)."</li>";
 						}
 					} elseif ($funktion=="brugergrupper") {
-						print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"Til ansatteliste\">Ansatte</a></li>\n";
-						print "<li>Brugergrupper</li>";
+						print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"".findtekst('3071|Til ansatteliste', $sprog_id)."\">".findtekst('1262|Ansatte', $sprog_id)."</a></li>\n";
+						print "<li>".findtekst('2968|Brugergrupper', $sprog_id)."</li>";
 					} elseif ($funktion=="stamkort") {
-						print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"Til ansatteliste\">Ansatte</a></li>\n";
-						print "<li>Stamkort</li>";
+						print "<li><a href=\"ansatte.php?funktion=ansatliste\" title=\"".findtekst('3071|Til ansatteliste', $sprog_id)."\">".findtekst('1262|Ansatte', $sprog_id)."</a></li>\n";
+						print "<li>".findtekst('3074|Stamkort', $sprog_id)."</li>";
 					} else {
 					print "
 					<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>
 					<li><a href=\"#\" title=\"Sample page 2\">Sample page 2</a></li>
 					<li><a href=\"#\" title=\"Sample page 3\">Sample page 3</a></li>
 					<li>Current page</li>-->
-					<li>Ansatte</li>\n";
+					<li>".findtekst('1262|Ansatte', $sprog_id)."</li>\n";
 					}
 					print "
 				</ul>
@@ -133,6 +131,8 @@ $s_id=session_id();
 	</html>";
 
 function ansatliste() {
+
+	global $sprog_id;
 
 	$sortstyle=array();
 	$nysortstyle=if_isset($_GET['nysortstyle']);
@@ -222,17 +222,17 @@ function ansatliste() {
 	$q=db_select("select ansatte.* from ansatte,adresser $where order by $sqlsort",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$konto_id[$x]=$r['id'];
-		$adresse_id=$r['konto_id'];
-		$initialer[$x]=htmlspecialchars($r['initialer']);
-		$navn[$x]=htmlspecialchars($r['navn']);
-		$addr1[$x]=htmlspecialchars($r['addr1']);
-		$addr2[$x]=htmlspecialchars($r['addr2']);
-		$postnr[$x]=$r['postnr'];
-		$bynavn[$x]=htmlspecialchars($r['bynavn']);#
-		$email[$x]=htmlspecialchars($r['email']);
-		$telefon[$x]=$r['mobil'];
-		$nummer[$x]=$r['nummer'];
+		$konto_id[$x]  = $r['id'];
+		$adresse_id    = $r['konto_id'];
+		$initialer[$x] = htmlspecialchars($r['initialer']);
+		$navn[$x]      = htmlspecialchars($r['navn']);
+		$addr1[$x]     = htmlspecialchars($r['addr1']);
+		$addr2[$x]     = htmlspecialchars($r['addr2']);
+		$postnr[$x]    = $r['postnr'];
+		$bynavn[$x]    = htmlspecialchars($r['bynavn']);#
+		$email[$x]     = htmlspecialchars($r['email']);
+		$telefon[$x]   = $r['mobil'];
+		$nummer[$x]    = $r['nummer'];
 	}
 	$antal_adresser=$x;
 
@@ -242,9 +242,9 @@ function ansatliste() {
 			<table border=\"0\" cellspacing=\"0\" width=\"828\">
 				<thead>
 					<tr>
-						<th width=\"100\">Med. nr</th>
-						<th width=\"250\">Navn</th>
-						<th width=\"360\">Adresse</th>
+						<th width=\"100\">".findtekst('3054|Med. nr.', $sprog_id)."</th>
+						<th width=\"250\">".findtekst('138|Navn', $sprog_id)."</th>
+						<th width=\"360\">".findtekst('140|Adresse', $sprog_id)."</th>
 						<th colspan=\"2\">&nbsp;</th>
 					</tr>
 				</thead>
@@ -255,14 +255,14 @@ function ansatliste() {
 						<td><input class=\"textinput medarbejdernavn2\" type=\"text\" value=\"\" id=\"medarbejdernavn2\" name=\"medarbejdernavn2\" tabindex=\"2\"/></td>
 						<td><input class=\"textinput medarbejderadresse\" type=\"text\" value=\"\" id=\"medarbejderadresse\" name=\"medarbejderadresse\" tabindex=\"3\"/></td>
 						<td style=\"padding:0px;\"><input type=\"hidden\" class=\"id\" value=\"\" name=\"id\"></td>   
-						<td align=\"center\"><input type=\"submit\" value=\"Find ansat\" name=\"findansat\" class=\"button gray small\" tabindex=\"4\"></td>
+						<td align=\"center\"><input type=\"submit\" value=\"".findtekst('3075|Find ansat', $sprog_id)."\" name=\"findansat\" class=\"button gray small\" tabindex=\"4\"></td>
 						
 					</tr>
 				</tbody>
 			</table>
 		</form>
 		<div style=\"height:25px;padding:10px 12px 0 12px;#background-color:#f2f2f2;\">
-				<span style=\"float:left;\"><a href=\"ansatte.php?funktion=ansatliste&amp;unsetsort=unset\" class=\"button gray small\">Slet sortering</a></span>
+				<span style=\"float:left;\"><a href=\"ansatte.php?funktion=ansatliste&amp;unsetsort=unset\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>
 		</div>
 		</div><!-- end of contentsoeg -->\n";
 		
@@ -273,14 +273,14 @@ function ansatliste() {
 		print "<div class=\"contentkundehead\">
 			<ul id=\"sort\">
 				<li>
-					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=initialer&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:48px\">Initial</a>
-					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=nummer&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:54px\">MA-nr.</a>
-					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=navn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:165px\">Navn</a>
-					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:170px\">Adresse</a>
-					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=postnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:60px\">Postnr</a>
-					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=bynavn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:105px\">By</a>       
-					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=email&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt07 $sortstyle[6]\" style=\"width:120px\">Email</a>
-					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=mobil&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[7]\" class=\"felt08 $sortstyle[7]\" style=\"width:75px\">Telefon</a>
+					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=initialer&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:48px\">".findtekst('647|Initialer', $sprog_id)."</a>
+					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=nummer&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:54px\">".findtekst('3076|MA-nr.', $sprog_id)."</a>
+					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=navn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:165px\">".findtekst('138|Navn', $sprog_id)."</a>
+					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=addr1&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:170px\">".findtekst('140|Adresse', $sprog_id)."</a>
+					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=postnr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:60px\">".findtekst('144|Postnr', $sprog_id)."</a>
+					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=bynavn&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:105px\">".findtekst('46|By', $sprog_id)."</a>       
+					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=email&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt07 $sortstyle[6]\" style=\"width:120px\">".findtekst('52|E-mail', $sprog_id)."</a>
+					<a href=\"ansatte.php?funktion=ansatliste&amp;nysort=mobil&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[7]\" class=\"felt08 $sortstyle[7]\" style=\"width:75px\">".findtekst('37|Telefon', $sprog_id)."</a>
 				</li>
 			</ul>
 		</div>
@@ -338,7 +338,7 @@ function ret_ansat($id) {
 		if ($brugere_navn && !$brugere_id) { #20170911
 			$query = db_select("select id from brugere where brugernavn = '$brugere_navn'",__FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($query)) {
-				$alerttext="Der findes allerede en bruger med brugernavn: $brugere_navn";
+				$alerttext=findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id).": $brugere_navn";
 				print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
 			} 
 		}
@@ -346,11 +346,11 @@ function ret_ansat($id) {
 		$ret_kode=1;
 		if (!$kode1 || !$kode2) {
 			$ret_kode=0;
-			print "<BODY onLoad=\"javascript:alert('Kodeord skal angives!');location.hash='#anch';\">";
-		} elseif ($kode1 == '********') $ret_kode=0;
+			print "<BODY onLoad=\"javascript:alert('".findtekst('3077|Kodeord skal angives', $sprog_id)."!');location.hash='#anch';\">";
+		} elseif ($kode1 == '') $ret_kode=0;
 		elseif ($kode1 != $kode2) {
 			$ret_kode=0;
-			print "<BODY onLoad=\"javascript:alert('Kodeord ikke ens!');location.hash='#anch';\">";
+			print "<BODY onLoad=\"javascript:alert('".findtekst('3078|Kodeord ikke ens', $sprog_id)."!');location.hash='#anch';\">";
 		} else $kode1=md5($kode1);
 		
 		if ($id) {
@@ -372,7 +372,7 @@ function ret_ansat($id) {
 					$r3=db_fetch_array(db_select("select id from brugere where brugernavn = '$brugere_navn'",__FILE__ . " linje " . __LINE__));
 					if ($r3['id']>0 && $r3['id']!=$brugere_id) {
 						//echo "$r3[id] != $brugere_id<br>
-						$alerttext="Der findes allerede en bruger med brugernavn: $brugere_navn";
+						$alerttext=findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id).": $brugere_navn";
 						print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
 					} else {
 						db_modify("update brugere set brugernavn = '$brugere_navn' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
@@ -395,10 +395,10 @@ function ret_ansat($id) {
 	#print "<div class=\"clear\"><div>\n";
 	#print "<hr>\n";
 	print "<div style=\"float:left; margin-right:70px; width:379px;\">\n";
-	print "<h3 id=\"anch\">Login &amp; brugergruppe</h3>\n";
+	print "<h3 id=\"anch\">".findtekst('3079|Login', $sprog_id)." &amp; ".lcfirst(findtekst('3080|Brugergruppe', $sprog_id))."</h3>\n"; #Login & brugergruppe
 	print "<div class=\"contentA\">\n";
-	print "<div class=\"row\"><div class=\"left\">Brugernavn</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"brugere_navn\" value=\"$brugere_navn\"></div><div class=\"clear\"></div></div><!-- end of row -->\n"; 
-	print "<div class=\"row\"><div class=\"left\">Brugergruppe</div><div class=\"right\"><select name=\"brugergruppe\" style=\"width:194px;\">\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('225|Brugernavn', $sprog_id)."</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"brugere_navn\" value=\"$brugere_navn\"></div><div class=\"clear\"></div></div><!-- end of row -->\n"; 
+	print "<div class=\"row\"><div class=\"left\">".findtekst('3080|Brugergruppe', $sprog_id)."</div><div class=\"right\"><select name=\"brugergruppe\" style=\"width:194px;\">\n";
 	for ($x=0;$x<=count($gruppe_id);$x++) {
 		if ($gruppe==$gruppe_id[$x]) print "<option value=\"$gruppe_id[$x]\">$gruppe_beskrivelse[$x]&nbsp;</option>\n"; 
 	}
@@ -412,8 +412,59 @@ function ret_ansat($id) {
 	print "<div style=\"float:left; width:379px;\">\n";
 	print "<h3>&nbsp;</h3>\n";
 	print "<div class=\"contentA\">\n";
-	print "<div class=\"row\"><div class=\"left\">Adgangskode</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"kode1\" value=\"********\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">Gentag kode</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"kode2\" value=\"********\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	##################
+	$label_kode1   = findtekst('324|Adgangskode', $sprog_id);
+	$label_kode2   = findtekst('328|Gentag adgangskode', $sprog_id);
+
+	print <<<HTML
+	<div class="row">
+		<div class="left">$label_kode1</div>
+		<div class="right" style="position:relative;">
+			<input class="text textIndent" type="password" name="kode1" id="kode1" value="" style="">
+			<span id="eye1" onclick="togglePassword('kode1','eye1')" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); cursor:pointer;">
+				<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+					<circle cx="12" cy="12" r="3"/>
+				</svg>
+			</span>
+		</div>
+		<div class="clear"></div>
+	</div>
+	<div class="row">
+		<div class="left">$label_kode2</div>
+		<div class="right" style="position:relative;">
+			<input class="text textIndent" type="password" name="kode2" id="kode2" value="" style="">
+			<span id="eye2" onclick="togglePassword('kode2','eye2')" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); cursor:pointer;">
+				<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+					<circle cx="12" cy="12" r="3"/>
+				</svg>
+			</span>
+		</div>
+		<div class="clear"></div>
+	</div>
+
+	<script>
+	var eyeOpen = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+	var eyeClosed = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+	function togglePassword(inputId, eyeId) {
+		const input = document.getElementById(inputId);
+		const eye = document.getElementById(eyeId);
+
+		if (!input) return;
+
+		if (input.type === "password") {
+			input.type = "text";
+			eye.innerHTML = eyeClosed;
+		} else {
+			input.type = "password";
+			eye.innerHTML = eyeOpen;
+		}
+	}
+	</script>
+	HTML;
+	###############
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of left container -->\n";
 	
@@ -424,7 +475,7 @@ function ret_ansat($id) {
 	print "<input type=\"hidden\" name=\"id\" value='$id'>\n";
 	print "<div style=\"float:left; width:828px;\">";
 	print "<div class=\"contentA\" style=\"width:808px; text-align:center;\">\n";
-	print "<input type=\"submit\" accesskey=\"g\" class=\"button gray medium\" value=\"Gem / opdat&eacute;r\" name=\"submit\" onclick=\"javascript:docChange = false;\">\n";
+	print "<input type=\"submit\" accesskey=\"g\" class=\"button gray medium\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"submit\" onclick=\"javascript:docChange = false;\">\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of full container -->\n";
 	print "</form>\n";
@@ -463,7 +514,7 @@ function brugergrupper($id) {
 				db_modify("update grupper set beskrivelse='".db_escape_string($beskrivelse[$x])."',box2='$rettigheder[$x]' where id='$gruppe_id[$x]'",__FILE__ . " linje " . __LINE__);
 			} else {
 				if ($r=db_fetch_array(db_select("select id from ansatte where gruppe = '$gruppe_id[$x]'",__FILE__ . " linje " . __LINE__))) {
-					print "<BODY onLoad=\"javascript:alert('Der er brugere tilknyttet denne gruppe - kan ikke slettes!')\">";
+					print "<BODY onLoad=\"javascript:alert('".findtekst('3081|Der er brugere tilknyttet denne gruppe - kan ikke slettes', $sprog_id)."!')\">";
 				} else {
 					db_modify("delete from grupper where id = '$gruppe_id[$x]'",__FILE__ . " linje " . __LINE__);
 				}
@@ -492,28 +543,28 @@ function brugergrupper($id) {
 	print "<form name=\"brugergrupper\" action=\"ansatte.php?funktion=brugergrupper\" method=post>\n";
 	
 	print "<div style=\"float:left; width:828px;\">\n";
-	print "<h3>Brugergrupper</h3>\n";
+	print "<h3>".findtekst('2968|Brugergrupper', $sprog_id)."</h3>\n";
 	
 	for  ($x=0;$x<count($gruppe_id);$x++) {
 	print "<div style=\"float:left; width:414px;\">\n";
 	print "<div class=\"contentA\">\n";
-		print "<div class=\"row\"><div class=\"leftLarge\">Gruppenavn</div><div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge textIndent\" name=\"beskrivelse[$x]\" value=\"$beskrivelse[$x]\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+		print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('3082|Gruppenavn', $sprog_id)."</div><div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge textIndent\" name=\"beskrivelse[$x]\" value=\"$beskrivelse[$x]\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 		(substr($rettigheder[$x],0,1))?$checked="checked='checked'":$checked=NULL;
-		print "<div class=\"row\"><div class=\"leftLarge\">Login</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"login[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+		print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('3079|Login', $sprog_id)."</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"login[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 		(substr($rettigheder[$x],1,1))?$checked="checked='checked'":$checked=NULL;
-		print "<div class=\"row\"><div class=\"leftLarge\">Opret/ret brugergrupper</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_grp[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+		print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('3083|Opret/ret', $sprog_id)." ".lcfirst(findtekst('2968|Brugergrupper', $sprog_id))."</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_grp[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n"; #Opret/ret brugergrupper
 		(substr($rettigheder[$x],2,1))?$checked="checked='checked'":$checked=NULL;
-		print "<div class=\"row\"><div class=\"leftLarge\">Opret/ret sag</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_sag[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+		print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('3083|Opret/ret', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_sag[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n"; #Opret/ret sag
 		(substr($rettigheder[$x],3,1))?$checked="checked='checked'":$checked=NULL;
-		print "<div class=\"row\"><div class=\"leftLarge\">Opret/ret ansat</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_ansat[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+		print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('3083|Opret/ret', $sprog_id)." ".lcfirst(findtekst('589|Ansat', $sprog_id))."</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_ansat[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n"; #Opret/ret ansat
 		(substr($rettigheder[$x],4,1))?$checked="checked='checked'":$checked=NULL;
-		print "<div class=\"row\"><div class=\"leftLarge\">Opret/ret kunde</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_kunde[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+		print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('3083|Opret/ret', $sprog_id)." ".lcfirst(findtekst('35|Kunde', $sprog_id))."</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_kunde[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n"; #Opret/ret kunde
 		(substr($rettigheder[$x],5,1))?$checked="checked='checked'":$checked=NULL;
-		print "<div class=\"row\"><div class=\"leftLarge\">Opret/ret notat</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_notat[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+		print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('3083|Opret/ret', $sprog_id)." ".lcfirst(findtekst('2881|Notat', $sprog_id))."</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"opret_notat[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n"; #Opret/ret notat
 		(substr($rettigheder[$x],6,1))?$checked="checked='checked'":$checked=NULL;
-		print "<div class=\"row\"><div class=\"leftLarge\">Godkend akkordseddel</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"godk_akkord[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+		print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('555|Godkend', $sprog_id)." ".lcfirst(findtekst('3084|Akkordseddel', $sprog_id))."</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"godk_akkord[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n"; #Godkend akkordseddel
 		(substr($rettigheder[$x],7,1))?$checked="checked='checked'":$checked=NULL;
-		print "<div class=\"row\"><div class=\"leftLarge\">Regnskab</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"regnskab[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+		print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('2778|Regnskab', $sprog_id)."</div><div class=\"rightMediumLarge\"><input type=\"checkbox\" class=\"textSpace\" name=\"regnskab[$x]\" $checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 		print "<input type=\"hidden\" name=\"gruppe_id[$x]\" value='$gruppe_id[$x]'>";
 		print "</div><!-- end of contentA -->\n";
 		print "</div>\n";
@@ -525,14 +576,14 @@ function brugergrupper($id) {
 	print "<div style=\"float:left; width:828px;\">\n";
 	print "<div class=\"contentA\">\n";
 	print "<input type=hidden name=id value='$id'>";
-	print "<div class=\"row\"><div class=\"leftLarge\">Ny gruppe</div><div class=\"right\"><input type=\"text\" class=\"textMediumLarge textIndent\" name=\"ny_brugergruppe\" value=\"\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"leftLarge\">".findtekst('3085|Ny gruppe', $sprog_id)."</div><div class=\"right\"><input type=\"text\" class=\"textMediumLarge textIndent\" name=\"ny_brugergruppe\" value=\"\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of full container -->\n";
 	print "<div class=\"clear\"></div>\n";
 	print "<hr>\n";
 	print "<div style=\"float:left; width:828px;\">\n";
 	print "<div class=\"contentA\" style=\"text-align:center;\">\n";
-	print "<input type=submit accesskey=\"g\" value=\"Gem / opdat&eacute;r\" class=\"button gray medium\" name=\"submit\" onclick=\"javascript:docChange = false;\">";
+	print "<input type=submit accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" class=\"button gray medium\" name=\"submit\" onclick=\"javascript:docChange = false;\">";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of full container -->\n";
 	print "</form>\n";
@@ -667,8 +718,8 @@ function stamkort($id) {
 	print "<form name=\"stamkort\" action=\"ansatte.php?funktion=stamkort\" method=post>\n";
 	print "<div class=\"content\">";
 	print "<div class=\"contentBorder stamkort\">";
-	print "<table border=\"0\" cellspacing=\"0\" width=\"826\"><thead>";
-	Print "<tr><th width=\"225\">Feltnavn</th><th width=\"170\">Felttype</th><th width=\"225\">Feltnavn</th><th width=\"170\">Felttype</th></tr></thead>"; 
+	print "<table border=\"0\" cellspacing=\"0\" width=\"826\" style=\"font-size: 12px\"><thead>";
+	Print "<tr><th width=\"225\">".findtekst('3086|Feltnavn', $sprog_id)."</th><th width=\"170\">".findtekst('3087|Felttype', $sprog_id)."</th><th width=\"225\">".findtekst('3086|Feltnavn', $sprog_id)."</th><th width=\"170\">".findtekst('3087|Felttype', $sprog_id)."</th></tr></thead>"; 
 	print "<tbody>";
 	$i = 0;
 	for ($x=1;$x<=28;$x++) {
@@ -678,14 +729,14 @@ function stamkort($id) {
 			print "<tr>";
 			print "<td valign=\"top\"><input type=\"text\" class=\"textIndent\" name=\"feltnavn[$x]\" style=\"width:98%; padding:1px; \" value=\"".findtekst($tekstnr,$sprog_id)."\"></td>
 			<td valign=\"top\"><select name=\"felttype[$x]\" style=\"width:98%;\">";
-				if ($felttype[$x]=="text") print "<option value=\"text\">Tekstlinje</option>"; 
-				if ($felttype[$x]=="select") print "<option value=\"select\">Valgfelt</option>"; 
-				if ($felttype[$x]=="checkbox") print "<option value=\"checkbox\">Afmærkningsfelt</option>"; 
-				if ($felttype[$x]=="textarea") print "<option value=\"textarea\">Tekstfelt</option>"; 
-				if ($felttype[$x]!= "text") print "<option value=\"text\">Tekstlinje</option>";
-				if ($felttype[$x]!="select") print "<option value=\"select\">Valgfelt</option>";
-				if ($felttype[$x]!="checkbox") print "<option value=\"checkbox\">Afmærkningsfelt</option>";
-				if ($felttype[$x]!="textarea") print "<option value=\"textarea\">Tekstfelt</option>"; 
+				if ($felttype[$x]=="text") print "<option value=\"text\">".findtekst('3088|Tekstlinje', $sprog_id)."</option>"; 
+				if ($felttype[$x]=="select") print "<option value=\"select\">".findtekst('3089|Valgfelt', $sprog_id)."</option>"; 
+				if ($felttype[$x]=="checkbox") print "<option value=\"checkbox\">".findtekst('3090|Afmærkningsfelt', $sprog_id)."</option>"; 
+				if ($felttype[$x]=="textarea") print "<option value=\"textarea\">".findtekst('3091|Tekstfelt', $sprog_id)."</option>"; 
+				if ($felttype[$x]!= "text") print "<option value=\"text\">".findtekst('3088|Tekstlinje', $sprog_id)."</option>";
+				if ($felttype[$x]!="select") print "<option value=\"select\">".findtekst('3089|Valgfelt', $sprog_id)."</option>";
+				if ($felttype[$x]!="checkbox") print "<option value=\"checkbox\">".findtekst('3090|Afmærkningsfelt', $sprog_id)."</option>";
+				if ($felttype[$x]!="textarea") print "<option value=\"textarea\">".findtekst('3091|Tekstfelt', $sprog_id)."</option>"; 
 			print "</select>";
 			print "</td><td colspan=\"2\"></td></tr>\n";
 		} else {
@@ -693,14 +744,14 @@ function stamkort($id) {
 			print "<tr>";
 			print "<td valign=\"top\"><input type=\"text\" class=\"textIndent\" name=\"feltnavn[$x]\" style=\"width:98%; padding:1px; \" value=\"".findtekst($tekstnr,$sprog_id)."\"></td>
 			<td valign=\"top\"><select name=\"felttype[$x]\" style=\"width:98%;\">";
-				if ($felttype[$x]=="text") print "<option value=\"text\">Tekstlinje</option>"; 
-				if ($felttype[$x]=="select") print "<option value=\"select\">Valgfelt</option>"; 
-				if ($felttype[$x]=="checkbox") print "<option value=\"checkbox\">Afmærkningsfelt</option>"; 
-				if ($felttype[$x]=="textarea") print "<option value=\"textarea\">Tekstfelt</option>"; 
-				if ($felttype[$x]!= "text") print "<option value=\"text\">Tekstlinje</option>";
-				if ($felttype[$x]!="select") print "<option value=\"select\">Valgfelt</option>";
-				if ($felttype[$x]!="checkbox") print "<option value=\"checkbox\">Afmærkningsfelt</option>";
-				if ($felttype[$x]!="textarea") print "<option value=\"textarea\">Tekstfelt</option>"; 
+				if ($felttype[$x]=="text") print "<option value=\"text\">".findtekst('3088|Tekstlinje', $sprog_id)."</option>"; 
+				if ($felttype[$x]=="select") print "<option value=\"select\">".findtekst('3089|Valgfelt', $sprog_id)."</option>"; 
+				if ($felttype[$x]=="checkbox") print "<option value=\"checkbox\">".findtekst('3090|Afmærkningsfelt', $sprog_id)."</option>"; 
+				if ($felttype[$x]=="textarea") print "<option value=\"textarea\">".findtekst('3091|Tekstfelt', $sprog_id)."</option>"; 
+				if ($felttype[$x]!= "text") print "<option value=\"text\">".findtekst('3088|Tekstlinje', $sprog_id)."</option>";
+				if ($felttype[$x]!="select") print "<option value=\"select\">".findtekst('3089|Valgfelt', $sprog_id)."</option>";
+				if ($felttype[$x]!="checkbox") print "<option value=\"checkbox\">".findtekst('3090|Afmærkningsfelt', $sprog_id)."</option>";
+				if ($felttype[$x]!="textarea") print "<option value=\"textarea\">".findtekst('3091|Tekstfelt', $sprog_id)."</option>"; 
 			print "</select>";
 			if ($felttype[$x]=="select") {
 				print "<div class=\"valg-box\">";
@@ -725,11 +776,10 @@ function stamkort($id) {
 	print "<input type=hidden name=\"gruppe_id_1\" value='$gruppe_id_1'>";
 	print "<input type=hidden name=id value='$id'></td></tr>";
 	//print "<tr><td colspan=\"4\" align = \"center\"><hr></td></tr>
-	print "<tr><td colspan=\"4\" align = \"center\"><input type=submit accesskey=\"g\" value=\"Gem / opdat&eacute;r\" class=\"button gray medium\" name=\"submit\" onclick=\"javascript:docChange = false;\">
+	print "<tr><td colspan=\"4\" align = \"center\"><input type=submit accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" class=\"button gray medium\" name=\"submit\" onclick=\"javascript:docChange = false;\">
 		</td></tr></tbody></table>";
 	print "</div><!-- end of content -->";
 	print "	</form>";
 }
 
 ?>
-

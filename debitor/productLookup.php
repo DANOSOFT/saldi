@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/productLookup.php --- patch 4.1.1 --- 2025-01-XX ---
-// Product lookup page using grid system for order entry
+// --- debitor/productLookup.php --- patch 4.1.1 --- 2026-03-09 ---
+// Product lookup page using grid system for order entry 
 // Based on vareliste.php grid implementation
 
 @session_start();
@@ -31,13 +31,23 @@ $find = if_isset($_GET, NULL, 'find');
 $bordnr = if_isset($_GET, NULL, 'bordnr');
 $afd_lager = if_isset($_GET, NULL, 'lager');
 
+// Get VAT settings from settings table
+$vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
+$vatBusinessCustomers = get_settings_value("vatBusinessCustomers", "ordre", "");
+
+// Preserve scaffolding context when redirecting back to ordre.php so the page keeps
+// rendering with scaffolding styling (sag_id) instead of falling back to finance design.
+$sag_id = if_isset($_GET, NULL, 'sag_id');
+$sag_id_param = ($sag_id) ? "&sag_id=" . urlencode($sag_id) : "";
+
 // Handle product selection - redirect back to order
 if (isset($_GET['vare_id'])) {
     $vare_id = $_GET['vare_id'];
     $href = ($art == 'PO') ? "pos_ordre.php" : "ordre.php";
     $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
     $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
-    $url = "$href?id=$id&vare_id=$vare_id&fokus=$fokus$bordnr_param$lager_param";
+    $vsc_param = (isset($_GET['vsc']) && $_GET['vsc']) ? "&vsc=" . urlencode($_GET['vsc']) : "";
+    $url = "$href?id=$id&vare_id=$vare_id&fokus=$fokus$bordnr_param$lager_param$vsc_param$sag_id_param";
     header("Location: $url");
     exit;
 }
@@ -46,7 +56,7 @@ if (isset($_GET['vare_id'])) {
 if (isset($_GET['insertItems']) && isset($_GET['vare_id']) && isset($_GET['antal'])) {
     $href = ($art == 'PO') ? "pos_ordre.php" : "ordre.php";
     $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
-    $url = "$href?id=$id&fokus=$fokus$bordnr_param";
+    $url = "$href?id=$id&fokus=$fokus$bordnr_param$sag_id_param";
     // Add items as query parameters
     $vare_ids = is_array($_GET['vare_id']) ? $_GET['vare_id'] : array($_GET['vare_id']);
     $antals = is_array($_GET['antal']) ? $_GET['antal'] : array($_GET['antal']);
@@ -58,6 +68,9 @@ if (isset($_GET['insertItems']) && isset($_GET['vare_id']) && isset($_GET['antal
     header("Location: $url");
     exit;
 }
+
+// Clear old grid state
+db_modify("DELETE FROM datatables WHERE tabel_id='productLookup$id' AND user_id='$bruger_id'", __FILE__ . " linje " . __LINE__);
 
 // Set default values
 if (!$sort) {
@@ -82,6 +95,23 @@ if (!$fokus) {
 
 if (!$ref) {
     $ref = $brugernavn;
+}
+
+// Load order/customer VAT context if possible
+$kontotype = NULL;
+if ($id) {
+    $order_qtxt = "SELECT o.art, o.ref, o.momssats, a.kontotype
+                   FROM ordrer o
+                   LEFT JOIN adresser a ON a.id = o.konto_id
+                   WHERE o.id = '$id'";
+    if ($r = db_fetch_array(db_select($order_qtxt, __FILE__ . " linje " . __LINE__))) {
+        if (!$art) $art = $r['art'];
+        if (!$ref) $ref = $r['ref'];
+        if (!isset($momssats) || $momssats === '' || $momssats === NULL) {
+            $momssats = $r['momssats'];
+        }
+        $kontotype = $r['kontotype'];
+    }
 }
 
 // Get department and warehouse info
@@ -120,6 +150,25 @@ if ($art == 'PO' && !strpos($_SERVER['PHP_SELF'], 'pos_ordre')) {
     $art = 'DO';
 }
 
+// Set VAT behavior and rate for lookup display
+if ($art == 'PO') {
+    $incl_moms = 'on';
+} else {
+    if ($kontotype == 'erhverv') {
+        $incl_moms = $vatBusinessCustomers;
+    } else {
+        $incl_moms = $vatPrivateCustomers;
+    }
+}
+if (!isset($momssats) || $momssats === '' || $momssats === NULL) {
+    if ($id) {
+        $momssats = find_momssats($id, NULL);
+    }
+}
+if ($momssats === '' || $momssats === NULL) {
+    $momssats = 25; // Fallback VAT rate
+}
+
 // Determine href for return links
 if ($art == 'DO' || $art == 'DK') {
     $href = "ordre.php";
@@ -152,14 +201,6 @@ while ($r = db_fetch_array($q)) {
     $x++;
 }
 
-// Initialize variables
-if (!isset($incl_moms)) {
-    $incl_moms = ($art == 'PO') ? 'on' : '';
-}
-if (!isset($momssats)) {
-    $momssats = 25; // Default VAT rate, should be fetched from settings
-}
-
 // Get warehouses - use GROUP BY to ensure unique warehouse numbers
 $lg_nr = array();
 $lg_navn = array();
@@ -183,14 +224,16 @@ $columns = array();
 $columns[] = array(
     "field" => "varenr",
     "headerName" => "Varenr",
-    "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
+    "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager, $sag_id_param) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
         $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+        $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param$sag_id_param";
         $alias = htmlspecialchars($row['varenr_alias'] ? $row['varenr_alias'] : '', ENT_QUOTES, 'UTF-8');
         $stregkode = htmlspecialchars($row['stregkode'] ? $row['stregkode'] : '', ENT_QUOTES, 'UTF-8');
-        return "<td align='$column[align]' onclick=\"event.preventDefault(); window.location.href='$url'\" style='cursor:pointer'><a href='$url' onclick=\"event.stopPropagation();\">$value</a><span style='display:none;'>$alias $stregkode</span></td>";
+        $variant_label = $row['vv_variant_text'] ? " <small style='color:#666'>(" . htmlspecialchars($row['vv_variant_text'], ENT_QUOTES, 'UTF-8') . ")</small>" : "";
+        return "<td align='$column[align]' onclick=\"event.preventDefault(); window.location.href='$url'\" style='cursor:pointer'><a href='$url' onclick=\"event.stopPropagation();\">$value</a>$variant_label<span style='display:none;'>$alias $stregkode</span></td>";
     },
     "sqlOverride" => "v.varenr",
     "generateSearch" => function ($column, $term) {
@@ -200,24 +243,24 @@ $columns[] = array(
         foreach ($words as $word) {
             if (!empty($word)) {
                 $word = db_escape_string($word);
-                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%')";
+                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%' or lower(vv.variant_stregkode) like '%$word%' or lower(vv.variant_type) like '%$word%' or lower(vv.variant_text) like '%$word%')";
             }
         }
         return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
     },
 );
-
 // Enhed column
 $columns[] = array(
     "field" => "enhed",
     "headerName" => "Enhed",
     "width" => "0.5",
     "sqlOverride" => "v.enhed",
-    "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
+    "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager, $sag_id_param) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
         $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+        $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param$sag_id_param";
         return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
     },
 );
@@ -228,12 +271,14 @@ $columns[] = array(
     "headerName" => "Beskrivelse",
     "width" => "3",
     "sqlOverride" => "v.beskrivelse",
-    "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
+    "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager, $sag_id_param) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
         $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
-        return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
+        $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param$sag_id_param";
+        $variant_label = $row['vv_variant_text'] ? " <small style='color:#666'>(" . htmlspecialchars($row['vv_variant_text'], ENT_QUOTES, 'UTF-8') . ")</small>" : "";
+        return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value$variant_label</td>";
     },
     "generateSearch" => function ($column, $term) {
         $term = db_escape_string($term);
@@ -242,7 +287,7 @@ $columns[] = array(
         foreach ($words as $word) {
             if (!empty($word)) {
                 $word = db_escape_string($word);
-                $conditions[] = "(lower(v.beskrivelse) like '%$word%' or lower(v.trademark) like '%$word%')";
+                $conditions[] = "(lower(v.beskrivelse) like '%$word%' or lower(v.trademark) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(vv.variant_stregkode) like '%$word%' or lower(vv.variant_text) like '%$word%')";
             }
         }
         return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";
@@ -256,16 +301,21 @@ $columns[] = array(
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
-    "sqlOverride" => "v.salgspris",
-    "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager, $incl_moms, $momssats, $momsfri) {
+    "sqlOverride" => "COALESCE(vv.variant_salgspris, v.salgspris)",
+    "valueGetter" => function ($value, $row, $column) {
+        return $value;
+    },
+    "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager, $incl_moms, $momssats, $momsfri, $sag_id_param) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
         $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+        $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+        $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param$sag_id_param";
+        $basePrice = is_numeric($value) ? (float) $value : (float) str_replace(',', '.', $value);
         if ($incl_moms && !in_array($row['gruppe'], $momsfri)) {
-            $salgspris = $value + $value * $momssats / 100;
+            $salgspris = $basePrice + $basePrice * $momssats / 100;
         } else {
-            $salgspris = $value;
+            $salgspris = $basePrice;
         }
         $formatted = dkdecimal($salgspris, 2);
         return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$formatted</td>";
@@ -294,11 +344,12 @@ if (count($lg_nr) > 1) {
             "searchable" => true,
             "decimalPrecision" => 2,
             "sqlOverride" => "COALESCE($alias_key.beholdning, 0)",
-            "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $lg_kodenr) {
+            "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $lg_kodenr, $sag_id_param) {
                 $lagerId = $column['lagerId'];
                 $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
                 $lager_param = "&lager=$lg_kodenr";
-                $url = "$href?id=$id&vare_id=$row[id]&fokus=$fokus$bordnr_param$lager_param";
+                $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+                $url = "$href?id=$id&vare_id=$row[id]&fokus=$fokus$bordnr_param$lager_param$vsc_param$sag_id_param";
                 if ($row["samlevare"] == "on") {
                     return "<td></td>";
                 }
@@ -341,11 +392,12 @@ if (count($lg_nr) > 1) {
         "searchable" => true,
         "decimalPrecision" => 2,
         "sqlOverride" => "COALESCE(v.beholdning, 0)",
-        "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
+        "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager, $sag_id_param) {
             $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
             $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
             $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-            $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+            $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+            $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param$sag_id_param";
             // Calculate reserved items
             $reserveret = 0;
             $vare_id = $row['id'];
@@ -388,11 +440,12 @@ if ($vis_kost == 'on') {
         "align" => "right",
         "width" => "0.5",
         "sqlOverride" => "(SELECT kostpris FROM vare_lev WHERE vare_id = v.id ORDER BY posnr LIMIT 1)",
-        "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
+        "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager, $sag_id_param) {
             $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
             $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
             $fokus_param = ($fokus) ? "&fokus=$fokus" : "";
-            $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
+            $vsc_param = ($row['vv_stregkode']) ? "&vsc=" . urlencode($row['vv_stregkode']) : "";
+            $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param$vsc_param$sag_id_param";
             $formatted = dkdecimal($value, 2);
             return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$formatted</td>";
         },
@@ -400,7 +453,7 @@ if ($vis_kost == 'on') {
 }
 
 // Build base query - grid system will add WHERE and SORT
-$query = "SELECT 
+$query = "SELECT
     v.id AS id,
     v.varenr AS varenr,
     v.varenr_alias AS varenr_alias,
@@ -408,13 +461,17 @@ $query = "SELECT
     v.enhed AS enhed,
     v.beskrivelse AS beskrivelse,
     v.trademark AS trademark,
-    v.salgspris AS salgspris,
+    COALESCE(vv.variant_salgspris, v.salgspris) AS salgspris,
     v.beholdning AS beholdning,
     v.gruppe AS gruppe,
     v.samlevare AS samlevare,
+    vv.id AS vv_id,
+    vv.variant_stregkode AS vv_stregkode,
+    vv.variant_text AS vv_variant_text,
     $SQLLagerFetch
     (SELECT kostpris FROM vare_lev WHERE vare_id = v.id ORDER BY posnr LIMIT 1) AS kostpris
 FROM varer v
+LEFT JOIN variant_varer vv ON vv.vare_id = v.id AND vv.variant_stregkode IS NOT NULL AND vv.variant_stregkode != ''
 $SQLLagerJoin
 WHERE v.lukket != '1' AND {{WHERE}}
 ORDER BY {{SORT}}";
@@ -444,6 +501,7 @@ print "<script type=\"text/javascript\">
             fokus: '$fokus',
             bordnr: '$bordnr',
             lager: '$afd_lager',
+            sag_id: '$sag_id',
             href: '$href'
         };
         
@@ -474,6 +532,7 @@ print "<script type=\"text/javascript\">
             if (orderContext.art) params.art = orderContext.art;
             if (orderContext.fokus) params.fokus = orderContext.fokus;
             if (orderContext.bordnr) params.bordnr = orderContext.bordnr;
+            if (orderContext.sag_id) params.sag_id = orderContext.sag_id;
             // Only set lager if it's not already in the URL (preserve warehouse-specific lager from clicked link)
             if (!params.lager && orderContext.lager) {
                 params.lager = orderContext.lager;
@@ -511,6 +570,7 @@ print "<script type=\"text/javascript\">
                         var url = orderContext.href + '?id=' + orderContext.id + '&vare_id=' + vare_id;
                         if (orderContext.fokus) url += '&fokus=' + orderContext.fokus;
                         if (orderContext.bordnr) url += '&bordnr=' + orderContext.bordnr;
+                        if (orderContext.sag_id) url += '&sag_id=' + encodeURIComponent(orderContext.sag_id);
                         // Use lager from onclick if present, otherwise use orderContext.lager
                         if (lagerMatch) {
                             url += '&lager=' + lagerMatch[1];
@@ -527,7 +587,9 @@ print "<script type=\"text/javascript\">
         // ESC key to return to order
         $('input[type=\"text\"],textarea,a[href]').keyup(function (e) {
             if (e.which === 27) {
-                window.location.href = orderContext.href + '?id=' + orderContext.id;
+                var returnUrl = orderContext.href + '?id=' + orderContext.id;
+                if (orderContext.sag_id) returnUrl += '&sag_id=' + encodeURIComponent(orderContext.sag_id);
+                window.location.href = returnUrl;
             }
         });
         
@@ -546,6 +608,9 @@ print "<script type=\"text/javascript\">
             if (orderContext.bordnr && !form.find('input[name=\"bordnr\"]').length) {
                 form.append('<input type=\"hidden\" name=\"bordnr\" value=\"' + orderContext.bordnr + '\">');
             }
+            if (orderContext.sag_id && !form.find('input[name=\"sag_id\"]').length) {
+                form.append('<input type=\"hidden\" name=\"sag_id\" value=\"' + orderContext.sag_id + '\">');
+            }
         }
         // Auto-search if 'find' parameter is present (e.g. from varenr non-exact-match redirect)
         var findParam = '" . addslashes($find) . "';
@@ -560,4 +625,3 @@ print "<script type=\"text/javascript\">
     });
 </script>";
 ?>
-

@@ -137,7 +137,7 @@ $qtxt = "select kodenr, box1 from grupper where art = 'VSPR' order by kodenr";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 
 $languages = array();
-$languages[0] = "Dansk (Default)"; # Add Danish as default
+$languages[0] = "Standard"; # Add Danish as default
 
 while ($r = db_fetch_array($q)) {
 	$languages[$r['kodenr']] = $r['box1'];
@@ -163,11 +163,11 @@ while ($r = db_fetch_array($q)) {
 
 print "<form method='post'>";
 print "<table width='100%' border='0' cellpadding='2' cellspacing='0'>";
-print "<tr><td colspan='3'><h2>Sprogspecifikke Afsender Email Indstillinger</h2></td></tr>";
-print "<tr><td colspan='3'><p>Konfigurer afsender email adresse og navn for hvert sprog. Emails vil blive sendt fra disse adresser med de angivne navne baseret på det sprog der er valgt for formularen.</p></td></tr>";
+print "<tr><td colspan='3'><h2>Baggrunds-specifikke Afsender Email Indstillinger</h2></td></tr>";
+print "<tr><td colspan='3'><p>Konfigurer afsender email adresse og navn for hver baggrund. Emails vil blive sendt fra disse adresser med de angivne navne baseret på den baggrund, der er valgt for formularen.</p></td></tr>";
 
 print "<tr>";
-print "<td width='200'><strong>Sprog</strong></td>";
+print "<td width='200'><strong>Baggrund</strong></td>";
 print "<td width='300'><strong>Email Adresse</strong></td>";
 print "<td><strong>Afsender Navn</strong></td>";
 print "</tr>";

@@ -109,6 +109,7 @@ if (isset($_GET['returside'])) {
 	if ($popup) $returside = "../includes/luk.php";
 	else $returside = "historik.php";
 }
+$returside = nav_back_url($returside);
 
 ################################# Save post request ###################################
 function processContactForm($post) {

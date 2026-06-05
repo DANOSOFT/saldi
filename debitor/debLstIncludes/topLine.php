@@ -8,11 +8,7 @@ include("../includes/topline_settings.php");
 $border = 'border:1px';
 $TableBG = "bgcolor=$bgcolor";
 
-if (isset($_GET['returside'])) {
-	$backUrl = $_GET['returside'];
-} else {
-	$backUrl = '../index/menu.php';
-}
+$backUrl = nav_back_url(isset($_GET['returside']) ? $_GET['returside'] : null);
 
 if (!isset($jobkort)) { #LOE
 	if (isset($_GET['jobkort'])) {

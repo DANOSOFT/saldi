@@ -1,9 +1,9 @@
 
 (function () {
-    'use strict';
+    'use strict'; 
 
     const CONFIG = {
-        minSearchLength: 0,
+        minSearchLength: 0, 
         debounceDelay: 200,
         maxResults: 50
     };
@@ -19,6 +19,7 @@
     let selectionMade = false;
     let currentPage = 1;
     let currentSearchValue = '';
+    let focusViaKeyboardNav = false;
 
 
     function getDropdownContainer() {
@@ -83,6 +84,8 @@
             }
         });
 
+        initVatFieldSync();
+
         // const beloFields = document.querySelectorAll('input[name^="belo"]');
         // beloFields.forEach(function(input) {
         //     if (!input.autocompleteInitialized) {
@@ -104,6 +107,12 @@
         });
 
         document.addEventListener('keydown', function (e) {
+            // Track keyboard navigation that moves focus (Tab, Shift+Tab, Ctrl+Arrow)
+            // so the focus handler can suppress the dropdown opening
+            if (e.key === 'Tab' || (e.ctrlKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) {
+                focusViaKeyboardNav = true;
+            }
+
             if (activeDropdown) {
                 handleKeyboardNavigation(e);
             }
@@ -157,13 +166,10 @@
             if (item) {
                 e.preventDefault();
                 e.stopPropagation();
-                const kontonr = item.dataset.kontonr;
-                if (kontonr) {
-                    if (input.fieldType === 'faktura' || input.fieldType === 'amount') {
-                        selectInvoiceOrAmount(input, item);
-                    } else {
-                        selectAccount(input, kontonr);
-                    }
+                if (input.fieldType === 'faktura' || input.fieldType === 'amount') {
+                    selectInvoiceOrAmount(input, item);
+                } else if (item.dataset.kontonr) {
+                    selectAccount(input, item);
                 }
                 return;
             }
@@ -186,6 +192,11 @@
 
         input.addEventListener('focus', function (e) {
             if (selectionMade) {
+                return;
+            }
+            // Don't open dropdown when focus is gained via Tab, Shift+Tab, or Ctrl+Arrow navigation
+            if (focusViaKeyboardNav) {
+                focusViaKeyboardNav = false;
                 return;
             }
             // Show dropdown with current input value as search
@@ -241,7 +252,7 @@
                         if (this.fieldType === 'faktura' || this.fieldType === 'amount') {
                             selectInvoiceOrAmount(this, selected);
                         } else {
-                            selectAccount(this, selected.dataset.kontonr);
+                            selectAccount(this, selected);
                         }
                     }
                     break;
@@ -256,6 +267,150 @@
                     break;
             }
         });
+    }
+
+
+    function initVatFieldSync() {
+        bindVatFieldListeners('debe', 'd_ty', 'dvat', 'debet');
+        bindVatFieldListeners('kred', 'k_ty', 'kvat', 'kredit');
+    }
+
+    function bindVatFieldListeners(accountPrefix, typePrefix, vatPrefix, side) {
+        const accountFields = document.querySelectorAll('input[name^="' + accountPrefix + '"]');
+        accountFields.forEach(function (input) {
+            if (input.vatSyncInitialized) {
+                return;
+            }
+
+            const rowNum = getRowNumber(input.name);
+            input.addEventListener('change', function () {
+                updateVatFieldForRow(rowNum, side);
+            });
+            input.addEventListener('blur', function () {
+                updateVatFieldForRow(rowNum, side);
+            });
+            input.vatSyncInitialized = true;
+        });
+
+        const typeFields = document.querySelectorAll('input[name^="' + typePrefix + '"]');
+        typeFields.forEach(function (input) {
+            if (input.vatTypeSyncInitialized) {
+                return;
+            }
+
+            const rowNum = getRowNumber(input.name);
+            input.addEventListener('change', function () {
+                updateVatFieldForRow(rowNum, side);
+            });
+            input.vatTypeSyncInitialized = true;
+        });
+
+        const vatFields = document.querySelectorAll('input[name^="' + vatPrefix + '"]');
+        vatFields.forEach(function (input) {
+            if (!input.hasAttribute('readonly')) {
+                input.setAttribute('readonly', 'readonly');
+            }
+        });
+    }
+
+    function getRowNumber(fieldName) {
+        const match = fieldName ? fieldName.match(/\d+$/) : null;
+        return match ? match[0] : '';
+    }
+
+    function getVatBasePath() {
+        if (window.location.pathname.includes('/finans/')) {
+            return 'kassekladde_includes/accountSearch.php';
+        }
+        if (window.location.pathname.includes('/includes/')) {
+            return '../finans/kassekladde_includes/accountSearch.php';
+        }
+        return 'finans/kassekladde_includes/accountSearch.php';
+    }
+
+    function getVatField(rowNum, side) {
+        const prefix = side === 'debet' ? 'dvat' : 'kvat';
+        return document.querySelector('select[name="' + prefix + rowNum + '"], input[name="' + prefix + rowNum + '"]');
+    }
+
+    function setVatFieldValue(rowNum, side, value) {
+        const vatField = getVatField(rowNum, side);
+        if (!vatField) {
+            return;
+        }
+
+        const normalizedValue = (value || '').toString().trim();
+
+        if (vatField.tagName === 'SELECT') {
+            // Try exact match first, then case-insensitive
+            let matched = '';
+            for (var i = 0; i < vatField.options.length; i++) {
+                if (vatField.options[i].value === normalizedValue) {
+                    matched = vatField.options[i].value;
+                    break;
+                }
+                if (vatField.options[i].value.toUpperCase() === normalizedValue.toUpperCase()) {
+                    matched = vatField.options[i].value;
+                }
+            }
+            vatField.value = matched;
+            return;
+        }
+
+        vatField.value = normalizedValue;
+    }
+
+    function updateVatFieldForRow(rowNum, side, options) {
+        const accountPrefix = side === 'debet' ? 'debe' : 'kred';
+        const typePrefix = side === 'debet' ? 'd_ty' : 'k_ty';
+        const accountField = document.querySelector('input[name="' + accountPrefix + rowNum + '"]');
+        const typeField = document.querySelector('input[name="' + typePrefix + rowNum + '"]');
+        const vatField = getVatField(rowNum, side);
+
+        if (!accountField || !vatField) {
+            return Promise.resolve('');
+        }
+
+        const accountNo = accountField.value.trim();
+        const accountType = typeField ? typeField.value.toUpperCase().trim() : '';
+        const isFinanceAccount = !accountType || accountType === 'F';
+
+        if (!accountNo || !isFinanceAccount) {
+            setVatFieldValue(rowNum, side, '');
+            return Promise.resolve('');
+        }
+
+        if (options && Object.prototype.hasOwnProperty.call(options, 'vatCode')) {
+            setVatFieldValue(rowNum, side, options.vatCode);
+            return Promise.resolve(options.vatCode || '');
+        }
+
+        const lookupKey = side + ':' + accountNo;
+        vatField.dataset.lookupKey = lookupKey;
+
+        return fetch(getVatBasePath() + '?type=finance&exact=1&search=' + encodeURIComponent(accountNo))
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                const results = data.results || [];
+                const vatCode = results.length > 0 ? (results[0].moms || '') : '';
+
+                if (vatField.dataset.lookupKey === lookupKey) {
+                    setVatFieldValue(rowNum, side, vatCode);
+                }
+
+                return vatCode;
+            })
+            .catch(function () {
+                if (vatField.dataset.lookupKey === lookupKey) {
+                    setVatFieldValue(rowNum, side, '');
+                }
+                return '';
+            });
     }
 
 
@@ -414,12 +569,12 @@
     }
 
 
-    function performInvoiceSearch(input, searchValue, page) {
-        searchValue = searchValue.trim();
-        page = page || 1;
-        const dropdown = input.autocompleteDropdown;
-        const rowNum = input.rowNumber;
-
+   function performInvoiceSearch(input, searchValue, page) {
+    searchValue = searchValue.trim();
+    page = page || 1;
+    const dropdown = input.autocompleteDropdown;
+    const rowNum = input.rowNumber;
+   
         let accountNr = '';
         let accountType = '';
 
@@ -445,7 +600,7 @@
             }
         }
 
-        let basePath = '';
+       let basePath = '';
         if (window.location.pathname.includes('/finans/')) {
             basePath = 'kassekladde_includes/invoiceSearch.php';
         } else if (window.location.pathname.includes('/includes/')) {
@@ -454,10 +609,16 @@
             basePath = 'finans/kassekladde_includes/invoiceSearch.php';
         }
 
+        // Read belo field and convert from Danish format (4.999,00 → 4999.00)
+        const beloFieldForSearch = document.querySelector('input[name="belo' + rowNum + '"]');
+        const rawAmount = beloFieldForSearch ? beloFieldForSearch.value.trim() : '';
+        const currentAmount = rawAmount.replace(/\./g, '').replace(',', '.');
+       
         const url = basePath + '?search=' +
             encodeURIComponent(searchValue) +
             '&account=' + encodeURIComponent(accountNr) +
             '&accountType=' + encodeURIComponent(accountType) +
+            '&currentAmount=' + encodeURIComponent(currentAmount) +
             '&page=' + page;
 
         fetch(url)
@@ -631,10 +792,21 @@
             basePath = 'finans/kassekladde_includes/amountSearch.php';
         }
 
-        const url = basePath + '?search=' + encodeURIComponent(searchValue) +
+        // Read the current amount value from the belo field on the same row
+        const beloFieldForSearch = document.querySelector('input[name="belo' + rowNum + '"]');
+        // Danish format: 7.500,2 → remove thousands dot → replace decimal comma → 7500.2
+        const rawAmount = beloFieldForSearch ? beloFieldForSearch.value.trim() : '';
+        const currentAmount = rawAmount.replace(/\./g, '').replace(',', '.'); 
+      
+
+        const url = basePath + '?search=' +
+            encodeURIComponent(searchValue) +
             '&account=' + encodeURIComponent(accountNr) +
             '&accountType=' + encodeURIComponent(accountType) +
-            '&invoice=' + encodeURIComponent(invoiceNr);
+            '&currentAmount=' + encodeURIComponent(currentAmount) +
+            '&page=' + page;
+
+
 
         fetch(url)
             .then(function (response) {
@@ -733,9 +905,7 @@
 
         dropdown.innerHTML = html;
         positionDropdown(input, dropdown);
-        dropdown.style.display = 'flex';
-        activeDropdown = dropdown;
-        activeInput = input;
+        showDropdown(input, dropdown);
 
         // Keep focus on the original input field
         input.focus();
@@ -758,9 +928,7 @@
                     '</div>' +
                     '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 positionDropdown(input, dropdown);
-                dropdown.style.display = 'flex';
-                activeDropdown = dropdown;
-                activeInput = input;
+                showDropdown(input, dropdown);
                 // Keep focus on the original input field
                 input.focus();
                 return;
@@ -807,7 +975,11 @@
                     '<td colspan="5"><strong>' + escapeHtml(item.beskrivelse) + '</strong></td>' +
                     '</tr>';
             } else {
-                html += '<tr class="account-autocomplete-item" data-kontonr="' + escapeHtml(item.kontonr) + '" data-index="' + itemIndex + '">';
+                html += '<tr class="account-autocomplete-item" data-kontonr="' + escapeHtml(item.kontonr) + '" data-index="' + itemIndex + '"';
+                if (searchType === 'finance') {
+                    html += ' data-moms="' + escapeHtml(item.moms || '') + '"';
+                }
+                html += '>';
 
                 if (searchType === 'finance') {
                     html += '<td>' + escapeHtml(item.kontonr) + '</td>' +
@@ -850,9 +1022,7 @@
 
         positionDropdown(input, dropdown);
 
-        dropdown.style.display = 'flex';
-        activeDropdown = dropdown;
-        activeInput = input;
+        showDropdown(input, dropdown);
 
         // Keep focus on the original input field
         input.focus();
@@ -872,11 +1042,9 @@
                     '<span class="account-autocomplete-header-title">' + trans.openItems + '</span>' +
                     '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
                     '</div>' +
-                    '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+                        '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 positionDropdown(input, dropdown);
-                dropdown.style.display = 'flex';
-                activeDropdown = dropdown;
-                activeInput = input;
+                showDropdown(input, dropdown);
                 // Keep focus on the original input field
                 input.focus();
                 return;
@@ -907,11 +1075,22 @@
 
         html += '<tbody>';
 
-        let itemIndex = 0;
-        results.forEach(function (item) {
-            const description = (item.firmanavn || '') + (item.faktnr ? ' - ' + item.faktnr : '');
+        // Sort: amount-matching rows first, then the rest
+        const sortedResults = results.slice().sort(function (a, b) {
+            if (a.amountMatch && !b.amountMatch) return -1;
+            if (!a.amountMatch && b.amountMatch) return 1;
+            return 0;
+        });
 
-            html += '<tr class="account-autocomplete-item"' +
+
+
+        let itemIndex = 0;
+        sortedResults.forEach(function (item) {
+            const description = (item.firmanavn || '') + (item.faktnr ? ' - ' + item.faktnr : '');
+            const matchStyle = item.amountMatch ? ' style="background-color: #fff9c4 !important; font-weight: bold;"' : '';
+            const matchClass = item.amountMatch ? ' account-autocomplete-item--amount-match' : '';
+
+            html += '<tr class="account-autocomplete-item' + matchClass + '"' + matchStyle +
                 ' data-kontonr="' + escapeHtml(item.faktnr) + '"' +
                 ' data-faktnr="' + escapeHtml(item.faktnr) + '"' +
                 ' data-amount="' + item.amount + '"' +
@@ -958,9 +1137,7 @@
 
         positionDropdown(input, dropdown);
 
-        dropdown.style.display = 'flex';
-        activeDropdown = dropdown;
-        activeInput = input;
+        showDropdown(input, dropdown);
 
         // Keep focus on the original input field
         input.focus();
@@ -982,9 +1159,7 @@
                 '</div>' +
                 '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
             positionDropdown(input, dropdown);
-            dropdown.style.display = 'flex';
-            activeDropdown = dropdown;
-            activeInput = input;
+            showDropdown(input, dropdown);
             // Keep focus on the original input field
             input.focus();
             return;
@@ -1043,27 +1218,36 @@
 
         positionDropdown(input, dropdown);
 
-        dropdown.style.display = 'flex';
-        activeDropdown = dropdown;
-        activeInput = input;
+        showDropdown(input, dropdown);
 
         // Keep focus on the original input field
         input.focus();
     }
 
 
-    function selectAccount(input, kontonr) {
+    function selectAccount(input, selection) {
         clearTimeout(debounceTimer);
 
         selectionMade = true;
 
         closeDropdown();
 
+        const selectedItem = selection && selection.dataset ? selection : null;
+        const kontonr = selectedItem ? (selectedItem.dataset.kontonr || '') : selection;
+        const rowNum = input.rowNumber || getRowNumber(input.name);
+        const vatOptions = selectedItem && Object.prototype.hasOwnProperty.call(selectedItem.dataset, 'moms')
+            ? { vatCode: selectedItem.dataset.moms || '' }
+            : undefined;
+
         input.value = kontonr;
 
         // Dispatch both input and change events to ensure all handlers are triggered
         input.dispatchEvent(new Event('input', { bubbles: true }));
         input.dispatchEvent(new Event('change', { bubbles: true }));
+
+        if (input.fieldType === 'debet' || input.fieldType === 'kredit') {
+            updateVatFieldForRow(rowNum, input.fieldType, vatOptions);
+        }
 
         // Ensure docChange is set (for unsaved changes warning)
         if (typeof window.docChange !== 'undefined') {
@@ -1076,17 +1260,22 @@
             console.error('Input is not connected to form!', input.name);
         }
 
-        const form = input.form;
-        if (form) {
-            const inputs = Array.from(form.querySelectorAll('input, select, textarea'));
-            const currentIndex = inputs.indexOf(input);
-            if (currentIndex > -1 && currentIndex < inputs.length - 1) {
-                inputs[currentIndex + 1].focus();
-            }
+        let nextInput = null;
+        // If input.form is null use document
+        const scope = input.form || document;
+        const inputs = Array.from(scope.querySelectorAll('input, select, textarea'));
+        const currentIndex = inputs.indexOf(input);
+        if (currentIndex > -1 && currentIndex < inputs.length - 1) {
+            nextInput = inputs[currentIndex + 1];
+            nextInput.focus();
         }
 
         setTimeout(function () {
             selectionMade = false;
+            // Open autocomplete on the next field now that selectionMade is cleared
+            if (nextInput && nextInput.autocompleteInitialized && document.activeElement === nextInput) {
+                handleInputWithValue(nextInput, nextInput.value);
+            }
         }, 100);
     }
 
@@ -1106,11 +1295,6 @@
             window.docChange = true;
         }
 
-        // Debug logging
-        console.log('setFieldValue:', field.name, '=', value, 'form:', field.form ? field.form.id : 'no form');
-        if (!field.form) {
-            console.error('Field is not connected to form!', field.name);
-        }
     }
 
     function selectInvoiceOrAmount(input, item) {
@@ -1131,11 +1315,6 @@
         const currency = item.dataset.currency || '';
         const offsetAccount = item.dataset.offsetaccount || '';
 
-
-        console.log('selectInvoiceOrAmount:', {
-            faktnr, amount, accountNr, accountType, description, currency, offsetAccount,
-            rowNum, fieldType: input.fieldType
-        });
 
         const faktField = document.querySelector('input[name="fakt' + rowNum + '"]');
         const beloField = document.querySelector('input[name="belo' + rowNum + '"]');
@@ -1178,9 +1357,6 @@
 
         const existingDebet = debeField ? debeField.value.trim() : '';
         const existingKredit = kredField ? kredField.value.trim() : '';
-        const existingDType = dTypeField ? dTypeField.value.trim() : '';
-        const existingKType = kTypeField ? kTypeField.value.trim() : '';
-
         if (accountNr && accountType) {
             if (amountValue < 0) {
                 // Negative amount (e.g., credit note or payment received):
@@ -1211,18 +1387,10 @@
             }
         }
 
-        // Debug logging after filling
-        console.log('After fill:', {
-            amountValue,
-            branch: amountValue < 0 ? 'negative' : 'positive',
-            dTypeField: dTypeField ? dTypeField.value : 'null',
-            debeField: debeField ? debeField.value : 'null',
-            kTypeField: kTypeField ? kTypeField.value : 'null',
-            kredField: kredField ? kredField.value : 'null',
-            existingDebet,
-            existingKredit,
-            offsetAccount
-        });
+        updateVatFieldForRow(rowNum, 'debet');
+        updateVatFieldForRow(rowNum, 'kredit');
+
+        
 
         // Ensure docChange is set
         if (typeof window.docChange !== 'undefined') {
@@ -1292,7 +1460,7 @@
                     if (activeInput.fieldType === 'faktura' || activeInput.fieldType === 'amount') {
                         selectInvoiceOrAmount(activeInput, selected);
                     } else {
-                        selectAccount(activeInput, selected.dataset.kontonr);
+                        selectAccount(activeInput, selected);
                     }
                 }
                 break;
@@ -1322,11 +1490,30 @@
 
 
     function closeDropdown() {
+        // Hide ALL visible dropdowns in the container to prevent orphaned modals
+        if (dropdownContainer) {
+            const allDropdowns = dropdownContainer.querySelectorAll('.account-autocomplete-dropdown');
+            allDropdowns.forEach(function (dd) {
+                dd.style.display = 'none';
+            });
+        }
         if (activeDropdown) {
             activeDropdown.style.display = 'none';
-            activeDropdown = null;
-            activeInput = null;
         }
+        activeDropdown = null;
+        activeInput = null;
+    }
+
+    /**
+     * Close any previous dropdown, then show the given dropdown for the given input.
+     * This prevents orphaned/duplicate modals.
+     */
+    function showDropdown(input, dropdown) {
+        // Close any previously open dropdown first
+        closeDropdown();
+        dropdown.style.display = 'flex';
+        activeDropdown = dropdown;
+        activeInput = input;
     }
 
 

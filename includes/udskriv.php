@@ -4,23 +4,21 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.1.1 --- 2026.02.19 ---
+// --- includes/udskriv.php --- lap 5.0.0 --- 2026.05.12 ---
 // LICENS
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
@@ -40,7 +38,9 @@
 // 20230522 PHR php8
 // 20260102 LOE Added alert to install pdftk if not already done.
 // 20260217 LOE Updated the $href for 'DO' type.
-
+// 20260320 PHR cleanup (pdftk)
+// 20260428 LOE added more options for 'DO' type and updated faktura navigation for pick list.
+// 20260512 LOE Updated the code to allow printing multiple files no matter the state of 'Use HTML / CSS for form generation-SD-490'
 
 @session_start();
 $s_id=session_id();
@@ -71,16 +71,12 @@ $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
 $locat      = if_isset($_GET, NULL, 'locat');
-error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
+
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
 	
 	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
 	elseif (!$returside) $returside = '../debitor/ordreliste.php';
-    $pdftk_check = shell_exec("which pdftk");
-		$pdftk_check = trim($pdftk_check);
-
-    // If pdftk is not installed, alert the user and redirect
-    if (!$pdftk_check) {
+    if (!$pdftk || !file_exists($pdftk)) {
         error_log("ERROR: pdftk is not installed. Please install pdftk first.");
         
         // Use JavaScript to alert and then redirect
@@ -199,7 +195,8 @@ if ($valg) {
 			}
 		}
 	} else { # Brug PostScript 
-		$ps_fil=str_replace("../temp/","",$ps_fil);
+		/*
+	    $ps_fil=str_replace("../temp/","",$ps_fil);
 		$ps_fil=str_replace("$db/$db","$db",$ps_fil);
 		if (file_exists("../temp/".$ps_fil."_*.pdf")) {
 			unlink("../temp/".$ps_fil."_*.pdf");
@@ -238,6 +235,65 @@ if ($valg) {
 			}
 			}
 		}
+		*/
+
+		########################
+
+		 $ps_fil=str_replace("../temp/","",$ps_fil);
+			$ps_fil=str_replace("$db/$db","$db",$ps_fil);
+			list($a,$b,$c)=explode("/",$ps_fil);
+
+			$indfil='';
+
+			// Convert single .ps file 
+			$psfil = "../temp/$a/$b/$c.ps";
+			$pdffil_p1 = "../temp/$a/$b/$c.pdf";
+			
+			if (file_exists($psfil) && filesize($psfil)) {
+				fwrite($log,__line__." system (\"$ps2pdf $psfil $pdffil_p1\")\n");
+				system ("$ps2pdf $psfil $pdffil_p1");
+				fwrite($log,__line__." ps2pdf done, pdf exists: ".(file_exists($pdffil_p1)?'YES':'NO')."\n");
+				$indfil = $pdffil_p1;
+			}
+
+			// find any extra pages in .htm files (_2.htm, _3.htm etc)
+			$htmfil = glob("../temp/$a/$b/".$c."_*.htm");
+			if ($htmfil) sort($htmfil);
+			
+			foreach ($htmfil as $hf) fwrite($log,__line__." htm file: $hf size:".filesize($hf)."\n");
+
+			$extra_pdfs = array();
+			foreach ($htmfil as $hf) {
+				if (filesize($hf)) {
+					$hpdf = str_replace(".htm", ".pdf", $hf);
+					system ("weasyprint -e UTF-8 $hf $hpdf");
+					$extra_pdfs[] = $hpdf;
+					$indfil .= " " . $hpdf;
+				}
+			}
+
+			// If we have multiple pages, merge them all with pdftk
+			if (!empty($extra_pdfs)) {
+				$udfil = "../temp/$a/$b/udskrift.pdf";
+				$ps_fil = "/$a/$b/udskrift";
+				system ("pdftk $indfil output $udfil", $pdftk_rc);
+				
+				// Cleanup intermediate files
+				if (file_exists($psfil)) unlink($psfil);
+				if (file_exists($pdffil_p1)) unlink($pdffil_p1);
+				foreach ($htmfil as $hf) {
+					if (file_exists($hf)) unlink($hf);
+				}
+				foreach ($extra_pdfs as $ep) {
+					if (file_exists($ep)) unlink($ep);
+				}
+			} else {
+				
+				$udfil = NULL;
+				fwrite($log,__line__." single page only, no merge needed\n");
+				if (file_exists($psfil)) unlink($psfil);
+			}
+		########################
 	}
 	
 	if ($zx) { # Brug PostScript 
@@ -278,12 +334,12 @@ if (file_exists("../temp/$ps_fil.pdf")) {
     elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
     elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
 			print "<!-- kommentar for at skjule uddata til siden \n";
-			$pdftk_bin = trim(shell_exec("which pdftk") ?? '');
-			error_log("DIAG: pdftk_bin=$pdftk_bin");
+			# $pdftk = trim(shell_exec("which pdftk") ?? '');
+			# error_log("DIAG: pdftk_bin=$pdftk");
 
-			if ($pdftk_bin && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+			if ($pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
 				$out = "../temp/" . $ps_fil . "x.pdf";
-				system("$pdftk_bin ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
+				system("$pdftk ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
 				error_log("DIAG: pdftk rc=$rc, out_exists=" . (file_exists($out) ? 'YES' : 'NO'));
 				if (file_exists($out)) {
 					unlink("../temp/$ps_fil.pdf");
@@ -335,7 +391,10 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			global $menu;
 
 			include("../includes/topline_settings.php");
-
+            ############
+			$path = "../temp/$db/area$bruger_id.txt";
+			$value = file_exists($path) ? file_get_contents($path) : null;
+			###########
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>"; 
 				if ($returside) {
@@ -344,7 +403,16 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				 }elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
 					$href = "../debitor/ordreliste.php";
 				 } else {
-					$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
+					if($art == 'DO'){
+						if($value == 'faktura'){
+							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=$returside";
+
+						}else{
+							$href = "../debitor/ordreliste.php";
+						}
+					}else{
+					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
+					}
 				 }  
 				} else { 
 					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";

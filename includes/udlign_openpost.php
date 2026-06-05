@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 
-// ----------includes/udlign_openpost.php-------patch 4.0.8 ----2023-07-12---
+// ----------includes/udlign_openpost.php-------patch 5.0.0 ----2026-04-24---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.06 Kontrol for aktivt regnskabsaar v. bogføring af ørediff Søg 20121106
@@ -43,7 +43,10 @@
 // 2016.04.26 PHR Indsat 'desc limit 1'. #20160426-2
 // 2016.04.26 PHR Rettet $diff til $tmp.  #20160426-3
 // 2016.10.28 PHR Rettet < til <=  da den gav posteringsdifference #20161028 
-
+// 2026.04.24 LOE Updated topline structure and added dynamic text with findtekst(). 
+// 2026.05.07 CL findMatch.php køres ikke længere automatisk ved sideload - tilføjet knap 'Find modposter'.
+// 2026.05.18 LOE Updated close link location for credit and debit if coming from debitorkort.php or rapport.php.
+ 
 @session_start();
 $s_id=session_id();
 
@@ -60,7 +63,6 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
-
 if (isset($_POST['submit'])) {
  	$submit=strtolower(trim($_POST['submit']));
 	$post_id=if_isset($_POST['post_id']);
@@ -73,6 +75,7 @@ if (isset($_POST['submit'])) {
 	$konto_til=$_POST['konto_til']; 
 	$retur=$_POST['retur'];
 	$returside=$_POST['returside'];
+	$layout=if_isset($_POST['layout']);
 	$diff=$_POST['diff'];
 	$dkkdiff=$_POST['dkkdiff'];
 	$maxdiff=$_POST['maxdiff'];
@@ -86,6 +89,7 @@ if (isset($_POST['submit'])) {
 	$valuta=$_POST['valuta'];
 	$omregningskurs=$_POST['omregningskurs'];
 	$belob=if_isset($_POST['belob']);
+	$id = $_POST['id'] ?? null; 
 	if ($belob) $ny_amount = usdecimal($belob);
 	else $ny_amount = 0;
 	$faktnr[0]=trim($faktnr[0]);
@@ -125,7 +129,10 @@ if (isset($_POST['submit'])) {
 	$konto_til=$_GET['konto_til']; 
 	$retur=$_GET['retur'];
 	$returside=$_GET['returside'];
+	$layout=if_isset($_GET['layout']);
 }
+
+$layoutParam = $layout ? "&layout=$layout" : '';
 
 $query = db_select("select * from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__); #$post_id[0] er den post som skal udlignes.
 if ($row = db_fetch_array($query)) {
@@ -261,27 +268,82 @@ $maxdiff=$r['box1']*1;
 $diffkto=$r['box2']*1;
 if (!$diffkto) $maxdiff=0;
 
-if (!isset($submit)) include ("../includes/alignOpenpostIncludes/findMatch.php");
+$findMatchTimeLimit = (isset($_POST['findmatch_timelimit']) && intval($_POST['findmatch_timelimit']) > 60) ? intval($_POST['findmatch_timelimit']) : 60;
+$findMatchTimeout = false;
+if (isset($submit) && $submit=='find modposter') include ("../includes/alignOpenpostIncludes/findMatch.php");
 
 if ($menu=='S') {
-print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
-print "<tr><td colspan=8 align=center>";
-print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+	#########
+    $tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
+	print "<tr><td colspan=8 align=center>";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+	$contains = false;
+	if (strpos($retur, 'debitorkort.php') !== false) {
+		$contains = true;
+	}
+	if (!isset($_POST['submit'])) {
+		$returside = $_GET['returside'] ?? '';
+	}
+	$decoded = urldecode($returside);
+	$parts = parse_url($decoded);
+	parse_str($parts['query'] ?? '', $queryParams); 
+	$id = $queryParams['id'] ?? null;
+	######
+	if($contains){
+			$post_id1=$_GET['post_id'] ?? null;
+			$post_id1 = $post_id1 ?? $post_id1 =$_POST['post_id'][0] ?? null;
+			$returside = $returside ?? $returside = $_POST['returside'] ?? null;
+			$id = $id ?? $id = $_POST['id'][0] ?? null;	
+		if($id ){
+			print "<td width=\"10%\">$color
+				<a href=\"javascript:confirmClose('../debitor/rapport.php?rapportart=kontokort&layout=grid&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+				<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+			print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		}else{
+			print "<td width=\"10%\">$color
+			<a href=\"javascript:confirmClose('../debitor/rapport.php?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+			print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+			
+		}
 
-print "<td width='10%' align=center>
-	   <a href=$retur?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok>
-	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
+	}else{
+		print "<td width=\"10%\">$color
+			<a href=\"javascript:confirmClose('$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam','$alerttekst')\" accesskey=L>
+			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+	}
+	print "<td width=\"75%\" align='center' style='$topStyle'>".findtekst(2189, $sprog_id)."</td>";
+	print "<td width=5% style=$buttonStyle>";
+	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print "</button></td>";
 
-print "<td width='80%' align='center' style='$topStyle'>Udlign åbne poster<br></td>";
+	print "<tr>";
+	print "</tbody></table></td></tr>";
 
-print "<td width='10%' align='center' style='$topStyle'><br></td>";
+	?>
+		<style>
+		/* Existing styles for buttons */
+		.headerbtn, .center-btn {
+			display: flex;
+			align-items: center;
+			text-decoration: none;
+			gap: 5px;
+		}
+		a:link{
+				text-decoration: none;
+			}
 
-print " </tr></tbody></table></td></tr>";
+		</style>
+	<?php
+
+
 } else {
 print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 print "<tr><td colspan=8 align=center>";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok>Luk</a></div></td>";
+print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=$retur?rapportart=accountChart&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok$layoutParam>Luk</a></div></td>";
 print "<td width=\"80%\" align=center><div class=\"top_bund\">Udlign &aring;bne poster<br></div></td>";
 print "<td width=\"10%\"><div class=\"top_bund\"><br></div></td>";
 print " </tr></tbody></table></td></tr>";
@@ -292,6 +354,13 @@ if (isset($submit) && $submit=='udlign') {
 	include ("../includes/alignOpenpostIncludes/doAlign.php");
 }
 print "<form name='alignOpenpost' action='../includes/udlign_openpost.php' method='post'>";
+if (isset($findMatchTimeout) && $findMatchTimeout) {
+	$nextLimit = $findMatchTimeLimit * 2;
+	print "<tr><td colspan=6 style='color:#900'><b>S&oslash;gning stoppede efter {$findMatchTimeLimit} sekunder - ingen modpost fundet automatisk.</b>&nbsp;";
+	print "<button type='button' onclick=\"document.getElementById('findmatch_timelimit').value={$nextLimit};document.getElementById('btn_findmodposter').click();\">Fors&oslash;g med {$nextLimit} sek.</button></td></tr>";
+} elseif (isset($findMatchNoResult) && $findMatchNoResult) {
+	print "<tr><td colspan=6 style='color:#900'><b>Ingen modpost fundet (s&oslash;gning gennemf&oslash;rt p&aring; {$findMatchElapsed} sek.).</b>&nbsp;Marker venligst posteringer manuelt.</td></tr>";
+}
 if ($diff==0 || abs($diff)<$maxdiff) print "<tr><td colspan=6>F&oslash;lgende poster vil blive udlignet:</td></tr>";
 else print "<tr><td colspan=6>S&aelig;t \"flueben\" ud for de posteringer der skal udligne f&oslash;lgende post:</td></tr>";
 print "<tr><td colspan=6><br></td>";
@@ -365,12 +434,26 @@ print "<input type = hidden name=konto_fra value=$konto_fra>";
 print "<input type = hidden name=konto_til value=$konto_til>";
 print "<input type = hidden name=retur value=$retur>";
 print "<input type = hidden name=returside value=$returside>";
+print "<input type = hidden name=layout value=$layout>";
+print "<input type='hidden' name='findmatch_timelimit' id='findmatch_timelimit' value='$findMatchTimeLimit'>";
 print "<input type = hidden name=diff value=$diff>";
 print "<input type = hidden name=dkkdiff value=$dkkdiff>";
 print "<input type = hidden name=maxdiff value=$maxdiff>";
 print "<input type = hidden name=diffkto value=$diffkto>";
 print "<input type = hidden name=valuta[0] value=$valuta[0]>";
 print "<input type = hidden name=basisvaluta value=$basisvaluta>";
+print "<input type = hidden name=post_id[0] value=$post_id[0]>";
+print "<input type = hidden name=id[0] value=$id[0]>";
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    ? "https://"
+    : "http://";
+$currentUrl = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+if(!$returside){
+parse_str(parse_url($currentUrl, PHP_URL_QUERY), $params);
+
+$returside = $params['returside'];
+}
+print "<input type = hidden name=returside value='$returside'>";
 print "<tr><td colspan=10 align=center>";
 
 $onclick='';
@@ -382,12 +465,12 @@ if ($diff != $dkkdiff && $bogfor!='OK' && $dkkdiff >= 0.005) {
 	print "<input type=\"hidden\" name=\"stop\" value=\"on\">";
 }
 
-if (abs($diff)<0.005) print "<span title=\"".findtekst(178,$sprog_id)."\"><input type=\"submit\"  $onclick style=\"width:100px\" value=\"Udlign\" name=\"submit\"></span>&nbsp;";
+if (abs($diff)<0.005) print "<span title=\"".findtekst(178,$sprog_id)."\"><input type=\"submit\"  $onclick style=\"width:150px\" value=\"Udlign\" name=\"submit\"></span>&nbsp;";
 elseif (abs($dkkdiff)<$maxdiff) {
-	print "<span title=\"".findtekst(179,$sprog_id)."\"><input type=\"submit\" $onclick style=\"width:100px\" value=\"Udlign\" name=\"submit\"></span>&nbsp;";
+	print "<span title=\"".findtekst(179,$sprog_id)."\"><input type=\"submit\" $onclick style=\"width:150px\" value=\"Udlign\" name=\"submit\"></span>&nbsp;";
 }
-print "<span title=\"".findtekst(180,$sprog_id)."\"><input type=\"submit\" style=\"width:100px\" value=\"Opdater\" name=\"submit\"></span>";
+print "<span title=\"".findtekst(180,$sprog_id)."\"><input type=\"submit\" style=\"width:150px\" value=\"Opdater\" name=\"submit\"></span>";
+print "&nbsp;<input type=\"submit\" id=\"btn_findmodposter\" style=\"width:150px\" value=\"Find modposter\" name=\"submit\">";
 print "</td></tr></form>\n";
 
 ?>
-

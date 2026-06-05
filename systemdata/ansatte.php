@@ -41,6 +41,7 @@ include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
  if ($_GET) {
 	$id = $_GET['id'];
@@ -51,7 +52,7 @@ include("../includes/std_func.php");
 if ($_POST) {
 	include("ansatte_save.php");
 }
-if ($menu=='T') {
+if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
@@ -66,6 +67,26 @@ if ($menu=='T') {
 	print "<div class=\"maincontentLargeHolder\">\n";
 	print "<div class='divSys'>";
 	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\"><tbody>"; # -> 1
+} elseif ($menu == 'S') {
+	$query = db_select("select firmanavn from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
+	$row = db_fetch_array($query);
+
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><!-- TABEL 1 -> --><tbody>";
+	print "<tr><td align='center' valign='top'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><!-- TABEL 1.1 -> --><tbody>";
+
+	print "<td width='10%'><a href=stamkort.php?returside=$returside&id=$konto_id&fokus=$fokus accesskey=L>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>"; #20210711
+
+	print "<td width='80%' style='$topStyle' align='center'>$row[firmanavn] - ".findtekst('1262|Ansatte', $sprog_id)."</td>";
+
+	print "<td width='10%'><a href=ansatte.php?returside=$returside&fokus=$fokus&konto_id=$konto_id accesskey=N>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a><br></td>";
+
+	print "</tbody></table><!-- <- TABEL1.1 -->";
+	print "</td></tr>";
+	print "<td align=center valign=center>";
+	print "<table cellpadding='1' cellspacing='1' border='0'><!-- TABEL 1.2 -> --><tbody>";
 } else {
 	$query = db_select("select firmanavn from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);

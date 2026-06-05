@@ -1,7 +1,7 @@
 <?php
 	include(get_relative()."/includes/oldDesign/header.php");
 	include(get_relative()."/includes/topline_settings.php");
-	$returside = if_isset($returside, get_relative()."index/menu.php");
+	$returside = nav_back_url(if_isset($returside, null));
 
 	$border = 'border:1px';
 	$TableBG = "bgcolor=$bgcolor";

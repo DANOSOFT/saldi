@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- ver 4.1.1 -- 2025.05.03 ---
+// --- finans/rapport_includes/forside.php --- ver 4.1.1 -- 2026.03.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20190820 PHR Option 'medtag lagerbevægelser' removed if stock is locked in actual year.
@@ -44,6 +44,7 @@
 // 20250516 Sulayman updated the drowdown konto_fra and konto_til to show according to the selected konto_fra and konto_til.
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20251206 LOE Unified topline without back button for reports moved to includes/S_topLine.php
+
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
 	global $bruger_id,$brugernavn;
@@ -56,7 +57,9 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	global $top_bund;
 	global $buttonColor;
 	global $buttonTxtColor;
-	
+
+	$ktoNameFrom = $ktoNameTo = "";
+
     $backUrl = isset($_GET['returside'])
     ? $_GET['returside']
     : 'javascript:window.history.go(-2);';
@@ -291,6 +294,11 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "regnskabbasis")
 		print "<option title='" . findtekst(2327, $sprog_id) . "' value='regnskabbasis'>" . findtekst(2326, $sprog_id) . "</option>\n";
+	$packagingModuleEnabled_local = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+	$emb_opt_label = ($sprog_id == 2) ? 'Packaging' : 'Emballage';
+	$emb_opt_title = ($sprog_id == 2) ? 'Packaging tax report (extended producer responsibility)' : 'Emballagerapport (producentansvar)';
+	if ($packagingModuleEnabled_local && $rapportart == "emballage")
+		print "<option title='$emb_opt_title' value='emballage'>$emb_opt_label</option>\n";
 	#	elseif ($rapportart=="momskontrol") print "<option title='".findtekst(514,$sprog_id)."' value='momskontrol'>momskontrol</option>\n";
 	listeangivelser($regnaar, $rapportart, "matcher");
 	if ($rapportart != "kontokort")
@@ -313,6 +321,8 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	if ($rapportart != "regnskabbasis")
 		print "<option title='" . findtekst(2327, $sprog_id) . "' value='regnskabbasis'>" . findtekst(2326, $sprog_id) . "</option>\n";
+	if ($packagingModuleEnabled_local && $rapportart != "emballage")
+		print "<option title='$emb_opt_title' value='emballage'>$emb_opt_label</option>\n";
 	#	if ($rapportart!="momskontrol") print "<option title='".findtekst(514,$sprog_id)."' value='momskontrol'>momskontrol</option>\n";
 	listeangivelser($regnaar, $rapportart, "alle andre");
 

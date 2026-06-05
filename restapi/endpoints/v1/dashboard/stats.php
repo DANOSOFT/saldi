@@ -22,33 +22,10 @@ class DashboardStatsEndpoint extends BaseEndpoint
         parent::__construct();
     }
     
-    protected function checkAuthorization()
-    {
-        $payload = JWTAuth::validateToken();
-        
-        if (!$payload) {
-            $this->sendResponse(false, null, 'Invalid or expired token', 401);
-            return false;
-        }
-        
-        $this->db = JWTAuth::getTenantDatabase();
-        if (!$this->db) {
-            $this->sendResponse(false, null, 'Tenant database not found. Set X-Tenant-ID header.', 400);
-            return false;
-        }
-        
-        return true;
-    }
-    
+
     protected function handleGet($id = null)
     {
-        global $sqhost, $squser, $sqpass;
-        $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
-        
-        if (!$conn) {
-            $this->sendResponse(false, null, 'Database connection failed', 500);
-            return;
-        }
+
         
         $currentYear = date('Y');
         $today = date('Y-m-d');

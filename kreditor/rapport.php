@@ -62,6 +62,11 @@ if (isset($_GET['ny_rykker'])) {
 	$konto_til = if_isset($_GET['konto_til'], NULL);
 	$udlign    = if_isset($_GET['udlign'], NULL);
 	if ($udlign) autoudlign($udlign);
+	if ($rapportart == 'kontokort' && if_isset($_GET['layout']) == 'grid' && $konto_fra && $konto_fra == $konto_til) {
+		include_once 'generalLedger.php';
+		renderCreditorGeneralLedgerGrid($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart);
+		exit;
+	}
 	if ($rapportart == 'accountChart') include('../includes/reportFunc/accountChart.php');
 	$rapportart($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'K');
 	exit;

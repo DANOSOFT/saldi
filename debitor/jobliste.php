@@ -106,11 +106,7 @@ print "<table width=100% align=center border=0 cellspacing=0 cellpadding=0><tbod
 
 print "</td></tr>\n";
 #############
-if(isset($_GET['returside'])){
-			$returside = $_GET['returside'];
-		}else{
-			$returside = '../index/menu.php';
-		}
+$returside = nav_back_url(isset($_GET['returside']) ? $_GET['returside'] : null);
 
 // Set valg to jobkort so topLine shows jobliste button
 if (!$valg) $valg = 'jobkort';

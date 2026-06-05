@@ -34,8 +34,12 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 
 	// include online.php to get user DB
 	include "online.php"; */
-	$apiUrl = "http://72.62.59.20:5000/extract-invoice";
-	$apiKey = "change-me-in-production";
+	$apiUrl = "https://ai.saldi.dk/invoice-extraction";
+	include "../connect.php";
+	$query = db_select("SELECT var_value FROM settings WHERE var_name = 'apikey' AND var_grp = 'app_api'", __FILE__ . " linje " . __LINE__);
+	$row = db_fetch_array($query);
+	$apiKey = $row["var_value"];
+	//include "../online.php";
 	// Try to get API URL from settings
 	/* $qtxt = "SELECT var_value FROM settings WHERE var_name = 'invoiceExtractionApiUrl' AND var_grp = 'api'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -180,7 +184,6 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$curlError = curl_error($ch);
 	curl_close($ch);
 
-	// file_put_contents('response.json', $response);
 	// Check for cURL errors
 	if ($curlError) {
 		error_log("cURL error calling invoice extraction API: $curlError");
@@ -212,6 +215,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$vendor = null;
 	$invoiceNumber = null;
 	$description = null;
+	$currency = null;
 	if (isset($responseData['extracted_data'])) {
 		$extractedData = $responseData['extracted_data'];
 		
@@ -266,16 +270,22 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		if (isset($extractedData['vendor'])) {
 			$vendor = $extractedData['vendor'];
 		}
+
+		// Get currency
+		if (isset($extractedData['currency'])) {
+			$currency = $extractedData['currency'];
+		}
 	}
 	
 	// Return extracted data
-	if ($amount !== null || $date !== null || $vendor !== null || $invoiceNumber !== null || $description !== null) {
+	if ($amount !== null || $date !== null || $vendor !== null || $invoiceNumber !== null || $description !== null || $currency !== null) {
 		return array(
 			'amount' => $amount,
 			'date' => $date,
 			'vendor' => $vendor,
 			'invoiceNumber' => $invoiceNumber,
-			'description' => $description
+			'description' => $description,
+			'currency' => $currency
 		);
 	}
 	

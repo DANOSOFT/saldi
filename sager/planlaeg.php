@@ -70,16 +70,17 @@ if (!$funktion) $funktion="planlaeg";
 function planlaeg() {
 
 		global $sag_rettigheder;
+		global $sprog_id;
 		
 		print "<div id=\"breadcrumbbar\">
 			<ul id=\"breadcrumb\">
 				<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
-					else print "<a href=\"#\" title=\"Hjem\"><img src=\"../img/home.png\" alt=\"Hjem\" class=\"home\" /></a>";
+					if (substr($sag_rettigheder,2,1)) print "<a href=\"sager.php\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
+					else print "<a href=\"#\" title=\"".findtekst('2781|Hjem', $sprog_id)."\"><img src=\"../img/home.png\" alt=\"".findtekst('2781|Hjem', $sprog_id)."\" class=\"home\" /></a>";
 					print "</li>
 				<!--<li><a href=\"#\" title=\"Sample page 1\">Sample page 1</a></li>-->";
 				
-				print "<li>Planlægning</li>
+				print "<li>".findtekst('2775|Planlægning', $sprog_id)."</li>
 			</ul>
 		</div><!-- end of breadcrumbbar -->\n";
 
@@ -89,15 +90,15 @@ function planlaeg() {
 		print "<tr><td width=\"100%\" align=\"center\">\n";
 		print "<table width=\"500\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class=\"kontrolskema_liste\" >\n";
 		print "<tbody>\n";
-		print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>Planlægning menu</h4></td></tr>\n";
+		print "<tr><td colspan=\"2\" width=\"100%\" align=\"center\"><h4>".findtekst('3221|Planlægningsmenu', $sprog_id)."</h4></td></tr>\n";
 		print "<tr><td colspan=\"2\" width=\"100%\" align=center><br>\n";
 		print "</tbody>\n";
 		print "<tbody class=\"dataTableZebra dataTableTopBorder\">\n";
-		print "<tr><td>Planlægning sager</td><td class=\"alignRight\"><a href=\"planlaeg_sager.php\" title=\"Gå til planlægning sager her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
-		print "<tr><td>Planlægning opgaver</td><td class=\"alignRight\"><a href=\"planlaeg_opgaver.php\" title=\"Gå til planlægning opgaver her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
+		print "<tr><td>".findtekst('3222|Planlægning: sager', $sprog_id)."</td><td class=\"alignRight\"><a href=\"planlaeg_sager.php\" title=\"".findtekst('3223|Gå til Planlægning: sager her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td>".findtekst('3215|Planlægning: opgaver', $sprog_id)."</td><td class=\"alignRight\"><a href=\"planlaeg_opgaver.php\" title=\"".findtekst('3224|Gå til Planlægning: opgaver her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
 		//print "<tr><td>Planlægning opgaver2</td><td class=\"alignRight\"><a href=\"planlaeg_opgaver2.php\" title=\"Gå til planlægning opgaver her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
 		//print "<tr><td>Planlægning skema</td><td class=\"alignRight\"><a href=\"planlaeg_skema.php\" title=\"Gå til planlægning skema her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
-		print "<tr><td>Planlægning beregning</td><td class=\"alignRight\"><a href=\"planlaeg_beregning.php\" title=\"Gå til planlægning beregning her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
+		print "<tr><td>".findtekst('3209|Planlægning: beregning', $sprog_id)."</td><td class=\"alignRight\"><a href=\"planlaeg_beregning.php\" title=\"".findtekst('3225|Gå til Planlægning: beregning her', $sprog_id)."!\" class=\"button blue small\">".findtekst('586|Vælg', $sprog_id)."</a></td></tr>\n";
 		
 		//print "<tr><td>Planlægning af ansatte</td><td class=\"alignRight\"><a href=\"planlaeg_ansatte.php\" title=\"Gå til planlægning af ansatte her!\" class=\"button blue small\">Vælg</a></td></tr>\n";
 		//print "<tr><td>Planlægning af sager og opgaver</td><td class=\"alignRight\"><a href=\"planlaeg_sageropg.php\" title=\"Gå til planlægning af sager og opgaver her!\" class=\"button blue small\">Vælg</a></td></tr>\n";

@@ -230,8 +230,8 @@ function oldmenu() {
 	if ($vis_debitor) {
 		$tekst=findtekst(106,$sprog_id);
 		if (substr($rettigheder,5,1)=='1') {
-			if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_ordrer=window.open('../debitor/ordreliste.php?returside=../includes/luk.php','d_ordrer','".$jsvars."');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
-			else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/ordreliste.php?returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
+			if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_ordrer=window.open('../debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer&returside=../includes/luk.php','d_ordrer','".$jsvars."');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
+			else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/ordreliste.php?menu_entry=1&reset_context=1&valg=ordrer&returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
 		} else {
 			print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(107,$sprog_id)."</td>\n";
 		}
