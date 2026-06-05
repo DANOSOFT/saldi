@@ -64,7 +64,7 @@ print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><h
 	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
 		
 		  print "<td width=\"5%\">$color
-           <a href=\"#\" onclick=\"if(confirm('$alerttekst')) { window.location='ordre.php?returside=ordreliste.php'; return false; }\" accesskey=N>
+           <a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>
            <button type=\"button\" class='center-btn' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
      print "$add_icon" .findtekst(39, $sprog_id)."</button></a></td>";
 
