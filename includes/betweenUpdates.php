@@ -59,6 +59,7 @@ db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 $qtxt = "CREATE SEQUENCE IF NOT EXISTS regnskab_id_seq";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'provision'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE varer ADD provision integer";
