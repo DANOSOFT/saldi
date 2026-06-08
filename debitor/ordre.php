@@ -87,6 +87,12 @@
 // 20260512 NTR MERGED Live/POS into PROD_TEST
 // 20260528 Sawaneh Stock warning popup skips already-saved lines and cache-busts stockWarning JS includes via filemtime
 // 20260610 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
+// 20260513 PHR Removed above hack as problen solved in includes/orderFuncIncludes/grid_account_lookup.php
+// 20260521 PHR changed '<' to '>' as negative qty was not possible
+// 20260528 PHR missing (float) created error
+// 20260603 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
+//                  migrateOldBilag.php inkluderet til automatisk migration af gamle bilag
+// 20260603 NTR Changed Varenr to posnr in SellerItemID in OIOUBL generation as per Jørgen's email.
 
 @session_start();
 $s_id = session_id();
@@ -236,7 +242,7 @@ $qtxt = "select box1 from grupper where art='PV'";
 
 
 
-if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && $r['box1'] == 'on') $showLocalPrint = 'on';
+if (($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && $r['box1'] == 'on') $showLocalPrint = 'on';
 $title = findtekst('1092|Kundeordre', $sprog_id);
 
 
@@ -303,7 +309,7 @@ if (isset($_GET['id']) && isset($_POST['insertItems'])) {
 		}
 	}
 }
-$q = db_SELECT("select box2,box4,box9,box12,box13,box14 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__);
+$q = db_select("select box2,box4,box9,box12,box13,box14 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
 
 // Get VAT settings from settings table
@@ -818,7 +824,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	} else {
 		$query = db_select("select hvem from ordrer where id='$id' and hvem != '' and hvem != '$brugernavn'", __FILE__ . " linje " . __LINE__);
 		$alert = findtekst('1823|Ordren er overtaget af', $sprog_id);
-		if ($row = db_fetch_array($query) && $row['hvem']) {
+		if (($row = db_fetch_array($query)) && $row['hvem']) {
 			print "<BODY onLoad=\"javascript:alert('$alert $row[hvem]')\">\n";
 		} elseif ($row['hvem']) {
 			$alert1 = findtekst('1824|Du er blevet smidt af', $sprog_id); #20210809
@@ -2747,14 +2753,14 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			if ($digital_status == "Sent") {
 			?>
 				<script>
-					if (confirm('fakturen er allerede sendt digitalt vil du sende igen?') == true)
-						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+					if (confirm('kreditnotaen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php
 			} else {
 			?>
 				<script>
-					window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank')
+					window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank')
 				</script>
 			<?php
 			}
@@ -2775,14 +2781,14 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			if ($digital_status == "Sent") {
 			?>
 				<script>
-					if (confirm('fakturen er allerede sendt digitalt vil du sende igen?') == true)
-						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+					if (confirm('kreditnotaen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php
 			} else {
 			?>
 				<script>
-					window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank')
+					window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank')
 				</script>
 			<?php
 			}
