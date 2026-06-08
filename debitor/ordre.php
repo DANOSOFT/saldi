@@ -2319,7 +2319,6 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					// If the order is created with an error display
 					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
 
-					// Auto-populate item note on order line if 'note_on_orderline' is enabled on the item card
 					if (is_numeric($svar)) {
 						// note_on_orderline column is added lazily by varekort.php and may not exist on
 						// older DBs — check once per request and skip the auto-populate cleanly if not there.
