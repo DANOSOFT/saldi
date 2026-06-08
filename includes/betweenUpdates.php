@@ -27,6 +27,7 @@
 // 20260429 LOE added leveret to formularer table
 // 20260504 NTR Fixed error on login due to missing regnskab's table
 // 20260507 PHR Removed above as table regskab must not be created en sub bases
+// 20260603 NTR Added missing note_on_orderline column to ordrelinjer table as otherwise it crashed on added a linje.
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'provision'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -301,6 +302,10 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='colli_webfragt'";
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table varer ADD column colli_webfragt float DEFAULT 0", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='note_on_orderline'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table varer ADD column note_on_orderline bool DEFAULT FALSE", __FILE__ . " linje " . __LINE__);
 }
 
 // havemøbelshoppen 

@@ -46,7 +46,7 @@
                 "department" => "",
                 "streetName" => explode(" ",$res["addr1"])[0],
                 "additionalStreetName" => $res["addr2"],
-                "buildingNumber" => end(explode(" ", $res["addr1"])),
+                "buildingNumber" => array_slice(explode(" ", $res["addr1"]),-1)[0],
                 "inhouseMail" => "",
                 "cityName" => $res["bynavn"],
                 "postalCode" => $res["postnr"],
@@ -156,7 +156,6 @@
 				$errorNumber = curl_errno($ch);
 				$errorMessage = curl_error($ch);
 				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'statusCode' => $httpCode];
-				json_encode($error, JSON_PRETTY_PRINT);
 				
 				// save response in file in temp folder
 				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
@@ -217,60 +216,122 @@
         }
         $ch = curl_init();
 
-        curl_setopt($ch, CURLOPT_URL, $url.$companyID);
+        $fullUrl = $url.$companyID;
+        curl_setopt($ch, CURLOPT_URL, $fullUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE));
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30); // 20260604 - Add timeout to prevent hanging
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // 20260604 - Connection timeout
 
         $headers = array();
         $headers[] = 'Authorization: '.$apiKey;
         $headers[] = 'Content-Type: application/json';
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_HEADER, 1);
 
-        $result = curl_exec($ch);
+        $rawResponse = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $responseHeaders = substr($rawResponse, 0, $headerSize);
+        $result = substr($rawResponse, $headerSize);
 
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
-        file_put_contents("../temp/$db/fakture-result-$ranStr.json", $result);
-        $result = json_decode($result, true);
+
+        // 20260604 - Save raw response before JSON decoding for better error diagnosis
+        file_put_contents("../temp/$db/fakture-result-raw-$ranStr.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---HEADERS---\n" . $responseHeaders . "\n---RAW RESPONSE---\n" . $result);
+        
         if (curl_errno($ch)) {
-            echo 'Error: ' . curl_error($ch);
-            file_put_contents("../temp/$db/fakture-error-$ranStr.json", curl_error($ch));
+            // Curl connection error - don't continue
+            $errorNumber = curl_errno($ch);
+            $errorMessage = curl_error($ch);
+            file_put_contents("../temp/$db/fakture-curl-error-$ranStr.json", json_encode(['error' => $errorNumber, 'message' => $errorMessage, 'http_code' => $httpCode], JSON_PRETTY_PRINT));
+            ?>
+            <script>
+                alert("Forbindelsesfejl:\n\n<?php echo htmlspecialchars($errorMessage); ?>\n\nKontroller internetforbindelsen og prøv igen.");
+            </script>
+            <?php
+            curl_close($ch);
             exit();
         }
+        
+        $rawJsonResponse = $result;
+        $result = json_decode($result, true);
         
         $randomString = '';
 
         for ($i = 0; $i < 10; $i++) {
             $randomString .= $characters[rand(0, 4)];
         }
-        if(!isset($result["base64EncodedDocumentXml"]) || $result["base64EncodedDocumentXml"] == ""){
-            // An error occurred
+        if(!isset($result["base64EncodedDocumentXml"]) || trim($result["base64EncodedDocumentXml"]) == ""){
+            // An error occurred - check for easyUBL or Semantic error messages
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
-            $error = ['error' => $errorNumber, 'message' => $errorMessage];
-            json_encode($error, JSON_PRETTY_PRINT);
+            $easyUBLError = isset($result["errorMessage"]) ? $result["errorMessage"] : "";
+            $errorDetails = isset($result["error"]) ? $result["error"] : "";
             
-            // save response in file in temp folder
-            file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-            if($result["message"] !== ""){
-            ?>
-            <script>
-                alert("<?php echo "EasyUBL Error Occured: " . json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE); ?>");
-            </script>
-            <?php
+            // 20260604 - Improved error logging for E-APS24003 errors
+            // Capture all possible error information
+            $error = [
+                'curl_error_number' => $errorNumber, 
+                'curl_error_message' => $errorMessage, 
+                'easyUBL_errorMessage' => $easyUBLError,
+                'easyUBL_error' => $errorDetails,
+                'full_response' => $result
+            ];
+            
+            // save response in file in temp folder with full details for debugging
+            error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            
+            // Determine which error to show
+            $displayError = "";
+            
+            if(!empty($errorMessage)){
+                // curl error
+                $displayError = "Forbindelsesfejl: " . $errorMessage;
+            }else if(!empty($easyUBLError)){
+                // easyUBL specific error - likely validation issue
+                $displayError = "easyUBL fejl: " . $easyUBLError;
+            }else if(!empty($errorDetails)){
+                // Alternative error field
+                $displayError = "API fejl: " . (is_array($errorDetails) ? json_encode($errorDetails) : $errorDetails);
+            }else if(is_array($result) && !empty($result)){
+                // Show full response if nothing else works
+                $displayError = "Uventet svar fra server: " . json_encode($result);
             }else{
+                $displayError = "Ukendt fejl - kontakt support";
+            }
+            
             ?>
             <script>
-
-                alert("Der opdstod en fejl under sending af fakturaen. kontakt support. Tlf: 46902208");
+                alert("Transmission fejl:\n\n<?php echo htmlspecialchars($displayError); ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.");
             </script>
             <?php
-            }
             exit;
         }
         // decode base64
-        $xml = base64_decode($result["base64EncodedDocumentXml"]);
+        $xml = base64_decode($result["base64EncodedDocumentXml"], true);
+        if($xml === false || trim($xml) == ""){
+            $error = [
+                'error' => 'Empty or invalid XML returned from EasyUBL',
+                'http_code' => $httpCode,
+                'json_error' => json_last_error_msg(),
+                'base64_length' => strlen($result["base64EncodedDocumentXml"]),
+                'decoded_xml_length' => ($xml === false) ? false : strlen($xml),
+                'full_response' => $result,
+                'raw_response' => $rawJsonResponse,
+                'sent_data' => $data
+            ];
+            file_put_contents("../temp/$db/fakture-empty-xml-error-$randomString.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            curl_close($ch);
+            ?>
+            <script>
+                alert("Transmission fejl:\n\nEasyUBL returnerede en tom eller ugyldig XML-fil. Dokumentet er derfor ikke sendt videre.\n\nFejllogging gemt til debugging.");
+            </script>
+            <?php
+            exit;
+        }
         file_put_contents("../temp/$db/xml-$randomString.xml", $xml);
         curl_close($ch);
         $ch = curl_init();
@@ -308,7 +369,8 @@
         }
         $initials = implode("", $initials);
 
-        if($r_faktura["art"] == "DK"){
+        $type = strtolower(trim($type));
+        if($type == "creditnote"){
             $creditNote = "Cre";
         }else{
             $creditNote = "Inv";
@@ -344,7 +406,14 @@
                     $cvrnr_with_prefix = $r_faktura["cvrnr"];
                 }
             }else{
-                $cvrnr_with_prefix = "";
+                // 20260604 - CVR is required for Peppol transmission
+                file_put_contents("../temp/$db/missing-cvr-error-" . date("Y-m-d-H-i-s") . ".json", json_encode(["error" => "Missing CVR number", "order_id" => $id, "customer" => $r_faktura["firmanavn"]], JSON_PRETTY_PRINT));
+                ?>
+                <script>
+                    alert("Fejl: Kunden mangler CVR-nummer. Dette kræves til Peppol-transmission. Venligst opdater kundens CVR-nummer og prøv igen.");
+                </script>
+                <?php
+                exit;
             }
         }
         // country code should be the same as prefix for cvrnr
@@ -358,16 +427,57 @@
             $cvrnr_with_prefix = "DK" . substr($cvrnr_with_prefix, 2);
             $countryCode = "DK";
         }
-        if($r_faktura["lev_addr1"] !== ""){
+        // 20260604 - Validate recipient address to prevent E-APS24003 transmission errors
+        // Prepare customer address with fallback logic
+        $customerAddr1 = trim($r_faktura["addr1"]);
+        $customerBynavn = trim($r_faktura["bynavn"]);
+        $customerPostnr = trim($r_faktura["postnr"]);
+        $customerAddr2 = trim($r_faktura["addr2"]);
+        $customerKontakt = trim($r_faktura["kontakt"]);
+        
+        $levAddr1 = trim($r_faktura["lev_addr1"]);
+        $levBynavn = trim($r_faktura["lev_bynavn"]);
+        $levPostnr = trim($r_faktura["lev_postnr"]);
+        $levAddr2 = trim($r_faktura["lev_addr2"]);
+        $levKontakt = trim($r_faktura["lev_kontakt"]);
+        
+        // If customer main address is empty, use delivery address for customer postal address
+        if(empty($customerAddr1) || empty($customerBynavn) || empty($customerPostnr)){
+            if(!empty($levAddr1) && !empty($levBynavn) && !empty($levPostnr)){
+                // Use delivery address as fallback for customer address
+                $customerAddr1 = $levAddr1;
+                $customerBynavn = $levBynavn;
+                $customerPostnr = $levPostnr;
+                $customerAddr2 = $levAddr2;
+                $customerKontakt = $levKontakt;
+            }
+        }
+        
+        // Delivery address - use best available address
+        if($levAddr1 !== "" && $levBynavn !== "" && $levPostnr !== ""){
             $deliverAddress = [
                 
-                "streetName" => implode(" ", explode(" ", $r_faktura["lev_addr1"], -1)), ## 20260518 - NTR - Street name without building number.
-                "buildingNumber" => end(explode(" ", $r_faktura["lev_addr1"])),
+                "streetName" => implode(" ", explode(" ", $levAddr1, -1)), ## 20260518 - NTR - Street name without building number.
+                "buildingNumber" => array_slice(explode(" ", $levAddr1), -1)[0],
                 "inhouseMail" => $r_faktura["email"],
-                "additionalStreetName" => $r_faktura["lev_addr2"],
-                "attentionName" => $r_faktura["lev_kontakt"],
-                "cityName" => $r_faktura["lev_bynavn"],
-                "postalCode" => $r_faktura["lev_postnr"],
+                "additionalStreetName" => $levAddr2,
+                "attentionName" => $levKontakt,
+                "cityName" => $levBynavn,
+                "postalCode" => $levPostnr,
+                "countrySubentity" => "",
+                "addressLine" => "",
+                "countryCode" => $countryCode
+            ];
+        }else if($customerAddr1 !== "" && $customerBynavn !== "" && $customerPostnr !== ""){
+            // 20260604 - Fallback to main address if delivery address is incomplete
+            $deliverAddress = [
+                "streetName" => implode(" ", explode(" ", $customerAddr1, -1)),
+                "buildingNumber" => array_slice(explode(" ", $customerAddr1), -1)[0],
+                "inhouseMail" => $r_faktura["email"],
+                "additionalStreetName" => $customerAddr2,
+                "attentionName" => $customerKontakt,
+                "cityName" => $customerBynavn,
+                "postalCode" => $customerPostnr,
                 "countrySubentity" => "",
                 "addressLine" => "",
                 "countryCode" => $countryCode
@@ -405,20 +515,20 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
-                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "streetName" => implode(" ", explode(" ", $customerAddr1, -1)), ## 20260604 - Updated to use fallback address logic
+                    "buildingNumber" => array_slice(explode(" ", $customerAddr1), -1)[0], ## 20260604 - Updated to use fallback address logic
                     "inhouseMail" => $r_faktura["email"],
-                    "additionalStreetName" => $r_faktura["addr2"],
-                    "attentionName" => $r_faktura["kontakt"],
-                    "cityName" => $r_faktura["bynavn"],
-                    "postalCode" => $r_faktura["postnr"],
+                    "additionalStreetName" => $customerAddr2,
+                    "attentionName" => $customerKontakt,
+                    "cityName" => $customerBynavn,
+                    "postalCode" => $customerPostnr,
                     "countrySubentity" => "",
                     "addressLine" => "",
                     "countryCode" => $countryCode
                 ],
                 "contact" => [
                     "initials" => ($initials !== null && $initials !== "") ? $initials : "",
-                    "name" => ($r_faktura["kontakt"] !== "") ? $r_faktura["kontakt"] : $r_faktura["firmanavn"],
+                    "name" => ($customerKontakt !== "") ? $customerKontakt : $r_faktura["firmanavn"],
                     "telephone" => strval($r_faktura["phone"]),
                     "electronicMail" => $r_faktura["email"]
                 ]
@@ -523,12 +633,12 @@
             
             $beskrivelse = var2str($res["beskrivelse"], $id, $res['posnr'], $res["varenr"], $res["antal"], $res["enhed"], $price, $res["rabat"], $res["procent"], $res["serienr"], $res["momssats"]);
             $line[] = array(
-                "id" => $res["id"],
+                "id" => strval($res["posnr"]),
                 "quantity" => $res["antal"],
                 "quantityUnitCode" => "EA",
                 "price" => $price,
-                "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails.
-                "discountAmount" => $discAmount,
+                "discountPercent" => $discPrct,
+                "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails. 20260604 - Removed duplicate discountAmount
                 "vatPercent" => ($res["momssats"] != "" && $res["momssats"] != null) ? $res["momssats"] : 0,
                 "lineAmount" => $lineAmount,
                 "priceInclTax" => false,
@@ -538,10 +648,48 @@
                 "accountingCost" => "",
                 "commodityCode" => "",
                 "isAllowanceCharge" => false,
+                "item" => [
+                    "buyersItemID" => "",
+                    "sellersItemID" => ($res["varenr"] != "" && $res["varenr"] != null && $res["varenr"] != "null") ? strval($res["varenr"]) : "",
+                    "standardItemID" => "",
+                    "standardItemScheme" => "",
+                    "cN8" => "",
+                    "additionalItemProperti" => [],
+                ],
             );
         }
         $data["invoiceLines"] = $line;
         file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
+
+        // 20260604 - Validate required fields before transmission to prevent E-APS24003 errors
+        $missingFields = [];
+        
+        if(empty($cvrnr_with_prefix) || $cvrnr_with_prefix === "DK"){
+            $missingFields[] = "CVR-nummer";
+        }
+        // Check customer address (which may have been set to delivery address as fallback)
+        if(empty($customerAddr1)){
+            $missingFields[] = "Gadeadresse";
+        }
+        if(empty($customerBynavn)){
+            $missingFields[] = "By";
+        }
+        if(empty($customerPostnr)){
+            $missingFields[] = "Postnummer";
+        }
+        if(empty($data["invoiceLines"]) || count($data["invoiceLines"]) === 0){
+            $missingFields[] = "Ordrelinjer";
+        }
+        
+        if(!empty($missingFields)){
+            error_log(json_encode(["error" => "Påkrævede felter mangler", "missing_fields" => $missingFields, "order_id" => $id], JSON_PRETTY_PRINT));
+            ?>
+            <script>
+                alert("Fejl ved sending til Peppol:\n\nManglende felter: <?php echo htmlspecialchars(implode(', ', $missingFields)); ?>\n\nKontroller venligst ordren og kundeoplysningerne før transmission.");
+            </script>
+            <?php
+            exit;
+        }
 
         //die(json_encode($data, JSON_PRETTY_PRINT));
         $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
@@ -555,7 +703,7 @@
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
                 "streetName" => $r_faktura["lev_addr1"],
-                "buildingNumber" => end(explode(" ", $r_faktura["lev_addr1"])),
+                "buildingNumber" => array_slice(explode(" ", $r_faktura["lev_addr1"]), -1)[0],
                 "inhouseMail" => $r_faktura["email"],
                 "additionalStreetName" => $r_faktura["lev_addr2"],
                 "attentionName" => $r_faktura["lev_kontakt"],
@@ -572,7 +720,7 @@
                 "companyId" => "DK $r_faktura[ean]",
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "buildingNumber" => array_slice(explode(" ", $r_faktura["addr1"]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -643,7 +791,7 @@
                 "companyId" => "DK$r_faktura[cvrnr]",
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "buildingNumber" => array_slice(explode(" ", $r_faktura["addr1"]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -667,7 +815,7 @@
                 "companyId" => "DK$r_faktura[cvrnr]33557799",
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => end(explode(" ", $r_faktura["addr1"])), // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "buildingNumber" => array_slice(explode(" ", $r_faktura["addr1"]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
