@@ -249,6 +249,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	elseif (oioubl_vej($addr_2, "vejnavn")) $l_retur.="<cbc:StreetName>".oioubl_vej($addr_2, "vejnavn")."</cbc:StreetName>\n";
 	else $l_retur.="<cbc:StreetName>?</cbc:StreetName>\n";
 	if (oioubl_vej($addr_1, "husnummer")) $l_retur.="<cbc:BuildingNumber>".oioubl_vej($addr_1, "husnummer")."</cbc:BuildingNumber>\n";
+#	if (oioubl_vej($addr_2, "vejnavn")) $l_retur.="<cbc:AdditionalStreetName>".oioubl_vej($addr_2, "vejnavn")."</cbc:AdditionalStreetName>\n";
 	elseif (!oioubl_vej($addr_1, "husnummer") && oioubl_vej($addr_2, "husnummer")) $l_retur.="<cbc:BuildingNumber>".oioubl_vej($addr_2, "husnummer")."</cbc:BuildingNumber>\n";
 	else $l_retur.="<cbc:BuildingNumber>0</cbc:BuildingNumber>\n";
 	$l_retur.="<cbc:CityName>".$bynavn."</cbc:CityName>\n";
@@ -388,8 +389,9 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 			$tmp=htmlspecialchars($tmp);
 		}
 		$l_retur.="<cbc:Name>".$tmp."</cbc:Name>\n";
-		//$l_retur.="<cac:SellersItemID>".$varenr."</cac:SellersItemID>\n"; // 20260603 - NTR & MMR - tried decoding Jørgen's email which says it should be posnr instead of warenr.
-		$l_retur.="<cac:SellersItemID>".$posnr."</cac:SellersItemID>\n";
+		$l_retur.="<cac:SellersItemIdentification>\n";
+		$l_retur.="<cbc:ID>".$varenr."</cbc:ID>\n";
+		$l_retur.="</cac:SellersItemIdentification>\n";
 		$l_retur.="<cac:ClassifiedTaxCategory>\n";
 		if ($momsfri || $taxcategoryid == 'ZeroRated') $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">ZeroRated</cbc:ID>\n";
 		else $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">StandardRated</cbc:ID>\n";

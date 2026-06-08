@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---finans/regnskab.php --- patch 5.0.0 --- 2026.03.12 ---
+// ---finans/regnskab.php --- patch 5.0.0 --- 2026.05.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 // 20250113 PHR Syncronized with saldiupdates
 // 20250510 LOE Text id changed from 3072 to 2373
 // 20260312 PHR Division by zero
+// 20260519 CL/PHR @media print: skjul topbar, fjern højdebegrænsning på wrapper og sticky thead/tfoot så hele regnskabet udskrives
 
 @session_start();
 $s_id=session_id();
@@ -114,6 +115,7 @@ $help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -
 // 	print "</td></tr> ";
 // }
 
+print "<div id='regnskab-topbar'>";
 print "<tr><td height='25' align='center' valign='top'>";
 print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 print "<td width='75%' style='$topStyle' align='left'><table border='0' cellspacing='2' cellpadding='0'><tbody>";
@@ -141,6 +143,7 @@ print "<td id='tutorial-help' width='5%' style='$buttonStyle'>
 print "</tbody></table></td></tr>";
 
 print "</tbody></table>";
+print "</div>";
 
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
 
@@ -402,6 +405,22 @@ print "<style>
     align-items: center;
     text-decoration: none;
     gap: 5px;
+}
+@media print {
+    #regnskab-topbar {
+        display: none;
+    }
+    .regnskab-wrapper {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    .regnskab-wrapper table.dataTable thead,
+    .regnskab-wrapper table.dataTable tfoot {
+        position: static;
+    }
+    .regnskab-wrapper table.dataTable tfoot {
+        display: none;
+    }
 }
 </style>";
 

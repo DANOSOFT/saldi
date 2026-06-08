@@ -329,7 +329,7 @@ if ($_GET['ordreliste']) {
 					}	elseif ($oioubl) {
 						$printfilnavn="doktype-faktura_dokid-".$ordreliste[$x].".xml";
 						$fp=fopen("../temp/$db/$printfilnavn","w");
-						fwrite($fp,oioubldoc_faktura($ordreliste[$x],'faktura',NULL));
+						fwrite($fp,base64_encode(oioubldoc_faktura($ordreliste[$x],'faktura',NULL)));
 						fclose($fp);
 #cho "'oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars'<br>";
 #						print "<BODY onLoad=\"JavaScript:window.open('oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars');\">\n";

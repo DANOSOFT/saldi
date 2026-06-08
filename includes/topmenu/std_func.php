@@ -54,6 +54,7 @@
 // 20260127 PHR corrected error in function get_next_order_number
 // 20260217 PHR added "(float)$tal" in function afrund
 // 20260429 PHR Check for $regnaar in function transtjek()
+// 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -748,29 +749,13 @@ if (!function_exists('transtjek')) {
 	}
 }
 if (!function_exists('cvrnr_omr')) {
-	function cvrnr_omr($landekode)
+	function cvrnr_omr($landekode, $baseCountry = 'dk')
 	{
-		/**
-		 * Determines the country region based on a provided country code.
-		 *
-		 * This function returns a region identifier based on the provided country code. 
-		 * The country code is typically a two-letter ISO 3166-1 alpha-2 code, and the 
-		 * function returns "DK" for Denmark, "EU" for most European countries, or "UD" 
-		 * for unknown or unsupported countries.
-		 *
-		 * @param string $landekode - The two-letter country code (e.g., 'dk' for Denmark, 'at' for Austria).
-		 * 
-		 * @return string - The region corresponding to the provided country code:
-		 *                  - "DK" for Denmark.
-		 *                  - "EU" for countries in the European Union.
-		 *                  - "UD" for countries outside the EU or unsupported codes.
-		 * 
-		 * @note The country code lookup is case-sensitive and only supports the countries
-		 *       specified in the function. Any other code will return "UD".
-		 */
 		$retur = "";
 		if (!$landekode) {
 			$retur = "";
+		} elseif ($baseCountry && $landekode === $baseCountry) {
+			$retur = "DK"; // indenlandsk for denne virksomheds hjemland
 		} else {
 			switch ($landekode) {
 				case "dk":
@@ -861,7 +846,7 @@ if (!function_exists('cvrnr_omr')) {
 	}
 }
 if (!function_exists('cvrnr_land')) {
-	function cvrnr_land($cvrnr)
+	function cvrnr_land($cvrnr, $baseCountry = 'dk')
 	{
 		$retur = "";
 
@@ -870,7 +855,9 @@ if (!function_exists('cvrnr_land')) {
 		if (!$cvrnr) {
 			$retur = "";
 		} elseif (is_numeric(substr($cvrnr, 0, 1))) {
-			$retur = "dk";
+			$retur = $baseCountry; // numerisk første tegn = indenlandsk CVR
+		} elseif (is_numeric(substr($cvrnr, 1, 1))) {
+			$retur = $baseCountry; // bogstav + cifre = indenlandsk NIF-format (fx spansk B93248185)
 		} else {
 			$start_tegn = strtolower(substr($cvrnr, 0, 3));
 			switch ($start_tegn) {
