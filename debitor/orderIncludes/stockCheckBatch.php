@@ -56,6 +56,8 @@ if ($itemsRaw) {
 	}
 }
 
+
+$seen_subitem = array();  // dedupe sub-items if multiple masters share them
 foreach (array_keys($vare_ids) as $vid) {
 	$info = check_stock_warning($vid);
 	if (!empty($info['out_of_stock'])) {
@@ -66,6 +68,33 @@ foreach (array_keys($vare_ids) as $vid) {
 			'beholdning'  => (float)$info['beholdning'],
 			'min_lager'   => (float)$info['min_lager'],
 		);
+	}
+
+	$rMaster = db_fetch_array(db_select("select samlevare, varenr from varer where id = '$vid'", __FILE__ . " linje " . __LINE__));
+	if ($rMaster && trim($rMaster['samlevare']) === 'on') {
+		$masterVarenr = (string)$rMaster['varenr'];
+		$qSub = db_select("select vare_id, antal from styklister where indgaar_i = '$vid' and vare_id is not null and vare_id > 0", __FILE__ . " linje " . __LINE__);
+		while ($rSub = db_fetch_array($qSub)) {
+			$subVid = (int)$rSub['vare_id'];
+			$subAntal = (float)$rSub['antal'];
+			if ($subVid <= 0 || isset($seen_subitem[$subVid])) continue;
+			$seen_subitem[$subVid] = true;
+			if (isset($vare_ids[$subVid])) continue;  // already covered as a top-level varenr
+			$subInfo = check_stock_warning($subVid);
+			$insufficient = ($subAntal > 0 && (float)$subInfo['beholdning'] < $subAntal);
+			if (!empty($subInfo['out_of_stock']) || $insufficient) {
+				$desc = trim((string)$subInfo['beskrivelse']) . ' (samlesæt: ' . $masterVarenr;
+				if ($insufficient) $desc .= ', kræver ' . rtrim(rtrim(number_format($subAntal, 3, '.', ''), '0'), '.') . ' på lager: ' . rtrim(rtrim(number_format((float)$subInfo['beholdning'], 3, '.', ''), '0'), '.');
+				$desc .= ')';
+				$out['out_of_stock'][] = array(
+					'vare_id'     => $subVid,
+					'varenr'      => (string)$subInfo['varenr'],
+					'beskrivelse' => $desc,
+					'beholdning'  => (float)$subInfo['beholdning'],
+					'min_lager'   => (float)$subInfo['min_lager'],
+				);
+			}
+		}
 	}
 }
 

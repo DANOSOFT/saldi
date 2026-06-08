@@ -86,6 +86,7 @@
 // 20260509 PHR Hack to prevent order beeing created twice when using account lookup in to create the order.
 // 20260512 NTR MERGED Live/POS into PROD_TEST
 // 20260528 Sawaneh Stock warning popup skips already-saved lines and cache-busts stockWarning JS includes via filemtime
+// 20260601 Sawaneh Reconcile orphan stock_warning log rows (linje_id NULL from JS sendBeacon) on form post no more duplicate "Line deleted" + "On order" entries for one approval.
 
 @session_start();
 $s_id = session_id();
@@ -2277,32 +2278,40 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					// If the order is created with an error display
 					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
 
-					// Auto-populate item note on order line if 'note_on_orderline' is enabled on the item card
 					if (is_numeric($svar)) {
-						$noteQtxt = "SELECT notes, note_on_orderline FROM varer 
-									WHERE varenr = '" . db_escape_string($varenr[0]) . "' 
-									OR varenr_alias = '" . db_escape_string($varenr[0]) . "' 
-									OR stregkode = '" . db_escape_string($varenr[0]) . "' 
-									LIMIT 1";
-						if ($noteVare = db_fetch_array(db_select($noteQtxt, __FILE__ . " linje " . __LINE__))) {
-							$noteEnabled = (
-								$noteVare['note_on_orderline'] === 't' ||
-								$noteVare['note_on_orderline'] === true ||
-								$noteVare['note_on_orderline'] == 1
-							);
-							if ($noteEnabled && !empty(trim($noteVare['notes']))) {
-								$noteOrdrelinje = db_fetch_array(db_select(
-									"SELECT id, beskrivelse FROM ordrelinjer WHERE ordre_id='$id' ORDER BY id DESC LIMIT 1",
-									__FILE__ . " linje " . __LINE__
-								));
-								if ($noteOrdrelinje['id']) {
-									$noteItem     = db_escape_string(trim($noteVare['notes']));
-									$noteExisting = db_escape_string($noteOrdrelinje['beskrivelse']);
-									$noteNewDesc  = $noteExisting ? $noteExisting . "\n" . $noteItem : $noteItem;
-									db_modify(
-										"UPDATE ordrelinjer SET beskrivelse='$noteNewDesc' WHERE id='$noteOrdrelinje[id]'",
+						// note_on_orderline column is added lazily by varekort.php and may not exist on
+						// older DBs — check once per request and skip the auto-populate cleanly if not there.
+						static $_noteColExists = null;
+						if ($_noteColExists === null) {
+							$_chk = @db_fetch_array(@db_select("SELECT column_name FROM information_schema.columns WHERE table_name='varer' AND column_name='note_on_orderline' LIMIT 1", __FILE__ . " linje " . __LINE__));
+							$_noteColExists = !empty($_chk);
+						}
+						if ($_noteColExists) {
+							$noteQtxt = "SELECT notes, note_on_orderline FROM varer
+										WHERE varenr = '" . db_escape_string($varenr[0]) . "'
+										OR varenr_alias = '" . db_escape_string($varenr[0]) . "'
+										OR stregkode = '" . db_escape_string($varenr[0]) . "'
+										LIMIT 1";
+							if ($noteVare = db_fetch_array(db_select($noteQtxt, __FILE__ . " linje " . __LINE__))) {
+								$noteEnabled = (
+									$noteVare['note_on_orderline'] === 't' ||
+									$noteVare['note_on_orderline'] === true ||
+									$noteVare['note_on_orderline'] == 1
+								);
+								if ($noteEnabled && !empty(trim($noteVare['notes']))) {
+									$noteOrdrelinje = db_fetch_array(db_select(
+										"SELECT id, beskrivelse FROM ordrelinjer WHERE ordre_id='$id' ORDER BY id DESC LIMIT 1",
 										__FILE__ . " linje " . __LINE__
-									);
+									));
+									if ($noteOrdrelinje['id']) {
+										$noteItem     = db_escape_string(trim($noteVare['notes']));
+										$noteExisting = db_escape_string($noteOrdrelinje['beskrivelse']);
+										$noteNewDesc  = $noteExisting ? $noteExisting . "\n" . $noteItem : $noteItem;
+										db_modify(
+											"UPDATE ordrelinjer SET beskrivelse='$noteNewDesc' WHERE id='$noteOrdrelinje[id]'",
+											__FILE__ . " linje " . __LINE__
+										);
+									}
 								}
 							}
 						}
@@ -2469,11 +2478,20 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$swVarenrEsc = db_escape_string($swVarenr);
 			$rSW = db_fetch_array(db_select("select id, vare_id from ordrelinjer where ordre_id = '$id' and varenr = '$swVarenrEsc' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
 			if (!$rSW || !$rSW['vare_id']) continue;
-			$swInfo = check_stock_warning((int)$rSW['vare_id']);
-			if (empty($swInfo['out_of_stock'])) continue; // line is fine now; nothing to log
 			// Skip if we already logged this exact line (idempotent on re-save).
 			$rDup = db_fetch_array(db_select("select id from order_stock_warning_log where ordre_id = '$id' and linje_id = '$rSW[id]' limit 1", __FILE__ . " linje " . __LINE__));
 			if ($rDup && $rDup['id']) continue;
+			// Reconcile any orphan log row written by the JS sendBeacon BEFORE the order line existed.
+			$rOrphan = db_fetch_array(db_select(
+				"select id from order_stock_warning_log " .
+				"where ordre_id = '$id' and varenr = '$swVarenrEsc' " .
+				"and (linje_id is null or linje_id = 0) " .
+				"order by id desc limit 1",
+				__FILE__ . " linje " . __LINE__));
+			if ($rOrphan && $rOrphan['id']) {
+				db_modify("update order_stock_warning_log set linje_id = '" . (int)$rSW['id'] . "' where id = '" . (int)$rOrphan['id'] . "'", __FILE__ . " linje " . __LINE__);
+				continue;
+			}
 			log_stock_warning($id, (int)$rSW['vare_id'], $swNote, (int)$rSW['id']);
 		}
 	}
