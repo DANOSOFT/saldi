@@ -135,7 +135,7 @@
         curl_close($ch);
 
         $timestamp = date("Y-m-d-H-i-s");
-        
+
         if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || trim($response) === "") {
             // An error occurred
             $errorNumber = curl_errno($ch);
@@ -144,7 +144,7 @@
 
             // Save error response in temp folder
             file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-            
+
             return ['success' => false, 'message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT)];
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
             return ['success' => false,

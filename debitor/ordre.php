@@ -95,6 +95,7 @@
 // 20260603 NTR Changed Varenr to posnr in SellerItemID in OIOUBL generation as per Jørgen's email.
 // 20260610 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
 // 20260611 LOE Added UI for hvem and updated its logic 
+
 @session_start();
 $s_id = session_id();
 
