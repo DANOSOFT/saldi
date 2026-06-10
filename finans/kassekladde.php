@@ -56,6 +56,15 @@
 
 ob_start(); //Starter output buffering
 
+register_shutdown_function(function() {
+    $e = error_get_last();
+    if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        while (ob_get_level()) ob_end_clean();
+        header('Content-Type: text/plain');
+        echo 'FATAL: ' . $e['message'] . ' in ' . $e['file'] . ' on line ' . $e['line'];
+    }
+});
+
 @session_start();
 $s_id = session_id();
 $title = "Kassekladde"; 
@@ -434,14 +443,14 @@ if ($_GET) {
 	$returside = if_isset($_GET['returside']);
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
-	$sort            =       if_isset($_GET, 		null,   ['sort']);
-	$kksort          =       if_isset($_GET,        null,   ['kksort']); #sortering i kassekladde
-	$kkdir_get       =       if_isset($_GET,        null,   ['kkdir']);
+	$sort            =       if_isset($_GET, 		null,   'sort');
+	$kksort          =       if_isset($_GET,        null,   'kksort'); #sortering i kassekladde
+	$kkdir_get       =       if_isset($_GET,        null,   'kkdir');
 	$kladde_id       = (int) if_isset($_GET,        0,      'kladde_id');
-	$funktion        =       if_isset($_GET, 		null,	['funktion']);
-	$x               = (int) if_isset($_GET, 		0,      ['x']);
-	$id[$x]          =       if_isset($_GET, 		null,	['id']);
-	$lobenr[$x]      =       if_isset($_GET, 		null,	['lobenr']);
+	$funktion        =       if_isset($_GET, 		null,	'funktion');
+	$x               = (int) if_isset($_GET, 		0,      'x');
+	$id[$x]          =       if_isset($_GET, 		null,	'id');
+	$lobenr[$x]      =       if_isset($_GET, 		null,	'lobenr');
 	$kladde_id       = (int) if_isset($_GET, 		0,		'kladde_id');
 	$bilag[$x]       = (int) if_isset($_GET, 		0,		'bilag');
 	$dato[$x]        =       if_isset($_GET, 		'',		'dato');
@@ -460,13 +469,13 @@ if ($_GET) {
 	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
 	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
 	$find            =       if_isset($_GET, 		'',		'find');
-	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		[$x]));
-	$d_type[$x]      =  trim(if_isset($d_type, 		'',		[$x]));
-	$debet[$x]       =  trim(if_isset($debet, 		'',		[$x]));
-	$k_type[$x]      =  trim(if_isset($k_type, 		'',		[$x]));
-	$kredit[$x]      =  trim(if_isset($kredit, 		'',		[$x]));
-	$faktura[$x]     =  trim(if_isset($faktura, 	'',		[$x]));
-	$belob[$x]       =  trim(if_isset($belob, 		'',		[$x]));
+	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		$x));
+	$d_type[$x]      =  trim(if_isset($d_type, 		'',		$x));
+	$debet[$x]       =  trim(if_isset($debet, 		'',		$x));
+	$k_type[$x]      =  trim(if_isset($k_type, 		'',		$x));
+	$kredit[$x]      =  trim(if_isset($kredit, 		'',		$x));
+	$faktura[$x]     =  trim(if_isset($faktura, 	'',		$x));
+	$belob[$x]       =  trim(if_isset($belob, 		'',		$x));
 	$existing_row = null;
 
 	// Persistent Sorting
@@ -490,9 +499,9 @@ if ($_GET) {
 		$debetvat_param,
 		$debet[$x],
 		$d_type[$x],
-		if_isset($existing_row, '', ['debet']),
-		if_isset($existing_row, '', ['d_type']),
-		if_isset($existing_row, '', ['debetvat']),
+		if_isset($existing_row, '', 'debet'),
+		if_isset($existing_row, '', 'd_type'),
+		if_isset($existing_row, '', 'debetvat'),
 		$regnaar,
 		$vat_codes
 	);
@@ -2451,34 +2460,31 @@ if ($kladde_id) {
 		print "<meta http-equiv='refresh' content='3600;URL=../finans/kladdeliste.php?tabel=kladdeliste&id=$kladde_id'>";
 
 	print "<script>
-		document.addEventListener('DOMContentLoaded', function() { 
-			console.log('CONTENT LOAD');
-			var element = document.body;
-			var scrollpos = localStorage.getItem('kassekladde-$kladde_id');
-			if (scrollpos && element) {
-				element.scrollTo(0, parseInt(scrollpos, 10));
+		document.addEventListener('DOMContentLoaded', function() {
+			var element = document.querySelector('.kassekladde-scroll-container');
+			if (element) {
+				element.scrollTop = element.scrollHeight;
 			}
 		});
 
 		function saveScrollPosition() {
-			var element = document.body;
+			var element = document.querySelector('.kassekladde-scroll-container');
 			if (element) {
 				var scrollKey = 'kassekladde-$kladde_id';
 				localStorage.setItem(scrollKey, element.scrollTop);
-				console.log('Scroll position saved:', element.scrollTop);
 			}
 		}
-		
+
 		document.addEventListener('visibilitychange', function() {
 			if (document.visibilityState === 'hidden') {
 				saveScrollPosition();
 			}
 		});
-		
+
 		window.addEventListener('beforeunload', function() {
 			saveScrollPosition();
 		});
-		
+
 		</script>";
 
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
