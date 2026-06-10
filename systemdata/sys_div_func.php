@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.11.24 ---
+// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.06.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -98,6 +98,7 @@
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address UI
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260420 NTR SST-578 Fixed QRcode always fetching kasse 2, instead of it's intended kasse
+// 20260605 CL/PHR function labels: fixed Standard label read from grupper (was incorrectly reading from labels table); added hidden editRawHTML to keep raw HTML mode after save
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -1842,7 +1843,6 @@ function ordre_valg() {
 	}
 	$gs1parsing = get_settings_value("gs1_parsing", "ordre", "off") === "on" ? "checked" : "";
 	$ourRefStockSwitch = get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" ? "checked" : "";
-	$stockWarningEnabled = get_settings_value("stockWarningEnabled", "ordre", "off") === "on" ? "checked" : "";
 
 	$rabatvarenr = NULL;
 	if ($rabatvareid) {
@@ -1915,8 +1915,6 @@ function ordre_valg() {
 	print "<tr><td title='Aktiverer autosøgning/autocomplete på ordresider (bruger specifik indstilling)'>Anvend autosøgning på ordrer</td><td><INPUT title='Aktiverer autosøgning/autocomplete på ordresider' class='inputbox' type='checkbox' name='ordreAutocomplete' $ordreAutocomplete></td></tr>";
 	print "<tr><td title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)'>Anvend GS1 stregkodefortolkning</td><td><INPUT title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
 	print "<tr><td title=\"Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.\">If 'Our ref's stock is empty choose another</td><td><INPUT title=\"Opdater lager ud fra 'Vores ref.' når feltet ændres\" class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
-	$swT = function_exists('stock_warning_texts') ? stock_warning_texts(isset($sprog_id) ? $sprog_id : null) : array('setting_label' => 'Warn when selling out-of-stock items (popup + reason)', 'setting_title' => 'Show popup and require approval note when an out-of-stock item is added to a POS or Debtor order.');
-	print "<tr><td title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "'>" . $swT['setting_label'] . "</td><td><INPUT title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
@@ -2298,7 +2296,7 @@ function labels($valg) {
     ($valg == 'box1') ? $txt = 'Vare' : $txt = 'Adresse';
     
     // Check if user wants to edit raw HTML
-    $editRawHTML = isset($_POST['editRawHTML']) || isset($_GET['editRawHTML']);
+    $editRawHTML = (isset($_POST['editRawHTML']) || isset($_GET['editRawHTML'])) && !isset($_POST['switchToVisual']);
     
     if (isset($_POST['newLabel'])) {
         print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
@@ -2335,20 +2333,17 @@ function labels($valg) {
         print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips och tricks.', $sprog_id)."'><!--tekst 737-->";
         print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
         
-        // **FIX: Add proper database retrieval here**
-        if ($valg == 'box1') {
-			if (in_array($labelName, $labelNames)) {
-				$qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
-				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$labelText = $r['labeltext'];
-					$labelType = $r['labeltype'];
-				}
-            } else {
-                $qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
-                if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                    $labelText = $r['labeltext'];
-                    $labelType = $r['labeltype'];
-				}
+        if ($labelName == 'Standard') {
+            // Standard label is stored in grupper table
+            $qtxt = "select $valg from grupper where art = 'LABEL'";
+            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                $labelText = $r[$valg];
+            }
+        } elseif ($valg == 'box1' && in_array($labelName, $labelNames)) {
+            $qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
+            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                $labelText = $r['labeltext'];
+                $labelType = $r['labeltype'];
             }
         }
         
@@ -2434,6 +2429,7 @@ Pris $pris<br>
 		
 		if ($editRawHTML) {
 			// Raw HTML editing mode
+			print "<input type='hidden' name='editRawHTML' value='1'>";
 			print "<tr><td colspan='4'>";
 			print "<div style='margin-bottom: 10px;'>";
 			print "<h3>Rå HTML Editor</h3>";

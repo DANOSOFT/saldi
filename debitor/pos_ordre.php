@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-04-03 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-06-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -95,6 +95,7 @@
 // 20260316 PHR Corrected Currency error in cashCount
 // 20260403 PHR Added && '$leveres[0] != 0' as leveres else is set to 0 if qty was changed and kokkelprint became reset.
 // 20260601 Sawaneh Out-of-stock popup now also fires for sub-items of a samlesæt (set), not just the master varenr
+// 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -213,8 +214,7 @@ if ($menu == 'T') {
 	<script type="text/javascript">
 		// jQuery funktion til autosize på textarea 
 		$(document).ready(function () {
-
-			if(typeof $('.autosize') !== 'undefined' && typeof $('.autosize').autosize !== 'undefined') $('.autosize').autosize();
+			$('.autosize').autosize();
 		});
 		// jQuery funktion til ordrelinjer i ordre.php. Ved tryk på enter submitter formen og ved shift+enter laver den ny linje i textarea
 		$(function () {
@@ -1563,38 +1563,33 @@ if ($vare_id) {
 					}
 				}
 				if (!$blockOnStockWarning) {
-				if (usdecimal($pris_ny, 2) == 0.00)
-					$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
-				if ($svar && !is_numeric($svar)) {
-					print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
-					$fokus = "pris_ny";
-				} else {
-					$qtxt = "select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'";
-					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
-						$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					if (usdecimal($pris_ny, 2) == 0.00)
+						$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
+					if ($svar && !is_numeric($svar)) {
+						print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
+						$fokus = "pris_ny";
+					} else {
+						$qtxt = "select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'";
+						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
+							$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
+							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						}
+						$varenr_ny = $next_varenr;
+						$tmp = $antal_ny; #Til kundedisplay
+						$antal_ny = NULL;
+						#			$sum=0;
 					}
-					$varenr_ny = $next_varenr;
-					$tmp = $antal_ny; #Til kundedisplay
-					$antal_ny = NULL;
-					#			$sum=0;
 				}
-				}
-				/*
-											if ($kundedisplay) {
-												 kundedisplay($beskrivelse_ny,usdecimal($pris_ny,2)*$tmp,0);
-							#					kundedisplay('Subtotal',$sum+$pris_ny*$tmp,0);
-											}
-							*/
 			}
 		} elseif ($varenr_ny)
-			$sum = find_pris($varenr_ny);
-		#		else $sum=0;
+				$sum = find_pris($varenr_ny);
+		// else $sum=0;
 	}
 }
 
 ############################
+global $regnaar;
 $x = 0;
 if ($id) {
 	$qtxt = "select id from ordrer where id = '$id' and art = 'PO'";
@@ -3125,9 +3120,9 @@ function kasseoptalling( // Called from cashBalance.php
 	$kortdiff = 0;
 	if ($change_cardvalue) {
 		for ($x = 0; $x < count($kortsum); $x++) {
-			$ny_kortsum[$x] = (float)$ny_kortsum[$x];
+			$ny_kortsum[$x] = usdecimal($ny_kortsum[$x], 2);
 			$kortsum[$x] = (float)$kortsum[$x];
-			$kortdiff += $kortsum[$x] - usdecimal($ny_kortsum[$x], 2);
+			$kortdiff += $kortsum[$x] - $ny_kortsum[$x];
 		}
 		$kortdiff = afrund($kortdiff, 2);
 	}
@@ -3533,8 +3528,6 @@ function posvaluta($modtaget) {
 	if ($betvalkurs != $prevalkurs) {
 		$modtaget = NULL;
 		$valmodt = NULL;
-//if (isset($_GET['printXreport']) && $_GET['printXreport']) {
-
 	} elseif ($betvalkurs != 100)
 		$modtaget *= $betvalkurs / 100;
 

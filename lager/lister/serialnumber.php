@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
+// 20260608 CL/PHR - ABS(sn.salgslinje_id) i JOIN så negative salgslinje_id (kreditnota-retur) også viser salgsordren
+// 20260608 CL/PHR - Filter "ikke solgt": sn.salgslinje_id <= 0 i stedet for so.ordrenr IS NULL (retur-serienr. vises som tilgængelige)
 
 @session_start();
 $s_id = session_id();
@@ -231,7 +233,7 @@ $filters[] = array(
         array(
             "name" => "Vis kun serienumre der ikke er solgt",
             "checked" => "",
-            "sqlOn" => "so.ordrenr IS NULL",
+            "sqlOn" => "sn.salgslinje_id <= 0",
             "sqlOff" => "",
         )
     )
@@ -265,7 +267,7 @@ LEFT JOIN varer v ON sn.vare_id = v.id
 LEFT JOIN ordrelinjer kl ON sn.kobslinje_id = kl.id
 LEFT JOIN ordrer ko ON kl.ordre_id = ko.id
 
-LEFT JOIN ordrelinjer sl ON sn.salgslinje_id = sl.id
+LEFT JOIN ordrelinjer sl ON ABS(sn.salgslinje_id) = sl.id
 LEFT JOIN ordrer so ON sl.ordre_id = so.id
 
 WHERE 

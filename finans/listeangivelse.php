@@ -30,7 +30,8 @@
 // 20160824 PHR	- Hack til at vise lister hvis $euvarekonto mm ikke er udfyldt. #20160824
 // 20171130 PHR - varer.varenr ændret til varer.vare_id så varer der har ændret varenr også kommer med. Søg 20171130
 // 20260303 PHR - PHP8
-// 20260522 PHR - Fiscal Year
+// 20260522 PHR - Fiscal year
+// 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 
 @session_start();
 $s_id=session_id();
@@ -116,6 +117,8 @@ $datafil = "0,".$egetcvrnr.",LISTE,,,,,,";
 $eu_debitorgrp[0] = 2;
 $totalsumdkk=0;
 $antal_poster=0;
+$r_bc = db_fetch_array(db_select("select var_value from settings where var_name='baseCountry' limit 1",__FILE__ . " linje " . __LINE__));
+$baseCountry = $r_bc['var_value'] ?: 'dk';
 
 $query=db_select("select id, cvrnr from adresser where art = 'D'",__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
@@ -123,7 +126,7 @@ while ($row = db_fetch_array($query)) {
 	$ydelsessumdkk=0;
 	$fakturaer=0;
 	$debitorcvrnr=$row['cvrnr'];
-	if ( cvrnr_omr(cvrnr_land($debitorcvrnr)) == "EU" ) { 
+	if ( cvrnr_omr(cvrnr_land($debitorcvrnr, $baseCountry), $baseCountry) == "EU" ) { 
 		echo "<!-- <p>Hvis i EU </p> -->\n" ;
 	} else { 
 		continue;

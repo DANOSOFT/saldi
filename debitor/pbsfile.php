@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pbsfile.php --- patchh 5.0.0 --- 2026-03-21 ---
+// --- debitor/pbsfile.php --- patchh 5.0.0 --- 2026-06-01 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20250820 PHP8
 // 20260320 PHR Replaced kontonr(numeric) with ktonr(varchar)
 // 20260321 PHR Reversed above as ktonr does not exist in all accounts
+// 20260601 PHR Removed PBS from CVR nr.
 
 @session_start();
 $s_id=session_id();
@@ -111,12 +112,12 @@ if (!$afsendt) {
 	}
 */
 	$r=db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
-	$cvrnr[0]=$r['cvrnr'];
-	$bank_reg[0]=$r['bank_reg'];
-	$bank_konto[0]=$r['bank_konto'];
-	$pbs_nr[0]=$r['pbs_nr'];
-	$lev_pbs=$r['pbs'];
-	$debitorgruppe=$r['gruppe']*1;
+	$cvrnr[0]      = str_replace('DK','',$r['cvrnr']);
+	$bank_reg[0]   = $r['bank_reg'];
+	$bank_konto[0] = $r['bank_konto'];
+	$pbs_nr[0]     = $r['pbs_nr'];
+	$lev_pbs       = $r['pbs'];
+	$debitorgruppe = $r['gruppe']*1;
 	if (!$debitorgruppe) $debitorgruppe=1;
 	if ($lev_pbs=='L') while(strlen($pbs_nr[0])<5) $pbs_nr[0]="0".$pbs_nr[0];
 	else while(strlen($pbs_nr[0])<8) $pbs_nr[0]="0".$pbs_nr[0];
