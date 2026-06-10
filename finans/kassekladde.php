@@ -2468,12 +2468,10 @@ if ($kladde_id) {
 		print "<meta http-equiv='refresh' content='3600;URL=../finans/kladdeliste.php?tabel=kladdeliste&id=$kladde_id'>";
 
 	print "<script>
-		document.addEventListener('DOMContentLoaded', function() { 
-			console.log('CONTENT LOAD');
-			var element = document.body;
-			var scrollpos = localStorage.getItem('kassekladde-$kladde_id');
-			if (scrollpos && element) {
-				element.scrollTo(0, parseInt(scrollpos, 10));
+		document.addEventListener('DOMContentLoaded', function() {
+			var element = document.querySelector('.kassekladde-scroll-container');
+			if (element) {
+				element.scrollTop = element.scrollHeight;
 			}
 		});
 
