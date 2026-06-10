@@ -466,7 +466,7 @@ document.addEventListener('keydown', function(e) {
         case 'Enter':
             e.preventDefault();
             if (e.ctrlKey) {
-                document.querySelector('button.btn-import[type="submit"]')?.click();
+                document.querySelector('.toolbar button.btn-import[type="submit"]')?.click();
             } else if (highlightedIdx >= 0) {
                 const cb = txRows[highlightedIdx].querySelector('input[type="checkbox"]');
                 if (cb) cb.checked = !cb.checked;
