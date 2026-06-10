@@ -1490,7 +1490,7 @@
 1490	Indsættes for at lave kursiv tekst. Sæt cursoren imellem <i> og </i>\n(F.eks. <i>Lorem ipsum</i>)\nKan også bruges til tom linje. Her insættes <i></i> uden tekst. 	Inserted to create italic text. Place the cursor between <i> and </i>\n(E.g. <i>Lorem ipsum</i>)\nCan also be used for blank line. In this case, insert <i></i> without text.	Settes inn for å lage kursiv tekst. Plasser markøren mellom <i> og </i>\n(F.eks. <i>Lorem ipsum</i>)\nKan også brukes for tom linje. Da settes <i></i> inn uten tekst.
 1491	Klik her for at tage varer retur	Click here to take items back	Klikk her for å ta varene tilbake
 1492	klik her for at kopiér tilbud til ny sag	click here to copy quotes for new case	Klikk her for å kopiere tilbud for ny sak
-1493	Kopiér	Copy	Kopiere
+1493	Kopiér	Copy	Kopier
 1494	Afmærk dette felt, hvis ordrelinjen ikke skal med ved genfakturering / kopiering.	Check this field if the order line should not be included when re-invoicing / copying.	Merk av dette feltet hvis ordrelinjen ikke skal inngå i gjenfakturering / kopiering.
 1495	Tidligere	Previous	Tidligere
 1496	Vælg fra købsordre	Choose from purchase order	Velg fra innkjøpsordre
@@ -3134,7 +3134,7 @@
 3134	Opgavebeskrivelse	Task description	Oppgavebeskrivelse
 3135	Manuel transport	Manual transport	Manuell transport
 3136	Print skema	Print form	Skriv ut skjema
-3137	Stillads til	Scaffolding for	Stillads til
+3137	Stillads til	Scaffolding for	Stillas til
 3138	Gange	Times	Ganger
 3139	Hvis mere end forventet, skal der ringes til ansvarlig konduktør	If more than expected, call the responsible foreman	Hvis mer enn forventet skal ansvarlig bas ringes
 3140	Husk hver dag at	Remember every day to	Husk hver dag å
