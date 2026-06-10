@@ -346,12 +346,6 @@ print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
 
 
 # #######################################
-#  bank status
-# #######################################
-  include("./dashboardIncludes/bank_authenticated.php");
-
-
-# #######################################
 #  Omsætning for ugen
 # #######################################
 if( $revweek === "on") {
