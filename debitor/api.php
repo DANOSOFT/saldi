@@ -1,4 +1,5 @@
 <?php
+// 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
 
     // This file is used to send invoices to EasyUBL
 //                ___   _   _   ___  _     ___  _ _
