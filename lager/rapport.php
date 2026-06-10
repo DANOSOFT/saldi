@@ -265,6 +265,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	}
 	$ref_nr[0]='0';
 	$ref_navn[0]='Alle';
+	$ref_brugernavn[0]='';
 	$x=1;
 	$q = db_select("select * from brugere order by brugernavn",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -300,7 +301,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 		print "<tr bgcolor='$trbg'><td>".findtekst('966|Leverandør', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"lev\" style=\"width:200px;\">";
 		for ($x=0;$x<count($lev_id);$x++) {
-			if ($lev == $lev_id[$x]) print "<option value='$lev_id[$x]'>$lev_navn[$x]</option>";
+			if ($lev == $lev_id[$x]) print "<option value='$lev_id[$x]'>$lev_nr[$x] : $lev_navn[$x]</option>";
 		}
 		for ($x=0;$x<count($lev_id);$x++) {
 			if ($lev != $lev_id[$x]) print "<option value='$lev_id[$x]'>$lev_nr[$x] : $lev_navn[$x]</option>";
