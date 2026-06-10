@@ -52,7 +52,9 @@
 // 20260513-2 PK - Removed 'button' in css as it created double border-radius on the pagination buttons
 // 20260519 CL/NTR - Moved Balance Ledger, Balance Bank and Balance Diff to before moms column. Added Header to Balance Diff.
 // 20260521 LOE Fixed a bug from extra added closing brace and updated background color for thead
-// 20260529 SZ - Added Persistent Sorting on Kassekladde (Added by NTR, Don't know what else was changed)
+// 20260529 SZ - Added Persistent Sorting on Kassekladde (Added by NTR, Don't know what else was changed)// 20260610 CL/PHR - Valuta-kolonne viste ingenting: tilføjet field=valuta_navn + LEFT JOIN grupper VK i build_kassekladde_query
+// 20260610 CL/PHR - Valuta-kolonne: viser $baseCurrency (f.eks. DKK) for rækker uden fremmed valuta (valuta=0)
+
 
 ob_start(); //Starter output buffering
 
@@ -1394,8 +1396,9 @@ if (!$simuler) {
 }
 
 function build_kassekladde_query($kladde_id, $kksort) {
+    global $baseCurrency;
     $query = "
-         SELECT 
+         SELECT
             k.id,
             k.bilag,
             k.transdate,
@@ -1410,6 +1413,7 @@ function build_kassekladde_query($kladde_id, $kksort) {
             k.afd,
             k.ansat,
             k.projekt,
+            COALESCE(vkg.box1, '$baseCurrency') AS valuta_navn,
             k.valuta,
             k.forfaldsdate,
             k.betal_id,
@@ -1417,6 +1421,7 @@ function build_kassekladde_query($kladde_id, $kksort) {
             k.dokument,
             k.saldo
         FROM kassekladde k
+        LEFT JOIN grupper vkg ON vkg.art = 'VK' AND vkg.kodenr = k.valuta
         WHERE k.kladde_id = '$kladde_id' AND {{WHERE}}
         ORDER BY {{SORT}}
     ";
@@ -1770,6 +1775,7 @@ $columns = array(
 	
 	// Valuta (if visible)
 	array(
+        'field' => 'valuta_navn',
 		'headerName' => findtekst('1069|Valuta', $sprog_id),
 		'type' => 'text',
 		'width' => '1',

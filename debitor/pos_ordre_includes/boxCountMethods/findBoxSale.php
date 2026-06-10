@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- lap 5.0.0 - 2026.02.17 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- lap 5.0.0 - 2026.06.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
+// 20260605 CL/PHR findBoxSale: inkluder kasse_nr=0 transaktioner for ordrer tilhørende denne kasse i kasseopgørelsen
 
 // PHR Changed DKK to $baseCurrency
 function findBoxSale ($kasse,$optalt,$valuta) {
@@ -109,8 +110,9 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 				$logdate=$regnstart;
 				$logtime='00:00';
 			}
-			$qtxt = "select distinct(ordre_id) from transaktioner where (logdate > '$logdate' or (logdate = '$logdate' and logtime > '$logtime')) ";
-			$qtxt.= "and kasse_nr='$kasse'";
+			$qtxt = "select distinct(t.ordre_id) from transaktioner t left join ordrer o on t.ordre_id = o.id";
+			$qtxt.= " where (t.logdate > '$logdate' or (t.logdate = '$logdate' and t.logtime > '$logtime'))";
+			$qtxt.= " and (t.kasse_nr='$kasse' or (t.kasse_nr=0 and o.felt_5='$kasse'))";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			$o=0;
 			$oList=array();

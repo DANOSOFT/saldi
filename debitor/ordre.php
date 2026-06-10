@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-05-12 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-06-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,6 +86,7 @@
 // 20260509 PHR Hack to prevent order beeing created twice when using account lookup in to create the order.
 // 20260512 NTR MERGED Live/POS into PROD_TEST
 // 20260528 Sawaneh Stock warning popup skips already-saved lines and cache-busts stockWarning JS includes via filemtime
+// 20260610 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
 
 @session_start();
 $s_id = session_id();
@@ -4102,8 +4103,9 @@ function ordreside($id, $regnskab)
 			print "<tr><td align=\"center\" colspan=\"3\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\"><tbody>\n"; #Tabel 2.4 ->
 			print "<tr><td width=\"120px\">" . findtekst('1476|Mail emne', $sprog_id) . "</td><td><input class = 'inputbox' type = 'text' style=\"width:1000px;\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_subj\" placeholder=\"$std_subj\" value=\"$mail_subj\" onchange=\"javascript:docChange = true;\"></td>";
 			if ($bilag) {
-				if ($dokument) print "<td title=\"" . findtekst('1454|klik her for at åbne bilaget', $sprog_id) . ": $dokument\"><a href=\"../includes/bilag.php?kilde=ordrer&filnavn=$dokument&bilag_id=$id&bilag=$dokument&kilde_id=$id\"><img style=\"border: 0px solid\" alt=\"clip_m_papir\" src=\"../ikoner/paper.png\"></a></td>";
-				else print "<td title=\"" . findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id) . "\"><a href=\"../includes/bilag.php?kilde=ordrer&bilag_id=$id&bilag=$dokument&ny=ja&kilde_id=$id\"><img  style=\"border: 0px solid\" alt=\"clip\" src=\"../ikoner/clip.png\"></a></td>";
+				$qtxt_doc = "select id from documents where source = 'debitorOrdrer' and source_id = '$id'";
+				$clip = db_fetch_array(db_select($qtxt_doc, __FILE__ . " linje " . __LINE__)) ? 'paper.png' : 'clip.png';
+				print "<td title=\"" . findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id) . "\"><a href=\"../includes/documents.php?source=debitorOrdrer&ny=ja&sourceId=$id\"><img style=\"border: 0px solid; width:20px; height:20px;\" src=\"../ikoner/$clip\"></a></td>";
 			}
 			print "</tr><tr><td valign = 'top'>" . findtekst('585|Mail tekst', $sprog_id) . "</td><td title='$std_txt_title'>";
 			if ($mail_text) {
@@ -5521,8 +5523,9 @@ function ordreside($id, $regnskab)
 			if (!$mail_subj && !$mail_text && $art != 'DK') print "<tr><td></td><td colspan=\"1\" align=\"left\"><small>" . findtekst('2543|Nedenstående tekster ændres ved fakturering, hold musen over beskrivelsen til venstre for at se ændringen.', $sprog_id) . "</small></td>";
 			print "<tr><td width=\"120px\" title=\"$subj_title\">" . findtekst('1476|Mail emne', $sprog_id) . "</td><td title=\"$std_subj\"><input class = 'inputbox' type = 'text' style=\"width:1000px;\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_subj\" placeholder=\"$std_subj\" value=\"$mail_subj\" onchange=\"javascript:docChange = true;\"></td>";
 			if ($bilag) {
-				if ($dokument) print "<td title=\"" . findtekst('1454|klik her for at åbne bilaget', $sprog_id) . ": $dokument\"><a href=\"../includes/bilag.php?kilde=ordrer&filnavn=$dokument&bilag_id=$id&bilag=$dokument&kilde_id=$id\"><img style=\"border: 0px solid\" alt=\"clip_m_papir\" src=\"../ikoner/paper.png\"></a></td>";
-				else print "<td title=\"" . findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id) . "\"><a href=\"../includes/bilag.php?kilde=ordrer&bilag_id=$id&bilag=$dokument&ny=ja&kilde_id=$id\"><img  style=\"border: 0px solid\" alt=\"clip\" src=\"../ikoner/clip.png\"></a></td>";
+				$qtxt_doc = "select id from documents where source = 'debitorOrdrer' and source_id = '$id'";
+				$clip = db_fetch_array(db_select($qtxt_doc, __FILE__ . " linje " . __LINE__)) ? 'paper.png' : 'clip.png';
+				print "<td title=\"" . findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id) . "\"><a href=\"../includes/documents.php?source=debitorOrdrer&ny=ja&sourceId=$id\"><img style=\"border: 0px solid; width:20px; height:20px;\" src=\"../ikoner/$clip\"></a></td>";
 			}
 			print "</tr><tr><td valign = 'top'  title=\"$text_title\">'" . findtekst('585|Mail tekst', $sprog_id) . "'</td><td title='\"$std_txt_title\"'>";
 			if ($mail_text) print "<textarea style=\"width:1000px;\" rows=\"2\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_text\" onchange=\"javascript:docChange = true;\">$mail_text</textarea>\n";

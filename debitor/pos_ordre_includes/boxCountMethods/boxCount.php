@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026.02.17 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 5.0.0 - 2026-06-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20250813 PHR Compared and merged changes from ssl7
 // 20260211 PHR Updated cashCount
 // 20260225 PHR Updated cashCount
+// 20260604 PHR setCreditCards: dkdecimal() tilføjet til visning af ny_kortsum — konvertering sker nu i pos_ordre.php via usdecimal()
 
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
@@ -291,7 +292,7 @@ function setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_
 			print "<tr><td colspan='2'><b>$kortnavn[$x]</b>(".dkdecimal($kortsum[$x],2).")</td><td align='right'>";
 			print "<input type='text' style=\"width:100;text-align:right;font-size:$ifs;\" ";
 			#if (!$ny_kortsum[$x] && $ny_kortsum[$x]!='0') $ny_kortsum[$x]=dkdecimal($kortsum[$x],2); #20210517
-			print "name='ny_kortsum[$x]' value='$ny_kortsum[$x]'> $curr</td>";
+			print "name='ny_kortsum[$x]' value='".dkdecimal($ny_kortsum[$x],2)."'> $curr</td>";
 			createXreport($kortnavn[$x],$kortsum[$x],$curr);
 			displayLine($kortnavn[$x],$kortsum[$x],$curr);
 			file_put_contents($logfil,"$kortnavn[$x]($kortsum[$x]) $ny_kortsum[$x]\n",FILE_APPEND);

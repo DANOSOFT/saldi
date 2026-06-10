@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- patch 5.0.0 --- 2026.05.26---
+// --- lager/rapport.php --- patch 5.0.0 --- 2026-06-10---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -68,6 +68,7 @@
 // 20260408 PHR set max_execution_time to 300
 // 20260507 CL Rettet forskydning i summary-række: tilføjet $tt_kost (Kostpris), flyttet $tt_k_pris til korrekt kolonne (Købspris), tilføjet manglende Solgt-celle
 // 20260526 LOE Added salg_rapport.php with sales report based on postnr and departments, to handle sales report for customers with postnr and departments. Based on datagrid, with flexible search and sorting.
+// 20260610 CL/PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -636,7 +637,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<td align=\"right\"><b>DB</b></td>
 			<td align=\"right\"><b>DG</b></td>
 			<td align=\"right\"><b>".findtekst('975|På lager', $sprog_id)."</b></td>"; #20210402
-			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Solgt;Salgspris;DB;DG;". mb_convert_encoding('På lager', 'ISO-8859-1', 'UTF-8') ."\r\n");
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Solgt;Salgspris;DB;DG;". 'På lager' ."\r\n");
 		} else {
 			print "<tr><td><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
 			<td><b>(alias)</b></td>
@@ -654,12 +655,12 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<td align=\"right\"><b>DB</b></td>
 			<td align=\"right\"><b>DG</b></td>";
 			#<td align=\"right\"><b>K&oslash;bspris</b></td>";
-			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Bestilt;". mb_convert_encoding('Købt', 'ISO-8859-1', 'UTF-8') .";". mb_convert_encoding('Købspris', 'ISO-8859-1', 'UTF-8') .";");
-			fwrite($csvfile, "Solgt;Salgspris;". mb_convert_encoding('+moms', 'ISO-8859-1', 'UTF-8') .";Reguleret;DB;DG");
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Bestilt;". 'Købt' .";". 'Købspris' .";");
+			fwrite($csvfile, "Solgt;Salgspris;". '+moms' .";Reguleret;DB;DG");
 			if (count($lagergruppe) && $lagertal) {
 				print "<td align=\"right\"><b>".findtekst('980|Beholdning', $sprog_id)."</b></td>
 				<td align=\"right\"><b>".findtekst('476|Værdi', $sprog_id)."</b></td>";
-				fwrite($csvfile,";Beholdning;". mb_convert_encoding('Værdi', 'ISO-8859-1', 'UTF-8'));
+				fwrite($csvfile,";Beholdning;". 'Værdi');
 			}
 			print "</tr>\n";
 			fwrite($csvfile,"\r\n");
@@ -752,9 +753,9 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
 				print "<tr><td colspan=\"5\"><b>Alias: $varenr_alias[$x] $beskrivelse_alias[$x]</b></td></tr>\n";
 			}
-			fwrite($csvfile,";;;;\"$varenr[$x] ".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
+			fwrite($csvfile,";;;;\"$varenr[$x] ".$beskrivelse[$x]."\"\r\n");
 			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
-				fwrite($csvfile,";;;;\"Alias: $varenr_alias[$x] ".mb_convert_encoding($beskrivelse_alias[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
+				fwrite($csvfile,";;;;\"Alias: $varenr_alias[$x] ".$beskrivelse_alias[$x]."\"\r\n");
 			}
 #			if ($enhed[$x]) print "<tr><td colspan=\"3\">$enhed[$x]</td></tr>\n";
 #			print "<tr><td colspan=\"3\"><b>$beskrivelse[$x]</b></td></tr>\n";
@@ -767,7 +768,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				print "<td align='right'>".findtekst('770|Moms', $sprog_id)."</td>";
 				print "<td align='right'>".findtekst('2747|Inkl. moms', $sprog_id)."</td>";
 				print "<td align='right'>".findtekst('107|Ordrer', $sprog_id)."</td></tr>\n";
-			fwrite($csvfile, mb_convert_encoding('Købsdato', 'ISO-8859-1', 'UTF-8') .";Antal;Pris;Moms;Incl. moms;Ordre\r\n");
+			fwrite($csvfile, 'Købsdato' .";Antal;Pris;Moms;Incl. moms;Ordre\r\n");
 				print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 				print "<!-- Line". __line__ ."-->\n";
 				for ($y=0;$y<count($k_antal);$y++) {
@@ -975,7 +976,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 				print "<tr bgcolor='$linjebg'><td colspan='1'><b><big>$r[beskrivelse]</big></b></tr>\n";
-				fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8')."\r\n");
+				fwrite($csvfile, $r['beskrivelse']."\r\n");
 			}
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 			print "<tr bgcolor='$linjebg'><td>$varenr[$x]</td>";
@@ -983,7 +984,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			print "<td>$enhed[$x]</td>";
 			print "<td>$beskrivelse[$x]</td>";
 			print "<td>$beskrivelse_alias[$x]</td>";
-			fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\";\"".mb_convert_encoding($beskrivelse_alias[$x], 'ISO-8859-1', 'UTF-8')."\";");
+			fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\";");
 			if ($kun_salg) {
 				print "<td align='right'>".dkdecimal($v_kostpris[$x],2)."</td>";
 				fwrite($csvfile, dkdecimal($v_kostpris[$x],2).";");
@@ -1046,7 +1047,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 				print "<tr bgcolor='$linjebg'><td><b>$r[beskrivelse]</b></td>";
-				fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8').";");
+				fwrite($csvfile, $r['beskrivelse'].";");
 				if (!$kun_salg) {
 					print "<td colspan='4'></td>";
 					print "<td align='right'><b>".dkdecimal($g_Ksum[$vg],2)."</b></td>";
@@ -1086,7 +1087,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 						($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 						print "<tr bgcolor='$linjebg'><td colspan='2'><b><big>$r[beskrivelse]</big></b></tr>\n\n";
-						fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8') ."\r\n");
+						fwrite($csvfile, $r['beskrivelse'] ."\r\n");
 					}
 				}
 			}
@@ -1129,7 +1130,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<td align=\"right\"></td>";
 			if ($lagertal && $tt_stockvalue) print "<td align=\"right\">".findtekst('2748|Samlet lagerværdi', $sprog_id)."</td>";
 			print "</tr>\n";
-			fwrite($csvfile, "Summeret;;;;;Kostpris;;". mb_convert_encoding('Købspris', 'ISO-8859-1', 'UTF-8') .";;Salgspris;Moms;;DB;DG;;". mb_convert_encoding('Værdi', 'ISO-8859-1', 'UTF-8') ."\r\n");
+			fwrite($csvfile, "Summeret;;;;;Kostpris;;". 'Købspris' .";;Salgspris;Moms;;DB;DG;;". 'Værdi' ."\r\n");
 		}
 		if (!isset($varenr[$x])) $varenr[$x]=$enhed[$x]=$beskrivelse[$x]=$varenr_alias[$x]=$beskrivelse_alias[$x]=NULL;
 		print "<tr><td>$varenr[$x]</td>";
@@ -1137,7 +1138,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		print "<td>$enhed[$x]</td>";
 		print "<td>$beskrivelse[$x]</td>";
 		print "<td>$beskrivelse_alias[$x]</td>";
-		fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\";\"".mb_convert_encoding($beskrivelse_alias[$x], 'ISO-8859-1', 'UTF-8')."\"");
+		fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\"");
 		if (!$kun_salg) {
 #			print "<td align='right'> <b>".dkdecimal($tt_kobt,2)."</b></td>";
 #			fwrite($csvfile, dkdecimal($tt_kobt,2).";");

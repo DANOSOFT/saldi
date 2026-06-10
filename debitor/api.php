@@ -1,4 +1,5 @@
 <?php
+// 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
 
     // This file is used to send invoices to EasyUBL
 //                ___   _   _   ___  _     ___  _ _
@@ -260,12 +261,24 @@
         $ranStr = $characters[rand(0, 4)];
         file_put_contents("../temp/$db/fakture-result-$ranStr.json", $result);
         $result = json_decode($result, true);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         if (curl_errno($ch)) {
             echo 'Error: ' . curl_error($ch);
             file_put_contents("../temp/$db/fakture-error-$ranStr.json", curl_error($ch));
             exit();
         }
-        
+
+        // EasyUBL returnerer tomt svar (HTTP 500) for kreditnotaer - bug i EasyUBL API
+        if ($result === null) {
+            file_put_contents("../temp/$db/fakture-error-$ranStr.json", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL");
+            ?>
+            <script>
+                alert("EasyUBL returnerede tomt svar (HTTP <?php echo $httpCode; ?>). Kreditnotaer kan ikke sendes digitalt via Peppol. Kontakt saldi.dk support.");
+            </script>
+            <?php
+            exit;
+        }
+
         $randomString = '';
 
         for ($i = 0; $i < 10; $i++) {
@@ -277,19 +290,19 @@
             $errorMessage = curl_error($ch);
             $error = ['error' => $errorNumber, 'message' => $errorMessage];
             json_encode($error, JSON_PRETTY_PRINT);
-            
+
             // save response in file in temp folder
             file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-            if($result["message"] !== ""){
+            if(!empty($result["message"])){
             ?>
             <script>
-                alert("<?php echo "EasyUBL Error Occured: " . json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE); ?>");
+                alert("EasyUBL fejl: <?php echo htmlspecialchars($result["message"], ENT_QUOTES); ?>");
             </script>
             <?php
             }else{
             ?>
             <script>
-                alert("Der opdstod en fejl under sending af fakturaen. kontakt support. Tlf: 46902208");
+                alert("Der opstod en fejl under afsendelse af fakturaen. Kontakt support. Tlf: 46902208");
             </script>
             <?php
             }
