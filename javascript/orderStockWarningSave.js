@@ -101,6 +101,10 @@
 				if (el.form !== f) continue;
 				if (el.type === 'hidden' || el.readOnly || el.disabled) continue;
 				el.value = '';
+				// On the entry line the description and price are shown as placeholder
+				// text (the looked-up item preview), not as a value — clear those too,
+				// otherwise Description/Price stay visible after declining the sale.
+				if ('placeholder' in el) el.placeholder = '';
 				if (n < vareNames.length && !focusEl) focusEl = el;
 			}
 		}
