@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-05-12 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-06-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -87,6 +87,13 @@
 // 20260512 NTR MERGED Live/POS into PROD_TEST
 // 20260528 Sawaneh Stock warning popup skips already-saved lines and cache-busts stockWarning JS includes via filemtime
 // 20260601 Sawaneh Reconcile orphan stock_warning log rows (linje_id NULL from JS sendBeacon) on form post no more duplicate "Line deleted" + "On order" entries for one approval.
+// 20260610 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
+// 20260513 PHR Removed above hack as problen solved in includes/orderFuncIncludes/grid_account_lookup.php
+// 20260521 PHR changed '<' to '>' as negative qty was not possible
+// 20260528 PHR missing (float) created error
+// 20260603 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
+//                  migrateOldBilag.php inkluderet til automatisk migration af gamle bilag
+// 20260603 NTR Changed Varenr to posnr in SellerItemID in OIOUBL generation as per Jørgen's email.
 
 @session_start();
 $s_id = session_id();
@@ -236,7 +243,7 @@ $qtxt = "select box1 from grupper where art='PV'";
 
 
 
-if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && $r['box1'] == 'on') $showLocalPrint = 'on';
+if (($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && $r['box1'] == 'on') $showLocalPrint = 'on';
 $title = findtekst('1092|Kundeordre', $sprog_id);
 
 
@@ -303,7 +310,7 @@ if (isset($_GET['id']) && isset($_POST['insertItems'])) {
 		}
 	}
 }
-$q = db_SELECT("select box2,box4,box9,box12,box13,box14 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__);
+$q = db_select("select box2,box4,box9,box12,box13,box14 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
 
 // Get VAT settings from settings table
@@ -763,13 +770,6 @@ if (!strstr($fokus, 'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kon
 		db_modify("update ordrer set lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt', lev_land='$lev_land' where id=$id", __FILE__ . " linje " . __LINE__);
 	}
 }
-if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) { // 20260509
-	// Hack to prevent order beeing created twice when using account lookup in to create the order.
-	$qtxt = "select id from ordrer where konto_id = '$konto_id' and kontonr = '$kontonr' and sum = '0' ";
-	$qtxt.= " and status = '0'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $id = $r['id'];
-}
-
 if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	if (!is_numeric($default_procenttillag)) $default_procenttillag = 0;
 	$ordrenr = get_next_order_number('DO');
@@ -818,7 +818,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	} else {
 		$query = db_select("select hvem from ordrer where id='$id' and hvem != '' and hvem != '$brugernavn'", __FILE__ . " linje " . __LINE__);
 		$alert = findtekst('1823|Ordren er overtaget af', $sprog_id);
-		if ($row = db_fetch_array($query) && $row['hvem']) {
+		if (($row = db_fetch_array($query)) && $row['hvem']) {
 			print "<BODY onLoad=\"javascript:alert('$alert $row[hvem]')\">\n";
 		} elseif ($row['hvem']) {
 			$alert1 = findtekst('1824|Du er blevet smidt af', $sprog_id); #20210809
@@ -1586,7 +1586,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			else alert ("Betalt beløb ($b stemmer ikke med sum $a)");
 		}
 	}
-	if ($id && $ny_valuta != $valuta && $status < 3) {
+	if ($id && $ny_valuta && $ny_valuta != $valuta && $status < 3) {
 		if ($ny_valuta != $baseCurrency) {
 			if ($r = db_fetch_array(db_select("select valuta.kurs from valuta,grupper where grupper.art='VK' and grupper.box1='$ny_valuta' and valuta.gruppe=" . nr_cast("grupper.kodenr") . " and valuta.valdate <= '$ordredate' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__))) {
 				$valutakurs = $r['kurs'] * 1;
@@ -1816,7 +1816,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					if (!$folgevare[$x] || $folgevare[$x] > 0) {
 						$qtxt = "select antal from ordrelinjer where id = '$kred_linje_id[$x]' and (vare_id='$vare_id[$x]' or vare_id='0')"; #Vare_id er med for ikke at taelle delvarer med v. samlevarer.
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						if ($antal[$x] + $r['antal'] < 0) {
+						if ($antal[$x] + $r['antal'] > 0) { #20260521
 							$antal[$x] = $r['antal'] * -1;
 							$alert = findtekst('1832|Der kan højst krediteres', $sprog_id);
 							$alert1 = findtekst('1833|Antal reguleret', $sprog_id);
@@ -2403,7 +2403,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				if (!$r['saet']) $bruttosaetsum += $r['antal'] * ($r['pris'] + $r['pris'] * $ms / 100);
 				elseif ($r['samlevare']) {
 					list($tmp) = explode("|", $r['lev_varenr']);
-					$bruttosaetsum += $tmp;
+					$bruttosaetsum += (float)$tmp;
 				}
 			}
 			$samlet_rabat = $bruttosum - $samlet_pris;
@@ -2630,6 +2630,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 	}
 	#xit;
 }
+if ($b_submit == 'Kopier') alert('Ordre kopieret');
 ##########################UDSKRIFT#################################
 
 if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
@@ -2764,14 +2765,14 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			if ($digital_status == "Sent") {
 			?>
 				<script>
-					if (confirm('fakturen er allerede sendt digitalt vil du sende igen?') == true)
-						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+					if (confirm('kreditnotaen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php
 			} else {
 			?>
 				<script>
-					window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank')
+					window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank')
 				</script>
 			<?php
 			}
@@ -2792,14 +2793,14 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			if ($digital_status == "Sent") {
 			?>
 				<script>
-					if (confirm('fakturen er allerede sendt digitalt vil du sende igen?') == true)
-						window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank');
+					if (confirm('kreditnotaen er allerede sendt digitalt vil du sende igen?') == true)
+						window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank');
 				</script>
 			<?php
 			} else {
 			?>
 				<script>
-					window.open('peppol.php?id=<?php echo $id; ?>&type=invoice', '_blank')
+					window.open('peppol.php?id=<?php echo $id; ?>&type=creditnote', '_blank')
 				</script>
 			<?php
 			}
@@ -3609,6 +3610,7 @@ function ordreside($id, $regnskab)
 		$mail_subj = if_isset($row, '', 'mail_subj');
 		$mail_text = str_replace("<br>", "\n", if_isset($row, '', 'mail_text'));
 		$dokument = if_isset($row, '', 'dokument');
+		include(dirname(__FILE__) . '/orderIncludes/migrateOldBilag.php');
 		$sag_id = if_isset($row, 0, 'sag_id') * 1;
 		$sagsnr = if_isset($row, 0, 'sagsnr') * 1;
 		$tilbudnr = if_isset($row, '', 'tilbudnr');
@@ -4120,8 +4122,9 @@ function ordreside($id, $regnskab)
 			print "<tr><td align=\"center\" colspan=\"3\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\"><tbody>\n"; #Tabel 2.4 ->
 			print "<tr><td width=\"120px\">" . findtekst('1476|Mail emne', $sprog_id) . "</td><td><input class = 'inputbox' type = 'text' style=\"width:1000px;\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_subj\" placeholder=\"$std_subj\" value=\"$mail_subj\" onchange=\"javascript:docChange = true;\"></td>";
 			if ($bilag) {
-				if ($dokument) print "<td title=\"" . findtekst('1454|klik her for at åbne bilaget', $sprog_id) . ": $dokument\"><a href=\"../includes/bilag.php?kilde=ordrer&filnavn=$dokument&bilag_id=$id&bilag=$dokument&kilde_id=$id\"><img style=\"border: 0px solid\" alt=\"clip_m_papir\" src=\"../ikoner/paper.png\"></a></td>";
-				else print "<td title=\"" . findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id) . "\"><a href=\"../includes/bilag.php?kilde=ordrer&bilag_id=$id&bilag=$dokument&ny=ja&kilde_id=$id\"><img  style=\"border: 0px solid\" alt=\"clip\" src=\"../ikoner/clip.png\"></a></td>";
+				$qtxt_doc = "select id from documents where source = 'debitorOrdrer' and source_id = '$id'";
+				$clip = db_fetch_array(db_select($qtxt_doc, __FILE__ . " linje " . __LINE__)) ? 'paper.png' : 'clip.png';
+				print "<td title=\"" . findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id) . "\"><a href=\"../includes/documents.php?source=debitorOrdrer&ny=ja&sourceId=$id\"><img style=\"border: 0px solid; width:20px; height:20px;\" src=\"../ikoner/$clip\"></a></td>";
 			}
 			print "</tr><tr><td valign = 'top'>" . findtekst('585|Mail tekst', $sprog_id) . "</td><td title='$std_txt_title'>";
 			if ($mail_text) {
@@ -5539,8 +5542,9 @@ function ordreside($id, $regnskab)
 			if (!$mail_subj && !$mail_text && $art != 'DK') print "<tr><td></td><td colspan=\"1\" align=\"left\"><small>" . findtekst('2543|Nedenstående tekster ændres ved fakturering, hold musen over beskrivelsen til venstre for at se ændringen.', $sprog_id) . "</small></td>";
 			print "<tr><td width=\"120px\" title=\"$subj_title\">" . findtekst('1476|Mail emne', $sprog_id) . "</td><td title=\"$std_subj\"><input class = 'inputbox' type = 'text' style=\"width:1000px;\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_subj\" placeholder=\"$std_subj\" value=\"$mail_subj\" onchange=\"javascript:docChange = true;\"></td>";
 			if ($bilag) {
-				if ($dokument) print "<td title=\"" . findtekst('1454|klik her for at åbne bilaget', $sprog_id) . ": $dokument\"><a href=\"../includes/bilag.php?kilde=ordrer&filnavn=$dokument&bilag_id=$id&bilag=$dokument&kilde_id=$id\"><img style=\"border: 0px solid\" alt=\"clip_m_papir\" src=\"../ikoner/paper.png\"></a></td>";
-				else print "<td title=\"" . findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id) . "\"><a href=\"../includes/bilag.php?kilde=ordrer&bilag_id=$id&bilag=$dokument&ny=ja&kilde_id=$id\"><img  style=\"border: 0px solid\" alt=\"clip\" src=\"../ikoner/clip.png\"></a></td>";
+				$qtxt_doc = "select id from documents where source = 'debitorOrdrer' and source_id = '$id'";
+				$clip = db_fetch_array(db_select($qtxt_doc, __FILE__ . " linje " . __LINE__)) ? 'paper.png' : 'clip.png';
+				print "<td title=\"" . findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id) . "\"><a href=\"../includes/documents.php?source=debitorOrdrer&ny=ja&sourceId=$id\"><img style=\"border: 0px solid; width:20px; height:20px;\" src=\"../ikoner/$clip\"></a></td>";
 			}
 			print "</tr><tr><td valign = 'top'  title=\"$text_title\">'" . findtekst('585|Mail tekst', $sprog_id) . "'</td><td title='\"$std_txt_title\"'>";
 			if ($mail_text) print "<textarea style=\"width:1000px;\" rows=\"2\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_text\" onchange=\"javascript:docChange = true;\">$mail_text</textarea>\n";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-03-11--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-01--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1550,6 +1550,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
 // felt_1-5 are already selected from ordrer in the loop above; not pulled from adresser.
 // Add calculated fields
 $select_fields .= ", (o.sum::numeric + o.moms::numeric) as sum_m_moms";
+$select_fields .= ", a.gruppe as debitorgruppe";
 $select_fields .= ", CASE 
         WHEN o.status >= 3 THEN
             CASE 
@@ -1557,7 +1558,10 @@ $select_fields .= ", CASE
                     SELECT 1 FROM openpost op 
                     WHERE op.faktnr = o.fakturanr::text 
                     AND op.konto_id = o.konto_id 
-                    AND ABS(ROUND(op.amount::numeric, 2) - ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
+                    AND (
+                        ABS(ROUND(op.amount::numeric, 2) - ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
+                        OR ABS(ROUND(op.amount::numeric, 2) + ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
+                    )
                     AND op.udlignet = '1'
                 ) THEN 1
                 WHEN o.betalt = '1' THEN 1

@@ -1370,7 +1370,6 @@ function importer($lager, $dato)
 			}
 			print "<BODY onLoad=\"javascript:alert('$indsat varenumre importeret i liste, $ej_indsat varenumre ikke fundet i vareliste')\">\n";
 			print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?vis_ej_exist=1&lager=$lager\">";
-		}
 	} else {
 		if (!$dato)
 			$dato = date("d-m-Y");

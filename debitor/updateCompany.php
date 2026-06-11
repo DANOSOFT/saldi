@@ -41,7 +41,7 @@
                 "department" => "",
                 "streetName" => explode(" ",$res["addr1"])[0],
                 "additionalStreetName" => $res["addr2"],
-                "buildingNumber" => end(explode(" ", $res["addr1"])),
+                "buildingNumber" => array_slice(explode(" ", $res["addr1"]), -1)[0],
                 "inhouseMail" => "",
                 "cityName" => $res["bynavn"],
                 "postalCode" => $res["postnr"],

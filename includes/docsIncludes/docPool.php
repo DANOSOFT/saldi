@@ -27,6 +27,7 @@
 // 20250823 LOE Applied if_isset properly to prevent excessive error logging plus other improvements
 // 20250824 LOE _docPoolData.php added to this file for improved data handling, also checks that file is .pdf before setting default. Update .info subject 
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
+// 20260603 CL/PHR debitorOrdrer tilføjet til readOnly-tjek (status >= 3)
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
 // 20260202 Added syncPuljeFilesToDatabase to sync files once on page load.
 // 20260212 PHR Added: if (date('U') - $skip > 600) $skip = 0;
@@ -316,28 +317,16 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$poolFile = $_POST['poolFile'];
 	}
 
-	// $afd         = if_isset($_POST,NULL,'afd');
-	// $bilag       = if_isset($_POST,NULL,'bilag');
-	// $beskrivelse = if_isset($_POST,NULL,'beskrivelse');
-	// $dato        = if_isset($_POST,NULL,'dato');
-	// $debet       = if_isset($_POST,NULL,'debet');
-	// $fakturanr   = if_isset($_POST,NULL,'fakturanr');
-	// $kredit      = if_isset($_POST,NULL,'kredit');
-	// $projekt     = if_isset($_POST,NULL,'projekt');
-	// $sag         = if_isset($_POST,NULL,'sag');
-	// $sum         = if_isset($_POST,NULL,'sum');
-	##########################################
-	$afd         = if_isset($_POST,NULL,'afd')         ?? if_isset($_GET,NULL,'afd');
-	$bilag       = if_isset($_POST,NULL,'bilag')        ?? if_isset($_GET,NULL,'bilag');
-	$beskrivelse = if_isset($_POST,NULL,'beskrivelse')  ?? if_isset($_GET,NULL,'beskrivelse');
-	$dato        = if_isset($_POST,NULL,'dato')         ?? if_isset($_GET,NULL,'dato');
-	$debet       = if_isset($_POST,NULL,'debet')        ?? if_isset($_GET,NULL,'debet');
-	$fakturanr   = if_isset($_POST,NULL,'fakturanr')    ?? if_isset($_GET,NULL,'fakturanr');
-	$kredit      = if_isset($_POST,NULL,'kredit')        ?? if_isset($_GET,NULL,'kredit');
-	$projekt     = if_isset($_POST,NULL,'projekt')       ?? if_isset($_GET,NULL,'projekt');
-	$sag         = if_isset($_POST,NULL,'sag')           ?? if_isset($_GET,NULL,'sag');
-	$sum         = if_isset($_POST,NULL,'sum')            ?? if_isset($_GET,NULL,'sum');
-	#########################################
+	$afd         = if_isset($_POST,NULL,'afd');
+	$bilag       = if_isset($_POST,NULL,'bilag');
+	$beskrivelse = if_isset($_POST,NULL,'beskrivelse');
+	$dato        = if_isset($_POST,NULL,'dato');
+	$debet       = if_isset($_POST,NULL,'debet');
+	$fakturanr   = if_isset($_POST,NULL,'fakturanr');
+	$kredit      = if_isset($_POST,NULL,'kredit');
+	$projekt     = if_isset($_POST,NULL,'projekt');
+	$sag         = if_isset($_POST,NULL,'sag');
+	$sum         = if_isset($_POST,NULL,'sum');
 
 	if ($insertFile) {
 		// Log when user tries to add a bilag to a line
@@ -993,7 +982,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$qtxt = "select bogfort from kladdeliste where id='$kladde_id'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		($r['bogfort'] != '-')?$readOnly=1:$readOnly=0;
-	} elseif ($sourceId && $source == 'creditorOrder') {
+	} elseif ($sourceId && ($source == 'creditorOrder' || $source == 'debitorOrdrer')) {
 		$qtxt = "select status from ordrer where id='$sourceId'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		($r['status'] >= '3')?$readOnly=1:$readOnly=0;
