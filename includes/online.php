@@ -544,7 +544,9 @@ if (!$isApiCall && substr($title, 0, 3) != 'POS' && $title != 'Bordplan' && $fir
 <style>
 	/* type submit and type button */
 	input[type="submit"],
-	input[type="button"] {
+	input[type="button"],
+	button[type="submit"],
+	.menu_button {
 		background: <?php echo $buttonColor; ?> !important;
 		background-color: <?php echo $buttonColor; ?> !important;
 		color: <?php echo $buttonTxtColor; ?> !important;

@@ -314,12 +314,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$forfaldsum_plus30=afrund($forfaldsum_plus30,2);
 	$forfaldsum_plus8=afrund($forfaldsum_plus8,2);
 
+	($usePBS) ? $colspan = 2 : $colspan = 1 ;
 	if ($menu=='T') {
 		print "</tbody><tfoot>";
-		print "<tr><td colspan='2'><br></td><td><b>I alt</b></td>";
+		print "<tr><td colspan='$colspan'><br></td><td><b>I alt</b></td>";
 	} else {
 		print "<tr><td colspan=10><hr></td></tr>\n";
-		print "<tr><td colspan='2'><br></td><td><b>I alt</b></td>";
+		print "<tr><td colspan='$colspan'><br></td><td><b>I alt</b></td>";
 	}
 
 	if ($forfaldsum_plus90 != 0) $color="rgb(255, 0, 0)";

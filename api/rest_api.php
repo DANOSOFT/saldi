@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-02-23 ---
+// --- api/rest_api.php --- lap 5.0.0 --- 2026-06-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,7 +54,8 @@
 // 08/01/2025 PBLM change some *1 to (int)
 // 04-02-2025 PBLM added discountType to insert_shop_orderline
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20230223 PHR Fixed currency error (Valutakurs)
+// 20260223 PHR Fixed currency error (Valutakurs)
+// 20260806 PHR removed fakturadate from insert_shop_order. It is set in 'fakturer_ordre'
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -451,7 +452,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	$qtxt.= "felt_1,felt_2,felt_3,felt_4,felt_5,kundeordnr,cvrnr,ean,sum,moms,"; 
 	$qtxt.= "lev_navn,lev_addr1,lev_addr2,";
 	$qtxt.= "lev_postnr,lev_bynavn,lev_kontakt,";
-	$qtxt.= "tidspkt,phone,shop_status,shop_id,notes,fakturadate,sprog)";
+	$qtxt.= "tidspkt,phone,shop_status,shop_id,notes,sprog)";
 	$qtxt.= " values ";
 	$qtxt.= "('$ordrenr','$saldi_addr_id','$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."',";
 	$qtxt.= "'".db_escape_string($addr2)."','".db_escape_string($postnr)."','".db_escape_string($bynavn)."',";
@@ -463,7 +464,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	$qtxt.= "'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
 	$qtxt.= "'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_kontakt)."',";
 	$qtxt.= "'".db_escape_string($tidspkt)."','".db_escape_string($tlf)."','$shop_status',";
-	$qtxt.= "'$shopOrderId','".db_escape_string($notes)."', '$ordredate','$sprog')";
+	$qtxt.= "'$shopOrderId','".db_escape_string($notes)."','$sprog')";
 	fwrite($log,__line__." $qtxt\n");
 	$qtxt=chk4utf8 ($qtxt);
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);

@@ -27,6 +27,8 @@
 //20230806 LOE bilag directory explicitly created, globalId initilized to 1
 //20240305 PHR Varioous corrections
 //20240329 PHR Now returns to kassekladde when done.
+//20260603 CL/PHR debitorOrdrer-blok tilføjet (opretter debitor/orders/$sourceId/).
+//                  Redirect hardkodede source=creditorOrder rettet til source=$source
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -206,27 +208,26 @@ if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
 }
 
 if ($docFolder && $source == 'creditorOrder') {
-	
+
 	if (!file_exists("$docFolder"))                 mkdir ("$docFolder/",0777);
 #	if (!file_exists("$docFolder"))                 #cho __line__."<br>";
 	if (!file_exists("$docFolder/creditor"))        mkdir ("$docFolder//creditor",0777);
 #	if (!file_exists("$docFolder/creditor"))                 #cho __line__."<br>";
 	if (!file_exists("$docFolder/creditor/orders")) mkdir ("$docFolder//creditor/orders",0777);
 #	if (!file_exists("$docFolder/creditor/orders"))                 #cho __line__;
-#		$tmp = floor($sourceId/1000)*1000;
-#		$tmp2 = $tmp+1000;
-#		$filePath = "/creditor/orders/".$tmp."-".$tmp2;
 	$filePath = "/creditor/orders/$sourceId";
 	if (!file_exists("$docFolder/$filePath")) mkdir ("$docFolder/$filePath",0777);
 		if (!file_exists("$docFolder/$filePath/$fileName")) {
-/*
-			if(move_uploaded_file($_FILES['uploadedFile']['tmp_name'],"$docFolder/$filePath/$fileName")) {
-			$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
-			$qtxt.= "('$globalId','$fileName','$filePath','$source','$sourceId','". date('U') ."','$userId')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$showDoc = "$docFolder/$filePath/$fileName";
-			} else alert("Upload to $docFolder/$filePath/$fileName failed");
-*/
+			$showDoc = "$docFolder/$filePath/$fileName";
+		} else alert("$docFolder/$filePath/$fileName allready exists");
+		$showDoc = "$docFolder/$filePath/$fileName";
+} elseif ($docFolder && $source == 'debitorOrdrer') {
+	if (!file_exists("$docFolder"))                 mkdir ("$docFolder/",0777);
+	if (!file_exists("$docFolder/debitor"))         mkdir ("$docFolder/debitor",0777);
+	if (!file_exists("$docFolder/debitor/orders"))  mkdir ("$docFolder/debitor/orders",0777);
+	$filePath = "/debitor/orders/$sourceId";
+	if (!file_exists("$docFolder/$filePath")) mkdir ("$docFolder/$filePath",0777);
+		if (!file_exists("$docFolder/$filePath/$fileName")) {
 			$showDoc = "$docFolder/$filePath/$fileName";
 		} else alert("$docFolder/$filePath/$fileName allready exists");
 		$showDoc = "$docFolder/$filePath/$fileName";
@@ -466,7 +467,7 @@ if (file_exists($showDoc)) {
 			// Always redirect back to kassekladde after insert
 			$redirectUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&fokus=$fokus";
 		}else{
-			$redirectUrl = "documents.php?source=creditorOrder&sourceId=$sourceId&showDoc=$showDoc";
+			$redirectUrl = "documents.php?source=$source&sourceId=$sourceId&showDoc=$showDoc";
 		}
 		
 		// Clear any existing output buffers

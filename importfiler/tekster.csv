@@ -42,7 +42,7 @@
 42	Afmærk de felter som skal eksporteres	Mark the fields to be exported	Merk feltene som skal eksporteres
 43	Kontonr.	Account no.	Kontonr.
 44	Adresse 1	Address 1	Adresse 1
-45	Adresse 2	Address 2	Adresse 2
+45	Adresse 2	Address 2	adresse 2
 46	By	City	By
 47	Land	Country	Land
 48	CVR-nr.	VAT no.	MVA-nr.
@@ -380,7 +380,7 @@
 380	Institutionsnr.	Institution no.	Institusjonsnr.
 381	Kreditmax	Max credit	Kreditmax
 382	Bank reg.	Bank reg.	Bankreg.
-383	Bankkonto	Bank account	Bankkonto
+383	Bank konto	Bank account	bankkonto
 384	BS-nr.	BS number.	BS-nummer.
 385	BS	BS	BS
 386	Kundeansvarlig	Customer manager	Kundesjef
@@ -552,7 +552,7 @@
 552	Valuta / Kurs	Currency / Exchange rate	Valuta / Kurs
 553	Projekt	Project	Prosjekt
 554	Leveringsadresse	Delivery Address	Leveringsadresse
-555	Godkend	Approve	Godkjenn
+555	Godkend	Approve	Godkjen
 556	Alle varegrupper	All product groups	Alle produktgrupper
 557	Forbrugssvarer	Consumer products	Forbruksvarer
 558	Vis søgefelt for kreditorer	Show search box for creditors	Vis søkefelt for kreditorer
@@ -663,7 +663,7 @@
 663	Tiltrådt	Joined	Tiltrådt
 664	Løn	Pay	Lønn
 665	Løntillæg	Wage supplement	Lønnstillegg
-666	Postnr. & by	ZIP code & city	Postnr. & by
+666	Postnr & by	ZIP code & city	Post kode & by
 667	E-mail/brug	Email / use	E-post / bruk
 668	Betalingsbet.	Pay.terms	Betalingsbet.
 669	Ny kontakt	New contact	Ny kontakt
@@ -955,7 +955,7 @@
 955	Alle varer fra lev.	All products from supl.	Alle varer fra lev.
 956	Kun mangler	Only missing	Bare mangler
 957	Vareliste	Item list	Vareliste
-958	Oprettet af	Created by	Opprettet av
+958	Oprettet af	Created by	Oprettet av
 959	Modtaget af	Received by	Mottatt av
 960	Modtagelsesdato	Date of receipt	Dato for kvitering
 961	Du opretter en ny modtagelse ved at klikke på <u>Ny</u> øverst til højre.	To create a new receipt, click <u>New</u> at the top right.	For å opprette et nytt mottak, klikk <u>Ny</u> øverst til høyre.
@@ -1451,8 +1451,8 @@
 1451	Kun ved fakturering/kreditering	Only for invoicing/crediting	Kun ved fakturering/kreditering
 1452	Opkræves via betalingsservice	Charged via BS payment service	Charged via BS payment service
 1453	Gem en kopi og vedhæft kundens historik	Save a copy and attach the customer's history	Lagre en kopi og legg ved kundens historie
-1454	Klik her for at åbne bilaget	Click here to open the attachment	Klikk her for å åpne bilaget
-1455	Klik her for at vedhæfte et bilag	Click here to add an attachment	Klikk her for å legge ved et bilag
+1454	Klik her for at se bilaget	Click here to see the attachment	Klikk her for å se vedlegget
+1455	Klik her for at vedhæfte et bilag	Click here to add an attachment	Klikk her for å legge ved et vedlegg
 1456	Projektnummer. Vises for ordrelinjer tilknyttet et projekt.	Project number. Appears for order lines associated with a project.	Prosjektnummer. Vises for ordrelinjer tilknyttet et prosjekt.
 1457	Kun denne ordre: når dette felt er afmærket udelades ordrelinjen ved genfakturering	Only this order: when this field is checked, the order line is omitted for re-invoicing	Kun denne ordre: når dette feltet er merket, utelates ordrelinjen for omfakturering
 1458	Hvis feltet vises er kunden underlagt reglerne for omvendt betalingspligt. Er varen afmærkeret er der ikke opkrævet moms for den pågældende vare.	If the field is shown, the customer is subject to the rules for reverse charge. If the item is marked, no VAT has been charged for the item in question.	Hvis feltet vises, er kunden underlagt reglene for omvendt gebyr. Hvis varen er merket, er det ikke belastet merverdiavgift for den aktuelle varen.
@@ -2782,32 +2782,32 @@
 2782	Satser	Rates	Satser
 2783	Stillads	Scaffolding	Stillas
 2784	Løn	Wages	Lønn
-2785	Lønindtastning	Wage Entry	Lønnsregistrering
-2786	Lønafregning	Wage Settlement	Lønnsoppgjør
+2785	Lønindtastning	Wage Entry	Lønnregistrering
+2786	Lønafregning	Wage Settlement	Lønnoppgjør
 2787	Lønliste	Wage List	Lønnsliste
 2788	Udskriv skema	Print form	Skriv ut skjema
 2789	Løndato	Wage date	Lønnsdato
 2790	Overført	Transferred	Overført
 2791	Godk./Afv.	Appr./Rej.	Godk./Avv.
 2792	Sag	Project	Sak
-2793	Ansvarlig	Responsible	Ansvarlig
+2793	Ansvarlig	Assigned	Ansvarlig
 2794	Medarb.	Empl.	Medarb.
 2795	Sum	Total	Sum
 2796	Slet sortering	Clear sorting	Slett sortering
 2797	Vælg antal viste linjer	Select number of displayed lines	Velg antall viste linjer
-2798	Ingen resultater	No results	Ingen resultater
+2798	Ingen resultat	No results	Ingen resultat
 2799	Ved søgning efter opgave i sag, tastes opgavenummer efter sagsnummer adskilt med '-'. F.eks. 12345-1	When searching for a task in a project, enter the task number after the project number separated by '-'. E.g. 12345-1	Ved søk etter oppgave i sak, skriv inn oppgavenummer etter saksnummer adskilt med '-'. F.eks. 12345-1
 2800	Opgave	Task	Oppgave
 2801	Timepris&comma; Akkord	Hourly rate&comma; Piecework	Timepris&comma; Akkord
 2802	Timeløn	Hourly wage	Timelønn
 2803	Timeløn&comma; Tørretid	Hourly wage&comma; Drying time	Timelønn&comma; Tørketid
 2804	Pladsarbejde	Site work	Plassarbeid
-2805	Skoleophold	School stay	Skoleopphold
+2805	Skoleophold	School stay	Skoleophold
 2806	Sygdom	Illness	Sykdom
 2807	Barn syg	Child sick	Barn syk
 2808	Ferie	Holiday	Ferie
 2809	Dyrtid	Premium time	Dyrtid
-2810	Akkordafregning	Piecework settlement	Akkordoppgjør
+2810	Akkord afregning	Piecework settlement	Akkordoppgjør
 2811	Akkord med dyrtid	Piecework with premium time	Akkord med dyrtid
 2812	Plads	Site	Plass
 2813	Tilbage til sag	Back to project	Tilbake til sak
@@ -2879,7 +2879,7 @@
 2879	Ændr eksisterende kunde på sagen	Change existing customer for the project	Endre eksisterende kunde på saken
 2880	Kontaktpersoner til sagen	Contact persons for the project	Kontaktpersoner for saken
 2881	Notat	Note	Notat
-2882	d. 	-	d. 
+2882	d.	&nbsp;	d.
 2883	kl.	at	kl.
 2884	Oprettet af	Created by	Opprettet av
 2885	Planlægningsinformation til opgave	Planning information for task	Planleggingsinformasjon for oppgave
@@ -2966,7 +2966,7 @@
 2966	Medarbejder	Employee	Medarbeider
 2967	Medarbejderliste	Employee list	Medarbeiderliste
 2968	Brugergrupper	User groups	Brukergrupper
-2969	Tilret stamkort	Edit information card	Rett stamkort
+2969	Tilret stamkort	Edit information card	Tilrett stamkort
 2970	Skemaliste	Form list	Skjemaliste
 2971	Lønseddel	Pay slip	Lønnsseddel
 2972	Overførte	Transferred	Overførte
@@ -2981,8 +2981,8 @@
 2981	Mm.	Etc.	Mm.
 2982	Beregning	Estimates	Beregning
 2983	Planlægning af sag	Project planning	Planlegging av sak
-2984	Lønafregning timer	Wage settlement hours	Lønnsoppgjør timer
-2985	Lønafregning beløb	Wage settlement amounts	Lønnsoppgjør beløp
+2984	Lønafregning timer	Wage settlement hours	Lønnoppgjør timer
+2985	Lønafregning beløb	Wage settlement amounts	Lønnoppgjør beløp
 2986	Afregnet d.	Settled on	Avregnet d.
 2987	Sted	Location	Sted
 2988	Akkord	Piecework	Akkord
@@ -3036,8 +3036,8 @@
 3036	Bekræft sletning	Confirm deletion	Bekreft sletting
 3037	Denne seddel er afvist af	This slip has been rejected by	Denne seddelen er avvist av
 3038	Der eksisterer allerede en uafsluttet akkordseddel	An unfinished piecework slip already exists	Det eksisterer allerede en uavsluttet akkordseddel
-3039	for den	on	for den
-3040	på sag nr.	for project no.	på sak nr.
+3039	for den	for	for den
+3040	på sag nr.	on project no.	på sak nr.
 3041	opgave nr.	task no.	oppgave nr.
 3042	Der eksisterer allerede en uafsluttet akkordtimeseddel	An unfinished piecework hour slip already exists	Det eksisterer allerede en uavsluttet akkordtimeseddel
 3043	Der er allerede registreret skur	Site cabin already registered	Skur er allerede registrert
@@ -3052,7 +3052,7 @@
 3052	Kilometer	Kilometres	Kilometer
 3053	Sagsadresse	Project address	Saksadresse
 3054	Med. nr.	Emp. no.	Med. nr.
-3055	Medarbejdernavn	Employee name	Medarbeidernavn
+3055	Medarbejder navn	Employee name	Medarbeider navn
 3056	Transport	Transport	Transport
 3057	Sum inkl. transport	Total incl. transport	Sum inkl. transport
 3058	Telttillæg	Tent surcharge	Telttillegg

@@ -109,7 +109,7 @@ if (!function_exists('findtekst')) {
 			}
 			if (!function_exists('locateDir')) {
 				if (file_exists(("../stdFunc/locateDir.php"))) include("../stdFunc/locateDir.php");
-				else if (file_exists(("../includes/stdFunc/locateDir.php"))) include("../includes/stdFunc/locateDir.php");
+				elseif (file_exists(("../includes/stdFunc/locateDir.php"))) include("../includes/stdFunc/locateDir.php");
 			}
 			$fiE3E = locateDir("importfiler");
 			$fp = fopen("$fiE3E/tekster.csv", "r");

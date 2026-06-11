@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.11.24 ---
+// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2026.06.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -98,6 +98,7 @@
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address UI
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260420 NTR SST-578 Fixed QRcode always fetching kasse 2, instead of it's intended kasse
+// 20260605 CL/PHR function labels: fixed Standard label read from grupper (was incorrectly reading from labels table); added hidden editRawHTML to keep raw HTML mode after save
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -2298,7 +2299,7 @@ function labels($valg) {
     ($valg == 'box1') ? $txt = 'Vare' : $txt = 'Adresse';
     
     // Check if user wants to edit raw HTML
-    $editRawHTML = isset($_POST['editRawHTML']) || isset($_GET['editRawHTML']);
+    $editRawHTML = (isset($_POST['editRawHTML']) || isset($_GET['editRawHTML'])) && !isset($_POST['switchToVisual']);
     
     if (isset($_POST['newLabel'])) {
         print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
@@ -2335,20 +2336,17 @@ function labels($valg) {
         print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips och tricks.', $sprog_id)."'><!--tekst 737-->";
         print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
         
-        // **FIX: Add proper database retrieval here**
-        if ($valg == 'box1') {
-			if (in_array($labelName, $labelNames)) {
-				$qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
-				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$labelText = $r['labeltext'];
-					$labelType = $r['labeltype'];
-				}
-            } else {
-                $qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
-                if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                    $labelText = $r['labeltext'];
-                    $labelType = $r['labeltype'];
-				}
+        if ($labelName == 'Standard') {
+            // Standard label is stored in grupper table
+            $qtxt = "select $valg from grupper where art = 'LABEL'";
+            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                $labelText = $r[$valg];
+            }
+        } elseif ($valg == 'box1' && in_array($labelName, $labelNames)) {
+            $qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
+            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                $labelText = $r['labeltext'];
+                $labelType = $r['labeltype'];
             }
         }
         
@@ -2434,6 +2432,7 @@ Pris $pris<br>
 		
 		if ($editRawHTML) {
 			// Raw HTML editing mode
+			print "<input type='hidden' name='editRawHTML' value='1'>";
 			print "<tr><td colspan='4'>";
 			print "<div style='margin-bottom: 10px;'>";
 			print "<h3>Rå HTML Editor</h3>";

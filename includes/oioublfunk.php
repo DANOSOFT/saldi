@@ -388,9 +388,8 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 			$tmp=htmlspecialchars($tmp);
 		}
 		$l_retur.="<cbc:Name>".$tmp."</cbc:Name>\n";
-		$l_retur.="<cac:SellersItemIdentification>\n";
-		$l_retur.="<cbc:ID>".$varenr."</cbc:ID>\n";
-		$l_retur.="</cac:SellersItemIdentification>\n";
+		//$l_retur.="<cac:SellersItemID>".$varenr."</cac:SellersItemID>\n"; // 20260603 - NTR & MMR - tried decoding Jørgen's email which says it should be posnr instead of warenr.
+		$l_retur.="<cac:SellersItemID>".$posnr."</cac:SellersItemID>\n";
 		$l_retur.="<cac:ClassifiedTaxCategory>\n";
 		if ($momsfri || $taxcategoryid == 'ZeroRated') $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">ZeroRated</cbc:ID>\n";
 		else $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">StandardRated</cbc:ID>\n";

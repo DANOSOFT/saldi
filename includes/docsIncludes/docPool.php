@@ -27,6 +27,7 @@
 // 20250823 LOE Applied if_isset properly to prevent excessive error logging plus other improvements
 // 20250824 LOE _docPoolData.php added to this file for improved data handling, also checks that file is .pdf before setting default. Update .info subject 
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
+// 20260603 CL/PHR debitorOrdrer tilføjet til readOnly-tjek (status >= 3)
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
 // 20260202 Added syncPuljeFilesToDatabase to sync files once on page load.
 // 20260212 PHR Added: if (date('U') - $skip > 600) $skip = 0;
@@ -994,7 +995,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$qtxt = "select bogfort from kladdeliste where id='$kladde_id'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		($r['bogfort'] != '-')?$readOnly=1:$readOnly=0;
-	} elseif ($sourceId && $source == 'creditorOrder') {
+	} elseif ($sourceId && ($source == 'creditorOrder' || $source == 'debitorOrdrer')) {
 		$qtxt = "select status from ordrer where id='$sourceId'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		($r['status'] >= '3')?$readOnly=1:$readOnly=0;

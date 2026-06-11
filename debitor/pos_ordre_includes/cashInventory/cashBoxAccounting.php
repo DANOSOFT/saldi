@@ -26,6 +26,7 @@
 // Copyright (c) 2004-2019 saldi.dk aps
 // ----------------------------------------------------------------------
 //
+// 20260605 CL/PHR posbogfor: ret kasse_nr=0 ved godkendelse for ordrer tilhørende denne kasse
 // LN 20190310 LN Set the function posbogfor here
 // LN 20190310 LN Include the file cashBoxAccounting/basicData.php
 // LN 20190310 LN Include the file cashBoxAccounting/valuta.php
@@ -132,6 +133,9 @@ function posbogfor ($kasse,$regnstart) {
 	$qtxt.= " values";
 	$qtxt.= " ('0','$dd','Kasseoptaelling,kasse $kasse','0','0','0','0','0','$afd','$dd','$logtime','','$ansat_id','0','$kasse')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__); # 20161116
+	// 20260605 CL/PHR ret kasse_nr=0 i transaktioner for ordrer der tilhører denne kasse (bogfor_nu bug: felt_5 blev ikke læst)
+	$qtxt = "update transaktioner t set kasse_nr = $kasse from ordrer o where t.ordre_id = o.id and t.kasse_nr = 0 and o.felt_5 = '$kasse'";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 #transaktion('rollback');
 #exit;
