@@ -27,7 +27,7 @@
 // 20220722 MSC - Implementing new top design
 // 20251125 LOE Datagrid used to handle the main tables.
 // 20260501 PHR fidscal_year
-// 20260501 Sawaneh  redesign kreditor account card
+// 20260604 Sawaneh  redesign kreditor account card
 
 
 @session_start();
