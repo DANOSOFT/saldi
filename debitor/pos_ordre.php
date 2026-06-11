@@ -1545,7 +1545,7 @@ if ($vare_id) {
 					print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
 					print "<script type=\"application/json\" id=\"saldi-sw-pos-payload\">$swPayloadJson</script>\n";
 					print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
-					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['varenr_ny'])f.elements['varenr_ny'].value='';if(f.elements['antal_ny'])f.elements['antal_ny'].value='';}};SaldiStockWarning.show(__sw);});</script>\n";
+					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['antal_ny'])f.elements['antal_ny'].value='';var vn=f.elements['varenr_ny'];if(vn){vn.value='';try{vn.focus();}catch(e2){}}}};SaldiStockWarning.show(__sw);});</script>\n";
 				}
 				if (!$blockOnStockWarning) {
 					if ($r['samlevare'])

@@ -77,6 +77,38 @@
 		xhr.send(body);
 	}
 
+	// Declining the sale ("No") must leave the line ready for a new lookup:
+	// clear the rejected line's entry fields and refocus the Item no. field.
+	// The rejected popup item is matched back to the form line by varenr; a
+	// samlesæt sub-item (or a barcode lookup) carries its own varenr, so fall
+	// back to the single pending line when no name matches.
+	function clearRejectedLine(f, formItems, rejected) {
+		var rej = (rejected && rejected.varenr != null ? String(rejected.varenr) : '').toLowerCase();
+		var target = null;
+		for (var i = 0; i < formItems.length; i++) {
+			if ((formItems[i].varenr || '').toLowerCase() === rej) { target = formItems[i]; break; }
+		}
+		if (!target && formItems.length === 1) target = formItems[0];
+		if (!target) return;
+		var idx = target.idx;
+		var vareNames = ['vare' + idx, 'vare_' + idx];
+		var lineNames = vareNames.concat(['dkan' + idx, 'beskrivelse' + idx, 'pris' + idx, 'raba' + idx, 'lagr' + idx]);
+		var focusEl = null;
+		for (var n = 0; n < lineNames.length; n++) {
+			var els = document.getElementsByName(lineNames[n]);
+			for (var e = 0; e < els.length; e++) {
+				var el = els[e];
+				if (el.form !== f) continue;
+				if (el.type === 'hidden' || el.readOnly || el.disabled) continue;
+				el.value = '';
+				if (n < vareNames.length && !focusEl) focusEl = el;
+			}
+		}
+		if (focusEl) {
+			try { focusEl.focus(); } catch (err) {}
+		}
+	}
+
 	function promptSequentially(items, onAllDone, onCancel) {
 		var i = 0;
 		var cancelled = false;
@@ -211,8 +243,9 @@
 					f.dataset.swApproved = '1';
 					submitFormNative(f);
 				},
-				function onCancel() {
+				function onCancel(rejected) {
 					f.dataset.swApproved = '';
+					clearRejectedLine(f, unapproved, rejected);
 				}
 			);
 		});
