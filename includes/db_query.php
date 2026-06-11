@@ -30,6 +30,7 @@
 // 20250808 PHR replaced if_isset by if(isset()
 // 20250808 PHR Added to function db_escape_string: $qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
 // 20260305 PHR trying to prevent writing to db_modify.log if writing is in masterbase
+// 20260611 NTR Cache global and tenant db connections separately
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -52,6 +53,7 @@ if (!function_exists('db_connect')) {
 		global $db_type;
 		global $db_encode;
 		global $connection; #20190704
+		global $global_connection,$non_global_connection,$sqdb;
 		
 		$errTxt="";
 		
@@ -97,6 +99,30 @@ if (!function_exists('db_connect')) {
 			print $errTxt;
 			die;
 		}
+		if ($l_database && isset($sqdb) && $l_database == $sqdb) {
+			$global_connection = $connection;
+		} elseif ($l_database) {
+			$non_global_connection = $connection;
+		}
+		return $connection;
+	}
+}
+
+if (!function_exists('db_query_connection')) {
+	function db_query_connection($global = false) {
+		global $connection;
+		global $db,$sqdb,$sqhost,$squser,$sqpass;
+		global $global_connection,$non_global_connection;
+
+		if ($global && isset($sqdb) && $db !== $sqdb) {
+			if (empty($global_connection)) {
+				$current_connection = $connection;
+				$global_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
+				$connection = $current_connection;
+			}
+			return $global_connection;
+		}
+
 		return $connection;
 	}
 }
@@ -131,11 +157,8 @@ if (!function_exists('db_modify')) {
 
 		$qtext=injecttjek($qtext);
 
-		// When $global=true, run the query against the global database instead of the user's database
-		$use_connection = $connection;
-		if ($global && isset($sqdb) && $db !== $sqdb) {
-			$use_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
-		}
+		// When $global=true, run the query against the global database instead of the user's database.
+		$use_connection = db_query_connection($global);
 
 		#20190704 START
 		if ($db_type == "mysql" || $db_type == "mysqli") {
@@ -162,8 +185,8 @@ if (!function_exists('db_modify')) {
 		}
 		if (!$db_query) { #20190704
 			#if ($db_type=="mysql")       $errtxt = mysql_error($connection);
-			if ($db_type=="mysqli") $errtxt = mysqli_error($connection); #20190704
-			else $errtxt=pg_last_error($connection);
+			if ($db_type=="mysqli") $errtxt = mysqli_error($use_connection); #20190704
+			else $errtxt=pg_last_error($use_connection);
 			$fp=fopen("$temp/.ht_modify.log","a");
 			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
 			fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
@@ -231,11 +254,8 @@ if (!function_exists('db_select')) {
 
 		$qtext=injecttjek($qtext);
 
-		// When $global=true, run the query against the global database instead of the user's database
-		$use_connection = $connection;
-		if ($global && isset($sqdb) && $db !== $sqdb) {
-			$use_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
-		}
+		// When $global=true, run the query against the global database instead of the user's database.
+		$use_connection = db_query_connection($global);
 
 		$temp = get_relative() . 'temp/' . $db;
 

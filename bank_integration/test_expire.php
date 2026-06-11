@@ -38,6 +38,10 @@ function diffLabel(?DateTime $now, ?DateTime $target): string {
     if ($diff < 0) return '<span style="color:red">expired ' . abs($diff) . 's ago</span>';
     return '<span style="color:green">in ' . $diff . 's</span>';
 }
+
+include_once(__DIR__ . '/../../includes/connect.php');
+include_once(__DIR__ . '/../../includes/online.php');
+
 ?>
 <!DOCTYPE html>
 <html>
