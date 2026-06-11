@@ -581,7 +581,10 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 function fill_missing_values($firstArray, $secondArray) {
     foreach ($firstArray as &$firstItem) {
         foreach ($secondArray as $secondItem) {
-            if ($firstItem['field'] === $secondItem['field']) {
+            $fieldMatch  = ($firstItem['field'] !== '' && $firstItem['field'] === $secondItem['field']);
+            // When stored field is empty, fall back to matching by headerName so new field assignments are picked up
+            $headerMatch = ($firstItem['field'] === '' && $firstItem['headerName'] === $secondItem['headerName']);
+            if ($fieldMatch || $headerMatch) {
                 foreach ($secondItem as $key => $value) {
                     if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
                         $firstItem[$key] = $value;

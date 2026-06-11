@@ -58,6 +58,7 @@
 // 20260602 NTR Changed if_isset to accept nested keys as an array, so you can do if_isset($array, $default, ['key1', 'key2']) to check for $array['key1']['key2']
 // -------- As well as adding the ability to check for object properties if you pass an object instead of an array and the key is a string, so you can do if_isset($object, $default, 'property') to check for $object->property
 // -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
+// 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -608,8 +609,8 @@ if (!function_exists('copy_row')) {
 		/**
 		 * Copies a row from a specified table and inserts it as a new row with updated values.
 		 *
-		 * This function selects a row from the specified table based on the given `id`, processes the row's fields, 
-		 * and inserts a new row with the same field values, while making adjustments to certain fields like `posnr`. 
+		 * This function selects a row from the specified table based on the given `id`, processes the row's fields,
+		 * and inserts a new row with the same field values, while making adjustments to certain fields like `posnr`.
 		 * If necessary, it also updates existing rows to shift the `posnr` values to accommodate the new row.
 		 * The function is designed to handle specific conditions on fields (e.g., non-zero `pris`, non-zero `m_rabat`, etc.).
 		 *
@@ -617,7 +618,7 @@ if (!function_exists('copy_row')) {
 		 * @param int $id - The `id` of the row to copy.
 		 *
 		 * @return int|string - The `id` of the newly inserted row, or '0' if the table or ID is invalid.
-		 * 
+		 *
 		 * @note The function performs checks to ensure only rows with specific conditions (`pris != 0`, `m_rabat != 0`, `rabat = 0`) are copied.
 		 *       It also modifies the `posnr` field by incrementing it to avoid conflicts with existing rows.
 		 */
@@ -651,16 +652,17 @@ if (!function_exists('copy_row')) {
 				$linjerabat = afrund($r['pris'] / $r['m_rabat'], 2);
 				$feltnavn = $fieldName[$y];
 				$felt[$y] = $r[$feltnavn];
-				if ($fieldType[$y] == 'varchar' || $fieldType[$y] == 'text')
+				if ($fieldType[$y] == 'varchar' || $fieldType[$y] == 'text') {
 					$felt[$y] = addslashes($felt[$y]);
-				if (substr($fieldType[$y], 0, 3) == 'int' || $fieldType[$y] == 'numeric')
+				} elseif (substr($fieldType[$y], 0, 3) == 'int' || $fieldType[$y] == 'numeric') {
 					$felt[$y] *= 1;
-				if ($fieldName[$y] == 'posnr') {
+				}	elseif ($fieldName[$y] == 'posnr') {
 					$felt[$y]++;
 					$posnr = $felt[$y];
 				}
-				if ($fieldName[$y] == 'ordre_id')
+				if ($fieldName[$y] == 'ordre_id') {
 					$ordre_id = $felt[$y];
+				}
 				if ($fieldName[$y] != 'batch_due_date' && $fieldName[$y] != 'batch_batch_no') {
 					($fieldvalues) ? $fieldvalues .= ",'" . $felt[$y] . "'" : $fieldvalues = "'" . $felt[$y] . "'";
 					($selectstring) ? $selectstring .= " and " . $fieldName[$y] . "='" . $felt[$y] . "'" : $selectstring = $fieldName[$y] . "='" . $felt[$y] . "'";
@@ -736,29 +738,13 @@ if (!function_exists('transtjek')) {
 	}
 }
 if (!function_exists('cvrnr_omr')) {
-	function cvrnr_omr($landekode)
+	function cvrnr_omr($landekode, $baseCountry = 'dk')
 	{
-		/**
-		 * Determines the country region based on a provided country code.
-		 *
-		 * This function returns a region identifier based on the provided country code. 
-		 * The country code is typically a two-letter ISO 3166-1 alpha-2 code, and the 
-		 * function returns "DK" for Denmark, "EU" for most European countries, or "UD" 
-		 * for unknown or unsupported countries.
-		 *
-		 * @param string $landekode - The two-letter country code (e.g., 'dk' for Denmark, 'at' for Austria).
-		 * 
-		 * @return string - The region corresponding to the provided country code:
-		 *                  - "DK" for Denmark.
-		 *                  - "EU" for countries in the European Union.
-		 *                  - "UD" for countries outside the EU or unsupported codes.
-		 * 
-		 * @note The country code lookup is case-sensitive and only supports the countries
-		 *       specified in the function. Any other code will return "UD".
-		 */
 		$retur = "";
 		if (!$landekode) {
 			$retur = "";
+		} elseif ($baseCountry && $landekode === $baseCountry) {
+			$retur = "DK"; // indenlandsk for denne virksomheds hjemland
 		} else {
 			switch ($landekode) {
 				case "dk":
@@ -849,7 +835,7 @@ if (!function_exists('cvrnr_omr')) {
 	}
 }
 if (!function_exists('cvrnr_land')) {
-	function cvrnr_land($cvrnr)
+	function cvrnr_land($cvrnr, $baseCountry = 'dk')
 	{
 		$retur = "";
 
@@ -858,7 +844,9 @@ if (!function_exists('cvrnr_land')) {
 		if (!$cvrnr) {
 			$retur = "";
 		} elseif (is_numeric(substr($cvrnr, 0, 1))) {
-			$retur = "dk";
+			$retur = $baseCountry;
+		} elseif (is_numeric(substr($cvrnr, 1, 1))) {
+			$retur = $baseCountry; // bogstav + cifre = indenlandsk NIF-format (fx spansk B93248185)
 		} else {
 			$start_tegn = strtolower(substr($cvrnr, 0, 3));
 			switch ($start_tegn) {

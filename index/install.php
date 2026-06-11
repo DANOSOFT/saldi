@@ -39,6 +39,7 @@
 // 20260302 PHR Added missing columns in  create brugere & regnskab
 // 20260212 PHR pdfmerge replaced by pdftk
 // 20260320 PHR cleanup (pdftk)
+// 20260526 NTR Generating and storing a random key for encrypting the OAuth data in the database, and moving the auth check to a separate file that can be included on every page without causing excessive load on Aiia.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -201,7 +202,7 @@ if (isset($_POST['opret'])){
 	$tmp.="<tr><td>Program til datakompression (gzip) </td><td><b>$path_gzip</b></td></tr>\n";
 	$tmp.="<tr><td>Program til datakompression (gunzip) </td><td><b>$path_gunzip</b></td></tr>\n";
 	$tmp.="<tr><td>Program til datapakning (tar) </td><td><b>$path_tar</b></td></tr>\n";
-*/
+	*/
 	
 	$tmp.="<tr><td colspan=\"2\"><hr \></td></tr>\n\n";
 	if ( $felt_mangler ) $tmp.="<tr><td colspan=\"2\"><b><i>".findtextinst('1972|Et eller flere felter mangler at blive udfyldt ovenfor.',$sprog_id)."</i></b></td></tr>\n";
@@ -225,9 +226,9 @@ if (isset($_POST['opret'])){
 		unlink("../logolib/test.txt");
 	}	else $noskriv="logolib";
 	if ($noskriv) {
-#		($db_encode=="UTF8")? $href="INSTALLATION_utf8.txt":$href="INSTALLATION_lat9.txt";
+		// ($db_encode=="UTF8")? $href="INSTALLATION_utf8.txt":$href="INSTALLATION_lat9.txt";
 		if ($noskriv=="includes") print "<p>Webbrugere har ikke skriveadgang til kataloget \"$noskriv\", hvor \"connect.php\" skal oprettes.</p>\n\n";
-		else "Webbrugere har ikke skriveadgang til kataloget \"$noskriv\".";
+		else print "<p>Webbrugere har ikke skriveadgang til kataloget \"$noskriv\".</p>\n\n";
 		print "<p>S&oslash;rg for at der er skriveadgang for den bruger, som den bes&oslash;gende k&oslash;rer som (webserverbrugeren) \n";
 		print "til katalogerne";
 		print "\"includes\", \"temp\" og \"logolib\".<br>\n\n Se hvordan i installeringsvejledningen <a href=\"../INSTALLATION.txt\" target=\"blank\">INSTALLATION.txt</a>.</p>\n\n";
@@ -333,8 +334,9 @@ if (isset($_POST['opret'])){
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	
 	transaktion("commit");
-#	rename("../includes/connect", "../includes/connect.php");
+	// rename("../includes/connect", "../includes/connect.php");
 	
+	file_put_contents('bank_integration/.ht_oauth_key.bin', random_bytes(32));
 	
 	if ($fp=fopen("../includes/connect.php","w")) {
 		skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type);
@@ -348,7 +350,7 @@ if (isset($_POST['opret'])){
 		print "".findtextinst("1988|og f&aring; hurtigt svar p&aring; sp&oslash;rgsm&aring;l om brugen af SALDI<!-- samt sikret dig adgang til automatiske opdateringer -->",$sprog_id).".</p>\n\n";
 		print "<p>".findtextinst("1989|Se mere p&aring",$sprog_id)."; <a href=\"http://saldi.dk/hotline\" target=\"_blank\">http://saldi.dk/hotline</a></p>\n\n";
 		print "<p>&nbsp;</p>\n\n";
-#		print "<p><a href=../index/index.php>Forts&aelig;t</a></p>\n\n";
+		// print "<p><a href=../index/index.php>Forts&aelig;t</a></p>\n\n";
 		print "<p><a href=\"../index/index.php\" title=\"".findtextinst("1990|Til SALDI-administratorsiden hvor regnskaber administreres",$sprog_id)."\" \n";
 		print " style=\"text-decoration:none\"><input type=\"button\" value=\"Forts&aelig;t\"></a>\n\n";
 		print "</td></tr></table>\n\n";

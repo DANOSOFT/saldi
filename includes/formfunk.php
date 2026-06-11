@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-04-24 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-06-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,9 +49,9 @@
 // 20260424 LOE populate leveres and leveret from batch_salg if empty, for invoice printing.
 // 20260426 PHR Outcommented change by PBLM as it has to be modified
 // 20260528 Sawaneh Print out-of-stock approval note under item description; fall back to formular 3 when requested formularer layout is missing
-
+// 20260611 LOE Added hvem to show up in printing of necessary documents.
 #use PHPMailer\PHPMailer\PHPMailer;
-#use PHPMailer\PHPMailer\Exception;
+#use PHPMailer\PHPMailer\Exception; 
 
 
 if (!function_exists('skriv')) {
@@ -72,6 +72,7 @@ if (!function_exists('skriv')) {
 		#	global $id;
 		global $sum;
 		global $ref;
+		global $hvem;
 		global $transportsum;
 		global $formularsprog;
 		global $charset;
@@ -470,7 +471,7 @@ if (!function_exists('find_form_tekst')) {
 		#	global $linjeafstand;
 		global $moms, $momsgrundlag;
 		global $psfp;
-		global $ref, $regnaar, $returside;
+		global $ref, $hvem, $regnaar, $returside;
 		global $side, $sum;
 		global $transportsum;
 		global $valuta, $valutakurs, $vis_saet;
@@ -1003,7 +1004,7 @@ if (!function_exists('formularprint')) {
 		global $mailantal, $mappe, $moms, $momsgrundlag, $momssats;
 		global $nextside;
 		global $pdftk, $ps2pdf, $printerid, $printfilnavn;
-		global $ref, $regnaar, $returside;
+		global $ref, $hvem, $regnaar, $returside;
 		global $s_id, $side, $sprog_id, $subtotal, $sum;
 		global $transportsum;
 		global $vis_saet, $weasyprint;
@@ -1166,6 +1167,7 @@ if (!function_exists('formularprint')) {
 				$afd = $row['afd'];
 				$art = $row['art'];
 				$ref = $row['ref'];
+				$hvem = $row['hvem'];
 				$ordrenr = $row['ordrenr'];
 				if (!$udskriv_alle_til)
 					$udskriv_til = $row['udskriv_til'];
@@ -1658,6 +1660,7 @@ if (!function_exists('formularprint')) {
 			 *					  $htminitxt.="</head>\n";
 			 *					  $htminitxt.="<body>\n";
 			 */
+			global $valg;
 			fwrite($htmfp, $htm_ini);
 			$rabat[0] = formulartekst($ordre_id[$o], $formular, $formularsprog);
 			if ($ordre_id[$o]) {
@@ -2244,6 +2247,7 @@ if (!function_exists('formulartekst')) {
 		global $printfilnavn;
 		global $returside;
 		global $side;
+		global $art;
 
 		$rabat = NULL;
 		if ($id) {

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/moveOrderLines.php --- lap 5.0.0 --- 2026-02-26 ---
+// --- kreditor/orderIncludes/moveOrderLines.php --- lap 5.0.0 --- 2026-06-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20230118 PHR Added '$mSQt[$x] !=	 0 && ' as orders with some qty less than 0 could not split. 
 // 20230206 PHR id_seq id now updated after inserting new orderlines.
 // 20260226 PHR Changed posnr=posnr+1000000 to posnr=posnr+1000 as posnr is smallint
+// 20260602 PHR Definet $mQt as array if empty.
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
@@ -34,6 +35,7 @@ $mQt    = $_POST['mQt'];
 $mSQt   = $_POST['mSQt'];
 $maxQt  = $_POST['maxQt'];
 $maxSQt = $_POST['maxSQt'];
+if (!$mQt) $mQt = array();
 for ($x = 1; $x <= count($mQt); $x++) {
 	if (usdecimal($mQt[$x], 3)  > $maxQt[$x]) {
 		$mQt[$x]  = $maxQt[$x];
@@ -134,8 +136,6 @@ else {
 				$bkQt[$bk]  = (float)$r['antal'];
 				$bkRm[$bk] = (float)$r['rest'];
 				$bkDt[$bk] = $r['kobsdate'];
-				$bkDue[$bk] = $r['due_date'];
-				$bkBno[$bk] = $r['batch_no'];
 				$mvRm     += $bkRm[$bk];
 
 				$bk++;
@@ -161,9 +161,7 @@ else {
 				}
 			}
 			if ($mvQt) {
-				$_mv_dd = isset($bkDue[$bk-1]) && $bkDue[$bk-1] ? "'" . pg_escape_string($bkDue[$bk-1]) . "'" : "NULL";
-				$_mv_bn = isset($bkBno[$bk-1]) && $bkBno[$bk-1] ? "'" . pg_escape_string($bkBno[$bk-1]) . "'" : "NULL";
-				$qtxt = "insert into batch_kob (kobsdate,vare_id,ordre_id,linje_id,antal,rest,due_date,batch_no) values ('$deliveryDate','$vare_id[$x]','$newId','$newLineId','$mvQt','$mvRm',$_mv_dd,$_mv_bn)";
+				$qtxt = "insert into batch_kob (kobsdate,vare_id,ordre_id,linje_id,antal,rest) values ('$deliveryDate','$vare_id[$x]','$newId','$newLineId','$mvQt','$mvRm')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			$newQty = $antal[$x];

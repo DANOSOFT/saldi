@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------finans/budget.php ----------- patch 4.1.1 --- 2025.12.03 ---
+// -------------finans/budget.php ----------- patch 5.0.0 --- 2026.06.01 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 //
 // 20130210 -Break ændret til break 1
@@ -36,6 +36,7 @@
 // 20210312 LOE Translated the former Danish text here to English and Applied findtekst function to this and the menu items
 // 20220926 MSC Removed a 2 number in title for budget
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260601 PHR inserted (float) before Round()
 
 @session_start();
 $s_id=session_id();
