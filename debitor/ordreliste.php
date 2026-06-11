@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-03-11--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-01--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,8 @@
 // 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly
 // 20260317 AJ Updated hover text for order number
 // 20260518 CL/PHR account_context springer kontonr pre-populate over. Kontonr-søgning finder nu alle ordrer for kunder med samme kontonr.
+// 20260519 CL/PHR pos_ordre betalinger har negativt beløb i openpost — udlignet-check udvides med OR for amount ≈ -(sum+moms)
+// 20260601 CL/PHR Added debitorgruppe dropdown search filter on ordreliste (adresser.gruppe)
 // 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
 
 @session_start();
@@ -1126,6 +1128,43 @@ $custom_columns = array(
             return "<td align='{$column['align']}'>$display</td>";
         }
     ),
+
+    "debitorgruppe" => array(
+        "field" => "debitorgruppe",
+        "headerName" => findtekst('2413|Debitorgruppe', $sprog_id),
+        "width" => "1.5",
+        "type" => "dropdown",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "a.gruppe::text",
+        "dropdownOptions" => function () {
+            $options = array();
+            $qtxt = "SELECT kodenr, MAX(beskrivelse) as beskrivelse FROM grupper WHERE art = 'DG' AND kode = 'D' GROUP BY kodenr ORDER BY kodenr::integer";
+            $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                $options[] = $r['kodenr'] . " - " . $r['beskrivelse'];
+            }
+            return $options;
+        },
+        "generateSearch" => function ($column, $term) {
+            $term = trim($term);
+            if ($term === '') return "1=1";
+            // Term is either "1 - Beskrivelse" (from dropdown) or a plain number
+            $gruppenr = (strpos($term, ' - ') !== false) ? explode(' - ', $term, 2)[0] : $term;
+            $gruppenr = db_escape_string(trim($gruppenr));
+            if ($gruppenr === '') return "1=1";
+            return "(a.gruppe::text = '$gruppenr')";
+        },
+        "valueGetter" => function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        },
+        "render" => function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+        }
+    ),
+    
     "felt_1" => array(
         "field" => "felt_1",
         "headerName" => findtekst('255|Ekstrafelt 1', $sprog_id),
@@ -1548,6 +1587,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
 // felt_1-5 are already selected from ordrer in the loop above; not pulled from adresser.
 // Add calculated fields
 $select_fields .= ", (o.sum::numeric + o.moms::numeric) as sum_m_moms";
+$select_fields .= ", a.gruppe as debitorgruppe";
 $select_fields .= ", CASE 
         WHEN o.status >= 3 THEN
             CASE 
@@ -1555,7 +1595,10 @@ $select_fields .= ", CASE
                     SELECT 1 FROM openpost op 
                     WHERE op.faktnr = o.fakturanr::text 
                     AND op.konto_id = o.konto_id 
-                    AND ABS(ROUND(op.amount::numeric, 2) - ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
+                    AND (
+                        ABS(ROUND(op.amount::numeric, 2) - ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
+                        OR ABS(ROUND(op.amount::numeric, 2) + ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
+                    )
                     AND op.udlignet = '1'
                 ) THEN 1
                 WHEN o.betalt = '1' THEN 1

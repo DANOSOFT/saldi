@@ -1,5 +1,30 @@
 <?php
-#/../includes/orderFuncIncludes/grid_account_lookup.php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+//../includes/orderFuncIncludes/grid_account_lookup.php rel. 5.0.0 20260513
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20260513 CL/PHR Solved double order creation problem
+
 /**
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -1744,14 +1769,8 @@ function render_ajax_search_script($id) {
                 var safeVal = escapeHtml_{$id}(String(row[field] || ''));
                 var displayVal = highlightTerm_{$id}(safeVal, field);
 
-                if (field === 'kontonr') {
-                    html += '<td style="padding:4px;text-align:left;">' +
-                            '<a href="' + redirectUrl + '" style="color:inherit;text-decoration:none;display:block;">' +
-                            displayVal + '</a></td>';
-                } else {
-                    html += '<td style="padding:4px;text-align:left;">' +
-                            displayVal + '</td>';
-                }
+                html += '<td style="padding:4px;text-align:left;">' +
+                        displayVal + '</td>';
             });
 
             html += '<td class="filler-row"></td></tr>';

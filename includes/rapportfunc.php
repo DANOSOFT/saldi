@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- patch 5.0.0 --- 2026-03-24 ---
+// --- includes/rapportfunc.php --- patch 5.0.0 --- 2026-05-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -78,7 +78,8 @@
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
 // 20250924 LOE - Modify select url to use window.location.href instead of window.open to fit into main frame.
 // 20260324 LOE - Updated returside for general ledger from debitor's card if users came from ordre.php
-// 20260507 CL/PHR - Vis åbne poster now only shows unaligned posts (udlignet != '1'). Added 'Vis alle poster' option for full view.
+// 20260507 CL/PHR Vis åbne poster now only shows unaligned posts (udlignet != '1'). Added 'Vis alle poster' option for full view.
+// 20260513 CL/PHR kontokort & kontosaldo viser nu dato i toplinje og kontokort tager kun konti med bevægelser i perioden.
 // 20260518 CL/PHR kontokort & kontosaldo viser nu dato i toplinje. Kontokort tager kun konti med bevægelser i perioden. Null-safety og array-initialisering.
 include("../includes/reportFunc/showOpenPosts.php"); 
 
@@ -838,9 +839,9 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 	$email = $forfaldsum = $fromdate = $kto_fra = $kto_til = $returside = $todate = NULL;
 	$confirm = $dkktmp = $dagskurs = NULL;
 
-	$unAlign = if_isset($_GET['unAlign'], NULL);
-	$unAlignAccount = if_isset($_GET['unAlignAccount'], 0);
-	$unAlignId = if_isset($_GET['oppId'], 0);
+	$unAlign = if_isset($_GET, NULL, 'unAlign');
+	$unAlignAccount = if_isset($_GET, 0, 'unAlignAccount');
+	$unAlignId = if_isset($_GET, 0, 'oppId');
 	if ($unAlign || $unAlignId) {
 		$qtxt = "update openpost set udlignet='0',udlign_id='0' where konto_id = '$unAlignAccount'";
 		if ($unAlign)
@@ -861,9 +862,9 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 
 	$difflink = 0;
 	$kontoart = trim($kontoart);
-	$kilde = if_isset($_GET['kilde']);
-	$kilde_kto_fra = if_isset($_GET['kilde_kto_fra']);
-	$kilde_kto_til = if_isset($_GET['kilde_kto_til']);
+	$kilde = if_isset($_GET, NULL, 'kilde');
+	$kilde_kto_fra = if_isset($_GET, NULL, 'kilde_kto_fra');
+	$kilde_kto_til = if_isset($_GET, NULL, 'kilde_kto_til');
 
 	if ($kontoart == 'K')
 		$returnpath = "../kreditor/";
@@ -989,9 +990,18 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		$oppvaluta = array();
 		$faktnr = array();
 		$forfaldsdag = array();
+		$dkkamount = array();
+		$kladde_id = array();
+		$projekt = array();
+		$refnr = array();
+		$transdate = array();
+		$udlignet = array();
+		$udlign_id = array();
 		$primoprint[$x] = 0;
 		$baggrund = $bgcolor;
 		$dkksum = 0;
+		$dkktmp = '';
+		$valutakode = 0;
 		$firstdate = date("Y-m-d");
 		$lastdate = '1970-01-01';
 		$dkkamount = array();
@@ -1044,6 +1054,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 				$lastdate = $transdate[$y];
 			$udlignet[$y] = $r2['udlignet'];
 			$udlign_id[$y] = $r2['udlign_id'];
+			$dkkamount[$y] = $amount[$y]; // default; overwritten below if currency conversion applies
 
 			if ($oppvaluta[$y] != 'DKK' && $valutakurs[$y] == 100) {
 				$r3 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'", __FILE__ . " linje " . __LINE__));

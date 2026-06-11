@@ -68,6 +68,7 @@
 // 20260408 PHR set max_execution_time to 300
 // 20260507 CL Rettet forskydning i summary-række: tilføjet $tt_kost (Kostpris), flyttet $tt_k_pris til korrekt kolonne (Købspris), tilføjet manglende Solgt-celle
 // 20260526 LOE Added salg_rapport.php with sales report based on postnr and departments, to handle sales report for customers with postnr and departments. Based on datagrid, with flexible search and sorting.
+// 20260603 PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
 // 20260610 CL/PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
 ini_set('max_execution_time', '300');
 @session_start();
@@ -1191,4 +1192,3 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 
 ?>
 </html>
-

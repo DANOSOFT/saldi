@@ -1209,168 +1209,167 @@ function importer($lager, $dato)
 		}
 		$fp = fopen("$filnavn", "r");
 		if ($fp) {
-				$komma = 0;
-				$semikolon = 0;
-				$kolon = 0;
-				$tab = 0;
-				while ($linje = trim(fgets($fp))) {
-					if ($linje) {
-						if (strpos($linje, ","))
-							$komma++;
-						if (strpos($linje, ";"))
-							$semikolon++;
-						if (strpos($linje, ":"))
-							$kolon++;
-						if (strpos($linje, chr(9)))
-							$tab++;
-					}
+			$komma = 0;
+			$semikolon = 0;
+			$kolon = 0;
+			$tab = 0;
+			while ($linje = trim(fgets($fp))) {
+				if ($linje) {
+					if (strpos($linje, ","))
+						$komma++;
+					if (strpos($linje, ";"))
+						$semikolon++;
+					if (strpos($linje, ":"))
+						$kolon++;
+					if (strpos($linje, chr(9)))
+						$tab++;
 				}
-				fclose($fp);
-				if ($komma > $semikolon && $komma > $kolon && $komma > $tab)
-					$splitter = ",";
-				elseif ($semikolon > $komma && $semikolon > $kolon && $semikolon > $tab)
-					$splitter = ";";
-				elseif ($kolon > $komma && $kolon > $semikolon && $kolon > $tab)
-					$splitter = ":";
-				elseif ($tab > $komma && $tab > $semikolon && $tab > $kolon)
-					$splitter = chr(9);
 			}
-			if (!$splitter) {
-				print "<BODY onLoad=\"javascript:alert('Fejl i importfil - kan ikke opdeles i kolonner')\">\n";
-				print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?import=1\">";
-			}
-			db_modify("update varer set lukket='' where lukket is NULL", __FILE__ . " linje " . __LINE__);
-			if (!$lager) {
-				db_modify("update batch_kob set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
-				db_modify("update batch_salg set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
-			} elseif ($lager == 1) {
-				db_modify("update batch_kob set lager='1' where lager='0' or lager is NULL", __FILE__ . " linje " . __LINE__);
-				db_modify("update batch_salg set lager='1' where lager='0' or lager is NULL", __FILE__ . " linje " . __LINE__);
-			}
-			$x = 0;
-			$q = db_select("select id,stregkode,varenr from varer", __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$v_id[$x] = $r['id'];
-				$v_str[$x] = $r['stregkode'];
-				$v_nr[$x] = $r['varenr'];
-				$v_var_id[$x] = 0;
-				$x++;
-			}
+			fclose($fp);
+			if ($komma > $semikolon && $komma > $kolon && $komma > $tab)
+				$splitter = ",";
+			elseif ($semikolon > $komma && $semikolon > $kolon && $semikolon > $tab)
+				$splitter = ";";
+			elseif ($kolon > $komma && $kolon > $semikolon && $kolon > $tab)
+				$splitter = ":";
+			elseif ($tab > $komma && $tab > $semikolon && $tab > $kolon)
+				$splitter = chr(9);
+		}
+		if (!$splitter) {
+			print "<BODY onLoad=\"javascript:alert('Fejl i importfil - kan ikke opdeles i kolonner')\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?import=1\">";
+		}
+		db_modify("update varer set lukket='' where lukket is NULL", __FILE__ . " linje " . __LINE__);
+		if (!$lager) {
+			db_modify("update batch_kob set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
+			db_modify("update batch_salg set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
+		} elseif ($lager == 1) {
+			db_modify("update batch_kob set lager='1' where lager='0' or lager is NULL", __FILE__ . " linje " . __LINE__);
+			db_modify("update batch_salg set lager='1' where lager='0' or lager is NULL", __FILE__ . " linje " . __LINE__);
+		}
+		$x = 0;
+		$q = db_select("select id,stregkode,varenr from varer", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$v_id[$x] = $r['id'];
+			$v_str[$x] = $r['stregkode'];
+			$v_nr[$x] = $r['varenr'];
+			$v_var_id[$x] = 0;
+			$x++;
+		}
 
-			$x = 0;
-			$q = db_select("select id,variant_stregkode,vare_id from variant_varer", __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$var_id[$x] = $r['id'];
-				$var_str[$x] = $r['variant_stregkode'];
-				$var_v_id[$x] = $r['vare_id'];
-				$x++;
-			}
-			$fp = fopen("$filnavn", "r");
-			if ($fp) {
-				$fp2 = fopen("../temp/$db/optael_ej_exist.txt", "w");
-				while ($linje = trim(fgets($fp))) {
-					list($varenr, $antal) = explode($splitter, $linje);
-					if (substr($varenr, 0, 1) == '"' && substr($varenr, -1, 1) == '"')
-						$varenr = substr($varenr, 1, strlen($varenr) - 2);
-					#					$varenr=strtolower($varenr);
-					if (substr($antal, 0, 1) == '"' && substr($antal, -1, 1) == '"')
-						$antal = substr($antal, 1, strlen($antal) - 2);
-					$tmp = mb_convert_encoding($varenr, 'UTF-8', 'ISO-8859-1');
-					if (strpos($tmp, 'æ') || strpos($tmp, 'ø') || strpos($tmp, 'å') || strpos($tmp, 'Æ') || strpos($tmp, 'Ø') || strpos($tmp, 'Å')) {
-						$varenr = $tmp;
+		$x = 0;
+		$q = db_select("select id,variant_stregkode,vare_id from variant_varer", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$var_id[$x] = $r['id'];
+			$var_str[$x] = $r['variant_stregkode'];
+			$var_v_id[$x] = $r['vare_id'];
+			$x++;
+		}
+		$fp = fopen("$filnavn", "r");
+		if ($fp) {
+			$fp2 = fopen("../temp/$db/optael_ej_exist.txt", "w");
+			while ($linje = trim(fgets($fp))) {
+				list($varenr, $antal) = explode($splitter, $linje);
+				if (substr($varenr, 0, 1) == '"' && substr($varenr, -1, 1) == '"')
+					$varenr = substr($varenr, 1, strlen($varenr) - 2);
+				#					$varenr=strtolower($varenr);
+				if (substr($antal, 0, 1) == '"' && substr($antal, -1, 1) == '"')
+					$antal = substr($antal, 1, strlen($antal) - 2);
+				$tmp = mb_convert_encoding($varenr, 'UTF-8', 'ISO-8859-1');
+				if (strpos($tmp, 'æ') || strpos($tmp, 'ø') || strpos($tmp, 'å') || strpos($tmp, 'Æ') || strpos($tmp, 'Ø') || strpos($tmp, 'Å')) {
+					$varenr = $tmp;
+				}
+
+				if (strpos($antal, ","))
+					$antal = usdecimal($antal);
+				if (is_numeric($antal)) {
+					$vare_id = NULL;
+					for ($x = 0; $x < count($v_id); $x++) {
+						if ($v_str[$x] == $varenr) {
+							$vare_id = $v_id[$x];
+							$variant_id = 0;
+						}
 					}
-
-					if (strpos($antal, ","))
-						$antal = usdecimal($antal);
-					if (is_numeric($antal)) {
-						$vare_id = NULL;
+					if (!$vare_id) {
 						for ($x = 0; $x < count($v_id); $x++) {
-							if ($v_str[$x] == $varenr) {
+							if ($v_nr[$x] == $varenr) {
 								$vare_id = $v_id[$x];
 								$variant_id = 0;
 							}
 						}
-						if (!$vare_id) {
-							for ($x = 0; $x < count($v_id); $x++) {
-								if ($v_nr[$x] == $varenr) {
-									$vare_id = $v_id[$x];
-									$variant_id = 0;
-								}
+					}
+					if (!$vare_id) {
+						for ($x = 0; $x < count($v_id); $x++) {
+							if (strtolower($v_nr[$x]) == strtolower($varenr)) {
+								$vare_id = $v_id[$x];
+								$variant_id = 0;
 							}
-						}
-						if (!$vare_id) {
-							for ($x = 0; $x < count($v_id); $x++) {
-								if (strtolower($v_nr[$x]) == strtolower($varenr)) {
-									$vare_id = $v_id[$x];
-									$variant_id = 0;
-								}
-							}
-						}
-						if (!$vare_id && is_numeric($varenr)) {
-							for ($x = 0; $x < count($v_id); $x++) {
-								if (is_numeric($v_nr[$x]) && $v_nr[$x] * 1 == $varenr * 1) {
-									$vare_id = $v_id[$x];
-									$variant_id = 0;
-								}
-							}
-						}
-						if (!$vare_id) {
-							for ($x = 0; $x < count($var_id); $x++) {
-								if (strtolower($var_str[$x]) == strtolower($varenr)) {
-									$vare_id = $var_v_id[$x];
-									$variant_id = $var_id[$x];
-								}
-							}
-						}
-						#						if ($r=db_fetch_array(db_select("select id from varer where varenr='$varenr'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
-#						elseif ($r=db_fetch_array(db_select("select id from varer where lower(varenr)='".strtolower($varenr)."' or lower(stregkode)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."' or upper(stregkode)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
-						if ($vare_id) {
-							$beholdning = 0;
-							$qtxt = "select sum(antal) as antal from batch_kob where vare_id='$vare_id' and variant_id='$variant_id' and kobsdate<='$transdate'";
-							if ($lager <= 1)
-								$qtxt .= " and lager<='1'";
-							else
-								$qtxt .= " and lager='$lager'";
-							$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-							$beholdning += $r['antal'];
-							$qtxt = "select sum(antal) as antal from batch_salg where vare_id='$vare_id' and variant_id='$variant_id' and salgsdate<='$transdate'";
-							if ($lager <= 1)
-								$qtxt .= " and lager<='1'";
-							else
-								$qtxt .= " and lager='$lager'";
-							$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-							$beholdning -= $r['antal'];
-							$qtxt = "insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ";
-							$qtxt .= "('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id',$lager)";
-							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-							$qtxt = "update lagerstatus set beholdning = '$beholdning' where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id'";
-							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-							$indsat++;
-						} elseif ($r = db_fetch_array(db_select("select id,vare_id from variant_varer where lower(variant_stregkode)='" . db_escape_string($varenr) . "'", __FILE__ . " linje " . __LINE__))) {
-							$variant_id = $r['id'] * 1;
-							$vare_id = $r['vare_id'] * 1;
-							$beholdning = 0;
-							$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='D_' or ordrer.art='PO')", __FILE__ . " linje " . __LINE__));
-							$beholdning += $r['antal'];
-							$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='KO' or ordrer.art='KK')", __FILE__ . " linje " . __LINE__));
-							$beholdning -= $r['antal'];
-							db_modify("insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id','$lager')", __FILE__ . " linje " . __LINE__);
-							$indsat++;
-						} else {
-							$ej_indsat++;
-							fwrite($fp2, "$varenr\n");
-							#							cho "*";
 						}
 					}
-					if (is_array($variant_id))
-						exit;
+					if (!$vare_id && is_numeric($varenr)) {
+						for ($x = 0; $x < count($v_id); $x++) {
+							if (is_numeric($v_nr[$x]) && $v_nr[$x] * 1 == $varenr * 1) {
+								$vare_id = $v_id[$x];
+								$variant_id = 0;
+							}
+						}
+					}
+					if (!$vare_id) {
+						for ($x = 0; $x < count($var_id); $x++) {
+							if (strtolower($var_str[$x]) == strtolower($varenr)) {
+								$vare_id = $var_v_id[$x];
+								$variant_id = $var_id[$x];
+							}
+						}
+					}
+					#						if ($r=db_fetch_array(db_select("select id from varer where varenr='$varenr'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
+					//	elseif ($r=db_fetch_array(db_select("select id from varer where lower(varenr)='".strtolower($varenr)."' or lower(stregkode)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."' or upper(stregkode)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
+					if ($vare_id) {
+						$beholdning = 0;
+						$qtxt = "select sum(antal) as antal from batch_kob where vare_id='$vare_id' and variant_id='$variant_id' and kobsdate<='$transdate'";
+						if ($lager <= 1)
+							$qtxt .= " and lager<='1'";
+						else
+							$qtxt .= " and lager='$lager'";
+						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						$beholdning += $r['antal'];
+						$qtxt = "select sum(antal) as antal from batch_salg where vare_id='$vare_id' and variant_id='$variant_id' and salgsdate<='$transdate'";
+						if ($lager <= 1)
+							$qtxt .= " and lager<='1'";
+						else
+							$qtxt .= " and lager='$lager'";
+						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						$beholdning -= $r['antal'];
+						$qtxt = "insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ";
+						$qtxt .= "('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id',$lager)";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$qtxt = "update lagerstatus set beholdning = '$beholdning' where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$indsat++;
+					} elseif ($r = db_fetch_array(db_select("select id,vare_id from variant_varer where lower(variant_stregkode)='" . db_escape_string($varenr) . "'", __FILE__ . " linje " . __LINE__))) {
+						$variant_id = $r['id'] * 1;
+						$vare_id = $r['vare_id'] * 1;
+						$beholdning = 0;
+						$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='D_' or ordrer.art='PO')", __FILE__ . " linje " . __LINE__));
+						$beholdning += $r['antal'];
+						$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='KO' or ordrer.art='KK')", __FILE__ . " linje " . __LINE__));
+						$beholdning -= $r['antal'];
+						db_modify("insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id','$lager')", __FILE__ . " linje " . __LINE__);
+						$indsat++;
+					} else {
+						$ej_indsat++;
+						fwrite($fp2, "$varenr\n");
+						#							cho "*";
+					}
 				}
-				fclose($fp2);
-				fclose($fp);
+				if (is_array($variant_id))
+					exit;
 			}
-			print "<BODY onLoad=\"javascript:alert('$indsat varenumre importeret i liste, $ej_indsat varenumre ikke fundet i vareliste')\">\n";
-			print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?vis_ej_exist=1&lager=$lager\">";
+			fclose($fp2);
+			fclose($fp);
 		}
+		print "<BODY onLoad=\"javascript:alert('$indsat varenumre importeret i liste, $ej_indsat varenumre ikke fundet i vareliste')\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?vis_ej_exist=1&lager=$lager\">";
 	} else {
 		if (!$dato)
 			$dato = date("d-m-Y");
