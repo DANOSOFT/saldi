@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-01--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-09-------------- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,12 +45,12 @@
 // 20260303 PHR Fixed revenue and cover ratio
 // 20260305 LOE Fixed pagination items not selecting because of screen sizes added more flexibility to account for smaller screens.
 // 20260311 PHR Fixed revenue and cover ratio again
-// 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly
+// 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly 
 // 20260317 AJ Updated hover text for order number
 // 20260518 CL/PHR account_context springer kontonr pre-populate over. Kontonr-søgning finder nu alle ordrer for kunder med samme kontonr.
 // 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
 // 20260603 Sawaneh Whole order line is now clickable (and right-clickable for "open in new tab/window"), not just the order number.
-
+// 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.
 @session_start();
 $s_id = session_id();
 
@@ -344,8 +344,9 @@ $tjek = array("tilbud", "ordrer", "faktura", "pbs");
 if (!in_array($valg, $tjek)) $valg = "ordrer";
 
 if ($is_plain_entry) {
-    db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
-    db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
+    //This block is resetting all previous column settings by users and breaks the flow of the grid each time a page is visited from others..// 20260609
+    #db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
+   # db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
 }
 
 // Save the validated valg to database setting for persistence
@@ -1203,43 +1204,124 @@ $qtxt = "select box3 from grupper where art = 'OLV' and kodenr = '$bruger_id' an
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 $user_column_names = array();
 
-if ($r['box3']) {
-    // User has custom column setup in old system
-    $user_column_names = explode(",", $r['box3']);
-    $user_column_names = array_map('trim', $user_column_names);
-    $active_column_names = $user_column_names;
+
+##############
+$grid_id = "ordrelst_$valg";
+ 
+$qtxt = "SELECT column_setup FROM datatables WHERE user_id = '$bruger_id' AND tabel_id = '$grid_id'";
+$dt_row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+ 
+$saved_columns     = null;  // decoded array from datatables, or null
+$active_column_names = [];  // final ordered list of visible field names
+ 
+if ($dt_row && !empty($dt_row['column_setup'])) {
+    $decoded = json_decode($dt_row['column_setup'], true);
+    if (is_array($decoded) && !empty($decoded)) {
+        $saved_columns = $decoded;
+    }
+}
+ 
+//decide source 
+if ($saved_columns !== null) {
+    // datatables already owns the config — derive active list from it
+    $active_column_names = array_values(array_filter(
+        array_column($saved_columns, 'field'),
+        function ($f) { return !empty($f); }
+    ));
+
 } else {
-    // Use explicit defaults based on view type
-    $active_column_names = $explicit_default_columns;
+    // datatables has no column_setup yet — check grupper.box3 for migration
+    $qtxt = "SELECT box3 FROM grupper WHERE art = 'OLV' AND kodenr = '$bruger_id' AND kode = '$valg'";
+    $grp_row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+ 
+    if (!empty($grp_row['box3'])) {
+        // ── MIGRATE: box3  →  datatables.column_setup 
+        $migrated_fields = array_filter(
+            array_map('trim', explode(',', $grp_row['box3'])),
+            function ($f) { return $f !== ''; }
+        );
+        $active_column_names = array_values($migrated_fields);
+ 
+        // Build a minimal column_setup JSON that grid_order.php understands.
+        $migrate_setup = [];
+        foreach ($active_column_names as $fn) {
+            // Try to pull width/align/headerName from $custom_columns if available
+            $hdr   = ucfirst(str_replace('_', ' ', $fn));
+            $width = 1;
+            $align = 'left';
+            if (isset($custom_columns[$fn])) {
+                $c     = $custom_columns[$fn];
+                $hdr   = isset($c['headerName']) ? $c['headerName'] : $hdr;
+                $width = isset($c['width'])      ? $c['width']      : $width;
+                $align = isset($c['align'])      ? $c['align']      : $align;
+            }
+            $migrate_setup[] = [
+                'field'      => $fn,
+                'headerName' => $hdr,
+                'width'      => $width,
+                'align'      => $align,
+                'description'=> '',
+            ];
+        }
+ 
+        $migrate_json = db_escape_string(json_encode($migrate_setup));
+ 
+        // Upsert into datatables
+        if ($dt_row) {
+            // Row exists but column_setup was empty/null — update it
+            $qtxt = "UPDATE datatables
+                        SET column_setup = '$migrate_json'
+                      WHERE user_id = '$bruger_id' AND tabel_id = '$grid_id'";
+        } else {
+            // No row at all yet — insert
+            $qtxt = "INSERT INTO datatables (user_id, tabel_id, column_setup, search_setup, filter_setup)
+                     VALUES ('$bruger_id', '$grid_id', '$migrate_json', '{}', '{}')";
+        }
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+ 
+        //CLEAR box3 so migration never runs again 
+        $qtxt = "UPDATE grupper
+                    SET box3 = ''
+                  WHERE art = 'OLV' AND kode = '$valg' AND kodenr = '$bruger_id'";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+ 
+    } else {
+        // No grupper.box3 either — use hard-coded defaults
+        $debugg = "SELECT column_setup FROM datatables WHERE user_id = '$bruger_id' AND tabel_id = '$grid_id'";
+        $active_column_names = $explicit_default_columns;
+    }
 }
 
-// First, add all custom columns
+############
+
+$column_pool = []; // keyed by field name
+ 
+//Custom columns
 foreach ($custom_columns as $field_name => $column_def) {
-    // Set hidden property based on whether column is in active list
-    $column_def['hidden'] = !in_array($field_name, $active_column_names);
-    $columns[] = $column_def;
+    $column_def['hidden'] = !isset($active_set[$field_name]);
+    $column_pool[$field_name] = $column_def;
 }
-
-// Add all other database columns
+ 
+// Auto-generated DB columns 
 foreach ($all_db_columns as $field_name => $data_type) {
-    // Skip technical/internal fields and fields already in custom_columns
-    $skip_fields = ['id', 'hvem', 'tidspkt', 'copied', 'scan_id'];
+    $skip_fields = ['id', 'tidspkt', 'copied', 'scan_id'];
     if (in_array($field_name, $skip_fields) || isset($custom_columns[$field_name])) {
         continue;
     }
-    
-    // Create automatic definition
+ 
     $column_def = array(
-        "field" => $field_name,
+        "field"      => $field_name,
         "headerName" => ucfirst(str_replace('_', ' ', $field_name)),
-        "width" => "1.5",
-        "type" => "text",
-        "align" => "left",
-        "sortable" => true,
+        "width"      => "1.5",
+        "type"       => "text",
+        "align"      => "left",
+        "sortable"   => true,
         "searchable" => true,
-        "hidden" => !in_array($field_name, $active_column_names), // Hidden if not in active list
-        "sqlOverride" => "o.$field_name", 
+        "hidden"     => !isset($active_set[$field_name]),
+        "sqlOverride"=> "o.$field_name",
     );
+ 
+   
     
     // AUTO-DETECT TYPE AND ADD BOTH valueGetter AND render FUNCTIONS
     // This is the CRITICAL part - every column MUST have both functions
@@ -1415,6 +1497,27 @@ foreach ($all_db_columns as $field_name => $data_type) {
     $columns[] = $column_def;
 }
 
+######
+$columns = [];
+ 
+// Visible columns in the exact order the user arranged them
+foreach ($active_column_names as $fn) {
+    if (isset($column_pool[$fn])) {
+        $col = $column_pool[$fn];
+        $col['hidden'] = false; // explicitly visible
+        $columns[] = $col;
+        unset($column_pool[$fn]);
+    }
+}
+ 
+//All remaining (hidden) columns in arbitrary order
+foreach ($column_pool as $col) {
+    $col['hidden'] = true;
+    $columns[] = $col;
+}
+
+####
+
 // Checkbox
 $columns[] = array(
     "field" => "checkbox",
@@ -1462,6 +1565,22 @@ $columns[] = array(
         return $actions;
     }
 );
+ if ($sprog_id == 2) {
+        $columnHd = 'Performed by'; //TODO: findtekst
+ } else{
+        $columnHd = 'Hvem';
+ }
+ $columns[] = array(
+        "field" => "hvem",
+        "headerName" => $columnHd,
+        "width" => "1",
+        "type" => "text",
+        "hidden" => true,
+        "searchable" => true,
+        "render" => function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>$value</td>";
+        }
+    );
 // === END DYNAMIC COLUMN DEFINITION ===
 
 
