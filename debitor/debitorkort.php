@@ -2472,7 +2472,7 @@ if (!$id || substr($cvrnr,0,1)  == '*') {
 	$cvrnr = trim($cvrnr,"*");
 	echo substr($cvrnr,0,1)."<br>";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
-#}
+}
 
 ##################
 
