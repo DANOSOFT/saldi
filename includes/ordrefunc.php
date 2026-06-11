@@ -89,6 +89,7 @@
 // 20260227 PHR Added more arguments to funtion call at line 1260, as last 4 was missing
 // 20260604 CL/PHR function batch_salg: reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr so domestic CVRs are not routed to EU/export accounts
 // 20260604 CL/PHR function bogfor_nu: tightened POS-detection condition - felt_4, felt_5 must also be numeric and felt_5 > 0 to avoid regular orders being treated as POS
+// 20260610 Sawaneh Stock warning popup now triggers at beholdning <= min_lager (fallback: 'Standard minimumsbeholdning' setting) instead of only at 0
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */
@@ -5494,15 +5495,36 @@ function check_stock_warning($vare_id)
 	$result['varenr']      = $r['varenr'];
 	$result['beskrivelse'] = $r['beskrivelse'];
 	$result['beholdning']  = $r['beholdning'];
-	$result['min_lager']   = $r['min_lager'];
 	$gruppe = $r['gruppe'];
+	// Trigger rule: the item must belong to a stock-tracked product group AND
+	// have beholdning at or below its minimum stock threshold — same threshold
+	// that paints quantities red on the order lines. The threshold is the
+	// product's own min_lager; products without one fall back to the
+	// 'Standard minimumsbeholdning' (min_beholdning) from Varerelaterede valg.
+	// With no threshold configured anywhere this reduces to beholdning <= 0.
+	$minStock = (float)$r['min_lager'];
+	if ($minStock <= 0) $minStock = _sw_standard_min_stock();
+	$result['min_lager'] = $minStock;
 	$r2 = db_fetch_array(db_select("select kodenr from grupper where art = 'VG' and box8 = 'on' and kodenr = '$gruppe'", __FILE__ . " linje " . __LINE__));
-	if ($r2 && (float)$r['beholdning'] <= 0) {
+	if ($r2 && (float)$r['beholdning'] <= $minStock) {
 		$result['out_of_stock'] = true;
 	}
 	return $result;
 }
 
+// 'Standard minimumsbeholdning' from Varerelaterede valg (systemdata/diverse).
+// Used as threshold fallback for products without their own min_lager.
+function _sw_standard_min_stock()
+{
+	static $cached = null;
+	if ($cached !== null) return $cached;
+	$cached = 0;
+	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'min_beholdning' and var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__));
+	if ($r && is_numeric(trim($r['var_value']))) $cached = (float)trim($r['var_value']);
+	return $cached;
+}
+
+// Persist an approval log entry for an out-of-stock sale.
 function log_stock_warning($ordre_id, $vare_id, $note, $linje_id = null)
 {
 	global $brugernavn;
