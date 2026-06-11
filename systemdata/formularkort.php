@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formularkort --- patch 5.0.0 --- 2026-05-29 ---
+// --- systemdata/formularkort --- patch 5.0.0 --- 2026-06-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -57,6 +57,7 @@
 // 20260313 Sawaneh SD-420 Added ordre_email and ordre_tlf to form dropdown
 // 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
 // 20260529 CL/PHR Rettet: manglende xa-records (mailtekst/bilag) for art=5 oprettes nu automatisk ved visning
+// 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
 @session_start();
 $s_id=session_id();
 
@@ -731,7 +732,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 	print "<option value = 'egen_bank_konto'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('60|Bankkonto', $sprog_id))."</option>";                                 #Egen bankkonto
 	print "<option value = 'egen_email'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                         #Egen e-mail
 	print "<option value = 'egen_web'>".findtekst('2517|Egen', $sprog_id)." web</option>";                                                                                         #Egen web
-	if ($form_nr<6  || $form_nr==10 || $form_nr>=12) {
+	if ($form_nr<6  || $form_nr==10 || $form_nr>=12) { 
 		print "<option value = 'ansat_initialer'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('647|Initialer', $sprog_id))."</option>";                            #Ansat initialer
 		print "<option value = 'ansat_navn'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('138|Navn', $sprog_id))."</option>";                                      #Ansat navn
 		print "<option value = 'ansat_addr1'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('44|Adresse 1', $sprog_id))."</option>";                                 #Ansat adresse 1
@@ -767,6 +768,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ordre_tlf'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                         #Ordre tlf
 	}
 	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
+		print "<option value = 'ordre_hvem'>Performed by</option>"; 
 		print "<option value = 'ordre_ean'>".findtekst('605|Ordre', $sprog_id)." EAN</option>";                                                                                    #Ordre EAN
 		print "<option value = 'ordre_felt_1'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 1</option>";                                  #Ordre felt 1
 		print "<option value = 'ordre_felt_2'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 2</option>";                                  #Ordre felt 2
@@ -788,6 +790,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ordre_ordrenr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('500|Ordrenr.', $sprog_id))."</option>";                               #Ordre ordrenr.
 		print "<option value = 'ordre_projekt'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('553|Projekt', $sprog_id))."</option>";                                #Ordre projekt
 		print "<option value = 'ordre_valuta'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('776|Valuta', $sprog_id))."</option>";                                  #Ordre valuta
+		 
 	}	
 	if ($form_nr==4 || $form_nr==5 || $form_nr==13) {
 		print "<option value = 'ordre_fakturanr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('828|Fakturanr.', $sprog_id))."</option>";                           #Ordre fakturanr.
