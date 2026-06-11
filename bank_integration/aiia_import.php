@@ -123,15 +123,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['import'])) {
     exit;
 }
 
+// --- Date method setting ---
+global $bruger_id;
+$dateMethod = 'last_quarter';
+$r = db_fetch_array(db_select(
+    "SELECT var_value FROM settings WHERE var_name = 'date_method' AND var_grp = 'bank_integration' AND user_id = '$bruger_id'",
+    __FILE__ . " linje " . __LINE__
+));
+if (!$r) $r = db_fetch_array(db_select(
+    "SELECT var_value FROM settings WHERE var_name = 'date_method' AND var_grp = 'bank_integration' LIMIT 1",
+    __FILE__ . " linje " . __LINE__
+));
+if ($r) $dateMethod = $r['var_value'];
+
+function dateRangeForMethod(string $method, DateTime $now): array {
+    $year  = (int) $now->format('Y');
+    $month = (int) $now->format('n');
+    $today = $now->format('Y-m-d');
+
+    switch ($method) {
+        case 'last_year':
+            return [sprintf('%04d-01-01', $year - 1), sprintf('%04d-12-31', $year - 1)];
+        case 'this_year':
+            return [sprintf('%04d-01-01', $year), $today];
+        case 'last_half_year':
+            if ($month <= 6) {
+                return [sprintf('%04d-07-01', $year - 1), sprintf('%04d-12-31', $year - 1)];
+            }
+            return [sprintf('%04d-01-01', $year), sprintf('%04d-06-30', $year)];
+        case 'this_half_year':
+            return [$month <= 6 ? sprintf('%04d-01-01', $year) : sprintf('%04d-07-01', $year), $today];
+        case 'last_quarter':
+            $q    = (int) ceil($month / 3) - 1;
+            $qYear = $year;
+            if ($q === 0) { $q = 4; $qYear--; }
+            $qFrom  = ($q - 1) * 3 + 1;
+            $qTo    = $q * 3;
+            $lastDay = (new DateTime(sprintf('%04d-%02d-01', $qYear, $qTo)))->format('t');
+            return [sprintf('%04d-%02d-01', $qYear, $qFrom), sprintf('%04d-%02d-%02d', $qYear, $qTo, $lastDay)];
+        case 'this_quarter':
+            $q = (int) ceil($month / 3);
+            return [sprintf('%04d-%02d-01', $year, ($q - 1) * 3 + 1), $today];
+        case 'last_month':
+            $lm    = $month - 1;
+            $lmYear = $year;
+            if ($lm === 0) { $lm = 12; $lmYear--; }
+            $lastDay = (new DateTime(sprintf('%04d-%02d-01', $lmYear, $lm)))->format('t');
+            return [sprintf('%04d-%02d-01', $lmYear, $lm), sprintf('%04d-%02d-%02d', $lmYear, $lm, $lastDay)];
+        case 'this_month':
+            return [sprintf('%04d-%02d-01', $year, $month), $today];
+        case 'last_week':
+            $dow        = (int) $now->format('N');
+            $lastMonday = (clone $now)->modify('-' . ($dow + 6) . ' days');
+            $lastSunday = (clone $lastMonday)->modify('+6 days');
+            return [$lastMonday->format('Y-m-d'), $lastSunday->format('Y-m-d')];
+        case 'this_week':
+            $dow       = (int) $now->format('N');
+            $thisMonday = (clone $now)->modify('-' . ($dow - 1) . ' days');
+            return [$thisMonday->format('Y-m-d'), $today];
+        case 'yesterday':
+            $y = (clone $now)->modify('-1 day')->format('Y-m-d');
+            return [$y, $y];
+        case 'today':
+            return [$today, $today];
+        default:
+            $q    = (int) ceil($month / 3) - 1;
+            $qYear = $year;
+            if ($q === 0) { $q = 4; $qYear--; }
+            return [sprintf('%04d-%02d-01', $qYear, ($q - 1) * 3 + 1), $today];
+    }
+}
+
 // --- Date filter ---
 $now = new DateTime();
-
-$currentQ  = (int) ceil((int)$now->format('n') / 3);
-$lastQ     = $currentQ - 1;
-$lastQYear = (int)$now->format('Y');
-if ($lastQ === 0) { $lastQ = 4; $lastQYear--; }
-$defaultFrom = sprintf('%04d-%02d-01', $lastQYear, ($lastQ - 1) * 3 + 1);
-$defaultTo   = $now->format('Y-m-d');
+[$defaultFrom, $defaultTo] = dateRangeForMethod($dateMethod, $now);
 
 $fromDate = (isset($_GET['fromDate']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fromDate']))
     ? $_GET['fromDate'] : $defaultFrom;
