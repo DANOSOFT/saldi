@@ -33,6 +33,8 @@
 // 20260211 LOE Added tjek back to url.
 // 20260219 PHR if ($row['valutakurs'] && $row['valutakurs'] != 100) changed to ($sum && $row['valutakurs'] && $row['valutakurs'] != 100)
 // 20260219 PHR orders with status 0 was not listet if $hurtigfakt was selected;
+// 20260605 Sawaneh Make the whole order line clickable (and right-clickable for "open in new tab/window"), not just the order number.
+
 
 ob_start();
 @session_start();
@@ -124,6 +126,7 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></scr
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
 include("../includes/row-hover-style-with-links.js.php");
+include("../includes/order-row-clickable.js.php"); // 20260603 Sawaneh whole order line clickable
 include("../includes/datepkr.php");
 
 
@@ -233,7 +236,10 @@ $custom_columns = array(
             if ($row['status'] < 3 && ($tidspkt - $orderTime) < 3600 && !empty($row['hvem']) && $row['hvem'] != $brugernavn) {
                 $in_use = " <span class='fa fa-user' style='color: red; cursor: help;' title='I brug af: " . htmlspecialchars($row['hvem']) . "'>";
             }
-            return "<td align='$column[align]'>$in_use$value</span></td>";
+            // 20260603 Sawaneh Real link so the whole line is clickable AND right-clickable
+            // (open in new tab/window) via includes/order-row-clickable.js.php.
+            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=ordreliste.php";
+            return "<td align='$column[align]'><a href='$href' style='display:block;color:inherit;text-decoration:underline;'>$in_use$value</span></a></td>";
         }
     ),
 
