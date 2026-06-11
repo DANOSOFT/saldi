@@ -30,6 +30,8 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 @session_start();
+$s_id = session_id();
+$header = 'nix';
 
 $code      = $_GET['code']      ?? null;
 $returnUrl = $_GET['returnUrl'] ?? '/';
@@ -39,8 +41,9 @@ if (empty($code)) {
     exit;
 }
 
-include("../includes/connect.php");
-include("../includes/std_func.php");
+include_once(__DIR__ . '/../includes/connect.php');
+include_once(__DIR__ . '/../includes/online.php');
+include_once(__DIR__ . '/../includes/std_func.php');
 
 $sql = "SELECT
             MAX(CASE WHEN var_name = 'Client ID'     THEN var_value END),
