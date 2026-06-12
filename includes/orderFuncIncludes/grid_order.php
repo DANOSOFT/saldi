@@ -1996,6 +1996,16 @@ function render_dropdown_style() {
         tfoot tr td #footer-box button {
             padding: 0;
         }
+        tfoot tr td #footer-box #navbuttons button {
+            background: #f0f0f0 !important;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border: 1px solid #b8bec8 !important;
+            border-radius: 4px;
+        }
+        tfoot tr td #footer-box #navbuttons button svg {
+            fill: #000000;
+        }
 
         tfoot tr td #footer-box button:not(:disabled) {
             cursor: pointer;
