@@ -52,7 +52,7 @@ if ($_POST){
  	$postnr=addslashes(trim($_POST['postnr']));
  	$bynavn=addslashes(trim($_POST['bynavn']));
  	$tlf=trim($_POST['tlf']);
- 	$fax=trim($_POST['fax']);
+ 	$mobile=trim($_POST['mobile']);
  	$mobil=trim($_POST['mobil']);
  	$email=trim($_POST['email']);
  	$cprnr=trim($_POST['cprnr']);
@@ -70,13 +70,13 @@ if ($_POST){
 		if(!$betalingsdage) $betalingsdage=0;
  	 	if(!$kreditmax) $kreditmax=0;
 		if (($id==0)&&($navn)) {
- 	 	 	$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, fax, mobil, email, cprnr, notes, lukket) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$fax', '$mobil', '$email', '$cprnr', '$notes', '')",__FILE__ . " linje " . __LINE__);
+ 	 	 	$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, mobile, mobil, email, cprnr, notes, lukket) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$mobile', '$mobil', '$email', '$cprnr', '$notes', '')",__FILE__ . " linje " . __LINE__);
  	 	 	$query = db_select("select id from ansatte where konto_id = '$konto_id' and navn='$navn' order by id desc",__FILE__ . " linje " . __LINE__);
  	 	 	$row = db_fetch_array($query);
  	 	 	$id = $row[id];
  	 	}
  	 	elseif ($id > 0) {
- 	 	 	$query = db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', fax = '$fax', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '' where id = '$id'",__FILE__ . " linje " . __LINE__);
+ 	 	 	$query = db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', mobile = '$mobile', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '' where id = '$id'",__FILE__ . " linje " . __LINE__);
  	 	}
  	}
 }
@@ -106,7 +106,7 @@ if ($id > 0) {
  	$bynavn=htmlentities($row['bynavn'],ENT_COMPAT,$charset);
  	$email=htmlentities($row['email'],ENT_COMPAT,$charset);
  	$tlf=htmlentities($row['tlf'],ENT_COMPAT,$charset);
- 	$fax=htmlentities($row['fax'],ENT_COMPAT,$charset);
+ 	$mobile=htmlentities($row['mobile'],ENT_COMPAT,$charset);
  	$mobil=htmlentities($row['mobil'],ENT_COMPAT,$charset);
  	$cprnr=htmlentities($row['cprnr'],ENT_COMPAT,$charset);
  	$notes=htmlentities($row['notes'],ENT_COMPAT,$charset);
@@ -135,7 +135,7 @@ print "<td><br></td>";
 print "<td>Mobil</td><td><br></td><td><input class=\"inputbox\" type=\"text\" size=10 name=mobil value=\"$mobil\"></td></tr>";
 print "<tr><td>Lokalnr.</td><td><br></td><td><input class=\"inputbox\" type=\"text\" size=10 name=tlf value=\"$tlf\"></td>";
 print "<td><br></td>";
-print "<td>Lokal fax</td><td><br></td><td><input class=\"inputbox\" type=\"text\" size=10 name=fax value=\"$fax\"></td></tr>";
+print "<td>Lokal mobile</td><td><br></td><td><input class=\"inputbox\" type=\"text\" size=10 name=mobile value=\"$mobile\"></td></tr>";
 print "<td><br></td>";
 print "<tr><td valign=top>Bem&aelig;rkning</td><td colspan=7><textarea name=\"notes\" rows=\"3\" cols=\"85\">$notes</textarea></td></tr>";
 print "<tr><td><br></td></tr>";

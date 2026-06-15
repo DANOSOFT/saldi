@@ -43,7 +43,7 @@
 #	$kunder_sager_sort = $kunder_sager_sagsnr = $kunder_sager_status = $kunder_sager_udf_addr1 = array();
 	$bank_konto = $bank_reg = $betalingsdage = $betalingsbet = NULL;
 	$cvrnr = NULL;
-	$fax = NULL;
+	$mobile = NULL;
 	$kontotype = $kreditmax = NULL;
 	$menu_sager = $menu_planlaeg = $menu_dagbog = $menu_loen = $menu_ansatte = NULL;
 	$menu_certificering = $menu_medarbejdermappe = NULL;

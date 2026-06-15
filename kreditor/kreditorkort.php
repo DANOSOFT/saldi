@@ -80,7 +80,7 @@ if ($_POST) {
 		$land = db_escape_string(trim($_POST['land']));
 		$kontakt = db_escape_string(trim(isset($_POST['kontakt']) ? $_POST['kontakt'] : NULL));
 		$tlf = trim($_POST['tlf']);
-		$fax = trim($_POST['fax']);
+		$mobile = trim($_POST['mobile']);
 		$email = trim($_POST['email']);
 		$web = trim($_POST['web']);
 		$betalingsbet = $_POST['betalingsbet'];
@@ -156,7 +156,7 @@ if ($_POST) {
 				print "<BODY onLoad=\"javascript:alert('Der findes allerede en kreditor med Leverand&oslash;rnr: $ny_kontonr')\">\n";
 				$id = 0;
 			} elseif ($ny_kontonr) {
-				db_modify("insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,fax,email,web,betalingsdage,kreditmax,betalingsbet,cvrnr,notes,art,gruppe,bank_navn,bank_reg,bank_konto,bank_fi,erh,swift,felt_1,felt_2,felt_3,felt_4,felt_5,lukket) values ('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$fax','$email','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$notes','K',$gruppe,'$bank_navn','$bank_reg','$bank_konto','$bank_fi','$erh','$swift','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$lukket')", __FILE__ . " linje " . __LINE__);
+				db_modify("insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,mobile,email,web,betalingsdage,kreditmax,betalingsbet,cvrnr,notes,art,gruppe,bank_navn,bank_reg,bank_konto,bank_fi,erh,swift,felt_1,felt_2,felt_3,felt_4,felt_5,lukket) values ('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$notes','K',$gruppe,'$bank_navn','$bank_reg','$bank_konto','$bank_fi','$erh','$swift','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$lukket')", __FILE__ . " linje " . __LINE__);
 				$query = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'K'", __FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($query);
 				$id = $row['id'];
@@ -172,7 +172,7 @@ if ($_POST) {
 					print "<BODY onLoad=\"javascript:alert('Kontonummer findes allerede, ikke &aelig;ndret')\">\n";
 				} else $kontonr = $ny_kontonr;
 			}
-			db_modify("update adresser set kontonr = '$kontonr',	firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', fax = '$fax', email = '$email', web = '$web', betalingsdage= '$betalingsdage', kreditmax = '$kreditmax', betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', notes = '$notes', gruppe = '$gruppe' ,bank_navn='$bank_navn',bank_reg='$bank_reg',bank_konto='$bank_konto',bank_fi='$bank_fi',erh='$erh',swift='$swift',felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',lukket='$lukket' where id = '$id'", __FILE__ . " linje " . __LINE__);
+			db_modify("update adresser set kontonr = '$kontonr',	firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', email = '$email', web = '$web', betalingsdage= '$betalingsdage', kreditmax = '$kreditmax', betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', notes = '$notes', gruppe = '$gruppe' ,bank_navn='$bank_navn',bank_reg='$bank_reg',bank_konto='$bank_konto',bank_fi='$bank_fi',erh='$erh',swift='$swift',felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',lukket='$lukket' where id = '$id'", __FILE__ . " linje " . __LINE__);
 			for ($x = 1; $x <= $ans_ant; $x++) {
 				$y = trim($posnr[$x]);
 				if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
@@ -294,7 +294,7 @@ if ($id > 0) {
 	$land = htmlentities(trim($r['land']), ENT_COMPAT, $charset);
 	$kontakt = htmlentities(trim($r['kontakt']), ENT_COMPAT, $charset);
 	$tlf = trim($r['tlf']);
-	$fax = trim($r['fax']);
+	$mobile = trim($r['mobile']);
 	$email = trim($r['email']);
 	$web = trim($r['web']);
 	$kreditmax = $r['kreditmax'];
@@ -387,7 +387,7 @@ print "<tr bgcolor=$bg><td width=\"25%\"> " . findtekst('376|CVR-nr.', $sprog_id
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td> " . findtekst('377|Telefon', $sprog_id) . "</td><td><input class=\"inputbox\" type=text style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td> " . findtekst('378|Telefax', $sprog_id) . "</td><td><input class=\"inputbox\" type=text style='width:100px' name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td> " . findtekst('378|Mobile', $sprog_id) . "</td><td><input class=\"inputbox\" type=text style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td> " . findtekst('662|Bank', $sprog_id) . "</td><td><input class=\"inputbox\" type=\"text\" name=\"bank_navn\" style='width:100px' value=\"$bank_navn\"  onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;

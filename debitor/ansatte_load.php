@@ -28,7 +28,7 @@ if ($ansat_id > 0) {
  	$bynavn=htmlentities($row['bynavn'],ENT_COMPAT,$charset);
  	$email=htmlentities($row['email'],ENT_COMPAT,$charset);
  	$tlf=htmlentities($row['tlf'],ENT_COMPAT,$charset);
- 	$fax=htmlentities($row['fax'],ENT_COMPAT,$charset);
+ 	$mobile=htmlentities($row['mobile'],ENT_COMPAT,$charset);
  	$mobil=htmlentities($row['mobil'],ENT_COMPAT,$charset);
  	$cprnr=htmlentities($row['cprnr'],ENT_COMPAT,$charset);
  	$notes=htmlentities($row['notes'],ENT_COMPAT,$charset);

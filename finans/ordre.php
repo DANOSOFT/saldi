@@ -1872,7 +1872,7 @@ function indsaet_linjer($ordre_id,$linje_id,$posnr)
 function find_nextfakt($fakturadate,$nextfakt) 
 {
 // Denne funktion finder diff mellem fakturadate & nextfakt,tillï¿œgger diff til nextfakt og returnerer denne vaerdi. Hvis baade 
-// fakturadate og netffaxt er sidste dag i de respektive maaneder vaelges ogsï¿œ sidste dag i maaned i returvaerdien.
+// fakturadate og netfmobilet er sidste dag i de respektive maaneder vaelges ogsï¿œ sidste dag i maaned i returvaerdien.
 
 list($faktaar,$faktmd,$faktdag) = split("-",$fakturadate);
 list($nextfaktaar,$nextfaktmd,$nextfaktdag) = split("-",$nextfakt);

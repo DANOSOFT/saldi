@@ -163,8 +163,8 @@ appendSaftTextElement($dom, $contact_person_node, 'n1:LastName', $ContactLastNam
 $contact_node->appendChild($contact_person_node);
 /*-------------------- End ContactPerson ------------------*/
 appendSaftTextElement($dom, $contact_node, 'n1:Telephone', $PhoneNumber);
-if ($FaxNumber != '') {
-    appendSaftTextElement($dom, $contact_node, 'n1:Fax', $FaxNumber);
+if ($MobileNumber != '') {
+    appendSaftTextElement($dom, $contact_node, 'n1:Mobile', $MobileNumber);
 }
 appendSaftTextElement($dom, $contact_node, 'n1:Email', $Email);
 if ($WebSite != '') {

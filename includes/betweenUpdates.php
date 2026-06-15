@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.05.12
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.06.15
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,10 +27,24 @@
 // 20260429 LOE added leveret to formularer table
 // 20260504 LOE added a separate table for managing delivery addresses and those in adresser are migrated to the new table and linked to the corresponding account.
 // 20260504 NTR Fixed error on login due to missing regnskab's table
-// 20260507 PHR Removed above as table regskab must not be created en sub bases
+// 20260507 PHR Removed above as table regskab must not be created en sub bases 
 // 20260512 NTR Merged Live/POS into prod_test
 // 20260517 NTR Fixed crittical error when trying to migrate delivery_addresses data (again)
 // 20260603 NTR Added missing note_on_orderline column to ordrelinjer table as otherwise it crashed on added a linje.
+// 20260611 LOE rename fax to mobile and changed orderdate to ordredate, orders to ordrer.
+#####
+$qtxt = "SELECT column_name
+         FROM information_schema.columns
+         WHERE table_name = 'adresser'
+         AND column_name = 'fax'";
+
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    $qtxt = "ALTER TABLE adresser RENAME COLUMN fax TO mobile";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+#####
+
 
 $qtxt = "update grupper set box8 = '' where art = 'DIV' and kodenr = '2' and box8 like 'ftp2.ebconnect.dk%'";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -136,7 +150,7 @@ if (!$already_migrated) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	// Add Cascade Drop Constraint.
-	db_modify('ALTER TABLE ONLY "delivery_addresses" ADD CONSTRAINT "delivery_addresses_account_id_fkey" FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE NOT DEFERRABLE');
+	db_modify('ALTER TABLE ONLY "delivery_addresses" ADD CONSTRAINT "delivery_addresses_account_id_fkey" FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE NOT DEFERRABLE', __FILE__ . " linje " . __LINE__);
 
 	// Transfer Data
     $qtxt = "SELECT id, lev_firmanavn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, lev_kontakt, lev_email 
@@ -499,8 +513,8 @@ $qtxt = "select id, ordredate from ordrer where art = ''";
 #cho "$qtxt<br>";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-	if ($r['orderdate'] >= '2026-01-01') {
-		$qtxt = "update orders set art = 'KO' where id = '$r[id]'";
+	if ($r['ordredate'] >= '2026-01-01') {
+		$qtxt = "update ordrer set art = 'KO' where id = '$r[id]'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }
