@@ -48,6 +48,13 @@ global $sprog_id;
 global $topStyle;
 global $buttonStyle;
 
+if (!function_exists('saftHtml')) {
+	function saftHtml($value)
+	{
+		return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+	}
+}
+
 $regnaar = "";
 $maaned_fra = "";
 $maaned_til = "";
@@ -440,6 +447,28 @@ function csvToArray($csvFile)
 	return $lines;
 }
 
+if (!function_exists('saftTableColumns')) {
+	function saftTableColumns($tableName)
+	{
+		$columns = array();
+		$tableName = db_escape_string($tableName);
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '$tableName'";
+		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($query)) {
+			$columns[$r['column_name']] = true;
+		}
+		return $columns;
+	}
+}
+
+if (!function_exists('saftColumnSelect')) {
+	function saftColumnSelect($columns, $columnName, $default = '')
+	{
+		if (isset($columns[$columnName])) return $columnName;
+		return "'" . db_escape_string($default) . "' AS $columnName";
+	}
+}
+
 // Read the kontoplan csv file into an array 
 $csvFile_kontoplan = '../importfiler/kontoplan.txt';
 $csv_kontoplan = csvToArray($csvFile_kontoplan);
@@ -463,7 +492,25 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 }
 
 // COMPANY
-$qtxt = "SELECT firmanavn, addr1, addr2, bynavn, postnr, land, kontakt, tlf, fax, email, web, bank_navn, bank_reg, bank_konto, cvrnr FROM adresser WHERE art = 'S'";
+$addressColumns = saftTableColumns('adresser');
+$addressSelect = array(
+	saftColumnSelect($addressColumns, 'firmanavn'),
+	saftColumnSelect($addressColumns, 'addr1'),
+	saftColumnSelect($addressColumns, 'addr2'),
+	saftColumnSelect($addressColumns, 'bynavn'),
+	saftColumnSelect($addressColumns, 'postnr'),
+	saftColumnSelect($addressColumns, 'land'),
+	saftColumnSelect($addressColumns, 'kontakt'),
+	saftColumnSelect($addressColumns, 'tlf'),
+	saftColumnSelect($addressColumns, 'fax'),
+	saftColumnSelect($addressColumns, 'email'),
+	saftColumnSelect($addressColumns, 'web'),
+	saftColumnSelect($addressColumns, 'bank_navn'),
+	saftColumnSelect($addressColumns, 'bank_reg'),
+	saftColumnSelect($addressColumns, 'bank_konto'),
+	saftColumnSelect($addressColumns, 'cvrnr')
+);
+$qtxt = "SELECT " . implode(', ', $addressSelect) . " FROM adresser WHERE art = 'S'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$firmanavn = $r['firmanavn'];
 	$Address = $r['addr1'];
@@ -693,7 +740,7 @@ if ($menu == 'T') {
 	print "<tr>";
 	print "<td width='50%' valign='top'>";
 	print "<div class='saftTitle'>" . $newTitle . "</div>";
-	print "<div style='margin-top: 5px;' class='saftFirmName'>cvr: $cvrnr | $firmanavn</div>";
+	print "<div style='margin-top: 5px;' class='saftFirmName'>cvr: " . saftHtml($cvrnr) . " | " . saftHtml($firmanavn) . "</div>";
 	print "</td>";
 	print "<td width='50%' align='right' valign='top'>";
 	print "<div style='margin: 5px 4px 0 0;'>Regnskabsår: $regnaar</div>";
@@ -776,7 +823,7 @@ if ($standardKontoCheck) {
 	if ($fileExist) {
 		print "<table class='saftTable2'>";
 		print "<tr><th>File name</th><th>Size</th><th>Date and time of creation</th><th>&nbsp;</th>";
-		print "<tr><td>$fileName</td><td>$fileSizeKb</td><td>$formatedDate</td><td><button id='download' onclick='downloadFile(\"$filePath\", \"$fileName\")'>Download</button></td></tr>"; // <a href='$filePath' download><button>Download</button></a> 
+		print "<tr><td>" . saftHtml($fileName) . "</td><td>" . saftHtml($fileSizeKb) . "</td><td>" . saftHtml($formatedDate) . "</td><td><button id='download' onclick='downloadFile(\"" . saftHtml($filePath) . "\", \"" . saftHtml($fileName) . "\")'>Download</button></td></tr>"; // <a href='$filePath' download><button>Download</button></a>
 		print "</table>";
 		print "<table class=\"saftTable3\">";
 		print "<tr><td>";
@@ -787,7 +834,7 @@ if ($standardKontoCheck) {
 	print "<div id=\"xmlFile\">";
 	if ($filePath) {
 		$newFilePath = str_replace(' ', '%20', $filePath);
-		print '<pre data-src=' . $newFilePath . '></pre>';
+		print '<pre data-src="' . saftHtml($newFilePath) . '"></pre>';
 	}
 	print "</div>";
 } else {

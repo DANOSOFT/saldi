@@ -461,8 +461,48 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $softwareVersion = $r['box1'];
 }
 
+if (!function_exists('saftCashTableColumns')) {
+    function saftCashTableColumns($tableName)
+    {
+        $columns = array();
+        $tableName = db_escape_string($tableName);
+        $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '$tableName'";
+        $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        while ($r = db_fetch_array($query)) {
+            $columns[$r['column_name']] = true;
+        }
+        return $columns;
+    }
+}
+
+if (!function_exists('saftCashColumnSelect')) {
+    function saftCashColumnSelect($columns, $columnName, $default = '')
+    {
+        if (isset($columns[$columnName])) return $columnName;
+        return "'" . db_escape_string($default) . "' AS $columnName";
+    }
+}
+
 // COMPANY
-$qtxt = "SELECT firmanavn, addr1, addr2, bynavn, postnr, land, kontakt, tlf, fax, email, web, bank_navn, bank_reg, bank_konto, cvrnr FROM adresser WHERE art = 'S'";
+$addressColumns = saftCashTableColumns('adresser');
+$addressSelect = array(
+    saftCashColumnSelect($addressColumns, 'firmanavn'),
+    saftCashColumnSelect($addressColumns, 'addr1'),
+    saftCashColumnSelect($addressColumns, 'addr2'),
+    saftCashColumnSelect($addressColumns, 'bynavn'),
+    saftCashColumnSelect($addressColumns, 'postnr'),
+    saftCashColumnSelect($addressColumns, 'land'),
+    saftCashColumnSelect($addressColumns, 'kontakt'),
+    saftCashColumnSelect($addressColumns, 'tlf'),
+    saftCashColumnSelect($addressColumns, 'fax'),
+    saftCashColumnSelect($addressColumns, 'email'),
+    saftCashColumnSelect($addressColumns, 'web'),
+    saftCashColumnSelect($addressColumns, 'bank_navn'),
+    saftCashColumnSelect($addressColumns, 'bank_reg'),
+    saftCashColumnSelect($addressColumns, 'bank_konto'),
+    saftCashColumnSelect($addressColumns, 'cvrnr')
+);
+$qtxt = "SELECT " . implode(', ', $addressSelect) . " FROM adresser WHERE art = 'S'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $companyName = $r['firmanavn'];
     $Address = $r['addr1'];

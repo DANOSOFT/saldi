@@ -6,7 +6,20 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("saftCreatorUtil/address.php");
+ob_start();
 include("saft.php");
+ob_end_clean();
+
+if (!function_exists('appendSaftTextElement')) {
+    function appendSaftTextElement($dom, $parent, $name, $value)
+    {
+        $node = $dom->createElement($name);
+        $node->appendChild($dom->createTextNode((string) $value));
+        $parent->appendChild($node);
+
+        return $node;
+    }
+}
 
 $regnaar = if_isset($_POST['regnaar']);
 $maaned_fra = if_isset($_POST['maaned_fra']);
@@ -78,64 +91,46 @@ $root->setAttributeNode($attr3_root);
 
 $header_node = $dom->createElement('n1:Header');
 
-$child_node_AuditFileVersion = $dom->createElement('n1:AuditFileVersion', $AuditFileVersion);
-$header_node->appendChild($child_node_AuditFileVersion);
+appendSaftTextElement($dom, $header_node, 'n1:AuditFileVersion', $AuditFileVersion);
 
-$child_node_AuditFileCountry = $dom->createElement('n1:AuditFileCountry', $Country);
-$header_node->appendChild($child_node_AuditFileCountry);
+appendSaftTextElement($dom, $header_node, 'n1:AuditFileCountry', $Country);
 if ($Region != '') {
-    $child_node_AuditFileRegion = $dom->createElement('n1:AuditFileRegion', $Region);
-    $header_node->appendChild($child_node_AuditFileRegion);
+    appendSaftTextElement($dom, $header_node, 'n1:AuditFileRegion', $Region);
 }
-$child_node_AuditFileDateCreated = $dom->createElement('n1:AuditFileDateCreated', $AuditFileDateCreated);
-$header_node->appendChild($child_node_AuditFileDateCreated);
+appendSaftTextElement($dom, $header_node, 'n1:AuditFileDateCreated', $AuditFileDateCreated);
 
-$child_node_SoftwareCompanyName = $dom->createElement('n1:SoftwareCompanyName', $SoftwareCompanyName);
-$header_node->appendChild($child_node_SoftwareCompanyName);
+appendSaftTextElement($dom, $header_node, 'n1:SoftwareCompanyName', $SoftwareCompanyName);
 
-$child_node_SoftwareID = $dom->createElement('n1:SoftwareID', $SoftwareID);
-$header_node->appendChild($child_node_SoftwareID);
+appendSaftTextElement($dom, $header_node, 'n1:SoftwareID', $SoftwareID);
 
-$child_node_SoftwareVersion = $dom->createElement('n1:SoftwareVersion', $SoftwareVersion);
-$header_node->appendChild($child_node_SoftwareVersion);
+appendSaftTextElement($dom, $header_node, 'n1:SoftwareVersion', $SoftwareVersion);
 /*--------------------- Company -----------------------*/
 $company_node = $dom->createElement('n1:Company');
 
-$child_node_RegistrationNumber = $dom->createElement('n1:RegistrationNumber', $RegistrationNumber);
-$company_node->appendChild($child_node_RegistrationNumber);
+appendSaftTextElement($dom, $company_node, 'n1:RegistrationNumber', $RegistrationNumber);
 
-$child_node_Name = $dom->createElement('n1:Name', $firmanavn);
-$company_node->appendChild($child_node_Name);
+appendSaftTextElement($dom, $company_node, 'n1:Name', $firmanavn);
 /*---------------------- Address ----------------------*/
 $address_node = $dom->createElement('n1:Address');
 
 // address($dom, $address_node, $StreetName, $StreetNumber, $AdditionalAddressDetail, $City, $PostalCode, $Region, $Country, $AddressType); // function test
-$child_node_StreetName = $dom->createElement('n1:StreetName', $StreetName);
-$address_node->appendChild($child_node_StreetName);
+appendSaftTextElement($dom, $address_node, 'n1:StreetName', $StreetName);
 
-$child_node_Number = $dom->createElement('n1:Number', $StreetNumber);
-$address_node->appendChild($child_node_Number);
+appendSaftTextElement($dom, $address_node, 'n1:Number', $StreetNumber);
 
-$child_node_AdditionalAddressDetail = $dom->createElement('n1:AdditionalAddressDetail', $AdditionalAddressDetail);
-$address_node->appendChild($child_node_AdditionalAddressDetail);
+appendSaftTextElement($dom, $address_node, 'n1:AdditionalAddressDetail', $AdditionalAddressDetail);
 
-$child_node_Building = $dom->createElement('n1:Building', $address_Building);
-$address_node->appendChild($child_node_Building);
+appendSaftTextElement($dom, $address_node, 'n1:Building', $address_Building);
 
-$child_node_City = $dom->createElement('n1:City', $City);
-$address_node->appendChild($child_node_City);
+appendSaftTextElement($dom, $address_node, 'n1:City', $City);
 
-$child_node_PostalCode = $dom->createElement('n1:PostalCode', $PostalCode);
-$address_node->appendChild($child_node_PostalCode);
+appendSaftTextElement($dom, $address_node, 'n1:PostalCode', $PostalCode);
 
-$child_node_Region = $dom->createElement('n1:Region', $Region);
-$address_node->appendChild($child_node_Region);
+appendSaftTextElement($dom, $address_node, 'n1:Region', $Region);
 
-$child_node_Country = $dom->createElement('n1:Country', $Country);
-$address_node->appendChild($child_node_Country);
+appendSaftTextElement($dom, $address_node, 'n1:Country', $Country);
 
-$child_node_AddressType = $dom->createElement('n1:AddressType', $AddressType);
-$address_node->appendChild($child_node_AddressType);
+appendSaftTextElement($dom, $address_node, 'n1:AddressType', $AddressType);
 
 $company_node->appendChild($address_node);
 /*-------------------- End Address ------------------------*/
@@ -147,17 +142,14 @@ $contact_person_node = $dom->createElement('n1:ContactPerson');
 // $child_node_Title = $dom->createElement('n1:Title', 'Fru');
 // $contact_person_node->appendChild($child_node_Title);
 
-$child_node_FirstName = $dom->createElement('n1:FirstName', $ContactPersonName);
-$contact_person_node->appendChild($child_node_FirstName);
+appendSaftTextElement($dom, $contact_person_node, 'n1:FirstName', $ContactPersonName);
 
-$child_node_Initials = $dom->createElement('n1:Initials', $ContactInitials);
-$contact_person_node->appendChild($child_node_Initials);
+appendSaftTextElement($dom, $contact_person_node, 'n1:Initials', $ContactInitials);
 
 // $child_node_LastNamePrefix = $dom->createElement('n1:LastNamePrefix', 'Von');
 // $contact_person_node->appendChild($child_node_LastNamePrefix);
 
-$child_node_LastName = $dom->createElement('n1:LastName', $ContactLastName);
-$contact_person_node->appendChild($child_node_LastName);
+appendSaftTextElement($dom, $contact_person_node, 'n1:LastName', $ContactLastName);
 
 // $child_node_BirthName = $dom->createElement('n1:BirthName', $ContactName);
 // $contact_person_node->appendChild($child_node_BirthName);
@@ -170,37 +162,28 @@ $contact_person_node->appendChild($child_node_LastName);
 
 $contact_node->appendChild($contact_person_node);
 /*-------------------- End ContactPerson ------------------*/
-$child_node_Telephone = $dom->createElement('n1:Telephone', $PhoneNumber);
-$contact_node->appendChild($child_node_Telephone);
+appendSaftTextElement($dom, $contact_node, 'n1:Telephone', $PhoneNumber);
 if ($FaxNumber != '') {
-    $child_node_Fax = $dom->createElement('n1:Fax', $FaxNumber);
-    $contact_node->appendChild($child_node_Fax);
+    appendSaftTextElement($dom, $contact_node, 'n1:Fax', $FaxNumber);
 }
-$child_node_Email = $dom->createElement('n1:Email', $Email);
-$contact_node->appendChild($child_node_Email);
+appendSaftTextElement($dom, $contact_node, 'n1:Email', $Email);
 if ($WebSite != '') {
-    $child_node_Website = $dom->createElement('n1:Website', $WebSite);
-    $contact_node->appendChild($child_node_Website);
+    appendSaftTextElement($dom, $contact_node, 'n1:Website', $WebSite);
 }
-$child_node_MobilePhone = $dom->createElement('n1:MobilePhone', $PhoneNumber);
-$contact_node->appendChild($child_node_MobilePhone);
+appendSaftTextElement($dom, $contact_node, 'n1:MobilePhone', $PhoneNumber);
 
 $company_node->appendChild($contact_node);
 /*-------------------- End Contact ------------------------*/
 /*-------------------- TaxRegistration --------------------*/
 $TaxRegistration_node = $dom->createElement('n1:TaxRegistration');
 
-$child_node_TaxRegistrationNumber = $dom->createElement('n1:TaxRegistrationNumber', $TaxRegistrationNumber);
-$TaxRegistration_node->appendChild($child_node_TaxRegistrationNumber);
+appendSaftTextElement($dom, $TaxRegistration_node, 'n1:TaxRegistrationNumber', $TaxRegistrationNumber);
 
-$child_node_TaxType = $dom->createElement('n1:TaxType', $TaxType);
-$TaxRegistration_node->appendChild($child_node_TaxType);
+appendSaftTextElement($dom, $TaxRegistration_node, 'n1:TaxType', $TaxType);
 
-$child_node_TaxNumber = $dom->createElement('n1:TaxNumber', $TaxRegistrationNumber);
-$TaxRegistration_node->appendChild($child_node_TaxNumber);
+appendSaftTextElement($dom, $TaxRegistration_node, 'n1:TaxNumber', $TaxRegistrationNumber);
 
-$child_node_TaxAuthority = $dom->createElement('n1:TaxAuthority', $TaxAuthority);
-$TaxRegistration_node->appendChild($child_node_TaxAuthority);
+appendSaftTextElement($dom, $TaxRegistration_node, 'n1:TaxAuthority', $TaxAuthority);
 
 // $child_node_TaxVerificationDate = $dom->createElement('n1:TaxVerificationDate', '2019-01-01');
 // $TaxRegistration_node->appendChild($child_node_TaxVerificationDate);
@@ -210,52 +193,40 @@ $company_node->appendChild($TaxRegistration_node);
 /*-------------------- BankAccount ------------------------*/
 $BankAccount_node = $dom->createElement('n1:BankAccount');
 
-$child_node_BankAccountNumber = $dom->createElement('n1:BankAccountNumber', $BankAccountNumber);
-$BankAccount_node->appendChild($child_node_BankAccountNumber);
+appendSaftTextElement($dom, $BankAccount_node, 'n1:BankAccountNumber', $BankAccountNumber);
 
-$child_node_BankAccountName = $dom->createElement('n1:BankAccountName', $BankAccountName);
-$BankAccount_node->appendChild($child_node_BankAccountName);
+appendSaftTextElement($dom, $BankAccount_node, 'n1:BankAccountName', $BankAccountName);
 
 // $child_node_SortCode = $dom->createElement('n1:SortCode', '099009999');
 // $BankAccount_node->appendChild($child_node_SortCode);
 
-$child_node_CurrencyCode = $dom->createElement('n1:CurrencyCode', $DefaultCurrencyCode);
-$BankAccount_node->appendChild($child_node_CurrencyCode);
+appendSaftTextElement($dom, $BankAccount_node, 'n1:CurrencyCode', $DefaultCurrencyCode);
 if ($BankRegNumber != '') {
-    $child_node_AccountID = $dom->createElement('n1:AccountID', $BankRegNumber);
-    $BankAccount_node->appendChild($child_node_AccountID);
+    appendSaftTextElement($dom, $BankAccount_node, 'n1:AccountID', $BankRegNumber);
 }
 $company_node->appendChild($BankAccount_node);
 /*-------------------- End BankAccount --------------------*/
 $header_node->appendChild($company_node);
 /*-------------------- End Company ------------------------*/
-$child_node_DefaultCurrencyCode = $dom->createElement('n1:DefaultCurrencyCode', $DefaultCurrencyCode);
-$header_node->appendChild($child_node_DefaultCurrencyCode);
+appendSaftTextElement($dom, $header_node, 'n1:DefaultCurrencyCode', $DefaultCurrencyCode);
 /*-------------------- SelectionCriteria ------------------*/
 $SelectionCriteria_node = $dom->createElement('n1:SelectionCriteria');
 
-$child_node_PeriodStart = $dom->createElement('n1:PeriodStart', $startmaaned);
-$SelectionCriteria_node->appendChild($child_node_PeriodStart);
+appendSaftTextElement($dom, $SelectionCriteria_node, 'n1:PeriodStart', $startmaaned);
 
-$child_node_PeriodStartYear = $dom->createElement('n1:PeriodStartYear', $aar_fra);
-$SelectionCriteria_node->appendChild($child_node_PeriodStartYear);
+appendSaftTextElement($dom, $SelectionCriteria_node, 'n1:PeriodStartYear', $aar_fra);
 
-$child_node_PeriodEnd = $dom->createElement('n1:PeriodEnd', $slutmaaned);
-$SelectionCriteria_node->appendChild($child_node_PeriodEnd);
+appendSaftTextElement($dom, $SelectionCriteria_node, 'n1:PeriodEnd', $slutmaaned);
 
-$child_node_PeriodEndYear = $dom->createElement('n1:PeriodEndYear', $aar_til);
-$SelectionCriteria_node->appendChild($child_node_PeriodEndYear);
+appendSaftTextElement($dom, $SelectionCriteria_node, 'n1:PeriodEndYear', $aar_til);
 
 $header_node->appendChild($SelectionCriteria_node);
 /*-------------------- End SelectionCriteria --------------*/
-$child_node_TaxAccountingBasis = $dom->createElement('n1:TaxAccountingBasis', $TaxAccountingBasis);
-$header_node->appendChild($child_node_TaxAccountingBasis);
+appendSaftTextElement($dom, $header_node, 'n1:TaxAccountingBasis', $TaxAccountingBasis);
 
-$child_node_TaxEntity = $dom->createElement('n1:TaxEntity', $firmanavn);
-$header_node->appendChild($child_node_TaxEntity);
+appendSaftTextElement($dom, $header_node, 'n1:TaxEntity', $firmanavn);
 
-$child_node_UserID = $dom->createElement('n1:UserID', $UserID);
-$header_node->appendChild($child_node_UserID);
+appendSaftTextElement($dom, $header_node, 'n1:UserID', $UserID);
 
 $root->appendChild($header_node);
 /*-------------------- End Header -------------------------*/
@@ -267,30 +238,22 @@ $generalLedgerAccounts_node = $dom->createElement('n1:GeneralLedgerAccounts');
 for ($x = 1; $x <= $kontoantal; $x++) {
     $account_node = $dom->createElement('n1:Account');
 
-    $child_node_AccountID = $dom->createElement('n1:AccountID', $standardKontonr[$x]);
-    $account_node->appendChild($child_node_AccountID);
+    appendSaftTextElement($dom, $account_node, 'n1:AccountID', $standardKontonr[$x]);
 
-    $child_node_AccountDescription = $dom->createElement('n1:AccountDescription', htmlspecialchars($kontobeskrivelse[$x]));
-    $account_node->appendChild($child_node_AccountDescription);
+    appendSaftTextElement($dom, $account_node, 'n1:AccountDescription', $kontobeskrivelse[$x]);
     if ($standardKontonr[$x] != '') {
-        $child_node_StandardAccountID = $dom->createElement('n1:StandardAccountID', $standardKontonr[$x]);
-        $account_node->appendChild($child_node_StandardAccountID);
+        appendSaftTextElement($dom, $account_node, 'n1:StandardAccountID', $standardKontonr[$x]);
     }
-    $child_node_AccountType = $dom->createElement('n1:AccountType', $kontotype[$x]);
-    $account_node->appendChild($child_node_AccountType);
+    appendSaftTextElement($dom, $account_node, 'n1:AccountType', $kontotype[$x]);
     if ($openingDbCr[$x] < 0) {
-        $child_node_OpeningCreditBalance = $dom->createElement('n1:OpeningCreditBalance', number_format(abs($openingDbCr[$x]), 2, '.', ''));
-        $account_node->appendChild($child_node_OpeningCreditBalance);
+        appendSaftTextElement($dom, $account_node, 'n1:OpeningCreditBalance', number_format(abs($openingDbCr[$x]), 2, '.', ''));
     } else {
-        $child_node_OpeningDebitBalance = $dom->createElement('n1:OpeningDebitBalance', $openingDbCr[$x]);
-        $account_node->appendChild($child_node_OpeningDebitBalance);
+        appendSaftTextElement($dom, $account_node, 'n1:OpeningDebitBalance', $openingDbCr[$x]);
     }
     if ($closingDbCr[$x] < 0) {
-        $child_node_ClosingCreditBalance = $dom->createElement('n1:ClosingCreditBalance', number_format(abs($closingDbCr[$x]), 2, '.', ''));
-        $account_node->appendChild($child_node_ClosingCreditBalance);
+        appendSaftTextElement($dom, $account_node, 'n1:ClosingCreditBalance', number_format(abs($closingDbCr[$x]), 2, '.', ''));
     } else {
-        $child_node_ClosingDebitBalance = $dom->createElement('n1:ClosingDebitBalance', $closingDbCr[$x]);
-        $account_node->appendChild($child_node_ClosingDebitBalance);
+        appendSaftTextElement($dom, $account_node, 'n1:ClosingDebitBalance', $closingDbCr[$x]);
     }
     $generalLedgerAccounts_node->appendChild($account_node);
 }
@@ -314,4 +277,4 @@ $_SESSION['fileMessage'] = "$AuditFileName " . findtekst(2352, $sprog_id) . ""; 
 // echo '<script>location.replace("../finans/rapport_includes/saft.php");</script>';
 // redirect($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart);
 echo '<script>location.replace("saft.php?regnaar=' . $regnaar . '&maaned_fra=' . $maaned_fra . '&maaned_til=' . $maaned_til . '&aar_fra=' . $aar_fra . '&aar_til=' . $aar_til . '&dato_fra=' . $dato_fra . '&dato_til=' . $dato_til . '&konto_fra=' . $konto_fra . '&konto_til=' . $konto_til . '&rapportart=' . $rapportart . '");</script>';
-// exit(); // IMPORTANT 
+// exit(); // IMPORTANT
