@@ -76,7 +76,7 @@
 // 20260415 PHR Modtag (Receive) was set to 0 in creditnote
 // 20260420 PHR Removed GLS codes
 // 20260422 PHR Defined $fast_db as array; 
-// 20260432	PHR Warning when $ref id changes
+// 20260423	PHR Warning when $ref id changes
 // 20260427 PHR Fixed vat added twice when open order was copies. ($sourceStatus)
 // 20260429 PHR Changed 'PBS' to 'BS' as colunm is varchar(2)
 // 20260429 PHR - Changed text 1001(Kredit) to 2014(Kreditér)

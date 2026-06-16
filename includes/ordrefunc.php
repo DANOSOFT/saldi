@@ -87,21 +87,28 @@
 // 20260313 PHR	Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort'
 // 20260415 PHR Modtag (Receive) was set to 0 when delivering a negative quantity
 // 20260227 PHR Added more arguments to funtion call at line 1260, as last 4 was missing
+// 20260523 CL/PHR function bogfor: Separated $kasse assignment from pos_betalinger insert condition so
+//                 orders with felt_5 set but NULL felt_2/felt_4 (eg. Netto/account orders) still get
+//                 $kasse set and are processed by postEachSale/straksbogfor
+// 20260523 CL/PHR function bogfor_nu: Relaxed pos_betalinger insert condition from ($felt_1 && $felt_3 ...)
+//                 to ($felt_1 && is_numeric($felt_2)) so single-payment orders (felt_3=NULL) also get
+//                 pos_betalinger inserted and are posted to the correct card account instead of kassekonto
+// 20260523 CL/PHR function bogfor_nu: Fixed $id used instead of $ordre_id in INSERT INTO pos_betalinger,
+//                 causing SQL error "invalid input syntax for integer" when $id is a comma-separated list
 // 20260604 CL/PHR function batch_salg: reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr so domestic CVRs are not routed to EU/export accounts
 // 20260604 CL/PHR function bogfor_nu: tightened POS-detection condition - felt_4, felt_5 must also be numeric and felt_5 > 0 to avoid regular orders being treated as POS
-// 20260610 Sawaneh Stock warning popup now triggers at beholdning <= min_lager (fallback: 'Standard minimumsbeholdning' setting) instead of only at 0
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
-/* echo "<!--function levering start-->"; */
-#cho "$id,$hurtigfakt,$genfakt,$webservice<br>";
-# Denne funktion kontrollerer levering of kalder funktioner som registrerer salget i tabellerne varer,batch_salg og ect batch_kob
-global $afd_lager;
-global $regnaar;
-global $levdate;
-global $lev_nr;
-global $db,$db_skriv_id;
+	/* echo "<!--function levering start-->"; */
+	#cho "$id,$hurtigfakt,$genfakt,$webservice<br>";
+	# Denne funktion kontrollerer levering of kalder funktioner som registrerer salget i tabellerne varer,batch_salg og ect batch_kob
+	global $afd_lager;
+	global $regnaar;
+	global $levdate;
+	global $lev_nr;
+	global $db,$db_skriv_id;
 
-$fejl=0;
+	$fejl=0;
 
 	$lager = array();
 	#$fp=fopen("../temp/ordrelev.log","a");
@@ -152,8 +159,8 @@ $fejl=0;
 		}
 	}
 	#exit;
-#transaktion(commit);
-#xit;
+	#transaktion(commit);
+	#xit;
 	$q = db_select("select lev_nr from batch_salg where ordre_id = $id order by lev_nr", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($lev_nr <= $r['lev_nr']) {
@@ -194,9 +201,9 @@ $fejl=0;
 	}
 
 	#if ($hurtigfakt && !$fakturadate) {
-#	$fakturadate=date("Y-m-d");
-#	db_modify("update ordrer set fakturadate = '$fakturadate' where id = $id",__FILE__ . " linje " . __LINE__);
-#}
+	#	$fakturadate=date("Y-m-d");
+	#	db_modify("update ordrer set fakturadate = '$fakturadate' where id = $id",__FILE__ . " linje " . __LINE__);
+	#}
 
 	if ($hurtigfakt && $fakturadate && $fakturadate != $levdate) {
 		db_modify("update ordrer set levdate = fakturadate where id = $id", __FILE__ . " linje " . __LINE__);
@@ -232,7 +239,7 @@ $fejl=0;
 			$fakturadate = date('Y-m-d');
 			db_modify("update ordrer set fakturadate='$fakturadate' where id='$id'", __FILE__ . " linje " . __LINE__);
 			#		 #print "<meta http-equiv=\"refresh\" content=\"0;URL=fakturadato.php?id=$id&returside=levering.php&hurtigfakt=on\">";
-#		exit;
+		#exit;
 		}
 		if ($fejl == 0) {
 			$fakturanr = 1;
@@ -327,12 +334,13 @@ $fejl=0;
 					if ($leveres[$x] > $tidl_lev + $antal[$x])
 						$leveres[$x] = $antal[$x] - $tidl_lev;
 				}
+				// Limit return delivery, to amounts delivered.
 				if ($leveres[$x] < 0 && $art == 'DO') {
 					$tidl_lev_do = 0;
 					$qtxt = "select antal from batch_salg where linje_id = '$linje_id[$x]' and ordre_id='$id'";
 					$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 					while ($row = db_fetch_array($query)) $tidl_lev_do = $tidl_lev_do + $row['antal'];
-					if (abs($leveres[$x]) < abs($tidl_lev_do)) $leveres[$x] = $tidl_lev_do * -1;
+					if ($tidl_lev_do > 0 && -$leveres[$x] > $tidl_lev_do) $leveres[$x] = $tidl_lev_do * -1;
 				}
 			}
 			for ($x = 1; $x <= $linjeantal; $x++) {
@@ -799,9 +807,9 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 	$tmp = $antal * -1;
 	db_modify("insert into batch_salg(vare_id, linje_id, salgsdate, ordre_id, antal,variant_id) values ($vare_id, $linje_id, '$levdate', $id, $tmp,'$variant_id')", __FILE__ . " linje " . __LINE__);
 	#	db_modify("insert into batch_kob(vare_id, linje_id, kobsdate, ordre_id, antal, rest) values ($vare_id, $linje_id, '$levdate', $id, $antal, $antal)",__FILE__ . " linje " . __LINE__);
-#	$r=db_fetch_array(db_select("select max(id) as id from batch_kob where linje_id=$linje_id",__FILE__ . " linje " . __LINE__));
-#	$q = db_select("select id from batch_kob where linje_id=$kred_linje_id",__FILE__ . " linje " . __LINE__);
-#	$batch_kob_id=$r['id'];
+	#	$r=db_fetch_array(db_select("select max(id) as id from batch_kob where linje_id=$linje_id",__FILE__ . " linje " . __LINE__));
+	#	$q = db_select("select id from batch_kob where linje_id=$kred_linje_id",__FILE__ . " linje " . __LINE__);
+	#	$batch_kob_id=$r['id'];
 	lagerstatus($vare_id, $variant_id, $lager, -$antal);
 	if ($serienr || $serienr == '0') {
 		$q = db_select("select * from serienr where salgslinje_id=-$kred_linje_id", __FILE__ . " linje " . __LINE__);
@@ -3813,7 +3821,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		if (!is_numeric($m_antal))
 			$m_antal = 0;
 		if (!$varegruppe) {
-			return ("Varenr $varenr et ikke tilknyttet en varegruppe!");
+			return ("Varenr $varenr er ikke tilknyttet en varegruppe!");
 		}
 		if (!$variant_id && in_array($vare_id, $variant_varer)) { //20181223
 			return ('Brug stregkode ved variant_varer');
@@ -3961,7 +3969,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 	if ($art == 'DO' && $lagerfort && !$webservice && $advar_negativ_lager) {  #20140131
 		$r = db_fetch_array(db_select("select beholdning from varer where id='$vare_id'", __FILE__ . " linje " . __LINE__));
 		$beholdning = $r['beholdning'];
-		$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal, sum(ordrelinjer.leveret) as leveret from ordrelinjer,ordrer where ordrelinjer.vare_id='$vare_id' and ordrelinjer.ordre_id=ordrer.id and ordrer.art='DO' and ordrer.status<3", __FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal, sum(ordrelinjer.leveret) as leveret from ordrelinjer join ordrer on ordrelinjer.ordre_id=ordrer.id where ordrelinjer.vare_id='$vare_id' and ordrer.art='DO' and ordrer.status<3", __FILE__ . " linje " . __LINE__)); ## 20260423 Clarity
 		$i_ordre = $r['antal'] - $r['leveret'];
 		$raadig = $beholdning - $i_ordre;
 		$tmp = $antal * 1;
@@ -4038,15 +4046,15 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		else
 			$VatPrice = $pris + $pris * $varemomssats / 100;
 		#		if ($variant_type) {
-#			$varianter=explode(chr(9),$variant_type);
-#			for ($y=0;$y<count($varianter);$y++) {
-#				$qtxt="select variant_typer.beskrivelse as vt_besk,varianter.beskrivelse as var_besk from variant_typer,varianter";
-#				$qtxt.=" where variant_typer.id = '$varianter[$y]' and variant_typer.variant_id=varianter.id";
-#				$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-#				$beskrivelse.=", ".$r1['var_besk']; #.":".$r1['vt_besk'];
-#			}
-#		}
-# exit;
+		#			$varianter=explode(chr(9),$variant_type);
+		#			for ($y=0;$y<count($varianter);$y++) {
+		#				$qtxt="select variant_typer.beskrivelse as vt_besk,varianter.beskrivelse as var_besk from variant_typer,varianter";
+		#				$qtxt.=" where variant_typer.id = '$varianter[$y]' and variant_typer.variant_id=varianter.id";
+		#				$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		#				$beskrivelse.=", ".$r1['var_besk']; #.":".$r1['vt_besk'];
+		#			}
+		#		}
+		# exit;
 		($webservice) ? $leveres = $antal : $leveres = 0;
 		if ($id && is_numeric($posnr)) {
 			$momslog = fopen("../temp/$db/momslog.log", "a");
@@ -4057,7 +4065,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				alert($alerttxt);
 				$varemomssats = 0;
 				#				return ('0');
-#				exit;
+				#				exit;
 			}
 			if (($samlevare && !$antal) || $antal == '')
 				$antal = 1;
@@ -4080,7 +4088,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			if ($lager < 1)
 				$lager = 1;
 			$posnr = abs($posnr); #20200813
-#			if ($barcodeNew && !$serienr) $serienr = $barcodeNew;
+			#			if ($barcodeNew && !$serienr) $serienr = $barcodeNew;
 			if ($art != 'PO' && $art != 'DK' && !$webservice && $variantText)
 				$beskrivelse .= " $variantText"; #20211129
 			$qtxt = "insert into ordrelinjer ";
@@ -5398,8 +5406,8 @@ function stock_warning_texts($sprog_id = null)
 	$en = ((int)$sprog_id === 2);
 	if ($en) {
 		return array(
-			'popup_title'         => 'Item out of stock',
-			'popup_text'          => 'This item is out of stock - do you still want to proceed with the sale?',
+			'popup_title'         => 'Item low stock',
+			'popup_text'          => 'This item has low or no stock - do you still want to proceed with the sale?',
 			'btn_no'              => 'No',
 			'btn_yes'             => 'Yes, continue',
 			'note_title'          => 'Reason required',

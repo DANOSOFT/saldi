@@ -634,7 +634,7 @@ if (!function_exists('copy_row')) {
 				$x++;
 				$fieldName[$x] = db_field_name($q, $r);
 				$fieldType[$x] = db_field_type($q, $r);
-				if ($fieldName[$x] != 'batch_due_date' && $fieldName[$x] != 'batch_batch_no') {
+				if ($fieldName[$x] != 'batch_due_date' && $fieldName[$x] !='batch_batch_no') {
 					($fieldstring) ? $fieldstring .= "," . $fieldName[$x] : $fieldstring = $fieldName[$x];
 				}
 			}
@@ -670,7 +670,7 @@ if (!function_exists('copy_row')) {
 			}
 		}
 		if ($posnr && $ordre_id)
-			db_modify("update $table set posnr=posnr+1 where ordre_id = '$ordre_id' and posnr >= '$posnr'", __FILE__ . " linje " . __LINE__);
+		db_modify("update $table set posnr=posnr+1 where ordre_id = '$ordre_id' and posnr >= '$posnr'", __FILE__ . " linje " . __LINE__);
 		db_modify("insert into ordrelinjer ($fieldstring) values ($fieldvalues)", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select id from $table where $selectstring", __FILE__ . " linje " . __LINE__));
 		$ny_id = $r['id'];

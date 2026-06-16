@@ -1129,6 +1129,43 @@ $custom_columns = array(
             return "<td align='{$column['align']}'>$display</td>";
         }
     ),
+
+    "debitorgruppe" => array(
+        "field" => "debitorgruppe",
+        "headerName" => findtekst('2413|Debitorgruppe', $sprog_id),
+        "width" => "1.5",
+        "type" => "dropdown",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "a.gruppe::text",
+        "dropdownOptions" => function () {
+            $options = array();
+            $qtxt = "SELECT kodenr, MAX(beskrivelse) as beskrivelse FROM grupper WHERE art = 'DG' AND kode = 'D' GROUP BY kodenr ORDER BY kodenr::integer";
+            $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                $options[] = $r['kodenr'] . " - " . $r['beskrivelse'];
+            }
+            return $options;
+        },
+        "generateSearch" => function ($column, $term) {
+            $term = trim($term);
+            if ($term === '') return "1=1";
+            // Term is either "1 - Beskrivelse" (from dropdown) or a plain number
+            $gruppenr = (strpos($term, ' - ') !== false) ? explode(' - ', $term, 2)[0] : $term;
+            $gruppenr = db_escape_string(trim($gruppenr));
+            if ($gruppenr === '') return "1=1";
+            return "(a.gruppe::text = '$gruppenr')";
+        },
+        "valueGetter" => function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        },
+        "render" => function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+        }
+    ),
+    
     "felt_1" => array(
         "field" => "felt_1",
         "headerName" => findtekst('255|Ekstrafelt 1', $sprog_id),

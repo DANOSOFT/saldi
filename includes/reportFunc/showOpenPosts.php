@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- lap 5.0.0 --- 2026.05.18 ---
+// --- includes/reportFunc/showOpenPosts.php --- lap 5.0.0 --- 2026.05.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,9 @@
 // 20240529	PHR Unalignet account with sum = 0 was not shown
 // 20250527 PHR Fixed problem with small corrency diffs that listed alligned accounts at unequal
 // 20260507 CL/PHR Added $vis_alle parameter: false = only show udlignet != '1' (Vis åbne poster), true = show all (Vis alle poster).
+// 20260513 PHR Columns were shifted when $usePBS was NULL
 // 20260518 CL/PHR PBS-kolonne printes kun hvis $usePBS er sat. isset()-check tilføjet for $kontoudtog.
+// 20260528 PHR Bottomline was overlooked 20260513
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {

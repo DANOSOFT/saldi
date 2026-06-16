@@ -135,6 +135,7 @@
         curl_close($ch);
 
         $timestamp = date("Y-m-d-H-i-s");
+
         if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || trim($response) === "") {
             // An error occurred
             $errorNumber = curl_errno($ch);
@@ -268,7 +269,7 @@
 
         // 20260604 - Save raw response before JSON decoding for better error diagnosis
         file_put_contents("../temp/$db/fakture-result-raw-$ranStr.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---HEADERS---\n" . $responseHeaders . "\n---RAW RESPONSE---\n" . $result);
-
+        
         if (curl_errno($ch)) {
             // Curl connection error - don't continue
             $errorNumber = curl_errno($ch);
@@ -307,26 +308,24 @@
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
             $easyUBLError = isset($result["errorMessage"]) ? $result["errorMessage"] : "";
-            if (empty($easyUBLError) && isset($result["message"])) $easyUBLError = $result["message"];
             $errorDetails = isset($result["error"]) ? $result["error"] : "";
-
+            
             // 20260604 - Improved error logging for E-APS24003 errors
             // Capture all possible error information
             $error = [
-                'curl_error_number' => $errorNumber,
-                'curl_error_message' => $errorMessage,
+                'curl_error_number' => $errorNumber, 
+                'curl_error_message' => $errorMessage, 
                 'easyUBL_errorMessage' => $easyUBLError,
                 'easyUBL_error' => $errorDetails,
                 'full_response' => $result
             ];
-
+            
             // save response in file in temp folder with full details for debugging
-            file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-
+            
             // Determine which error to show
             $displayError = "";
-
+            
             if(!empty($errorMessage)){
                 // curl error
                 $displayError = "Forbindelsesfejl: " . $errorMessage;
@@ -342,7 +341,7 @@
             }else{
                 $displayError = "Ukendt fejl - kontakt support";
             }
-
+            
             ?>
             <script>
                 alert("Transmission fejl:\n\n<?php echo htmlspecialchars($displayError); ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.");
@@ -474,13 +473,13 @@
         $customerPostnr = trim($r_faktura["postnr"]);
         $customerAddr2 = trim($r_faktura["addr2"]);
         $customerKontakt = trim($r_faktura["kontakt"]);
-
+        
         $levAddr1 = trim($r_faktura["lev_addr1"]);
         $levBynavn = trim($r_faktura["lev_bynavn"]);
         $levPostnr = trim($r_faktura["lev_postnr"]);
         $levAddr2 = trim($r_faktura["lev_addr2"]);
         $levKontakt = trim($r_faktura["lev_kontakt"]);
-
+        
         // If customer main address is empty, use delivery address for customer postal address
         if(empty($customerAddr1) || empty($customerBynavn) || empty($customerPostnr)){
             if(!empty($levAddr1) && !empty($levBynavn) && !empty($levPostnr)){
@@ -492,10 +491,11 @@
                 $customerKontakt = $levKontakt;
             }
         }
-
+        
         // Delivery address - use best available address
         if($levAddr1 !== "" && $levBynavn !== "" && $levPostnr !== ""){
             $deliverAddress = [
+                
                 "streetName" => implode(" ", explode(" ", $levAddr1, -1)), ## 20260518 - NTR - Street name without building number.
                 "buildingNumber" => array_slice(explode(" ", $levAddr1), -1)[0],
                 "inhouseMail" => $r_faktura["email"],
@@ -700,7 +700,7 @@
 
         // 20260604 - Validate required fields before transmission to prevent E-APS24003 errors
         $missingFields = [];
-
+        
         if(empty($cvrnr_with_prefix) || $cvrnr_with_prefix === "DK"){
             $missingFields[] = "CVR-nummer";
         }
@@ -717,7 +717,7 @@
         if(empty($data["invoiceLines"]) || count($data["invoiceLines"]) === 0){
             $missingFields[] = "Ordrelinjer";
         }
-
+        
         if(!empty($missingFields)){
             error_log(json_encode(["error" => "Påkrævede felter mangler", "missing_fields" => $missingFields, "order_id" => $id], JSON_PRETTY_PRINT));
             ?>

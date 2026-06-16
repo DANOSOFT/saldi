@@ -53,9 +53,9 @@ if (!function_exists('oauthSessionSave')) {
                 SQL;
         } else {
             $sql = <<<SQL
-                INSERT INTO settings
-                (var_grp,   var_name,       var_value,      user_id)
-                VALUES
+                INSERT INTO settings 
+                (var_grp,   var_name,       var_value,      user_id) 
+                VALUES 
                 ('OAuth',   'oauth_data',   '$encrypted',   '$uid')
             SQL;
         }

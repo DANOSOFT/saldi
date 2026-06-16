@@ -20,12 +20,12 @@
 			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			Luk</button></a></td>";
 	}
-
+	
 	?>
 		<td width='100%' style='<?php echo $topStyle ?>' align=left>
 			<div style='display:flex; align-items:center;'>
 				<div style='width: 200px; padding: 2px;' align=center id='back-btn'>
-					<?php
+					<?php 
 					if ($valg=="Kladdeliste") {
 						print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
 							$icon_kladdeliste ".findtekst('639|Kladdeliste', $sprog_id)."

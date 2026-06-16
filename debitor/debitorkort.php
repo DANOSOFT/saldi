@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-05-05 --- 
+// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-05-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,8 @@
 // 20260323 LOE Added a drag handle to adjust the height of the purchase history grid, and made the grid initially collapse.  
 // 20260325 LOE Added logic to navigate to appropriate returside for when general ledger is selected
 // 20260505 LOE Added form to create extra delivery address and logic to save it. SD-483
+// 20260513 PHR Removed if ($id) around cvrapi to make it work again for existing customers
+// 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
 @session_start();
 $s_id = session_id();
 
