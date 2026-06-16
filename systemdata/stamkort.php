@@ -60,7 +60,7 @@ if ($menu=='T') {  # 20150331 start
 
 
 if (!isset ($notes)) $notes = NULL;
-$id=$email=$firmanavn=$addr1=$addr2=$postnr=$bynavn=$bank_navn=$kontakt=$cvrnr=$tlf=$fax=$pbs_nr=$fi_nr=$bank_reg=$bank_konto=$countryConfig=NULL;
+$id=$email=$firmanavn=$addr1=$addr2=$postnr=$bynavn=$bank_navn=$kontakt=$cvrnr=$tlf=$mobile=$pbs_nr=$fi_nr=$bank_reg=$bank_konto=$countryConfig=NULL;
 if ($_POST) {
     $country = isset($_POST['landeconfig']) ?  $_POST['landeconfig'] : getCountry();
     $id=$_POST['id'];
@@ -72,7 +72,7 @@ if ($_POST) {
 	$bynavn=addslashes(trim($_POST['bynavn']));
 	$kontakt=addslashes(trim($_POST['kontakt']));
 	$tlf=addslashes(trim($_POST['tlf']));
-	$fax=addslashes(trim($_POST['fax']));
+	$mobile=addslashes(trim($_POST['mobile']));
 	$cvrnr=addslashes(trim($_POST['cvrnr']));
 	$ans_id=if_isset($_POST['ans_id']);
 	$ans_ant=if_isset($_POST['ans_ant']);
@@ -91,9 +91,9 @@ if ($_POST) {
 	$fi_nr=trim($_POST['fi_nr']);
 	if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
 	if ($id==0) {
-		$qtxt="insert into adresser"; $qtxt.="(kontonr,firmanavn,addr1,addr2,postnr,bynavn, land,tlf,fax,cvrnr,art,bank_navn,bank_reg,bank_konto,";
+		$qtxt="insert into adresser"; $qtxt.="(kontonr,firmanavn,addr1,addr2,postnr,bynavn, land,tlf,mobile,cvrnr,art,bank_navn,bank_reg,bank_konto,";
 		$qtxt.="email,mailfakt,pbs_nr,pbs,bank_fi,gruppe,kontakt)";
-		$qtxt.="values"; $qtxt.="('$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn',"; $qtxt.="'$country','$tlf','$fax','$cvrnr','S','$bank_navn','$bank_reg','$bank_konto',";
+		$qtxt.="values"; $qtxt.="('$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn',"; $qtxt.="'$country','$tlf','$mobile','$cvrnr','S','$bank_navn','$bank_reg','$bank_konto',";
 		$qtxt.="'$ny_email','$mailfakt','$pbs_nr','$pbs','$fi_nr','$gruppe','$kontakt')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt="select id from adresser where art = 'S'";
@@ -103,7 +103,7 @@ if ($_POST) {
 		$qtxt = "update adresser set kontonr = '$kontonr',firmanavn = '". db_escape_string($firmanavn) ."',";
 		$qtxt.= "addr1 = '". db_escape_string($addr1) ."',addr2 = '". db_escape_string($addr2) ."',";
 		$qtxt.= "postnr = '". db_escape_string($postnr) ."',land = '". db_escape_string($country) ."',";
-		$qtxt.= "bynavn = '". db_escape_string($bynavn) ."',tlf = '". db_escape_string($tlf) ."',fax = '". db_escape_string($fax) ."',";
+		$qtxt.= "bynavn = '". db_escape_string($bynavn) ."',tlf = '". db_escape_string($tlf) ."',mobile = '". db_escape_string($mobile) ."',";
 		$qtxt.= "cvrnr = '". db_escape_string($cvrnr) ."',bank_navn='". db_escape_string($bank_navn) ."',";
 		$qtxt.= "bank_reg='". db_escape_string($bank_reg) ."',bank_konto='". db_escape_string($bank_konto) ."',";
 		$qtxt.= "email='". db_escape_string($ny_email) ."',mailfakt='". db_escape_string($mailfakt) ."',";
@@ -142,7 +142,7 @@ if($r != false){
 	$bynavn=$r['bynavn'];
 	#$kontakt=$r['kontakt'];
 	$tlf=$r['tlf'];
-	$fax=$r['fax'];
+	$mobile=$r['mobile'];
 	$cvrnr=$r['cvrnr'];
 	$bank_navn=$r['bank_navn'];
 	$bank_reg=$r['bank_reg'];
@@ -194,7 +194,7 @@ print "<td valign=\"top\">\n"; # 20150331
 print "<table border=\"0\" cellspacing=\"0\" class=\"dataTable\"><tbody>"; # 20150331
 print "<tr><td>".findtekst('376|CVR-nr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"cvrnr\" value=\"$cvrnr\" title=\"".findtekst('2488|Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)', $sprog_id)."\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
 print "<tr><td>".findtekst('37|Telefon', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"tlf\" value=\"$tlf\" title=\"".findtekst('2489|Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)', $sprog_id)."\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
-print "<tr><td>".findtekst('378|Telefax', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fax\" value=\"$fax\"></td></tr>";
+print "<tr><td>".findtekst('378|Mobile', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"mobile\" value=\"$mobile\"></td></tr>";
 print "<tr><td>".findtekst('385|BS', $sprog_id)." ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"pbs_nr\" value=\"$pbs_nr\">";
 if ($pbs_nr) {
 	print "<select class=\"inputbox\" name=\"pbs\">";

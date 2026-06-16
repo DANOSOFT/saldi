@@ -707,7 +707,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 	print "<option>eget_land</option>";
 	print "<option>eget_cvrnr</option>";
 	print "<option>egen_tlf</option>";
-	print "<option>egen_fax</option>";
+	print "<option>egen_mobile</option>";
 	print "<option>egen_bank_navn</option>";
 	print "<option>egen_bank_reg</option>";
 	print "<option>egen_bank_konto</option>";
@@ -726,7 +726,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 	print "<option value = 'eget_land'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('47|Land', $sprog_id))."</option>";                                            #Eget land
 	print "<option value = 'eget_cvrnr'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('48|Cvr-nr.', $sprog_id))."</option>";                                        #Eget Cvr nr.
 	print "<option value = 'egen_tlf'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                               #Egen tlf
-	print "<option value = 'egen_fax'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('50|Fax', $sprog_id))."</option>";                                              #Egen fax
+	print "<option value = 'egen_mobile'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('50|Mobile', $sprog_id))."</option>";                                              #Egen mobile
 	print "<option value = 'egen_bank_navn'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('58|Banknavn', $sprog_id))."</option>";                                   #Eget banknavn
 	print "<option value = 'egen_bank_reg'>".findtekst('2517|Egen', $sprog_id)." bank_reg</option>";
 	print "<option value = 'egen_bank_konto'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('60|Bankkonto', $sprog_id))."</option>";                                 #Egen bankkonto
@@ -742,7 +742,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ansat_email'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                    #Ansat e-mail
 		print "<option value = 'ansat_mobil'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('401|Mobil', $sprog_id))."</option>";                                    #Mobil
 		print "<option value = 'ansat_tlf'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                          #Ansat tlf
-		print "<option value = 'ansat_fax'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('58|Banknavn', $sprog_id))."</option>";                                    #Ansat banknavn
+		print "<option value = 'ansat_mobile'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('58|Banknavn', $sprog_id))."</option>";                                    #Ansat banknavn
 		print "<option value = 'ansat_privattlf'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('656|Privat tlf', $sprog_id))."</option>";                           #Ansat privat tlf
 	} elseif ($form_nr==11) {
 		print "<option value = 'konto_firmanavn'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('28|Firmanavn', $sprog_id))."</option>";                             #Konto firmanavn

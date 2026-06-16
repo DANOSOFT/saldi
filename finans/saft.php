@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/saft.php --- patch 4.1.1 --- 2025.05.03 ---
+// --- finans/saft.php --- patch 4.1.1 --- 2026.06.15 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20240128 PHR Changed "AND transdate <= '$startDate'" to "AND transdate < '$startDate'" as opening balance 
 // included day 1.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst() 
+// 20260615 LOE changed fax to mobile in company contact info, as fax is not used anymore.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
@@ -502,7 +503,7 @@ $addressSelect = array(
 	saftColumnSelect($addressColumns, 'land'),
 	saftColumnSelect($addressColumns, 'kontakt'),
 	saftColumnSelect($addressColumns, 'tlf'),
-	saftColumnSelect($addressColumns, 'fax'),
+	saftColumnSelect($addressColumns, 'mobile'),
 	saftColumnSelect($addressColumns, 'email'),
 	saftColumnSelect($addressColumns, 'web'),
 	saftColumnSelect($addressColumns, 'bank_navn'),
@@ -527,7 +528,7 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$DefaultCurrencyCode = defaultCurrency($CountryName);
 	$Contact = $r['kontakt'];
 	$PhoneNumber = $r['tlf'];
-	$FaxNumber = $r['fax'];
+	$MobileNumber = $r['mobile'];
 	$Email = $r['email'];
 	$WebSite = $r['web'];
 	$BankAccountName = $r['bank_navn'];

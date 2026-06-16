@@ -208,7 +208,7 @@ function saft($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra,
 		$DefaultCurrencyCode = defaultCurrency($CountryName);
 		$Contact = $r['kontakt'];
 		$PhoneNumber = $r['tlf'];
-		$FaxNumber = $r['fax'];
+		$MobileNumber = $r['mobile'];
 		$Email = $r['email'];
 		$WebSite = $r['web'];
 		$BankAccountName = $r['bank_navn'];
@@ -492,7 +492,7 @@ function saft($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra,
 	// echo "BirthName: $ContactName<br>";
 	// echo "----ContactPerson---- <br>";
 	// echo "Telephone: $PhoneNumber<br>";
-	// echo "Fax: $FaxNumber<br>";
+	// echo "Mobile: $MobileNumber<br>";
 	// echo "Email: $Email<br>";
 	// echo "Website: $WebSite<br>";
 	// echo "MobilePhone: $PhoneNumber<br>";
