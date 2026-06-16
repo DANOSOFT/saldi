@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/saftCashRegister.php --- patch 4.0.8 --- 2023-10-27 ---
+// --- debitor/saftCashRegister.php --- patch 4.0.8 --- 2026-06-15 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +21,10 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
+// 20260615 LOE  Fax updated to Mobile
 
 @session_start();
 $s_id = session_id();
@@ -494,7 +495,7 @@ $addressSelect = array(
     saftCashColumnSelect($addressColumns, 'land'),
     saftCashColumnSelect($addressColumns, 'kontakt'),
     saftCashColumnSelect($addressColumns, 'tlf'),
-    saftCashColumnSelect($addressColumns, 'fax'),
+    saftCashColumnSelect($addressColumns, 'mobile'),
     saftCashColumnSelect($addressColumns, 'email'),
     saftCashColumnSelect($addressColumns, 'web'),
     saftCashColumnSelect($addressColumns, 'bank_navn'),
@@ -523,9 +524,9 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $curCode = defaultCurrency($CountryName);
     $Contact = $r['kontakt'];
     $PhoneNumber = $r['tlf'];
-    $FaxNumber = $r['fax'];
-    if (empty($FaxNumber))
-        $FaxNumber = "NA";
+    $MobileNumber = $r['mobile'];
+    if (empty($MobileNumber))
+        $MobileNumber = "NA";
     $Email = $r['email'];
     $WebSite = $r['web'];
     if (empty($WebSite))

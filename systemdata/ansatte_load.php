@@ -32,7 +32,7 @@ if ($id > 0) {
 	$bynavn=htmlspecialchars($r['bynavn']);
 	$email=htmlspecialchars($r['email']);
 	$tlf=$r['tlf'];
-	$fax=$r['fax'];
+	$mobile=$r['mobile'];
 	$mobil=$r['mobil'];
 	$privattlf=$r['privattlf'];
 	$cprnr=$r['cprnr'];

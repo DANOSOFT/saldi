@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.06.03
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.06.15
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,10 +27,24 @@
 // 20260429 LOE added leveret to formularer table
 // 20260504 LOE added a separate table for managing delivery addresses and those in adresser are migrated to the new table and linked to the corresponding account.
 // 20260504 NTR Fixed error on login due to missing regnskab's table
-// 20260507 PHR Removed above as table regskab must not be created en sub bases
+// 20260507 PHR Removed above as table regskab must not be created en sub bases 
 // 20260512 NTR Merged Live/POS into prod_test
 // 20260517 NTR Fixed crittical error when trying to migrate delivery_addresses data (again)
 // 20260603 NTR Added missing note_on_orderline column to ordrelinjer table as otherwise it crashed on added a linje.
+// 20260611 LOE rename fax to mobile and changed orderdate to ordredate, orders to ordrer.
+#####
+$qtxt = "SELECT column_name
+         FROM information_schema.columns
+         WHERE table_name = 'adresser'
+         AND column_name = 'fax'";
+
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    $qtxt = "ALTER TABLE adresser RENAME COLUMN fax TO mobile";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+#####
+
 
 $qtxt = "update grupper set box8 = '' where art = 'DIV' and kodenr = '2' and box8 like 'ftp2.ebconnect.dk%'";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -109,9 +123,42 @@ $already_migrated = db_fetch_array(db_select(
 
 error_log("Delivery address migration already done: " . ($already_migrated ? 'yes' : 'no'));
 if (!$already_migrated) {
-    $qtxt = "SELECT id, lev_firmanavn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, lev_kontakt, lev_email
-             FROM adresser
-             WHERE (lev_firmanavn IS NOT NULL AND lev_firmanavn != '')
+
+	// Drop and Recreate
+	db_modify('DROP TABLE IF EXISTS "delivery_addresses"', __FILE__ . " linje " . __LINE__);
+	db_modify('DROP SEQUENCE IF EXISTS delivery_addresses_id_seq', __FILE__ . " linje " . __LINE__);
+	db_modify('CREATE SEQUENCE delivery_addresses_id_seq INCREMENT 1 MINVALUE 1 MAXVALUE 2147483647 START 51 CACHE 1', __FILE__ . " linje " . __LINE__);
+	$qtxt = <<<SQL
+		CREATE TABLE "public"."delivery_addresses" (
+			"id" integer DEFAULT nextval('delivery_addresses_id_seq') NOT NULL,
+			"account_id" integer NOT NULL,
+			"is_primary" boolean DEFAULT false NOT NULL,
+			"sort_order" smallint DEFAULT '0' NOT NULL,
+			"description" character varying(100),
+			"company_name" character varying(255),
+			"first_name" character varying(100),
+			"last_name" character varying(100),
+			"address_line1" character varying(255),
+			"address_line2" character varying(255),
+			"postal_code" character varying(20),
+			"city" character varying(100),
+			"country" character varying(100),
+			"contact_name" character varying(100),
+			"phone" character varying(50),
+			"email" character varying(255),
+			"created_at" timestamp DEFAULT now(),
+			CONSTRAINT "delivery_addresses_pkey" PRIMARY KEY ("id")
+		) WITH (oids = false)
+	SQL;
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	// Add Cascade Drop Constraint.
+	db_modify('ALTER TABLE ONLY "delivery_addresses" ADD CONSTRAINT "delivery_addresses_account_id_fkey" FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE NOT DEFERRABLE', __FILE__ . " linje " . __LINE__);
+
+	// Transfer Data
+    $qtxt = "SELECT id, lev_firmanavn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, lev_kontakt, lev_email 
+             FROM adresser 
+             WHERE (lev_firmanavn IS NOT NULL AND lev_firmanavn != '') 
                 OR (lev_addr1 IS NOT NULL AND lev_addr1 != '')";
 
     if ($result = db_select($qtxt, __FILE__ . " linje " . __LINE__)) {
@@ -250,8 +297,8 @@ $qtxt = "select id, ordredate from ordrer where art = ''";
 #cho "$qtxt<br>";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-	if ($r['orderdate'] >= '2026-01-01') {
-		$qtxt = "update orders set art = 'KO' where id = '$r[id]'";
+	if ($r['ordredate'] >= '2026-01-01') {
+		$qtxt = "update ordrer set art = 'KO' where id = '$r[id]'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }

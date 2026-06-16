@@ -342,7 +342,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	######## Adresser ##########
 	$qtxt = "CREATE TABLE adresser ";
 	$qtxt.= "($id_column,firmanavn varchar(90),addr1 varchar(60),addr2 varchar(60),postnr varchar(10),";
-	$qtxt.= "bynavn varchar(60),land varchar(60),kontakt varchar(60),tlf varchar(60),fax varchar(15),email varchar(60),";
+	$qtxt.= "bynavn varchar(60),land varchar(60),kontakt varchar(60),tlf varchar(60),mobile varchar(15),email varchar(60),";
 	$qtxt.= "web varchar(60),bank_navn varchar(60),bank_reg varchar(15),bank_konto varchar(15),bank_fi varchar(15),";
 	$qtxt.= "erh varchar(15),swift varchar(15),iban varchar(40),productlimit $decimal_type(15,0),notes text,rabat $decimal_type(15,3),momskonto integer,";
 	$qtxt.= "kreditmax $decimal_type(15,3),betalingsbet varchar(15),betalingsdage integer DEFAULT 0,kontonr varchar(30),";
@@ -356,7 +356,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	######## Ansatte ########
-	db_modify("CREATE TABLE ansatte ($id_column,konto_id integer,navn text,addr1 text,addr2 text,postnr text,bynavn text,tlf text,fax text,mobil text,privattlf text,initialer text,email text,notes text,cprnr text,posnr integer,afd integer,provision $decimal_type(15,3),nummer integer,loen $decimal_type(15,3),hold integer,lukket varchar(2),bank text,startdate date,slutdate date,gruppe $decimal_type(15,3),extraloen $decimal_type(15,3),trainee text,password text,overtid $decimal_type(1,0),sag_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE ansatte ($id_column,konto_id integer,navn text,addr1 text,addr2 text,postnr text,bynavn text,tlf text,mobile text,mobil text,privattlf text,initialer text,email text,notes text,cprnr text,posnr integer,afd integer,provision $decimal_type(15,3),nummer integer,loen $decimal_type(15,3),hold integer,lukket varchar(2),bank text,startdate date,slutdate date,gruppe $decimal_type(15,3),extraloen $decimal_type(15,3),trainee text,password text,overtid $decimal_type(1,0),sag_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 
 	######## crm ########
 	db_modify("CREATE TABLE  crm ($id_column,konto_id int,kontakt_id int,ansat_id int,notat text,notedate date,spor text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
