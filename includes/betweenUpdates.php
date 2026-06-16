@@ -683,7 +683,6 @@ if ($mp_client_id) {
 
 // Ensure datatables and tutorials tables have correct structure
 
-
 $quote_offset_col = ($db_type=="mysql" or $db_type=="mysqli") ? "`offset`" : "\"offset\"";
 
 // Check if datatables table exists
@@ -735,5 +734,18 @@ db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 $qtxt = "update varer set lukket = '0' where lukket is NULL";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+#####
+$qtxt = "SELECT column_name
+         FROM information_schema.columns
+         WHERE table_name = 'adresser'
+         AND column_name = 'fax'";
+
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    $qtxt = "ALTER TABLE adresser RENAME COLUMN fax TO mobile";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+#####
 
 ?>
