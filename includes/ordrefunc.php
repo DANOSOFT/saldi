@@ -97,6 +97,7 @@
 //                 causing SQL error "invalid input syntax for integer" when $id is a comma-separated list
 // 20260604 CL/PHR function batch_salg: reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr so domestic CVRs are not routed to EU/export accounts
 // 20260604 CL/PHR function bogfor_nu: tightened POS-detection condition - felt_4, felt_5 must also be numeric and felt_5 > 0 to avoid regular orders being treated as POS
+// 20260610 Sawaneh Stock warning popup now triggers at beholdning <= min_lager (fallback: 'Standard minimumsbeholdning' setting) instead of only at 0
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -5430,8 +5431,8 @@ function stock_warning_texts($sprog_id = null)
 		);
 	}
 	return array(
-		'popup_title'         => 'Vare ikke på lager',
-		'popup_text'          => 'Denne vare er ikke på lager - ønsker du alligevel at fortsætte med salget?',
+		'popup_title'         => 'Vare er lav eller ikke på lager',
+		'popup_text'          => 'Denne vare er lav eller ikke på lager - ønsker du alligevel at fortsætte med salget?',
 		'btn_no'              => 'Nej',
 		'btn_yes'             => 'Ja, fortsæt',
 		'note_title'          => 'Begrundelse påkrævet',

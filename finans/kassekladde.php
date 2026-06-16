@@ -2801,7 +2801,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($vis_bet_id) {
 				print "<td><input class='inputbox' type='text' style='text-align:left;width:100px;' name='b_id$y' $de_fok value =\"$betal_id[$y]\" onchange='javascript:docChange = true;'></td>\n";
 			}
-			}
 		} elseif ($vis_forfald) {
 			print "<td><input class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id) {
