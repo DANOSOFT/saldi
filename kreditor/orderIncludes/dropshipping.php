@@ -35,7 +35,7 @@ include("../../includes/std_func.php");
 include("../../includes/grid.php");
 
 // Get parameters
-$id = $_GET["id"];
+$id = if_isset($_GET, null, "id");
 $adresse = if_isset($_GET["adresse"], null);
 $search = if_isset($_GET["search"], "");
 
@@ -135,7 +135,8 @@ if ($adresse === null) {
         <?php
         $grid_data = array(
             "query" => "SELECT id, kontonr, firmanavn, addr1, addr2, bynavn, postnr FROM adresser WHERE {{WHERE}} ORDER BY {{SORT}}",
-            "filters" => array(), 
+            "filters" => array(),
+            "extraParams" => array("id" => $id),
             "rowStyle" => function($row) {
                 return "cursor: pointer;";
             },
@@ -204,7 +205,9 @@ if ($adresse === null) {
             )
         );
         
+        print "<div style='height: calc(89%)'>";
         create_datagrid("dropshipping_grid_v2", $grid_data);
+        print "</div>";
         ?>
     <?php
 } else {
