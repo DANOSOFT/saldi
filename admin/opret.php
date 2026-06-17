@@ -660,7 +660,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt = "CREATE TABLE rentalsettings ($id_column, booking_format integer, search_cust_name integer, ";
 	$qtxt.= "search_cust_number integer, search_cust_tlf integer, start_day integer, deletion integer, ";
 	$qtxt.= "find_weeks integer, end_day integer, put_together integer, pass varchar(255), ";
-	$qtxt.= "invoice_date smallint, use_password integer, PRIMARY KEY (id))";
+	$qtxt.= "invoice_date smallint, use_password integer, toggle_order integer DEFAULT 1, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE stockmovement ($id_column, vareid integer, beholdning integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);

@@ -94,6 +94,10 @@
 // 20260225 PHR Updated cashCount
 // 20260316 PHR Corrected Currency error in cashCount
 // 20260403 PHR Added && '$leveres[0] != 0' as leveres else is set to 0 if qty was changed and kokkelprint became reset.
+// 20260523 CL/PHR function posbogfor: Changed payment type query to LEFT JOIN with COALESCE(felt_1) so orders
+//                 without pos_betalinger rows are included when finding distinct betaling types
+// 20260523 CL/PHR function posbogfor: Changed order lookup query to LEFT JOIN with COALESCE(felt_1/valuta)
+//                 so art='DO' orders without pos_betalinger are passed to bogfor_nu
 // 20260601 Sawaneh Out-of-stock popup now also fires for sub-items of a samlesæt (set), not just the master varenr
 // 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
 @session_start();
@@ -152,6 +156,7 @@ include("pos_ordre_includes/showPosLines/showPosLinesFunc.php"); #20190510
 
 include("pos_ordre_includes/exitFunc/exit.php"); #20190510
 
+global $baseCurrency;
 $valuta = $baseCurrency;
 if(isset($_GET["payment_id"])){
 	$_SESSION["payment_id"] = $_GET['payment_id'];
@@ -162,7 +167,7 @@ if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi
 	$zoom = usdecimal(get_settings_value("mobilzoom", "POS", "1.0", null, $_COOKIE["saldi_pos"]));
 	print "<meta name='viewport' content='width=$width, initial-scale=$zoom, maximum-scale=$zoom, user-scalable=0'>";
 }
-
+global $menu;
 if ($menu == 'T') {
 	if (!$bgcolor)
 		$bgcolor = "#000000";
@@ -172,6 +177,7 @@ if ($menu == 'T') {
 	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
+	global $meta_returside;
 	if ($meta_returside)
 		print "$meta_returside"; #20140502
 	if ($css)

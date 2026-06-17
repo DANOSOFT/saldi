@@ -3016,16 +3016,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&sum="       . urlencode($belob ?? '')
                 . "&fokus=bila$x&openPool=1";
 				########################
-        print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
-        print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
-        print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
-        // print "</tr>";
+				print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+				print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+				print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
+				// print "</tr>";
 			} else {
 				print "<td></td>\n";
 			}
 		}
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
-
+		
 		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
 		if (isset($bilag[$x]) && $bilag[$x]) {
 			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
@@ -3045,7 +3045,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if($dato[$x] == ''){
 			$dato[$x] = dkdato(date("Y-m-d"));
 		}
-
+		
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
@@ -3096,7 +3096,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
 			print "<td></td>\n";
-		}
+		} 
 		if ($kontrolkonto) {
 			print "<td></td>\n";
 			print "<td></td>\n";
@@ -3174,7 +3174,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
 			print "<td></td>\n";
-		}
+		} 
 		if ($kontrolkonto) {
 			print "<td></td>\n";
 			print "<td></td>\n";
