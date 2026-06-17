@@ -65,7 +65,7 @@ kontonr	beskrivelse	kontotype	momskode	fra_konto
 5495	Salgs- og distributions omkostninger i alt	Z		5000
 5999	Andre Omkostninger	H		0
 6010	Kontorartikler	D	K1	0
-6020	Telefon og Fax	D	K1	0
+6020	Telefon og Mobile	D	K1	0
 6080	Porto/Frimærker	D		0
 6085	Forsikringer (ikke personale)	D		0
 6090	Kontingenter m. moms	D	K1	0

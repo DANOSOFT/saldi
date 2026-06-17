@@ -78,7 +78,8 @@
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
 // 20250924 LOE - Modify select url to use window.location.href instead of window.open to fit into main frame.
 // 20260324 LOE - Updated returside for general ledger from debitor's card if users came from ordre.php
-// 20260507 CL/PHR - Vis åbne poster now only shows unaligned posts (udlignet != '1'). Added 'Vis alle poster' option for full view.
+// 20260507 CL/PHR Vis åbne poster now only shows unaligned posts (udlignet != '1'). Added 'Vis alle poster' option for full view.
+// 20260513 CL/PHR kontokort & kontosaldo viser nu dato i toplinje og kontokort tager kun konti med bevægelser i perioden.
 // 20260518 CL/PHR kontokort & kontosaldo viser nu dato i toplinje. Kontokort tager kun konti med bevægelser i perioden. Null-safety og array-initialisering.
 include("../includes/reportFunc/showOpenPosts.php"); 
 

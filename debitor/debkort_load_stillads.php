@@ -26,7 +26,7 @@ if ($id > 0){
 	$lev_email=trim($r['lev_email']);
 	$lev_kontakt=htmlentities(trim($r['lev_kontakt']));
 	$tlf=trim($r['tlf']);
-	$fax=trim($r['fax']);
+	$mobile=trim($r['mobile']);
 	$email=trim($r['email']);
 	$mailfakt=trim($r['mailfakt']);
 	$web=trim($r['web']);
@@ -120,7 +120,7 @@ print "<input type=hidden name=\"cvrnr\" value='$cvrnr'>\n";
 print "<input type=hidden name=\"ean\" value='$ean'>\n";
 print "<input type=hidden name=\"efternavn\" value='$efternavn'>\n";
 print "<input type=hidden name=\"email\" value='$email'>\n";
-print "<input type=hidden name=\"fax\" value='$fax'>\n";
+print "<input type=hidden name=\"mobile\" value='$mobile'>\n";
 print "<input type=hidden name=\"firmanavn\" value='$firmanavn'>\n";
 print "<input type=hidden name=\"fornavn\" value='$fornavn'>\n";
 print "<input type=hidden name=\"gruppe\" value='$gruppe'>\n";

@@ -23,7 +23,6 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-
 // 20260507 NTR - Added batch invoice matching (this)
 // 20260513 PK - Changed padding from 20px to 8px
 ?>

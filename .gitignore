@@ -34,6 +34,8 @@ logolib/
 
 #services
 .claude/
+!.claude/memory
+!.claude/memoru/*
 
 #test
 /price.txt

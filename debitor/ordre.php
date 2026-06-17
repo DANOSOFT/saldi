@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-06-10 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-06-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -76,7 +76,7 @@
 // 20260415 PHR Modtag (Receive) was set to 0 in creditnote
 // 20260420 PHR Removed GLS codes
 // 20260422 PHR Defined $fast_db as array; 
-// 20260432	PHR Warning when $ref id changes
+// 20260423	PHR Warning when $ref id changes
 // 20260427 PHR Fixed vat added twice when open order was copies. ($sourceStatus)
 // 20260429 PHR Changed 'PBS' to 'BS' as colunm is varchar(2)
 // 20260429 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
@@ -94,7 +94,7 @@
 // 20260603 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
 //                  migrateOldBilag.php inkluderet til automatisk migration af gamle bilag
 // 20260603 NTR Changed Varenr to posnr in SellerItemID in OIOUBL generation as per Jørgen's email.
-
+// 20260611 LOE Added UI for hvem and updated its logic 
 @session_start();
 $s_id = session_id();
 
@@ -111,7 +111,7 @@ $nextfakt = $notes = NULL;
 $oioxml = $oioubl = $ordrenr = NULL;
 $pbs = $phone = $prev_id = $pris[0] = $procenttillag = $procentvare = NULL;
 $qtext = NULL;
-$ref = $restordre = $rvnr = NULL;
+$ref = $restordre = $hvem = $rvnr = NULL;
 $sourceStatus = $status = $swap_account = NULL;
 $tdlv = NULL;
 $valgt = $varenr[0] = $valuta = $vis_lev_addr = $vis_projekt = NULL;
@@ -422,25 +422,55 @@ if ((isset($_POST['linjetekster'])) && ($id = if_isset($_POST, NULL, 'id'))) {
 	}
 }
 #$alert = findtekst(15)
+$lockedByOther=null;
 if ($tjek = if_isset($_GET, NULL, 'tjek')) {
-	$qtxt = "select tidspkt,hvem from ordrer where status < 3 and id = $tjek and hvem != '$brugernavn'"; #20220301
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		if ($r['tidspkt'] && $tidspkt - ($r['tidspkt']) < 3600 && $r['hvem']) {
-			print "<BODY onLoad=\"javascript:alert('" . findtekst('1542|Ordren er i brug af', $sprog_id) . " $r[hvem]')\">\n";
+	$qtxt = "SELECT ref, tidspkt FROM ordrer WHERE status < 3
+    AND id = '$tjek'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if ($r) {
+		//check that an actual registered user is holding the lock.
+		// Lock duration: 1 hour (3600 seconds)
+		if($r['tidspkt'] != null){
+			 $tidspkt = date("U") - $r['tidspkt'];
+			$lockedByOther = $r['ref'] != $brugernavn
+							&& ($tidspkt - $r['tidspkt'] < 3600);
+		}
+
+
+		// Verify that the user who holds the lock still exists in the system
+		$validUser = false;
+		if ($r['ref']) {
+			$userCheck = db_select(
+				"SELECT id FROM brugere
+				WHERE brugernavn = '" . db_escape_string($r['ref']) . "'",
+				__FILE__ . " line " . __LINE__
+			);
+			$validUser = (bool) db_fetch_array($userCheck);
+		}
+
+		if ($lockedByOther && $validUser) {
+			// Order is locked by another active user → show alert and redirect
+			$msg = findtekst('1542|Ordren er i brug af', $sprog_id) . " {$r['ref']}";
+			print "<body onLoad=\"javascript:alert('" . addslashes($msg) . "')\">\n";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">\n";
 		} else {
-			db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
+			// No lock (or lock owned by a deleted user) → take ownership
+			db_modify(
+				"UPDATE ordrer
+				SET ref = '$brugernavn',
+					tidspkt = '$tidspkt'
+				WHERE id = '$tjek'",
+				__FILE__ . " line " . __LINE__
+			);
 		}
-	} else {
-        db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
-    }
+	}
 }
 if (!$id) $id = if_isset($_GET['ordre_id']);
 $sort = if_isset($_GET, NULL, 'sort');
 $fokus     = if_isset($_GET, NULL, 'fokus');
 $b_submit  = if_isset($_GET, NULL, 'funktion');
 $vis_kost  = if_isset($_GET, NULL, 'vis_kost');
-$formularsprog = if_isset($_POST, NULL, 'sprog');
+$formularsprog = if_isset($_POST, NULL, 'sprog'); 
 if ($sort && $fokus && $b_submit == 'vareOpslag') {
 	$qtxt = "update settings set var_value='$sort' where var_name='vareOpslag' and var_grp='deb_ordre' and user_id='$bruger_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -778,12 +808,12 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$vis_lev_addr = '';
 	$afd = (int)$afd;
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
-	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,hvem,tidspkt,ref,";
+	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,hvem,";
 	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
 	$qtxt .= "lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,procenttillag,omvbet)";
 	$qtxt .= " values ";
 	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
-	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref',";
+	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','$ref','$hvem',";
 	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
 	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -802,7 +832,9 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) $id = $row['id'];
 } elseif ($status < 3 && $id && $firmanavn) {
-	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id and hvem='$brugernavn'", __FILE__ . " linje " . __LINE__);
+	// if(!$hvem) $hvem = $brugernavn;
+	if(!$hvem) $hvem = "";
+	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id and hvem='$hvem'", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		if (!$row['firmanavn']) { # <- 2009.05.13 Eller overskrives v. kontaktopslag.
 			if (!$restordre) $restordre = 0; # 20201215
@@ -811,7 +843,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 			$qtxt .= "lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_kontakt='$lev_kontakt',lev_land='$lev_land',lev_email='$lev_email',vis_lev_addr='$vis_lev_addr',";
 			$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',betalingsdage='$betalingsdage',";
 			$qtxt .= "betalingsbet='$betalingsbet',cvrnr='$cvrnr',ean='$ean',momssats='$momssats',institution='$institution',email='$email',";
-			$qtxt .= "mail_fakt='$mail_fakt',phone='$phone',udskriv_til='$udskriv_til',notes='$notes',hvem = '$brugernavn',tidspkt='$tidspkt',";
+			$qtxt .= "mail_fakt='$mail_fakt',phone='$phone',udskriv_til='$udskriv_til',notes='$notes',hvem = '$hvem',tidspkt='$tidspkt',";
 			$qtxt .= "pbs='$pbs',afd='$afd',restordre='$restordre' where id='$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
@@ -1111,6 +1143,7 @@ if ($b_submit) {
 	$omdan_t_fakt = if_isset($_POST, NULL, 'omdan_t_fakt');
 	$kreditnota   = if_isset($_POST, NULL, 'kreditnota');
 	$ref          = trim(if_isset($_POST, NULL, 'ref'));
+	$hvem		 = if_isset($_POST, NULL, 'hvem');
 	$oldRef       = trim(if_isset($_POST, NULL, 'oldRef'));
 	$extAfd       = if_isset($_POST, NULL, 'extAfd');
 	$afd          = if_isset($_POST, NULL, 'afd');
@@ -1748,14 +1781,14 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		$qtxt .= "bynavn, land, kontakt, lev_navn, lev_addr1, lev_addr2, lev_postnr, ";
 		$qtxt .= "lev_bynavn, lev_kontakt, lev_land, lev_email, betalingsdage, betalingsbet, ";
 		$qtxt .= "cvrnr, ean, institution, email, mail_fakt, phone, notes, art, ordredate,";
-		$qtxt .= " momssats, status, ref, lev_adr, valuta, projekt, sprog, pbs, afd, restordre, ";
+		$qtxt .= " momssats, status, ref,hvem, lev_adr, valuta, projekt, sprog, pbs, afd, restordre, ";
 		$qtxt .= "felt_1, felt_2, felt_3, felt_4, felt_5, vis_lev_addr";
 		$qtxt .= ") VALUES (";
 		$qtxt .= "'$ordrenr', '$konto_id', '$kontonr', '$kundeordnr', '$firmanavn', '$addr1', '$addr2', '$postnr', ";
 		$qtxt .= "'$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', ";
 		$qtxt .= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', ";
 		$qtxt .= "'$cvrnr', '$ean', '$institution', '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', ";
-		$qtxt .= "'$momssats', $status, '$ref', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
+		$qtxt .= "'$momssats', $status, '$ref','$hvem', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
 		$qtxt .= "'0', '$felt_1', '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -2337,9 +2370,11 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		if ($id) {
 			$timestamp = $who = NULL;
 			$qtxt = "select tidspkt,hvem from ordrer where status < 3 and id = '$id' and hvem != '' and hvem != '$brugernavn'";
+
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$timestamp = trim($r['tidspkt']);
 				$who       = $row['hvem'];
+				$hvem = $who;
 			}
 			if ($tidspkt && $who) {
 				if ($tidspkt - $timestamp < 3600 && $who) {
@@ -2349,6 +2384,15 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 			} else {
 				$tmp = "";
+				if(!$hvem) $hvem = isset($_POST['hvem']) ? $_POST['hvem'] : '';
+				if(!$hvem) {
+					$qtxt = "select hvem from ordrer where id = '$id'";
+					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					if ($r) $hvem = $r['hvem'];
+				}
+				
+				// if(!$hvem && $status < 3) $hvem = $brugernavn;
+				if(!$hvem && $status < 3) $hvem = "";
 				if (strlen($levdate) > 6) $tmp = ",levdate='$levdate'";
 				if (strlen($fakturadate) > 6) $tmp = $tmp . ",fakturadate='$fakturadate'";
 				if ($genfakt) $tmp = $tmp . ",nextfakt='" . usdate($genfakt) . "'";
@@ -2363,7 +2407,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$qtxt .= "procenttillag='$procenttillag',ean='$ean',institution='$institution',email='$email',mail_fakt='$mail_fakt',";
 				$qtxt .= "phone='$phone',udskriv_til='$udskriv_til',notes='" . db_escape_string($notes) . "', ";
 				$qtxt .= "ordredate='$ordredate',status='$status',ref='$ref',";
-				$qtxt .= "fakturanr='$fakturanr',lev_adr='$lev_adr',hvem='$brugernavn',tidspkt='$tidspkt',projekt='$projekt[0]',";
+				$qtxt .= "fakturanr='$fakturanr',lev_adr='$lev_adr',hvem='$hvem',tidspkt='$tidspkt',projekt='$projekt[0]',";
 				$qtxt .= "sprog='$formularsprog',pbs='$pbs',afd='$afd',restordre='$restordre',mail_subj='$mail_subj',mail_text='$mail_text' $tmp ";
 				$qtxt .= "where id=$id";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -2533,12 +2577,12 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$qtxt = "insert into ordrer";
 		$qtxt .= "(ordrenr,konto_id,kontonr,kundeordnr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,";
 		$qtxt .= "lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,lev_email,lev_land,betalingsdage,betalingsbet,cvrnr,ean,institution,";
-		$qtxt .= "email,mail_fakt,phone,notes,art,ordredate,momssats,status,ref,lev_adr,valuta,projekt,sprog,";
+		$qtxt .= "email,mail_fakt,phone,notes,art,ordredate,momssats,status,ref,hvem,lev_adr,valuta,projekt,sprog,";
 		$qtxt .= "pbs,afd,restordre,procenttillag,sag_id,sagsnr,tilbudnr,datotid,nr,returside,omvbet,felt_1,felt_2,felt_3,felt_4,felt_5)";
 		$qtxt .= " values ";
 		$qtxt .= "($ordrenr,'$konto_id','$kontonr','$kundeordnr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt',";
 		$qtxt .= "'$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$lev_email','$lev_land','$betalingsdage','$betalingsbet',";
-		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','$ref','$lev_adr',";
+		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','$ref','$hvem','$lev_adr',";
 		$qtxt .= "'$valuta','$projekt[0]','$formularsprog','$pbs',".($afd==""?"NULL":"'$afd'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'$datotid',";
 		$qtxt .= "".($nr==""?"NULL":"'$nr'").",'$returside','$omkunde',";
 		($art == 'PO') ? $qtxt .= "'','','','','')" : $qtxt .= "'$felt_1','$felt_2','$felt_3','$felt_4','$felt_5')"; #20191004
@@ -3042,7 +3086,7 @@ if ($b_submit == 'del_ordre') {
 	$r = db_fetch_array(db_select("select * from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__)); #20210312
 	$qtxt = "insert into ordrer ";
 	$qtxt .= "(ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,kundeordnr,";
-	$qtxt .= "betalingsdage,betalingsbet,cvrnr,ean,institution,notes,art,ordredate,momssats,tidspkt,ref,status,";
+	$qtxt .= "betalingsdage,betalingsbet,cvrnr,ean,institution,notes,art,ordredate,momssats,tidspkt,ref,hvem,status,";
 	$qtxt .= "lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,valuta,projekt,sprog,email,mail_fakt,";
 	$qtxt .= "phone,pbs,afd,restordre,omvbet,felt_1,felt_2,felt_3,felt_4,felt_5) ";
 	$qtxt .= "values ";
@@ -3053,7 +3097,7 @@ if ($b_submit == 'del_ordre') {
 	$qtxt .= "'" . db_escape_string($r['kundeordnr']) . "','$r[betalingsdage]','$r[betalingsbet]',";
 	$qtxt .= "'" . db_escape_string($r['cvrnr']) . "','" . db_escape_string($r['ean']) . "',";
 	$qtxt .= "'" . db_escape_string($r['institution']) . "','" . db_escape_string($r['notes']) . "','$r[art]',";
-	$qtxt .= "'$r[ordredate]','$r[momssats]','$r[tidspkt]','" . db_escape_string($r['ref']) . "','$r[status]',";
+	$qtxt .= "'$r[ordredate]','$r[momssats]','$r[tidspkt]','" . db_escape_string($r['ref']) . "','$r[hvem]','$r[status]',";
 	$qtxt .= "'" . db_escape_string($r['lev_navn']) . "','" . db_escape_string($r['lev_addr1']) . "',";
 	$qtxt .= "'" . db_escape_string($r['lev_addr2']) . "','" . db_escape_string($r['lev_postnr']) . "',";
 	$qtxt .= "'" . db_escape_string($r['lev_bynavn']) . "','" . db_escape_string($r['lev_kontakt']) . "',";
@@ -3373,6 +3417,7 @@ function ordreside($id, $regnskab)
 		$sum = if_isset($row, NULL, 'sum');
 		$moms = if_isset($row, NULL, 'moms');
 		$ref = trim(if_isset($row, NULL, 'ref'));
+		$hvem = if_isset($row, NULL, 'hvem');
 		$fakturanr = if_isset($row, NULL, 'fakturanr');
 		$lev_adr = if_isset($row, NULL, 'lev_adr');
 		$ordrenr = if_isset($row, NULL, 'ordrenr');
@@ -3380,7 +3425,6 @@ function ordreside($id, $regnskab)
 		$restordre = if_isset($row, NULL, 'restordre');
 		$digitalStatus = if_isset($row, NULL, 'digital_status');
 		$ordredate = if_isset($row, null, 'ordredate') ?? date("y-m-d");
-
 		$ordredato = dkdato($ordredate);
 		if (if_isset($row, NULL, 'levdate')) {
 			$levdato = dkdato(if_isset($row, NULL, 'levdate'));
@@ -3868,6 +3912,7 @@ function ordreside($id, $regnskab)
 		print "<input type=\"hidden\" name=\"incl_moms\" value=\"$incl_moms\">";
 		print "<input type=\"hidden\" name=\"procenttillag\" value=\"" . dkdecimal($procenttillag, 2) . "\">";
 		print "<input type=\"hidden\" name=\"ref\" value=\"$ref\">";
+		print "<input type=\"hidden\" name=\"hvem\" value=\"$hvem\">";
 		print "<input type=\"hidden\" name=\"fakturanr\" value=\"$fakturanr\">";
 		print "<input type=\"hidden\" name=\"lev_adr\" value=\"$lev_adr\">";
 		print "<input type=\"hidden\" name=\"valuta\" value=\"$valuta\">";
@@ -4035,6 +4080,7 @@ function ordreside($id, $regnskab)
 		print "&nbsp;+&nbsp;$betalingsdage\n";
 		print "</td></tr>";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('1097|Vor ref.', $sprog_id) . "</b></td><td>$ref &nbsp; $afd_navn</td></tr>\n";
+		print "<tr class='tableTexting2'><td><b>Performed by.</b></td><td>$hvem</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td><td>$fakturanr</td></tr>\n";
 		$tmp = dkdecimal($valutakurs, 2);
 		if ($valuta) print "<tr class='tableTexting2'><td><b>" . findtekst('552|Valuta / Kurs', $sprog_id) . "</b></td><td>$valuta / $tmp</td></tr>\n";
@@ -4595,6 +4641,7 @@ function ordreside($id, $regnskab)
 		if ($art == 'OT') { // Når input fields er 'disabled' bliver de ikke opdateret, derfor tilføjes hidden fields #20140716
 			print "<input type=\"hidden\" name=\"kontonr\" value=\"$kontonr\">\n";
 			print "<input type=\"hidden\" name=\"ref\" value=\"$ref\">\n";
+			print "<input type=\"hidden\" name=\"hvem\" value=\"$hvem\">\n";
 			print "<input type=\"hidden\" name=\"procenttillag\" value=\"" . dkdecimal($procenttillag, 2) . "\">";
 
 			print "<input type=\"hidden\" name=\"felt_1\" style=\"width:200px\" value=\"$felt_1\">\n";
@@ -5088,6 +5135,21 @@ function ordreside($id, $regnskab)
 				}
 				if ($ref!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
 			}
+
+			#####
+			print "<INPUT TYPE = 'hidden' NAME = 'oldhvem' VALUE = \"$hvem\">";
+			for ($x=0;$x<count($ansat);$x++) { 
+				if (!$x) {
+				print "<tr><td>Performed by</td>\n"; 
+				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"hvem\" $disabled>\n";
+				print "<option>$hvem</option>\n";
+				    if ($brugernavn != $hvem && !in_array($brugernavn, $ansat)) {
+						print "<option value=\"$brugernavn\">$brugernavn</option>\n";
+					}
+				}
+				if ($ref!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
+			}
+			####
 
 					
 		}

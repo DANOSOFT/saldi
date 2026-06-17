@@ -3736,7 +3736,7 @@ function sag_kontakt() {
 		$postnr=db_escape_string(trim($_POST['postnr']));
 		$bynavn=db_escape_string(trim($_POST['bynavn']));
 		$tlf=db_escape_string(trim($_POST['tlf']));
-		$fax=db_escape_string(trim($_POST['fax']));
+		$mobile=db_escape_string(trim($_POST['mobile']));
 		$mobil=db_escape_string(trim($_POST['mobil']));
 		$email=db_escape_string(trim($_POST['email']));
 		$notes=db_escape_string(trim($_POST['notes']));
@@ -3756,9 +3756,9 @@ function sag_kontakt() {
 		} else {
 
 			if ($ansat_id ) {
-				db_modify("update ansatte set navn='$navn',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',tlf='$tlf',fax='$fax',mobil='$mobil',email='$email',notes='$notes' where id='$ansat_id'",__FILE__ . " linje " . __LINE__);
+				db_modify("update ansatte set navn='$navn',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',tlf='$tlf',mobile='$mobile',mobil='$mobil',email='$email',notes='$notes' where id='$ansat_id'",__FILE__ . " linje " . __LINE__);
 			} else {
-				db_modify("insert into ansatte (navn,addr1,addr2,postnr,bynavn,tlf,fax,mobil,email,notes,posnr,sag_id)values('$navn','$addr1','$addr2','$postnr','$bynavn','$tlf','$fax','$mobil','$email','$notes','$posnr','$id')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into ansatte (navn,addr1,addr2,postnr,bynavn,tlf,mobile,mobil,email,notes,posnr,sag_id)values('$navn','$addr1','$addr2','$postnr','$bynavn','$tlf','$mobile','$mobil','$email','$notes','$posnr','$id')",__FILE__ . " linje " . __LINE__);
 				$r=db_fetch_array(db_select("select id from ansatte where sag_id='$id' and posnr='$posnr'",__FILE__ . " linje " . __LINE__));
 				$ansat_id=$r['id'];
 			}
@@ -3779,7 +3779,7 @@ function sag_kontakt() {
 		$bynavn=htmlentities($r['bynavn'],ENT_COMPAT,$charset);
 		$email=htmlentities($r['email'],ENT_COMPAT,$charset);
 		$tlf=htmlentities($r['tlf'],ENT_COMPAT,$charset);
-		$fax=htmlentities($r['fax'],ENT_COMPAT,$charset);
+		$mobile=htmlentities($r['mobile'],ENT_COMPAT,$charset);
 		$mobil=htmlentities($r['mobil'],ENT_COMPAT,$charset);
 		$notes=htmlentities($r['notes'],ENT_COMPAT,$charset);
 		$posnr=$r['posnr'];
@@ -3811,7 +3811,7 @@ function sag_kontakt() {
 	print "<div class=\"row\"><div class=\"left\">".findtekst('52|E-mail', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"email\" value=\"$email\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "<div class=\"row\"><div class=\"left\">".findtekst('401|Mobil', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"mobil\" value=\"$mobil\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "<div class=\"row\"><div class=\"left\">".findtekst('654|Lokalnr.', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"tlf\" value=\"$tlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal fax', $sprog_id)."</div><div class=\"right\"><input type=\"text\" class=\"text\" name=\"fax\" value=\"$fax\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal mobile', $sprog_id)."</div><div class=\"right\"><input type=\"text\" class=\"text\" name=\"mobile\" value=\"$mobile\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of right container -->\n";
 	print "<div style=\"float:left; width:828px;\">\n";

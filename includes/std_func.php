@@ -669,8 +669,9 @@ if (!function_exists('copy_row')) {
 				}
 			}
 		}
-		if ($posnr && $ordre_id)
+		if ($posnr && $ordre_id) {
 			db_modify("update $table set posnr=posnr+1 where ordre_id = '$ordre_id' and posnr >= '$posnr'", __FILE__ . " linje " . __LINE__);
+		}
 		db_modify("insert into ordrelinjer ($fieldstring) values ($fieldvalues)", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select id from $table where $selectstring", __FILE__ . " linje " . __LINE__));
 		$ny_id = $r['id'];

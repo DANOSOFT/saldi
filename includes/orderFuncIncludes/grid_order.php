@@ -2,6 +2,7 @@
 //..includes/orderFuncIncludes/grid_order.php
 // 20260203 @LOE Updated build_query to return exact searches first before related matches.
 // 20260601 Sawaneh Applied sqlOverride in build_count_query so ORDER BY uses the qualified column and avoids ambiguous-column error
+// 20260612 pk - Changed the size of the arrow buttons in pagination so that they are the same size as the number buttons
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -1362,11 +1363,11 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
                         |
                         <span id='navbuttons'>
                             <button type='submit' name='offset[$id]' value='$lastpage' $lastpagestatus>
-                                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" height="22px" viewBox="0 -960 960 960" width="22px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
                             </button>
                             $pageLinks
                             <button type='submit' name='offset[$id]' value='$nextpage' $nextpagestatus>
-                                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" height="22px" viewBox="0 -960 960 960" width="22px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                             </button>
                         </span>
                     </div>
@@ -1995,6 +1996,16 @@ function render_dropdown_style() {
         }
         tfoot tr td #footer-box button {
             padding: 0;
+        }
+        tfoot tr td #footer-box #navbuttons button {
+            background: #f0f0f0 !important;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border: 1px solid #b8bec8 !important;
+            border-radius: 4px;
+        }
+        tfoot tr td #footer-box #navbuttons button svg {
+            fill: #000000;
         }
 
         tfoot tr td #footer-box button:not(:disabled) {

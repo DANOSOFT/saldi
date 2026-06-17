@@ -40,7 +40,7 @@ if ($konto_id=$_POST['konto_id']) {
 	$postnr=db_escape_string(trim($_POST['postnr']));
 	$bynavn=db_escape_string(trim($_POST['bynavn']));
 	$tlf=db_escape_string(trim($_POST['tlf']));
-	$fax=db_escape_string(trim($_POST['fax']));
+	$mobile=db_escape_string(trim($_POST['mobile']));
 	$mobil=db_escape_string(trim($_POST['mobil']));
 	$privattlf=db_escape_string(trim(if_isset($_POST['privattlf'])));
 	$email=db_escape_string(trim($_POST['email']));
@@ -82,8 +82,8 @@ if ($konto_id=$_POST['konto_id']) {
 			}	
 			if (!$startdate)$startdate=date("Y-m-d");
 			if (!$slutdate) $slutdate="9999-12-31";
-			db_modify("insert into ansatte (navn,nummer,initialer,konto_id,addr1,addr2,postnr,bynavn,tlf,fax,privattlf,mobil,email,cprnr,notes,afd,lukket,bank,startdate,slutdate,loen,extraloen,trainee) values 
-				('$navn','$nummer','$initialer','$konto_id','$addr1','$addr2','$postnr','$bynavn','$tlf','$fax','$privattlf','$mobil','$email','$cprnr','$notes','$afd','$lukket','$bank','$startdate','$slutdate','$loen','$extraloen','$trainee')",__FILE__ . " linje " . __LINE__);
+			db_modify("insert into ansatte (navn,nummer,initialer,konto_id,addr1,addr2,postnr,bynavn,tlf,mobile,privattlf,mobil,email,cprnr,notes,afd,lukket,bank,startdate,slutdate,loen,extraloen,trainee) values 
+				('$navn','$nummer','$initialer','$konto_id','$addr1','$addr2','$postnr','$bynavn','$tlf','$mobile','$privattlf','$mobil','$email','$cprnr','$notes','$afd','$lukket','$bank','$startdate','$slutdate','$loen','$extraloen','$trainee')",__FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select id from ansatte where konto_id = '$konto_id' and navn='$navn'",__FILE__ . " linje " . __LINE__));
 			$id = $r['id']; 
 			if ($menu=='T') header("location:ansatte.php?id=$id&funktion=ret_ansat");
@@ -91,8 +91,8 @@ if ($konto_id=$_POST['konto_id']) {
 			if (!$startdate) $startdate="1900-01-01";
 			if (!$slutdate) $slutdate="9999-12-31";
 			if ($slutdate<=date("Y-m-d")) $lukket='on';
-	#echo "update ansatte set navn='$navn',nummer='$nummer',initialer='$initialer',konto_id='$konto_id',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',email='$email',tlf='$tlf',fax='$fax',privattlf='$privattlf',mobil='$mobil',cprnr='$cprnr',notes='$notes',afd='$afd',lukket='$lukket',bank='$bank',startdate='$startdate',slutdate='$slutdate',loen='$loen',extraloen='$extraloen',trainee='$trainee' where id='$id'<br>";		
-			$qtxt="update ansatte set navn='$navn',nummer='$nummer',initialer='$initialer',konto_id='$konto_id',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',email='$email',tlf='$tlf',fax='$fax',privattlf='$privattlf',mobil='$mobil',cprnr='$cprnr',notes='$notes',afd='$afd',lukket='$lukket',bank='$bank',startdate='$startdate',slutdate='$slutdate',loen='$loen',extraloen='$extraloen',trainee='$trainee' where id='$id'";
+	#echo "update ansatte set navn='$navn',nummer='$nummer',initialer='$initialer',konto_id='$konto_id',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',email='$email',tlf='$tlf',mobile='$mobile',privattlf='$privattlf',mobil='$mobil',cprnr='$cprnr',notes='$notes',afd='$afd',lukket='$lukket',bank='$bank',startdate='$startdate',slutdate='$slutdate',loen='$loen',extraloen='$extraloen',trainee='$trainee' where id='$id'<br>";		
+			$qtxt="update ansatte set navn='$navn',nummer='$nummer',initialer='$initialer',konto_id='$konto_id',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',email='$email',tlf='$tlf',mobile='$mobile',privattlf='$privattlf',mobil='$mobil',cprnr='$cprnr',notes='$notes',afd='$afd',lukket='$lukket',bank='$bank',startdate='$startdate',slutdate='$slutdate',loen='$loen',extraloen='$extraloen',trainee='$trainee' where id='$id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($menu=='T') header("location:ansatte.php?id=$id&funktion=ret_ansat");
 		}

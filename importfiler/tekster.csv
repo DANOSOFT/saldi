@@ -47,7 +47,7 @@
 47	Land	Country	Land
 48	CVR-nr.	VAT no.	MVA-nr.
 49	Tlf.	Phone	Tlf.
-50	Fax	Fax	Faks
+50	Mobile	Mobile	Mobile
 51	Web	Web	Internett
 52	E-mail	Email	E-post
 53	Erh	IsH	Er H
@@ -375,7 +375,7 @@
 375	Rabatgruppe	Discount group	Rabattgruppe
 376	CVR-nr.	VAT no.	MVA-nr.
 377	Telefon	Telephone	Telefon
-378	Telefax	Fax	Faks
+378	Mobile	Mobile	Mobile
 379	EAN-nr.	EAN no.	EAN-nr.
 380	Institutionsnr.	Institution no.	Institusjonsnr.
 381	Kreditmax	Max credit	Kreditmax
@@ -406,7 +406,7 @@
 406	Kontakt postnr	Contact postnr	Kontakt postnr
 407	Kontakt by	Contact by	Kontakt innen
 408	Kontakt telefon	Contact telephone	Kontakt telefon
-409	Kontakt telefax	Contact fax	Kontakt faks
+409	Kontakt telemobile	Contact mobile	Kontakt mobile
 410	Kontakt e-mail	Contact email	Kontakt e-post
 411	Kontakt bemærkning	Contact note	Kontaktnotat
 412	Husnr.	House no.	Husnr.
@@ -651,8 +651,8 @@
 651	By	City	By
 652	E-mail	Email	E-post
 653	Mobil	Mobile phone	Mobiltelefon
-654	Lokalnr.	Local no.	Lokalnr.
-655	Lokal fax	Local fax	Lokal faks
+654	Lokalnr.	Local no.	Lokalt nr.
+655	Lokal mobil	Local mobil	Lokal mobil
 656	Privat tlf.	Private tel.	Privat tlf.
 657	Provision	Commission	Kommisjon
 658	Afdeling	Department	Avdeling
@@ -1892,7 +1892,7 @@
 1892	kontakt_postnr	contact_zipcode	kontakt_postnr
 1893	kontakt_bynavn	contact_cityname	kontakt_bynavn
 1894	kontakt_tlf	contact_tlf	kontakt_tlf
-1895	kontakt_fax	contact_fax	kontakt_fax
+1895	kontakt_mobile	contact_mobile	kontakt_mobile
 1896	kontakt_mobil	contact_mobile	kontakt_mobil
 1897	kontakt_privattlf	contact_privatetlf	kontakt_privattlf
 1898	kontakt_email	contact_email	kontakt_email
