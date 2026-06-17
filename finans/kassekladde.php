@@ -55,7 +55,7 @@
 // 20260529 SZ - Added Persistent Sorting on Kassekladde (Added by NTR, Don't know what else was changed)// 20260610 CL/PHR - Valuta-kolonne viste ingenting: tilføjet field=valuta_navn + LEFT JOIN grupper VK i build_kassekladde_query
 // 20260610 CL/PHR - Valuta-kolonne: viser $baseCurrency (f.eks. DKK) for rækker uden fremmed valuta (valuta=0)
 
-// 
+//
 
 ob_start(); //Starter output buffering
 
@@ -407,14 +407,14 @@ if ($_GET) {
 	$returside = if_isset($_GET['returside']);
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
-	$sort            =       if_isset($_GET, 		null,   ['sort']);
-	$kksort          =       if_isset($_GET,        null,   ['kksort']); #sortering i kassekladde
-	$kkdir_get       =       if_isset($_GET,        null,   ['kkdir']);
+	$sort            =       if_isset($_GET, 		null,   'sort');
+	$kksort          =       if_isset($_GET,        null,   'kksort'); #sortering i kassekladde
+	$kkdir_get       =       if_isset($_GET,        null,   'kkdir');
 	$kladde_id       = (int) if_isset($_GET,        0,      'kladde_id');
-	$funktion        =       if_isset($_GET, 		null,	['funktion']);
-	$x               = (int) if_isset($_GET, 		0,      ['x']);
-	$id[$x]          =       if_isset($_GET, 		null,	['id']);
-	$lobenr[$x]      =       if_isset($_GET, 		null,	['lobenr']);
+	$funktion        =       if_isset($_GET, 		null,	'funktion');
+	$x               = (int) if_isset($_GET, 		0,      'x');
+	$id[$x]          =       if_isset($_GET, 		null,	'id');
+	$lobenr[$x]      =       if_isset($_GET, 		null,	'lobenr');
 	$kladde_id       = (int) if_isset($_GET, 		0,		'kladde_id');
 	$bilag[$x]       = (int) if_isset($_GET, 		0,		'bilag');
 	$dato[$x]        =       if_isset($_GET, 		'',		'dato');
@@ -433,13 +433,13 @@ if ($_GET) {
 	$ansat[$x]       =       if_isset($_GET, 		'',		'ansat');
 	$valuta[$x]      =       if_isset($_GET, 		'',		'valuta');
 	$find            =       if_isset($_GET, 		'',		'find');
-	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		[$x]));
-	$d_type[$x]      =  trim(if_isset($d_type, 		'',		[$x]));
-	$debet[$x]       =  trim(if_isset($debet, 		'',		[$x]));
-	$k_type[$x]      =  trim(if_isset($k_type, 		'',		[$x]));
-	$kredit[$x]      =  trim(if_isset($kredit, 		'',		[$x]));
-	$faktura[$x]     =  trim(if_isset($faktura, 	'',		[$x]));
-	$belob[$x]       =  trim(if_isset($belob, 		'',		[$x]));
+	$beskrivelse[$x] =  trim(if_isset($beskrivelse, '',		$x));
+	$d_type[$x]      =  trim(if_isset($d_type, 		'',		$x));
+	$debet[$x]       =  trim(if_isset($debet, 		'',		$x));
+	$k_type[$x]      =  trim(if_isset($k_type, 		'',		$x));
+	$kredit[$x]      =  trim(if_isset($kredit, 		'',		$x));
+	$faktura[$x]     =  trim(if_isset($faktura, 	'',		$x));
+	$belob[$x]       =  trim(if_isset($belob, 		'',		$x));
 	$existing_row = null;
 
 	// Persistent Sorting
@@ -463,9 +463,9 @@ if ($_GET) {
 		$debetvat_param,
 		$debet[$x],
 		$d_type[$x],
-		if_isset($existing_row, '', ['debet']),
-		if_isset($existing_row, '', ['d_type']),
-		if_isset($existing_row, '', ['debetvat']),
+		if_isset($existing_row, '', 'debet'),
+		if_isset($existing_row, '', 'd_type'),
+		if_isset($existing_row, '', 'debetvat'),
 		$regnaar,
 		$vat_codes
 	);
@@ -3382,7 +3382,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 			$kreditornr = array();
 			if (($d_type == "D") || ($k_type == "D") || ($d_type == "K") || ($k_type == "K")) {
-				$y = $z = 0; 
+				$y = $z = 0;
 				$debitornr = $kreditornr = array();
 				$query = db_select("select kontonr, art from adresser", __FILE__ . " linje " . __LINE__);
 				while ($row = db_fetch_array($query)) {
@@ -4646,7 +4646,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>";
 ?>
 
-<!-- Add clip drag-and-drop JavaScript for linking documents between lines #20260513 --> 
+<!-- Add clip drag-and-drop JavaScript for linking documents between lines #20260513 -->
 
 <style>
 	/* Clip drag and drop styles */

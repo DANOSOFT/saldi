@@ -35,7 +35,7 @@
 // 20260429 LOE Updated the top menu and made the report header sticky when scrolling.
 // 20260430 LOE Created standalone version of kontokort report for easy navigation
 // 20260510 PHR Wraped all into function.
-// 20260512 NTR Merged Live/POS into prod_test. 
+// 20260512 NTR Merged Live/POS into prod_test.
 // 20260513 PK Fixed style on csv button.
 
 function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
@@ -444,7 +444,7 @@ print "</table>";
 // To here simulation is printed
 			
 			
-			for ($tr=0;$tr<count($transdate);$tr++) {		
+			for ($tr=0;$tr<count($transdate);$tr++) {
 				($linjebg!=$bgcolor5)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 				print "<tr bgcolor=\"$linjebg\"><td>".dkdato($transdate[$tr])."</td>";
 				if ($kladde_id[$tr]) {

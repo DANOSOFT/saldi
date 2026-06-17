@@ -343,7 +343,6 @@ if ($hide_dash === "1" || is_null($regnaar)) {
 
 print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
 
-
 # #######################################
 #  Omsætning for ugen
 # #######################################

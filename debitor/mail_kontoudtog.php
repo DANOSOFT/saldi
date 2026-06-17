@@ -42,7 +42,7 @@
 // 20250924 LOE Added static footer with email and period inputs + buttons
 // 20250925 LOE Kilde added to determine which emails to send
 // 20260303 PHR removed call to old phpmailer
-// 20260602 PHR Removed echo "Mail sent to ..."; 
+// 20260602 PHR Removed echo "Mail sent to ...";
 
 @session_start();
 $s_id=session_id();

@@ -313,8 +313,8 @@
             // 20260604 - Improved error logging for E-APS24003 errors
             // Capture all possible error information
             $error = [
-                'curl_error_number' => $errorNumber, 
-                'curl_error_message' => $errorMessage, 
+                'curl_error_number' => $errorNumber,
+                'curl_error_message' => $errorMessage,
                 'easyUBL_errorMessage' => $easyUBLError,
                 'easyUBL_error' => $errorDetails,
                 'full_response' => $result
