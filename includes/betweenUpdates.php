@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-// The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
+// The content of this file must be moved to opdat_4.3 in section 4.3.0 when 4.3.0 is to be released.
 // 20260429 LOE added leveret to formularer table
 // 20260504 LOE added a separate table for managing delivery addresses and those in adresser are migrated to the new table and linked to the corresponding account.
 // 20260504 NTR Fixed error on login due to missing regnskab's table
@@ -32,6 +32,8 @@
 // 20260517 NTR Fixed crittical error when trying to migrate delivery_addresses data (again)
 // 20260603 NTR Added missing note_on_orderline column to ordrelinjer table as otherwise it crashed on added a linje.
 // 20260611 LOE rename fax to mobile and changed orderdate to ordredate, orders to ordrer.
+// 20260617 NTR Added missing rental settings
+
 #####
 $qtxt = "SELECT column_name
          FROM information_schema.columns
@@ -653,4 +655,11 @@ if ($mp_client_id) {
 		}
 	}
 }
+
+$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='rentalsettings' and column_name='toggle_order'";
+if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+db_modify("ALTER table rentalsettings ADD column toggle_order int DEFAULT 1",__FILE__ . " linje " . __LINE__);
+db_modify("UPDATE rentalsettings SET toggle_order = 1 WHERE toggle_order IS NULL",__FILE__ . " linje " . __LINE__);
+}
+
 ?>

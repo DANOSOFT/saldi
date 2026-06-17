@@ -33,6 +33,7 @@
     $bg = "nix";
     include("../includes/connect.php");
     include("../includes/online.php");
+    include_once("../includes/stdFunc/ensureTableAndColumns.php");
 /*     $query = db_select("SELECT * FROM online WHERE session_id = '$s_id' ORDER BY logtime DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $db = trim($res["db"]);
@@ -80,10 +81,11 @@
         echo json_encode($customers);
     } */
 
-    $query = db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'rentalsettings' AND column_name = 'toggle_order'", __FILE__ . " linje " . __LINE__);
-    if(db_num_rows($query) < 1){
-        db_modify("ALTER TABLE rentalsettings ADD COLUMN toggle_order INTEGER", __FILE__ . " linje " . __LINE__);
-        db_modify("UPDATE rentalsettings SET toggle_order = 1", __FILE__ . " linje " . __LINE__);
+    $expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'booking_format' => 'INTEGER', 'search_cust_name' => 'INTEGER', 'search_cust_number' => 'INTEGER', 'search_cust_tlf' => 'INTEGER', 'start_day' => 'INTEGER', 'deletion' => 'INTEGER', 'find_weeks' => 'INTEGER', 'end_day' => 'INTEGER', 'put_together' => 'INTEGER', 'pass' => 'varchar(255)', 'use_password' => 'INTEGER', 'invoice_date' => 'INTEGER', 'toggle_order' => 'INTEGER DEFAULT 1'];
+    ensureTableAndColumns($db, 'rentalsettings', $expectedColumns);
+    $query = db_select("SELECT id FROM rentalsettings WHERE toggle_order IS NULL", __FILE__ . " linje " . __LINE__);
+    if(db_num_rows($query) > 0){
+        db_modify("UPDATE rentalsettings SET toggle_order = 1 WHERE toggle_order IS NULL", __FILE__ . " linje " . __LINE__);
     }
 
     // This function is for external booking only "IT IS NOT FOR DELETING BOOKINGS THAT ARE OLD"
@@ -807,16 +809,31 @@
         }
         $res = db_fetch_array($query);
         echo json_encode($res);
+        exit();
     }
 
     if(isset($_GET["updateSettings"])){
         $data = json_decode(file_get_contents('php://input'), true);
+        $booking_format = (int)$data["booking_format"];
+        $search_cust_name = (int)$data["search_cust_name"];
+        $search_cust_number = (int)$data["search_cust_number"];
+        $search_cust_tlf = (int)$data["search_cust_tlf"];
+        $start_day = (int)$data["start_day"];
+        $deletion = (int)$data["deletion"];
+        $find_weeks = (int)$data["find_weeks"];
+        $end_day = (int)$data["end_day"];
+        $put_together = (int)$data["put_together"];
+        $use_password = (int)$data["use_password"];
+        $password = db_escape_string($data["password"] ?? "");
+        $invoice_date = (int)$data["invoice_date"];
+        $toggle_order = (int)$data["toggle_order"];
         $query = db_select("SELECT * FROM rentalsettings", __FILE__ . " linje " . __LINE__);
         if(db_num_rows($query) <= 0)
-            $query = db_modify("INSERT INTO rentalsettings (booking_format, search_cust_name, search_cust_number, search_cust_tlf, start_day, deletion, find_weeks, end_day, put_together, pass, use_password, invoice_date, toggle_order) VALUES ('$data[booking_format]', '$data[search_cust_name]', '$data[search_cust_number]', '$data[search_cust_tlf]', '$data[start_day]', '$data[deletion]', '$data[find_weeks]', '$data[end_day]', '$data[put_together]', '$data[password]', '$data[use_password]', '$data[invoice_date]', '$data[toggle_order]')", __FILE__ . " linje " . __LINE__);
+            $query = db_modify("INSERT INTO rentalsettings (id, booking_format, search_cust_name, search_cust_number, search_cust_tlf, start_day, deletion, find_weeks, end_day, put_together, pass, use_password, invoice_date, toggle_order) VALUES (1, $booking_format, $search_cust_name, $search_cust_number, $search_cust_tlf, $start_day, $deletion, $find_weeks, $end_day, $put_together, '$password', $use_password, $invoice_date, $toggle_order)", __FILE__ . " linje " . __LINE__);
         else
-            $query = db_modify("UPDATE rentalsettings SET booking_format = $data[booking_format], search_cust_name = $data[search_cust_name], search_cust_number = $data[search_cust_number], search_cust_tlf = $data[search_cust_tlf], start_day = $data[start_day], deletion = $data[deletion], find_weeks = $data[find_weeks], end_day = $data[end_day], put_together = $data[put_together], use_password = $data[use_password], pass = '$data[password]', invoice_date = $data[invoice_date], toggle_order = $data[toggle_order]", __FILE__ . " linje " . __LINE__);
-            echo json_encode("Indstillingerne er nu opdateret");
+            $query = db_modify("UPDATE rentalsettings SET booking_format = $booking_format, search_cust_name = $search_cust_name, search_cust_number = $search_cust_number, search_cust_tlf = $search_cust_tlf, start_day = $start_day, deletion = $deletion, find_weeks = $find_weeks, end_day = $end_day, put_together = $put_together, use_password = $use_password, pass = '$password', invoice_date = $invoice_date, toggle_order = $toggle_order", __FILE__ . " linje " . __LINE__);
+        echo json_encode("Indstillingerne er nu opdateret");
+        exit();
     }
 
     if(isset($_GET["deleteProduct"])){
