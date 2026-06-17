@@ -42,7 +42,7 @@
 42	Afmærk de felter som skal eksporteres	Mark the fields to be exported	Merk feltene som skal eksporteres
 43	Kontonr.	Account no.	Kontonr.
 44	Adresse 1	Address 1	Adresse 1
-45	Adresse 2	Address 2	adresse 2
+45	Adresse 2	Address 2	Adresse 2
 46	By	City	By
 47	Land	Country	Land
 48	CVR-nr.	VAT no.	MVA-nr.
@@ -663,7 +663,7 @@
 663	Tiltrådt	Joined	Tiltrådt
 664	Løn	Pay	Lønn
 665	Løntillæg	Wage supplement	Lønnstillegg
-666	Postnr & by	ZIP code & city	Post kode & by
+666	Postnr. & by	ZIP code & city	Postnr. & by
 667	E-mail/brug	Email / use	E-post / bruk
 668	Betalingsbet.	Pay.terms	Betalingsbet.
 669	Ny kontakt	New contact	Ny kontakt
@@ -955,7 +955,7 @@
 955	Alle varer fra lev.	All products from supl.	Alle varer fra lev.
 956	Kun mangler	Only missing	Bare mangler
 957	Vareliste	Item list	Vareliste
-958	Oprettet af	Created by	Oprettet av
+958	Oprettet af	Created by	Opprettet av
 959	Modtaget af	Received by	Mottatt av
 960	Modtagelsesdato	Date of receipt	Dato for kvitering
 961	Du opretter en ny modtagelse ved at klikke på <u>Ny</u> øverst til højre.	To create a new receipt, click <u>New</u> at the top right.	For å opprette et nytt mottak, klikk <u>Ny</u> øverst til høyre.
@@ -2807,7 +2807,7 @@
 2807	Barn syg	Child sick	Barn syk
 2808	Ferie	Holiday	Ferie
 2809	Dyrtid	Premium time	Dyrtid
-2810	Akkord afregning	Piecework settlement	Akkordoppgjør
+2810	Akkordafregning	Piecework settlement	Akkordoppgjør
 2811	Akkord med dyrtid	Piecework with premium time	Akkord med dyrtid
 2812	Plads	Site	Plass
 2813	Tilbage til sag	Back to project	Tilbake til sak
@@ -2918,7 +2918,7 @@
 2918	Den	Date	Den
 2919	Sag oprettet	Project created	Sak opprettet
 2920	Tilbud gives	Offer provided	Tilbud gis
-2921	Beregner	Calculator	Beregner
+2921	Beregner	Estimator	Beregner
 2922	Opstillingsinformation	Installation information	Opstillingsinformasjon
 2923	Stilladstype	Scaffolding type	Stillastype
 2924	Kundeinformation	Customer information	Kundeinformasjon
@@ -3052,7 +3052,7 @@
 3052	Kilometer	Kilometres	Kilometer
 3053	Sagsadresse	Project address	Saksadresse
 3054	Med. nr.	Emp. no.	Med. nr.
-3055	Medarbejder navn	Employee name	Medarbeider navn
+3055	Medarbejdernavn	Employee name	Medarbeidernavn
 3056	Transport	Transport	Transport
 3057	Sum inkl. transport	Total incl. transport	Sum inkl. transport
 3058	Telttillæg	Tent surcharge	Telttillegg
@@ -3204,7 +3204,7 @@
 3204	Slet kunde	Delete customer	Slett kunde
 3205	Vil du slette denne kunde	Do you want to delete this customer	Vil du slette denne kunden
 3206	Liste med sager fra	List of projects from	Liste med saker fra
-3207	Indtastet	Entered	Inntastet
+3207	Indtastet	Entered	Tastet inn
 3208	Tilbage til planlægningsmenu	Back to planning menu	Tilbake til planleggingsmeny
 3209	Planlægning: beregning	Planning: estimation	Planlegging: beregning
 3210	Print &apos;Planlægning: beregning&apos;	Print &apos;Planning: estimation&apos;	Skriv ut &apos;Planlegging: beregning&apos;
@@ -3348,8 +3348,8 @@
 3348	Rykkergebyr og rente tilføjes under rykkernes	Reminder fee and interest are added under the reminders&apos;	Purregebyr og rente legges til under purringenes
 3349	System > Indstillinger > Formularer > vælg &apos;Rykker&apos;	System > Settings > Forms > select &apos;Reminder&apos;	System > Innstillinger > Formularer > velg &apos;Purring&apos;
 3350	Hold musen over %s-ikonerne for uddybende forklaringer	Hover over the %s-icons for detailed explanations	Hold musen over %s-ikonene for utdypende forklaringer
-3351	
-3352	
+3351	Beskeden kunne ikke sendes	Message could not be sent	Beskjeden kunne ikke sendes
+3352	Fejl ved afsendelse af e-mail	Error sending email	Feil ved sending av e-post
 3353	
 3354	
 3355	
