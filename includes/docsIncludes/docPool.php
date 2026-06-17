@@ -1550,7 +1550,7 @@ print "<div id='previewTitle' style='padding: 8px; background: $buttonColor; col
 print "<div id='previewContent'><div style='display: flex; align-items: center; justify-content: center; width: 480px; height: 550px; background: #f5f5f5; color: #666; font-size: 14px;'>".findtekst('3277|Indlæser', $sprog_id)."...</div></div>";
 print "</div>";
 
-print "<div id='fileListContainer'>".findtekst('3277|Indlæser', $sprog_id).' '.lcfirst(findtekst('3278|Filer', $sprog_id))."...</div>"; #Indlæser filer
+print "<div id='fileListContainer'>".findtekst('3277|Indlæser', $sprog_id).' '.lcfirst(findtekst('3278|Filer', $sprog_id))."...</div>"; #Indlæser filer...
 // Fixed bottom section will be added here later via PHP (before leftPanel closes)
 
 
@@ -4279,7 +4279,7 @@ JS;
 					// No API key - show raw XML in a styled container
 					print "<div style='padding: 20px; font-family: Arial, sans-serif;'>";
 					print "<h3 style='color: #856404;'>".findtekst('3279|XML-dokument', $sprog_id)." (".lcfirst(findtekst('3336|Rå visning', $sprog_id)).")</h3>"; #XML-dokument (rå visning)
-					print "<p style='color: #856404;'>".findtekst('3337|API-nøgle mangler', $sprog_id).". ".findtekst('1702|kontakt Saldi på telefon 4690 2208', $sprog_id)."</p>";
+					print "<p style='color: #856404;'>EasyUBL".findtekst('3337|API-nøgle mangler', $sprog_id).". ".ucfirst(findtekst('1702|kontakt Saldi på telefon 4690 2208', $sprog_id))."</p>"; #EasyUBL API-nøgle mangler. Kontakt Saldi på telefon 4690 2208
 					print "<pre style='background: #f8f9fa; padding: 15px; border-radius: 6px; overflow: auto; max-height: 90%; font-size: 12px;'>" . htmlspecialchars($xmlContent) . "</pre>";
 					print "</div>";
 				}

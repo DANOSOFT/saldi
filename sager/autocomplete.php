@@ -329,11 +329,11 @@
 				{
 					echo $row['addr1'].", ".$row['postnr']." ".$row['bynavn']."|".$row['navn']."|".$row['nummer']."|".$row['id']."\n";
 				}
-			} 
+			}
 			break;
 		case 'k_dato': // til søgning af dato i kontrolskemaer.php
 			$my_data = db_escape_string($q);
-			$result  = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result  = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND datotid::text LIKE '%$my_data%' ORDER BY datotid DESC",__FILE__ . " linje " . __LINE__);
@@ -350,7 +350,7 @@
 			break;
 		case 'k_sagsnr': // til søgning af sagsnummer i kontrolskemaer.php
 			$my_data = db_escape_string($q);
-			$result  = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result  = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND sager.sagsnr::text LIKE '%$my_data%' ORDER BY sagsnr DESC",__FILE__ . " linje " . __LINE__);
@@ -367,7 +367,7 @@
 			break;
 		case 'k_af': // til søgning af forfatter i kontrolskemaer.php
 			$my_data = db_escape_string($q);
-			$result  = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result  = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekskema.hvem ILIKE '%$my_data%' ORDER BY tjekskema.hvem DESC",__FILE__ . " linje " . __LINE__);
@@ -384,7 +384,7 @@
 			break;
 		case 'k_adresse': // til søgning af sagsaddresse i kontrolskemaer.php
 			$my_data = db_escape_string($q);
-			$result  = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result  = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND sager.udf_addr1 ILIKE '%$my_data%' OR sager.udf_postnr ILIKE '%$my_data%' OR sager.udf_bynavn ILIKE '%$my_data%' ORDER BY sager.udf_addr1",__FILE__ . " linje " . __LINE__);
@@ -463,7 +463,7 @@
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase = '1' AND $where AND datotid::text LIKE '%$my_data%' ORDER BY datotid DESC",__FILE__ . " linje " . __LINE__);
@@ -494,7 +494,7 @@
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase = '1' AND $where AND sager.sagsnr::text LIKE '%$my_data%' ORDER BY sagsnr DESC",__FILE__ . " linje " . __LINE__);
@@ -525,7 +525,7 @@
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase = '1' AND $where AND tjekskema.hvem ILIKE '%$my_data%' ORDER BY tjekskema.hvem DESC",__FILE__ . " linje " . __LINE__);
@@ -556,7 +556,7 @@
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase = '1' AND $where AND (sager.udf_addr1 ILIKE '%$my_data%' OR sager.udf_postnr ILIKE '%$my_data%' OR sager.udf_bynavn ILIKE '%$my_data%') ORDER BY sager.udf_addr1",__FILE__ . " linje " . __LINE__);
@@ -587,7 +587,7 @@
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase != '1' AND $where AND datotid::text LIKE '%$my_data%' ORDER BY datotid DESC",__FILE__ . " linje " . __LINE__);
@@ -618,7 +618,7 @@
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase != '1' AND $where AND sager.sagsnr::text LIKE '%$my_data%' ORDER BY sagsnr DESC",__FILE__ . " linje " . __LINE__);
@@ -649,7 +649,7 @@
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase != '1' AND $where AND tjekskema.hvem ILIKE '%$my_data%' ORDER BY tjekskema.hvem DESC",__FILE__ . " linje " . __LINE__);
@@ -680,7 +680,7 @@
 				$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 			}
 			
-			$result = db_select("SELECT  tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+			$result = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' AND tjekliste.assign_id = '0' AND tjekliste.fase != '1' AND $where AND (sager.udf_addr1 ILIKE '%$my_data%' OR sager.udf_postnr ILIKE '%$my_data%' OR sager.udf_bynavn ILIKE '%$my_data%') ORDER BY sager.udf_addr1",__FILE__ . " linje " . __LINE__);
@@ -734,7 +734,7 @@
 			if ($ss_ansvarlig) $AND.= " AND ref             = '$ss_ansvarlig'";
 			if ($ss_status)    $AND.= " AND status          = '$ss_status'";
 			
-			$result = db_select("SELECT  DISTINCT firmanavn FROM sager WHERE firmanavn ILIKE '%$my_data%' $AND ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
+			$result = db_select("SELECT DISTINCT firmanavn FROM sager WHERE firmanavn ILIKE '%$my_data%' $AND ORDER BY firmanavn",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -771,7 +771,7 @@
 			if ($ss_ansvarlig) $AND.= " AND ref    = '$ss_ansvarlig'";
 			if ($ss_status)    $AND.= " AND status = '$ss_status'";
 			
-			$result = db_select("SELECT  DISTINCT(TRIM(udf_postnr, ' ')) udf_postnr FROM sager WHERE udf_postnr ILIKE '$my_data%' $AND ORDER BY udf_postnr",__FILE__ . " linje " . __LINE__);
+			$result = db_select("SELECT DISTINCT(TRIM(udf_postnr, ' ')) udf_postnr FROM sager WHERE udf_postnr ILIKE '$my_data%' $AND ORDER BY udf_postnr",__FILE__ . " linje " . __LINE__);
 			
 			if($result)
 			{
@@ -819,8 +819,8 @@
 			if ($ss_ansvarlig) $AND.= " AND ref        = '$ss_ansvarlig'";
 			if ($ss_status)    $AND.= " AND status     = '$ss_status'";
 			
-			//$result = db_select("SELECT  DISTINCT(LOWER(TRIM(REPLACE(udf_bynavn, '.', '')))) udf_bynavn FROM sager WHERE udf_bynavn ILIKE '%$my_data%' $AND ORDER BY udf_bynavn",__FILE__ . " linje " . __LINE__);
-			$result = db_select("SELECT  DISTINCT(LOWER(TRIM(TRIM(TRAILING '.' FROM udf_bynavn)))) udf_bynavn FROM sager WHERE udf_bynavn ILIKE '%$my_data%' $AND ORDER BY udf_bynavn",__FILE__ . " linje " . __LINE__); //DISTINCT(LOWER(TRIM(udf_bynavn, ' '))) 
+			//$result = db_select("SELECT DISTINCT(LOWER(TRIM(REPLACE(udf_bynavn, '.', '')))) udf_bynavn FROM sager WHERE udf_bynavn ILIKE '%$my_data%' $AND ORDER BY udf_bynavn",__FILE__ . " linje " . __LINE__);
+			$result = db_select("SELECT DISTINCT(LOWER(TRIM(TRIM(TRAILING '.' FROM udf_bynavn)))) udf_bynavn FROM sager WHERE udf_bynavn ILIKE '%$my_data%' $AND ORDER BY udf_bynavn",__FILE__ . " linje " . __LINE__); //DISTINCT(LOWER(TRIM(udf_bynavn, ' '))) 
 			
 			if($result)
 			{

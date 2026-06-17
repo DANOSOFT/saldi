@@ -373,7 +373,6 @@ if ($form_nr >= 6 && $form_nr <= 8 && $art_nr == 2) {
 	$ltxt  = findtekst('1232|Opret', $sprog_id);
 	$title = "Åbner ny varekort i en ny fane";
 	$link  = "<a href='../lager/varekort.php?returside=../systemdata/formularkort.php' target='_blank' title='$title'>$ltxt</a>";
-#	$link  = "<a href='../lager/varekort.php?returside=../systemdata/formularkort.php'>$ltxt</a>";
 	$txt1  = findtekst('3343|Rykkergebyr', $sprog_id);
 	$txt2  = findtekst('3344|Rentegebyr' , $sprog_id);
 	$txt3  = $link." ".findtekst('3345|en vare til rykkergebyret og angiv varenummeret her.', $sprog_id);
@@ -390,7 +389,7 @@ if ($nyt_sprog) sprog($nyt_sprog,$skabelon,$handling);
 
 print "<tr><td align=center width=100%><table align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 
-$formular=array("",
+$formular = array("",
 	findtekst('812|Tilbud'          , $sprog_id),
 	findtekst('575|Ordrebekræftelse', $sprog_id),
 	findtekst('576|Følgeseddel'     , $sprog_id),
