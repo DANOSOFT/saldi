@@ -654,4 +654,54 @@ if ($mp_client_id) {
 		}
 	}
 }
+
+// Ensure datatables and tutorials tables have correct structure
+
+
+$quote_offset_col = ($db_type=="mysql" or $db_type=="mysqli") ? "`offset`" : "\"offset\"";
+
+// Check if datatables table exists
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'datatables'";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	// Table exists, verify it has all required columns with correct types
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'id'";
+	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		// id column exists, verify SERIAL type by checking if it has a sequence
+		$qtxt = "SELECT pg_get_serial_sequence('datatables', 'id') AS seq";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if (!$r['seq']) {
+			// No sequence found - need to fix the column
+			error_log("Fixing datatables.id column - adding SERIAL auto-increment");
+			db_modify("ALTER TABLE datatables DROP COLUMN id", __FILE__ . " linje " . __LINE__);
+			db_modify("ALTER TABLE datatables ADD COLUMN id SERIAL PRIMARY KEY", __FILE__ . " linje " . __LINE__);
+		}
+	}
+} else {
+	// Table doesn't exist, create it with correct structure
+	$qtxt = "CREATE TABLE datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id TEXT, column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, " . $quote_offset_col . " INTEGER, sort TEXT, date_range_meta TEXT)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+// Check if tutorials table exists
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tutorials'";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	// Table exists, verify it has correct structure
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'tutorials' and column_name = 'id'";
+	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		// id column exists, verify SERIAL type by checking if it has a sequence
+		$qtxt = "SELECT pg_get_serial_sequence('tutorials', 'id') AS seq";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if (!$r['seq']) {
+			// No sequence found - need to fix the column
+			error_log("Fixing tutorials.id column - adding SERIAL auto-increment");
+			db_modify("ALTER TABLE tutorials DROP COLUMN id", __FILE__ . " linje " . __LINE__);
+			db_modify("ALTER TABLE tutorials ADD COLUMN id SERIAL PRIMARY KEY", __FILE__ . " linje " . __LINE__);
+		}
+	}
+} else {
+	// Table doesn't exist, create it with correct structure
+	$qtxt = "CREATE TABLE tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id VARCHAR(10), selector TEXT)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 ?>
+

@@ -626,9 +626,9 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt .= "local_name varchar(100), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-	db_modify("CREATE TABLE IF NOT EXISTS datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id TEXT, column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, $quote_offset INTEGER, sort TEXT, date_range_meta TEXT)", __FILE__ . " line " . __LINE__);
+	db_modify("CREATE TABLE IF NOT EXISTS datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id TEXT, column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, " . $quote_offset . " INTEGER, sort TEXT, date_range_meta TEXT)", __FILE__ . " line " . __LINE__);
 
-	db_modify("CREATE TABLE IF NOT EXISTS tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id $varchar(10), selector TEXT)", __FILE__ . " line " . __LINE__);
+	db_modify("CREATE TABLE IF NOT EXISTS tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id VARCHAR(10), selector TEXT)", __FILE__ . " line " . __LINE__);
 
 	######## Missing tables from sql.txt ########
 	$qtxt = "CREATE TABLE betalingslink ($id_column, payment_intent_id varchar(255), amount integer, ";
