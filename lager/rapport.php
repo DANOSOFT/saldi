@@ -89,9 +89,6 @@ include("../includes/row-hover-style.js.php");
 
 #	include("../includes/db_query.php");
 
-if (!isset ($_GET['detaljer'])) $_GET['detaljer'] = NULL;
-if (!isset ($_GET['kun_salg'])) $_GET['kun_salg'] = NULL;
-if (!isset ($_GET['lagertal'])) $_GET['lagertal'] = NULL;
 $backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 if ($popup) $returside="../includes/luk.php";
 
@@ -99,7 +96,6 @@ else $returside = $backUrl;
 
 $inventoryCount = isset($_POST['inventoryCount']) ? $_POST['inventoryCount'] : null;
 $lokMinMax      = isset($_POST['lokMinMax']) ? $_POST['lokMinMax'] : null;
-
 if ($lokMinMax) {
 	$varegruppe = trim($_POST['varegruppe']);
 	$varenr     = isset($_POST['varenr']) ? $_POST['varenr']: null;

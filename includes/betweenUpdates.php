@@ -681,6 +681,11 @@ if ($mp_client_id) {
 	}
 }
 
+$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='rentalsettings' and column_name='toggle_order'";
+if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+db_modify("ALTER table rentalsettings ADD column toggle_order int DEFAULT 1",__FILE__ . " linje " . __LINE__);
+db_modify("UPDATE rentalsettings SET toggle_order = 1 WHERE toggle_order IS NULL",__FILE__ . " linje " . __LINE__);
+}
 // Ensure datatables and tutorials tables have correct structure
 
 $quote_offset_col = ($db_type=="mysql" or $db_type=="mysqli") ? "`offset`" : "\"offset\"";
