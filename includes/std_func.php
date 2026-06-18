@@ -2322,72 +2322,48 @@ if (!function_exists('get_next_invoice_number')) {
 if (!function_exists('barcode')) {
 	function barcode($stregkode)
 	{
-		/**
-		 * Generates a barcode image (PNG) for the given barcode string.
-		 * It checks if the input is a valid EAN-13 code and creates a barcode image using external tools.
-		 * 
-		 * The function will first check if the required tools (`barcode` or `tbarcode`) are available and if
-		 * the barcode string is valid. It will then generate the barcode in EPS format and convert it to PNG.
-		 * The barcode image will be saved in the `../temp/$db/` directory.
-		 *
-		 * @param string $stregkode - The barcode string to generate the image for.
-		 * 
-		 * @return string|null - The path to the generated PNG file, or null if an error occurs.
-		 */
-
-		global $bruger_id, $db, $exec_path;
-		$ean13 = NULL;
-		#(strpos($stregkode,';'))?$stregkoder=explode(";",$stregkode):$stregkoder[0]=$stregkode;
+		global $db;
 		$stregkoder = explode(";", $stregkode);
-		$png = NULL;
-		if (file_exists($exec_path . "/barcode") || (file_exists($exec_path . "/tbarcode")) && file_exists($exec_path . "/convert")) { #20140603
-			$dan_kode = 1;
-			if (strpos($stregkoder[0], 'æ'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'Æ'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'ø'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'Ø'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'å'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'Å'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], ' '))
-				$dan_kode = 0;
-			if ($dan_kode) {
-				$eps = "../temp/$db/$stregkoder[0].eps";
-				$png = "../temp/$db/$stregkoder[0].png";
-				if (is_numeric($stregkoder[0]) && strlen($stregkoder[0]) == 13) { #20211029 is_numeric($stregkoder[0]
-					$a = substr($stregkoder[0], 11, 1) + substr($stregkoder[0], 9, 1) + substr($stregkoder[0], 7, 1) + substr($stregkoder[0], 5, 1) + substr($stregkoder[0], 3, 1) + substr($stregkoder[0], 1, 1);
-					$a *= 3;
-					$a += substr($stregkoder[0], 10, 1) + substr($stregkoder[0], 8, 1) + substr($stregkoder[0], 6, 1) + substr($stregkoder[0], 4, 1) + substr($stregkoder[0], 2, 1) + substr($stregkoder[0], 0, 1);
-					$b = 0;
-					while (!is_int(($a + $b) / 10))
-						$b++;
-					($b == substr($stregkoder[0], 12, 1)) ? $ean13 = 1 : $ean13 = 0;
-				}
-				if (file_exists("../temp/$db/" . abs($bruger_id) . "_*.eps"))
-					unlink("../temp/$db/" . abs($bruger_id) . "_*.eps");
-				if (file_exists($exec_path . "/barcode")) {
-					$barcodgen = $exec_path . "/barcode";
-					($ean13) ? $ean = 'ean13' : $ean = '128';
-					$ms = date("is");
-					$barcodtxt = $barcodgen . " -n -E -e $ean -g 200x40 -b $stregkoder[0] -o $eps\n" . $exec_path;
-					$barcodtxt .= "/convert $eps $png\n" . $exec_path . "/rm -colorspace RGB $eps\n"; #20230321
-				} else {
-					$barcodgen = $exec_path . "/tbarcode";
-					($ean13) ? $ean = '13' : $ean = '20';
-					$barcodtxt = $barcodgen . " --format=ps --barcode=$ean --text=hide --width=80 --height=15 --data=$stregkoder[0] > $eps\n" . $exec_path . "/convert $eps $png\n" . $exec_path . "/rm $eps\n";
-				}
-				system($barcodtxt);
-			} else
-				$png = NULL;
-		} else {
-			echo $exec_path . "/barcode not found?<br>";
+		$svg_path = NULL;
+
+		$dan_kode = 1;
+		if (strpos($stregkoder[0], 'æ')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'Æ')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'ø')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'Ø')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'å')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'Å')) $dan_kode = 0;
+		if (strpos($stregkoder[0], ' ')) $dan_kode = 0;
+
+		if ($dan_kode && $stregkoder[0] !== '') {
+			$ean13 = false;
+			if (is_numeric($stregkoder[0]) && strlen($stregkoder[0]) == 13) {
+				$a = substr($stregkoder[0], 11, 1) + substr($stregkoder[0], 9, 1) + substr($stregkoder[0], 7, 1) + substr($stregkoder[0], 5, 1) + substr($stregkoder[0], 3, 1) + substr($stregkoder[0], 1, 1);
+				$a *= 3;
+				$a += substr($stregkoder[0], 10, 1) + substr($stregkoder[0], 8, 1) + substr($stregkoder[0], 6, 1) + substr($stregkoder[0], 4, 1) + substr($stregkoder[0], 2, 1) + substr($stregkoder[0], 0, 1);
+				$b = 0;
+				while (!is_int(($a + $b) / 10)) $b++;
+				$ean13 = ($b == substr($stregkoder[0], 12, 1));
+			}
+
+			require_once(__DIR__ . '/barcode.php');
+			$generator = new barcode_generator();
+			$symbology = $ean13 ? 'ean13' : 'code128';
+			$svg_content = $generator->render_svg($symbology, $stregkoder[0], [
+				'w'  => 285,
+				'h'  => 32,
+				'p'  => 2,
+				'th' => 0,
+				'ts' => 0,
+				'bc' => '',
+			]);
+			$svg_path = "../temp/$db/$stregkoder[0].svg";
+			if (file_put_contents($svg_path, $svg_content) === false) {
+				$svg_path = NULL;
+			}
 		}
-		return ($png);
+
+		return $svg_path;
 	}
 }
 

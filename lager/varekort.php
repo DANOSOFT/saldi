@@ -804,9 +804,8 @@ if ($saveItem || $submit = trim($submit)) {
             $query = db_select("select id from varer where lower(varenr) = '" . strtolower($varenr) . "' or  upper(varenr) = '" . strtoupper($varenr) . "'", __FILE__ . " linje " . __LINE__);
             $row = db_fetch_array($query);
             if ($row['id']) {
-                print "<BODY onLoad=\"javascript:alert('Der findes allerede en vare med varenr: $varenr!')\">";
-                $varenr = '';
-                $id = 0;
+                print "<meta http-equiv='refresh' content='0;URL=varekort.php?id=$row[id]'>";
+                exit;
             } elseif ($varenr) {
                 $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
                 if (db_num_rows($query) > 0) {
