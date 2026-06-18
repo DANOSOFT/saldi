@@ -93,7 +93,7 @@ print "<tr><td><FONT FACE=$font SIZE=\"2\">".$kontonr."</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$firmanavn."</font></td>";
 print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$tlf</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$addr1."</font></td>";
-print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst('378|Mobile', $sprog_id)."<!--tekst 378--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$mobile</font></td></tr>";
+print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst('378|Mobil', $sprog_id)."<!--tekst 378--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$mobile</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$addr2."</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$postnr." ".$bynavn."</font></td></tr>";
 print "<tr><td colspan=\"3\"><br><br></td></tr>";

@@ -1688,7 +1688,7 @@ print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 
 print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst('378|Mobile', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('378|Mobil', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('379|EAN-nr.', $sprog_id) . "<!--tekst 379--></td>";

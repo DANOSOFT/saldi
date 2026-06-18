@@ -319,7 +319,7 @@ print "<td><br></td>";
 print "<td>".findtekst('401|Mobil', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=mobil value=\"$mobil\"></td></tr>";
 print "<tr><td>".findtekst('654|Lokalnr.', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\"></td>";
 print "<td><br></td>";
-print "<td>".findtekst('655|Lokal mobile', $sprog_id)."</td><td><br></td><td><input type=text class=\"inputbox\" size=10 name=mobile value=\"$mobile\"></td></tr>";
+print "<td>".findtekst('655|Lokal mobil', $sprog_id)."</td><td><br></td><td><input type=text class=\"inputbox\" size=10 name=mobile value=\"$mobile\"></td></tr>";
 print "<td><br></td>";
 print "<tr><td valign=top>".findtekst('659|Bemærkning', $sprog_id)."</td><td colspan=7><textarea class=\"inputbox\" name=\"notes\" rows=\"3\" cols=\"85\">$notes</textarea></td></tr>";
 print "<tr><td><br></td></tr>";
