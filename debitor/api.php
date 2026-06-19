@@ -299,7 +299,9 @@
             exit;
         }
 
-        if(!isset($result["base64EncodedDocumentXml"]) || trim($result["base64EncodedDocumentXml"]) == ""){
+        // decode base64
+        $xml = base64_decode($result["base64EncodedDocumentXml"] ?? "", true);
+        if($xml === false || trim($xml) == ""){
             // An error occurred - check for easyUBL or Semantic error messages
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
@@ -341,29 +343,7 @@
             
             ?>
             <script>
-                alert("Transmission fejl:\n\n<?php echo htmlspecialchars($displayError); ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.");
-            </script>
-            <?php
-            exit;
-        }
-        // decode base64
-        $xml = base64_decode($result["base64EncodedDocumentXml"], true);
-        if($xml === false || trim($xml) == ""){
-            $error = [
-                'error' => 'Empty or invalid XML returned from EasyUBL',
-                'http_code' => $httpCode,
-                'json_error' => json_last_error_msg(),
-                'base64_length' => strlen($result["base64EncodedDocumentXml"]),
-                'decoded_xml_length' => ($xml === false) ? false : strlen($xml),
-                'full_response' => $result,
-                'raw_response' => $rawJsonResponse,
-                'sent_data' => $data
-            ];
-            file_put_contents("../temp/$db/fakture-empty-xml-error-$fileId.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            curl_close($ch);
-            ?>
-            <script>
-                alert("Transmission fejl:\n\nEasyUBL returnerede en tom eller ugyldig XML-fil. Dokumentet er derfor ikke sendt videre.\n\nFejllogging gemt til debugging.");
+                alert("Transmission fejl:\n\n" + <?= json_encode($displayError); ?> + "\n\nFejllogging gemt til debugging. Kontakt support med følgende oplysninger:\nDB: <?= $db; ?>\nFil-ID: <?= $fileId; ?>");
             </script>
             <?php
             exit;
@@ -412,11 +392,11 @@
             $creditNote = "Inv";
         }
         $cvrnr_with_prefix = "";
-        // check if the ean number is 13 characters long
-        if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === false){
+        // plain EAN/GLN (no colon) vs formatted "schemeId:value"
+        if(!empty($r_faktura["ean"]) && strpos($r_faktura["ean"], ":") === false){
             $endpointId = $r_faktura["ean"];
             $endpointType = "GLN";
-        } else if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") !== false){
+        } else if(!empty($r_faktura["ean"]) && strpos($r_faktura["ean"], ":") !== false){
             // Change === true to !== false
             $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
             $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
@@ -441,12 +421,12 @@
                     // Already has country prefix (SE, NO, etc.) - use as is
                     $cvrnr_with_prefix = $r_faktura["cvrnr"];
                 }
-            }else{
-                // 20260604 - CVR is required for Peppol transmission
+            }else if($endpointType !== "GLN"){
+                // No CVR and no GLN — cannot route via Peppol
                 file_put_contents("../temp/$db/missing-cvr-error-" . date("Y-m-d-H-i-s") . ".json", json_encode(["error" => "Missing CVR number", "order_id" => $id, "customer" => $r_faktura["firmanavn"]], JSON_PRETTY_PRINT));
                 ?>
                 <script>
-                    alert("Fejl: Kunden mangler CVR-nummer. Dette kræves til Peppol-transmission. Venligst opdater kundens CVR-nummer og prøv igen.");
+                    alert("Fejl: Kunden mangler både CVR-nummer og EAN/GLN-nummer. Mindst ét af disse kræves til Peppol-transmission. Venligst opdater kundeoplysningerne og prøv igen.");
                 </script>
                 <?php
                 exit;
@@ -700,7 +680,7 @@
         // 20260604 - Validate required fields before transmission to prevent E-APS24003 errors
         $missingFields = [];
         
-        if(empty($cvrnr_with_prefix) || $cvrnr_with_prefix === "DK"){
+        if((empty($cvrnr_with_prefix) || $cvrnr_with_prefix === "DK") && $endpointType !== "GLN"){
             $missingFields[] = "CVR-nummer";
         }
         // Check customer address (which may have been set to delivery address as fallback)
