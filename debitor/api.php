@@ -29,6 +29,7 @@
 
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
+// 20260619 NTR - Added more info to error files and changed the random string logic with orderId so it's easier to know which file comes from which order.
 
     @session_start();
     $s_id=session_id();
@@ -265,16 +266,16 @@
         $result = substr($rawResponse, $headerSize);
 
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        $ranStr = $characters[rand(0, 4)];
+        $fileId = !empty($orderId) ? $orderId : "no-id-" . substr(str_shuffle($characters), 0, 5);
 
         // 20260604 - Save raw response before JSON decoding for better error diagnosis
-        file_put_contents("../temp/$db/fakture-result-raw-$ranStr.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---HEADERS---\n" . $responseHeaders . "\n---RAW RESPONSE---\n" . $result);
-        
+        file_put_contents("../temp/$db/fakture-result-raw-$fileId.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---HEADERS---\n" . $responseHeaders . "\n---RAW RESPONSE---\n" . $result);
+
         if (curl_errno($ch)) {
             // Curl connection error - don't continue
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
-            file_put_contents("../temp/$db/fakture-curl-error-$ranStr.json", json_encode(['error' => $errorNumber, 'message' => $errorMessage, 'http_code' => $httpCode], JSON_PRETTY_PRINT));
+            file_put_contents("../temp/$db/fakture-curl-error-$fileId.json", json_encode(['error' => $errorNumber, 'message' => $errorMessage, 'http_code' => $httpCode], JSON_PRETTY_PRINT));
             ?>
             <script>
                 alert("Forbindelsesfejl:\n\n<?php echo htmlspecialchars($errorMessage); ?>\n\nKontroller internetforbindelsen og prøv igen.");
@@ -289,20 +290,15 @@
 
         // EasyUBL returnerer tomt svar (HTTP 500) for kreditnotaer - bug i EasyUBL API
         if ($result === null) {
-            file_put_contents("../temp/$db/fakture-error-$ranStr.json", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL");
+            file_put_contents("../temp/$db/fakture-error-$fileId.json", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL\n---SENT DATA---\n" . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             ?>
             <script>
-                alert("EasyUBL returnerede tomt svar (HTTP <?php echo $httpCode; ?>). Kreditnotaer kan ikke sendes digitalt via Peppol. Kontakt saldi.dk support.");
+                alert("EasyUBL returnerede et tomt eller ugyldigt svar (HTTP <?php echo $httpCode; ?>).\n\nDette er sandsynligvis en fejl i EasyUBL's API. Kontakt saldi.dk support med følgende oplysninger:\nDB: <?php echo $db; ?>\nFil-ID: <?php echo $fileId; ?>");
             </script>
             <?php
             exit;
         }
 
-        $randomString = '';
-
-        for ($i = 0; $i < 10; $i++) {
-            $randomString .= $characters[rand(0, 4)];
-        }
         if(!isset($result["base64EncodedDocumentXml"]) || trim($result["base64EncodedDocumentXml"]) == ""){
             // An error occurred - check for easyUBL or Semantic error messages
             $errorNumber = curl_errno($ch);
@@ -321,6 +317,7 @@
             ];
             
             // save response in file in temp folder with full details for debugging
+            file_put_contents("../temp/$db/fakture-error-$fileId.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             
             // Determine which error to show
@@ -362,7 +359,7 @@
                 'raw_response' => $rawJsonResponse,
                 'sent_data' => $data
             ];
-            file_put_contents("../temp/$db/fakture-empty-xml-error-$randomString.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            file_put_contents("../temp/$db/fakture-empty-xml-error-$fileId.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             curl_close($ch);
             ?>
             <script>
@@ -371,7 +368,7 @@
             <?php
             exit;
         }
-        file_put_contents("../temp/$db/xml-$randomString.xml", $xml);
+        file_put_contents("../temp/$db/xml-$fileId.xml", $xml);
         curl_close($ch);
         $ch = curl_init();
         $data = [
@@ -389,10 +386,10 @@
         if (curl_errno($ch)) {
             echo 'Error:' . curl_error($ch);
         }
-        file_put_contents("../temp/$db/$randomString.html", $result);
+        file_put_contents("../temp/$db/$fileId.html", $result);
         curl_close($ch);
 
-        return $randomString;
+        return $fileId;
     }
 
     // Setting up the invoice data
