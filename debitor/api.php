@@ -30,6 +30,7 @@
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
 // 20260619 NTR - Added more info to error files and changed the random string logic with orderId so it's easier to know which file comes from which order.
+// &&           - Added the logic from ordre.php about fetching ean numbers from konto instead if it's not in the ordrer.
 
     @session_start();
     $s_id=session_id();
@@ -379,6 +380,7 @@
         $adresse = db_fetch_array($query);
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
         $r_faktura = db_fetch_array($query);
+        
         // Fall back to customer record (adresser) for EAN if the order row has none
         if(empty($r_faktura["ean"]) && !empty($r_faktura["konto_id"])){
             $q = db_select("SELECT ean FROM adresser WHERE id = " . intval($r_faktura["konto_id"]), __FILE__ . " linje " . __LINE__);
@@ -387,6 +389,7 @@
                 $r_faktura["ean"] = $adresser_row["ean"];
             }
         }
+
         $initials = explode(" ", $r_faktura["firmanavn"]);
         foreach($initials as $key => $value){
             $initials[$key] = mb_substr($value, 0, 1, "UTF-8");
@@ -620,6 +623,7 @@
             ],
         ];
 
+        $line = null;
         $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
         while ($res = db_fetch_array($query)) {
 
@@ -720,7 +724,7 @@
 
         return $name;
     }
-    // dosen't get used
+    // doesn't get used
     function sendOrder($id){
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
         $r_faktura = db_fetch_array($query);

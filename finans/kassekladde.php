@@ -54,8 +54,10 @@
 // 20260521 LOE Fixed a bug from extra added closing brace and updated background color for thead
 // 20260529 SZ - Added Persistent Sorting on Kassekladde (Added by NTR, Don't know what else was changed)// 20260610 CL/PHR - Valuta-kolonne viste ingenting: tilføjet field=valuta_navn + LEFT JOIN grupper VK i build_kassekladde_query
 // 20260610 CL/PHR - Valuta-kolonne: viser $baseCurrency (f.eks. DKK) for rækker uden fremmed valuta (valuta=0)
+// 20260619 PHR - build_kassekladde_query: LEFT JOIN grupper VK brugte text=integer uden cast → rettet til kodenr::text=k.valuta::text
+// 20260619 PHR - Valuta nulstilledes til DKK på alle linjer ved valideringsfejl: valuta gemt som kode-string i tmpkassekl håndteres nu korrekt ved genvisning
 
-// 
+//
 
 ob_start(); //Starter output buffering
 
@@ -1381,7 +1383,7 @@ function build_kassekladde_query($kladde_id, $kksort) {
             k.dokument,
             k.saldo
         FROM kassekladde k
-        LEFT JOIN grupper vkg ON vkg.art = 'VK' AND vkg.kodenr = k.valuta
+        LEFT JOIN grupper vkg ON vkg.art = 'VK' AND vkg.kodenr::text = k.valuta::text
         WHERE k.kladde_id = '$kladde_id' AND {{WHERE}}
         ORDER BY {{SORT}}
     ";
@@ -2529,6 +2531,11 @@ if ($kladde_id) {
 			$qtxt = "select box1 from grupper where art='VK' and kodenr ='$valutakode[$x]'";
 			$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			$valuta[$x] = $r2['box1'];
+		} elseif ($row['valuta']) {
+			// valuta gemt som valutakode-streng (f.eks. 'EUR') fra POST ved valideringsfejl
+			$valuta[$x] = strtoupper(trim($row['valuta']));
+			$r2 = db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1='" . db_escape_string($valuta[$x]) . "'", __FILE__ . " linje " . __LINE__));
+			if ($r2) $valutakode[$x] = (int)$r2['kodenr'];
 		}
 		if (!isset($valuta[$x]) || $valuta[$x] == $baseCurrency) $dkkamount[$x] = $amount[$x]; #20240419
 		elseif ($valutakode[$x]) {
