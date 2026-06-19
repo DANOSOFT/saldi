@@ -379,6 +379,14 @@
         $adresse = db_fetch_array($query);
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
         $r_faktura = db_fetch_array($query);
+        // Fall back to customer record (adresser) for EAN if the order row has none
+        if(empty($r_faktura["ean"]) && !empty($r_faktura["konto_id"])){
+            $q = db_select("SELECT ean FROM adresser WHERE id = " . intval($r_faktura["konto_id"]), __FILE__ . " linje " . __LINE__);
+            $adresser_row = db_fetch_array($q);
+            if(!empty($adresser_row["ean"])){
+                $r_faktura["ean"] = $adresser_row["ean"];
+            }
+        }
         $initials = explode(" ", $r_faktura["firmanavn"]);
         foreach($initials as $key => $value){
             $initials[$key] = mb_substr($value, 0, 1, "UTF-8");
