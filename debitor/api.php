@@ -299,7 +299,9 @@
             exit;
         }
 
-        if(!isset($result["base64EncodedDocumentXml"]) || trim($result["base64EncodedDocumentXml"]) == ""){
+        // decode base64
+        $xml = base64_decode($result["base64EncodedDocumentXml"] ?? "", true);
+        if($xml === false || trim($xml) == ""){
             // An error occurred - check for easyUBL or Semantic error messages
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
@@ -341,29 +343,7 @@
             
             ?>
             <script>
-                alert("Transmission fejl:\n\n<?php echo htmlspecialchars($displayError); ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.");
-            </script>
-            <?php
-            exit;
-        }
-        // decode base64
-        $xml = base64_decode($result["base64EncodedDocumentXml"], true);
-        if($xml === false || trim($xml) == ""){
-            $error = [
-                'error' => 'Empty or invalid XML returned from EasyUBL',
-                'http_code' => $httpCode,
-                'json_error' => json_last_error_msg(),
-                'base64_length' => strlen($result["base64EncodedDocumentXml"]),
-                'decoded_xml_length' => ($xml === false) ? false : strlen($xml),
-                'full_response' => $result,
-                'raw_response' => $rawJsonResponse,
-                'sent_data' => $data
-            ];
-            file_put_contents("../temp/$db/fakture-empty-xml-error-$fileId.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            curl_close($ch);
-            ?>
-            <script>
-                alert("Transmission fejl:\n\nEasyUBL returnerede en tom eller ugyldig XML-fil. Dokumentet er derfor ikke sendt videre.\n\nFejllogging gemt til debugging.");
+                alert("Transmission fejl:\n\n" + <?= json_encode($displayError); ?> + "\n\nFejllogging gemt til debugging. Kontakt support med følgende oplysninger:\nDB: <?= $db; ?>\nFil-ID: <?= $fileId; ?>");
             </script>
             <?php
             exit;
