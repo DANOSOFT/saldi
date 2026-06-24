@@ -1510,13 +1510,13 @@ if ($vare_id) {
 				$stockWarningConfirmed = (isset($_POST['stock_warning_confirmed']) && $_POST['stock_warning_confirmed'] == '1');
 				$stockWarningNote      = isset($_POST['stock_warning_note']) ? trim($_POST['stock_warning_note']) : '';
 				$stockWarningOn        = is_stock_warning_enabled();
-				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id']) : array('out_of_stock' => false);
+				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id'], $antal_ny) : array('out_of_stock' => false);
 				$swLogVareId           = $r['id']; 
 				if ($stockWarningOn && empty($stockInfo['out_of_stock']) && trim($r['samlevare']) === 'on') {
 					$qSub = db_select("select vare_id, antal from styklister where indgaar_i = '" . (int)$r['id'] . "' and vare_id is not null and vare_id > 0", __FILE__ . " linje " . __LINE__);
 					while ($rSub = db_fetch_array($qSub)) {
-						$subInfo = check_stock_warning((int)$rSub['vare_id']);
-						$subAntal = (float)$rSub['antal'];
+						$subAntal = (float)$rSub['antal'] * (float)$antal_ny;
+						$subInfo = check_stock_warning((int)$rSub['vare_id'], $subAntal);
 						$insufficient = ($subAntal > 0 && (float)$subInfo['beholdning'] < $subAntal);
 						if (!empty($subInfo['out_of_stock']) || $insufficient) {
 							$desc = trim((string)$subInfo['beskrivelse']) . ' (samlesæt: ' . (string)$r['varenr'];
