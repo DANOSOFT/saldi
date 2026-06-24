@@ -896,7 +896,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					// Validate: must be numeric and within allowed range 
 					if (!is_numeric($y)) {
 						error_log("Invalid posnr input (not numeric) at index $x: '$y'");
-						$errors[] = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
+						$errors[] = findtekst('352|Hint! Du skal sætte et - (minus) som pos.-nr. for at slette en kontaktperson', $sprog_id);
 
 						continue;
 					}
