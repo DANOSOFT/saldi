@@ -89,7 +89,8 @@
 // 20260227 PHR Added more arguments to funtion call at line 1260, as last 4 was missing
 // 20260604 CL/PHR function batch_salg: reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr so domestic CVRs are not routed to EU/export accounts
 // 20260604 CL/PHR function bogfor_nu: tightened POS-detection condition - felt_4, felt_5 must also be numeric and felt_5 > 0 to avoid regular orders being treated as POS
-// 20260610 Sawaneh Stock warning popup now triggers at beholdning <= min_lager (fallback: 'Standard minimumsbeholdning' setting) instead of only at 0
+// 20260618 Sawaneh Stock warning popup now triggers when sale quantity would leave stock below min_lager
+// 20260619 Sawaneh check_stock_warning reads stock from lagerstatus (sum across warehouses) like the order-line red-highlight, not the drifting varer.beholdning field
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */
@@ -5485,28 +5486,36 @@ function _sw_ensure_log_table()
 	return true;
 }
 
-function check_stock_warning($vare_id)
+function check_stock_warning($vare_id, $sale_qty = 0)
 {
-	$result = array('out_of_stock' => false, 'beholdning' => 0, 'min_lager' => 0, 'beskrivelse' => '', 'varenr' => '');
+	$result = array('out_of_stock' => false, 'beholdning' => 0, 'min_lager' => 0, 'beskrivelse' => '', 'varenr' => '', 'projected_beholdning' => 0);
 	if (!$vare_id || !is_numeric($vare_id)) return $result;
 	$vare_id = (int)$vare_id;
 	$r = db_fetch_array(db_select("select varenr, beskrivelse, beholdning, min_lager, gruppe from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
 	if (!$r) return $result;
 	$result['varenr']      = $r['varenr'];
 	$result['beskrivelse'] = $r['beskrivelse'];
-	$result['beholdning']  = $r['beholdning'];
 	$gruppe = $r['gruppe'];
-	// Trigger rule: the item must belong to a stock-tracked product group AND
-	// have beholdning at or below its minimum stock threshold — same threshold
-	// that paints quantities red on the order lines. The threshold is the
-	// product's own min_lager; products without one fall back to the
-	// 'Standard minimumsbeholdning' (min_beholdning) from Varerelaterede valg.
-	// With no threshold configured anywhere this reduces to beholdning <= 0.
+	// Current stock must be read the SAME way the order lines display it (and
+	// the red-highlight uses): the sum across all warehouses in lagerstatus.
+	// varer.beholdning is a separate field that drifts from the real per-warehouse
+	// total on multi-warehouse setups, so relying on it made the popup miss sales
+	// that bring stock below minimum. Fall back to varer.beholdning only when the
+	// item has no per-warehouse rows at all (single-stock / lagerstatus not used).
+	$rStock = db_fetch_array(db_select("select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id'", __FILE__ . " linje " . __LINE__));
+	$beholdning = ($rStock && $rStock['qty'] !== null) ? (float)$rStock['qty'] : (float)$r['beholdning'];
+	$result['beholdning']  = $beholdning;
+	// Trigger rule: stock-tracked item where the proposed sale would leave the
+	// remaining stock below the product minimum. The threshold is the product's
+	// own min_lager; products without one fall back to 'Standard minimumsbeholdning'.
 	$minStock = (float)$r['min_lager'];
 	if ($minStock <= 0) $minStock = _sw_standard_min_stock();
 	$result['min_lager'] = $minStock;
+	$saleQty = is_numeric($sale_qty) ? (float)$sale_qty : 0;
+	$projectedStock = $beholdning - $saleQty;
+	$result['projected_beholdning'] = $projectedStock;
 	$r2 = db_fetch_array(db_select("select kodenr from grupper where art = 'VG' and box8 = 'on' and kodenr = '$gruppe'", __FILE__ . " linje " . __LINE__));
-	if ($r2 && (float)$r['beholdning'] <= $minStock) {
+	if ($r2 && $projectedStock < $minStock) {
 		$result['out_of_stock'] = true;
 	}
 	return $result;
