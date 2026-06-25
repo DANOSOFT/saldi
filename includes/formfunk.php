@@ -50,6 +50,7 @@
 // 20260426 PHR Outcommented change by PBLM as it has to be modified
 // 20260528 Sawaneh Print out-of-stock approval note under item description; fall back to formular 3 when requested formularer layout is missing
 // 20260611 LOE Added hvem to show up in printing of necessary documents.
+// 20260623 Sawaneh Log 'Reason' (out-of-stock approval note) now prints only on the delivery note, not on quotes/orders/invoices.
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 
@@ -1717,12 +1718,18 @@ if (!function_exists('formularprint')) {
 							$lev_varenr[$x] = trim($row['lev_varenr']);
 							$projekt[$x] = ($row['projekt']);
 							$beskrivelse[$x] = trim($row['beskrivelse']);
-							// Append the out-of-stock approval note (if any) under the item description.
-							$_sw_lid = (int)$row['id'];
-							if ($_sw_lid > 0) {
-								$_sw_r = @db_fetch_array(@db_select("select note from order_stock_warning_log where linje_id = '$_sw_lid' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
-								if ($_sw_r && isset($_sw_r['note']) && trim($_sw_r['note']) !== '') {
-									$beskrivelse[$x] .= "\n" . trim($_sw_r['note']);
+							// Append the out-of-stock approval note (the log 'Reason') under the item
+							// description, but ONLY on the delivery note (følgeseddel, formular 3).
+							// It is for internal use and must never appear on quotes, orders, invoices
+							// or any other document type. $formular here is the current document's type
+							// (set per-document from $form[$o] at the top of this loop).
+							if ($formular == 3) {
+								$_sw_lid = (int)$row['id'];
+								if ($_sw_lid > 0) {
+									$_sw_r = @db_fetch_array(@db_select("select note from order_stock_warning_log where linje_id = '$_sw_lid' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+									if ($_sw_r && isset($_sw_r['note']) && trim($_sw_r['note']) !== '') {
+										$beskrivelse[$x] .= "\n" . trim($_sw_r['note']);
+									}
 								}
 							}
 							$enhed[$x] = trim($row['enhed']);
