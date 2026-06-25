@@ -61,14 +61,13 @@ if (!$vare_id) {
 	if ($r && $r['id']) $vare_id = (int)$r['id'];
 }
 
-// Idempotency: if we already logged this same linje_id for this order, skip
-// the insert and return the existing row id.
-if ($linje_id) {
-	$rDup = db_fetch_array(db_select("select id from order_stock_warning_log where ordre_id = '$ordre_id' and linje_id = '$linje_id' limit 1", __FILE__ . " linje " . __LINE__));
-	if ($rDup && $rDup['id']) {
-		echo json_encode(array('ok' => true, 'log_id' => (int)$rDup['id'], 'linje_id' => $linje_id, 'deduped' => true));
-		exit;
-	}
+// Idempotency: one approval row per (order, varenr). Deduping by varenr (rather than
+// linje_id) keeps every approved item — including samlesæt sub-items that share a
+// varenr with a standalone item — logged exactly once and never dropped.
+$rDup = db_fetch_array(db_select("select id from order_stock_warning_log where ordre_id = '$ordre_id' and varenr = '$varenrEsc' limit 1", __FILE__ . " linje " . __LINE__));
+if ($rDup && $rDup['id']) {
+	echo json_encode(array('ok' => true, 'log_id' => (int)$rDup['id'], 'linje_id' => $linje_id, 'deduped' => true));
+	exit;
 }
 
 log_stock_warning($ordre_id, $vare_id, $note, $linje_id ?: null);
