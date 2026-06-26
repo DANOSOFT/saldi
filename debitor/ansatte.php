@@ -436,7 +436,7 @@ if ($menu == 'T') {
     $r = db_fetch_array(db_select("SELECT box7 FROM grupper WHERE art = 'DIV' AND kodenr = '2'", __FILE__ . " linje " . __LINE__));
     $jobkort = $r['box7'];
     $tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id);
-    $buttonText = findtekst('38|Stillingsliste', $sprog_id);
+    $buttonText = findtekst('38|Opgaveliste', $sprog_id);
     if ($jobkort) {
         print "<td width='10%' title='$tekst'>
                 <a href='jobliste.php?konto_id=$konto_id&returside=../debitor/ansatte.php?konto_id=$konto_id'

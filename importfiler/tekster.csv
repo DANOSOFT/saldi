@@ -1188,7 +1188,7 @@
 1188	Antal felter på Kreditoroversigten	Number of fields on the Creditor Overview	Antall felt i kreditoroversikten
 1189	Kreditorvisning	Creditor Display	Kreditorvisning
 1190	Leveres	Delivered	Levert
-1191	Genvej	Shortcut	Genvej
+1191	Genvej	Shortcut	Snarvei
 1192	Kontotype	Account type	Kontotype
 1193	Sideskift	Page change	Sideskift
 1194	Drift	Operation	Drift
@@ -3351,8 +3351,8 @@
 3351	Beskeden kunne ikke sendes	Message could not be sent	Beskjeden kunne ikke sendes
 3352	Fejl ved afsendelse af e-mail	Error sending email	Feil ved sending av e-post
 3353	Her tastes den planlagte start- og slutdato for sagen, som vises under planlægning	Enter the planned start and end date for the project, displayed during planning	Skriv inn planlagt start- og sluttdato for saken, som vises under planlegging
-3354	
-3355	
+3354	Genveje til Kassekladden	Cash Journal shortcuts	Snarveier til Kassekladden
+3355	Hjælp til Kassekladden	Cash Journal help	Hjelp til Kassekladden
 3356			
 3357			
 3358			
