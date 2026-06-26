@@ -240,15 +240,17 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		// with $topStyle/$buttonStyle so the color follows the per-account setting (topline_settings.php), not a fixed color.
 		// The whole page is one flex column: header (auto height) + column titles (auto height, printed by
 		// vis_aabne_poster) + scrollable grid (flex:1). No guessed pixel offsets needed for the top anymore.
-		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}
+.center-btn{font-size:10pt;display:flex;align-items:center;gap:5px;width:100% !important;border-radius:5px;text-decoration:none;}
+a:link{text-decoration:none;}</style>\n";
 		print "<div id='opPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
 		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n";
-		$opTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-		print "<td width='10%' style='$topStyle;padding:2px 6px;'><a accesskey=l href=\"rapport.php\">
-			   <button style='$buttonStyle; width:100%;' onMouseOver=\"this.style.cursor='pointer'\">$opTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-		print "<td width='80%' align='center' style='$topStyle;padding:2px 6px;'>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
-		print "<td width='10%' align='center' style='$topStyle;padding:2px 6px;'>\n";
+		$opTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		print "<td width='7%'><a accesskey=l href=\"rapport.php\">
+			   <button class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start;' onMouseOver=\"this.style.cursor='pointer'\">$opTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
+		print "<td width='10%' align='center' style='$topStyle'>\n";
 		print "<select name='aabenpostmode' style='$topStyle' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
 		if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
 		elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
