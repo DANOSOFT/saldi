@@ -63,16 +63,42 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>>90</th><th align=right  class='text-right'>60-90</th><th align=right class='text-right'>30-60</th><th align=right class='text-right'>8-30</th><th align=right class='text-right'>0-8</th><th align=right class='text-right'>I alt</th><th align=right</th>";
 		print "</thead><tbody>";
 	} else {
-		print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
-		print "<tr><td>Kontonr.</th>";
+		if ($usePBS) {
+			$opColWidths = array(9, 7, 22, 8, 8, 8, 8, 8, 9, 13);
+		} else {
+			$opColWidths = array(10, 26, 8, 8, 8, 8, 8, 10, 14);
+		}
+		$opColgroupHtml = "<colgroup>";
+		foreach ($opColWidths as $opColW) { $opColgroupHtml .= "<col style='width:{$opColW}%'>"; }
+		$opColgroupHtml .= "</colgroup>";
+
+		print "<style>
+#opHeaderTitleTable { width:100%; table-layout:fixed; border-collapse:collapse; background-color:$bgcolor; }
+#opHeaderTitleTable td { padding:6px 4px; border-bottom:2px solid #ddd; }
+#opGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:auto; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
+#opGridTable { border-collapse:collapse; width:100%; table-layout:fixed; }
+#opGridTable tfoot { background-color:$bgcolor; border-top:2px solid #ddd; }
+#opGridTable tfoot tr, #opGridTable tfoot td { background-color:$bgcolor; }
+</style>\n";
+
+		// Column-title row sits in normal flow (flex:0 0 auto), outside the scrollable area —
+		// same approach as the blue bar, so it can never scroll away regardless of where the
+		// scrollable grid below it has scrolled to.
+		print "<div style='flex:0 0 auto;padding:0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+		print "<table id='opHeaderTitleTable' cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$opColgroupHtml<tbody><tr>";
+		print "<td>Kontonr.</td>";
 		if ($usePBS) {
 			if ($showPBS) {
 				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=0'>skjul BS</a></td>";
 			} else {
 				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=1'>vis BS</a></td>";
-			}	
+			}
 		}
 		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
+		print "</tr></tbody></table>";
+		print "</div>\n";
+
+		print "<div id='opGridWrapper'><table id='opGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$opColgroupHtml<tbody>\n";
 	}
 
 	$currentdate=date("Y-m-d");
@@ -239,7 +265,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$forfaldsum_plus90=$forfaldsum_plus90+$forfalden_plus90;
 			$sum=$sum+$y;
 			$kontrolsum+=$kontrol;
-			print "<tr bgcolor=\"$linjebg\">";
+			print "<tr class='op-data-row' bgcolor=\"$linjebg\">";
 			print "<td><a href=rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$konto_fra&kilde_kto_til=$konto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kontonr[$x]&konto_til=$kontonr[$x]&submit=ok>";
 			print "<span title='Klik for detaljer'>$kontonr[$x]</span></a></td>";
 			if ($usePBS) print "<td>$pbs[$x]</td>";
@@ -321,6 +347,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "</tbody><tfoot>";
 		print "<tr><td colspan='$colspan'><br></td><td><b>I alt</b></td>";
 	} else {
+		print "</tbody><tfoot>";
 		print "<tr><td colspan=10><hr></td></tr>\n";
 		print "<tr><td colspan='$colspan'><br></td><td><b>I alt</b></td>";
 	}
@@ -357,27 +384,92 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	print "<input type=hidden name=kontoantal value=$kontoantal></td></tr>";
 
 	if ($kontoart=='D') {
-		$overlib4="<span class='CellComment'>".findtekst(242,$sprog_id)."</span>";
-		print "<tr><td colspan='10' align='center' class='border-hr-top'><span title=\"Klik her for at maile kontoudtog til de modtagere som er afm&aelig;rket herover\">";
-		print "<input type=submit value=\"Mail kontoudtog\" name=\"submit\"></span>&nbsp;&nbsp;";
+		$txt1 = lcfirst(findtekst('2767|Af', $sprog_id));
+		$txt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+		print "<style>
+#opPageFooterBar { position:fixed; left:0; right:0; bottom:0; width:100%; margin:0; z-index:1000; background-color:$bgcolor; border-top:1px solid #b8bec8; padding:1px 12px 10px 12px; display:flex; flex-direction:column; align-items:center; gap:1px; box-sizing:border-box; }
+#opPageFooterBar #opFooterPagination { display:flex; align-items:center; justify-content:flex-end; gap:20px; flex-wrap:wrap; width:100%; line-height:1; }
+#opPageFooterBar #opFooterActions { display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; width:100%; line-height:1; }
+#opPageFooterBar #opFooterActions .opBulkLabel { font:12px/100% Arial, Helvetica, sans-serif; color:#555; margin-right:4px; }
+#opPageFooterBar #opNavButtons { display:flex; align-items:center; gap:3px; }
+#opPageFooterBar #opNavButtons button.navbutton { height:20px; width:20px; padding:0; display:inline-flex; align-items:center; justify-content:center; background:#f0f0f0; color:#000; border:1px solid #b8bec8; border-radius:4px; }
+#opPageFooterBar #opNavButtons button.navbutton:not(:disabled) { cursor:pointer; }
+#opPageFooterBar #opNavButtons button.navbutton:disabled { opacity:0.5; }
+.opActionBtn { display:inline-block; font:11px/100% Arial, Helvetica, sans-serif; padding:.2em 1em .275em; color:#d9eef7; text-decoration:none; text-shadow:0 1px 1px rgba(0,0,0,.3); border:solid 1px #0076a3; border-radius:.5em; cursor:pointer;
+	background:#0095cd; background:-webkit-gradient(linear,left top,left bottom,from(#00adee),to(#0078a5)); background:-moz-linear-gradient(top,#00adee,#0078a5); background:linear-gradient(top,#00adee,#0078a5);
+	box-shadow:0 1px 2px rgba(0,0,0,.2); }
+.opActionBtn:hover { background:#007ead; background:-webkit-gradient(linear,left top,left bottom,from(#0095cc),to(#00678e)); background:-moz-linear-gradient(top,#0095cc,#00678e); background:linear-gradient(top,#0095cc,#00678e); }
+.opActionBtn:active { position:relative; top:1px; color:#80bed6; background:-webkit-gradient(linear,left top,left bottom,from(#0078a5),to(#00adee)); background:-moz-linear-gradient(top,#0078a5,#00adee); background:linear-gradient(top,#0078a5,#00adee); }
+</style>\n";
+		print "<div id='opPageFooterBar'>";
+		print "<div id='opFooterPagination'>";
+		print "<span id='opPageStatus'></span>";
+		print "<span>$txt2 <select id='opPageSize'><option value='50'>50</option><option value='100'>100</option><option value='250'>250</option><option value='500'>500</option><option value='100000'>Alle</option></select></span>";
+		print "<span id='opNavButtons'></span>";
+		print "</div>";
+		print "<div id='opFooterActions'>";
+		print "<span class='opBulkLabel'><b>Bulk actions:</b></span>";
+		print "<span title=\"Klik her for at maile kontoudtog til de modtagere som er afm&aelig;rket herover\">";
+		print "<input type=submit class='opActionBtn' value=\"Mail kontoudtog\" name=\"submit\"></span>";
 		print "<span title='Klik her for at oprette rykker til de som er afm&aelig;rkede herover'>";
-		print "<input type=submit value=\"Opret rykker\" name=\"submit\"></span>&nbsp;&nbsp;";
+		print "<input type=submit class='opActionBtn' value=\"Opret rykker\" name=\"submit\"></span>";
 		if ($udlign) {
 			$udlign=trim($udlign,"'");
-			print "	<input type='button' onclick=\"location.href='rapport.php?rapportart=openpost&udlign=$udlign';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
-			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>"; 
+			print "	<input type='button' class='opActionBtn' onclick=\"location.href='rapport.php?rapportart=openpost&udlign=$udlign';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />";
+			print "<input type=submit class='opActionBtn' title='Settles all accounts' value=\"Ryk alle\" name=\"submit\">";
 		} else {
-			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
+			print "<input type=submit class='opActionBtn' title='Settles all accounts' value=\"Ryk alle\" name=\"submit\">";
 		}
-		print "</tr>\n";
+		print "</div>";
+		print "</div>\n";
+		print "<script>(function(){
+	var rows = Array.prototype.slice.call(document.querySelectorAll('tr.op-data-row'));
+	var pageSize = 50, currentPage = 1;
+	var prevIcon = '<svg xmlns=\"http://www.w3.org/2000/svg\" height=\"16px\" viewBox=\"0 -960 960 960\" width=\"16px\" fill=\"#000000\"><path d=\"M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z\"/></svg>';
+	var nextIcon = '<svg xmlns=\"http://www.w3.org/2000/svg\" height=\"16px\" viewBox=\"0 -960 960 960\" width=\"16px\" fill=\"#000000\"><path d=\"M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z\"/></svg>';
+	function render(){
+		var total = rows.length;
+		var totalPages = Math.max(1, Math.ceil(total / pageSize));
+		if (currentPage > totalPages) currentPage = totalPages;
+		var start = (currentPage - 1) * pageSize;
+		var end = Math.min(total, start + pageSize);
+		rows.forEach(function(row, i){ row.style.display = (i >= start && i < end) ? '' : 'none'; });
+		var statusEl = document.getElementById('opPageStatus');
+		if (statusEl) statusEl.textContent = total ? (start + 1) + '-' + end + ' " . $txt1 . " ' + total : '0 " . $txt1 . " 0';
+		var nav = document.getElementById('opNavButtons');
+		if (nav) {
+			var html = '';
+			html += \"<button type='button' class='navbutton' \" + (currentPage <= 1 ? 'disabled' : '') + \" onclick='opGoToPage(\" + (currentPage - 1) + \")'>\" + prevIcon + '</button>';
+			var pageRange = 2;
+			var startPage = Math.max(1, currentPage - pageRange);
+			var endPage = Math.min(totalPages, currentPage + pageRange);
+			if (startPage > 1) {
+				html += \"<button type='button' class='navbutton' onclick='opGoToPage(1)'>1</button>\";
+				if (startPage > 2) html += '<span>...</span>';
+			}
+			for (var p = startPage; p <= endPage; p++) {
+				html += \"<button type='button' class='navbutton' style='\" + (p === currentPage ? 'text-decoration:underline;' : '') + \"' onclick='opGoToPage(\" + p + \")'>\" + p + '</button>';
+			}
+			if (endPage < totalPages) {
+				if (endPage < totalPages - 1) html += '<span>...</span>';
+				html += \"<button type='button' class='navbutton' onclick='opGoToPage(\" + totalPages + \")'>\" + totalPages + '</button>';
+			}
+			html += \"<button type='button' class='navbutton' \" + (currentPage >= totalPages ? 'disabled' : '') + \" onclick='opGoToPage(\" + (currentPage + 1) + \")'>\" + nextIcon + '</button>';
+			nav.innerHTML = html;
+		}
+	}
+	window.opGoToPage = function(p){ currentPage = Math.max(1, p); render(); };
+	var sizeSel = document.getElementById('opPageSize');
+	if (sizeSel) sizeSel.addEventListener('change', function(){ pageSize = parseInt(this.value, 10) || 50; currentPage = 1; render(); });
+	render();
+})();</script>\n";
 	}
 	print "</form>\n";
 
 	if ($menu=='T') {
 		print "</tfoot></table></div></tfoot></table>";
 	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-		print "</tbody></table>";
+		print "</tfoot></table>"; // <- #opGridWrapper stays open; closed later by openpost() after Rykkeroversigt
 	}
 
 	if ($menu=='T') {
