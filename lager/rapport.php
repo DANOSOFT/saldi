@@ -68,6 +68,7 @@
 // 20260408 PHR set max_execution_time to 300
 // 20260507 CL Rettet forskydning i summary-række: tilføjet $tt_kost (Kostpris), flyttet $tt_k_pris til korrekt kolonne (Købspris), tilføjet manglende Solgt-celle
 // 20260526 LOE Added salg_rapport.php with sales report based on postnr and departments, to handle sales report for customers with postnr and departments. Based on datagrid, with flexible search and sorting.
+// 20260603 PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
 // 20260610 CL/PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
 ini_set('max_execution_time', '300');
 @session_start();
@@ -88,9 +89,6 @@ include("../includes/row-hover-style.js.php");
 
 #	include("../includes/db_query.php");
 
-if (!isset ($_GET['detaljer'])) $_GET['detaljer'] = NULL;
-if (!isset ($_GET['kun_salg'])) $_GET['kun_salg'] = NULL;
-if (!isset ($_GET['lagertal'])) $_GET['lagertal'] = NULL;
 $backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 if ($popup) $returside="../includes/luk.php";
 
@@ -98,7 +96,6 @@ else $returside = $backUrl;
 
 $inventoryCount = isset($_POST['inventoryCount']) ? $_POST['inventoryCount'] : null;
 $lokMinMax      = isset($_POST['lokMinMax']) ? $_POST['lokMinMax'] : null;
-
 if ($lokMinMax) {
 	$varegruppe = trim($_POST['varegruppe']);
 	$varenr     = isset($_POST['varenr']) ? $_POST['varenr']: null;

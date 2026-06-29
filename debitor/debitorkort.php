@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-05-05 --- 
+// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-05-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,8 @@
 // 20260323 LOE Added a drag handle to adjust the height of the purchase history grid, and made the grid initially collapse.  
 // 20260325 LOE Added logic to navigate to appropriate returside for when general ledger is selected
 // 20260505 LOE Added form to create extra delivery address and logic to save it. SD-483
+// 20260513 PHR Removed if ($id) around cvrapi to make it work again for existing customers
+// 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
 @session_start();
 $s_id = session_id();
 
@@ -184,7 +186,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$kontotype = db_escape_string(trim($_POST['kontotype']));
 		(isset($_POST['fornavn'])) ? $fornavn = db_escape_string(trim($_POST['fornavn'])) : $fornavn = '';
 		(isset($_POST['efternavn'])) ? $efternavn = db_escape_string(trim($_POST['efternavn'])) : $efternavn = '';
-		$fax = db_escape_string(trim($_POST['fax']));
+		$mobile = db_escape_string(trim($_POST['mobile']));
 		$web = db_escape_string(trim($_POST['web']));
 		$betalingsbet = db_escape_string(trim($_POST['betalingsbet']));
 		$ean = db_escape_string(trim($_POST['ean']));
@@ -503,14 +505,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		if ($id == 0 && $ny_kontonr && $ny_kontonr != '!') {
 			$oprettet = date("Y-m-d");
 			$qtxt = "insert into adresser ";
-			$qtxt .= "(kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,fax,email,";
+			$qtxt .= "(kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,mobile,email,";
 			$qtxt .= "mailfakt,web,betalingsdage,kreditmax,betalingsbet,cvrnr,ean,institution,notes,";
 			$qtxt .= "art,gruppe,kontoansvarlig,oprettet,bank_reg,bank_konto,swift,pbs_nr,pbs,kontotype,";
 			$qtxt .= "fornavn,efternavn,lev_firmanavn,lev_fornavn,lev_efternavn,lev_addr1,lev_addr2,lev_postnr,";
 			$qtxt .= "lev_bynavn,lev_land,lev_kontakt,lev_tlf,lev_email,felt_1,felt_2,felt_3,felt_4,felt_5,";
 			$qtxt .= "vis_lev_addr,lukket,kategori,rabatgruppe,status,productlimit)";
 			$qtxt .= " values ";
-			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$fax','$email',";
+			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email',";
 			$qtxt .= "'$mailfakt','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$ean','$institution','$notes','D',";
 			$qtxt .= "'$gruppe','$kontoansvarlig','$oprettet','$bank_reg','$bank_konto','$swift','$pbs_nr','$pbs','$kontotype',";
 			$qtxt .= "'$fornavn','$efternavn','$lev_firmanavn','$lev_fornavn','$lev_efternavn','$lev_addr1','$lev_addr2','$lev_postnr',";
@@ -631,7 +633,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 
 			if (($kontotype == $vkontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
-				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', fax = '$fax', ";
+				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
 				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
 				$qtxt .= "kreditmax = '$kreditmax',betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', ean = '$ean', ";
 				$qtxt .= "institution = '$institution', notes = '$notes',gruppe='$gruppe', ";
@@ -1038,7 +1040,7 @@ if ($id > 0) {
 	$lev_email = trim($r['lev_email']);
 	$lev_kontakt = htmlentities(trim($r['lev_kontakt']), ENT_COMPAT, $charset); #20131004
 	$tlf = trim($r['tlf']);
-	$fax = trim($r['fax']);
+	$mobile = trim($r['mobile']);
 	$email = trim($r['email']);
 	$mailfakt = trim($r['mailfakt']);
 	$web = trim($r['web']);
@@ -1411,7 +1413,7 @@ if (!isset($bynavn)) $bynavn = NULL;
 if (!isset($mailfakt)) $mailfakt = NULL;
 if (!isset($cvrnr)) $cvrnr = NULL;
 if (!isset($tlf)) $tlf = NULL;
-if (!isset($fax)) $fax = NULL;
+if (!isset($mobile)) $mobile = NULL;
 if (!isset($ean)) $ean = NULL;
 if (!isset($institution)) $institution = NULL;
 if (!isset($bank_reg)) $bank_reg = NULL;
@@ -1686,7 +1688,7 @@ print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 
 print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst('378|Telefax', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('378|Mobile', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('379|EAN-nr.', $sprog_id) . "<!--tekst 379--></td>";

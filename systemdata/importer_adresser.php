@@ -179,16 +179,16 @@ print "</select></span>";
 print "<input type=\"hidden\" name=\"filnavn\" value=$filnavn>";
 print "<input type=\"hidden\" name=\"feltantal\" value=$feltantal>";
 print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"Vis\" />";
-# if (!$art) $felt_navn=array("art","kontonr","firmanavn","fornavn","efternavn","addr1","husnr","etage","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","ean","institution","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_fax","kontakt_email","kontakt_notes");
+# if (!$art) $felt_navn=array("art","kontonr","firmanavn","fornavn","efternavn","addr1","husnr","etage","addr2","postnr","bynavn","land","kontakt","tlf","mobile","email","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","ean","institution","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_mobile","kontakt_email","kontakt_notes");
 #else
 if ($art!='D') {
-	$felt_navn=array("kontonr","firmanavn","addr1","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","bank_navn","bank_reg","bank_konto","bank_fi","swift","erh","gruppe","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_fax","kontakt_email","kontakt_notes");
+	$felt_navn=array("kontonr","firmanavn","addr1","addr2","postnr","bynavn","land","kontakt","tlf","mobile","email","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","bank_navn","bank_reg","bank_konto","bank_fi","swift","erh","gruppe","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_mobile","kontakt_email","kontakt_notes");
 	$felt_antal=count($felt_navn);
 	for ($x=0; $x<$felt_antal; $x++) {
 		$felt_betegn[$x]=$felt_navn[$x];
 	}
 } else {
-	$felt_navn=array("kontonr","firmanavn","fornavn","efternavn","addr1","husnr","etage","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","mailfakt","web","notes","kreditmax","betalingsbet","betalingsdage","bank_reg","bank_konto","cvrnr","ean","institution","pbs_nr","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","status","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_fax","kontakt_email","kontakt_notes");
+	$felt_navn=array("kontonr","firmanavn","fornavn","efternavn","addr1","husnr","etage","addr2","postnr","bynavn","land","kontakt","tlf","mobile","email","mailfakt","web","notes","kreditmax","betalingsbet","betalingsdage","bank_reg","bank_konto","cvrnr","ean","institution","pbs_nr","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","status","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_mobile","kontakt_email","kontakt_notes");
 	$felt_tekst_id=array("357","360","358","359","361","412","413","362","144","146","364","398","377","378","402","677","367","391","381","368","57","382","383","376","379","380","414","374","386","65","255","256","257","258","259","388","494","403","404","405","406","407","408","409","410","411");
 	$felt_antal=count($felt_navn);
 	for ($x=0; $x<$felt_antal; $x++) {

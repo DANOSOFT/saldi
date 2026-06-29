@@ -24,12 +24,13 @@
 // ----------------------------------------------------------------------
 // 20230223 PHR added fax
 
+
 $qtxt = "update ordrer set firmanavn = 'Anonym', addr1 = '', addr2 = '', bynavn='', postnr='', kontakt = '', phone ='', ";
 $qtxt.= "email='', lev_navn = '', lev_addr1 = '', lev_addr2 = '', lev_bynavn='', lev_postnr='', lev_kontakt ='' ";
 $qtxt.= "where konto_id = '$id'";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
 $qtxt = "update adresser set firmanavn = 'Anonym', fornavn = '', efternavn = '', addr1 = '', addr2 = '', bynavn='', postnr='', ";
-$qtxt.= "email='', kontakt = '', tlf ='', fax ='', lev_firmanavn = '', lev_fornavn = '', lev_efternavn = '', ";
+$qtxt.= "email='', kontakt = '', tlf ='', mobile ='', lev_firmanavn = '', lev_fornavn = '', lev_efternavn = '', ";
 $qtxt.= "lev_addr1 = '', lev_addr2 = '', lev_bynavn='', lev_postnr='', lev_kontakt ='', bank_konto='' ";
 $qtxt.= "where id = '$id'";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);  

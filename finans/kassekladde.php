@@ -54,7 +54,7 @@
 // 20260521 LOE Fixed a bug from extra added closing brace and updated background color for thead
 // 20260529 SZ - Added Persistent Sorting on Kassekladde (Added by NTR, Don't know what else was changed)// 20260610 CL/PHR - Valuta-kolonne viste ingenting: tilføjet field=valuta_navn + LEFT JOIN grupper VK i build_kassekladde_query
 // 20260610 CL/PHR - Valuta-kolonne: viser $baseCurrency (f.eks. DKK) for rækker uden fremmed valuta (valuta=0)
-
+// 20260617 Sawaneh - Fixed cash journal account suggestions to show inside the blue autocomplete dropdown instead of the old overlapping gray popup.
 //
 
 ob_start(); //Starter output buffering
@@ -264,8 +264,8 @@ print '<script>
 print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
-print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.3" defer></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.4">';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.4" defer></script>';
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
@@ -2757,21 +2757,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$y' $de_fok value =\"$beskrivelse[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='d_ty$y' $de_fok value =\"$d_type[$y]\" onchange='javascript:docChange = true;'></td>";
 		if (($k_type[$y] == 'D' || $k_type[$y] == 'K') && $kredit[$y] && !$debet[$y]) {
-			$libtxt = sidste_5($kredit[$y], $k_type[$y], 'D');
-			print "<td>
-			<span onclick=\"return overlib('" . $libtxt . "', WIDTH=800);\" onmouseout='return nd();'>
-			<input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\" onchange='javascript:docChange = true;'>
-			</span></td>\n";
+			$lastPostingsAttr = sidste_5_forslag_attr($kredit[$y], $k_type[$y], 'D', $charset);
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\" title='$debettext[$y]' onchange='javascript:docChange = true;'></td>\n";
 		print "<td>" . render_vat_select("dvat$y", if_isset($debetvat[$y], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$y' $de_fok value =\"$k_type[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (($d_type[$y] == 'D' || $d_type[$y] == 'K') && $debet[$y] && !$kredit[$y]) {
-			$libtxt = sidste_5($debet[$y], $d_type[$y], 'K');
-			print "<td>
-			<span onclick=\"return overlib('" . $libtxt . "', WIDTH=800);\" onmouseout='return nd();'>
-			<input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" onchange='javascript:docChange = true;'>
-			</span></td>\n";
+			$lastPostingsAttr = sidste_5_forslag_attr($debet[$y], $d_type[$y], 'K', $charset);
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" title= '$kredittext[$y]' onchange='javascript:docChange = true;'></td>\n";
 		print "<td>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset) . "</td>\n";
@@ -3016,16 +3010,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&sum="       . urlencode($belob ?? '')
                 . "&fokus=bila$x&openPool=1";
 				########################
-        print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
-        print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
-        print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
-        // print "</tr>";
+				print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+				print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+				print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
+				// print "</tr>";
 			} else {
 				print "<td></td>\n";
 			}
 		}
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
-
+		
 		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
 		if (isset($bilag[$x]) && $bilag[$x]) {
 			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
@@ -3045,7 +3039,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if($dato[$x] == ''){
 			$dato[$x] = dkdato(date("Y-m-d"));
 		}
-
+		
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
@@ -3096,7 +3090,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
 			print "<td></td>\n";
-		}
+		} 
 		if ($kontrolkonto) {
 			print "<td></td>\n";
 			print "<td></td>\n";
@@ -3174,7 +3168,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
 			print "<td></td>\n";
-		}
+		} 
 		if ($kontrolkonto) {
 			print "<td></td>\n";
 			print "<td></td>\n";
@@ -4023,40 +4017,64 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			return ($kontonr);
 	}
 	##########################################################################################################
-	function sidste_5($kontonr, $art, $dk)
+	function sidste_5_forslag($kontonr, $art, $dk)
 	{
 		global $kladde_id;
 		global $charset;
-		global $sprog_id;
 
+		$forslag = array(
+			'heading' => '',
+			'rows' => array()
+		);
 
-		if ($dk == "D")
-			$txt = "select bilag,transdate,beskrivelse,debet as kontonr from kassekladde where k_type = '$art' and kredit = '$kontonr' and kladde_id != '$kladde_id' order by transdate desc";
-		else
-			$txt = "select bilag,transdate,beskrivelse,kredit as kontonr from kassekladde where d_type = '$art' and debet = '$kontonr' and kladde_id != '$kladde_id' order by transdate desc";
-		$retur = "<table border=1><tbody>";
-		if ($art == 'K')
-			$retur .= "<tr><td colspan=4>Sidste 5 posteringer for kreditor: $kontonr</td></tr>";
-		else
-			$retur .= "<tr><td colspan=4>Sidste 5 posteringer for debitor: $kontonr</td></tr>";
-		$retur .= "<tr><td>bilag</td><td>dato</td><td>tekst</td><td>kontonr</td></tr>";
-		$x = 0;
-		if (is_numeric($kontonr)) {
-			$q = db_select($txt, __FILE__ . " linje " . __LINE__);
-			while ($x < 5 && ($r = db_fetch_array($q))) {
-				if ($r['kontonr']) {
-					$x++;
-					// 20130221 htmlentities på beskrivelse:
-					$retur .= "<tr><td align=right>" . $r['bilag'] . "</td><td>" . dkdato($r['transdate']) . "</td><td>" . htmlentities($r['beskrivelse'], ENT_QUOTES, "$charset") . "</td><td>" . $r['kontonr'] . "</td></tr>";
-				}
-			}
-			$retur .= "</tbody></table>";
+		if (!is_numeric($kontonr)) {
+			return $forslag;
 		}
-		if ($x)
-			return ($retur);
-		else
-			return (NULL);
-	} # endfunc sidste_5
+
+		if ($dk == "D") {
+			$txt = "select bilag,transdate,beskrivelse,debet as kontonr from kassekladde where k_type = '$art' and kredit = '$kontonr' and kladde_id != '$kladde_id' order by transdate desc";
+		} else {
+			$txt = "select bilag,transdate,beskrivelse,kredit as kontonr from kassekladde where d_type = '$art' and debet = '$kontonr' and kladde_id != '$kladde_id' order by transdate desc";
+		}
+
+		if ($art == 'K') {
+			$forslag['heading'] = "Sidste 5 posteringer for kreditor: $kontonr";
+		} else {
+			$forslag['heading'] = "Sidste 5 posteringer for debitor: $kontonr";
+		}
+
+		$q = db_select($txt, __FILE__ . " linje " . __LINE__);
+		while (count($forslag['rows']) < 5 && ($r = db_fetch_array($q))) {
+			if ($r['kontonr']) {
+				$tekst = stripslashes($r['beskrivelse']);
+				if ($charset && strtoupper($charset) != 'UTF-8' && function_exists('mb_convert_encoding')) {
+					$tekst = mb_convert_encoding($tekst, 'UTF-8', $charset);
+				}
+				$forslag['rows'][] = array(
+					'bilag' => $r['bilag'],
+					'dato' => dkdato($r['transdate']),
+					'tekst' => $tekst,
+					'kontonr' => $r['kontonr']
+				);
+			}
+		}
+
+		return $forslag;
+	}
+	##########################################################################################################
+	function sidste_5_forslag_attr($kontonr, $art, $dk, $charset)
+	{
+		$forslag = sidste_5_forslag($kontonr, $art, $dk);
+		if (!count($forslag['rows'])) {
+			return '';
+		}
+
+		$json = json_encode($forslag);
+		if ($json === false) {
+			return '';
+		}
+		return " data-last-postings=\"" . htmlspecialchars($json, ENT_QUOTES, $charset) . "\"";
+	}
 	##########################################################################################################
 	function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount, $faktura) {
 		if ($id) {

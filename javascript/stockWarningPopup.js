@@ -111,7 +111,14 @@
 		injectStyles();
 		var t = textsFrom(opts);
 		var itemTxt = '';
-		if (opts.varenr || opts.beskrivelse) {
+		if (opts.items && opts.items.length) {
+			// Multiple lines in one dialog (e.g. all out-of-stock components of a
+			// samlesæt) so the user confirms the whole set with a single reason.
+			for (var ii = 0; ii < opts.items.length; ii++) {
+				var it = opts.items[ii] || {};
+				itemTxt += '<div class="saldi-sw-item"><b>' + escapeHtml(it.varenr || '') + '</b> ' + escapeHtml(it.beskrivelse || '') + '</div>';
+			}
+		} else if (opts.varenr || opts.beskrivelse) {
 			itemTxt = '<div class="saldi-sw-item"><b>' + escapeHtml(opts.varenr || '') + '</b> ' + escapeHtml(opts.beskrivelse || '') + '</div>';
 		}
 		var step1 = buildModal(

@@ -52,7 +52,8 @@
 // 20260326 PHR Added & '$vis_saet' as just POS orders must be listed for most systems
 // 20260326 PHR Removed sum shown bottom left
 // 20260408 PHR Trimming $_POST & made a quickfix for missing or wrong 'tidspkt'
-// 20260509 PHR '$svis_saet' was fetched from 'kodenr' 1. Changed to kodenr 2 annd added fiacal_year
+// 20260509 PHR '$svis_saet' was fetched from 'kodenr' 1. Changed to kodenr 2 and added fiscal_year
+
 ob_start();
 @session_start();
 $s_id=session_id();

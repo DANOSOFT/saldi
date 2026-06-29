@@ -569,6 +569,104 @@
     }
 
 
+    function getLastPostings(input) {
+        if (!input || !input.dataset || !input.dataset.lastPostings) {
+            return { heading: '', rows: [] };
+        }
+
+        try {
+            const data = JSON.parse(input.dataset.lastPostings);
+            if (!data || !Array.isArray(data.rows)) {
+                return { heading: '', rows: [] };
+            }
+            return data;
+        } catch (e) {
+            return { heading: '', rows: [] };
+        }
+    }
+
+
+    function getAccountSectionHeading(searchType) {
+        if (searchType === 'debitor') {
+            return 'Debitorer';
+        }
+        if (searchType === 'kreditor') {
+            return 'Kreditorer';
+        }
+        return 'Kontoplan';
+    }
+
+
+    function getAccountDropdownTitle(searchType, trans) {
+        if (searchType === 'debitor') {
+            return trans.selectDebtor;
+        }
+        if (searchType === 'kreditor') {
+            return trans.selectCreditor;
+        }
+        return trans.selectAccount;
+    }
+
+
+    function renderAccountTableHeader(searchType, trans) {
+        if (searchType === 'finance') {
+            return '<thead><tr>' +
+                '<th style="width:70px;">' + trans.accountNo + '</th>' +
+                '<th>' + trans.description + '</th>' +
+                '<th style="width:45px;">' + trans.vat + '</th>' +
+                '<th style="width:50px;">' + trans.shortcut + '</th>' +
+                '<th style="width:90px;text-align:right;">' + trans.balance + '</th>' +
+                '</tr></thead>';
+        }
+
+        return '<thead><tr>' +
+            '<th style="width:80px;">' + trans.accountNo + '</th>' +
+            '<th>' + trans.companyName + '</th>' +
+            '</tr></thead>';
+    }
+
+
+    function renderLastPostingsRows(lastPostings, includeAccountHeading, columnCount, searchType) {
+        if (!lastPostings || !lastPostings.rows || lastPostings.rows.length === 0) {
+            return '';
+        }
+
+        columnCount = columnCount || 5;
+
+        let html = '<tr class="account-autocomplete-category account-autocomplete-last-postings-heading">' +
+            '<td colspan="' + columnCount + '"><strong>' + escapeHtml(lastPostings.heading || 'Tidligere posteringer') + '</strong></td>' +
+            '</tr>';
+
+        lastPostings.rows.forEach(function (item, index) {
+            const description = [
+                item.dato ? item.dato : '',
+                item.bilag ? 'Bilag ' + item.bilag : '',
+                item.tekst ? item.tekst : ''
+            ].filter(Boolean).join(' - ');
+
+            html += '<tr class="account-autocomplete-item account-autocomplete-last-posting-item"' +
+                ' data-kontonr="' + escapeHtml(item.kontonr || '') + '"' +
+                ' data-index="last-' + index + '">' +
+                '<td>' + escapeHtml(item.kontonr || '') + '</td>' +
+                '<td title="' + escapeHtml(description) + '">' + escapeHtml(description) + '</td>';
+
+            for (let i = 2; i < columnCount; i++) {
+                html += '<td></td>';
+            }
+
+            html += '</tr>';
+        });
+
+        if (includeAccountHeading) {
+            html += '<tr class="account-autocomplete-category account-autocomplete-account-heading">' +
+                '<td colspan="' + columnCount + '"><strong>' + getAccountSectionHeading(searchType) + '</strong></td>' +
+                '</tr>';
+        }
+
+        return html;
+    }
+
+
    function performInvoiceSearch(input, searchValue, page) {
     searchValue = searchValue.trim();
     page = page || 1;
@@ -915,18 +1013,28 @@
     function renderDropdown(input, results, searchType, currentSearchValueParam, pagination) {
         const dropdown = input.autocompleteDropdown;
         const trans = getTrans();
+        const lastPostings = getLastPostings(input);
+        const hasLastPostings = lastPostings.rows && lastPostings.rows.length > 0;
+        const columnCount = searchType === 'finance' ? 5 : 2;
 
         currentSearchValueParam = currentSearchValueParam || '';
 
         pagination = pagination || { page: 1, total: 0, hasMore: false };
 
         if (!results || results.length === 0) {
-            if (currentSearchValueParam !== '') {
+            if (currentSearchValueParam !== '' || hasLastPostings) {
+                let noResultHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+                if (hasLastPostings) {
+                    noResultHtml = '<div class="account-autocomplete-results">' +
+                        '<table class="account-autocomplete-table">' +
+                        renderAccountTableHeader(searchType, trans) +
+                        '<tbody>' + renderLastPostingsRows(lastPostings, false, columnCount, searchType) + '</tbody></table></div>';
+                }
+
                 dropdown.innerHTML = '<div class="account-autocomplete-header">' +
-                    '<span class="account-autocomplete-header-title">' + trans.selectAccount + '</span>' +
+                    '<span class="account-autocomplete-header-title">' + getAccountDropdownTitle(searchType, trans) + '</span>' +
                     '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
-                    '</div>' +
-                    '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+                    '</div>' + noResultHtml;
                 positionDropdown(input, dropdown);
                 showDropdown(input, dropdown);
                 // Keep focus on the original input field
@@ -941,32 +1049,21 @@
 
         let html = '';
 
-        const titleText = searchType === 'finance' ? trans.selectAccount :
-            (searchType === 'debitor' ? trans.selectDebtor : trans.selectCreditor);
         html += '<div class="account-autocomplete-header">';
-        html += '<span class="account-autocomplete-header-title">' + titleText + '</span>';
+        html += '<span class="account-autocomplete-header-title">' + getAccountDropdownTitle(searchType, trans) + '</span>';
         html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
         html += '</div>';
 
         html += '<div class="account-autocomplete-results">';
         html += '<table class="account-autocomplete-table">';
 
-        if (searchType === 'finance') {
-            html += '<thead><tr>' +
-                '<th style="width:70px;">' + trans.accountNo + '</th>' +
-                '<th>' + trans.description + '</th>' +
-                '<th style="width:45px;">' + trans.vat + '</th>' +
-                '<th style="width:50px;">' + trans.shortcut + '</th>' +
-                '<th style="width:90px;text-align:right;">' + trans.balance + '</th>' +
-                '</tr></thead>';
-        } else {
-            html += '<thead><tr>' +
-                '<th style="width:80px;">' + trans.accountNo + '</th>' +
-                '<th>' + trans.companyName + '</th>' +
-                '</tr></thead>';
-        }
+        html += renderAccountTableHeader(searchType, trans);
 
         html += '<tbody>';
+
+        if (hasLastPostings) {
+            html += renderLastPostingsRows(lastPostings, true, columnCount, searchType);
+        }
 
         let itemIndex = 0;
         results.forEach(function (item) {

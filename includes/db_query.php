@@ -265,16 +265,17 @@ if (!function_exists('db_select')) {
 			$onlineTxt = date("Y-m-d")." ".date("H:i:s")." ".$_SERVER['REMOTE_ADDR']." ".$s_id." ".$db." ".$brugernavn."\n";
 			file_put_contents($onlineLog, $onlineTxt, FILE_APPEND);
 		}
-		if ($db_type == "mysql" || $db_type == "mysqli") {
-			// Use mysqli for MySQL as mysql_query() is deprecated
-			$query = mysqli_query($use_connection, $qtext);
-			$errtxt = mysqli_error($use_connection);  // Use mysqli_error for both MySQL and MySQLi
-		} else {
-			$qtext = str_replace(' like ', ' ilike ', $qtext);
-			$query = pg_query($use_connection, $qtext);
-			$errtxt = pg_last_error($use_connection);
- if ($errtxt) echo "$qtext<br>";
-		}
+			if ($db_type == "mysql" || $db_type == "mysqli") {
+				
+				$query = mysqli_query($use_connection, $qtext);
+				$errtxt = mysqli_error($use_connection);
+			}
+			else {
+				$qtext = str_replace(' like ', ' ilike ', $qtext);
+				$query = pg_query($use_connection, $qtext);
+				$errtxt = pg_last_error($use_connection);
+				if ($errtxt) error_log("db_select failed: $qtext");
+			}
 
 		if ($errtxt)	{		
 			$db=trim($db);

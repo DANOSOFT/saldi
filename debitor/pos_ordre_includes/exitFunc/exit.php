@@ -309,12 +309,12 @@ print "\n<!-- Function afslut (start)-->\n";
 		$skuffe=1;
 		file_put_contents("../temp/skuffe.log",__file__." $id B: $betaling S: $skuffe\n", FILE_APPEND);
 
-	if ($printpopup) {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?&url=$url&bruger_id=$bruger_id&bon=&bonantal=1&id=$id&skuffe=$skuffe&returside=$returside&logo=\">\n";
-	}
-
+		if ($printpopup) {
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?&url=$url&bruger_id=$bruger_id&bon=&bonantal=1&id=$id&skuffe=$skuffe&returside=$returside&logo=\">\n";
+		}
+		
 		exit;
-  } else { #20160211
+	} else { #20160211
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
 		exit;
 	}
