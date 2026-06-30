@@ -173,18 +173,6 @@ if (!$already_migrated) {
 }
 ############
 error_log("continuation of other updates...................");
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE batch_kob ADD due_date integer";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
-$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_no'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE batch_kob ADD batch_no varchar(100)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'has_due_date'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE varer ADD has_due_date bool default false";
@@ -219,127 +207,6 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE kontoplan ADD column map_to numeric(15)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
-
-$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'delivery_addresses'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE TABLE delivery_addresses (id SERIAL NOT NULL, account_id integer NOT NULL,";
-	$qtxt.= " is_primary boolean NOT NULL DEFAULT false, sort_order smallint NOT NULL DEFAULT 0,";
-	$qtxt.= " description varchar(100), company_name varchar(255), first_name varchar(100),";
-	$qtxt.= " last_name varchar(100), address_line1 varchar(255), address_line2 varchar(255),";
-	$qtxt.= " postal_code varchar(20), city varchar(100), country varchar(100),";
-	$qtxt.= " contact_name varchar(100), phone varchar(50), email varchar(255),";
-	$qtxt.= " created_at timestamp DEFAULT CURRENT_TIMESTAMP,";
-	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
-$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'delivery_addresses'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE TABLE delivery_addresses (id SERIAL NOT NULL, account_id integer NOT NULL,";
-	$qtxt.= " is_primary boolean NOT NULL DEFAULT false, sort_order smallint NOT NULL DEFAULT 0,";
-	$qtxt.= " description varchar(100), company_name varchar(255), first_name varchar(100),";
-	$qtxt.= " last_name varchar(100), address_line1 varchar(255), address_line2 varchar(255),";
-	$qtxt.= " postal_code varchar(20), city varchar(100), country varchar(100),";
-	$qtxt.= " contact_name varchar(100), phone varchar(50), email varchar(255),";
-	$qtxt.= " created_at timestamp DEFAULT CURRENT_TIMESTAMP,";
-	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
-
-//migrate all delivery addresses in adresser to delivery_addresses and link them to the corresponding account
-// Only run migration once
-$already_migrated = db_fetch_array(db_select(
-    "SELECT var_value FROM settings WHERE var_name = 'delivery_addr_migrated' AND var_grp = 'system'",
-    __FILE__ . " linje " . __LINE__
-));
-
-error_log("Delivery address migration already done: " . ($already_migrated ? 'yes' : 'no'));
-if (!$already_migrated) {
-
-	// Drop and Recreate
-	db_modify('DROP TABLE IF EXISTS "delivery_addresses"', __FILE__ . " linje " . __LINE__);
-	db_modify('DROP SEQUENCE IF EXISTS delivery_addresses_id_seq', __FILE__ . " linje " . __LINE__);
-	db_modify('CREATE SEQUENCE delivery_addresses_id_seq INCREMENT 1 MINVALUE 1 MAXVALUE 2147483647 START 51 CACHE 1', __FILE__ . " linje " . __LINE__);
-	$qtxt = <<<SQL
-		CREATE TABLE "public"."delivery_addresses" (
-			"id" integer DEFAULT nextval('delivery_addresses_id_seq') NOT NULL,
-			"account_id" integer NOT NULL,
-			"is_primary" boolean DEFAULT false NOT NULL,
-			"sort_order" smallint DEFAULT '0' NOT NULL,
-			"description" character varying(100),
-			"company_name" character varying(255),
-			"first_name" character varying(100),
-			"last_name" character varying(100),
-			"address_line1" character varying(255),
-			"address_line2" character varying(255),
-			"postal_code" character varying(20),
-			"city" character varying(100),
-			"country" character varying(100),
-			"contact_name" character varying(100),
-			"phone" character varying(50),
-			"email" character varying(255),
-			"created_at" timestamp DEFAULT now(),
-			CONSTRAINT "delivery_addresses_pkey" PRIMARY KEY ("id")
-		) WITH (oids = false)
-	SQL;
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-	// Add Cascade Drop Constraint.
-	db_modify('ALTER TABLE ONLY "delivery_addresses" ADD CONSTRAINT "delivery_addresses_account_id_fkey" FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE NOT DEFERRABLE', __FILE__ . " linje " . __LINE__);
-
-	// Transfer Data
-    $qtxt = "SELECT id, lev_firmanavn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, lev_kontakt, lev_email 
-             FROM adresser 
-             WHERE (lev_firmanavn IS NOT NULL AND lev_firmanavn != '') 
-                OR (lev_addr1 IS NOT NULL AND lev_addr1 != '')";
-
-    if ($result = db_select($qtxt, __FILE__ . " linje " . __LINE__)) {
-        while ($row = db_fetch_array($result)) {
-            $account_id    = intval($row['id']);
-            $company_name  = db_escape_string(trim($row['lev_firmanavn']));
-            $address_line1 = db_escape_string(trim($row['lev_addr1']));
-            $address_line2 = db_escape_string(trim($row['lev_addr2'] ?? ''));
-            $postal_code   = db_escape_string(trim($row['lev_postnr']));
-            $city          = db_escape_string(trim($row['lev_bynavn']));
-            $country       = db_escape_string(trim($row['lev_land']));
-            $contact_name  = db_escape_string(strlen(trim($row['lev_kontakt'])) <= 100 ? trim($row['lev_kontakt']) : ''); // 20260513 NTR - If data is corrupt, clear it instead of crashing.
-            $email         = db_escape_string(trim($row['lev_email'] ?? ''));
-
-            if (!$company_name && !($address_line1 || $address_line2)) continue;
-
-            $qtxt_check = "SELECT id FROM delivery_addresses
-                           WHERE account_id   = $account_id
-                             AND company_name  = '$company_name'
-                             AND address_line1 = '$address_line1'
-                             AND postal_code   = '$postal_code'
-                           LIMIT 1";
-
-            if (!db_fetch_array(db_select($qtxt_check, __FILE__ . " linje " . __LINE__))) {
-                db_modify("INSERT INTO delivery_addresses
-                               (account_id, is_primary, description, company_name,
-                                address_line1, address_line2, postal_code, city,
-                                country, contact_name, email)
-                           VALUES
-                               ($account_id, TRUE, 'Primary Delivery Address', '$company_name',
-                                '$address_line1', '$address_line2', '$postal_code', '$city',
-                                '$country', '$contact_name', '$email')",
-                    __FILE__ . " linje " . __LINE__
-                );
-            }
-        }
-    }
-
-    // Mark migration as done so it never runs again
-    db_modify(
-        "INSERT INTO settings (var_name, var_grp, var_value, var_description)
-         VALUES ('delivery_addr_migrated', 'system', 'yes', 'One-time migration of lev_* fields to delivery_addresses table')",
-        __FILE__ . " linje " . __LINE__
-    );
-	error_log("Delivery address migration completed.");
-}
-############
-error_log("continuation of other updates...................");
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'batch_no'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -557,7 +424,6 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		($db == 'pos_10' || $db == 'pos_62') ? $flatpay_print = 1: $flatpay_print = 0;
 		$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ";
-		($db == 'pos_10' || $db == 'pos_62') ? $qtxt.= "'1', ":
 		$qtxt.= "('flatpay_print', 'POS', '$flatpay_print', 'If 1, Saldi will print the terminal receipt else it is printed by the termanal')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}

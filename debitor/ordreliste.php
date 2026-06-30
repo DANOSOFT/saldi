@@ -51,6 +51,7 @@
 // 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
 // 20260603 Sawaneh Whole order line is now clickable (and right-clickable for "open in new tab/window"), not just the order number.
 // 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.
+// 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 @session_start();
 $s_id = session_id();
 
@@ -1165,6 +1166,24 @@ $custom_columns = array(
             return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
         }
     ),
+
+    "land" => array(
+        "field" => "land",
+        "headerName" => findtekst('364|Land', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.land",
+        "valueGetter" => function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        },
+        "render" => function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
+        }
+    ),
     
     "felt_1" => array(
         "field" => "felt_1",
@@ -1331,6 +1350,7 @@ if ($saved_columns !== null) {
 
 ############
 
+$active_set = array_flip($active_column_names);
 $column_pool = []; // keyed by field name
  
 //Custom columns
@@ -3063,7 +3083,7 @@ function select_valg($valg, $box)
    /* Fixed control bar */
 
 .datatable-wrapper {
-    height: calc(100vh - 98px) !important;
+    height: 100% !important;
 }
 
 #top-control-bar {
@@ -3144,7 +3164,7 @@ body {
     }
 
     .datatable-wrapper {
-        height: calc(100vh - 160px) !important;
+        height: 100% !important;
     }
 
     body {
