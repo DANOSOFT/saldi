@@ -34,6 +34,7 @@
 // 16/05/2025 make sure the back button redirect too the previous page rather than going back to the dashboard
 // 20251021 LOE Added pagination and static header and footer
 // 20260126 PHR fixed $exitDraft
+// 20260612 MJ Optimized cash journal list entry counts for large databases.
 
 @session_start();
 $s_id=session_id();
@@ -179,10 +180,7 @@ if (isset($_POST['delete_kladde'])) {
         exit;
     }
 }
-?>
-<!doctype html>
-<?php
-
+	
 $css="../css/standard.css";		
 $modulnr=2;	
 $title="kladdeliste";	
@@ -196,7 +194,7 @@ $apiKey = db_fetch_array($query)["var_value"];
 include("../includes/online.php");
 include("../includes/topline_settings.php"); 
 
-print "<script LANGUAGE=\"show JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
@@ -549,8 +547,7 @@ SELECT
     k.bogfort_af,
     k.tidspkt,
     k.hvem,
-    -- Count entries in kassekladde to determine if journal is empty
-    (SELECT COUNT(*) FROM kassekladde kk WHERE kk.kladde_id = k.id) as entry_count,
+    COALESCE(kk.entry_count, 0) as entry_count,
     -- Sort order: non-posted first (- and !), then simulated (S), then posted (V, etc)
     CASE 
         WHEN k.bogfort IN ('-', '!') THEN 0
@@ -558,6 +555,11 @@ SELECT
         ELSE 2
     END as sort_group
 FROM kladdeliste k
+LEFT JOIN (
+    SELECT kladde_id, COUNT(*) as entry_count
+    FROM kassekladde
+    GROUP BY kladde_id
+) kk ON kk.kladde_id = k.id
 WHERE $sqlWhere AND {{WHERE}}
 ORDER BY sort_group, k.id DESC
 ",
@@ -813,6 +815,7 @@ function deleteKladde(kladdeId) {
 
 
 
+
 // Tutorial setup 
 $steps = array();
 $steps[] = array(
@@ -930,8 +933,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 300);
 });
 </script>
-
-
 
 
 

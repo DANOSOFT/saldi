@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pbsfile.php --- patchh 5.0.0 --- 2026-06-01 ---
+// --- debitor/pbsfile.php --- patchh 5.0.0 --- 2026-06-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
 // 23.08.2012 Tilretning til Leverandørservice
@@ -39,6 +39,7 @@
 // 20260320 PHR Replaced kontonr(numeric) with ktonr(varchar)
 // 20260321 PHR Reversed above as ktonr does not exist in all accounts
 // 20260601 PHR Removed PBS from CVR nr.
+// 20260623 MJ Added two spaces after BS10601 in the first PBS order export line.
 
 @session_start();
 $s_id=session_id();
@@ -603,7 +604,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 	$r052lin=0;
 
 	$lnr++;
-	$linje[$lnr]="BS002".$cvrnr[0].$delsystem."0601".$leverance_id.filler(19," ").$dkdd."\n";
+	$linje[$lnr]="BS002".$cvrnr[0].$delsystem."0601  ".$leverance_id.filler(19," ").$dkdd."\n";
 	if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 
 	$lnr++;

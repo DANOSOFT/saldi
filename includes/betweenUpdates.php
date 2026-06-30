@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.06.15
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.05.07
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,62 +17,55 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-// The content of this file must be moved to opdat_4.3 in section 4.3.0 when 4.3.0 is to be released.
+// The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 // 20260429 LOE added leveret to formularer table
-// 20260504 LOE added a separate table for managing delivery addresses and those in adresser are migrated to the new table and linked to the corresponding account.
 // 20260504 NTR Fixed error on login due to missing regnskab's table
-// 20260507 PHR Removed above as table regskab must not be created en sub bases 
-// 20260512 NTR Merged Live/POS into prod_test
-// 20260517 NTR Fixed crittical error when trying to migrate delivery_addresses data (again)
-// 20260603 NTR Added missing note_on_orderline column to ordrelinjer table as otherwise it crashed on added a linje.
-// 20260611 LOE rename fax to mobile and changed orderdate to ordredate, orders to ordrer.
-// 20260617 NTR Added missing rental settings
+// 20260507 PHR Removed above as table regskab must not be created en sub bases
+// 20260612 MJ Added indexes for large cash journal and open item reports.
 
-#####
-$qtxt = "SELECT column_name
-         FROM information_schema.columns
-         WHERE table_name = 'adresser'
-         AND column_name = 'fax'";
-
-if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-    $qtxt = "ALTER TABLE adresser RENAME COLUMN fax TO mobile";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+if ($db_type == 'postgresql') {
+	$performanceIndexes = array(
+		array('kassekladde', 'kassekladde_kladde_sort_idx', 'CREATE INDEX kassekladde_kladde_sort_idx ON kassekladde (kladde_id, bilag, transdate, pos, id)'),
+		array('documents', 'documents_source_source_id_idx', 'CREATE INDEX documents_source_source_id_idx ON documents (source, source_id, id)'),
+		array('adresser', 'adresser_art_kontonr_idx', 'CREATE INDEX adresser_art_kontonr_idx ON adresser (art, kontonr)'),
+		array('kontoplan', 'kontoplan_regnaar_kontonr_idx', 'CREATE INDEX kontoplan_regnaar_kontonr_idx ON kontoplan (regnskabsaar, kontonr)'),
+		array('openpost', 'openpost_unsettled_konto_transdate_idx', "CREATE INDEX openpost_unsettled_konto_transdate_idx ON openpost (konto_id, transdate) WHERE udlignet IS DISTINCT FROM '1'"),
+		array('openpost', 'openpost_settled_udlign_date_idx', "CREATE INDEX openpost_settled_udlign_date_idx ON openpost (udlign_date, transdate, konto_id) WHERE udlignet = '1' AND udlign_date IS NOT NULL"),
+		array('ordrer', 'ordrer_reminder_status_idx', "CREATE INDEX ordrer_reminder_status_idx ON ordrer (status, betalt, firmanavn, kontonr, ordrenr, id) WHERE art LIKE 'R%'")
+	);
+	foreach ($performanceIndexes as $indexInfo) {
+		list($tableName, $indexName, $createSql) = $indexInfo;
+		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = '$tableName'";
+		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = '$tableName' AND indexname = '$indexName'";
+			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				db_modify($createSql, __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
 }
-
-#####
-
-
-$qtxt = "update grupper set box8 = '' where art = 'DIV' and kodenr = '2' and box8 like 'ftp2.ebconnect.dk%'";
-db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-$qtxt = "update varer set lukket = '0' where lukket is NULL";
-db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'provision'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE varer ADD provision integer";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
-
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_due_date'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE ordrelinjer ADD batch_due_date date default NULL";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
-
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrelinjer' and  column_name = 'batch_batch_no'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE ordrelinjer ADD batch_batch_no varchar(100)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
-
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'varer' and  column_name = 'has_due_date'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE varer ADD has_due_date bool default false";
@@ -97,118 +90,12 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
-$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'delivery_addresses'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE TABLE delivery_addresses (id SERIAL NOT NULL, account_id integer NOT NULL,";
-	$qtxt.= " is_primary boolean NOT NULL DEFAULT false, sort_order smallint NOT NULL DEFAULT 0,";
-	$qtxt.= " description varchar(100), company_name varchar(255), first_name varchar(100),";
-	$qtxt.= " last_name varchar(100), address_line1 varchar(255), address_line2 varchar(255),";
-	$qtxt.= " postal_code varchar(20), city varchar(100), country varchar(100),";
-	$qtxt.= " contact_name varchar(100), phone varchar(50), email varchar(255),";
-	$qtxt.= " created_at timestamp DEFAULT CURRENT_TIMESTAMP,";
-	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
+$qtxt = "update grupper set box8 = '' where art = 'DIV' and kodenr = '2' and box8 like 'ftp2.ebconnect.dk%'";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'delivery_addresses' AND indexname = 'idx_delivery_addresses_account_id'";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "CREATE INDEX idx_delivery_addresses_account_id ON delivery_addresses(account_id)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
+$qtxt = "update varer set lukket = '0' where lukket is NULL";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-//migrate all delivery addresses in adresser to delivery_addresses and link them to the corresponding account
-// Only run migration once
-$already_migrated = db_fetch_array(db_select(
-    "SELECT var_value FROM settings WHERE var_name = 'delivery_addr_migrated' AND var_grp = 'system'",
-    __FILE__ . " linje " . __LINE__
-));
-
-error_log("Delivery address migration already done: " . ($already_migrated ? 'yes' : 'no'));
-if (!$already_migrated) {
-
-	// Drop and Recreate
-	db_modify('DROP TABLE IF EXISTS "delivery_addresses"', __FILE__ . " linje " . __LINE__);
-	db_modify('DROP SEQUENCE IF EXISTS delivery_addresses_id_seq', __FILE__ . " linje " . __LINE__);
-	db_modify('CREATE SEQUENCE delivery_addresses_id_seq INCREMENT 1 MINVALUE 1 MAXVALUE 2147483647 START 51 CACHE 1', __FILE__ . " linje " . __LINE__);
-	$qtxt = <<<SQL
-		CREATE TABLE "public"."delivery_addresses" (
-			"id" integer DEFAULT nextval('delivery_addresses_id_seq') NOT NULL,
-			"account_id" integer NOT NULL,
-			"is_primary" boolean DEFAULT false NOT NULL,
-			"sort_order" smallint DEFAULT '0' NOT NULL,
-			"description" character varying(100),
-			"company_name" character varying(255),
-			"first_name" character varying(100),
-			"last_name" character varying(100),
-			"address_line1" character varying(255),
-			"address_line2" character varying(255),
-			"postal_code" character varying(20),
-			"city" character varying(100),
-			"country" character varying(100),
-			"contact_name" character varying(100),
-			"phone" character varying(50),
-			"email" character varying(255),
-			"created_at" timestamp DEFAULT now(),
-			CONSTRAINT "delivery_addresses_pkey" PRIMARY KEY ("id")
-		) WITH (oids = false)
-	SQL;
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-	// Add Cascade Drop Constraint.
-	db_modify('ALTER TABLE ONLY "delivery_addresses" ADD CONSTRAINT "delivery_addresses_account_id_fkey" FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE NOT DEFERRABLE', __FILE__ . " linje " . __LINE__);
-
-	// Transfer Data
-    $qtxt = "SELECT id, lev_firmanavn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, lev_kontakt, lev_email 
-             FROM adresser 
-             WHERE (lev_firmanavn IS NOT NULL AND lev_firmanavn != '') 
-                OR (lev_addr1 IS NOT NULL AND lev_addr1 != '')";
-
-    if ($result = db_select($qtxt, __FILE__ . " linje " . __LINE__)) {
-        while ($row = db_fetch_array($result)) {
-            $account_id    = intval($row['id']);
-            $company_name  = db_escape_string(trim($row['lev_firmanavn']));
-            $address_line1 = db_escape_string(trim($row['lev_addr1']));
-            $address_line2 = db_escape_string(trim($row['lev_addr2'] ?? ''));
-            $postal_code   = db_escape_string(trim($row['lev_postnr']));
-            $city          = db_escape_string(trim($row['lev_bynavn']));
-            $country       = db_escape_string(trim($row['lev_land']));
-            $contact_name  = db_escape_string(strlen(trim($row['lev_kontakt'])) <= 100 ? trim($row['lev_kontakt']) : ''); // 20260513 NTR - If data is corrupt, clear it instead of crashing.
-            $email         = db_escape_string(trim($row['lev_email'] ?? ''));
-
-            if (!$company_name && !($address_line1 || $address_line2)) continue;
-
-            $qtxt_check = "SELECT id FROM delivery_addresses
-                           WHERE account_id   = $account_id
-                             AND company_name  = '$company_name'
-                             AND address_line1 = '$address_line1'
-                             AND postal_code   = '$postal_code'
-                           LIMIT 1";
-
-            if (!db_fetch_array(db_select($qtxt_check, __FILE__ . " linje " . __LINE__))) {
-                db_modify("INSERT INTO delivery_addresses
-                               (account_id, is_primary, description, company_name,
-                                address_line1, address_line2, postal_code, city,
-                                country, contact_name, email)
-                           VALUES
-                               ($account_id, TRUE, 'Primary Delivery Address', '$company_name',
-                                '$address_line1', '$address_line2', '$postal_code', '$city',
-                                '$country', '$contact_name', '$email')",
-                    __FILE__ . " linje " . __LINE__
-                );
-            }
-        }
-    }
-
-    // Mark migration as done so it never runs again
-    db_modify(
-        "INSERT INTO settings (var_name, var_grp, var_value, var_description)
-         VALUES ('delivery_addr_migrated', 'system', 'yes', 'One-time migration of lev_* fields to delivery_addresses table')",
-        __FILE__ . " linje " . __LINE__
-    );
-	error_log("Delivery address migration completed.");
-}
-############
-error_log("continuation of other updates...................");
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'batch_no'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -245,7 +132,14 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE variant_varer ADD variant_text varchar(25)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
-
+/*
+$qtxt = "SELECT id FROM formularer WHERE formular = 9 AND art = '3' AND beskrivelse = 'leveret' AND sprog = 'Dansk' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    $qtxt = "INSERT INTO formularer (formular, art, beskrivelse, justering, xa, ya, xb, yb, str, color, font, fed, kursiv, side, sprog)
+             VALUES (9, '3', 'leveret', 'V', 163.000, 0.000, 0.000, 0.000, 9.000, 0, 'Helvetica', '', '', '0', 'Dansk')";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+*/
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'kontoplan' and  column_name = 'map_to'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE kontoplan ADD column map_to numeric(15)";
@@ -258,10 +152,56 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
-// Is supposed to be the first and ONLY to add the column digital_status
+
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE batch_kob ADD due_date integer";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'batch_no'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE batch_kob ADD batch_no varchar(100)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'digital_status'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE settings ADD digital_status varchar(25)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrer' and  column_name = 'digital_status'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE ordrer ADD digital_status varchar(25)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'group_id'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE settings ADD group_id integer";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'variant_varer' and  column_name = 'variant_salgspris'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE variant_varer ADD variant_salgspris numeric(15,3)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'variant_varer' and  column_name = 'variant_text'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE variant_varer ADD variant_text varchar(25)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'kontoplan' and  column_name = 'map_to'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE kontoplan ADD column map_to numeric(15)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'tutorials'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id varchar(10), selector TEXT)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
@@ -299,8 +239,8 @@ $qtxt = "select id, ordredate from ordrer where art = ''";
 #cho "$qtxt<br>";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-	if ($r['ordredate'] >= '2026-01-01') {
-		$qtxt = "update ordrer set art = 'KO' where id = '$r[id]'";
+	if ($r['orderdate'] >= '2026-01-01') {
+		$qtxt = "update orders set art = 'KO' where id = '$r[id]'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }
@@ -359,7 +299,7 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // Check if the column already exists
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'brugere' AND column_name = 'ip_address'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE brugere ADD COLUMN ip_address VARCHAR(45)";
+	$qtxt = "ALTER TABLE brugere ADD COLUMN ip_address VARCHAR(45)";   
   db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='lev_email'";
@@ -385,12 +325,8 @@ $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='va
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table varer ADD column colli_webfragt float DEFAULT 0", __FILE__ . " linje " . __LINE__);
 }
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='note_on_orderline'";
-if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER table varer ADD column note_on_orderline bool DEFAULT FALSE", __FILE__ . " linje " . __LINE__);
-}
 
-// havemøbelshoppen
+// havemøbelshoppen 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='varenr_alias'";
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table varer ADD column varenr_alias VARCHAR(255)", __FILE__ . " linje " . __LINE__);
@@ -655,11 +591,4 @@ if ($mp_client_id) {
 		}
 	}
 }
-
-$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='rentalsettings' and column_name='toggle_order'";
-if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-db_modify("ALTER table rentalsettings ADD column toggle_order int DEFAULT 1",__FILE__ . " linje " . __LINE__);
-db_modify("UPDATE rentalsettings SET toggle_order = 1 WHERE toggle_order IS NULL",__FILE__ . " linje " . __LINE__);
-}
-
 ?>

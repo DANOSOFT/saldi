@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-05-06---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-06-25---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,26 +21,9 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
-// 20200827 PHR Added protection against delete if items recieved. 20200827
-// 20201002	PHR Orderline will no be created if no id.
-// 20201021 changed from '=substr($fokus,4)' to '=0' as $focus is 'varenr'?;
-// 20210514 LOE	These texts were translated but not entered here previously
-// 20210716 LOE Translation of title tags , and general fixing of some bugs
-// 20211125 PHR Added link to document and done some cleanup 
-// 20211201 PHR error in check for item group corrected. 
-// 20211201 PHR $_GET['vare_id'] removed from 120 as it is in line 125
-// 20220124 PHR	several translation issues rgarding submit.
-// 20220124 PHR replaced 'vareOpslag' with 'lookup' everywhere
-// 20220331 PHR changed various if statements from 'Kopi' & 'Kred' to 'copy' & 'credit' 
-// 20220627 MSC - Implementing new design
-// 20220629 MSC - Implementing new design
-// 20221106 PHR - Various changes to fit php8 / MySQLi
-// 20220124 MLH added debitor lookup funcionality
-// 20220124 MLH added kundeordnr / Rekv.nr.
-// 20220124 MLH added udskriv_til, email and mail_fakt
 // 20230105 MLH added mail_text and mail_subj
 // 20230215 PHR Various minor corrections
 // 20230503 PHR php8 + email was missing when inserting creditor.
@@ -60,34 +43,38 @@
 // 20260223 LOE Fixed SD-350-creditor-order-lookup-does-not-work-on-new-supplier-order
 // 20260225 PHR Order taken by ---
 // 20260421 LOE Set antal to 1 if empty
-// 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
+// 20260625 MJ Preserve creditor order ref while changing the creditor account.
 @session_start();
 $s_id=session_id();
 
 ?>
-	<script type="text/javascript">
+<script type="text/javascript">
+<!--
+var linje_id = 0;
+var antal = 0;
 
-	<!--
-	var linje_id=0;
-	var antal=0;
-	function serienummer(linje_id, antal) {
-		window.open("serienummer.php?linje_id="+ linje_id,"","left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
-	}
-	function batch(linje_id, antal) {
-		window.open("batch.php?linje_id="+ linje_id,"","left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
-	}
-//		 -->
-	</script>
+function serienummer(linje_id, antal) {
+    window.open("serienummer.php?linje_id=" + linje_id, "",
+        "left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
+}
 
-	<script type="text/javascript">
-	<!--
-	function fejltekst(tekst) {
-		alert(tekst);
-		window.location.replace("../includes/luk.php?");
-	}
-	-->
-	</script>
-	<script src="../javascript/confirmclose.js"></script>
+function batch(linje_id, antal) {
+    window.open("batch.php?linje_id=" + linje_id, "",
+        "left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
+}
+//
+-->
+</script>
+
+<script type="text/javascript">
+<!--
+function fejltekst(tekst) {
+    alert(tekst);
+    window.location.replace("../includes/luk.php?");
+}
+-->
+</script>
+<script src="../javascript/confirmclose.js"></script>
 
 <?php
 $title="Kreditorordre";
@@ -180,49 +167,6 @@ if ((!$id || $id === 'null') && $konto_id) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=$url\">";
 		exit;
 	}
-}
-
-if (isset($_POST['create_creditor'])) {
-	$ny_kontonr = (int) if_isset($_POST, 0, 'kontonr');
-	$firmanavn  = db_escape_string(trim(if_isset($_POST, '', 'firmanavn')));
-	$addr1      = db_escape_string(trim(if_isset($_POST, '', 'addr1')));
-	$addr2      = db_escape_string(trim(if_isset($_POST, '', 'addr2')));
-	$postnr     = db_escape_string(trim(if_isset($_POST, '', 'postnr')));
-	$bynavn     = trim(if_isset($_POST, '', 'bynavn'));
-	if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
-	$bynavn     = db_escape_string($bynavn);
-	$tlf        = db_escape_string(trim(if_isset($_POST, '', 'tlf')));
-	$kontakt    = db_escape_string(trim(if_isset($_POST, '', 'kontakt')));
-	$email      = db_escape_string(trim(if_isset($_POST, '', 'email')));
-	$cvrnr      = db_escape_string(trim(if_isset($_POST, '', 'cvrnr')));
-	$grp        = (int) if_isset($_POST, 0, 'grp');
-	$betalingsbet  = db_escape_string(if_isset($_POST, 'Netto', 'betalingsbet'));
-	$betalingsdage = (int) if_isset($_POST, 8, 'betalingsdage');
-
-	if (!$firmanavn) {
-		print "<BODY onLoad=\"javascript:alert('Navn er påkrævet'); history.back();\">";
-		exit;
-	}
-	if (!$ny_kontonr) $ny_kontonr = get_next_number('adresser', 'K');
-
-	$qtxt = "select id from adresser where kontonr='$ny_kontonr' and art='K'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$new_konto_id = $r['id'];
-	} else {
-		$qtxt  = "insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,tlf,kontakt,email,cvrnr,gruppe,betalingsbet,betalingsdage,art,lukket) values ";
-		$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$tlf','$kontakt','$email','$cvrnr','$grp','$betalingsbet','$betalingsdage','K','')";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$r = db_fetch_array(db_select("select id from adresser where kontonr='$ny_kontonr' and art='K'", __FILE__ . " linje " . __LINE__));
-		$new_konto_id = $r['id'];
-	}
-
-	$post_id = (int) if_isset($_POST, 0, 'id');
-	if (!$post_id) {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?konto_id=$new_konto_id\">";
-	} else {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$post_id&konto_id=$new_konto_id\">";
-	}
-	exit;
 }
 if ( !empty($kontakt) && $id ) {
 	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
@@ -410,6 +354,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$godkend = if_isset($_POST, NULL, 'godkend');
 		$kreditnota = if_isset($_POST, NULL, 'kreditnota');
 		$ref = trim(if_isset($_POST, NULL, 'ref'));
+		$oldRef = trim(if_isset($_POST, NULL, 'oldRef'));
 		$afd = if_isset($_POST, 0, 'afd');
 		$lager = trim(if_isset($_POST, 0, 'lager'));
 		$fakturanr = db_escape_string(trim(if_isset($_POST, NULL, 'fakturanr')));
@@ -503,6 +448,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$varenr[$x]=db_escape_string(trim($_POST[$y]));
 			$y="anta".$x;
 			$antal[$x]=$_POST[$y];
+			if (empty($antal[$x])) { //set antal to 1 if empty
+				$antal[$x] = 1;
+			}
 			if ($antal[$x]){
 				$antal[$x]=usdecimal($antal[$x],2);
 				if ($art=='KK') $antal[$x]=$antal[$x]*-1;
@@ -528,6 +476,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
 			$projekt[$x] = if_isset($projekt, NULL,$x);
+			$batch_due_date[$x] = if_isset($_POST['batch_due_date'], NULL, $x);
+			$batch_batch_no[$x] = db_escape_string(trim(if_isset($_POST['batch_batch_no'], NULL, $x)));
 		}
 		if ($sletstart && $sletslut && $sletstart<$sletslut) {
 			for ($x=$sletstart; $x<=$sletslut; $x++) {
@@ -610,14 +560,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				}
 			} elseif ($konto_id) print "<BODY onLoad=\"javascript:alert('Kreditor ikke tilknyttet en kreditorgruppe')\">";
 		}
-		// If user typed a kontonr/firmanavn that doesn't match any creditor,
-		// open the lookup overlay (which auto-shows the create-new-supplier form).
-		if (!$id && !$konto_id && ($kontonr || $firmanavn)) {
-			include("../includes/kreditorOrderFuncIncludes/accountLookup.php");
-			$lookup_find = $kontonr ? $kontonr : $firmanavn;
-			$lookup_fokus = $kontonr ? 'kontonr' : 'firmanavn';
-			kontoopslag($sort, $lookup_fokus, $id, $lookup_find);
-			exit;
+		if ($oldRef && $ref != $oldRef && strstr($fokus, 'kontonr')) {
+			$ref = $oldRef;
 		}
 		if (!$id && !$konto_id && !$firmanavn && $varenr[0]) {
 			$varenr[0]=strtoupper($varenr[0]);
@@ -844,7 +788,14 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
 					$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
-						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager' where id='$linje_id[$x]'";
+						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager'";
+						if (isset($batch_due_date[$x]) && function_exists('item_has_due_date')) {
+							if ($batch_due_date[$x]) $qtxt .= ",batch_due_date='$batch_due_date[$x]'";
+							else $qtxt .= ",batch_due_date=NULL";
+							if ($batch_batch_no[$x]) $qtxt .= ",batch_batch_no='" . db_escape_string($batch_batch_no[$x]) . "'";
+							else $qtxt .= ",batch_batch_no=NULL";
+						}
+						$qtxt .= " where id='$linje_id[$x]'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} 
 #					if ($leveret[$x]!=$tidl_lev[$x]) {
@@ -1019,8 +970,11 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$ny_sum=0;
 				for($x=1; $x<=$linjeantal; $x++) {
 					if ($antal[$x]!=$tidl_lev[$x]) {
+
 						$diff[$x]=$antal[$x]-$tidl_lev[$x];
-						$antal[$x]=$tidl_lev[$x];
+if ($bruger_id == -1) echo __line__."$antal[$x]<br>";
+						if ($tidl_lev[$x]) $antal[$x]=(float)$tidl_lev[$x];
+if ($bruger_id == -1) echo __line__."$antal[$x]<br>";
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						$r1 =	db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
 						$qtxt = "select box6,box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]' and ";
@@ -1040,7 +994,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 							}	else $varemomssats[$x]=$momssats;
 						} elseif (!$momsfri[$x]) $varemomssats[$x]=$momssats;
 						else $varemomssats[$x]=$momssats;
-				
+if ($bruger_id == -1) echo __line__."$antal[$x]<br>";
 						db_modify("insert into ordrelinjer (ordre_id, posnr, varenr, vare_id, beskrivelse, enhed, antal, pris, rabat, serienr, lev_varenr, momsfri,projekt,momssats,lager) values ('$ny_id', '$posnr_ny[$x]', '$varenr[$x]', '$vare_id[$x]', '$beskrivelse[$x]', '$enhed[$x]', '$diff[$x]', '$pris[$x]', '$rabat[$x]', '$serienr[$x]', '$lev_varenr[$x]','$momsfri[$x]','$projekt[$x]','$varemomssats[$x]','$lager')",__FILE__ . " linje " . __LINE__);
 						db_modify("update ordrelinjer set antal=$antal[$x] where id = $linje_id[$x]",__FILE__ . " linje " . __LINE__);
 						$ny_sum=$ny_sum+$diff[$x]*($pris[$x]-$pris[$x]*$rabat[$x]/100);
@@ -1059,10 +1013,30 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					if ($row = db_fetch_array($query)) $vare_id[$x]=$row['id'];
 				}
 				if ($submit == 'credit' && $vare_id[$x] && !$hurtigfakt) {
-					$antal[$x]=0;
+					if ($linje_id[$x]) {
+						$q_antal = db_select("select antal from ordrelinjer where id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+						if ($r_antal = db_fetch_array($q_antal)) $antal[$x] = abs($r_antal['antal']);
+					}
+					$original_antal[$x] = abs($antal[$x]);
+					$batch_antal = 0;
+					$batch_rows = 0;
 					$query = db_select("select rest from batch_kob where vare_id = '$vare_id[$x]' and ordre_id = $kred_ord_id",__FILE__ . " linje " . __LINE__);
-					while ($row = db_fetch_array($query)) $antal[$x]=$antal[$x]-$row['rest'];
-				} elseif ($hurtigfakt && $submit == 'credit' && $antal[$x]) $antal[$x]=$antal[$x]*-1;
+					while ($row = db_fetch_array($query)) {
+						$batch_antal = $batch_antal - $row['rest'];
+						$batch_rows++;
+					}
+					if ($batch_rows > 0 && $batch_antal != 0) {
+						$antal[$x] = $batch_antal;
+					} else {
+						$antal[$x] = $original_antal[$x] * -1;
+					}
+				} elseif ($hurtigfakt && $submit == 'credit') {
+					 if ($linje_id[$x]) {
+						$q_antal = db_select("select antal from ordrelinjer where id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+						if ($r_antal = db_fetch_array($q_antal)) $antal[$x] = abs($r_antal['antal']);
+					}
+					if ($antal[$x]) $antal[$x] = abs($antal[$x]) * -1;
+				}
 				if ($serienr[$x]) $serienr[$x]="on";
 				if ($varemomssats[$x]=='') $varemomssats[$x]=find_varemomssats($linje_id[$x]); #20141106
 				if ($vare_id[$x]) {
@@ -1216,26 +1190,26 @@ function prepareSearchTerm($searchTerm) {
     // Check if it's a numeric value
     if (is_numeric($searchTerm)) {
 		print "<h1?>numeric search </h1>";
-		print "<br>searchTerm: $searchTerm";
-        // It's a numeric search, use exact match
-        return "= '$searchTerm'";
-    }
-    
-    if (strpos($searchTerm, "%") === false) {
-		print "<h1?>text search </h1>";
-		
+print "<br>searchTerm: $searchTerm";
+// It's a numeric search, use exact match
+return "= '$searchTerm'";
+}
 
-        return "LIKE '%$searchTerm%'";
+if (strpos($searchTerm, "%") === false) {
+print "<h1?>text search </h1>";
+
+
+    return "LIKE '%$searchTerm%'";
     }
-    
+
     // Already has wildcards
     return "LIKE '$searchTerm'";
     }
     */
 
-	if (!$id) $fokus='kontonr';
-		print "<form name='ordre' action='ordre.php' method='post'>";
-		print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
+   if (!$id) $fokus='kontonr';
+	print "<form name='ordre' action='ordre.php' method='post'>";
+	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
 	if ($id)	{
 		$q = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
@@ -1358,7 +1332,7 @@ function prepareSearchTerm($searchTerm) {
 	print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
 	print "<input type=\"hidden\" name=\"id\" value=\"$id\">";
 	print "<input type=\"hidden\" name=\"art\" value=\"$art\">";
-	// print "<input type=\"hidden\" name=momssats value=$momssats>";
+#	print "<input type=\"hidden\" name=momssats value=$momssats>";
 	print "<input type=\"hidden\" name=\"konto_id\" value=\"$konto_id\">";
 	print "<input type=\"hidden\" name=\"kred_ord_id\" value=\"$kred_ord_id\">";
 	print "<input type=\"hidden\" name=\"lager\" value=\"$lager\">";
@@ -1377,11 +1351,10 @@ function prepareSearchTerm($searchTerm) {
 	}
 	print "</tbody></table></td></tr>\n";
 	print "</form>";
-	print "<script>docChange = false;</script>";
 	print "</tbody></table></td></tr></tbody></table></td></tr>\n";
 	print "<tr><td></td></tr>\n";
 
-
+		
 }# end function ordreside
 ######################################################################################################################################
 
