@@ -1322,8 +1322,6 @@ function importer($lager, $dato)
 							}
 						}
 					}
-					#						if ($r=db_fetch_array(db_select("select id from varer where varenr='$varenr'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
-					//	elseif ($r=db_fetch_array(db_select("select id from varer where lower(varenr)='".strtolower($varenr)."' or lower(stregkode)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."' or upper(stregkode)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
 					if ($vare_id) {
 						$beholdning = 0;
 						$qtxt = "select sum(antal) as antal from batch_kob where vare_id='$vare_id' and variant_id='$variant_id' and kobsdate<='$transdate'";
@@ -1359,7 +1357,6 @@ function importer($lager, $dato)
 					} else {
 						$ej_indsat++;
 						fwrite($fp2, "$varenr\n");
-						#							cho "*";
 					}
 				}
 				if (is_array($variant_id))

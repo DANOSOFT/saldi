@@ -688,20 +688,29 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
  * @return array The first array with missing values filled from the second array.
  */
 function fill_missing_values($firstArray, $secondArray) {
-    foreach ($firstArray as &$firstItem) {
-        foreach ($secondArray as $secondItem) {
-            if ($firstItem['field'] === $secondItem['field']) {
-                foreach ($secondItem as $key => $value) {
-                    if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
-                        $firstItem[$key] = $value;
-                    }
-                }
-                break;
-            }
+    $columnsByField = array();
+    foreach ($secondArray as $secondItem) {
+        if (isset($secondItem['field'])) {
+            $columnsByField[$secondItem['field']] = $secondItem;
         }
     }
-    unset($firstItem);
-    return $firstArray;
+
+    $merged = array();
+    foreach ($firstArray as $firstItem) {
+        if (!isset($firstItem['field']) || !isset($columnsByField[$firstItem['field']])) {
+            continue;
+        }
+
+        foreach ($columnsByField[$firstItem['field']] as $key => $value) {
+            if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
+                $firstItem[$key] = $value;
+            }
+        }
+
+        $merged[] = $firstItem;
+    }
+
+    return $merged;
 }
 
 /**
@@ -1131,6 +1140,7 @@ HTML;
     echo <<<HTML
                 </tfoot>
             </table>
+            </div>
         </form>
     </div>
 HTML;
@@ -1186,26 +1196,33 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
         echo "<th class='{$column['field']}'>";
         if ($column["searchable"]) {
             $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
+            $columnSearchTermSafe = htmlspecialchars($columnSearchTerm, ENT_QUOTES, 'UTF-8');
             
-            if ($column["type"] == "dropdown" && isset($column['dropdownOptions'])) {
+            if ($column["type"] == "dropdown" && isset($column['dropdownOptions']) && is_callable($column['dropdownOptions'])) {
                 // Dropdown select for ref/sælger field AND date fields
                 echo "<select class='inputbox' style='text-align: {$column['align']}; width: 100%;' name='search[$id][{$column['field']}]' onchange='this.form.submit()'>";
                 echo "<option value=''></option>";
                 
+                ob_start();
                 $options = $column['dropdownOptions']();
+                ob_end_clean();
+                if (!is_array($options)) {
+                    $options = array();
+                }
                 foreach ($options as $option) {
                     $selected = ($option == $columnSearchTerm) ? 'selected' : '';
-                    echo "<option value='$option' $selected>$option</option>";
+                    $optionSafe = htmlspecialchars($option, ENT_QUOTES, 'UTF-8');
+                    echo "<option value='$optionSafe' $selected>$optionSafe</option>";
                 }
                 echo "</select>";
                 
             } elseif ($column["type"] == "date") {
                 // Date field with date picker
                 // echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder='dd-mm-yyyy eller dd-mm-yyyy:dd-mm-yyyy'>";
-                 echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+                 echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTermSafe' placeholder=''>";
             } else {
                 // Regular text input
-                echo "<input class='inputbox' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+                echo "<input class='inputbox' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTermSafe' placeholder=''>";
             }
         }
         echo "</th>";
@@ -1511,7 +1528,7 @@ function render_table_row($columns, $row, $searchTerms) {
         $align = isset($column['align']) ? $column['align'] : 'left';
         $data = isset($column['render']) && is_callable($column['render'])
             ? $column['render']($value, $row, $column)
-            : "<td align='" . htmlspecialchars($align) . "'>" . htmlspecialchars($value) . "</td>";
+            : "<td align='" . htmlspecialchars($align) . "'>" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "</td>";
 
         echo $data;
     }
@@ -1828,17 +1845,28 @@ function render_search_style() {
          * Modified 2025-11-25: Footer stays at bottom of viewport
          * ========================================================================== */
         .datatable-wrapper {
+            --debitor-grid-footer-space: 30px;
+            --debitor-grid-extra-footer-space: 52px;
+            --debitor-grid-page-padding: 8px;
+            box-sizing: border-box;
             margin-bottom: 5px;
-            overflow-x: auto;
-            overflow-y: auto;
+            overflow: hidden;
             position: relative;
             height: 100%;
             width: 100%;
         }
+        .datatable-wrapper form {
+            height: 100%;
+            margin: 0;
+        }
+        .datatable-search-wrapper {
+            height: calc(100% - var(--debitor-grid-footer-space) - var(--debitor-grid-extra-footer-space));
+            overflow: auto;
+            position: relative;
+        }
         .datatable {
             border-collapse: collapse;
             width: 100%;
-            height: 100%; /* Table fills the wrapper height */
         }
         .datatable thead {
             position: sticky;
@@ -1856,15 +1884,12 @@ function render_search_style() {
             /* No special styling needed - will expand naturally */
         }
         .datatable tfoot {
-            position: sticky;
-            bottom: 0;
-            z-index: 2;
-            background-color: #f4f4f4;
-            border-top: 2px solid #ddd;
+            background-color: transparent;
         }
         .datatable tfoot tr,
         .datatable tfoot td {
-            background-color: #f4f4f4;
+            background-color: transparent;
+            padding: 0;
         }
         /* ========================================================================== */
         .datatable tbody tr:nth-child(2n) {
@@ -1992,10 +2017,20 @@ function render_dropdown_style() {
             right: 0; /* Move to the right edge if needed */
         }
         tfoot tr td #footer-box {
+            position: fixed;
+            left: var(--debitor-grid-page-padding);
+            right: var(--debitor-grid-page-padding);
+            bottom: calc(var(--debitor-grid-extra-footer-space) + var(--debitor-grid-page-padding));
+            z-index: 999;
+            box-sizing: border-box;
             display: flex;
             align-items: center;
             gap: 10px;
             justify-content: flex-end;
+            min-height: 30px;
+            padding: 4px 8px;
+            background-color: #f4f4f4;
+            border-top: 2px solid #ddd;
         }
         tfoot tr td #footer-box button {
             padding: 0;

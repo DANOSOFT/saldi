@@ -41,8 +41,8 @@ include("../includes/db_query.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
 
-$periode=if_isset($_GET['periode'])? $_GET['periode']:Null;
-$ret=if_isset($_GET['ret'])? $_GET['ret']:Null;
+$periode = isset($_GET['periode']) ? $_GET['periode'] : Null;
+$ret     = isset($_GET['ret'])     ? $_GET['ret']     : Null;
 if (isset($_POST['periode'])) $periode=$_POST['periode'];
 
 $day=date("d");
