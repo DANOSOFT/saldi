@@ -2816,11 +2816,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td title='$title'><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$y'
 		$de_fok value ='" . dkdecimal($amount[$y], 2) . "' onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd) {
-			print "<td><input class='inputbox kk-col-afd' type='text' style='text-align:right;width:50px;' name='afd_$y'
+			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$y'
 			$de_fok value =\"$afd[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_ansat) {
-			print "<td><input class='inputbox kk-col-ansat' type='text' style='text-align:right;width:50px;' name='meda$y'
+			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$y'
 			$de_fok value =\"$ansat[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_projekt) {
@@ -3094,17 +3094,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		name='k_ty$x' $de_fok value =\"$k_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
 		name='kred$x' $de_fok value=\"$kredit[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td>" . render_vat_select("kvat$x", if_isset($kreditvat[$x], ''), $vat_codes, $charset) . "</td>\n";
-		print "<td><input class='inputbox kk-col-vat_k' type='text' style='text-align:right;width:75px;'
+		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$x", if_isset($kreditvat[$x], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
 		name='fakt$x' $de_fok value=\"$faktura[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;'
 		name='belo$x' $de_fok value=\"$belob\" onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd) {
-			print "<td><input class='inputbox kk-col-afd' type='text' style='text-align:right;width:50px;'
+			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;'
 			name='afd_$x' $de_fok value=\"$afd[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_ansat) {
-			print "<td><input class='inputbox kk-col-ansat' type='text' style='text-align:right;width:50px;'
+			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;'
 			name='meda$x' $de_fok value =\"$ansat[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_projekt) {
