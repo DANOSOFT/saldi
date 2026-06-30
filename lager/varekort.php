@@ -944,7 +944,6 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
             $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision',";// 20221004
             $qtxt .= "has_due_date=$has_due_date,";
-            
             $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
             $qtxt .= "note_on_orderline=" . ($note_on_orderline ? 'true' : 'false');
             $qtxt .= " where id = '$id'";
