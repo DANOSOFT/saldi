@@ -1873,7 +1873,7 @@ function ordre_valg() {
 	print "<input type=hidden name=id value='$id'>";
 	$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	if($r = db_fetch_array(db_select($qtxt, __FILE__ . "linje " . __LINE__)))
-		print "<tr><td title='Låser fakturere knappen hvis den ikke er betalt'>Lås fakutrer knappen hvis ordren ikke er betalt</td><td><input type='checkbox' class='checkbox' name='lockPayment' $lockPayment><td></tr>";
+		print "<tr><td title='".findtekst('3356|Hvis dette felt afmærkes, låses fakturér-knappen hvis ordren ikke er betalt', $sprog_id)."'>".findtekst('3357|Lås fakturér-knappen, hvis ordren ikke er betalt', $sprog_id)."</td><td><input type='checkbox' class='checkbox' name='lockPayment' $lockPayment><td></tr>";
 
 	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (private kunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatPrivateCustomers $incl_moms_private></td></tr>";
 	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (erhvervskunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatBusinessCustomers $incl_moms_business></td></tr>";

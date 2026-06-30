@@ -3353,8 +3353,8 @@
 3353	Her tastes den planlagte start- og slutdato for sagen, som vises under planlægning	Enter the planned start and end date for the project, displayed during planning	Skriv inn planlagt start- og sluttdato for saken, som vises under planlegging
 3354	Genveje til Kassekladden	Cash Journal shortcuts	Snarveier til Kassekladden
 3355	Hjælp til Kassekladden	Cash Journal help	Hjelp til Kassekladden
-3356			
-3357			
+3356	Hvis dette felt afmærkes, låses fakturér-knappen hvis ordren ikke er betalt	If this box is checked, the invoice button is locked if the order has not been paid	Hvis dette feltet krysses av, låses fakturer-knappen hvis ordren ikke er betalt
+3357	Lås fakturér-knappen, hvis ordren ikke er betalt	Lock the invoice button if the order has not been paid	Lås fakturer-knappen hvis ordren ikke er betalt
 3358			
 3359			
 3360			
