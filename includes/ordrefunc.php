@@ -99,6 +99,7 @@
 // 20260604 CL/PHR function bogfor_nu: tightened POS-detection condition - felt_4, felt_5 must also be numeric and felt_5 > 0 to avoid regular orders being treated as POS
 // 20260618 Sawaneh Stock warning popup now triggers when sale quantity would leave stock below min_lager
 // 20260619 Sawaneh check_stock_warning reads stock from lagerstatus (sum across warehouses) like the order-line red-highlight, not the drifting varer.beholdning field
+// 20260630 CDX/PK Changed the cleanup so that negative lines are only deleted if there is also at least one normal line (item no. >= 0) on the same order.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -2998,7 +2999,9 @@ function bogfor_nu($id, $kilde) {
 			$tmp .= " or ordre_id = '" . $idliste[$x] . "'";
 		$tmp .= ")";
 	}
-	db_modify("delete from ordrelinjer where $tmp and posnr < 0", __FILE__ . " linje " . __LINE__);
+	$qtxt = "delete from ordrelinjer where $tmp and posnr < 0 "; #20260630
+	$qtxt.= "and exists (select 1 from ordrelinjer ol_keep where ol_keep.ordre_id = ordrelinjer.ordre_id and ol_keep.posnr >= 0)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	$d_kontrol = afrund($d_kontrol, 2);
 	$k_kontrol = afrund($k_kontrol, 2);
 	if ($brugernavn == 'saldi')

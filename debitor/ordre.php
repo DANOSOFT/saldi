@@ -422,47 +422,17 @@ if ((isset($_POST['linjetekster'])) && ($id = if_isset($_POST, NULL, 'id'))) {
 	}
 }
 #$alert = findtekst(15)
-$lockedByOther=null;
 if ($tjek = if_isset($_GET, NULL, 'tjek')) {
-	$qtxt = "SELECT ref, tidspkt FROM ordrer WHERE status < 3
-    AND id = '$tjek'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if ($r) {
-		//check that an actual registered user is holding the lock.
-		// Lock duration: 1 hour (3600 seconds)
-		if($r['tidspkt'] != null){
-			 $tidspkt = date("U") - $r['tidspkt'];
-			$lockedByOther = $r['ref'] != $brugernavn
-							&& ($tidspkt - $r['tidspkt'] < 3600);
-		}
-
-
-		// Verify that the user who holds the lock still exists in the system
-		$validUser = false;
-		if ($r['ref']) {
-			$userCheck = db_select(
-				"SELECT id FROM brugere
-				WHERE brugernavn = '" . db_escape_string($r['ref']) . "'",
-				__FILE__ . " line " . __LINE__
-			);
-			$validUser = (bool) db_fetch_array($userCheck);
-		}
-
-		if ($lockedByOther && $validUser) {
-			// Order is locked by another active user → show alert and redirect
-			$msg = findtekst('1542|Ordren er i brug af', $sprog_id) . " {$r['ref']}";
-			print "<body onLoad=\"javascript:alert('" . addslashes($msg) . "')\">\n";
+	$qtxt = "select tidspkt,hvem from ordrer where status < 3 and id = '$tjek' and hvem != '$brugernavn'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		if ($r['tidspkt'] && $tidspkt - ($r['tidspkt']) < 3600 && $r['hvem']) {
+			print "<BODY onLoad=\"javascript:alert('" . findtekst('1542|Ordren er i brug af', $sprog_id) . " $r[hvem]')\">\n";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">\n";
 		} else {
-			// No lock (or lock owned by a deleted user) → take ownership
-			db_modify(
-				"UPDATE ordrer
-				SET ref = '$brugernavn',
-					tidspkt = '$tidspkt'
-				WHERE id = '$tjek'",
-				__FILE__ . " line " . __LINE__
-			);
+			db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
 		}
+	} else {
+		db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
 	}
 }
 if (!$id) $id = if_isset($_GET['ordre_id']);
