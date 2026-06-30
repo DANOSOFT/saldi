@@ -20,7 +20,6 @@
 			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			Luk</button></a></td>";
 	}
-
 	?>
 		<td width='100%' style='<?php echo $topStyle ?>' align=left>
 			<div style='display:flex; align-items:center;'>

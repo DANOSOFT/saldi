@@ -197,12 +197,12 @@ if (!function_exists('if_isset')) {
         // Case 1: One argument — treat as a single variable fallback
         if ($key === null) {
             // If key is not provided, we're dealing with just a single variable
-
+          
 			 // Check if the variable is explicitly false and return NULL
 			 if ($arrayOrVar === false) {
 				return NULL;
 			}
-
+	
 			return isset($arrayOrVar) ? $arrayOrVar : $default;
         }
 
@@ -927,18 +927,18 @@ if (!function_exists('tekstboks')) {
 		$boksindhold = "\n<!-- Tekstboks " . $boksid . " - start -->\n";
 
 		if ($boksflytbar === 'td') {
-			# Nedenstående linjer er forsøg på at påvirker det originale udseende så lidt som muligt
-# ved brug af den flytbare boks med <table> inden i en <div>. Læser man dokumentationen,
-# så skulle et element med display:none ikke have nogen indflydelse på udseendet, men det
-# har det i både Opera 25.0 og Chrome 38.0.2125.111 m.
-#
-# Claus Agerskov 20141121.
-#		$boksindhold.="<div style='display:none'><table style='display:none'><tr><td>Test</td></tr></table></div>\n";
-#		$boksindhold.="<table style='display:none'><tr><td>Test</td></tr></table>\n";
-			$boksindhold .= "<table style='display:none'></table>\n"; # Giver mindst indvirkning på udseendet.
-#		$boksindhold.="<tr style='display:none'><td>Test</td></tr>\n";
-#		$boksindhold.="<table><tr><td>Test</td></tr></table>\n";
-#		$boksindhold.="<div style='display:none'>Test2</div>\n";
+			# Nedenstående linjer er forsøg på at påvirker det originale udseende så lidt som muligt 
+			# ved brug af den flytbare boks med <table> inden i en <div>. Læser man dokumentationen, 
+			# så skulle et element med display:none ikke have nogen indflydelse på udseendet, men det 
+			# har det i både Opera 25.0 og Chrome 38.0.2125.111 m. 
+			# 
+			# Claus Agerskov 20141121.
+			#		$boksindhold.="<div style='display:none'><table style='display:none'><tr><td>Test</td></tr></table></div>\n";
+			#		$boksindhold.="<table style='display:none'><tr><td>Test</td></tr></table>\n";
+						$boksindhold .= "<table style='display:none'></table>\n"; # Giver mindst indvirkning på udseendet.
+			#		$boksindhold.="<tr style='display:none'><td>Test</td></tr>\n";
+			#		$boksindhold.="<table><tr><td>Test</td></tr></table>\n";
+			#		$boksindhold.="<div style='display:none'>Test2</div>\n";
 		}
 
 		if ($bokstype === 'fejl') {
@@ -1228,36 +1228,36 @@ if (!function_exists('find_lagervaerdi')) {
 		}
 		$vare_id = array();
 		/////////////////////////////////////
-/*
-	$x=0;
-	$qtxt="select kostpriser.vare_id,kostpriser.kostpris,varer.gruppe from kostpriser,varer";
-	$qtxt.=" where ";
-	$qtxt.="kostpriser.transdate<='$slut' and varer.id=kostpriser.vare_id";
-	$qtxt.=" order by ";
-	$qtxt.="kostpriser.transdate desc";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		if (!in_array($r['vare_id'],$vare_id) && in_array($r['gruppe'],$gruppe)) {
-			$vare_id[$x]=$r['vare_id'];
-			$kostpris[$x]=$r['kostpris'];
-			$antal[$x]=0;
-			$x++;
-		}
-	}
-	$qtxt="select id,kostpris,gruppe from varer";
-	$qtxt.=" order by ";
-	$qtxt.="id";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		if (!in_array($r['id'],$vare_id) && in_array($r['gruppe'],$gruppe)) {
-			$vare_id[$x]=$r['id'];
-			$kostpris[$x]=$r['kostpris'];
-			$antal[$x]=0;
-			$x++;
-		}
-	}
-/////////////////////////
-*/
+		/*
+			$x=0;
+			$qtxt="select kostpriser.vare_id,kostpriser.kostpris,varer.gruppe from kostpriser,varer";
+			$qtxt.=" where ";
+			$qtxt.="kostpriser.transdate<='$slut' and varer.id=kostpriser.vare_id";
+			$qtxt.=" order by ";
+			$qtxt.="kostpriser.transdate desc";
+			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r=db_fetch_array($q)) {
+				if (!in_array($r['vare_id'],$vare_id) && in_array($r['gruppe'],$gruppe)) {
+					$vare_id[$x]=$r['vare_id'];
+					$kostpris[$x]=$r['kostpris'];
+					$antal[$x]=0;
+					$x++;
+				}
+			}
+			$qtxt="select id,kostpris,gruppe from varer";
+			$qtxt.=" order by ";
+			$qtxt.="id";
+			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r=db_fetch_array($q)) {
+				if (!in_array($r['id'],$vare_id) && in_array($r['gruppe'],$gruppe)) {
+					$vare_id[$x]=$r['id'];
+					$kostpris[$x]=$r['kostpris'];
+					$antal[$x]=0;
+					$x++;
+				}
+			}
+		/////////////////////////
+		*/
 		$y = 0;
 		for ($x = 0; $x < count($gruppe); $x++) {
 			$q = db_select("select id,kostpris from varer where gruppe = '$gruppe[$x]' order by id", __FILE__ . " linje " . __LINE__);
@@ -1608,8 +1608,8 @@ if (!function_exists('find_beholdning')) {
 		 * @param int $vare_id - The item ID for which the stock levels are being calculated.
 		 * @param bool $udskriv - Flag to indicate whether the results should be printed (not used in the function).
 		 *
-		 * @return array $beholdning - An associative array with stock levels for various categories.
-		 * Each index represents a category (e.g., 'in sales offer', 'sales order', etc.) and contains
+		 * @return array $beholdning - An associative array with stock levels for various categories. 
+		 * Each index represents a category (e.g., 'in sales offer', 'sales order', etc.) and contains 
 		 * the corresponding stock or order information.
 		 */
 
@@ -1691,7 +1691,7 @@ if (!function_exists('hent_shop_ordrer')) {
 		  if ($from_date)
 			$api_txt .= "&from_date=$from_date";
 		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-
+		  
 		  if($r["box5"]){
 			$api_txt = "$r[box5]?put_new_orders=1";
 		  if ($shop_ordre_id)
@@ -1712,7 +1712,7 @@ if (!function_exists('hent_shop_ordrer')) {
 	  }
 	}
   } #endfunc hent_shop_ordrer()
-
+  
 
 if (!function_exists('alert')) {
 	function alert($msg)
@@ -1772,7 +1772,7 @@ if(!function_exists("sync_shop_price")){
 	  }
 	}
   }
-
+  
 
 if (!function_exists('sync_shop_vare')) {
 	function sync_shop_vare($vare_id, $variant_id, $lager) {
@@ -1785,19 +1785,19 @@ if (!function_exists('sync_shop_vare')) {
 		$api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
 		$api_fil2 = trim($r["box5"]);
 		$api_fil3 = trim($r["box6"]);
-
+		
 		if (!$api_fil) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 			fclose($log);
 			return ('no api');
 		}
-
+		
 		$qtxt = "select delvare,gruppe from varer where id='$vare_id'"; #20220110
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$itemGroup = (int) $r['gruppe'];
 		$partOfItem = $r['delvare'];
-		#if ($partOfItem) echo __line__." Id $vare_id is part of another item<br>";
+		#if ($partOfItem) echo __line__." Id $vare_id is part of another item<br>";  	
 		$qtxt = "select box8 from grupper where kodenr='$itemGroup' and art = 'VG' AND fiscal_year = $regnaar";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
 		// echo $qtxt;  // Debug line removed
@@ -1807,7 +1807,7 @@ if (!function_exists('sync_shop_vare')) {
 			fclose($log);
 			return ('no stock');
 		}
-
+		
 		$header = "User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
 		if ($variant_id) {
 			$qtxt = "select shop_variant from shop_varer where saldi_variant='$variant_id'";
@@ -2003,10 +2003,10 @@ if (!function_exists('getAvailable')) {
 		/**
 		 * Calculates the available quantity of an item and its total availability across all warehouses.
 		 * It checks the stock for each part of the item and returns the available quantity in the given stock and the total available quantity across all stocks.
-		 *
+		 * 
 		 * @param int $itemId - The ID of the item whose availability is being checked.
 		 * @param string $stockNo - The warehouse number where the availability is being checked.
-		 *
+		 * 
 		 * @return string - A pipe-separated string containing the total available quantity and the available quantity in the specified stock.
 		 */
 
@@ -2130,7 +2130,7 @@ if (!function_exists('get_next_order_number')) {
 		 * @throws Exception - If unable to generate unique order number after maximum attempts.
 		 */
 		global $db_type;
-
+		
 		$max_attempts = 10;
 		$attempt = 0;
 		$ordrenr = null;
@@ -2159,18 +2159,18 @@ if (!function_exists('get_next_order_number')) {
 				// Use LOCK TABLE to ensure uniqueness and prevent race conditions
 				// FOR UPDATE with aggregate functions is not allowed in PostgreSQL
 				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+				
 
-
-#				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
+				//$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
 				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) AS max_ordrenr ";
 				$qtxt.= "FROM (SELECT ordrenr FROM ordrer WHERE art = '$art' OR art = '$art2' FOR UPDATE) t";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
-
+				
 				// Double-check that this order number doesn't exist (extra safety)
 				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND (art = '$art' OR art = '$art2')";
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-
+				
 				if (!$check_r || !$check_r['id']) {
 					// Order number is unique, commit transaction and return
 					transaktion('commit');
@@ -2183,11 +2183,11 @@ if (!function_exists('get_next_order_number')) {
 					usleep($rand); // Small random delay to reduce contention
 				}
 			}
-
+			
 			// If we get here, we couldn't generate a unique number
 			transaktion('rollback');
 			throw new Exception("Could not generate unique order number after $max_attempts attempts");
-
+			
 		} catch (Exception $e) {
 			transaktion('rollback');
 			throw $e;
@@ -2210,7 +2210,7 @@ if (!function_exists('get_next_invoice_number')) {
 		 * @return int - The next available invoice number.
 		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
 		 */
-
+		
 		global $db, $bruger_id;
 
 		$debug = ($bruger_id == -1);
@@ -2333,6 +2333,19 @@ if (!function_exists('barcode')) {
 	function barcode($stregkode)
 	{
 		global $db;
+		/**
+		 * Generates a barcode image (PNG) for the given barcode string.
+		 * It checks if the input is a valid EAN-13 code and creates a barcode image using external tools.
+		 * 
+		 * The function will first check if the required tools (`barcode` or `tbarcode`) are available and if
+		 * the barcode string is valid. It will then generate the barcode in EPS format and convert it to PNG.
+		 * The barcode image will be saved in the `../temp/$db/` directory.
+		 *
+		 * @param string $stregkode - The barcode string to generate the image for.
+		 *
+		 * @return string|null - The path to the generated PNG file, or null if an error occurs.
+		$ean13 = NULL;
+		#(strpos($stregkode,';'))?$stregkoder=explode(";",$stregkode):$stregkoder[0]=$stregkode;
 		$stregkoder = explode(";", $stregkode);
 		$svg_path = NULL;
 
@@ -2745,10 +2758,8 @@ if(!function_exists('check_and_sanitize_input')){
 				echo "<script nonce='{$nonce}'>window.location.href = 'index.php';</script>";
 				exit;
 			}
-
 			return htmlspecialchars($_POST[$input_name], ENT_QUOTES, 'UTF-8');
 		}
-
 		return null;
 	}
 }
@@ -2775,7 +2786,7 @@ if(!function_exists('update_settings_value')){
                 if ($user !== NULL)  $qtxt .= " AND user_id=$user";
 				if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
                 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-
+				
                 # If the row already exsists
                 if ($r) {
                         $qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND var_grp = '$var_grp'";
@@ -2816,7 +2827,7 @@ if (!function_exists('clean_phone_number')) {
 		if (strpos($cleanedNumber, $countryCode) !== 0) {
 			$cleanedNumber = $countryCode . $cleanedNumber;
 		}
-
+		
 		return $cleanedNumber;
 	}
 }
@@ -2944,17 +2955,17 @@ if (!function_exists('brightenColor')) {
     function brightenColor($color, $amount = 0.2) {
         // Remove # if present
         $color = ltrim($color, '#');
-
+        
         // Convert hex to RGB
         $r = hexdec(substr($color, 0, 2));
         $g = hexdec(substr($color, 2, 2));
         $b = hexdec(substr($color, 4, 2));
-
+        
         // Brighten each component
         $r = min(255, $r + ($amount * (255 - $r)));
         $g = min(255, $g + ($amount * (255 - $g)));
         $b = min(255, $b + ($amount * (255 - $b)));
-
+        
         // Convert back to hex
         return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
     }
@@ -2970,17 +2981,17 @@ if (!function_exists('darkenColor')) {
     function darkenColor($color, $amount = 0.2) {
         // Remove # if present
         $color = ltrim($color, '#');
-
+        
         // Convert hex to RGB
         $r = hexdec(substr($color, 0, 2));
         $g = hexdec(substr($color, 2, 2));
         $b = hexdec(substr($color, 4, 2));
-
+        
         // Darken each component
         $r = max(0, $r - ($amount * $r));
         $g = max(0, $g - ($amount * $g));
         $b = max(0, $b - ($amount * $b));
-
+        
         // Convert back to hex
         return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
     }

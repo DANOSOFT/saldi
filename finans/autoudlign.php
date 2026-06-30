@@ -32,7 +32,7 @@
 // 2020.09.14 PHR - Added search for account if 'afr:' in text
 // 2020.11.07 PHR - Added controle for duplicates when displaying matching openposts 'distinct(openpost.id)'
 // 2026.05.14 LOE - General code cleanup and modernization; no functional changes intended.
-// 20260519 CL/PHR Fixet problem that it did not find some openoposts.
+// 2026.05.19 CL/PHR Fixet problem that it did not find some openoposts.
 
 @session_start();
 $s_id = session_id();
