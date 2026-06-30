@@ -438,47 +438,17 @@ if ((isset($_POST['linjetekster'])) && ($id = if_isset($_POST, NULL, 'id'))) {
 	}
 }
 #$alert = findtekst(15)
-$lockedByOther=null;
 if ($tjek = if_isset($_GET, NULL, 'tjek')) {
-	$qtxt = "SELECT ref, tidspkt FROM ordrer WHERE status < 3
-    AND id = '$tjek'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if ($r) {
-		//check that an actual registered user is holding the lock.
-		// Lock duration: 1 hour (3600 seconds)
-		if($r['tidspkt'] != null){
-			 $tidspkt = date("U") - $r['tidspkt'];
-			$lockedByOther = $r['ref'] != $brugernavn
-							&& ($tidspkt - $r['tidspkt'] < 3600);
-		}
-
-
-		// Verify that the user who holds the lock still exists in the system
-		$validUser = false;
-		if ($r['ref']) {
-			$userCheck = db_select(
-				"SELECT id FROM brugere
-				WHERE brugernavn = '" . db_escape_string($r['ref']) . "'",
-				__FILE__ . " line " . __LINE__
-			);
-			$validUser = (bool) db_fetch_array($userCheck);
-		}
-
-		if ($lockedByOther && $validUser) {
-			// Order is locked by another active user → show alert and redirect
-			$msg = findtekst('1542|Ordren er i brug af', $sprog_id) . " {$r['ref']}";
-			print "<body onLoad=\"javascript:alert('" . addslashes($msg) . "')\">\n";
+	$qtxt = "select tidspkt,hvem from ordrer where status < 3 and id = '$tjek' and hvem != '$brugernavn'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		if ($r['tidspkt'] && $tidspkt - ($r['tidspkt']) < 3600 && $r['hvem']) {
+			print "<BODY onLoad=\"javascript:alert('" . findtekst('1542|Ordren er i brug af', $sprog_id) . " $r[hvem]')\">\n";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">\n";
 		} else {
-			// No lock (or lock owned by a deleted user) → take ownership
-			db_modify(
-				"UPDATE ordrer
-				SET ref = '$brugernavn',
-					tidspkt = '$tidspkt'
-				WHERE id = '$tjek'",
-				__FILE__ . " line " . __LINE__
-			);
+			db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
 		}
+	} else {
+		db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
 	}
 }
 if (!$id) $id = if_isset($_GET['ordre_id']);
@@ -2533,31 +2503,36 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		}
 	}
 	// -- Out-of-stock approval logging (Håndtering af salg af udsolgte varer) --
-	// The JS preflight attached one note per varenr the user approved. We now
-	// look up each of those varenr in this order's lines and write a log row.
+	// The JS preflight attached one note per varenr the user approved. We log one
+	// row per (order, varenr) so every approved item — including each samlesæt
+	// sub-item, which shares its varenr with the standalone item — is recorded.
+	// Deduping by varenr (not by linje_id) is what makes set sub-items log reliably:
+	// their order line cannot be told apart from a standalone line by varenr alone.
 	if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()
 		&& isset($_POST['stock_warning_note']) && is_array($_POST['stock_warning_note']) && $id) {
 		foreach ($_POST['stock_warning_note'] as $swVarenr => $swNote) {
 			$swNote = trim((string)$swNote);
 			if ($swNote === '') continue;
 			$swVarenrEsc = db_escape_string($swVarenr);
-			$rSW = db_fetch_array(db_select("select id, vare_id from ordrelinjer where ordre_id = '$id' and varenr = '$swVarenrEsc' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
-			if (!$rSW || !$rSW['vare_id']) continue;
-			// Skip if we already logged this exact line (idempotent on re-save).
-			$rDup = db_fetch_array(db_select("select id from order_stock_warning_log where ordre_id = '$id' and linje_id = '$rSW[id]' limit 1", __FILE__ . " linje " . __LINE__));
-			if ($rDup && $rDup['id']) continue;
-			// Reconcile any orphan log row written by the JS sendBeacon BEFORE the order line existed.
-			$rOrphan = db_fetch_array(db_select(
-				"select id from order_stock_warning_log " .
-				"where ordre_id = '$id' and varenr = '$swVarenrEsc' " .
-				"and (linje_id is null or linje_id = 0) " .
-				"order by id desc limit 1",
-				__FILE__ . " linje " . __LINE__));
-			if ($rOrphan && $rOrphan['id']) {
-				db_modify("update order_stock_warning_log set linje_id = '" . (int)$rSW['id'] . "' where id = '" . (int)$rOrphan['id'] . "'", __FILE__ . " linje " . __LINE__);
+			// One approval row per item per order. If one already exists (e.g. written
+			// by the JS sendBeacon), top up its linje_id if it is still missing, then skip.
+			$rDup = db_fetch_array(db_select("select id, linje_id from order_stock_warning_log where ordre_id = '$id' and varenr = '$swVarenrEsc' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+			$rLine = db_fetch_array(db_select("select id, vare_id from ordrelinjer where ordre_id = '$id' and varenr = '$swVarenrEsc' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+			if ($rDup && $rDup['id']) {
+				if ((empty($rDup['linje_id']) || $rDup['linje_id'] == 0) && $rLine && $rLine['id']) {
+					db_modify("update order_stock_warning_log set linje_id = '" . (int)$rLine['id'] . "' where id = '" . (int)$rDup['id'] . "'", __FILE__ . " linje " . __LINE__);
+				}
 				continue;
 			}
-			log_stock_warning($id, (int)$rSW['vare_id'], $swNote, (int)$rSW['id']);
+			// Resolve vare_id from the order line if present, otherwise from the item card.
+			$swVareId  = ($rLine && $rLine['vare_id']) ? (int)$rLine['vare_id'] : 0;
+			$swLinjeId = ($rLine && $rLine['id']) ? (int)$rLine['id'] : 0;
+			if (!$swVareId) {
+				$rV = db_fetch_array(db_select("select id from varer where varenr = '$swVarenrEsc' or stregkode = '$swVarenrEsc' limit 1", __FILE__ . " linje " . __LINE__));
+				if ($rV && $rV['id']) $swVareId = (int)$rV['id'];
+			}
+			if (!$swVareId) continue;
+			log_stock_warning($id, $swVareId, $swNote, $swLinjeId ?: null);
 		}
 	}
 	transaktion("commit");
@@ -3897,28 +3872,11 @@ function ordreside($id, $regnskab)
 			$swPopV = @filemtime(__DIR__ . '/../javascript/stockWarningPopup.js') ?: time();
 			print "<script src=\"../javascript/stockWarningPopup.js?v=$swPopV\"></script>\n";
 			print "<script src=\"../javascript/orderStockWarningSave.js?v=$swJsV\"></script>\n";
-			// Emit two kinds of pre-approval markers:
-			//   (1) per linje_id  -- the line is still on the order and still has an active log row
-			//   (2) per varenr    -- this varenr has been approved on this order at least once,
-			//                       even if the original line was deleted (audit trail still
-			//                       captures every add separately)
-			// The JS treats either as "approved" so the popup is silent. This prevents the
-			// popup from re-firing for already-approved varenrs when you add or modify
-			// other lines on a mixed order.
+			// Emit a pre-approval marker per varenr that already has an approval logged
+			// on this order. The cumulative check warns once per item (current stock -
+			// total ordered < minimum); once approved, adding more of that item stays
+			// silent. Newly added, not-yet-approved items are still evaluated.
 			if ($id) {
-				$qPre = db_select(
-					"select sw.linje_id " .
-					"from order_stock_warning_log sw " .
-					"join ordrelinjer ol on ol.id = sw.linje_id " .
-					"where sw.ordre_id = '$id' and sw.linje_id is not null",
-					__FILE__ . " linje " . __LINE__
-				);
-				while ($rPre = db_fetch_array($qPre)) {
-					$preLid = (int)$rPre['linje_id'];
-					if ($preLid > 0) {
-						print "<input type=\"hidden\" name=\"stock_warning_preapproved_line[$preLid]\" value=\"1\">\n";
-					}
-				}
 				$qPreV = db_select(
 					"select distinct sw.varenr " .
 					"from order_stock_warning_log sw " .
