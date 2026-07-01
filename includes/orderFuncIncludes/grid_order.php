@@ -3,6 +3,7 @@
 // 20260203 @LOE Updated build_query to return exact searches first before related matches.
 // 20260601 Sawaneh Applied sqlOverride in build_count_query so ORDER BY uses the qualified column and avoids ambiguous-column error
 // 20260612 pk - Changed the size of the arrow buttons in pagination so that they are the same size as the number buttons
+// 20260630 Sawaneh render_table_row now wraps render-less column values in a <td> so raw values no longer leak as text above the grid
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -1522,10 +1523,12 @@ function render_table_row($columns, $row, $searchTerms) {
             );
         }
 
-        // Render the final data
+        // Wrap render-less column values in a <td>; otherwise the raw value is loose text
+        // inside the <tr> that the browser hoists out to above the table. #20260630
+        $align = isset($column['align']) ? $column['align'] : 'left';
         $data = isset($column['render']) && is_callable($column['render'])
             ? $column['render']($value, $row, $column)
-            : "<td align='" . (isset($column['align']) ? $column['align'] : 'left') . "'>" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "</td>";
+            : "<td align='" . htmlspecialchars($align) . "'>" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "</td>";
 
         echo $data;
     }

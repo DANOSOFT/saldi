@@ -94,8 +94,8 @@
 //                  migrateOldBilag.php inkluderet til automatisk migration af gamle bilag
 // 20260603 NTR Changed Varenr to posnr in SellerItemID in OIOUBL generation as per Jørgen's email.
 // 20260610 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
-// 20260611 LOE Added UI for hvem and updated its logic 
-
+// 20260611 LOE Added UI for hvem and updated its logic
+// 20260630 Sawaneh Made 'Performed by' (hvem) display-only: removed its order-locking side effects, added a blank option so it can be cleared, and made clearing to blank persist on save
 @session_start();
 $s_id = session_id();
 
@@ -821,7 +821,8 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 } elseif ($status < 3 && $id && $firmanavn) {
 	// if(!$hvem) $hvem = $brugernavn;
 	if(!$hvem) $hvem = "";
-	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id and hvem='$hvem'", __FILE__ . " linje " . __LINE__);
+	// 'hvem' (Performed by) is display-only and must not gate the order. Match on id only. #20260629
+	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		if (!$row['firmanavn']) { # <- 2009.05.13 Eller overskrives v. kontaktopslag.
 			if (!$restordre) $restordre = 0; # 20201215
@@ -2360,13 +2361,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 
 		if ($id) {
 			$timestamp = $who = NULL;
-			$qtxt = "select tidspkt,hvem from ordrer where status < 3 and id = '$id' and hvem != '' and hvem != '$brugernavn'";
-
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$timestamp = trim($r['tidspkt']);
-				$who       = $row['hvem'];
-				$hvem = $who;
-			}
+			// 'hvem' (Performed by) is display-only and must NOT lock the order; concurrent-edit
+			// locking is handled by the ref-based lock when the order is opened. #20260629
 			if ($tidspkt && $who) {
 				if ($tidspkt - $timestamp < 3600 && $who) {
 					$alert = findtekst('1843|Ordren er overtaget af', $sprog_id);
@@ -2375,15 +2371,14 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 			} else {
 				$tmp = "";
-				if(!$hvem) $hvem = isset($_POST['hvem']) ? $_POST['hvem'] : '';
-				if(!$hvem) {
-					$qtxt = "select hvem from ordrer where id = '$id'";
-					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				// Respect the submitted 'hvem' even when blank; only fall back to the stored value
+				// when the field was not submitted, so clearing it to blank persists. #20260630
+				if (isset($_POST['hvem'])) {
+					$hvem = $_POST['hvem'];
+				} elseif (!$hvem) {
+					$r = db_fetch_array(db_select("select hvem from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 					if ($r) $hvem = $r['hvem'];
 				}
-				
-				// if(!$hvem && $status < 3) $hvem = $brugernavn;
-				if(!$hvem && $status < 3) $hvem = "";
 				if (strlen($levdate) > 6) $tmp = ",levdate='$levdate'";
 				if (strlen($fakturadate) > 6) $tmp = $tmp . ",fakturadate='$fakturadate'";
 				if ($genfakt) $tmp = $tmp . ",nextfakt='" . usdate($genfakt) . "'";
@@ -5190,16 +5185,18 @@ function ordreside($id, $regnskab)
 
 			#####
 			print "<INPUT TYPE = 'hidden' NAME = 'oldhvem' VALUE = \"$hvem\">";
-			for ($x=0;$x<count($ansat);$x++) { 
+			for ($x=0;$x<count($ansat);$x++) {
 				if (!$x) {
-				print "<tr><td>Performed by</td>\n"; 
+				print "<tr><td>Performed by</td>\n";
 				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"hvem\" $disabled>\n";
 				print "<option>$hvem</option>\n";
+				// Always offer a blank option so 'Performed by' can be cleared back to blank. #20260629
+				if (trim($hvem) != '') print "<option value=\"\"></option>\n";
 				    if ($brugernavn != $hvem && !in_array($brugernavn, $ansat)) {
 						print "<option value=\"$brugernavn\">$brugernavn</option>\n";
 					}
 				}
-				if ($ref!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
+				if ($hvem!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
 			}
 			####
 
