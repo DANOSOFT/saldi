@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Kommission view - separate file for better grid differentiation
+// 20260629 PHR/CL Make "Vælg alle" check invite boxes in the grid view.
 
 #ob_start();
 @session_start();
@@ -567,13 +568,15 @@ $rowStyleFn = function ($row) {
 };
 
 // Meta column for kommission view
-$metaColumnFn = function ($row) {
+$chooseAllInvites = isset($_POST['chooseAll']) && $_POST['chooseAll'];
+$metaColumnFn = function ($row) use ($chooseAllInvites) {
 	$mySale = isset($row['mysale']) && $row['mysale'] ? "checked='checked'" : "";
 	$email = isset($row['email']) ? $row['email'] : '';
 	$disabled = $email ? "" : "disabled title='email mangler på konto'";
+	$invite = ($email && $chooseAllInvites) ? "checked='checked'" : "";
 	$html  = "<input type='hidden' name='debId[]' value='{$row['id']}' form='kommission-form'>";
 	$html .= "<td align='center'><input type='checkbox' name='mySale[]' value='{$row['id']}' $mySale form='kommission-form' onclick=\"event.stopPropagation ? event.stopPropagation() : (window.event.cancelBubble=true);\"></td>";
-	$html .= "<td align='center'><input type='checkbox' name='invite[]' value='{$row['id']}' $disabled form='kommission-form' onclick=\"event.stopPropagation ? event.stopPropagation() : (window.event.cancelBubble=true);\"></td>";
+	$html .= "<td align='center'><input type='checkbox' name='invite[]' value='{$row['id']}' $invite $disabled form='kommission-form' onclick=\"event.stopPropagation ? event.stopPropagation() : (window.event.cancelBubble=true);\"></td>";
 	return $html;
 };
 
@@ -645,4 +648,3 @@ if ($menu=='T') {
 }
 
 ?>
-

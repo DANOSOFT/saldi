@@ -29,7 +29,7 @@ $s_id = session_id();
 $css = "../css/standard.css";
 $modulnr = 12;
 
-global $menu;
+global $menu, $bruger_id, $buttonStyle, $topStyle;
 
 include("../includes/connect.php");
 include("../includes/online.php");
