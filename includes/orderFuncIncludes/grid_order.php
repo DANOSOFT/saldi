@@ -3,6 +3,7 @@
 // 20260203 @LOE Updated build_query to return exact searches first before related matches.
 // 20260601 Sawaneh Applied sqlOverride in build_count_query so ORDER BY uses the qualified column and avoids ambiguous-column error
 // 20260612 pk - Changed the size of the arrow buttons in pagination so that they are the same size as the number buttons
+// 20260701 CDX/NTR - Changed DEFAULT_GENERATE_SEARCH to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -119,6 +120,28 @@ function DEFAULT_GENERATE_SEARCH($column, $term) {
     }
     $term = str_replace(";", ":", $term);
     
+    // Numeric comparison searches: >10, >=10, <10, <=10, 10+ (10 or more) and 10- (10 or less).
+    if ($art == 'BELOB') {
+        $precision = isset($column['decimalPrecision']) ? $column['decimalPrecision'] : 2;
+        $numericField = "round(COALESCE({$field}::numeric, 0), {$precision})";
+
+        if (preg_match('/^(>=|<=|>|<)\s*(.+)$/', $term, $matches)) {
+            $operator = $matches[1];
+            $numValue = usdecimal(trim($matches[2]));
+            return "({$numericField} {$operator} $numValue)";
+        }
+
+        if (preg_match('/^(.+)\+$/', $term, $matches)) {
+            $numValue = usdecimal(trim($matches[1]));
+            return "({$numericField} >= $numValue)";
+        }
+
+        if (preg_match('/^(.+)-$/', $term, $matches)) {
+            $numValue = usdecimal(trim($matches[1]));
+            return "({$numericField} <= $numValue)";
+        }
+    }
+
     // Special handling for single BELOB (number) values - create narrow range
     if ($art == 'BELOB' && strpos($term, ':') === false) {
         $numValue = usdecimal($term);
@@ -140,7 +163,8 @@ function DEFAULT_GENERATE_SEARCH($column, $term) {
             $tmp1 = usdecimal($tmp1);
             $tmp2 = usdecimal($tmp2);
             $precision = $column['decimalPrecision'];
-            return "(round({$field}::numeric, {$precision}) >= $tmp1 AND round({$field}::numeric, {$precision}) <= $tmp2)";
+            $numericField = "round(COALESCE({$field}::numeric, 0), {$precision})";
+            return "({$numericField} >= $tmp1 AND {$numericField} <= $tmp2)";
             
         } elseif ($art == "NR") {
             $tmp1 = round($tmp1 * 1, 2);
@@ -700,13 +724,14 @@ function fill_missing_values($firstArray, $secondArray) {
             continue;
         }
 
-        foreach ($columnsByField[$firstItem['field']] as $key => $value) {
-            if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
-                $firstItem[$key] = $value;
+        $mergedItem = $columnsByField[$firstItem['field']];
+        foreach (array('headerName', 'description', 'width', 'align', 'hidden') as $key) {
+            if (isset($firstItem[$key]) && $firstItem[$key] !== "") {
+                $mergedItem[$key] = $firstItem[$key];
             }
         }
 
-        $merged[] = $firstItem;
+        $merged[] = $mergedItem;
     }
 
     return $merged;
@@ -840,7 +865,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
             if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
                 $term = addslashes($searchTerms[$column['field']]);
                 // Convert both the column value and the search term to lowercase
-                if ($term) {
+                if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
                 }
             }
@@ -981,7 +1006,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         foreach ($searchableColumns as $column) {
             if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
                 $term = addslashes($searchTerms[$column['field']]);
-                if ($term) {
+                if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
                 }
             }
