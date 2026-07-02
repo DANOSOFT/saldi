@@ -165,12 +165,12 @@ function noteliste($mine_notater) {
 		
 	if ($unsetsort) {
 		unset($_SESSION['notat_sort'],
-			$_SESSION['notat_datotid'],$sortstyle[0],
-			$_SESSION['notat_sagsnr'],$sortstyle[1],
-			$_SESSION['notat_udf_addr1'],$sortstyle[2],
-			$_SESSION['notat_hvem'],$sortstyle[3],
-			$_SESSION['notat_status'],$sortstyle[4],
-			$_SESSION['notat_beskrivelse'],$sortstyle[5]
+			$_SESSION['notat_datotid'],     $sortstyle[0],
+			$_SESSION['notat_sagsnr'],      $sortstyle[1],
+			$_SESSION['notat_udf_addr1'],   $sortstyle[2],
+			$_SESSION['notat_hvem'],        $sortstyle[3],
+			$_SESSION['notat_status'],      $sortstyle[4],
+			$_SESSION['notat_beskrivelse'], $sortstyle[5]
 		);
 	}
 		
@@ -180,30 +180,30 @@ function noteliste($mine_notater) {
 		
 	$sqlsort = urldecode($sort);
 	
-	$x=0;
+	$x = 0;
 	if ($mine_notater=(if_isset($_GET['mine_notater']))) { #20141903-1
-		$qtxt="select noter.id as n_id,noter.notat,noter.beskrivelse,noter.hvem,noter.assign_id,noter.datotid,noter.status,noter.sagsnr,noter.assign_to,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn from noter 
+		$qtxt = "select noter.id as n_id,noter.notat,noter.beskrivelse,noter.hvem,noter.assign_id,noter.datotid,noter.status,noter.sagsnr,noter.assign_to,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn from noter 
 		LEFT JOIN sager ON noter.assign_id = sager.id
 		where noter.assign_to='sager' and noter.hvem='$brugernavn' order by $sqlsort";
 	} else {
-		$qtxt="select noter.id as n_id,noter.notat,noter.beskrivelse,noter.hvem,noter.assign_id,noter.datotid,noter.status,noter.sagsnr,noter.assign_to,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn from noter 
+		$qtxt = "select noter.id as n_id,noter.notat,noter.beskrivelse,noter.hvem,noter.assign_id,noter.datotid,noter.status,noter.sagsnr,noter.assign_to,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn from noter 
 		LEFT JOIN sager ON noter.assign_id = sager.id
 		where noter.assign_to='sager' and (noter.status>='1' or noter.hvem='$brugernavn') order by $sqlsort";
 	}
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$notat_id[$x]=$r['n_id'];
-		$notat[$x]=htmlspecialchars($r['notat']);
-		$beskrivelse[$x]=htmlspecialchars($r['beskrivelse']);
-		$forfatter[$x]=htmlspecialchars($r['hvem']);
-		$sags_id[$x]=$r['assign_id']*1;
-		$datotid[$x]=$r['datotid'];
-		$status[$x]=$r['status'];
-		$sagsnr[$x]=$r['sagsnr'];
-		$udf_addr1[$x]=htmlspecialchars($r['udf_addr1']);
-		$udf_postnr[$x]=$r['udf_postnr'];
-		$udf_bynavn[$x]=htmlspecialchars($r['udf_bynavn']);
+		$notat_id[$x]   = $r['n_id'];
+		$notat[$x]      = htmlspecialchars($r['notat']);
+		$beskrivelse[$x]= htmlspecialchars($r['beskrivelse']);
+		$forfatter[$x]  = htmlspecialchars($r['hvem']);
+		$sags_id[$x]    = $r['assign_id']*1;
+		$datotid[$x]    = $r['datotid'];
+		$status[$x]     = $r['status'];
+		$sagsnr[$x]     = $r['sagsnr'];
+		$udf_addr1[$x]  = htmlspecialchars($r['udf_addr1']);
+		$udf_postnr[$x] = $r['udf_postnr'];
+		$udf_bynavn[$x] = htmlspecialchars($r['udf_bynavn']);
 		if ($sags_id[$x]) $sag_addr[$x]="$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]";
 	}
 	print "<div class=\"maincontent\">
@@ -279,15 +279,15 @@ function noteliste($mine_notater) {
 	global $sprog_id;
 	
 		if ($id) { 
-			$qtxt="select * from noter where id = '$id'";
-			$r = db_fetch_array($q = db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-			$notat=htmlspecialchars($r['notat']);
-			$beskrivelse=htmlspecialchars($r['beskrivelse']);
-			$forfatter=htmlspecialchars($r['hvem']);
-			$sag_id=$r['assign_id']*1;
-			$sag_fase=$r['fase'];
-			$datotid=$r['datotid'];
-			$status=$r['status'];
+			$qtxt        = "select * from noter where id = '$id'";
+			$r           = db_fetch_array($q = db_select("$qtxt",__FILE__ . " linje " . __LINE__));
+			$notat       = htmlspecialchars($r['notat']);
+			$beskrivelse = htmlspecialchars($r['beskrivelse']);
+			$forfatter   = htmlspecialchars($r['hvem']);
+			$sag_id      = $r['assign_id']*1;
+			$sag_fase    = $r['fase'];
+			$datotid     = $r['datotid'];
+			$status      = $r['status'];
 		}
 
 		print "<div class=\"maincontent\">
@@ -305,10 +305,10 @@ function noteliste($mine_notater) {
 			<hr style=\"margin: 9px 80px 9px 80px;\">
 			<div class=\"content\">";
 		if ($sag_id) {
-			$r=db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
-			($r['ufd_addr1'])?$adr=$r['ufd_addr1']:$adr=$r['addr1'];
-			($r['ufd_postnr'])?$pnr=$r['ufd_postnr']:$pnr=$r['postnr'];
-			($r['ufd_bynavn'])?$byn=$r['ufd_bynavn']:$byn=$r['bynavn'];
+			$r = db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
+			($r['ufd_addr1']) ? $adr = $r['ufd_addr1']  : $adr = $r['addr1'];
+			($r['ufd_postnr'])? $pnr = $r['ufd_postnr'] : $pnr = $r['postnr'];
+			($r['ufd_bynavn'])? $byn = $r['ufd_bynavn'] : $byn = $r['bynavn'];
 			print "<p class=\"infonote\">".findtekst('3163|Denne note er tilknyttet sag', $sprog_id).": $sag_id, $r[beskrivelse], $adr, $pnr $byn</p><br/>
 			<table border=\"0\" cellspacing=\"0\" width=\"600\" style=\"margin-left: 90px;\">
 		<tr>
@@ -324,35 +324,35 @@ function find_person($id,$sag_id,$sag_fase) {
 	global $sprog_id;
 
 	// Finder konto_id fra egen konto
-	$r=db_fetch_array(db_select("select id from adresser where art='S'",__FILE__ . " linje " . __LINE__));
-	$konto_id=$r['id']*1;
+	$r        = db_fetch_array(db_select("select id from adresser where art='S'",__FILE__ . " linje " . __LINE__));
+	$konto_id = $r['id'] * 1;
 	// Finder egne ansatte 
-	$x=0;
-	$q=db_select("select navn,email from ansatte where konto_id = '$konto_id' and email > '' and lukket < '0'",__FILE__ . " linje " . __LINE__); #20160107
+	$x = 0;
+	$q = db_select("select navn,email from ansatte where konto_id = '$konto_id' and email > '' and lukket < '0'",__FILE__ . " linje " . __LINE__); #20160107
 	while ($r = db_fetch_array($q)) {
-		$s_navn[$x]=$r['navn'];
-		$s_email[$x]=$r['email'];
+		$s_navn[$x]  = $r['navn'];
+		$s_email[$x] = $r['email'];
 		$x++;
 	}
 	// Hvis ingen sag_id, findes sag_id fra noter
 	if (!$sag_id) {
 		//if ($id) {
-			$r=db_fetch_array(db_select("select assign_id from noter where id='$id'",__FILE__ . " linje " . __LINE__));
-			$sag_id=$r['assign_id']*1;
+			$r      = db_fetch_array(db_select("select assign_id from noter where id='$id'",__FILE__ . " linje " . __LINE__));
+			$sag_id = $r['assign_id'] * 1;
 			//}
 		}
 	// Her finder vi konto_id fra sager
 	$d_navn  = array(); #20251803 "Find person"-
 	$d_email = array(); #20251803 blank side-fix
 	if ($sag_id) {
-		$r=db_fetch_array(db_select("select konto_id from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
-		$konto_id=$r['konto_id']*1;
+		$r        = db_fetch_array(db_select("select konto_id from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
+		$konto_id = $r['konto_id']*1;
 	// Finder kundes navn og email (da $x skal starte efter ansatte findes $x ved at counte antal ansatte)
-		$x=count($s_navn);
-		$q=db_select("select navn,email from ansatte where konto_id = '$konto_id'",__FILE__ . " linje " . __LINE__);
+		$x = count($s_navn);
+		$q = db_select("select navn,email from ansatte where konto_id = '$konto_id'",__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$d_navn[$x]=$r['navn'];
-			$d_email[$x]=$r['email'];
+			$d_navn[$x]  = $r['navn'];
+			$d_email[$x] = $r['email'];
 			$x++;
 		}
 	}
@@ -450,9 +450,9 @@ function ret_note($id,$sag_id,$sag_fase) {
 
 // kommer fra 'find_person', som indsætter email(s) i db
 	if (isset($_POST['mail_til']) && $_POST['mail_til']=='Ok'){
-		$besked_til='';
-		$mailvalg=$_POST['mailvalg'];
-		$e_mail=$_POST['e_mail'];
+		$besked_til = '';
+		$mailvalg   = $_POST['mailvalg'];
+		$e_mail     = $_POST['e_mail'];
 		for($x=0;$x<count($e_mail);$x++) {
 			if ($mailvalg[$x]=='on') {
 		($besked_til)?$besked_til.=";".$e_mail[$x]:$besked_til=$e_mail[$x];
@@ -461,60 +461,60 @@ function ret_note($id,$sag_id,$sag_fase) {
 		if ($besked_til && $id) db_modify("update noter set besked_til='$besked_til' where id='$id'",__FILE__ . " linje " . __LINE__);
 	}
 	if (!$sag_id && $sag_nr) { 
-		$r = db_fetch_array(db_select("select id,status from sager where sagsnr='$sag_nr'",__FILE__ . " linje " . __LINE__));
-		$sag_id=$r['id'];
-		$sag_fase=$r['status'];
+		$r        = db_fetch_array(db_select("select id,status from sager where sagsnr='$sag_nr'",__FILE__ . " linje " . __LINE__));
+		$sag_id   = $r['id'];
+		$sag_fase = $r['status'];
 		if (!$sag_fase) $sag_fase=1;
 	} 
 	if ($sag_id && $id && is_numeric($sag_fase)) {
-		if (!$sag_fase) $sag_fase=1;
-		$r=db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
-		$sagsnr=$r['sagsnr'];
+		if (!$sag_fase) $sag_fase = 1;
+		$r      = db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
+		$sagsnr = $r['sagsnr'];
 		db_modify("update noter set assign_id='$sag_id',fase='$sag_fase',sagsnr='$sagsnr' where id = '$id'",__FILE__ . " linje " . __LINE__);
 	} elseif (isset($_POST['id']) && $_POST['id'] && isset($_POST['beskrivelse'])) {
-		$id=$_POST['id'];
+		$id = $_POST['id'];
 		#		if ($notat=db_escape_string(if_isset($_POST['notat'])) || $beskrivelse=db_escape_string(if_isset($_POST['beskrivelse']))) {
-		$notat=if_isset($_POST['notat']);
-		$status=if_isset($_POST['status']);
+		$notat  = if_isset($_POST['notat']);
+		$status = if_isset($_POST['status']);
 		// Her slår vi op i noter for at få beskrivelse og nr
-		$r = db_fetch_array(db_select("select beskrivelse,nr from noter where id='$id'",__FILE__ . " linje " . __LINE__));
-		$notat_beskrivelse=$r['beskrivelse'];
-		$notat_nr=$r['nr'];
+		$r                 = db_fetch_array(db_select("select beskrivelse,nr from noter where id='$id'",__FILE__ . " linje " . __LINE__));
+		$notat_beskrivelse = $r['beskrivelse'];
+		$notat_nr          = $r['nr'];
 		// her tjekker vi om beskrivelse er det samme som beskrivelse i db. hvis de er forskellige sættes nr til 0
 		if ($notat_beskrivelse != if_isset($_POST['beskrivelse'])) {
-			$notat_nr='0';
+			$notat_nr = '0';
 		} else {
-			$notat_nr=$r['nr']*1;
+			$notat_nr = $r['nr'] * 1;
 		}
-		$beskrivelse=if_isset($_POST['beskrivelse']);
+		$beskrivelse = if_isset($_POST['beskrivelse']);
 		// hvis beskrivelse er tom
 		if (!$beskrivelse) {
-			$sag_id=if_isset($_POST['sag_id'])*1;
+			$sag_id = if_isset($_POST['sag_id']) * 1;
 			if ($r=db_fetch_array(db_select("select * from noter where assign_id='$sag_id'",__FILE__ . " linje " . __LINE__))) {
-			$r=db_fetch_array(db_select("select max(nr) as nr from noter where assign_id='$sag_id'",__FILE__ . " linje " . __LINE__));
-			$notat_nr=$r['nr']+1;
+			$r        = db_fetch_array(db_select("select max(nr) as nr from noter where assign_id='$sag_id'",__FILE__ . " linje " . __LINE__));
+			$notat_nr = $r['nr']+1;
 		} else {
-			$notat_nr='1';
+			$notat_nr = '1';
 		}
 		$beskrivelse = findtekst('2881|Notat', $sprog_id)." $notat_nr";
 			}
-		$sagsnr=NULL;
-		$sag_id=if_isset($_POST['sag_id'])*1;
-		$sag_fase=db_escape_string(if_isset($_POST['sag_fase']));
-		$besked_til=db_escape_string(if_isset($_POST['besked_til']));
-		$notat_fase=db_escape_string(if_isset($_POST['notat_fase']));
-		$kategori=db_escape_string(if_isset($_POST['kategori']));
-		$send_mail=db_escape_string(if_isset($_POST['send_mail']));
-		$bilag=db_escape_string(if_isset($_POST['bilag']));
+		$sagsnr     = NULL;
+		$sag_id     = if_isset($_POST['sag_id']) * 1;
+		$sag_fase   = db_escape_string(if_isset($_POST['sag_fase']));
+		$besked_til = db_escape_string(if_isset($_POST['besked_til']));
+		$notat_fase = db_escape_string(if_isset($_POST['notat_fase']));
+		$kategori   = db_escape_string(if_isset($_POST['kategori']));
+		$send_mail  = db_escape_string(if_isset($_POST['send_mail']));
+		$bilag      = db_escape_string(if_isset($_POST['bilag']));
 #		if ($id && $bilag) 
-		if ($afslut=isset($_POST['afslut'])) $status=1;
-		elseif ($kladde=isset($_POST['kladde'])) $status=0;
-		$r=db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
-		$sagsnr=$r['sagsnr'];
+		if ($afslut=isset($_POST['afslut'])) $status = 1;
+		elseif ($kladde=isset($_POST['kladde'])) $status = 0;
+		$r      = db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
+		$sagsnr = $r['sagsnr'];
 
 		//echo "sag_id: $sag_id"; exit();
 		//$status=0;
-		$qtxt="update noter set ";
+		$qtxt = "update noter set ";
 		if ($status<1) $qtxt.= "notat='".db_escape_string($notat)."',"; #20190910
 		$qtxt.= "beskrivelse='".db_escape_string($beskrivelse)."',assign_to='sager',";
 		$qtxt.= "assign_id='$sag_id',fase='$sag_fase',besked_til='$besked_til',nr='$notat_nr',sagsnr='$sagsnr'";
@@ -523,7 +523,7 @@ function ret_note($id,$sag_id,$sag_fase) {
 		$qtxt.= " where id = '$id'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		if ($afslut) {
-			$datotid=date("U");
+			$datotid = date("U");
 			db_modify("update noter set datotid='$datotid',status='$status' where id = '$id'",__FILE__ . " linje " . __LINE__);
 			#20141803-1
 			// Har udkommenteret gammel kode der sender mail ved 'gem og afslut'. Status bliver updateret sammen med datotid, i stedet for ved afsendelse af mail 
@@ -582,16 +582,16 @@ function ret_note($id,$sag_id,$sag_fase) {
 			}
 			//$r = db_fetch_array(db_select("select firmanavn from adresser where art='S'",__FILE__ . " linje " . __LINE__));
 			//$stam_firmanavn=$r['firmanavn'];
-			$r = db_fetch_array(db_select("select * from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
-			$ansat_email=$r['email'];
-			$ansat_navn="<b>".$r['navn']."</b>";
+			$r           = db_fetch_array(db_select("select * from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
+			$ansat_email = $r['email'];
+			$ansat_navn  = "<b>".$r['navn']."</b>";
 			
 			// Validering af email
-			$mail_fejl = "0";
-			$email_list=preg_split('[,|;]',$besked_til);
+			$mail_fejl  = "0";
+			$email_list = preg_split('[,|;]',$besked_til);
 			foreach ($email_list as $mail) {
 		if (!filter_var($mail, FILTER_VALIDATE_EMAIL)) {
-			$mail_fejl = "1";
+			$mail_fejl     = "1";
 			$error_message = $mail."\\n\\n".findtekst('3169|Er ikke en gyldig e-mailadresse', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$error_message')\">";
 		}
@@ -651,8 +651,8 @@ function ret_note($id,$sag_id,$sag_fase) {
 
 		if(!$mail->Send())
 		{
-			echo "Message could not be sent. <p>";
-			echo "Mailer Error: " . $mail->ErrorInfo;
+			echo findtekst('3351|Beskeden kunne ikke sendes', $sprog_id).". <p>";
+			echo findtekst('3352|Fejl ved afsendelse af e-mail', $sprog_id).": " . $mail->ErrorInfo;
 			exit;
 		} else {
 			for ($i=0;$i<count($emails);$i++) {
@@ -685,15 +685,15 @@ function ret_note($id,$sag_id,$sag_fase) {
 			*/
 		}
 	#exit;
-		$r = db_fetch_array(db_select("select * from noter where id='$id'",__FILE__ . " linje " . __LINE__));
-		$hvem=$r['hvem'];
-		$overskrift=$r['overskrift'];
-		$notat=$r['notat'];
-		$status=$r['status'];
-		$beskrivelse=$r['beskrivelse'];
-		$sag_id=$r['assign_id']*1;
-		$besked_til=$r['besked_til'];
-		$datotid=date("U");
+		$r           = db_fetch_array(db_select("select * from noter where id='$id'",__FILE__ . " linje " . __LINE__));
+		$hvem        = $r['hvem'];
+		$overskrift  = $r['overskrift'];
+		$notat       = $r['notat'];
+		$status      = $r['status'];
+		$beskrivelse = $r['beskrivelse'];
+		$sag_id      = $r['assign_id'] * 1;
+		$besked_til  = $r['besked_til'];
+		$datotid     = date("U");
 	#exit;
 		if ("$hvem" == "$brugernavn") $forfatter = $ansat_navn;
 		elseif ($r = db_fetch_array(db_select("select ansatte.navn as navn from ansatte,adresser,brugere where brugere.brugernavn = '$hvem' and ansatte.id=brugere.ansat_id",__FILE__ . " linje " . __LINE__))) {
@@ -705,7 +705,7 @@ function ret_note($id,$sag_id,$sag_fase) {
 			if (!$beskrivelse = db_escape_string($_POST['beskrivelse'])) {
 			$sag_id = floatval(if_isset($_POST['sag_id']));
 			if ($r = db_fetch_array(db_select("select * from noter where assign_id='$sag_id'",__FILE__ . " linje " . __LINE__))) {
-			$r = db_fetch_array(db_select("select max(nr) as nr from noter where assign_id='$sag_id'",__FILE__ . " linje " . __LINE__));
+			$r        = db_fetch_array(db_select("select max(nr) as nr from noter where assign_id='$sag_id'",__FILE__ . " linje " . __LINE__));
 			$notat_nr = $r['nr']+1;
 		} else {
 			$notat_nr = '1';
@@ -736,9 +736,9 @@ function ret_note($id,$sag_id,$sag_fase) {
 	}
 	// Her opdateres fase og kategori når status er 1
 	if (isset($_POST['opdater']) && $id)  {
-		$besked_til=db_escape_string(if_isset($_POST['besked_til']));
-		$notat_fase=db_escape_string(if_isset($_POST['notat_fase']));
-		$kategori=db_escape_string(if_isset($_POST['kategori']));
+		$besked_til = db_escape_string(if_isset($_POST['besked_til']));
+		$notat_fase = db_escape_string(if_isset($_POST['notat_fase']));
+		$kategori   = db_escape_string(if_isset($_POST['kategori']));
 
 			db_modify("update noter set besked_til='$besked_til',notat_fase='$notat_fase',kategori='$kategori' where id = '$id'",__FILE__ . " linje " . __LINE__);
 	}
@@ -748,39 +748,39 @@ function ret_note($id,$sag_id,$sag_fase) {
 	}
 	// Her opdateres assign_id med sagsnummer ved tilknytning af notat til sag
 	if ($sag_id && $id && $konto_id) {
-	$r=db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
-	$sagsnr=$r['sagsnr'];
+	$r      = db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
+	$sagsnr = $r['sagsnr'];
 			
 		db_modify("update noter set assign_id='$sag_id',sagsnr='$sagsnr' where id = '$id'",__FILE__ . " linje " . __LINE__);
 	}
 
 	if ($id) { 
-		$qtxt="select * from noter where id = '$id'";
-		$r = db_fetch_array($q = db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-		$notat=$r['notat'];
-		$beskrivelse=htmlspecialchars($r['beskrivelse']);
-		$besked_til=htmlspecialchars($r['besked_til']);
-		$forfatter=htmlspecialchars($r['hvem']);
-		$sag_id=$r['assign_id']*1;
-		$sag_fase=$r['fase'];
-		$datotid=$r['datotid'];
-		$status=$r['status'];
-		$notat_fase=$r['notat_fase'];
-		$kategori=$r['kategori'];
+		$qtxt        = "select * from noter where id = '$id'";
+		$r           = db_fetch_array($q = db_select("$qtxt",__FILE__ . " linje " . __LINE__));
+		$notat       = $r['notat'];
+		$beskrivelse = htmlspecialchars($r['beskrivelse']);
+		$besked_til  = htmlspecialchars($r['besked_til']);
+		$forfatter   = htmlspecialchars($r['hvem']);
+		$sag_id      = $r['assign_id']*1;
+		$sag_fase    = $r['fase'];
+		$datotid     = $r['datotid'];
+		$status      = $r['status'];
+		$notat_fase  = $r['notat_fase'];
+		$kategori    = $r['kategori'];
 	}
 	
 	if ($sag_id && !$sag_nr) {
 		$r = db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__));
-		$sag_nr=$r['sagsnr'];
-		$sag_beskrivelse=htmlspecialchars($r['beskrivelse']); 
-		$udf_addr1=htmlspecialchars($r['udf_addr1']); 
-		$udf_postnr=$r['udf_postnr']; 
-		$udf_bynavn=htmlspecialchars($r['udf_bynavn']);
+		$sag_nr          = $r['sagsnr'];
+		$sag_beskrivelse = htmlspecialchars($r['beskrivelse']); 
+		$udf_addr1       = htmlspecialchars($r['udf_addr1']); 
+		$udf_postnr      = $r['udf_postnr']; 
+		$udf_bynavn      = htmlspecialchars($r['udf_bynavn']);
 	}
 	
 	// Query til kategori
-	$x=0;
-	$q=db_select("select distinct(kategori) from bilag where assign_to = 'sager' order by kategori",__FILE__ . " linje " . __LINE__);
+	$x = 0;
+	$q = db_select("select distinct(kategori) from bilag where assign_to = 'sager' order by kategori",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		if ($r['kategori']) {
 			$x++;
@@ -789,13 +789,13 @@ function ret_note($id,$sag_id,$sag_fase) {
 	}
 
 	// Query til fase
-	$x=0;
+	$x = 0;
 	$q = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' order by fase",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$tjek_id[$x]=$r['id'];
-		$tjek_sub_id[$x]=$r['sub_id'];
-		$tjek_punkt[$x]=$r['tjekpunkt']; 
-		$tjek_fase[$x]=$r['fase']*1;
+		$tjek_id[$x]     = $r['id'];
+		$tjek_sub_id[$x] = $r['sub_id'];
+		$tjek_punkt[$x]  = $r['tjekpunkt']; 
+		$tjek_fase[$x]   = $r['fase']*1;
 		$x++;
 	}
 	
@@ -926,7 +926,7 @@ function ret_note($id,$sag_id,$sag_fase) {
 					if ($kategori==$sags_kat[$x]) print "<option value=\"$sags_kat[$x]\">$sags_kat[$x]</option>\n";
 					$x++;
 				}
-				$x=1;
+				$x = 1;
 				while ($sags_kat[$x]) {
 					if ($kategori!=$sags_kat[$x]) print "<option value=\"$sags_kat[$x]\">$sags_kat[$x]</option>\n";
 					$x++;
@@ -1015,55 +1015,55 @@ function findsag() {
 
 	$notat_id=if_isset($_GET['notat_id']);
 	
-	$sortstyle=array();
-	$nysortstyle=if_isset($_GET['nysortstyle']);
-	$sortarray=array('sagsnr','firmanavn','udf_addr1','beskrivelse','status');
-	$sort=if_isset($_GET['sort']);
-	$nysort=if_isset($_GET['nysort']);
-	$unsetsort=if_isset($_GET['unsetsort']);
-	$findsag_limit=if_isset($_POST['findsag_limit']);
+	$sortstyle     = array();
+	$nysortstyle   = if_isset($_GET['nysortstyle']);
+	$sortarray     = array('sagsnr','firmanavn','udf_addr1','beskrivelse','status');
+	$sort          = if_isset($_GET['sort']);
+	$nysort        = if_isset($_GET['nysort']);
+	$unsetsort     = if_isset($_GET['unsetsort']);
+	$findsag_limit = if_isset($_POST['findsag_limit']);
 	
 	
 	if ($nysort && $nysort==$sort) {
-		$sort=$nysort."%20desc";
+		$sort = $nysort."%20desc";
 			foreach ($sortarray as $key => $val){
 			($nysortstyle==$sortarray[$key])?$sortstyle[$key]="desc":$sortstyle[$key]="";
 		}
-	}else{ 
-		$sort=$nysort;
+	} else { 
+		$sort = $nysort;
 			foreach ($sortarray as $key => $val){
 			($nysortstyle==$sortarray[$key])?$sortstyle[$key]="asc":$sortstyle[$key]="";
 		}
 	}
 	
 	if ($_GET['nysortstyle']) {
-		$_SESSION['findsag_sagsnr']=$sortstyle[0];
-		$_SESSION['findsag_firmanavn']=$sortstyle[1];
-		$_SESSION['findsag_udf_addr1']=$sortstyle[2];
-		$_SESSION['findsag_ref']=$sortstyle[3];
-		$_SESSION['findsag_status']=$sortstyle[4];
+		$_SESSION['findsag_sagsnr']    = $sortstyle[0];
+		$_SESSION['findsag_firmanavn'] = $sortstyle[1];
+		$_SESSION['findsag_udf_addr1'] = $sortstyle[2];
+		$_SESSION['findsag_ref']       = $sortstyle[3];
+		$_SESSION['findsag_status']    = $sortstyle[4];
 	} else {
-		$sortstyle[0]=$_SESSION['findsag_sagsnr'];
-		$sortstyle[1]=$_SESSION['findsag_firmanavn'];
-		$sortstyle[2]=$_SESSION['findsag_udf_addr1'];
-		$sortstyle[3]=$_SESSION['findsag_ref'];
-		$sortstyle[4]=$_SESSION['findsag_status'];
+		$sortstyle[0] = $_SESSION['findsag_sagsnr'];
+		$sortstyle[1] = $_SESSION['findsag_firmanavn'];
+		$sortstyle[2] = $_SESSION['findsag_udf_addr1'];
+		$sortstyle[3] = $_SESSION['findsag_ref'];
+		$sortstyle[4] = $_SESSION['findsag_status'];
 	}
 	
 	if ($_POST['findsag_limit']) {
-		$_SESSION['findsag_limit']=$findsag_limit;
+		$_SESSION['findsag_limit'] = $findsag_limit;
 	} else {
-		$findsag_limit=$_SESSION['findsag_limit'];
+		$findsag_limit = $_SESSION['findsag_limit'];
 	}
 	
 	if ($unsetsort) {
 		unset($_SESSION['findsag_sort'],
-			$_SESSION['findsag_sagsnr'],$sortstyle[0],
-			$_SESSION['findsag_firmanavn'],$sortstyle[1],
-			$_SESSION['findsag_udf_addr1'],$sortstyle[2],
-			$_SESSION['findsag_ref'],$sortstyle[3],
-			$_SESSION['findsag_status'],$sortstyle[4],
-			$_SESSION['findsag_limit'],$findsag_limit
+			$_SESSION['findsag_sagsnr'],    $sortstyle[0],
+			$_SESSION['findsag_firmanavn'], $sortstyle[1],
+			$_SESSION['findsag_udf_addr1'], $sortstyle[2],
+			$_SESSION['findsag_ref'],       $sortstyle[3],
+			$_SESSION['findsag_status'],    $sortstyle[4],
+			$_SESSION['findsag_limit'],     $findsag_limit
 		);
 	}
 	
@@ -1071,14 +1071,14 @@ function findsag() {
 	//print_r($sortarray);
 	//echo "sort: $sort";
 	
-	if ($sort) $_SESSION['findsag_sort']=$sort;
-	else $sort=$_SESSION['findsag_sort'];
-	if (!$sort) $sort="sagsnr%20desc";
+	if ($sort) $_SESSION['findsag_sort'] = $sort;
+	else $sort = $_SESSION['findsag_sort'];
+	if (!$sort) $sort = "sagsnr%20desc";
 	
-	$sqlsort=urldecode($sort);
+	$sqlsort = urldecode($sort);
 	
-	$limitarray=array('500','1000','2500','5000','10000','NULL');
-	$limitnavn=array('500','1000','2500','5000','10000',findtekst('2498|Alle', $sprog_id));
+	$limitarray = array('500','1000','2500','5000','10000','NULL');
+	$limitnavn  = array('500','1000','2500','5000','10000',findtekst('2498|Alle', $sprog_id));
 	
 	($findsag_limit)?$limit=$findsag_limit:$limit='500';
 	
@@ -1086,22 +1086,22 @@ function findsag() {
 	$q=db_select("select * from sager order by $sqlsort limit $limit",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$sag_id[$x]=$r['id'];
-		$sag_nr[$x]=$r['sagsnr']*1;
-		$sag_beskrivelse[$x]=htmlspecialchars($r['beskrivelse']);
-		$sag_firmanavn[$x]=htmlspecialchars($r['firmanavn']);
-		$sag_ansvarlig[$x]=htmlspecialchars($r['ref']);
-		$sag_omfang[$x]=htmlspecialchars($r['omfang']);
-		$sag_oprettet[$x]=htmlspecialchars($r['ref']);
-		$udf_firmanavn[$x]=htmlspecialchars($r['udf_firmanavn']);
-		$udf_addr1[$x]=htmlspecialchars($r['udf_addr1']);
-		$udf_postnr[$x]=$r['udf_postnr'];
-		$udf_bynavn[$x]=htmlspecialchars($r['udf_bynavn']);
-		$oprettet_af[$x]=htmlspecialchars($r['oprettet_af']);
-		$dato[$x]=date("d-m-y",$r['tidspkt']);
-		$tid[$x]=date("H:i",$r['tidspkt']);
-		$status[$x]=$r['status'];
-		$konto_id[$x]=$r['konto_id'];
+		$sag_id[$x]          = $r['id'];
+		$sag_nr[$x]          = $r['sagsnr']*1;
+		$sag_beskrivelse[$x] = htmlspecialchars($r['beskrivelse']);
+		$sag_firmanavn[$x]   = htmlspecialchars($r['firmanavn']);
+		$sag_ansvarlig[$x]   = htmlspecialchars($r['ref']);
+		$sag_omfang[$x]      = htmlspecialchars($r['omfang']);
+		$sag_oprettet[$x]    = htmlspecialchars($r['ref']);
+		$udf_firmanavn[$x]   = htmlspecialchars($r['udf_firmanavn']);
+		$udf_addr1[$x]       = htmlspecialchars($r['udf_addr1']);
+		$udf_postnr[$x]      = $r['udf_postnr'];
+		$udf_bynavn[$x]      = htmlspecialchars($r['udf_bynavn']);
+		$oprettet_af[$x]     = htmlspecialchars($r['oprettet_af']);
+		$dato[$x]            = date("d-m-y",$r['tidspkt']);
+		$tid[$x]             = date("H:i",$r['tidspkt']);
+		$status[$x]          = $r['status'];
+		$konto_id[$x]        = $r['konto_id'];
 		}
 	$antal_sager=$x;
 /*

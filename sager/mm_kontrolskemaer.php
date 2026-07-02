@@ -191,15 +191,15 @@ function arbejdsseddelskemaliste() {
 	
 	if ($unsetsort) {
 		unset($_SESSION['ma_kontrolskema_sort'],
-					$_SESSION['ma_kontrolskema_datotid'],$sortstyle[0],
-					$_SESSION['ma_kontrolskema_skema'],$sortstyle[1],
-					$_SESSION['ma_kontrolskema_opgave'],$sortstyle[2],
-					$_SESSION['ma_kontrolskema_sagsnr'],$sortstyle[3],
-					$_SESSION['ma_kontrolskema_addr'],$sortstyle[4],
-					$_SESSION['ma_kontrolskema_af'],$sortstyle[5],
-					$_SESSION['ma_kontrolskema_sjak'],$sortstyle[6],
-					//$_SESSION['kontrolskema_status'],$sortstyle[7],
-					$_SESSION['ma_skema_limit'],$ma_skema_limit
+					$_SESSION['ma_kontrolskema_datotid'], $sortstyle[0],
+					$_SESSION['ma_kontrolskema_skema'],   $sortstyle[1],
+					$_SESSION['ma_kontrolskema_opgave'],  $sortstyle[2],
+					$_SESSION['ma_kontrolskema_sagsnr'],  $sortstyle[3],
+					$_SESSION['ma_kontrolskema_addr'],    $sortstyle[4],
+					$_SESSION['ma_kontrolskema_af'],      $sortstyle[5],
+					$_SESSION['ma_kontrolskema_sjak'],    $sortstyle[6],
+					//$_SESSION['kontrolskema_status'],   $sortstyle[7],
+					$_SESSION['ma_skema_limit'],          $ma_skema_limit
 				);
 	}
 	
@@ -207,19 +207,19 @@ function arbejdsseddelskemaliste() {
 	//print_r($sortarray);
 	//echo "sort: $sort";
 	
-	if ($sort) $_SESSION['ma_kontrolskema_sort']=$sort;
-	else $sort=$_SESSION['ma_kontrolskema_sort'];
-	if (!$sort) $sort="datotid%20DESC";
+	if ($sort) $_SESSION['ma_kontrolskema_sort'] = $sort;
+	else $sort = $_SESSION['ma_kontrolskema_sort'];
+	if (!$sort) $sort = "datotid%20DESC";
 	
-	$sqlsort=urldecode($sort);
+	$sqlsort = urldecode($sort);
 	
 	$limitarray = array('500','1000','2500','5000','10000','NULL');
 	$limitnavn  = array('500','1000','2500','5000','10000',findtekst('2498|Alle', $sprog_id));
 	
 	($ma_skema_limit)?$limit=$ma_skema_limit:$limit='500';
 	
-	$x=0; #22052014
-	$q=db_select("SELECT fase FROM tjekliste WHERE assign_to = 'sager' AND assign_id = '0' ORDER BY fase ASC",__FILE__ . " linje " . __LINE__);
+	$x = 0; #22052014
+	$q = db_select("SELECT fase FROM tjekliste WHERE assign_to = 'sager' AND assign_id = '0' ORDER BY fase ASC",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		$fase[$x] = $r['fase'];
@@ -247,8 +247,8 @@ function arbejdsseddelskemaliste() {
 	elseif ($vis=='3') $and="and fase ='3'"; 
 	else $and='';
 	*/
-	$x=0;
-	$q=db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekskema.sjakid,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+	$x = 0;
+	$q = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekskema.sjakid,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' and tjekliste.assign_id = '0' and tjekliste.fase = '1' and $where $and ORDER BY $sqlsort limit $limit",__FILE__ . " linje " . __LINE__); //chr(059) = ;
@@ -387,14 +387,14 @@ function arbejdsseddelskemaliste() {
 				
 				for ($x=1;$x<=$antal_skemaer;$x++) {
 				
-					$tjekpunkter_id=array();
-					$status=array();
+					$tjekpunkter_id = array();
+					$status         = array();
 					
-					$y=0;
-					$q=db_select("select * from tjekpunkter where tjekskema_id = '$skema_id[$x]'",__FILE__ . " linje " . __LINE__);
+					$y = 0;
+					$q = db_select("select * from tjekpunkter where tjekskema_id = '$skema_id[$x]'",__FILE__ . " linje " . __LINE__);
 					while ($r = db_fetch_array($q)) {
-						$tjekpunkter_id[$y]=$r['id'];
-						$status[$y]=$r['status']; 
+						$tjekpunkter_id[$y] = $r['id'];
+						$status[$y]         = $r['status']; 
 						$y++;
 					}
 					$antal_punkter=$y; // bruges kun til kontrol... kan slettes
@@ -408,13 +408,13 @@ function arbejdsseddelskemaliste() {
 						print_r ($tjekpunkter_id);
 						print "</pre>";
 						*/
-						$stat1 = NULL;
-						$stat2 = NULL;
-						$stat3 = NULL;
+						$stat1     = NULL;
+						$stat2     = NULL;
+						$stat3     = NULL;
 						$stattitle = NULL;
-						$stat1 = count( array_keys( $status, "1" ));
-						$stat2 = count( array_keys( $status, "2" ));
-						$stat3 = count( array_keys( $status, "3" ));
+						$stat1     = count( array_keys( $status, "1" ));
+						$stat2     = count( array_keys( $status, "2" ));
+						$stat3     = count( array_keys( $status, "3" ));
 						$stattitle = findtekst('80|Ok', $sprog_id).": $stat1 - ".findtekst('3124|Fejl', $sprog_id).": $stat2 - ".findtekst('3125|Kritisk', $sprog_id).": $stat3";
 						
 						if($stat1==0) $stat1 = "";
@@ -424,9 +424,9 @@ function arbejdsseddelskemaliste() {
 						$stat1color = NULL;
 						$stat2color = NULL;
 						$stat3color = NULL;
-						($stat1)?$stat1color = "background-color:green;color:#333;":$stat1 = "<span class=\"contentkundestatus\">&nbsp;</span>";
-						($stat2)?$stat2color = "background-color:yellow;color:#333;":$stat2 = "<span class=\"contentkundestatus\">&nbsp;</span>";
-						($stat3)?$stat3color = "background-color:red;color:#333;":$stat3 = "<span class=\"contentkundestatus\">&nbsp;</span>";
+						($stat1) ? $stat1color = "background-color:green;color:#333;"  : $stat1 = "<span class=\"contentkundestatus\">&nbsp;</span>";
+						($stat2) ? $stat2color = "background-color:yellow;color:#333;" : $stat2 = "<span class=\"contentkundestatus\">&nbsp;</span>";
+						($stat3) ? $stat3color = "background-color:red;color:#333;"    : $stat3 = "<span class=\"contentkundestatus\">&nbsp;</span>";
 						
 						// Her nulstiller vi $sjaktitle variable, så den ikke genskriver hvis der ingen $skema_sjakid eller $skema_sjak[$x] er. 
 						$sjaktitle = NULL;
@@ -435,7 +435,7 @@ function arbejdsseddelskemaliste() {
 						if ($skema_sjakid[$x]) {
 							
 							$sjaktitleny = NULL;
-							$sjakider = NULL;
+							$sjakider    = NULL;
 							
 							// Her skiller vi id'erne til et array
 							$sjakider = explode(";", $skema_sjakid[$x]);
@@ -534,15 +534,15 @@ function kontrolseddelskemaliste() {
 	
 	if ($unsetsort) {
 		unset($_SESSION['mk_kontrolskema_sort'],
-					$_SESSION['mk_kontrolskema_datotid'],$sortstyle[0],
-					$_SESSION['mk_kontrolskema_skema'],$sortstyle[1],
-					$_SESSION['mk_kontrolskema_opgave'],$sortstyle[2],
-					$_SESSION['mk_kontrolskema_sagsnr'],$sortstyle[3],
-					$_SESSION['mk_kontrolskema_addr'],$sortstyle[4],
-					$_SESSION['mk_kontrolskema_af'],$sortstyle[5],
-					$_SESSION['mk_kontrolskema_sjak'],$sortstyle[6],
-					//$_SESSION['kontrolskema_status'],$sortstyle[7],
-					$_SESSION['mk_skema_limit'],$mk_skema_limit
+					$_SESSION['mk_kontrolskema_datotid'], $sortstyle[0],
+					$_SESSION['mk_kontrolskema_skema'],   $sortstyle[1],
+					$_SESSION['mk_kontrolskema_opgave'],  $sortstyle[2],
+					$_SESSION['mk_kontrolskema_sagsnr'],  $sortstyle[3],
+					$_SESSION['mk_kontrolskema_addr'],    $sortstyle[4],
+					$_SESSION['mk_kontrolskema_af'],      $sortstyle[5],
+					$_SESSION['mk_kontrolskema_sjak'],    $sortstyle[6],
+					//$_SESSION['kontrolskema_status'],   $sortstyle[7],
+					$_SESSION['mk_skema_limit'],          $mk_skema_limit
 				);
 	}
 	
@@ -550,9 +550,9 @@ function kontrolseddelskemaliste() {
 	//print_r($sortarray);
 	//echo "sort: $sort";
 	
-	if ($sort) $_SESSION['mk_kontrolskema_sort']=$sort;
-	else $sort=$_SESSION['mk_kontrolskema_sort'];
-	if (!$sort) $sort="datotid%20DESC";
+	if ($sort) $_SESSION['mk_kontrolskema_sort'] = $sort;
+	else $sort = $_SESSION['mk_kontrolskema_sort'];
+	if (!$sort) $sort = "datotid%20DESC";
 	
 	$sqlsort = urldecode($sort);
 	
@@ -561,27 +561,27 @@ function kontrolseddelskemaliste() {
 	
 	($mk_skema_limit)?$limit=$mk_skema_limit:$limit='500';
 	
-	$x=0; #22052014
-	$q=db_select("SELECT fase FROM tjekliste WHERE assign_to = 'sager' AND assign_id = '0' ORDER BY fase ASC",__FILE__ . " linje " . __LINE__);
+	$x = 0; #22052014
+	$q = db_select("SELECT fase FROM tjekliste WHERE assign_to = 'sager' AND assign_id = '0' ORDER BY fase ASC",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		$fase[$x]=$r['fase'];
 	}
-	$antal_fase=$x;
+	$antal_fase = $x;
 		
 	for ($x=1;$x<=$antal_fase;$x++) {
 		if ($vis==$fase[$x]) $and="and fase ='$fase[$x]'";
 	}
 	
 	if ($ans_id) {
-		$tmp1=$ans_id.chr(59);
-		$tmp2=chr(59).$ans_id;
-		$tmp3=chr(59).$ans_id.chr(59);
+		$tmp1  = $ans_id.chr(59);
+		$tmp2  = chr(59).$ans_id;
+		$tmp3  = chr(59).$ans_id.chr(59);
 		$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ans_id')";
 	} else {
-		$tmp1=$ansat_id.chr(59);
-		$tmp2=chr(59).$ansat_id;
-		$tmp3=chr(59).$ansat_id.chr(59);
+		$tmp1  = $ansat_id.chr(59);
+		$tmp2  = chr(59).$ansat_id;
+		$tmp3  = chr(59).$ansat_id.chr(59);
 		$where = "(tjekskema.sjakid LIKE '$tmp1%' or tjekskema.sjakid LIKE '%$tmp2' or tjekskema.sjakid LIKE '%$tmp3%' or tjekskema.sjakid = '$ansat_id')";
 	}
 	/*
@@ -591,47 +591,47 @@ function kontrolseddelskemaliste() {
 	elseif ($vis=='3') $and="and fase ='3'"; 
 	else $and='';
 	*/
-	$x=0;
-	$q=db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekskema.sjakid,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
+	$x = 0;
+	$q = db_select("SELECT tjekskema.id as skema_id,tjekskema.datotid,tjekskema.tjekliste_id as tjek_id,tjekskema.sag_id,tjekskema.hvem as skema_hvem,tjekskema.opg_navn,tjekskema.sjak,tjekskema.sjakid,tjekliste.id,tjekliste.tjekpunkt,tjekliste.fase,tjekliste.assign_to,tjekliste.assign_id,sager.id,sager.udf_addr1,sager.udf_postnr,sager.udf_bynavn,sager.sagsnr FROM tjekskema 
 								INNER JOIN tjekliste ON tjekskema.tjekliste_id = tjekliste.id
 								INNER JOIN sager ON tjekskema.sag_id = sager.id
 								WHERE tjekliste.assign_to = 'sager' and tjekliste.assign_id = '0' and tjekliste.fase != '1' and $where $and ORDER BY $sqlsort limit $limit",__FILE__ . " linje " . __LINE__); //chr(059) = ;
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$skema_id[$x]=$r['skema_id'];
-		$skema_navn[$x]=$r['tjekpunkt'];
-		$skema_datotid[$x]=$r['datotid'];
-		$skema_sjak[$x]=htmlspecialchars($r['sjak']);
-		$skema_sjakid[$x]=$r['sjakid'];
-		$skema_addr[$x]=$r['udf_addr1'];
-		$skema_postnr[$x]=$r['udf_postnr'];
-		$skema_bynavn[$x]=$r['udf_bynavn'];
-		$skema_kontrol_af[$x]=htmlspecialchars($r['skema_hvem']);
-		$skema_opgave[$x]=htmlspecialchars($r['opg_navn']);
-		$skema_sagsnr[$x]=$r['sagsnr'];
-		$skema_status[$x]=$r['skema_id'];
-		$skema_fase[$x]=$r['fase']*1;
-		$skema_sagid[$x]=$r['sag_id'];
-		$skema_tjek_id[$x]=$r['tjek_id'];
+		$skema_id[$x]         = $r['skema_id'];
+		$skema_navn[$x]       = $r['tjekpunkt'];
+		$skema_datotid[$x]    = $r['datotid'];
+		$skema_sjak[$x]       = htmlspecialchars($r['sjak']);
+		$skema_sjakid[$x]     = $r['sjakid'];
+		$skema_addr[$x]       = $r['udf_addr1'];
+		$skema_postnr[$x]     = $r['udf_postnr'];
+		$skema_bynavn[$x]     = $r['udf_bynavn'];
+		$skema_kontrol_af[$x] = htmlspecialchars($r['skema_hvem']);
+		$skema_opgave[$x]     = htmlspecialchars($r['opg_navn']);
+		$skema_sagsnr[$x]     = $r['sagsnr'];
+		$skema_status[$x]     = $r['skema_id'];
+		$skema_fase[$x]       = $r['fase'] * 1;
+		$skema_sagid[$x]      = $r['sag_id'];
+		$skema_tjek_id[$x]    = $r['tjek_id'];
 		}
 	$antal_skemaer=$x;
 	
-	$x=0;
-	$q=db_select("SELECT id FROM tjekskema",__FILE__ . " linje " . __LINE__);
+	$x = 0;
+	$q = db_select("SELECT id FROM tjekskema",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$skema_id_alle[$x]=$r['id'];
+		$skema_id_alle[$x] = $r['id'];
 		}
-	$antal_skemaer_alle=$x;
+	$antal_skemaer_alle = $x;
 	/*
 	echo "antal_skemaer: $antal_skemaer<br>";
 	echo "antal_skemaer_alle: $antal_skemaer_alle";
 	*/
 	if ($ans_id) {
-		$r=db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
-		$ans_id=$r['id'];
-		$ans_navn=$r['navn'];
-		$ans_ini=$r['initialer'];
+		$r        = db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
+		$ans_id   = $r['id'];
+		$ans_navn = $r['navn'];
+		$ans_ini  = $r['initialer'];
 	}
 	
 		print "<div id=\"breadcrumbbar\">
@@ -732,14 +732,14 @@ function kontrolseddelskemaliste() {
 				
 				for ($x=1;$x<=$antal_skemaer;$x++) {
 				
-					$tjekpunkter_id=array();
-					$status=array();
+					$tjekpunkter_id = array();
+					$status         = array();
 					
-					$y=0;
-					$q=db_select("select * from tjekpunkter where tjekskema_id = '$skema_id[$x]'",__FILE__ . " linje " . __LINE__);
+					$y = 0;
+					$q = db_select("select * from tjekpunkter where tjekskema_id = '$skema_id[$x]'",__FILE__ . " linje " . __LINE__);
 					while ($r = db_fetch_array($q)) {
-						$tjekpunkter_id[$y]=$r['id'];
-						$status[$y]=$r['status']; 
+						$tjekpunkter_id[$y] = $r['id'];
+						$status[$y]         = $r['status']; 
 						$y++;
 					}
 					$antal_punkter=$y; // bruges kun til kontrol... kan slettes
@@ -753,13 +753,13 @@ function kontrolseddelskemaliste() {
 						print_r ($tjekpunkter_id);
 						print "</pre>";
 						*/
-						$stat1 = NULL;
-						$stat2 = NULL;
-						$stat3 = NULL;
+						$stat1     = NULL;
+						$stat2     = NULL;
+						$stat3     = NULL;
 						$stattitle = NULL;
-						$stat1 = count( array_keys( $status, "1" ));
-						$stat2 = count( array_keys( $status, "2" ));
-						$stat3 = count( array_keys( $status, "3" ));
+						$stat1     = count( array_keys( $status, "1" ));
+						$stat2     = count( array_keys( $status, "2" ));
+						$stat3     = count( array_keys( $status, "3" ));
 						$stattitle = findtekst('80|Ok', $sprog_id).": $stat1 - ".findtekst('3124|Fejl', $sprog_id).": $stat2 - ".findtekst('3125|Kritisk', $sprog_id).": $stat3";
 						
 						if($stat1==0) $stat1 = "";
@@ -769,9 +769,9 @@ function kontrolseddelskemaliste() {
 						$stat1color = NULL;
 						$stat2color = NULL;
 						$stat3color = NULL;
-						($stat1)?$stat1color = "background-color:green;color:#333;":$stat1 = "<span class=\"contentkundestatus\">&nbsp;</span>";
-						($stat2)?$stat2color = "background-color:yellow;color:#333;":$stat2 = "<span class=\"contentkundestatus\">&nbsp;</span>";
-						($stat3)?$stat3color = "background-color:red;color:#333;":$stat3 = "<span class=\"contentkundestatus\">&nbsp;</span>";
+						($stat1) ? $stat1color = "background-color:green;color:#333;"  : $stat1 = "<span class=\"contentkundestatus\">&nbsp;</span>";
+						($stat2) ? $stat2color = "background-color:yellow;color:#333;" : $stat2 = "<span class=\"contentkundestatus\">&nbsp;</span>";
+						($stat3) ? $stat3color = "background-color:red;color:#333;"    : $stat3 = "<span class=\"contentkundestatus\">&nbsp;</span>";
 						
 						// Her nulstiller vi $sjaktitle variable, så den ikke genskriver hvis der ingen $skema_sjakid eller $skema_sjak[$x] er. 
 						$sjaktitle = NULL;
@@ -780,17 +780,17 @@ function kontrolseddelskemaliste() {
 						if ($skema_sjakid[$x]) {
 							
 							$sjaktitleny = NULL;
-							$sjakider = NULL;
+							$sjakider    = NULL;
 							
 							// Her skiller vi id'erne til et array
 							$sjakider = explode(";", $skema_sjakid[$x]);
 						
 							// Query der henter initialer og navn fra ansatte
 							for ($z=0;$z<count($sjakider);$z++) {
-								$r=db_fetch_array(db_select("select * from ansatte where id = '$sjakider[$z]'",__FILE__ . " linje " . __LINE__)); 
-								$sjaknavn[$z]=$r['navn'];
-								$sjakini[$z]=$r['initialer'];
-								$sjaktitleny[$z]="(".$r['initialer'].")"." ".$r['navn']."\n";
+								$r               = db_fetch_array(db_select("select * from ansatte where id = '$sjakider[$z]'",__FILE__ . " linje " . __LINE__)); 
+								$sjaknavn[$z]    = $r['navn'];
+								$sjakini[$z]     = $r['initialer'];
+								$sjaktitleny[$z] = "(".$r['initialer'].")"." ".$r['navn']."\n";
 							}
 		
 							// Her splejser vi $sjaktitleny til en streng
@@ -852,29 +852,29 @@ function vis_arbejdsseddel() {
 	global $db;
 	global $sprog_id;
 	
-	$ans_id=if_isset($_SESSION['ans_id']);
-	$sag_id=if_isset($_GET['sag_id']);
-	$sag_fase=if_isset($_GET['sag_fase']);
-	$tjekpunkt_id=if_isset($_GET['tjek_id']);
-	$tjekskema_id=if_isset($_GET['tjekskema_id']);
-	$menu_medarbejdermappe='id="menuActive"';
+	$ans_id                =  if_isset($_SESSION['ans_id']);
+	$sag_id                =  if_isset($_GET['sag_id']);
+	$sag_fase              =  if_isset($_GET['sag_fase']);
+	$tjekpunkt_id          =  if_isset($_GET['tjek_id']);
+	$tjekskema_id          =  if_isset($_GET['tjekskema_id']);
+	$menu_medarbejdermappe = 'id="menuActive"';
 	
 	if (!$sag_id) { header("location: mm_kontrolskemaer.php?funktion=arbejdsseddelskemaliste"); exit(); }
 	
 	// Visning af tjekskema, hvis tjekskema_id er sat
-	$r=db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
-	$tjekskema_id=$r['id']*1;
-	$tjekskema_tjekliste_id=$r['tjekliste_id'];
-	$udf_dato=date("d-m-Y",$r['datotid']);
-	$opg_art=htmlspecialchars($r['opg_art']);
-	$opg_navn=htmlspecialchars($r['opg_navn']);
-	$opg_beskrivelse=htmlspecialchars($r['opg_beskrivelse']);
-	$sjak=htmlspecialchars($r['sjak']);
-	$sjakid=$r['sjakid'];
-	$hvem=htmlspecialchars($r['hvem']);
-	$stillads_til=htmlspecialchars($r['stillads_til']);
-	$man_trans=htmlspecialchars($r['man_trans']);
-	($man_trans)?$man_trans=$man_trans:$man_trans="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+	$r                      = db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
+	$tjekskema_id           = $r['id']*1;
+	$tjekskema_tjekliste_id = $r['tjekliste_id'];
+	$udf_dato               = date("d-m-Y",$r['datotid']);
+	$opg_art                = htmlspecialchars($r['opg_art']);
+	$opg_navn               = htmlspecialchars($r['opg_navn']);
+	$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);
+	$sjak                   = htmlspecialchars($r['sjak']);
+	$sjakid                 = $r['sjakid'];
+	$hvem                   = htmlspecialchars($r['hvem']);
+	$stillads_til           = htmlspecialchars($r['stillads_til']);
+	$man_trans              = htmlspecialchars($r['man_trans']);
+	($man_trans) ? $man_trans = $man_trans : $man_trans = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
 	
 	// Denne funktion laver $sjakid, som indeholder ansatte id(er) om til navn og initialer
 	if (isset($sjakid) && $sjakid!=NULL) {
@@ -883,10 +883,10 @@ function vis_arbejdsseddel() {
 		
 		// Query der henter initialer og navn fra ansatte
 		for ($x=0;$x<count($sjakider);$x++) {
-			$r=db_fetch_array(db_select("select * from ansatte where id = '$sjakider[$x]'",__FILE__ . " linje " . __LINE__)); 
-			$sjaknavn[$x]=$r['navn'];
-			$sjakini[$x]=$r['initialer'];
-			$sjaktitleny[$x]="(".$r['initialer'].")"." ".$r['navn']."\n";
+			$r               = db_fetch_array(db_select("select * from ansatte where id = '$sjakider[$x]'",__FILE__ . " linje " . __LINE__)); 
+			$sjaknavn[$x]    = $r['navn'];
+			$sjakini[$x]     = $r['initialer'];
+			$sjaktitleny[$x] = "(".$r['initialer'].")"." ".$r['navn']."\n";
 		}
 		// Her splejser vi henholdsvis navn og initialer til hver deres streng
 		#$sjakinitialer = implode(", ", $sjakini).", ";
@@ -894,81 +894,81 @@ function vis_arbejdsseddel() {
 	}
 		
 	// Visning af tjekliste
-	$x=0;
+	$x = 0;
 	$q = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' and fase = '$sag_fase'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$id[$x]=$r['id'];
-		$tjekpunkt[$x]=$r['tjekpunkt']; 
-		$fase[$x]=$r['fase']*1;
-		$assign_id[$x]=$r['assign_id']*1;
-		$punkt_id[$x]=0;
-		$gruppe_id[$x]=0;
-		$liste_id[$x]=$id[$x];
-		$q2 = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '$id[$x]' order by id",__FILE__ . " linje " . __LINE__);
+		$id[$x]        = $r['id'];
+		$tjekpunkt[$x] = $r['tjekpunkt']; 
+		$fase[$x]      = $r['fase']      * 1;
+		$assign_id[$x] = $r['assign_id'] * 1;
+		$punkt_id[$x]  = 0;
+		$gruppe_id[$x] = 0;
+		$liste_id[$x]  = $id[$x];
+		$q2            = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '$id[$x]' order by id",__FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 			$x++;
-			$max_gruppe=$x;
-			$id[$x]=$r2['id'];
-			$tjekpunkt[$x]=htmlspecialchars($r2['tjekpunkt']); 
-			$assign_id[$x]=$r2['assign_id']*1;
-			$fase[$x]=$fase[$x-1];
-			$punkt_id[$x]=0;
-			$gruppe_id[$x]=$id[$x];
-			$liste_id[$x]=$liste_id[$x-1];
-			$q3 = db_select("select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by id",__FILE__ . " linje " . __LINE__);
+			$max_gruppe    = $x;
+			$id[$x]        = $r2['id'];
+			$tjekpunkt[$x] = htmlspecialchars($r2['tjekpunkt']); 
+			$assign_id[$x] = $r2['assign_id']*1;
+			$fase[$x]      = $fase[$x-1];
+			$punkt_id[$x]  = 0;
+			$gruppe_id[$x] = $id[$x];
+			$liste_id[$x]  = $liste_id[$x-1];
+			$q3            = db_select("select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by id",__FILE__ . " linje " . __LINE__);
 			while ($r3 = db_fetch_array($q3)) {
 				$x++;
-				$id[$x]=$r3['id'];
-				$tjekpunkt[$x]=htmlspecialchars($r3['tjekpunkt']); 
-				$assign_id[$x]=$r3['assign_id']*1;
-				$fase[$x]=$fase[$x-1];
-				$punkt_id[$x]=$id[$x];
-				$gruppe_id[$x]=$gruppe_id[$x-1];
-				$liste_id[$x]=$liste_id[$x-1];
+				$id[$x]        = $r3['id'];
+				$tjekpunkt[$x] = htmlspecialchars($r3['tjekpunkt']); 
+				$assign_id[$x] = $r3['assign_id'] * 1;
+				$fase[$x]      = $fase[$x-1];
+				$punkt_id[$x]  = $id[$x];
+				$gruppe_id[$x] = $gruppe_id[$x-1];
+				$liste_id[$x]  = $liste_id[$x-1];
 			}
 		}
 	}
 	
 	// Visning af sagsinformationer
-	$r=db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__)); 
-	$sagsnr=$r['sagsnr'];
-	$sag_beskrivelse=htmlspecialchars($r['beskrivelse']);
-	$sag_firmanavn=htmlspecialchars($r['firmanavn']);
-	$sag_kontakt=htmlspecialchars($r['kontakt']);
-	$udf_addr1=htmlspecialchars($r['udf_addr1']);
-	$udf_postnr=$r['udf_postnr'];
-	$udf_bynavn=htmlspecialchars($r['udf_bynavn']);
-	$sag_omfang=htmlspecialchars($r['omfang']);
+	$r               = db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__)); 
+	$sagsnr          = $r['sagsnr'];
+	$sag_beskrivelse = htmlspecialchars($r['beskrivelse']);
+	$sag_firmanavn   = htmlspecialchars($r['firmanavn']);
+	$sag_kontakt     = htmlspecialchars($r['kontakt']);
+	$udf_addr1       = htmlspecialchars($r['udf_addr1']);
+	$udf_postnr      = $r['udf_postnr'];
+	$udf_bynavn      = htmlspecialchars($r['udf_bynavn']);
+	$sag_omfang      = htmlspecialchars($r['omfang']);
 	
 	// Visning af tjeklistenavn
-	$r=db_fetch_array(db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' and id='$tjekpunkt_id'",__FILE__ . " linje " . __LINE__)); 
-	$tjekpunktnavn=$r['tjekpunkt'];
+	$r             = db_fetch_array(db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' and id='$tjekpunkt_id'",__FILE__ . " linje " . __LINE__)); 
+	$tjekpunktnavn = $r['tjekpunkt'];
 	
 	if ($ans_id) {
-		$r=db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
-		$ans_id=$r['id'];
-		$ans_navn=$r['navn'];
-		$ans_ini=$r['initialer'];
+		$r        = db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
+		$ans_id   = $r['id'];
+		$ans_navn = $r['navn'];
+		$ans_ini  = $r['initialer'];
 	}
 	
 	// Visning af bilag, hvis tilknyttet #20170303
-	$x=0;
+	$x = 0;
 	$q = db_select("SELECT bilag.id as bilagid,bilag_tjekskema.id as bilag_tjekskema_id,* FROM bilag 
 									LEFT JOIN bilag_tjekskema ON bilag.id = bilag_tjekskema.bilag_id
 									WHERE assign_to = 'sager' and assign_id = '$sag_id' and tjekskema_id = '$tjekskema_id'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$bilag_id[$x]=$r['bilagid'];
-		$bilag_title[$x]=$r['navn'];
-		$tmp=mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
-		$bilag_navn[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
-		$bilag_beskrivelse[$x]=$r['beskrivelse'];
-		$bilag_dato[$x]=date("d-m-Y",$r['datotid']);
-		$bilag_hvem[$x]=$r['hvem'];
-		$bilag_filtype[$x]=$r['filtype'];
-		$bilag_tjekskema_id[$x]=$r['bilag_tjekskema_id'];
-		$bilag_tjekskema_tjekskema_id[$x]=$r['tjekskema_id'];
-		$bilag_tjekskema_bilag_id[$x]=$r['bilag_id'];
+		$bilag_id[$x]                     = $r['bilagid'];
+		$bilag_title[$x]                  = $r['navn'];
+		$tmp                              = mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
+		$bilag_navn[$x]                   = mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
+		$bilag_beskrivelse[$x]            = $r['beskrivelse'];
+		$bilag_dato[$x]                   = date("d-m-Y",$r['datotid']);
+		$bilag_hvem[$x]                   = $r['hvem'];
+		$bilag_filtype[$x]                = $r['filtype'];
+		$bilag_tjekskema_id[$x]           = $r['bilag_tjekskema_id'];
+		$bilag_tjekskema_tjekskema_id[$x] = $r['tjekskema_id'];
+		$bilag_tjekskema_bilag_id[$x]     = $r['bilag_id'];
 		$x++;
 	}
 	
@@ -1038,7 +1038,7 @@ function vis_arbejdsseddel() {
 		if (!$gruppe_id[$x] && !$punkt_id[$x]) {
 			
 			print "<tr style=\"display:none;\"><td colspan=\"6\"><input type=\"hidden\" name=\"tjekantal\" value='".count($id)."'><input type=\"hidden\" name=\"id[$x]\" value='$id[$x]'></td></tr>\n";
-			$l_id=$id[$x];
+			$l_id = $id[$x];
 		}
 		if ($gruppe_id[$x] && !$punkt_id[$x]) { 
 		
@@ -1048,16 +1048,16 @@ function vis_arbejdsseddel() {
 		// Kontrolskema vises hvis der er id
 		if ($punkt_id[$x] && $tjekskema_id) { 
 		
-			$r=db_fetch_array(db_select("select * from tjekpunkter where assign_id = '$sag_id' and tjekskema_id = '$tjekskema_id' and tjekliste_id = '$id[$x]'",__FILE__ . " linje " . __LINE__)); 
-			$tjekpunkter_id=$r['id'];
-			$status=$r['status'];
+			$r              = db_fetch_array(db_select("select * from tjekpunkter where assign_id = '$sag_id' and tjekskema_id = '$tjekskema_id' and tjekliste_id = '$id[$x]'",__FILE__ . " linje " . __LINE__)); 
+			$tjekpunkter_id = $r['id'];
+			$status         = $r['status'];
 			
 			if ($status == 1) {
-				$status="checked='checked'";
-				$statuscolor="color:#cd3300 !important;";
+				$status      = "checked='checked'";
+				$statuscolor = "color:#cd3300 !important;";
 			} else {
-				$status=NULL;
-				$statuscolor=NULL;
+				$status      = NULL;
+				$statuscolor = NULL;
 			}
 			
 			print "<span style=\"float:left;min-width:91px;font-size: 12px;line-height: 18px;margin:0 6px 0 0;#background-color:lightblue;\" class=\"checkboxNed\">\n";
@@ -1105,26 +1105,26 @@ function vis_kontrolskema() {
 	global $funktion;
 	global $db;
 	
-	$ans_id=if_isset($_SESSION['ans_id']);
-	$sag_id=if_isset($_GET['sag_id']);
-	$sag_fase=if_isset($_GET['sag_fase']);
-	$tjekpunkt_id=if_isset($_GET['tjek_id']);
-	$tjekskema_id=if_isset($_GET['tjekskema_id']);
-	$menu_medarbejdermappe='id="menuActive"';
+	$ans_id                = if_isset($_SESSION['ans_id']);
+	$sag_id                = if_isset($_GET['sag_id']);
+	$sag_fase              = if_isset($_GET['sag_fase']);
+	$tjekpunkt_id          = if_isset($_GET['tjek_id']);
+	$tjekskema_id          = if_isset($_GET['tjekskema_id']);
+	$menu_medarbejdermappe = 'id="menuActive"';
 	
 	if (!$sag_id) { header("location: mm_kontrolskemaer.php?funktion=kontrolseddelskemaliste"); exit(); }
 	
 	// Visning af tjekskema
 	$r=db_fetch_array(db_select("select * from tjekskema where sag_id='$sag_id' and tjekliste_id='$tjekpunkt_id' and id='$tjekskema_id'",__FILE__ . " linje " . __LINE__));
-	$tjekskema_id=$r['id']*1;
-	$tjekskema_tjekliste_id=$r['tjekliste_id'];
-	$datotid=$r['datotid'];
-	$opg_art=htmlspecialchars($r['opg_art']);
-	$opg_navn=htmlspecialchars($r['opg_navn']);
-	$opg_beskrivelse=htmlspecialchars($r['opg_beskrivelse']);
-	$sjak=htmlspecialchars($r['sjak']);
-	$sjakid=$r['sjakid'];
-	$hvem=htmlspecialchars($r['hvem']);
+	$tjekskema_id           = $r['id']*1;
+	$tjekskema_tjekliste_id = $r['tjekliste_id'];
+	$datotid                = $r['datotid'];
+	$opg_art                = htmlspecialchars($r['opg_art']);
+	$opg_navn               = htmlspecialchars($r['opg_navn']);
+	$opg_beskrivelse        = htmlspecialchars($r['opg_beskrivelse']);
+	$sjak                   = htmlspecialchars($r['sjak']);
+	$sjakid                 = $r['sjakid'];
+	$hvem                   = htmlspecialchars($r['hvem']);
 	
 	// Denne funktion laver $sjakid, som indeholder ansatte id(er) om til navn og initialer
 	if (isset($sjakid) && $sjakid!=NULL) {
@@ -1133,10 +1133,10 @@ function vis_kontrolskema() {
 		
 		// Query der henter initialer og navn fra ansatte
 		for ($x=0;$x<count($sjakider);$x++) {
-			$r=db_fetch_array(db_select("select * from ansatte where id = '$sjakider[$x]'",__FILE__ . " linje " . __LINE__)); 
-			$sjaknavn[$x]=$r['navn'];
-			$sjakini[$x]=$r['initialer'];
-			$sjaktitleny[$x]="(".$r['initialer'].")"." ".$r['navn']."\n";
+			$r               = db_fetch_array(db_select("select * from ansatte where id = '$sjakider[$x]'",__FILE__ . " linje " . __LINE__)); 
+			$sjaknavn[$x]    = $r['navn'];
+			$sjakini[$x]     = $r['initialer'];
+			$sjaktitleny[$x] = "(".$r['initialer'].")"." ".$r['navn']."\n";
 		}
 		// Her splejser vi henholdsvis navn og initialer til hver deres streng
 		#$sjakinitialer = implode(", ", $sjakini).", ";
@@ -1144,78 +1144,78 @@ function vis_kontrolskema() {
 	}
 	
 	// Visning af tjekliste
-	$x=0;
+	$x = 0;
 	$q = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' and fase = '$sag_fase'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$id[$x]=$r['id'];
-		$tjekpunkt[$x]=$r['tjekpunkt']; 
-		$fase[$x]=$r['fase']*1;
-		$assign_id[$x]=$r['assign_id']*1;
-		$punkt_id[$x]=0;
-		$gruppe_id[$x]=0;
-		$liste_id[$x]=$id[$x];
-		$q2 = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '$id[$x]' order by id",__FILE__ . " linje " . __LINE__);
+		$id[$x]        = $r['id'];
+		$tjekpunkt[$x] = $r['tjekpunkt']; 
+		$fase[$x]      = $r['fase']      * 1;
+		$assign_id[$x] = $r['assign_id'] * 1;
+		$punkt_id[$x]  = 0;
+		$gruppe_id[$x] = 0;
+		$liste_id[$x]  = $id[$x];
+		$q2            = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '$id[$x]' order by id",__FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 			$x++;
-			$max_gruppe=$x;
-			$id[$x]=$r2['id'];
-			$tjekpunkt[$x]=$r2['tjekpunkt']; 
-			$assign_id[$x]=$r2['assign_id']*1;
-			$fase[$x]=$fase[$x-1];
-			$punkt_id[$x]=0;
-			$gruppe_id[$x]=$id[$x];
-			$liste_id[$x]=$liste_id[$x-1];
-			$q3 = db_select("select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by id",__FILE__ . " linje " . __LINE__);
+			$max_gruppe    = $x;
+			$id[$x]        = $r2['id'];
+			$tjekpunkt[$x] = $r2['tjekpunkt']; 
+			$assign_id[$x] = $r2['assign_id'] * 1;
+			$fase[$x]      = $fase[$x-1];
+			$punkt_id[$x]  = 0;
+			$gruppe_id[$x] = $id[$x];
+			$liste_id[$x]  = $liste_id[$x-1];
+			$q3            = db_select("select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by id",__FILE__ . " linje " . __LINE__);
 			while ($r3 = db_fetch_array($q3)) {
 				$x++;
-				$id[$x]=$r3['id'];
-				$tjekpunkt[$x]=$r3['tjekpunkt']; 
-				$assign_id[$x]=$r3['assign_id']*1;
-				$fase[$x]=$fase[$x-1];
-				$punkt_id[$x]=$id[$x];
-				$gruppe_id[$x]=$gruppe_id[$x-1];
-				$liste_id[$x]=$liste_id[$x-1];
+				$id[$x]        = $r3['id'];
+				$tjekpunkt[$x] = $r3['tjekpunkt']; 
+				$assign_id[$x] = $r3['assign_id']*1;
+				$fase[$x]      = $fase[$x-1];
+				$punkt_id[$x]  = $id[$x];
+				$gruppe_id[$x] = $gruppe_id[$x-1];
+				$liste_id[$x]  = $liste_id[$x-1];
 			}
 		}
 	}
 	
 	// Visning af sagsinformationer
-	$r=db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__)); 
-	$sagsnr=$r['sagsnr'];
-	$sag_beskrivelse=htmlspecialchars($r['beskrivelse']);
-	$udf_addr1=htmlspecialchars($r['udf_addr1']);
-	$udf_postnr=$r['udf_postnr'];
-	$udf_bynavn=htmlspecialchars($r['udf_bynavn']);
+	$r               = db_fetch_array(db_select("select * from sager where id='$sag_id'",__FILE__ . " linje " . __LINE__)); 
+	$sagsnr          = $r['sagsnr'];
+	$sag_beskrivelse = htmlspecialchars($r['beskrivelse']);
+	$udf_addr1       = htmlspecialchars($r['udf_addr1']);
+	$udf_postnr      = $r['udf_postnr'];
+	$udf_bynavn      = htmlspecialchars($r['udf_bynavn']);
 	
 	// Visning af tjeklistenavn
-	$r=db_fetch_array(db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' and id='$tjekpunkt_id'",__FILE__ . " linje " . __LINE__)); 
-	$tjekpunktnavn=$r['tjekpunkt'];
+	$r             = db_fetch_array(db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' and id='$tjekpunkt_id'",__FILE__ . " linje " . __LINE__)); 
+	$tjekpunktnavn = $r['tjekpunkt'];
 	
 	if ($ans_id) {
-		$r=db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
-		$ans_id=$r['id'];
-		$ans_navn=$r['navn'];
-		$ans_ini=$r['initialer'];
+		$r        = db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
+		$ans_id   = $r['id'];
+		$ans_navn = $r['navn'];
+		$ans_ini  = $r['initialer'];
 	}
 	
 	// Visning af bilag, hvis tilknyttet #20170303
-	$x=0;
+	$x = 0;
 	$q = db_select("SELECT bilag.id as bilagid,bilag_tjekskema.id as bilag_tjekskema_id,* FROM bilag 
 									LEFT JOIN bilag_tjekskema ON bilag.id = bilag_tjekskema.bilag_id
 									WHERE assign_to = 'sager' and assign_id = '$sag_id' and tjekskema_id = '$tjekskema_id'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$bilag_id[$x]=$r['bilagid'];
-		$bilag_title[$x]=$r['navn'];
-		$tmp=mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
-		$bilag_navn[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
-		$bilag_beskrivelse[$x]=$r['beskrivelse'];
-		$bilag_dato[$x]=date("d-m-Y",$r['datotid']);
-		$bilag_hvem[$x]=$r['hvem'];
-		$bilag_filtype[$x]=$r['filtype'];
-		$bilag_tjekskema_id[$x]=$r['bilag_tjekskema_id'];
-		$bilag_tjekskema_tjekskema_id[$x]=$r['tjekskema_id'];
-		$bilag_tjekskema_bilag_id[$x]=$r['bilag_id'];
+		$bilag_id[$x]                     = $r['bilagid'];
+		$bilag_title[$x]                  = $r['navn'];
+		$tmp                              = mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
+		$bilag_navn[$x]                   = mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
+		$bilag_beskrivelse[$x]            = $r['beskrivelse'];
+		$bilag_dato[$x]                   = date("d-m-Y",$r['datotid']);
+		$bilag_hvem[$x]                   = $r['hvem'];
+		$bilag_filtype[$x]                = $r['filtype'];
+		$bilag_tjekskema_id[$x]           = $r['bilag_tjekskema_id'];
+		$bilag_tjekskema_tjekskema_id[$x] = $r['tjekskema_id'];
+		$bilag_tjekskema_bilag_id[$x]     = $r['bilag_id'];
 		$x++;
 	}
 	
@@ -1277,16 +1277,16 @@ function vis_kontrolskema() {
 	print "<tr><td colspan=\"2\" class=\"printtxt\"><input type=\"hidden\" name=\"hvem\" value='$ansat_navn'><p><b>".findtekst('2826|Kontrolleret af', $sprog_id).":</b></p><p>".htmlspecialchars($hvem)."</p></td></tr>\n";
 	if ($opg_beskrivelse) print "<tr><td colspan=\"2\" class=\"printtxt\" style=\"vertical-align:top;\"><p><b>".findtekst('3134|Opgavebeskrivelse', $sprog_id).":</b></p></td><td colspan=\"4\" class=\"printtxt\"><p><i><b>$opg_navn:</b> $opg_beskrivelse&nbsp;</i></p></td></tr>\n";
 	// Array til status select-box i kontrolskema
-	$value = array(0,1,2,3,4);
-	$color = array("white","green","yellow","red","white");
-	$option_name = array("&nbsp;",findtekst('80|Ok', $sprog_id),findtekst('3124|Fejl', $sprog_id),findtekst('3125|Kritisk', $sprog_id),"N/A");
+	$value       = array(0,1,2,3,4);
+	$color       = array("white","green","yellow","red","white");
+	$option_name = array("&nbsp;", findtekst('80|Ok', $sprog_id), findtekst('3124|Fejl', $sprog_id), findtekst('3125|Kritisk', $sprog_id), "N/A");
 	
 	for ($x=1;$x<=count($id);$x++) {
 		
 		if (!$gruppe_id[$x] && !$punkt_id[$x]) {
 			
 			print "<tr style=\"display:none;\"><td colspan=\"6\"><input type=\"hidden\" name=\"tjekantal\" value='".count($id)."'><input type=\"hidden\" name=\"id[$x]\" value='$id[$x]'></td></tr>\n";
-			$l_id=$id[$x];
+			$l_id = $id[$x];
 		}
 		if ($gruppe_id[$x] && !$punkt_id[$x]) { 
 		
@@ -1295,10 +1295,10 @@ function vis_kontrolskema() {
 		// Kontrolskema vises hvis der er id
 		if ($punkt_id[$x] && $tjekskema_id) { 
 		
-			$r=db_fetch_array(db_select("select * from tjekpunkter where assign_id = '$sag_id' and tjekskema_id = '$tjekskema_id' and tjekliste_id = '$id[$x]'",__FILE__ . " linje " . __LINE__)); 
-			$tjekpunkter_id=$r['id'];
-			$status=$r['status'];
-			$status_tekst=$r['status_tekst'];
+			$r              = db_fetch_array(db_select("select * from tjekpunkter where assign_id = '$sag_id' and tjekskema_id = '$tjekskema_id' and tjekliste_id = '$id[$x]'",__FILE__ . " linje " . __LINE__)); 
+			$tjekpunkter_id = $r['id'];
+			$status         = $r['status'];
+			$status_tekst   = $r['status_tekst'];
 		//echo "id: $tjekpunkter_id";
 			/*
 			$x=0;
@@ -1370,9 +1370,9 @@ function vis_kontrolskema() {
 			
 			print "<select name=\"kontrolpunkt[$x]\" class=\"kontrol_status\" >
 				<option value=\"0\" style=\"background-color:white;\">&nbsp;</option>
-				<option value=\"1\" style=\"background-color:green;\">".findtekst('80|Ok', $sprog_id)."</option>
-				<option value=\"2\" style=\"background-color:yellow;\">".findtekst('3124|Fejl', $sprog_id)."</option>
-				<option value=\"3\" style=\"background-color:red;\">".findtekst('3125|Kritisk', $sprog_id)."</option>
+				<option value=\"1\" style=\"background-color:green;\">" .findtekst(  '80|Ok',      $sprog_id)."</option>
+				<option value=\"2\" style=\"background-color:yellow;\">".findtekst('3124|Fejl',    $sprog_id)."</option>
+				<option value=\"3\" style=\"background-color:red;\">"   .findtekst('3125|Kritisk', $sprog_id)."</option>
 			</select>\n";
 			
 			
