@@ -97,6 +97,11 @@
         });
         document.querySelector("#background-dimmer").addEventListener('mousedown', function(e) { hidePreview(); });
     });
+
+    popuper.onClose.push(function(container){
+        hidePreview();
+    });
+
     function openPopup(){
         let params = new URLSearchParams(document.location.search);
         let kladde_id = params.get("kladde_id");
@@ -123,15 +128,34 @@
         text-align: center;
     }
 
+    #popup-exit-call-btn {
+        background: #4CAF50;
+        float: right;
+        min-height: 20px;
+        min-width: 120px;
+    }
+
+    #popup-close-btn {
+        background: #F44336;
+        min-height: 20px;
+        min-width: 120px;
+    }
+
+
     .saldi-button {
         <?php echo $buttonStyle ?>
+        cursor: pointer;
     }
 
     #popup-header {
-        display: inline-block;
-        * {
-            padding: 2px;
-        }
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    #popup-header > * {
+        padding: 2px;
     }
 
     .popup-no-results{
@@ -140,9 +164,6 @@
 
     #popup-header-title {
         float: left;
-    }
-    #popupcontainer-calls{
-        float: right;
     }
     .bilags-alignment img{
         width: 20px;

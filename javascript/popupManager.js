@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 
 // 20260507 NTR - A generalised popup manager that can be reused in the future for other popup functions.
+// 20260702 NTR - Added onClose event to allow for cleanup when the popup is closed.
+//              - Moved the confirmed exit button to the footer of the popup instead of header.
 
 /**
  * Describes a single column in a PopupManager table.
@@ -75,6 +77,7 @@ class PopupManager {
     
     onNoResult = [];
     onResult = [];
+    onClose = [];
 
     constructor(columns, popupStyle = null, exitCall, exitName, background_dimmer_style = null){
         console.log('popupManager.js loaded - version with logging');
@@ -147,10 +150,7 @@ class PopupManager {
         let html = `
             <div id="popup-header">
                 <span id="popup-header-title">${title}</span>
-                <div id="popupcontainer-calls">
-                    <button type="button" id="popup-exit-call-btn" class="saldi-button">${this.exitName}</button>
-                    <button type="button" id="popup-close-btn" class="saldi-button">Close</button>
-                </div>
+                <button type="button" id="popup-close-btn" class="saldi-button">Close</button>
             </div>
             <div id="popup-results">
         `;
@@ -189,6 +189,7 @@ class PopupManager {
             </div> <!-- popup-results -->
             <div class="popup-footer">
                 <span class="popup-footer-info">Viser ${results ? results.length : 0} resultater</span>
+                <button type="button" id="popup-exit-call-btn" class="saldi-button">${this.exitName}</button>
             </div>
         `;
 
@@ -239,6 +240,7 @@ class PopupManager {
 
     /** Removes the popup and background dimmer from the DOM and resets internal state. */
     closeDropdown() {
+        this.onClose.forEach(fn => fn(this.getPopupContainer()));
         if (this.popupContainer) {
             this.popupContainer.outerHTML = "";
             this.popupContainer = null;
