@@ -94,6 +94,28 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				db_modify("ALTER TABLE ordrelinjer ADD COLUMN batch_batch_no VARCHAR(100) NULL", __FILE__ . " linje " . __LINE__);
 			}
 
+			// --- order_stock_warning_log: audit trail for out-of-stock sales approvals ---
+			$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='order_stock_warning_log'";
+			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$qtxt = "CREATE TABLE order_stock_warning_log (
+					id serial NOT NULL,
+					ordre_id integer NOT NULL,
+					linje_id integer NULL,
+					vare_id integer NULL,
+					varenr varchar(50) NULL,
+					beskrivelse varchar(255) NULL,
+					beholdning numeric(15,3) NULL,
+					min_lager numeric(15,3) NULL,
+					employee_id integer NULL,
+					employee_name varchar(100) NULL,
+					note text NOT NULL,
+					logged_at timestamp DEFAULT CURRENT_TIMESTAMP,
+					PRIMARY KEY (id)
+				)";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				db_modify("CREATE INDEX idx_oswl_ordre ON order_stock_warning_log(ordre_id)", __FILE__ . " linje " . __LINE__);
+			}
+
 			// --- Update version ---
 			$qtxt="UPDATE grupper set box1='$nextver' where art = 'VE'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -260,6 +282,7 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 			}
+			
 			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'batch_kob' and  column_name = 'due_date'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "ALTER TABLE batch_kob ADD due_date date";
@@ -277,19 +300,13 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				$qtxt = "ALTER TABLE variant_varer ADD variant_salgspris numeric(15,3)";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
+
 			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'variant_varer' and  column_name = 'variant_text'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "ALTER TABLE variant_varer ADD variant_text varchar(25)";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
-			/*
-			$qtxt = "SELECT id FROM formularer WHERE formular = 9 AND art = '3' AND beskrivelse = 'leveret' AND sprog = 'Dansk' LIMIT 1";
-			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			    $qtxt = "INSERT INTO formularer (formular, art, beskrivelse, justering, xa, ya, xb, yb, str, color, font, fed, kursiv, side, sprog)
-			             VALUES (9, '3', 'leveret', 'V', 163.000, 0.000, 0.000, 0.000, 9.000, 0, 'Helvetica', '', '', '0', 'Dansk')";
-			    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-			*/
+
 			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'kontoplan' and  column_name = 'map_to'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "ALTER TABLE kontoplan ADD column map_to numeric(15)";
@@ -308,21 +325,9 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 
-			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'digital_status'";
-			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "ALTER TABLE settings ADD digital_status varchar(25)";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-
 			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ordrer' and  column_name = 'digital_status'";
 			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "ALTER TABLE ordrer ADD digital_status varchar(25)";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-
-			$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'settings' and  column_name = 'group_id'";
-			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "ALTER TABLE settings ADD group_id integer";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 
@@ -495,7 +500,6 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					($db == 'pos_10' || $db == 'pos_62') ? $flatpay_print = 1: $flatpay_print = 0;
 					$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ";
-					($db == 'pos_10' || $db == 'pos_62') ? $qtxt.= "'1', ":
 					$qtxt.= "('flatpay_print', 'POS', '$flatpay_print', 'If 1, Saldi will print the terminal receipt else it is printed by the termanal')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}

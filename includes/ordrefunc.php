@@ -2306,7 +2306,8 @@ function bogfor_nu($id, $kilde) {
 		$felt_4 = $r['felt_4'];
 		$felt_5 = $r['felt_5'];
 		$betalings_id = $r['betalings_id'];
-		if ($felt_1 && is_numeric($felt_2) && is_numeric($felt_4) && is_numeric($felt_5) && (int)$felt_5 > 0) { #20171004 Alm. ordre der behandles som pos
+		// patch solution, felt_1 and 3 are tekst for payment, felt_2 and 4 are the amounts and felt 5 is the cash register number
+		if ($felt_1 && $felt_3 && is_numeric($felt_2) && is_numeric($felt_4) && is_numeric($felt_5) && (int)$felt_5 > 0) { #20171004 Alm. ordre der behandles som pos
 			$qtxt = "select id from pos_betalinger where ordre_id='$ordre_id' limit 1";
 			if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$art = 'PO';

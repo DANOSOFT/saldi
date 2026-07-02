@@ -91,7 +91,7 @@ db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and
 				print "<span onClick=\"javascript:location.href='../debitor/betalingsliste.php'\"><input title='$tekst1' style=\"$butStyle\" type='button' value='$tekst2'></span></td>\n";
 			}
 			$r=db_fetch_array(db_select("select var_value from settings where var_name = 'useMultiRoute'", __FILE__ . " linje " . __LINE__)); 
-			if ($r['var_value'] == 'on') {
+			if ($r && ($r['var_value'] == 'on')) {
 				print "</tr><tr><td colspan = '5'><hr></td></tr><tr>";
 				print "<td align=center><span onClick=\"javascript:location.href='../debitor/salg_postnr.php'\"><input title='Sales by zip code' style=\"$butStyle\" type='button' value='Sales by zip code'></span></td>\n";
 				print"<td></td><td align = 'center'>";

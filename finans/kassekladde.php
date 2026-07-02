@@ -52,7 +52,8 @@
 // 20260513-2 PK - Removed 'button' in css as it created double border-radius on the pagination buttons
 // 20260519 CL/NTR - Moved Balance Ledger, Balance Bank and Balance Diff to before moms column. Added Header to Balance Diff.
 // 20260521 LOE Fixed a bug from extra added closing brace and updated background color for thead
-// 20260529 SZ - Added Persistent Sorting on Kassekladde (Added by NTR, Don't know what else was changed)// 20260610 CL/PHR - Valuta-kolonne viste ingenting: tilføjet field=valuta_navn + LEFT JOIN grupper VK i build_kassekladde_query
+// 20260529 SZ - Added Persistent Sorting on Kassekladde (Added by NTR, Don't know what else was changed)
+// 20260610 CL/PHR - Valuta-kolonne viste ingenting: tilføjet field=valuta_navn + LEFT JOIN grupper VK i build_kassekladde_query
 // 20260610 CL/PHR - Valuta-kolonne: viser $baseCurrency (f.eks. DKK) for rækker uden fremmed valuta (valuta=0)
 // 20260617 Sawaneh - Fixed cash journal account suggestions to show inside the blue autocomplete dropdown instead of the old overlapping gray popup.
 //
@@ -111,8 +112,6 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
-
-include("./kassekladde_includes/bilagsmatch.php");
 
 include("./kassekladde_includes/bilagsmatch.php");
 
@@ -2827,7 +2826,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$de_fok value =\"$afd[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_ansat) {
-			print "<td  class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$y'
+			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$y'
 			$de_fok value =\"$ansat[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_projekt) {
@@ -3008,12 +3007,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<tr>";
 		##################
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
-
 		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
 		if (isset($bilag[$x]) && $bilag[$x]) {
 			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
 			$next = $bilag[$x];
-		} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
+		} elseif (!$kladde_id || 0 == db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__))){
 			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
@@ -3047,26 +3045,26 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
 				########################
 				$href = "../includes/documents.php?source=kassekladde&sourceId=0"
-                . "&kladde_id=" . urlencode($kladde_id)
-                . "&bilag="     . urlencode($next)
-                . "&dato="      . urlencode($dato[$x])
+                . "&kladde_id="   . urlencode($kladde_id)
+                . "&bilag="       . urlencode($next)
+                . "&dato="        . urlencode($dato[$x])
                 . "&beskrivelse=" . urlencode($beskrivelse[$x] ?? '')
-                . "&debet="     . urlencode($debet[$x] ?? '')
-                . "&kredit="    . urlencode($kredit[$x] ?? '')
-                . "&fakturanr=" . urlencode($faktura[$x] ?? '')
-                . "&sum="       . urlencode($belob ?? '')
+                . "&debet="       . urlencode($debet[$x] ?? '')
+                . "&kredit="      . urlencode($kredit[$x] ?? '')
+                . "&fakturanr="   . urlencode($faktura[$x] ?? '')
+                . "&sum="         . urlencode($belob ?? '')
                 . "&fokus=bila$x&openPool=1";
 				########################
-				print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
-				print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
-				print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
-				// print "</tr>";
+			print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+            print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+            print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
+        	// print "</tr>";
 			} else {
 				print "<td></td>\n";
 			}
 		}
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
-		
+
 		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
 		if (isset($bilag[$x]) && $bilag[$x]) {
 			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
@@ -3086,7 +3084,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if($dato[$x] == ''){
 			$dato[$x] = dkdato(date("Y-m-d"));
 		}
-		
+
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
@@ -3137,7 +3135,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
 			print "<td></td>\n";
-		} 
+		}
 		if ($kontrolkonto) {
 			print "<td></td>\n";
 			print "<td></td>\n";
@@ -3215,7 +3213,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
 			print "<td></td>\n";
-		} 
+		}
 		if ($kontrolkonto) {
 			print "<td></td>\n";
 			print "<td></td>\n";
@@ -3394,9 +3392,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		#if ($bilag=="-"){$bilag="";} PHR 02.10.06
 		#if ($bilag=='-*') $sletrest=1;
 		#if ($sletrest) $bilag='-';
-		if ($bilag && $bilag != '0' && substr($bilag, -1) != 'r' && $bilag != '-')
+		if ($bilag && $bilag != '0' && substr($bilag, -1) != 'r' && $bilag != '-') {
 			$bilag = (int) $bilag; 	//20160909 undtaget * til bilagsrenum
-		#}
+		}
 		$debet = trim($debet);
 		$kredit = trim($kredit);
 		if (($bilag != "-") && (($bilag) || ($beskrivelse) || ($kredit) || ($debet) || ($faktura) || ($belob))) {

@@ -721,12 +721,10 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 							$dg_percent = 0;
 						}
 						print "<td align=right>" . dkdecimal($dg_percent, 2) . " %</td>\n";
-							
-
-				        } else  {
-						print "<td align=right><br></td>\n";
-						}
-					    /* print "<td></td>"; */
+					} else  {
+					print "<td align=right><br></td>\n";
+					}
+					/* print "<td></td>"; */
 				}
 			}
 		}
