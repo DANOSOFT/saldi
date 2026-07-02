@@ -29,13 +29,14 @@
 // 20250527 PHR Fixed problem with small corrency diffs that listed alligned accounts at unequal
 // 20260507 CL/PHR Added $vis_alle parameter: false = only show udlignet != '1' (Vis åbne poster), true = show all (Vis alle poster).
 // 20260513 PHR Columns were shifted when $usePBS was NULL
-// 20260518 CL/PHR PBS-kolonne printes kun hvis $usePBS er sat. isset()-check tilføjet for $kontoudtog.
 // 20260528 PHR Bottomline was overlooked 20260513
+// 20260612 MJ Paginated and batched debtor open items report queries for large databases.
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
 	global $baseCurrency,$bgcolor,$bgcolor5,$bruger_id;
 	global $db;
+	global $db_type;
 	global $menu;
 	global $sprog_id;
 
@@ -63,42 +64,17 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>>90</th><th align=right  class='text-right'>60-90</th><th align=right class='text-right'>30-60</th><th align=right class='text-right'>8-30</th><th align=right class='text-right'>0-8</th><th align=right class='text-right'>I alt</th><th align=right</th>";
 		print "</thead><tbody>";
 	} else {
+		print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
+		print "<tr><td>Kontonr.</th>";
 		if ($usePBS) {
-			$opColWidths = array(9, 7, 22, 8, 8, 8, 8, 8, 9, 13);
-		} else {
-			$opColWidths = array(10, 26, 8, 8, 8, 8, 8, 10, 14);
-		}
-		$opColgroupHtml = "<colgroup>";
-		foreach ($opColWidths as $opColW) { $opColgroupHtml .= "<col style='width:{$opColW}%'>"; }
-		$opColgroupHtml .= "</colgroup>";
-
-		print "<style>
-#opHeaderTitleTable { width:100%; table-layout:fixed; border-collapse:collapse; background-color:$bgcolor; }
-#opHeaderTitleTable td { padding:6px 4px; border-bottom:2px solid #ddd; }
-#opGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:auto; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
-#opGridTable { border-collapse:collapse; width:100%; table-layout:fixed; }
-#opGridTable tfoot { background-color:$bgcolor; border-top:2px solid #ddd; }
-#opGridTable tfoot tr, #opGridTable tfoot td { background-color:$bgcolor; }
-</style>\n";
-
-		// Column-title row sits in normal flow (flex:0 0 auto), outside the scrollable area —
-		// same approach as the blue bar, so it can never scroll away regardless of where the
-		// scrollable grid below it has scrolled to.
-		print "<div style='flex:0 0 auto;padding:0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-		print "<table id='opHeaderTitleTable' cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$opColgroupHtml<tbody><tr>";
-		print "<td>Kontonr.</td>";
-		if ($usePBS) {
+			$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
 			if ($showPBS) {
-				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=0'>skjul BS</a></td>";
+				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&showPBS=0'>skjul BS</a></td>";
 			} else {
-				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=1'>vis BS</a></td>";
-			}
+				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&showPBS=1'>vis BS</a></td>";
+			}	
 		}
 		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
-		print "</tr></tbody></table>";
-		print "</div>\n";
-
-		print "<div id='opGridWrapper'><table id='opGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$opColgroupHtml<tbody>\n";
 	}
 
 	$currentdate=date("Y-m-d");
@@ -108,6 +84,12 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	}	elseif ($dato_fra && !$dato_til) {
 		$todate=usdate($dato_fra);
 	} else $todate = $currentdate;
+	$openpostPage=(int)if_isset($_REQUEST, 1, 'openpost_page');
+	$openpostPageSize=(int)if_isset($_REQUEST, 100, 'openpost_page_size');
+	if ($openpostPage < 1) $openpostPage=1;
+	if ($openpostPageSize < 25) $openpostPageSize=25;
+	elseif ($openpostPageSize > 500) $openpostPageSize=500;
+	$openpostOffset=($openpostPage-1)*$openpostPageSize;
 
 	print "<form name=aabenpost action=rapport.php method=post>";
 
@@ -117,56 +99,109 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<tr><td colspan=10><hr></td></tr>\n";
 	}
 		
-	$opAmount = $opId = array();
-	$x = 0;
-	if ($vis_alle) {
-		$qtxt = "select distinct konto_id from openpost";
-	} else {
-		$qtxt = "select distinct konto_id from openpost where udlignet != '1'";
-	}
-	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$opId[$x] = $r['konto_id'];
-		$x++;
-	}
-
-
+	$accountPosts=$accountIndex=array();
 	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
-		$qtxt = "select * from adresser where kontonr >= '$konto_fra' and kontonr <= '$konto_til' and art = '$kontoart' order by ".nr_cast('kontonr')."";
+		$accountWhere = nr_cast('adresser.kontonr')." >= '$konto_fra' and ".nr_cast('adresser.kontonr')." <= '$konto_til' and adresser.art = '$kontoart'";
+		$accountOrder = nr_cast('adresser.kontonr');
 	} elseif ($konto_fra && $konto_fra!='*') {
 		$konto_fra=str_replace("*","%",$konto_fra);
 		$tmp1=strtolower($konto_fra);
 		$tmp2=strtoupper($konto_fra);
-		$qtxt = "select * from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
-	}	else $qtxt = "select * from adresser where art = '$kontoart' order by firmanavn";
+		$accountWhere = "(adresser.firmanavn like '$konto_fra' or lower(adresser.firmanavn) like '$tmp1' or upper(adresser.firmanavn) like '$tmp2') and adresser.art = '$kontoart'";
+		$accountOrder = "adresser.firmanavn";
+	}	else {
+		$accountWhere = "adresser.art = '$kontoart'";
+		$accountOrder = "adresser.firmanavn";
+	}
+	if (!$showPBS) $accountWhere.= " and (adresser.pbs_nr is NULL or adresser.pbs_nr = '' or adresser.pbs_nr = '0')";
+	if ($kontoart=='D') $tmp="";
+	else $tmp="desc";
+	if ($vis_alle) {
+		$postWhere = "1=1";
+	} elseif ($db_type == 'postgresql') {
+		$postWhere = "openpost.udlignet IS DISTINCT FROM '1'";
+	} else {
+		$postWhere = "(openpost.udlignet is NULL or openpost.udlignet != '1')";
+	}
+	if ($todate != $currentdate) $postWhere = "openpost.transdate<='$todate' and $postWhere";
+	$totalKontoantal=0;
+	$qtxt = "select count(*) as account_count from (select distinct adresser.id from openpost ";
+	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select id from adresser where id=openpost.konto_id and $accountWhere offset 0) adresser ";
+	else $qtxt.= ", adresser ";
+	$qtxt.= "where $postWhere";
+	if ($db_type != 'postgresql') $qtxt.= " and openpost.konto_id=adresser.id and $accountWhere";
+	$qtxt.= ") account_count";
+	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $totalKontoantal=(int)$r['account_count'];
+	$totalPages=($totalKontoantal) ? ceil($totalKontoantal/$openpostPageSize) : 1;
+	if ($openpostPage > $totalPages) {
+		$openpostPage=$totalPages;
+		$openpostOffset=($openpostPage-1)*$openpostPageSize;
+	}
+	$qtxt = "select account_page.account_id, account_page.account_kontonr, account_page.account_firmanavn, ";
+	$qtxt.= "account_page.account_addr1, account_page.account_addr2, account_page.account_postnr, account_page.account_bynavn, ";
+	$qtxt.= "account_page.account_email, account_page.account_betalingsbet, account_page.account_betalingsdage, ";
+	$qtxt.= "account_page.account_pbs, account_page.account_pbs_nr, openpost.* from (";
+	$qtxt.= "select distinct adresser.id as account_id, adresser.kontonr as account_kontonr, adresser.firmanavn as account_firmanavn, ";
+	$qtxt.= "adresser.addr1 as account_addr1, adresser.addr2 as account_addr2, adresser.postnr as account_postnr, ";
+	$qtxt.= "adresser.bynavn as account_bynavn, adresser.email as account_email, adresser.betalingsbet as account_betalingsbet, ";
+	$qtxt.= "adresser.betalingsdage as account_betalingsdage, adresser.pbs as account_pbs, adresser.pbs_nr as account_pbs_nr, ";
+	$qtxt.= "$accountOrder as account_sort from openpost ";
+	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select * from adresser where id=openpost.konto_id and $accountWhere offset 0) adresser ";
+	else $qtxt.= ", adresser ";
+	$qtxt.= "where $postWhere";
+	if ($db_type != 'postgresql') $qtxt.= " and openpost.konto_id=adresser.id and $accountWhere";
+	$qtxt.= " order by account_sort limit $openpostPageSize offset $openpostOffset) account_page ";
+	$qtxt.= "join openpost on openpost.konto_id=account_page.account_id where $postWhere ";
+	$qtxt.= "order by account_page.account_sort, openpost.konto_id, openpost.faktnr, openpost.amount $tmp";
 	$konto_id = $kontonr = array();
 	$x=0;
 	$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (in_array($r['id'],$opId)) {
-			if (!$r['pbs_nr'] || $showPBS) {
+		if (!isset($accountIndex[$r['account_id']])) {
 			$x++;
-			$konto_id[$x]=$r['id'];
-			print "<input type=hidden name='konto_id[$x]' value='$konto_id[$x]'>";
-			$kontonr[$x]=trim($r['kontonr']);
-			$firmanavn[$x]=stripslashes($r['firmanavn']);
-			$addr1[$x]=stripslashes($r['addr1']);
-			$addr2[$x]=stripslashes($r['addr2']);
-			$postnr[$x]=trim($r['postnr']);
-			$bynavn[$x]=stripslashes($r['bynavn']);
-			$email[$x]=trim($r['email']);
-			$betalingsbet[$x]=trim($r['betalingsbet']);
-			$betalingsdage[$x]=trim($r['betalingsdage']);
-			$pbs[$x]=trim($r['pbs']);
-			$pbs_nr[$x]=trim($r['pbs_nr']);
+			$accountIndex[$r['account_id']]=$x;
+			$konto_id[$x]=$r['account_id'];
+			$kontonr[$x]=trim($r['account_kontonr']);
+			$firmanavn[$x]=stripslashes($r['account_firmanavn']);
+			$addr1[$x]=stripslashes($r['account_addr1']);
+			$addr2[$x]=stripslashes($r['account_addr2']);
+			$postnr[$x]=trim($r['account_postnr']);
+			$bynavn[$x]=stripslashes($r['account_bynavn']);
+			$email[$x]=trim($r['account_email']);
+			$betalingsbet[$x]=trim($r['account_betalingsbet']);
+			$betalingsdage[$x]=trim($r['account_betalingsdage']);
+			$pbs[$x]=trim($r['account_pbs']);
+			$pbs_nr[$x]=trim($r['account_pbs_nr']);
 			($pbs[$x] && $pbs_nr[$x])?$pbs[$x]='&#10004;':$pbs[$x]=NULL;
-		}}
+			$accountPosts[$x]=array();
+		}
+		$accountPosts[$accountIndex[$r['account_id']]][]=$r;
 	}
-	$kontoantal=$x;	
+	$pageAccountCount=$x;
+	$kontoantal=$totalKontoantal;
 	$sum=0;
 	$kontrolsum=0;
 	$udlign=NULL;
-	for ($x=1; $x<=count($konto_id); $x++) {
+	$formIndex=0;
+	$displayFirst=($kontoantal) ? $openpostOffset+1 : 0;
+	$displayLast=min($kontoantal, $openpostOffset+$pageAccountCount);
+	$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
+	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&openpost_page_size=$openpostPageSize";
+	if ($vis_alle) $basePageUrl.="&vis_alle_poster=on";
+	elseif ($kun_debet) $basePageUrl.="&kun_debet=on";
+	elseif ($kun_kredit) $basePageUrl.="&kun_kredit=on";
+	else $basePageUrl.="&vis_aabenpost=on";
+	if (!$showPBS) $basePageUrl.="&showPBS=0";
+	if ($kontoantal > $openpostPageSize) {
+		$colspan = $usePBS ? 10 : 9;
+		print "<tr><td colspan='$colspan' align='center'>";
+		if ($openpostPage > 1) print "<a href=\"$basePageUrl&openpost_page=".($openpostPage-1)."\">Forrige</a>&nbsp;";
+		print "Viser $displayFirst-$displayLast af $kontoantal";
+		if ($openpostPage < $totalPages) print "&nbsp;<a href=\"$basePageUrl&openpost_page=".($openpostPage+1)."\">N&aelig;ste</a>";
+		print "</td></tr>\n";
+	}
+	$agingDateCache=array();
+	for ($x=1; $x<=$pageAccountCount; $x++) {
 		$amount=0;
 		$accountAligned=1;
 		$rykkerbelob=0;
@@ -179,17 +214,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$y=0;
 		$faktnr=array();
 		$f=0;
-		if ($kontoart=='D') $tmp="";
-		else $tmp="desc";
-
-		$udlignetFilter = $vis_alle ? "" : " and (udlignet is null or udlignet != '1')";
-		if ($todate != $currentdate) {
-			$qtxt="select * from openpost where transdate<='$todate' and konto_id='$konto_id[$x]'$udlignetFilter order by faktnr,amount $tmp";
-		} else $qtxt="select * from openpost where konto_id='$konto_id[$x]'$udlignetFilter order by faktnr,amount $tmp";
-#cho __line__." $qtxt<br>",
-		$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 		$ks=0;
-		while ($r=db_fetch_array($q)) {
+		foreach ($accountPosts[$x] as $r) {
 			$aligned = $r['udlignet'];
 			if (!$r['udlignet']) $accountAligned = 0;
       if ((float)$r['valutakurs'] && $r['valuta']!='-') {
@@ -227,10 +253,16 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				$fakt_utid=strtotime($transdate);
 				$forf_utid=strtotime($forfaldsdag);
 				$dage=afrund(($forf_utid-$fakt_utid)/86400,0);
-				$forfaldsdag_plus8=usdate(forfaldsdag($transdate, 'netto',$dage+8));
-				$forfaldsdag_plus30=usdate(forfaldsdag($transdate, 'netto',$dage+30));
-				$forfaldsdag_plus60=usdate(forfaldsdag($transdate, 'netto',$dage+60));
-				$forfaldsdag_plus90=usdate(forfaldsdag($transdate, 'netto',$dage+90));
+				$agingKey=$transdate . "|" . $dage;
+				if (!isset($agingDateCache[$agingKey])) {
+					$agingDateCache[$agingKey]=array(
+						usdate(forfaldsdag($transdate, 'netto',$dage+8)),
+						usdate(forfaldsdag($transdate, 'netto',$dage+30)),
+						usdate(forfaldsdag($transdate, 'netto',$dage+60)),
+						usdate(forfaldsdag($transdate, 'netto',$dage+90))
+					);
+				}
+				list($forfaldsdag_plus8,$forfaldsdag_plus30,$forfaldsdag_plus60,$forfaldsdag_plus90)=$agingDateCache[$agingKey];
 				if ($forfaldsdag<$todate){$rykkerbelob=$rykkerbelob+$amount;}
 				if (($forfaldsdag<$todate)&&($forfaldsdag_plus8>$todate)){
 					$forfalden=$forfalden+$amount;
@@ -265,7 +297,9 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$forfaldsum_plus90=$forfaldsum_plus90+$forfalden_plus90;
 			$sum=$sum+$y;
 			$kontrolsum+=$kontrol;
-			print "<tr class='op-data-row' bgcolor=\"$linjebg\">";
+			$formIndex++;
+			print "<tr bgcolor=\"$linjebg\">";
+			print "<input type=hidden name='konto_id[$formIndex]' value='$konto_id[$x]'>";
 			print "<td><a href=rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$konto_fra&kilde_kto_til=$konto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kontonr[$x]&konto_til=$kontonr[$x]&submit=ok>";
 			print "<span title='Klik for detaljer'>$kontonr[$x]</span></a></td>";
 			if ($usePBS) print "<td>$pbs[$x]</td>";
@@ -324,11 +358,11 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&udlign=$konto_id[$x]\">$tmp</a></td>";
 			}
 			else {print "<td align=right>$tmp</td>";}
-			if ((isset($kontoudtog[$x]) && $kontoudtog[$x]=='on') && ($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$x] checked><span class='checkmarkOrdreliste'></span></label>";
-			elseif($kontoart=="D")  print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$x]><span class='checkmarkOrdreliste'></span></label>";
+			if ((isset($kontoudtog[$x]) && $kontoudtog[$x]=='on') && ($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$formIndex] checked><span class='checkmarkOrdreliste'></span></label>";
+			elseif($kontoart=="D")  print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$formIndex]><span class='checkmarkOrdreliste'></span></label>";
 			print "</tr>\n";
+			print "<input type=hidden name=rykkerbelob[$formIndex] value=$rykkerbelob>";
 		}
-		print "<input type=hidden name=rykkerbelob[$x] value=$rykkerbelob>";
 	}
 
 	if (!isset ($forfaldsum_plus90)) $forfaldsum_plus90 = NULL;
@@ -345,11 +379,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	($usePBS) ? $colspan = 2 : $colspan = 1 ;
 	if ($menu=='T') {
 		print "</tbody><tfoot>";
-		print "<tr><td colspan='$colspan'><br></td><td><b>I alt</b></td>";
+		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
 	} else {
-		print "</tbody><tfoot>";
 		print "<tr><td colspan=10><hr></td></tr>\n";
-		print "<tr><td colspan='$colspan'><br></td><td><b>I alt</b></td>";
+		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
 	}
 
 	if ($forfaldsum_plus90 != 0) $color="rgb(255, 0, 0)";
@@ -381,95 +414,39 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	print "<input type=hidden name=dato_til value=$dato_til>";
 	print "<input type=hidden name=konto_fra value=$konto_fra>";
 	print "<input type=hidden name=konto_til value=$konto_til>";
-	print "<input type=hidden name=kontoantal value=$kontoantal></td></tr>";
+	print "<input type=hidden name=kontoantal value=$formIndex>";
+	print "<input type=hidden name=openpost_page value=$openpostPage>";
+	print "<input type=hidden name=openpost_page_size value=$openpostPageSize></td></tr>";
 
 	if ($kontoart=='D') {
-		$txt1 = lcfirst(findtekst('2767|Af', $sprog_id));
-		$txt2 = findtekst('2125|Linjer pr. side', $sprog_id);
-		print "<style>
-#opPageFooterBar { position:fixed; left:0; right:0; bottom:0; width:100%; margin:0; z-index:1000; background-color:$bgcolor; border-top:1px solid #b8bec8; padding:1px 12px 10px 12px; display:flex; flex-direction:column; align-items:center; gap:1px; box-sizing:border-box; }
-#opPageFooterBar #opFooterPagination { display:flex; align-items:center; justify-content:flex-end; gap:20px; flex-wrap:wrap; width:100%; line-height:1; }
-#opPageFooterBar #opFooterActions { display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; width:100%; line-height:1; }
-#opPageFooterBar #opFooterActions .opBulkLabel { font:12px/100% Arial, Helvetica, sans-serif; color:#555; margin-right:4px; }
-#opPageFooterBar #opNavButtons { display:flex; align-items:center; gap:3px; }
-#opPageFooterBar #opNavButtons button.navbutton { height:20px; width:20px; padding:0; display:inline-flex; align-items:center; justify-content:center; background:#f0f0f0; color:#000; border:1px solid #b8bec8; border-radius:4px; }
-#opPageFooterBar #opNavButtons button.navbutton:not(:disabled) { cursor:pointer; }
-#opPageFooterBar #opNavButtons button.navbutton:disabled { opacity:0.5; }
-.opActionBtn { display:inline-block; font:11px/100% Arial, Helvetica, sans-serif; padding:.2em 1em .275em; color:#d9eef7; text-decoration:none; text-shadow:0 1px 1px rgba(0,0,0,.3); border:solid 1px #0076a3; border-radius:.5em; cursor:pointer;
-	background:#0095cd; background:-webkit-gradient(linear,left top,left bottom,from(#00adee),to(#0078a5)); background:-moz-linear-gradient(top,#00adee,#0078a5); background:linear-gradient(top,#00adee,#0078a5);
-	box-shadow:0 1px 2px rgba(0,0,0,.2); }
-.opActionBtn:hover { background:#007ead; background:-webkit-gradient(linear,left top,left bottom,from(#0095cc),to(#00678e)); background:-moz-linear-gradient(top,#0095cc,#00678e); background:linear-gradient(top,#0095cc,#00678e); }
-.opActionBtn:active { position:relative; top:1px; color:#80bed6; background:-webkit-gradient(linear,left top,left bottom,from(#0078a5),to(#00adee)); background:-moz-linear-gradient(top,#0078a5,#00adee); background:linear-gradient(top,#0078a5,#00adee); }
-</style>\n";
-		print "<div id='opPageFooterBar'>";
-		print "<div id='opFooterPagination'>";
-		print "<span id='opPageStatus'></span>";
-		print "<span>$txt2 <select id='opPageSize'><option value='50'>50</option><option value='100'>100</option><option value='250'>250</option><option value='500'>500</option><option value='100000'>Alle</option></select></span>";
-		print "<span id='opNavButtons'></span>";
-		print "</div>";
-		print "<div id='opFooterActions'>";
-		print "<span class='opBulkLabel'><b>Bulk actions:</b></span>";
-		print "<span title=\"Klik her for at maile kontoudtog til de modtagere som er afm&aelig;rket herover\">";
-		print "<input type=submit class='opActionBtn' value=\"Mail kontoudtog\" name=\"submit\"></span>";
+		$overlib4="<span class='CellComment'>".findtekst(242,$sprog_id)."</span>";
+		print "<tr><td colspan='10' align='center' class='border-hr-top'><span title=\"Klik her for at maile kontoudtog til de modtagere som er afm&aelig;rket herover\">";
+		print "<input type=submit value=\"Mail kontoudtog\" name=\"submit\"></span>&nbsp;&nbsp;";
 		print "<span title='Klik her for at oprette rykker til de som er afm&aelig;rkede herover'>";
-		print "<input type=submit class='opActionBtn' value=\"Opret rykker\" name=\"submit\"></span>";
+		print "<input type=submit value=\"Opret rykker\" name=\"submit\"></span>&nbsp;&nbsp;";
 		if ($udlign) {
 			$udlign=trim($udlign,"'");
-			print "	<input type='button' class='opActionBtn' onclick=\"location.href='rapport.php?rapportart=openpost&udlign=$udlign';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />";
-			print "<input type=submit class='opActionBtn' title='Settles all accounts' value=\"Ryk alle\" name=\"submit\">";
+			print "	<input type='button' onclick=\"location.href='rapport.php?rapportart=openpost&udlign=$udlign';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
+			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>"; 
 		} else {
-			print "<input type=submit class='opActionBtn' title='Settles all accounts' value=\"Ryk alle\" name=\"submit\">";
+			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
 		}
-		print "</div>";
-		print "</div>\n";
-		print "<script>(function(){
-	var rows = Array.prototype.slice.call(document.querySelectorAll('tr.op-data-row'));
-	var pageSize = 50, currentPage = 1;
-	var prevIcon = '<svg xmlns=\"http://www.w3.org/2000/svg\" height=\"16px\" viewBox=\"0 -960 960 960\" width=\"16px\" fill=\"#000000\"><path d=\"M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z\"/></svg>';
-	var nextIcon = '<svg xmlns=\"http://www.w3.org/2000/svg\" height=\"16px\" viewBox=\"0 -960 960 960\" width=\"16px\" fill=\"#000000\"><path d=\"M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z\"/></svg>';
-	function render(){
-		var total = rows.length;
-		var totalPages = Math.max(1, Math.ceil(total / pageSize));
-		if (currentPage > totalPages) currentPage = totalPages;
-		var start = (currentPage - 1) * pageSize;
-		var end = Math.min(total, start + pageSize);
-		rows.forEach(function(row, i){ row.style.display = (i >= start && i < end) ? '' : 'none'; });
-		var statusEl = document.getElementById('opPageStatus');
-		if (statusEl) statusEl.textContent = total ? (start + 1) + '-' + end + ' " . $txt1 . " ' + total : '0 " . $txt1 . " 0';
-		var nav = document.getElementById('opNavButtons');
-		if (nav) {
-			var html = '';
-			html += \"<button type='button' class='navbutton' \" + (currentPage <= 1 ? 'disabled' : '') + \" onclick='opGoToPage(\" + (currentPage - 1) + \")'>\" + prevIcon + '</button>';
-			var pageRange = 2;
-			var startPage = Math.max(1, currentPage - pageRange);
-			var endPage = Math.min(totalPages, currentPage + pageRange);
-			if (startPage > 1) {
-				html += \"<button type='button' class='navbutton' onclick='opGoToPage(1)'>1</button>\";
-				if (startPage > 2) html += '<span>...</span>';
-			}
-			for (var p = startPage; p <= endPage; p++) {
-				html += \"<button type='button' class='navbutton' style='\" + (p === currentPage ? 'text-decoration:underline;' : '') + \"' onclick='opGoToPage(\" + p + \")'>\" + p + '</button>';
-			}
-			if (endPage < totalPages) {
-				if (endPage < totalPages - 1) html += '<span>...</span>';
-				html += \"<button type='button' class='navbutton' onclick='opGoToPage(\" + totalPages + \")'>\" + totalPages + '</button>';
-			}
-			html += \"<button type='button' class='navbutton' \" + (currentPage >= totalPages ? 'disabled' : '') + \" onclick='opGoToPage(\" + (currentPage + 1) + \")'>\" + nextIcon + '</button>';
-			nav.innerHTML = html;
-		}
+		print "</tr>\n";
 	}
-	window.opGoToPage = function(p){ currentPage = Math.max(1, p); render(); };
-	var sizeSel = document.getElementById('opPageSize');
-	if (sizeSel) sizeSel.addEventListener('change', function(){ pageSize = parseInt(this.value, 10) || 50; currentPage = 1; render(); });
-	render();
-})();</script>\n";
+	if ($kontoantal > $openpostPageSize) {
+		print "<tr><td colspan='10' align='center' class='border-hr-top'>";
+		if ($openpostPage > 1) print "<a href=\"$basePageUrl&openpost_page=".($openpostPage-1)."\">Forrige</a>&nbsp;";
+		print "Side $openpostPage af $totalPages";
+		if ($openpostPage < $totalPages) print "&nbsp;<a href=\"$basePageUrl&openpost_page=".($openpostPage+1)."\">N&aelig;ste</a>";
+		print "</td></tr>\n";
 	}
 	print "</form>\n";
 
 	if ($menu=='T') {
 		print "</tfoot></table></div></tfoot></table>";
 	} else {
-		print "</tfoot></table>"; // <- #opGridWrapper stays open; closed later by openpost() after Rykkeroversigt
+		print "<tr><td colspan=10><hr></td></tr>\n";
+		print "</tbody></table>";
 	}
 
 	if ($menu=='T') {

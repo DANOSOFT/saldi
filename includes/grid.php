@@ -16,8 +16,8 @@ lager/lister/indkøb.php, lager/lister/vareliste.php, lager/lister/ordrestatus.p
 includes/grid.php, finans/kontospec.php, finans/kassekladde.php, finans/regnskab.php, finans/budget.php
 finans/kladdeliste.php, systemdata/kontoplan.php, kreditor/kreditor.php, kreditor/productLookup.php, kreditor/orderIncludes/dropshipping.php, etc.
 Regards:) 20260220 LOE
-20260513 PK - Added class="navbutton" to the navigation buttons with svg, as those buttons were too high compared to the page selector buttons
 */
+// 20260620 MJ Recover from invalid saved datatable setup so stale user grid state does not block page loading.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -298,11 +298,11 @@ function create_datagrid($id, $grid_data) {
         if_isset($searchId2, array()),
         $filters
     );
-    $columns_setup = json_decode($columns_setup, true);
+    $columns_setup = decode_grid_json_array($columns_setup, $columns_filtered);
     $columns_updated = fill_missing_values($columns_setup, $columns);
 
     // Process search input
-    $search_setup = json_decode($search_setup, true);
+    $search_setup = decode_grid_json_array($search_setup, array());
     $s3 = if_isset($_GET, NULL,"search"); // prevent excessive error logs
     $s4 = if_isset($s3, NULL, $id);
     $searchTerms = if_isset($s4, $search_setup);
@@ -393,7 +393,7 @@ function create_datagrid($id, $grid_data) {
     }
 
     // Process filters
-    $filters_setup = json_decode($filter_setup, true);
+    $filters_setup = decode_grid_json_array($filter_setup, array());
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
@@ -501,6 +501,14 @@ function create_datagrid($id, $grid_data) {
     return $rows;
 }
 
+function decode_grid_json_array($json, $fallback = array()) {
+    if (is_array($json)) return $json;
+    if ($json === null || $json === '') return $fallback;
+
+    $decoded = json_decode($json, true);
+    return is_array($decoded) ? $decoded : $fallback;
+}
+
 
 /**
  * Fetches or initializes the grid setup for a specific table and user.
@@ -581,10 +589,7 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 function fill_missing_values($firstArray, $secondArray) {
     foreach ($firstArray as &$firstItem) {
         foreach ($secondArray as $secondItem) {
-            $fieldMatch  = ($firstItem['field'] !== '' && $firstItem['field'] === $secondItem['field']);
-            // When stored field is empty, fall back to matching by headerName so new field assignments are picked up
-            $headerMatch = ($firstItem['field'] === '' && $firstItem['headerName'] === $secondItem['headerName']);
-            if ($fieldMatch || $headerMatch) {
+            if ($firstItem['field'] === $secondItem['field']) {
                 foreach ($secondItem as $key => $value) {
                     if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
                         $firstItem[$key] = $value;
@@ -745,33 +750,11 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
     }
 
     # Is always set due to get_default_sort
-    $sort = apply_sort_sqlOverride($sort, $columns);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     $query .= " LIMIT $rowCount OFFSET $offset"; // Add limit for performance
 
     return $query;
-}
-
-# Replace the bare sort field with its sqlOverride when defined, so ORDER BY is unambiguous.
-function apply_sort_sqlOverride($sort, $columns) {
-    if (!$sort || !is_array($columns)) return $sort;
-    $parts = preg_split('/\s+/', trim($sort), 2);
-    $field = $parts[0];
-    $dir   = isset($parts[1]) ? $parts[1] : '';
-    $override = null;
-    if (isset($columns[$field]) && is_array($columns[$field]) && !empty($columns[$field]['sqlOverride'])) {
-        $override = $columns[$field]['sqlOverride'];
-    } else {
-        foreach ($columns as $col) {
-            if (is_array($col) && isset($col['field']) && $col['field'] === $field && !empty($col['sqlOverride'])) {
-                $override = $col['sqlOverride'];
-                break;
-            }
-        }
-    }
-    if ($override) $field = $override;
-    return trim($field . ' ' . $dir);
 }
 
 
@@ -847,7 +830,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $query = str_replace("{{WHERE}}", $filterstring == "" ? "1=1" : $filterstring, $query);
     }
 
-    $sort = apply_sort_sqlOverride($sort, $columns);
+    // Replace sort placeholder with an empty string (count query doesn't need sorting)
     $query = str_replace("{{SORT}}", $sort, $query);
 
     // Remove the LIMIT clause to count all rows
@@ -1208,11 +1191,11 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
                         </span>
                         |
                         <span id='navbuttons'>
-                            <button type='button' onclick="setOffset$id($lastpage)" class="navbutton" $lastpagestatus>
+                            <button type='button' onclick="setOffset$id($lastpage)" $lastpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
                             </button>
                             $pageLinks
-                            <button type='button' onclick="setOffset$id($nextpage)" class="navbutton" $nextpagestatus>
+                            <button type='button' onclick="setOffset$id($nextpage)" $nextpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                             </button>
                         </span>

@@ -1,5 +1,5 @@
 <?php
-// -------------kreditor/ordre2csv.php----------lap 2.0.5------2009-02-24----
+// -------------kreditor/ordre2csv.php----------lap 5.0.0------2026-06-12----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,10 +14,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2009 DANOSOFT ApS
+// Copyright (c) 2004-2026 DANOSOFT.ApS
 // ----------------------------------------------------------------------
 // 03/02/2025 PBLM fixed lev_varenummer
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260612 MJ Use creditor order number, not internal id, for exported CSV filename.
 
 @session_start();
 $s_id = session_id();
@@ -42,7 +43,14 @@ print "</tbody></table></td></tr>"; #B1 slut
 print "<tr><td valign=top>";
 print "<table width=\"400\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; #B2
 
-$filnavn = "../temp/" . $db . "/" . $ordre_id . ".csv";
+$r = db_fetch_array(db_select("select ordrenr,status,art from ordrer where id = '$ordre_id'", __FILE__ . " linje " . __LINE__));
+$ordrenr = $r['ordrenr'] ? $r['ordrenr'] : $ordre_id;
+$csvPrefix = "creditorOrder";
+if ($r['art'] == 'KO') {
+	if ($r['status'] <= 1) $csvPrefix = "creditorSuggestion";
+	elseif ($r['status'] > 2) $csvPrefix = "creditorInvoice";
+}
+$filnavn = "../temp/" . $db . "/" . $csvPrefix . $ordrenr . ".csv";
 #echo "Filnavn $filnavn<br>";
 $fp = fopen($filnavn, "w");
 
