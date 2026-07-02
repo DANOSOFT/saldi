@@ -250,6 +250,22 @@ if (isset($_POST['slet'])) {
 		}
 	}
 	genberegn($regnaar);
+
+	if ($id > 0) {
+		$redirect_url = "kontokort.php?id=" . intval($id);
+		if ($regnaar_return) $redirect_url .= "&regnaar="    . urlencode($regnaar_return);
+		if ($maaned_fra)     $redirect_url .= "&maaned_fra=" . urlencode($maaned_fra);
+		if ($maaned_til)     $redirect_url .= "&maaned_til=" . urlencode($maaned_til);
+		if ($aar_fra)        $redirect_url .= "&aar_fra="    . urlencode($aar_fra);
+		if ($aar_til)        $redirect_url .= "&aar_til="    . urlencode($aar_til);
+		if ($dato_fra)       $redirect_url .= "&dato_fra="   . urlencode($dato_fra);
+		if ($dato_til)       $redirect_url .= "&dato_til="   . urlencode($dato_til);
+		if ($konto_fra)      $redirect_url .= "&konto_fra="  . urlencode($konto_fra);
+		if ($konto_til)      $redirect_url .= "&konto_til="  . urlencode($konto_til);
+		if ($rapportart)     $redirect_url .= "&rapportart=" . urlencode($rapportart);
+		print "<meta http-equiv='refresh' content='0; URL=$redirect_url'>";
+		exit;
+	}
 }
 if ($id > 0) {
 	$tmpA = explode("\n",file_get_contents("../importfiler/kontoplan.txt"));
