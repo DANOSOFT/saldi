@@ -30,6 +30,7 @@
 @session_start();
 $s_id = session_id();
 
+global $sprog_id;
 
 $css = "../css/dashboard.css?v=1";
 print "<title>Overblik</title>";
@@ -101,7 +102,7 @@ function check_permissions($permarr) {
 	return !empty($filtered);
 }
 
-
+global $regnaar;
 
 # If the user has finans -> regnskab or finans -> reports level access
  if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
@@ -129,11 +130,11 @@ function check_permissions($permarr) {
 
 	print "</div>";
 	print "</div>";
-
 	// Expiry warning for users without finance access but with inventory access
 	if (check_permissions(array(12))) {
 		$_expiry_warn_days = get_due_date_warning_days($bruger_id);
-		$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, COUNT(*) AS batch_count
+		$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, 
+                            COUNT(*) AS batch_count
 		                 FROM batch_kob bk
 		                 WHERE bk.due_date IS NOT NULL AND bk.rest > 0
 		                 AND bk.due_date <= CURRENT_DATE + interval '$_expiry_warn_days days'";
@@ -342,6 +343,7 @@ if ($hide_dash === "1" || is_null($regnaar)) {
 }
 
 print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
+
 
 # #######################################
 #  Omsætning for ugen

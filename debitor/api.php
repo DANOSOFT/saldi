@@ -29,6 +29,8 @@
 
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
+// 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
+// 20260623 NTR - Added a , check on Addresses as sometimes people write extra information that is useless to us.
 
     @session_start();
     $s_id=session_id();
@@ -72,9 +74,9 @@
             "defaultAddress" => [
                 "name" => $res["firmanavn"],
                 "department" => "",
-                "streetName" => explode(" ",$res["addr1"])[0],
+                "streetName" => implode(" ", explode(" ", explode(",", $res["addr1"])[0], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
+                "buildingNumber" => array_slice(explode(" ", explode(",", $res["addr1"])[0]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                 "additionalStreetName" => $res["addr2"],
-                "buildingNumber" => array_slice(explode(" ", $res["addr1"]),-1)[0],
                 "inhouseMail" => "",
                 "cityName" => $res["bynavn"],
                 "postalCode" => $res["postnr"],
@@ -135,8 +137,8 @@
         curl_close($ch);
 
         $timestamp = date("Y-m-d-H-i-s");
-
-        if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || trim($response) === "") {
+        
+        if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "") {
             // An error occurred
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
@@ -144,14 +146,15 @@
 
             // Save error response in temp folder
             file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-
-            return ['success' => false, 'message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT)];
+            
+            return ['success' => false, 'message' => 'Error updating company: ' . (is_string($errorMessage) ? $errorMessage : json_encode($errorMessage))];
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
             return ['success' => false,
                 'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
                 'response' => $response,
                 'status code' => $httpCode
             ];
+            return ['success' => false, 'message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT)];
         }
 
         // Save successful response in temp folder for debugging
@@ -234,7 +237,12 @@
         if(db_num_rows($query) == 0){
             $query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
             if(db_num_rows($query) > 0){
-                updateCompany();
+                $update_return_object = updateCompany();
+                if($update_return_object['success']) {
+                    $companyID = $update_return_object['companyId'];
+                } else {
+                    die($update_return_object['message']);
+                }
                 $query = db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('updatedCompany', 'easyUBL', 'true')", __FILE__ . " linje " . __LINE__);
             }
         }
@@ -277,7 +285,7 @@
             file_put_contents("../temp/$db/fakture-curl-error-$ranStr.json", json_encode(['error' => $errorNumber, 'message' => $errorMessage, 'http_code' => $httpCode], JSON_PRETTY_PRINT));
             ?>
             <script>
-                alert("Forbindelsesfejl:\n\n<?php echo htmlspecialchars($errorMessage); ?>\n\nKontroller internetforbindelsen og prøv igen.");
+                alert('Forbindelsesfejl:\n\n<?= json_encode($errorMessage, JSON_PRETTY_PRINT); ?>\n\nKontroller internetforbindelsen og prøv igen.');
             </script>
             <?php
             curl_close($ch);
@@ -344,7 +352,7 @@
             
             ?>
             <script>
-                alert("Transmission fejl:\n\n<?php echo htmlspecialchars($displayError); ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.");
+                alert('Transmission fejl:\n\n<?= $displayError; ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.');
             </script>
             <?php
             exit;
@@ -496,8 +504,8 @@
         if($levAddr1 !== "" && $levBynavn !== "" && $levPostnr !== ""){
             $deliverAddress = [
                 
-                "streetName" => implode(" ", explode(" ", $levAddr1, -1)), ## 20260518 - NTR - Street name without building number.
-                "buildingNumber" => array_slice(explode(" ", $levAddr1), -1)[0],
+                "streetName" => implode(" ", explode(" ", $r_faktura["lev_addr1"], -1)), ## 20260518 - NTR - Street name without building number.
+                "buildingNumber" => array_slice(explode(" ", explode(",", $res["lev_addr1"])[0]), -1)[0],
                 "inhouseMail" => $r_faktura["email"],
                 "additionalStreetName" => $levAddr2,
                 "attentionName" => $levKontakt,
@@ -511,7 +519,7 @@
             // 20260604 - Fallback to main address if delivery address is incomplete
             $deliverAddress = [
                 "streetName" => implode(" ", explode(" ", $customerAddr1, -1)),
-                "buildingNumber" => array_slice(explode(" ", $customerAddr1), -1)[0],
+                "buildingNumber" => array_slice(explode(" ", explode(",", $customerAddr1)[0]), -1)[0],
                 "inhouseMail" => $r_faktura["email"],
                 "additionalStreetName" => $customerAddr2,
                 "attentionName" => $customerKontakt,
@@ -555,7 +563,7 @@
                 "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $customerAddr1, -1)), ## 20260604 - Updated to use fallback address logic
-                    "buildingNumber" => array_slice(explode(" ", $customerAddr1), -1)[0], ## 20260604 - Updated to use fallback address logic
+                    "buildingNumber" => array_slice(explode(" ", explode(",", $customerAddr1)[0]), -1)[0], ## 20260604 - Updated to use fallback address logic
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $customerAddr2,
                     "attentionName" => $customerKontakt,
@@ -740,7 +748,7 @@
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
                 "streetName" => $r_faktura["lev_addr1"],
-                "buildingNumber" => array_slice(explode(" ", $r_faktura["lev_addr1"]), -1)[0],
+                "buildingNumber" => array_slice(explode(" ", explode(",", $r_faktura["lev_addr1"])[0]), -1)[0],
                 "inhouseMail" => $r_faktura["email"],
                 "additionalStreetName" => $r_faktura["lev_addr2"],
                 "attentionName" => $r_faktura["lev_kontakt"],
@@ -757,7 +765,7 @@
                 "companyId" => "DK $r_faktura[ean]",
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => array_slice(explode(" ", $r_faktura["addr1"]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "buildingNumber" => array_slice(explode(" ", explode(",", $r_faktura["addr1"])[0]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -828,7 +836,7 @@
                 "companyId" => "DK$r_faktura[cvrnr]",
                 "postalAddress" => [
                     "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => array_slice(explode(" ", $r_faktura["addr1"]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "buildingNumber" => array_slice(explode(" ", explode(",", $r_faktura["addr1"])[0]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],
@@ -851,8 +859,8 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK$r_faktura[cvrnr]33557799",
                 "postalAddress" => [
-                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => array_slice(explode(" ", $r_faktura["addr1"]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "streetName" => implode(" ", explode(" ", explode(",", $r_faktura["addr1"])[0], -1)), // ## 20260623 - NTR - Fixed extra address info breaking the logic
+                    "buildingNumber" => array_slice(explode(" ", explode(",", $r_faktura["addr1"])[0]), -1)[0], // ## 20260623 - NTR - Fixed extra address info breaking the logic
                     "inhouseMail" => $r_faktura["email"],
                     "additionalStreetName" => $r_faktura["addr2"],
                     "attentionName" => $r_faktura["firmanavn"],

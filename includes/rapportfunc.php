@@ -835,6 +835,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 	global $regnaar;
 	global $sprog_id;
 	global $top_bund;
+	global $kkVkGroupOf, $kkValGruppe, $kkValKurs, $kkValDate;
 
 	$title = "Kontokort";
 
@@ -946,26 +947,226 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		}
 	}
 
-	for ($y = 1; $y <= $kontoantal; $y++) {
-		if ($fromdate && $todate) {
-			// Only include customers with transactions within the selected period
-			$chk = db_fetch_array(db_select("SELECT id FROM openpost WHERE konto_id='$konto_id[$y]' AND transdate>='$fromdate' AND transdate<='$todate' LIMIT 1", __FILE__ . " linje " . __LINE__));
-			if (!$chk) continue;
-		} elseif ($todate) {
-			$chk = db_fetch_array(db_select("SELECT id FROM openpost WHERE konto_id='$konto_id[$y]' AND transdate<='$todate' LIMIT 1", __FILE__ . " linje " . __LINE__));
-			if (!$chk) continue;
-		} else {
-			// No date range — only include customers with at least one openpost entry
-			$chk = db_fetch_array(db_select("SELECT id FROM openpost WHERE konto_id='$konto_id[$y]' LIMIT 1", __FILE__ . " linje " . __LINE__));
-			if (!$chk) continue;
+	// Batch the "does this account have any matching openpost row" check into ONE query for every
+	// candidate account, instead of one SELECT...LIMIT 1 round-trip per account — for a broad/blank
+	// search this loop alone could mean hundreds or thousands of sequential queries before a single
+	// row of the report is even fetched. Same membership result, just computed in one round-trip.
+	$kkExistsIds = array();
+	if ($kontoantal > 0) {
+		$kkAllIds = array();
+		for ($kkY = 1; $kkY <= $kontoantal; $kkY++) {
+			$kkAllIds[] = (int) $konto_id[$kkY];
 		}
+		// Chunk into batches of 1000 IDs per query instead of one giant IN(...) list — a single
+		// query with tens of thousands of literal IDs can itself become a slow query to parse/plan,
+		// so this caps each query's size while still needing only a handful of round-trips total
+		// (e.g. ~10 queries for 10,000 accounts) instead of one per account.
+		foreach (array_chunk($kkAllIds, 1000) as $kkIdChunk) {
+			$kkChunkList = implode(",", $kkIdChunk);
+			if ($fromdate && $todate)
+				$kkExistsQ = "select distinct konto_id from openpost where konto_id in ($kkChunkList) and transdate>='$fromdate' and transdate<='$todate'";
+			elseif ($todate)
+				$kkExistsQ = "select distinct konto_id from openpost where konto_id in ($kkChunkList) and transdate<='$todate'";
+			else
+				$kkExistsQ = "select distinct konto_id from openpost where konto_id in ($kkChunkList)";
+			$kkExistsRes = db_select($kkExistsQ, __FILE__ . " linje " . __LINE__);
+			while ($kkExistsRow = db_fetch_array($kkExistsRes)) {
+				$kkExistsIds[$kkExistsRow['konto_id']] = true;
+			}
+		}
+	}
+
+	for ($y = 1; $y <= $kontoantal; $y++) {
+		if (!isset($kkExistsIds[$konto_id[$y]]))
+			continue;
 		if (!in_array($konto_id[$y], $kto_id)) {
 			$x++;
 			$kto_id[$x] = $konto_id[$y];
 		}
 	}
 	$kontoantal = $x;
+
+	if ($menu == 'S') {
+		// True server-side pagination (mirrors finans/rapport_includes/kontokort.php's
+		// $rows_to_skip/$rows_printed/$per_page pattern) — General Ledger has no natural
+		// upper bound on row count (unlike Open Items/Account Balance), so unlike those two
+		// reports we can't just print every row and hide the rest with CSS: for a broad
+		// search that's megabytes of HTML and, worse, the per-row currency-conversion code
+		// below fires a handful of SQL queries per row, which times out the request long
+		// before the page ever reaches the browser. Only the current page's rows are fetched
+		// in detail/printed; accounts entirely before the requested page are skipped using a
+		// cheap COUNT(*) instead of a full fetch.
+		$kkValidPageSizes = array(50, 100, 250, 500, 100000);
+		$kkPerPage = (int) if_isset($_GET, 50, 'kk_per_page');
+		if (!in_array($kkPerPage, $kkValidPageSizes))
+			$kkPerPage = 50;
+		$kkPage = (int) if_isset($_GET, 1, 'kk_page');
+		if ($kkPage < 1)
+			$kkPage = 1;
+
+		// Pre-load every currency rate / VK-group code ONCE instead of querying per
+		// transaction (same optimization finans/rapport_includes/kontokort.php uses) —
+		// this is what turns ~1 SQL query per row into ~2 SQL queries for the whole report.
+		$kkValGruppe = array();
+		$kkValKurs = array();
+		$kkValDate = array();
+		$kkVy = 0;
+		$kkVq = db_select("select * from valuta order by gruppe,valdate desc", __FILE__ . " linje " . __LINE__);
+		while ($kkVr = db_fetch_array($kkVq)) {
+			$kkValGruppe[$kkVy] = $kkVr['gruppe'];
+			$kkValKurs[$kkVy] = $kkVr['kurs'];
+			$kkValDate[$kkVy] = $kkVr['valdate'];
+			$kkVy++;
+		}
+		$kkVkGroupOf = array();
+		$kkVkq = db_select("select kodenr, box1 from grupper where art='VK'", __FILE__ . " linje " . __LINE__);
+		while ($kkVkr = db_fetch_array($kkVkq)) {
+			$kkVkGroupOf[$kkVkr['box1']] = $kkVkr['kodenr'];
+		}
+
+		if (!function_exists('kk_lookup_vkgroup')) {
+			function kk_lookup_vkgroup($code)
+			{
+				global $kkVkGroupOf;
+				return $kkVkGroupOf[$code] ?? 0;
+			}
+		}
+		if (!function_exists('kk_lookup_kurs')) {
+			function kk_lookup_kurs($grp, $date)
+			{
+				global $kkValGruppe, $kkValDate, $kkValKurs;
+				$n = count($kkValGruppe);
+				for ($i = 0; $i < $n; $i++) {
+					if ($kkValGruppe[$i] == $grp && $kkValDate[$i] <= $date)
+						return $kkValKurs[$i];
+				}
+				return null;
+			}
+		}
+		if (!function_exists('kk_lookup_kurs_any')) {
+			function kk_lookup_kurs_any($grp)
+			{
+				// Mirrors "select kurs from valuta where gruppe=$grp order by valdate" with no
+				// date filter: $kkValGruppe/$kkValDate/$kkValKurs are loaded "order by gruppe,
+				// valdate desc", so entries for the same group are contiguous and the LAST one
+				// for a group is the earliest-dated rate — i.e. the row that query would return.
+				global $kkValGruppe, $kkValDate, $kkValKurs;
+				$n = count($kkValGruppe);
+				$found = null;
+				for ($i = 0; $i < $n; $i++) {
+					if ($kkValGruppe[$i] == $grp)
+						$found = $kkValKurs[$i];
+				}
+				return $found;
+			}
+		}
+
+		// Batch every account's row count into ONE query instead of one COUNT(*) per account —
+		// with thousands of matching accounts (a broad/blank search), the old per-account loop
+		// meant thousands of extra DB round-trips just to compute pagination totals, before a
+		// single data row was ever fetched. This is the main reason broad searches were slow.
+		$kkAcctCounts = array();
+		if ($kontoantal > 0) {
+			$kkIds = array();
+			for ($kkI = 1; $kkI <= $kontoantal; $kkI++) {
+				$kkIds[] = (int) $kto_id[$kkI];
+			}
+			// Same chunking rationale as the existence-check batch above — caps each query's
+			// IN(...) list size instead of building one potentially huge query string.
+			foreach (array_chunk($kkIds, 1000) as $kkIdChunk) {
+				$kkChunkList = implode(",", $kkIdChunk);
+				if ($todate)
+					$kkCntQ = "select konto_id, count(*) as c from openpost where konto_id in ($kkChunkList) and transdate<='$todate' group by konto_id";
+				else
+					$kkCntQ = "select konto_id, count(*) as c from openpost where konto_id in ($kkChunkList) group by konto_id";
+				$kkCntQRes = db_select($kkCntQ, __FILE__ . " linje " . __LINE__);
+				while ($kkCntRow = db_fetch_array($kkCntQRes)) {
+					$kkAcctCounts[$kkCntRow['konto_id']] = (int) $kkCntRow['c'];
+				}
+			}
+		}
+		$kkTotalRows = 0;
+		for ($kkCx = 1; $kkCx <= $kontoantal; $kkCx++) {
+			$kkTotalRows += $kkAcctCounts[$kto_id[$kkCx]] ?? 0;
+		}
+		$kkTotalPages = max(1, ceil($kkTotalRows / $kkPerPage));
+		if ($kkPage > $kkTotalPages)
+			$kkPage = $kkTotalPages;
+		$kkRowsToSkip = ($kkPage - 1) * $kkPerPage;
+		$kkRowsPrinted = 0;
+		$kkPageFull = false;
+
+		// Grid Framework header — same flex-column structure as Debtors -> Reports -> Open items /
+		// Account balance (openpost()/kontosaldo() further up in this file). Printed once, before the
+		// per-account loop, so it always renders even when $kontoantal is 0 — unlike a header gated on
+		// $x==1 inside the loop, which never fires if no accounts match. The header bar and the
+		// column-title row both sit in normal, non-scrolling flow; only the data grid between them and
+		// the fixed footer scrolls, inside its own contained #kkGridWrapper.
+		include("../includes/topline_settings.php");
+		$luk = "<a accesskey=L href=\"$returside\">";
+		$kkTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		$kkPrintIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 -960 960 960" fill="#FFFFFF"><path d="M360-720H120v-120h720v120H600v120H360v-120Zm360 360q25 0 42.5-17.5T780-420q0-25-17.5-42.5T720-480q-25 0-42.5 17.5T660-420q0 25 17.5 42.5T720-360ZM240-120v-240H120v-240q0-50 35-85t85-35h480q50 0 85 35t35 85v240H720v240H240Zm120-80h240v-160H360v160Zm-160-240h560v-160H200v160Z"/></svg>';
+
+		if ($kontoart == 'K')
+			$tekst = findtekst(1140, $sprog_id) . " - " . lcfirst(findtekst(133, $sprog_id));
+		else
+			$tekst = findtekst(1141, $sprog_id) . " - " . lcfirst(findtekst(133, $sprog_id));
+		if ($fromdate && $todate)
+			$tekst .= " &nbsp; " . dkdato($fromdate) . " - " . dkdato($todate);
+		elseif ($todate)
+			$tekst .= " &nbsp; " . dkdato($todate);
+
+		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:contain;}</style>\n";
+		print "<div id='kkPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+		print "<td width='10%' align='left'>$luk
+			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$kkTilbageIcon" . findtekst(30, $sprog_id) . "</button></a></td>";
+		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
+		print "<td width='10%' align='center'>
+			   <button type='button' style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\" onclick=\"showLangModalKontoprint()\">$kkPrintIcon" . findtekst(880, $sprog_id) . "</button></td>";
+		print "</tr></tbody></table>";
+		print "</div>\n"; // <- close flex:0 wrapper around the blue header bar
+
+		$kkColgroupHtml = "<colgroup><col style='width:9%'><col style='width:8%'><col style='width:8%'><col style='width:28%'><col style='width:9%'><col style='width:9%'><col style='width:10%'><col style='width:10%'><col style='width:9%'></colgroup>";
+		print "<style>
+#kkGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
+#kkGridTable { border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; }
+#kkGridTable th { position:sticky; top:0; z-index:10; padding:6px 4px; border-bottom:2px solid #ddd; background-color:$bgcolor; box-sizing:border-box; }
+#kkGridTable td { box-sizing:border-box; }
+#kkGridTable th.text-right { text-align:right; }
+</style>\n";
+		// Single table for both the column-title row and the data rows — same colgroup widths
+		// apply to both, so the header is guaranteed pixel-aligned with the data columns below it.
+		// Sticky is applied per-<th> rather than on <thead> — <thead>-level position:sticky combined
+		// with table-layout:fixed/percentage colgroup widths drifted out of alignment in testing
+		// (worse toward the rightmost columns); sticky on each <th> directly is the more reliably
+		// supported technique and keeps every column's width tied to the shared colgroup.
+		print "<div id='kkGridWrapper'><table id='kkGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$kkColgroupHtml";
+		print "<tbody><tr>";
+		print "<th>" . findtekst(635, $sprog_id) . "</th>";
+		print "<th>" . findtekst(671, $sprog_id) . "</th>";
+		print "<th>" . findtekst(643, $sprog_id) . "</th>";
+		print "<th>" . findtekst(1163, $sprog_id) . "</th>";
+		print "<th>$prj</th>";
+		print "<th>" . findtekst(1164, $sprog_id) . "</th>";
+		print "<th align=right class='text-right'>" . findtekst(1000, $sprog_id) . "</th>";
+		print "<th align=right class='text-right'>" . findtekst(1001, $sprog_id) . "</th>";
+		print "<th align=right class='text-right'>" . findtekst(1073, $sprog_id) . "</th>";
+		print "</tr>\n";
+	}
+
 	for ($x = 1; $x <= $kontoantal; $x++) {
+		if ($menu == 'S') {
+			// Skip this account's detail fetch entirely if every one of its rows falls
+			// before the current page's window — reuses the $kkAcctCounts map already
+			// batched above, so this costs zero extra DB round-trips per account.
+			$kkAcctCnt = $kkAcctCounts[$kto_id[$x]] ?? 0;
+			if ($kkRowsToSkip >= $kkAcctCnt) {
+				$kkRowsToSkip -= $kkAcctCnt;
+				continue;
+			}
+		}
 		$q = db_select("select * from adresser where id=$kto_id[$x]", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$art = trim($r['art']) . "G";
@@ -976,7 +1177,9 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		$valuta = trim($r2['box3'] ?? '');
 		if (!$valuta)
 			$valuta = 'DKK';
-		else {
+		elseif ($menu == 'S') {
+			$valutakode = kk_lookup_vkgroup($valuta);
+		} else {
 			$r2 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'", __FILE__ . " linje " . __LINE__));
 			$valutakode = (!empty($r2) ? $r2['kodenr'] : 0);
 		}
@@ -1049,14 +1252,28 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			$dkkamount[$y] = $amount[$y]; // default; overwritten below if currency conversion applies
 
 			if ($oppvaluta[$y] != 'DKK' && $valutakurs[$y] == 100) {
-				$r3 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'", __FILE__ . " linje " . __LINE__));
-				$grp3 = $r3['kodenr'] ?? 0;
-				$r3 = db_fetch_array(db_select("select kurs from valuta where gruppe ='$grp3' and valdate <= '$transdate[$y]' order by valdate desc", __FILE__ . " linje " . __LINE__));
-				$valutakurs[$y] = ($r3['kurs'] ?? 0) * 1;
+				if ($menu == 'S') {
+					$grp3 = kk_lookup_vkgroup($oppvaluta[$y]);
+					$valutakurs[$y] = (kk_lookup_kurs($grp3, $transdate[$y]) ?? 0) * 1;
+				} else {
+					$r3 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'", __FILE__ . " linje " . __LINE__));
+					$grp3 = $r3['kodenr'] ?? 0;
+					$r3 = db_fetch_array(db_select("select kurs from valuta where gruppe ='$grp3' and valdate <= '$transdate[$y]' order by valdate desc", __FILE__ . " linje " . __LINE__));
+					$valutakurs[$y] = ($r3['kurs'] ?? 0) * 1;
+				}
 				$dkkamount[$y] = $amount[$y] * $valutakurs[$y] / 100;
 				$beskrivelse[$y] = $r2['beskrivelse'] . " - (Omregnet fra DKK til $valuta" . dkdecimal($dkkamount[$y], 2) . ", kurs " . dkdecimal($valutakurs[$y], 2) . ")";
 			} elseif ($valuta != "DKK" && $valutakurs[$y] == 100) {
-				if ($r3 = db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode' and valdate <= '$transdate[$y]' order by valdate desc", __FILE__ . " linje " . __LINE__))) {
+				if ($menu == 'S') {
+					$kkKurs = kk_lookup_kurs($valutakode, $transdate[$y]);
+					if ($kkKurs === null)
+						$kkKurs = kk_lookup_kurs_any($valutakode);
+					if ($kkKurs !== null) {
+						$dkkamount[$y] = $amount[$y];
+						$amount[$y] = $amount[$y] * 100 / $kkKurs;
+						$beskrivelse[$y] = $r2['beskrivelse'] . " - (Omregnet til $valuta fra DKK " . dkdecimal($dkkamount[$y], 2) . ", kurs " . dkdecimal($kkKurs, 2) . ")";
+					}
+				} elseif ($r3 = db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode' and valdate <= '$transdate[$y]' order by valdate desc", __FILE__ . " linje " . __LINE__))) {
 					$dkkamount[$y] = $amount[$y];
 					$amount[$y] = $amount[$y] * 100 / $r3['kurs'];
 					$beskrivelse[$y] = $r2['beskrivelse'] . " - (Omregnet til $valuta fra DKK " . dkdecimal($dkkamount[$y], 2) . ", kurs " . dkdecimal($r3['kurs'], 2) . ")";
@@ -1070,10 +1287,15 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			} elseif ($valuta != "DKK" && $valuta == $oppvaluta[$y] && $valutakurs[$y] != 100) {
 				$valutakurs[$y] *= 1;
 				if (!$valutakurs[$y] && $oppvaluta[$y] && $oppvaluta[$y] != '-') {
-					$r3 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'", __FILE__ . " linje " . __LINE__));
-					$grp3 = $r3['kodenr'] ?? 0;
-					$r3 = db_fetch_array(db_select("select kurs from valuta where gruppe ='$grp3' and valdate <= '$transdate[$y]' order by valdate desc", __FILE__ . " linje " . __LINE__));
-					$valutakurs[$y] = ($r3['kurs'] ?? 0) * 1;
+					if ($menu == 'S') {
+						$grp3 = kk_lookup_vkgroup($oppvaluta[$y]);
+						$valutakurs[$y] = (kk_lookup_kurs($grp3, $transdate[$y]) ?? 0) * 1;
+					} else {
+						$r3 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'", __FILE__ . " linje " . __LINE__));
+						$grp3 = $r3['kodenr'] ?? 0;
+						$r3 = db_fetch_array(db_select("select kurs from valuta where gruppe ='$grp3' and valdate <= '$transdate[$y]' order by valdate desc", __FILE__ . " linje " . __LINE__));
+						$valutakurs[$y] = ($r3['kurs'] ?? 0) * 1;
+					}
 				}
 				$dkkamount[$y] = $amount[$y] * $valutakurs[$y] / 100;
 				if ($oppvaluta[$y] != '-' && abs($amount[$y]) >= 0.005) {
@@ -1084,16 +1306,27 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 				else
 					$beskrivelse[$y] = $r2['beskrivelse'] . " - (DKK " . dkdecimal($amount[$y], 2) . ")";
 			} elseif ($oppvaluta[$y] != $valuta && $oppvaluta[$y] != '-') {
-				if (!$valutakurs[$y]) {
-					$r3 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'", __FILE__ . " linje " . __LINE__));
+				if ($menu == 'S') {
+					if (!$valutakurs[$y]) {
+						$grp3 = kk_lookup_vkgroup($oppvaluta[$y]);
+						$valutakurs[$y] = (kk_lookup_kurs($grp3, $transdate[$y]) ?? 0) * 1;
+					}
+					$grp3 = kk_lookup_vkgroup($valuta);
+					$dagskurs = (kk_lookup_kurs($grp3, $transdate[$y]) ?? 0) * 1;
+				} else {
+					if (!$valutakurs[$y]) {
+						$r3 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'", __FILE__ . " linje " . __LINE__));
+						$grp3 = $r3['kodenr'] ?? 0;
+						$r3 = db_fetch_array(db_select("select kurs from valuta where gruppe ='$grp3' and valdate <= '$transdate[$y]' order by valdate desc", __FILE__ . " linje " . __LINE__));
+						$valutakurs[$y] = ($r3['kurs'] ?? 0) * 1;
+					}
+					$r3 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'", __FILE__ . " linje " . __LINE__));
 					$grp3 = $r3['kodenr'] ?? 0;
 					$r3 = db_fetch_array(db_select("select kurs from valuta where gruppe ='$grp3' and valdate <= '$transdate[$y]' order by valdate desc", __FILE__ . " linje " . __LINE__));
-					$valutakurs[$y] = ($r3['kurs'] ?? 0) * 1;
+					$dagskurs = ($r3['kurs'] ?? 0) * 1;
 				}
-				$r3 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'", __FILE__ . " linje " . __LINE__));
-				$grp3 = $r3['kodenr'] ?? 0;
-				$r3 = db_fetch_array(db_select("select kurs from valuta where gruppe ='$grp3' and valdate <= '$transdate[$y]' order by valdate desc", __FILE__ . " linje " . __LINE__));
-				$dagskurs = ($r3['kurs'] ?? 0) * 1;
+				if (!$dagskurs)
+					$dagskurs = 100;
 				$beskrivelse[$y] .= " $oppvaluta[$y] " . dkdecimal($amount[$y], 2) . " Kurs $valutakurs[$y]";
 				$amount[$y] *= $valutakurs[$y] / $dagskurs;
 				$dkkamount[$y] = $amount[$y] * $valutakurs[$y] / 100;
@@ -1141,8 +1374,8 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		}
 		#####################################
 		$luk = "<a accesskey=L href=\"$returside\">";
-       
-		if ($menu == 'T') {
+
+		if ($menu == 'T' || $menu == 'S') {
 			print "";
 		} else {
 			print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
@@ -1156,46 +1389,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 			print "</div>";
 			print "<div class='content-noside'>";
-		} elseif ($menu == 'S' && $x == 1) {
-			print "<tr><td colspan=\"9\" height='30px'>";
-			print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
-
-			print "<tr><td width ='10%' align = 'center'>$luk
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				. findtekst(30, $sprog_id) . "</button></a></td>";
-
-			if ($kontoart == 'K')
-				$tekst = findtekst(1140, $sprog_id) . " - " . lcfirst(findtekst(133, $sprog_id));
-			else
-				$tekst = findtekst(1141, $sprog_id) . " - " . lcfirst(findtekst(133, $sprog_id));
-			if ($fromdate && $todate)
-				$tekst .= " &nbsp; " . dkdato($fromdate) . " - " . dkdato($todate);
-			elseif ($todate)
-				$tekst .= " &nbsp; " . dkdato($todate);
-
-			print "<td width ='80%' align = 'center' style='$topStyle'>$tekst</td>";
-
-			($kontoantal == 1) ? $w = 5 : $w = 10;
-			// print "<td width=\"w%\" align='center' onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\">
-			// 	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">" . findtekst(880, $sprog_id) . "</button></td>\n";
-				   
-			print "<td width=\"w%\" align='center'>
-				<button style='$buttonStyle; width:100%' 
-					onMouseOver=\"this.style.cursor = 'pointer'\" 
-					title=\"Udskriv kontoudtog som PDF (Åbner i popup)\"
-					onclick=\"showLangModalKontoprint()\">" . findtekst(880, $sprog_id) . "</button>
-			</td>\n";
-			if ($kontoantal == 1) { # 2019-11-07
-				if ($fromdate)
-					$firstdate = $fromdate;
-				if ($todate)
-					$lastdate = $todate; 
-				print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=" . dkdato($firstdate) . 	"&dato_til=" . dkdato($lastdate) . "&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Send som mail (Åbner i popup)\">
-					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></td>\n";
-			}
-			print "</tbody></table>"; //B slut
-			print "</td></tr>\n";
-		} elseif ($x == 1) {
+		} elseif ($x == 1 && $menu != 'S') {
 			include("../includes/oldDesign/header.php");
 			print "<tr><td colspan=\"9\" height='30px'>";
 			print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; //B
@@ -1379,6 +1573,148 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<center><input type='button' onclick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\" accesskey='L' value='" . findtekst(880, $sprog_id) . "'></center>";
 			print "</td></tr>";
 			print "</tfoot></table></div><br>";
+		} elseif ($menu == 'S') {
+			// Grid Framework data rows — printed straight into the page-level #kkGridTable opened
+			// once before the per-account loop started (see the $menu=='S' header block above). Each
+			// row carries class='kk-account-row'/'kk-data-row' so the fixed footer's client-side
+			// pagination (printed once, after this loop ends) can collect and page through every
+			// account's rows the same way showOpenPosts.php / openpost() does.
+			print "<tr class='kk-account-row'><td colspan='9' style='padding:10px 4px 4px;border-top:2px solid #ddd;'><b>" . stripslashes($r['firmanavn']) . "</b> &bull; $r[kontonr]</td></tr>";
+
+			$kontosum = 0;
+			$primo = 0;
+			$pre_openpost = 0;
+			for ($y = 1; $y <= count($oppId); $y++) {
+				$diff = 0;
+				if ($transdate[$y] < $fromdate) {
+					$primoprint[$x] = 0;
+					$kontosum += $amount[$y];
+					$dkksum += $dkkamount[$y];
+				} else {
+					// True pagination: build this row's HTML in a buffer, then decide whether
+					// to actually emit it based on $kkRowsToSkip/$kkRowsPrinted, so $kontosum/
+					// $dkksum (and every other running total below) keep accumulating correctly
+					// regardless of whether this particular row lands on the requested page.
+					ob_start();
+					if ($primoprint[$x] == 0) {
+						$tmp = dkdecimal($kontosum, 2);
+						$tmp2 = "";
+						if ($valuta != 'DKK')
+							$tmp2 = "&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;Bel&oslash;b kan v&aelig;re omregnet fra DKK";
+						print "<tr class='kk-data-row'><td><br></td><td><br></td><td><br></td><td>" . findtekst(1165, $sprog_id) . " $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"DKK " . dkdecimal($dkksum, 2) . "\">$tmp<br></td></tr>\n";
+						$primoprint[$x] = 1;
+					}
+					if ($kladde_id[$y]) {
+						$js = "<a style='cursor: pointer;' onclick=\"window.open('../finans/kassekladde.php?kladde_id=$kladde_id[$y]&visipop=on')\">";
+						$rt = "title='Kladde ID: $kladde_id[$y]'";
+					} else {
+						$js = NULL;
+						$rt = NULL;
+					}
+					print "<tr class='kk-data-row' bgcolor=\"$baggrund\"><td valign=\"top\">" . dkdato($transdate[$y]) . "<br></td><td valign=\"top\" $rt> $js $refnr[$y] </a><br></td><td valign=\"top\">$faktnr[$y]<br></td><td valign=\"top\">" . stripslashes($beskrivelse[$y]) . "<br></td><td valign=\"top\">$projekt[$y]</td>";
+					if ($amount[$y] < 0)
+						$tmp = 0 - $amount[$y];
+					else
+						$tmp = $amount[$y];
+					$tmp = dkdecimal($tmp, 2);
+					if (!$forfaldsdag[$y])
+						$forfaldsdag[$y] = usdate(forfaldsdag($transdate[$y], $betalingsbet, $betalingsdage));
+					if ($amount[$y] > 0) {
+						($kontoart == 'D') ? $ffdag = dkdato($forfaldsdag[$y]) : $ffdag = NULL;
+						if ($udlignet[$y] != '1') {
+							$pre_openpost = 1;
+							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=" . $returnpath . "rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
+						} else {
+							$titletag = "Udlign id=$udlign_id[$y]. Klik for at ophæve udligning";
+							$alink = "rapport.php?rapportart=kontokort&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
+						&kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
+						&submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]";
+							$onclick = "return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id $udlign_id[$y]')";
+							print "<td valign=\"top\"><span style='color: rgb(0, 0, 0);'>$ffdag<br></td><td title=\"$titletag\" valign=\"top\" align=\"right\"><span style=\"color: rgb(0, 0, 0);\"><a onclick=\"$onclick\" href=\"$alink\"style=\"text-decoration:none;\" >$tmp<br></a></span></td><td style=\"color:$baggrund;text-align:right\">0</td>";
+						}
+						$forfaldsum = $forfaldsum + $amount[$y];
+					} else {
+						($kontoart == 'K') ? $ffdag = dkdato($forfaldsdag[$y]) : $ffdag = NULL;
+						if ($udlignet[$y] != '1') {
+							print "<td><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=" . $returnpath . "rapport.php\">$tmp</a><br></td>";
+							$pre_openpost = 1;
+						} else {
+							$titletag = "Udlign id=$udlign_id[$y]. Klik for at ophæve udligning";
+							$alink = "rapport.php?rapportart=kontokort&kilde=openpost&kto_fra=$kto_fra&kilde=$kilde
+						&kto_til=$kto_til&dato_fra=$dato_fra=&dato_til=$dato_til&konto_fra=$konto_fra
+						&konto_til=$konto_til&submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]";
+							$onclick = "return confirm('Vil du ophæve udligningen af dette beløb samt modstående med udlign id $udlign_id[$y]')";
+							print "<td>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td title=\"$titletag\" valign=\"top\" align=\"right\"><span style=\"color: rgb(0, 0, 0);\"><a onclick=\"$onclick\" href=\"$alink\"style=\"text-decoration:none;\" >$tmp<br></a></span></td>";
+						}
+					}
+					$kontosum += afrund($amount[$y], 2);
+					$dkksum += $dkkamount[$y];
+					$dkksum = afrund($dkksum, 2);
+					$tmp = dkdecimal($kontosum, 2);
+					$dkktmp = dkdecimal($dkksum, 2);
+					if ($valuta != 'DKK' && $kontosum != $dkksum)
+						$title = "DKK: $dkktmp";
+					else
+						$title = "";
+					if ($valuta != 'DKK' && !$difflink) {
+						$kkR2xKurs = kk_lookup_kurs($valutakode, $transdate[$y]);
+						if ($kkR2xKurs !== null) {
+							$dagskurs = $kkR2xKurs;
+							$chkamount = $kontosum * $dagskurs / 100;
+							$diff = afrund($chkamount - $dkksum, 2);
+						}
+					}
+					$regulering = afrund($diff, 2);
+					if ($regulering && !$difflink && $valuta != 'DKK' && ($oppvaluta[$y] != '-' || $y == count($oppId)) && $transdate[$y] >= usdate($regnstart) && $transdate[$y] <= usdate($regnslut)) {
+						$vis_difflink = 1;
+						for ($i = 1; $i <= count($oppId); $i++) {
+							if ($transdate[$i] == $transdate[$y] && $oppvaluta[$i] == '-')
+								$vis_difflink = 0;
+						}
+						if ($y == count($oppId) && !$kontosum)
+							$vis_difflink = 1;
+						if ($oppId[$y] >= $max_valdif_id && ($vis_difflink && (abs($regulering) > 0.01 || $y == count($oppId)))) {
+							$difflink = 1;
+							if ($regnstart <= date("Y-m-d") && $regnslut >= date("Y-m-d")) {
+								$title .= "Klik for at regulere værdien i DKK fra " . dkdecimal($dkksum, 2) . " til " . dkdecimal($dkksum + $regulering, 2) . " pr. " . dkdato($transdate[$y]);
+								$tmp2 = "<a href=\"../includes/ret_valutadiff.php?bfdate=$transdate[$y]&";
+								$tmp2 .= "valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
+								$tmp2 .= "konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=" . $returnpath . "rapport.php\" ";
+								$tmp2 .= "onclick=\"confirmSubmit($confirm)\">$tmp</a>";
+								$tmp = $tmp2;
+							} else
+								$title = NULL;
+						}
+					} elseif ($y == count($oppId) && abs(intval($tmp)) < 0.01 && abs($dkksum) > 0.01 && $regnslut >= date("Y-m-d")) {
+						$title .= "Klik for at regulere værdien i DKK fra " . dkdecimal($dkksum, 2) . " til " . dkdecimal($dkksum + $regulering, 2) . " pr. " . date("d-m-Y");
+						$tmp2 = "<a href=\"../includes/ret_valutadiff.php?bfdate=" . date("Y-m-d") . "&";
+						$tmp2 .= "valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
+						$tmp2 .= "konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=" . $returnpath . "rapport.php\" ";
+						$tmp2 .= "onclick=\"confirmSubmit($confirm)\">$tmp</a>";
+						$tmp = $tmp2;
+					}
+					print "<td valign=\"top\" align=right title=\"$title\">$tmp<br></td>";
+					print "</tr>\n";
+
+					$kkRowHtml = ob_get_clean();
+					if ($kkRowsToSkip > 0) {
+						$kkRowsToSkip--;
+					} elseif ($kkRowsPrinted < $kkPerPage) {
+						echo $kkRowHtml;
+						$kkRowsPrinted++;
+					}
+					if ($kkRowsPrinted >= $kkPerPage) {
+						$kkPageFull = true;
+						break;
+					}
+				}
+			}
+			if ($primoprint[$x] == 0) {
+				$tmp = dkdecimal($kontosum, 2);
+				print "<tr class='kk-data-row'><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"DKK sum $dkktmp\">$tmp<br></td></tr>\n";
+			}
+			if ($kkPageFull)
+				break;
 		} else {
 			print "<tr><td colspan=9><hr></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
@@ -1515,7 +1851,82 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<tr><td colspan=9><hr></td></tr>\n";
 		}
 	}
-	print "</tbody></table>";
+	if ($menu == 'S') {
+		print "</tbody></table>"; // close #kkGridTable
+		print "</div>\n"; // close #kkGridWrapper
+
+		// Real (server-side) pagination — see the $kkTotalRows/$kkRowsToSkip/$kkRowsPrinted
+		// setup before the account loop. Unlike Open Items/Account Balance (bounded datasets,
+		// fine to render in full and hide extra rows client-side), General Ledger has no
+		// natural row-count ceiling, so only the current page's rows are ever fetched/printed;
+		// "next page" is a real link/page load, not a client-side re-slice of hidden rows.
+		$kkTxt1 = lcfirst(findtekst('2767|Af', $sprog_id));
+		$kkTxt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+		$kkOffsetFrom = (($kkPage - 1) * $kkPerPage) + 1;
+		$kkOffsetTo = min($kkTotalRows, $kkPage * $kkPerPage);
+		$kkBaseUrl = "rapport.php?" . http_build_query(array(
+			'rapportart' => 'kontokort',
+			'dato_fra' => $dato_fra,
+			'dato_til' => $dato_til,
+			'konto_fra' => $konto_fra,
+			'konto_til' => $konto_til,
+			'returside' => $returside,
+			'kk_per_page' => $kkPerPage,
+		));
+		$kkPrevIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
+		$kkNextIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
+
+		print "<style>
+#kkPageFooterBar { position:fixed; left:0; right:0; bottom:0; width:100%; margin:0; z-index:1000; background-color:$bgcolor; border-top:1px solid #b8bec8; padding:6px 12px; display:flex; align-items:center; justify-content:flex-end; gap:20px; flex-wrap:wrap; box-sizing:border-box; line-height:1; }
+#kkPageFooterBar #kkNavButtons { display:flex; align-items:center; gap:3px; }
+#kkPageFooterBar #kkNavButtons .navbutton { height:20px; min-width:20px; padding:0 4px; display:inline-flex; align-items:center; justify-content:center; background:#f0f0f0; color:#000; border:1px solid #b8bec8; border-radius:4px; text-decoration:none; }
+#kkPageFooterBar #kkNavButtons a.navbutton { cursor:pointer; }
+#kkPageFooterBar #kkNavButtons span.navbutton { opacity:0.5; }
+#kkPageFooterBar #kkNavButtons .navbutton.current { text-decoration:underline; }
+</style>\n";
+		print "<div id='kkPageFooterBar'>";
+		print "<span id='kkPageStatus'>" . ($kkTotalRows ? "$kkOffsetFrom-$kkOffsetTo $kkTxt1 $kkTotalRows" : "0 $kkTxt1 0") . "</span>";
+		print "<span>$kkTxt2 <select id='kkPageSize' onchange=\"window.location.href='" . htmlspecialchars($kkBaseUrl, ENT_QUOTES) . "&kk_page=1&kk_per_page=' + this.value;\">";
+		foreach (array(50, 100, 250, 500, 100000) as $kkOpt) {
+			$kkSel = ($kkOpt == $kkPerPage) ? " selected" : "";
+			$kkLabel = ($kkOpt == 100000) ? "Alle" : $kkOpt;
+			print "<option value='$kkOpt'$kkSel>$kkLabel</option>";
+		}
+		print "</select></span>";
+		print "<span id='kkNavButtons'>";
+		if ($kkPage > 1)
+			print "<a class='navbutton' href='" . htmlspecialchars($kkBaseUrl, ENT_QUOTES) . "&kk_page=" . ($kkPage - 1) . "'>$kkPrevIcon</a>";
+		else
+			print "<span class='navbutton'>$kkPrevIcon</span>";
+		$kkPageRange = 2;
+		$kkStartPage = max(1, $kkPage - $kkPageRange);
+		$kkEndPage = min($kkTotalPages, $kkPage + $kkPageRange);
+		if ($kkStartPage > 1) {
+			print "<a class='navbutton' href='" . htmlspecialchars($kkBaseUrl, ENT_QUOTES) . "&kk_page=1'>1</a>";
+			if ($kkStartPage > 2)
+				print "<span>...</span>";
+		}
+		for ($kkP = $kkStartPage; $kkP <= $kkEndPage; $kkP++) {
+			if ($kkP == $kkPage)
+				print "<span class='navbutton current'>$kkP</span>";
+			else
+				print "<a class='navbutton' href='" . htmlspecialchars($kkBaseUrl, ENT_QUOTES) . "&kk_page=$kkP'>$kkP</a>";
+		}
+		if ($kkEndPage < $kkTotalPages) {
+			if ($kkEndPage < $kkTotalPages - 1)
+				print "<span>...</span>";
+			print "<a class='navbutton' href='" . htmlspecialchars($kkBaseUrl, ENT_QUOTES) . "&kk_page=$kkTotalPages'>$kkTotalPages</a>";
+		}
+		if ($kkPage < $kkTotalPages)
+			print "<a class='navbutton' href='" . htmlspecialchars($kkBaseUrl, ENT_QUOTES) . "&kk_page=" . ($kkPage + 1) . "'>$kkNextIcon</a>";
+		else
+			print "<span class='navbutton'>$kkNextIcon</span>";
+		print "</span>";
+		print "</div>\n";
+		print "</div>\n"; // close #kkPageFlex
+	} else {
+		print "</tbody></table>";
+	}
 
 print '
 <div id="langModalKontoprint" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3);">
