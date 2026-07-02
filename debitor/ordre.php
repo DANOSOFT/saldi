@@ -438,19 +438,6 @@ if ((isset($_POST['linjetekster'])) && ($id = if_isset($_POST, NULL, 'id'))) {
 	}
 }
 #$alert = findtekst(15)
-if ($tjek = if_isset($_GET, NULL, 'tjek')) {
-	$qtxt = "select tidspkt,hvem from ordrer where status < 3 and id = '$tjek' and hvem != '$brugernavn'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		if ($r['tidspkt'] && $tidspkt - ($r['tidspkt']) < 3600 && $r['hvem']) {
-			print "<BODY onLoad=\"javascript:alert('" . findtekst('1542|Ordren er i brug af', $sprog_id) . " $r[hvem]')\">\n";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">\n";
-		} else {
-			db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
-		}
-	} else {
-		db_modify("update ordrer set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
-	}
-}
 if (!$id) $id = if_isset($_GET['ordre_id']);
 $sort = if_isset($_GET, NULL, 'sort');
 $fokus     = if_isset($_GET, NULL, 'fokus');
