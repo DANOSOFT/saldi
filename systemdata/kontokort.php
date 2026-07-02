@@ -121,6 +121,12 @@ if (isset($_POST['slet'])) {
 } elseif (isset($_POST['gem'])) {
 	$id = $_POST['id'];
 	$kontonr = (int) $_POST['kontonr'];
+	if ($id > 0) {
+		$orig = db_fetch_array(db_select("select kontonr from kontoplan where id = '$id'", __FILE__ . " linje " . __LINE__));
+		if ($orig && (int)$orig['kontonr'] !== $kontonr) {
+			$id = '';
+		}
+	}
 	$map_to = (int) $_POST['map_to'];
 	$beskrivelse = addslashes($_POST['beskrivelse']);
 	$kontotype = addslashes(if_isset($_POST['kontotype']));
