@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-06-17 ---
+// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-05-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.Aps
+// Copyright (c) 2003-2026 saldi.dk aps 
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -34,12 +34,9 @@
 // 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly 
 // 20260323 LOE Added a drag handle to adjust the height of the purchase history grid, and made the grid initially collapse.  
 // 20260325 LOE Added logic to navigate to appropriate returside for when general ledger is selected
+// 20260505 LOE Added form to create extra delivery address and logic to save it. SD-483
 // 20260513 PHR Removed if ($id) around cvrapi to make it work again for existing customers
 // 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
-// 20260615 MJ Keep debtor card save on the current account when contact positions are updated
-// 20260615 MJ Preserve customer type instead of blocking ordinary saves when contacts exist
-// 20260617 MJ Keep newly saved debtor card emails from being deleted as removed extras
-// 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
 @session_start();
 $s_id = session_id();
 
@@ -57,6 +54,9 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
+include_once("../includes/emballage_schema.php");
+$packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
@@ -186,7 +186,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$kontotype = db_escape_string(trim($_POST['kontotype']));
 		(isset($_POST['fornavn'])) ? $fornavn = db_escape_string(trim($_POST['fornavn'])) : $fornavn = '';
 		(isset($_POST['efternavn'])) ? $efternavn = db_escape_string(trim($_POST['efternavn'])) : $efternavn = '';
-		$fax = db_escape_string(trim($_POST['fax']));
+		$mobile = db_escape_string(trim($_POST['mobile']));
 		$web = db_escape_string(trim($_POST['web']));
 		$betalingsbet = db_escape_string(trim($_POST['betalingsbet']));
 		$ean = db_escape_string(trim($_POST['ean']));
@@ -213,6 +213,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
 		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
+		$enduser_type = db_escape_string(if_isset($_POST['enduser_type'], ''));
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
 		list($gruppe) = explode(':', $_POST['gruppe']);
@@ -504,14 +505,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		if ($id == 0 && $ny_kontonr && $ny_kontonr != '!') {
 			$oprettet = date("Y-m-d");
 			$qtxt = "insert into adresser ";
-			$qtxt .= "(kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,fax,email,";
+			$qtxt .= "(kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,mobile,email,";
 			$qtxt .= "mailfakt,web,betalingsdage,kreditmax,betalingsbet,cvrnr,ean,institution,notes,";
 			$qtxt .= "art,gruppe,kontoansvarlig,oprettet,bank_reg,bank_konto,swift,pbs_nr,pbs,kontotype,";
 			$qtxt .= "fornavn,efternavn,lev_firmanavn,lev_fornavn,lev_efternavn,lev_addr1,lev_addr2,lev_postnr,";
 			$qtxt .= "lev_bynavn,lev_land,lev_kontakt,lev_tlf,lev_email,felt_1,felt_2,felt_3,felt_4,felt_5,";
 			$qtxt .= "vis_lev_addr,lukket,kategori,rabatgruppe,status,productlimit)";
 			$qtxt .= " values ";
-			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$fax','$email',";
+			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email',";
 			$qtxt .= "'$mailfakt','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$ean','$institution','$notes','D',";
 			$qtxt .= "'$gruppe','$kontoansvarlig','$oprettet','$bank_reg','$bank_konto','$swift','$pbs_nr','$pbs','$kontotype',";
 			$qtxt .= "'$fornavn','$efternavn','$lev_firmanavn','$lev_fornavn','$lev_efternavn','$lev_addr1','$lev_addr2','$lev_postnr',";
@@ -552,6 +553,48 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				}
 			}
 
+
+			//############
+			// Insert delivery addresses for new customer
+			$da_json_new = isset($_POST['delivery_addresses_json']) ? $_POST['delivery_addresses_json'] : '[]';
+			$da_rows_new = json_decode($da_json_new, true);
+			if (is_array($da_rows_new) && $id) {
+				$da_has_primary_new = false;
+				$da_sort_new = 0;
+				foreach ($da_rows_new as $da_n) {
+					$da_primary_n = (!$da_has_primary_new && !empty($da_n['is_primary'])) ? true : false;
+					if ($da_primary_n) $da_has_primary_new = true;
+					$da_sort_new++;
+			
+					$f_desc  = db_escape_string(trim($da_n['description']   ?? ''));
+					$f_comp  = db_escape_string(trim($da_n['company_name']  ?? ''));
+					$f_fn    = db_escape_string(trim($da_n['first_name']    ?? ''));
+					$f_ln    = db_escape_string(trim($da_n['last_name']     ?? ''));
+					$f_a1    = db_escape_string(trim($da_n['address_line1'] ?? ''));
+					$f_a2    = db_escape_string(trim($da_n['address_line2'] ?? ''));
+					$f_post  = db_escape_string(trim($da_n['postal_code']   ?? ''));
+					$f_city  = db_escape_string(trim($da_n['city']          ?? ''));
+					$f_cntry = db_escape_string(trim($da_n['country']       ?? ''));
+					$f_cont  = db_escape_string(trim($da_n['contact_name']  ?? ''));
+					$f_ph    = db_escape_string(trim($da_n['phone']         ?? ''));
+					$f_em    = db_escape_string(trim($da_n['email']         ?? ''));
+					$f_prim  = $da_primary_n ? 'TRUE' : 'FALSE';
+			
+					db_modify("
+						INSERT INTO delivery_addresses
+							(account_id, is_primary, sort_order, description, company_name,
+							first_name, last_name, address_line1, address_line2, postal_code,
+							city, country, contact_name, phone, email)
+						VALUES
+							('$id', $f_prim, $da_sort_new, '$f_desc', '$f_comp',
+							'$f_fn', '$f_ln', '$f_a1', '$f_a2', '$f_post',
+							'$f_city', '$f_cntry', '$f_cont', '$f_ph', '$f_em')
+					", __FILE__ . " linje " . __LINE__);
+				}
+			}
+
+			//############
+
 			// If coming from an order, redirect directly back to the order with the new customer
 			if (strpos($returside, 'ordre.php') !== false) {
 				$sep = (strpos($returside, '?') !== false) ? '&' : '?';
@@ -586,14 +629,11 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$q2 = db_select("select kontotype from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 			$r2 = db_fetch_array($q2);
 			$vkontotype = $r2['kontotype'];
-			if ($a_id && $kontotype != $vkontotype) {
-				$kontotype = $vkontotype;
-			}
 			####
 
 			if (($kontotype == $vkontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
-				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', fax = '$fax', ";
+				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
 				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
 				$qtxt .= "kreditmax = '$kreditmax',betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', ean = '$ean', ";
 				$qtxt .= "institution = '$institution', notes = '$notes',gruppe='$gruppe', ";
@@ -605,25 +645,22 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
 				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',kategori='$katString',";
 				$qtxt .= "rabatgruppe='$rabatgruppe',status='$status', productlimit = '" . usdecimal($productlimit) . "' ";
+				if ($packagingModuleEnabled) $qtxt .= ", enduser_type='$enduser_type' ";
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 				// Process primary email (index 1) from form fields
-				$primary_ke_id = 0;
 				if (isset($_POST['kontakt_email_val'][1])) {
 					$ke_id = isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0;
 					$ke_val = db_escape_string(trim($_POST['kontakt_email_val'][1]));
 					$ke_type = isset($_POST['kontakt_email_type'][1]) ? db_escape_string(trim($_POST['kontakt_email_type'][1])) : 'hoved';
 					if ($ke_id && $ke_val) {
 						db_modify("UPDATE kontakt_emails SET email = '$ke_val', email_type = '$ke_type' WHERE id = '$ke_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-						$primary_ke_id = $ke_id;
 					} elseif ($ke_id && !$ke_val) {
 						db_modify("DELETE FROM kontakt_emails WHERE id = '$ke_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 					} elseif (!$ke_id && $ke_val) {
 						db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$ke_val', '$ke_type')", __FILE__ . " linje " . __LINE__);
-						$r_new_ke = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kontakt_emails', 'id')) AS id", __FILE__ . " linje " . __LINE__));
-						$primary_ke_id = $r_new_ke ? intval($r_new_ke['id']) : 0;
 					}
 				}
 
@@ -665,36 +702,170 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
 				db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 
-				// for ($x = 1; $x <= $ans_ant; $x++) {
-				// 	$y = trim($posnr[$x]);
-				// 	if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
-				// 	elseif (($y == "-") && ($ans_id[$x])) {
-				// 		db_modify("delete from ansatte 	where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
-				// 	} else {
-				// 		$alerttekst = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
-				// 		print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
-				// 	}
-				// }
-				//			if (!$pbs) db_modify("delete from pbs_kunder where konto_id = $id",__FILE__ . " linje " . __LINE__); # 2012103
+				
+				//####
+				// ---- Save delivery_addresses ----
+				$da_json  = isset($_POST['delivery_addresses_json']) ? $_POST['delivery_addresses_json'] : '[]';
+				$da_rows  = json_decode($da_json, true);
+				if (!is_array($da_rows)) $da_rows = []; 
+				//  error_log("Decoded delivery_addresses_json: " . print_r($da_rows, true));
+				$posted_da_ids = [];
+				$da_has_primary = false;
+				$da_sort = 0;
+				
+				foreach ($da_rows as $da) {
+					$da_row_id   = intval($da['id'] ?? 0);
+					// First row with is_primary=true wins; all others get false
+					$da_primary  = (!$da_has_primary && !empty($da['is_primary'])) ? true : false;
+					if ($da_primary) $da_has_primary = true;
+					$da_sort++;
+				
+					$f_desc  = db_escape_string(trim($da['description']   ?? ''));
+					$f_comp  = db_escape_string(trim($da['company_name']  ?? ''));
+					$f_fn    = db_escape_string(trim($da['first_name']    ?? ''));
+					$f_ln    = db_escape_string(trim($da['last_name']     ?? ''));
+					$f_a1    = db_escape_string(trim($da['address_line1'] ?? ''));
+					$f_a2    = db_escape_string(trim($da['address_line2'] ?? ''));
+					$f_post  = db_escape_string(trim($da['postal_code']   ?? ''));
+					$f_city  = db_escape_string(trim($da['city']          ?? ''));
+					$f_cntry = db_escape_string(trim($da['country']       ?? ''));
+					$f_cont  = db_escape_string(trim($da['contact_name']  ?? ''));
+					$f_ph    = db_escape_string(trim($da['phone']         ?? ''));
+					$f_em    = db_escape_string(trim($da['email']         ?? ''));
+					$f_prim  = $da_primary ? 'TRUE' : 'FALSE';
+				
+					if ($da_row_id > 0) {
+						db_modify("
+							UPDATE delivery_addresses SET 
+								is_primary    = $f_prim,
+								sort_order    = $da_sort,
+								description   = '$f_desc',
+								company_name  = '$f_comp',
+								first_name    = '$f_fn',
+								last_name     = '$f_ln',
+								address_line1 = '$f_a1',
+								address_line2 = '$f_a2',
+								postal_code   = '$f_post',
+								city          = '$f_city',
+								country       = '$f_cntry',
+								contact_name  = '$f_cont',
+								phone         = '$f_ph',
+								email         = '$f_em'
+							WHERE id = $da_row_id AND account_id = '$id'
+						", __FILE__ . " linje " . __LINE__);
+						$posted_da_ids[] = $da_row_id;
+					} else {
+						 db_modify("
+								INSERT INTO delivery_addresses
+									(account_id, is_primary, sort_order, description, company_name,
+									first_name, last_name, address_line1, address_line2, postal_code,
+									city, country, contact_name, phone, email)
+								VALUES
+									('$id', $f_prim, $da_sort, '$f_desc', '$f_comp',
+									'$f_fn', '$f_ln', '$f_a1', '$f_a2', '$f_post',
+									'$f_city', '$f_cntry', '$f_cont', '$f_ph', '$f_em')
+							", __FILE__ . " linje " . __LINE__);
+							// Capture the new ID so the delete block below doesn't remove it
+							$r_new_da = db_fetch_array(db_select(
+								"SELECT id FROM delivery_addresses
+								WHERE account_id = '$id'
+								ORDER BY id DESC LIMIT 1",
+								__FILE__ . " linje " . __LINE__
+							));
+							if ($r_new_da) $posted_da_ids[] = intval($r_new_da['id']);
+					}
+				}
+
+		
+				
+				#Delete rows that were removed in the UI
+				$q_da_ex = db_select(
+					"SELECT id FROM delivery_addresses WHERE account_id = '$id'",
+					__FILE__ . " linje " . __LINE__
+				);
+				while ($r_da_ex = db_fetch_array($q_da_ex)) {
+					if (!in_array(intval($r_da_ex['id']), $posted_da_ids)) {
+						db_modify(
+							"DELETE FROM delivery_addresses WHERE id = $r_da_ex[id] AND account_id = '$id'",
+							__FILE__ . " linje " . __LINE__
+						);
+					}
+				}
+				
+				// Before syncing, check if delivery_addresses has any rows for this account.
+				// If not, migrate the existing adresser lev_* data into delivery_addresses first.
+				$r_da_count = db_fetch_array(db_select(
+					"SELECT COUNT(*) AS cnt FROM delivery_addresses WHERE account_id = '$id'",
+					__FILE__ . " linje " . __LINE__
+				));
+				if (intval($r_da_count['cnt']) === 0 && $lev_addr1) {
+					// Migrate legacy adresser lev_* row into delivery_addresses as primary
+					db_modify("
+						INSERT INTO delivery_addresses
+							(account_id, is_primary, sort_order, description, company_name,
+							first_name, last_name, address_line1, address_line2, postal_code,
+							city, country, contact_name, phone, email)
+						VALUES
+							('$id', TRUE, 1, '', '$lev_firmanavn',
+							'$lev_fornavn', '$lev_efternavn', '$lev_addr1', '$lev_addr2', '$lev_postnr',
+							'$lev_bynavn', '$lev_land', '$lev_kontakt', '$lev_tlf', '$lev_email')
+					", __FILE__ . " linje " . __LINE__);
+				}
+
+				// Sync primary back to adresser lev_* columns for backward compatibility
+				$r_da_prim = db_fetch_array(db_select(
+					"SELECT * FROM delivery_addresses
+					WHERE account_id = '$id' AND is_primary = TRUE
+					LIMIT 1",
+					__FILE__ . " linje " . __LINE__
+				));
+				if ($r_da_prim) {
+					$s_comp  = db_escape_string($r_da_prim['company_name']);
+					$s_fn    = db_escape_string($r_da_prim['first_name']);
+					$s_ln    = db_escape_string($r_da_prim['last_name']);
+					$s_a1    = db_escape_string($r_da_prim['address_line1']);
+					$s_a2    = db_escape_string($r_da_prim['address_line2']);
+					$s_post  = db_escape_string($r_da_prim['postal_code']);
+					$s_city  = db_escape_string($r_da_prim['city']);
+					$s_cntry = db_escape_string($r_da_prim['country']);
+					$s_cont  = db_escape_string($r_da_prim['contact_name']);
+					$s_ph    = db_escape_string($r_da_prim['phone']);
+					$s_em    = db_escape_string($r_da_prim['email']); 
+					db_modify("
+						UPDATE adresser SET
+							lev_firmanavn = '$s_comp',
+							lev_fornavn   = '$s_fn',
+							lev_efternavn = '$s_ln',
+							lev_addr1     = '$s_a1',
+							lev_addr2     = '$s_a2',
+							lev_postnr    = '$s_post',
+							lev_bynavn    = '$s_city',
+							lev_land      = '$s_cntry',
+							lev_kontakt   = '$s_cont',
+							lev_tlf       = '$s_ph',
+							lev_email     = '$s_em'
+						WHERE id = '$id'
+					", __FILE__ . " linje " . __LINE__);
+				}
+				// ---- END Save delivery_addresses ----
+
+				//####
 				###########################
 
 				$seen_posnr = [];
 				$used_ids = [];
 				$errors = [];
-				$debitor_id = (int)$id;
-				$redirect_returside = rawurlencode($returside);
 
 
 				// ----------  Validate inputs & check for duplicates ----------
 				for ($x = 1; $x <= $ans_ant; $x++) {
-					$y = isset($posnr[$x]) ? trim($posnr[$x]) : '';
-					$current_id = isset($ans_id[$x]) ? (int)$ans_id[$x] : 0;
+					$y = trim($posnr[$x]);
+					$current_id = (int)$ans_id[$x];
+
+
 
 					if (!$current_id) {
 
-						continue;
-					}
-					if ($y === '') {
 						continue;
 					}
 
@@ -709,15 +880,15 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						$query = db_select("
 										SELECT navn 
 										FROM ansatte 
-										WHERE konto_id = '$debitor_id'
+										WHERE konto_id = '$id' 
 										AND posnr = 1
 									", __FILE__ . " linje " . __LINE__);
 
 						$row = db_fetch_array($query);
-						$navnA = $row ? db_escape_string($row['navn']) : '';
+						$navnA = $row['navn'];
 						if (!$navnA) $navnA = NULL;
-						// Keep the debtor card primary contact aligned after deleting a contact.
-						db_modify("update adresser set kontakt = '$navnA' where id = '$debitor_id'", __FILE__ . " linje " . __LINE__);
+						//update adresser where id = id and set kontakt to kontakt
+						db_modify("update adresser set kontakt = '$navnA' where id = '$id'", __FILE__ . " linje " . __LINE__);
 						######
 						continue;
 					}
@@ -751,8 +922,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					error_log("Accepted posnr $y for ansatte id $current_id at index $x");
 				}
 
-				foreach ($used_ids as $ansatte_id => $pos) {
-					error_log("  id = $ansatte_id => posnr = $pos");
+				foreach ($used_ids as $id => $pos) {
+					error_log("  id = $id => posnr = $pos");
 				}
 
 				// ---------- Error Handling ----------
@@ -766,42 +937,51 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					print <<<HTML
 						<script>
 							alert('$alerttekst_js');
-							window.location.href = 'debitorkort.php?tjek_id=$debitor_id&id=$debitor_id&returside=$redirect_returside';
+							if (document.referrer) {
+								window.location.href = document.referrer;
+							} else {
+								window.location.href = '/';
+							}
 						</script>
 						HTML;
 					exit; // stop execution
 				}
 
 				error_log("Clearing posnr for used IDs");
-				foreach ($used_ids as $ansatte_id => $target_posnr) {
-					$ansatte_id = (int)$ansatte_id;
+				foreach ($used_ids as $id => $target_posnr) {
+					$id = (int)$id;
 
-					db_modify("UPDATE ansatte SET posnr = NULL WHERE id = $ansatte_id", __FILE__ . " linje " . __LINE__);
+					db_modify("UPDATE ansatte SET posnr = NULL WHERE id = $id", __FILE__ . " linje " . __LINE__);
 				}
 
 
-				foreach ($used_ids as $ansatte_id => $target_posnr) {
-					$ansatte_id = (int)$ansatte_id;
+				foreach ($used_ids as $id => $target_posnr) {
+					$id = (int)$id;
 					$target_posnr = (int)$target_posnr;
 
 
 
 					// If position 1, update kontakt in adresser
 					if ($target_posnr == 1) {
-						$q_navn = db_select("SELECT navn FROM ansatte WHERE id = $ansatte_id", __FILE__ . " linje " . __LINE__);
+						$q_navn = db_select("SELECT navn FROM ansatte WHERE id = $id", __FILE__ . " linje " . __LINE__);
 						$r_navn = db_fetch_array($q_navn);
-						$navnT = $r_navn ? db_escape_string($r_navn['navn']) : '';
+						$navnT = $r_navn['navn'];
 
-						error_log("Position 1 detected for ansatte id $ansatte_id; updating kontakt to '$navnT'");
-						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $debitor_id", __FILE__ . " linje " . __LINE__);
+						error_log("Position 1 detected for id $id; updating kontakt to '$navnT'");
+						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $id", __FILE__ . " linje " . __LINE__);
 					}
 
-					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $ansatte_id", __FILE__ . " linje " . __LINE__);
+					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $id", __FILE__ . " linje " . __LINE__);
 				}
 
 				print <<<HTML
 												<script>
-													window.location.href = 'debitorkort.php?tjek_id=$debitor_id&id=$debitor_id&returside=$redirect_returside';
+													if (document.referrer) {
+														window.location.href = document.referrer;
+													} else {
+														// fallback if no referrer available
+														window.location.href = '/'; 
+													}
 												</script>
 												HTML;
 
@@ -810,6 +990,16 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 
 				###########################
 
+			} else {
+				$alerttekst = "Please delete all contacts to proceed";
+				print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--....-->\n";
+
+				if ($vkontotype == 'erhverv') {
+					print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&privat=privat\">";
+				} elseif ($vkontotype == 'privat') {
+					print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&erhverv=erhverv\">";
+				}
+				exit;
 			}
 		}
 	} else {
@@ -817,6 +1007,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from shop_adresser where saldi_id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from kontakt_emails where konto_id = $id", __FILE__ . " linje " . __LINE__);
+		##
+		db_modify("DELETE FROM delivery_addresses WHERE account_id = $id", __FILE__ . " linje " . __LINE__);
+		##
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitor.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">\n";
 	   exit;
 	}
@@ -847,7 +1040,7 @@ if ($id > 0) {
 	$lev_email = trim($r['lev_email']);
 	$lev_kontakt = htmlentities(trim($r['lev_kontakt']), ENT_COMPAT, $charset); #20131004
 	$tlf = trim($r['tlf']);
-	$fax = trim($r['fax']);
+	$mobile = trim($r['mobile']);
 	$email = trim($r['email']);
 	$mailfakt = trim($r['mailfakt']);
 	$web = trim($r['web']);
@@ -869,6 +1062,7 @@ if ($id > 0) {
 	$pbs_date = trim($r['pbs_date']);
 	$kontoansvarlig = trim($r['kontoansvarlig']);
 	$status = trim($r['status']);
+	$enduser_type = isset($r['enduser_type']) ? trim($r['enduser_type']) : '';
 	$oprettet = $r['oprettet'];
 	$productlimit = $r['productlimit'];
 	if (!$kontoansvarlig) $kontoansvarlig = '0';
@@ -892,6 +1086,36 @@ if ($id > 0) {
 		$kontakt_email_vals[$kontakt_email_count] = htmlentities(trim($r_email['email']), ENT_COMPAT, $charset);
 		$kontakt_email_types[$kontakt_email_count] = htmlentities(trim($r_email['email_type']), ENT_COMPAT, $charset);
 	}
+	##############Load delivery address
+	$delivery_addresses = [];
+	if ($id > 0) {
+		$q_da = db_select(
+			"SELECT * FROM delivery_addresses
+			WHERE account_id = '$id'
+			ORDER BY is_primary DESC, sort_order ASC, id ASC",
+			__FILE__ . " linje " . __LINE__
+		);
+		while ($r_da = db_fetch_array($q_da)) {
+			$delivery_addresses[] = [
+				'id'           => (int)$r_da['id'],
+				'is_primary' => ($r_da['is_primary'] === 't' || $r_da['is_primary'] === 'TRUE' || $r_da['is_primary'] === true),
+				'sort_order'   => (int)$r_da['sort_order'],
+				'description'  => trim($r_da['description']),
+				'company_name' => trim($r_da['company_name']),
+				'first_name'   => trim($r_da['first_name']),
+				'last_name'    => trim($r_da['last_name']),
+				'address_line1'=> trim($r_da['address_line1']),
+				'address_line2'=> trim($r_da['address_line2']),
+				'city'         => trim($r_da['city']),
+				'country'      => trim($r_da['country']),
+				'contact_name' => trim($r_da['contact_name']),
+				'postal_code'  => trim($r_da['postal_code']),
+				'phone'        => trim($r_da['phone']),
+				'email'        => trim($r_da['email']),
+			];
+		}
+	}
+	##############
 
 	$kategori = array();
 	if ($r['kategori'] || $r['kategori'] == 0) $kategori = explode(chr(9), $r['kategori']);
@@ -955,6 +1179,7 @@ if ($id > 0) {
 	$kontakt_email_vals = array();
 	$kontakt_email_types = array();
 	$kontakt_email_count = 0;
+	$delivery_addresses = [];
 	if (isset($_GET['kontonr'])) $kontonr = $_GET['kontonr'];
 	if (isset($_GET['firmanavn'])) $firmanavn = $_GET['firmanavn'];
 	if (isset($_GET['addr1'])) $addr1 = $_GET['addr1'];
@@ -965,6 +1190,7 @@ if ($id > 0) {
 	if (isset($_GET['kontakt'])) $kontakt = $_GET['kontakt'];
 	if (isset($_GET['tlf'])) $tlf = $_GET['tlf'];
 	if (!isset($vis_lev_addr)) $vis_lev_addr = 'checked';
+	
 	print "<BODY onLoad=\"javascript:docChange = true;\">\n";
 }
 
@@ -1003,12 +1229,6 @@ if (!isset($kontonr)) $kontonr = NULL;
 
 $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 $backSep = (strpos($returside, '?') !== false) ? '&' : '?';
-$kontokortReturside = "../debitor/debitorkort.php?id=$id";
-if (strpos($returside, 'ordre.php') !== false && $ordre_id) {
-	$kontokortReturside = "../debitor/ordre.php?id=$ordre_id";
-	if ($fokus) $kontokortReturside .= "&fokus=" . rawurlencode($fokus);
-}
-$kontokortRetursideParam = rawurlencode($kontokortReturside);
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
@@ -1022,7 +1242,7 @@ if ($menu == 'T') {
 	}
 	print "</div>";
 	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=$kontokortRetursideParam' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
+	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
 	if (substr($rettigheder, 5, 1) == '1') {
 		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
 	} else {
@@ -1193,7 +1413,7 @@ if (!isset($bynavn)) $bynavn = NULL;
 if (!isset($mailfakt)) $mailfakt = NULL;
 if (!isset($cvrnr)) $cvrnr = NULL;
 if (!isset($tlf)) $tlf = NULL;
-if (!isset($fax)) $fax = NULL;
+if (!isset($mobile)) $mobile = NULL;
 if (!isset($ean)) $ean = NULL;
 if (!isset($institution)) $institution = NULL;
 if (!isset($bank_reg)) $bank_reg = NULL;
@@ -1293,57 +1513,104 @@ print "</div></td></tr>\n";
 // JavaScript — syncs display rows to the hidden JSON field before submit
 print <<<'EMAILJS'
 <script>
+/* ---- Email helpers (unchanged logic, moved into DOMContentLoaded) ---- */
 function syncEmailsToJson() {
-	var rows = document.querySelectorAll('#ekstra_emails_container .ekstra-email-row');
-	var data = [];
-	for (var i = 0; i < rows.length; i++) {
-		var email = rows[i].querySelector('.ke-email').value.trim();
-		var type = rows[i].querySelector('.ke-type').value;
-		var dbId = rows[i].getAttribute('data-db-id') || '0';
-		if (email) {
-			data.push({id: dbId, email: email, type: type});
-		}
-	}
-	document.getElementById('kontakt_emails_json').value = JSON.stringify(data);
+    var rows = document.querySelectorAll('#ekstra_emails_container .ekstra-email-row');
+    var data = [];
+    for (var i = 0; i < rows.length; i++) {
+        var email = rows[i].querySelector('.ke-email').value.trim();
+        var type  = rows[i].querySelector('.ke-type').value;
+        var dbId  = rows[i].getAttribute('data-db-id') || '0';
+        if (email) data.push({id: dbId, email: email, type: type});
+    }
+    document.getElementById('kontakt_emails_json').value = JSON.stringify(data);
 }
-
+ 
 function addEmailRow() {
-	var container = document.getElementById('ekstra_emails_container');
-	var row = document.createElement('div');
-	row.className = 'ekstra-email-row';
-	row.style.marginBottom = '3px';
-	row.setAttribute('data-db-id', '0');
-	row.innerHTML =
-		"<select class='inputbox ke-type' onchange='docChange=true'>" +
-		"<option value='tilbud'>Tilbud</option><option value='ordre'>Ordre</option><option value='faktura'>Faktura/Kreditnota</option><option value='kontoudtog'>Kontoudtog</option><option value='rykker'>Rykker</option><option value='andet'>Andet</option></select> " +
-		"<input class='inputbox ke-email' type='text' size='18' value='' placeholder='E-mailadresse' onchange='docChange=true'>" +
-		" <a href='#' onclick='removeEmailRow(this); return false;' title='Slet'>&times;</a>";
-	container.appendChild(row);
-	updateEmailCount();
-	docChange = true;
+    var container = document.getElementById('ekstra_emails_container');
+    var row = document.createElement('div');
+    row.className = 'ekstra-email-row';
+    row.style.marginBottom = '3px';
+    row.setAttribute('data-db-id', '0');
+    row.innerHTML =
+        "<select class='inputbox ke-type' onchange='docChange=true'>" +
+        "<option value='tilbud'>Tilbud</option>" +
+        "<option value='ordre'>Ordre</option>" +
+        "<option value='faktura'>Faktura/Kreditnota</option>" +
+        "<option value='kontoudtog'>Kontoudtog</option>" +
+        "<option value='rykker'>Rykker</option>" +
+        "<option value='andet'>Andet</option></select> " +
+        "<input class='inputbox ke-email' type='text' size='18' value='' " +
+        "placeholder='E-mailadresse' onchange='docChange=true'>" +
+        " <a href='#' onclick='removeEmailRow(this); return false;' title='Slet'>&times;</a>";
+    container.appendChild(row);
+    updateEmailCount();
+    docChange = true;
 }
-
+ 
 function removeEmailRow(el) {
-	el.closest('.ekstra-email-row').remove();
-	updateEmailCount();
-	docChange = true;
+    el.closest('.ekstra-email-row').remove();
+    updateEmailCount();
+    docChange = true;
 }
-
+ 
 function updateEmailCount() {
-	var rows = document.querySelectorAll('#ekstra_emails_container .ekstra-email-row');
-	document.getElementById('ekstra_email_count').textContent = rows.length;
+    var rows = document.querySelectorAll('#ekstra_emails_container .ekstra-email-row');
+    document.getElementById('ekstra_email_count').textContent = rows.length;
 }
-
-// Hook into form submit to sync data
-var theForm = document.forms['debitorkort'];
-if (theForm) {
-	var origOnsubmit = theForm.onsubmit;
-	theForm.onsubmit = function(e) {
-		syncEmailsToJson();
-		if (origOnsubmit) return origOnsubmit.call(this, e);
-		return true;
-	};
-}
+ 
+/* ---- SINGLE onsubmit hook — registered once at DOMContentLoaded ---- */
+document.addEventListener('DOMContentLoaded', function () {
+    var form = document.forms['debitorkort'];
+    if (!form) return;
+ 
+    /*
+     * Capture the inline validator that was set via the onsubmit=""
+     * attribute on the <form> tag (validateDebitorkort).
+     * We replace it with our own wrapper that:
+     *   1. syncs emails to JSON
+     *   2. syncs delivery addresses to JSON
+     *   3. then calls the original validator (which sets docChange=false
+     *      and returns false if the name field is empty)
+     */
+    var inlineValidator = form.onsubmit; // validateDebitorkort
+ 
+    form.onsubmit = function (e) {
+ 
+        /* --- sync emails --- */
+        syncEmailsToJson();
+ 
+        /* --- sync delivery addresses --- */
+        var daRows = document.querySelectorAll('#da_container .da-addr-row');
+        var daOut  = [];
+        daRows.forEach(function (row) {
+            var fnEl = row.querySelector('.da-first_name');
+            var lnEl = row.querySelector('.da-last_name');
+            daOut.push({
+                id:            row.getAttribute('data-db-id') || '0',
+                is_primary:    row.querySelector('.da-is-primary').checked,
+                description:   row.querySelector('.da-description').value.trim(),
+                company_name:  (row.querySelector('.da-company_name')  || {value:''}).value.trim(),
+                first_name:    fnEl ? fnEl.value.trim() : '',
+                last_name:     lnEl ? lnEl.value.trim() : '',
+                address_line1: row.querySelector('.da-address_line1').value.trim(),
+                address_line2: row.querySelector('.da-address_line2').value.trim(),
+                postal_code:   row.querySelector('.da-postal_code').value.trim(),
+                city:          row.querySelector('.da-city').value.trim(),
+                country:       row.querySelector('.da-country').value.trim(),
+                contact_name:  row.querySelector('.da-contact_name').value.trim(),
+                phone:         row.querySelector('.da-phone').value.trim(),
+                email:         row.querySelector('.da-email').value.trim()
+            });
+        });
+        var daField = document.getElementById('delivery_addresses_json');
+        if (daField) daField.value = JSON.stringify(daOut);
+ 
+        /* --- run original inline validator last --- */
+        if (inlineValidator) return inlineValidator.call(this, e);
+        return true;
+    };
+});
 </script>
 EMAILJS;
 
@@ -1421,7 +1688,7 @@ print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 
 print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst('378|Telefax', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('378|Mobile', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('379|EAN-nr.', $sprog_id) . "<!--tekst 379--></td>";
@@ -1496,35 +1763,382 @@ if ($new_status) {
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
+if ($packagingModuleEnabled) {
+	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+	$eu = isset($enduser_type) ? $enduser_type : '';
+	$opt_blank = ($eu === '') ? ' selected' : '';
+	$opt_hus   = ($eu === 'Husholdning') ? ' selected' : '';
+	$opt_erh   = ($eu === 'Erhverv') ? ' selected' : '';
+	$eu_label = ($sprog_id == 2) ? 'Expected end user (packaging)' : 'Forventet slutbruger (emballage)';
+	$eu_title = ($sprog_id == 2) ? 'Expected end user of packaging delivered to this customer' : 'Forventet slutbruger af emballagen for denne kunde';
+	$eu_hus = ($sprog_id == 2) ? 'Household' : 'Husholdning';
+	$eu_erh = ($sprog_id == 2) ? 'Business' : 'Erhverv';
+	print "<tr bgcolor=$bg><td title='$eu_title'>$eu_label</td><td><select class='inputbox' name='enduser_type' onchange='javascript:docChange = true;'><option value=''$opt_blank></option><option value='Husholdning'$opt_hus>$eu_hus</option><option value='Erhverv'$opt_erh>$eu_erh</option></select></td></tr>\n";
+}
 print "</tbody></table></td>"; # <- TABEL 1.2.2
 print "<td valign=top><table border='0' width='100%'><tbody>"; # TABEL 1.2.3 ->
 $bg = $bgcolor5;
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 if ($vis_addr == "on") {
-	print "<tr bgcolor=$bg><td colspan=2 align=center height=25px><b>" . findtekst('1148|Levering', $sprog_id) . "</b></td></tr>\n"; #20210702
-	if ($kontotype == 'privat') {
-		print "<input type=\"hidden\" name=\"lev_firmanavn\" value=\"$lev_firmanavn\">\n";
-		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td>" . findtekst('358|Fornavn', $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=lev_fornavn value=\"$lev_fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td>" . findtekst('359|Efternavn', $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=lev_efternavn value=\"$lev_efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	} else {
-		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td>" . findtekst('360|Firmanavn', $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=lev_firmanavn value=\"$lev_firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	}
+ 
+   // Existing single lev_* row (kept for backward compat display)
+    
+    print "<tr bgcolor=$bg><td colspan=2 align=center height=25px><b>" . findtekst('1148|Levering', $sprog_id) . "</b></td></tr>\n";
+    if ($kontotype == 'privat') {
+        print "<input type=\"hidden\" name=\"lev_firmanavn\" value=\"$lev_firmanavn\">\n";
+        ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+        print "<tr bgcolor=$bg><td>" . findtekst('358|Fornavn', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_fornavn value=\"$lev_fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+        ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+        print "<tr bgcolor=$bg><td>" . findtekst('359|Efternavn', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_efternavn value=\"$lev_efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+    } else {
+        ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+        print "<tr bgcolor=$bg><td>" . findtekst('360|Firmanavn', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_firmanavn value=\"$lev_firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+    }
+    ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+    print "<tr bgcolor=$bg><td>" . findtekst('361|Adresse', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_addr1 value=\"$lev_addr1\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+    ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+    print "<tr bgcolor=$bg><td>" . findtekst('362|Adresse 2', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_addr2 value=\"$lev_addr2\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+    ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+    print "<tr bgcolor=$bg><td>" . findtekst('363|Postnr./By', $sprog_id) . "</td><td><input class='inputbox' type='text' size=3 name=lev_postnr value=\"$lev_postnr\" onchange=\"javascript:docChange = true;\">\n";
+    print "<input class='inputbox' type='text' size=16 name=lev_bynavn value=\"$lev_bynavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+    ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+    print "<tr bgcolor=$bg><td>" . findtekst('364|Land', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_land value=\"$lev_land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+    ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+    print "<tr bgcolor=$bg><td height=\"25px\">" . findtekst('502|Kontakt', $sprog_id) . "</td><td height=\"25px\"><input class='inputbox' type='text' size=\"25px\" name=lev_kontakt value=\"$lev_kontakt\" onchange=\"javascript:docChange = true;\">\n";
+    ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+    print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_tlf value=\"$lev_tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('361|Adresse', $sprog_id) . "<!--tekst 361--></td><td><input class='inputbox' type='text' size='25' name=lev_addr1 value=\"$lev_addr1\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('362|Adresse 2', $sprog_id) . "<!--tekst 362--></td><td><input class='inputbox' type='text' size='25' name=lev_addr2 value=\"$lev_addr2\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('363|Postnr./By', $sprog_id) . "<!--tekst 363--></td><td><input class='inputbox' type='text' size=3 name=lev_postnr value=\"$lev_postnr\" onchange=\"javascript:docChange = true;\">\n";
-	print "<input class='inputbox' type='text' size=19 name=lev_bynavn value=\"$lev_bynavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('364|Land', $sprog_id) . "<!--tekst 364--></td><td><input class='inputbox' type='text' size='25' name=lev_land value=\"$lev_land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td  height=\"25px\">" . findtekst('502|Kontakt', $sprog_id) . "<!--tekst 502--></td><td height=\"25px\"><input class='inputbox' type='text' size=\"25px\" name=lev_kontakt value=\"$lev_kontakt\" onchange=\"javascript:docChange = true;\">\n";
-	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377--></td><td><input class='inputbox' type='text' size='25' name=lev_tlf value=\"$lev_tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td>";
+	$oLibTxt = findtekst('2217|Sæt grænse for, hvor mange varer en kunde kan oprette', $sprog_id);
+	print "<span onmouseover=\"return overlib('$oLibTxt', WIDTH=600);\" onmouseout=\"return nd();\">" . findtekst('2215|Varegrænse', $sprog_id) . "</span>";
+	print "</td><td><input type='text' class='inputbox' name=\"productlimit\" size=\"25\" value=\"" . dkdecimal($productlimit, 0) . "\"></td></tr>\n";
+ 
+    
+    // Additional delivery addresses section
+   
+    ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+ 
+    // Serialize existing rows for JS
+    $da_json_init = json_encode($delivery_addresses);
+ 
+    // Section header + "Add delivery address" button
+    print "<tr bgcolor=$bg><td colspan=2 style='padding-top:8px;'>
+        <b>Show/Hide Delivery Address</b>
+        &nbsp;
+        <a href='#' onclick='daToggle(); return false;' style='text-decoration:none; cursor:pointer;'>
+            <small>(<span id='da_count'>" . count($delivery_addresses) . "</span>
+            <span id='da_toggle_icon'>" . (count($delivery_addresses) > 0 ? '&#9650;' : '&#9660;') . "</span>)</small>
+        </a>
+    &nbsp;
+    <button type='button'
+        id='btn_add_delivery_addr'
+        onclick='addDeliveryAddressRow({}, true)'
+        class='button green small'
+        style='$buttonStyle; padding:2px 10px;'
+        onMouseOver=\"this.style.cursor='pointer'\">
+        + Add delivery address
+    </button>
+</td></tr>\n";
+ 
+    // Hidden JSON field — always inside the form, always gets posted
+    print "<input type='hidden' name='delivery_addresses_json'
+           id='delivery_addresses_json'
+           value='" . htmlspecialchars($da_json_init, ENT_QUOTES) . "'>\n";
+ 
+    // Container for dynamic address cards
+    ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+    
+	$da_initially_visible = 'none';  // always collapsed on load
+	$da_toggle_icon = '&#9660;';     // down arrow indicates hidden state
+	print "<tr bgcolor=$bg><td colspan=2>
+		<div id='da_collapsible' style='display:{$da_initially_visible};'>
+			<div id='da_container' style='margin-top:4px;'></div>
+		</div>
+		</td></tr>\n";
+ 
+    
+    //  HTML template (cloned by JS, never shown directly)
+    
+    $kontotype_for_js = $kontotype;
+    print <<<DATEMPLATE
+<template id='da-row-template'>
+  <div class='da-addr-row' style='
+        border:1px solid #c8c8d4;
+        border-radius:5px;
+        padding:8px 10px;
+        margin-bottom:8px;
+        background:#fafafa;
+        position:relative; 
+      '>
+    <table border='0' width='100%' cellspacing='2' cellpadding='2'>
+ 
+      <!-- Row header: label + primary toggle + delete -->
+      <tr>
+        <td colspan='2' style='padding-bottom:5px;'>
+          <input class='inputbox da-description' type='text' size='22'
+                 placeholder='Label (e.g. Warehouse, Orders, etc.)'
+                 onchange='docChange=true'
+                 style='font-weight:bold;'>
+          <label style='float:right; cursor:pointer; font-size:11px;'>
+            <input type='checkbox' class='da-is-primary' onchange='daSyncPrimary(this)'>
+            &nbsp;Primary
+          </label>
+          <a href='#' class='da-delete-btn'
+             onclick='removeDeliveryAddressRow(this); return false;'
+             title='Remove this address'
+             style='float:right; margin-right:10px; color:#c00; font-size:16px; line-height:1;'>
+            &#x2715;
+          </a>
+        </td>
+      </tr>
+ 
+      <!-- Company / name fields — toggled by kontotype -->
+      <tr class='da-company-row'>
+        <td style='width:38%; white-space:nowrap;'>Company</td>
+        <td><input class='inputbox da-company_name' type='text' size='22' onchange='docChange=true'></td>
+      </tr>
+      <tr class='da-firstname-row' style='display:none;'>
+        <td>First name</td>
+        <td><input class='inputbox da-first_name' type='text' size='22' onchange='docChange=true'></td>
+      </tr>
+      <tr class='da-lastname-row' style='display:none;'>
+        <td>Last name</td>
+        <td><input class='inputbox da-last_name' type='text' size='22' onchange='docChange=true'></td>
+      </tr>
+ 
+      <!-- Address fields -->
+      <tr>
+        <td>Address</td>
+        <td><input class='inputbox da-address_line1' type='text' size='22' onchange='docChange=true'></td>
+      </tr>
+      <tr>
+        <td>Address 2</td>
+        <td><input class='inputbox da-address_line2' type='text' size='22' onchange='docChange=true'></td>
+      </tr>
+      <tr>
+        <td>Postal / City</td> 
+        <td>
+          <input class='inputbox da-postal_code' type='text' size='3' onchange='docChange=true'>
+          <input class='inputbox da-city' type='text' size='13' onchange='docChange=true'>
+        </td>
+      </tr>
+      <tr>
+        <td>Country</td>
+        <td><input class='inputbox da-country' type='text' size='22' onchange='docChange=true'></td>
+      </tr>
+      <tr>
+        <td>Contact</td>
+        <td><input class='inputbox da-contact_name' type='text' size='22' onchange='docChange=true'></td>
+      </tr>
+      <tr>
+        <td>Phone</td>
+        <td><input class='inputbox da-phone' type='text' size='22' onchange='docChange=true'></td>
+      </tr>
+      <tr>
+        <td>E-mail</td>
+        <td><input class='inputbox da-email' type='text' size='22' onchange='docChange=true'></td>
+      </tr>
+ 
+    </table>
+  </div>
+</template>
+DATEMPLATE;
+ 
+   
+    //  JavaScript — no page reload, syncs to hidden JSON on submit
+    
+    print <<<DEBS
+<script>
+(function () {
+    // Data seeded from PHP
+    var daData      = {$da_json_init};
+    var daKontotype = '{$kontotype_for_js}';  // 'privat' | 'erhverv'
+ 
+    /* ---- Boot: render existing rows, then hook form submit ---- */
+    document.addEventListener('DOMContentLoaded', function () {
+	   daData.forEach(function (da) { addDeliveryAddressRow(da, false, true); });
+          
+    });
+ 
+    /* ---- Public: add a row (empty or pre-filled) ---- */
+   window.addDeliveryAddressRow = function (data, prepend = false, isInitialLoad = false) {
+		data = data || {};
+
+		var tpl   = document.getElementById('da-row-template');
+		var clone = document.importNode(tpl.content, true);
+		var row   = clone.querySelector('.da-addr-row');
+
+		// Store DB id on element for upsert logic
+		row.setAttribute('data-db-id', data.id || '0');
+
+		// Populate fields
+		row.querySelector('.da-description').value    = data.description   || '';
+		row.querySelector('.da-address_line1').value  = data.address_line1 || '';
+		row.querySelector('.da-address_line2').value  = data.address_line2 || '';
+		row.querySelector('.da-postal_code').value    = data.postal_code   || '';
+		row.querySelector('.da-city').value           = data.city          || '';
+		row.querySelector('.da-country').value        = data.country       || '';
+		row.querySelector('.da-contact_name').value   = data.contact_name  || '';
+		row.querySelector('.da-phone').value          = data.phone         || '';
+		row.querySelector('.da-email').value          = data.email         || '';
+		row.querySelector('.da-is-primary').checked   = !!data.is_primary;
+
+		// Show company vs first/last name depending on kontotype
+		if (daKontotype === 'privat') {
+			row.querySelector('.da-company-row').style.display   = 'none';
+			row.querySelector('.da-firstname-row').style.display = '';
+			row.querySelector('.da-lastname-row').style.display  = '';
+			row.querySelector('.da-first_name').value = data.first_name || '';
+			row.querySelector('.da-last_name').value  = data.last_name  || '';
+		} else {
+			row.querySelector('.da-company_name').value = data.company_name || '';
+		}
+
+				var container = document.getElementById('da_container');
+		if (prepend) {
+			container.prepend(row);
+			var firstInput = row.querySelector('input:not([type="checkbox"])');
+			if (firstInput) firstInput.focus();
+
+			// --- NEW: If the container is hidden, expand it ---
+			var collapsible = document.getElementById('da_collapsible');
+			var icon = document.getElementById('da_toggle_icon');
+			if (collapsible && collapsible.style.display === 'none') {
+				collapsible.style.display = 'block';
+				if (icon) icon.innerHTML = '&#9650;';   // up arrow = visible
+			}
+		} else {
+			container.appendChild(row);
+		}
+
+		// Only auto-assign primary if nothing is checked yet
+		var anyChecked = Array.from(
+			document.querySelectorAll('#da_container .da-is-primary')
+		).some(function(cb) { return cb.checked; });
+		if (!anyChecked) daEnsurePrimary();
+		
+		
+		
+		daUpdateCount();
+		if (!isInitialLoad) docChange = true;
+		
+	};
+
+	
+ 
+    /* ---- Public: remove a row ---- */
+    window.removeDeliveryAddressRow = function (el) {
+		el.closest('.da-addr-row').remove();
+		daEnsurePrimary();
+		daUpdateCount();
+		docChange = true;
+
+		// If this was the last address row, clear the legacy delivery fields
+		var remainingRows = document.querySelectorAll('#da_container .da-addr-row').length;
+		if (remainingRows === 0) {
+			var legacyFields = [
+				'lev_firmanavn', 'lev_fornavn', 'lev_efternavn',
+				'lev_addr1', 'lev_addr2', 'lev_postnr', 'lev_bynavn',
+				'lev_land', 'lev_kontakt', 'lev_tlf', 'lev_email'
+			];
+			legacyFields.forEach(function(fieldName) {
+				var field = document.querySelector('input[name="' + fieldName + '"]');
+				if (field) field.value = '';
+			});
+		}
+	};
+ 
+    /* ---- Public: enforce single primary ---- */
+    window.daSyncPrimary = function (checkbox) {
+        if (checkbox.checked) {
+            document.querySelectorAll('#da_container .da-is-primary').forEach(function (cb) {
+                cb.checked = false;
+            });
+            checkbox.checked = true;
+        }
+        daEnsurePrimary();
+    };
+ 
+    /* ---- Internal helpers ---- */ 
+    function daEnsurePrimary () {
+        var cbs = document.querySelectorAll('#da_container .da-is-primary');
+        var any = Array.from(cbs).some(function (cb) { return cb.checked; });
+        if (!any && cbs.length > 0) cbs[0].checked = true;
+    }
+	function daToggle () {
+        var collapsible = document.getElementById('da_collapsible');
+        var icon        = document.getElementById('da_toggle_icon');
+        if (!collapsible) return;
+        if (collapsible.style.display === 'none') {
+            collapsible.style.display = 'block';
+            if (icon) icon.innerHTML = '&#9650;'; // up arrow = visible
+        } else {
+            collapsible.style.display = 'none';
+            if (icon) icon.innerHTML = '&#9660;'; // down arrow = hidden 
+        }
+    }
+ 
+   function daToggle () {
+        var collapsible = document.getElementById('da_collapsible');
+        var icon        = document.getElementById('da_toggle_icon');
+        if (!collapsible) return;
+        if (collapsible.style.display === 'none') {
+            collapsible.style.display = 'block';
+            if (icon) icon.innerHTML = '&#9650;';
+        } else {
+            collapsible.style.display = 'none';
+            if (icon) icon.innerHTML = '&#9660;';
+        }
+    }
+    window.daToggle = daToggle;
+
+    function daUpdateCount () {
+        var n           = document.querySelectorAll('#da_container .da-addr-row').length;
+        var countEl     = document.getElementById('da_count');
+        var iconEl      = document.getElementById('da_toggle_icon');
+        var collapsible = document.getElementById('da_collapsible');
+        if (countEl) countEl.textContent = n;
+        // if (n > 0 && collapsible && collapsible.style.display === 'none') {
+        //     collapsible.style.display = 'block';
+        //     if (iconEl) iconEl.innerHTML = '&#9650;';
+        // }
+        if (n === 0 && collapsible) {
+            collapsible.style.display = 'none';
+            if (iconEl) iconEl.innerHTML = '&#9660;';
+        }
+    }
+ 
+    function daCollect () {
+        var rows = document.querySelectorAll('#da_container .da-addr-row');
+        var out  = [];
+        rows.forEach(function (row) {
+            var fnEl = row.querySelector('.da-first_name');
+            var lnEl = row.querySelector('.da-last_name');
+            out.push({
+                id:            row.getAttribute('data-db-id') || '0',
+                is_primary:    row.querySelector('.da-is-primary').checked,
+                description:   row.querySelector('.da-description').value.trim(),
+                company_name:  (row.querySelector('.da-company_name')  || {value:''}).value.trim(),
+                first_name:    fnEl ? fnEl.value.trim() : '',
+                last_name:     lnEl ? lnEl.value.trim() : '',
+                address_line1: row.querySelector('.da-address_line1').value.trim(),
+                address_line2: row.querySelector('.da-address_line2').value.trim(),
+                postal_code:   row.querySelector('.da-postal_code').value.trim(),
+                city:          row.querySelector('.da-city').value.trim(),
+                country:       row.querySelector('.da-country').value.trim(),
+                contact_name:  row.querySelector('.da-contact_name').value.trim(),
+                phone:         row.querySelector('.da-phone').value.trim(),
+                email:         row.querySelector('.da-email').value.trim()
+            });
+        });
+        return out;
+    }
+ 
+   
+}());
+</script>
+DEBS;
+ 
 } else {
 	print "<tr bgcolor=$bg><td colspan=2 height=25px align=center><b>" . findtekst('254|Ekstrafelter', $sprog_id) . "<!--tekst 254--></b></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
@@ -1761,7 +2375,20 @@ if ($popup) {
 
 // Kontokort button
 
-$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=$kontokortRetursideParam'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
+#check if ordre.php is contained in $returside 
+if (strpos($queryString, 'ordre.php') !== false) {
+	$returside = $_GET['returside'] ?? $queryString;
+    if ($returside !== 'ordre.php') {
+        $returside = str_replace('returside=', '', $returside);
+    } else {
+        $returside = str_replace('returside=', '', $queryString);
+    }
+	$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/$returside'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
+
+}else{
+
+$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
+}
 
 // Fakturaliste button
 if (substr($rettigheder, 5, 1) == '1') {
@@ -1807,7 +2434,7 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 	}
 	$tekst = findtekst('132|Vis Kontokort.', $sprog_id);
 	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
-	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 132--><a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=$kontokortRetursideParam>" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
+	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 132--><a href=rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
 	$tekst = findtekst('129|Vis fakturaliste.', $sprog_id);
 	if (substr($rettigheder, 5, 1) == '1') {
 		if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../includes/luk.php','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></td>\n";
@@ -1839,9 +2466,9 @@ function split_navn($firmanavn)
 	return ($fornavn . "," . $efternavn);
 }
 
-#if (!$id) {
+//if (!$id) {
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
-#}
+//}
 
 ##################
 
@@ -3079,4 +3706,42 @@ function initResizableLayout() {
         }, 50);
     });
 }
+
+// Map legacy fields to new DA fields
+document.addEventListener('DOMContentLoaded', function () {
+    var legacyMap = [
+        { legacy: 'lev_firmanavn', da: '.da-company_name' },
+        { legacy: 'lev_fornavn',   da: '.da-first_name'   },
+        { legacy: 'lev_efternavn', da: '.da-last_name'    },
+        { legacy: 'lev_addr1',     da: '.da-address_line1'},
+        { legacy: 'lev_addr2',     da: '.da-address_line2'},
+        { legacy: 'lev_postnr',    da: '.da-postal_code'  },
+        { legacy: 'lev_bynavn',    da: '.da-city'         },
+        { legacy: 'lev_land',      da: '.da-country'      },
+        { legacy: 'lev_kontakt',   da: '.da-contact_name' },
+        { legacy: 'lev_tlf',       da: '.da-phone'        },
+        { legacy: 'lev_email',     da: '.da-email'        }
+    ];
+
+    function getPrimaryRow() {
+        // Find the row with is-primary checked, fallback to first row
+        var rows = document.querySelectorAll('#da_container .da-addr-row');
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].querySelector('.da-is-primary').checked) return rows[i];
+        }
+        return rows.length > 0 ? rows[0] : null;
+    }
+
+    legacyMap.forEach(function (map) {
+        var legacyField = document.querySelector('input[name="' + map.legacy + '"]');
+        if (!legacyField) return;
+
+        legacyField.addEventListener('input', function () {
+            var primaryRow = getPrimaryRow();
+            if (!primaryRow) return;
+            var daField = primaryRow.querySelector(map.da);
+            if (daField) daField.value = this.value;
+        });
+    });
+});
 </script>

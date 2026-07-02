@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/fromtPageOldMenu.php --- Patch 4.1.1 --- 20251124 ---
+// --- includes/reportFunc/fromtPageOldMenu.php --- Patch 5.0.0 --- 2026-05-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // -----------------------------------------------------------------------------------
 //
 // 20251123 Fixed multiroute/paylist problem
-// 20260612 MJ Guard flatpickr setup when report date fields are not present.
-
 // next line can be removed in 2026
+// 20260522 LOE Added salg_postnr button.
 db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
 
 
@@ -91,13 +90,17 @@ db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and
 				print "</tr><tr><td colspan = '5'><hr></td></tr><tr><td></td><td align=center>";
 				print "<span onClick=\"javascript:location.href='../debitor/betalingsliste.php'\"><input title='$tekst1' style=\"$butStyle\" type='button' value='$tekst2'></span></td>\n";
 			}
-			$r=db_fetch_array(db_select("select var_value from settings where var_name = 'useMultiRoute'", __FILE__ . " linje " . __LINE__));
-			if ($r['var_value'] == 'on') {
-				print "</tr><tr><td colspan = '5'><hr></td></tr><tr><td></td><td align = 'center'>";
+			$r=db_fetch_array(db_select("select var_value from settings where var_name = 'useMultiRoute'", __FILE__ . " linje " . __LINE__)); 
+			if ($r && ($r['var_value'] == 'on')) {
+				print "</tr><tr><td colspan = '5'><hr></td></tr><tr>";
+				print "<td align=center><span onClick=\"javascript:location.href='../debitor/salg_postnr.php'\"><input title='Sales by zip code' style=\"$butStyle\" type='button' value='Sales by zip code'></span></td>\n";
+				print"<td></td><td align = 'center'>";
 				print "<span onclick=\"javascript:location.href='../debitor/multiroute.php'\"><input title='Multiroute' style=\"$butStyle\" type='button' value=' " . findtekst('923|Multiroute', $sprog_id) . "'></span></td>";
 				print "<td></td><td align='center'><span onClick=\"javascript:location.href='../debitor/postnr.php'\"><input title='Top 100 efter postnr' style=\"$butStyle\" type='button' value='Top 100 postnr'></span></td>\n";
 			} else {
-				print "</tr><tr><td colspan = '5'><hr></td></tr><tr><td></td><td align='center'>";
+				print "</tr><tr><td colspan = '5'><hr></td></tr><tr>";
+				print "<td align=center><span onClick=\"javascript:location.href='../debitor/salg_postnr.php'\"><input title='Sales by zip code' style=\"$butStyle\" type='button' value='Sales by zip code'></span></td>\n";
+				print "<td align='center'>";
 				print "<span onClick=\"javascript:location.href='../debitor/postnr.php'\"><input title='Top 100 efter postnr' style=\"$butStyle\" type='button' value='Top 100 postnr'></span></td>\n";
 			}
 			print "</tr>\n";
@@ -153,29 +156,27 @@ db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and
 				let dateTimeFrom = document.getElementById('fromDate');
 				let dateTimeTo = document.getElementById('toDate');
 				let dateTimeToPicker = null;
-				if (dateTimeFrom && dateTimeTo) {
-					let dateTimeFromPicker = flatpickr(dateTimeFrom, {
-						altInput: true,
-						altFormat: "j. F Y",
-						dateFormat: "Y-m-d",
-						defaultDate: "today",
-						onChange: function(selectedDates, dateStr, instance) {
-							dateTimeToPicker.set('minDate', selectedDates[0]);
-						},
-						"locale": "da"
-					});
+				let dateTimeFromPicker = flatpickr(dateTimeFrom, {
+					altInput: true,
+					altFormat: "j. F Y",
+					dateFormat: "Y-m-d",
+					defaultDate: "today",
+					onChange: function(selectedDates, dateStr, instance) {
+						dateTimeToPicker.set('minDate', selectedDates[0]);
+					},
+					"locale": "da"
+				});
 
-					dateTimeToPicker = flatpickr(dateTimeTo, {
-						altInput: true,
-						altFormat: "j. F Y",
-						dateFormat: "Y-m-d",
-						defaultDate: "today",
-						onChange: function(selectedDates, dateStr, instance) {
-							dateTimeFromPicker.set('maxDate', selectedDates[0]);
-						},
-						"locale": "da"
-					});
-				}
+				dateTimeToPicker = flatpickr(dateTimeTo, { 
+					altInput: true,
+					altFormat: "j. F Y",
+					dateFormat: "Y-m-d",
+					defaultDate: "today",
+					onChange: function(selectedDates, dateStr, instance) {
+						dateTimeFromPicker.set('maxDate', selectedDates[0]);
+					},
+					"locale": "da"
+				});
 			</script>
 			<?php
 ?>
