@@ -33,6 +33,8 @@
 // 20210805 - LOE Translated some texts 
 // 20250923 - LOE Sets rapportart to $rapportart = 'kontokort'; only if not accountChart 
 // 20260513 PHR Cleanup
+// 20260612 MJ Release session before long read-only reports to avoid blocking navigation.
+// 20260612 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
 
 @session_start();
 $s_id = session_id();
@@ -41,6 +43,7 @@ $title = "Debitorrapport";
 $modulnr = 12;
 
 $tmp = NULL;
+$initialSubmitValue = isset($_POST['submit']) ? strtolower(trim($_POST['submit'])) : (isset($_GET['submit']) ? strtolower(trim($_GET['submit'])) : NULL);
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -50,7 +53,9 @@ include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
 include("../includes/row-hover-style-with-links.js.php");
 
+$skipPopupCheck = (isset($_GET['rapportart']) && $_GET['rapportart'] == 'openpost') || isset($_POST['openpost']);
 
+if (!$skipPopupCheck) {
 ?>
 <script>
 function checkPopupBlocked() {
@@ -76,6 +81,7 @@ if (res) {
 }
 </script>
 <?php
+}
 
 print '
 <style>
@@ -409,6 +415,38 @@ if (!isset($konto_fra))
 	$konto_fra = NULL;
 if (!isset($konto_til))
 	$konto_til = NULL;
+
+if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE && in_array($submit, array('openpost', 'kontokort', 'kontosaldo', 'accountChart'))) {
+	session_write_close();
+}
+
+if ($submit == 'openpost' && !isset($_GET['openpost_content']) && !isset($_POST['openpost_content'])) {
+	$writeActions = array('mail kontoudtog', 'opret rykker', 'ryk alle', 'slet', 'udskriv', 'ny rykker', 'afslut', 'inkasso');
+	$isWriteAction = in_array($initialSubmitValue, $writeActions) || strstr((string)$initialSubmitValue, 'bogf');
+	if (!$isWriteAction) {
+		$params = array(
+			'rapportart' => 'openpost',
+			'submit' => 'ok',
+			'dato_fra' => $dato_fra,
+			'dato_til' => $dato_til,
+			'konto_fra' => $konto_fra,
+			'konto_til' => $konto_til,
+			'openpost_content' => 1
+		);
+		foreach (array('vis_aabenpost', 'vis_alle_poster', 'skjul_aabenpost', 'kun_debet', 'kun_kredit', 'showPBS', 'openpost_page', 'openpost_page_size') as $key) {
+			if (isset($_GET[$key])) $params[$key] = $_GET[$key];
+			elseif (isset($_POST[$key])) $params[$key] = $_POST[$key];
+		}
+		$frameSrc = 'rapport.php?' . str_replace('&', '&amp;', http_build_query($params));
+		print "<div id='openpostAsyncShell' style='padding:12px;'>";
+		print "<div id='openpostAsyncStatus' style='padding:10px; text-align:center;'>Indl&aelig;ser &aring;bne poster...</div>";
+		print "<iframe id='openpostAsyncFrame' data-src='$frameSrc' style='width:100%; min-height:720px; border:0;' onload=\"document.getElementById('openpostAsyncStatus').style.display='none'; this.style.minHeight=Math.max(720, (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body ? this.contentWindow.document.body.scrollHeight + 40 : 720)) + 'px';\"></iframe>";
+		print "<script>setTimeout(function(){var frame=document.getElementById('openpostAsyncFrame'); if(frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.getAttribute('data-src'));}, 10);</script>";
+		print "</div>";
+		print "</html>";
+		exit;
+	}
+}
 
 $submit($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D', $returside);
 

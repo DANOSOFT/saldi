@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-06-04 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-06-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 DANOSOFT.ApS
 // ----------------------------------------------------------------------
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
@@ -94,12 +94,15 @@
 // 20260225 PHR Updated cashCount
 // 20260316 PHR Corrected Currency error in cashCount
 // 20260403 PHR Added && '$leveres[0] != 0' as leveres else is set to 0 if qty was changed and kokkelprint became reset.
+// 20260601 Sawaneh Out-of-stock popup now also fires for sub-items of a samlesæt (set), not just the master varenr
 // 20260523 CL/PHR function posbogfor: Changed payment type query to LEFT JOIN with COALESCE(felt_1) so orders
 //                 without pos_betalinger rows are included when finding distinct betaling types
 // 20260523 CL/PHR function posbogfor: Changed order lookup query to LEFT JOIN with COALESCE(felt_1/valuta)
 //                 so art='DO' orders without pos_betalinger are passed to bogfor_nu
-// 20260601 Sawaneh Out-of-stock popup now also fires for sub-items of a samlesæt (set), not just the master varenr
 // 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
+// 20260618 PHR removed // from print "<meta http-equiv=\"ref......
+// 20260620 MJ Preserve the active POS register on form posts and prefer the order register for drawer printing.
+
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -131,6 +134,19 @@ $ifs = $pfs * 1.3;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("pos_ordre_includes/helperMethods/helperFunc.php"); #20190219
+
+if (isset($_POST['skuffe'])) {
+	$id = (int) if_isset($_GET, if_isset($_POST, 0, 'id'), 'id');
+	$kasse = if_isset($_POST, if_isset($_GET, '', 'kasse'), 'kasse');
+	if ($id) {
+		$r = db_fetch_array(db_select("select felt_5 from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
+		if ($r['felt_5']) $kasse = $r['felt_5'];
+	}
+	if (!$kasse && isset($_COOKIE['saldi_pos'])) $kasse = $_COOKIE['saldi_pos'];
+	aabn_skuffe($id, $kasse);
+}
+
 include("../includes/ordrefunc.php");
 include("../includes/posmenufunc.php");
 include("../debitor/func/pos_ordre_itemscan.php"); # 20190215
@@ -147,7 +163,6 @@ include("pos_ordre_includes/voucherFunc/checkVoucher.php"); # 13-11-2024
 #include("pos_ordre_includes/divFuncs/takeAway/setup.php");
 include("pos_ordre_includes/report/reportSetup.php");
 
-include("pos_ordre_includes/helperMethods/helperFunc.php"); #20190219 
 include("pos_ordre_includes/helperMethods/helperFuncII.php"); #20190219 
 
 include("pos_ordre_includes/posTxtPrint/posTxtPrintFunc.php"); #20190503
@@ -156,7 +171,6 @@ include("pos_ordre_includes/showPosLines/showPosLinesFunc.php"); #20190510
 
 include("pos_ordre_includes/exitFunc/exit.php"); #20190510
 
-global $baseCurrency;
 $valuta = $baseCurrency;
 if(isset($_GET["payment_id"])){
 	$_SESSION["payment_id"] = $_GET['payment_id'];
@@ -167,7 +181,7 @@ if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi
 	$zoom = usdecimal(get_settings_value("mobilzoom", "POS", "1.0", null, $_COOKIE["saldi_pos"]));
 	print "<meta name='viewport' content='width=$width, initial-scale=$zoom, maximum-scale=$zoom, user-scalable=0'>";
 }
-global $menu;
+
 if ($menu == 'T') {
 	if (!$bgcolor)
 		$bgcolor = "#000000";
@@ -177,7 +191,6 @@ if ($menu == 'T') {
 	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
-	global $meta_returside;
 	if ($meta_returside)
 		print "$meta_returside"; #20140502
 	if ($css)
@@ -356,6 +369,13 @@ if (isset($_POST['kasse']) && $_POST['kasse']) {
 		setcookie('saldi_pfs', $pfs, time() - 60, '/');
 } elseif (!$kasse && isset($_COOKIE['saldi_pos']))
 	$kasse = $_COOKIE['saldi_pos'];
+if ($id && !isset($_GET['kasse']) && !isset($_POST['kasse'])) {
+	$r = db_fetch_array(db_select("select felt_5 from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
+	if ($r['felt_5']) $kasse = $r['felt_5'];
+}
+if (isset($_POST['skuffe'])) {
+	aabn_skuffe($id, $kasse);
+}
 $qtxt = "select box7 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($r['box7']) $bord = explode(chr(9), $r['box7']); #20140508
@@ -606,7 +626,11 @@ if ($luk) {
 		kundedisplay('****   Lukket   ****', '', 1);
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">\n";
 }
-$kasse = if_isset($_GET['kasse']);
+if (isset($_GET['kasse'])) {
+	$kasse = if_isset($_GET['kasse']);
+} elseif (isset($_POST['kasse']) && $_POST['kasse']) {
+	$kasse = $_POST['kasse'];
+}
 $menu_id = if_isset($_GET['menu_id']);
 if (isset($_POST['sidemenu'])) $sidemenu = if_isset($_POST['sidemenu']);
 else $sidemenu = if_isset($_GET['sidemenu']);
@@ -1155,9 +1179,6 @@ if ($vare_id) {
 		if ($tracelog)
 			fwrite($tracelog, __FILE__ . " " . __LINE__ . " delayLoad = $delayLoad\n");
 	}
-	if (isset($_POST['skuffe'])) { #LN 20190218 Remove check of what the skuffe index equals, because we now have different languages
-		aabn_skuffe($id, $kasse);
-	}
 	if (isset($_POST['krediter'])) {
 		list($ny_id, $samlet_pris) = explode(";", krediter_pos($id)); #20170622-1
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$ny_id&samlet_pris=$samlet_pris\">\n"; #20170622-1
@@ -1510,13 +1531,13 @@ if ($vare_id) {
 				$stockWarningConfirmed = (isset($_POST['stock_warning_confirmed']) && $_POST['stock_warning_confirmed'] == '1');
 				$stockWarningNote      = isset($_POST['stock_warning_note']) ? trim($_POST['stock_warning_note']) : '';
 				$stockWarningOn        = is_stock_warning_enabled();
-				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id'], $antal_ny) : array('out_of_stock' => false);
+				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id']) : array('out_of_stock' => false);
 				$swLogVareId           = $r['id']; 
 				if ($stockWarningOn && empty($stockInfo['out_of_stock']) && trim($r['samlevare']) === 'on') {
 					$qSub = db_select("select vare_id, antal from styklister where indgaar_i = '" . (int)$r['id'] . "' and vare_id is not null and vare_id > 0", __FILE__ . " linje " . __LINE__);
 					while ($rSub = db_fetch_array($qSub)) {
-						$subAntal = (float)$rSub['antal'] * (float)$antal_ny;
-						$subInfo = check_stock_warning((int)$rSub['vare_id'], $subAntal);
+						$subInfo = check_stock_warning((int)$rSub['vare_id']);
+						$subAntal = (float)$rSub['antal'];
 						$insufficient = ($subAntal > 0 && (float)$subInfo['beholdning'] < $subAntal);
 						if (!empty($subInfo['out_of_stock']) || $insufficient) {
 							$desc = trim((string)$subInfo['beskrivelse']) . ' (samlesæt: ' . (string)$r['varenr'];
@@ -1680,6 +1701,7 @@ if ($tilfravalgNy && ($delFrTfv || $delFrTfv == '0')) {
 } else $tilfravalgNy = if_isset($_POST['tilfravalgNy']); #20220614
 print "<form name='pos_ordre' action='pos_ordre.php?id=$id&bundmenu=$bundmenu&sidemenu=$sidemenu&bordnr=$bordnr";
 print "&del_bord=$del_bord&tilfravalgNy=" . str_replace(chr(9), '|', $tilfravalgNy) . "' method='post' autocomplete='off'>\n";
+print "<input type='hidden' name='kasse' value='" . htmlspecialchars($kasse, ENT_QUOTES, 'UTF-8') . "'>\n";
 print "<table width=\"100%\" height=\"100%\" bordercolor=\"#ffffff\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tbody>\n"; # Tabel 1 ->
 # 1 kvadrat.
 print "<tr><td valign=\"bottom\"><table width=\"100%\" height=\"100%\" border=\"0\"><tbody>\n"; # Tabel 1.1a -> 
@@ -2663,7 +2685,7 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 				$y++;
 			}
 		}
-	}#xit;	
+	}#xit;
 
 	$x = 0;
 	$k = $kasse - 1;
@@ -2703,14 +2725,14 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	#20161010
-/*
-	$k=0;
-	$qtxt="select id from adresser where art='K'";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)){
-		$kr_id[$k]=$r['id'];
-		$k++;
-	}
+	/*
+	 *	$k=0;
+	 *	$qtxt="select id from adresser where art='K'";
+	 *	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	 *	while ($r=db_fetch_array($q)){
+	 *		$kr_id[$k]=$r['id'];
+	 *		$k++;
+}
 */
 
 	$ko_id = NULL; #Salg på konto
@@ -2754,8 +2776,8 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 						($kto_id) ? $kto_id .= "," . $r['konto_id'] : $kto_id = $r['konto_id'];
 					}
 					#					$oid[$k]=$r['id'];
-#					$kto_id[$k]=$r['konto_id'];
-#					$k++;
+					#					$kto_id[$k]=$r['konto_id'];
+					#					$k++;
 				}
 				$qtxt = "select box9 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -3442,6 +3464,13 @@ function aabn_skuffe($id, $kasse)
 	global $bruger_id, $db;
 	global $regnaar, $tracelog;
 
+	$id = (int)$id;
+	if ($id) {
+		$r = db_fetch_array(db_select("select felt_5 from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
+		if ($r['felt_5']) $kasse = $r['felt_5'];
+	}
+	$kasse = (int)$kasse;
+	if ($kasse < 1) $kasse = 1;
 	$qtxt = "select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$x = $kasse - 1;
@@ -3462,9 +3491,15 @@ function aabn_skuffe($id, $kasse)
 		$url = "s" . $url;
 	$url = "http" . $url;
 	countDrawOpening($kasse);
-	if ($tracelog)
+	if ($tracelog) {
 		fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls $printserver/saldiprint.php (openDrawer)\n");
-	//print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
+	}
+	$drawerUrl = ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php";
+	if ($printserver != 'android' && !headers_sent()) {
+		header("Location: $drawerUrl");
+	} else {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$drawerUrl\">\n";
+	}
 	exit;
 }
 

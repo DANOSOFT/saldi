@@ -1,5 +1,5 @@
 <?php
-// --- debitor/rykkertjek.php --- lap 4.0.8 --- 2023-05-24 ---
+// --- debitor/rykkertjek.php --- lap 5.0.0 --- 2026-06-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,10 +15,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft.Aps
 // -----------------------------------------------------------
 // 20200918 Ckeck bypassed if no email.
 // 20230524 PHR php8
+// 20260619 MJ Fixed login reminder check globals, all-user popup, and separated daily email guard from popup.
 
 @session_start();
 $s_id=session_id();
@@ -48,11 +49,14 @@ if ($r = db_fetch_array(db_select("select * from grupper where art='DIV' and kod
 	$ffdage=$r['box5'];
 	$chkdate=$r['box8'];
 }
-if ($email) reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate);
+if (isset($ffdage)) reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate);
 
 function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
-	if (!$ffdage || $chkdate==$dd) echo '';
+	global $bruger_id, $dd, $sprog_id;
+
+	if ($ffdage === "" || $ffdage === NULL) echo "";
 	else {
+		$ffdage=(int)$ffdage;
 		$rykkerdate=usdate(forfaldsdag($dd,'netto',$ffdage));
 		$x=0;
 		$konto_id=array();
@@ -74,15 +78,17 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 		}
 		$ff_antal=$x;
 #echo "$ff_antal $rykkerdate <br>";
-#exit;
-#echo "$ff_antal && $email && $bruger_id != $mailmodt_id<br>";
-		if ($ff_antal && $email && $bruger_id != $mailmodt_id) {
+		$hasMailRecipient=trim((string)$email)!="";
+		$hasResponsibleUser=trim((string)$mailmodt_id)!="";
+		$isResponsibleUser=(!$hasResponsibleUser || (string)$bruger_id==(string)$mailmodt_id);
+		if ($ff_antal && $hasMailRecipient && $chkdate!=$dd) {
 			$subjekt=findtekst(238,$sprog_id);
 			$mailtext=findtekst(239,$sprog_id);
 #echo "send_mail($email,$subjekt,$mailtext)<br>";
 			send_mail($email,$subjekt,$mailtext);
 			db_modify("update grupper set box8='$dd' where art='DIV' and kodenr= '4'");
-		}	elseif ($ff_antal && $bruger_id == $mailmodt_id) {
+		}
+		if ($ff_antal && $isResponsibleUser) {
 #echo "$ff_antal && $bruger_id == $mailmodt_id<br>";
 			$tmp=findtekst(240,$sprog_id);
 #echo "$tmp<br>";
@@ -93,6 +99,8 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 #exit;
 }
 function send_mail($email,$subjekt,$mailtext) {
+	global $db;
+
 	$r = db_fetch_array(db_select("select * from adresser where art='S'",__FILE__ . " linje " . __LINE__));
 	$afsendermail=$from=$r['email'];
 	$afsendernavn=$r['firmanavn'];

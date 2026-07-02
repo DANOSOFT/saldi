@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.10 --- 2025-11-13 ----
+// --- kreditor/ordreIncludes/openOrerLines.php --- patch 5.0.0 --- 2026-06-11 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20230111 MSC - Implementing new design
@@ -34,6 +34,7 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250524 PHR Bogfor now set to 0 if tidl_lev (Delivered) differs from antal (qty)
 // 20251113 PHR Corrected error in $tidl_lev for creditnotas
+// 20260611 MJ Changed creditor print button fallback text to English.
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
 
@@ -182,14 +183,9 @@ if ($status>=1) {
     print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
     print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
   }
-  } else {
-    // status>=1 but no vare_id: pad columns to align with vare_id rows (leve + dk_tidl_lev)
-    print "<td></td><td></td>";
   }
 } else {
-  // Pad to match leve + dk_tidl_lev cells used in status>=1 rows so trailing
-  // columns (like the delete button) align across all rows
-  print "<td></td><td></td>";
+  if (!$vis_projekt) print "<td></td>";
   // Expiry date fields for status 0 (draft orders)
   if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
     $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
@@ -226,12 +222,6 @@ if (($status>0)&&($serienr[$x])) {
 $txt = "<span title= '".findtekst(1496, $sprog_id)."'><img alt='".findtekst(1515, $sprog_id)."' src=../ikoner/serienr.png>";
 print "<td align=center onClick='batch($linje_id[$x])'>$txt</td>";
   }
-  $delBtn = "<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#d0021b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg>";
-  $delTitle = findtekst('2130|Slet ordrelinje', $sprog_id);
-  $delConfirm = addslashes($delTitle . " $x?");
-  print "<td valign='top' align='right' title='$delTitle'>";
-  print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
-  print "onclick=\"if (confirm('$delConfirm')) { document.getElementsByName('posn$x')[0].value='-'; document.getElementsByName('save')[0].click(); }\">$delBtn</button></td>\n";
   print "</tr>\n";
 }
 print "<tr>";
@@ -257,7 +247,6 @@ print "<td><input class='inputbox' type='text' style='text-align:right' size=10 
 print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=raba0></td>";
 print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=10></td>";
 #if ($status==1) {print "<td><input class='inputbox' type='text' style='text-align:right' size=2 name=modt0></td>";}
-print "<td></td>";
 print "</tr>\n";
 print "<input type='hidden' name='sum' value='$sum'>";
 $moms=floatval($momssum)/100*floatval($momssats);
@@ -312,7 +301,7 @@ if(!count($posnr) && $id) {
     $txt     = findtekst(2310, $sprog_id);
   } else {
     $spantxt = findtekst(1506, $sprog_id);
-    $txt     = findtekst(880, $sprog_id);
+    $txt     = findtekst('880|Print', $sprog_id);
   }
   print "<td align=center><span title='".$spantxt."'>";
   print "<input type = 'submit' style = 'width:120px;' value='".$txt."' ";

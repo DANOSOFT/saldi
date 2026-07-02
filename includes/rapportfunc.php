@@ -80,7 +80,8 @@
 // 20260324 LOE - Updated returside for general ledger from debitor's card if users came from ordre.php
 // 20260507 CL/PHR Vis åbne poster now only shows unaligned posts (udlignet != '1'). Added 'Vis alle poster' option for full view.
 // 20260513 CL/PHR kontokort & kontosaldo viser nu dato i toplinje og kontokort tager kun konti med bevægelser i perioden.
-// 20260518 CL/PHR kontokort & kontosaldo viser nu dato i toplinje. Kontokort tager kun konti med bevægelser i perioden. Null-safety og array-initialisering.
+// 20260612 MJ Preserve asynchronous debtor open items content mode when report links are used inside the loader frame.
+
 include("../includes/reportFunc/showOpenPosts.php"); 
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -176,6 +177,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	$kun_debet = $f;
 	$kun_kredit = $g;
 	($a || $f || $g) ? $skjul_aabenpost = NULL : $skjul_aabenpost = 'on';
+	$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
 
 	if ($ny_rykker) {
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=rapport.php?ny_rykker=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart\">";
@@ -221,55 +223,40 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "</div>";
 		print "<div class='content-noside'>";
 		print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" ><tbody><!--Tabel 1 start-->\n";
-		print "<div><center><select name='aabenpostmode' style='$topStyle' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
-		if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
-		elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
-		elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
-		elseif ($vis_alle_poster == 'on') print "<option>" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
-		else print "<option>" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
-		if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
-		if (!$vis_alle_poster) print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
-		if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
-		if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
-		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
-		print "</select></center>\n";
-		print "<td>\n";
-		print "</tr>";
-	} else {
-		// Grid Framework header — same button-table markup General Ledger (kontokort.php $menu=='S') uses,
-		// with $topStyle/$buttonStyle so the color follows the per-account setting (topline_settings.php), not a fixed color.
-		// The whole page is one flex column: header (auto height) + column titles (auto height, printed by
-		// vis_aabne_poster) + scrollable grid (flex:1). No guessed pixel offsets needed for the top anymore.
-		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}
-.center-btn{font-size:10pt;display:flex;align-items:center;gap:5px;width:100% !important;border-radius:5px;text-decoration:none;}
-a:link{text-decoration:none;}</style>\n";
-		print "<div id='opPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n";
-		$opTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
-		print "<td width='7%'><a accesskey=l href=\"rapport.php\">
-			   <button class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start;' onMouseOver=\"this.style.cursor='pointer'\">$opTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
-		print "<td width='10%' align='center' style='$topStyle'>\n";
-		print "<select name='aabenpostmode' style='$topStyle' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
-		if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
-		elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
-		elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
-		elseif ($vis_alle_poster == 'on') print "<option>" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
-		else print "<option>" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
-		if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
-		if (!$vis_alle_poster) print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
-		if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
-		if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
-		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
-		print "</select>\n";
-		print "</td>";
-		print "</tbody></table><!--Tabel 1.2 slut-->\n\n";
-		print "</div>\n"; // <- close flex:0 wrapper around the blue bar
-	}
-	if ($skjul_aabenpost != 'on') vis_aabne_poster($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart, $kun_debet, $kun_kredit, ($vis_alle_poster == 'on'));
+	} elseif ($menu == 'S') {
+		print "<tr><td width=100% height=\"8\">\n";
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
 
-	$opWrapperClosed = false;
+		print "<td width='10%' style='$topStyle' ><a accesskey=l href=\"rapport.php\">
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+
+		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
+
+		print "<td width='10%' align='center' style='$topStyle'>\n";
+	} else {
+		print "<tr><td width=100% height=\"8\">\n";
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
+		print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">" . findtekst('30|Tilbage', $sprog_id) . "</a></td>\n";
+		print "<td width=\"80%\" $top_bund>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
+		print "<td width=\"10%\" $top_bund>\n";
+	}
+	print "<div><center><select name='aabenpostmode' style='$topStyle' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
+	if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
+	elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
+	elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
+	elseif ($vis_alle_poster == 'on') print "<option>" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
+	else print "<option>" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
+	if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
+	if (!$vis_alle_poster) print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
+	if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
+	if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
+	if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
+	print "</select></center>\n";
+	if ($menu) print "<td>\n";
+	else print "</div>\n";
+	print "</tr>";
+	if ($menu != 'T') print "</tbody></table></td></tr><!--Tabel 1.2 slut-->\n\n"; // <- Tabel 1.2
+	if ($skjul_aabenpost != 'on') vis_aabne_poster($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart, $kun_debet, $kun_kredit, ($vis_alle_poster == 'on'));
 
 	//-------------------------------------- Rykkeroversigt ----------------------------------------------
 	if (usdate($dato_til) >= date("Y-m-d")) {
@@ -299,20 +286,20 @@ a:link{text-decoration:none;}</style>\n";
 					print "<td width=10% align=center class='sub-title-kund-left'><br></td>";
 					print "<td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1130, $sprog_id) . "</td>";
 					print "<td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-					if ($vis_aaben_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aaben_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aaben_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
+					if ($vis_aaben_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_aaben_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_aaben_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
 				} elseif ($taeller == 2) {
 					print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1135, $sprog_id) . "</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-					if ($vis_inkasso == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_inkasso=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></tr>\n";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_inkasso=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></tr></thead></table></div><br>\n";
+					if ($vis_inkasso == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_inkasso=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_inkasso=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></tr></thead></table></div><br>\n";
 				} elseif ($taeller == 3) {
 					print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1136, $sprog_id) . "</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-					if ($vis_bogfort_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_bogfort_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>\n";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_bogfort_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
+					if ($vis_bogfort_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_bogfort_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_bogfort_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
 				} else {
 					print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1137, $sprog_id) . "</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-					if ($vis_afsluttet_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_afsluttet_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_afsluttet_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
+					if ($vis_afsluttet_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_afsluttet_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_afsluttet_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
 				}
 				if (($taeller == 1 && $vis_aaben_rykker == 'on') || ($taeller == 2 && $vis_inkasso == 'on') || ($taeller == 3 && $vis_bogfort_rykker == 'on') || ($taeller == 4 && $vis_afsluttet_rykker == 'on')) {
 					print "<tr><th>" . findtekst(1134, $sprog_id) . "</th><th>" . findtekst(360, $sprog_id) . "</th><th colspan=2>" . findtekst(635, $sprog_id) . "</th><th align=center>" . findtekst(1131, $sprog_id) . "</th><th colspan=3 align=left>" . findtekst(934, $sprog_id) . "</th><th colspan=1 align=left></th></tr>\n";
@@ -431,20 +418,12 @@ a:link{text-decoration:none;}</style>\n";
 			}
 			print "</tbody></table>";
 
-			if ($menu != 'T') {
-				print "</div></div>"; // <- close #opGridWrapper + #opPageFlex
-				$opWrapperClosed = true;
-			}
-
 			if ($menu == 'T') {
 				include_once '../includes/topmenu/footer.php';
 			} else {
 				include_once '../includes/oldDesign/footer.php';
 			}
 		}
-	}
-	if ($menu != 'T' && !$opWrapperClosed) {
-		print "</div></div>"; // <- close #opGridWrapper + #opPageFlex
 	}
 }
 
@@ -1027,13 +1006,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		$valutakode = 0;
 		$firstdate = date("Y-m-d");
 		$lastdate = '1970-01-01';
-		$dkkamount = array();
-		$kladde_id = array();
-		$projekt = array();
-		$refnr = array();
-		$transdate = array();
-		$udlignet = array();
-		$udlign_id = array();
 
 		include("../includes/topline_settings.php");
 
@@ -1041,8 +1013,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		$qtxt = "select max(id) as max_valdif_id from openpost where konto_id='$kto_id[$x]' and abs(amount) = '0.001'";
 		$r2 = db_fetch_array(db_select("$qtxt", __FILE__ . " linje " . __LINE__));
 		$max_valdif_id = $r2['max_valdif_id'] ?? 0;
-		$dkktmp = '';
-		$valutakode = 0;
 
 		if ($todate)
 			$qtxt = "select * from openpost where konto_id='$kto_id[$x]' and transdate<='$todate' order by transdate,id,faktnr,refnr"; //20160414
@@ -1057,7 +1027,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			$amount[$y] = $r2['amount'];
 			$beskrivelse[$y] = $r2['beskrivelse'];
 			$valutakurs[$y] = $r2['valutakurs'] * 1;
-			$dkkamount[$y] = $amount[$y]; // default; overwritten below if currency conversion applies
 			$oppvaluta[$y] = $r2['valuta'];
 			$faktnr[$y] = $r2['faktnr'];
 			if (!$oppvaluta[$y]) {
@@ -1615,7 +1584,7 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 	} elseif ($dato_fra && !$dato_til) {
 		$todate = usdate($dato_fra);
 	}
-	if ($menu == 'T' || $menu == 'S') {
+	if ($menu == 'T') {
 		print "";
 	} else {
 		print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
@@ -1640,11 +1609,11 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		print "<div class='content-noside'>";
 		print "<div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTableNTH'>\n";
 	} elseif ($menu == 'S') {
-		// Grid Framework header — same flex-column structure as Debtors -> Reports -> Open items
-		// (openpost() further up in this file). The header bar and the column-title row (printed
-		// below, just before the data loop) both sit in normal, non-scrolling flow; only the data
-		// grid between them and the totals row scrolls, inside its own contained #ksGridWrapper.
-		$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		print "<tr><td colspan=\"8\" height='30px'>";
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
+
+		print "<tr><td width ='10%' align='center'>$luk
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></td>";
 
 		if ($kontoart == 'K')
 			$tekst = "Kreditorrapport - kontosaldo";
@@ -1655,21 +1624,11 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		elseif ($todate)
 			$tekst .= " &nbsp; " . dkdato($todate);
 
-		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
-		print "<div id='ksPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-		print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
-		print "<tr><td colspan=8 align=center>";
-		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+		print "<td width ='80%' align='center' style='$topStyle'>$tekst</td>";
+		print "<td width ='10%' align='center' style='$topStyle'><br></td>";
 
-		print "<td width ='10%' align='center'>$luk
-			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px;' onMouseOver=\"this.style.cursor='pointer'\">$tilbage_icon" . findtekst(30, $sprog_id) . "</button></a></td>";
-
-		print "<td width ='90%' align='center' style='$topStyle'>$tekst</td>";
-
-		print "</tbody></table>";
-		print "</td></tr></tbody></table>"; // <- close table#tableA
-		print "</div>\n"; // <- close flex:0 wrapper around the blue header bar
+		print "</tbody></table>"; //B slut
+		print "</td></tr>\n";
 	} else {
 		include("../includes/oldDesign/header.php");
 		print "<tr><td colspan=\"8\" height='30px'>";
@@ -1737,27 +1696,6 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		($kontoart == 'D') ? $tmp = 'Kunde' : $tmp = 'Leverandør';
 		print "<thead><tr><th>Konto nr.</th><th>$tmp</th><td align=\"right\" class='text-right'>Saldo</th></tr></thead>";
 		print "<tbody>";
-	} elseif ($menu == 'S') {
-		($kontoart == 'D') ? $tmp = 'Kunde' : $tmp = 'Leverandør';
-		// Same column widths on both tables (via colgroup), so the title row lines up exactly
-		// with the data columns below it — same approach as showOpenPosts.php's $opColgroupHtml.
-		$ksColgroupHtml = "<colgroup><col style='width:15%'><col style='width:65%'><col style='width:20%'></colgroup>";
-		print "<style>
-#ksHeaderTitleTable { width:100%; table-layout:fixed; border-collapse:collapse; background-color:$bgcolor; }
-#ksHeaderTitleTable td { padding:6px 0px; border-bottom:2px solid #ddd; }
-#ksGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; width:100%; background-color:$bgcolor; padding:0 8px; box-sizing:border-box; }
-#ksGridTable { border-collapse:collapse; width:100%; table-layout:fixed; }
-#ksGridTable tfoot, #ksGridTable tfoot tr, #ksGridTable tfoot td { background-color:$bgcolor; border-top:2px solid #ddd; }
-</style>\n";
-		// Column-title row sits in normal flow (flex:0 0 auto), outside the scrollable area —
-		// same approach as the blue bar above it, so it can never scroll away.
-		print "<div style='flex:0 0 auto;padding:0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-		print "<table id='ksHeaderTitleTable' cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$ksColgroupHtml<tbody><tr>";
-		print "<td align=\"left\"><b>Konto nr.</b></td><td align=\"left\"><b>$tmp</b></td><td align=\"right\" class='text-right'><b>Saldo</b></td>";
-		print "</tr></tbody></table>";
-		print "</div>\n";
-
-		print "<div id='ksGridWrapper'><table id='ksGridTable' width=100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\">$ksColgroupHtml<tbody>\n";
 	} else {
 		($kontoart == 'D') ? $tmp = 'Kunde' : $tmp = 'Leverandør';
 		print "<tr><td><b>Konto nr.</b></td><td><b>$tmp</b></td><td align=\"right\" class='text-right'><b>Saldo</b></td></tr>";
@@ -1826,26 +1764,6 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 	print "<tfoot><tr><td><b>I alt</b></td><td  colspan=\"2\" align=\"right\"><b>$tmp</b></td></tr></tfoot>\n";
 	if ($menu == 'T') {
 		print "</table></div>";
-	} elseif ($menu == 'S') {
-		print "</table>"; // <- close #ksGridTable (tfoot auto-closes the preceding tbody)
-		print "</div>\n"; // <- close #ksGridWrapper
-		// When #ksGridWrapper grows a vertical scrollbar, its width eats into the last
-		// (Saldo) column, shifting the data left of where the header sits. Compensate by
-		// padding the header's last cell to match, so the columns stay aligned.
-		print "<script>(function(){
-	function ksAlignHeader(){
-		var wrap = document.getElementById('ksGridWrapper');
-		var headerRow = document.querySelector('#ksHeaderTitleTable tr');
-		if (!wrap || !headerRow) return;
-		var lastTd = headerRow.cells[headerRow.cells.length - 1];
-		if (!lastTd) return;
-		lastTd.style.paddingRight = (wrap.scrollHeight > wrap.clientHeight) ? '16px' : '';
-	}
-	window.addEventListener('load', ksAlignHeader);
-	window.addEventListener('resize', ksAlignHeader);
-	ksAlignHeader();
-})();</script>\n";
-		print "</div>\n"; // <- close #ksPageFlex
 	} else {
 		print "";
 	}
