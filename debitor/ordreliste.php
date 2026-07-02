@@ -51,6 +51,8 @@
 // 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
 // 20260603 Sawaneh Whole order line is now clickable (and right-clickable for "open in new tab/window"), not just the order number.
 // 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.
+// 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
+// 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 @session_start();
 $s_id = session_id();
 
@@ -260,15 +262,15 @@ $nextfakt1    = strtolower(str_replace(' ', '_', $kk));
 
 $id = if_isset($_GET, NULL, 'id');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
-$account_context = if_isset($_GET, NULL, 'account_context'); # sync
-$menu_entry = if_isset($_GET, NULL, 'menu_entry');
-$reset_context = if_isset($_GET, NULL, 'reset_context');
-$returside = if_isset($_GET, NULL, 'returside');
+$account_context = if_isset($_GET, NULL, 'account_context');
+$menu_entry      = if_isset($_GET, NULL, 'menu_entry');
+$reset_context   = if_isset($_GET, NULL, 'reset_context');
+$returside       = if_isset($_GET, NULL, 'returside');
 
 $account_context = ($account_context == '1');
-$menu_entry = ($menu_entry == '1');
-$reset_context = ($reset_context == '1');
-$is_plain_entry = $menu_entry || $reset_context;
+$menu_entry      = ($menu_entry == '1');
+$reset_context   = ($reset_context == '1');
+$is_plain_entry  = $menu_entry || $reset_context;
 
 if ($account_context && $konto_id) {
     $qtxt = "update settings set var_value = '$konto_id' where ";
@@ -345,8 +347,8 @@ if (!in_array($valg, $tjek)) $valg = "ordrer";
 
 if ($is_plain_entry) {
     //This block is resetting all previous column settings by users and breaks the flow of the grid each time a page is visited from others..// 20260609
-    #db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
-   # db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
+    // db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
+    // db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
 }
 
 // Save the validated valg to database setting for persistence
@@ -416,10 +418,6 @@ if (!$returside) {
 } elseif (!$popup && $returside == "../includes/luk.php") $returside = "../index/menu.php";
 #$qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
 #db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-if (!$popup) {
-    $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'D%' and status < '3'";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__); #20150308
-}
 
 
 $tidspkt = date("U");
@@ -1165,6 +1163,24 @@ $custom_columns = array(
             return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
         }
     ),
+
+    "land" => array(
+        "field" => "land",
+        "headerName" => findtekst('364|Land', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.land",
+        "valueGetter" => function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        },
+        "render" => function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
+        }
+    ),
     
     "felt_1" => array(
         "field" => "felt_1",
@@ -1331,6 +1347,7 @@ if ($saved_columns !== null) {
 
 ############
 
+$active_set = array_flip($active_column_names);
 $column_pool = []; // keyed by field name
  
 //Custom columns
@@ -3063,7 +3080,7 @@ function select_valg($valg, $box)
    /* Fixed control bar */
 
 .datatable-wrapper {
-    height: calc(100vh - 98px) !important;
+    height: 100% !important;
 }
 
 #top-control-bar {
@@ -3144,7 +3161,7 @@ body {
     }
 
     .datatable-wrapper {
-        height: calc(100vh - 160px) !important;
+        height: 100% !important;
     }
 
     body {

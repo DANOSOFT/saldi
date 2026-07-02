@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 2020.01.22 PHR function send_mails. Added mail format check #20200122
@@ -48,9 +48,14 @@
 // 20260422 LOE added leveret to show up when printing.
 // 20260424 LOE populate leveres and leveret from batch_salg if empty, for invoice printing.
 // 20260426 PHR Outcommented change by PBLM as it has to be modified
-// 20260611 MJ Added creditor-specific PDF filenames for suggestions, orders and invoices.
+// 20260528 Sawaneh Print out-of-stock approval note under item description; fall back to formular 3 when requested formularer layout is missing
+// 20260611 LOE Added hvem to show up in printing of necessary documents.
+// 20260623 Sawaneh Log 'Reason' (out-of-stock approval note) now prints only on the delivery note, not on quotes/orders/invoices.
+// 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
+// 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
+
 #use PHPMailer\PHPMailer\PHPMailer;
-#use PHPMailer\PHPMailer\Exception;
+#use PHPMailer\PHPMailer\Exception; 
 
 
 if (!function_exists('skriv')) {
@@ -71,6 +76,7 @@ if (!function_exists('skriv')) {
 		#	global $id;
 		global $sum;
 		global $ref;
+		global $hvem;
 		global $transportsum;
 		global $formularsprog;
 		global $charset;
@@ -469,7 +475,7 @@ if (!function_exists('find_form_tekst')) {
 		#	global $linjeafstand;
 		global $moms, $momsgrundlag;
 		global $psfp;
-		global $ref, $regnaar, $returside;
+		global $ref, $hvem, $regnaar, $returside;
 		global $side, $sum;
 		global $transportsum;
 		global $valuta, $valutakurs, $vis_saet;
@@ -1002,7 +1008,7 @@ if (!function_exists('formularprint')) {
 		global $mailantal, $mappe, $moms, $momsgrundlag, $momssats;
 		global $nextside;
 		global $pdftk, $ps2pdf, $printerid, $printfilnavn;
-		global $ref, $regnaar, $returside;
+		global $ref, $hvem, $regnaar, $returside;
 		global $s_id, $side, $sprog_id, $subtotal, $sum;
 		global $transportsum;
 		global $vis_saet, $weasyprint;
@@ -1165,6 +1171,7 @@ if (!function_exists('formularprint')) {
 				$afd = $row['afd'];
 				$art = $row['art'];
 				$ref = $row['ref'];
+				$hvem = $row['hvem'];
 				$ordrenr = $row['ordrenr'];
 				if (!$udskriv_alle_til)
 					$udskriv_til = $row['udskriv_til'];
@@ -1502,39 +1509,20 @@ if (!function_exists('formularprint')) {
 				}
 				$var_antal = $x;
 			}
-			# Fallback for plukliste (formular 9) to use følgeseddel (formular 3) if not found OR if no field definitions
-			if ((!$found || $var_antal == 0) && $formular == 9) {
-
-
-				// Try with current language
-				$query = db_select("select * from formularer where formular = '3' and art = '3' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__);
-				while ($row = db_fetch_array($query)) {
-					$found = true;
-					if ($row['beskrivelse'] == 'generelt') {
-						$antal_ordrelinjer = $row['xa'];
-						$ya = $row['ya'];
-						$linjeafstand = $row['xb'];
-						#		$Opkt=$y-($antal_ordrelinjer*$linjeafstand);
-					} else {
-						$x++;
-						$variabel[$x] = $row['beskrivelse'];
-
-						$justering[$x] = $row['justering'];
-						$xa[$x] = $row['xa'];
-						$str[$x] = $row['str'];
-						$laengde[$x] = $row['xb'];
-						$color[$x] = $row['color'];
-						$fed[$x] = $row['fed'];
-						$kursiv[$x] = $row['kursiv'];
-						$form_font[$x] = $row['font'];
-					}
-					$var_antal = $x;
-				}
-
-				// If still not found or still no field definitions, try 'dansk'
-				if (!$found || $var_antal == 0) {
-
-					$query = db_select("select * from formularer where formular = '3' and art = '3' and lower(sprog)='dansk'", __FILE__ . " linje " . __LINE__);
+			# Fall back to other languages, then to formular 3, when the requested layout is missing.
+			if (!$found || $var_antal == 0) {
+				$fallback_queries = array(
+					"select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='dansk'",
+					"select * from formularer where formular = '$formular' and art = '3'",
+					"select * from formularer where formular = '3' and art = '3' and lower(sprog)='$formularsprog'",
+					"select * from formularer where formular = '3' and art = '3' and lower(sprog)='dansk'",
+					"select * from formularer where formular = '3' and art = '3'",
+				);
+				foreach ($fallback_queries as $fq) {
+					if ($found && $var_antal > 0) break;
+					$found = false;
+					$x = 0;
+					$query = db_select($fq, __FILE__ . " linje " . __LINE__);
 					while ($row = db_fetch_array($query)) {
 						$found = true;
 						if ($row['beskrivelse'] == 'generelt') {
@@ -1544,7 +1532,6 @@ if (!function_exists('formularprint')) {
 						} else {
 							$x++;
 							$variabel[$x] = $row['beskrivelse'];
-
 							$justering[$x] = $row['justering'];
 							$xa[$x] = $row['xa'];
 							$str[$x] = $row['str'];
@@ -1559,8 +1546,7 @@ if (!function_exists('formularprint')) {
 				}
 			}
 
-			if (!$found) {
-
+			if (!$found || $var_antal == 0) {
 				echo "<script>alert('Background values not set for this form');</script>";
 				echo "<button onclick='window.history.go(-3)'>Go Back</button>";
 				exit;
@@ -1600,12 +1586,6 @@ if (!function_exists('formularprint')) {
 					];
 				}
 
-				if (substr($art, 0, 1) == 'K') {
-					$filnavne[12] = "creditorSuggestion$ordrenr";
-					$filnavne[13] = "creditorOrder$ordrenr";
-					$filnavne[14] = "creditorInvoice$ordrenr";
-				}
-
 				$printfilnavn = $filnavne[$formular] ? $filnavne[$formular] : $filnavne[1]; // Default to "tilbud"
 
 				$email[$mailantal] = $email[0];
@@ -1639,13 +1619,7 @@ if (!function_exists('formularprint')) {
 						4 => "$fakturanr-fakt-$kontonr-$dato",
 						5 => "$fakturanr-kn-$kontonr-$dato",
 						9 => "$ordrenr-plukliste-$kontonr-$dato"
-						];
-					}
-
-				if (substr($art, 0, 1) == 'K') {
-					$filnavne[12] = "creditorSuggestion$ordrenr";
-					$filnavne[13] = "creditorOrder$ordrenr";
-					$filnavne[14] = "creditorInvoice$ordrenr";
+					];
 				}
 
 				$printfilnavn = $filnavne[$formular] ? $filnavne[$formular] : $filnavne[1]; // Default to "tilbud"
@@ -1690,6 +1664,7 @@ if (!function_exists('formularprint')) {
 			 *					  $htminitxt.="</head>\n";
 			 *					  $htminitxt.="<body>\n";
 			 */
+			global $valg;
 			fwrite($htmfp, $htm_ini);
 			$rabat[0] = formulartekst($ordre_id[$o], $formular, $formularsprog);
 			if ($ordre_id[$o]) {
@@ -1735,17 +1710,34 @@ if (!function_exists('formularprint')) {
 					// 20190115 herover: tilføjet ,id til 'order by' -- herunder: tilføjet  || $row['folgevare']
 					// grundet manglende varenr 9494600512 på fakt 4193 i saldi_401
 
-
+					// Track printed line keys to avoid duplicates, but allow discounts to be printed.
+					$printedLineKeys = array();
 
 					while ($row = db_fetch_array($q)) {
+						$printedLineKey = trim($row['posnr']) . "\t" . trim($row['varenr']);
 
-						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!in_array($row['posnr'], $posnr) || $row['folgevare'])) {
+						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!isset($printedLineKeys[$printedLineKey]) || $row['folgevare'])) {
 							$x++;
+							$printedLineKeys[$printedLineKey] = 1;
 							$posnr[$x] = trim($row['posnr']);
 							$varenr[$x] = trim($row['varenr']);
 							$lev_varenr[$x] = trim($row['lev_varenr']);
 							$projekt[$x] = ($row['projekt']);
 							$beskrivelse[$x] = trim($row['beskrivelse']);
+							// Append the out-of-stock approval note (the log 'Reason') under the item
+							// description, but ONLY on the delivery note (følgeseddel, formular 3).
+							// It is for internal use and must never appear on quotes, orders, invoices
+							// or any other document type. $formular here is the current document's type
+							// (set per-document from $form[$o] at the top of this loop).
+							if ($formular == 3) {
+								$_sw_lid = (int)$row['id'];
+								if ($_sw_lid > 0) {
+									$_sw_r = @db_fetch_array(@db_select("select note from order_stock_warning_log where linje_id = '$_sw_lid' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+									if ($_sw_r && isset($_sw_r['note']) && trim($_sw_r['note']) !== '') {
+										$beskrivelse[$x] .= "\n" . trim($_sw_r['note']);
+									}
+								}
+							}
 							$enhed[$x] = trim($row['enhed']);
 							$serienr[$x] = trim($row['serienr']);
 
@@ -2268,6 +2260,7 @@ if (!function_exists('formulartekst')) {
 		global $printfilnavn;
 		global $returside;
 		global $side;
+		global $art;
 
 		$rabat = NULL;
 		if ($id) {
