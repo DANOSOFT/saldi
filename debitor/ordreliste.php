@@ -924,11 +924,12 @@ $custom_columns = array(
         "width" => "1",
         "type" => "date",
         "searchable" => true,
+        "defaultSortDirection" => "desc",
         "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
             return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";
         }
-    ), 
+    ),
     
     "kontonr" => array(
         "field" => "kontonr",

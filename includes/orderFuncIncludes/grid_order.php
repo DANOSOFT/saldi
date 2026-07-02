@@ -1174,10 +1174,11 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
         if ($column["sortable"]) {
-            echo "<th 
-                class='{$column['field']} sortable-td' 
-                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;' 
-                onclick=\"setSort$id('{$column['field']}')\"
+            $sort_dir = isset($column['defaultSortDirection']) ? $column['defaultSortDirection'] : 'asc';
+            echo "<th
+                class='{$column['field']} sortable-td'
+                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;'
+                onclick=\"setSort$id('{$column['field']}', '$sort_dir')\"
             >";
             echo "<span class='sortable'>{$column['headerName']}</span>";
         } else {
@@ -2444,12 +2445,15 @@ SCRIPT;
 function render_sort_script($id) {
     echo <<<SCRIPT
     <script>
-        function setSort$id(header) {
+        function setSort$id(header, defaultDir) {
             const sortBox = document.getElementsByName('sort[$id]')[0];
-            if (sortBox.value !== header) {
-                sortBox.value=header;
-            } else if (sortBox.value === header) {
-                sortBox.value=header + " desc";
+            defaultDir = defaultDir || 'asc';
+            const ascVal = header;
+            const descVal = header + ' desc';
+            if (defaultDir === 'desc') {
+                sortBox.value = (sortBox.value === descVal) ? ascVal : descVal;
+            } else {
+                sortBox.value = (sortBox.value === ascVal) ? descVal : ascVal;
             }
             sortBox.form.submit();
         }
