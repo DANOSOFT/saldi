@@ -48,8 +48,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 	// Setup CSV export file path.
 	// Do not open/truncate the file until CSV content is actually generated.
-	// $csvfile = "../temp/$db/momsangivelse.csv";
-	// $csv = null;
+	$csvfile = "../temp/$db/momsangivelse.csv";
 
 	$medtag_primo = if_isset($_GET['medtag_primo']);
 
@@ -166,7 +165,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
 		print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
 		
-		print "<td width='75%' align='center' style='$topStyle'>" . findtekst('895|Finansrapport', $sprog_id) . "</td>";
+		print "<td width='90%' align='center' style='$topStyle'>" . findtekst('895|Finansrapport', $sprog_id) . "</td>";
 		print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
 		
 		print "</tbody></table>";

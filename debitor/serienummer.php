@@ -1,5 +1,5 @@
 <?php
-// --- /debitor/serienummer.php --- patch 4.0.7 --- 2023.02.16 ---
+// --- /debitor/serienummer.php --- patch 5.0.0 --- 2026.01.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,12 +15,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft aps
 // ----------------------------------------------------------------------
 // 20150929	Serienumre kan nu ændres og tilføjes.
 // 20230112 PHR Rewritten debitor creditnote section 
 // 20230206 PHR Some orher changes to avoid errors. 
-
+// 20260701 PHR (int)$sn_id[$x];
 
 @session_start();
 $s_id=session_id();
@@ -55,11 +55,12 @@ if ($_POST['submit']) {
 		$y=0;
 		if ($antal>0) {
 			for ($x=1; $x<=$sn_antal; $x++) {
+				$sn_id[$x] = (int)$sn_id[$x];
 				if (trim($valg[$x])=="on" && $y<$antal) {
 					$y++;
 					$qtxt = "update serienr set serienr='$serienr[$x]',salgslinje_id='$linje_id' where id='$sn_id[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				} elseif ($valg[$x] != "on" && $sn_id[$x]) {
+				} elseif ($valg[$x] != "on") {
 					$qtxt = "update serienr set salgslinje_id=0 where id=$sn_id[$x]";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} elseif ($sn_id[$x]) {

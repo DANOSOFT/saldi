@@ -1,5 +1,8 @@
 <?php
 //..kreditorOrderFuncIncludes/creditor_orderlist_grid.php
+// 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
+//                  As well as making the table footer a proper page footer and fixing scrollbar weirdness with footer.
+
 function is_ajax_request() {
     return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest' ||
@@ -994,13 +997,10 @@ HTML;
         echo "$metaColumn</tr>";
     }
 
-    if ($selectedrowcount <= 1000) {
-        for ($i=0; $i < $selectedrowcount - $rowCount; $i++) {
-            echo "<tr style='background-color: unset; pointer-events: none;' class='filler-row'>";
-            echo "<td>-&nbsp;</td>";
-            echo "</tr>";
-        }
-    }
+    $columnCount = count($columns) + 1; // +1 for the extra dropdown/action column in the header.
+    echo "<tr class='filler-row'>";
+    echo "<td colspan='$columnCount'></td>";
+    echo "</tr>";
 
     echo <<<HTML
                 </tbody>
@@ -1013,6 +1013,7 @@ HTML;
     echo <<<HTML
                 </tfoot>
             </table>
+            </div>
         </form>
     </div>
 HTML;
@@ -1704,23 +1705,34 @@ function render_search_style() {
     echo <<<STYLE
     <style>
         .datatable-wrapper {
+            --creditor-grid-footer-space: 30px;
+            --creditor-grid-page-padding: 8px;
+            box-sizing: border-box;
             margin-bottom: 5px;
-            overflow-x: auto;
+            overflow: hidden;
             position: relative;
 
             height: 100%;
             width: 100%;
+        }
+        .datatable-wrapper form {
+            height: 100%;
+            margin: 0;
+        }
+        .datatable-search-wrapper {
+            height: calc(100% - var(--creditor-grid-footer-space));
+            overflow: auto;
+            position: relative;
         }
         .datatable {
             border-collapse: collapse;
             width: 100%;
         }
         .datatable tfoot {
-            position: sticky;
-            bottom: 0; /* Stick to the bottom */
-            z-index: 1; /* Ensure it stays above other content */
-            background-color: #f4f4f4; /* Background color for the footer */
-            border-top: 2px solid #ddd; /* Optional: separate footer visually */
+            background-color: transparent;
+        }
+        .datatable tfoot td {
+            padding: 0;
         }
         .datatable thead {
             position: sticky;
@@ -1737,6 +1749,21 @@ function render_search_style() {
             outline: 2px solid #b2b2b2;
             background-color: #f9f9f9;
             cursor: pointer;
+        }
+        .datatable tbody tr.filler-row {
+            background-color: transparent !important;
+            pointer-events: none;
+        }
+        .datatable tbody tr.filler-row:nth-child(2n) {
+            background-color: transparent !important;
+        }
+        .datatable tbody tr.filler-row:hover {
+            outline: none;
+            background-color: transparent !important;
+            cursor: default;
+        }
+        .datatable tbody tr.filler-row td {
+            height: 100%;
         }
         .datatable-search-wrapper input {
             width: 100%;
@@ -1836,10 +1863,20 @@ function render_dropdown_style() {
             right: 0; /* Move to the right edge if needed */
         }
         tfoot tr td #footer-box {
+            position: fixed;
+            left: var(--creditor-grid-page-padding);
+            right: var(--creditor-grid-page-padding);
+            bottom: var(--creditor-grid-page-padding);
+            z-index: 20;
+            box-sizing: border-box;
             display: flex;
             align-items: center;
             gap: 10px;
             justify-content: flex-end;
+            min-height: 36px;
+            padding: 6px 8px;
+            background-color: #f4f4f4;
+            border-top: 2px solid #ddd;
         }
         tfoot tr td #footer-box button {
             padding: 0;

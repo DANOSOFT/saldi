@@ -61,7 +61,6 @@ phpmailer/
 mappe/
 /utils/
 
-
 # Python stuff
 __pycache__/
 .pytest_cache
@@ -91,3 +90,4 @@ email.php
 /vareFlytning.txt
 /varenr_alias.txt
 /varer.csv
+/index/redirect.php

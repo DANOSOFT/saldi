@@ -189,8 +189,6 @@ $grid_data = [
             }
         ],
 
-
-
         [
             'field'      => 'afd',
             'headerName' => 'Afdeling',
