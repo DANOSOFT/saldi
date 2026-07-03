@@ -50,6 +50,11 @@
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
 
+    /**
+     * @param string $address The full street address to split
+     * @param string $additionalStreetName Additional street name information
+     * @return array An array containing the split address components
+     */
     function splitStreetAddress($address, $additionalStreetName = '') {
         $address = trim((string)$address);
         $additionalStreetName = trim((string)$additionalStreetName);
@@ -182,6 +187,8 @@
 
             return ['success' => false, 'message' => 'Error updating company: ' . (is_string($errorMessage) ? $errorMessage : json_encode($errorMessage))];
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
+            $errorNumber = curl_errno($ch);
+            $errorMessage = curl_error($ch);
             return ['success' => false,
                 'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
                 'easyUBL_message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT),
@@ -326,15 +333,16 @@
 
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
+        $fileId = $orderId ?? "no-id-" . $ranStr;
 
         // 20260604 - Save raw response before JSON decoding for better error diagnosis
-        file_put_contents("../temp/$db/fakture-result-raw-$ranStr.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---HEADERS---\n" . $responseHeaders . "\n---RAW RESPONSE---\n" . $result);
+        file_put_contents("../temp/$db/fakture-result-raw-$fileId.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---HEADERS---\n" . $responseHeaders . "\n---RAW RESPONSE---\n" . $result);
         
         if (curl_errno($ch)) {
             // Curl connection error - don't continue
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
-            file_put_contents("../temp/$db/fakture-curl-error-$ranStr.json", json_encode(['error' => $errorNumber, 'message' => $errorMessage, 'http_code' => $httpCode], JSON_PRETTY_PRINT));
+            file_put_contents("../temp/$db/fakture-curl-error-$fileId.json", json_encode(['error' => $errorNumber, 'message' => $errorMessage, 'http_code' => $httpCode], JSON_PRETTY_PRINT));
             ?>
             <script>
                 alert("Forbindelsesfejl:\n\n<?php echo htmlspecialchars($errorMessage); ?>\n\nKontroller internetforbindelsen og prøv igen.");
@@ -349,7 +357,7 @@
 
         // EasyUBL returnerer tomt svar (HTTP 500) for kreditnotaer - bug i EasyUBL API
         if ($result === null) {
-            file_put_contents("../temp/$db/fakture-error-$ranStr.json", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL");
+            file_put_contents("../temp/$db/fakture-error-$fileId.json", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL");
             ?>
             <script>
                 alert("EasyUBL returnerede et tomt eller ugyldigt svar (HTTP <?php echo $httpCode; ?>).\n\nDette er sandsynligvis en fejl i EasyUBL's API. Kontakt saldi.dk support med følgende oplysninger:\nDB: <?php echo $db; ?>\nFil-ID: <?php echo $fileId; ?>");
@@ -420,7 +428,7 @@
                 'raw_response' => $rawJsonResponse,
                 'sent_data' => $data
             ];
-            file_put_contents("../temp/$db/fakture-empty-xml-error-$randomString.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            file_put_contents("../temp/$db/fakture-empty-xml-error-$fileId.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             curl_close($ch);
             ?>
             <script>
