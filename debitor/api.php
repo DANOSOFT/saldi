@@ -1,7 +1,5 @@
 <?php
-// 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
-
-    // This file is used to send invoices to EasyUBL
+// This file is used to send invoices to EasyUBL
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -26,11 +24,14 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
 // 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
+// 20260619 NTR - Added more info to error files and changed the random string logic with orderId so it's easier to know which file comes from which order.
+// &&           - Added the logic from ordre.php about fetching ean numbers from konto instead if it's not in the ordrer.
 // 20260623 NTR - Added a , check on Addresses as sometimes people write extra information that is useless to us.
+// 20260701 NTR - Added the moms logic from formfunk to api.php. Ideally this should be moved to a separate shared function, but for now it's here.
+
 // 20260703 CDX/NTR - Added a function to take care of streetnames as the edgecases was making it too complex to handle in a oneliner, due to people writing addresses in a non-standard way. This function will split the streetname and buildingnumber into two separate fields, and also handle additional streetname if it exists.
 // 20260703 NTR - Added var_grp to db_select for companyID and updatedCompany to avoid conflicts with other modules that might use the same var_name in settings table.
 // 20260703 NTR - Added filtering out lines with 0 amount and not just empty description, so if either is empty, the line will be skipped. This is to avoid sending empty lines to EasyUBL, which I suspect crashes their code.
@@ -169,7 +170,7 @@
         curl_close($ch);
 
         $timestamp = date("Y-m-d-H-i-s");
-        
+
         if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "") {
             // An error occurred
             $errorNumber = curl_errno($ch);
@@ -178,15 +179,15 @@
 
             // Save error response in temp folder
             file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-            
+
             return ['success' => false, 'message' => 'Error updating company: ' . (is_string($errorMessage) ? $errorMessage : json_encode($errorMessage))];
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
             return ['success' => false,
                 'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
+                'easyUBL_message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT),
                 'response' => $response,
                 'status code' => $httpCode
             ];
-            return ['success' => false, 'message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT)];
         }
 
         // Save successful response in temp folder for debugging
@@ -336,7 +337,7 @@
             file_put_contents("../temp/$db/fakture-curl-error-$ranStr.json", json_encode(['error' => $errorNumber, 'message' => $errorMessage, 'http_code' => $httpCode], JSON_PRETTY_PRINT));
             ?>
             <script>
-                alert('Forbindelsesfejl:\n\n<?= json_encode($errorMessage, JSON_PRETTY_PRINT); ?>\n\nKontroller internetforbindelsen og prøv igen.');
+                alert("Forbindelsesfejl:\n\n<?php echo htmlspecialchars($errorMessage); ?>\n\nKontroller internetforbindelsen og prøv igen.");
             </script>
             <?php
             curl_close($ch);
@@ -351,18 +352,15 @@
             file_put_contents("../temp/$db/fakture-error-$ranStr.json", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL");
             ?>
             <script>
-                alert("EasyUBL returnerede tomt svar (HTTP <?php echo $httpCode; ?>). Kreditnotaer kan ikke sendes digitalt via Peppol. Kontakt saldi.dk support.");
+                alert("EasyUBL returnerede et tomt eller ugyldigt svar (HTTP <?php echo $httpCode; ?>).\n\nDette er sandsynligvis en fejl i EasyUBL's API. Kontakt saldi.dk support med følgende oplysninger:\nDB: <?php echo $db; ?>\nFil-ID: <?php echo $fileId; ?>");
             </script>
             <?php
             exit;
         }
 
-        $randomString = '';
-
-        for ($i = 0; $i < 10; $i++) {
-            $randomString .= $characters[rand(0, 4)];
-        }
-        if(!isset($result["base64EncodedDocumentXml"]) || trim($result["base64EncodedDocumentXml"]) == ""){
+        // decode base64
+        $xml = base64_decode($result["base64EncodedDocumentXml"] ?? "", true);
+        if($xml === false || trim($xml) == ""){
             // An error occurred - check for easyUBL or Semantic error messages
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
@@ -380,6 +378,7 @@
             ];
             
             // save response in file in temp folder with full details for debugging
+            file_put_contents("../temp/$db/fakture-error-$fileId.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             
             // Determine which error to show
@@ -430,7 +429,7 @@
             <?php
             exit;
         }
-        file_put_contents("../temp/$db/xml-$randomString.xml", $xml);
+        file_put_contents("../temp/$db/xml-$fileId.xml", $xml);
         curl_close($ch);
         $ch = curl_init();
         $data = [
@@ -448,10 +447,10 @@
         if (curl_errno($ch)) {
             echo 'Error:' . curl_error($ch);
         }
-        file_put_contents("../temp/$db/$randomString.html", $result);
+        file_put_contents("../temp/$db/$fileId.html", $result);
         curl_close($ch);
 
-        return $randomString;
+        return $fileId;
     }
 
     // Setting up the invoice data
@@ -465,6 +464,18 @@
         $adresse = db_fetch_array($query);
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
         $r_faktura = db_fetch_array($query);
+
+        // get momssats of the order so that the moms can get reduced to that number.
+        $ordre_moms = $r_faktura['momssats'];
+
+        // Fall back to customer record (adresser) for EAN if the order row has none
+        if(empty($r_faktura["ean"]) && !empty($r_faktura["konto_id"])){
+            $q = db_select("SELECT ean FROM adresser WHERE id = " . intval($r_faktura["konto_id"]), __FILE__ . " linje " . __LINE__);
+            $adresser_row = db_fetch_array($q);
+            if(!empty($adresser_row["ean"])){
+                $r_faktura["ean"] = $adresser_row["ean"];
+            }
+        }
         $initials = explode(" ", $r_faktura["firmanavn"]);
         foreach($initials as $key => $value){
             $initials[$key] = mb_substr($value, 0, 1, "UTF-8");
@@ -478,24 +489,48 @@
             $creditNote = "Inv";
         }
         $cvrnr_with_prefix = "";
-        // check if the ean number is 13 characters long
-        if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === false){
+        // plain EAN/GLN (no colon) vs formatted "schemeId:value"
+        if(!empty($r_faktura["ean"]) && strpos($r_faktura["ean"], ":") === false){
             $endpointId = $r_faktura["ean"];
             $endpointType = "GLN";
-        } else if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") !== false){
+        } else if(!empty($r_faktura["ean"]) && strpos($r_faktura["ean"], ":") !== false){
             // Change === true to !== false
             $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
             $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
             if(is_numeric($endpointType)){
-                if($endpointType == 0007){
-                    $endpointId = "SE".$endpointId;
+                $peppolSchemes = [
+                    "0007" => ["prefix" => "SE", "type" => "SE:ORGNR"],
+                    "9908" => ["prefix" => "NO", "type" => "NO:ORGNR"],
+                    "0192" => ["prefix" => "NO", "type" => "NO:ORG"],
+                    "0037" => ["prefix" => "FI", "type" => "FI:OVT"],
+                    "0106" => ["prefix" => "NL", "type" => "NL:KVK"],
+                    "0190" => ["prefix" => "NL", "type" => "NL:OINO"],
+                    "0204" => ["prefix" => "DE", "type" => "DE:LWID"],
+                    "9958" => ["prefix" => "DE", "type" => "DE:LID"],
+                    "9920" => ["prefix" => "ES", "type" => "ES:VAT"],
+                ];
+                if(isset($peppolSchemes[$endpointType])){
+                    $endpointId = $peppolSchemes[$endpointType]["prefix"] . $endpointId;
+                    $endpointType = $peppolSchemes[$endpointType]["type"];
+                } else {
+                    $endpointType = "DK:CVR";
                 }
                 $cvrnr_with_prefix = $endpointId;
-                $endpointType = "DK:CVR";
             }
         } else {
-            $endpointId = "DK".$r_faktura["cvrnr"];
-            $endpointType = "DK:CVR";
+            if(preg_match('/^\d/', $r_faktura["cvrnr"])){
+                $endpointId = "DK".$r_faktura["cvrnr"];
+                $endpointType = "DK:CVR";
+            } else {
+                // CVR already has country prefix (e.g. SE123456789, NO987654321)
+                $cvrTypes = [
+                    "SE" => "SE:ORGNR", "NO" => "NO:ORG", "FI" => "FI:OVT",
+                    "NL" => "NL:KVK",   "DE" => "DE:LWID", "ES" => "ES:VAT",
+                ];
+                $endpointId = $r_faktura["cvrnr"];
+                $countryPrefix = strtoupper(substr($r_faktura["cvrnr"], 0, 2));
+                $endpointType = $cvrTypes[$countryPrefix] ?? "DK:CVR";
+            }
         }
         if($cvrnr_with_prefix == ""){
             if($r_faktura["cvrnr"]) {
@@ -607,7 +642,7 @@
             "issueDate" => date("c", strtotime($r_faktura["fakturadate"])),
             "dueDate" => usdate(forfaldsdag($r_faktura['fakturadate'], $r_faktura['betalingsbet'], $r_faktura['betalingsdage']))."T00:00:00.000Z",
             "deliveryDate" => date("c", strtotime($r_faktura["levdate"])),
-            "orderReference" => "", //TODO
+            "orderReference" => $r_faktura['id'] ?? "", //TODO
             "invoiceReference" => "", //TODO
             "salesOrderID" => $r_faktura["ordrenr"],
             "note" => $r_faktura["notes"],
@@ -664,14 +699,16 @@
             //     ]
             // ], 
             "documentCurrencyCode" => $r_faktura["valuta"],
+            //(float)number_format((float)$r_faktura["sum"], 2)
             "totalAmount" => round((float)$r_faktura["sum"], 2), ## 20260518 - NTR - Fix values over a thousand being truncated to the thousands.
+
             "deliverAddress" => $deliverAddress,
             "paymentMeans" => [
                 "bankName" => $adresse["bank_navn"],
                 "bankRegNo" => $adresse["bank_reg"],
                 "bankAccount" => $adresse["bank_konto"],
-                "bic" => "",
-                "iban" => "",
+                "bic" => $adresse["swift"] ?? "",
+                "iban" => $adresse["iban"] ?? "",
                 "creditorIdentifier" => "",
                 "paymentID" => ""
             ],
@@ -711,7 +748,10 @@
                 $res["antal"] = (float)$res["antal"];
                 $res["pris"] = (float)$res["pris"];
             }
-            $res["momssats"] = abs((float)$res["momssats"]);
+            $res["momssats"] = min(abs((float)$res["momssats"]), abs((float)$ordre_moms));
+            if ($res["momsfri"] == 'on' || $res["omvbet"]) {
+                $res["momssats"] = 0;
+            }
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
             if(trim($res["beskrivelse"]) == "" || (float)$res["antal"] == 0){
                 continue;
@@ -743,7 +783,7 @@
                 "price" => $price,
                 "discountPercent" => $discPrct,
                 "discountAmount" => round($discAmount, 2), ## 20260518 - NTR - Fix imprecision that leads to 0 and 9 trails. 20260604 - Removed duplicate discountAmount
-                "vatPercent" => ($res["momssats"] != "" && $res["momssats"] != null) ? $res["momssats"] : 0,
+                "vatPercent" => ($res["momssats"] != "" && $res["momssats"] != null) ? min(abs((float)$res["momssats"]), abs((float)$ordre_moms)): 0,
                 "lineAmount" => $lineAmount,
                 "priceInclTax" => false,
                 "taxOnProfit" => false,
