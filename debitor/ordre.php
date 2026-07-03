@@ -96,6 +96,8 @@
 // 20260610 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
 // 20260611 LOE Added UI for hvem and updated its logic
 // 20260630 Sawaneh Made 'Performed by' (hvem) display-only: removed its order-locking side effects, added a blank option so it can be cleared, and made clearing to blank persist on save
+// 20260701 NTR Updated the first plukliste buttons to be the same logic as the second plukliste.
+
 @session_start();
 $s_id = session_id();
 
@@ -128,21 +130,6 @@ include("../includes/std_func.php");
 
 
 include("../includes/connect.php");
-
-// Restore scaffolding context (sag_id) from the order record itself when the URL/POST didn't carry it.
-// Many flows redirect back to ordre.php without sag_id (levering.php, bogfor.php, accountLookup,
-// sync_stamkort.php, etc.), which used to drop us back into finance styling. Resolving here — before
-// online.php runs and emits the finance-button color override — keeps scaffolding styling stable.
-if (empty($_GET['sag_id']) && empty($_POST['sag_id'])) {
-    $sag_id_lookup = isset($_GET['id']) ? $_GET['id'] : (isset($_POST['id']) ? $_POST['id'] : null);
-    if ($sag_id_lookup !== null && is_numeric($sag_id_lookup) && (int)$sag_id_lookup > 0) {
-        $r_sag = db_fetch_array(db_select("select sag_id from ordrer where id='" . db_escape_string($sag_id_lookup) . "'", __FILE__ . " linje " . __LINE__));
-        if ($r_sag && !empty($r_sag['sag_id']) && (int)$r_sag['sag_id'] > 0) {
-            $_GET['sag_id'] = $r_sag['sag_id'];
-        }
-    }
-}
-
 include("../includes/online.php");
 
 // Restore scaffolding context (sag_id) from the order record itself when the URL/POST didn't carry it.
@@ -3433,8 +3420,6 @@ function ordreside($id, $regnskab)
 		$restordre = if_isset($row, NULL, 'restordre');
 		$digitalStatus = if_isset($row, NULL, 'digital_status');
 		$ordredate = if_isset($row, null, 'ordredate') ?? date("y-m-d");
-		$opValue = $_GET['valg'];
-		file_put_contents("../temp/$db/area$bruger_id.txt", $opValue, LOCK_EX);
 		$ordredato = dkdato($ordredate);
 		if (if_isset($row, NULL, 'levdate')) {
 			$levdato = dkdato(if_isset($row, NULL, 'levdate'));
@@ -4127,30 +4112,18 @@ function ordreside($id, $regnskab)
 			// Plukliste buttons — not applicable when the order is viewed inside a scaffolding case.
 			if (!$sag_id) {
 				include("../includes/topline_settings.php");
-			
-				if ($hurtigfakt == 'on' && $opValue == 'faktura') {
+				// Merged conditions to avoid duplicate code for pluklisteEmail check
+				if (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud")) {
 					$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
 					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
 					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px;text-align:center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
 					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					if ($pluklisteEmail) {
+					if ($pluklisteEmail && (($hurtigfakt == 'on' && $opValue == 'faktura') || ($hurtigfakt != "on" && $opValue != "tilbud"))) {
 						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
 						print "<input type='text' id='plukkommentar1' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
 						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar1').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
-						print "</td></tr>\n";
-					}
-				}elseif($hurtigfakt != "on" && $opValue != "tilbud"){ 
-					print "<tr><td colspan=\"2\"><hr></td></tr>\n";
-					print "<tr><td colspan=\"2\"><p style='text-align: center;'><b>Plukliste</b></p></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;border-radius:4px; text-align: center;'><button type='button' onclick=\"window.location.href='udskriftsvalg.php?id=$id&valg=-1&formular=9'\" style='$buttonStyle;cursor: pointer; padding: 0.2rem; width: 125px;'>Print plukliste</button></td></tr>\n";
-					print "<tr><td colspan=\"2\" style='border:0;height:10px;'></td></tr>\n";
-					if ($pluklisteEmail && $hurtigfakt != "on") {
-						print "<tr><td colspan=\"2\" style='border:0;text-align:center;'>";
-						print "<input type='text' id='plukkommentar2' placeholder='Kommentar...' style='width:100%;margin-bottom:4px;padding:0.2rem;box-sizing:border-box;' class='inputbox'>";
-						print "<button type='button' onclick=\"var f=document.createElement('form');f.method='POST';f.action='sendPlukliste.php';var i=document.createElement('input');i.type='hidden';i.name='id';i.value='$id';f.appendChild(i);var k=document.createElement('input');k.type='hidden';k.name='kommentar';k.value=document.getElementById('plukkommentar2').value;f.appendChild(k);document.body.appendChild(f);f.submit();\" style='$buttonStyle;cursor:pointer;padding:0.2rem;width:125px'>Send plukliste</button>";
 						print "</td></tr>\n";
 					}
 				}
