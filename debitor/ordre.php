@@ -4743,6 +4743,7 @@ function ordreside($id, $regnskab)
 		print "<tr><td width=\"31%\"><table cellpadding=\"0\" style='margin-left: auto; margin-right: auto;' cellspacing=\"0\" border=\"0\">\n"; #Tabel 4.1 ->
 		print "<tr><td witdh=\"100\">" . findtekst('43|Kontonr.', $sprog_id) . "</td><td colspan=\"2\">\n";
 		if (trim($kontonr)) {
+			include("../includes/topline_settings.php");
 			if ($status > 2 || !$id) {
 				print "<input class='inputbox' type='text' style='width:200px;background-color:#ddd;' name='kontonr' ";
 				print "readonly='readonly' onfocus='document.forms[0].fokus.value=this.name;' value=\"$kontonr\" $disabled>\n";
@@ -4752,7 +4753,7 @@ function ordreside($id, $regnskab)
 				print "<input type='hidden' name='kontonr' value='$kontonr'>";
 				$title = findtekst('1463|Klik her for at skifte kunde på denne ordre', $sprog_id);
 				print "<a style='text-decoration: none' href='ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside&art=$art&swap_account=swap'>";
-				print "<input class='button gray small' type='submit' title='$title' value=" . findtekst('436|Skift', $sprog_id) . " style='width:50px;'>";
+				print "<input class='button gray small' type='submit' title='$title' value=" . findtekst('436|Skift', $sprog_id) . " style='$buttonStyle; width:50px;'>";
 				$fokus = 'newAccountNo';
 			} else {
 				print "<input class='inputbox' type='text' readonly='readonly' style='width:130px;background-color:#ddd;' name='kontonr'";
@@ -4760,7 +4761,7 @@ function ordreside($id, $regnskab)
 				$title = findtekst('1463|Klik her for at skifte kunde på denne ordre', $sprog_id);
 				print "<a style='text-decoration: none' href='ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside&art=$art&swap_account=swap'>";
 				// print "<a style='text-decoration: none' href='ordre.php?id=$id&returside=$returside'>";
-				print "<button class='button gray small' type='button' title='$title' style='width:70px;'>" . findtekst('436|Skift', $sprog_id) . "";
+				print "<button class='button gray small' type='button' title='$title' style='$buttonStyle; width:70px;'>" . findtekst('436|Skift', $sprog_id) . "";
 			}
 		} else {
 			print "<input class='inputbox' type='text' style='width:200px' name='kontonr' onfocus='document.forms[0].fokus.value=this.name;'";
@@ -5278,13 +5279,16 @@ function ordreside($id, $regnskab)
 		print "</tbody></table></td>\n"; # <- Tabel 4.2
 		print "<td width=\"31%\"><table id=\"delivery_addresses_table\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" valign = 'top'>\n"; # Tabel 4.3 ->
 		$vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
+		include("../includes/topline_settings.php");
 		if ($vis_addr == "on") {
 
 		// implementing selected delivery address in delivery_address table.  
-			$txt28 = findtekst('28|Firmanavn', $sprog_id);
-			$txt140 = findtekst('140|Adresse', $sprog_id);
+			$txt28  = findtekst('28|Firmanavn',    $sprog_id);
+			$txt140 = findtekst('140|Adresse',     $sprog_id);
 			$txt666 = findtekst('666|Postnr & by', $sprog_id);
-			print "<tr><td align=\"center\">$jobkort $debitorkort</td><td align=\"left\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . " <input class='checkmark' type=\"checkbox\" name=\"vis_lev_addr\" checked=\"checked\"><td></tr>\n";
+			
+			print "<tr><td align=\"center\">$jobkort $debitorkort</td>";
+			print "<td align=\"center\"><input type='hidden' name='vis_lev_addr' value=''><input type=\"button\" onclick=\"document.getElementById('submit').click();\" style=\"$buttonStyle; width:65%\" value=\"" . findtekst('2533|Vis ekstrafelter', $sprog_id) . "\"><td></tr>\n";
 			print "<tr><td colspan=\"2\"><hr><td></tr>\n";
 			print "<tr><td colspan=\"2\" align=\"center\"><b>" . findtekst('554|Leveringsadresse', $sprog_id) . "</b></td></tr>\n";
 			print "<tr><td colspan=\"2\"><hr></b></tr>\n";
@@ -5390,18 +5394,19 @@ function ordreside($id, $regnskab)
 			print "<tr><td>$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_addr1\" value=\"$lev_addr1\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 			print "<tr><td></td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"lev_addr2\" value=\"$lev_addr2\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 			print "<tr><td>$txt666</td><td><input class = 'inputbox' type = 'text' style=\"width:45px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_postnr\" value=\"$lev_postnr\" $disabled><input class = 'inputbox' type = 'text' style=\"width:150px;margin-left:3px;\" name=\"lev_bynavn\" value=\"$lev_bynavn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-			print "<tr><td>" . findtekst('47|Land', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_land\" value=\"$lev_land\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_kontakt\" value=\"$lev_kontakt\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-			print "<tr><td>" . findtekst('398|Kontakt', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_email\" value=\"$lev_email\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
+			print "<tr><td>" . findtekst(  '47|Land',    $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_land\"    value=\"$lev_land\"    onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
+			print "<tr><td>" . findtekst('2530|Att.',    $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_kontakt\" value=\"$lev_kontakt\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
+			print "<tr><td>" . findtekst( '398|Kontakt', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_email\"   value=\"$lev_email\"   onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 			print "<input type=\"hidden\" name=\"felt_1\" style=\"width:200px\" value=\"$felt_1\">\n";
 			print "<input type=\"hidden\" name=\"felt_2\" style=\"width:200px\" value=\"$felt_2\">\n";
 			print "<input type=\"hidden\" name=\"felt_3\" style=\"width:200px\" value=\"$felt_3\">\n";
 			print "<input type=\"hidden\" name=\"felt_4\" style=\"width:200px\" value=\"$felt_4\">\n";
 			#print "<input type=\"hidden\" name=\"felt_5\" style=\"width:200px\" value=\"$felt_5\">\n";
 		} else {
-			print "<tr><td align=\"center\">$jobkort $debitorkort</td><td align=\"center\">" . findtekst('355|Vis leveringsadresse', $sprog_id) . " <input class='checkmark' type=\"checkbox\" name=\"vis_lev_addr\"><td></tr>\n";
+			print "<tr><td align=\"center\">$jobkort $debitorkort</td>";
+			print "<td align=\"center\"><input type='hidden' name='vis_lev_addr' value='on'><input type=\"button\" onclick=\"document.getElementById('submit').click();\" style=\"$buttonStyle; width:80%\" value=\"" . findtekst('355|Vis leveringsadresse', $sprog_id) . "\"><td></tr>\n";
 			print "<tr><td colspan=\"2\"><hr><td></tr>\n";
-			print "<tr><td colspan=\"2\" align=\"center\"><b>" . findtekst('243|Ekstrafelter', $sprog_id) . "</b></tr>\n";
+			print "<tr><td colspan=\"2\" align=\"center\"><b>" . findtekst('243|Ekstrafelter', $sprog_id) . "</b></td></tr>\n";
 			print "<tr><td colspan=\"2\"><hr></b></tr>\n";
 			if ($vis_saet) {
 				$qtxt = "select box4,box5,box6 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";

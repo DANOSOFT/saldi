@@ -30,7 +30,7 @@
 
 $s_id    = session_id();
 $modulnr = 12;
-$title   = "Sales report";
+$title   = "Salg pr. postnummer";
 $css     = "../css/standard.css";
 
 include("../includes/connect.php");
@@ -40,6 +40,8 @@ include("../includes/std_func.php");
 include("../includes/db_query.php");
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
+
+$title = findtekst('3360|Salg pr. postnummer', $sprog_id);
 
 /* ============================================================
  * 1. READ FILTERS FROM $_GET

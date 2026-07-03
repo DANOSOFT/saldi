@@ -120,7 +120,7 @@
 120	Enh./mat.	Enh./mat.	Enh./mat.
 121	Klik her for at rette i indstillinger	Click here to correct settings-	Klikk her for å korrigere innstillinger
 122	Indstillinger	Settings	Innstillinger
-123	Klik her for finansrapporter	Click here for financial reports	Klikk her for Klikk her for økonomiske rapporter
+123	Klik her for finansrapporter	Click here for financial reports	Klikk her for finansrapporter
 124	Rapporter	Reports	Rapporter
 125	Klik her for at se åbne poster og kontokort for dine kunder. Her kan du også skrive rykkere og få en oversigt over de 100 kunder med med største omsætning.	Click here to see open records and general ledgers for your customers. Here you can also write reminders and get an overview of the 100 customers with the largest turnover.	Klikk her for å se åpne poster og kontokort for kundene dine. Her kan du også skrive påminnelser og få oversikt over de 100 kundene med størst omsetning.
 126	Klik her for at se åbne poster og kontokort for dine leverandører. Her kan du også lave betalingslister til banken.	Click here to see open records and general ledgers for your suppliers. Here you can also make payment lists for the bank.	Klikk her for å se åpne poster og kontokort for leverandørene dine. Her kan du også lage betalingslister for banken.
@@ -892,9 +892,9 @@
 892	Ordrelistevisning	Order list view	Visning av ordreliste
 893	faktura	invoice	faktura
 894	Regnskabsår	Financial year	Regnskapsår
-895	Finansrapport	Financial Report	Økonomisk Rapport
+895	Finansrapport	Financial Report	Finansrapport
 896	Rapporttype	Report type	Rapport type
-897	Finansrapport - forside	Financial Report - Front Page	Økonomirapport - forsiden
+897	Finansrapport - forside	Financial Report - Front Page	Finansrapport - forsiden
 898	Opdatér	Update	Oppdater
 899	Periode	Period	Periode
 900	Konto (fra)	Account (from)	Konto (fra)
@@ -1242,9 +1242,9 @@
 1242	og gem sikkerhedskopien et passende sted.	and save the backup in a convenient location.	og lagre sikkerhetskopien på et praktisk sted.
 1243	Hvis din browser forsøger at åbne filen	If your browser tries to open the file	Hvis nettleseren din prøver å åpne filen
 1244	skal du højreklikke og vælge 'gem som'.	right click and select 'save as'.	høyreklikk og velg 'lagre som'.
-1245	Dan sikkerhedskopi	Make a backup	Ta en sikkerhetskopi
+1245	Opret sikkerhedskopi	Create backup	Opprett sikkerhetskopi
 1246	for at danne en sikkerhedskopi	to create a backup	for å lage en sikkerhetskopi
-1247	Indlæs sikkerhedskopi	Load backup	Last inn sikkerhetskopi
+1247	Indlæs sikkerhedskopi	Restore backup	Last inn sikkerhetskopi
 1248	for at indlæse en sikkerhedskopi<br>fra din computer.	to load a backup <br> from your computer.	for å laste inn en sikkerhetskopi <br> fra datamaskinen din.
 1249	Tilpas projekt opsætning	Customize project setup	Tilpass prosjektoppsett
 1250	Skriv syntaks for projektnummereringen for at lette søgning.<br> Hvis du f.eks skriver 4|2|3|4 bliver projektnummeret opdelt i 4 grupper med hhv. 4,2,3,4 tegn i hvert felt.<br> Dette kan lette søgning, hvis du anvender lange og komplekse projektnumre.<br><hr>	Write project number syntax to facilitate search. <br>For example, if you type 4 | 2 | 3 | 4, the project number will be divided into 4 groups with resp. 4,2,3,4 characters in each field. <br>This can facilitate search if you use long and complex project numbers. <br> <hr>	Skriv syntaks for prosjektnummer for å lette søk. <br>Hvis du for eksempel skriver 4 | 2 | 3 | 4, vil prosjektnummeret bli delt inn i 4 grupper med hhv. 4,2,3,4 tegn i hvert felt. <br>Dette kan lette søk hvis du bruker lange og komplekse prosjektnumre. <br> <hr>
@@ -3355,10 +3355,10 @@
 3355	Hjælp til Kassekladden	Cash Journal help	Hjelp til Kassekladden
 3356	Hvis dette felt afmærkes, låses fakturér-knappen hvis ordren ikke er betalt	If this box is checked, the invoice button is locked if the order has not been paid	Hvis dette feltet krysses av, låses fakturer-knappen hvis ordren ikke er betalt
 3357	Lås fakturér-knappen, hvis ordren ikke er betalt	Lock the invoice button if the order has not been paid	Lås fakturer-knappen hvis ordren ikke er betalt
-3358			
-3359			
-3360			
-3361			
+3358	Gå til indlæsning	Go to Restore	Gå til innlasting
+3359	Finansrapporter	Financial reports	Finansrapporter
+3360	Salg pr. postnummer	Sales by postal code	Salg per postnummer
+3361	Varerapporter	Item reports	Varerapporter		
 3362			
 3363			
 3364			
