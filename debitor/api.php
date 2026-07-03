@@ -31,6 +31,9 @@
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
 // 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
 // 20260623 NTR - Added a , check on Addresses as sometimes people write extra information that is useless to us.
+// 20260703 CDX/NTR - Added a function to take care of streetnames as the edgecases was making it too complex to handle in a oneliner, due to people writing addresses in a non-standard way. This function will split the streetname and buildingnumber into two separate fields, and also handle additional streetname if it exists.
+// 20260703 NTR - Added var_grp to db_select for companyID and updatedCompany to avoid conflicts with other modules that might use the same var_name in settings table.
+// 20260703 NTR - Added filtering out lines with 0 amount and not just empty description, so if either is empty, the line will be skipped. This is to avoid sending empty lines to EasyUBL, which I suspect crashes their code.
 
     @session_start();
     $s_id=session_id();
@@ -46,6 +49,34 @@
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
 
+    function splitStreetAddress($address, $additionalStreetName = '') {
+        $address = trim((string)$address);
+        $additionalStreetName = trim((string)$additionalStreetName);
+
+        $addressParts = array_map('trim', explode(',', $address, 2));
+        $mainAddress = $addressParts[0];
+        $commaAddressExtra = isset($addressParts[1]) ? $addressParts[1] : '';
+
+        if ($commaAddressExtra !== '' && $additionalStreetName !== '') {
+            $additionalStreetName = $commaAddressExtra . ', ' . $additionalStreetName;
+        } elseif ($commaAddressExtra !== '') {
+            $additionalStreetName = $commaAddressExtra;
+        }
+
+        $streetName = $mainAddress;
+        $buildingNumber = '';
+        if (preg_match('/^(.*\S)\s+(\d+\p{L}?(?:\s*[-\/]\s*\d+\p{L}?)?(?:\s+\p{L}{1,3})?)$/u', $mainAddress, $matches)) {
+            $streetName = trim($matches[1]);
+            $buildingNumber = trim($matches[2]);
+        }
+
+        return [
+            'streetName' => $streetName,
+            'buildingNumber' => $buildingNumber,
+            'additionalStreetName' => $additionalStreetName,
+        ];
+    }
+
     // Setting up the user as a company at easyUBL
     function createCompany($apiKey){
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
@@ -59,6 +90,7 @@
         $path = trim($_SERVER['REQUEST_URI'], '/');
         $firstFolder = explode('/', $path)[0];
         $webhookUrl = "$domain/$firstFolder/debitor/easyUBL.php";
+        $companyAddress = splitStreetAddress($res["addr1"], $res["addr2"]);
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
@@ -74,9 +106,9 @@
             "defaultAddress" => [
                 "name" => $res["firmanavn"],
                 "department" => "",
-                "streetName" => implode(" ", explode(" ", explode(",", $res["addr1"])[0], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                "buildingNumber" => array_slice(explode(" ", explode(",", $res["addr1"])[0]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
-                "additionalStreetName" => $res["addr2"],
+                "streetName" => $companyAddress['streetName'],
+                "buildingNumber" => $companyAddress['buildingNumber'],
+                "additionalStreetName" => $companyAddress['additionalStreetName'],
                 "inhouseMail" => "",
                 "cityName" => $res["bynavn"],
                 "postalCode" => $res["postnr"],
@@ -166,7 +198,13 @@
     // Getting the company id from the database
     function getCompanyID(){
         global $apiKey, $db;
-        $query = db_select("SELECT * FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
+        $sql = <<<SQL
+            SELECT var_value 
+            FROM settings 
+            WHERE var_name = 'companyID' 
+              AND var_grp = 'easyUBL'
+        SQL;
+        $query = db_select($sql, __FILE__ . " linje " . __LINE__);
         if(db_num_rows($query) === 0){
             // If the company id is not in the database, create it
             $guid = "00000000-0000-0000-0000-000000000000";
@@ -231,6 +269,11 @@
     }
 
     // Sending the invoice to the recipient through easyUBL
+    /**
+     * @param array $data The invoice data to send
+     * @param string $url The EasyUBL API endpoint URL
+     * @param string $orderId The order ID for logging purposes
+     */
     function getInvoicesOrder($data, $url, $orderId) {
         global $bruger_id, $db, $apiKey;
         $query = db_select("SELECT var_value FROM settings WHERE var_name = 'updatedCompany' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
@@ -250,6 +293,14 @@
         if($companyID == "error"){
             die("Der er sket en fejl. Kontakt support.");
         }
+        /* // For manual testing
+        die(
+            'URL: https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/' . htmlspecialchars($companyID) .
+            '<pre>' .
+            htmlspecialchars(json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) .
+            '</pre>'
+        );
+        */
         $ch = curl_init();
 
         $fullUrl = $url.$companyID;
@@ -404,6 +455,10 @@
     }
 
     // Setting up the invoice data
+    /**
+     * @param int $id The Orders ID
+     * @param string $type The type of document (invoice or creditnote)
+     */
     function sendInvoice($id, $type) {
             global $db;
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
@@ -452,12 +507,12 @@
                     // Already has country prefix (SE, NO, etc.) - use as is
                     $cvrnr_with_prefix = $r_faktura["cvrnr"];
                 }
-            }else{
-                // 20260604 - CVR is required for Peppol transmission
+            }elseif($endpointType !== "GLN"){
+                // No CVR and no GLN — cannot route via Peppol
                 file_put_contents("../temp/$db/missing-cvr-error-" . date("Y-m-d-H-i-s") . ".json", json_encode(["error" => "Missing CVR number", "order_id" => $id, "customer" => $r_faktura["firmanavn"]], JSON_PRETTY_PRINT));
                 ?>
                 <script>
-                    alert("Fejl: Kunden mangler CVR-nummer. Dette kræves til Peppol-transmission. Venligst opdater kundens CVR-nummer og prøv igen.");
+                    alert("Fejl: Kunden mangler både CVR-nummer og EAN/GLN-nummer. Mindst ét af disse kræves til Peppol-transmission. Venligst opdater kundeoplysningerne og prøv igen.");
                 </script>
                 <?php
                 exit;
@@ -499,15 +554,18 @@
                 $customerKontakt = $levKontakt;
             }
         }
+
+        $customerAddress = splitStreetAddress($customerAddr1, $customerAddr2);
+        $deliveryAddress = splitStreetAddress($levAddr1, $levAddr2);
         
         // Delivery address - use best available address
         if($levAddr1 !== "" && $levBynavn !== "" && $levPostnr !== ""){
             $deliverAddress = [
                 
-                "streetName" => implode(" ", explode(" ", $r_faktura["lev_addr1"], -1)), ## 20260518 - NTR - Street name without building number.
-                "buildingNumber" => array_slice(explode(" ", explode(",", $res["lev_addr1"])[0]), -1)[0],
+                "streetName" => $deliveryAddress['streetName'],
+                "buildingNumber" => $deliveryAddress['buildingNumber'],
                 "inhouseMail" => $r_faktura["email"],
-                "additionalStreetName" => $levAddr2,
+                "additionalStreetName" => $deliveryAddress['additionalStreetName'],
                 "attentionName" => $levKontakt,
                 "cityName" => $levBynavn,
                 "postalCode" => $levPostnr,
@@ -518,10 +576,10 @@
         }else if($customerAddr1 !== "" && $customerBynavn !== "" && $customerPostnr !== ""){
             // 20260604 - Fallback to main address if delivery address is incomplete
             $deliverAddress = [
-                "streetName" => implode(" ", explode(" ", $customerAddr1, -1)),
-                "buildingNumber" => array_slice(explode(" ", explode(",", $customerAddr1)[0]), -1)[0],
+                "streetName" => $customerAddress['streetName'],
+                "buildingNumber" => $customerAddress['buildingNumber'],
                 "inhouseMail" => $r_faktura["email"],
-                "additionalStreetName" => $customerAddr2,
+                "additionalStreetName" => $customerAddress['additionalStreetName'],
                 "attentionName" => $customerKontakt,
                 "cityName" => $customerBynavn,
                 "postalCode" => $customerPostnr,
@@ -562,10 +620,10 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
-                    "streetName" => implode(" ", explode(" ", $customerAddr1, -1)), ## 20260604 - Updated to use fallback address logic
-                    "buildingNumber" => array_slice(explode(" ", explode(",", $customerAddr1)[0]), -1)[0], ## 20260604 - Updated to use fallback address logic
+                    "streetName" => $customerAddress['streetName'],
+                    "buildingNumber" => $customerAddress['buildingNumber'],
                     "inhouseMail" => $r_faktura["email"],
-                    "additionalStreetName" => $customerAddr2,
+                    "additionalStreetName" => $customerAddress['additionalStreetName'],
                     "attentionName" => $customerKontakt,
                     "cityName" => $customerBynavn,
                     "postalCode" => $customerPostnr,
@@ -582,29 +640,29 @@
             ],
             // Not needed when Customer and Payer are the same
             // "buyerCustomerParty" => [
-            //     "endpointId" => "", //Was missing from JSON structure
-            //     "endpointIdType" => "", //Was missing from JSON structure
-            //     "name" => "", //Was missing from JSON structure
-            //     "companyId" => "", //Was missing from JSON structure
+            //     "endpointId" => "", 
+            //     "endpointIdType" => "", 
+            //     "name" => "", 
+            //     "companyId" => "", 
             //     "postalAddress" => [
-            //         "streetName" => "", //Was missing from JSON structure
-            //         "buildingNumber" => "", //Was missing from JSON structure
-            //         "inhouseMail" => "", //Was missing from JSON structure
-            //         "additionalStreetName" => "", //Was missing from JSON structure
-            //         "attentionName" => "", //Was missing from JSON structure
-            //         "cityName" => "", //Was missing from JSON structure
-            //         "postalCode" => "", //Was missing from JSON structure
-            //         "countrySubentity" => "", //Was missing from JSON structure
-            //         "addressLine" => "", //Was missing from JSON structure
-            //         "countryCode" => "", //Was missing from JSON structure
-            //     ], //Was missing from JSON structure
+            //         "streetName" => "", 
+            //         "buildingNumber" => "", 
+            //         "inhouseMail" => "", 
+            //         "additionalStreetName" => "", 
+            //         "attentionName" => "", 
+            //         "cityName" => "", 
+            //         "postalCode" => "", 
+            //         "countrySubentity" => "", 
+            //         "addressLine" => "", 
+            //         "countryCode" => "", 
+            //     ], 
             //     "contact" => [
-            //         "initials" => "", //Was missing from JSON structure
-            //         "name" => "", //Was missing from JSON structure
-            //         "telephone" => "", //Was missing from JSON structure
-            //         "electronicMail" => "", //Was missing from JSON structure
+            //         "initials" => "", 
+            //         "name" => "", 
+            //         "telephone" => "", 
+            //         "electronicMail" => "", 
             //     ]
-            // ], //Was missing from JSON structure
+            // ], 
             "documentCurrencyCode" => $r_faktura["valuta"],
             "totalAmount" => round((float)$r_faktura["sum"], 2), ## 20260518 - NTR - Fix values over a thousand being truncated to the thousands.
             "deliverAddress" => $deliverAddress,
@@ -642,6 +700,7 @@
         ];
 
         $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
+        $line = [];
         while ($res = db_fetch_array($query)) {
 
             $res["rabat"] = abs((float)$res["rabat"]);
@@ -654,7 +713,7 @@
             }
             $res["momssats"] = abs((float)$res["momssats"]);
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
-            if(trim($res["beskrivelse"]) == ""){
+            if(trim($res["beskrivelse"]) == "" || (float)$res["antal"] == 0){
                 continue;
             }
             file_put_contents("../temp/$db/ordrelinjer.json", json_encode($res, JSON_PRETTY_PRINT), FILE_APPEND);
@@ -709,7 +768,7 @@
         // 20260604 - Validate required fields before transmission to prevent E-APS24003 errors
         $missingFields = [];
         
-        if(empty($cvrnr_with_prefix) || $cvrnr_with_prefix === "DK"){
+        if((empty($cvrnr_with_prefix) || $cvrnr_with_prefix === "DK") && $endpointType !== "GLN"){
             $missingFields[] = "CVR-nummer";
         }
         // Check customer address (which may have been set to delivery address as fallback)
@@ -736,21 +795,25 @@
             exit;
         }
 
-        //die(json_encode($data, JSON_PRETTY_PRINT));
         $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
 
         return $name;
     }
     // dosen't get used
+    /**
+     * @param int $id The Orders ID
+     */
     function sendOrder($id){
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
         $r_faktura = db_fetch_array($query);
+        $orderAddress = splitStreetAddress($r_faktura["addr1"], $r_faktura["addr2"]);
+        $orderDeliveryAddress = splitStreetAddress($r_faktura["lev_addr1"], $r_faktura["lev_addr2"]);
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
-                "streetName" => $r_faktura["lev_addr1"],
-                "buildingNumber" => array_slice(explode(" ", explode(",", $r_faktura["lev_addr1"])[0]), -1)[0],
+                "streetName" => $orderDeliveryAddress['streetName'],
+                "buildingNumber" => $orderDeliveryAddress['buildingNumber'],
                 "inhouseMail" => $r_faktura["email"],
-                "additionalStreetName" => $r_faktura["lev_addr2"],
+                "additionalStreetName" => $orderDeliveryAddress['additionalStreetName'],
                 "attentionName" => $r_faktura["lev_kontakt"],
                 "cityName" => $r_faktura["lev_bynavn"],
                 "postalCode" => $r_faktura["lev_postnr"],
@@ -764,10 +827,10 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK $r_faktura[ean]",
                 "postalAddress" => [
-                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => array_slice(explode(" ", explode(",", $r_faktura["addr1"])[0]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "streetName" => $orderAddress['streetName'],
+                    "buildingNumber" => $orderAddress['buildingNumber'],
                     "inhouseMail" => $r_faktura["email"],
-                    "additionalStreetName" => $r_faktura["addr2"],
+                    "additionalStreetName" => $orderAddress['additionalStreetName'],
                     "attentionName" => $r_faktura["firmanavn"],
                     "cityName" => $r_faktura["bynavn"],
                     "postalCode" => $r_faktura["postnr"],
@@ -835,10 +898,10 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK$r_faktura[cvrnr]",
                 "postalAddress" => [
-                    "streetName" => implode(" ", explode(" ", $r_faktura["addr1"], -1)), // ## 20260518 - NTR - Fixed streetName to include all words except last (building number)
-                    "buildingNumber" => array_slice(explode(" ", explode(",", $r_faktura["addr1"])[0]), -1)[0], // ## 20260518 - NTR - Fixed buildingNumber to use last word of address instead of second word
+                    "streetName" => $orderAddress['streetName'],
+                    "buildingNumber" => $orderAddress['buildingNumber'],
                     "inhouseMail" => $r_faktura["email"],
-                    "additionalStreetName" => $r_faktura["addr2"],
+                    "additionalStreetName" => $orderAddress['additionalStreetName'],
                     "attentionName" => $r_faktura["firmanavn"],
                     "cityName" => $r_faktura["bynavn"],
                     "postalCode" => $r_faktura["postnr"],
@@ -859,10 +922,10 @@
                 "name" => $r_faktura["firmanavn"],
                 "companyId" => "DK$r_faktura[cvrnr]33557799",
                 "postalAddress" => [
-                    "streetName" => implode(" ", explode(" ", explode(",", $r_faktura["addr1"])[0], -1)), // ## 20260623 - NTR - Fixed extra address info breaking the logic
-                    "buildingNumber" => array_slice(explode(" ", explode(",", $r_faktura["addr1"])[0]), -1)[0], // ## 20260623 - NTR - Fixed extra address info breaking the logic
+                    "streetName" => $orderAddress['streetName'],
+                    "buildingNumber" => $orderAddress['buildingNumber'],
                     "inhouseMail" => $r_faktura["email"],
-                    "additionalStreetName" => $r_faktura["addr2"],
+                    "additionalStreetName" => $orderAddress['additionalStreetName'],
                     "attentionName" => $r_faktura["firmanavn"],
                     "cityName" => $r_faktura["bynavn"],
                     "postalCode" => $r_faktura["postnr"],
@@ -882,6 +945,7 @@
             "deliverAddress" => $deliverAddress,
         ];
         $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
+        $line = [];
         while ($res = db_fetch_array($query)) {
             if ($res["rabat"] > 0) {
                 $discAmount = round((float)$res["pris"] * ((float)$res["rabat"] / 100), 0);
@@ -912,7 +976,7 @@
             );
         }
         $data["invoiceLines"] = $line;
-        $name = getInvoicesOrder($data, "https://easyubl.net/api/SendDocuments/Order/");
+        $name = getInvoicesOrder($data, "https://easyubl.net/api/SendDocuments/Order/", $id);
         return $name;
     }
 ?>
