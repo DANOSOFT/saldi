@@ -143,7 +143,7 @@
 
 
     .saldi-button {
-        <?php echo $buttonStyle ?>
+        <?= $buttonStyle ?>
         cursor: pointer;
     }
 
@@ -296,7 +296,7 @@
 
 <style>
     body { font-family: Arial, sans-serif; margin: 0; padding: 8px; } /* #20260513 */
-    .header { background: $buttonColor; color: $buttonTxtColor; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header { background: <?= $buttonColor ?>; color: <?= $buttonTxtColor ?>; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
     .header h2 { margin: 0; }
     .doc-list { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eee; position: relative; cursor: pointer; }
