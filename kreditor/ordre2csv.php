@@ -1,5 +1,5 @@
 <?php
-// -------------kreditor/ordre2csv.php----------lap 5.0.0------2026-06-12----
+// -------------kreditor/ordre2csv.php----------patch 5.0.0------2026-07-06----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,11 +14,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2026 DANOSOFT.ApS
+// Copyright (c) 2004-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 03/02/2025 PBLM fixed lev_varenummer
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260612 MJ Use creditor order number, not internal id, for exported CSV filename.
+// 20260706 MJ CSV filename now uses creditorSuggestion/creditorOrder/creditorInvoice prefix and order number.
 
 @session_start();
 $s_id = session_id();
@@ -43,7 +44,7 @@ print "</tbody></table></td></tr>"; #B1 slut
 print "<tr><td valign=top>";
 print "<table width=\"400\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; #B2
 
-$r = db_fetch_array(db_select("select ordrenr,status,art from ordrer where id = '$ordre_id'", __FILE__ . " linje " . __LINE__));
+$r = db_fetch_array(db_select("select ordrenr, status, art from ordrer where id = '$ordre_id'", __FILE__ . " linje " . __LINE__));
 $ordrenr = $r['ordrenr'] ? $r['ordrenr'] : $ordre_id;
 $csvPrefix = "creditorOrder";
 if ($r['art'] == 'KO') {
