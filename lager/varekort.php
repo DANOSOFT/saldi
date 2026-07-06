@@ -804,9 +804,8 @@ if ($saveItem || $submit = trim($submit)) {
             $query = db_select("select id from varer where lower(varenr) = '" . strtolower($varenr) . "' or  upper(varenr) = '" . strtoupper($varenr) . "'", __FILE__ . " linje " . __LINE__);
             $row = db_fetch_array($query);
             if ($row['id']) {
-                print "<BODY onLoad=\"javascript:alert('Der findes allerede en vare med varenr: $varenr!')\">";
-                $varenr = '';
-                $id = 0;
+                print "<meta http-equiv='refresh' content='0;URL=varekort.php?id=$row[id]'>";
+                exit;
             } elseif ($varenr) {
                 $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
                 if (db_num_rows($query) > 0) {
@@ -944,7 +943,7 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "salgspris_rounding='$salgspris_rounding',salgspris_multiplier='$salgspris_multiplier',";// 20221004
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
             $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision',";// 20221004
-            $qtxt .= "has_due_date=$has_due_date,";            
+            $qtxt .= "has_due_date=$has_due_date,";
             $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
             $qtxt .= "note_on_orderline=" . ($note_on_orderline ? 'true' : 'false');
             $qtxt .= " where id = '$id'";

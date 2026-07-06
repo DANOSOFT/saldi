@@ -314,7 +314,7 @@ if ($menu=='S') {
 			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 		print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 	}
-	print "<td width=\"75%\" align='center' style='$topStyle'>".findtekst(2189, $sprog_id)."</td>";
+	print "<td width=\"90%\" align='center' style='$topStyle'>".findtekst(2189, $sprog_id)."</td>";
 	print "<td width=5% style=$buttonStyle>";
 	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print "</button></td>";
@@ -368,8 +368,8 @@ print "<tr><td>Dato</td><td>Bilag nr.</td><td>Fakturanummer</td><td>Beskrivelse<
 print "<tr><td colspan=6><br></td>";
 print "<tr><td></td></tr><tr bgcolor=\"$linjebg\"><td>".dkdato($transdate[0])."</td><td>$refnr[0]</td>";
 $spantekst="Skriv fakturanummer p&aring; den faktura som denne betaling vedr&oslash;rer.\nP&aring; forfaldslisten vil det forfaldne bel&oslash;b reduceres tilsvarende.";
-if ($art=='DG' && $amount[0] < 0) print "<td title='$spantekst'><input class=\"inputbox\" type = \"text\" style=\"text-align:left;width:90px;\" name=faktnr[0] value = \"$faktnr[0]\"></td>";
-elseif ($art=='KG') print "<td title='$spantekst'><input class=\"inputbox\" type = \"text\" style=\"text-align:left;width:90px;\" name=faktnr[0] value = \"$faktnr[0]\"></td>";
+if ($art=='DG' && $amount[0] < 0) print "<td title='$spantekst'><input id=\"faktnrField\" class=\"inputbox\" type = \"text\" style=\"text-align:left;width:90px;\" name=faktnr[0] value = \"$faktnr[0]\"></td>";
+elseif ($art=='KG') print "<td title='$spantekst'><input id=\"faktnrField\" class=\"inputbox\" type = \"text\" style=\"text-align:left;width:90px;\" name=faktnr[0] value = \"$faktnr[0]\"></td>";
 else {
 	print "<td>$faktnr[0]</td>";
 	print "<input type=\"hidden\" name=\"faktnr[0]\" value = \"$faktnr[0]\">";
@@ -393,7 +393,7 @@ if ($diff!=0) {
 			$udlign[$x]="checked";
 			if($transdate[$x]>$udligndate) $udligndate=$transdate[$x]; 
 		}	else $udlign[$x]=NULL;
-		print "<td align=center><input type=\"checkbox\" name=\"udlign[$x]\" $udlign[$x]></td></tr>";
+		print "<td align=center><input type=\"checkbox\" class=\"udlignCheckbox\" data-faktnr=\"".htmlspecialchars($faktnr[$x], ENT_QUOTES)."\" name=\"udlign[$x]\" $udlign[$x]></td></tr>";
 		print "<input type=\"hidden\" name=\"kontrol[$x]\" value=\"$udlign[$x]\"></td></tr>";
 	}
 } else {
@@ -472,5 +472,37 @@ elseif (abs($dkkdiff)<$maxdiff) {
 print "<span title=\"".findtekst(180,$sprog_id)."\"><input type=\"submit\" style=\"width:150px\" value=\"Opdater\" name=\"submit\"></span>";
 print "&nbsp;<input type=\"submit\" id=\"btn_findmodposter\" style=\"width:150px\" value=\"Find modposter\" name=\"submit\">";
 print "</td></tr></form>\n";
+
+// Auto-udfyld fakturanummer-feltet ud fra de poster der afm&aelig;rkes til udligning.
+// N&aring;r en post afm&aelig;rkes, inds&aelig;ttes dens fakturanummer i feltet; fjernes afm&aelig;rkningen, fjernes nummeret igen.
+// Feltet kan stadig redigeres manuelt.
+print "<script>
+(function(){
+	function getField(){ return document.getElementById('faktnrField'); }
+	function splitField(v){
+		return v.split(',').map(function(s){return s.trim();}).filter(function(s){return s.length;});
+	}
+	function applyFaktnr(cb){
+		var field = getField();
+		if (!field) return;
+		var fakt = (cb.getAttribute('data-faktnr')||'').trim();
+		if (!fakt) return;
+		var list = splitField(field.value);
+		var idx = list.indexOf(fakt);
+		if (cb.checked){
+			if (idx === -1) list.push(fakt);
+		} else {
+			if (idx !== -1) list.splice(idx,1);
+		}
+		field.value = list.join(', ');
+	}
+	var boxes = document.querySelectorAll('.udlignCheckbox');
+	for (var i=0; i<boxes.length; i++){
+		boxes[i].addEventListener('change', function(){ applyFaktnr(this); });
+		// Forudfyld for poster der allerede er afm&aelig;rket ved sideindl&aelig;sning (fx efter 'Find modposter').
+		if (boxes[i].checked) applyFaktnr(boxes[i]);
+	}
+})();
+</script>\n";
 
 ?>

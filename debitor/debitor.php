@@ -487,7 +487,7 @@ include_once '../includes/oldDesign/footer.php';
         'email' => 'Email',
         'web' => 'Web',
         'land' => 'Land',
-        'fax' => 'Fax',
+        'mobile' => 'Mobile',
         'kreditmax' => 'Kreditmax',
         'betalingsdage' => 'Betalingsdage',
         'oprettet' => 'Oprettet',

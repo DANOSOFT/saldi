@@ -33,7 +33,9 @@ kreditor/betalinger_old.php
 logolib/
 
 #services
-.claude/
+.claude/*
+!.claude/memory
+!.claude/memory/*
 
 #test
 /price.txt
@@ -84,8 +86,9 @@ email.php
 .ht*
 
 # Live Service
-index/redirect.php
-stock.txt
-vareFlytning.txt
-varenr_alias.txt
-varer.csv
+/index/redirect.php
+/stock.txt
+/vareFlytning.txt
+/varenr_alias.txt
+/varer.csv
+/index/redirect.php

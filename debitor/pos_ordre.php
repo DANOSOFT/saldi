@@ -98,6 +98,7 @@
 //                 without pos_betalinger rows are included when finding distinct betaling types
 // 20260523 CL/PHR function posbogfor: Changed order lookup query to LEFT JOIN with COALESCE(felt_1/valuta)
 //                 so art='DO' orders without pos_betalinger are passed to bogfor_nu
+// 20260601 Sawaneh Out-of-stock popup now also fires for sub-items of a samlesæt (set), not just the master varenr
 // 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
 @session_start();
 $s_id = session_id();
@@ -155,6 +156,7 @@ include("pos_ordre_includes/showPosLines/showPosLinesFunc.php"); #20190510
 
 include("pos_ordre_includes/exitFunc/exit.php"); #20190510
 
+global $baseCurrency;
 $valuta = $baseCurrency;
 if(isset($_GET["payment_id"])){
 	$_SESSION["payment_id"] = $_GET['payment_id'];
@@ -165,7 +167,7 @@ if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi
 	$zoom = usdecimal(get_settings_value("mobilzoom", "POS", "1.0", null, $_COOKIE["saldi_pos"]));
 	print "<meta name='viewport' content='width=$width, initial-scale=$zoom, maximum-scale=$zoom, user-scalable=0'>";
 }
-
+global $menu;
 if ($menu == 'T') {
 	if (!$bgcolor)
 		$bgcolor = "#000000";
@@ -175,6 +177,7 @@ if ($menu == 'T') {
 	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
+	global $meta_returside;
 	if ($meta_returside)
 		print "$meta_returside"; #20140502
 	if ($css)
@@ -1502,13 +1505,32 @@ if ($vare_id) {
 					$rabat_ny *= 1;
 					db_modify("update ordrelinjer set rabat='$rabat_ny' where ordre_id='$id' and vare_id >'0' and rabat=0", __FILE__ . " linje " . __LINE__);
 				}
-				$qtxt = "select id,samlevare from varer where varenr = '$varenr_ny' or stregkode = '$varenr_ny'"; #20200929
+				$qtxt = "select id,samlevare,varenr from varer where varenr = '$varenr_ny' or stregkode = '$varenr_ny'"; #20200929
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				#-- Out-of-stock warning gate (Håndtering af salg af udsolgte varer) --
 				$stockWarningConfirmed = (isset($_POST['stock_warning_confirmed']) && $_POST['stock_warning_confirmed'] == '1');
 				$stockWarningNote      = isset($_POST['stock_warning_note']) ? trim($_POST['stock_warning_note']) : '';
 				$stockWarningOn        = is_stock_warning_enabled();
-				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id']) : array('out_of_stock' => false);
+				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id'], $antal_ny) : array('out_of_stock' => false);
+				$swLogVareId           = $r['id'];
+				if ($stockWarningOn && empty($stockInfo['out_of_stock']) && trim($r['samlevare']) === 'on') {
+					$qSub = db_select("select vare_id, antal from styklister where indgaar_i = '" . (int)$r['id'] . "' and vare_id is not null and vare_id > 0", __FILE__ . " linje " . __LINE__);
+					while ($rSub = db_fetch_array($qSub)) {
+						$subAntal = (float)$rSub['antal'] * (float)$antal_ny;
+						$subInfo = check_stock_warning((int)$rSub['vare_id'], $subAntal);
+						$insufficient = ($subAntal > 0 && (float)$subInfo['beholdning'] < $subAntal);
+						if (!empty($subInfo['out_of_stock']) || $insufficient) {
+							$desc = trim((string)$subInfo['beskrivelse']) . ' (samlesæt: ' . (string)$r['varenr'];
+							if ($insufficient) $desc .= ', kræver ' . rtrim(rtrim(number_format($subAntal, 3, '.', ''), '0'), '.') . ' på lager: ' . rtrim(rtrim(number_format((float)$subInfo['beholdning'], 3, '.', ''), '0'), '.');
+							$desc .= ')';
+							$subInfo['beskrivelse']  = $desc;
+							$subInfo['out_of_stock'] = true;
+							$stockInfo   = $subInfo;
+							$swLogVareId = (int)$rSub['vare_id'];
+							break;
+						}
+					}
+				}
 				$blockOnStockWarning   = ($stockWarningOn && $stockInfo['out_of_stock'] && !$stockWarningConfirmed);
 				if ($blockOnStockWarning) {
 					$swPayload = array(
@@ -1530,7 +1552,7 @@ if ($vare_id) {
 					print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
 					print "<script type=\"application/json\" id=\"saldi-sw-pos-payload\">$swPayloadJson</script>\n";
 					print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
-					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['varenr_ny'])f.elements['varenr_ny'].value='';if(f.elements['antal_ny'])f.elements['antal_ny'].value='';}};SaldiStockWarning.show(__sw);});</script>\n";
+					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['antal_ny'])f.elements['antal_ny'].value='';var vn=f.elements['varenr_ny'];if(vn){vn.value='';try{vn.focus();}catch(e2){}}}};SaldiStockWarning.show(__sw);});</script>\n";
 				}
 				if (!$blockOnStockWarning) {
 					if ($r['samlevare'])
@@ -1541,44 +1563,40 @@ if ($vare_id) {
 					}
 					if ($stockWarningConfirmed && $stockWarningNote !== '' && $stockInfo['out_of_stock']) {
 						$swLinjeId = 0;
-						$rSW = db_fetch_array(db_select("select max(id) as lid from ordrelinjer where ordre_id = '$id' and varenr = '$varenr_ny'", __FILE__ . " linje " . __LINE__));
+						// Find the line for the item that was actually warned about (master or sub-item of a samlesæt).
+						$rSW = db_fetch_array(db_select("select max(id) as lid from ordrelinjer where ordre_id = '$id' and vare_id = '" . (int)$swLogVareId . "'", __FILE__ . " linje " . __LINE__));
 						if ($rSW && $rSW['lid']) $swLinjeId = $rSW['lid'];
-						log_stock_warning($id, $r['id'], $stockWarningNote, $swLinjeId);
+						log_stock_warning($id, $swLogVareId, $stockWarningNote, $swLinjeId);
 					}
 				}
 				if (!$blockOnStockWarning) {
-				if (usdecimal($pris_ny, 2) == 0.00)
-					$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
-				if ($svar && !is_numeric($svar)) {
-					print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
-					$fokus = "pris_ny";
-				} else {
-					$qtxt = "select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'";
-					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
-						$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					if (usdecimal($pris_ny, 2) == 0.00)
+						$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
+					if ($svar && !is_numeric($svar)) {
+						print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
+						$fokus = "pris_ny";
+					} else {
+						$qtxt = "select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'";
+						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
+							$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
+							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						}
+						$varenr_ny = $next_varenr;
+						$tmp = $antal_ny; #Til kundedisplay
+						$antal_ny = NULL;
+						#			$sum=0;
 					}
-					$varenr_ny = $next_varenr;
-					$tmp = $antal_ny; #Til kundedisplay
-					$antal_ny = NULL;
-					#			$sum=0;
 				}
-				}
-				/*
-											if ($kundedisplay) {
-												 kundedisplay($beskrivelse_ny,usdecimal($pris_ny,2)*$tmp,0);
-							#					kundedisplay('Subtotal',$sum+$pris_ny*$tmp,0);
-											}
-							*/
 			}
 		} elseif ($varenr_ny)
-			$sum = find_pris($varenr_ny);
-		#		else $sum=0;
+				$sum = find_pris($varenr_ny);
+		// else $sum=0;
 	}
 }
 
 ############################
+global $regnaar;
 $x = 0;
 if ($id) {
 	$qtxt = "select id from ordrer where id = '$id' and art = 'PO'";

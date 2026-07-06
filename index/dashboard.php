@@ -23,13 +23,14 @@
 //
 // Copyright (c) 2024-2025 saldi.dk aps
 // ----------------------------------------------------------------------
-//20241004 MMK  
-//20241018 LOE checks that some variables are set before using. 
-//20250513 Sawaneh display number of users online. 
+//20241004 MMK
+//20241018 LOE checks that some variables are set before using.
+//20250513 Sawaneh display number of users online.
 //20250805 LOE added close button to settings popup. and also added weekly graph snippet
 @session_start();
 $s_id = session_id();
 
+global $sprog_id;
 
 $css = "../css/dashboard.css?v=1";
 print "<title>Overblik</title>";
@@ -101,7 +102,7 @@ function check_permissions($permarr) {
 	return !empty($filtered);
 }
 
-
+global $regnaar;
 
 # If the user has finans -> regnskab or finans -> reports level access
  if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
@@ -129,11 +130,11 @@ function check_permissions($permarr) {
 
 	print "</div>";
 	print "</div>";
-
 	// Expiry warning for users without finance access but with inventory access
 	if (check_permissions(array(12))) {
 		$_expiry_warn_days = get_due_date_warning_days($bruger_id);
-		$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, COUNT(*) AS batch_count
+		$_expiry_qtxt = "SELECT COUNT(DISTINCT bk.vare_id) AS item_count, 
+                            COUNT(*) AS batch_count
 		                 FROM batch_kob bk
 		                 WHERE bk.due_date IS NOT NULL AND bk.rest > 0
 		                 AND bk.due_date <= CURRENT_DATE + interval '$_expiry_warn_days days'";
@@ -217,7 +218,7 @@ $varegrp_doughnut = get_settings_value("varegrp_doughnut", "dashboard_toggles", 
 $closed_newssnippet = get_settings_value("closed_news_snippet", "dashboard", "");
 $hide_dash = get_settings_value("hide_dash", "dashboard", "0", $user=$bruger_id);
 
-/* 
+/*
 # Omsætning i et tidsrum
 
 SELECT SUM(T.kredit - T.debet)
@@ -225,7 +226,7 @@ FROM transaktioner T
 WHERE T.transdate >= '2024-01-01'
 AND T.transdate <= '2024-02-01'
 AND T.kontonr < 2000;
- 
+
 # Ufakturerede ordrer
 SELECT count(*) FROM "ordrer" WHERE "status" < '3' AND "ordredate" > '2024-03-09'
 
@@ -333,7 +334,7 @@ if ($state) {
 } else {
 	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 }
-	
+
 print "</div>";
 print "</div>";
 
@@ -345,7 +346,7 @@ print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
 
 
 # #######################################
-#  Omsætning for ugen         
+#  Omsætning for ugen
 # #######################################
 if( $revweek === "on") {
   include("./dashboardIncludes/revenue_week.php");
@@ -464,14 +465,14 @@ print "
 <div style='display: none' id='settingpopup'>
   <!-- Popup Background -->
   <div onclick=\"document.getElementById('settingpopup').style.display='none'\" style='top: 0; position: fixed; height: 100vh; width: 100vw; background-color: #00000030'></div>
-  
+
   <!-- Popup Content -->
   <div style='width: 600px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed;'>
     <!-- Close Button -->
     <button onclick=\"document.getElementById('settingpopup').style.display='none'\"
         style='position: absolute; top: 0.5em; right: 0.5em; border: none; background: transparent; font-size: 1.2em; cursor: pointer; color: #e00;'>&times;</button>
 
-    
+
     <h3>" . findtekst('2151|Opsæt din oversigt', $sprog_id) . "</h3>
 <form method='post'>
   <table>
@@ -490,7 +491,7 @@ print "
       <td><input type='text' name='kontomaks' value='$kontomaks' /></td>
           <td>".findtekst('2156|Se vores guide', $sprog_id)." <a href='https://site.saldi.dk/saldi-manualer/omsaetningstal' target='_blank'>".findtekst('2157|her', $sprog_id)."</a>.</td>
     </tr>
-        
+
         <!-- Nøgletal Section -->
     <tr>
       <th>".findtekst('2158|Nøgletal', $sprog_id)."</th>
@@ -516,14 +517,14 @@ print "
           <td>".findtekst('520|Momsangivelse', $sprog_id)."</td>
           <td><input type='checkbox' name='vatcount' " . ($vat_count === "on" ? "checked" : "") . " /></td>
         </tr>
-        
+
         <!-- Grafer Section -->
     <tr>
       <th>".findtekst('2162|Grafer', $sprog_id)."</th>
       <th></th>
     </tr>
     <tr>
-          <td>".findtekst('2678|Graf over ugentlig omsætning', $sprog_id)."</td> 
+          <td>".findtekst('2678|Graf over ugentlig omsætning', $sprog_id)."</td>
           <td><input type='checkbox' name='revweek' " . ($revweek === "on" ? "checked" : "") . " /></td>
     </tr>
     <tr>
@@ -538,7 +539,7 @@ print "
           <td>".findtekst('2576|Varegruppeomsætning', $sprog_id)."</td>
           <td><input type='checkbox' name='varegrpdoughnut' " . ($varegrp_doughnut === "on" ? "checked" : "") . " /></td>
     </tr>
-  </table> 
+  </table>
   <button type='submit'>".findtekst('3|Gem', $sprog_id)."</button>
 </form>
   </div>

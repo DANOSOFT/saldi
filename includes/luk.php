@@ -66,7 +66,11 @@ $returside=if_isset($_GET['returside']);
 $tabel=if_isset($_GET['tabel']);
 $id=if_isset($_GET['id']);
 if($tabel && $id) {
-	db_modify("update $tabel set tidspkt='', hvem='' where id=$id",__FILE__ . " linje " . __LINE__);
+	if ($tabel == 'ordrer') {
+		db_modify("update ordrer set tidspkt='', hvem = case when art in ('DO','DK') then hvem else '' end where id=$id",__FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("update $tabel set tidspkt='', hvem='' where id=$id",__FILE__ . " linje " . __LINE__);
+	}
 }
 if ($popup || !$returside) {
 	if ($browser=='chrome') print  "<body onload=\"javascript:closeChrome();\">";	

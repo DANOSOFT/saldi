@@ -2,6 +2,9 @@
 //..includes/orderFuncIncludes/grid_order.php
 // 20260203 @LOE Updated build_query to return exact searches first before related matches.
 // 20260601 Sawaneh Applied sqlOverride in build_count_query so ORDER BY uses the qualified column and avoids ambiguous-column error
+// 20260612 pk - Changed the size of the arrow buttons in pagination so that they are the same size as the number buttons
+// 20260630 Sawaneh render_table_row now wraps render-less column values in a <td> so raw values no longer leak as text above the grid
+// 20260701 CDX/NTR - Changed DEFAULT_GENERATE_SEARCH to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -118,6 +121,28 @@ function DEFAULT_GENERATE_SEARCH($column, $term) {
     }
     $term = str_replace(";", ":", $term);
     
+    // Numeric comparison searches: >10, >=10, <10, <=10, 10+ (10 or more) and 10- (10 or less).
+    if ($art == 'BELOB') {
+        $precision = isset($column['decimalPrecision']) ? $column['decimalPrecision'] : 2;
+        $numericField = "round(COALESCE({$field}::numeric, 0), {$precision})";
+
+        if (preg_match('/^(>=|<=|>|<)\s*(.+)$/', $term, $matches)) {
+            $operator = $matches[1];
+            $numValue = usdecimal(trim($matches[2]));
+            return "({$numericField} {$operator} $numValue)";
+        }
+
+        if (preg_match('/^(.+)\+$/', $term, $matches)) {
+            $numValue = usdecimal(trim($matches[1]));
+            return "({$numericField} >= $numValue)";
+        }
+
+        if (preg_match('/^(.+)-$/', $term, $matches)) {
+            $numValue = usdecimal(trim($matches[1]));
+            return "({$numericField} <= $numValue)";
+        }
+    }
+
     // Special handling for single BELOB (number) values - create narrow range
     if ($art == 'BELOB' && strpos($term, ':') === false) {
         $numValue = usdecimal($term);
@@ -139,7 +164,8 @@ function DEFAULT_GENERATE_SEARCH($column, $term) {
             $tmp1 = usdecimal($tmp1);
             $tmp2 = usdecimal($tmp2);
             $precision = $column['decimalPrecision'];
-            return "(round({$field}::numeric, {$precision}) >= $tmp1 AND round({$field}::numeric, {$precision}) <= $tmp2)";
+            $numericField = "round(COALESCE({$field}::numeric, 0), {$precision})";
+            return "({$numericField} >= $tmp1 AND {$numericField} <= $tmp2)";
             
         } elseif ($art == "NR") {
             $tmp1 = round($tmp1 * 1, 2);
@@ -686,20 +712,30 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
  * @return array The first array with missing values filled from the second array.
  */
 function fill_missing_values($firstArray, $secondArray) {
-    foreach ($firstArray as &$firstItem) {
-        foreach ($secondArray as $secondItem) {
-            if ($firstItem['field'] === $secondItem['field']) {
-                foreach ($secondItem as $key => $value) {
-                    if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
-                        $firstItem[$key] = $value;
-                    }
-                }
-                break;
-            }
+    $columnsByField = array();
+    foreach ($secondArray as $secondItem) {
+        if (isset($secondItem['field'])) {
+            $columnsByField[$secondItem['field']] = $secondItem;
         }
     }
-    unset($firstItem);
-    return $firstArray;
+
+    $merged = array();
+    foreach ($firstArray as $firstItem) {
+        if (!isset($firstItem['field']) || !isset($columnsByField[$firstItem['field']])) {
+            continue;
+        }
+
+        $mergedItem = $columnsByField[$firstItem['field']];
+        foreach (array('headerName', 'description', 'width', 'align', 'hidden') as $key) {
+            if (isset($firstItem[$key]) && $firstItem[$key] !== "") {
+                $mergedItem[$key] = $firstItem[$key];
+            }
+        }
+
+        $merged[] = $mergedItem;
+    }
+
+    return $merged;
 }
 
 /**
@@ -830,7 +866,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
             if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
                 $term = addslashes($searchTerms[$column['field']]);
                 // Convert both the column value and the search term to lowercase
-                if ($term) {
+                if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
                 }
             }
@@ -971,7 +1007,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         foreach ($searchableColumns as $column) {
             if (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] !== '') {
                 $term = addslashes($searchTerms[$column['field']]);
-                if ($term) {
+                if ($term !== '') {
                     $searchConditions[] = $column['generateSearch']($column, $term);
                 }
             }
@@ -1129,6 +1165,7 @@ HTML;
     echo <<<HTML
                 </tfoot>
             </table>
+            </div>
         </form>
     </div>
 HTML;
@@ -1162,10 +1199,11 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
         if ($column["sortable"]) {
-            echo "<th 
-                class='{$column['field']} sortable-td' 
-                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;' 
-                onclick=\"setSort$id('{$column['field']}')\"
+            $sort_dir = isset($column['defaultSortDirection']) ? $column['defaultSortDirection'] : 'asc';
+            echo "<th
+                class='{$column['field']} sortable-td'
+                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;'
+                onclick=\"setSort$id('{$column['field']}', '$sort_dir')\"
             >";
             echo "<span class='sortable'>{$column['headerName']}</span>";
         } else {
@@ -1184,26 +1222,33 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
         echo "<th class='{$column['field']}'>";
         if ($column["searchable"]) {
             $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
+            $columnSearchTermSafe = htmlspecialchars($columnSearchTerm, ENT_QUOTES, 'UTF-8');
             
-            if ($column["type"] == "dropdown" && isset($column['dropdownOptions'])) {
+            if ($column["type"] == "dropdown" && isset($column['dropdownOptions']) && is_callable($column['dropdownOptions'])) {
                 // Dropdown select for ref/sælger field AND date fields
                 echo "<select class='inputbox' style='text-align: {$column['align']}; width: 100%;' name='search[$id][{$column['field']}]' onchange='this.form.submit()'>";
                 echo "<option value=''></option>";
                 
+                ob_start();
                 $options = $column['dropdownOptions']();
+                ob_end_clean();
+                if (!is_array($options)) {
+                    $options = array();
+                }
                 foreach ($options as $option) {
                     $selected = ($option == $columnSearchTerm) ? 'selected' : '';
-                    echo "<option value='$option' $selected>$option</option>";
+                    $optionSafe = htmlspecialchars($option, ENT_QUOTES, 'UTF-8');
+                    echo "<option value='$optionSafe' $selected>$optionSafe</option>";
                 }
                 echo "</select>";
                 
             } elseif ($column["type"] == "date") {
                 // Date field with date picker
                 // echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder='dd-mm-yyyy eller dd-mm-yyyy:dd-mm-yyyy'>";
-                 echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+                 echo "<input class='inputbox date-picker' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTermSafe' placeholder=''>";
             } else {
                 // Regular text input
-                echo "<input class='inputbox' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+                echo "<input class='inputbox' style='text-align: {$column['align']}; width: 100%;' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTermSafe' placeholder=''>";
             }
         }
         echo "</th>";
@@ -1362,11 +1407,11 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
                         |
                         <span id='navbuttons'>
                             <button type='submit' name='offset[$id]' value='$lastpage' $lastpagestatus>
-                                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" height="22px" viewBox="0 -960 960 960" width="22px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
                             </button>
                             $pageLinks
                             <button type='submit' name='offset[$id]' value='$nextpage' $nextpagestatus>
-                                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" height="22px" viewBox="0 -960 960 960" width="22px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                             </button>
                         </span>
                     </div>
@@ -1504,10 +1549,12 @@ function render_table_row($columns, $row, $searchTerms) {
             );
         }
 
-        // Render the final data
+        // Wrap render-less column values in a <td>; otherwise the raw value is loose text
+        // inside the <tr> that the browser hoists out to above the table. #20260630
+        $align = isset($column['align']) ? $column['align'] : 'left';
         $data = isset($column['render']) && is_callable($column['render'])
             ? $column['render']($value, $row, $column)
-            : htmlspecialchars($value);
+            : "<td align='" . htmlspecialchars($align) . "'>" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "</td>";
 
         echo $data;
     }
@@ -1824,17 +1871,28 @@ function render_search_style() {
          * Modified 2025-11-25: Footer stays at bottom of viewport
          * ========================================================================== */
         .datatable-wrapper {
+            --debitor-grid-footer-space: 30px;
+            --debitor-grid-extra-footer-space: 52px;
+            --debitor-grid-page-padding: 8px;
+            box-sizing: border-box;
             margin-bottom: 5px;
-            overflow-x: auto;
-            overflow-y: auto;
+            overflow: hidden;
             position: relative;
             height: 100%;
             width: 100%;
         }
+        .datatable-wrapper form {
+            height: 100%;
+            margin: 0;
+        }
+        .datatable-search-wrapper {
+            height: calc(100% - var(--debitor-grid-footer-space) - var(--debitor-grid-extra-footer-space));
+            overflow: auto;
+            position: relative;
+        }
         .datatable {
             border-collapse: collapse;
             width: 100%;
-            height: 100%; /* Table fills the wrapper height */
         }
         .datatable thead {
             position: sticky;
@@ -1852,15 +1910,12 @@ function render_search_style() {
             /* No special styling needed - will expand naturally */
         }
         .datatable tfoot {
-            position: sticky;
-            bottom: 0;
-            z-index: 2;
-            background-color: #f4f4f4;
-            border-top: 2px solid #ddd;
+            background-color: transparent;
         }
         .datatable tfoot tr,
         .datatable tfoot td {
-            background-color: #f4f4f4;
+            background-color: transparent;
+            padding: 0;
         }
         /* ========================================================================== */
         .datatable tbody tr:nth-child(2n) {
@@ -1988,13 +2043,33 @@ function render_dropdown_style() {
             right: 0; /* Move to the right edge if needed */
         }
         tfoot tr td #footer-box {
+            position: fixed;
+            left: var(--debitor-grid-page-padding);
+            right: var(--debitor-grid-page-padding);
+            bottom: calc(var(--debitor-grid-extra-footer-space) + var(--debitor-grid-page-padding));
+            z-index: 999;
+            box-sizing: border-box;
             display: flex;
             align-items: center;
             gap: 10px;
             justify-content: flex-end;
+            min-height: 30px;
+            padding: 4px 8px;
+            background-color: #f4f4f4;
+            border-top: 2px solid #ddd;
         }
         tfoot tr td #footer-box button {
             padding: 0;
+        }
+        tfoot tr td #footer-box #navbuttons button {
+            background: #f0f0f0 !important;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            border: 1px solid #b8bec8 !important;
+            border-radius: 4px;
+        }
+        tfoot tr td #footer-box #navbuttons button svg {
+            fill: #000000;
         }
 
         tfoot tr td #footer-box button:not(:disabled) {
@@ -2395,12 +2470,15 @@ SCRIPT;
 function render_sort_script($id) {
     echo <<<SCRIPT
     <script>
-        function setSort$id(header) {
+        function setSort$id(header, defaultDir) {
             const sortBox = document.getElementsByName('sort[$id]')[0];
-            if (sortBox.value !== header) {
-                sortBox.value=header;
-            } else if (sortBox.value === header) {
-                sortBox.value=header + " desc";
+            defaultDir = defaultDir || 'asc';
+            const ascVal = header;
+            const descVal = header + ' desc';
+            if (defaultDir === 'desc') {
+                sortBox.value = (sortBox.value === descVal) ? ascVal : descVal;
+            } else {
+                sortBox.value = (sortBox.value === ascVal) ? descVal : ascVal;
             }
             sortBox.form.submit();
         }

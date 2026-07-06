@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/saft.php --- patch 4.1.1 --- 2025.05.03 ---
+// --- finans/saft.php --- patch 4.1.1 --- 2026.06.15 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20240128 PHR Changed "AND transdate <= '$startDate'" to "AND transdate < '$startDate'" as opening balance 
 // included day 1.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst() 
+// 20260615 LOE changed fax to mobile in company contact info, as fax is not used anymore.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
@@ -47,6 +48,13 @@ global $bgcolor, $bgcolor4, $bgcolor5;
 global $sprog_id;
 global $topStyle;
 global $buttonStyle;
+
+if (!function_exists('saftHtml')) {
+	function saftHtml($value)
+	{
+		return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+	}
+}
 
 $regnaar = "";
 $maaned_fra = "";
@@ -440,6 +448,28 @@ function csvToArray($csvFile)
 	return $lines;
 }
 
+if (!function_exists('saftTableColumns')) {
+	function saftTableColumns($tableName)
+	{
+		$columns = array();
+		$tableName = db_escape_string($tableName);
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '$tableName'";
+		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($query)) {
+			$columns[$r['column_name']] = true;
+		}
+		return $columns;
+	}
+}
+
+if (!function_exists('saftColumnSelect')) {
+	function saftColumnSelect($columns, $columnName, $default = '')
+	{
+		if (isset($columns[$columnName])) return $columnName;
+		return "'" . db_escape_string($default) . "' AS $columnName";
+	}
+}
+
 // Read the kontoplan csv file into an array 
 $csvFile_kontoplan = '../importfiler/kontoplan.txt';
 $csv_kontoplan = csvToArray($csvFile_kontoplan);
@@ -463,7 +493,25 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 }
 
 // COMPANY
-$qtxt = "SELECT firmanavn, addr1, addr2, bynavn, postnr, land, kontakt, tlf, fax, email, web, bank_navn, bank_reg, bank_konto, cvrnr FROM adresser WHERE art = 'S'";
+$addressColumns = saftTableColumns('adresser');
+$addressSelect = array(
+	saftColumnSelect($addressColumns, 'firmanavn'),
+	saftColumnSelect($addressColumns, 'addr1'),
+	saftColumnSelect($addressColumns, 'addr2'),
+	saftColumnSelect($addressColumns, 'bynavn'),
+	saftColumnSelect($addressColumns, 'postnr'),
+	saftColumnSelect($addressColumns, 'land'),
+	saftColumnSelect($addressColumns, 'kontakt'),
+	saftColumnSelect($addressColumns, 'tlf'),
+	saftColumnSelect($addressColumns, 'mobile'),
+	saftColumnSelect($addressColumns, 'email'),
+	saftColumnSelect($addressColumns, 'web'),
+	saftColumnSelect($addressColumns, 'bank_navn'),
+	saftColumnSelect($addressColumns, 'bank_reg'),
+	saftColumnSelect($addressColumns, 'bank_konto'),
+	saftColumnSelect($addressColumns, 'cvrnr')
+);
+$qtxt = "SELECT " . implode(', ', $addressSelect) . " FROM adresser WHERE art = 'S'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$firmanavn = $r['firmanavn'];
 	$Address = $r['addr1'];
@@ -480,7 +528,7 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$DefaultCurrencyCode = defaultCurrency($CountryName);
 	$Contact = $r['kontakt'];
 	$PhoneNumber = $r['tlf'];
-	$FaxNumber = $r['fax'];
+	$MobileNumber = $r['mobile'];
 	$Email = $r['email'];
 	$WebSite = $r['web'];
 	$BankAccountName = $r['bank_navn'];
@@ -666,8 +714,9 @@ if ($menu == 'T') {
 	
 	// Get CVR number
 	$query = db_select("select cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query))
+	if ($row = db_fetch_array($query)) {
 		$cvrnr = $row['cvrnr'];
+	}
 	
 	// STICKY HEADER - Close button, title, empty space
 	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
@@ -676,7 +725,7 @@ if ($menu == 'T') {
 	print "<td width=\"5%\" align='center'><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style=\"text-decoration: none;\">";
 	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td width='75%' align='center' style='$topStyle'>SAF-T Financial Reporting</td>";
+	print "<td width='90%' align='center' style='$topStyle'>SAF-T Financial Reporting</td>";
 	print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
 	print "</tr>";
 	print "</tbody></table>";
@@ -693,7 +742,7 @@ if ($menu == 'T') {
 	print "<tr>";
 	print "<td width='50%' valign='top'>";
 	print "<div class='saftTitle'>" . $newTitle . "</div>";
-	print "<div style='margin-top: 5px;' class='saftFirmName'>cvr: $cvrnr | $firmanavn</div>";
+	print "<div style='margin-top: 5px;' class='saftFirmName'>cvr: " . saftHtml($cvrnr) . " | " . saftHtml($firmanavn) . "</div>";
 	print "</td>";
 	print "<td width='50%' align='right' valign='top'>";
 	print "<div style='margin: 5px 4px 0 0;'>Regnskabsår: $regnaar</div>";
@@ -776,7 +825,7 @@ if ($standardKontoCheck) {
 	if ($fileExist) {
 		print "<table class='saftTable2'>";
 		print "<tr><th>File name</th><th>Size</th><th>Date and time of creation</th><th>&nbsp;</th>";
-		print "<tr><td>$fileName</td><td>$fileSizeKb</td><td>$formatedDate</td><td><button id='download' onclick='downloadFile(\"$filePath\", \"$fileName\")'>Download</button></td></tr>"; // <a href='$filePath' download><button>Download</button></a> 
+		print "<tr><td>" . saftHtml($fileName) . "</td><td>" . saftHtml($fileSizeKb) . "</td><td>" . saftHtml($formatedDate) . "</td><td><button id='download' onclick='downloadFile(\"" . saftHtml($filePath) . "\", \"" . saftHtml($fileName) . "\")'>Download</button></td></tr>"; // <a href='$filePath' download><button>Download</button></a>
 		print "</table>";
 		print "<table class=\"saftTable3\">";
 		print "<tr><td>";
@@ -787,7 +836,7 @@ if ($standardKontoCheck) {
 	print "<div id=\"xmlFile\">";
 	if ($filePath) {
 		$newFilePath = str_replace(' ', '%20', $filePath);
-		print '<pre data-src=' . $newFilePath . '></pre>';
+		print '<pre data-src="' . saftHtml($newFilePath) . '"></pre>';
 	}
 	print "</div>";
 } else {

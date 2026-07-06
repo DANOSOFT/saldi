@@ -31,7 +31,6 @@
 //
 // 20260526 NTR - Initial version.
 
-
 if (!function_exists('oauthSessionSave')) {
     /**
      * Upserts the encrypted OAuth payload into the settings table.
@@ -53,9 +52,9 @@ if (!function_exists('oauthSessionSave')) {
                 SQL;
         } else {
             $sql = <<<SQL
-                INSERT INTO settings 
-                (var_grp,   var_name,       var_value,      user_id) 
-                VALUES 
+                INSERT INTO settings
+                (var_grp,   var_name,       var_value,      user_id)
+                VALUES
                 ('OAuth',   'oauth_data',   '$encrypted',   '$uid')
             SQL;
         }

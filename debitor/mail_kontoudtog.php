@@ -42,7 +42,7 @@
 // 20250924 LOE Added static footer with email and period inputs + buttons
 // 20250925 LOE Kilde added to determine which emails to send
 // 20260303 PHR removed call to old phpmailer
-// 20260602 PHR Removed echo "Mail sent to ..."; 
+// 20260602 PHR Removed echo "Mail sent to ...";
 
 @session_start();
 $s_id=session_id();
@@ -514,7 +514,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailtext .= " * ".$r['addr2'];
 			if ( $r['postnr'] ) $mailtext .= " * ".$r['postnr']." ".$r['bynavn'];
 			if ( $r['tlf'] ) $mailtext .= " * tlf ".$r['tlf'];
-			if ( $r['fax'] ) $mailtext .= " * fax ".$r['fax'];
+			if ( $r['mobile'] ) $mailtext .= " * mobile ".$r['mobile'];
 			if ( $r['cvrnr'] ) $mailtext .= " * cvr ".$r['cvrnr'];
 			$mailtext .= "<p>\n</td></tr>\n";
 			$mailtext .= "</table></body></html>\n";
@@ -544,7 +544,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailbody .= $r['addr2']."<br />\n";
 			if ( $r['postnr'] ) $mailbody .= $r['postnr']." ".$r['bynavn']."<br />\n";
 			if ( $r['tlf'] ) $mailbody .= "tlf ".$r['tlf'];
-			if ( $r['fax'] ) $mailbody .= " * fax ".$r['fax'];
+			if ( $r['mobile'] ) $mailbody .= " * mobile ".$r['mobile'];
 			if ( $r['cvrnr'] ) $mailbody .= " * cvr ".$r['cvrnr'];
 			$mailbody .= "</p></body></html>";
 

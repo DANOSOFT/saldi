@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// --- finans/listeangivelse.php --- lap 5.0.0 --- 2026-05-22 ---
+// --- finans/listeangivelse.php --- lap 5.0.0 --- 2026-06-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,18 +45,15 @@ include("../includes/std_func.php");
 
 
 $listefilnavn = "../temp/listeangivelse_".trim($db)."_".date('ymdH').".csv";
-#$tophtml="<html>\n<head><title>$title</title></head>\n<body>\n";
-$tophtml= "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>\n";
-$tophtml.= "<tr><td height = 25 align=center valign=top>";
-$tophtml.= "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><td width=10% $top_bund>\n";
+
+include("../includes/topline_settings.php");
 
 $debughtml="<!-- DEBUG INFO - start -->\n<div style='background: yellow'>\n";
 
 $bodyhtml="";
 
-$bottomhtml="</td></tr>\n";
-$bottomhtml.="<tr><td colspan=$colspan width=100%><hr></td></tr>\n";
-$bottomhtml.="</tbody></table>\n\n";
+$bottomhtml ="</div>\n";
+$bottomhtml.="</div>\n";
 $bottomhtml.="\n</body>\n</html>";
 
 $md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
@@ -90,7 +87,8 @@ if ($_POST){ # 20140729 Start afsnit 1
         $listeperiode=isset($_GET['listeperiode'])? $_GET['listeperiode']:NULL;
 } else {
 	# $bodyhtml.=vis_alle_kvartaler();
-	$bodyhtml.="\n<h1>Ingen perioder valgt</h1>\n<p>Klik p&aring; linket Luk og v&aelig;lg en periode.</p>\n\n";
+	$bodyhtml.="\n<h1>Ingen perioder valgt</h1>\n<p>Klik p&aring; linket Tilbage og v&aelig;lg en periode.</p>\n\n";
+	$tophtml = listetopmenu("Listeangivelse");
 	print $tophtml.$bodyhtml.$bottomhtml;
 	exit;
 }
@@ -188,11 +186,7 @@ while ($row = db_fetch_array($query)) {
 	$debughtml.= "</table>\n\n";
 } 
 
-$tophtml.= "<a href='$returside' accesskey=L>Luk</a></td>\n";
-$tophtml.= "<td width=80% $top_bund align=center>Listeangivelse ".$liste_md.". måned ".$liste_aar."</td>\n"; # 20140729 afsnit 3
-$tophtml.= "<td width=10% $top_bund >&nbsp;</td>\n";
-$tophtml.= "</tr></tbody></table></td>\n";
-$tophtml.= " </td></tr>\n<tr><td align=\"center\" valign=\"top\" width=\"100%\">\n";
+$tophtml = listetopmenu("Listeangivelse ".$liste_md.". måned ".$liste_aar); # 20140729 afsnit 3
 
 if ( $antal_poster > 0 ) {
 	$datafil .= "\n10,".$antal_poster.",".$totalsumdkk.",,,,,,\n";
@@ -245,6 +239,29 @@ if ( isset($_POST['debug']) || isset($_GET['debug']) ) {
 	print $tophtml.$bodyhtml.$debughtml.$bottomhtml;
 } else {
 	print $tophtml.$bodyhtml.$bottomhtml;
+}
+
+
+function listetopmenu($tekst) {
+	global $returside, $bgcolor, $buttonStyle, $topStyle, $sprog_id;
+
+	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
+	$html  = "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+	$html .= "<div id='laPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+	$html .= "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+	$html .= "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
+	$html .= "<tr><td colspan=8 align=center>";
+	$html .= "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+	$html .= "<td width='10%' align='center'><a accesskey=L href=\"$returside\">
+		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px;' onMouseOver=\"this.style.cursor='pointer'\">$tilbage_icon".findtekst(30, $sprog_id)."</button></a></td>";
+	$html .= "<td width='90%' align='center' style='$topStyle'>$tekst</td>";
+	$html .= "</tbody></table>";
+	$html .= "</td></tr></tbody></table>";
+	$html .= "</div>\n";
+	$html .= "<div id='laGridWrapper' style='flex:1 1 auto;min-height:0;overflow-y:auto;width:100%;background-color:$bgcolor;padding:0 8px;box-sizing:border-box;'>\n";
+
+	return $html;
 }
 
 

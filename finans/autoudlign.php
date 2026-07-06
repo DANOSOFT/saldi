@@ -32,7 +32,7 @@
 // 2020.09.14 PHR - Added search for account if 'afr:' in text
 // 2020.11.07 PHR - Added controle for duplicates when displaying matching openposts 'distinct(openpost.id)'
 // 2026.05.14 LOE - General code cleanup and modernization; no functional changes intended.
-// 20260519 CL/PHR Fixet problem that it did not find some openoposts.
+// 2026.05.19 CL/PHR Fixet problem that it did not find some openoposts.
 
 @session_start();
 $s_id = session_id();
@@ -52,57 +52,6 @@ $settled   = max(0, intval($_GET['settled']  ?? 0));
 --------------------------------------------------------------- */
 $save_error   = '';
 $save_success = false;
-
-if (isset($_POST['submit']) && $_POST['submit']=='Udlign') {
-		list($kontonr,$art,$faktnr)=explode(":-:",$_POST['udlign']);
-		if ($art && $kontonr) {
-			if($_GET['amount']<0) $qtxt="update kassekladde set d_type='$art', debet='$kontonr', faktura='$faktnr' where id = $id";
-			else $qtxt="update kassekladde set k_type='$art', kredit='$kontonr', faktura='$faktnr' where id = $id";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
-}
-print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-if ($menu=='T') {
-	$leftbutton="<a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>Luk</a>";
-	$rightbutton="";
-	include("../includes/top_header.php");
-	include("../includes/top_menu.php");
-} elseif ($menu=='S') {
-	include("../includes/sidemenu.php");
-} else {
-	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>Luk</a></td>";
-	print "<td width=\"80%\" $top_bund>Autoudligning</td>";
-	print "<td width=\"10%\" $top_bund><br></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
-}
-if ($kladde_id)	{
-	$x=0;
-	$brugt=array();
-	$q = db_select("select * from kassekladde where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		if ($r['faktura'] && ($r['d_type']=='K' || $r['d_type']=='D' || $r['k_type']=='K' || $r['k_type']=='D')) {
-			$x++;
-			$brugt[$x]=$r['faktura'];
-		}
-	}
-	$x=0;
-	$q = db_select("select * from kassekladde where kladde_id=$kladde_id and id > $id order by id",__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$amount=0;
-		if ($r['debet'] && !$r['kredit']) $amount=$r['amount']*1;
-		elseif (!$r['debet'] && $r['kredit']) $amount=$r['amount']*-1;
-		if ($amount) {
-			$x++;
-			udlign($kladde_id,$r['id'],$r['transdate'],$r['beskrivelse'],$amount);
-			exit;
-		}
-	} 
-}
-print "</td></tr></tbody></table>";
-print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
 
 if (isset($_POST['action']) && $_POST['action'] === 'udlign') {
     $post_kontonr = trim($_POST['kontonr']   ?? '');

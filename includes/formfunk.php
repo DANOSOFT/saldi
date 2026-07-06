@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-04-24 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-06-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,9 +49,13 @@
 // 20260424 LOE populate leveres and leveret from batch_salg if empty, for invoice printing.
 // 20260426 PHR Outcommented change by PBLM as it has to be modified
 // 20260528 Sawaneh Print out-of-stock approval note under item description; fall back to formular 3 when requested formularer layout is missing
+// 20260611 LOE Added hvem to show up in printing of necessary documents.
+// 20260623 Sawaneh Log 'Reason' (out-of-stock approval note) now prints only on the delivery note, not on quotes/orders/invoices.
+// 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
+// 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
 
 #use PHPMailer\PHPMailer\PHPMailer;
-#use PHPMailer\PHPMailer\Exception;
+#use PHPMailer\PHPMailer\Exception; 
 
 
 if (!function_exists('skriv')) {
@@ -72,6 +76,7 @@ if (!function_exists('skriv')) {
 		#	global $id;
 		global $sum;
 		global $ref;
+		global $hvem;
 		global $transportsum;
 		global $formularsprog;
 		global $charset;
@@ -470,7 +475,7 @@ if (!function_exists('find_form_tekst')) {
 		#	global $linjeafstand;
 		global $moms, $momsgrundlag;
 		global $psfp;
-		global $ref, $regnaar, $returside;
+		global $ref, $hvem, $regnaar, $returside;
 		global $side, $sum;
 		global $transportsum;
 		global $valuta, $valutakurs, $vis_saet;
@@ -1003,7 +1008,7 @@ if (!function_exists('formularprint')) {
 		global $mailantal, $mappe, $moms, $momsgrundlag, $momssats;
 		global $nextside;
 		global $pdftk, $ps2pdf, $printerid, $printfilnavn;
-		global $ref, $regnaar, $returside;
+		global $ref, $hvem, $regnaar, $returside;
 		global $s_id, $side, $sprog_id, $subtotal, $sum;
 		global $transportsum;
 		global $vis_saet, $weasyprint;
@@ -1166,6 +1171,7 @@ if (!function_exists('formularprint')) {
 				$afd = $row['afd'];
 				$art = $row['art'];
 				$ref = $row['ref'];
+				$hvem = $row['hvem'];
 				$ordrenr = $row['ordrenr'];
 				if (!$udskriv_alle_til)
 					$udskriv_til = $row['udskriv_til'];
@@ -1658,6 +1664,7 @@ if (!function_exists('formularprint')) {
 			 *					  $htminitxt.="</head>\n";
 			 *					  $htminitxt.="<body>\n";
 			 */
+			global $valg;
 			fwrite($htmfp, $htm_ini);
 			$rabat[0] = formulartekst($ordre_id[$o], $formular, $formularsprog);
 			if ($ordre_id[$o]) {
@@ -1703,23 +1710,32 @@ if (!function_exists('formularprint')) {
 					// 20190115 herover: tilføjet ,id til 'order by' -- herunder: tilføjet  || $row['folgevare']
 					// grundet manglende varenr 9494600512 på fakt 4193 i saldi_401
 
-
+					// Track printed line keys to avoid duplicates, but allow discounts to be printed.
+					$printedLineKeys = array();
 
 					while ($row = db_fetch_array($q)) {
+						$printedLineKey = trim($row['posnr']) . "\t" . trim($row['varenr']);
 
-						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!in_array($row['posnr'], $posnr) || $row['folgevare'])) {
+						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!isset($printedLineKeys[$printedLineKey]) || $row['folgevare'])) {
 							$x++;
+							$printedLineKeys[$printedLineKey] = 1;
 							$posnr[$x] = trim($row['posnr']);
 							$varenr[$x] = trim($row['varenr']);
 							$lev_varenr[$x] = trim($row['lev_varenr']);
 							$projekt[$x] = ($row['projekt']);
 							$beskrivelse[$x] = trim($row['beskrivelse']);
-							// Append the out-of-stock approval note (if any) under the item description.
-							$_sw_lid = (int)$row['id'];
-							if ($_sw_lid > 0) {
-								$_sw_r = @db_fetch_array(@db_select("select note from order_stock_warning_log where linje_id = '$_sw_lid' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
-								if ($_sw_r && isset($_sw_r['note']) && trim($_sw_r['note']) !== '') {
-									$beskrivelse[$x] .= "\n" . trim($_sw_r['note']);
+							// Append the out-of-stock approval note (the log 'Reason') under the item
+							// description, but ONLY on the delivery note (følgeseddel, formular 3).
+							// It is for internal use and must never appear on quotes, orders, invoices
+							// or any other document type. $formular here is the current document's type
+							// (set per-document from $form[$o] at the top of this loop).
+							if ($formular == 3) {
+								$_sw_lid = (int)$row['id'];
+								if ($_sw_lid > 0) {
+									$_sw_r = @db_fetch_array(@db_select("select note from order_stock_warning_log where linje_id = '$_sw_lid' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+									if ($_sw_r && isset($_sw_r['note']) && trim($_sw_r['note']) !== '') {
+										$beskrivelse[$x] .= "\n" . trim($_sw_r['note']);
+									}
 								}
 							}
 							$enhed[$x] = trim($row['enhed']);
@@ -2244,6 +2260,7 @@ if (!function_exists('formulartekst')) {
 		global $printfilnavn;
 		global $returside;
 		global $side;
+		global $art;
 
 		$rabat = NULL;
 		if ($id) {

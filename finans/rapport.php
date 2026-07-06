@@ -24,11 +24,11 @@
 // Copyright (c) 2003-2026 saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 20210110 PHR some minor changes related til 'deferred financial year' 
+// 20210110 PHR some minor changes related til 'deferred financial year'
 // 20230611 +20230619 PHR php8
 // 20240403 PHR Changet bankReconcile to $[POST]
 // 20241018 LOE Checks that some variables are set before using and other minore modifications
-// 20260227 PHR Moved include("../includes/row-hover-style.js.php") down as it broke saf-t and other using header 
+// 20260227 PHR Moved include("../includes/row-hover-style.js.php") down as it broke saf-t and other using header
 // 20260306 LOE Updated some variables with if_isset() to avoid excessive undefined variable notices in error logs.
 @session_start();
 $s_id = session_id();
@@ -112,7 +112,7 @@ if ($_POST) {
 	$lagerbev = if_isset($_POST, NULL, 'lagerbev');
 
 	$bankReconcile  = if_isset($_POST, NULL, 'bankReconcile');
-	
+
 	if (stristr($rapportart, "Listeangivelse")) {
 		$listeperiode = preg_replace('/[^0-9.]*/', '', $rapportart); # 20140729 afsnit 1
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=listeangivelse.php?listeperiode=$listeperiode\">";
@@ -204,7 +204,7 @@ if ($_POST) {
 		$projekt_fra = NULL;
 		$projekt_til = NULL;
 	}
-	
+
 	/**#+
 	 * Processes 'konto_fra', 'konto_til', and 'regnaar' from the POST data.
 	 * For each, if the value contains a delimiter (":" or " - "), it splits into two parts:
@@ -231,7 +231,7 @@ $maaned_fra   = if_isset($_GET, $maaned_fra, 'maaned_fra');
 $aar_fra      = if_isset($_GET, $aar_fra, 'aar_fra');
 $konto_fra    = if_isset($_GET, $konto_fra, 'konto_fra');
 $konto_fra2   = if_isset($_GET, $konto_fra2, 'konto_fra2');
-if ($konto_fra2) $konto_fra = $konto_fra2;  
+if ($konto_fra2) $konto_fra = $konto_fra2;
 $ansat_fra    = if_isset($_GET, $ansat_fra, 'ansat_fra');
 $projekt_fra  = if_isset($_GET, $projekt_fra, 'projekt_fra');
 $dato_til     = if_isset($_GET, $dato_til, 'dato_til');
@@ -323,7 +323,7 @@ if ($submit == 'saft') {
 }
 if (function_exists($submit)) {
 	$submit($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev);
-}	
+}
 #################################################################################################
 function kontobemaerkning($l_kontonavn)
 {
@@ -358,7 +358,7 @@ function momsrubrik($rubrik_konto, $rubrik_navn, $regnaar, $regnstart, $regnslut
 	return;
 }
 
-# Funktionen ændret fra kvartal til måned. 20140729 start afsnit 2 
+# Funktionen ændret fra kvartal til måned. 20140729 start afsnit 2
 function listeangivelser($regnaar, $rapportart, $option_type)
 {
 	global $sprog_id;
@@ -412,19 +412,19 @@ function updateFinancialYear() {
     var form = document.createElement('form');
     form.method = 'POST';
     form.action = 'rapport.php';
-    
+
     var regnaarInput = document.createElement('input');
     regnaarInput.type = 'hidden';
     regnaarInput.name = 'regnaar';
     regnaarInput.value = document.querySelector('select[name="regnaar"]').value;
     form.appendChild(regnaarInput);
-    
+
     var updateInput = document.createElement('input');
     updateInput.type = 'hidden';
     updateInput.name = 'update_financial_year';
     updateInput.value = '1';
     form.appendChild(updateInput);
-    
+
     document.body.appendChild(form);
     form.submit();
 }

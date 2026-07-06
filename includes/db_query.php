@@ -273,7 +273,7 @@ if (!function_exists('db_select')) {
 			$qtext = str_replace(' like ', ' ilike ', $qtext);
 			$query = pg_query($use_connection, $qtext);
 			$errtxt = pg_last_error($use_connection);
-			if ($errtxt) echo "$qtext<br>";
+			if ($errtxt) error_log("db_select failed: $qtext");
 		}
 
 		if ($errtxt)	{		
