@@ -356,7 +356,8 @@
 
         // EasyUBL returnerer tomt svar (HTTP 500) for kreditnotaer - bug i EasyUBL API
         if ($result === null) {
-            file_put_contents("../temp/$db/fakture-error-$fileId.json", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL");
+            file_put_contents("../temp/$db/fakture-error-$fileId.txt", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL" 
+            . "\n---RAW RESPONSE---\n" . $rawJsonResponse . "\n---SENT DATA---\n" . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             ?>
             <script>
                 alert("EasyUBL returnerede et tomt eller ugyldigt svar (HTTP <?php echo $httpCode; ?>).\n\nDette er sandsynligvis en fejl i EasyUBL's API. Kontakt saldi.dk support med følgende oplysninger:\nDB: <?php echo $db; ?>\nFil-ID: <?php echo $fileId; ?>");
@@ -385,7 +386,7 @@
             ];
             
             // save response in file in temp folder with full details for debugging
-            file_put_contents("../temp/$db/fakture-error-$fileId.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            file_put_contents("../temp/$db/fakture-full-details-$fileId.txt", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
             
             // Determine which error to show
@@ -427,7 +428,7 @@
                 'raw_response' => $rawJsonResponse,
                 'sent_data' => $data
             ];
-            file_put_contents("../temp/$db/fakture-empty-xml-error-$fileId.json", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            file_put_contents("../temp/$db/fakture-empty-xml-error-$fileId.txt", "Empty or invalid XML returned from EasyUBL\n" . json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n---SENT DATA---\n" . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             curl_close($ch);
             ?>
             <script>
