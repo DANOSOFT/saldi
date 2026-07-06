@@ -51,6 +51,9 @@
 // 20260528 Sawaneh Print out-of-stock approval note under item description; fall back to formular 3 when requested formularer layout is missing
 // 20260611 LOE Added hvem to show up in printing of necessary documents.
 // 20260623 Sawaneh Log 'Reason' (out-of-stock approval note) now prints only on the delivery note, not on quotes/orders/invoices.
+// 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
+// 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
+
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 
@@ -1707,12 +1710,15 @@ if (!function_exists('formularprint')) {
 					// 20190115 herover: tilføjet ,id til 'order by' -- herunder: tilføjet  || $row['folgevare']
 					// grundet manglende varenr 9494600512 på fakt 4193 i saldi_401
 
-
+					// Track printed line keys to avoid duplicates, but allow discounts to be printed.
+					$printedLineKeys = array();
 
 					while ($row = db_fetch_array($q)) {
+						$printedLineKey = trim($row['posnr']) . "\t" . trim($row['varenr']);
 
-						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!in_array($row['posnr'], $posnr) || $row['folgevare'])) {
+						if ($row['posnr'] > 0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!isset($printedLineKeys[$printedLineKey]) || $row['folgevare'])) {
 							$x++;
+							$printedLineKeys[$printedLineKey] = 1;
 							$posnr[$x] = trim($row['posnr']);
 							$varenr[$x] = trim($row['varenr']);
 							$lev_varenr[$x] = trim($row['lev_varenr']);

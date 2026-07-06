@@ -52,6 +52,7 @@
 // 20260603 Sawaneh Whole order line is now clickable (and right-clickable for "open in new tab/window"), not just the order number.
 // 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
+// 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 
 @session_start();
@@ -419,10 +420,6 @@ if (!$returside) {
 } elseif (!$popup && $returside == "../includes/luk.php") $returside = "../index/menu.php";
 #$qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
 #db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-if (!$popup) {
-    $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'D%' and status < '3'";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__); #20150308
-}
 
 
 $tidspkt = date("U");
