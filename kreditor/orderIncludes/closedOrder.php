@@ -27,7 +27,7 @@
 // 20220629 MSC - Implementing new design
 // 20231219 MSC - Copy pasted new design into code
 // 20251113 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
-// 20260611 MJ - Changed closed creditor order print button to use translated text.
+// 20260706 MJ - Translate 'Udskriv' print button to 'Print'.
 
 print "<input type=\"hidden\" name=\"konto_id\" value=$konto_id>";
 print "<input type=\"hidden\" name=\"kontonr\" value=\"$kontonr\">";
@@ -248,6 +248,6 @@ if ($art != 'KK') {
 	print "<input type='submit' style='width:120px; border-radius:4px;' value=\"" . findtekst(2014, $sprog_id) . "\" ";
 	print "name = 'credit' onclick=\"javascript:docChange = false;\"></span></td>";
 	print "<td align=center><span title=\"" . findtekst(1506, $sprog_id) . "\">";
-	print "<input type='submit' style='width:120px; border-radius:4px;' value='" . findtekst('880|Print', $sprog_id) . "' name='print' ";
+	print "<input type='submit' style='width:120px; border-radius:4px;' value='Print' name='print' ";
 	print "onclick=\"javascript:docChange = false;\"></span></td>";
 }
