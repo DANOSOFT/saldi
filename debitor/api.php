@@ -34,6 +34,7 @@
 // 20260703 CDX/NTR - Added a function to take care of streetnames as the edgecases was making it too complex to handle in a oneliner, due to people writing addresses in a non-standard way. This function will split the streetname and buildingnumber into two separate fields, and also handle additional streetname if it exists.
 // 20260703 NTR - Added var_grp to db_select for companyID and updatedCompany to avoid conflicts with other modules that might use the same var_name in settings table.
 // 20260703 NTR - Added filtering out lines with 0 amount and not just empty description, so if either is empty, the line will be skipped. This is to avoid sending empty lines to EasyUBL, which I suspect crashes their code.
+// 20260706 CL/NTR - Changed the way headers are captured from EasyUBL responses, using CURLOPT_HEADERFUNCTION instead of splitting the header string, which can mis-split on HTTP/2 responses. This should improve reliability of header capture.
 
     @session_start();
     $s_id=session_id();
@@ -322,13 +323,17 @@
         $headers[] = 'Authorization: '.$apiKey;
         $headers[] = 'Content-Type: application/json';
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_HEADER, 1);
 
-        $rawResponse = curl_exec($ch);
+        // 20260706 - Capture headers via CURLOPT_HEADERFUNCTION instead of CURLOPT_HEADER +
+        // CURLINFO_HEADER_SIZE substr()-splitting, which can mis-split on HTTP/2 responses.
+        $responseHeaders = '';
+        curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use (&$responseHeaders) {
+            $responseHeaders .= $header;
+            return strlen($header);
+        });
+
+        $result = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-        $responseHeaders = substr($rawResponse, 0, $headerSize);
-        $result = substr($rawResponse, $headerSize);
 
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
