@@ -33,9 +33,9 @@ kreditor/betalinger_old.php
 logolib/
 
 #services
-.claude/
+.claude/*
 !.claude/memory
-!.claude/memoru/*
+!.claude/memory/*
 
 #test
 /price.txt
@@ -60,7 +60,6 @@ phpmailerOld/
 phpmailer/
 mappe/
 /utils/
-
 
 # Python stuff
 __pycache__/
@@ -91,3 +90,4 @@ email.php
 /vareFlytning.txt
 /varenr_alias.txt
 /varer.csv
+/index/redirect.php

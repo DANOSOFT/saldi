@@ -714,8 +714,9 @@ if ($menu == 'T') {
 	
 	// Get CVR number
 	$query = db_select("select cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query))
+	if ($row = db_fetch_array($query)) {
 		$cvrnr = $row['cvrnr'];
+	}
 	
 	// STICKY HEADER - Close button, title, empty space
 	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
@@ -724,7 +725,7 @@ if ($menu == 'T') {
 	print "<td width=\"5%\" align='center'><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style=\"text-decoration: none;\">";
 	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td width='75%' align='center' style='$topStyle'>SAF-T Financial Reporting</td>";
+	print "<td width='90%' align='center' style='$topStyle'>SAF-T Financial Reporting</td>";
 	print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
 	print "</tr>";
 	print "</tbody></table>";

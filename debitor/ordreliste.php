@@ -51,6 +51,10 @@
 // 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
 // 20260603 Sawaneh Whole order line is now clickable (and right-clickable for "open in new tab/window"), not just the order number.
 // 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.
+// 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
+// 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
+// 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+
 @session_start();
 $s_id = session_id();
 
@@ -260,15 +264,15 @@ $nextfakt1    = strtolower(str_replace(' ', '_', $kk));
 
 $id = if_isset($_GET, NULL, 'id');
 $konto_id = if_isset($_GET, NULL, 'konto_id');
-$account_context = if_isset($_GET, NULL, 'account_context'); # sync
-$menu_entry = if_isset($_GET, NULL, 'menu_entry');
-$reset_context = if_isset($_GET, NULL, 'reset_context');
-$returside = if_isset($_GET, NULL, 'returside');
+$account_context = if_isset($_GET, NULL, 'account_context');
+$menu_entry      = if_isset($_GET, NULL, 'menu_entry');
+$reset_context   = if_isset($_GET, NULL, 'reset_context');
+$returside       = if_isset($_GET, NULL, 'returside');
 
 $account_context = ($account_context == '1');
-$menu_entry = ($menu_entry == '1');
-$reset_context = ($reset_context == '1');
-$is_plain_entry = $menu_entry || $reset_context;
+$menu_entry      = ($menu_entry == '1');
+$reset_context   = ($reset_context == '1');
+$is_plain_entry  = $menu_entry || $reset_context;
 
 if ($account_context && $konto_id) {
     $qtxt = "update settings set var_value = '$konto_id' where ";
@@ -345,8 +349,8 @@ if (!in_array($valg, $tjek)) $valg = "ordrer";
 
 if ($is_plain_entry) {
     //This block is resetting all previous column settings by users and breaks the flow of the grid each time a page is visited from others..// 20260609
-    #db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
-   # db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
+    // db_modify("delete from datatables where user_id = '$bruger_id' and tabel_id in ('ordrelst_ordrer','ordrelst_faktura')", __FILE__ . " linje " . __LINE__);
+    // db_modify("update grupper set box9='' where art = 'OLV' and kodenr = '$bruger_id' and kode in ('ordrer','faktura')", __FILE__ . " linje " . __LINE__);
 }
 
 // Save the validated valg to database setting for persistence
@@ -416,10 +420,6 @@ if (!$returside) {
 } elseif (!$popup && $returside == "../includes/luk.php") $returside = "../index/menu.php";
 #$qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
 #db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-if (!$popup) {
-    $qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'D%' and status < '3'";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__); #20150308
-}
 
 
 $tidspkt = date("U");
@@ -652,14 +652,29 @@ $ialt_kostpris = 0;
 
 //Fetch ALL columns from the ordrer table
 $all_db_columns = array();
-$qtxt = "SELECT column_name, data_type 
+$qtxt = "SELECT column_name,
+                data_type,
+                CASE
+                    WHEN data_type IN ('smallint', 'integer', 'bigint', 'decimal', 'numeric', 'real', 'double precision') THEN 'number'
+                    WHEN data_type IN ('date', 'timestamp without time zone', 'timestamp with time zone') THEN 'date'
+                    ELSE 'text'
+                END AS grid_type,
+                CASE
+                    WHEN data_type IN ('smallint', 'integer', 'bigint') THEN 0
+                    WHEN numeric_scale IS NOT NULL THEN numeric_scale
+                    ELSE 2
+                END AS decimal_precision
          FROM information_schema.columns 
          WHERE table_schema = 'public' 
            AND table_name = 'ordrer' 
          ORDER BY ordinal_position";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-    $all_db_columns[$r['column_name']] = $r['data_type'];
+    $all_db_columns[$r['column_name']] = array(
+        'data_type' => $r['data_type'],
+        'grid_type' => $r['grid_type'],
+        'decimalPrecision' => (int)$r['decimal_precision'],
+    );
 }
 
 ###########date range
@@ -1166,6 +1181,24 @@ $custom_columns = array(
             return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
         }
     ),
+
+    "land" => array(
+        "field" => "land",
+        "headerName" => findtekst('364|Land', $sprog_id),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => true,
+        "sqlOverride" => "o.land",
+        "valueGetter" => function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        },
+        "render" => function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
+        }
+    ),
     
     "felt_1" => array(
         "field" => "felt_1",
@@ -1332,6 +1365,7 @@ if ($saved_columns !== null) {
 
 ############
 
+$active_set = array_flip($active_column_names);
 $column_pool = []; // keyed by field name
  
 //Custom columns
@@ -1341,7 +1375,9 @@ foreach ($custom_columns as $field_name => $column_def) {
 }
  
 // Auto-generated DB columns 
-foreach ($all_db_columns as $field_name => $data_type) {
+foreach ($all_db_columns as $field_name => $column_info) {
+    $grid_type = $column_info['grid_type'];
+    $decimalPrecision = $column_info['decimalPrecision'];
     $skip_fields = ['id', 'tidspkt', 'copied', 'scan_id'];
     if (in_array($field_name, $skip_fields) || isset($custom_columns[$field_name])) {
         continue;
@@ -1365,8 +1401,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
     // This is the CRITICAL part - every column MUST have both functions
     
     // Date fields
-  if (strpos($field_name, 'date') !== false || 
-    in_array($field_name, ['ordredate', 'levdate', 'fakturadate', 'nextfakt', 'due_date', 'datotid', 'settletime'])) {
+  if ($grid_type == 'date') {
     
     $column_def['type'] = 'date';
     $column_def['align'] = 'left';
@@ -1416,30 +1451,11 @@ foreach ($all_db_columns as $field_name => $data_type) {
         $column_def['render'] = function ($value, $row, $column) {
             return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
         };
-    }elseif (in_array($field_name, ['ordrenr', 'fakturanr', 'kontonr', 'kundeordnr', 'cvrnr'])) {
-        // These "nr" fields should be displayed as plain text/integers without decimal formatting
-        $column_def['type'] = 'number';
-        $column_def['align'] = 'right';
-        $column_def['decimalPrecision'] = 0;
-        
-        // valueGetter: Return as integer (strip decimals) for numeric values
-        $column_def['valueGetter'] = function ($value, $row, $column) {
-            return $value !== null ? $value : '';
-        };
-        
-        // render: Display as plain text (no dkdecimal formatting)
-        $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . $value . "</td>";
-        };
-    }elseif ($data_type == 'numeric' || $data_type == 'integer' || 
-            strpos($field_name, 'sum') !== false || 
-            strpos($field_name, 'nr') !== false ||
-            strpos($field_name, 'id') !== false ||
-            in_array($field_name, ['kostpris', 'moms', 'procenttillag', 'netweight', 'grossweight', 'valutakurs', 'betalingsdage', 'kontakt_tlf', 'phone', 'report_number'])) {
+    }elseif ($grid_type == 'number') {
         
         $column_def['type'] = 'number';
         $column_def['align'] = 'right';
-        $column_def['decimalPrecision'] = ($data_type == 'integer') ? 0 : 2;
+        $column_def['decimalPrecision'] = $decimalPrecision;
 
 
         
@@ -1532,7 +1548,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         };
     }
     
-    $columns[] = $column_def;
+    $column_pool[$field_name] = $column_def;
 }
 
 ######
@@ -1699,7 +1715,7 @@ $debug_log[] = "base_where_conditions: $base_where_conditions";
 
 // IMPORTANT: Update the SQL query to include ALL columns dynamically
 $select_fields = "o.id as id";
-foreach ($all_db_columns as $field_name => $data_type) {
+foreach ($all_db_columns as $field_name => $column_info) {
     if ($field_name != 'id') {
         $select_fields .= ", o.$field_name as $field_name";
     }
@@ -3064,7 +3080,7 @@ function select_valg($valg, $box)
    /* Fixed control bar */
 
 .datatable-wrapper {
-    height: calc(100vh - 98px) !important;
+    height: 100% !important;
 }
 
 #top-control-bar {
@@ -3145,7 +3161,7 @@ body {
     }
 
     .datatable-wrapper {
-        height: calc(100vh - 160px) !important;
+        height: 100% !important;
     }
 
     body {
