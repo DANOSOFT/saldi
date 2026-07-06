@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-05-13 ---
+// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps 
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -37,6 +37,7 @@
 // 20260505 LOE Added form to create extra delivery address and logic to save it. SD-483
 // 20260513 PHR Removed if ($id) around cvrapi to make it work again for existing customers
 // 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
+// 20260706 MJ Fix $id clobbering by contacts foreach loops; fix UPDATE adresser using wrong id; fix redirect after save
 @session_start();
 $s_id = session_id();
 
@@ -604,7 +605,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?tjek_id=$id&id=$id&returside=" . urlencode($returside) . "\">\n";
 			exit;
 		} elseif ($id > 0) {
-			#######	
+			$customer_id = (int)$id;
+			#######
 			$q1 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 			$ar = db_fetch_array($q1);
 			$a_id = $ar['id'];
@@ -922,8 +924,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					error_log("Accepted posnr $y for ansatte id $current_id at index $x");
 				}
 
-				foreach ($used_ids as $id => $pos) {
-					error_log("  id = $id => posnr = $pos");
+				foreach ($used_ids as $emp_id => $pos) {
+					error_log("  id = $emp_id => posnr = $pos");
 				}
 
 				// ---------- Error Handling ----------
@@ -934,57 +936,44 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					$alerttekst = implode("\\n", $errors);
 					$alerttekst_js = addslashes($alerttekst); // escape for JS string
 
+					$redirect_url = "debitorkort.php?id=$customer_id&returside=" . urlencode($returside);
 					print <<<HTML
 						<script>
 							alert('$alerttekst_js');
-							if (document.referrer) {
-								window.location.href = document.referrer;
-							} else {
-								window.location.href = '/';
-							}
+							window.location.href = '$redirect_url';
 						</script>
 						HTML;
-					exit; // stop execution
+					exit;
 				}
 
 				error_log("Clearing posnr for used IDs");
-				foreach ($used_ids as $id => $target_posnr) {
-					$id = (int)$id;
+				foreach ($used_ids as $emp_id => $target_posnr) {
+					$emp_id = (int)$emp_id;
 
-					db_modify("UPDATE ansatte SET posnr = NULL WHERE id = $id", __FILE__ . " linje " . __LINE__);
+					db_modify("UPDATE ansatte SET posnr = NULL WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 				}
 
 
-				foreach ($used_ids as $id => $target_posnr) {
-					$id = (int)$id;
+				foreach ($used_ids as $emp_id => $target_posnr) {
+					$emp_id = (int)$emp_id;
 					$target_posnr = (int)$target_posnr;
 
 
 
 					// If position 1, update kontakt in adresser
 					if ($target_posnr == 1) {
-						$q_navn = db_select("SELECT navn FROM ansatte WHERE id = $id", __FILE__ . " linje " . __LINE__);
+						$q_navn = db_select("SELECT navn FROM ansatte WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 						$r_navn = db_fetch_array($q_navn);
 						$navnT = $r_navn['navn'];
 
-						error_log("Position 1 detected for id $id; updating kontakt to '$navnT'");
-						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $id", __FILE__ . " linje " . __LINE__);
+						error_log("Position 1 detected for id $emp_id; updating kontakt to '$navnT'");
+						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $customer_id", __FILE__ . " linje " . __LINE__);
 					}
 
-					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $id", __FILE__ . " linje " . __LINE__);
+					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 				}
 
-				print <<<HTML
-												<script>
-													if (document.referrer) {
-														window.location.href = document.referrer;
-													} else {
-														// fallback if no referrer available
-														window.location.href = '/'; 
-													}
-												</script>
-												HTML;
-
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$customer_id&returside=" . urlencode($returside) . "\">\n";
 				exit;
 
 
