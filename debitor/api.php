@@ -35,6 +35,7 @@
 // 20260703 NTR - Added var_grp to db_select for companyID and updatedCompany to avoid conflicts with other modules that might use the same var_name in settings table.
 // 20260703 NTR - Added filtering out lines with 0 amount and not just empty description, so if either is empty, the line will be skipped. This is to avoid sending empty lines to EasyUBL, which I suspect crashes their code.
 // 20260706 CL/NTR - Changed the way headers are captured from EasyUBL responses, using CURLOPT_HEADERFUNCTION instead of splitting the header string, which can mis-split on HTTP/2 responses. This should improve reliability of header capture.
+// 20260706 NTR - getCompanyID() now self-heals when the stored companyID is the default guid: deletes the stale setting and recreates the company (capped at 2 attempts to avoid infinite recursion). The recreated ID is verified against Company/Get before being trusted, since EasyUBL can return HTTP 200 with an empty/default company record during an outage; if that happens the user is told EasyUBL is down instead of proceeding with a bad ID. Also added a missing httpCode >= 400 check to updateCompany()'s error handling.
 
     @session_start();
     $s_id=session_id();
@@ -176,7 +177,7 @@
 
         $timestamp = date("Y-m-d-H-i-s");
 
-        if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "") {
+        if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "" || $httpCode >= 400) {
             // An error occurred
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
@@ -204,7 +205,10 @@
     }
 
     // Getting the company id from the database
-    function getCompanyID(){
+    /**
+     * @param int $depth Recursion guard for the self-heal recreate path (max 2)
+     */
+    function getCompanyID($depth = 0){
         global $apiKey, $db;
         $sql = <<<SQL
             SELECT var_value 
@@ -272,7 +276,48 @@
             }
         }else{
             $res = db_fetch_array($query);
-            return $res["var_value"];
+            $companyId = $res["var_value"];
+            if($companyId === "00000000-0000-0000-0000-000000000000"){
+                // 20260706 - Stored company ID turned out to be the default/unassigned guid (orphaned on EasyUBL's
+                // side). Self-heal by deleting it and recreating, capped at 2 attempts to avoid infinite recursion
+                // if EasyUBL keeps failing.
+                if($depth >= 2){
+                    // Recreating still leaves us with the default guid after 2 tries - give up instead of
+                    // recursing forever.
+                    return "error";
+                }
+                db_modify("DELETE FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+                // Recurse into the "no companyID in settings" branch above, which recreates the company at EasyUBL.
+                $recreatedId = getCompanyID($depth + 1);
+
+                // Don't trust the recreated ID blindly - confirm it via a live Company/Get call. EasyUBL has been
+                // observed returning HTTP 200 with an empty/default company record (companyId still all-zero)
+                // instead of a proper error when their API is having issues, so a 200 here isn't proof it worked.
+                if($recreatedId !== "error"){
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Get/$recreatedId");
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
+                    $verifyResponse = curl_exec($ch);
+                    $verifyHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    $verifyResponse = json_decode($verifyResponse, true);
+
+                    // Note: the Get response uses "companyId" (lowercase d), unlike the Create/Update
+                    // response's "companyID" used elsewhere in this file.
+                    if($verifyHttpCode == 200 && isset($verifyResponse["companyId"]) && $verifyResponse["companyId"] === "00000000-0000-0000-0000-000000000000"){
+                        ?>
+                        <script>
+                            alert("EasyUBL is down, try again later.");
+                        </script>
+                        <?php
+                        exit;
+                    }
+                }
+
+                return $recreatedId;
+            }
+            return $companyId;
         }
     }
 
