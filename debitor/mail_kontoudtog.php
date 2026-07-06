@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_kontoudtog.php --- ver 5.0.0 --- 2026-06-11 --
+// --- debitor/mail_kontoudtog.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,8 +42,9 @@
 // 20250924 LOE Added static footer with email and period inputs + buttons
 // 20250925 LOE Kilde added to determine which emails to send
 // 20260303 PHR removed call to old phpmailer
-// 20260602 PHR Removed echo "Mail sent to ..."; 
+// 20260602 PHR Removed echo "Mail sent to ...";
 // 20260611 MJ Use kontoudtog-specific kontakt_emails when mailing account statements.
+// 20260706 MJ Use kontakt_emails 'kontoudtog' address when sending account statements.
 
 @session_start();
 $s_id=session_id();
@@ -57,7 +58,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/formfunk.php");
-include("../includes/stdFunc/getKontaktEmail.php");
+include_once("../includes/stdFunc/getKontaktEmail.php");
 
 $dato_fra=$dato_til=NULL;
 $email=NULL;
@@ -199,7 +200,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 	$til[$x]=dkdato($todate[$x]);
 	$query = db_select("select * from adresser where id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($query);
-	if (!$email[$x]) $email[$x]=getAllKontaktEmails($r['id'], 'kontoudtog');
+	if (!$email[$x]) $email[$x] = getAllKontaktEmails($konto_id[$x], 'kontoudtog');
 	$accountId[$x]=$r['id'];
 	$r2=db_fetch_array(db_select("select box3 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 	$kontovaluta[$x]=$r2['box3'];
