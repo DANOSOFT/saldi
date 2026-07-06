@@ -31,7 +31,6 @@
 // &&           - Added the logic from ordre.php about fetching ean numbers from konto instead if it's not in the ordrer.
 // 20260623 NTR - Added a , check on Addresses as sometimes people write extra information that is useless to us.
 // 20260701 NTR - Added the moms logic from formfunk to api.php. Ideally this should be moved to a separate shared function, but for now it's here.
-
 // 20260703 CDX/NTR - Added a function to take care of streetnames as the edgecases was making it too complex to handle in a oneliner, due to people writing addresses in a non-standard way. This function will split the streetname and buildingnumber into two separate fields, and also handle additional streetname if it exists.
 // 20260703 NTR - Added var_grp to db_select for companyID and updatedCompany to avoid conflicts with other modules that might use the same var_name in settings table.
 // 20260703 NTR - Added filtering out lines with 0 amount and not just empty description, so if either is empty, the line will be skipped. This is to avoid sending empty lines to EasyUBL, which I suspect crashes their code.
