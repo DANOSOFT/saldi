@@ -27,6 +27,7 @@
 // 20220629 MSC - Implementing new design
 // 20231219 MSC - Copy pasted new design into code
 // 20251113 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
+// 20260611 MJ - Changed closed creditor order print button to use translated text.
 // 20260706 MJ - Translate 'Udskriv' print button to 'Print'.
 
 print "<input type=\"hidden\" name=\"konto_id\" value=$konto_id>";
