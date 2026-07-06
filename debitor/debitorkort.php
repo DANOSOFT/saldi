@@ -633,7 +633,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$vkontotype = $r2['kontotype'];
 			####
 
-			if (!$vkontotype || ($kontotype == $vkontotype) || (!isset($a_id))) {
+			if (!$gl_kontotype || ($kontotype == $gl_kontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
 				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
 				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
