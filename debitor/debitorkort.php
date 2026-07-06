@@ -37,7 +37,7 @@
 // 20260505 LOE Added form to create extra delivery address and logic to save it. SD-483
 // 20260513 PHR Removed if ($id) around cvrapi to make it work again for existing customers
 // 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
-// 20260706 MJ Fix $id clobbering by contacts foreach loops; fix UPDATE adresser using wrong id; fix redirect after save
+// 20260706 MJ Fix $id clobbering by contacts foreach loops; fix UPDATE adresser using wrong id; fix redirect after save; allow save when kontotype not yet set in DB
 @session_start();
 $s_id = session_id();
 
@@ -633,7 +633,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$vkontotype = $r2['kontotype'];
 			####
 
-			if (($kontotype == $vkontotype) || (!isset($a_id))) {
+			if (!$vkontotype || ($kontotype == $vkontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
 				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
 				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
@@ -982,12 +982,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			} else {
 				$alerttekst = "Please delete all contacts to proceed";
 				print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--....-->\n";
-
-				if ($vkontotype == 'erhverv') {
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&privat=privat\">";
-				} elseif ($vkontotype == 'privat') {
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&erhverv=erhverv\">";
-				}
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$customer_id&returside=" . urlencode($returside) . "\">\n";
 				exit;
 			}
 		}
