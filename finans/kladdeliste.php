@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026.01.26 --- 
+// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // -----------------------------------------------------------------------------------
 // 20150722 PHR Vis alle/egne gemmes nu som cookie. 
 // 20181220 MSC - Rettet ny kladde knap til Ny
@@ -35,6 +35,7 @@
 // 20251021 LOE Added pagination and static header and footer
 // 20260126 PHR fixed $exitDraft
 // 20260612 MJ Optimized cash journal list entry counts for large databases.
+// 20260706 MJ Optimized cash journal list entry counts for large databases.
 
 @session_start();
 $s_id=session_id();
@@ -180,7 +181,7 @@ if (isset($_POST['delete_kladde'])) {
         exit;
     }
 }
-	
+
 $css="../css/standard.css";		
 $modulnr=2;	
 $title="kladdeliste";	

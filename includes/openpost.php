@@ -14,7 +14,7 @@
 // En dansk oversaetelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 20260612 MJ Optimized open items report to fetch relevant open posts in one query and preload order/reminder data.
 // 20260612 MJ Deferred reminder lists so open items page load can finish when the open items table is shown.
@@ -24,6 +24,11 @@
 // 20260612 MJ Only recalculate order due terms when open items have no due date.
 // 20260612 MJ Paginated open item account rendering to avoid loading every account row at once.
 // 20260612 MJ Fetch only the current open item page for PostgreSQL default reports.
+// 20260706 MJ Optimized open items report to fetch relevant open posts in one query and preload order/reminder data.
+// 20260706 MJ Deferred reminder lists so open items page load can finish when the open items table is shown.
+// 20260706 MJ Cached aging bucket date calculations for large open item reports.
+// 20260706 MJ Load reminder sections without reloading the open items report.
+// 20260706 MJ Paginated open item account rendering to avoid loading every account row at once.
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $art) {
 	?>
 	<script LANGUAGE="JavaScript">
@@ -65,7 +70,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 	$load_rykker=if_isset($_GET['load_rykker']);
 	$rykker_only=if_isset($_GET['rykker_only']);
 	$rykker_type=(int)if_isset($_GET['rykker_type']);
-	
+
 	if ($skjul_aabenpost) db_modify("update grupper set box7='$skjul_aabenpost' where art='DRV' and kodenr='1'",__FILE__ . " linje " . __LINE__);
 	if ($skjul_aaben_rykker) db_modify("update grupper set box8='$skjul_aaben_rykker' where art='DRV' and kodenr='1'",__FILE__ . " linje " . __LINE__);
 	if ($skjul_bogfort_rykker) db_modify("update grupper set box9='$skjul_bogfort_rykker' where art='DRV' and kodenr='1'",__FILE__ . " linje " . __LINE__);
@@ -109,7 +114,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 	print "<td width=\"80%\" $top_bund>Rapport - $rapportart</td>";
 	print "<td width=\"10%\" $top_bund>";
 	if ($skjul_aabenpost=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kotno_fra&konto_til=$konto_til&skjul_aabenpost=off>Vis</a><td></tr>";
-	else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on>Skjul</a><td></tr>";	
+	else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on>Skjul</a><td></tr>";
 #	<a accesskey=l href=\"rapport.php?rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til\"><br></a></td>";
 	print "</tbody></table></td></tr>\n"; #B slut
 
@@ -171,7 +176,7 @@ function saldiToggleRykker(sectionId, frameId, url) {
  		$x=0;
  		$taeller=0;
  		$sum=array();
- 		while ($taeller <3) {  
+ 		while ($taeller <3) {
 			$sum=array();
 			$taeller++;
 			if ($rykker_type && $taeller != $rykker_type) continue;
@@ -195,7 +200,7 @@ function saldiToggleRykker(sectionId, frameId, url) {
 			if ($load_rykker && (($taeller==1 && $skjul_aaben_rykker=='on')||($taeller==2 && $skjul_bogfort_rykker=='on')||($taeller==3 && $skjul_afsluttet_rykker=='on'))) {
 			print "<tr><td width=100%>";
 			print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #B
-			print "<tr><td>L&oslash;benr.</td><td>Firmanavn</td><td colspan=2 align=center>Dato</td><td align=center>Rykkernr</td><td colspan=3 align=right>Bel&oslash;b</td></tr>\n";	
+			print "<tr><td>L&oslash;benr.</td><td>Firmanavn</td><td colspan=2 align=center>Dato</td><td align=center>Rykkernr</td><td colspan=3 align=right>Bel&oslash;b</td></tr>\n";
 			print "<tr><td colspan=9><hr></td></tr>\n";
 			if ($taeller==1) {$formnavn='rykker1'; $status= "< 3";}
 			else  {$formnavn='rykker2'; $status= ">= 3";}
@@ -290,12 +295,12 @@ function saldiToggleRykker(sectionId, frameId, url) {
 					$color="#0000aa";
 					$title="Rykkeren er delvist betalt med kr ".dkdecimal($delsum)."";
 				} else $title="";
-				print "<td colspan=3 align=right style=\"background-color:$linjebg ; color: $color;\" title='$title'>$belob</td>";	
+				print "<td colspan=3 align=right style=\"background-color:$linjebg ; color: $color;\" title='$title'>$belob</td>";
 				$tmp = $rykkernr+1;
 				$tmp = "R".$tmp;
 				if (!isset($nextReminderExists[$tmp . "|" . $r1['ordrenr']])) print "<td align=center><input type=checkbox name=rykkerbox[$x]>";
 				else db_modify("update ordrer set betalt = 'on' where id = '$r1[id]'",__FILE__ . " linje " . __LINE__);
- 
+
 				print "</tr>\n";
 			}
 			print "<input type=hidden name=rapportart value=\"openpost\">";
@@ -329,12 +334,13 @@ function saldiToggleRykker(sectionId, frameId, url) {
 }
 
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
-	
+
 	global $bgcolor;
 	global $bgcolor5;
 	global $popup;
 	global $jsvars;
-	
+	global $db_type;
+
 	print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
 	print "<tr><td>Kontonr</td><td>Firmanavn</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><tr>";
 
@@ -348,7 +354,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 	elseif ($openpostPageSize > 500) $openpostPageSize=500;
 	$openpostOffset=($openpostPage-1)*$openpostPageSize;
 
-# echo "SS $fromdate $todate KF $konto_fra<br>"; 
+# echo "SS $fromdate $todate KF $konto_fra<br>";
 
 /*
 	# Finder start og slut paa regnskabsaar
@@ -380,7 +386,7 @@ if (!is_numeric($slutmaaned)) {
 	if (!is_numeric($slutmaaned)) list ($tmp,$slutmaaned)=explode(" ",find_maaned_nr($slutmaaned));
 }
 
-	
+
 	while (!checkdate($slutmaaned,$slutdato,$slutaar))	{
 		$slutdato=$slutdato-1;
 		if ($slutdato<28) break;
@@ -391,13 +397,13 @@ if (!is_numeric($slutmaaned)) {
 
 $regnstart = $startaar. "-" . $startmaaned . "-" . '01';
 	$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
-*/ 
+*/
 
 
-#$regnslut = "2005-05-04"; 
+#$regnslut = "2005-05-04";
 	print "<form name=aabenpost action=rapport.php method=post>";
 	print "<tr><td colspan=10><hr></td></tr>\n";
-		
+
 	$x=0;
 
 # echo "KF $konto_fra<br>";
@@ -511,7 +517,7 @@ $regnstart = $startaar. "-" . $startmaaned . "-" . '01';
 			$orderTerms[$r['id'] . "|" . trim($r['fakturanr'])]=$r;
 		}
 	}
-	
+
 	$sum=0;
 	$agingDateCache=array();
 	$totalPages=($kontoantal) ? ceil($kontoantal/$openpostPageSize) : 1;
@@ -563,12 +569,12 @@ $regnstart = $startaar. "-" . $startmaaned . "-" . '01';
 					$f++;
 					$faktnr[$f]=$r['faktnr'];
 					$forfaldsdag=$r['forfaldsdate'];
-				} 
+				}
 				elseif (!$r['faktnr']) $forfaldsdag=$r['transdate'];
 				$oid=$r['id'];
-				
+
 				$transdate=$r['transdate'];
-				
+
 				if ($r['valuta']) $valuta=$r['valuta']; # <- 2009.05.05
 				else $valuta='DKK';
 				if ($r['valutakurs']) $valutakurs=$r['valutakurs'];

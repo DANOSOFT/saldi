@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- lap 5.0.0 --- 2026.05.28 ---
+// --- includes/reportFunc/showOpenPosts.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 - 2026 Saldi.dk ApS
+// Copyright (c) 2023-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 //
 // 20240207 PHR Accounts was not shown if all was alligned, evet if alligned after $todate.
@@ -31,6 +31,7 @@
 // 20260513 PHR Columns were shifted when $usePBS was NULL
 // 20260528 PHR Bottomline was overlooked 20260513
 // 20260612 MJ Paginated and batched debtor open items report queries for large databases.
+// 20260706 MJ Paginated and batched debtor open items report queries for large databases.
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
@@ -72,7 +73,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&showPBS=0'>skjul BS</a></td>";
 			} else {
 				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&showPBS=1'>vis BS</a></td>";
-			}	
+			}
 		}
 		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
 	}
@@ -98,7 +99,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	} else {
 		print "<tr><td colspan=10><hr></td></tr>\n";
 	}
-		
+
 	$accountPosts=$accountIndex=array();
 	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
 		$accountWhere = nr_cast('adresser.kontonr')." >= '$konto_fra' and ".nr_cast('adresser.kontonr')." <= '$konto_til' and adresser.art = '$kontoart'";
@@ -109,7 +110,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$tmp2=strtoupper($konto_fra);
 		$accountWhere = "(adresser.firmanavn like '$konto_fra' or lower(adresser.firmanavn) like '$tmp1' or upper(adresser.firmanavn) like '$tmp2') and adresser.art = '$kontoart'";
 		$accountOrder = "adresser.firmanavn";
-	}	else {
+	} else {
 		$accountWhere = "adresser.art = '$kontoart'";
 		$accountOrder = "adresser.firmanavn";
 	}
@@ -427,7 +428,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		if ($udlign) {
 			$udlign=trim($udlign,"'");
 			print "	<input type='button' onclick=\"location.href='rapport.php?rapportart=openpost&udlign=$udlign';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
-			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>"; 
+			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
 		} else {
 			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
 		}

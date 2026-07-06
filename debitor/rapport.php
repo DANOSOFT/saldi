@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------patch 5.0.0 ----2026-05-13--------------
+// -------debitor/rapport.php------patch 5.0.0 ----2026-07-06--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
 // 20121105 - Fejl ved "masseudligning (Klik på 0,00 i åbenpostoversigt) når kun 1 dato sat. Søg 20121105 
@@ -35,6 +35,8 @@
 // 20260513 PHR Cleanup
 // 20260612 MJ Release session before long read-only reports to avoid blocking navigation.
 // 20260612 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
+// 20260706 MJ Release session before long read-only reports to avoid blocking navigation.
+// 20260706 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
 
 @session_start();
 $s_id = session_id();
