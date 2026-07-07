@@ -27,6 +27,8 @@
 // 20230827 PHR - Changed $box8 to $stockItem
 // 20240527 MMK - Added Wolt intergration settings
 
+include("../includes/topline_settings.php");
+
 print "\n<!-- productCardIncludes/notesEtc.php start -->\n";
 
 print "<tr><td valign='top' colspan='3'><table border='0' width='100%'><tbody>\n"; # Notetabel ->
@@ -40,7 +42,7 @@ print "<tr><td valign='top'>".findtekst(391,$sprog_id)."&nbsp;
 
 print "<td colspan='6'><textarea name='notes' rows='4' cols='100'>$notes</textarea></td>\n";
 
-print "<td><button type='button' id='rentItem'>".findtekst(2050,$sprog_id)."</button></td>\n";
+print "<td><button type='button' style='$buttonStyle; width:100%; height:20px' id='rentItem'>".findtekst('2050|Udlejning', $sprog_id)."</button></td>\n";
 print "</tr>\n";
 
 print "<tr><td valign='top'>".findtekst(2144,$sprog_id)."</td>\n";

@@ -168,23 +168,23 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			$fileDate = date("Y-m-d H:i:s", filemtime($fullPath));
 			
 			// Check for .info file for additional data
-			$infoFile = "$puljePath/$baseName.info";
-			$subject = $baseName;
-			$account = '';
-			$amount = '';
+			$infoFile      = "$puljePath/$baseName.info";
+			$subject       = $baseName;
+			$account       = '';
+			$amount        = '';
 			$invoiceNumber = '';
-			$description = '';
+			$description   = '';
 			
 			if (file_exists($infoFile)) {
-				$lines = file($infoFile, FILE_IGNORE_NEW_LINES);
+				$lines   = file($infoFile, FILE_IGNORE_NEW_LINES);
 				$subject = (isset($lines[0]) && trim($lines[0]) !== '') ? trim($lines[0]) : $baseName;
 				$account = isset($lines[1]) ? trim($lines[1]) : '';
-				$amount = isset($lines[2]) ? trim($lines[2]) : '';
+				$amount  = isset($lines[2]) ? trim($lines[2]) : '';
 				if (isset($lines[3]) && trim($lines[3]) !== '') {
 					$fileDate = trim($lines[3]);
 				}
 				$invoiceNumber = isset($lines[4]) ? trim($lines[4]) : '';
-				$description = isset($lines[5]) ? trim($lines[5]) : '';
+				$description   = isset($lines[5]) ? trim($lines[5]) : '';
 			}
 			// get date from file
 			$fileDate = date("Y-m-d H:i:s", filemtime("$puljePath/$file"));
@@ -245,7 +245,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
 	
-	$afd =  $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
+	$afd = $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
 
 	// Sync missing files from pulje directory to database once on page load
 	syncPuljeFilesToDatabase($docFolder, $db);
@@ -288,45 +288,58 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				}
 			}
 			if ($count > 0) {
-				echo "<script>alert('Oprydning færdig. Fjernede $count forældreløse info-filer.');</script>";
+				$alert = findtekst('3260|Oprydning færdig', $sprog_id).". ".findtekst('3261|Fjernede', $sprog_id)." $count ".lcfirst(findtekst('3262|Forældreløse info-filer', $sprog_id))."."; #Oprydning færdig. Fjernede [X] forældreløse info-filer.
+				echo "<script>alert('$alert');</script>";
 			} else {
-				echo "<script>alert('Ingen forældreløse info-filer fundet.');</script>";
+				$alert = findtekst('3263|Ingen forældreløse info-filer fundet', $sprog_id).".";
+				echo "<script>alert('$alert');</script>";
 			}
 		}
 		update_settings_value("cleanup", "docs", 1);
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1\">";
 		exit;
 	}
-
 	(isset($_POST['rename']) && $_POST['rename'])?$rename=1:$rename=0;
 	(isset($_POST['unlinkFile']) && $_POST['unlinkFile'])?$unlinkFile=$_POST['unlinkFile']:((isset($_GET['unlinkFile']) && $_GET['unlinkFile'])?$unlinkFile=$_GET['unlinkFile']:$unlinkFile=NULL);
 	
-	$insertFile   = if_isset($_POST,NULL,'insertFile');
-	$newFileName  = if_isset($_POST,NULL,'newFileName');
-	$descFile     = if_isset($_POST,NULL,'descFile');
-	$newSubject   = if_isset($_POST,NULL,'newSubject');
-	$newAccount	= if_isset($_POST,NULL,'newAccount');
-	$newAmount	= if_isset($_POST,NULL,'newAmount');
-	$newDate	   = if_isset($_POST,NULL,'newDate');
-	$newInvoiceNumber = if_isset($_POST,NULL,'newInvoiceNumber');
+	$insertFile            = if_isset($_POST,NULL,'insertFile');
+	$newFileName           = if_isset($_POST,NULL,'newFileName');
+	$descFile              = if_isset($_POST,NULL,'descFile');
+	$newSubject            = if_isset($_POST,NULL,'newSubject');
+	$newAccount	           = if_isset($_POST,NULL,'newAccount');
+	$newAmount	           = if_isset($_POST,NULL,'newAmount');
+	$newDate               = if_isset($_POST,NULL,'newDate');
+	$newInvoiceNumber      = if_isset($_POST,NULL,'newInvoiceNumber');
 	$newInvoiceDescription = if_isset($_POST,NULL,'newInvoiceDescription');
-	$newCurrency = if_isset($_POST,NULL,'newCurrency');
+	$newCurrency           = if_isset($_POST,NULL,'newCurrency');
 	
 	// Override $poolFile from POST if it's set (for AJAX edit operations)
 	if (isset($_POST['poolFile']) && $_POST['poolFile']) {
 		$poolFile = $_POST['poolFile'];
 	}
 
-	$afd         = if_isset($_POST,NULL,'afd');
-	$bilag       = if_isset($_POST,NULL,'bilag');
-	$beskrivelse = if_isset($_POST,NULL,'beskrivelse');
-	$dato        = if_isset($_POST,NULL,'dato');
-	$debet       = if_isset($_POST,NULL,'debet');
-	$fakturanr   = if_isset($_POST,NULL,'fakturanr');
-	$kredit      = if_isset($_POST,NULL,'kredit');
-	$projekt     = if_isset($_POST,NULL,'projekt');
-	$sag         = if_isset($_POST,NULL,'sag');
-	$sum         = if_isset($_POST,NULL,'sum');
+	// $afd         = if_isset($_POST,NULL,'afd');
+	// $bilag       = if_isset($_POST,NULL,'bilag');
+	// $beskrivelse = if_isset($_POST,NULL,'beskrivelse');
+	// $dato        = if_isset($_POST,NULL,'dato');
+	// $debet       = if_isset($_POST,NULL,'debet');
+	// $fakturanr   = if_isset($_POST,NULL,'fakturanr');
+	// $kredit      = if_isset($_POST,NULL,'kredit');
+	// $projekt     = if_isset($_POST,NULL,'projekt');
+	// $sag         = if_isset($_POST,NULL,'sag');
+	// $sum         = if_isset($_POST,NULL,'sum');
+	##########################################
+	$afd         = if_isset($_POST,NULL,'afd')         ?? if_isset($_GET,NULL,'afd');
+	$bilag       = if_isset($_POST,NULL,'bilag')       ?? if_isset($_GET,NULL,'bilag');
+	$beskrivelse = if_isset($_POST,NULL,'beskrivelse') ?? if_isset($_GET,NULL,'beskrivelse');
+	$dato        = if_isset($_POST,NULL,'dato')        ?? if_isset($_GET,NULL,'dato');
+	$debet       = if_isset($_POST,NULL,'debet')       ?? if_isset($_GET,NULL,'debet');
+	$fakturanr   = if_isset($_POST,NULL,'fakturanr')   ?? if_isset($_GET,NULL,'fakturanr');
+	$kredit      = if_isset($_POST,NULL,'kredit')      ?? if_isset($_GET,NULL,'kredit');
+	$projekt     = if_isset($_POST,NULL,'projekt')     ?? if_isset($_GET,NULL,'projekt');
+	$sag         = if_isset($_POST,NULL,'sag')         ?? if_isset($_GET,NULL,'sag');
+	$sum         = if_isset($_POST,NULL,'sum')         ?? if_isset($_GET,NULL,'sum');
+	#########################################
 
 	if ($insertFile) {
 		// Log when user tries to add a bilag to a line
@@ -657,7 +670,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					$failedList = implode(', ', array_map(function($f) {
 						return addslashes(htmlspecialchars($f, ENT_QUOTES));
 					}, $failedFiles));
-					echo "alert('Nogle filer kunne ikke indsættes: " . $failedList . "');";
+					echo "alert('".addslashes(findtekst('3264|Nogle filer kunne ikke indsættes', $sprog_id)).": " . $failedList . "');";
 				}
 				
 				// Perform redirect immediately
@@ -668,7 +681,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				exit;
 			}
 		} else {
-			alert("Ingen filer valgt");
+			alert(findtekst('3265|Ingen filer valgt', $sprog_id));
 		}
 		exit;
 	}
@@ -691,7 +704,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	// Debug logging for edit operations
 	if ($rename) {
 		$logFile = "../temp/docpool_edit_debug.log";
-		$logMsg = date('Y-m-d H:i:s') . " - docPool EDIT - rename=$rename, poolFile=$poolFile, newFileName=$newFileName\n";
+		$logMsg  = date('Y-m-d H:i:s') . " - docPool EDIT - rename=$rename, poolFile=$poolFile, newFileName=$newFileName\n";
 		$logMsg .= date('Y-m-d H:i:s') . " - docPool EDIT - newSubject=$newSubject, newAccount=$newAccount, newAmount=$newAmount\n";
 		$logMsg .= date('Y-m-d H:i:s') . " - docPool EDIT - newDate=$newDate, newInvoiceNumber=$newInvoiceNumber, newInvoiceDescription=$newInvoiceDescription\n";
 		file_put_contents($logFile, $logMsg, FILE_APPEND);
@@ -1153,26 +1166,26 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 // Modern flexbox layout instead of tables
 // Styles are now in docpool.css
 // Define SVG icons as PHP variables for use in HTML
-$svgStar = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>';
-$svgCheck = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
-$svgCalendar = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg>';
-$svgPlus = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>';
-$svgPointer = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"></path><path d="M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1"></path><path d="M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10"></path><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>';
-$svgPencil = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
-$svgTrash = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
-$svgSave = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>';
-$svgCopy = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-$svgX = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-$svgTable = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>';
-$svgGrid = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>';
-$svgUpload = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
-$svgChevronDown = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-$svgChevronLeft = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+$svgStar         = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>';
+$svgCheck        = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+$svgCalendar     = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg>';
+$svgPlus         = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>';
+$svgPointer      = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"></path><path d="M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1"></path><path d="M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10"></path><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>';
+$svgPencil       = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
+$svgTrash        = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+$svgSave         = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>';
+$svgCopy         = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+$svgX            = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+$svgTable        = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>';
+$svgGrid         = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>';
+$svgUpload       = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
+$svgChevronDown  = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+$svgChevronLeft  = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>';
 $svgChevronRight = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
-$svgSpinner = '<svg class="icon-svg icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>';
-$svgLink = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
-$svgFile = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
-$svgScan = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>';
+$svgSpinner      = '<svg class="icon-svg icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>';
+$svgLink         = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
+$svgFile         = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>';
+$svgScan         = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>';
 
 // Calculate absolute path to insertDoc.php for AJAX
 // We use $_SERVER['DOCUMENT_ROOT'] to construct a root-relative path
@@ -1197,7 +1210,7 @@ if ($source == 'kassekladde') {
 	$nextId = 0;
 	$currentKladdeId = 0;
 
-	$inStyle = "padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; height: 26px; box-sizing: border-box;";
+	$inStyle  = "padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; height: 26px; box-sizing: border-box;";
 	$btnStyle = "color: $buttonTxtColor; text-decoration: none; display: flex; align-items: center; background-color: $buttonColor; padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 12px;";
 	$btnStyleDisabled = "color: #999; text-decoration: none; display: flex; align-items: center; background-color: #eee; padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 12px; border: 1px solid #ccc;";
 
@@ -1221,7 +1234,7 @@ if ($source == 'kassekladde') {
 			$displayAmount      = $kladdeInfo['amount'] ? dkdecimal($kladdeInfo['amount']) : '';
 			$displayAfd         = htmlspecialchars($kladdeInfo['afd'] ?? '');
 			$displayProjekt     = htmlspecialchars($kladdeInfo['projekt'] ?? '');
-			$displayValutaNr = (int)($kladdeInfo['valuta'] ?? 0);
+			$displayValutaNr    = (int)($kladdeInfo['valuta'] ?? 0);
 			if ($displayValutaNr) {
 				$vkRow = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art='VK' AND kodenr='$displayValutaNr'", __FILE__ . " linje " . __LINE__));
 				$displayValuta = htmlspecialchars($vkRow['box1'] ?? '');
@@ -1257,14 +1270,14 @@ if ($source == 'kassekladde') {
 	}
 
 	// ---- Fetch all lines for this bilag + prev/next bilag navigation ----
-	$escKladde = (int)$currentKladdeId;
-	$intBilag  = (int)$displayBilag;
-	$bilagLines = [];
-	$prevBilagId = 0;
-	$nextBilagId = 0;
+	$escKladde     = (int)$currentKladdeId;
+	$intBilag      = (int)$displayBilag;
+	$bilagLines    = [];
+	$prevBilagId   = 0;
+	$nextBilagId   = 0;
 	$docFolder_enc = urlencode($_GET['docFolder'] ?? '');
 	$poolFile_enc  = urlencode($_GET['poolFile'] ?? '');
-	$baseUrl = "documents.php?source=kassekladde&kladde_id=$escKladde";
+	$baseUrl       = "documents.php?source=kassekladde&kladde_id=$escKladde";
 
 	if ($escKladde && $displayBilag !== '') {
 		$escBilag = db_escape_string($displayBilag);
@@ -1318,33 +1331,34 @@ if ($source == 'kassekladde') {
 
 	// Helper: render one full editable entry row
 	$renderBilagRow = function($rowId, $d, $showLabels = true) use ($inStyle, $btnStyle, $svgSave, $svgCopy, $escKladde, $intBilag, $readOnly, $sourceId) {
-		$pfx = "row_{$rowId}";
+		global $sprog_id;
+		$pfx            = "row_{$rowId}";
 		$momsfriChecked = !empty($d['momsfri']) ? ' checked' : '';
-		$rowIdJs = is_numeric($rowId) ? (int)$rowId : "'new'";
-		$lbl = function($text) use ($showLabels) { return $showLabels ? "<label>{$text}</label>" : ''; };
-		$ro = $readOnly ? ' readonly' : '';
-		$roBg = $readOnly ? ' background-color:#f0f0f0;' : '';
-		$dis = $readOnly ? ' disabled' : '';
-		$cbVal = is_numeric($rowId) ? (int)$rowId : '0';
-		$cbChecked = ((string)$cbVal === (string)$sourceId) ? ' checked' : '';
+		$rowIdJs        = is_numeric($rowId) ? (int)$rowId : "'new'";
+		$lbl            = function($text) use ($showLabels) { return $showLabels ? "<label>{$text}</label>" : ''; };
+		$ro             = $readOnly ? ' readonly' : '';
+		$roBg           = $readOnly ? ' background-color:#f0f0f0;' : '';
+		$dis            = $readOnly ? ' disabled' : '';
+		$cbVal          = is_numeric($rowId) ? (int)$rowId : '0';
+		$cbChecked      = ((string)$cbVal === (string)$sourceId) ? ' checked' : '';
 		print "<div class='kassebilag-entry' id='bilagEntry_{$rowId}' style='margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e0e0e0;'>";
 		print "<div class='topbar-fields-row'>";
 		$linkIcon = '<svg style="width:14px;height:14px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
-		print "<div class='topbar-field' style='justify-content:center;align-items:center;'>" . $lbl($linkIcon) . "<input type='checkbox' class='targetLineCheckbox' value='{$cbVal}'{$cbChecked} style='width:16px;height:16px;cursor:pointer;accent-color:{$GLOBALS['buttonColor']};' title='Tilknyt bilag til denne linje'></div>";
-		print "<div class='topbar-field'>" . $lbl('Bilag #:') . "<input type='text' id='{$pfx}_Bilag' value=\"" . htmlspecialchars($d['bilag'] ?? '') . "\" style='width:55px;{$inStyle}{$roBg}'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Dato:') . "<input type='text' id='{$pfx}_Dato' value=\"" . htmlspecialchars($d['dato'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Faktura:') . "<input type='text' id='{$pfx}_Faktura' value=\"" . htmlspecialchars($d['faktura'] ?? '') . "\" style='width:70px;{$inStyle}{$roBg}' placeholder='Fakturanr'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Beskrivelse:') . "<input type='text' id='{$pfx}_Beskrivelse' value=\"" . htmlspecialchars($d['beskrivelse'] ?? '') . "\" style='width:180px;{$inStyle}{$roBg}' placeholder='Beskrivelse'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Debet:') . "<input type='text' id='{$pfx}_Debet' value=\"" . htmlspecialchars($d['debet'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='Konto'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Kredit:') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='Konto'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Beløb:') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Afd:') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='Afd'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Proj:') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='Proj'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('Valuta:') . "<input type='text' id='{$pfx}_Valuta' value=\"" . htmlspecialchars($d['valuta'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='DKK'{$ro}></div>";
-		print "<div class='topbar-field'>" . $lbl('u/m:') . "<input type='checkbox' id='{$pfx}_Momsfri'{$momsfriChecked}{$dis}></div>";
-		print "<div class='topbar-field'>" . $lbl('Forfald:') . "<input type='text' id='{$pfx}_Forfald' value=\"" . htmlspecialchars($d['forfald'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
+		print "<div class='topbar-field' style='justify-content:center;align-items:center;'>" . $lbl($linkIcon) . "<input type='checkbox' class='targetLineCheckbox' value='{$cbVal}'{$cbChecked} style='width:16px;height:16px;cursor:pointer;accent-color:{$GLOBALS['buttonColor']};' title='".findtekst('3268|Tilknyt bilag til denne linje', $sprog_id)."'></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('671|Bilag', $sprog_id).' #:') . "<input type='text' id='{$pfx}_Bilag' value=\"" . htmlspecialchars($d['bilag'] ?? '') . "\" style='width:55px;{$inStyle}{$roBg}'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('438|Dato', $sprog_id).':') . "<input type='text' id='{$pfx}_Dato' value=\"" . htmlspecialchars($d['dato'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('643|Faktura', $sprog_id).':') . "<input type='text' id='{$pfx}_Faktura' value=\"" . htmlspecialchars($d['faktura'] ?? '') . "\" style='width:70px;{$inStyle}{$roBg}' placeholder='".findtekst('828|Fakturanr.', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('914|Beskrivelse', $sprog_id).':') . "<input type='text' id='{$pfx}_Beskrivelse' value=\"" . htmlspecialchars($d['beskrivelse'] ?? '') . "\" style='width:180px;{$inStyle}{$roBg}' placeholder='".findtekst('914|Beskrivelse', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('1000|Debet', $sprog_id).':') . "<input type='text' id='{$pfx}_Debet' value=\"" . htmlspecialchars($d['debet'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('1001|Kredit', $sprog_id).':') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='".findtekst('592|Konto', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('934|Beløb', $sprog_id).':') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('2464|Afd.', $sprog_id).':') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('2464|Afd.', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('3269|Proj.', $sprog_id).':') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='".findtekst('3269|Proj.', $sprog_id)."'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('776|Valuta', $sprog_id).':') . "<input type='text' id='{$pfx}_Valuta' value=\"" . htmlspecialchars($d['valuta'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='DKK'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('2589|u/m', $sprog_id).':') . "<input type='checkbox' id='{$pfx}_Momsfri'{$momsfriChecked}{$dis}></div>";
+		print "<div class='topbar-field'>" . $lbl(findtekst('1070|Forfald', $sprog_id).':') . "<input type='text' id='{$pfx}_Forfald' value=\"" . htmlspecialchars($d['forfald'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
 		if (!$readOnly) {
-			print "<div class='topbar-field'><a href='#' onclick=\"duplicateRow($rowIdJs, $escKladde, $intBilag); return false;\" title='Dupliker linje' style=\"$btnStyle\">$svgCopy &nbsp;Dupliker</a></div>";
+			print "<div class='topbar-field'><a href='#' onclick=\"duplicateRow($rowIdJs, $escKladde, $intBilag); return false;\" title='".findtekst('3267|Duplikér', $sprog_id).' '.lcfirst(findtekst('3266|Linje', $sprog_id))."' style=\"$btnStyle\">$svgCopy &nbsp;".findtekst('3267|Duplikér', $sprog_id)."</a></div>"; #Duplikér linje
 		}
 		print "</div>"; // topbar-fields-row
 		print "</div>"; // kassebilag-entry
@@ -1354,24 +1368,32 @@ if ($source == 'kassekladde') {
 
 	// Title + bilag-group navigation
 	print "<div class='topbar-nav' style='margin-bottom:8px;'>";
-	print "<span class='topbar-title' id='entryTitle'>" . findtekst('1408|Kassebilag', $sprog_id) . ($displayBilag !== '' ? " &mdash; Bilag #{$displayBilag}" : "") . "</span>";
+	print "<span class='topbar-title' id='entryTitle'>" . findtekst('1408|Kassebilag', $sprog_id) . ($displayBilag !== '' ? " &mdash; " . findtekst('671|Bilag', $sprog_id) . " #{$displayBilag}" : "") . "</span>";
 	if ($prevBilagId) {
-		print "<a href=\"{$baseUrl}&sourceId={$prevBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgChevronLeft Forrige bilag</a>";
+		$txt = findtekst('2598|Forrige', $sprog_id).' '.lcfirst(findtekst('671|Bilag', $sprog_id)); #Forrige bilag
+		print "<a href=\"{$baseUrl}&sourceId={$prevBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgChevronLeft $txt</a>";
 	} else {
-		print "<span style=\"$btnStyleDisabled\">$svgChevronLeft Forrige bilag</span>";
+		$txt = findtekst('2598|Forrige', $sprog_id).' '.lcfirst(findtekst('671|Bilag', $sprog_id)); #Forrige bilag
+		print "<span style=\"$btnStyleDisabled\">$svgChevronLeft $txt</span>";
 	}
 	if ($nextBilagId) {
-		print "<a href=\"{$baseUrl}&sourceId={$nextBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">Næste bilag $svgChevronRight</a>";
+		$txt = findtekst('1200|Næste', $sprog_id).' '.lcfirst(findtekst('671|Bilag', $sprog_id)); #Næste bilag
+		print "<a href=\"{$baseUrl}&sourceId={$nextBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$txt $svgChevronRight</a>";
 	} else {
-		print "<span style=\"$btnStyleDisabled\">Næste bilag $svgChevronRight</span>";
+		$txt = findtekst('1200|Næste', $sprog_id).' '.lcfirst(findtekst('671|Bilag', $sprog_id)); #Næste bilag
+		print "<span style=\"$btnStyleDisabled\">$txt $svgChevronRight</span>";
 	}
 	$bilagParam = $displayBilag !== '' ? '&bilag=' . urlencode($displayBilag) : '';
 	if (!$readOnly) {
-		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus Ny linje</a>";
-		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp;Gem alle</a>";
-		print "<a href='#' id='transferDataBtn' onclick='transferDataFromSelectedFile(); return false;' style=\"$btnStyle\">$svgPointer &nbsp;Overfør data</a>";
+		$txt1 = findtekst('39|Ny', $sprog_id).' '.lcfirst(findtekst('3266|Linje', $sprog_id)); #Ny linje
+		$txt2 = findtekst('3|Gem', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id));  #Gem alle
+		$txt3 = findtekst('3339|Overfør data', $sprog_id);
+		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus $txt1</a>";
+		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp; $txt2</a>";
+		print "<a href='#' id='transferDataBtn' onclick='transferDataFromSelectedFile(); return false;' style=\"$btnStyle\">$svgPointer &nbsp;$txt3</a>";
 	} else {
-		print "<span style='color:#999; font-size:12px; font-weight:bold; padding:3px 8px;'>Bogført</span>";
+		$txt = findtekst('637|Bogført', $sprog_id);
+		print "<span style='color:#999; font-size:12px; font-weight:bold; padding:3px 8px;'>$txt</span>";
 	}
 	print "</div>"; // topbar-nav header
 
@@ -1430,8 +1452,9 @@ if ($source == 'kassekladde') {
 	if ($collapsible) {
 		$hiddenCount = $totalRows - 1;
 		$bilagKey = $escKladde . '_' . $intBilag;
+		$txt = findtekst('1133|Vis', $sprog_id)." {$hiddenCount} ".lcfirst(findtekst('3270|Flere linjer', $sprog_id)); #Vis [X] flere linjer
 		print "<a href='#' id='bilagToggleBtn' onclick='toggleBilagRows(); return false;' style=\"$btnStyle; display:block; text-align:center; margin-top:2px; font-size:11px;\">";
-		print "<span id='bilagToggleText'>Vis {$hiddenCount} flere linjer &#9660;</span></a>";
+		print "<span id='bilagToggleText'>$txt &#9660;</span></a>";
 		print "<script>
 		var bilagStorageKey = 'bilagRowsExpanded_' + " . json_encode($bilagKey) . ";
 		function toggleBilagRows() {
@@ -1442,10 +1465,10 @@ if ($source == 'kassekladde') {
 				rows[i].style.display = expanded ? 'none' : '';
 			}
 			if (expanded) {
-				btn.innerHTML = 'Vis ' + (rows.length - 1) + ' flere linjer &#9660;';
+				btn.innerHTML = '".findtekst('1133|Vis', $sprog_id)." ' + (rows.length - 1) + ' ".lcfirst(findtekst('3270|Flere linjer', $sprog_id))." &#9660;'; // Vis [X] flere linjer
 				localStorage.removeItem(bilagStorageKey);
 			} else {
-				btn.innerHTML = 'Skjul linjer &#9650;';
+				btn.innerHTML = '".findtekst('1132|Skjul', $sprog_id)." ".findtekst('5020|linjer', $sprog_id)." &#9650;'; // Skjul linjer
 				localStorage.setItem(bilagStorageKey, '1');
 			}
 		}
@@ -1456,7 +1479,7 @@ if ($source == 'kassekladde') {
 				for (var i = 1; i < rows.length; i++) {
 					rows[i].style.display = '';
 				}
-				if (btn) btn.innerHTML = 'Skjul linjer &#9650;';
+				if (btn) btn.innerHTML = '".findtekst('1132|Skjul', $sprog_id)." ".findtekst('5020|linjer', $sprog_id)." &#9650;'; // Skjul linjer
 			}
 		});
 		</script>";
@@ -1498,12 +1521,12 @@ print "<div id='leftPanel'>";
 print "<div id='docPoolToolbar' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 6px;'>";
 // Search box
 print "<div style='flex: 1; margin-right: 10px;'>";
-print "<input type='text' id='poolSearchBox' placeholder='Søg...' oninput='filterPoolFiles()' style='width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;'>";
+print "<input type='text' id='poolSearchBox' placeholder='".findtekst('913|Søg', $sprog_id)."...' oninput='filterPoolFiles()' style='width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;'>";
 print "</div>";
 // View mode toggle and extract all button
 print "<div style='display: flex; gap: 8px;'>";
 // Auto-extract toggle
-print "<label title='Auto-udtræk fakturadata ved upload' style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
+print "<label title='".findtekst('3271|Auto-udtræk fakturadata ved upload', $sprog_id)."' style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
 print "<span style='position: relative; display: inline-block; width: 36px; height: 20px;'>";
 print "<input type='checkbox' id='autoExtractToggle' " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "" : "checked") . " onchange='toggleAutoExtract(this)' style='opacity: 0; width: 0; height: 0;'>";
 print "<span id='autoExtractSlider' style='position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "#ccc" : "#17a2b8") . "; transition: .3s; border-radius: 20px;'></span>";
@@ -1511,44 +1534,120 @@ print "<span id='autoExtractKnob' style='position: absolute; height: 16px; width
 print "</span>";
 print "AI scan</label>";
 // Extract all button
-print "<button type='button' id='extractAllBtn' onclick='extractAllPoolFiles()' title='Opdater alle filer med fakturadata' style='padding: 8px 12px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgScan <span style='font-size: 12px;'>Opdater alle</span></button>";
+print "<button type='button' id='extractAllBtn' onclick='extractAllPoolFiles()' title='".findtekst('3272|Opdatér alle filer med fakturadata', $sprog_id)."' style='padding: 8px 12px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgScan <span style='font-size: 12px;'>".findtekst('898|Opdatér', $sprog_id).' '.lcfirst(findtekst('2498|Alle', $sprog_id))."</span></button>"; #Opdatér alle
 // Delete selected button
-print "<button type='button' id='deleteSelectedBtn' onclick='deleteSelectedFiles()' title='Slet valgte filer' style='padding: 8px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgTrash <span style='font-size: 12px;'>Slet valgte</span></button>";
+print "<button type='button' id='deleteSelectedBtn' onclick='deleteSelectedFiles()' title='".findtekst('3273|Slet valgte filer', $sprog_id)."' style='padding: 8px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgTrash <span style='font-size: 12px;'>".findtekst('1146|Slet valgte', $sprog_id)."</span></button>";
 print "<div style='display: flex; gap: 0;'>";
-print "<button type='button' id='tableViewBtn' onclick='setViewMode(\"table\")' title='Tabelvisning' style='padding: 8px 12px; background-color: $buttonColor; color: $buttonTxtColor; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;'>$svgTable</button>";
-print "<button type='button' id='cardViewBtn' onclick='setViewMode(\"card\")' title='Kortvisning' style='padding: 8px 12px; background-color: #e9ecef; color: #495057; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px;'>$svgGrid</button>";
+print "<button type='button' id='tableViewBtn' onclick='setViewMode(\"table\")' title='".findtekst('3274|Tabelvisning', $sprog_id)."' style='padding: 8px 12px; background-color: $buttonColor; color: $buttonTxtColor; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;'>$svgTable</button>";
+print "<button type='button' id='cardViewBtn' onclick='setViewMode(\"card\")' title='".findtekst('3275|Kortvisning', $sprog_id)."' style='padding: 8px 12px; background-color: #e9ecef; color: #495057; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px;'>$svgGrid</button>";
 print "</div>";
 print "</div>";
 print "</div>";
 
 // Preview popup container (for card view hover)
 print "<div id='previewPopup' style='display: none; position: fixed; z-index: 99999; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); padding: 10px; max-width: 500px; max-height: 600px; overflow: hidden;'>";
-print "<div id='previewTitle' style='padding: 8px; background: $buttonColor; color: $buttonTxtColor; border-radius: 4px 4px 0 0; margin: -10px -10px 10px -10px; font-size: 12px; font-weight: bold;'>Forhåndsvisning</div>";
-print "<div id='previewContent'><div style='display: flex; align-items: center; justify-content: center; width: 480px; height: 550px; background: #f5f5f5; color: #666; font-size: 14px;'>Indlæser...</div></div>";
+print "<div id='previewTitle' style='padding: 8px; background: $buttonColor; color: $buttonTxtColor; border-radius: 4px 4px 0 0; margin: -10px -10px 10px -10px; font-size: 12px; font-weight: bold;'>".findtekst('3276|Forhåndsvisning', $sprog_id)."</div>";
+print "<div id='previewContent'><div style='display: flex; align-items: center; justify-content: center; width: 480px; height: 550px; background: #f5f5f5; color: #666; font-size: 14px;'>".findtekst('3277|Indlæser', $sprog_id)."...</div></div>";
 print "</div>";
 
-print "<div id='fileListContainer'>Loading files...</div>";
+print "<div id='fileListContainer'>".findtekst('3277|Indlæser', $sprog_id).' '.lcfirst(findtekst('3278|Filer', $sprog_id))."...</div>"; #Indlæser filer...
 // Fixed bottom section will be added here later via PHP (before leftPanel closes)
 
 
 // $combinedParams = $params . '&' . $poolParams; 
 $encodedDir = urlencode($dir);
 $poolFileJs = json_encode($poolFile); // safely escapes quotes
-$JsSum = json_encode($sum); // safely escapes quotes
-$JsDato = json_encode($dato); // kassekladde date for matching
+$JsSum      = json_encode($sum); // safely escapes quotes
+$JsDato     = json_encode($dato); // kassekladde date for matching
 
 
 // Calculate lightened button color using PHP function from topline_settings.php
 $lightButtonColor = brightenColor($buttonColor, 0.6); // Lighten by 60% (0.6 = 60%)
 
-$buttonColorJs = json_encode($buttonColor);
-$buttonTxtColorJs = json_encode($buttonTxtColor);
+$buttonColorJs      = json_encode($buttonColor);
+$buttonTxtColorJs   = json_encode($buttonTxtColor);
 $lightButtonColorJs = json_encode($lightButtonColor);
+
+$txt1   = findtekst(   '3|Gem', $sprog_id);
+$txt2   = findtekst(   '5|Annullér', $sprog_id);
+$txt3   = findtekst(  '89|Vælg alle', $sprog_id);
+$txt4   = findtekst( '216|Emne', $sprog_id);
+$txt5   = findtekst( '438|Dato', $sprog_id);
+$txt5l  = lcfirst($txt5); #dato
+$txt6   = findtekst( '592|Konto', $sprog_id);
+$txt7   = findtekst( '776|Valuta', $sprog_id);
+$txt8   = findtekst( '828|Fakturanr.', $sprog_id);
+$txt9   = findtekst( '914|Beskrivelse', $sprog_id);
+$txt10  = findtekst( '934|Beløb', $sprog_id);
+$txt11  = findtekst( '951|Leverandør', $sprog_id);
+$txt12  = findtekst('1099|Slet', $sprog_id);
+$txt13  = findtekst('2148|Redigér', $sprog_id);
+$txt14  = findtekst('3266|Linje', $sprog_id);
+$txt15  = findtekst('2498|Alle', $sprog_id);
+$txt16  = findtekst('3267|Duplikér', $sprog_id);
+$txt17  = findtekst('3276|Forhåndsvisning', $sprog_id);
+$txt18  = findtekst('3279|XML-dokument', $sprog_id);
+$txt19  = findtekst('3280|Klik for at se dokumentet i panelet', $sprog_id);
+$txt20  = findtekst('3281|Forhåndsvisning ikke tilgængelig', $sprog_id);
+$txt21  = findtekst('3282|Fejl ved indlæsning af filer', $sprog_id);
+$txt22  = findtekst('3283|Ingen filer fundet', $sprog_id);
+$txt23  = findtekst('3284|Fil', $sprog_id);
+$txt24  = findtekst('3285|Handlinger', $sprog_id);
+$txt25  = findtekst('3286|Udtræk fakturadata', $sprog_id);
+$txt26  = findtekst('3292|Indsæt valgte', $sprog_id);
+$txt27  = findtekst('3289|Klik for at vælge', $sprog_id);
+$txt28  = findtekst('3293|Klik for at vælge alle bilag med', $sprog_id);
+$txt29  = findtekst('3294|Klik for at vælge alle bilag i denne kombination', $sprog_id);
+$txt30  = findtekst('3301|Fakturanummer', $sprog_id);
+$txt31  = findtekst('3302|Fejl ved gemning', $sprog_id);
+$txt32  = findtekst('3303|Prøv igen', $sprog_id);
+$txt33  = findtekst('3304|Vælg mindst ét bilag', $sprog_id);
+$txt34  = findtekst('3305|Fejl ved indsætning', $sprog_id);
+$txt35  = findtekst('3306|Er du sikker på at du vil slette', $sprog_id);
+$txt36  = findtekst('3307|Udtrukket data', $sprog_id);
+$txt37  = findtekst('3308|Vil du opdatere filen med disse data?', $sprog_id);
+$txt38  = findtekst('3309|Ukendt fejl', $sprog_id);
+$txt39  = findtekst('3310|Fejl ved udtræk', $sprog_id);
+$txt40  = findtekst('3311|Ingen data kunne udtrækkes', $sprog_id);
+$txt41  = findtekst('3312|Ingen filer i puljen at opdatere', $sprog_id);
+$txt42  = findtekst('3313|Opdatering afsluttet', $sprog_id);
+$txt43  = findtekst('3314|Behandlet', $sprog_id);
+$txt44  = findtekst('3315|Succesfulde', $sprog_id);
+$txt45  = findtekst('3316|Fejlede', $sprog_id);
+$txt46  = findtekst('3317|Ingen filer valgt. Vælg venligst de filer du vil slette.', $sprog_id);
+$txt47  = findtekst('3319|Sletning afsluttet', $sprog_id);
+$txt48  = findtekst('3320|Slettet', $sprog_id);
+$txt49  = findtekst('3321|Gemmer', $sprog_id);
+$txt50  = findtekst('3322|Gemt', $sprog_id);
+$txt51  = findtekst('3323|Duplikerer', $sprog_id);
+$txt52  = findtekst('3324|Fejl ved duplikering', $sprog_id);
+$txt53  = lcfirst(findtekst('3278|Filer', $sprog_id));                                          #filer
+$txt54  = lcfirst(findtekst('3288|Fundet', $sprog_id));                                         #fundet
+$txt55  = lcfirst(findtekst('3291|Bilag giver', $sprog_id));                                    #bilag giver
+$txt56  = lcfirst(findtekst('3296|Bilag matcher beløbet', $sprog_id));                          #bilag matcher beløbet
+$txt57  = lcfirst(findtekst('3297|Og datoen', $sprog_id));                                      #og datoen
+$txt58  = lcfirst(findtekst('3298|Bilag matcher datoen', $sprog_id));                           #bilag matcher datoen
+$txt59  = lcfirst(findtekst('3299|Bilag giver tilsammen', $sprog_id));                          #bilag giver tilsammen
+$txt60  = lcfirst(findtekst('3318|Fil(er)', $sprog_id));                                        #fil(er)
+$txt61  = findtekst('438|Dato', $sprog_id)." (".findtekst('3300|ÅÅÅÅ-MM-DD', $sprog_id).")";    #Dato (ÅÅÅÅ-MM-DD)
+$txt62  = findtekst('3290|Kombination', $sprog_id)." ".$txt54;                                  #Kombination fundet
+$txt63  = findtekst('3287|Perfekt', $sprog_id)." match";                                        #Perfekt match
+$txt64  = $txt10." match";                                                                      #Beløb match
+$txt65  = $txt5 ." match";                                                                      #Dato match
+$txt66  = $txt63." (".lcfirst($txt10).": ";                                                     #Perfekt match (beløb:
+$txt67  = $txt64." (".lcfirst($txt10).": ";                                                     #Beløb match (beløb:
+$txt68  = $txt28." " .lcfirst($txt63);                                                          #Klik for at vælge alle bilag med perfekt match
+$txt69  = $txt28." " .lcfirst($txt64);                                                          #Klik for at vælge alle bilag med beløb match
+$txt70  = $txt28." " .lcfirst($txt65);                                                          #Klik for at vælge alle bilag med dato match
+$txt71  = $txt31.". ".$txt32.".";                                                               #Fejl ved gemning. Prøv igen.
+$txt72  = $txt1 ." ".lcfirst($txt15);                                                           #Gem alle
+$txt73  = $txt15." ".lcfirst($txt50)."!";                                                       #Alle gemt!
+$txt74  = $txt16." ".lcfirst($txt14);                                                           #Duplikér linje
 
 print <<<JS
 <script>
 (() => {
-    let docData = [];
+    let docData     = [];
     let currentSort = { field: 'date', asc: false };
 
     
@@ -1558,7 +1657,7 @@ print <<<JS
         var s = val.toString().trim();
 		// Handle malformed numbers like 1.234.56
 		if ((s.match(/\./g) || []).length > 1 && s.indexOf(',') === -1) {
-			var parts = s.split('.');
+			var parts   = s.split('.');
 			var decimal = parts.pop();       // last part = decimal
 			var integer = parts.join('');    // rest = integer
 			s = integer + '.' + decimal;
@@ -1566,7 +1665,7 @@ print <<<JS
         // If it has both commas and dots, and the last dot comes after the last comma,
         // it's English format (commas are thousands separators) - strip commas
         var lastComma = s.lastIndexOf(',');
-        var lastDot = s.lastIndexOf('.');
+        var lastDot   = s.lastIndexOf('.');
         if (lastComma !== -1 && lastDot !== -1 && lastDot > lastComma) {
             // English format: 1,000.00 -> 1000.00
             s = s.replace(/,/g, '');
@@ -1582,35 +1681,35 @@ print <<<JS
 	window.parseAmountToFloat = parseAmountToFloat; // expose to global scope
     const containerId = 'fileListContainer';
 	// Get poolFile from URL if present (user clicked on a row), otherwise null (no auto-selection)
-	const urlParams = new URLSearchParams(window.location.search);
-	const poolFile = urlParams.get('poolFile') || null;
-	const totalSum = {$JsSum};
-	const targetDate = {$JsDato}; // kassekladde date for matching
-	const buttonColor = {$buttonColorJs};
-	const buttonTxtColor = {$buttonTxtColorJs};
+	const urlParams        = new URLSearchParams(window.location.search);
+	const poolFile         = urlParams.get('poolFile') || null;
+	const totalSum         = {$JsSum};
+	const targetDate       = {$JsDato}; // kassekladde date for matching
+	const buttonColor      = {$buttonColorJs};
+	const buttonTxtColor   = {$buttonTxtColorJs};
 	const lightButtonColor = {$lightButtonColorJs};
 	
 	// View mode state (table or card) - default to table, save preference in localStorage
-	let viewMode = localStorage.getItem('docPoolViewMode') || 'table';
-	let searchFilter = '';
-	let previewTimeout = null;
+	let viewMode           = localStorage.getItem('docPoolViewMode') || 'table';
+	let searchFilter       = '';
+	let previewTimeout     = null;
 	let currentPreviewPath = null;
-	const docFolder = '{$docFolder}';
-	const db = '{$db}';
+	const docFolder        = '{$docFolder}';
+	const db               = '{$db}';
 	
 	// SVG icons for JavaScript use
 	const svgIcons = {
-		star: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>',
-		check: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+		star:     '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>',
+		check:    '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
 		calendar: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M9 16l2 2 4-4"></path></svg>',
-		plus: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>',
-		pointer: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"></path><path d="M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1"></path><path d="M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10"></path><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>',
-		pencil: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>',
-		trash: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
-		save: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
-		x: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-		file: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>',
-		scan: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>'
+		plus:     '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>',
+		pointer:  '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 14a8 8 0 0 1-8 8"></path><path d="M18 11v-1a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1"></path><path d="M10 9.5V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10"></path><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>',
+		pencil:   '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>',
+		trash:    '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
+		save:     '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
+		x:        '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+		file:     '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>',
+		scan:     '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>'
 	};
 	
 	// Initialize view mode toggle buttons on page load
@@ -1705,14 +1804,14 @@ print <<<JS
 		
 		// Delay showing preview slightly to avoid flickering
 		previewTimeout = setTimeout(function() {
-			const popup = document.getElementById('previewPopup');
+			const popup   = document.getElementById('previewPopup');
 			const content = document.getElementById('previewContent');
-			const title = document.getElementById('previewTitle');
+			const title   = document.getElementById('previewTitle');
 			
 			// Only reload if different file
 			if (currentPreviewPath !== filepath) {
 				currentPreviewPath = filepath;
-				if (title) title.textContent = filename || 'Forhåndsvisning';
+				if (title) title.textContent = filename || '{$txt17}';
 				
 				// Check file extension
 				const ext = filepath.split('.').pop().toLowerCase();
@@ -1722,9 +1821,9 @@ print <<<JS
 				} else if (['jpg', 'jpeg', 'png', 'gif'].indexOf(ext) !== -1) {
 					content.innerHTML = '<img src=\"' + filepath + '\" style=\"max-width:480px;max-height:550px;display:block;margin:0 auto;\">';
 				} else if (ext === 'xml') {
-					content.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:480px;height:550px;background:#f0f8ff;color:#004085;font-size:14px;gap:12px;"><svg style="width:48px;height:48px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 13l2 2-2 2"></path><path d="M16 13l-2 2 2 2"></path></svg><strong>XML-dokument</strong><span style="font-size:12px;color:#666;">Klik for at se dokumentet i panelet</span></div>';
+					content.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:480px;height:550px;background:#f0f8ff;color:#004085;font-size:14px;gap:12px;"><svg style="width:48px;height:48px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 13l2 2-2 2"></path><path d="M16 13l-2 2 2 2"></path></svg><strong>{$txt18}</strong><span style="font-size:12px;color:#666;">{$txt19}</span></div>';
 				} else {
-					content.innerHTML = '<div style=\"display:flex;align-items:center;justify-content:center;width:480px;height:550px;background:#f5f5f5;color:#666;font-size:14px;\">Forhåndsvisning ikke tilgængelig</div>';
+					content.innerHTML = '<div style=\"display:flex;align-items:center;justify-content:center;width:480px;height:550px;background:#f5f5f5;color:#666;font-size:14px;\">{$txt20}</div>';
 				}
 			}
 			
@@ -1752,7 +1851,7 @@ print <<<JS
 		let y = event.clientY - 100;
 		
 		// Keep within viewport
-		const viewportWidth = window.innerWidth;
+		const viewportWidth  = window.innerWidth;
 		const viewportHeight = window.innerHeight;
 		
 		// If would go off right edge, show on left side of cursor
@@ -1769,7 +1868,7 @@ print <<<JS
 		if (y < 10) y = 10;
 		
 		popup.style.left = x + 'px';
-		popup.style.top = y + 'px';
+		popup.style.top  = y + 'px';
 	};
 
     async function fetchFiles() {
@@ -1778,7 +1877,7 @@ print <<<JS
 
         try {
             const response = await fetch('_docPoolData.php?dir=' + dir + '&poolParams=' + encodeURIComponent('{$poolParams}'));
-            const data = await response.json();
+            const data     = await response.json();
 
             if (data.error) {
                 document.getElementById(containerId).innerHTML = '<div style="color:red;">' + escapeHTML(data.error) + '</div>';
@@ -1790,14 +1889,14 @@ print <<<JS
 			window.docData = docData;
             renderCurrentView();
         } catch (error) {
-            document.getElementById(containerId).innerHTML = '<div style="color:red;">Error loading files</div>';
+            document.getElementById(containerId).innerHTML = '<div style="color:red;">{$txt21}</div>';
             console.error(error);
         }
     }
 
     function renderFiles() {
 			if (!docData.length) {
-				document.getElementById(containerId).innerHTML = '<em>No files found.</em>';
+				document.getElementById(containerId).innerHTML = '<em>{$txt22}.</em>';
 				return;
 			}
 			
@@ -1819,34 +1918,34 @@ print <<<JS
       <thead style="background:${buttonColor}; color:${buttonTxtColor}; position:sticky; top:0; z-index:10; margin:0; padding:0;">
         <tr>
 					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 40px; color:${buttonTxtColor};" onclick="event.stopPropagation();">
-						<input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" title="Vælg alle" style="cursor: pointer; width: 18px; height: 18px;">
+						<input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" title="{$txt3}" style="cursor: pointer; width: 18px; height: 18px;">
 					</th>
 					<th onclick="sortFiles('subject')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Fil</span>
+							<span>{$txt23}</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
 					<th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Beløb</span>
+							<span>{$txt10}</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
 					<th onclick="sortFiles('invoiceNumber')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Fakturanr</span>
+							<span>{$txt8}</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
 					<th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span>Dato</span>
+							<span>{$txt5}</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
 					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 90px; color:${buttonTxtColor};">
-						<span>Handlinger</span>
+						<span>{$txt24}</span>
 					</th>
 				</tr>
 			</thead>
@@ -1854,12 +1953,12 @@ print <<<JS
 		`;
 
 
-		let activeRows = '';
-		let perfectMatchRows = '';
+		let activeRows         = '';
+		let perfectMatchRows   = '';
 		let matchingAmountRows = '';
-		let dateMatchRows = '';
-		let combinationRows = '';
-		let otherRows = '';
+		let dateMatchRows      = '';
+		let combinationRows    = '';
+		let otherRows          = '';
 		
 		// Normalize the total sum for comparison
 		const normalizedTotal = parseFloat(totalSum?.replace(/\./g, '').replace(',', '.') || 0);
@@ -1883,12 +1982,12 @@ print <<<JS
 		const hasDateToMatch = normalizedTargetDate !== null;
 		
 		// First pass: count matching documents and find combinations
-		let matchingCount = 0;
-		let exactMatches = []; // Store filenames that are exact amount matches
-		let perfectMatches = []; // Store filenames that match BOTH amount AND date
-		let dateOnlyMatches = []; // Store filenames that match date but not amount
+		let matchingCount      = 0;
+		let exactMatches       = []; // Store filenames that are exact amount matches
+		let perfectMatches     = []; // Store filenames that match BOTH amount AND date
+		let dateOnlyMatches    = []; // Store filenames that match date but not amount
 		let combinationMatches = new Set(); // Store filenames that are part of a combination
-		let combinationGroups = []; // Store the actual combinations found
+		let combinationGroups  = []; // Store the actual combinations found
 		
 		// Helper function to normalize date for comparison
 		const normalizeDate = function(dateStr) {
@@ -2067,10 +2166,10 @@ print <<<JS
 			// Debug logging (remove in production if not needed)
 			if (normalizedCurrent && normalizedRow && normalizedCurrent !== normalizedRow) {
 				console.log('PoolFile mismatch:', {
-					current: normalizedCurrent,
-					row: normalizedRow,
+					current:    normalizedCurrent,
+					row:        normalizedRow,
 					rawCurrent: currentPoolFile,
-					rawRow: poolFileFromHref
+					rawRow:     poolFileFromHref
 				});
 			}
 
@@ -2127,20 +2226,20 @@ print <<<JS
 			}
 
 			// All cells start as non-editable (text)
-			const subjectCell = "<span class='cell-content'>" + escapeHTML(row.subject) + "</span>";
-			const accountCell = "<span class='cell-content'>" + escapeHTML(row.account) + "</span>";
-			const amountCell = "<span class='cell-content'>" + amountDisplay + "</span>";
-			const dateCell = "<span class='cell-content'>" + dateDisplay + "</span>";
+			const subjectCell       = "<span class='cell-content'>" + escapeHTML(row.subject) + "</span>";
+			const accountCell       = "<span class='cell-content'>" + escapeHTML(row.account) + "</span>";
+			const amountCell        = "<span class='cell-content'>" + amountDisplay + "</span>";
+			const dateCell          = "<span class='cell-content'>" + dateDisplay + "</span>";
 			const invoiceNumberCell = "<span class='cell-content'>" + escapeHTML(row.invoiceNumber) + "</span>";
-			const descriptionCell = "<span class='cell-content'>" + escapeHTML(row.description) + "</span>";
+			const descriptionCell   = "<span class='cell-content'>" + escapeHTML(row.description) + "</span>";
 
 			// poolFileFromHref already set above
 			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(row.invoiceNumber || '') + "\", \"" + escapeHTML(row.description || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>" + svgIcons.pencil + "</button>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>" + svgIcons.trash + "</button>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='Udtræk fakturadata'>" + svgIcons.scan + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(row.invoiceNumber || '') + "\", \"" + escapeHTML(row.description || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
 				"</div>";
 
 			// Check if this checkbox should be checked (restore from sessionStorage)
@@ -2182,11 +2281,11 @@ print <<<JS
 		let perfectMatchHeader = '';
 		if (hasPerfectMatches && perfectMatchRows) {
 			const perfectFilesJson = JSON.stringify(perfectMatches).replace(/'/g, "&#39;");
-			perfectMatchHeader = "<tr style='background-color: #007bff; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + perfectFilesJson + ")' title='Klik for at vælge alle bilag med perfekt match'>" +
+			perfectMatchHeader = "<tr style='background-color: #007bff; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + perfectFilesJson + ")' title='{$txt68}'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #007bff;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.star + "</span>" +
-				"Perfekt match (beløb: " + escapeHTML(totalSum) + " + dato: " + escapeHTML(targetDate) + ") - " + perfectMatches.length + " fundet" +
-				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
+				"{$txt66}" + escapeHTML(totalSum) + " + {$txt5l}: " + escapeHTML(targetDate) + ") - " + perfectMatches.length + " {$txt54}" +
+				"<span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " {$txt27}</span>" +
 				"</td></tr>";
 		}
 		
@@ -2194,11 +2293,11 @@ print <<<JS
 		let matchingHeader = '';
 		if (hasAmountToMatch && exactMatches.length > 0 && matchingAmountRows) {
 			const exactFilesJson = JSON.stringify(exactMatches).replace(/'/g, "&#39;");
-			matchingHeader = "<tr style='background-color: #28a745; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + exactFilesJson + ")' title='Klik for at vælge alle bilag med beløb match'>" +
+			matchingHeader = "<tr style='background-color: #28a745; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + exactFilesJson + ")' title='{$txt69}'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #28a745;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.check + "</span>" +
-				"Beløb match (beløb: " + escapeHTML(totalSum) + ") - " + exactMatches.length + " fundet" +
-				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
+				"{$txt67}" + escapeHTML(totalSum) + ") - " + exactMatches.length + " {$txt54}" +
+				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " {$txt27}</span>" +
 				"</td></tr>";
 		}
 		
@@ -2206,11 +2305,11 @@ print <<<JS
 		let dateMatchHeader = '';
 		if (hasDateOnlyMatches && dateMatchRows) {
 			const dateFilesJson = JSON.stringify(dateOnlyMatches).replace(/'/g, "&#39;");
-			dateMatchHeader = "<tr style='background-color: #17a2b8; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + dateFilesJson + ")' title='Klik for at vælge alle bilag med dato match'>" +
+			dateMatchHeader = "<tr style='background-color: #17a2b8; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + dateFilesJson + ")' title='{$txt70}'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #17a2b8;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.calendar + "</span>" +
-				"Dato match (" + escapeHTML(targetDate) + ") - " + dateOnlyMatches.length + " fundet" +
-				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
+				"{$txt65} (" + escapeHTML(targetDate) + ") - " + dateOnlyMatches.length + " {$txt54}" +
+				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " {$txt27}</span>" +
 				"</td></tr>";
 		}
 		
@@ -2227,12 +2326,12 @@ print <<<JS
 			comboFilesJson = JSON.stringify(firstCombo.files).replace(/'/g, "&#39;");
 		}
 		
-		combinationHeader = "<tr style='background-color: #ffc107; color: #212529; cursor: pointer;' onclick='selectCombinationFiles(" + comboFilesJson + ")' title='Klik for at vælge alle bilag i denne kombination'>" +
+		combinationHeader = "<tr style='background-color: #ffc107; color: #212529; cursor: pointer;' onclick='selectCombinationFiles(" + comboFilesJson + ")' title='{$txt29}'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #ffc107;'>" +
 				"<span style='margin-right: 6px;'>" + svgIcons.plus + "</span>" +
-				"Kombination fundet (" + combinationMatches.size + " bilag giver: " + escapeHTML(totalSum) + ")" +
+				"{$txt62} (" + combinationMatches.size + " {$txt55}: " + escapeHTML(totalSum) + ")" +
 				(comboDesc ? " <span style='font-weight: normal; font-size: 11px;'>(" + comboDesc + ")</span>" : "") +
-				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " Klik for at vælge</span>" +
+				" <span style='font-weight: normal; font-size: 11px; float: right;'>" + svgIcons.pointer + " {$txt27}</span>" +
 				"</td></tr>";
 		}
 
@@ -2244,7 +2343,7 @@ print <<<JS
 		// Add bulk action button container at the bottom of the list (sticky so it's always visible)
 		html += "<div id='bulkActionsContainer' style='margin-top: 12px; padding: 8px; background-color: " + lightButtonColor + "; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;'>";
 		html += "<button type='button' id='bulkInsertButton' onclick='chooseMultipleBilag()' style='padding: 8px 16px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.02)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"'>";
-		html += "Indsæt valgte (<span id='selectedCount'>0</span>)";
+		html += "{$txt26} (<span id='selectedCount'>0</span>)";
 		html += "</button>";
 		html += "</div>";
 
@@ -2305,7 +2404,7 @@ print <<<JS
 	// Card layout render function (similar to linkBilag style)
 	function renderFilesCard() {
 		if (!docData.length) {
-			document.getElementById(containerId).innerHTML = '<em>No files found.</em>';
+			document.getElementById(containerId).innerHTML = '<em>{$txt22}.</em>';
 			return;
 		}
 		
@@ -2338,11 +2437,11 @@ print <<<JS
 		}
 		const cardHasDateToMatch = cardNormalizedTargetDate !== null;
 		
-		let exactMatches = [];
-		let perfectMatches = [];
-		let dateOnlyMatches = [];
+		let exactMatches       = [];
+		let perfectMatches     = [];
+		let dateOnlyMatches    = [];
 		let combinationMatches = new Set();
-		let combinationGroups = [];
+		let combinationGroups  = [];
 		
 		if (hasAmountToMatch || cardHasDateToMatch) {
 			const docsWithAmounts = [];
@@ -2406,9 +2505,9 @@ print <<<JS
 		html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: ' + buttonColor + '; border-radius: 6px; margin-bottom: 4px;">';
 		html += '<label style="display: flex; align-items: center; gap: 8px; color: ' + buttonTxtColor + '; font-size: 13px; cursor: pointer;">';
 		html += '<input type="checkbox" id="selectAllCheckboxCard" onclick="toggleSelectAll(this)" style="width: 18px; height: 18px; cursor: pointer;">';
-		html += '<span>Vælg alle</span>';
+		html += '<span>{$txt3}</span>';
 		html += '</label>';
-		html += '<span style="color: ' + buttonTxtColor + '; font-size: 12px;">' + docData.length + ' filer</span>';
+		html += '<span style="color: ' + buttonTxtColor + '; font-size: 12px;">' + docData.length + ' {$txt53}</span>';
 		html += '</div>';
 		
 		// Perfect match header (amount + date) if applicable
@@ -2416,8 +2515,8 @@ print <<<JS
 			const perfectFilesJson = JSON.stringify(perfectMatches).replace(/'/g, "&#39;");
 			html += '<div onclick="selectCombinationFiles(' + perfectFilesJson + ')" style="cursor: pointer; padding: 10px; background: #007bff; color: white; border-radius: 6px; margin-bottom: 8px;">';
 			html += '<span style="margin-right: 6px;">' + svgIcons.star + '</span>';
-			html += '<strong>Perfekt match</strong> - ' + perfectMatches.length + ' bilag matcher beløb ' + escapeHTML(totalSum) + ' og dato ' + escapeHTML(targetDate);
-			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
+			html += '<strong>{$txt63}</strong> - ' + perfectMatches.length + ' {$txt56} ' + escapeHTML(totalSum) + ' {$txt57} ' + escapeHTML(targetDate);
+			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' {$txt27}</span>';
 			html += '</div>';
 		}
 		
@@ -2426,8 +2525,8 @@ print <<<JS
 			const exactFilesJson = JSON.stringify(exactMatches).replace(/'/g, "&#39;");
 			html += '<div onclick="selectCombinationFiles(' + exactFilesJson + ')" style="cursor: pointer; padding: 10px; background: #28a745; color: white; border-radius: 6px; margin-bottom: 8px;">';
 			html += '<span style="margin-right: 6px;">' + svgIcons.check + '</span>';
-			html += '<strong>Beløb match</strong> - ' + exactMatches.length + ' bilag matcher beløbet ' + escapeHTML(totalSum);
-			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
+			html += '<strong>{$txt64}</strong> - ' + exactMatches.length + ' {$txt56} ' + escapeHTML(totalSum);
+			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' {$txt27}</span>';
 			html += '</div>';
 		}
 		
@@ -2436,8 +2535,8 @@ print <<<JS
 			const dateFilesJson = JSON.stringify(dateOnlyMatches).replace(/'/g, "&#39;");
 			html += '<div onclick="selectCombinationFiles(' + dateFilesJson + ')" style="cursor: pointer; padding: 10px; background: #17a2b8; color: white; border-radius: 6px; margin-bottom: 8px;">';
 			html += '<span style="margin-right: 6px;">' + svgIcons.calendar + '</span>';
-			html += '<strong>Dato match</strong> - ' + dateOnlyMatches.length + ' bilag matcher datoen ' + escapeHTML(targetDate);
-			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
+			html += '<strong>{$txt65}</strong> - ' + dateOnlyMatches.length + ' {$txt58} ' + escapeHTML(targetDate);
+			html += '<span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' {$txt27}</span>';
 			html += '</div>';
 		}
 		
@@ -2446,8 +2545,8 @@ print <<<JS
 			const comboFilesJson = JSON.stringify(combinationGroups[0].files).replace(/'/g, "&#39;");
 			html += '<div onclick="selectCombinationFiles(' + comboFilesJson + ')" style="cursor: pointer; padding: 10px; background: #ffc107; color: #212529; border-radius: 6px; margin-bottom: 8px;">';
 			html += '<span style="margin-right: 6px;">' + svgIcons.plus + '</span>';
-			html += '<strong>Kombination fundet</strong> - ' + combinationMatches.size + ' bilag giver tilsammen ' + escapeHTML(totalSum);
-			html += ' <span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' Klik for at vælge</span>';
+			html += '<strong>{$txt62}</strong> - ' + combinationMatches.size + ' {$txt59} ' + escapeHTML(totalSum);
+			html += '<span style="float: right; font-size: 11px;">' + svgIcons.pointer + ' {$txt27}</span>';
 			html += '</div>';
 		}
 		
@@ -2473,10 +2572,10 @@ print <<<JS
 			const filePath = docFolder + '/' + db + '/pulje/' + filename;
 			
 			// Check matches
-			const isSelected = currentPoolFile && filename === currentPoolFile;
-			const isPerfectMatch = perfectMatches.includes(filename);
-			const isAmountMatch = exactMatches.includes(filename);
-			const isDateMatch = dateOnlyMatches.includes(filename);
+			const isSelected         = currentPoolFile && filename === currentPoolFile;
+			const isPerfectMatch     = perfectMatches.includes(filename);
+			const isAmountMatch      = exactMatches.includes(filename);
+			const isDateMatch        = dateOnlyMatches.includes(filename);
 			const isCombinationMatch = combinationMatches.has(filename);
 			
 			// Card styling based on state (priority order)
@@ -2521,9 +2620,9 @@ print <<<JS
 			html += '<div style="flex: 1; min-width: 0;">';
 			html += '<div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHTML(subject) + '">' + escapeHTML(subject) + '</div>';
 			html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
-			if (account) html += '<span><strong>Konto:</strong> ' + escapeHTML(account) + '</span>';
+			if (account) html += '<span><strong>{$txt6}:</strong> ' + escapeHTML(account) + '</span>';
 			if (amount) {
-				let amountHtml = '<span><strong>Beløb:</strong> ';
+				let amountHtml = '<span><strong>{$txt10}:</strong> ';
 				if (isPerfectMatch) {
 					amountHtml += '<span style="color: #007bff;">' + svgIcons.star + ' ' + escapeHTML(formattedAmount) + '</span>';
 				} else if (isAmountMatch) {
@@ -2537,7 +2636,7 @@ print <<<JS
 				html += amountHtml;
 			}
 			if (dateFormatted) {
-				let dateHtml = '<span><strong>Dato:</strong> ';
+				let dateHtml = '<span><strong>{$txt5}:</strong> ';
 				if (isPerfectMatch || isDateMatch) {
 					dateHtml += '<span style="color: #007bff;">' + svgIcons.calendar + ' ' + escapeHTML(dateFormatted) + '</span>';
 				} else {
@@ -2551,9 +2650,9 @@ print <<<JS
 			
 			// Actions
 			html += '<div class="card-actions" style="flex-shrink: 0; display: flex; gap: 4px;" onclick="event.stopPropagation();">';
-			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); enableCardEdit(\\'' + escapeHTML(filename) + '\\', \\'' + escapeHTML(subject) + '\\', \\'' + escapeHTML(account) + '\\', \\'' + escapeHTML(amount) + '\\', \\'' + escapeHTML(dateFormatted) + '\\'); return false;" style="padding: 6px 10px; background: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Rediger">' + svgIcons.pencil + '</button>';
-			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); deletePoolFile(\\'' + escapeHTML(filename) + '\\', ' + JSON.stringify(subject) + ', \\'' + escapeHTML(deleteUrl) + '\\'); return false;" style="padding: 6px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Slet">' + svgIcons.trash + '</button>';
-			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); extractPoolFile(\\'' + escapeHTML(filename) + '\\'); return false;" style="padding: 6px 10px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Udtræk fakturadata">' + svgIcons.scan + '</button>';
+			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); enableCardEdit(\\'' + escapeHTML(filename) + '\\', \\'' + escapeHTML(subject) + '\\', \\'' + escapeHTML(account) + '\\', \\'' + escapeHTML(amount) + '\\', \\'' + escapeHTML(dateFormatted) + '\\'); return false;" style="padding: 6px 10px; background: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="{$txt13}">' + svgIcons.pencil + '</button>';
+			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); deletePoolFile(\\'' + escapeHTML(filename) + '\\', ' + JSON.stringify(subject) + ', \\'' + escapeHTML(deleteUrl) + '\\'); return false;" style="padding: 6px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="{$txt12}">' + svgIcons.trash + '</button>';
+			html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); extractPoolFile(\\'' + escapeHTML(filename) + '\\'); return false;" style="padding: 6px 10px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="{$txt25}">' + svgIcons.scan + '</button>';
 			html += '</div>';
 			
 			html += '</div>';
@@ -2564,7 +2663,7 @@ print <<<JS
 		// Bulk actions
 		html += '<div id="bulkActionsContainer" style="margin-top: 12px; padding: 8px; background-color: ' + lightButtonColor + '; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;">';
 		html += '<button type="button" id="bulkInsertButton" onclick="chooseMultipleBilag()" style="padding: 8px 16px; background-color: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">';
-		html += 'Indsæt valgte (<span id="selectedCount">0</span>)';
+		html += '{$txt26} (<span id="selectedCount">0</span>)';
 		html += '</button>';
 		html += '</div>';
 		
@@ -2620,22 +2719,22 @@ print <<<JS
 		// Switch to table mode, enable edit, then user can save and switch back
 		// Or we can show a simple prompt/modal
 		
-		const newSubject = prompt('Emne:', subject);
+		const newSubject = prompt('{$txt4}:', subject);
 		if (newSubject === null) return; // Cancelled
-		
-		const newAccount = prompt('Konto:', account);
+
+		const newAccount = prompt('{$txt6}:', account);
 		if (newAccount === null) return;
-		
-		const newAmount = prompt('Beløb:', amount);
+
+		const newAmount = prompt('{$txt10}:', amount);
 		if (newAmount === null) return;
-		
-		const newDate = prompt('Dato (ÅÅÅÅ-MM-DD):', date);
+
+		const newDate = prompt('{$txt61}:', date);
 		if (newDate === null) return;
-		
-		const newDescription = prompt('Beskrivelse:', description);
+
+		const newDescription = prompt('{$txt9}:', description);
 		if (newDescription === null) return;
-		
-		const newInvoiceNumber = prompt('Fakturanummer:', invoiceNumber);
+
+		const newInvoiceNumber = prompt('{$txt30}:', invoiceNumber);
 		if (newInvoiceNumber === null) return;
 		
 		// Save via AJAX (reuse existing save logic)
@@ -2671,12 +2770,12 @@ print <<<JS
 				// Refresh the file list
 				fetchFiles();
 			} else {
-				alert('Fejl ved gemning. Prøv igen.');
+				alert('{$txt71}');
 			}
 		})
 		.catch(error => {
 			console.error('Error saving:', error);
-			alert('Fejl ved gemning: ' + error.message);
+			alert('{$txt31}: ' + error.message);
 		});
 	};
 
@@ -2743,7 +2842,7 @@ print <<<JS
 		}
 		
 		if (!selectedFiles || selectedFiles.length === 0) {
-			alert('Vælg mindst ét bilag');
+			alert('{$txt33}');
 			return;
 		}
 		
@@ -2961,15 +3060,15 @@ print <<<JS
 			} else {
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
-					alert('Fejl ved indsætning (Status: ' + response.status + '). Prøv igen.');
+					alert('{$txt34} (Status: ' + response.status + '). {$txt32}.');
 				}).catch(() => {
-					alert('Fejl ved indsætning. Prøv igen.');
+					alert('{$txt34}. {$txt32}.');
 				});
 			}
 		})
 		.catch(error => {
 			console.error('Insert error:', error);
-			alert('Fejl ved indsætning: ' + error.message);
+			alert('{$txt34}: ' + error.message);
 		});
 	};
 	
@@ -3111,8 +3210,8 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
         
         // Update actions column
         cells[5].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-            "<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;' title='Gem'>" + svgIcons.save + "</button>" +
-            "<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;' title='Annuller'>" + svgIcons.x + "</button>" +
+            "<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;' title='{$txt1}'>" + svgIcons.save + "</button>" +
+            "<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;' title='{$txt2}'>" + svgIcons.x + "</button>" +
             "</div>";
         
         // Focus on first input
@@ -3148,7 +3247,7 @@ const row = button.closest('tr[data-editing="true"]');
 
 // Delete pool file with confirmation
 window.deletePoolFile = function(poolFile, subject, deleteUrl) {
-	const confirmMsg = "Er du sikker på at du vil slette \"" + subject + "\"?";
+	const confirmMsg = "{$txt35} \"" + subject + "\"?";
 	if (confirm(confirmMsg)) {
 		window.location.href = deleteUrl;
 	}
@@ -3187,7 +3286,7 @@ window.extractPoolFile = function(poolFile) {
 	formData.append('poolFile', poolFile);
 	formData.append('db', db);
 	formData.append('docFolder', docFolder);
-	
+
 	fetch('docsIncludes/extractInvoiceHandler.php', {
 		method: 'POST',
 		body: formData
@@ -3200,15 +3299,15 @@ window.extractPoolFile = function(poolFile) {
 		if (result.success) {
 			// Update the row or card with extracted data
 			const extracted = result.data;
-			let message = 'Udtrækket data: \\n';
-			if (extracted.amount) message += 'Beløb: ' + extracted.amount + "\\n";
-			if (extracted.date) message += 'Dato: ' + extracted.date + "\\n";
-			if (extracted.invoiceNumber) message += 'Fakturanummer: ' + extracted.invoiceNumber + "\\n";
-			if (extracted.description) message += 'Beskrivelse: ' + extracted.description + "\\n";
-			if (extracted.vendor) message += 'Leverandør: ' + extracted.vendor + "\\n";
-			if (extracted.currency) message += 'Valuta: ' + extracted.currency + "\\n";
+			let message = '{$txt36}: \\n';
+			if (extracted.amount) message += '{$txt10}: ' + extracted.amount + "\\n";
+			if (extracted.date) message += '{$txt5}: ' + extracted.date + "\\n";
+			if (extracted.invoiceNumber) message += '{$txt30}: ' + extracted.invoiceNumber + "\\n";
+			if (extracted.description) message += '{$txt9}: ' + extracted.description + "\\n";
+			if (extracted.vendor) message += '{$txt11}: ' + extracted.vendor + "\\n";
+			if (extracted.currency) message += '{$txt7}: ' + extracted.currency + "\\n";
 
-			if (confirm(message + 'Vil du opdatere filen med disse data?')) {
+			if (confirm(message + '{$txt37}')) {
 				// Save the extracted data to the .info file
 				const saveData = new FormData();
 				saveData.append('action', 'save');
@@ -3232,21 +3331,21 @@ window.extractPoolFile = function(poolFile) {
 						// Reload the page while preserving the current URL (keeps poolFile selection)
 						window.location.href = window.location.href;
 					} else {
-						alert('Fejl ved gemning: ' + (saveResult.error || 'Ukendt fejl'));
+						alert('{$txt31}: ' + (saveResult.error || '{$txt38}'));
 					}
 				})
 				.catch(error => {
-					alert('Fejl ved gemning: ' + error.message);
+					alert('{$txt31}: ' + error.message);
 				});
 			}
 		} else {
-			alert('Fejl ved udtræk: ' + (result.error || 'Ingen data kunne udtrækkes'));
+			alert('{$txt39}: ' + (result.error || '{$txt40}'));
 		}
 	})
 	.catch(error => {
 		btn.innerHTML = originalContent;
 		btn.disabled = false;
-		alert('Fejl ved udtræk: ' + error.message);
+		alert('{$txt39}: ' + error.message);
 	});
 };
 
@@ -3255,7 +3354,7 @@ window.extractPoolFile = function(poolFile) {
 window.extractAllPoolFiles = async function() {
 	// Get all pool files from the docData array
 	if (!docData || docData.length === 0) {
-		alert('Ingen filer i puljen at opdatere');
+		alert('{$txt41}');
 		return;
 	}
 	
@@ -3291,14 +3390,14 @@ window.extractAllPoolFiles = async function() {
 				extractFormData.append('action', 'extract');
 				extractFormData.append('poolFile', poolFile);
 				extractFormData.append('db', db);
-				
+
 				const extractResponse = await fetch('docsIncludes/extractInvoiceHandler.php', {
 					method: 'POST',
 					body: extractFormData
 				});
-				
+
 				const extractResult = await extractResponse.json();
-				
+
 				if (extractResult.success && extractResult.data) {
 					const extracted = extractResult.data;
 					
@@ -3352,11 +3451,11 @@ window.extractAllPoolFiles = async function() {
 		btn.style.opacity = '1';
 		
 		// Show summary
-		let message = 'Opdatering afsluttet!';
-		message += 'Behandlet: ' + total + ' filer';
-		message += 'Succesfulde: ' + successful;
+		let message = '{$txt42}!';
+		message += '{$txt43}: ' + total + ' {$txt53}';
+		message += '{$txt44}: ' + successful;
 		if (failed > 0) {
-			message += 'Fejlede: ' + failed;
+			message += '{$txt45}: ' + failed;
 		}
 		
 		alert(message);
@@ -3373,12 +3472,12 @@ window.deleteSelectedFiles = async function() {
 	// Get all selected checkboxes
 	const checkboxes = document.querySelectorAll('.file-checkbox:checked');
 	if (checkboxes.length === 0) {
-		alert('Ingen filer valgt. Vælg venligst de filer du vil slette.');
+		alert('{$txt46}');
 		return;
 	}
 	
 	// Confirm deletion
-	const confirmMsg = 'Er du sikker på at du vil slette ' + checkboxes.length + ' fil(er)?';
+	const confirmMsg = '{$txt35} ' + checkboxes.length + ' {$txt60}?';
 	if (!confirm(confirmMsg)) {
 		return;
 	}
@@ -3408,7 +3507,7 @@ window.deleteSelectedFiles = async function() {
 			formData.append('action', 'delete');
 			formData.append('poolFile', poolFile);
 			formData.append('db', db);
-			
+
 			const response = await fetch('docsIncludes/extractInvoiceHandler.php', {
 				method: 'POST',
 				body: formData
@@ -3438,10 +3537,10 @@ window.deleteSelectedFiles = async function() {
 	btn.style.opacity = '1';
 	
 	// Show summary
-	let message = 'Sletning afsluttet!';
-	message += 'Slettet: ' + deleted + ' filer';
+	let message = '{$txt47}!';
+	message += '{$txt48}: ' + deleted + ' {$txt53}';
 	if (failed > 0) {
-		message += 'Fejlede: ' + failed;
+		message += '{$txt45}: ' + failed;
 	}
 	
 	alert(message);
@@ -3574,9 +3673,9 @@ window.saveRowData = function(input) {
 			const deleteUrl = currentUrl.replace(/poolFile=[^&]*/, '') + (currentUrl.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromRow);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(data.newInvoiceNumber || '') + "\", \"" + escapeHTML(data.newInvoiceDescription || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>" + svgIcons.pencil + "</button>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>" + svgIcons.trash + "</button>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='Udtræk fakturadata'>" + svgIcons.scan + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(data.newInvoiceNumber || '') + "\", \"" + escapeHTML(data.newInvoiceDescription || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
 				"</div>";
 			
 			row.querySelector('td:nth-child(6)').innerHTML = actionsCell;
@@ -3608,15 +3707,15 @@ window.saveRowData = function(input) {
 			// Try to get error message from response
 			response.text().then(text => {
 				console.error('Save failed. Response:', response.status, text);
-				alert('Fejl ved gemning (Status: ' + response.status + '). Prøv igen.');
+				alert('{$txt31} (Status: ' + response.status + '). {$txt32}.');
 			}).catch(() => {
-				alert('Fejl ved gemning. Prøv igen.');
+				alert('{$txt71}');
 			});
 		}
 	})
 	.catch(error => {
 		console.error('Error saving:', error);
-		alert('Fejl ved gemning: ' + error.message);
+		alert('{$txt31}: ' + error.message);
 	})
 	.finally(() => {
 		row.style.opacity = '1';
@@ -3720,8 +3819,8 @@ JS;
 	print "<div id='dropText' style='display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; text-align: center;'>";
 	print "<svg viewBox='0 0 24 24' fill='none' stroke='#7ab3d4' stroke-width='1.5' width='44' height='44'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/></svg>";
 	print "<span style='font-size: 13px; font-weight: 600; color: #444;'>".findtekst('2593|Træk og slip PDF-fil her', $sprog_id)."</span>";
-	print "<span style='font-size: 11px; color: #aaa;'>eller</span>";
-	print "<button type='button' onclick='event.stopPropagation(); document.getElementById(\"fileUploadInput\").click();' style='margin-top: 2px; padding: 6px 18px; background: #fff; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; color: #555; cursor: pointer; pointer-events: auto; transition: border-color 0.2s, color 0.2s;' onmouseover='this.style.borderColor=\"#999\"; this.style.color=\"#333\";' onmouseout='this.style.borderColor=\"#ccc\"; this.style.color=\"#555\";'>Vælg fra enhed</button>";
+	print "<span style='font-size: 11px; color: #aaa;'>".lcfirst(findtekst('3326|Eller', $sprog_id))."</span>";
+	print "<button type='button' onclick='event.stopPropagation(); document.getElementById(\"fileUploadInput\").click();' style='margin-top: 2px; padding: 6px 18px; background: #fff; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; color: #555; cursor: pointer; pointer-events: auto; transition: border-color 0.2s, color 0.2s;' onmouseover='this.style.borderColor=\"#999\"; this.style.color=\"#333\";' onmouseout='this.style.borderColor=\"#ccc\"; this.style.color=\"#555\";'>".findtekst('3325|Vælg fra enhed', $sprog_id)."</button>";
 	print "</div>";
 	print "</div>";
 	
@@ -3761,7 +3860,7 @@ JS;
 			if (isAllowed) {
 				validFiles.push(files[i]);
 			} else {
-				alert('File ' + files[i].name + ' is not allowed. Please select only PDF or image files (jpg, png).');
+				alert(files[i].name + ': ' + '".addslashes(findtekst('3327|Filtypen er ikke tilladt. Vælg kun PDF eller billedfiler (jpg, png).', $sprog_id))."');
 			}
 		}
 		if (validFiles.length === 0) return;
@@ -3778,7 +3877,7 @@ JS;
 
 		function updateProgress() {
 			if (dropText) {
-				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> Uploader ' + (uploadedCount + failedCount + 1) + ' af ' + totalFiles + '...';
+				dropText.innerHTML = '<svg class=\"icon-svg icon-spin\" style=\"margin-right: 6px;\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"6\"></line><line x1=\"12\" y1=\"18\" x2=\"12\" y2=\"22\"></line><line x1=\"4.93\" y1=\"4.93\" x2=\"7.76\" y2=\"7.76\"></line><line x1=\"16.24\" y1=\"16.24\" x2=\"19.07\" y2=\"19.07\"></line><line x1=\"2\" y1=\"12\" x2=\"6\" y2=\"12\"></line><line x1=\"18\" y1=\"12\" x2=\"22\" y2=\"12\"></line><line x1=\"4.93\" y1=\"19.07\" x2=\"7.76\" y2=\"16.24\"></line><line x1=\"16.24\" y1=\"7.76\" x2=\"19.07\" y2=\"4.93\"></line></svg> ".addslashes(findtekst('3328|Uploader', $sprog_id))." ' + (uploadedCount + failedCount + 1) + ' ".addslashes(lcfirst(findtekst('2767|Af', $sprog_id)))." ' + totalFiles + '...';
 			}
 		}
 
@@ -3794,9 +3893,9 @@ JS;
 				var fileInput = document.getElementById('fileUploadInput');
 				if (fileInput) fileInput.value = '';
 
-				var message = '✓ Upload complete!\\n';
-				message += uploadedCount + ' file(s) uploaded successfully';
-				if (failedCount > 0) message += '\\n' + failedCount + ' file(s) failed';
+				var message = '✓ ".addslashes(findtekst('3329|Upload færdig', $sprog_id))."!\\n';
+				message += uploadedCount + ' ".addslashes(lcfirst(findtekst('3330|Fil(er) uploadet', $sprog_id)))."';
+				if (failedCount > 0) message += '\\n' + failedCount + ' ".addslashes(lcfirst(findtekst('3331|Fil(er) fejlet', $sprog_id)))."';
 				alert(message);
 
 				if (lastUploadedFilename) {
@@ -3912,7 +4011,7 @@ JS;
 		$linkUrl = "../includes/documents.php?linkBilag=1&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
 		print "<div style='margin-top: 14px;'>";
 		print "<a href='$linkUrl' style='display: block; width: 100%; padding: 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 8px; font-size: 12px; font-weight: 600; text-align: center; box-sizing: border-box; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#5a6268\"' onmouseout='this.style.backgroundColor=\"#6c757d\"'>";
-		print "<span style='margin-right: 4px;'>$svgLink</span> Link bilag fra anden linje";
+		print "<span style='margin-right: 4px;'>$svgLink</span> ".findtekst('3332|Link bilag fra anden linje', $sprog_id);
 		print "</a>";
 		print "</div>";
 	}
@@ -4171,23 +4270,23 @@ JS;
 					} else {
 						docPoolLog("XML to HTML conversion failed for $poolFile: $curlError");
 						print "<div style='padding: 20px; font-family: Arial, sans-serif;'>";
-						print "<h3 style='color: #dc3545;'>Kunne ikke konvertere XML-dokument</h3>";
-						print "<p>Fejl: " . htmlspecialchars($curlError ?: 'Ukendt fejl') . "</p>";
-						print "<p>Filen: " . htmlspecialchars($poolFile) . "</p>";
+						print "<h3 style='color: #dc3545;'>".findtekst('3333|Kunne ikke konvertere XML-dokument', $sprog_id)."</h3>";
+						print "<p>" . htmlspecialchars($curlError ?: $txt38) . "</p>";
+						print "<p>".findtekst('3334|Filen', $sprog_id).": " . htmlspecialchars($poolFile) . "</p>";
 						print "</div>";
 					}
 				} else {
 					// No API key - show raw XML in a styled container
 					print "<div style='padding: 20px; font-family: Arial, sans-serif;'>";
-					print "<h3 style='color: #856404;'>XML-dokument (rå visning)</h3>";
-					print "<p style='color: #856404;'>EasyUBL API-nøgle mangler. kontakt saldi support 4690 2208</p>";
+					print "<h3 style='color: #856404;'>".findtekst('3279|XML-dokument', $sprog_id)." (".lcfirst(findtekst('3336|Rå visning', $sprog_id)).")</h3>"; #XML-dokument (rå visning)
+					print "<p style='color: #856404;'>EasyUBL".findtekst('3337|API-nøgle mangler', $sprog_id).". ".ucfirst(findtekst('1702|kontakt Saldi på telefon 4690 2208', $sprog_id))."</p>"; #EasyUBL API-nøgle mangler. Kontakt Saldi på telefon 4690 2208
 					print "<pre style='background: #f8f9fa; padding: 15px; border-radius: 6px; overflow: auto; max-height: 90%; font-size: 12px;'>" . htmlspecialchars($xmlContent) . "</pre>";
 					print "</div>";
 				}
 			} else {
 				print "<div style='padding: 20px; font-family: Arial, sans-serif;'>";
-				print "<h3 style='color: #dc3545;'>Kunne ikke læse XML-filen</h3>";
-				print "<p>Filen: " . htmlspecialchars($poolFile) . "</p>";
+				print "<h3 style='color: #dc3545;'>".findtekst('3335|Kunne ikke læse XML-filen', $sprog_id)."</h3>";
+				print "<p>".findtekst('3334|Filen', $sprog_id).": " . htmlspecialchars($poolFile) . "</p>";
 				print "</div>";
 			}
 		} else {
@@ -4689,36 +4788,36 @@ HTML;
 	
 	window.saldiLanguage = ' . $langId . ';
 	window.saldiTranslations = {
-		selectAccount: "' . findtekst('586', $langId) . ' ' . findtekst('592', $langId) . '",
-		selectDebtor: "' . findtekst('586', $langId) . ' Debitor",
-		selectCreditor: "' . findtekst('586', $langId) . ' Kreditor",
-		selectDepartment: "' . findtekst('586', $langId) . ' ' . findtekst('274', $langId) . '",
-		selectCurrency: "' . findtekst('586', $langId) . ' ' . findtekst('776', $langId) . '",
-		selectAmount: "' . findtekst('586', $langId) . ' ' . findtekst('934', $langId) . '",
-		openItems: "Åbne Poster",
-		close: "' . findtekst('2172', $langId) . '",
-		search: "' . findtekst('913', $langId) . '...",
-		searchAccount: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('43', $langId)) . ' / ' . strtolower(findtekst('914', $langId)) . '...",
-		searchInvoice: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('643', $langId)) . ' / ' . strtolower(findtekst('138', $langId)) . '...",
-		noResults: "Ingen resultater",
-		code: "Kode",
-		description: "' . findtekst('914', $langId) . '",
-		initials: "' . findtekst('647', $langId) . '",
-		name: "' . findtekst('138', $langId) . '",
-		companyName: "' . findtekst('28', $langId) . '",
-		accountNo: "' . findtekst('43', $langId) . '",
-		invoiceNo: "' . findtekst('643', $langId) . '",
-		date: "' . findtekst('635', $langId) . '",
-		amount: "' . findtekst('934', $langId) . '",
-		vat: "' . findtekst('770', $langId) . '",
-		shortcut: "' . findtekst('1191', $langId) . '",
-		balance: "Saldo",
-		showing: "Viser",
-		of: "af",
-		previous: "' . findtekst('2598', $langId) . '",
-		next: "' . findtekst('1200', $langId) . '",
-		today: "' . findtekst('2773', $langId) . '",
-		week: "' . findtekst('2669', $langId) . '"
+		selectAccount: "' . findtekst('586|Vælg', $langId) . ' ' . findtekst('592|Konto', $langId) . '",
+		selectDebtor: "' . findtekst('586|Vælg', $langId) . ' ' . findtekst('604|Debitor', $langId) . '",
+		selectCreditor: "' . findtekst('586|Vælg', $langId) . ' ' . findtekst('1169|Kreditor', $langId) . '",
+		selectDepartment: "' . findtekst('586|Vælg', $langId) . ' ' . findtekst('274|Afdeling', $langId) . '",
+		selectCurrency: "' . findtekst('586|Vælg', $langId) . ' ' . findtekst('776|Valuta', $langId) . '",
+		selectAmount: "' . findtekst('586|Vælg', $langId) . ' ' . findtekst('934|Beløb', $langId) . '",
+		openItems: "' . findtekst('441|Åbne poster', $langId) . '",
+		close: "' . findtekst('2172|Luk', $langId) . '",
+		search: "' . findtekst('913|Søg', $langId) . '...",
+		searchAccount: "' . findtekst('913|Søg', $langId) . ' ' . strtolower(findtekst('43|Kontonr.', $langId)) . ' / ' . strtolower(findtekst('914|Beskrivelse', $langId)) . '...",
+		searchInvoice: "' . findtekst('913|Søg', $langId) . ' ' . strtolower(findtekst('643|Faktura', $langId)) . ' / ' . strtolower(findtekst('138|Navn', $langId)) . '...",
+		noResults: "' . findtekst('2798|Ingen resultater', $langId) . '",
+		code: "' . findtekst('3338|Kode', $langId) . '",
+		description: "' . findtekst('914|Beskrivelse', $langId) . '",
+		initials: "' . findtekst('647|Initialer', $langId) . '",
+		name: "' . findtekst('138|Navn', $langId) . '",
+		companyName: "' . findtekst('28|Firmanavn', $langId) . '",
+		accountNo: "' . findtekst('43|Kontonr.', $langId) . '",
+		invoiceNo: "' . findtekst('643|Faktura', $langId) . '",
+		date: "' . findtekst('635|Dato', $langId) . '",
+		amount: "' . findtekst('934|Beløb', $langId) . '",
+		vat: "' . findtekst('770|Moms', $langId) . '",
+		shortcut: "' . findtekst('1191|Genvej', $langId) . '",
+		balance: "' . findtekst('1073|Saldo', $langId) . '",
+		showing: "' . findtekst('2954|Viser', $langId) . '",
+		of: "' . lcfirst(findtekst('2767|Af', $langId)) . '",
+		previous: "' . findtekst('2598|Forrige', $langId) . '",
+		next: "' . findtekst('1200|Næste', $langId) . '",
+		today: "' . findtekst('2773|I dag', $langId) . '",
+		week: "' . findtekst('2669|Uge', $langId) . '"
 	};
 	
 	document.addEventListener("DOMContentLoaded", function() {
@@ -4791,8 +4890,8 @@ HTML;
 
     function saveRow(rowId, kladdeId, bilag) {
         var entryDiv = document.getElementById('bilagEntry_' + rowId);
-        var gemBtn = entryDiv ? entryDiv.querySelector('a[title="Gem linje"]') : null;
-        if (gemBtn) { gemBtn.innerHTML = 'Gemmer...'; gemBtn.style.opacity = '0.7'; gemBtn.style.pointerEvents = 'none'; }
+        var gemBtn = entryDiv ? entryDiv.querySelector('a[title="<?php echo $txt1.' '.lcfirst($txt14)?>"]') : null;
+        if (gemBtn) { gemBtn.innerHTML = '<?php echo $txt49 ?>...'; gemBtn.style.opacity = '0.7'; gemBtn.style.pointerEvents = 'none'; }
 
         _saveRowFetch(rowId, kladdeId, bilag)
         .then(data => {
@@ -4803,23 +4902,23 @@ HTML;
                     window.location.href = url.href;
                 } else {
                     if (gemBtn) {
-                        gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gemt!";
+                        gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt50 ?>!";
                         setTimeout(() => {
-                            gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem";
+                            gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt1 ?>";
                             gemBtn.style.opacity = "1";
                             gemBtn.style.pointerEvents = "auto";
                         }, 2000);
                     }
                 }
             } else {
-                alert("Fejl ved gemning: " + (data.message || "Ukendt fejl"));
-                if (gemBtn) { gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem"; gemBtn.style.opacity = "1"; gemBtn.style.pointerEvents = "auto"; }
+                alert("<?php echo $txt31 ?>: " + (data.message || "<?php echo $txt38 ?>"));
+                if (gemBtn) { gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt1 ?>"; gemBtn.style.opacity = "1"; gemBtn.style.pointerEvents = "auto"; }
             }
         })
         .catch(err => {
             console.error(err);
-            alert("Der opstod en fejl ved gemning.");
-            if (gemBtn) { gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem"; gemBtn.style.opacity = "1"; gemBtn.style.pointerEvents = "auto"; }
+            alert("<?php echo $txt31 ?>");
+            if (gemBtn) { gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt1 ?>"; gemBtn.style.opacity = "1"; gemBtn.style.pointerEvents = "auto"; }
         });
     }
     window.saveRow = saveRow;
@@ -4830,7 +4929,7 @@ HTML;
         var bilag    = <?php echo isset($intBilag) ? (int)$intBilag : '0' ?>;
         var entries  = document.querySelectorAll('.kassebilag-entry');
         var gemAlleBtn = document.getElementById('gemAlleBtn');
-        if (gemAlleBtn) { gemAlleBtn.innerHTML = 'Gemmer...'; gemAlleBtn.style.opacity = '0.7'; gemAlleBtn.style.pointerEvents = 'none'; }
+        if (gemAlleBtn) { gemAlleBtn.innerHTML = '<?php echo $txt49 ?>...'; gemAlleBtn.style.opacity = '0.7'; gemAlleBtn.style.pointerEvents = 'none'; }
 
         var rowIds = Array.from(entries).map(el => el.id.replace('bilagEntry_', ''));
         Promise.all(rowIds.map(id => _saveRowFetch(id, kladdeId, bilag)))
@@ -4841,17 +4940,17 @@ HTML;
                 if (rowIds[i] === 'new' && d.success && d.sourceId) newSourceId = d.sourceId;
             });
             if (failed) {
-                alert("Fejl ved gemning: " + (failed.message || "Ukendt fejl"));
-                if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem alle"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
+                alert("<?php echo $txt31 ?>: " + (failed.message || "<?php echo $txt38 ?>"));
+                if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt72 ?>"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
             } else if (newSourceId) {
                 var url = new URL(window.location.href);
                 url.searchParams.set("sourceId", newSourceId);
                 window.location.href = url.href;
             } else {
                 if (gemAlleBtn) {
-                    gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Alle gemt!";
+                    gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt73 ?>";
                     setTimeout(() => {
-                        gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem alle";
+                        gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt72 ?>";
                         gemAlleBtn.style.opacity = "1";
                         gemAlleBtn.style.pointerEvents = "auto";
                     }, 2000);
@@ -4860,16 +4959,16 @@ HTML;
         })
         .catch(err => {
             console.error(err);
-            alert("Der opstod en fejl ved gemning.");
-            if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem alle"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
+            alert("<?php echo $txt31 ?>");
+            if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;<?php echo $txt72 ?>"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
         });
     }
     window.saveAllRows = saveAllRows;
 
     function duplicateRow(rowId, kladdeId, bilag) {
         var entryDiv = document.getElementById('bilagEntry_' + rowId);
-        var dupBtn = entryDiv ? entryDiv.querySelector('a[title="Dupliker linje"]') : null;
-        if (dupBtn) { dupBtn.innerHTML = 'Duplikerer...'; dupBtn.style.opacity = '0.7'; dupBtn.style.pointerEvents = 'none'; }
+        var dupBtn = entryDiv ? entryDiv.querySelector('a[title="<?php echo $txt74 ?>"]') : null;
+        if (dupBtn) { dupBtn.innerHTML = '<?php echo $txt51 ?>...'; dupBtn.style.opacity = '0.7'; dupBtn.style.pointerEvents = 'none'; }
 
         fetch(_insertUrl, { method: "POST", body: _buildFormData(rowId, kladdeId, bilag, false) })
         .then(r => r.json())
@@ -4879,14 +4978,14 @@ HTML;
                 url.searchParams.set("sourceId", data.sourceId);
                 window.location.href = url.href;
             } else {
-                alert("Fejl ved duplikering: " + (data.message || "Ukendt fejl"));
-                if (dupBtn) { dupBtn.innerHTML = "<?php echo addslashes($svgCopy) ?>" + "&nbsp;Dupliker"; dupBtn.style.opacity = "1"; dupBtn.style.pointerEvents = "auto"; }
+                alert("<?php echo $txt52 ?>: " + (data.message || "<?php echo $txt38 ?>"));
+                if (dupBtn) { dupBtn.innerHTML = "<?php echo addslashes($svgCopy) ?>" + "&nbsp;<?php echo $txt16 ?>"; dupBtn.style.opacity = "1"; dupBtn.style.pointerEvents = "auto"; }
             }
         })
         .catch(err => {
             console.error(err);
-            alert("Der opstod en fejl ved duplikering.");
-            if (dupBtn) { dupBtn.innerHTML = "<?php echo addslashes($svgCopy) ?>" + "&nbsp;Dupliker"; dupBtn.style.opacity = "1"; dupBtn.style.pointerEvents = "auto"; }
+            alert("<?php echo $txt52 ?>");
+            if (dupBtn) { dupBtn.innerHTML = "<?php echo addslashes($svgCopy) ?>" + "&nbsp;<?php echo $txt16 ?>"; dupBtn.style.opacity = "1"; dupBtn.style.pointerEvents = "auto"; }
         });
     }
     window.duplicateRow = duplicateRow;
@@ -4896,7 +4995,7 @@ HTML;
 	window.transferDataFromSelectedFile = function() {
     
     
-		let sourceRow = null;
+		let sourceRow  = null;
 		let sourceData = null;
 
 		// Check docData for the currently selected file (from URL poolFile param)

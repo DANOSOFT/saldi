@@ -222,7 +222,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 #		include("../includes/sidemenu.php");
 	} elseif ($menu == 'S') {
 
-		$title =  findtekst(897, $sprog_id);
+		$title = findtekst('3359|Finansrapporter', $sprog_id);
 
 		#######################
 		include("../includes/S_topLine.php");

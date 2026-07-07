@@ -280,7 +280,7 @@ print "</tbody></table></td></tr>";
 print "<tr><td colspan=6><hr></td></tr>";
 print "<tr><td colspan=4>$firmanavn<br></td><td width=10%><align=\"right\">Kontonr</td><td align=\"right\">$kontonr</td></tr>";
 print "<tr><td colspan=4>$addr1<br></td><td width=10%><align=\"right\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></td><td align=\"right\">$tlf</td></tr>";
-print "<tr><td colspan=4>$addr2<br></td><td width=10%><align=\"right\">".findtekst('378|Mobile', $sprog_id)."<!--tekst 378--></td><td align=\"right\">$mobile</td></tr>";
+print "<tr><td colspan=4>$addr2<br></td><td width=10%><align=\"right\">".findtekst('378|Mobil', $sprog_id)."<!--tekst 378--></td><td align=\"right\">$mobile</td></tr>";
 print "<tr><td colspan=4>$postnr $bynavn<br></td><td width=10%><br></tr>";
 print "<tr><td colspan=6><hr></td></tr>";
 print "<tr><td>".findtekst('7|Felt 1', $sprog_id)."<!--tekst 7--></td><td colspan=2><input type=text size=40 name=felt_2 value=\"".$felt_2."\"><br></td>";
