@@ -59,16 +59,16 @@ if(($_GET)||($_POST)) {
 		$bilag		  = if_isset($_GET, NULL,'bilag');
 		$fokus		  = if_isset($_GET, NULL,'fokus');
 		$docFocus	  = if_isset($_GET, NULL,'docFocus');
-		$sourceId   = if_isset($_GET, NULL,'sourceId');
-		$source     = if_isset($_GET, NULL,'source');
-		$showDoc    = if_isset($_GET, NULL,'showDoc');
-		$deleteDoc  = if_isset($_GET, NULL,'deleteDoc');
-		$unlinkDoc  = if_isset($_GET, NULL,'unlinkDoc');
-		$moveDoc  	= if_isset($_GET, NULL,'moveDoc');
-		$kladde_id  = if_isset($_GET, NULL,'kladde_id');
-		$dokument   = if_isset($_GET, NULL,'dokument');
-		$openPool    = if_isset($_GET, NULL,'openPool');
-		$poolFile    = if_isset($_GET, NULL,'poolFile');
+		$sourceId     = if_isset($_GET, NULL,'sourceId');
+		$source       = if_isset($_GET, NULL,'source');
+		$showDoc      = if_isset($_GET, NULL,'showDoc');
+		$deleteDoc    = if_isset($_GET, NULL,'deleteDoc');
+		$unlinkDoc    = if_isset($_GET, NULL,'unlinkDoc');
+		$moveDoc  	  = if_isset($_GET, NULL,'moveDoc');
+		$kladde_id    = if_isset($_GET, NULL,'kladde_id');
+		$dokument     = if_isset($_GET, NULL,'dokument');
+		$openPool     = if_isset($_GET, NULL,'openPool');
+		$poolFile     = if_isset($_GET, NULL,'poolFile');
 	}
 	if (isset($_POST['sourceId']) || isset($_POST['source'])) {
 		$sourceId  = isset($_POST['sourceId']) ? $_POST['sourceId'] : $sourceId;

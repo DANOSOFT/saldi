@@ -319,7 +319,7 @@ print "<td><br></td>";
 print "<td>".findtekst('401|Mobil', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=mobil value=\"$mobil\"></td></tr>";
 print "<tr><td>".findtekst('654|Lokalnr.', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\"></td>";
 print "<td><br></td>";
-print "<td>".findtekst('655|Lokal mobile', $sprog_id)."</td><td><br></td><td><input type=text class=\"inputbox\" size=10 name=mobile value=\"$mobile\"></td></tr>";
+print "<td>".findtekst('655|Lokal mobil', $sprog_id)."</td><td><br></td><td><input type=text class=\"inputbox\" size=10 name=mobile value=\"$mobile\"></td></tr>";
 print "<td><br></td>";
 print "<tr><td valign=top>".findtekst('659|Bemærkning', $sprog_id)."</td><td colspan=7><textarea class=\"inputbox\" name=\"notes\" rows=\"3\" cols=\"85\">$notes</textarea></td></tr>";
 print "<tr><td><br></td></tr>";
@@ -436,7 +436,7 @@ if ($menu == 'T') {
     $r = db_fetch_array(db_select("SELECT box7 FROM grupper WHERE art = 'DIV' AND kodenr = '2'", __FILE__ . " linje " . __LINE__));
     $jobkort = $r['box7'];
     $tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id);
-    $buttonText = findtekst('38|Stillingsliste', $sprog_id);
+    $buttonText = findtekst('38|Opgaveliste', $sprog_id);
     if ($jobkort) {
         print "<td width='10%' title='$tekst'>
                 <a href='jobliste.php?konto_id=$konto_id&returside=../debitor/ansatte.php?konto_id=$konto_id'
