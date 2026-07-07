@@ -181,6 +181,7 @@ if ($status>=1) {
     print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
     print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
     print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
+  }
   } else {
     // status>=1 but no vare_id: pad columns to align with vare_id rows (leve + dk_tidl_lev)
     print "<td></td><td></td>";

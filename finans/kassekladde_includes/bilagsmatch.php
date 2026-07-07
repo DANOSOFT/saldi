@@ -97,6 +97,11 @@
         });
         document.querySelector("#background-dimmer").addEventListener('mousedown', function(e) { hidePreview(); });
     });
+
+    popuper.onClose.push(function(container){
+        hidePreview();
+    });
+
     function openPopup(){
         let params = new URLSearchParams(document.location.search);
         let kladde_id = params.get("kladde_id");
@@ -123,15 +128,34 @@
         text-align: center;
     }
 
+    #popup-exit-call-btn {
+        background: #4CAF50;
+        float: right;
+        min-height: 20px;
+        min-width: 120px;
+    }
+
+    #popup-close-btn {
+        background: #F44336;
+        min-height: 20px;
+        min-width: 120px;
+    }
+
+
     .saldi-button {
-        <?php echo $buttonStyle ?>
+        <?= $buttonStyle ?>
+        cursor: pointer;
     }
 
     #popup-header {
-        display: inline-block;
-        * {
-            padding: 2px;
-        }
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    #popup-header > * {
+        padding: 2px;
     }
 
     .popup-no-results{
@@ -140,9 +164,6 @@
 
     #popup-header-title {
         float: left;
-    }
-    #popupcontainer-calls{
-        float: right;
     }
     .bilags-alignment img{
         width: 20px;
@@ -275,7 +296,7 @@
 
 <style>
     body { font-family: Arial, sans-serif; margin: 0; padding: 8px; } /* #20260513 */
-    .header { background: $buttonColor; color: $buttonTxtColor; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header { background: <?= $buttonColor ?>; color: <?= $buttonTxtColor ?>; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
     .header h2 { margin: 0; }
     .doc-list { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eee; position: relative; cursor: pointer; }
