@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20260513 PHR Removed if ($id) around cvrapi to make it work again for existing customers
 // 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
 // 20260706 MJ Fix $id clobbering by contacts foreach loops; fix UPDATE adresser using wrong id; fix redirect after save; allow save when kontotype not yet set in DB
+// 20260707 MJ Fix primary email deletion on save; fix blank ordre after Account card → Luk
 @session_start();
 $s_id = session_id();
 
@@ -663,6 +664,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						db_modify("DELETE FROM kontakt_emails WHERE id = '$ke_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 					} elseif (!$ke_id && $ke_val) {
 						db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$ke_val', '$ke_type')", __FILE__ . " linje " . __LINE__);
+						$r_new_ke = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kontakt_emails', 'id')) AS id", __FILE__ . " linje " . __LINE__));
+						$primary_ke_id = $r_new_ke ? intval($r_new_ke['id']) : 0;
 					}
 				}
 
@@ -2359,19 +2362,11 @@ if ($popup) {
 
 // Kontokort button
 
-#check if ordre.php is contained in $returside 
+// Kontokort button — preserve order context when coming from ordre.php
 if (strpos($queryString, 'ordre.php') !== false) {
-	$returside = $_GET['returside'] ?? $queryString;
-    if ($returside !== 'ordre.php') {
-        $returside = str_replace('returside=', '', $returside);
-    } else {
-        $returside = str_replace('returside=', '', $queryString);
-    }
 	$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/$returside'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
-
-}else{
-
-$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
+} else {
+	$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
 }
 
 // Fakturaliste button
@@ -2450,9 +2445,10 @@ function split_navn($firmanavn)
 	return ($fornavn . "," . $efternavn);
 }
 
-//if (!$id) {
+if (!$id || substr($cvrnr,0,1)  == '*') {
+	$cvrnr = trim($cvrnr,"*");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
-//}
+}
 
 ##################
 
