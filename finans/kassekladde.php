@@ -56,12 +56,9 @@
 // 20260610 CL/PHR - Valuta-kolonne viste ingenting: tilføjet field=valuta_navn + LEFT JOIN grupper VK i build_kassekladde_query
 // 20260610 CL/PHR - Valuta-kolonne: viser $baseCurrency (f.eks. DKK) for rækker uden fremmed valuta (valuta=0)
 // 20260617 Sawaneh - Fixed cash journal account suggestions to show inside the blue autocomplete dropdown instead of the old overlapping gray popup.
-// 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
-
 // 20260619 PHR - build_kassekladde_query: LEFT JOIN grupper VK brugte text=integer uden cast → rettet til kodenr::text=k.valuta::text
 // 20260619 PHR - Valuta nulstilledes til DKK på alle linjer ved valideringsfejl: valuta gemt som kode-string i tmpkassekl håndteres nu korrekt ved genvisning
-
-//
+// 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
 
 ob_start(); //Starter output buffering
 
