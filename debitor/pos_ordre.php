@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-06-20 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 DANOSOFT.ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
@@ -102,7 +102,7 @@
 // 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
 // 20260618 PHR removed // from print "<meta http-equiv=\"ref......
 // 20260620 MJ Preserve the active POS register on form posts and prefer the order register for drawer printing.
-
+// 20260707 MJ Add kasse to form action URL so drawer kasse is preserved on POST; restore commented-out drawer redirect in aabn_skuffe
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1700,7 +1700,7 @@ if ($tilfravalgNy && ($delFrTfv || $delFrTfv == '0')) {
 	}
 	$tilfravalgNy = trim($tilfravalgNy, chr(9));
 } else $tilfravalgNy = if_isset($_POST['tilfravalgNy']); #20220614
-print "<form name='pos_ordre' action='pos_ordre.php?id=$id&bundmenu=$bundmenu&sidemenu=$sidemenu&bordnr=$bordnr";
+print "<form name='pos_ordre' action='pos_ordre.php?id=$id&kasse=$kasse&bundmenu=$bundmenu&sidemenu=$sidemenu&bordnr=$bordnr";
 print "&del_bord=$del_bord&tilfravalgNy=" . str_replace(chr(9), '|', $tilfravalgNy) . "' method='post' autocomplete='off'>\n";
 print "<input type='hidden' name='kasse' value='" . htmlspecialchars($kasse, ENT_QUOTES, 'UTF-8') . "'>\n";
 print "<table width=\"100%\" height=\"100%\" bordercolor=\"#ffffff\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tbody>\n"; # Tabel 1 ->
