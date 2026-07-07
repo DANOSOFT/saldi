@@ -41,7 +41,7 @@ print "<div class=\"row\"><div class=\"left\">".findtekst('52|E-mail', $sprog_id
 #print "<td>CVR. nr.</td><td><br></td><td><input type=text size=10 name=cprnr value=\"$cprnr\"></td></tr>";
 print "<div class=\"row\"><div class=\"left\">".findtekst('401|Mobil', $sprog_id)."</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"mobil\" value=\"$mobil\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 print "<div class=\"row\"><div class=\"left\">".findtekst('654|Lokalnr.', $sprog_id)."</div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"tlf\" value=\"$tlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal mobile', $sprog_id)."</div><div class=\"right\"><input type=text class=\"text textIndent\" name=\"mobile\" value=\"$mobile\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal mobil', $sprog_id)."</div><div class=\"right\"><input type=text class=\"text textIndent\" name=\"mobile\" value=\"$mobile\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 print "</div><!-- end of contentA -->\n";
 print "</div><!-- end of right container -->\n";
 print "<div style=\"float:left; width:828px;\">\n";

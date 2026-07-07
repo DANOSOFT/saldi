@@ -98,15 +98,15 @@ $filnavn = NULL;
 
 if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 	if ($_GET['kilde_id']) {
-		$kilde_id = if_isset($_GET['kilde_id']);
-		$kilde    = if_isset($_GET['kilde']);
-		$bilag_id = if_isset($_GET['bilag_id']);
-		$bilag    = if_isset($_GET['bilag']);
-		$fokus    = if_isset($_GET['fokus']);
-		$ny       = if_isset($_GET['ny']);
-		$vis      = if_isset($_GET['vis']);
-		$filnavn  = if_isset($_GET['filnavn']);
-		$fase     = if_isset($_GET['fase']);
+		$kilde_id    = if_isset($_GET['kilde_id']);
+		$kilde       = if_isset($_GET['kilde']);
+		$bilag_id    = if_isset($_GET['bilag_id']);
+		$bilag       = if_isset($_GET['bilag']);
+		$fokus       = if_isset($_GET['fokus']);
+		$ny          = if_isset($_GET['ny']);
+		$vis         = if_isset($_GET['vis']);
+		$filnavn     = if_isset($_GET['filnavn']);
+		$fase        = if_isset($_GET['fase']);
 	} else {
 		$submit      = $_POST['submit'];
 		$kilde_id    = $_POST['kilde_id'];

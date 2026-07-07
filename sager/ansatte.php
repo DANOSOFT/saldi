@@ -134,13 +134,13 @@ function ansatliste() {
 
 	global $sprog_id;
 
-	$sortstyle=array();
-	$nysortstyle=if_isset($_GET['nysortstyle']);
-	$sortarray=array('initialer','nummer','navn','addr1','postnr','bynavn','email','mobil');
-	$vis=if_isset($_GET['vis']);
-	$sort=if_isset($_GET['sort']);
-	$nysort=if_isset($_GET['nysort']);
-	$unsetsort=if_isset($_GET['unsetsort']);
+	$sortstyle   = array();
+	$nysortstyle = if_isset($_GET['nysortstyle']);
+	$sortarray   = array('initialer','nummer','navn','addr1','postnr','bynavn','email','mobil');
+	$vis         = if_isset($_GET['vis']);
+	$sort        = if_isset($_GET['sort']);
+	$nysort      = if_isset($_GET['nysort']);
+	$unsetsort   = if_isset($_GET['unsetsort']);
 	
 	if ($vis=='alleA') $alleA=$vis;
 	elseif ($vis=='fratraadteA') $fratraadteA=$vis;
@@ -158,45 +158,45 @@ function ansatliste() {
 	}
 	
 	if ($_GET['nysortstyle']) {
-		$_SESSION['ansatte_initialer']=$sortstyle[0];
-		$_SESSION['ansatte_nummer']=$sortstyle[1];
-		$_SESSION['ansatte_navn']=$sortstyle[2];
-		$_SESSION['ansatte_addr1']=$sortstyle[3];
-		$_SESSION['ansatte_postnr']=$sortstyle[4];
-		$_SESSION['ansatte_bynavn']=$sortstyle[5];
-		$_SESSION['ansatte_email']=$sortstyle[6];
-		$_SESSION['ansatte_mobil']=$sortstyle[7];
+		$_SESSION['ansatte_initialer'] = $sortstyle[0];
+		$_SESSION['ansatte_nummer']    = $sortstyle[1];
+		$_SESSION['ansatte_navn']      = $sortstyle[2];
+		$_SESSION['ansatte_addr1']     = $sortstyle[3];
+		$_SESSION['ansatte_postnr']    = $sortstyle[4];
+		$_SESSION['ansatte_bynavn']    = $sortstyle[5];
+		$_SESSION['ansatte_email']     = $sortstyle[6];
+		$_SESSION['ansatte_mobil']     = $sortstyle[7];
 	} else {
-		$sortstyle[0]=$_SESSION['ansatte_initialer'];
-		$sortstyle[1]=$_SESSION['ansatte_nummer'];
-		$sortstyle[2]=$_SESSION['ansatte_navn'];
-		$sortstyle[3]=$_SESSION['ansatte_addr1'];
-		$sortstyle[4]=$_SESSION['ansatte_postnr'];
-		$sortstyle[5]=$_SESSION['ansatte_bynavn'];
-		$sortstyle[6]=$_SESSION['ansatte_email'];
-		$sortstyle[7]=$_SESSION['ansatte_mobil'];
+		$sortstyle[0] = $_SESSION['ansatte_initialer'];
+		$sortstyle[1] = $_SESSION['ansatte_nummer'];
+		$sortstyle[2] = $_SESSION['ansatte_navn'];
+		$sortstyle[3] = $_SESSION['ansatte_addr1'];
+		$sortstyle[4] = $_SESSION['ansatte_postnr'];
+		$sortstyle[5] = $_SESSION['ansatte_bynavn'];
+		$sortstyle[6] = $_SESSION['ansatte_email'];
+		$sortstyle[7] = $_SESSION['ansatte_mobil'];
 	}
 	
 	if ($_GET['vis']) {
-		$_SESSION['alleA']=$alleA;
-		$_SESSION['fratraadteA']=$fratraadteA;
+		$_SESSION['alleA']       = $alleA;
+		$_SESSION['fratraadteA'] = $fratraadteA;
 	} else {
-		$alleA=$_SESSION['alleA'];
-		$fratraadteA=$_SESSION['fratraadteA'];
+		$alleA       = $_SESSION['alleA'];
+		$fratraadteA = $_SESSION['fratraadteA'];
 	}
 	
 	if ($unsetsort) {
 		unset($_SESSION['ansatte_sort'],
-					$_SESSION['ansatte_initialer'],$sortstyle[0],
-					$_SESSION['ansatte_nummer'],$sortstyle[1],
-					$_SESSION['ansatte_navn'],$sortstyle[2],
-					$_SESSION['ansatte_addr1'],$sortstyle[3],
-					$_SESSION['ansatte_postnr'],$sortstyle[4],
-					$_SESSION['ansatte_bynavn'],$sortstyle[5],
-					$_SESSION['ansatte_email'],$sortstyle[6],
-					$_SESSION['ansatte_mobil'],$sortstyle[7],
-					$_SESSION['alleA'],$alleA,
-					$_SESSION['fratraadteA'],$fratraadteA
+					$_SESSION['ansatte_initialer'], $sortstyle[0],
+					$_SESSION['ansatte_nummer'],    $sortstyle[1],
+					$_SESSION['ansatte_navn'],      $sortstyle[2],
+					$_SESSION['ansatte_addr1'],     $sortstyle[3],
+					$_SESSION['ansatte_postnr'],    $sortstyle[4],
+					$_SESSION['ansatte_bynavn'],    $sortstyle[5],
+					$_SESSION['ansatte_email'],     $sortstyle[6],
+					$_SESSION['ansatte_mobil'],     $sortstyle[7],
+					$_SESSION['alleA'],             $alleA,
+					$_SESSION['fratraadteA'],       $fratraadteA
 				);
 	}
 	
