@@ -2983,7 +2983,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
-	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = dkdato(date("Y-m-d"));
+	# 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
+	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1)) {
 		if (!isset($id[$x]))          $id[$x]          = NULL;
 		if (!isset($dato[$x]))        $dato[$x]        = NULL;
@@ -3018,7 +3019,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$next = $bilag[$x-1] + 1;
 		}
 		if($dato[$x] == ''){
-			$dato[$x] = dkdato(date("Y-m-d"));
+			# 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
+			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
 
 		#################
@@ -3076,7 +3078,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$next = $bilag[$x-1] + 1;
 		}
 		if($dato[$x] == ''){
-			$dato[$x] = dkdato(date("Y-m-d"));
+			# 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
+			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
 
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
