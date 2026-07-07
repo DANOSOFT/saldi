@@ -113,7 +113,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	if (!$kundeordnr) $kundeordnr='0'; # phr 20090803
 	while (strlen($cvrnr)<8) $cvrnr="0".$cvrnr;
 	if (is_numeric($cvrnr)) $cvrnr = 'DK'.$cvrnr;
-	echo "$cvrnr<br>";
+#	echo "$cvrnr<br>";
 
 	$l_momsbeloeb=afrund(abs($r_faktura['moms']),2);
 	$l_momssats=$r_faktura['momssats']*1;

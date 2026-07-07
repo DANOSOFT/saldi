@@ -56,7 +56,9 @@
 // 20260610 CL/PHR - Valuta-kolonne viste ingenting: tilføjet field=valuta_navn + LEFT JOIN grupper VK i build_kassekladde_query
 // 20260610 CL/PHR - Valuta-kolonne: viser $baseCurrency (f.eks. DKK) for rækker uden fremmed valuta (valuta=0)
 // 20260617 Sawaneh - Fixed cash journal account suggestions to show inside the blue autocomplete dropdown instead of the old overlapping gray popup.
-//
+// 20260619 PHR - build_kassekladde_query: LEFT JOIN grupper VK brugte text=integer uden cast → rettet til kodenr::text=k.valuta::text
+// 20260619 PHR - Valuta nulstilledes til DKK på alle linjer ved valideringsfejl: valuta gemt som kode-string i tmpkassekl håndteres nu korrekt ved genvisning
+// 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
 
 ob_start(); //Starter output buffering
 
@@ -116,47 +118,6 @@ include("../includes/row-hover-style.js.php");
 include("./kassekladde_includes/bilagsmatch.php");
 
 include("../includes/grid.php");
-
-// --- Kassekladde column visibility (user-toggleable columns) ---
-// Allowed toggleable columns: VAT debit, VAT credit, Afdeling, Ansat.
-// Mandatory columns (Bilag, Dato, Bilagstekst, D/K, Debet/Kredit, Amount, etc.) are not listed here and cannot be hidden.
-$kk_toggle_cols = array(
-    'vat_d' => 'VAT (Debet)',
-    'vat_k' => 'VAT (Kredit)',
-    'afd'   => 'Afd.',
-    'ansat' => 'Ansat',
-);
-
-// AJAX save endpoint — called from the Columns dropdown in the UI.
-if (isset($_POST['save_kk_cols']) && isset($bruger_id) && $bruger_id > 0) {
-    $parts = array_filter(array_map('trim', explode(',', (string)$_POST['save_kk_cols'])));
-    $clean = array();
-    foreach ($parts as $p) {
-        if (array_key_exists($p, $kk_toggle_cols)) $clean[] = $p;
-    }
-    $cols_str = db_escape_string(implode(',', $clean));
-    $exists = db_fetch_array(db_select("select id from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
-    if ($exists) {
-        db_modify("update grupper set box3='$cols_str' where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
-    } else {
-        db_modify("insert into grupper (beskrivelse,art,kode,kodenr,box3) values ('Kassekladde','KASKL','1','$bruger_id','$cols_str')", __FILE__ . " linje " . __LINE__);
-    }
-    header('Content-Type: application/json');
-    echo json_encode(array('ok' => true));
-    exit;
-}
-
-// Load hidden columns for this user (stored in grupper.box3 of KASKL row).
-$kk_hidden_cols = array();
-if (isset($bruger_id) && $bruger_id > 0) {
-    $kk_r = db_fetch_array(db_select("select box3 from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
-    if ($kk_r && trim((string)$kk_r['box3']) !== '') {
-        foreach (explode(',', $kk_r['box3']) as $c) {
-            $c = trim($c);
-            if (array_key_exists($c, $kk_toggle_cols)) $kk_hidden_cols[] = $c;
-        }
-    }
-}
 
 // Build VAT codes list from grupper table (art 2nd char = 'M')
 $vat_codes = array();
@@ -1432,7 +1393,7 @@ function build_kassekladde_query($kladde_id, $kksort) {
             k.dokument,
             k.saldo
         FROM kassekladde k
-        LEFT JOIN grupper vkg ON vkg.art = 'VK' AND vkg.kodenr = k.valuta
+        LEFT JOIN grupper vkg ON vkg.art = 'VK' AND vkg.kodenr::text = k.valuta::text
         WHERE k.kladde_id = '$kladde_id' AND {{WHERE}}
         ORDER BY {{SORT}}
     ";
@@ -1478,7 +1439,7 @@ $columns = array(
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
 			return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
 				<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>
-				<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
+				<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></span>
 			</td>";
 		}
 	),
@@ -2278,10 +2239,16 @@ if ($bogfort == "-") {
 } else {
     print "<td style='padding-left: 10px;'></td><td width='120px' align='left' style='vertical-align: middle;'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px; vertical-align: middle;' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
 }
-print "<td width='7%' align='center' style='vertical-align: middle;'>
+
+$help_icon  = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" style="vertical-align: middle;"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+$help_txt   = findtekst('3354|Genveje til Kassekladden', $sprog_id);
+$help_title = findtekst('3355|Hjælp til Kassekladden',   $sprog_id);
+$help_link  = "'https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' title='$help_title'";
+
+print "<td width='2%' align='center' style='vertical-align: middle;'>
     <a href='javascript:void(0)' onclick='window.print(); return false;'>
     <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;' title='Print'></a></td>
-    <td width='7%' align='center' style='vertical-align: middle;'><a href='https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' id='questionmark'>?</a></td></tr>\n";
+    <td width='12%' align='center' style='vertical-align: middle;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
 print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
 
@@ -2386,7 +2353,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
-		print "<td align = center class='kk-col-vat_d'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
+		print "<td align = center><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Kredit', $sprog_id)) . "</b></td>";
 		print "<td align = center class='kk-col-vat_k'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
@@ -2394,7 +2361,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&kkdir=$_amount_dir&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
 
 		if ($vis_afd)
-			print "<td align = left class='kk-col-afd'><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
+			print "<td align = left><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
 		if ($vis_ansat)
 			print "<td align = left  class='kk-col-ansat'><b> <span title= '" . findtekst('1568|Angiv hvilken ansat posteringen hører under', $sprog_id) . "'>" . findtekst('589|Ansat', $sprog_id) . "</b></td>";
 		if ($vis_projekt)
@@ -2577,6 +2544,11 @@ if ($kladde_id) {
 			$qtxt = "select box1 from grupper where art='VK' and kodenr ='$valutakode[$x]'";
 			$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			$valuta[$x] = $r2['box1'];
+		} elseif ($row['valuta']) {
+			// valuta gemt som valutakode-streng (f.eks. 'EUR') fra POST ved valideringsfejl
+			$valuta[$x] = strtoupper(trim($row['valuta']));
+			$r2 = db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1='" . db_escape_string($valuta[$x]) . "'", __FILE__ . " linje " . __LINE__));
+			if ($r2) $valutakode[$x] = (int)$r2['kodenr'];
 		}
 		if (!isset($valuta[$x]) || $valuta[$x] == $baseCurrency) $dkkamount[$x] = $amount[$x]; #20240419
 		elseif ($valutakode[$x]) {
@@ -2767,7 +2739,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
 			print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;' $dragAttr>";
 			#print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
-			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
+			print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></span></td>\n";
 		}
 		if (!isset($dub_bilag[$y]))
 			$dub_bilag[$y] = 0;
@@ -2801,14 +2773,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\" title='$debettext[$y]' onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$y", if_isset($debetvat[$y], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td>" . render_vat_select("dvat$y", if_isset($debetvat[$y], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$y' $de_fok value =\"$k_type[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (($d_type[$y] == 'D' || $d_type[$y] == 'K') && $debet[$y] && !$kredit[$y]) {
 			$lastPostingsAttr = sidste_5_forslag_attr($debet[$y], $d_type[$y], 'K', $charset);
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" title= '$kredittext[$y]' onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (!isset($valuta[$y])) $valuta[$y] = $baseCurrency;
 		if ($valuta[$y] == $baseCurrency) $title = "";
@@ -2816,11 +2788,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td title='$title'><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$y'
 		$de_fok value ='" . dkdecimal($amount[$y], 2) . "' onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd) {
-			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$y'
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$y' 
 			$de_fok value =\"$afd[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_ansat) {
-			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$y'
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$y' 
 			$de_fok value =\"$ansat[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_projekt) {
@@ -2983,7 +2955,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
-	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = dkdato(date("Y-m-d"));
+	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1)) {
 		if (!isset($id[$x]))          $id[$x]          = NULL;
 		if (!isset($dato[$x]))        $dato[$x]        = NULL;
@@ -3018,7 +2990,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$next = $bilag[$x-1] + 1;
 		}
 		if($dato[$x] == ''){
-			$dato[$x] = dkdato(date("Y-m-d"));
+			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
 
 		#################
@@ -3049,16 +3021,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
                 . "&sum="         . urlencode($belob ?? '')
                 . "&fokus=bila$x&openPool=1";
 				########################
-			print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
-            print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
-            print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></span></td>\n";
-        	// print "</tr>";
+				print "<td class='clip-cell' data-source-id='0' data-bilag='" . htmlspecialchars($next) . "' title='$titletxt'>";
+	            print "<span onclick=\"confirmClose('$href','$txt')\" style='cursor:pointer;display:inline-block;'>";
+	            print "<img src='../ikoner/$clip' draggable='false' style='width:20px;height:20px;'></span></td>\n";
+	        	// print "</tr>";
 			} else {
 				print "<td></td>\n";
 			}
 		}
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
-
 		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
 		if (isset($bilag[$x]) && $bilag[$x]) {
 			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
@@ -3076,9 +3047,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$next = $bilag[$x-1] + 1;
 		}
 		if($dato[$x] == ''){
-			$dato[$x] = dkdato(date("Y-m-d"));
+			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
-
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
@@ -3089,7 +3059,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		name='d_ty$x' $de_fok value =\"$d_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
 		name='debe$x' $de_fok value =\"$debet[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$x", if_isset($debetvat[$x], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td>" . render_vat_select("dvat$x", if_isset($debetvat[$x], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;'
 		name='k_ty$x' $de_fok value =\"$k_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
@@ -3100,11 +3070,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;'
 		name='belo$x' $de_fok value=\"$belob\" onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd) {
-			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;'
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' 
 			name='afd_$x' $de_fok value=\"$afd[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_ansat) {
-			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;'
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' 
 			name='meda$x' $de_fok value =\"$ansat[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_projekt) {
@@ -3184,16 +3154,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='d_ty$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$z", '', $vat_codes, $charset) . "</td>\n";
+		print "<td>" . render_vat_select("dvat$z", '', $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$z", '', $vat_codes, $charset) . "</td>\n";
+		print "<td>" . render_vat_select("kvat$z", '', $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd)
-			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_ansat)
-			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
+			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_projekt)
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='proj$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_valuta)
@@ -3296,7 +3266,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			// print "<tr><td colspan=9 align='center'><input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'></td></tr>\n";
 			// print "</form>";
 		} else {
-			print "<td align='center'><span title='" . findtekst('3261|Bilags Match', $sprog_id) . "'><input type='button' class='button green medium' style='width:120px;' value='" . findtekst('3261|Bilags Match', $sprog_id) . "' name='bilagsmatch' onclick='openPopup(); // from ./kassekladde_includes/bilagsmatch.php '></span></td>\n";
+			print "<td align='center'><span title='" . findtekst('3341|Bilags Match', $sprog_id) . "'><input type='button' class='button green medium' style='width:120px;' value='" . findtekst('3341|Bilags Match', $sprog_id) . "' name='bilagsmatch' onclick='openPopup(); // from ./kassekladde_includes/bilagsmatch.php '></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1544|Klik her for at gemme', $sprog_id) . "'><input type='submit' class='button green medium' style='width:120px;' accesskey='g' value='" . findtekst('3|Gem', $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span></td>\n";
 			print "<td align='center'><span title='" . findtekst('1545|Opslag - din markørs placering angiver hvilken tabel, opslag foretages i', $sprog_id) . "'><input type='submit' class='button blue medium' style='width:120px;' accesskey='o' value='" . findtekst('644|Opslag', $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span></td>";
 			if (!$fejl) {
@@ -3319,9 +3289,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				/*
 				// Temporarily commented out
 				?>
-				
+
 				<td align='center'><span title='<?= "Importer bankposteringer via Aiia" ?>'><button id='Aiia_Import' type='button' class='menu_button button' style='width:120px;' accesskey='z' onclick='window.location.href="../bank_integration/aiia_import.php?kladde_id=<?= intval($kladde_id) ?>"'><?= "Bank Import"	// findtekst('????|Bank Import', $sprog_id) ?></button></span></td>
-			
+
 				<?php */
 			}
 		}
