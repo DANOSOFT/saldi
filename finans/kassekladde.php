@@ -56,7 +56,8 @@
 // 20260610 CL/PHR - Valuta-kolonne viste ingenting: tilføjet field=valuta_navn + LEFT JOIN grupper VK i build_kassekladde_query
 // 20260610 CL/PHR - Valuta-kolonne: viser $baseCurrency (f.eks. DKK) for rækker uden fremmed valuta (valuta=0)
 // 20260617 Sawaneh - Fixed cash journal account suggestions to show inside the blue autocomplete dropdown instead of the old overlapping gray popup.
-//
+// 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
+
 
 ob_start(); //Starter output buffering
 
@@ -2983,7 +2984,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
-	# 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
 	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 	if ($x < 3000 && (($debet[$x - 1]) || ($kredit[$x - 1]) || $x == 1)) {
 		if (!isset($id[$x]))          $id[$x]          = NULL;
@@ -3019,7 +3019,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$next = $bilag[$x-1] + 1;
 		}
 		if($dato[$x] == ''){
-			# 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
 
@@ -3078,7 +3077,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$next = $bilag[$x-1] + 1;
 		}
 		if($dato[$x] == ''){
-			# 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
 
