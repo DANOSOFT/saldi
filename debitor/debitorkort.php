@@ -183,7 +183,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$felt_1 = db_escape_string(trim($_POST['felt_1']));
 		$notes = db_escape_string(trim($_POST['notes']));
 		$ny_kontonr = db_escape_string(trim($_POST['ny_kontonr']));
-		$gl_kontotype = db_escape_string(trim($_POST['gl_kontotype']));
+		$gl_kontotype = strtolower(db_escape_string(trim($_POST['gl_kontotype'])));
 		$kontotype = db_escape_string(trim($_POST['kontotype']));
 		(isset($_POST['fornavn'])) ? $fornavn = db_escape_string(trim($_POST['fornavn'])) : $fornavn = '';
 		(isset($_POST['efternavn'])) ? $efternavn = db_escape_string(trim($_POST['efternavn'])) : $efternavn = '';
