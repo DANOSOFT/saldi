@@ -1,5 +1,5 @@
 <?php
-// --- debitor/rykkertjek.php --- lap 5.0.0 --- 2026-06-19 ---
+// --- debitor/rykkertjek.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,11 +15,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.Aps
+// Copyright (c) 2003-2026 Danosoft.ApS
 // -----------------------------------------------------------
 // 20200918 Ckeck bypassed if no email.
 // 20230524 PHR php8
 // 20260619 MJ Fixed login reminder check globals, all-user popup, and separated daily email guard from popup.
+// 20260707 MJ Fix fatal re-declaration of std_func when included from login; fix BODY onLoad popup
 
 @session_start();
 $s_id=session_id();
@@ -30,7 +31,7 @@ $email = NULL;
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");
+if (!function_exists('findtekst')) include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 
 if(!class_exists('phpmailer')) {
@@ -68,7 +69,7 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 			$rykkerdate=usdate(forfaldsdag($r['forfaldsdate'],'netto',$ffdage));
 #	echo "$rykkerdate <= $dd<br>";
 			if ($rykkerdate <= $dd) {
-				if (!db_fetch_array(db_select("select id from ordrelinjer where enhed = '$r[id]'",__FILE__ . " linje " . __LINE__))) { #Tjekker om der allerede eksisterer en rykker på ordren.
+				if (!db_fetch_array(db_select("select id from ordrelinjer where enhed = '$r[id]'",__FILE__ . " linje " . __LINE__))) { #Tjekker om der allerede eksisterer en rykker pï¿½ ordren.
 					if (!in_array($r['konto_id'],$konto_id)) {
 						$konto_id[$x]=$r['konto_id']; #Liste over konto id numre der skal rykkes
 						$x++;
@@ -92,7 +93,7 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 #echo "$ff_antal && $bruger_id == $mailmodt_id<br>";
 			$tmp=findtekst(240,$sprog_id);
 #echo "$tmp<br>";
-			print "<BODY onLoad=\"javascript:alert('$tmp')\">";
+			print "<script>alert(" . json_encode((string)$tmp) . ");</script>";
 		}
 # exit;
 	}

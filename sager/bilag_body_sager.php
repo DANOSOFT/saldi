@@ -240,7 +240,7 @@ function upload_til_ftp($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn){
 		if (file_exists($langt_filnavn)) {
 			$filnavn=db_escape_string($filnavn);
 			db_modify("update $kilde set dokument='$filnavn' where id='$bilag_id'",__FILE__ . " linje " . __LINE__);
-			print "<BODY onLoad=\"javascript:alert('$filnavn ".findtekst('3182|Er indlæst', $sprog_id)."')\">";
+			print "<BODY onLoad=\"javascript:alert('$filnavn ".lcfirst(findtekst('3182|Er indlæst', $sprog_id))."')\">";
 		} else {
 			print "<BODY onLoad=\"javascript:alert('".findtekst('3183|Indlæsning af', $sprog_id)." $filnavn ".lcfirst(findtekst('3184|Fejlet', $sprog_id))."')\">"; #Indlæsning af [filnavn] fejlet
 		}

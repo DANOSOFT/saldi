@@ -165,8 +165,8 @@ if ($menu=='T') {
 	print "<tr><td height = '25' align='center' valign='top'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
-	print "<td width='10%'<a href='$returside' accesskey=L>";
-	print "<button style='$buttonStyle; width:100%'onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+	print "<td width='10%'><a href='$returside' accesskey=L>";
+	print "<button style='$buttonStyle; width:100%'onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2172|Luk', $sprog_id)." </button></a></td>";
 
 	print "<td width='80%' style='$topStyle' align='center'>".findtekst('1247|Indlæs sikkerhedskopi', $sprog_id)."</td>";
 
@@ -401,6 +401,7 @@ function upload($db){
 	global $connection;
 	global $translations;
 	global $db_type;
+	global $buttonStyle;
 
 	if ($db_type=='mysql' or $db_type=='mysqli') {
 		echo '<span style="color:red;">This is not available yet!</span>';
@@ -409,9 +410,9 @@ function upload($db){
 	
 	
 	
-		$textup = $translations[2422][$sprog_id];
-		$textc = $translations[2425][$sprog_id];
-		$load = $translations[1360][$sprog_id];
+		$textup     = $translations[2422][$sprog_id];
+		$textc      = $translations[2425][$sprog_id];
+		$load       = $translations[1360][$sprog_id];
 		$selectdfil = $translations[1364][$sprog_id];
 	
 
@@ -428,7 +429,7 @@ function upload($db){
 	print "<tr><td width=100% align=center></td></tr>";
 	print "<tr><td width=100% align=center>\"".$selectdfil."\": <input class=\"inputbox\" NAME=\"uploadedfile\" type=\"file\"></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td align=center><input type=\"submit\" value=\"".$load."\" onClick=\"return confirmSubmit(" . htmlspecialchars(json_encode($textup), ENT_QUOTES) . ")\"></td></tr>";
+	print "<tr><td align=center><input type=\"submit\" style=\"$buttonStyle\" value=\"".$load."\" onClick=\"return confirmSubmit(" . htmlspecialchars(json_encode($textup), ENT_QUOTES) . ")\"></td></tr>";
 	print "<tr><td></form></td></tr>";
 	print "</tbody></table>";
 	print "</td></tr>";
