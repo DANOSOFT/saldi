@@ -634,7 +634,7 @@ if (!function_exists('copy_row')) {
 				$x++;
 				$fieldName[$x] = db_field_name($q, $r);
 				$fieldType[$x] = db_field_type($q, $r);
-				if ($fieldName[$x] != 'batch_due_date' && $fieldName[$x] != 'batch_batch_no') {
+				if ($fieldName[$x] != 'batch_due_date' && $fieldName[$x] !='batch_batch_no') {
 					($fieldstring) ? $fieldstring .= "," . $fieldName[$x] : $fieldstring = $fieldName[$x];
 				}
 			}

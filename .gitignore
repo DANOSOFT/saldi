@@ -61,6 +61,7 @@ phpmailer/
 mappe/
 /utils/
 
+
 # Python stuff
 __pycache__/
 .pytest_cache
