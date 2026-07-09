@@ -91,6 +91,7 @@
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260306 Sawaneh - Added Simple guides feature: sidebar overlay with hardcoded Finance + Scaffolding PDF links
 // 20260326 Sawaneh -Added ourRefStockSwitch setting
+// 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
 // 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
 
 @session_start();
@@ -1386,7 +1387,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 	#######################################################################################
 	} elseif ($sektion == 'posOptions') {
-		$id1            = if_isset($_POST['id1']) * 1;
+		$id1            = (int) if_isset($_POST, 0, ['id1']);
 		$box1           = if_isset($_POST['kasseantal']) * 1;
 		$afd_nr         = if_isset($_POST['afd_nr']);
 		$kassekonti     = if_isset($_POST['kassekonti']);
