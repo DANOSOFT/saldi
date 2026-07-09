@@ -5520,10 +5520,10 @@ function ordreside($id, $regnskab)
 				if (substr(findtekst('248|Ordrefelt 5', $sprog_id), 0, 1) != "#") print "<tr><td><span onmouseover=\"return overlib('" . findtekst('253|Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 248 & 253.', $sprog_id) . "',WIDTH=600);\" onmouseout=\"return nd();\">" . findtekst('248|Ordrefelt 5', $sprog_id) . "</span></td><td><input class = 'inputbox' type = 'text' name=\"felt_5\" style=\"width:200px\" value=\"$felt_5\" $disabled></td></tr>\n";
 			}
 			if ($betalings_id) print "<tr><td>" . findtekst('2534|Betalings-ID', $sprog_id) . ":</td><td>&nbsp;$betalings_id</td></tr>";
-			// SD-562: the Plukliste buttons + "Send plukliste" writing field have been moved
+			//  the Plukliste buttons + "Send plukliste" writing field have been moved
 			// out of this cell and now sit alongside the other action buttons (see below).
 		}
-		// SD-562: when the address block is not rendered as editable inputs above, the delivery
+		// when the address block is not rendered as editable inputs above, the delivery
 		// values must still be submitted, so carry them along as hidden fields.
 		if (!$show_addr) {
 			print "<input type=\"hidden\" name=\"lev_navn\" value=\"$lev_navn\">\n";
