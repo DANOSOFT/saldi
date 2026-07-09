@@ -17,6 +17,7 @@ includes/grid.php, finans/kontospec.php, finans/kassekladde.php, finans/regnskab
 finans/kladdeliste.php, systemdata/kontoplan.php, kreditor/kreditor.php, kreditor/productLookup.php, kreditor/orderIncludes/dropshipping.php, etc.
 Regards:) 20260220 LOE
 20260513 PK - Added class="navbutton" to the navigation buttons with svg, as those buttons were too high compared to the page selector buttons
+20260708 MJ - render_sort_script: respect defaultSortDirection on first click; render_table_headers: pass defaultSortDirection to setSort.
 */
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
@@ -1017,10 +1018,10 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
         if ($column["sortable"]) {
-            echo "<th 
-                class='$column[field] sortable-td' 
-                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;' 
-                onclick=\"setSort$id('$column[field]')\"
+            echo "<th
+                class='$column[field] sortable-td'
+                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;'
+                onclick=\"setSort$id('$column[field]', '$column[defaultSortDirection]')\"
             >";
             echo "<span class='sortable'>$column[headerName]</span>";
         } else {
@@ -2244,12 +2245,14 @@ SCRIPT;
 function render_sort_script($id) {
     echo <<<SCRIPT
     <script>
-        function setSort$id(header) {
+        function setSort$id(header, defaultDir) {
             const sortBox = document.getElementsByName('sort[$id]')[0];
-            if (sortBox.value !== header) {
-                sortBox.value=header;
-            } else if (sortBox.value === header) {
-                sortBox.value=header + " desc";
+            if (sortBox.value === header) {
+                sortBox.value = header + " desc";
+            } else if (sortBox.value === header + " desc") {
+                sortBox.value = header;
+            } else {
+                sortBox.value = (defaultDir === 'desc') ? header + " desc" : header;
             }
             sortBox.form.submit();
         }
