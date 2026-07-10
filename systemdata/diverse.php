@@ -91,7 +91,11 @@
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260306 Sawaneh - Added Simple guides feature: sidebar overlay with hardcoded Finance + Scaffolding PDF links
 // 20260326 Sawaneh -Added ourRefStockSwitch setting
+
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+
 // 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
+
 
 @session_start();
 $s_id = session_id();
@@ -2202,6 +2206,19 @@ if ($menu != 'T') {
 	print "<td width=\"170px\" valign=\"top\">";
 	print "<table cellpadding=\"2\" cellspacing=\"2\" border=\"0\" width=\"100%\"><tbody>";
 	if ($menu == 'S') {
+		$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+		$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+		$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+		print "<script>
+		if (typeof window.saldiTranslations === 'undefined') {
+			window.saldiLanguage = " . (int)$sprog_id . ";
+			window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+		}
+		</script>";
+		print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+		print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+		print "<tr><td valign='top' align=left><div class=\"settings-search-wrapper\" style=\"padding-top:0;\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
+
 		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; ".findtekst('30|Tilbage', $sprog_id)."</b></button></a></td></tr>\n"; // 200240428
 
 		print "<tr><td align=left><a href=diverse.php?sektion=kontoindstillinger>
