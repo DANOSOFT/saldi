@@ -95,6 +95,11 @@
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 
 // 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
+// 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
+
+
+
+
 
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 
