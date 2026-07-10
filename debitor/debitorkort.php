@@ -37,6 +37,7 @@
 // 20260505 LOE Added form to create extra delivery address and logic to save it. SD-483
 // 20260513 PHR Removed if ($id) around cvrapi to make it work again for existing customers
 // 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
+// 20260706 MJ Fix $id clobbering by contacts foreach loops; fix UPDATE adresser using wrong id; fix redirect after save; allow save when kontotype not yet set in DB
 // 20260707 MJ Fix primary email deletion on save; fix blank ordre after Account card → Luk
 @session_start();
 $s_id = session_id();
@@ -183,7 +184,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$felt_1 = db_escape_string(trim($_POST['felt_1']));
 		$notes = db_escape_string(trim($_POST['notes']));
 		$ny_kontonr = db_escape_string(trim($_POST['ny_kontonr']));
-		$gl_kontotype = db_escape_string(trim($_POST['gl_kontotype']));
+		$gl_kontotype = strtolower(db_escape_string(trim($_POST['gl_kontotype'])));
 		$kontotype = db_escape_string(trim($_POST['kontotype']));
 		(isset($_POST['fornavn'])) ? $fornavn = db_escape_string(trim($_POST['fornavn'])) : $fornavn = '';
 		(isset($_POST['efternavn'])) ? $efternavn = db_escape_string(trim($_POST['efternavn'])) : $efternavn = '';
@@ -605,7 +606,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?tjek_id=$id&id=$id&returside=" . urlencode($returside) . "\">\n";
 			exit;
 		} elseif ($id > 0) {
-			#######	
+			$customer_id = (int)$id;
+			#######
 			$q1 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 			$ar = db_fetch_array($q1);
 			$a_id = $ar['id'];
@@ -632,7 +634,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$vkontotype = $r2['kontotype'];
 			####
 
-			if (($kontotype == $vkontotype) || (!isset($a_id))) {
+			if (!$gl_kontotype || ($kontotype == $gl_kontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
 				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
 				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
@@ -925,8 +927,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					error_log("Accepted posnr $y for ansatte id $current_id at index $x");
 				}
 
-				foreach ($used_ids as $id => $pos) {
-					error_log("  id = $id => posnr = $pos");
+				foreach ($used_ids as $emp_id => $pos) {
+					error_log("  id = $emp_id => posnr = $pos");
 				}
 
 				// ---------- Error Handling ----------
@@ -937,57 +939,44 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					$alerttekst = implode("\\n", $errors);
 					$alerttekst_js = addslashes($alerttekst); // escape for JS string
 
+					$redirect_url = "debitorkort.php?id=$customer_id&returside=" . urlencode($returside);
 					print <<<HTML
 						<script>
 							alert('$alerttekst_js');
-							if (document.referrer) {
-								window.location.href = document.referrer;
-							} else {
-								window.location.href = '/';
-							}
+							window.location.href = '$redirect_url';
 						</script>
 						HTML;
-					exit; // stop execution
+					exit;
 				}
 
 				error_log("Clearing posnr for used IDs");
-				foreach ($used_ids as $id => $target_posnr) {
-					$id = (int)$id;
+				foreach ($used_ids as $emp_id => $target_posnr) {
+					$emp_id = (int)$emp_id;
 
-					db_modify("UPDATE ansatte SET posnr = NULL WHERE id = $id", __FILE__ . " linje " . __LINE__);
+					db_modify("UPDATE ansatte SET posnr = NULL WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 				}
 
 
-				foreach ($used_ids as $id => $target_posnr) {
-					$id = (int)$id;
+				foreach ($used_ids as $emp_id => $target_posnr) {
+					$emp_id = (int)$emp_id;
 					$target_posnr = (int)$target_posnr;
 
 
 
 					// If position 1, update kontakt in adresser
 					if ($target_posnr == 1) {
-						$q_navn = db_select("SELECT navn FROM ansatte WHERE id = $id", __FILE__ . " linje " . __LINE__);
+						$q_navn = db_select("SELECT navn FROM ansatte WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 						$r_navn = db_fetch_array($q_navn);
 						$navnT = $r_navn['navn'];
 
-						error_log("Position 1 detected for id $id; updating kontakt to '$navnT'");
-						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $id", __FILE__ . " linje " . __LINE__);
+						error_log("Position 1 detected for id $emp_id; updating kontakt to '$navnT'");
+						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $customer_id", __FILE__ . " linje " . __LINE__);
 					}
 
-					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $id", __FILE__ . " linje " . __LINE__);
+					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 				}
 
-				print <<<HTML
-												<script>
-													if (document.referrer) {
-														window.location.href = document.referrer;
-													} else {
-														// fallback if no referrer available
-														window.location.href = '/'; 
-													}
-												</script>
-												HTML;
-
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$customer_id&returside=" . urlencode($returside) . "\">\n";
 				exit;
 
 
@@ -996,12 +985,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			} else {
 				$alerttekst = "Please delete all contacts to proceed";
 				print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--....-->\n";
-
-				if ($vkontotype == 'erhverv') {
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&privat=privat\">";
-				} elseif ($vkontotype == 'privat') {
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&erhverv=erhverv\">";
-				}
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$customer_id&returside=" . urlencode($returside) . "\">\n";
 				exit;
 			}
 		}

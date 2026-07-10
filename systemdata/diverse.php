@@ -91,11 +91,9 @@
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260306 Sawaneh - Added Simple guides feature: sidebar overlay with hardcoded Finance + Scaffolding PDF links
 // 20260326 Sawaneh -Added ourRefStockSwitch setting
-
-// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
-
 // 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
 // 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 
 
 
