@@ -314,6 +314,45 @@ if (
 }
 
 
+$kk_toggle_cols = array(
+    'vat_d' => 'Moms (Debet)',
+    'vat_k' => 'Moms (Kredit)',
+    'afd'   => 'Afd.',
+    'ansat' => 'Ansat',
+);
+
+
+if (isset($_POST['save_kk_cols']) && isset($bruger_id) && $bruger_id > 0) {
+    $parts = array_filter(array_map('trim', explode(',', (string)$_POST['save_kk_cols'])));
+    $clean = array();
+    foreach ($parts as $p) {
+        if (array_key_exists($p, $kk_toggle_cols)) $clean[] = $p;
+    }
+    $cols_str = db_escape_string(implode(',', $clean));
+    $exists = db_fetch_array(db_select("select id from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
+    if ($exists) {
+        db_modify("update grupper set box3='$cols_str' where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+    } else {
+        db_modify("insert into grupper (beskrivelse,art,kode,kodenr,box3) values ('Kassekladde','KASKL','1','$bruger_id','$cols_str')", __FILE__ . " linje " . __LINE__);
+    }
+    header('Content-Type: application/json');
+    echo json_encode(array('ok' => true));
+    exit;
+}
+
+
+$kk_hidden_cols = array();
+if (isset($bruger_id) && $bruger_id > 0) {
+    $kk_r = db_fetch_array(db_select("select box3 from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
+    if ($kk_r && trim((string)$kk_r['box3']) !== '') {
+        foreach (explode(',', $kk_r['box3']) as $c) {
+            $c = trim($c);
+            if (array_key_exists($c, $kk_toggle_cols)) $kk_hidden_cols[] = $c;
+        }
+    }
+}
+
+
 #######################
 $page_display = true;
 if (!isset($tidspkt))
@@ -2303,7 +2342,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// Column visibility — inject hide rules + picker UI
 		print "<style>";
 		foreach ($kk_hidden_cols as $hc) {
-			print ".kk-col-" . htmlspecialchars($hc, ENT_QUOTES, $charset) . "{display:none !important;}";
+			print ".kk-col-" . htmlspecialchars($hc, ENT_QUOTES, $charset) . "{display:none;}";
 		}
 		print "
 		.kk-cols-picker{position:fixed;top:70px;right:18px;z-index:9999;text-align:right;}
@@ -2328,7 +2367,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if(!e.target.classList.contains('kk-col-toggle')) return;
 			var col=e.target.getAttribute('data-col');
 			var show=e.target.checked;
-			document.querySelectorAll('.kk-col-'+col).forEach(function(el){el.style.display=show?'':'none';});
+			document.querySelectorAll('.kk-col-'+col).forEach(function(el){el.style.display=show?'table-cell':'none';});
 			var hidden=[];
 			document.querySelectorAll('.kk-col-toggle').forEach(function(cb){if(!cb.checked) hidden.push(cb.getAttribute('data-col'));});
 			var fd=new FormData();fd.append('save_kk_cols',hidden.join(','));
@@ -2353,7 +2392,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
-		print "<td align = center><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
+		print "<td align = center class='kk-col-vat_d'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Kredit', $sprog_id)) . "</b></td>";
 		print "<td align = center class='kk-col-vat_k'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
@@ -2361,7 +2400,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&kkdir=$_amount_dir&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
 
 		if ($vis_afd)
-			print "<td align = left><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
+			print "<td align = left class='kk-col-afd'><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
 		if ($vis_ansat)
 			print "<td align = left  class='kk-col-ansat'><b> <span title= '" . findtekst('1568|Angiv hvilken ansat posteringen hører under', $sprog_id) . "'>" . findtekst('589|Ansat', $sprog_id) . "</b></td>";
 		if ($vis_projekt)
@@ -2773,14 +2812,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\" title='$debettext[$y]' onchange='javascript:docChange = true;'></td>\n";
-		print "<td>" . render_vat_select("dvat$y", if_isset($debetvat[$y], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$y", if_isset($debetvat[$y], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$y' $de_fok value =\"$k_type[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (($d_type[$y] == 'D' || $d_type[$y] == 'K') && $debet[$y] && !$kredit[$y]) {
 			$lastPostingsAttr = sidste_5_forslag_attr($debet[$y], $d_type[$y], 'K', $charset);
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" title= '$kredittext[$y]' onchange='javascript:docChange = true;'></td>\n";
-		print "<td>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (!isset($valuta[$y])) $valuta[$y] = $baseCurrency;
 		if ($valuta[$y] == $baseCurrency) $title = "";
@@ -2788,11 +2827,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td title='$title'><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$y'
 		$de_fok value ='" . dkdecimal($amount[$y], 2) . "' onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd) {
-			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$y' 
+			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$y' 
 			$de_fok value =\"$afd[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_ansat) {
-			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$y' 
+			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$y' 
 			$de_fok value =\"$ansat[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_projekt) {
@@ -3059,7 +3098,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		name='d_ty$x' $de_fok value =\"$d_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
 		name='debe$x' $de_fok value =\"$debet[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td>" . render_vat_select("dvat$x", if_isset($debetvat[$x], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$x", if_isset($debetvat[$x], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;'
 		name='k_ty$x' $de_fok value =\"$k_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
@@ -3070,11 +3109,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;'
 		name='belo$x' $de_fok value=\"$belob\" onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd) {
-			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' 
+			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;'
 			name='afd_$x' $de_fok value=\"$afd[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_ansat) {
-			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' 
+			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;'
 			name='meda$x' $de_fok value =\"$ansat[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
 		if ($vis_projekt) {
@@ -3154,16 +3193,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='d_ty$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		print "<td>" . render_vat_select("dvat$z", '', $vat_codes, $charset) . "</td>\n";
+		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$z", '', $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		print "<td>" . render_vat_select("kvat$z", '', $vat_codes, $charset) . "</td>\n";
+		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$z", '', $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd)
-			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
+			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_ansat)
-			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
+			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_projekt)
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='proj$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_valuta)

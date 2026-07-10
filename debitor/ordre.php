@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-06-11 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-07-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
 // 20240201 PBLM - Made some adjustments to EasyUBL
@@ -97,6 +97,7 @@
 // 20260611 LOE Added UI for hvem and updated its logic
 // 20260630 Sawaneh Made 'Performed by' (hvem) display-only: removed its order-locking side effects, added a blank option so it can be cleared, and made clearing to blank persist on save
 // 20260701 NTR Updated the first plukliste buttons to be the same logic as the second plukliste.
+// 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 
 @session_start();
 $s_id = session_id();
@@ -1071,6 +1072,7 @@ if ($b_submit) {
 	$levdato = trim(if_isset($_POST, NULL, 'levdato'));
 	#  $genfakt = trim(if_isset($_POST['genfakt']));
 	$fakturadato    = trim(if_isset($_POST, NULL, 'fakturadato'));
+	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = date("d-m-Y");
 	$cvrnr          = db_escape_string(trim(if_isset($_POST, NULL, 'cvrnr')));
 	$procenttillag  = usdecimal($procenttillag, 2);
 	$institution    = db_escape_string(trim(if_isset($_POST, NULL, 'institution')));
@@ -5197,21 +5199,27 @@ function ordreside($id, $regnskab)
 			print "<tr><td>" . findtekst('2542|Restordre', $sprog_id) . "</td><td><input class = 'inputbox' type=\"checkbox\" name=\"restordre\" $restordre></td>\n";
 		}
 		print "</tbody></table></td>\n"; # <- Tabel 4.2
-		print "<td width=\"31%\"><table id=\"delivery_addresses_table\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" valign = 'top'>\n"; # Tabel 4.3 ->
+		print "<td width=\"31%\" style=\"vertical-align: first;\"><table id=\"delivery_addresses_table\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" valign = 'top' style=\"padding:4px;\">\n"; # Tabel 4.3 ->
 		$vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 		include("../includes/topline_settings.php");
-		if ($vis_addr == "on") {
 
-		// implementing selected delivery address in delivery_address table.  
+		// Jobkort/Debitor & Vis addresse
+		?>
+		<tr><td align="left"><?= $jobkort . " " . $debitorkort ?></td>
+		<td align="right"><input type='hidden' id='vis_lev_addr' name='vis_lev_addr' value='<?= $vis_addr ?? 'on' ?>'><input type="button" onclick="
+			var field = document.getElementById('vis_lev_addr');
+			field.value = field.value === 'on' ? '' : 'on';
+			document.getElementById('submit').click();"
+			style="<?= $buttonStyle ?>; width:65%" value="<?= htmlspecialchars($vis_addr == 'on' ? findtekst('2533|Vis ekstrafelter', $sprog_id) : findtekst('355|Vis leveringsadresse', $sprog_id)) ?>"><td></tr>
+		<tr><td colspan="2"><hr><td></tr>
+		<tr><td colspan="2" align="center"><b><?= htmlspecialchars(findtekst('554|Leveringsadresse', $sprog_id)) ?></b></td></tr>
+		<tr><td colspan="2"><hr></b></tr>
+		<?php
+
+		if ($vis_addr == "on") { // implementing selected delivery address in delivery_address table.  
 			$txt28  = findtekst('28|Firmanavn',    $sprog_id);
 			$txt140 = findtekst('140|Adresse',     $sprog_id);
 			$txt666 = findtekst('666|Postnr & by', $sprog_id);
-			
-			print "<tr><td align=\"center\">$jobkort $debitorkort</td>";
-			print "<td align=\"center\"><input type='hidden' name='vis_lev_addr' value=''><input type=\"button\" onclick=\"document.getElementById('submit').click();\" style=\"$buttonStyle; width:65%\" value=\"" . findtekst('2533|Vis ekstrafelter', $sprog_id) . "\"><td></tr>\n";
-			print "<tr><td colspan=\"2\"><hr><td></tr>\n";
-			print "<tr><td colspan=\"2\" align=\"center\"><b>" . findtekst('554|Leveringsadresse', $sprog_id) . "</b></td></tr>\n";
-			print "<tr><td colspan=\"2\"><hr></b></tr>\n";
 			#######
 			$da_options = [];
 				$da_primary = null;
@@ -5323,11 +5331,6 @@ function ordreside($id, $regnskab)
 			print "<input type=\"hidden\" name=\"felt_4\" style=\"width:200px\" value=\"$felt_4\">\n";
 			#print "<input type=\"hidden\" name=\"felt_5\" style=\"width:200px\" value=\"$felt_5\">\n";
 		} else {
-			print "<tr><td align=\"center\">$jobkort $debitorkort</td>";
-			print "<td align=\"center\"><input type='hidden' name='vis_lev_addr' value='on'><input type=\"button\" onclick=\"document.getElementById('submit').click();\" style=\"$buttonStyle; width:80%\" value=\"" . findtekst('355|Vis leveringsadresse', $sprog_id) . "\"><td></tr>\n";
-			print "<tr><td colspan=\"2\"><hr><td></tr>\n";
-			print "<tr><td colspan=\"2\" align=\"center\"><b>" . findtekst('243|Ekstrafelter', $sprog_id) . "</b></td></tr>\n";
-			print "<tr><td colspan=\"2\"><hr></b></tr>\n";
 			if ($vis_saet) {
 				$qtxt = "select box4,box5,box6 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
