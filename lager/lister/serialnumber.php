@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- lager/lister/serialnumber.php --- patch 5.0.0 --- 2026-07-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
 // 20260608 CL/PHR - ABS(sn.salgslinje_id) i JOIN så negative salgslinje_id (kreditnota-retur) også viser salgsordren
 // 20260608 CL/PHR - Filter "ikke solgt": sn.salgslinje_id <= 0 i stedet for so.ordrenr IS NULL (retur-serienr. vises som tilgængelige)
+// 20260710 MJ Use COALESCE(v.varenr, kl.varenr, sl.varenr) so serienr records with stale/missing vare_id still appear and are searchable by varenr.
 
 @session_start();
 $s_id = session_id();
@@ -78,14 +79,18 @@ $columns[] =    array(
         $url = "../../lager/varekort.php?id=$row[vare_id]&returside=../lager/lister/serialnumber.php";
         return "<td align='$column[align]'><a href='$url'>$value</a></td>";
     },
-    "sqlOverride" => "v.varenr",
+    "sqlOverride" => "COALESCE(v.varenr, kl.varenr, sl.varenr)",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        return "(COALESCE(v.varenr, kl.varenr, sl.varenr) ILIKE '%$term%')";
+    },
     "width" => "0.5",
 );
 $columns[] =    array(
     "field" => "beskrivelse",
     "headerName" => "Vare navn",
     "width" => "3",
-    "sqlOverride" => "v.beskrivelse"
+    "sqlOverride" => "COALESCE(v.beskrivelse, kl.beskrivelse, sl.beskrivelse)"
 );
 $columns[] =    array(
     "field" => "stregkode",
@@ -242,15 +247,15 @@ $filters[] = array(
 $data = array(
     "table_name" => "serienr",
 
-    "query" => "SELECT 
-    sn.id AS id, 
-    sn.vare_id AS vare_id, 
-    v.varenr AS varenr,
-    v.beskrivelse AS beskrivelse,
+    "query" => "SELECT
+    sn.id AS id,
+    sn.vare_id AS vare_id,
+    COALESCE(v.varenr, kl.varenr, sl.varenr) AS varenr,
+    COALESCE(v.beskrivelse, kl.beskrivelse, sl.beskrivelse) AS beskrivelse,
     v.stregkode AS stregkode,
-    sn.serienr AS serienr, 
+    sn.serienr AS serienr,
 
-    kl.ordre_id AS kobs_ordre, 
+    kl.ordre_id AS kobs_ordre,
     ko.ordrenr AS kobs_ordre_nr,
     ko.konto_id AS kobs_konto,
     ko.kontonr AS kobs_kontonr,
@@ -270,9 +275,9 @@ LEFT JOIN ordrer ko ON kl.ordre_id = ko.id
 LEFT JOIN ordrelinjer sl ON ABS(sn.salgslinje_id) = sl.id
 LEFT JOIN ordrer so ON sl.ordre_id = so.id
 
-WHERE 
-    {{WHERE}} 
-ORDER BY 
+WHERE
+    {{WHERE}}
+ORDER BY
     {{SORT}}
 ",
 
