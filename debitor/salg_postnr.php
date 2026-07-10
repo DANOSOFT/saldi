@@ -28,8 +28,8 @@
 
 $s_id    = session_id();
 $modulnr = 12;
-$title   = "Sales by zip code";
 $css     = "../css/standard.css";
+$title   = "Salg pr. postnummer";
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -38,6 +38,8 @@ include("../includes/std_func.php");
 include("../includes/db_query.php");
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
+
+$title = findtekst('3360|Salg pr. postnummer', $sprog_id);
 
 /* ============================================================
  * 1. READ FILTERS FROM $_GET
@@ -111,13 +113,13 @@ if ($menu == 'T') {
 } elseif ($menu == 'S') {
     print "<tr><td colspan='5' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
         <td width='10%'><a href='../debitor/rapport.php' accesskey='L'><button style='$buttonStyle; width:100%'>" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>
-        <td width='80%' style='$topStyle' align='center'>Sales by zip code</td>
+        <td width='80%' style='$topStyle' align='center'>".findtekst('3360|Salg pr. postnummer', $sprog_id)."</td>
         <td width='5%' style='$topStyle'><br></td></tr>
         </tbody></table></td></tr></tbody></table>";
 } else {
     print "<tr><td colspan='4' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
         <td width='10%' $top_bund><a href='../debitor/rapport.php' accesskey='L'>Luk</a></td>
-        <td width='80%' $top_bund>Sales by zip code</td>
+        <td width='80%' $top_bund>".findtekst('3360|Salg pr. postnummer', $sprog_id)."</td>
         <td width='10%' $top_bund></td>
     </tr></tbody>...</table></td></tr>";
 }

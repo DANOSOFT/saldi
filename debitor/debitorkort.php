@@ -896,7 +896,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					// Validate: must be numeric and within allowed range 
 					if (!is_numeric($y)) {
 						error_log("Invalid posnr input (not numeric) at index $x: '$y'");
-						$errors[] = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
+						$errors[] = findtekst('352|Hint! Du skal sætte et - (minus) som pos.-nr. for at slette en kontaktperson', $sprog_id);
 
 						continue;
 					}
@@ -1249,7 +1249,7 @@ if ($menu == 'T') {
 		print "";
 	}
 	if ($jobkort) {
-		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=debitorkort.php' title='" . findtekst('38|Stillingsliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
+		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=debitorkort.php' title='" . findtekst('38|Opgaveliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
 	} else {
 		print "";
 	}
@@ -1688,7 +1688,7 @@ print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 
 print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst('378|Mobile', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('378|Mobil', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('379|EAN-nr.', $sprog_id) . "<!--tekst 379--></td>";
@@ -2399,9 +2399,9 @@ if (substr($rettigheder, 5, 1) == '1') {
 
 // Stillingsliste button
 if ($jobkort) {
-    $buttons_html .= "<button type='button' onclick=\"window.location.href='jobliste.php?konto_id=$id&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_jobliste'>" . findtekst('38|Stillingsliste', $sprog_id) . "</button>";
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='jobliste.php?konto_id=$id&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_jobliste'>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
 } else {
-    $buttons_html .= "<button style='$buttonStyle; padding: 8px 16px; opacity: 0.5; cursor: not-allowed;' disabled>" . findtekst('38|Stillingsliste', $sprog_id) . "</button>";
+    $buttons_html .= "<button style='$buttonStyle; padding: 8px 16px; opacity: 0.5; cursor: not-allowed;' disabled>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
 }
 
 // Print button
@@ -2443,9 +2443,9 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 	$r = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
 	$jobkort = $r['box7'];
 	if ($jobkort) {
-		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #"Klik her for at &aring;bne listen med arbejdskort"
-		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>" . findtekst('38|Stillingsliste', $sprog_id) . "<!--tekst 38--></td>\n";
-	} else print "<td width=\"10%\"  $top_bund><span style=\"color:#999;\">" . findtekst('38|Stillingsliste', $sprog_id) . "<!--tekst 38--></span></td>\n";
+		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #Klik her for at åbne listen med arbejdskort
+		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></td>\n";
+	} else print "<td width=\"10%\"  $top_bund><span style=\"color:#999;\">" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></span></td>\n";
 	print "<td width=\"25%\" $top_bund>&nbsp;</td>\n";
 	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3 
 	print "</tbody></table>"; # <- TABEL 1

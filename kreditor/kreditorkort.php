@@ -387,7 +387,7 @@ print "<tr bgcolor=$bg><td width=\"25%\"> " . findtekst('376|CVR-nr.', $sprog_id
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td> " . findtekst('377|Telefon', $sprog_id) . "</td><td><input class=\"inputbox\" type=text style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td> " . findtekst('378|Mobile', $sprog_id) . "</td><td><input class=\"inputbox\" type=text style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td> " . findtekst('378|Mobil', $sprog_id) . "</td><td><input class=\"inputbox\" type=text style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td> " . findtekst('662|Bank', $sprog_id) . "</td><td><input class=\"inputbox\" type=\"text\" name=\"bank_navn\" style='width:100px' value=\"$bank_navn\"  onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;

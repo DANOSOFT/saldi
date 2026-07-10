@@ -270,7 +270,7 @@
 	if ($planfraop || $planfraned) {
 		print "<div id=\"ganttChart\"></div>\n";
 	} else {
-		print "<div style=\"text-align: center;\"><h3>".findtekst('3226|Planlægning til sager med aktiv status', $sprog_id)."!</h3><br><p style=\"font-size:14px;color:#cd3300;\">".findtekst('3227|Her vises start- og slutdato for aktive sager og opgaver', $sprog_id).".</p><br><p>".findtekst('3228|For at bruge Planlægning: sager skal sagerne der vises have en aktiv status. Når status på en sag er aktiv kan der vælges start- og slutdato for sagens løbetid under Planlægningsinformation', $sprog_id).".</p></div>\n";
+		print "<div style=\"text-align: center;\"><h3>".findtekst('3226|Planlægning til sager med aktiv status', $sprog_id)."!</h3><br><p style=\"font-size:14px;color:#cd3300;\">".findtekst('3227|Her vises start- og slutdato for aktive sager og opgaver', $sprog_id).".</p><br><p>".findtekst('3228|For at bruge Planlægning: sager skal sagerne der vises have en aktiv status. Når status på en sag er aktiv kan der vælges start- og slutdato for sagens løbetid under Planlægningsinformation.', $sprog_id)."</p></div>\n";
 	}
 	//print "<br/><br/>";
 	//print "<div id=\"eventMessage\"></div>";
