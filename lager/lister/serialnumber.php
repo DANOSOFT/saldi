@@ -28,6 +28,7 @@
 // 20260608 CL/PHR - Filter "ikke solgt": sn.salgslinje_id <= 0 i stedet for so.ordrenr IS NULL (retur-serienr. vises som tilgængelige)
 // 20260710 MJ Use COALESCE(v.varenr, kl.varenr, sl.varenr) so serienr records with stale/missing vare_id still appear and are searchable by varenr.
 // 20260710 MJ ABS(sn.kobslinje_id) i JOIN så negative kobslinje_id (retur til leverandør) også viser indkøbsordren.
+// 20260710 MJ Ekstra COALESCE-fallbacks via ordrelinjer.vare_id→varer og batch_kob.vare_id→varer så serienr med tom/manglende ordrelinjer.varenr stadig søges.
 
 @session_start();
 $s_id = session_id();
@@ -80,10 +81,10 @@ $columns[] =    array(
         $url = "../../lager/varekort.php?id=$row[vare_id]&returside=../lager/lister/serialnumber.php";
         return "<td align='$column[align]'><a href='$url'>$value</a></td>";
     },
-    "sqlOverride" => "COALESCE(v.varenr, kl.varenr, sl.varenr)",
+    "sqlOverride" => "COALESCE(v.varenr, kl.varenr, sl.varenr, klv.varenr, slv.varenr, bkv.varenr)",
     "generateSearch" => function ($column, $term) {
         $term = db_escape_string($term);
-        return "(COALESCE(v.varenr, kl.varenr, sl.varenr) ILIKE '%$term%')";
+        return "(COALESCE(v.varenr, kl.varenr, sl.varenr, klv.varenr, slv.varenr, bkv.varenr) ILIKE '%$term%')";
     },
     "width" => "0.5",
 );
@@ -91,7 +92,7 @@ $columns[] =    array(
     "field" => "beskrivelse",
     "headerName" => "Vare navn",
     "width" => "3",
-    "sqlOverride" => "COALESCE(v.beskrivelse, kl.beskrivelse, sl.beskrivelse)"
+    "sqlOverride" => "COALESCE(v.beskrivelse, kl.beskrivelse, sl.beskrivelse, klv.beskrivelse, slv.beskrivelse, bkv.beskrivelse)"
 );
 $columns[] =    array(
     "field" => "stregkode",
@@ -251,8 +252,8 @@ $data = array(
     "query" => "SELECT
     sn.id AS id,
     sn.vare_id AS vare_id,
-    COALESCE(v.varenr, kl.varenr, sl.varenr) AS varenr,
-    COALESCE(v.beskrivelse, kl.beskrivelse, sl.beskrivelse) AS beskrivelse,
+    COALESCE(v.varenr, kl.varenr, sl.varenr, klv.varenr, slv.varenr, bkv.varenr) AS varenr,
+    COALESCE(v.beskrivelse, kl.beskrivelse, sl.beskrivelse, klv.beskrivelse, slv.beskrivelse, bkv.beskrivelse) AS beskrivelse,
     v.stregkode AS stregkode,
     sn.serienr AS serienr,
 
@@ -275,6 +276,11 @@ LEFT JOIN ordrer ko ON kl.ordre_id = ko.id
 
 LEFT JOIN ordrelinjer sl ON ABS(sn.salgslinje_id) = sl.id
 LEFT JOIN ordrer so ON sl.ordre_id = so.id
+
+LEFT JOIN varer klv ON kl.vare_id = klv.id
+LEFT JOIN varer slv ON sl.vare_id = slv.id
+LEFT JOIN batch_kob bk ON ABS(sn.batch_kob_id) = bk.id
+LEFT JOIN varer bkv ON bk.vare_id = bkv.id
 
 WHERE
     {{WHERE}}
