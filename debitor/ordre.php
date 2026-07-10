@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-06-11 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-07-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
 // 20240201 PBLM - Made some adjustments to EasyUBL
@@ -97,6 +97,7 @@
 // 20260611 LOE Added UI for hvem and updated its logic
 // 20260630 Sawaneh Made 'Performed by' (hvem) display-only: removed its order-locking side effects, added a blank option so it can be cleared, and made clearing to blank persist on save
 // 20260701 NTR Updated the first plukliste buttons to be the same logic as the second plukliste.
+// 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
 
 @session_start();
@@ -1072,6 +1073,7 @@ if ($b_submit) {
 	$levdato = trim(if_isset($_POST, NULL, 'levdato'));
 	#  $genfakt = trim(if_isset($_POST['genfakt']));
 	$fakturadato    = trim(if_isset($_POST, NULL, 'fakturadato'));
+	if ($b_submit == 'doInvoice' && !$fakturadato) $fakturadato = date("d-m-Y");
 	$cvrnr          = db_escape_string(trim(if_isset($_POST, NULL, 'cvrnr')));
 	$procenttillag  = usdecimal($procenttillag, 2);
 	$institution    = db_escape_string(trim(if_isset($_POST, NULL, 'institution')));
