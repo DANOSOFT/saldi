@@ -27,6 +27,7 @@
 // 20260608 CL/PHR - ABS(sn.salgslinje_id) i JOIN så negative salgslinje_id (kreditnota-retur) også viser salgsordren
 // 20260608 CL/PHR - Filter "ikke solgt": sn.salgslinje_id <= 0 i stedet for so.ordrenr IS NULL (retur-serienr. vises som tilgængelige)
 // 20260710 MJ Use COALESCE(v.varenr, kl.varenr, sl.varenr) so serienr records with stale/missing vare_id still appear and are searchable by varenr.
+// 20260710 MJ ABS(sn.kobslinje_id) i JOIN så negative kobslinje_id (retur til leverandør) også viser indkøbsordren.
 
 @session_start();
 $s_id = session_id();
@@ -269,7 +270,7 @@ $data = array(
 FROM serienr sn
 LEFT JOIN varer v ON sn.vare_id = v.id
 
-LEFT JOIN ordrelinjer kl ON sn.kobslinje_id = kl.id
+LEFT JOIN ordrelinjer kl ON ABS(sn.kobslinje_id) = kl.id
 LEFT JOIN ordrer ko ON kl.ordre_id = ko.id
 
 LEFT JOIN ordrelinjer sl ON ABS(sn.salgslinje_id) = sl.id
