@@ -34,6 +34,22 @@
 		print "<li><a href=\"kontokort.php\">Ny konto</a></li>\n";
 		print "</ul>\n";
 	} else {
+		static $settingsSearchAssetsPrinted = false;
+		if (!$settingsSearchAssetsPrinted) {
+			$settingsSearchAssetsPrinted = true;
+			$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+			$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+			$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+			print "<script>
+			if (typeof window.saldiTranslations === 'undefined') {
+				window.saldiLanguage = " . (int)$sprog_id . ";
+				window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+			}
+			</script>";
+			print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+			print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+			print "<div class=\"settings-search-wrapper\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div>";
+		}
 		print "<div class=\"leftmenuhead link\">Systemdata</div>
 		<ul>";
 			print "<li><a href=\"syssetup.php?valg=moms\" accesskey=\"M\">Moms</a></li>\n";

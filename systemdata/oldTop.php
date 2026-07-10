@@ -49,8 +49,22 @@ print "<td width=\"170px\" $top_bund>$font $small<a href=\"$returside\" accesske
 print "</tr></tbody></table></td></tr>
   <tr><td id='sidebar-base'  width=\"125px\" align=\"left\" valign=\"top\">";
 print "<table align=\"left\" border=\"0\" cellspacing=\"2\" cellpadding=\"2\"width=\"170px\"><tbody>"; #tabel 1.1.2
+
+$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+print "<script>
+if (typeof window.saldiTranslations === 'undefined') {
+	window.saldiLanguage = " . (int)$sprog_id . ";
+	window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+}
+</script>";
+print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+print "<tr><td width=\"170px\"><div class=\"settings-search-wrapper\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>";
+
 print "<tr><td width=\"170px\"><br></td></tr>
-      <tr><td $top_bund>$font $small<a href=\"syssetup.php?valg=moms\" accesskey=\"M\">".findtekst(770,$sprog_id)."</a></td></tr> 
+      <tr><td $top_bund>$font $small<a href=\"syssetup.php?valg=moms\" accesskey=\"M\">".findtekst(770,$sprog_id)."</a></td></tr>
       <tr><td $top_bund>$font $small<a href=\"syssetup.php?valg=debitor\" accesskey=\"D\">".findtekst(771,$sprog_id)."</a></td></tr>
       <tr><td $top_bund>$font $small<a href=\"syssetup.php?valg=afdelinger\" accesskey=\"A\">".findtekst(772,$sprog_id)."</a></td></tr>
       <tr><td $top_bund>$font $small<a href=\"projekter.php\" accesskey=\"P\">".findtekst(773,$sprog_id)."</a></td></tr>
