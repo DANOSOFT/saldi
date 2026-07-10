@@ -133,6 +133,20 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 
+// AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
+	$clear_id = (int)$_POST['id'];
+	if ($_POST['clear_delivery'] == '1' || $_POST['clear_delivery'] === 1) {
+		db_modify("UPDATE ordrer SET lev_navn='', lev_addr1='', lev_addr2='', lev_postnr='', lev_bynavn='', lev_land='', lev_kontakt='', lev_email='' WHERE id='" . db_escape_string($clear_id) . "'", __FILE__ . " linje " . __LINE__);
+		$_SESSION['no_delivery_order_' . $clear_id] = true;
+	} else {
+		if (isset($_SESSION['no_delivery_order_' . $clear_id])) unset($_SESSION['no_delivery_order_' . $clear_id]);
+	}
+	header('Content-Type: application/json');
+	echo json_encode(array('ok' => 1));
+	exit;
+}
+
 // Restore scaffolding context (sag_id) from the order record itself when the URL/POST didn't carry it.
 // Many flows redirect back to ordre.php without sag_id (levering.php, bogfor.php, accountLookup,
 // sync_stamkort.php, etc.), which used to drop us back into finance styling. Resolving here — before
@@ -4039,7 +4053,44 @@ function ordreside($id, $regnskab)
 			$txt140 = findtekst('140|Adresse', $sprog_id);
 			print "<tr class='tableTexting'><td><b>" . findtekst('554|Leveringsadresse', $sprog_id) . "</b><br />&nbsp;</td><td align=\"center\">$jobkort $debitorkort</td></tr>\n";
 			print "<tr><td colspan=\"2\"><b><hr></b></tr>\n";
-			print "<tr class='tableTexting2'><td><b>$txt28</b></td><td colspan=\"2\">$lev_navn</td></tr>\n";
+			// Delivery address selector (if account has delivery_addresses table entries)
+			$da_options = [];
+			if ($konto_id) {
+				$q_da = db_select("SELECT * FROM delivery_addresses WHERE account_id = '$konto_id' ORDER BY is_primary DESC, sort_order ASC, id ASC", __FILE__ . " linje " . __LINE__);
+				while ($r_da = db_fetch_array($q_da)) {
+					$da_options[] = $r_da;
+				}
+			}
+			if (count($da_options) > 0) {
+				$da_js_map = 'var daAddrMap = {};\n';
+				foreach ($da_options as $da_opt) {
+					$js_key = (int)$da_opt['id'];
+					$da_js_map .= "daAddrMap[$js_key] = " . json_encode([
+						'lev_navn' => $da_opt['company_name'] ?? $da_opt['description'] ?? '',
+						'lev_addr1' => $da_opt['address_line1'] ?? '',
+						'lev_addr2' => $da_opt['address_line2'] ?? '',
+						'lev_postnr' => $da_opt['postal_code'] ?? '',
+						'lev_bynavn' => $da_opt['city'] ?? '',
+						'lev_land' => $da_opt['country'] ?? '',
+						'lev_kontakt' => $da_opt['contact_name'] ?? '',
+						'lev_email' => $da_opt['email'] ?? '',
+					]) . ";\n";
+				}
+				print "<tr class='tableTexting2'><td><b>$txt28</b></td><td colspan=\"2\">\n";
+				print "<select id='da_select_ntr' class='inputbox' style='width:200px' onchange='daFillDeliveryNtr(this.value)'>\n";
+				print "<option value=''>-- " . findtekst('Choose delivery address', $sprog_id) . " --</option>\n";
+				print "<option value='none'>-- " . findtekst('No delivery address', $sprog_id) . " --</option>\n";
+				foreach ($da_options as $da_opt) {
+					$label = htmlspecialchars($da_opt['description'] ?: $da_opt['company_name'] ?: $da_opt['city']);
+					if ($da_opt['is_primary']) $label .= ' ★';
+					print "<option value='" . (int)$da_opt['id'] . "'>" . $label . "</option>\n";
+				}
+				print "</select>\n";
+				print "<script>\n" . $da_js_map . "function daFillDeliveryNtr(id) { var f = document.forms['ordre']; if (!f) return; function set(n,v){ if(f.elements[n]) f.elements[n].value = v; } if (id === 'none') { set('lev_navn',''); set('lev_addr1',''); set('lev_addr2',''); set('lev_postnr',''); set('lev_bynavn',''); set('lev_land',''); set('lev_kontakt',''); set('lev_email',''); var idf = f.elements['delivery_address_id']; if (idf) idf.value = ''; // Persist choice
+				 var orderId = '" . (int)$id . "'; if (orderId) { var xhr = new XMLHttpRequest(); xhr.open('POST', window.location.pathname); xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded'); xhr.send('id=' + encodeURIComponent(orderId) + '&clear_delivery=1'); } return; } if (!id) return; if (!daAddrMap[id]) return; var a = daAddrMap[id]; set('lev_navn', a.lev_navn); set('lev_addr1', a.lev_addr1); set('lev_addr2', a.lev_addr2); set('lev_postnr', a.lev_postnr); set('lev_bynavn', a.lev_bynavn); set('lev_land', a.lev_land); set('lev_kontakt', a.lev_kontakt); set('lev_email', a.lev_email); var idf2 = f.elements['delivery_address_id']; if (idf2) idf2.value = id; var orderId2 = '" . (int)$id . "'; if (orderId2) { var xhr2 = new XMLHttpRequest(); xhr2.open('POST', window.location.pathname); xhr2.setRequestHeader('Content-Type','application/x-www-form-urlencoded'); xhr2.send('id=' + encodeURIComponent(orderId2) + '&clear_delivery=0'); } } </script>\n";
+			} else {
+				print "<tr class='tableTexting2'><td><b>$txt28</b></td><td colspan=\"2\">$lev_navn</td></tr>\n";
+			}
 			print "<tr class='tableTexting'><td valign = 'top'><b>$txt140</b></td><td colspan=\"2\">$lev_addr1</td></tr>\n";
 			print "<tr class='tableTexting2'><td></td><td colspan=\"2\">$lev_addr2</td></tr>\n";
 			print "<tr class='tableTexting'><td><b>$txt666</b></td><td>$lev_postnr $lev_bynavn</td></tr>\n";
@@ -4610,6 +4661,7 @@ function ordreside($id, $regnskab)
 			print "<input type=\"hidden\" name=\"lev_addr1\" value=\"$lev_addr1\"><input type=\"hidden\" name=\"lev_addr2\" value=\"$lev_addr2\">\n";
 			print "<input type=\"hidden\" name=\"lev_postnr\" value=\"$lev_postnr\"><input type=\"hidden\" name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
 			print "<input type=\"hidden\" name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
+			print "<input type=\"hidden\" name=\"delivery_address_id\" id=\"delivery_address_id\" value=\"\">\n";
 		}
 		#intiering af variabler
 		$antal_ialt = 0; #10.10.2007
@@ -5235,7 +5287,8 @@ function ordreside($id, $regnskab)
 				}
 
 				// Auto-populate delivery fields if no delivery address set on order yet
-				$need_autofill = (!$lev_navn && !$lev_addr1 && !$lev_postnr);
+				$blocked_autofill = isset($_SESSION['no_delivery_order_' . $id]) && $_SESSION['no_delivery_order_' . $id];
+				$need_autofill = (!$lev_navn && !$lev_addr1 && !$lev_postnr) && !$blocked_autofill;
 				if ($need_autofill && $da_primary) {
 					$lev_navn    = htmlspecialchars($da_primary['company_name']);
 					$lev_addr1   = htmlspecialchars($da_primary['address_line1']);
@@ -5281,6 +5334,7 @@ function ordreside($id, $regnskab)
 					print "<td id='delivery_dropdown' colspan='1' align='left' style='padding:0;'>\n";
 					print "<select id='da_select' class='inputbox' style='width:200px;' onchange='daFillDelivery(this.value)'>\n";
 					print "<option value=''>-- Choose delivery address --</option>\n";
+					print "<option value='none'>-- No delivery address --</option>\n";
 					foreach ($da_options as $da_opt) {
 						$label = htmlspecialchars($da_opt['description'] ?: $da_opt['company_name'] ?: $da_opt['city']);
 						if ($da_opt['is_primary']) $label .= ' ★';
@@ -5290,14 +5344,30 @@ function ordreside($id, $regnskab)
 					print "</select></td></tr>\n";
 					print "<script>\n$da_js_map\n";
 					print "function daFillDelivery(id) {
-						if (!id || !daAddrMap[id]) return;
-						var a = daAddrMap[id];
 						var f = document.forms['ordre'];
 						if (!f) return;
 						function set(name, val) {
 							var el = f.elements[name];
 							if (el) el.value = val;
 						}
+						if (id === 'none') {
+							set('lev_navn', ''); set('lev_addr1', ''); set('lev_addr2', '');
+							set('lev_postnr', ''); set('lev_bynavn', ''); set('lev_land', '');
+							set('lev_kontakt', ''); set('lev_email', '');
+							var idfNone = f.elements['delivery_address_id'];
+							if (idfNone) idfNone.value = '';
+							docChange = true;
+							var orderIdNone = '" . (int)$id . "';
+							if (orderIdNone) {
+								var xhrNone = new XMLHttpRequest();
+								xhrNone.open('POST', window.location.pathname);
+								xhrNone.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+								xhrNone.send('id=' + encodeURIComponent(orderIdNone) + '&clear_delivery=1');
+							}
+							return;
+						}
+						if (!id || !daAddrMap[id]) return;
+						var a = daAddrMap[id];
 						set('lev_navn',    a.lev_navn);
 						set('lev_addr1',   a.lev_addr1);
 						set('lev_addr2',   a.lev_addr2);
@@ -5310,6 +5380,13 @@ function ordreside($id, $regnskab)
 						var idField = f.elements['delivery_address_id'];
 						if (idField) idField.value = id;
 						docChange = true;
+						var orderId = '" . (int)$id . "';
+						if (orderId) {
+							var xhr = new XMLHttpRequest();
+							xhr.open('POST', window.location.pathname);
+							xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+							xhr.send('id=' + encodeURIComponent(orderId) + '&clear_delivery=0');
+						}
 					}
 					</script>\n";
 				} else {
