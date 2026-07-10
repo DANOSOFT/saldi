@@ -102,11 +102,12 @@ if ($_POST) {
 	} else $regnaar=1;
 
 	$afbryd=findtekst(81,$sprog_id);
-	if ($afbryd==if_isset($_POST[$afbryd])) {
+
+	if ($afbryd==if_isset($_POST['Afbryd'])) {
  		print "<BODY onLoad=\"javascript:alert('Genfakturering afbrudt')\">";
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=ordreliste.php\">";
 		exit;
-	}	elseif ($ok==if_isset($_POST[$ok])) {	
+	}	elseif ($ok==if_isset($_POST['Ok'])) {
 		$org_nr=if_isset($_POST['org_nr']);
 		$komplet=if_isset($_POST['komplet']);
 		$fakt_dato=if_isset($_POST['fakt_dato']);

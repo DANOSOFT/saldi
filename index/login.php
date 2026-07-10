@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-04-29 ---
+// --- index/login.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
 // 20220118 PHR - Added 'if ($db != $sqdb && $dbver > '4.0.4')'
@@ -46,6 +46,7 @@
 // 20260422 PHR Fixed cancel not working.
 // 20260422 LOE Updated sanitize_input function to allow more characters for email address like usernames.
 // 20260425 LOE Fixed a bug where same account name with different case could cause login issues. Now first tries to find exact match and only if that fails, it tries case-insensitive match.
+// 20260707 MJ Restore rykkertjek.php include at login (was commented out)
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -854,7 +855,7 @@ if(!isset($afbryd)){
 				}
 			}
 		}
-		#if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
+		if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
 		# Lager status mail
 		if (file_exists("../lager/lagerstatusmail.php")) {
 			$email = get_settings_value("mail", "lagerstatus", "");
