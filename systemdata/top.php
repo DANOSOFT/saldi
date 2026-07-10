@@ -22,6 +22,7 @@
 // 20210223 Loe Replaced the text values on the table data with dynamic data with findtekst().
 // 20220103 PHR Checks for error in text id 778 - can be removed in 2023
 // 20250414 LOE Barcode button added for app
+// 20260710 SZ Added Settings search box to sidebar (settingsSearch.php/.js/.css)
 
 $small=NULL;
 if (!isset($css)) $css=NULL;

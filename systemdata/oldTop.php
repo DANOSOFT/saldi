@@ -21,6 +21,7 @@
 // 20181102 PHR Oprydning, udefinerede variabler.
 // 20210223 Loe Replaced the text values on the table data with dynamic data with findtekst().
 // 20220103 PHR Checks for error in text id 778 - can be removed in 2023
+// 20260710 SZ Added Settings search box to sidebar (this layout previously had none)
 
 $small=NULL;
 if (!isset($css)) $css=NULL;

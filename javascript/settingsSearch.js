@@ -1,4 +1,6 @@
-
+// javascript/settingsSearch.js
+// 20260709 SZ Created: Settings search dropdown widget (debounce, keyboard nav, fetch)
+// 20260710 SZ Added "Found via" keyword-match hint rendering, i18n via saldiTranslations
 (function () {
     'use strict';
 

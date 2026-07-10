@@ -58,6 +58,7 @@
 // 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
 // 20260529 CL/PHR Rettet: manglende xa-records (mailtekst/bilag) for art=5 oprettes nu automatisk ved visning
 // 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 @session_start();
 $s_id=session_id();
 

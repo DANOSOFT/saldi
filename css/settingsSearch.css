@@ -1,3 +1,7 @@
+/* css/settingsSearch.css
+   20260709 SZ Created: styling for Settings search box and result dropdown
+   20260710 SZ Added .settings-search-hint style for "Found via" match hint
+*/
 
 .settings-search-wrapper {
     display: block;

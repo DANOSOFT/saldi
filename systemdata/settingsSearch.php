@@ -17,6 +17,8 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20260709 SZ Created: JSON lookup endpoint backing the Settings search box
+// 20260710 SZ Added 3-tier label/keyword/word-fallback matching + Norwegian label support
 // JSON lookup endpoint backing the Settings search box (see settingsRegistry.php).
 
 ob_start();

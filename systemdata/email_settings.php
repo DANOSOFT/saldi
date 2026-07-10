@@ -19,6 +19,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Language-specific sender email settings
+// 20260710 SZ Added Settings search box to standalone/topmenu layouts (settingsSearch.php/.js/.css)
 
 @session_start();
 $s_id=session_id();

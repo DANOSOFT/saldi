@@ -22,6 +22,7 @@
 // 20150217 CA  Ændret varegrupper til topmenu-design - søg 20150217
 // 20150217 CA  Tilføjet linjeskift i HTML-koden, så fejlsøgning lettes
 // 20150313 CA  Ændret henvisning til rabatgrupper - søg 20150313
+// 20260710 SZ  Added Settings search box above the Systemdata menu (settingsSearch.php/.js/.css)
 
 	print "<div class=\"leftmenu\">";
 	if (strpos($_SERVER['SCRIPT_NAME'],"kontoplan.php")) {

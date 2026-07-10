@@ -17,6 +17,8 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20260709 SZ Created: hand-maintained registry of Settings pages/keywords for search
+// 20260710 SZ Expanded keywords (deep page content, DA/EN/NO, sys_div_func.php-derived terms)
 //
 // Hand-maintained index of Settings pages, used by settingsSearch.php.
 // Each entry:
