@@ -24,6 +24,10 @@
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20260707 SZ Added Grid Framework sticky header and footer to Price List report
+// 20260711 SZ Added Grid Framework sticky header+footer with pagination and internal-scroll grid
+// 20260711 SZ Fixed duplicate entries in Category dropdown: grupper has one row per fiscal_year,
+//             the VG group queries were missing that filter (same fix pattern as rapport.php/lagerstatus.php)
 
  
 @session_start();
@@ -94,7 +98,7 @@ if (isset($_POST['submit'])) {
 }
 
 $x=0;
-$q1= db_select("select kodenr, box9 from grupper where art = 'VG' and box8 = 'on'",__FILE__ . " linje " . __LINE__);
+$q1= db_select("select kodenr, box9 from grupper where art = 'VG' and box8 = 'on' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__);
 while ($r1=db_fetch_array($q1)) {
 	$x++;
 	$lagervare[$x]=$r1['kodenr'];
@@ -167,6 +171,8 @@ $vareantal=$x;
 
 $url_part = "varegruppe=$varegruppe&lagervalg=$lagervalg&zero_stock=$zero_stock&show_all_products=$show_all_products&show_kostpris=$show_kostpris&show_antal=$show_antal&show_enhed=$show_enhed&show_tier_price=$show_tier_price&show_salgspris=$show_salgspris&show_retail_price=$show_retail_price&custom_text=".urlencode($custom_text)."";
 
+$plGridMode = ($menu=='S' && !$autoprint);
+
 if ($autoprint) {// Print friendly
 	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
 	print "<tr><td align='center'>".ucfirst(findtekst('2082|Prisliste', $sprog_id))."<br>";
@@ -175,7 +181,25 @@ if ($autoprint) {// Print friendly
 	print "</tbody></table>";
 
 } else {
-	if ($menu=='S') {
+	if ($plGridMode) {
+		$plTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+		print "<div id='plPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+
+		print "<td width='10%' align='left'><a href='$returside' accesskey=L>
+			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$plTilbageIcon".findtekst(30, $sprog_id)."</button></a></td>";
+
+		print "<td width='80%' align='center' style='$topStyle'>".ucfirst(findtekst(2082, $sprog_id))."</td>";
+
+		print "<td width='10%' align='center'><a href='pricelist.php?csv=1&".$url_part."' title='".findtekst(2084, $sprog_id)."'>
+			   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+
+		print "</tr></tbody></table>\n";
+		if ($custom_text) print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr><td width=100% style='$topStyle' align=center>"
+								 .$custom_text."</td></tr></tbody></table>\n";
+	} elseif ($menu=='S') {
 		print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
 		print "<tr><td>";
 		print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr>";
@@ -203,7 +227,11 @@ if ($autoprint) {// Print friendly
 		if ($custom_text) print "<tr><td><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr><td width=100% $top_bund align=center>".$custom_text."</td></td></tr></tbody></td></tr></table></td></tr>";
 		print "</td></tr>";
 	}
-	print "<tr><td align=\"center\"><form action=pricelist.php method=post>";
+	if ($plGridMode) {
+		print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr><td align=\"center\"><form action=pricelist.php method=post>";
+	} else {
+		print "<tr><td align=\"center\"><form action=pricelist.php method=post>";
+	}
 	if (count($lager)) {
 		print " ".findtekst('608|Lager', $sprog_id).": <select class=\"inputbox\" name=\"lagervalg\">";
 		for ($x=0;$x<=count($lager);$x++){
@@ -218,7 +246,7 @@ if ($autoprint) {// Print friendly
 	if ($varegruppe) print "<option>$varegruppe</option>";
 	if ($varegruppe!="0:Alle") print "<option>0:Alle</option>";
 
-	$q = db_select("select * from grupper where art = 'VG' order by kodenr",__FILE__ . " linje " . __LINE__);
+	$q = db_select("select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
 		if ($varegruppe!=$row['kodenr'].":".$row['beskrivelse']) {print "<option>$row[kodenr]:$row[beskrivelse]</option>";}
 	}
@@ -253,15 +281,43 @@ if ($autoprint) {// Print friendly
 	print " &nbsp"."<input type='submit' name='submit' value='".findtekst(2087, $sprog_id)."'>";
 	
 	print " &nbsp"."<a href='pricelist.php?autoprint=1&".$url_part."' target='_blank'>".findtekst(2098, $sprog_id)."</a>";
-	
-	print "</form></td></tr>";
-	
-	print "<tr><td><hr></td></tr>";
-	print "</tbody></table>";
+
+	if ($plGridMode) {
+		print "</form></td></tr></tbody></table>\n";
+		print "</div>\n"; // close flex:0 header wrapper (title bar + filter form)
+	} else {
+		print "</form></td></tr>";
+		print "<tr><td><hr></td></tr>";
+		print "</tbody></table>";
+	}
 }
 
-print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
-print "<tr>";
+if ($plGridMode) {
+	$plColW = array('varenr'=>8);
+	if ($show_enhed) $plColW['enhed']=5;
+	$plColW['beskrivelse']=0; // filled below
+	if ($show_antal) $plColW['antal']=8;
+	if ($show_tier_price) $plColW['tier']=8;
+	if ($show_salgspris) $plColW['salgspris']=8;
+	if ($show_retail_price) $plColW['retail']=8;
+	$plFixedSum = array_sum($plColW);
+	$plColW['beskrivelse'] = max(20, 100 - $plFixedSum);
+	$plColgroupHtml = "<colgroup>";
+	foreach ($plColW as $w) $plColgroupHtml .= "<col style='width:{$w}%'>";
+	$plColgroupHtml .= "</colgroup>";
+
+	print "<div id='plGridWrapper' style='flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;background-color:$bgcolor;padding:0 8px 8px 8px;box-sizing:border-box;'>\n";
+	print "<style>
+	#plGridTable { border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; }
+	#plGridTable td { box-sizing:border-box; padding:4px; }
+	#plGridTable tr.pl-col-title-row td { position:sticky; top:0; z-index:10; background-color:$bgcolor; box-sizing:border-box; }
+	</style>\n";
+	print "<table id='plGridTable' width='100%' cellpadding='0' cellspacing='0' border='0'>$plColgroupHtml<tbody>\n";
+	print "<tr class='pl-col-title-row'>";
+} else {
+	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
+	print "<tr>";
+}
 print "<td width=8%>".findtekst(917, $sprog_id).".</td>";
 if ($show_enhed) print "<td width=5%>".findtekst(945, $sprog_id)."</td>";
 print "<td>".findtekst(914, $sprog_id)."</td>";
@@ -272,6 +328,19 @@ if ($show_tier_price) print "<td align=right width=8%>".findtekst(2088, $sprog_i
 if ($show_salgspris) print "<td align=right width=8%>".findtekst(949, $sprog_id)."</td>";
 if ($show_retail_price) print "<td align=right width=8%>".findtekst(2085, $sprog_id)."</td>";
 print "</tr>";
+
+if ($plGridMode) {
+	$plValidPageSizes = array(50,100,250,500,100000);
+	$plPerPage = (int) (isset($_GET['pl_per_page']) ? $_GET['pl_per_page'] : 0);
+	if (!in_array($plPerPage, $plValidPageSizes)) $plPerPage = 50;
+	$plPage = (int) (isset($_GET['pl_page']) ? $_GET['pl_page'] : 0);
+	if ($plPage < 1) $plPage = 1;
+	$plTotalRows = $vareantal;
+	$plTotalPages = max(1, ceil($plTotalRows / $plPerPage));
+	if ($plPage > $plTotalPages) $plPage = $plTotalPages;
+	$plPageStart = ($plPage - 1) * $plPerPage;
+	$plPageEnd = $plPageStart + $plPerPage;
+}
 
 if ($csv) {
 	$fp=fopen("../temp/$db/pricelist.csv","w");
@@ -305,6 +374,7 @@ for($x=1; $x<=$vareantal; $x++) {
 	if ($batch_k_antal[$x]||$batch_s_antal[$x]||$beholdning[$x]) {
 		if ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 		else {$linjebg=$bgcolor; $color='#000000';}
+		if ($plGridMode) ob_start();
 		print "<tr bgcolor=\"$linjebg\">";
 		print "<td>".$varenr[$x]."<br></td>";
 		if ($show_enhed) print "<td>".$enhed[$x]."<br></td>";
@@ -316,6 +386,10 @@ for($x=1; $x<=$vareantal; $x++) {
 		if ($show_salgspris) print "<td align=right>".dkdecimal($salgspris[$x])."<br></td>";
 		if ($show_retail_price) print "<td align=right>".dkdecimal($retail_price[$x])."<br></td>";
 		print "</tr>";
+		if ($plGridMode) {
+			$plRowHtml = ob_get_clean();
+			if ($x-1 >= $plPageStart && $x-1 < $plPageEnd) print $plRowHtml;
+		}
 		if ($csv) {
 			$linje = 	"$varenr[$x]".";".
 						(($show_enhed)?"".$enhed[$x].";":"").
@@ -332,11 +406,89 @@ for($x=1; $x<=$vareantal; $x++) {
 		}
 	} 
 }
-if ($csv){ 
+if ($csv){
 	fclose($fp);
 	print "<BODY onLoad=\"JavaScript:window.open('../temp/$db/pricelist.csv' ,'' ,'$jsvars');\">\n";
 }
 print "<tr><td colspan=9><hr></td></tr>";
+
+if ($plGridMode) {
+	// Close #plGridTable/#plGridWrapper opened above, then print the fixed Grid Framework footer
+	// with real (server-side) pagination - same link/markup/CSS technique lager/lagerstatus.php uses.
+	print "</tbody></table>"; // close plGridTable
+	print "</div>\n"; // close plGridWrapper
+
+	$plTxt1 = lcfirst(findtekst('2767|Af', $sprog_id));
+	$plTxt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+	$plOffsetFrom = $plTotalRows ? (($plPage - 1) * $plPerPage) + 1 : 0;
+	$plOffsetTo = min($plTotalRows, $plPage * $plPerPage);
+	$plBaseUrl = "pricelist.php?" . http_build_query(array(
+		'varegruppe' => $varegruppe,
+		'lagervalg' => $lagervalg,
+		'zero_stock' => $zero_stock,
+		'show_all_products' => $show_all_products,
+		'show_antal' => $show_antal,
+		'show_enhed' => $show_enhed,
+		'show_tier_price' => $show_tier_price,
+		'show_salgspris' => $show_salgspris,
+		'show_retail_price' => $show_retail_price,
+		'custom_text' => $custom_text,
+		'pl_per_page' => $plPerPage,
+	));
+	$plPrevIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
+	$plNextIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
+
+	print "<style>
+#plPageFooterBar { position:fixed; left:0; right:0; bottom:0; width:100%; margin:0; z-index:1000; background-color:$bgcolor; border-top:1px solid #b8bec8; padding:6px 12px; display:flex; align-items:center; justify-content:flex-end; gap:20px; flex-wrap:wrap; box-sizing:border-box; line-height:1; }
+#plPageFooterBar #plNavButtons { display:flex; align-items:center; gap:3px; }
+#plPageFooterBar #plNavButtons .navbutton { height:20px; min-width:20px; padding:0 4px; display:inline-flex; align-items:center; justify-content:center; background:#f0f0f0; color:#000; border:1px solid #b8bec8; border-radius:4px; text-decoration:none; }
+#plPageFooterBar #plNavButtons a.navbutton { cursor:pointer; }
+#plPageFooterBar #plNavButtons span.navbutton { opacity:0.5; }
+#plPageFooterBar #plNavButtons .navbutton.current { text-decoration:underline; }
+</style>\n";
+	print "<div id='plPageFooterBar'>";
+	print "<span id='plPageStatus'>" . ($plTotalRows ? "$plOffsetFrom-$plOffsetTo $plTxt1 $plTotalRows" : "0 $plTxt1 0") . "</span>";
+	print "<span>$plTxt2 <select id='plPageSize' onchange=\"window.location.href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=1&pl_per_page=' + this.value;\">";
+	foreach ($plValidPageSizes as $plOpt) {
+		$plSel = ($plOpt == $plPerPage) ? " selected" : "";
+		$plLabel = ($plOpt == 100000) ? "Alle" : $plOpt;
+		print "<option value='$plOpt'$plSel>$plLabel</option>";
+	}
+	print "</select></span>";
+	print "<span id='plNavButtons'>";
+	if ($plPage > 1)
+		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=" . ($plPage - 1) . "'>$plPrevIcon</a>";
+	else
+		print "<span class='navbutton'>$plPrevIcon</span>";
+	$plPageRange = 2;
+	$plStartPage = max(1, $plPage - $plPageRange);
+	$plEndPage = min($plTotalPages, $plPage + $plPageRange);
+	if ($plStartPage > 1) {
+		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=1'>1</a>";
+		if ($plStartPage > 2)
+			print "<span>...</span>";
+	}
+	for ($plP = $plStartPage; $plP <= $plEndPage; $plP++) {
+		if ($plP == $plPage)
+			print "<span class='navbutton current'>$plP</span>";
+		else
+			print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=$plP'>$plP</a>";
+	}
+	if ($plEndPage < $plTotalPages) {
+		if ($plEndPage < $plTotalPages - 1)
+			print "<span>...</span>";
+		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=$plTotalPages'>$plTotalPages</a>";
+	}
+	if ($plPage < $plTotalPages)
+		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=" . ($plPage + 1) . "'>$plNextIcon</a>";
+	else
+		print "<span class='navbutton'>$plNextIcon</span>";
+	print "</span>";
+	print "</div>\n";
+	print "</div>\n"; // close plPageFlex
+} else {
 ?>
 </tbody></table>
 </body></html>
+<?php
+}
