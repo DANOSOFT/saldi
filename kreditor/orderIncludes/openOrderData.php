@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/creditorIncludes/openOrderData.php --- lap 5.0.0 --- 2026.06.25 ---
+// --- kreditor/orderIncludes/openOrderData.php --- patch 5.0.0 --- 2026-07-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft.Aps
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20221104 MLH added lookup function for the delivery address fields
@@ -31,8 +31,10 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260217 PHR Added 'kundeordrnr'
 // 20260312 PHR Added Afd, depNumbers, depNames, oldDep, employees & oldRef
+// 20260521 LOE Added check to set afd based on first employee if no match is found for ref in employees list
 // 20260623 MJ Preserve the current creditor order ref and close select fields correctly.
 // 20260625 MJ Mark ref dropdown focus so account changes do not override the current ref.
+// 20260713 MJ Fix ref SELECT: add selected='selected', preserve stored ref when not in active employee list, fix </select> typo. Same fix for afd SELECT.
 
 /*
 $attachId    = null;
@@ -186,13 +188,15 @@ print "<tr><td>$txt1097</td>";
 print "<td>";
 print "<input type = 'hidden' name = 'oldRef' value = '$ref'>";
 if (count($employees)) {
+	$refInList = in_array($ref, $employees);
 	print "<select class='inputbox' style='width:110px;'  name = 'ref' onfocus='document.forms[0].fokus.value=this.name;'>";
-	if ($ref && !in_array($ref, $employees)) print "<option value='$ref' selected='selected'>$ref</option>";
-	for ($i=0;$i<count($employees);$i++) {
-		if ($ref == $employees[$i]) print "<option value='$employees[$i]' selected='selected'>$employees[$i]</option>";
+	if ($ref && !$refInList) {
+		print "<option value='$ref' selected='selected'>$ref</option>";
 	}
 	for ($i=0;$i<count($employees);$i++) {
-		if ($ref != $employees[$i]) print "<option value='$employees[$i]'>$employees[$i]</option>";
+		$sel = ($ref == $employees[$i]) ? " selected='selected'" : "";
+		print "<option value='$employees[$i]'$sel>$employees[$i]</option>";
+		if ($i == 0 && $ref != $employees[$i]) $firstEmployee = $employees[$i];
 	}
 	print "</select>";
 } else print $ref;
@@ -204,10 +208,8 @@ print "<td>";
 print "<input type = 'hidden' name = 'oldDep' value = '$afd'>";
 	print "<select class='inputbox' style='width:110px;'  name = 'afd'>";
 	for ($i=0;$i<count($depNumbers);$i++) {
-		if ($afd == $depNumbers[$i]) print "<option value='$depNumbers[$i]'>$depNumbers[$i] : $depNames[$i]</option>";
-	}
-	for ($i=0;$i<count($depNumbers);$i++) {
-		if ($afd != $depNumbers[$i]) print "<option value='$depNumbers[$i]'>$depNumbers[$i] : $depNames[$i]</option>";
+		$sel = ($afd == $depNumbers[$i]) ? " selected='selected'" : "";
+		print "<option value='$depNumbers[$i]'$sel>$depNumbers[$i] : $depNames[$i]</option>";
 	}
 	print "</select>";
 }
