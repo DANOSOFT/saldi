@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pbsfile.php --- patchh 5.0.0 --- 2026-06-23 ---
+// --- debitor/pbsfile.php --- patch 5.0.0 --- 2026-07-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20260321 PHR Reversed above as ktonr does not exist in all accounts
 // 20260601 PHR Removed PBS from CVR nr.
 // 20260623 MJ Added two spaces after BS10601 in the first PBS order export line.
+// 20260711 MJ Two spaces after BS10605 in leverance BS002 header line.
 
 @session_start();
 $s_id=session_id();
@@ -159,7 +160,7 @@ if (!$afsendt) {
 
 	if ($lev_pbs!='L') {
 		$lnr++;
-		$linje[$lnr]="BS002".$cvrnr[0]."BS10605".$leverance_id.filler(19," ").$dkdd."\n";
+		$linje[$lnr]="BS002".$cvrnr[0]."BS10605  ".$leverance_id.filler(19," ").$dkdd."\n";
 		$linjeoid[$lnr]=0;
 		if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 	}
