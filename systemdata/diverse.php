@@ -100,6 +100,11 @@
 
 
 
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+
+// 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
+
+
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -649,7 +654,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$gs1parsing           = if_isset($_POST, null, 'gs1_parsing');
 		$ourRefStockSwitch    = if_isset($_POST, null, 'ourRefStockSwitch');
 		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
+
 		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
+
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
