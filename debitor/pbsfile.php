@@ -39,7 +39,6 @@
 // 20260320 PHR Replaced kontonr(numeric) with ktonr(varchar)
 // 20260321 PHR Reversed above as ktonr does not exist in all accounts
 // 20260601 PHR Removed PBS from CVR nr.
-// 20260623 MJ Added two spaces after BS10601 in the first PBS order export line.
 // 20260711 MJ Two spaces after BS10605 in leverance BS002 header line.
 
 @session_start();
@@ -605,7 +604,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 	$r052lin=0;
 
 	$lnr++;
-	$linje[$lnr]="BS002".$cvrnr[0].$delsystem."0601  ".$leverance_id.filler(19," ").$dkdd."\n";
+	$linje[$lnr]="BS002".$cvrnr[0].$delsystem."0601".$leverance_id.filler(19," ").$dkdd."\n";
 	if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 
 	$lnr++;
