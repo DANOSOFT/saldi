@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/insertAccount.php --- patch 5.0.0 --- 2026-07-10 ---
+// --- kreditor/ordreIncludes/insertAccount.php --- patch 5.0.0 --- 2026-07-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20270226 PHR $art set to 'KO' if empty
 // 20260710 MJ Preserve ref: use global $ref (from form) or look up employee naam, not raw brugernavn.
+// 20260713 MJ Fix structural bug: orphaned if(!$afd){ caused all main logic to be skipped when afd was set. Also restore afd lookup from ansatte.
 
 if (!function_exists('insertAccount')) {
 function insertAccount($id, $konto_id) {
@@ -65,11 +66,10 @@ function insertAccount($id, $konto_id) {
 		$r_emp = db_fetch_array(db_select("select navn, afd from ansatte where id = " . (int)$r_brg['ansat_id'], __FILE__ . " linje " . __LINE__));
 		if ($r_emp) {
 			if (!$insert_ref && $r_emp['navn']) $insert_ref = $r_emp['navn'];
+			if (!$afd && $r_emp['afd']) $afd = $r_emp['afd'];
 		}
 	}
 	if (!$insert_ref) $insert_ref = $brugernavn;
-
-	if (!$afd) {
 	$afd = (int)$afd;
 
 	// Set lager based on afd if lager is not already set
