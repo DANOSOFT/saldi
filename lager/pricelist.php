@@ -63,6 +63,25 @@ else {
 	setcookie("saldi_pricelist", $varegruppe);
 	$returside="rapport.php?varegruppe=$varegruppe";
 }
+// 20260714 SZ - GET baseline (covers pagination/back-button/direct-link navigation - a plain GET
+// request with no $_POST at all) first, then an actual search-form submit (POST) overlays on top -
+// same GET-first/POST-overlay shape as includes/salgsstat.php's input handling. Replaces the previous
+// if($_POST)/elseif($_GET csv|autoprint)/elseif(default) fork, whose gaps meant every filter below
+// silently reset to its hard-coded default on a plain pagination click (see $plBaseUrl further down,
+// which already carries all of these as GET params for exactly this purpose).
+$csv       = if_isset($_GET['csv']);
+$autoprint = if_isset($_GET['autoprint']);
+if (isset($_GET['lagervalg']))         $lagervalg         = $_GET['lagervalg'];
+if (isset($_GET['zero_stock']))        $zero_stock        = $_GET['zero_stock'];
+if (isset($_GET['show_all_products'])) $show_all_products = $_GET['show_all_products'];
+if (isset($_GET['show_antal']))        $show_antal        = $_GET['show_antal'];
+if (isset($_GET['show_enhed']))        $show_enhed        = $_GET['show_enhed'];
+if (isset($_GET['show_kostpris']))     $show_kostpris     = $_GET['show_kostpris'];
+if (isset($_GET['show_tier_price']))   $show_tier_price   = $_GET['show_tier_price'];
+if (isset($_GET['show_salgspris']))    $show_salgspris    = $_GET['show_salgspris'];
+if (isset($_GET['show_retail_price'])) $show_retail_price = $_GET['show_retail_price'];
+if (isset($_GET['custom_text']))       $custom_text       = $_GET['custom_text'];
+
 if (isset($_POST['submit'])) {
 	$submit 			= $_POST['submit'];
 	$varegruppe 		= $_POST['varegruppe'];
@@ -77,21 +96,6 @@ if (isset($_POST['submit'])) {
 	$show_retail_price  = $_POST['show_retail_price'];
 	$custom_text  		= $_POST['custom_text'];
 	setcookie("saldi_pricelist", $varegruppe);
-} elseif (isset($_GET['csv']) || isset($_GET['autoprint'])) {
-	$csv 				= if_isset($_GET['csv']);
-	$autoprint 			= $_GET['autoprint'];
-	$varegruppe 		= $_GET['varegruppe'];
-	$lagervalg  		= $_GET['lagervalg'];
-	$zero_stock     	= $_GET['zero_stock'];
-	$show_all_products	= $_GET['show_all_products'];
-	$show_antal    		= $_GET['show_antal'];
-	$show_enhed    		= $_GET['show_enhed'];
-	$show_kostpris    	= $_GET['show_kostpris'];
-	$show_tier_price    = $_GET['show_tier_price'];
-	$show_salgspris 	= $_GET['show_salgspris'];
-	$show_retail_price  = $_GET['show_retail_price'];
-	$custom_text  		= $_GET['custom_text'];
-	//setcookie("saldi_pricelist", $varegruppe);
 } elseif (!$varegruppe)  {
 	$varegruppe=($_COOKIE['saldi_pricelist']);
 	if (!$varegruppe) $varegruppe="0:Alle";
@@ -433,7 +437,6 @@ if ($plGridMode) {
 		'show_salgspris' => $show_salgspris,
 		'show_retail_price' => $show_retail_price,
 		'custom_text' => $custom_text,
-		'pl_per_page' => $plPerPage,
 	));
 	$plPrevIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
 	$plNextIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
@@ -457,14 +460,14 @@ if ($plGridMode) {
 	print "</select></span>";
 	print "<span id='plNavButtons'>";
 	if ($plPage > 1)
-		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=" . ($plPage - 1) . "'>$plPrevIcon</a>";
+		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=" . ($plPage - 1) . "&pl_per_page=$plPerPage'>$plPrevIcon</a>";
 	else
 		print "<span class='navbutton'>$plPrevIcon</span>";
 	$plPageRange = 2;
 	$plStartPage = max(1, $plPage - $plPageRange);
 	$plEndPage = min($plTotalPages, $plPage + $plPageRange);
 	if ($plStartPage > 1) {
-		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=1'>1</a>";
+		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=1&pl_per_page=$plPerPage'>1</a>";
 		if ($plStartPage > 2)
 			print "<span>...</span>";
 	}
@@ -472,15 +475,15 @@ if ($plGridMode) {
 		if ($plP == $plPage)
 			print "<span class='navbutton current'>$plP</span>";
 		else
-			print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=$plP'>$plP</a>";
+			print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=$plP&pl_per_page=$plPerPage'>$plP</a>";
 	}
 	if ($plEndPage < $plTotalPages) {
 		if ($plEndPage < $plTotalPages - 1)
 			print "<span>...</span>";
-		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=$plTotalPages'>$plTotalPages</a>";
+		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=$plTotalPages&pl_per_page=$plPerPage'>$plTotalPages</a>";
 	}
 	if ($plPage < $plTotalPages)
-		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=" . ($plPage + 1) . "'>$plNextIcon</a>";
+		print "<a class='navbutton' href='" . htmlspecialchars($plBaseUrl, ENT_QUOTES) . "&pl_page=" . ($plPage + 1) . "&pl_per_page=$plPerPage'>$plNextIcon</a>";
 	else
 		print "<span class='navbutton'>$plNextIcon</span>";
 	print "</span>";

@@ -47,6 +47,22 @@ include("../includes/grid.php");
 
 $title = findtekst('3360|Salg pr. postnummer', $sprog_id);
 
+// 20260714 SZ - rapport.php's redirect into this page (the only entry point - see
+// lager/rapport.php's "Salg pr. postnummer" submit branch) never carries offset[salg_rapport]/
+// sort[salg_rapport]/rowcount[salg_rapport]/search[salg_rapport], since those are this grid's own
+// state params, not rapport.php's filters. includes/grid.php's create_datagrid() persists that state
+// in the datatables table across visits by design (so paging/sorting/resizing don't reset each other),
+// but it can't tell "fresh entry into the report" apart from "returning to keep browsing" - both look
+// like a bare GET with none of those keys. Once this grid has ever been paged past page 1 for a user,
+// every later fresh visit silently resumes from the stored offset instead of starting at page 1, unlike
+// lager/rapport.php|lagerstatus.php|pricelist.php's own footers, which have no cross-visit memory.
+// Forcing offset back to 0 only on a genuine fresh entry (no grid state params at all present) restores
+// that same "always starts on page 1" behavior without touching grid.php's shared persistence logic.
+if (!isset($_GET['offset']['salg_rapport']) && !isset($_GET['sort']['salg_rapport'])
+    && !isset($_GET['rowcount']['salg_rapport']) && !isset($_GET['search']['salg_rapport'])) {
+    $_GET['offset']['salg_rapport'] = 0;
+}
+
 /* ============================================================
  * 1. READ FILTERS FROM $_GET
  * ============================================================ */
@@ -521,7 +537,6 @@ create_datagrid('salg_rapport', $grid_data);
             }
             const input = document.createElement('input');
             input.type = 'text';
-            input.name  = 'search[salg_rapport][fakturadate]';
             input.id = 'dato_range_picker';
             input.className = 'custom-date-range-input';
            

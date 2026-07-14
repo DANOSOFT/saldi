@@ -113,6 +113,26 @@ if ($lokMinMax) {
 	$afd        = isset($_POST['afd']) ? $_POST['afd'] : null;
 	print print "<meta http-equiv=\"refresh\" content=\"0;URL=minmaxstock.php?vgrp=$varegruppe&vnr=$varenr&vname=$varenavn&afd=$afd\">";
 }
+// 20260714 SZ - hydrate from $_GET first (this is the only source for plain navigation - pagination,
+// back button, direct links - which is always a GET request with no $_POST at all), then let an actual
+// form submit (POST) overlay on top. Same "GET baseline, POST overlay" shape as includes/salgsstat.php's
+// input handling, chosen over the previous if($_POST)/else($_GET) fork specifically because that fork
+// pattern is what caused lager/pricelist.php's pagination to silently reset every filter to its default:
+// a later elseif branch (added for csv/autoprint there) intercepted the GET case before it reached the
+// $_GET reads. Making $_GET the unconditional baseline means a future added branch can no longer do that.
+$varegruppe = isset($_GET['varegruppe']) ? $_GET['varegruppe'] : null;
+$afd        = isset($_GET['afd'])        ? $_GET['afd']        : null;
+$ref        = isset($_GET['ref'])        ? $_GET['ref']        : null;
+$lev        = isset($_GET['lev'])        ? $_GET['lev']        : null;
+$date_from  = isset($_GET['date_from'])  ? $_GET['date_from']  : null;
+$date_to    = isset($_GET['date_to'])    ? $_GET['date_to']    : null;
+$varenr     = isset($_GET['varenr'])     ? $_GET['varenr']     : null;
+$varenavn   = isset($_GET['varenavn'])   ? $_GET['varenavn']   : null;
+$detaljer   = isset($_GET['detaljer'])   ? $_GET['detaljer']   : null;
+$kun_salg   = isset($_GET['kun_salg'])   ? $_GET['kun_salg']   : null;
+$lagertal   = isset($_GET['lagertal'])   ? $_GET['lagertal']   : null;
+$submit     = isset($_GET['submit'])     ? $_GET['submit']     : null;
+
 if (isset($_POST['submit']) && $_POST['submit']) {
 	$submit=strtolower(trim($_POST['submit']));
 	$varegruppe=trim($_POST['varegruppe']);
@@ -130,19 +150,6 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 	$vk_kost      = isset($_POST['vk_kost']) ? $_POST['vk_kost'] : null;
 	$varenr       = trim($varenr);
 	$varenavn     = trim($varenavn);
-} else {
-	$varegruppe = isset($_GET['varegruppe']) ? $_GET['varegruppe'] : null;
-	$afd        = isset($_GET['afd'])        ? $_GET['afd']        : null;
-	$ref        = isset($_GET['ref'])        ? $_GET['ref']        : null;
-	$lev        = isset($_GET['lev'])        ? $_GET['lev']        : null;
-	$date_from  = isset($_GET['date_from'])  ? $_GET['date_from']  : null;
-	$date_to    = isset($_GET['date_to'])    ? $_GET['date_to']    : null;
-	$varenr     = isset($_GET['varenr'])     ? $_GET['varenr']     : null;
-	$varenavn   = isset($_GET['varenavn'])   ? $_GET['varenavn']   : null;
-	$detaljer   = isset($_GET['detaljer'])   ? $_GET['detaljer']   : null;
-	$kun_salg   = isset($_GET['kun_salg'])   ? $_GET['kun_salg']   : null;
-	$lagertal   = isset($_GET['lagertal'])   ? $_GET['lagertal']   : null;
-	$submit     = isset($_GET['submit'])     ? $_GET['submit']     : null;
 }
 
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
@@ -720,7 +727,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 #vrGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
 #vrGridTable { border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; }
 #vrGridTable th { position:sticky; top:0; z-index:10; padding:6px 4px; background-color:$bgcolor; box-sizing:border-box; text-align:left; }
-#vrGridTable td { box-sizing:border-box; padding:4px; }
+#vrGridTable td { box-sizing:border-box; padding:4px; overflow-wrap:anywhere; word-break:break-word; }
 #vrGridTable th.text-right { text-align:right; }
 </style>\n";
 		print "<div id='vrGridWrapper'><table id='vrGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$vrColgroupHtml<tbody>";
@@ -806,12 +813,21 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		}
 	}
 	$tt_kobt=$tt_solgt=$tt_regul=$tt_k_pris=$tt_s_pris=$tt_moms=$tt_kost=$tt_dkBi=$tt_stockvalue=0;
-	$beskrivelse=$enhed=$varenr=$varenr_alias=$beskrivelse_alias=array();
+	// 20260714 SZ - renamed from $varenr to $v_varenr: this per-row array was shadowing the function's
+	// own $varenr parameter (the search-filter string, e.g. from the "Varenr." search box). Once shadowed,
+	// every $varenr reference below this point silently became the FULL per-row array instead of the
+	// original search string - harmless everywhere it was only ever printed, but $vrBaseUrl further down
+	// (built from the same now-clobbered $varenr) feeds it through http_build_query(), which serializes
+	// an array as varenr[0]=...&varenr[1]=...&varenr[2]=... for every single row in the report. On a
+	// large report this produces a pagination link with thousands of query params - long enough to trip
+	// the server's URI-length limit (414 Request-URI Too Long). Matches the existing $v_id/$v_gr/$v_navn/
+	// $v_kostpris per-row naming convention already used elsewhere in this same function.
+	$beskrivelse=$enhed=$v_varenr=$varenr_alias=$beskrivelse_alias=array();
 	for ($x=0;$x<count($v_id);$x++) {
 		$beholdning[$x]=0;
 	$qtxt="select * from varer where id='$v_id[$x]'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$varenr[$x]=$r['varenr'];
+	$v_varenr[$x]=$r['varenr'];
 	$varenr_alias[$x]=$r['varenr_alias'];
 	$enhed[$x]=$r['enhed'];
 	$beskrivelse[$x]=$r['beskrivelse'];
@@ -895,11 +911,11 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
-			print "<tr><td colspan=\"5\"><b>$varenr[$x] $beskrivelse[$x]</b></td></tr>\n";
+			print "<tr><td colspan=\"5\"><b>$v_varenr[$x] $beskrivelse[$x]</b></td></tr>\n";
 			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
 				print "<tr><td colspan=\"5\"><b>Alias: $varenr_alias[$x] $beskrivelse_alias[$x]</b></td></tr>\n";
 			}
-			fwrite($csvfile,";;;;\"$varenr[$x] ".$beskrivelse[$x]."\"\r\n");
+			fwrite($csvfile,";;;;\"$v_varenr[$x] ".$beskrivelse[$x]."\"\r\n");
 			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
 				fwrite($csvfile,";;;;\"Alias: $varenr_alias[$x] ".$beskrivelse_alias[$x]."\"\r\n");
 			}
@@ -1134,12 +1150,12 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			// paired fwrite() calls below write straight to the CSV file handle, which ob_start() does
 			// not intercept, so the CSV export still always contains every item regardless of page.
 			if ($vrGridMode) ob_start();
-			print "<tr bgcolor='$linjebg'><td>$varenr[$x]</td>";
+			print "<tr bgcolor='$linjebg'><td>$v_varenr[$x]</td>";
 			print "<td>$varenr_alias[$x]</td>";
 			print "<td>$enhed[$x]</td>";
 			print "<td>$beskrivelse[$x]</td>";
 			print "<td>$beskrivelse_alias[$x]</td>";
-			fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\";");
+			fwrite($csvfile, "\"$v_varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\";");
 			if ($kun_salg) {
 				print "<td align='right'>".dkdecimal($v_kostpris[$x],2)."</td>";
 				fwrite($csvfile, dkdecimal($v_kostpris[$x],2).";");
@@ -1311,13 +1327,13 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			print "</tr>\n";
 			fwrite($csvfile, "Summeret;;;;;Kostpris;;". 'Købspris' .";;Salgspris;Moms;;DB;DG;;". 'Værdi' ."\r\n");
 		}
-		if (!isset($varenr[$x])) $varenr[$x]=$enhed[$x]=$beskrivelse[$x]=$varenr_alias[$x]=$beskrivelse_alias[$x]=NULL;
-		print "<tr><td>$varenr[$x]</td>";
+		if (!isset($v_varenr[$x])) $v_varenr[$x]=$enhed[$x]=$beskrivelse[$x]=$varenr_alias[$x]=$beskrivelse_alias[$x]=NULL;
+		print "<tr><td>$v_varenr[$x]</td>";
 		print "<td>$varenr_alias[$x]</td>";
 		print "<td>$enhed[$x]</td>";
 		print "<td>$beskrivelse[$x]</td>";
 		print "<td>$beskrivelse_alias[$x]</td>";
-		fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\"");
+		fwrite($csvfile, "\"$v_varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\"");
 		if (!$kun_salg) {
 #			print "<td align='right'> <b>".dkdecimal($tt_kobt,2)."</b></td>";
 #			fwrite($csvfile, dkdecimal($tt_kobt,2).";");
@@ -1399,7 +1415,6 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			'kun_salg' => $kun_salg,
 			'lagertal' => $lagertal,
 			'submit' => 'ok',
-			'vr_per_page' => $vrPerPage,
 		));
 		$vrPrevIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
 		$vrNextIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
@@ -1423,14 +1438,14 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		print "</select></span>";
 		print "<span id='vrNavButtons'>";
 		if ($vrPage > 1)
-			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=" . ($vrPage - 1) . "'>$vrPrevIcon</a>";
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=" . ($vrPage - 1) . "&vr_per_page=$vrPerPage'>$vrPrevIcon</a>";
 		else
 			print "<span class='navbutton'>$vrPrevIcon</span>";
 		$vrPageRange = 2;
 		$vrStartPage = max(1, $vrPage - $vrPageRange);
 		$vrEndPage = min($vrTotalPages, $vrPage + $vrPageRange);
 		if ($vrStartPage > 1) {
-			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=1'>1</a>";
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=1&vr_per_page=$vrPerPage'>1</a>";
 			if ($vrStartPage > 2)
 				print "<span>...</span>";
 		}
@@ -1438,15 +1453,15 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			if ($vrP == $vrPage)
 				print "<span class='navbutton current'>$vrP</span>";
 			else
-				print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=$vrP'>$vrP</a>";
+				print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=$vrP&vr_per_page=$vrPerPage'>$vrP</a>";
 		}
 		if ($vrEndPage < $vrTotalPages) {
 			if ($vrEndPage < $vrTotalPages - 1)
 				print "<span>...</span>";
-			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=$vrTotalPages'>$vrTotalPages</a>";
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=$vrTotalPages&vr_per_page=$vrPerPage'>$vrTotalPages</a>";
 		}
 		if ($vrPage < $vrTotalPages)
-			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=" . ($vrPage + 1) . "'>$vrNextIcon</a>";
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=" . ($vrPage + 1) . "&vr_per_page=$vrPerPage'>$vrNextIcon</a>";
 		else
 			print "<span class='navbutton'>$vrNextIcon</span>";
 		print "</span>";

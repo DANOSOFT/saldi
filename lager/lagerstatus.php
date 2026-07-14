@@ -71,6 +71,24 @@ else {
 	setcookie("saldi_lagerstatus", $varegruppe);
 	$returside="rapport.php?varegruppe=$varegruppe";
 }
+// 20260714 SZ - GET baseline (covers pagination/back-button/direct-link navigation, which is a plain
+// GET request with no $_POST at all) first, then an actual search-form submit (POST) overlays on top -
+// same GET-first/POST-overlay shape as includes/salgsstat.php's input handling. This also fixes
+// showClosed reading from $_POST here (a typo - every other field in this branch reads $_GET), which
+// meant showClosed silently reset on every plain GET navigation, incl. Grid Framework pagination.
+if (isset($_GET['dato']) && $_GET['dato']) {
+	$dato       = $_GET['dato'];
+	$dateType   = 'levdate';
+	$varegruppe = $_GET['varegruppe'];
+	$lagervalg  = $_GET['lagervalg'];
+	$zStock     = $_GET['zStock'];
+	$showClosed = $_GET['showClosed'];
+} elseif (!$varegruppe)  {
+	$dato       = date("d-m-Y");
+	$dateType   = 'levdate';
+	$varegruppe = ($_COOKIE['saldi_lagerstatus']);
+	if (!$varegruppe) $varegruppe = "0:Alle";
+}
 if (isset($_POST['dato']) && $_POST['dato']) {
 	$dato       = $_POST['dato'];
 	$dateType   = $_POST['dateType'];
@@ -79,19 +97,6 @@ if (isset($_POST['dato']) && $_POST['dato']) {
 	$zStock     = $_POST['zStock'];
 	$showClosed = $_POST['showClosed'];
 	setcookie("saldi_lagerstatus", $varegruppe);
-} elseif (isset($_GET['dato']) && $_GET['dato']) {
-	$dato       = $_GET['dato'];
-	$dateType   = 'levdate';
-	$varegruppe = $_GET['varegruppe'];
-	$lagervalg  = $_GET['lagervalg'];
-	$zStock     = $_GET['zStock'];
-	$showClosed = $_POST['showClosed'];
-	# setcookie("saldi_lagerstatus", $varegruppe);
-} elseif (!$varegruppe)  {
-	$dato       = date("d-m-Y");
-	$dateType   = 'levdate';
-	$varegruppe = ($_COOKIE['saldi_lagerstatus']);
-	if (!$varegruppe) $varegruppe = "0:Alle";
 }
 if (!$dateType) $dateType   = 'levdate';
 $csv=if_isset($_GET['csv']);
@@ -517,7 +522,6 @@ if ($lsGridMode) {
 		'dateType' => $dateType,
 		'zStock' => $zStock,
 		'showClosed' => $showClosed,
-		'ls_per_page' => $lsPerPage,
 	));
 	$lsPrevIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
 	$lsNextIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
@@ -541,14 +545,14 @@ if ($lsGridMode) {
 	print "</select></span>";
 	print "<span id='lsNavButtons'>";
 	if ($lsPage > 1)
-		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=" . ($lsPage - 1) . "'>$lsPrevIcon</a>";
+		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=" . ($lsPage - 1) . "&ls_per_page=$lsPerPage'>$lsPrevIcon</a>";
 	else
 		print "<span class='navbutton'>$lsPrevIcon</span>";
 	$lsPageRange = 2;
 	$lsStartPage = max(1, $lsPage - $lsPageRange);
 	$lsEndPage = min($lsTotalPages, $lsPage + $lsPageRange);
 	if ($lsStartPage > 1) {
-		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=1'>1</a>";
+		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=1&ls_per_page=$lsPerPage'>1</a>";
 		if ($lsStartPage > 2)
 			print "<span>...</span>";
 	}
@@ -556,15 +560,15 @@ if ($lsGridMode) {
 		if ($lsP == $lsPage)
 			print "<span class='navbutton current'>$lsP</span>";
 		else
-			print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=$lsP'>$lsP</a>";
+			print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=$lsP&ls_per_page=$lsPerPage'>$lsP</a>";
 	}
 	if ($lsEndPage < $lsTotalPages) {
 		if ($lsEndPage < $lsTotalPages - 1)
 			print "<span>...</span>";
-		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=$lsTotalPages'>$lsTotalPages</a>";
+		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=$lsTotalPages&ls_per_page=$lsPerPage'>$lsTotalPages</a>";
 	}
 	if ($lsPage < $lsTotalPages)
-		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=" . ($lsPage + 1) . "'>$lsNextIcon</a>";
+		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=" . ($lsPage + 1) . "&ls_per_page=$lsPerPage'>$lsNextIcon</a>";
 	else
 		print "<span class='navbutton'>$lsNextIcon</span>";
 	print "</span>";
