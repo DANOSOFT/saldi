@@ -544,33 +544,38 @@ if ($lsGridMode) {
 	}
 	print "</select></span>";
 	print "<span id='lsNavButtons'>";
-	if ($lsPage > 1)
+	if ($lsPage > 1){
 		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=" . ($lsPage - 1) . "&ls_per_page=$lsPerPage'>$lsPrevIcon</a>";
-	else
+	} else {
 		print "<span class='navbutton'>$lsPrevIcon</span>";
+	}
 	$lsPageRange = 2;
 	$lsStartPage = max(1, $lsPage - $lsPageRange);
 	$lsEndPage = min($lsTotalPages, $lsPage + $lsPageRange);
 	if ($lsStartPage > 1) {
 		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=1&ls_per_page=$lsPerPage'>1</a>";
-		if ($lsStartPage > 2)
+		if ($lsStartPage > 2) {
 			print "<span>...</span>";
+		}
 	}
 	for ($lsP = $lsStartPage; $lsP <= $lsEndPage; $lsP++) {
-		if ($lsP == $lsPage)
+		if ($lsP == $lsPage){
 			print "<span class='navbutton current'>$lsP</span>";
-		else
+		} else {
 			print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=$lsP&ls_per_page=$lsPerPage'>$lsP</a>";
+		}
 	}
 	if ($lsEndPage < $lsTotalPages) {
-		if ($lsEndPage < $lsTotalPages - 1)
+		if ($lsEndPage < $lsTotalPages - 1){
 			print "<span>...</span>";
+		}
 		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=$lsTotalPages&ls_per_page=$lsPerPage'>$lsTotalPages</a>";
 	}
-	if ($lsPage < $lsTotalPages)
+	if ($lsPage < $lsTotalPages){
 		print "<a class='navbutton' href='" . htmlspecialchars($lsBaseUrl, ENT_QUOTES) . "&ls_page=" . ($lsPage + 1) . "&ls_per_page=$lsPerPage'>$lsNextIcon</a>";
-	else
+	} else {
 		print "<span class='navbutton'>$lsNextIcon</span>";
+	}
 	print "</span>";
 	print "</div>\n";
 	print "</div>\n"; // close #lsPageFlex
