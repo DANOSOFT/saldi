@@ -66,7 +66,7 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   print "<input type='hidden' name='vare_id[$x]' value='$vare_id[$x]'>";
   print "<input type='hidden' name='kred_linje_id[$x]' value='$kred_linje_id[$x]'>";
   print "<input type='hidden' name='serienr[$x]' value='$serienr[$x]'>";
-#  print "<input type='hidden' name='omvbet[$x]' value='$omvbet[$x]'>";
+  #  print "<input type='hidden' name='omvbet[$x]' value='$omvbet[$x]'>";
   print "<tr>";
   print "<td><input class='inputbox' type='text' style='text-align:right' size=3 name=posn$x value='$x' onchange='javascript:docChange = true;'></td>";
   print "<td title='".findtekst(1513, $sprog_id)."'><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=7 name=vare$x onfocus='document.forms[0].fokus.value=this.name;' value='".htmlentities($varenr[$x])."'></td>"; #20180305
@@ -86,145 +86,146 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   else $tmp=NULL;
   print "<td align=right><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee;text-align:right' readonly='readonly' size=10 value='$tmp'></td>";
   if ($vis_projekt) {
-  print "<td><input class='inputbox' style='width:50px;' name='projekt[$x]' value='{$projekt[$x]}' onfocus='document.forms[0].fokus.value=this.name;'></td>";
-}
-if ($status>=1) {
-  if ($vare_id[$x]) {
-    $r = db_fetch_array(db_select("select id, varenr, gruppe from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
-    if ($r['id'] && !$r['gruppe']) { # 20211201
-    alert("Vare med varenummer $varenr[$x] er ikke tilknyttet en varegruppe (Pos nr. $x)");
-    } else {
-      $qtxt = "select box9 from grupper where kodenr = '$r[gruppe]' and art = 'VG' and fiscal_year = '$regnaar'";
-      $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-      $box9[$x] = trim($r['box9']);
-      $tidl_lev[$x]=0;
-    }
-    if ($art=='KK') {
-      $dklev[$x]=dkdecimal($leveres[$x]*-1,2);
-      $modtag_returner="returner";
-    } else {
-      $dklev[$x]=dkdecimal($leveres[$x],2);
-      $modtag_returner="modtag";
-    }
-    if (substr($dklev[$x],-1)=='0') $dklev[$x]=substr($dklev[$x],0,-1);
-    if (substr($dklev[$x],-1)=='0') $dklev[$x]=substr($dklev[$x],0,-2);
-    $tidl_lev[$x] = 0;
-    if (($antal[$x]>=0)&&($art!='KK')) {
-      $qtxt = "select * from batch_kob where linje_id = '$linje_id[$x]' and ordre_id=$id and vare_id = $vare_id[$x]";
-      $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-      while($r = db_fetch_array($q)) $tidl_lev[$x]=$tidl_lev[$x]+$r['antal'];
-      if (afrund($antal[$x]-$tidl_lev[$x],2)) $status=1;
-      $temp=0;
-      $qtxt = "select * from reservation where linje_id = $linje_id[$x] and batch_salg_id=0";
-      $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-      if ($r = db_fetch_array($q)) {
-        if ( $antal[$x] - $tidl_lev[$x] != $r['antal'] ) {
-          $qtxt = "update reservation set antal=$antal[$x]-$tidl_lev[$x] where linje_id=$linje_id[$x] and batch_salg_id=0";
-          db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-        } elseif ($antal[$x]-$tidl_lev[$x]!=$r['antal']) {
-          if (($antal[$x]>=0)&&($tidl_lev[$x]<0)) {
-            $txt = "Antal m&aring; ikke &aelig;ndres til positivt tal, n&aring;r der er returneret varer (Pos nr. $posnr[$x])";
-            print "<BODY onLoad='javascript:alert($txt)'>";
-            $antal[$x]=$tidl_lev[$x];
+    print "<td><input class='inputbox' style='width:50px;' name='projekt[$x]' value='{$projekt[$x]}' onfocus='document.forms[0].fokus.value=this.name;'></td>";
+  }
+  if ($status>=1) {
+    if ($vare_id[$x]) {
+      $r = db_fetch_array(db_select("select id, varenr, gruppe from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
+      if ($r['id'] && !$r['gruppe']) { # 20211201
+        alert("Vare med varenummer $varenr[$x] er ikke tilknyttet en varegruppe (Pos nr. $x)");
+      } else {
+        $qtxt = "select box9 from grupper where kodenr = '$r[gruppe]' and art = 'VG' and fiscal_year = '$regnaar'";
+        $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+        $box9[$x] = trim($r['box9']);
+        $tidl_lev[$x]=0;
+      }
+      if ($art=='KK') {
+        $dklev[$x]=dkdecimal($leveres[$x]*-1,2);
+        $modtag_returner="returner";
+      } else {
+        $dklev[$x]=dkdecimal($leveres[$x],2);
+        $modtag_returner="modtag";
+      }
+      if (substr($dklev[$x],-1)=='0') $dklev[$x]=substr($dklev[$x],0,-1);
+      if (substr($dklev[$x],-1)=='0') $dklev[$x]=substr($dklev[$x],0,-2);
+      $tidl_lev[$x] = 0;
+      if (($antal[$x]>=0)&&($art!='KK')) {
+        $qtxt = "select * from batch_kob where linje_id = '$linje_id[$x]' and ordre_id=$id and vare_id = $vare_id[$x]";
+        $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+        while($r = db_fetch_array($q)) $tidl_lev[$x]=$tidl_lev[$x]+$r['antal'];
+        if (afrund($antal[$x]-$tidl_lev[$x],2)) $status=1;
+        $temp=0;
+        $qtxt = "select * from reservation where linje_id = $linje_id[$x] and batch_salg_id=0";
+        $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+        if ($r = db_fetch_array($q)) {
+          if ( $antal[$x] - $tidl_lev[$x] != $r['antal'] ) {
+            $qtxt = "update reservation set antal=$antal[$x]-$tidl_lev[$x] where linje_id=$linje_id[$x] and batch_salg_id=0";
+            db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+          } elseif ($antal[$x]-$tidl_lev[$x]!=$r['antal']) {
+            if (($antal[$x]>=0)&&($tidl_lev[$x]<0)) {
+              // TODO: Translate
+              $txt = "Antal m&aring; ikke &aelig;ndres til positivt tal, n&aring;r der er returneret varer (Pos nr. $posnr[$x])";
+              print "<BODY onLoad='javascript:alert($txt)'>";
+              $antal[$x]=$tidl_lev[$x];
+            }
+          } else {
+            $qtxt = "insert into reservation (linje_id, vare_id, batch_salg_id, antal) values  ";
+            $qtxt.= "($linje_id[$x], $vare_id[$x], 0, $antal[$x]-$tidl_lev[$x])";
+            db_modify($qtxt,__FILE__ . " linje " . __LINE__);
           }
-        } else {
-          $qtxt = "insert into reservation (linje_id, vare_id, batch_salg_id, antal) values  ";
-          $qtxt.= "($linje_id[$x], $vare_id[$x], 0, $antal[$x]-$tidl_lev[$x])";
-          db_modify($qtxt,__FILE__ . " linje " . __LINE__);
         }
       }
-    }
-    if ($antal[$x]<0) {
-      $tidl_lev[$x]=0;
-      $qtxt = "select antal from batch_kob where linje_id = '$linje_id[$x]'";
-      $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-      while ($r = db_fetch_array($q)) {
- #       if ($art=='KK') $tidl_lev[$x] = $tidl_lev[$x] - $r['antal'];
-  #      else $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
-         $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
+      if ($antal[$x]<0) {
+        $tidl_lev[$x]=0;
+        $qtxt = "select antal from batch_kob where linje_id = '$linje_id[$x]'";
+        $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+        while ($r = db_fetch_array($q)) {
+          #       if ($art=='KK') $tidl_lev[$x] = $tidl_lev[$x] - $r['antal'];
+          #      else $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
+          $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
+        }
       }
-    }
-    // make it so antal and tidl_lev have the same number of decimal places
-    $antal[$x] = round($antal[$x],2);
-    $tidl_lev[$x] = round($tidl_lev[$x],2);
-     if ($antal[$x] != $tidl_lev[$x]) $bogfor = 0;
-    if ($art=='KK') $tidl_lev[$x] *=-1;
-     $dk_tidl_lev[$x] = dkdecimal($tidl_lev[$x],2);
-    if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-1);
-    if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-2);
-    if (afrund(abs($antal[$x])-abs($tidl_lev[$x]),3)!=0) {
-      if (abs($antal[$x])!=abs($leveres[$x])) {
-        print "<td title='".findtekst(1514, $sprog_id)." ".$modtag_returner."e ".findtekst(1073, $sprog_id).".'>";
-        print "<input class='inputbox' type='text' style='background: none repeat scroll 0 0 #ffa; text-align:right' ";
-        print "size='4' name='leve$x' value='$dklev[$x]' onchange='javascript:docChange = true;'></td>\n";
+      // make it so antal and tidl_lev have the same number of decimal places
+      $antal[$x] = round($antal[$x],2);
+      $tidl_lev[$x] = round($tidl_lev[$x],2);
+      if ($antal[$x] != $tidl_lev[$x]) $bogfor = 0;
+      if ($art=='KK') $tidl_lev[$x] *=-1;
+      $dk_tidl_lev[$x] = dkdecimal($tidl_lev[$x],2);
+      if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-1);
+      if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-2);
+      if (afrund(abs($antal[$x])-abs($tidl_lev[$x]),3)!=0) {
+        if (abs($antal[$x])!=abs($leveres[$x])) {
+          print "<td title='".findtekst(1514, $sprog_id)." ".$modtag_returner."e ".findtekst(1073, $sprog_id).".'>";
+          print "<input class='inputbox' type='text' style='background: none repeat scroll 0 0 #ffa; text-align:right' ";
+          print "size='4' name='leve$x' value='$dklev[$x]' onchange='javascript:docChange = true;'></td>\n";
+        } else {
+          print "<td title='".findtekst(424, $sprog_id)." ".$modtag_returner."et endnu.'>";
+          print "<input class='inputbox' type='text' style='text-align:right' size='4' name='leve$x' value='$dklev[$x]' ";
+          print "onchange='javascript:docChange = true;'></td>\n";
+        }
       } else {
-        print "<td title='".findtekst(424, $sprog_id)." ".$modtag_returner."et endnu.'>";
-        print "<input class='inputbox' type='text' style='text-align:right' size='4' name='leve$x' value='$dklev[$x]' ";
-        print "onchange='javascript:docChange = true;'></td>\n";
+        print "<td title='Alt ".$modtag_returner."et.'>";
+        print "<input class='inputbox' type='text' readonly='readonly' style='background: none repeat scroll 0 0 #e4e4ee; ";
+        print "text-align:right' size='4' name='leve$x' value='$dklev[$x]' onchange='javascript:docChange = true;'></td>\n";
+      }
+      print "<td>($dk_tidl_lev[$x])</td>";
+      // Expiry date fields for items with has_due_date
+      if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+        $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
+        $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
+        if (!$batch_due_date_val) {
+          // Pre-fill with default shelf life if set
+          $shelf_days = item_default_shelf_life($vare_id[$x]);
+          if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
+        }
+        print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+        print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+        print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+        print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
       }
     } else {
-      print "<td title='Alt ".$modtag_returner."et.'>";
-      print "<input class='inputbox' type='text' readonly='readonly' style='background: none repeat scroll 0 0 #e4e4ee; ";
-      print "text-align:right' size='4' name='leve$x' value='$dklev[$x]' onchange='javascript:docChange = true;'></td>\n";
+      // status>=1 but no vare_id: pad columns to align with vare_id rows (leve + dk_tidl_lev)
+      print "<td></td><td></td>";
     }
-  print "<td>($dk_tidl_lev[$x])</td>";
-  // Expiry date fields for items with has_due_date
-  if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
-    $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
-    $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
-    if (!$batch_due_date_val) {
-      // Pre-fill with default shelf life if set
-      $shelf_days = item_default_shelf_life($vare_id[$x]);
-      if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
-    }
-    print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
-    print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
-    print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
-    print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
-  }
   } else {
-    // status>=1 but no vare_id: pad columns to align with vare_id rows (leve + dk_tidl_lev)
+    // Pad to match leve + dk_tidl_lev cells used in status>=1 rows so trailing
+    // columns (like the delete button) align across all rows
     print "<td></td><td></td>";
-  }
-} else {
-  // Pad to match leve + dk_tidl_lev cells used in status>=1 rows so trailing
-  // columns (like the delete button) align across all rows
-  print "<td></td><td></td>";
-  // Expiry date fields for status 0 (draft orders)
-  if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
-    $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
-    $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
-    if (!$batch_due_date_val) {
-      $shelf_days = item_default_shelf_life($vare_id[$x]);
-      if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
+    // Expiry date fields for status 0 (draft orders)
+    if ($vare_id[$x] && item_has_due_date($vare_id[$x])) {
+      $batch_due_date_val = if_isset($batch_due_date, NULL, $x);
+      $batch_batch_no_val = if_isset($batch_batch_no, NULL, $x);
+      if (!$batch_due_date_val) {
+        $shelf_days = item_default_shelf_life($vare_id[$x]);
+        if ($shelf_days) $batch_due_date_val = date('Y-m-d', strtotime("+$shelf_days days"));
+      }
+      print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
+      print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
+      print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
+      print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
     }
-    print "<td title='".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."'>";
-    print "<input class='inputbox' type='date' style='width:130px;' name='batch_due_date[$x]' value='$batch_due_date_val' onchange='javascript:docChange = true;'></td>\n";
-    print "<td title='".findtekst('5005|Batchnr.', $sprog_id)."'>";
-    print "<input class='inputbox' type='text' style='width:90px;' name='batch_batch_no[$x]' value='$batch_batch_no_val' onchange='javascript:docChange = true;'></td>\n";
   }
-}
-if ($omlev) {
-  $txt = "<input class='inputbox' type='checkbox' style='background: none repeat scroll 0 0 #e4e4ee' ";
-  $txt.= "name='omvbet[$x]' onchange='javascript:docChange = true;' $omvbet[$x]>";
-  print "<td valign='top'>$txt</td>\n";
-}
-if ($labelprint) {
-  if ($varenr[$x]) {
-    $txt = "<a href='../lager/labelprint.php?id=$vare_id[$x]&beskrivelse=".urlencode($beskrivelse[$x]);
-    $txt.= "&stregkode=".urlencode($varenr[$x])."&pris=$pris[$x]&enhed=$enhed[$x]' target='blank'>";
-    $txt.= "<img src='../ikoner/print.png' style='border: 0px solid;'></a>";
-  } else $txt=NULL;
-  print "<td>$txt</td>";
-}
-if (($status>0)&&($serienr[$x])) {
-  $txt = "<input type=button value='Serienr.' name='vis_snr$x' onchange='javascript:docChange = true;'>";
-  print "<td onClick='serienummer($linje_id[$x])'>$txt</td>";
-}
+  if ($omlev) {
+    $txt = "<input class='inputbox' type='checkbox' style='background: none repeat scroll 0 0 #e4e4ee' ";
+    $txt.= "name='omvbet[$x]' onchange='javascript:docChange = true;' $omvbet[$x]>";
+    print "<td valign='top'>$txt</td>\n";
+  }
+  if ($labelprint) {
+    if ($varenr[$x]) {
+      $txt = "<a href='../lager/labelprint.php?id=$vare_id[$x]&beskrivelse=".urlencode($beskrivelse[$x]);
+      $txt.= "&stregkode=".urlencode($varenr[$x])."&pris=$pris[$x]&enhed=$enhed[$x]' target='blank'>";
+      $txt.= "<img src='../ikoner/print.png' style='border: 0px solid;'></a>";
+    } else $txt=NULL;
+    print "<td>$txt</td>";
+  }
+  if (($status>0)&&($serienr[$x])) {
+    $txt = "<input type=button value='Serienr.' name='vis_snr$x' onchange='javascript:docChange = true;'>";
+    print "<td onClick='serienummer($linje_id[$x])'>$txt</td>";
+  }
   $box9[$x] = if_isset($box9[$x],NULL);
   if ($antal[$x]<0 && $art!='KK' && $box9[$x]=='on') {
-$txt = "<span title= '".findtekst(1496, $sprog_id)."'><img alt='".findtekst(1515, $sprog_id)."' src=../ikoner/serienr.png>";
-print "<td align=center onClick='batch($linje_id[$x])'>$txt</td>";
+    $txt = "<span title= '".findtekst(1496, $sprog_id)."'><img alt='".findtekst(1515, $sprog_id)."' src=../ikoner/serienr.png>";
+    print "<td align=center onClick='batch($linje_id[$x])'>$txt</td>";
   }
   $delBtn = "<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#d0021b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg>";
   $delTitle = findtekst('2130|Slet ordrelinje', $sprog_id);
@@ -249,9 +250,9 @@ else {
   print "<td><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=readonly size=3></td>";
 }
 if ($konto_id) {
-	print "<td><input class='inputbox' type='text' size=58 name=beskrivelse0 onfocus='document.forms[0].fokus.value=this.name;'></td>";
+  print "<td><input class='inputbox' type='text' size=58 name=beskrivelse0 onfocus='document.forms[0].fokus.value=this.name;'></td>";
 } else {
-	print "<td><input class='inputbox' type='text' size=58 name=beskrivelse0    onfocus='document.forms[0].fokus.value=this.name;'></td>";
+  print "<td><input class='inputbox' type='text' size=58 name=beskrivelse0    onfocus='document.forms[0].fokus.value=this.name;'></td>";
 }
 print "<td><input class='inputbox' type='text' style='text-align:right' size=10 name=pris0></td>";
 print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=raba0></td>";
@@ -303,8 +304,8 @@ if ($status > 1 && $bogfor==1){
   }
 }
 if(!count($posnr) && $id) {
-    print "<td align=center><input type='submit' style = 'width:120px;' value='".findtekst(1099, $sprog_id)."' ";
-    print "name='delete' onclick='javascript:docChange = false;'></td>";
+  print "<td align=center><input type='submit' style = 'width:120px;' value='".findtekst(1099, $sprog_id)."' ";
+  print "name='delete' onclick='javascript:docChange = false;'></td>";
 
 }  elseif ($id && $art=='KO') {
   if ($udskriv_til == 'email') {
@@ -331,27 +332,27 @@ if ($konto_id) {
   $qtxt = "select kreditmax from adresser where id = '$konto_id'";
   if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $kreditmax = $r['kreditmax'];
   if ($kreditmax < 0.01) $kreditmax = 0;
-} 
+}
 if ($kreditmax) {
   if ($valutakurs) $kreditmax=$kreditmax*100/$valutakurs;
   $q=db_select("select * from openpost where konto_id = '$konto_id' and udlignet='0'",__FILE__ . " linje " . __LINE__);
   $tilgode=0;
   while($r=db_fetch_array($q)) {
-if (!$r['valuta']) $r['valuta']='DKK';
-if (!$r['valutakurs']) $r['valutakurs']=100;
-if ($valuta=='DKK' && $r['valuta']!='DKK') $opp_amount=$r['amount']*$r['valutakurs']/100;
-elseif ($valuta!='DKK' && $r['valuta']=='DKK') {
-  $qtxt = "select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$valuta' and ";
-  $qtxt.= "valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc";
-  if ($r3=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-$opp_amount=$r['amount']*100/$r3['kurs'];
-  } else alert("Ingen valutakurs for faktura $r[faktnr]");
-}
-elseif ($valuta!='DKK' && $r['valuta']!='DKK' && $r['valuta']!=$valuta) {
-  $tmp==$r['amount']*$r['valuta']/100;
-   $opp_amount=$tmp*100/$r['valutakurs'];
-}  else $opp_amount=$r['amount'];
-$tilgode=$tilgode+$opp_amount;
+    if (!$r['valuta']) $r['valuta']='DKK';
+    if (!$r['valutakurs']) $r['valutakurs']=100;
+    if ($valuta=='DKK' && $r['valuta']!='DKK') $opp_amount=$r['amount']*$r['valutakurs']/100;
+    elseif ($valuta!='DKK' && $r['valuta']=='DKK') {
+      $qtxt = "select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$valuta' and ";
+      $qtxt.= "valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc";
+      if ($r3=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+        $opp_amount=$r['amount']*100/$r3['kurs'];
+      } else alert("Ingen valutakurs for faktura $r[faktnr]");
+    }
+    elseif ($valuta!='DKK' && $r['valuta']!='DKK' && $r['valuta']!=$valuta) {
+      $tmp=$r['amount']*$r['valuta']/100;
+      $opp_amount=$tmp*100/$r['valutakurs'];
+    }  else $opp_amount=$r['amount'];
+    $tilgode=$tilgode+$opp_amount;
   }
   if ($kreditmax<$ialt+$tilgode) {
     $tmp=  dkdecimal(($ialt+$tilgode)-$kreditmax,2);
