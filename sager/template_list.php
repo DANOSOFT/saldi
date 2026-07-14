@@ -118,7 +118,7 @@ echo '</pre>';*/
 																	<td '.$on_click.'>'.$temp['beskrivelse'].'</td>
 																	<td width="50">
 																					<a href="template_list.php?delete='.$temp['id'].'" class="button red small"
-																									title="'.findtekst('3247|Slet denne skabelon', $sprog_id).'" onclick="return confirm(\''.findtekst('3248|Er du sikker på du vil slette denne?', $sprog_id).'\');">'.findtekst('1099|Slet', $sprog_id).'</a>
+																									title="'.findtekst('3247|Slet denne skabelon', $sprog_id).'" onclick="return confirm(\''.findtekst('3248|Er du sikker på du vil slette denne', $sprog_id).'?\');">'.findtekst('1099|Slet', $sprog_id).'</a>
 																	</td>
 																	<td '.$on_click.' width="50">
 																					<a href="template_form.php?edit='.$temp['id'].'&amp;sag_id='.$id.'" class="button green small" title="'.findtekst('3249|Ret denne skabelon', $sprog_id).'">'.findtekst('2399|Ret', $sprog_id).'</a>

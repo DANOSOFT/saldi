@@ -24,6 +24,7 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
+
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
 // 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
@@ -336,12 +337,11 @@
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        $ranStr = $characters[rand(0, 4)];
-        $fileId = $orderId ?? "no-id-" . $ranStr;
+        $fileId = !empty($orderId) ? $orderId : "no-id-" . substr(str_shuffle($characters), 0, 5);
 
         // 20260604 - Save raw response before JSON decoding for better error diagnosis
         file_put_contents("../temp/$db/fakture-result-raw-$fileId.txt", "URL: $fullUrl\nHTTP Code: $httpCode\nCompanyID: $companyID\n---HEADERS---\n" . $responseHeaders . "\n---RAW RESPONSE---\n" . $result);
-        
+
         if (curl_errno($ch)) {
             // Curl connection error - don't continue
             $errorNumber = curl_errno($ch);
@@ -361,7 +361,7 @@
 
         // EasyUBL returnerer tomt svar (HTTP 500) for kreditnotaer - bug i EasyUBL API
         if ($result === null) {
-            file_put_contents("../temp/$db/fakture-error-$fileId.txt", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL" 
+            file_put_contents("../temp/$db/fakture-error-$fileId.txt", "HTTP $httpCode: tomt eller ugyldigt JSON-svar fra EasyUBL"
             . "\n---RAW RESPONSE---\n" . $rawJsonResponse . "\n---SENT DATA---\n" . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             ?>
             <script>
@@ -379,7 +379,7 @@
             $errorMessage = curl_error($ch);
             $easyUBLError = isset($result["errorMessage"]) ? $result["errorMessage"] : "";
             $errorDetails = isset($result["error"]) ? $result["error"] : "";
-            
+
             // 20260604 - Improved error logging for E-APS24003 errors
             // Capture all possible error information
             $error = [
@@ -389,14 +389,14 @@
                 'easyUBL_error' => $errorDetails,
                 'full_response' => $result
             ];
-            
+
             // save response in file in temp folder with full details for debugging
             file_put_contents("../temp/$db/fakture-full-details-$fileId.txt", json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             error_log(json_encode($error, JSON_PRETTY_PRINT)."\n---SENT DATA---\n".json_encode($data, JSON_UNESCAPED_UNICODE));
-            
+
             // Determine which error to show
             $displayError = "";
-            
+
             if(!empty($errorMessage)){
                 // curl error
                 $displayError = "Forbindelsesfejl: " . $errorMessage;
@@ -412,32 +412,10 @@
             }else{
                 $displayError = "Ukendt fejl - kontakt support";
             }
-            
+
             ?>
             <script>
-                alert('Transmission fejl:\n\n<?= $displayError; ?>\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.');
-            </script>
-            <?php
-            exit;
-        }
-        // decode base64
-        $xml = base64_decode($result["base64EncodedDocumentXml"], true);
-        if($xml === false || trim($xml) == ""){
-            $error = [
-                'error' => 'Empty or invalid XML returned from EasyUBL',
-                'http_code' => $httpCode,
-                'json_error' => json_last_error_msg(),
-                'base64_length' => strlen($result["base64EncodedDocumentXml"]),
-                'decoded_xml_length' => ($xml === false) ? false : strlen($xml),
-                'full_response' => $result,
-                'raw_response' => $rawJsonResponse,
-                'sent_data' => $data
-            ];
-            file_put_contents("../temp/$db/fakture-empty-xml-error-$fileId.txt", "Empty or invalid XML returned from EasyUBL\n" . json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n---SENT DATA---\n" . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            curl_close($ch);
-            ?>
-            <script>
-                alert("Transmission fejl:\n\nEasyUBL returnerede en tom eller ugyldig XML-fil. Dokumentet er derfor ikke sendt videre.\n\nFejllogging gemt til debugging.");
+                alert("Transmission fejl:\n\n" + <?= json_encode($displayError); ?> + "\n\nFejllogging gemt til debugging. Kontakt support hvis problemet persister.");
             </script>
             <?php
             exit;
@@ -489,6 +467,7 @@
                 $r_faktura["ean"] = $adresser_row["ean"];
             }
         }
+
         $initials = explode(" ", $r_faktura["firmanavn"]);
         foreach($initials as $key => $value){
             $initials[$key] = mb_substr($value, 0, 1, "UTF-8");
@@ -605,7 +584,7 @@
 
         $customerAddress = splitStreetAddress($customerAddr1, $customerAddr2);
         $deliveryAddress = splitStreetAddress($levAddr1, $levAddr2);
-        
+
         // Delivery address - use best available address
         if($levAddr1 !== "" && $levBynavn !== "" && $levPostnr !== ""){
             $deliverAddress = [
