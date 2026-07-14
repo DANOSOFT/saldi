@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-09-------------- 
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-09--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,8 @@
 // 20260313 Sawaneh SD-395 Date picker values now persist and clear correctly 
 // 20260317 AJ Updated hover text for order number
 // 20260518 CL/PHR account_context springer kontonr pre-populate over. Kontonr-søgning finder nu alle ordrer for kunder med samme kontonr.
+// 20260519 CL/PHR pos_ordre betalinger har negativt beløb i openpost — udlignet-check udvides med OR for amount ≈ -(sum+moms)
+// 20260601 CL/PHR Added debitorgruppe dropdown search filter on ordreliste (adresser.gruppe)
 // 20260601 Sawaneh Restored Felt 1-5 columns to read from ordrer (payment fields) and qualified their sqlOverride to o.felt_ to fix column on sort
 // 20260603 Sawaneh Whole order line is now clickable (and right-clickable for "open in new tab/window"), not just the order number.
 // 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.

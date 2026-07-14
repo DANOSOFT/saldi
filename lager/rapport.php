@@ -145,7 +145,7 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 elseif (strtolower($submit) == strtolower(findtekst('992|Lagerstatus', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
 elseif (strtolower($submit) == strtolower(findtekst('2082|Prisliste', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
-elseif(strtolower($submit) == "salg pr. postnummer") print "<meta http-equiv=\"refresh\" content=\"0;URL=salg_rapport.php?varegruppe=$varegruppe&afd=$afd&ref=$ref&lev=$lev&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
+elseif (strtolower($submit) == strtolower(findtekst('3360|Salg pr. postnummer', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=salg_rapport.php?varegruppe=$varegruppe&afd=$afd&ref=$ref&lev=$lev&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
 elseif ($inventoryCount) print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 
@@ -203,7 +203,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		print "</div><!-- end of header -->
 			<div class=\"maincontentLargeHolder\">\n";
 	} elseif ($menu=='S') {
-		$title = findtekst('964|Varerapport - forside', $sprog_id);
+		$title = findtekst('3361|Varerapporter', $sprog_id);
 
 		include("../includes/S_topLine.php"); 
 
@@ -385,7 +385,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	print $txt;
 	print "<tr><td><hr></td></tr>\n";
 	$txt = "<tr><td ALIGN=center title='Se salg på postnumre'>";
-	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"Salg pr. postnummer\" name='submit'>";
+	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst('3360|Salg pr. postnummer', $sprog_id)."\" name='submit'>";
 	$txt.= "</td></tr>\n";
 	print $txt;
 	print "</form>";

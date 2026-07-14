@@ -48,7 +48,8 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 	// Setup CSV export file path.
 	// Do not open/truncate the file until CSV content is actually generated.
-	$csvfile = "../temp/$db/momsangivelse.csv";
+	// $csvfile = "../temp/$db/momsangivelse.csv";
+	// $csv = null;
 
 	$medtag_primo = if_isset($_GET['medtag_primo']);
 

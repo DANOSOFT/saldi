@@ -22,8 +22,8 @@ include("../includes/std_func.php");
 
 //$sag_id=if_isset($_GET['sag_id']);
 //$konto_id=if_isset($_GET['konto_id']);
-$funktion=if_isset($_GET['funktion']);
-if (!$funktion) $funktion="medarbejdermappeliste";
+$funktion = if_isset($_GET['funktion']);
+if (!$funktion) $funktion = "medarbejdermappeliste";
 	
 		global $brugernavn;
 		global $db;
@@ -161,13 +161,13 @@ function faellesmappe() {
 		
 		$ans_id = $_SESSION['ans_id'];
 		//echo "ansat_id: $ans_id<br>";
-		if ($slet_mappe=if_isset($_GET['slet_mappe'])) { // Hvis mappen indeholder filer skal disse også slettes
-			if ($r=db_fetch_array(db_select("select * from mappebilag where assign_id='$slet_mappe'",__FILE__ . " linje " . __LINE__))) {
+		if ($slet_mappe = if_isset($_GET['slet_mappe'])) { // Hvis mappen indeholder filer skal disse også slettes
+			if ($r = db_fetch_array(db_select("select * from mappebilag where assign_id='$slet_mappe'",__FILE__ . " linje " . __LINE__))) {
 			
-				$x=0;
-				$q=db_select("select * from mappebilag where assign_id='$slet_mappe'",__FILE__ . " linje " . __LINE__);
+				$x = 0;
+				$q = db_select("select * from mappebilag where assign_id='$slet_mappe'",__FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
-					$bilag_id[$x] = $r['id'];
+					$bilag_id[$x]      = $r['id'];
 					$bilag_filtype[$x] = $r['filtype'];
 					$x++;
 					}
@@ -278,7 +278,7 @@ function faellesmappe() {
 		
 			print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"width:100%;\">\n";
 			print "<tbody class=\"dataTableZebra\">\n";
-			$x=0;
+			$x = 0;
 			$q = db_select("select * from mappe order by sort",__FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$x++;
@@ -323,12 +323,12 @@ function ret_mappe() {
 	global $sag_rettigheder;
 	global $sprog_id;
 	
-	$messages=NULL;
+	$messages = NULL;
 	
-	$mappe_id=if_isset($_GET['mappe_id']);
+	$mappe_id = if_isset($_GET['mappe_id']);
 	
 	if (isset($_POST['opdater']) && $mappe_id) {
-		$mappetekst=if_isset($_POST['mappetekst']);
+		$mappetekst = if_isset($_POST['mappetekst']);
 		
 		if (empty($mappetekst)) {
 			$messages = findtekst('3103|Mappe skal have en beskrivelse', $sprog_id)."!";
@@ -338,8 +338,8 @@ function ret_mappe() {
 		}
 	}
 	
-	$r=db_fetch_array(db_select("select * from mappe where id='$mappe_id'",__FILE__ . " linje " . __LINE__));
-	$mappetekst=$r['beskrivelse'];
+	$r = db_fetch_array(db_select("select * from mappe where id='$mappe_id'",__FILE__ . " linje " . __LINE__));
+	$mappetekst = $r['beskrivelse'];
 
 	print "<div id=\"breadcrumbbar\">
 
@@ -375,13 +375,13 @@ function ret_bilag() {
 	global $sag_rettigheder;
 	global $sprog_id;
 	
-	$messages=NULL;
+	$messages = NULL;
 	
-	$mappe_id=if_isset($_GET['mappe_id']);
-	$bilag_id=if_isset($_GET['bilag_id']);
+	$mappe_id = if_isset($_GET['mappe_id']);
+	$bilag_id = if_isset($_GET['bilag_id']);
 
 	if (isset($_POST['opdater']) && $bilag_id) {
-		$bilagtekst=if_isset($_POST['bilagtekst']);
+		$bilagtekst = if_isset($_POST['bilagtekst']);
 		
 		if (empty($bilagtekst)) {
 			$messages = findtekst('3112|Bilag skal have en beskrivelse', $sprog_id)."!";
@@ -391,11 +391,11 @@ function ret_bilag() {
 		}
 	}
 	
-	$r=db_fetch_array(db_select("select * from mappebilag where id='$bilag_id'",__FILE__ . " linje " . __LINE__));
-	$bilagtekst=$r['beskrivelse'];
+	$r = db_fetch_array(db_select("select * from mappebilag where id='$bilag_id'",__FILE__ . " linje " . __LINE__));
+	$bilagtekst = $r['beskrivelse'];
 
-	$r=db_fetch_array(db_select("select * from mappe where id='$mappe_id'",__FILE__ . " linje " . __LINE__));
-	$mappebeskrivelse=htmlspecialchars($r['beskrivelse']);
+	$r = db_fetch_array(db_select("select * from mappe where id='$mappe_id'",__FILE__ . " linje " . __LINE__));
+	$mappebeskrivelse = htmlspecialchars($r['beskrivelse']);
 		
 	print "<div id=\"breadcrumbbar\">
 
@@ -433,7 +433,7 @@ function vis_mappe() {
 	global $db;
 	global $sprog_id;
 		
-	$mappe_id=if_isset($_GET['mappe_id']);
+	$mappe_id = if_isset($_GET['mappe_id']);
 		
 		/* //skal rettes til!! mappen 'bilag' skal laves om til 'mappe', '$id' skal være '$mappe_id'
 		if ($slet_bilag=if_isset($_GET['slet_bilag'])) {
@@ -453,8 +453,8 @@ function vis_mappe() {
 			//echo "tom: $ny_mappe"; exit();
 		}
 		*/
-		if ($slet_bilag=if_isset($_GET['slet_bilag'])) {
-			$r=db_fetch_array(db_select("select filtype from mappebilag where id='$slet_bilag'",__FILE__ . " linje " . __LINE__));
+		if ($slet_bilag = if_isset($_GET['slet_bilag'])) {
+			$r = db_fetch_array(db_select("select filtype from mappebilag where id='$slet_bilag'",__FILE__ . " linje " . __LINE__));
 			unlink("../mappe/$db/$mappe_id/$slet_bilag.$r[filtype]");
 			db_modify("delete from mappebilag where id = $slet_bilag",__FILE__ . " linje " . __LINE__);
 		}
@@ -473,8 +473,8 @@ function vis_mappe() {
 		
 		($retvismappe=='on')?$checked_retvismappe='checked':$checked_retvismappe=NULL;
 		
-		$r=db_fetch_array(db_select("select * from mappe where id='$mappe_id'",__FILE__ . " linje " . __LINE__));
-		$beskrivelse=htmlspecialchars($r['beskrivelse']);
+		$r = db_fetch_array(db_select("select * from mappe where id='$mappe_id'",__FILE__ . " linje " . __LINE__));
+		$beskrivelse = htmlspecialchars($r['beskrivelse']);
 			
 		print "
 		<div id=\"breadcrumbbar\">
@@ -531,7 +531,7 @@ function vis_mappe() {
 				print "</tr>\n";
 				print "</tbody>\n";
 				print "<tbody class=\"dataTableZebra ordretekstListe\">\n";
-				$x=0;
+				$x = 0;
 				$q = db_select("select * from mappebilag where assign_id = $mappe_id order by sort",__FILE__ . " linje " . __LINE__); 
 				while ($r = db_fetch_array($q)) {
 					$x++;
@@ -619,14 +619,14 @@ function medarbejdermappe() {
 		if ($slet_ansatmappe=if_isset($_GET['slet_ansatmappe'])) { // Hvis mappen indeholder filer skal disse også slettes
 			if ($r=db_fetch_array(db_select("select * from ansatmappebilag where assign_id='$slet_ansatmappe'",__FILE__ . " linje " . __LINE__))) {
 			
-				$x=0;
-				$q=db_select("select * from ansatmappebilag where assign_id='$slet_ansatmappe'",__FILE__ . " linje " . __LINE__);
+				$x = 0;
+				$q = db_select("select * from ansatmappebilag where assign_id='$slet_ansatmappe'",__FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
-					$bilag_id[$x] = $r['id'];
+					$bilag_id[$x]      = $r['id'];
 					$bilag_filtype[$x] = $r['filtype'];
 					$x++;
 					}
-				$antal_bilag=$x;
+				$antal_bilag = $x;
 				
 				for ($y=0;$y<$antal_bilag;$y++) {
 					//echo "bilag_id: $bilag_id[$y]<br>";
@@ -642,7 +642,7 @@ function medarbejdermappe() {
 		} 
 		
 		if (isset($_POST['opdater'])) {
-			$ny_ansatmappe=db_escape_string($_POST['ny_ansatmappe']);
+			$ny_ansatmappe = db_escape_string($_POST['ny_ansatmappe']);
 			//$ny_ans_id=db_escape_string($_POST['ny_ans_id']);
 			
 			if (empty($ny_ansatmappe)) {
@@ -654,7 +654,7 @@ function medarbejdermappe() {
 			//echo "tom: $ny_mappe"; exit();
 		}
 		
-		$retansatmappe=if_isset($_POST['onoffswitch']);
+		$retansatmappe = if_isset($_POST['onoffswitch']);
 		
 		if ($_POST['onoffswitch']){
 			if ($_POST['onoffswitch']=='on') {
@@ -669,10 +669,10 @@ function medarbejdermappe() {
 		($retansatmappe=='on')?$checked_retansatmappe='checked':$checked_retansatmappe=NULL;
 		
 		if ($ans_id) {
-			$r=db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
-			$ans_id=$r['id'];
-			$ans_navn=$r['navn'];
-			$ans_ini=$r['initialer'];
+			$r        = db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
+			$ans_id   = $r['id'];
+			$ans_navn = $r['navn'];
+			$ans_ini  = $r['initialer'];
 		}
 		
 		print "
@@ -796,14 +796,14 @@ function ret_ansatmappe() {
 		
 	$messages=NULL;
 	
-	$ans_id = $_SESSION['ans_id'];
-	$ansatmappe_id=if_isset($_GET['ansatmappe_id']);
+	$ans_id        = $_SESSION['ans_id'];
+	$ansatmappe_id = if_isset($_GET['ansatmappe_id']);
 	if(!$ans_id) $ans_id=$ansat_id;
 	
 		//echo "ansat_id: $ansat_id<br>";echo "ans_id: $ans_id";
 		
 	if (isset($_POST['opdater']) && $ansatmappe_id) {
-		$ansatmappetekst=if_isset($_POST['ansatmappetekst']);
+		$ansatmappetekst = if_isset($_POST['ansatmappetekst']);
 		
 		if (empty($ansatmappetekst)) {
 			$messages = findtekst('3103|Mappe skal have en beskrivelse', $sprog_id)."!";
@@ -813,14 +813,14 @@ function ret_ansatmappe() {
 		}
 	}
 	
-	$r=db_fetch_array(db_select("select * from ansatmappe where id='$ansatmappe_id'",__FILE__ . " linje " . __LINE__));
-	$ansatmappetekst=$r['beskrivelse'];
+	$r = db_fetch_array(db_select("select * from ansatmappe where id='$ansatmappe_id'",__FILE__ . " linje " . __LINE__));
+	$ansatmappetekst = $r['beskrivelse'];
 	
 	if ($ans_id) {
-		$r=db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
-		$ans_id=$r['id'];
-		$ans_navn=$r['navn'];
-		$ans_ini=$r['initialer'];
+		$r        = db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
+		$ans_id   = $r['id'];
+		$ans_navn = $r['navn'];
+		$ans_ini  = $r['initialer'];
 	}
 		
 	print "<div id=\"breadcrumbbar\">
@@ -859,17 +859,17 @@ function ret_ansatbilag() {
 	global $ansat_id;
 	global $sprog_id;
 	
-	$messages=NULL;
+	$messages = NULL;
 	
-	$ans_id = $_SESSION['ans_id'];
-	$ansatmappe_id=if_isset($_GET['ansatmappe_id']);
-	$ansatbilag_id=if_isset($_GET['ansatbilag_id']);
-	if(!$ans_id) $ans_id=$ansat_id;
+	$ans_id              = $_SESSION['ans_id'];
+	$ansatmappe_id       = if_isset($_GET['ansatmappe_id']);
+	$ansatbilag_id       = if_isset($_GET['ansatbilag_id']);
+	if(!$ans_id) $ans_id = $ansat_id;
 	
 		//echo "ansat_id: $ansat_id<br>";echo "ans_id: $ans_id";
 		
 	if (isset($_POST['opdater']) && $ansatbilag_id) {
-		$ansatbilagtekst=if_isset($_POST['ansatbilagtekst']);
+		$ansatbilagtekst = if_isset($_POST['ansatbilagtekst']);
 		
 		if (empty($ansatbilagtekst)) {
 			$messages = findtekst('3112|Bilag skal have en beskrivelse', $sprog_id)."!";
@@ -879,18 +879,18 @@ function ret_ansatbilag() {
 		}
 	}
 	
-	$r=db_fetch_array(db_select("select * from ansatmappebilag where id='$ansatbilag_id'",__FILE__ . " linje " . __LINE__));
-	$ansatbilagtekst=$r['beskrivelse'];
-	$ansatbilagnavn=$r['navn'];
+	$r = db_fetch_array(db_select("select * from ansatmappebilag where id='$ansatbilag_id'",__FILE__ . " linje " . __LINE__));
+	$ansatbilagtekst = $r['beskrivelse'];
+	$ansatbilagnavn  = $r['navn'];
 
 	$r=db_fetch_array(db_select("select * from ansatmappe where id='$ansatmappe_id'",__FILE__ . " linje " . __LINE__));
 	$ansatmappebeskrivelse=htmlspecialchars($r['beskrivelse']);
 	
 	if ($ans_id) {
-		$r=db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
-		$ans_id=$r['id'];
-		$ans_navn=$r['navn'];
-		$ans_ini=$r['initialer'];
+		$r        = db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
+		$ans_id   = $r['id'];
+		$ans_navn = $r['navn'];
+		$ans_ini  = $r['initialer'];
 	}
 	
 	print "<div id=\"breadcrumbbar\">
@@ -937,10 +937,10 @@ function vis_ansatmappe() {
 	global $ansat_id;
 	global $sprog_id;
 		
-	$ans_id = $_SESSION['ans_id'];
-	$ansatmappe_id=if_isset($_GET['ansatmappe_id']);
+	$ans_id        = $_SESSION['ans_id'];
+	$ansatmappe_id = if_isset($_GET['ansatmappe_id']);
 	
-	if(!$ans_id) $ans_id=$ansat_id;
+	if(!$ans_id) $ans_id = $ansat_id;
 	
 	//echo "ansat_id: $ansat_id<br>";echo "ans_id: $ans_id";
 		/* //skal rettes til!! mappen 'bilag' skal laves om til 'mappe', '$id' skal være '$mappe_id'
@@ -962,7 +962,7 @@ function vis_ansatmappe() {
 		}
 		*/
 		if ($slet_ansatbilag=if_isset($_GET['slet_ansatbilag'])) {
-			$r=db_fetch_array(db_select("select filtype from ansatmappebilag where id='$slet_ansatbilag'",__FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select("select filtype from ansatmappebilag where id='$slet_ansatbilag'",__FILE__ . " linje " . __LINE__));
 			unlink("../ansatmappe/$db/$ans_id/$ansatmappe_id/$slet_ansatbilag.$r[filtype]");
 			db_modify("delete from ansatmappebilag where id = $slet_ansatbilag",__FILE__ . " linje " . __LINE__);
 		}
@@ -985,10 +985,10 @@ function vis_ansatmappe() {
 		$beskrivelse=htmlspecialchars($r['beskrivelse']);
 		
 		if ($ans_id) {
-			$r=db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
-			$ans_id=$r['id'];
-			$ans_navn=$r['navn'];
-			$ans_ini=$r['initialer'];
+			$r        = db_fetch_array(db_select("SELECT id, navn, initialer FROM ansatte WHERE konto_id = 1 AND id='$ans_id'",__FILE__ . " linje " . __LINE__));
+			$ans_id   = $r['id'];
+			$ans_navn = $r['navn'];
+			$ans_in   = $r['initialer'];
 		}
 	
 		print "
