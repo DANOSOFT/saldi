@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/insertAccount.php --- patch 5.0.0 --- 2026-02-26 ---
+// --- kreditor/ordreIncludes/insertAccount.php --- patch 5.0.0 --- 2026-07-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,13 +21,15 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 20230509 PHR php8
 // 20230718 LOE Minor modification
 // 20231207 PHR lock table while finding next ordrenr.
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20270226 PHR $art set to 'KO' if empty
+// 20260710 MJ Preserve ref: use global $ref (from form) or look up employee naam, not raw brugernavn.
+// 20260713 MJ Fix structural bug: orphaned if(!$afd){ caused all main logic to be skipped when afd was set. Also restore afd lookup from ansatte.
 
 if (!function_exists('insertAccount')) {
 function insertAccount($id, $konto_id) {
@@ -41,6 +43,7 @@ function insertAccount($id, $konto_id) {
 	global $postnr,$regnaar;
 	global $status,$sum;
 	global $valuta,$omlev,$afd;
+	global $ref;
 	$tidspkt=date("U");
 
 	if (!$konto_id) {
@@ -54,13 +57,19 @@ function insertAccount($id, $konto_id) {
 	if (!$sum)         $sum         = 0;
 	if (!$art)         $art         = 'KO';
 
-	if (!$afd) {
-		$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && if_isset($r,NULL,'ansat_id')) {
-			$r = db_fetch_array(db_select("select afd from ansatte where id = " . (int)$r['ansat_id'],__FILE__ . " linje " . __LINE__));
-			if ($r && if_isset($r, NULL, 'afd')) $afd=$r['afd'];
+	// Resolve the ref (our-reference) to store: prefer the already-selected employee
+	// name ($ref from the POST form), then look it up from the employee table, then
+	// fall back to the raw login name so the field is never left blank.
+	$insert_ref = $ref ? $ref : null;
+	$r_brg = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
+	if ($r_brg && $r_brg['ansat_id']) {
+		$r_emp = db_fetch_array(db_select("select navn, afd from ansatte where id = " . (int)$r_brg['ansat_id'], __FILE__ . " linje " . __LINE__));
+		if ($r_emp) {
+			if (!$insert_ref && $r_emp['navn']) $insert_ref = $r_emp['navn'];
+			if (!$afd && $r_emp['afd']) $afd = $r_emp['afd'];
 		}
 	}
+	if (!$insert_ref) $insert_ref = $brugernavn;
 	$afd = (int)$afd;
 
 	// Set lager based on afd if lager is not already set
@@ -122,7 +131,7 @@ function insertAccount($id, $konto_id) {
 		$qtxt.= "($ordrenr,$konto_id,'$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn',";
 		$qtxt.= "'$land','$kontakt','$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt',";
 		$qtxt.= "'$betalingsdage','$betalingsbet','$cvrnr','$notes','$art','$ordredate','$email','$momssats',$status,";
-		$qtxt.="'$brugernavn','$afd','$lager','$sum','$brugernavn','$tidspkt','$valuta','$kred_ord_id','$omlev')";
+		$qtxt.="'$insert_ref','$afd','$lager','$sum','$brugernavn','$tidspkt','$valuta','$kred_ord_id','$omlev')";
 /*		
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land,betalingsdage,  ";
