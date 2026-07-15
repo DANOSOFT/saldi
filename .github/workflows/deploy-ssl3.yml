@@ -1,0 +1,46 @@
+name: Deploy to ssl3
+
+# Pulls the latest master into /var/www/html/master on ssl3.saldi.dk
+# whenever a commit lands on the master branch.
+on:
+  push:
+    branches:
+      - master
+  # Allows triggering the deploy manually from the Actions tab.
+  workflow_dispatch:
+
+# Ensure only one deploy runs at a time; queued runs are cancelled in
+# favour of the newest, so ssl3 always ends up on the latest master.
+concurrency:
+  group: deploy-ssl3
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull latest master on ssl3
+        env:
+          SSH_KEY: ${{ secrets.SSL3_SSH_KEY }}
+          SSH_HOST: ssl3.saldi.dk
+          SSH_USER: ntr
+          SSH_PORT: "22"
+          DEPLOY_PATH: /var/www/html/master
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Pin the server's host key so the connection can't be MITM'd.
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/deploy_key \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o IdentitiesOnly=yes \
+              -p "$SSH_PORT" \
+              "$SSH_USER@$SSH_HOST" \
+              "cd '$DEPLOY_PATH' && git fetch origin master && git reset --hard origin/master"
