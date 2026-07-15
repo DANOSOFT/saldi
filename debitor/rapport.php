@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------patch 4.1.1 ----2025-09-24--------------
-//                           LICENSE
+// -------debitor/rapport.php------patch 5.0.0 ----2026-07-06--------------
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
 // 20121105 - Fejl ved "masseudligning (Klik på 0,00 i åbenpostoversigt) når kun 1 dato sat. Søg 20121105 
@@ -32,7 +32,9 @@
 // 20190815 - PHR
 // 20210805 - LOE Translated some texts 
 // 20250923 - LOE Sets rapportart to $rapportart = 'kontokort'; only if not accountChart 
-
+// 20260513 PHR Cleanup
+// 20260706 MJ Release session before long read-only reports to avoid blocking navigation.
+// 20260706 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
 
 @session_start();
 $s_id = session_id();
@@ -41,6 +43,7 @@ $title = "Debitorrapport";
 $modulnr = 12;
 
 $tmp = NULL;
+$initialSubmitValue = isset($_POST['submit']) ? strtolower(trim($_POST['submit'])) : (isset($_GET['submit']) ? strtolower(trim($_GET['submit'])) : NULL);
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -50,7 +53,9 @@ include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
 include("../includes/row-hover-style-with-links.js.php");
 
+$skipPopupCheck = (isset($_GET['rapportart']) && $_GET['rapportart'] == 'openpost') || isset($_POST['openpost']);
 
+if (!$skipPopupCheck) {
 ?>
 <script>
 function checkPopupBlocked() {
@@ -76,6 +81,7 @@ if (res) {
 }
 </script>
 <?php
+}
 
 print '
 <style>
@@ -128,6 +134,7 @@ if ($popup)
 else
 	$returside = $backUrl;
 
+$openpost = false;
 if(isset($_GET["rapportart"]) && $_GET["rapportart"] == "openpost") {
 	$openpost = true;
 }
@@ -218,7 +225,7 @@ if (isset($_POST['konto'])) {
 	if (!is_numeric($konto_fra))
 		$konto_til = NULL;
 }
-$husk = if_isset($_POST['husk']);
+$husk = if_isset($_POST, NULL, 'husk');
 if (isset($_POST['salgsstat']) && $_POST['salgsstat']) {
 	if ($husk)
 		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
@@ -238,7 +245,7 @@ if (isset($_POST['submit']) || $rapportart) {
 		$dato_fra = $_POST['dato_fra'];
 		$dato_til = $_POST['dato_til'];
 	} else {
-		db_modify("update grupper set box1='$husinputk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
 		$submit = 'ok';
 	}
 	#	$md=$_POST['md'];
@@ -252,7 +259,7 @@ if (isset($_POST['submit']) || $rapportart) {
 	#	}
 	#	if (isset($_POST['regnaar']) && strpos($_POST['regnaar'],"-")) {
 	#		list ($regnaar, $firmanavn)= explode("-", $_POST['regnaar']);
-	$firmanavn = trim(if_isset($firmanavn));
+	$firmanavn = trim(if_isset($firmanavn ?? NULL));
 	#	}
 	if (!isset($_POST['konto_id']))
 		$_POST['konto_id'] = NULL;
@@ -361,14 +368,14 @@ if (isset($_POST['submit']) || $rapportart) {
 	}
 	# echo "KF $konto_fra<br>";
 } elseif (isset($_GET['konto_fra'])) {
-	$rapportart = $_GET['rapportart'];
-	$dato_fra = $_GET['dato_fra'];
-	$dato_til = $_GET['dato_til'];
+	$rapportart = $_GET['rapportart'] ?? NULL;
+	$dato_fra = $_GET['dato_fra'] ?? NULL;
+	$dato_til = $_GET['dato_til'] ?? NULL;
 	$konto_fra = $_GET['konto_fra'];
-	$konto_til = $_GET['konto_til'];
+	$konto_til = $_GET['konto_til'] ?? NULL;
 	#	$regnaar=$_GET['regnaar'];
-	$submit = $_GET['submit'];
-	$returside = $_GET['returside'];
+	$submit = $_GET['submit'] ?? NULL;
+	$returside = $_GET['returside'] ?? NULL;
 	if ($udlign = $_GET['udlign'])
 		autoudlign($udlign);
 } elseif (isset($_GET['kontonr'])) {
@@ -408,6 +415,38 @@ if (!isset($konto_fra))
 	$konto_fra = NULL;
 if (!isset($konto_til))
 	$konto_til = NULL;
+
+if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE && in_array($submit, array('openpost', 'kontokort', 'kontosaldo', 'accountChart'))) {
+	session_write_close();
+}
+
+if ($submit == 'openpost' && !isset($_GET['openpost_content']) && !isset($_POST['openpost_content'])) {
+	$writeActions = array('mail kontoudtog', 'opret rykker', 'ryk alle', 'slet', 'udskriv', 'ny rykker', 'afslut', 'inkasso');
+	$isWriteAction = in_array($initialSubmitValue, $writeActions) || strstr((string)$initialSubmitValue, 'bogf');
+	if (!$isWriteAction) {
+		$params = array(
+			'rapportart' => 'openpost',
+			'submit' => 'ok',
+			'dato_fra' => $dato_fra,
+			'dato_til' => $dato_til,
+			'konto_fra' => $konto_fra,
+			'konto_til' => $konto_til,
+			'openpost_content' => 1
+		);
+		foreach (array('vis_aabenpost', 'vis_alle_poster', 'skjul_aabenpost', 'kun_debet', 'kun_kredit', 'showPBS', 'openpost_page', 'openpost_page_size') as $key) {
+			if (isset($_GET[$key])) $params[$key] = $_GET[$key];
+			elseif (isset($_POST[$key])) $params[$key] = $_POST[$key];
+		}
+		$frameSrc = 'rapport.php?' . str_replace('&', '&amp;', http_build_query($params));
+		print "<div id='openpostAsyncShell' style='padding:12px;'>";
+		print "<div id='openpostAsyncStatus' style='padding:10px; text-align:center;'>Indl&aelig;ser &aring;bne poster...</div>";
+		print "<iframe id='openpostAsyncFrame' data-src='$frameSrc' style='width:100%; min-height:720px; border:0;' onload=\"document.getElementById('openpostAsyncStatus').style.display='none'; this.style.minHeight=Math.max(720, (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body ? this.contentWindow.document.body.scrollHeight + 40 : 720)) + 'px';\"></iframe>";
+		print "<script>setTimeout(function(){var frame=document.getElementById('openpostAsyncFrame'); if(frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.getAttribute('data-src'));}, 10);</script>";
+		print "</div>";
+		print "</html>";
+		exit;
+	}
+}
 
 $submit($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D', $returside);
 

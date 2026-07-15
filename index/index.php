@@ -115,26 +115,20 @@ if (!isset($fejltxt) && isset($regnskab) && isset($brugernavn) && isset($passwor
 elseif ($rs == $regnskab && $bn == $brugernavn) {	
 		setcookie ('saldi_huskmig', $cookievalue, time() - 3600);
 	}
-	print "<form name=\"login\" METHOD=\"POST\" ACTION=\"$action\" onSubmit=\"return handleLogin(this);\">\n";
-	// print "<input type=\"hidden\" name=\"regnskab\" value=\"$_POST[regnskab]\">\n";
-	// print "<input type=\"hidden\" name=\"brugernavn\" value=\"$_POST[brugernavn]\">\n";
-	// print "<input type=\"hidden\" name=\"password\"  value=\"$_POST[password]\">\n";
+	print "<html><body>\n";
+	print "<form id=\"autoLoginForm\" name=\"login\" METHOD=\"POST\" ACTION=\"$action\">\n";
 	print "<input type=\"hidden\" name=\"regnskab\" value=\"$regnskab\">\n";
 	print "<input type=\"hidden\" name=\"brugernavn\" value=\"$brugernavn\">\n";
 	print "<input type=\"hidden\" name=\"password\"  value=\"$password\">\n";
 	if(isset($_COOKIE['languageId'])){
 	print "<input type=\"hidden\" name=\"languageId\"  value=\"$_COOKIE[languageId]\">\n"; #20220330
 	}
-	//print "<input type=\"hidden\" name=\"vent\"  value=\"$_POST[vent]\">\n";
 	print "<input type=\"hidden\" name=\"vent\"  value=\"$vent\">\n";
-	// print "<body onload=\"document.login.submit()\">";
-	print "<body>";
+	print "</form>\n";
 	print "<script nonce=\"$nonce\">\n";
-		print "window.onload = function() {\n"; 
-		print "    document.login.submit();\n";
-		print "};\n";
+		print "document.getElementById('autoLoginForm').submit();\n";
 	print "</script>\n";
-	print "</form>";
+	print "</body></html>\n";
 	exit;
 }
 
@@ -186,6 +180,7 @@ print "<html>\n";
 print "<head>\n";
 print "<title>$title</title>\n";
 if ($css) PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
+PRINT "<link rel=\"shortcut icon\" href=\"../../index/favicon.ico\">\n";
 // print "<!--[if lt IE 9]>
 // 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
 // 		<![endif]-->\n"; // Deprecated and non existent
@@ -204,7 +199,6 @@ print "				<form method=\"POST\" action=\"index.php\">\n";
 print "				<div class='loginAction'>\n";    
 print "					<h2>Login</h2>\n";    
 print "					<select id=\"languageId\" name=\"languageId\">\n";
-
 print "<script language=\"javascript\" type=\"text/javascript\" nonce=\"$nonce\">\n";
 print "    document.getElementById('languageId').onchange = function() {\n";
 print "        this.form.submit();\n";
@@ -218,12 +212,12 @@ fclose($fp);
 
 if (!is_numeric($languageId)) $languageId = 1;
 for ($x=1; $x<count($a); $x++){
-if ($x == $languageId){
-print "<option selected value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
-}
-else {
-print "<option value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
-}
+	if ($x == $languageId){
+		print "<option selected value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
+	}
+	else {
+		print "<option value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
+	}
 }
 print "</select>\n";
 print "				</div>\n";    
@@ -273,16 +267,6 @@ print "			</div><!-- end of loginBox -->\n";
 print	"		</div><!-- end of loginHolder -->\n";
 print "	</div><!-- end of main -->\n";
 include ("../includes/version.php");
-
-if (!isset($_COOKIE['saldi_std'])) {
-	print "<script language=\"javascript\" type=\"text/javascript\" nonce=\"$nonce\">\n";
-	print "document.login.regnskab.focus();\n";
-	print "</script>\n";
-} else {
-	print "<script language=\"javascript\" type=\"text/javascript\" nonce=\"$nonce\">\n";
-	print "document.login.login.focus();\n";
-	print "</script>\n";
-}
 
 if (!isset($_COOKIE['saldi_std'])) {
 	print "<script language=\"javascript\" type=\"text/javascript\" nonce=\"$nonce\">\n";

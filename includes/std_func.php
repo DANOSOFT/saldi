@@ -54,13 +54,18 @@
 // 20260127 PHR corrected error in function get_next_order_number
 // 20260217 PHR added "(float)$tal" in function afrund
 // 20260429 PHR Check for $regnaar in function transtjek()
+// 20260518 CL/PHR copy_row() springer batch_due_date og batch_batch_no over ved kopiering af ordrelinjer
+// 20260602 NTR Changed if_isset to accept nested keys as an array, so you can do if_isset($array, $default, ['key1', 'key2']) to check for $array['key1']['key2']
+// -------- As well as adding the ability to check for object properties if you pass an object instead of an array and the key is a string, so you can do if_isset($object, $default, 'property') to check for $object->property
+// -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
+// 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
 
-include('stdFunc/dkDecimal.php');
-include('stdFunc/nrCast.php');
-include('stdFunc/strStartsWith.php');
-include('stdFunc/usDecimal.php');
-include('stdFunc/navStack.php');
-include('stdFunc/fefo.php');
+include(__DIR__ . '/stdFunc/dkDecimal.php');
+include(__DIR__ . '/stdFunc/nrCast.php');
+include(__DIR__ . '/stdFunc/strStartsWith.php');
+include(__DIR__ . '/stdFunc/usDecimal.php');
+include(__DIR__ . '/stdFunc/navStack.php');
+include(__DIR__ . '/stdFunc/fefo.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -142,31 +147,6 @@ if (!function_exists('get_relative')) {
     }
 }
 
-// if (!function_exists('if_isset')) {
-// 	function if_isset(&$var, $return = NULL)
-// 	{
-		/**
-		 * Checks if a variable is set and not empty.
-		 * If set and not empty, returns the value of the variable.
-		 * Otherwise, returns the default value provided.
-		 *
-		 * @param mixed $var - The variable to check.
-		 * @param mixed $return - The value to return if the variable is not set or is empty (default: NULL).
-		 *
-		 * @return mixed - The value of the variable if set and not empty, otherwise the default value.
-		 * ######## Known Behaviour #######, 
-		 * This doesn't return True if $var === 0 as 0 is considered Falsy in PHP. But 0 can be set and retrieved as value in $return param.
-		 * Same thing for False value.
-		 * if_isset(false) //NULL
-		 * if_isset(0)     //NULL
-		 * #################
-		 */
-// 		if ($var)
-// 			return ($var);
-// 		else
-// 			return ($return);
-// 	}
-// }
 
 if (!function_exists('if_isset')) {
     function if_isset($arrayOrVar, $default = null, $key = null) {
@@ -178,7 +158,7 @@ if (!function_exists('if_isset')) {
          *
          * Behavior for special values:
          * ----------------------------------------
-         * - `false`: Treated as "not set" and returns NULL . Explicitly set for single values
+         * - `false`: Treated as "set".
          * - `null`: If the variable or array key is explicitly `null`
          * - `0`: Considered a valid value, returned as-is (0 is treated as set).
          * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
@@ -188,29 +168,39 @@ if (!function_exists('if_isset')) {
 		 * ########################################
 		 * 
          * @param mixed $arrayOrVar The array or variable to check.
-         * @param mixed $default    The default value to return if the variable or key is not set.
+         * @param mixed $default    The default value to return if the variable or array's key is not set.
          * @param mixed $key        The key (if array is passed).
          * @return mixed           The actual value or the default.
          */
 
-        // Case 1: One argument — treat as a single variable fallback
+        // Case 1: One/Two argument — treat as a single variable fallback
         if ($key === null) {
-            // If key is not provided, we're dealing with just a single variable
-          
-			 // Check if the variable is explicitly false and return NULL
-			 if ($arrayOrVar === false) {
-				return NULL;
-			}
-	
+            // If key is not provided, we're dealing with just a single variable.
 			return isset($arrayOrVar) ? $arrayOrVar : $default;
         }
 
-        // Case 2: Two arguments — array + key
-        if (is_array($arrayOrVar) && array_key_exists($key, $arrayOrVar)) {
-            // If it's an array and the key exists, return the value or NULL if it's false
-            $value = $arrayOrVar[$key];
-            return $value === false ? null : $value;
-        }
+        // Case 2: Three arguments — array + key or object + property
+		if(!is_array($key)){
+			if (isset($arrayOrVar) && is_array($arrayOrVar)) {
+				return array_key_exists($key, $arrayOrVar) ? $arrayOrVar[$key] : $default;
+			}
+			if (is_object($arrayOrVar)) {
+				return property_exists($arrayOrVar, $key) ? $arrayOrVar->$key : $default;
+			}
+		} else {
+			// Case 3: If $key is an array, we want to check nested keys
+			$current = $arrayOrVar;
+			foreach ($key as $k) {
+				if (is_array($current) && array_key_exists($k, $current)) {
+					$current = $current[$k];
+				} elseif (is_object($current) && property_exists($current, $k)) {
+					$current = $current->$k;
+				} else {
+					return $default; // Key doesn't exist at some level
+				}
+			}
+			return $current; // All keys exist, return the final value
+		}
 
         // Default case: Return the default value
         return $default;
@@ -619,8 +609,8 @@ if (!function_exists('copy_row')) {
 		/**
 		 * Copies a row from a specified table and inserts it as a new row with updated values.
 		 *
-		 * This function selects a row from the specified table based on the given `id`, processes the row's fields, 
-		 * and inserts a new row with the same field values, while making adjustments to certain fields like `posnr`. 
+		 * This function selects a row from the specified table based on the given `id`, processes the row's fields,
+		 * and inserts a new row with the same field values, while making adjustments to certain fields like `posnr`.
 		 * If necessary, it also updates existing rows to shift the `posnr` values to accommodate the new row.
 		 * The function is designed to handle specific conditions on fields (e.g., non-zero `pris`, non-zero `m_rabat`, etc.).
 		 *
@@ -628,7 +618,7 @@ if (!function_exists('copy_row')) {
 		 * @param int $id - The `id` of the row to copy.
 		 *
 		 * @return int|string - The `id` of the newly inserted row, or '0' if the table or ID is invalid.
-		 * 
+		 *
 		 * @note The function performs checks to ensure only rows with specific conditions (`pris != 0`, `m_rabat != 0`, `rabat = 0`) are copied.
 		 *       It also modifies the `posnr` field by incrementing it to avoid conflicts with existing rows.
 		 */
@@ -644,7 +634,9 @@ if (!function_exists('copy_row')) {
 				$x++;
 				$fieldName[$x] = db_field_name($q, $r);
 				$fieldType[$x] = db_field_type($q, $r);
-				($fieldstring) ? $fieldstring .= "," . $fieldName[$x] : $fieldstring = $fieldName[$x];
+				if ($fieldName[$x] != 'batch_due_date' && $fieldName[$x] !='batch_batch_no') {
+					($fieldstring) ? $fieldstring .= "," . $fieldName[$x] : $fieldstring = $fieldName[$x];
+				}
 			}
 			$r++;
 		}
@@ -660,22 +652,26 @@ if (!function_exists('copy_row')) {
 				$linjerabat = afrund($r['pris'] / $r['m_rabat'], 2);
 				$feltnavn = $fieldName[$y];
 				$felt[$y] = $r[$feltnavn];
-				if ($fieldType[$y] == 'varchar' || $fieldType[$y] == 'text')
+				if ($fieldType[$y] == 'varchar' || $fieldType[$y] == 'text') {
 					$felt[$y] = addslashes($felt[$y]);
-				if (substr($fieldType[$y], 0, 3) == 'int' || $fieldType[$y] == 'numeric')
+				} elseif (substr($fieldType[$y], 0, 3) == 'int' || $fieldType[$y] == 'numeric') {
 					$felt[$y] *= 1;
-				if ($fieldName[$y] == 'posnr') {
+				}	elseif ($fieldName[$y] == 'posnr') {
 					$felt[$y]++;
 					$posnr = $felt[$y];
 				}
-				if ($fieldName[$y] == 'ordre_id')
+				if ($fieldName[$y] == 'ordre_id') {
 					$ordre_id = $felt[$y];
-				($fieldvalues) ? $fieldvalues .= ",'" . $felt[$y] . "'" : $fieldvalues = "'" . $felt[$y] . "'";
-				($selectstring) ? $selectstring .= " and " . $fieldName[$y] . "='" . $felt[$y] . "'" : $selectstring = $fieldName[$y] . "='" . $felt[$y] . "'";
+				}
+				if ($fieldName[$y] != 'batch_due_date' && $fieldName[$y] != 'batch_batch_no') {
+					($fieldvalues) ? $fieldvalues .= ",'" . $felt[$y] . "'" : $fieldvalues = "'" . $felt[$y] . "'";
+					($selectstring) ? $selectstring .= " and " . $fieldName[$y] . "='" . $felt[$y] . "'" : $selectstring = $fieldName[$y] . "='" . $felt[$y] . "'";
+				}
 			}
 		}
-		if ($posnr && $ordre_id)
+		if ($posnr && $ordre_id) {
 			db_modify("update $table set posnr=posnr+1 where ordre_id = '$ordre_id' and posnr >= '$posnr'", __FILE__ . " linje " . __LINE__);
+		}
 		db_modify("insert into ordrelinjer ($fieldstring) values ($fieldvalues)", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select id from $table where $selectstring", __FILE__ . " linje " . __LINE__));
 		$ny_id = $r['id'];
@@ -743,29 +739,13 @@ if (!function_exists('transtjek')) {
 	}
 }
 if (!function_exists('cvrnr_omr')) {
-	function cvrnr_omr($landekode)
+	function cvrnr_omr($landekode, $baseCountry = 'dk')
 	{
-		/**
-		 * Determines the country region based on a provided country code.
-		 *
-		 * This function returns a region identifier based on the provided country code. 
-		 * The country code is typically a two-letter ISO 3166-1 alpha-2 code, and the 
-		 * function returns "DK" for Denmark, "EU" for most European countries, or "UD" 
-		 * for unknown or unsupported countries.
-		 *
-		 * @param string $landekode - The two-letter country code (e.g., 'dk' for Denmark, 'at' for Austria).
-		 * 
-		 * @return string - The region corresponding to the provided country code:
-		 *                  - "DK" for Denmark.
-		 *                  - "EU" for countries in the European Union.
-		 *                  - "UD" for countries outside the EU or unsupported codes.
-		 * 
-		 * @note The country code lookup is case-sensitive and only supports the countries
-		 *       specified in the function. Any other code will return "UD".
-		 */
 		$retur = "";
 		if (!$landekode) {
 			$retur = "";
+		} elseif ($baseCountry && $landekode === $baseCountry) {
+			$retur = "DK"; // indenlandsk for denne virksomheds hjemland
 		} else {
 			switch ($landekode) {
 				case "dk":
@@ -856,7 +836,7 @@ if (!function_exists('cvrnr_omr')) {
 	}
 }
 if (!function_exists('cvrnr_land')) {
-	function cvrnr_land($cvrnr)
+	function cvrnr_land($cvrnr, $baseCountry = 'dk')
 	{
 		$retur = "";
 
@@ -865,7 +845,9 @@ if (!function_exists('cvrnr_land')) {
 		if (!$cvrnr) {
 			$retur = "";
 		} elseif (is_numeric(substr($cvrnr, 0, 1))) {
-			$retur = "dk";
+			$retur = $baseCountry;
+		} elseif (is_numeric(substr($cvrnr, 1, 1))) {
+			$retur = $baseCountry; // bogstav + cifre = indenlandsk NIF-format (fx spansk B93248185)
 		} else {
 			$start_tegn = strtolower(substr($cvrnr, 0, 3));
 			switch ($start_tegn) {
@@ -2091,7 +2073,7 @@ if (!function_exists('create_debtor')) {
 	 * 
 	 * @return int|null - Returns the ID of the created debtor record if successful, or NULL if there was an error.
 	 */
-	include_once('stdFunc/createDebitor.php');
+	include_once(__DIR__ . '/stdFunc/createDebitor.php');
 }
 
 //                   ----------------------------- get_next_number ------------------------------
@@ -2340,72 +2322,48 @@ if (!function_exists('get_next_invoice_number')) {
 if (!function_exists('barcode')) {
 	function barcode($stregkode)
 	{
-		/**
-		 * Generates a barcode image (PNG) for the given barcode string.
-		 * It checks if the input is a valid EAN-13 code and creates a barcode image using external tools.
-		 * 
-		 * The function will first check if the required tools (`barcode` or `tbarcode`) are available and if
-		 * the barcode string is valid. It will then generate the barcode in EPS format and convert it to PNG.
-		 * The barcode image will be saved in the `../temp/$db/` directory.
-		 *
-		 * @param string $stregkode - The barcode string to generate the image for.
-		 * 
-		 * @return string|null - The path to the generated PNG file, or null if an error occurs.
-		 */
-
-		global $bruger_id, $db, $exec_path;
-		$ean13 = NULL;
-		#(strpos($stregkode,';'))?$stregkoder=explode(";",$stregkode):$stregkoder[0]=$stregkode;
+		global $db;
 		$stregkoder = explode(";", $stregkode);
-		$png = NULL;
-		if (file_exists($exec_path . "/barcode") || (file_exists($exec_path . "/tbarcode")) && file_exists($exec_path . "/convert")) { #20140603
-			$dan_kode = 1;
-			if (strpos($stregkoder[0], 'æ'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'Æ'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'ø'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'Ø'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'å'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], 'Å'))
-				$dan_kode = 0;
-			if (strpos($stregkoder[0], ' '))
-				$dan_kode = 0;
-			if ($dan_kode) {
-				$eps = "../temp/$db/$stregkoder[0].eps";
-				$png = "../temp/$db/$stregkoder[0].png";
-				if (is_numeric($stregkoder[0]) && strlen($stregkoder[0]) == 13) { #20211029 is_numeric($stregkoder[0]
-					$a = substr($stregkoder[0], 11, 1) + substr($stregkoder[0], 9, 1) + substr($stregkoder[0], 7, 1) + substr($stregkoder[0], 5, 1) + substr($stregkoder[0], 3, 1) + substr($stregkoder[0], 1, 1);
-					$a *= 3;
-					$a += substr($stregkoder[0], 10, 1) + substr($stregkoder[0], 8, 1) + substr($stregkoder[0], 6, 1) + substr($stregkoder[0], 4, 1) + substr($stregkoder[0], 2, 1) + substr($stregkoder[0], 0, 1);
-					$b = 0;
-					while (!is_int(($a + $b) / 10))
-						$b++;
-					($b == substr($stregkoder[0], 12, 1)) ? $ean13 = 1 : $ean13 = 0;
-				}
-				if (file_exists("../temp/$db/" . abs($bruger_id) . "_*.eps"))
-					unlink("../temp/$db/" . abs($bruger_id) . "_*.eps");
-				if (file_exists($exec_path . "/barcode")) {
-					$barcodgen = $exec_path . "/barcode";
-					($ean13) ? $ean = 'ean13' : $ean = '128';
-					$ms = date("is");
-					$barcodtxt = $barcodgen . " -n -E -e $ean -g 200x40 -b $stregkoder[0] -o $eps\n" . $exec_path;
-					$barcodtxt .= "/convert $eps $png\n" . $exec_path . "/rm -colorspace RGB $eps\n"; #20230321
-				} else {
-					$barcodgen = $exec_path . "/tbarcode";
-					($ean13) ? $ean = '13' : $ean = '20';
-					$barcodtxt = $barcodgen . " --format=ps --barcode=$ean --text=hide --width=80 --height=15 --data=$stregkoder[0] > $eps\n" . $exec_path . "/convert $eps $png\n" . $exec_path . "/rm $eps\n";
-				}
-				system($barcodtxt);
-			} else
-				$png = NULL;
-		} else {
-			echo $exec_path . "/barcode not found?<br>";
+		$svg_path = NULL;
+
+		$dan_kode = 1;
+		if (strpos($stregkoder[0], 'æ')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'Æ')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'ø')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'Ø')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'å')) $dan_kode = 0;
+		if (strpos($stregkoder[0], 'Å')) $dan_kode = 0;
+		if (strpos($stregkoder[0], ' ')) $dan_kode = 0;
+
+		if ($dan_kode && $stregkoder[0] !== '') {
+			$ean13 = false;
+			if (is_numeric($stregkoder[0]) && strlen($stregkoder[0]) == 13) {
+				$a = substr($stregkoder[0], 11, 1) + substr($stregkoder[0], 9, 1) + substr($stregkoder[0], 7, 1) + substr($stregkoder[0], 5, 1) + substr($stregkoder[0], 3, 1) + substr($stregkoder[0], 1, 1);
+				$a *= 3;
+				$a += substr($stregkoder[0], 10, 1) + substr($stregkoder[0], 8, 1) + substr($stregkoder[0], 6, 1) + substr($stregkoder[0], 4, 1) + substr($stregkoder[0], 2, 1) + substr($stregkoder[0], 0, 1);
+				$b = 0;
+				while (!is_int(($a + $b) / 10)) $b++;
+				$ean13 = ($b == substr($stregkoder[0], 12, 1));
+			}
+
+			require_once(__DIR__ . '/barcode.php');
+			$generator = new barcode_generator();
+			$symbology = $ean13 ? 'ean13' : 'code128';
+			$svg_content = $generator->render_svg($symbology, $stregkoder[0], [
+				'w'  => 285,
+				'h'  => 32,
+				'p'  => 2,
+				'th' => 0,
+				'ts' => 0,
+				'bc' => '',
+			]);
+			$svg_path = "../temp/$db/$stregkoder[0].svg";
+			if (file_put_contents($svg_path, $svg_content) === false) {
+				$svg_path = NULL;
+			}
 		}
-		return ($png);
+
+		return $svg_path;
 	}
 }
 

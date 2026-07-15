@@ -44,6 +44,7 @@
 // 20250516 Sulayman updated the drowdown konto_fra and konto_til to show according to the selected konto_fra and konto_til.
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20251206 LOE Unified topline without back button for reports moved to includes/S_topLine.php
+// 20260617 PK Placed projekt_fra and projekt_til in the same <td>
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -221,7 +222,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 #		include("../includes/sidemenu.php");
 	} elseif ($menu == 'S') {
 
-		$title =  findtekst(897, $sprog_id);
+		$title = findtekst('3359|Finansrapporter', $sprog_id);
 
 		#######################
 		include("../includes/S_topLine.php");
@@ -294,6 +295,11 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "regnskabbasis")
 		print "<option title='" . findtekst(2327, $sprog_id) . "' value='regnskabbasis'>" . findtekst(2326, $sprog_id) . "</option>\n";
+	$packagingModuleEnabled_local = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+	$emb_opt_label = ($sprog_id == 2) ? 'Packaging' : 'Emballage';
+	$emb_opt_title = ($sprog_id == 2) ? 'Packaging tax report (extended producer responsibility)' : 'Emballagerapport (producentansvar)';
+	if ($packagingModuleEnabled_local && $rapportart == "emballage")
+		print "<option title='$emb_opt_title' value='emballage'>$emb_opt_label</option>\n";
 	#	elseif ($rapportart=="momskontrol") print "<option title='".findtekst(514,$sprog_id)."' value='momskontrol'>momskontrol</option>\n";
 	listeangivelser($regnaar, $rapportart, "matcher");
 	if ($rapportart != "kontokort")
@@ -316,6 +322,8 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	if ($rapportart != "regnskabbasis")
 		print "<option title='" . findtekst(2327, $sprog_id) . "' value='regnskabbasis'>" . findtekst(2326, $sprog_id) . "</option>\n";
+	if ($packagingModuleEnabled_local && $rapportart != "emballage")
+		print "<option title='$emb_opt_title' value='emballage'>$emb_opt_label</option>\n";
 	#	if ($rapportart!="momskontrol") print "<option title='".findtekst(514,$sprog_id)."' value='momskontrol'>momskontrol</option>\n";
 	listeangivelser($regnaar, $rapportart, "alle andre");
 
@@ -365,7 +373,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 			#			print "<td><input type='text'> - </td><td><input type='text'></td>";
 		}
 		if (!strstr($projekt_fra, '?')) {
-			print "<td><select name=projekt_fra>\n";
+			print "<td colspan='2'><select name=projekt_fra>\n"; #20260617
 			print "<option value='$projekt_fra'>$projekt_fra</option>\n";
 			if ($projekt_fra)
 				print "<option></option>\n";
@@ -373,8 +381,8 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 				if ($projekt_fra != $projektnr[$x])
 					print "<option value='$projektnr[$x]'>$projektnr[$x] : $prj_navn[$x]</option>\n";
 			}
-			print "</select> -</td>";
-			print "<td><select name=projekt_til>\n";
+			print "</select>&nbsp;-&nbsp;";
+			print "<select name=projekt_til>\n";
 			print "<option value='$projekt_til'>$projekt_til</option>\n";
 			if ($projekt_til) {
 				print "<option></option>\n";

@@ -1,6 +1,7 @@
 <?php
 // ../includes/kreditorOrderFuncIncludes/accountLookup.php
 // 20260304 LOE Converted to use grid framework (same as debitor/order account lookup)
+// 20260506 sawaneh Added create-new-supplier overlay when looked-up kontonr/firmanavn has no match
 function kontoopslag($sort, $fokus, $id, $find){
 
 	global $bgcolor, $bgcolor5;
@@ -258,6 +259,18 @@ function kontoopslag($sort, $fokus, $id, $find){
 		'filters' => []
 	];
 
+	// Define toggleCreateForm BEFORE the grid so AJAX can use it
+	echo <<<TOGGLESCRIPT
+	<script>
+	function toggleCreateForm(show) {
+		var form = document.getElementById('createCreditorForm');
+		var backdrop = document.getElementById('createCreditorBackdrop');
+		if (backdrop) backdrop.style.display = show ? 'block' : 'none';
+		if (form) form.style.display = show ? 'block' : 'none';
+	}
+	</script>
+TOGGLESCRIPT;
+
 	// Create the datagrid
 	$rows = create_datagrid($grid_id, $grid_data);
 
@@ -269,6 +282,142 @@ function kontoopslag($sort, $fokus, $id, $find){
 	}
 	</script>
 HTML;
+
+	// ============ Create new creditor form ============
+	// Show the create form whenever the user searched for something (any field)
+	// and the search returned no matching creditors.
+	$cleanFind = ($find && $find != '%' && $find != '0') ? trim(str_replace('%', '', $find)) : '';
+	$user_searched = ($cleanFind !== '');
+	$is_numeric_search = ($user_searched && ctype_digit($cleanFind));
+
+	$has_match = false;
+	if ($user_searched) {
+		$fe = db_escape_string($cleanFind);
+		$cols = ['kontonr','firmanavn','addr1','addr2','postnr','bynavn','land','kontakt','tlf'];
+		$ors = [];
+		foreach ($cols as $c) $ors[] = "CAST($c AS TEXT) ILIKE '%$fe%'";
+		$check_q = db_select("SELECT id FROM adresser WHERE art='K' AND (lukket != 'on' OR lukket IS NULL) AND (" . implode(' OR ', $ors) . ") LIMIT 1", __FILE__ . " linje " . __LINE__);
+		if (db_fetch_array($check_q)) $has_match = true;
+	}
+
+	// Prefill: numeric search → kontonr; text search → firmanavn
+	$prefill_kontonr  = $is_numeric_search ? $cleanFind : get_next_number('adresser', 'K');
+	$prefill_firmanavn = (!$is_numeric_search && $user_searched) ? $cleanFind : '';
+	$kontonr_default = $prefill_kontonr;
+
+	// Fetch creditor groups
+	$grp_options = '';
+	$qtxt = "select kodenr, beskrivelse from grupper where art='KG' and fiscal_year='$regnaar' order by kodenr";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$grp_nr = htmlspecialchars($r['kodenr']);
+		$grp_name = htmlspecialchars($r['beskrivelse']);
+		$grp_options .= "<option value='$grp_nr'>$grp_nr : $grp_name</option>";
+	}
+
+	// Default payment terms (most common among creditors)
+	$defaultPterm = 'Netto';
+	$defaultPdays = '8';
+	$qtxt = "select betalingsbet, betalingsdage, count(*) as cnt from adresser where art='K' group by betalingsbet, betalingsdage order by cnt desc limit 1";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		if ($r['betalingsbet']) $defaultPterm = $r['betalingsbet'];
+		if ($r['betalingsdage'] !== null && $r['betalingsdage'] !== '') $defaultPdays = $r['betalingsdage'];
+	}
+
+	$pay_options = '';
+	$pay_terms = array(
+		'Forud'   => findtekst('369|Forud', $sprog_id),
+		'Kontant' => findtekst('370|Kontant', $sprog_id),
+		'Netto'   => findtekst('372|Netto', $sprog_id),
+		'Lb. md.' => findtekst('373|Lb. md.', $sprog_id),
+	);
+	foreach ($pay_terms as $val => $label) {
+		$selected = ($val == $defaultPterm) ? 'selected' : '';
+		$pay_options .= "<option value='" . htmlspecialchars($val) . "' $selected>" . htmlspecialchars($label) . "</option>";
+	}
+
+	$kontonr_safe = htmlspecialchars($kontonr_default);
+	$firmanavn_safe = htmlspecialchars($prefill_firmanavn, ENT_QUOTES);
+	$defaultPdays_safe = htmlspecialchars($defaultPdays);
+
+	$lbl_create = ($sprog_id == 2) ? 'Create new supplier' : 'Opret ny leverandør';
+	$lbl_name = findtekst('360|Navn', $sprog_id);
+	$lbl_address = findtekst('648|Adresse', $sprog_id);
+	$lbl_zipcode = findtekst('549|Postnr', $sprog_id);
+	$lbl_city = findtekst('1055|By', $sprog_id);
+	$lbl_telephone = findtekst('37|Telefon', $sprog_id);
+	$lbl_contact = findtekst('632|Kontaktperson', $sprog_id);
+	$lbl_email = findtekst('402|E-mail', $sprog_id);
+	$lbl_vat = 'CVR-nr.';
+	$lbl_payterms = findtekst('935|Betalingsbet', $sprog_id);
+	$lbl_group = findtekst('63|Gruppe', $sprog_id);
+	$lbl_submit = findtekst('1232|Opret', $sprog_id);
+	$lbl_required = ($sprog_id == 2) ? 'Name is required' : 'Navn er påkrævet';
+
+	$showForm = ($user_searched && !$has_match) ? 'block' : 'none';
+
+	print <<<CREATEFORM
+<style>
+.create-creditor-backdrop {
+	display: $showForm;
+	position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+	background: rgba(0,0,0,0.4); z-index: 999;
+}
+.create-creditor-overlay {
+	display: $showForm;
+	position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+	z-index: 1000; background: #fff; border: 1px solid #ccc; border-radius: 4px;
+	padding: 20px 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); min-width: 320px;
+}
+.create-creditor-overlay h3 { margin: 0 0 15px 0; text-align: center; font-size: 14px; font-weight: normal; color: #333; }
+.create-creditor-overlay table { width: 100%; border-collapse: collapse; }
+.create-creditor-overlay td { padding: 3px 5px; vertical-align: middle; }
+.create-creditor-overlay td:first-child { text-align: right; padding-right: 10px; white-space: nowrap; font-size: 12px; color: #333; }
+.create-creditor-overlay input[type="text"], .create-creditor-overlay select { width: 150px; padding: 3px 5px; border: 1px solid #ccc; font-size: 12px; }
+.create-creditor-overlay input[type="text"].small { width: 40px; text-align: right; }
+.create-creditor-overlay .btn-row { text-align: center; padding-top: 10px; }
+.create-creditor-overlay input[type="submit"] { width: 150px; padding: 5px 10px; cursor: pointer; }
+.create-creditor-overlay .close-btn { position: absolute; top: 8px; right: 12px; font-size: 20px; font-weight: bold; color: #666; cursor: pointer; line-height: 1; }
+.create-creditor-overlay .close-btn:hover { color: #000; }
+</style>
+
+<div class="create-creditor-backdrop" id="createCreditorBackdrop" onclick="toggleCreateForm(false)"></div>
+<div class="create-creditor-overlay" id="createCreditorForm">
+  <span class="close-btn" onclick="toggleCreateForm(false)" title="Close">&times;</span>
+  <h3>$lbl_create</h3>
+  <form name="create_creditor" action="ordre.php" method="post" onsubmit="return validateCreateCreditor()">
+    <input type="hidden" name="id" value="$id">
+    <table>
+      <tr><td>Kontonr</td><td><input type="text" name="kontonr" value="$kontonr_safe"></td></tr>
+      <tr><td>$lbl_name <span style="color:red">*</span></td><td><input type="text" name="firmanavn" id="create_firmanavn" value="$firmanavn_safe"></td></tr>
+      <tr><td>$lbl_address</td><td><input type="text" name="addr1" value=""></td></tr>
+      <tr><td>$lbl_address</td><td><input type="text" name="addr2" value=""></td></tr>
+      <tr><td>$lbl_zipcode</td><td><input type="text" name="postnr" value=""></td></tr>
+      <tr><td>$lbl_city</td><td><input type="text" name="bynavn" value=""></td></tr>
+      <tr><td>$lbl_telephone</td><td><input type="text" name="tlf" value=""></td></tr>
+      <tr><td>$lbl_contact</td><td><input type="text" name="kontakt" value=""></td></tr>
+      <tr><td>$lbl_email</td><td><input type="text" name="email" value=""></td></tr>
+      <tr><td>$lbl_vat</td><td><input type="text" name="cvrnr" value=""></td></tr>
+      <tr><td>$lbl_payterms</td><td><select name="betalingsbet">$pay_options</select> <input type="text" name="betalingsdage" value="$defaultPdays_safe" class="small"></td></tr>
+      <tr><td>$lbl_group</td><td><select name="grp">$grp_options</select></td></tr>
+      <tr><td colspan="2" class="btn-row"><input type="submit" name="create_creditor" value="$lbl_submit"></td></tr>
+    </table>
+  </form>
+</div>
+
+<script>
+function validateCreateCreditor() {
+	var name = document.getElementById('create_firmanavn').value.trim();
+	if (name === '') {
+		alert('$lbl_required');
+		document.getElementById('create_firmanavn').focus();
+		return false;
+	}
+	return true;
+}
+</script>
+CREATEFORM;
+	// ============ End create new creditor form ============
 
 	// Close structures and render footer based on menu type
 	if ($menu == 'T') {

@@ -90,14 +90,14 @@ if ($jobkort && $valg!='jobkort') {
 	print "<td id='jobliste' width = '200px' align=center>";
 	print "<a href='jobliste.php?valg=jobkort&jobkort=$jobkort' title ='$title'>";
 	print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title ='$title'>";
-	print "$icon_jobliste ".findtekst('38|Stillingsliste', $sprog_id)."</button></td>";
+	print "$icon_jobliste ".findtekst('38|Opgaveliste', $sprog_id)."</button></td>";
 } else {
 	if($jobkort && $valg=='jobkort'){
 		print "<td>&nbsp;</td>";
 		print "<td width = '200px' align=center>";
 		print "<a href='jobliste.php?valg=jobkort' title ='$title'>";
 		print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-		print "$icon_jobliste ".findtekst('38|Stillingsliste', $sprog_id)."</button></a></td>";
+		print "$icon_jobliste ".findtekst('38|Opgaveliste', $sprog_id)."</button></a></td>";
 	}
 }
 print "</tbody></table></td>\n"; # <- Tabel 1.1.1

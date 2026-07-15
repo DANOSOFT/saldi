@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_kontoudtog.php --- ver 4.1.1 --- 2025-09-24 --
+// --- kreditor/mail_kontoudtog.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.DK ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 20120906 break ændret til break 1
 // 20121004 Gmail afviser mails hvor 'from' ikke er *.saldi.dk søg 20121029
@@ -43,6 +43,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250924 LOE Added static footer with email and period inputs + buttons
 // 20250925 LOE Kilde added to determine which emails to send
+// 20260706 MJ Use kontakt_emails 'kontoudtog' address when sending account statements.
 
 @session_start();
 $s_id=session_id();
@@ -56,6 +57,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/formfunk.php");
+include_once("../includes/stdFunc/getKontaktEmail.php");
 
 $dato_fra=$dato_til=NULL;
 $email=NULL;
@@ -257,7 +259,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 	$til[$x]=dkdato($todate[$x]);
 	$query = db_select("select * from adresser where id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($query);
-	if (!$email[$x]) $email[$x]=$r['email'];
+	if (!$email[$x]) $email[$x] = getKontaktEmail($konto_id[$x], 'kontoudtog');
 	$accountId[$x]=$r['id'];
 	$r2=db_fetch_array(db_select("select box3 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 	$kontovaluta[$x]=$r2['box3'];
@@ -636,7 +638,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailtext .= " * ".$r['addr2'];
 			if ( $r['postnr'] ) $mailtext .= " * ".$r['postnr']." ".$r['bynavn'];
 			if ( $r['tlf'] ) $mailtext .= " * tlf ".$r['tlf'];
-			if ( $r['fax'] ) $mailtext .= " * fax ".$r['fax'];
+			if ( $r['mobile'] ) $mailtext .= " * mobile ".$r['mobile'];
 			if ( $r['cvrnr'] ) $mailtext .= " * cvr ".$r['cvrnr'];
 			$mailtext .= "<p>\n</td></tr>\n";
 			$mailtext .= "</table></body></html>\n";			
@@ -673,7 +675,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailbody .= $r['addr2']."<br />\n";
 			if ( $r['postnr'] ) $mailbody .= $r['postnr']." ".$r['bynavn']."<br />\n";
 			if ( $r['tlf'] ) $mailbody .= "tlf ".$r['tlf'];
-			if ( $r['fax'] ) $mailbody .= " * fax ".$r['fax'];
+			if ( $r['mobile'] ) $mailbody .= " * mobile ".$r['mobile'];
 			if ( $r['cvrnr'] ) $mailbody .= " * cvr ".$r['cvrnr'];
 			$mailbody .= "</p></body></html>";
 
@@ -686,7 +688,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailaltbody .= $r['addr2']."\n";
 			if ( $r['postnr'] ) $mailaltbody .= $r['postnr']." ".$r['bynavn']."\n";
 			if ( $r['tlf'] ) $mailaltbody .= "tlf ".$r['tlf'];
-			if ( $r['fax'] ) $mailaltbody .= " * fax ".$r['fax'];
+			if ( $r['mobile'] ) $mailaltbody .= " * mobile ".$r['mobile'];
 			if ( $r['cvrnr'] ) $mailaltbody .= " * cvr ".$r['cvrnr'];
 			
 			if ($charset!="UTF-8"){

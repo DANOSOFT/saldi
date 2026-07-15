@@ -1,3 +1,5 @@
+bilag
+bilag/
 bilag/*
 *temp/*
 bordplaner/temp/*
@@ -8,7 +10,11 @@ certs/*
 includes/connect.php
 testshop.php
 saldiinfo.php
+phpmailer
+vendor
 phpmailer/*
+phpmailer
+vendor
 */phpmailer/*
 includes/vendor/
 
@@ -16,7 +22,6 @@ bordplaner/bordplan_*
 debitor/pos_print/*_*.php
 helm/saldi/charts
 
-bilag/
 includes/connect.php
 includes/temp/
 index/ch/
@@ -27,21 +32,25 @@ includes/connect.php
 kreditor/betalinger_old.php
 logolib/
 
+# AI agent instructions
+!AGENTS.md
+!CLAUDE.md
+!doc/ai/
+!doc/ai/*
+
 #test
-price.txt
+/price.txt
 test/
 testing/
-SÆT i HMS - SÆT.csv
-adminpanel.txt
-nyteEmailSystem.txt
-bilag
-invoice.json
-ordre.php
+/SÆT i HMS - SÆT.csv
+/adminpanel.txt
+/nyteEmailSystem.txt
+/invoice.json
+/ordre.php
 
 paperpdf/
 temp/
 utils/
-bilag/
 logolib/
 vouchers/
 /temp/
@@ -51,17 +60,19 @@ SaldiAPI/
 phpmailerOld/
 phpmailer/
 mappe/
-bilag/
-utils/
 /utils/
+
+
 # Python stuff
 __pycache__/
 .pytest_cache
+testing/*
 
 # VS Code
 .vscode/
 .htaccess
 converter/exitsound_5.sql
+.claude/
 
 # Opret
 opret/
@@ -69,3 +80,16 @@ opret/
 # Dandomain and mysaleX
 dandomain/
 mysaleX/
+
+email.php
+
+# hidden files
+.ht*
+
+# Live Service
+/index/redirect.php
+/stock.txt
+/vareFlytning.txt
+/varenr_alias.txt
+/varer.csv
+/index/redirect.php

@@ -27,13 +27,24 @@
 // 20230827 PHR - Changed $box8 to $stockItem
 // 20240527 MMK - Added Wolt intergration settings
 
+include("../includes/topline_settings.php");
+
 print "\n<!-- productCardIncludes/notesEtc.php start -->\n";
 
 print "<tr><td valign='top' colspan='3'><table border='0' width='100%'><tbody>\n"; # Notetabel ->
-print "<tr><td valign='top'>".findtekst(391,$sprog_id)."</td>\n";
+ 
+$noteChecked = $note_on_orderline ? 'checked' : '';
+print "<tr><td valign='top'>".findtekst(391,$sprog_id)."&nbsp;
+<label title='When checked, the item note is automatically copied to the order line description when this item is added to an order'>\n
+<input class='inputbox' type='checkbox' name='note_on_orderline' $noteChecked>\n
+&nbsp;Add note to order line</label>\n
+</td>\n";
+
 print "<td colspan='6'><textarea name='notes' rows='4' cols='100'>$notes</textarea></td>\n";
-print "<td><button type='button' id='rentItem'>".findtekst(2050,$sprog_id)."</button></td>\n";
+
+print "<td><button type='button' style='$buttonStyle; width:100%; height:20px' id='rentItem'>".findtekst('2050|Udlejning', $sprog_id)."</button></td>\n";
 print "</tr>\n";
+
 print "<tr><td valign='top'>".findtekst(2144,$sprog_id)."</td>\n";
 print "<td colspan='6'><textarea name='notesInternal' rows='".($notesInternal != "" ? 4 : 2)."' cols='100'>$notesInternal</textarea></td>\n";
 print "</tr><tr>\n";

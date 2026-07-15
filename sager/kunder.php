@@ -33,24 +33,24 @@
 
 
 	@session_start();	# Skal angives oeverst i filen??!!
-	$s_id=session_id();
+	$s_id = session_id();
 
-	$bg="nix";
-	$header='nix';
+	$bg     = "nix";
+	$header = 'nix';
 
-	$konto_id = $kontoansvarlig_id = array();
-#	$kunder_sag_limit = $kunder_sager_ansvarlig = $kunder_sager_oprettet_af = $kunder_sager_tidspkt = array();
-#	$kunder_sager_sort = $kunder_sager_sagsnr = $kunder_sager_status = $kunder_sager_udf_addr1 = array();
-	$bank_konto = $bank_reg = $betalingsdage = $betalingsbet = NULL;
-	$cvrnr = NULL;
-	$fax = NULL;
-	$kontotype = $kreditmax = NULL;
-	$menu_sager = $menu_planlaeg = $menu_dagbog = $menu_loen = $menu_ansatte = NULL;
+	$konto_id           = $kontoansvarlig_id = array();
+#	$kunder_sag_limit   = $kunder_sager_ansvarlig = $kunder_sager_oprettet_af = $kunder_sager_tidspkt   = array();
+#	$kunder_sager_sort  = $kunder_sager_sagsnr    = $kunder_sager_status      = $kunder_sager_udf_addr1 = array();
+	$bank_konto         = $bank_reg = $betalingsdage = $betalingsbet = NULL;
+	$cvrnr              = NULL;
+	$mobile             = NULL;
+	$kontotype          = $kreditmax = NULL;
+	$menu_sager         = $menu_planlaeg = $menu_dagbog = $menu_loen = $menu_ansatte = NULL;
 	$menu_certificering = $menu_medarbejdermappe = NULL;
-	$menu_kunder ='id="menuActive"';
-	$pbs = NULL;
-	$tlf = NULL;
-	$modulnr=0;
+	$menu_kunder        ='id="menuActive"';
+	$pbs                = NULL;
+	$tlf                = NULL;
+	$modulnr            = 0;
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
@@ -60,8 +60,8 @@
 	
 	if (isset($_GET['konto_id']))      $konto_id = (int)$_GET['konto_id'];
 	elseif (isset($_POST['konto_id'])) $konto_id = (int)$_POST['konto_id'];
-	else $konto_id=(int)$_POST['id'];
-	$funktion=if_isset($_GET['funktion']);
+	else $konto_id = (int)$_POST['id'];
+	$funktion = if_isset($_GET['funktion']);
 	if (!$funktion)$funktion="kundeliste";
 	
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
@@ -117,12 +117,12 @@
 function kundeliste() {
 	global $sprog_id;
 	
-	$sortstyle=array();
-	$nysortstyle=if_isset($_GET['nysortstyle']);
-	$sortarray=array('kontonr','firmanavn','addr1','postnr','bynavn','kontakt','tlf');
-	$sort=if_isset($_GET['sort']);
-	$nysort=if_isset($_GET['nysort']);
-	$unsetsort=if_isset($_GET['unsetsort']);
+	$sortstyle   = array();
+	$nysortstyle = if_isset($_GET['nysortstyle']);
+	$sortarray   = array('kontonr','firmanavn','addr1','postnr','bynavn','kontakt','tlf');
+	$sort        = if_isset($_GET['sort']);
+	$nysort      = if_isset($_GET['nysort']);
+	$unsetsort   = if_isset($_GET['unsetsort']);
 	
 	
 	if ($nysort && $nysort==$sort) {
@@ -138,32 +138,32 @@ function kundeliste() {
 	}
 	
 	if ($_GET['nysortstyle']) {
-		$_SESSION['kunder_kontonr']=$sortstyle[0];
-		$_SESSION['kunder_firmanavn']=$sortstyle[1];
-		$_SESSION['kunder_addr1']=$sortstyle[2];
-		$_SESSION['kunder_postnr']=$sortstyle[3];
-		$_SESSION['kunder_bynavn']=$sortstyle[4];
-		$_SESSION['kunder_kontakt']=$sortstyle[5];
-		$_SESSION['kunder_tlf']=$sortstyle[6];
+		$_SESSION['kunder_kontonr']   = $sortstyle[0];
+		$_SESSION['kunder_firmanavn'] = $sortstyle[1];
+		$_SESSION['kunder_addr1']     = $sortstyle[2];
+		$_SESSION['kunder_postnr']    = $sortstyle[3];
+		$_SESSION['kunder_bynavn']    = $sortstyle[4];
+		$_SESSION['kunder_kontakt']   = $sortstyle[5];
+		$_SESSION['kunder_tlf']       = $sortstyle[6];
 	} else {
-		$sortstyle[0]=$_SESSION['kunder_kontonr'];
-		$sortstyle[1]=$_SESSION['kunder_firmanavn'];
-		$sortstyle[2]=$_SESSION['kunder_addr1'];
-		$sortstyle[3]=$_SESSION['kunder_postnr'];
-		$sortstyle[4]=$_SESSION['kunder_bynavn'];
-		$sortstyle[5]=$_SESSION['kunder_kontakt'];
-		$sortstyle[6]=$_SESSION['kunder_tlf'];
+		$sortstyle[0] = $_SESSION['kunder_kontonr'];
+		$sortstyle[1] = $_SESSION['kunder_firmanavn'];
+		$sortstyle[2] = $_SESSION['kunder_addr1'];
+		$sortstyle[3] = $_SESSION['kunder_postnr'];
+		$sortstyle[4] = $_SESSION['kunder_bynavn'];
+		$sortstyle[5] = $_SESSION['kunder_kontakt'];
+		$sortstyle[6] = $_SESSION['kunder_tlf'];
 	}
 	
 	if ($unsetsort) {
 		unset($_SESSION['kunder_sort'],
-					$_SESSION['kunder_kontonr'],$sortstyle[0],
-					$_SESSION['kunder_firmanavn'],$sortstyle[1],
-					$_SESSION['kunder_addr1'],$sortstyle[2],
-					$_SESSION['kunder_postnr'],$sortstyle[3],
-					$_SESSION['kunder_bynavn'],$sortstyle[4],
-					$_SESSION['kunder_kontakt'],$sortstyle[5],
-					$_SESSION['kunder_tlf'],$sortstyle[6]
+					$_SESSION['kunder_kontonr'],   $sortstyle[0],
+					$_SESSION['kunder_firmanavn'], $sortstyle[1],
+					$_SESSION['kunder_addr1'],     $sortstyle[2],
+					$_SESSION['kunder_postnr'],    $sortstyle[3],
+					$_SESSION['kunder_bynavn'],    $sortstyle[4],
+					$_SESSION['kunder_kontakt'],   $sortstyle[5],
+					$_SESSION['kunder_tlf'],       $sortstyle[6]
 				);
 	}
 		
@@ -171,13 +171,13 @@ function kundeliste() {
 	//print_r($sortarray);
 	//echo "sort: $sort";
 	
-	if ($sort) $_SESSION['kunder_sort']=$sort;
-	else $sort=$_SESSION['kunder_sort'];
-	if (!$sort) $sort="firmanavn";
+	if ($sort) $_SESSION['kunder_sort'] = $sort;
+	else $sort = $_SESSION['kunder_sort'];
+	if (!$sort) $sort = "firmanavn";
 	
-	$sqlsort=urldecode($sort);
+	$sqlsort = urldecode($sort);
 
-	$x=0;
+	$x = 0;
 	//$sort=if_isset($_GET['sort']);
 	//if (!$sort) $sort='firmanavn';
 	$konto_id = array();

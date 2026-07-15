@@ -1,3 +1,4 @@
+<!doctype html>
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
@@ -24,6 +25,8 @@
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20260630 CDX/NTR Fixed Lager/varer from refreshing once every time we try to access it.
+//                  This possibly has changes across everything, but I have tested it, and it has also fixed rendering prematurely.
 @session_start();
 $s_id = session_id();
 
@@ -69,26 +72,22 @@ function brightenColor($color, $amount = 0.2) {
 ?>
 
 <script>
-// Simple cookie-based refresh listener
-function checkRefreshCookie() {
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'refresh_opener' && value === 'true') {
-            // Clear the cookie and reload
-            document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-            location.reload();
-            return;
-        }
-    }
-}
+  // Simple cookie-based refresh listener
+  function checkRefreshCookie() {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+          const [name, value] = cookie.trim().split('=');
+          if (name === 'refresh_opener' && value === 'true') {
+              // Clear the cookie and reload
+              document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+              location.reload();
+              return;
+          }
+      }
+  }
 
-// Check every 1000ms for the cookie
-setInterval(checkRefreshCookie, 1000);
-</script>
-
-// Check every 500ms
-setInterval(checkRefreshCookie, 500);
+  // Check every 1000ms for the cookie
+  setInterval(checkRefreshCookie, 1000);
 </script>
 <style>
   .showMenu{
@@ -449,7 +448,7 @@ setInterval(checkRefreshCookie, 500);
     <iframe
       onLoad="
       document.title = 'Saldi - ' + this.contentWindow.document.title; 
-console.log('Locaiton', this.contentWindow.document.location.href);
+      console.log('Locaiton', this.contentWindow.document.location.href);
       trigger_iframe_load();
       stopLoading();
       content_finished_loading(this);"
@@ -510,9 +509,28 @@ console.log('Locaiton', this.contentWindow.document.location.href);
     sidebar.classList.toggle("closed");
   }
 
+  const get_iframe_path = () => {
+    const iframe = document.querySelector(".content-iframe")
+    if (!iframe || !iframe.contentWindow) return "";
+
+    try {
+      const url = new URL(iframe.contentWindow.location.href);
+      return url.pathname + url.search;
+    } catch (e) {
+      return "";
+    }
+  }
+
   const update_iframe = (uri) => {
     const iframe = document.querySelector(".content-iframe")
-    const path = iframe.contentWindow.location.href
+    const baseUrl = (location + "").split("/").splice(0, 4).join("/");
+    const targetUrl = baseUrl + (uri.startsWith("/") ? uri : "/" + uri);
+    const parsedTargetUrl = new URL(targetUrl);
+    const targetPath = parsedTargetUrl.pathname + parsedTargetUrl.search;
+
+    if (get_iframe_path() === targetPath) {
+      return;
+    }
 
     if (iframe.contentWindow?.docChange) {
       if (!window.confirm("Er du sikker på du gerne vil ændre side? Dine ændringer vil ikke blive gemt")) {
@@ -520,7 +538,7 @@ console.log('Locaiton', this.contentWindow.document.location.href);
       }
     }
 
-    iframe.src = (location + "").split("/").splice(0, 4).join("/") + uri
+    iframe.src = targetUrl
   }
 
   const redirect_uri = (uri) => {
@@ -544,15 +562,18 @@ console.log('Locaiton', this.contentWindow.document.location.href);
     const iframe = document.querySelector(".content-iframe");
     const path = "/" + iframe.contentWindow.document.location.href.split("/").slice(4).join("/");
 
-    // Prevent iframe load hashchange from triggering update_iframe
-    manualHashChange = false;
-    window.location.hash = path;
-    setCookie('last-sidebar-location', path, 1);
+    if (window.location.hash !== "#" + path) {
+      // Prevent iframe load hashchange from triggering update_iframe
+      manualHashChange = false;
+      window.location.hash = path;
 
-    // Reset manualHashChange flag after the hash has been set
-    setTimeout(() => {
-      manualHashChange = true;
-    }, 0);
+      // Reset manualHashChange flag after the hash has been set
+      setTimeout(() => {
+        manualHashChange = true;
+      }, 0);
+    }
+
+    setCookie('last-sidebar-location', path, 1);
   }
 
   document.addEventListener('DOMContentLoaded', function() {

@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // Expiry date settings section on item card.
 // Shows toggle for has_due_date and input for default_shelf_life_days.
+global $has_due_date, $default_shelf_life_days;
 
 $has_due_date_checked = ($has_due_date == 'on') ? 'checked' : '';
 $shelf_life_display = ($has_due_date == 'on') ? '' : 'display:none;';
@@ -44,10 +45,16 @@ print "name='default_shelf_life_days' value='$shelf_life_val' onchange='javascri
 print "</td></tr>\n";
 
 // Show "View batches" button if item has ID (is saved)
+// Preserve return path so Back on batch_oversigt comes back here (with upstream returside intact)
+global $id, $stockItem;
 if ($id && $stockItem) {
+	$_back = "varekort.php?id=$id";
+	if (!empty($returside)) {
+		$_back .= "&returside=" . urlencode($returside);
+	}
 	print "<tr><td colspan='2'>\n";
-	print "<a href='batch_oversigt.php?vare_id=$id'>\n";
-	print "<button type='button' class='LightButton'>".findtekst('5004|Se batches', $sprog_id)."</button>\n";
+	print "<a href='batch_oversigt.php?vare_id=$id&returside=" . urlencode($_back) . "'>\n";
+	print "<button type='button' class='LightButton' style='$buttonStyle; width:60%; height:20px'>".findtekst('5004|Batch oversigt', $sprog_id)."</button>\n";
 	print "</a></td></tr>\n";
 }
 ?>

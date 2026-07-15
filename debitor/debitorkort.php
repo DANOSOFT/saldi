@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 5.0.0 --- 2026-05-05 --- 
+// --- debitor/debitorkort.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps 
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
 // 20240528 PHR Added $_SESSION['debitorId']
@@ -35,6 +35,10 @@
 // 20260323 LOE Added a drag handle to adjust the height of the purchase history grid, and made the grid initially collapse.  
 // 20260325 LOE Added logic to navigate to appropriate returside for when general ledger is selected
 // 20260505 LOE Added form to create extra delivery address and logic to save it. SD-483
+// 20260513 PHR Removed if ($id) around cvrapi to make it work again for existing customers
+// 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
+// 20260706 MJ Fix $id clobbering by contacts foreach loops; fix UPDATE adresser using wrong id; fix redirect after save; allow save when kontotype not yet set in DB
+// 20260707 MJ Fix primary email deletion on save; fix blank ordre after Account card → Luk
 @session_start();
 $s_id = session_id();
 
@@ -52,6 +56,9 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
+include_once("../includes/emballage_schema.php");
+$packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
@@ -177,11 +184,11 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$felt_1 = db_escape_string(trim($_POST['felt_1']));
 		$notes = db_escape_string(trim($_POST['notes']));
 		$ny_kontonr = db_escape_string(trim($_POST['ny_kontonr']));
-		$gl_kontotype = db_escape_string(trim($_POST['gl_kontotype']));
+		$gl_kontotype = strtolower(db_escape_string(trim($_POST['gl_kontotype'])));
 		$kontotype = db_escape_string(trim($_POST['kontotype']));
 		(isset($_POST['fornavn'])) ? $fornavn = db_escape_string(trim($_POST['fornavn'])) : $fornavn = '';
 		(isset($_POST['efternavn'])) ? $efternavn = db_escape_string(trim($_POST['efternavn'])) : $efternavn = '';
-		$fax = db_escape_string(trim($_POST['fax']));
+		$mobile = db_escape_string(trim($_POST['mobile']));
 		$web = db_escape_string(trim($_POST['web']));
 		$betalingsbet = db_escape_string(trim($_POST['betalingsbet']));
 		$ean = db_escape_string(trim($_POST['ean']));
@@ -208,6 +215,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
 		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
+		$enduser_type = db_escape_string(if_isset($_POST['enduser_type'], ''));
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
 		list($gruppe) = explode(':', $_POST['gruppe']);
@@ -499,14 +507,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		if ($id == 0 && $ny_kontonr && $ny_kontonr != '!') {
 			$oprettet = date("Y-m-d");
 			$qtxt = "insert into adresser ";
-			$qtxt .= "(kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,fax,email,";
+			$qtxt .= "(kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,tlf,mobile,email,";
 			$qtxt .= "mailfakt,web,betalingsdage,kreditmax,betalingsbet,cvrnr,ean,institution,notes,";
 			$qtxt .= "art,gruppe,kontoansvarlig,oprettet,bank_reg,bank_konto,swift,pbs_nr,pbs,kontotype,";
 			$qtxt .= "fornavn,efternavn,lev_firmanavn,lev_fornavn,lev_efternavn,lev_addr1,lev_addr2,lev_postnr,";
 			$qtxt .= "lev_bynavn,lev_land,lev_kontakt,lev_tlf,lev_email,felt_1,felt_2,felt_3,felt_4,felt_5,";
 			$qtxt .= "vis_lev_addr,lukket,kategori,rabatgruppe,status,productlimit)";
 			$qtxt .= " values ";
-			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$fax','$email',";
+			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email',";
 			$qtxt .= "'$mailfakt','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$ean','$institution','$notes','D',";
 			$qtxt .= "'$gruppe','$kontoansvarlig','$oprettet','$bank_reg','$bank_konto','$swift','$pbs_nr','$pbs','$kontotype',";
 			$qtxt .= "'$fornavn','$efternavn','$lev_firmanavn','$lev_fornavn','$lev_efternavn','$lev_addr1','$lev_addr2','$lev_postnr',";
@@ -598,7 +606,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?tjek_id=$id&id=$id&returside=" . urlencode($returside) . "\">\n";
 			exit;
 		} elseif ($id > 0) {
-			#######	
+			$customer_id = (int)$id;
+			#######
 			$q1 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 			$ar = db_fetch_array($q1);
 			$a_id = $ar['id'];
@@ -625,9 +634,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$vkontotype = $r2['kontotype'];
 			####
 
-			if (($kontotype == $vkontotype) || (!isset($a_id))) {
+			if (!$gl_kontotype || ($kontotype == $gl_kontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
-				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', fax = '$fax', ";
+				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
 				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
 				$qtxt .= "kreditmax = '$kreditmax',betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', ean = '$ean', ";
 				$qtxt .= "institution = '$institution', notes = '$notes',gruppe='$gruppe', ";
@@ -639,6 +648,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
 				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',kategori='$katString',";
 				$qtxt .= "rabatgruppe='$rabatgruppe',status='$status', productlimit = '" . usdecimal($productlimit) . "' ";
+				if ($packagingModuleEnabled) $qtxt .= ", enduser_type='$enduser_type' ";
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -654,6 +664,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						db_modify("DELETE FROM kontakt_emails WHERE id = '$ke_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 					} elseif (!$ke_id && $ke_val) {
 						db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$ke_val', '$ke_type')", __FILE__ . " linje " . __LINE__);
+						$r_new_ke = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kontakt_emails', 'id')) AS id", __FILE__ . " linje " . __LINE__));
+						$primary_ke_id = $r_new_ke ? intval($r_new_ke['id']) : 0;
 					}
 				}
 
@@ -889,7 +901,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					// Validate: must be numeric and within allowed range 
 					if (!is_numeric($y)) {
 						error_log("Invalid posnr input (not numeric) at index $x: '$y'");
-						$errors[] = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
+						$errors[] = findtekst('352|Hint! Du skal sætte et - (minus) som pos.-nr. for at slette en kontaktperson', $sprog_id);
 
 						continue;
 					}
@@ -915,8 +927,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					error_log("Accepted posnr $y for ansatte id $current_id at index $x");
 				}
 
-				foreach ($used_ids as $id => $pos) {
-					error_log("  id = $id => posnr = $pos");
+				foreach ($used_ids as $emp_id => $pos) {
+					error_log("  id = $emp_id => posnr = $pos");
 				}
 
 				// ---------- Error Handling ----------
@@ -927,57 +939,44 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 					$alerttekst = implode("\\n", $errors);
 					$alerttekst_js = addslashes($alerttekst); // escape for JS string
 
+					$redirect_url = "debitorkort.php?id=$customer_id&returside=" . urlencode($returside);
 					print <<<HTML
 						<script>
 							alert('$alerttekst_js');
-							if (document.referrer) {
-								window.location.href = document.referrer;
-							} else {
-								window.location.href = '/';
-							}
+							window.location.href = '$redirect_url';
 						</script>
 						HTML;
-					exit; // stop execution
+					exit;
 				}
 
 				error_log("Clearing posnr for used IDs");
-				foreach ($used_ids as $id => $target_posnr) {
-					$id = (int)$id;
+				foreach ($used_ids as $emp_id => $target_posnr) {
+					$emp_id = (int)$emp_id;
 
-					db_modify("UPDATE ansatte SET posnr = NULL WHERE id = $id", __FILE__ . " linje " . __LINE__);
+					db_modify("UPDATE ansatte SET posnr = NULL WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 				}
 
 
-				foreach ($used_ids as $id => $target_posnr) {
-					$id = (int)$id;
+				foreach ($used_ids as $emp_id => $target_posnr) {
+					$emp_id = (int)$emp_id;
 					$target_posnr = (int)$target_posnr;
 
 
 
 					// If position 1, update kontakt in adresser
 					if ($target_posnr == 1) {
-						$q_navn = db_select("SELECT navn FROM ansatte WHERE id = $id", __FILE__ . " linje " . __LINE__);
+						$q_navn = db_select("SELECT navn FROM ansatte WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 						$r_navn = db_fetch_array($q_navn);
 						$navnT = $r_navn['navn'];
 
-						error_log("Position 1 detected for id $id; updating kontakt to '$navnT'");
-						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $id", __FILE__ . " linje " . __LINE__);
+						error_log("Position 1 detected for id $emp_id; updating kontakt to '$navnT'");
+						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $customer_id", __FILE__ . " linje " . __LINE__);
 					}
 
-					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $id", __FILE__ . " linje " . __LINE__);
+					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
 				}
 
-				print <<<HTML
-												<script>
-													if (document.referrer) {
-														window.location.href = document.referrer;
-													} else {
-														// fallback if no referrer available
-														window.location.href = '/'; 
-													}
-												</script>
-												HTML;
-
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$customer_id&returside=" . urlencode($returside) . "\">\n";
 				exit;
 
 
@@ -986,12 +985,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			} else {
 				$alerttekst = "Please delete all contacts to proceed";
 				print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--....-->\n";
-
-				if ($vkontotype == 'erhverv') {
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&privat=privat\">";
-				} elseif ($vkontotype == 'privat') {
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&erhverv=erhverv\">";
-				}
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$customer_id&returside=" . urlencode($returside) . "\">\n";
 				exit;
 			}
 		}
@@ -1033,7 +1027,7 @@ if ($id > 0) {
 	$lev_email = trim($r['lev_email']);
 	$lev_kontakt = htmlentities(trim($r['lev_kontakt']), ENT_COMPAT, $charset); #20131004
 	$tlf = trim($r['tlf']);
-	$fax = trim($r['fax']);
+	$mobile = trim($r['mobile']);
 	$email = trim($r['email']);
 	$mailfakt = trim($r['mailfakt']);
 	$web = trim($r['web']);
@@ -1055,6 +1049,7 @@ if ($id > 0) {
 	$pbs_date = trim($r['pbs_date']);
 	$kontoansvarlig = trim($r['kontoansvarlig']);
 	$status = trim($r['status']);
+	$enduser_type = isset($r['enduser_type']) ? trim($r['enduser_type']) : '';
 	$oprettet = $r['oprettet'];
 	$productlimit = $r['productlimit'];
 	if (!$kontoansvarlig) $kontoansvarlig = '0';
@@ -1241,7 +1236,7 @@ if ($menu == 'T') {
 		print "";
 	}
 	if ($jobkort) {
-		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=debitorkort.php' title='" . findtekst('38|Stillingsliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
+		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=debitorkort.php' title='" . findtekst('38|Opgaveliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
 	} else {
 		print "";
 	}
@@ -1405,7 +1400,7 @@ if (!isset($bynavn)) $bynavn = NULL;
 if (!isset($mailfakt)) $mailfakt = NULL;
 if (!isset($cvrnr)) $cvrnr = NULL;
 if (!isset($tlf)) $tlf = NULL;
-if (!isset($fax)) $fax = NULL;
+if (!isset($mobile)) $mobile = NULL;
 if (!isset($ean)) $ean = NULL;
 if (!isset($institution)) $institution = NULL;
 if (!isset($bank_reg)) $bank_reg = NULL;
@@ -1680,7 +1675,7 @@ print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 
 print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst('378|Telefax', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('378|Mobil', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=mobile value=\"$mobile\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('379|EAN-nr.', $sprog_id) . "<!--tekst 379--></td>";
@@ -1715,14 +1710,18 @@ if ($pbs) {
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('386|Kundeansvarlig', $sprog_id) . "<!--tekst 386--></td>\n";
 print "<td><select class='inputbox' NAME=kontoansvarlig value=\"$kontoansvarlig\"  onchange=\"javascript:docChange = true;\">\n";
-if ($r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__))) {
-	$r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__));
+$qtxt = "select initialer from ansatte where id='$kontoansvarlig'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	print "<option>$r[initialer]</option>\n";
 }
 print "<option></option>\n";
-if ($r = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__))) $q = db_select("select id, initialer from ansatte where konto_id='$r[id]'", __FILE__ . " linje " . __LINE__);
-while ($r = db_fetch_array($q)) {
+$qtxt = "select id from adresser where art='S'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "select id, initialer from ansatte where konto_id='$r[id]' and lukket = ''";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
 	print "<option>$r[initialer]</option>\n";
+}
 }
 print "</SELECT></td></tr>\n";
 ##################### STATUS ##################### 
@@ -1751,6 +1750,18 @@ if ($new_status) {
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
+if ($packagingModuleEnabled) {
+	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+	$eu = isset($enduser_type) ? $enduser_type : '';
+	$opt_blank = ($eu === '') ? ' selected' : '';
+	$opt_hus   = ($eu === 'Husholdning') ? ' selected' : '';
+	$opt_erh   = ($eu === 'Erhverv') ? ' selected' : '';
+	$eu_label = ($sprog_id == 2) ? 'Expected end user (packaging)' : 'Forventet slutbruger (emballage)';
+	$eu_title = ($sprog_id == 2) ? 'Expected end user of packaging delivered to this customer' : 'Forventet slutbruger af emballagen for denne kunde';
+	$eu_hus = ($sprog_id == 2) ? 'Household' : 'Husholdning';
+	$eu_erh = ($sprog_id == 2) ? 'Business' : 'Erhverv';
+	print "<tr bgcolor=$bg><td title='$eu_title'>$eu_label</td><td><select class='inputbox' name='enduser_type' onchange='javascript:docChange = true;'><option value=''$opt_blank></option><option value='Husholdning'$opt_hus>$eu_hus</option><option value='Erhverv'$opt_erh>$eu_erh</option></select></td></tr>\n";
+}
 print "</tbody></table></td>"; # <- TABEL 1.2.2
 print "<td valign=top><table border='0' width='100%'><tbody>"; # TABEL 1.2.3 ->
 $bg = $bgcolor5;
@@ -2351,19 +2362,11 @@ if ($popup) {
 
 // Kontokort button
 
-#check if ordre.php is contained in $returside 
+// Kontokort button — preserve order context when coming from ordre.php
 if (strpos($queryString, 'ordre.php') !== false) {
-	$returside = $_GET['returside'] ?? $queryString;
-    if ($returside !== 'ordre.php') {
-        $returside = str_replace('returside=', '', $returside);
-    } else {
-        $returside = str_replace('returside=', '', $queryString);
-    }
 	$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/$returside'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
-
-}else{
-
-$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
+} else {
+	$buttons_html .= "<button type='button' onclick=\"window.location.href='rapport.php?rapportart=kontokort&amp;layout=grid&amp;konto_fra=$kontonr&amp;konto_til=$kontonr&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_kontokort'>" . findtekst('133|Kontokort', $sprog_id) . "</button>";
 }
 
 // Fakturaliste button
@@ -2375,9 +2378,9 @@ if (substr($rettigheder, 5, 1) == '1') {
 
 // Stillingsliste button
 if ($jobkort) {
-    $buttons_html .= "<button type='button' onclick=\"window.location.href='jobliste.php?konto_id=$id&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_jobliste'>" . findtekst('38|Stillingsliste', $sprog_id) . "</button>";
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='jobliste.php?konto_id=$id&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_jobliste'>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
 } else {
-    $buttons_html .= "<button style='$buttonStyle; padding: 8px 16px; opacity: 0.5; cursor: not-allowed;' disabled>" . findtekst('38|Stillingsliste', $sprog_id) . "</button>";
+    $buttons_html .= "<button style='$buttonStyle; padding: 8px 16px; opacity: 0.5; cursor: not-allowed;' disabled>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
 }
 
 // Print button
@@ -2419,9 +2422,9 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 	$r = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
 	$jobkort = $r['box7'];
 	if ($jobkort) {
-		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #"Klik her for at &aring;bne listen med arbejdskort"
-		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>" . findtekst('38|Stillingsliste', $sprog_id) . "<!--tekst 38--></td>\n";
-	} else print "<td width=\"10%\"  $top_bund><span style=\"color:#999;\">" . findtekst('38|Stillingsliste', $sprog_id) . "<!--tekst 38--></span></td>\n";
+		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #Klik her for at åbne listen med arbejdskort
+		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></td>\n";
+	} else print "<td width=\"10%\"  $top_bund><span style=\"color:#999;\">" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></span></td>\n";
 	print "<td width=\"25%\" $top_bund>&nbsp;</td>\n";
 	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3 
 	print "</tbody></table>"; # <- TABEL 1
@@ -2442,7 +2445,8 @@ function split_navn($firmanavn)
 	return ($fornavn . "," . $efternavn);
 }
 
-if (!$id) {
+if (!$id || substr($cvrnr,0,1)  == '*') {
+	$cvrnr = trim($cvrnr,"*");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
 }
 

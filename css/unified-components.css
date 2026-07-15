@@ -443,7 +443,8 @@ tfoot tr td #footer-box select:focus,
 /* Harmonized button styles for both components */
 button[type='button'],
 button[type='submit'],
-input[type='submit'] {
+input[type='submit'],
+.menu_button {
   font-family: var(--docpool-font-family);
   font-size: var(--docpool-font-size-base);
   transition: all var(--docpool-transition-base);

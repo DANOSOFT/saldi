@@ -37,7 +37,7 @@ if ($_POST){
  	$postnr=db_escape_string(trim($_POST['postnr']));
  	$bynavn=db_escape_string(trim($_POST['bynavn']));
  	$tlf=db_escape_string(trim($_POST['tlf']));
- 	$fax=db_escape_string(trim($_POST['fax']));
+ 	$mobile=db_escape_string(trim($_POST['mobile']));
  	$mobil=db_escape_string(trim($_POST['mobil']));
  	$email=db_escape_string(trim($_POST['email']));
  	$cprnr=db_escape_string(trim($_POST['cprnr']));
@@ -52,13 +52,13 @@ if ($_POST){
  	} else {
 		if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
  	 	if (($ansat_id==0)&&($navn)){
- 	 	 	$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, fax, mobil, email, cprnr, notes, lukket) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$fax', '$mobil', '$email', '$cprnr', '$notes', '')",__FILE__ . " linje " . __LINE__);
+ 	 	 	$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, mobile, mobil, email, cprnr, notes, lukket) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$mobile', '$mobil', '$email', '$cprnr', '$notes', '')",__FILE__ . " linje " . __LINE__);
  	 	 	$query = db_select("select id from ansatte where konto_id = '$konto_id' and navn='$navn' order by id desc",__FILE__ . " linje " . __LINE__);
  	 	 	$row = db_fetch_array($query);
  	 	 	$ansat_id = $row['id'];
  	 	}
  	 	elseif ($ansat_id > 0){
-			db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', fax = '$fax', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '' where id = '$ansat_id'",__FILE__ . " linje " . __LINE__);
+			db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', mobile = '$mobile', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '' where id = '$ansat_id'",__FILE__ . " linje " . __LINE__);
  	 	}
  	}
 }

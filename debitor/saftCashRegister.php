@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/saftCashRegister.php --- patch 4.0.8 --- 2023-10-27 ---
+// --- debitor/saftCashRegister.php --- patch 4.0.8 --- 2026-06-15 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +21,11 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
+// 20260615 LOE  Fax updated to Mobile
+// 20260709 SZ Added Grid Framework sticky header to SAF-T Cash Register report
 
 @session_start();
 $s_id = session_id();
@@ -461,8 +463,48 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $softwareVersion = $r['box1'];
 }
 
+if (!function_exists('saftCashTableColumns')) {
+    function saftCashTableColumns($tableName)
+    {
+        $columns = array();
+        $tableName = db_escape_string($tableName);
+        $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '$tableName'";
+        $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        while ($r = db_fetch_array($query)) {
+            $columns[$r['column_name']] = true;
+        }
+        return $columns;
+    }
+}
+
+if (!function_exists('saftCashColumnSelect')) {
+    function saftCashColumnSelect($columns, $columnName, $default = '')
+    {
+        if (isset($columns[$columnName])) return $columnName;
+        return "'" . db_escape_string($default) . "' AS $columnName";
+    }
+}
+
 // COMPANY
-$qtxt = "SELECT firmanavn, addr1, addr2, bynavn, postnr, land, kontakt, tlf, fax, email, web, bank_navn, bank_reg, bank_konto, cvrnr FROM adresser WHERE art = 'S'";
+$addressColumns = saftCashTableColumns('adresser');
+$addressSelect = array(
+    saftCashColumnSelect($addressColumns, 'firmanavn'),
+    saftCashColumnSelect($addressColumns, 'addr1'),
+    saftCashColumnSelect($addressColumns, 'addr2'),
+    saftCashColumnSelect($addressColumns, 'bynavn'),
+    saftCashColumnSelect($addressColumns, 'postnr'),
+    saftCashColumnSelect($addressColumns, 'land'),
+    saftCashColumnSelect($addressColumns, 'kontakt'),
+    saftCashColumnSelect($addressColumns, 'tlf'),
+    saftCashColumnSelect($addressColumns, 'mobile'),
+    saftCashColumnSelect($addressColumns, 'email'),
+    saftCashColumnSelect($addressColumns, 'web'),
+    saftCashColumnSelect($addressColumns, 'bank_navn'),
+    saftCashColumnSelect($addressColumns, 'bank_reg'),
+    saftCashColumnSelect($addressColumns, 'bank_konto'),
+    saftCashColumnSelect($addressColumns, 'cvrnr')
+);
+$qtxt = "SELECT " . implode(', ', $addressSelect) . " FROM adresser WHERE art = 'S'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $companyName = $r['firmanavn'];
     $Address = $r['addr1'];
@@ -483,9 +525,9 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $curCode = defaultCurrency($CountryName);
     $Contact = $r['kontakt'];
     $PhoneNumber = $r['tlf'];
-    $FaxNumber = $r['fax'];
-    if (empty($FaxNumber))
-        $FaxNumber = "NA";
+    $MobileNumber = $r['mobile'];
+    if (empty($MobileNumber))
+        $MobileNumber = "NA";
     $Email = $r['email'];
     $WebSite = $r['web'];
     if (empty($WebSite))
@@ -1113,18 +1155,23 @@ if ($menu == 'T') {
     print "<div class='content-noside'>";
     print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 } elseif ($menu == 'S') {
-    print "<table width=100% cellpadding='0' cellspacing='1px' border='0' valign='top' align='center'> ";
-    print "<tr><td height='8' colspan='2'>";
-    print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
+    // Grid Framework header — mirrors Finance -> Reports -> SAF-T (finans/saft.php's $menu=='S'
+    // block): a position:sticky wrapper div around the header bar, icon back button (left-aligned,
+    // widened to 10% to match Debtors -> Orders/Accounts), 10/85/5 layout.
+    // No footer needed for this report (per ticket) — report content below is unaffected.
+    $tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 
-    print "<td width='10%'><a accesskey=L href='rapport.php'>
-           <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
-
-    print "<td width='80%' align='center' style='$topStyle'>".findtekst('1142|Rapport', $sprog_id)." - $newTitle </td>";
-    print "<td width='10%' align='center' style='$topStyle'></td>";
+    print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+    print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='4' border='0'><tbody>";
+    print "<tr>";
+    print "<td width='10%' align='left'><a href='rapport.php' accesskey=L style=\"text-decoration: none;\">";
+    print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px; justify-content: flex-start; padding-left: 3px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+    print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+    print "<td width='85%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $newTitle</td>";
+    print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
+    print "</tr>";
     print "</tbody></table>";
-
-    print "</td></tr>";;
+    print "</div>";
 } else {
     print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
     print "<tr><td height=\"8\" colspan=\"2\">";
@@ -1145,11 +1192,23 @@ $txt778  = findtekst('778|Regnskabsår', $sprog_id);
 $txt899  = findtekst('899|Periode', $sprog_id);
 $txt2135 = findtekst('2135|Der er ingen data i den valgte periode', $sprog_id);
 
-print "<table class=\"saftHeader\">\n";
-print "<tr><td rowspan=\"3\" class=\"saftTitle\">$newTitle</td><td>$txt778</td><td>$regnaar.</td></tr>\n";
-print "<tr><td rowspan=\"2\">$txt899</td><td>$periodDateFrom</td></tr>\n";
-print "<tr><td>$periodDateTo</td></tr>";
-print "<tr><td colspan=\"3\" class=\"saftFirmName\">$companyName</td>\n";
+// Info block below the sticky header — mirrors finans/saft.php's non-sticky info section exactly
+// (a plain 50/50 table, left = title/company, right = a single right-aligned block of stacked
+// divs for Regnskabsår + Periode) instead of the old 3-column/rowspan .saftHeader table, whose
+// per-cell align="right" produced two separate right-aligned sub-columns (label, then value) side
+// by side rather than one unified right-flush block like the reference page.
+print "<table width='100%' cellpadding='4' cellspacing='0' border='0'>\n";
+print "<tr>";
+print "<td width='50%' valign='top'>";
+print "<div class=\"saftTitle\">$newTitle</div>";
+print "<div style='margin-top: 5px;' class=\"saftFirmName\">$companyName</div>";
+print "</td>";
+print "<td width='50%' align='right' valign='top'>";
+print "<div style='margin: 5px 4px 0 0;'>$txt778: $regnaar</div>";
+print "<div style='margin: 5px 4px 0 0;'>$periodDateFrom - $periodDateTo</div>";
+print "</td>";
+print "</tr>";
+print "<tr><td colspan='2'><hr></td></tr>";
 print "</table>\n";
 print "<table class=\"saftTable1\">\n";
 if ($startTimePeriod && $endTimePeriod) {

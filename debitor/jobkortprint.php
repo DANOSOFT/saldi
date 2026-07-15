@@ -62,8 +62,8 @@ if ($felt_5=="on") $felt_5="&#x2713;";
 if ($felt_7=="on") $felt_7="&#x2713;";
 if ($felt_9=="on") $felt_9="&#x2713;";
 
-$r=db_fetch_array(db_select("select fax,tlf from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__));
-$fax=stripslashes($r['fax']);
+$r=db_fetch_array(db_select("select mobile,tlf from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__));
+$mobile=stripslashes($r['mobile']);
 $tlf=stripslashes($r['tlf']);
 
 for($x=1;$x<=11;$x++) $felt_indhold[$x][1]=NULL;
@@ -93,7 +93,7 @@ print "<tr><td><FONT FACE=$font SIZE=\"2\">".$kontonr."</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$firmanavn."</font></td>";
 print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$tlf</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$addr1."</font></td>";
-print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst('378|Telefax', $sprog_id)."<!--tekst 378--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$fax</font></td></tr>";
+print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst('378|Mobil', $sprog_id)."<!--tekst 378--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$mobile</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$addr2."</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$postnr." ".$bynavn."</font></td></tr>";
 print "<tr><td colspan=\"3\"><br><br></td></tr>";

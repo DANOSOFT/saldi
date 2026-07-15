@@ -1,5 +1,6 @@
+<!doctype html>
 <?php
-// --- includes/documents.php --- patch 5.0.0 --- 2026-03-04 ---
+// --- includes/documents.php --- patch 5.0.0 --- 2026-06-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +25,8 @@
 //20250824 - LOE Clean up to reduce the error logs with if_isset()
 //20250827 - LOE Implement creating .info files for existing pool pdf without it. 
 //20260304 PHR Someone removed the convertOldDoc section.
+//20260603 CL/PHR debitorOrdrer tilføjet som moderne kilde (modernSources, isModernLayout,
+//                  docFolder-fallback, header-logik og openPool-default)
 
 @session_start();
 $s_id=session_id();
@@ -56,16 +59,16 @@ if(($_GET)||($_POST)) {
 		$bilag		  = if_isset($_GET, NULL,'bilag');
 		$fokus		  = if_isset($_GET, NULL,'fokus');
 		$docFocus	  = if_isset($_GET, NULL,'docFocus');
-		$sourceId   = if_isset($_GET, NULL,'sourceId');
-		$source     = if_isset($_GET, NULL,'source');
-		$showDoc    = if_isset($_GET, NULL,'showDoc');
-		$deleteDoc  = if_isset($_GET, NULL,'deleteDoc');
-		$unlinkDoc  = if_isset($_GET, NULL,'unlinkDoc');
-		$moveDoc  	= if_isset($_GET, NULL,'moveDoc');
-		$kladde_id  = if_isset($_GET, NULL,'kladde_id');
-		$dokument   = if_isset($_GET, NULL,'dokument');
-		$openPool    = if_isset($_GET, NULL,'openPool');
-		$poolFile    = if_isset($_GET, NULL,'poolFile');
+		$sourceId     = if_isset($_GET, NULL,'sourceId');
+		$source       = if_isset($_GET, NULL,'source');
+		$showDoc      = if_isset($_GET, NULL,'showDoc');
+		$deleteDoc    = if_isset($_GET, NULL,'deleteDoc');
+		$unlinkDoc    = if_isset($_GET, NULL,'unlinkDoc');
+		$moveDoc  	  = if_isset($_GET, NULL,'moveDoc');
+		$kladde_id    = if_isset($_GET, NULL,'kladde_id');
+		$dokument     = if_isset($_GET, NULL,'dokument');
+		$openPool     = if_isset($_GET, NULL,'openPool');
+		$poolFile     = if_isset($_GET, NULL,'poolFile');
 	}
 	if (isset($_POST['sourceId']) || isset($_POST['source'])) {
 		$sourceId  = isset($_POST['sourceId']) ? $_POST['sourceId'] : $sourceId;
@@ -392,7 +395,7 @@ if ($menu == 'T') {
 	print "<div class='headerbtnRght headLink'></div>";
 	print "</div>";
 	print "<div class='content-noside'>";
-} elseif ($source == 'kassekladde' || $source == 'creditorOrder') {
+} elseif ($source == 'kassekladde' || $source == 'creditorOrder' || $source == 'debitorOrdrer') {
 	// Don't render header here - docPool.php handles it for non-modern layouts
 } elseif ($menu == 'S') {
 	// Sidebar menu - use topLineDocuments.php matching the grid framework structure
@@ -460,7 +463,7 @@ elseif (file_exists('../bilag')) $docFolder = '../bilag';
 elseif (file_exists('../documents')) $docFolder = '../documents';
 */
 
-if (($source === 'kassekladde' || $source === 'creditorOrder') && empty($docFolder)) {  
+if (($source === 'kassekladde' || $source === 'creditorOrder' || $source === 'debitorOrdrer') && empty($docFolder)) {  
     $docFolder = "../bilag";
     
     if (!file_exists($docFolder)) {
@@ -534,7 +537,7 @@ if ($dokument) {
 
 // ---------- Left table start ---------
 // Only print old table structure if not using modern kassekladde layout or docpool
-$isModernLayout = (in_array($source, array('kassekladde', 'creditorOrder')) || $openPool || $openPoolRequested);
+$isModernLayout = (in_array($source, array('kassekladde', 'creditorOrder', 'debitorOrdrer')) || $openPool || $openPoolRequested);
 if (!$isModernLayout) {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 }
@@ -965,7 +968,7 @@ if ($linkBilag && $source == 'kassekladde') {
 
 
 $openPoolRequested = (isset($_GET['openPool']) && $_GET['openPool'] == '1') || $openPool;
-$modernSources = array('kassekladde', 'creditorOrder');
+$modernSources = array('kassekladde', 'creditorOrder', 'debitorOrdrer');
 if (in_array($source, $modernSources) && $sourceId) { 
 
 	// Check if there are any documents for this sourceId
@@ -1267,7 +1270,7 @@ global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownSt
 $openPool = $openPool || (isset($_GET['openPool']) && ($_GET['openPool'] == '1' || $_GET['openPool'] == 1));
 
 // For modern sources, default to openPool if no documents exist and no document is selected
-if (in_array($source, array('kassekladde', 'creditorOrder')) && !$showDoc && (!isset($docRow) || !$docRow)) {
+if (in_array($source, array('kassekladde', 'creditorOrder', 'debitorOrdrer')) && !$showDoc && (!isset($docRow) || !$docRow)) {
 	$openPool = true;
 }
 

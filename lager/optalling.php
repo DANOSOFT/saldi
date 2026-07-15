@@ -1,6 +1,6 @@
 <?php
 
-// -- lager/optalling.php ------------------- patch 4.0.7 -- 2024-01-18 --
+// -- lager/optalling.php ------------------- patch 5.0.0 -- 2026-05-18 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,9 @@
 // 20200905 PHR Updating api now witten to apilog and & removed from  exec command as call was interrupted?
 // 20230224 CA  Case insensitive and 'like' search using % and _. Searching for _vd% gets DVD, Vd, dvd-player
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260518 CL/PHR Bedre fejlhåndtering ved fil-upload: viser fejlkode og returnerer. MAX_FILE_SIZE øget til 100 MB.
+// 20260707 SZ Added Grid Framework sticky header and footer to Stock Count report
+// 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
 
 @session_start();
 $s_id = session_id();
@@ -178,21 +181,26 @@ while ($r = db_fetch_array($q)) {
 global $menu;
 $vnr = $varenr;
 
-if ($menu == 'S') {
-	// print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
-	print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
+$loGridMode = ($menu == 'S');
 
-	print "<td width=10%><a href=$returside accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('2172|Luk', $sprog_id) . "</button></a></td>";
+if ($loGridMode) {
+	$loTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+	print "<div id='loPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
 
-	print "<td width=80% style='$topStyle' align='center'>$title</td>";
+	print "<td width='10%' align='left'><a href='$returside' accesskey=L>
+		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$loTilbageIcon" . findtekst('2172|Luk', $sprog_id) . "</button></a></td>";
 
-	print "<td width=10%>";
-	($importer) ? print "<a href=optalling.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('81|Afbryd', $sprog_id) . "</button>"
-		: print "<a href=optalling.php?importer=1&lager=$lager&dato=$dato><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('1356|Importér', $sprog_id) . "</button>";
+	print "<td width='80%' align='center' style='$topStyle'>$title</td>";
+
+	print "<td width='10%' align='center'>";
+	($importer) ? print "<a href='optalling.php'><button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('81|Afbryd', $sprog_id) . "</button>"
+		: print "<a href='optalling.php?importer=1&lager=$lager&dato=$dato'><button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('1356|Importér', $sprog_id) . "</button>";
 	print "</a></td>";
 
-	print "</tbody></table name=\"tabel_1.1\"></td></tr>\n"; # <- tabel 1.1
+	print "</tr></tbody></table>\n";
 } else {
 	print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
 	print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
@@ -206,10 +214,19 @@ if ($menu == 'S') {
 
 if ($vis_ej_exist)
 	$vis_ej_exist = "<a href=\"../temp/$db/optael_ej_exist.txt\" target=\"blank\">Ikke oprettede varer</a>";
-print "<tr><td>$vis_ej_exist<br></td></tr>\n";
+
+if ($loGridMode) {
+	print "<div>$vis_ej_exist<br></div>\n";
+	print "</div>\n"; // close flex:0 header wrapper (title bar)
+	print "<div id='loGridWrapper' style='flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;background-color:$bgcolor;padding:0 8px 8px 8px;box-sizing:border-box;'>\n";
+} else {
+	print "<tr><td>$vis_ej_exist<br></td></tr>\n";
+}
 
 if ($importer) {
 	importer($lager, $dato);
+	if ($loGridMode)
+		print "</div></div>\n"; // close loGridWrapper + loPageFlex
 	exit;
 }
 
@@ -395,6 +412,11 @@ if ($fokus) {
 	print "    document.optalling.$fokus.focus();\n";
 	print "};\n";
 	print "</script>\n";
+}
+
+if ($loGridMode) {
+	print "</div>\n"; // close loGridWrapper
+	print "</div>\n"; // close loPageFlex
 }
 
 
@@ -1200,171 +1222,172 @@ function importer($lager, $dato)
 #	print tekstboks("Vent - det kan tage lang tid !!");
 #	ob_end_flush();
 		$filnavn = "../temp/" . $db . "/" . $bruger_id . ".csv";
-		if (move_uploaded_file($_FILES['uploadfile']['tmp_name'], $filnavn)) {
-			$fp = fopen("$filnavn", "r");
-			if ($fp) {
-				$komma = 0;
-				$semikolon = 0;
-				$kolon = 0;
-				$tab = 0;
-				while ($linje = trim(fgets($fp))) {
-					if ($linje) {
-						if (strpos($linje, ","))
-							$komma++;
-						if (strpos($linje, ";"))
-							$semikolon++;
-						if (strpos($linje, ":"))
-							$kolon++;
-						if (strpos($linje, chr(9)))
-							$tab++;
-					}
+		if (!move_uploaded_file($_FILES['uploadfile']['tmp_name'], $filnavn)) {
+			$uploadError = $_FILES['uploadfile']['error'];
+			print "<BODY onLoad=\"javascript:alert('Upload fejlede (kode $uploadError) - filen er muligvis for stor eller ugyldig')\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"3;URL=optalling.php?importer=1&lager=$lager&dato=$dato\">";
+			return;
+		}
+		$fp = fopen("$filnavn", "r");
+		if ($fp) {
+			$komma = 0;
+			$semikolon = 0;
+			$kolon = 0;
+			$tab = 0;
+			while ($linje = trim(fgets($fp))) {
+				if ($linje) {
+					if (strpos($linje, ","))
+						$komma++;
+					if (strpos($linje, ";"))
+						$semikolon++;
+					if (strpos($linje, ":"))
+						$kolon++;
+					if (strpos($linje, chr(9)))
+						$tab++;
 				}
-				fclose($fp);
-				if ($komma > $semikolon && $komma > $kolon && $komma > $tab)
-					$splitter = ",";
-				elseif ($semikolon > $komma && $semikolon > $kolon && $semikolon > $tab)
-					$splitter = ";";
-				elseif ($kolon > $komma && $kolon > $semikolon && $kolon > $tab)
-					$splitter = ":";
-				elseif ($tab > $komma && $tab > $semikolon && $tab > $kolon)
-					$splitter = chr(9);
 			}
-			if (!$splitter) {
-				print "<BODY onLoad=\"javascript:alert('Fejl i importfil - kan ikke opdeles i kolonner')\">\n";
-				print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?import=1\">";
-			}
-			db_modify("update varer set lukket='' where lukket is NULL", __FILE__ . " linje " . __LINE__);
-			if (!$lager) {
-				db_modify("update batch_kob set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
-				db_modify("update batch_salg set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
-			} elseif ($lager == 1) {
-				db_modify("update batch_kob set lager='1' where lager='0' or lager is NULL", __FILE__ . " linje " . __LINE__);
-				db_modify("update batch_salg set lager='1' where lager='0' or lager is NULL", __FILE__ . " linje " . __LINE__);
-			}
-			$x = 0;
-			$q = db_select("select id,stregkode,varenr from varer", __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$v_id[$x] = $r['id'];
-				$v_str[$x] = $r['stregkode'];
-				$v_nr[$x] = $r['varenr'];
-				$v_var_id[$x] = 0;
-				$x++;
-			}
+			fclose($fp);
+			if ($komma > $semikolon && $komma > $kolon && $komma > $tab)
+				$splitter = ",";
+			elseif ($semikolon > $komma && $semikolon > $kolon && $semikolon > $tab)
+				$splitter = ";";
+			elseif ($kolon > $komma && $kolon > $semikolon && $kolon > $tab)
+				$splitter = ":";
+			elseif ($tab > $komma && $tab > $semikolon && $tab > $kolon)
+				$splitter = chr(9);
+		}
+		if (!$splitter) {
+			print "<BODY onLoad=\"javascript:alert('Fejl i importfil - kan ikke opdeles i kolonner')\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?import=1\">";
+		}
+		db_modify("update varer set lukket='' where lukket is NULL", __FILE__ . " linje " . __LINE__);
+		if (!$lager) {
+			db_modify("update batch_kob set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
+			db_modify("update batch_salg set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
+		} elseif ($lager == 1) {
+			db_modify("update batch_kob set lager='1' where lager='0' or lager is NULL", __FILE__ . " linje " . __LINE__);
+			db_modify("update batch_salg set lager='1' where lager='0' or lager is NULL", __FILE__ . " linje " . __LINE__);
+		}
+		$x = 0;
+		$q = db_select("select id,stregkode,varenr from varer", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$v_id[$x] = $r['id'];
+			$v_str[$x] = $r['stregkode'];
+			$v_nr[$x] = $r['varenr'];
+			$v_var_id[$x] = 0;
+			$x++;
+		}
 
-			$x = 0;
-			$q = db_select("select id,variant_stregkode,vare_id from variant_varer", __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$var_id[$x] = $r['id'];
-				$var_str[$x] = $r['variant_stregkode'];
-				$var_v_id[$x] = $r['vare_id'];
-				$x++;
-			}
-			$fp = fopen("$filnavn", "r");
-			if ($fp) {
-				$fp2 = fopen("../temp/$db/optael_ej_exist.txt", "w");
-				while ($linje = trim(fgets($fp))) {
-					list($varenr, $antal) = explode($splitter, $linje);
-					if (substr($varenr, 0, 1) == '"' && substr($varenr, -1, 1) == '"')
-						$varenr = substr($varenr, 1, strlen($varenr) - 2);
-					#					$varenr=strtolower($varenr);
-					if (substr($antal, 0, 1) == '"' && substr($antal, -1, 1) == '"')
-						$antal = substr($antal, 1, strlen($antal) - 2);
-					$tmp = mb_convert_encoding($varenr, 'UTF-8', 'ISO-8859-1');
-					if (strpos($tmp, 'æ') || strpos($tmp, 'ø') || strpos($tmp, 'å') || strpos($tmp, 'Æ') || strpos($tmp, 'Ø') || strpos($tmp, 'Å')) {
-						$varenr = $tmp;
+		$x = 0;
+		$q = db_select("select id,variant_stregkode,vare_id from variant_varer", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$var_id[$x] = $r['id'];
+			$var_str[$x] = $r['variant_stregkode'];
+			$var_v_id[$x] = $r['vare_id'];
+			$x++;
+		}
+		$fp = fopen("$filnavn", "r");
+		if ($fp) {
+			$fp2 = fopen("../temp/$db/optael_ej_exist.txt", "w");
+			while ($linje = trim(fgets($fp))) {
+				list($varenr, $antal) = explode($splitter, $linje);
+				if (substr($varenr, 0, 1) == '"' && substr($varenr, -1, 1) == '"')
+					$varenr = substr($varenr, 1, strlen($varenr) - 2);
+				#					$varenr=strtolower($varenr);
+				if (substr($antal, 0, 1) == '"' && substr($antal, -1, 1) == '"')
+					$antal = substr($antal, 1, strlen($antal) - 2);
+				$tmp = mb_convert_encoding($varenr, 'UTF-8', 'ISO-8859-1');
+				if (strpos($tmp, 'æ') || strpos($tmp, 'ø') || strpos($tmp, 'å') || strpos($tmp, 'Æ') || strpos($tmp, 'Ø') || strpos($tmp, 'Å')) {
+					$varenr = $tmp;
+				}
+
+				if (strpos($antal, ","))
+					$antal = usdecimal($antal);
+				if (is_numeric($antal)) {
+					$vare_id = NULL;
+					for ($x = 0; $x < count($v_id); $x++) {
+						if ($v_str[$x] == $varenr) {
+							$vare_id = $v_id[$x];
+							$variant_id = 0;
+						}
 					}
-
-					if (strpos($antal, ","))
-						$antal = usdecimal($antal);
-					if (is_numeric($antal)) {
-						$vare_id = NULL;
+					if (!$vare_id) {
 						for ($x = 0; $x < count($v_id); $x++) {
-							if ($v_str[$x] == $varenr) {
+							if ($v_nr[$x] == $varenr) {
 								$vare_id = $v_id[$x];
 								$variant_id = 0;
 							}
 						}
-						if (!$vare_id) {
-							for ($x = 0; $x < count($v_id); $x++) {
-								if ($v_nr[$x] == $varenr) {
-									$vare_id = $v_id[$x];
-									$variant_id = 0;
-								}
+					}
+					if (!$vare_id) {
+						for ($x = 0; $x < count($v_id); $x++) {
+							if (strtolower($v_nr[$x]) == strtolower($varenr)) {
+								$vare_id = $v_id[$x];
+								$variant_id = 0;
 							}
-						}
-						if (!$vare_id) {
-							for ($x = 0; $x < count($v_id); $x++) {
-								if (strtolower($v_nr[$x]) == strtolower($varenr)) {
-									$vare_id = $v_id[$x];
-									$variant_id = 0;
-								}
-							}
-						}
-						if (!$vare_id && is_numeric($varenr)) {
-							for ($x = 0; $x < count($v_id); $x++) {
-								if (is_numeric($v_nr[$x]) && $v_nr[$x] * 1 == $varenr * 1) {
-									$vare_id = $v_id[$x];
-									$variant_id = 0;
-								}
-							}
-						}
-						if (!$vare_id) {
-							for ($x = 0; $x < count($var_id); $x++) {
-								if (strtolower($var_str[$x]) == strtolower($varenr)) {
-									$vare_id = $var_v_id[$x];
-									$variant_id = $var_id[$x];
-								}
-							}
-						}
-						#						if ($r=db_fetch_array(db_select("select id from varer where varenr='$varenr'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
-#						elseif ($r=db_fetch_array(db_select("select id from varer where lower(varenr)='".strtolower($varenr)."' or lower(stregkode)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."' or upper(stregkode)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
-						if ($vare_id) {
-							$beholdning = 0;
-							$qtxt = "select sum(antal) as antal from batch_kob where vare_id='$vare_id' and variant_id='$variant_id' and kobsdate<='$transdate'";
-							if ($lager <= 1)
-								$qtxt .= " and lager<='1'";
-							else
-								$qtxt .= " and lager='$lager'";
-							$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-							$beholdning += $r['antal'];
-							$qtxt = "select sum(antal) as antal from batch_salg where vare_id='$vare_id' and variant_id='$variant_id' and salgsdate<='$transdate'";
-							if ($lager <= 1)
-								$qtxt .= " and lager<='1'";
-							else
-								$qtxt .= " and lager='$lager'";
-							$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-							$beholdning -= $r['antal'];
-							$qtxt = "insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ";
-							$qtxt .= "('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id',$lager)";
-							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-							$qtxt = "update lagerstatus set beholdning = '$beholdning' where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id'";
-							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-							$indsat++;
-						} elseif ($r = db_fetch_array(db_select("select id,vare_id from variant_varer where lower(variant_stregkode)='" . db_escape_string($varenr) . "'", __FILE__ . " linje " . __LINE__))) {
-							$variant_id = $r['id'] * 1;
-							$vare_id = $r['vare_id'] * 1;
-							$beholdning = 0;
-							$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='D_' or ordrer.art='PO')", __FILE__ . " linje " . __LINE__));
-							$beholdning += $r['antal'];
-							$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='KO' or ordrer.art='KK')", __FILE__ . " linje " . __LINE__));
-							$beholdning -= $r['antal'];
-							db_modify("insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id','$lager')", __FILE__ . " linje " . __LINE__);
-							$indsat++;
-						} else {
-							$ej_indsat++;
-							fwrite($fp2, "$varenr\n");
-							#							cho "*";
 						}
 					}
-					if (is_array($variant_id))
-						exit;
+					if (!$vare_id && is_numeric($varenr)) {
+						for ($x = 0; $x < count($v_id); $x++) {
+							if (is_numeric($v_nr[$x]) && $v_nr[$x] * 1 == $varenr * 1) {
+								$vare_id = $v_id[$x];
+								$variant_id = 0;
+							}
+						}
+					}
+					if (!$vare_id) {
+						for ($x = 0; $x < count($var_id); $x++) {
+							if (strtolower($var_str[$x]) == strtolower($varenr)) {
+								$vare_id = $var_v_id[$x];
+								$variant_id = $var_id[$x];
+							}
+						}
+					}
+					if ($vare_id) {
+						$beholdning = 0;
+						$qtxt = "select sum(antal) as antal from batch_kob where vare_id='$vare_id' and variant_id='$variant_id' and kobsdate<='$transdate'";
+						if ($lager <= 1)
+							$qtxt .= " and lager<='1'";
+						else
+							$qtxt .= " and lager='$lager'";
+						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						$beholdning += $r['antal'];
+						$qtxt = "select sum(antal) as antal from batch_salg where vare_id='$vare_id' and variant_id='$variant_id' and salgsdate<='$transdate'";
+						if ($lager <= 1)
+							$qtxt .= " and lager<='1'";
+						else
+							$qtxt .= " and lager='$lager'";
+						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						$beholdning -= $r['antal'];
+						$qtxt = "insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ";
+						$qtxt .= "('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id',$lager)";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$qtxt = "update lagerstatus set beholdning = '$beholdning' where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$indsat++;
+					} elseif ($r = db_fetch_array(db_select("select id,vare_id from variant_varer where lower(variant_stregkode)='" . db_escape_string($varenr) . "'", __FILE__ . " linje " . __LINE__))) {
+						$variant_id = $r['id'] * 1;
+						$vare_id = $r['vare_id'] * 1;
+						$beholdning = 0;
+						$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='D_' or ordrer.art='PO')", __FILE__ . " linje " . __LINE__));
+						$beholdning += $r['antal'];
+						$r = db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='KO' or ordrer.art='KK')", __FILE__ . " linje " . __LINE__));
+						$beholdning -= $r['antal'];
+						db_modify("insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id','$lager')", __FILE__ . " linje " . __LINE__);
+						$indsat++;
+					} else {
+						$ej_indsat++;
+						fwrite($fp2, "$varenr\n");
+					}
 				}
-				fclose($fp2);
-				fclose($fp);
+				if (is_array($variant_id))
+					exit;
 			}
-			print "<BODY onLoad=\"javascript:alert('$indsat varenumre importeret i liste, $ej_indsat varenumre ikke fundet i vareliste')\">\n";
-			print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?vis_ej_exist=1&lager=$lager\">";
+			fclose($fp2);
+			fclose($fp);
 		}
+		print "<BODY onLoad=\"javascript:alert('$indsat varenumre importeret i liste, $ej_indsat varenumre ikke fundet i vareliste')\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?vis_ej_exist=1&lager=$lager\">";
 	} else {
 		if (!$dato)
 			$dato = date("d-m-Y");
@@ -1376,7 +1399,7 @@ function importer($lager, $dato)
 		#		print " Er der flere lagre, vælges hvilket lager optællingen vedrører<br>";
 		print findtekst('2204|Datoen skal være den dato hvor optællingen blev udført.', $sprog_id) . " ";
 		print findtekst('2205|Hvis optællingen er sket mellem midnat og dagens 1. varebevægelse, skal den foregående dags dato anføres.', $sprog_id) . "<br><hr></td></tr>";
-		print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"100000\">";
+		print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"104857600\">";
 		print "<tr><td>" . findtekst('2206|Dato for optælling', $sprog_id) . "</td><td><input class=\"inputbox\" style=\"text-align:left\" type=\"text\" name=\"dato\" value=\"$dato\"></td></tr>";
 		#		$r=db_fetch_array(db_select("select count(kodenr) as lagerantal from grupper where art='LG'",__FILE__ . " linje " . __LINE__));
 #		if ($lagerantal=$r['lagerantal']){

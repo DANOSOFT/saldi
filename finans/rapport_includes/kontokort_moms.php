@@ -34,11 +34,11 @@
 // 20260320 PHR Typo
 // 20260429 LOE Updated the top menu and made the report header sticky when scrolling.
 // 20260430 LOE Created standalone version of kontokort report for easy navigation
+// 20260510 PHR Wraped all into finction.
+// 20260512 NTR Merged Live/POS into prod_test.
+// 20260513 PK Fixed style on csv button.
 
-function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
-                        $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
-                        $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,
-                        $simulering, $lagerbev, $page = 1, $per_page = 50) {
+function kontokort_moms ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev, $page = 1, $per_page = 50) {
 
 	global $afd_navn,$ansatte,$ansatte_id;
 	global $bgcolor,$bgcolor4,$bgcolor5;
@@ -143,12 +143,12 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 		print "<tr><td colspan=8 align=center>";
 		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>"; #B
 
-	print "<td width=\"5%\">$color
+	print "<td width=\"10%\">$color
 			<a href=\"javascript:confirmClose('rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev','')\" accesskey=L>
 			<button class='headerbtn' type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$tilbage_icon" .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-	print "<td width='75%' align='center' style='$topStyle'>".findtekst('516|Rapport - kontokort med moms', $sprog_id)."</td>\n";
-	print "<td width='5%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
+	print "<td width='80%' align='center' style='$topStyle'>".findtekst('516|Rapport - kontokort med moms', $sprog_id)."</td>\n";
+	print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>";
 	print "</tbody></table>"; #B slut
 	print "</td></tr>";
 	#######################
@@ -359,24 +359,24 @@ print "</table>";
             }
 			print "<tr><td colspan=6><hr></td></tr>";
 
-				print "<tr bgcolor=\"$bgcolor5\">
-						<td></td>
-						<td></td>
-						<td colspan=4>
-							<b>$kontonr[$x]</b> : 
-							<b>$kontobeskrivelse[$x]</b> : 
-							<b>$kontomoms[$x]</b>
-						</td>
-					</tr>";
+			print "<tr bgcolor=\"$bgcolor5\">
+					<td></td>
+					<td></td>
+					<td colspan=4>
+						<b>$kontonr[$x]</b> : 
+						<b>$kontobeskrivelse[$x]</b> : 
+						<b>$kontomoms[$x]</b>
+					</td>
+				</tr>";
 
-				fwrite(
-					$csv,
-					";;" . mb_convert_encoding(
-						"$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]",
-						'ISO-8859-1',
-						'UTF-8'
-					) . "\n"
-				);
+			fwrite(
+				$csv,
+				";;" . mb_convert_encoding(
+					"$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]",
+					'ISO-8859-1',
+					'UTF-8'
+				) . "\n"
+			);
 
 			print "<tr><td colspan=6><hr></td></tr>";
 	#		fwrite($csv, ";;;;;;;");
@@ -386,7 +386,7 @@ print "</table>";
 			 	$kontosum+=afrund($row['debet'],2)-afrund($row['kredit'],2);
 			}
 
-// From here simulation is calculated			
+			// From here simulation is calculated			
 			
 			if ($simulering) {
 				$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' 	and transdate<'$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
@@ -421,7 +421,7 @@ print "</table>";
 				}
 			}
 			
-// To here simulation is calculated.			
+			// To here simulation is calculated.			
 			
 			
 			
@@ -455,7 +455,7 @@ print "</table>";
 			if (!isset ($jsvars)) $jsvars = NULL;
 			if (!isset ($sim_kontonr)) $sim_kontonr = array();;
 
-// From here simulation is printed
+			// From here simulation is printed
 			if (!count($transdate) && in_array($kontonr[$x],$sim_kontonr)) {
 				for ($sim=0;$sim<count($sim_transdate);$sim++) {
 					if ($sim_kontonr[$sim] == $kontonr[$x]) {
@@ -572,16 +572,6 @@ print "</table>";
 							print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp,2)."</td>";
 							fwrite($csv, dkdecimal($tmp,2).";");
 
-/*
-							if ($kontovaluta[$x]) {
-								if ($transvaluta[$tr]=='-1') $tmp=0;
-								else $tmp=$sim_kredit[$sim]*100/$transkurs[$tr];
-								$title="DKK ".dkdecimal($sim_kredit[$sim]*1,2)." Kurs: ".dkdecimal($transkurs[$tr],2);
-							}	else {
-								$tmp=$sim_kredit[$sim];
-								$title=NULL;
-							}
-*/
 							$tmp = $sim_moms[$sim];
 							$momsSum+=$tmp;
 							print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp,2)."</td>";
@@ -616,9 +606,8 @@ print "</table>";
 			}
 			
 		}
-#if ($kontonr[$x] == 1010) exit;
 	}
-	#print "<tr><td colspan=6><hr></td></tr>";
+	// print "<tr><td colspan=6><hr></td></tr>";
 	print "</tbody></table>";
 	// --- Sticky pagination bar ---
     $base_url = "kontokort_moms_standalone.php?" . http_build_query([

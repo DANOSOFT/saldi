@@ -7,7 +7,7 @@ print "<div class=\"row\"><div class=\"left\">".findtekst('376|CVR-nr.', $sprog_
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<div class=\"row\"><div class=\"left\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"tlf\" value=\"$tlf\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<div class=\"row\"><div class=\"left\">".findtekst('378|Telefax', $sprog_id)."<!--tekst 378--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"fax\" value=\"$fax\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('378|Mobil', $sprog_id)."<!--tekst 378--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"mobile\" value=\"$mobile\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 if ($kontotype=='erhverv') {
 	//($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 	print "<div class=\"row\"><div class=\"left\">".findtekst('379|EAN-nr.', $sprog_id)."<!--tekst 379--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"ean\" value=\"$ean\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";

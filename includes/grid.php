@@ -16,6 +16,7 @@ lager/lister/indkøb.php, lager/lister/vareliste.php, lager/lister/ordrestatus.p
 includes/grid.php, finans/kontospec.php, finans/kassekladde.php, finans/regnskab.php, finans/budget.php
 finans/kladdeliste.php, systemdata/kontoplan.php, kreditor/kreditor.php, kreditor/productLookup.php, kreditor/orderIncludes/dropshipping.php, etc.
 Regards:) 20260220 LOE
+20260513 PK - Added class="navbutton" to the navigation buttons with svg, as those buttons were too high compared to the page selector buttons
 */
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
@@ -580,7 +581,10 @@ function fetch_grid_setup($id, $columns_filtered, $search_setup, $filters) {
 function fill_missing_values($firstArray, $secondArray) {
     foreach ($firstArray as &$firstItem) {
         foreach ($secondArray as $secondItem) {
-            if ($firstItem['field'] === $secondItem['field']) {
+            $fieldMatch  = ($firstItem['field'] !== '' && $firstItem['field'] === $secondItem['field']);
+            // When stored field is empty, fall back to matching by headerName so new field assignments are picked up
+            $headerMatch = ($firstItem['field'] === '' && $firstItem['headerName'] === $secondItem['headerName']);
+            if ($fieldMatch || $headerMatch) {
                 foreach ($secondItem as $key => $value) {
                     if (!isset($firstItem[$key]) || $firstItem[$key] === "") {
                         $firstItem[$key] = $value;
@@ -741,11 +745,33 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
     }
 
     # Is always set due to get_default_sort
+    $sort = apply_sort_sqlOverride($sort, $columns);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     $query .= " LIMIT $rowCount OFFSET $offset"; // Add limit for performance
 
     return $query;
+}
+
+# Replace the bare sort field with its sqlOverride when defined, so ORDER BY is unambiguous.
+function apply_sort_sqlOverride($sort, $columns) {
+    if (!$sort || !is_array($columns)) return $sort;
+    $parts = preg_split('/\s+/', trim($sort), 2);
+    $field = $parts[0];
+    $dir   = isset($parts[1]) ? $parts[1] : '';
+    $override = null;
+    if (isset($columns[$field]) && is_array($columns[$field]) && !empty($columns[$field]['sqlOverride'])) {
+        $override = $columns[$field]['sqlOverride'];
+    } else {
+        foreach ($columns as $col) {
+            if (is_array($col) && isset($col['field']) && $col['field'] === $field && !empty($col['sqlOverride'])) {
+                $override = $col['sqlOverride'];
+                break;
+            }
+        }
+    }
+    if ($override) $field = $override;
+    return trim($field . ' ' . $dir);
 }
 
 
@@ -821,7 +847,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $query = str_replace("{{WHERE}}", $filterstring == "" ? "1=1" : $filterstring, $query);
     }
 
-    // Replace sort placeholder with an empty string (count query doesn't need sorting)
+    $sort = apply_sort_sqlOverride($sort, $columns);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     // Remove the LIMIT clause to count all rows
@@ -1182,11 +1208,11 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
                         </span>
                         |
                         <span id='navbuttons'>
-                            <button type='button' onclick="setOffset$id($lastpage)" $lastpagestatus>
+                            <button type='button' onclick="setOffset$id($lastpage)" class="navbutton" $lastpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
                             </button>
                             $pageLinks
-                            <button type='button' onclick="setOffset$id($nextpage)" $nextpagestatus>
+                            <button type='button' onclick="setOffset$id($nextpage)" class="navbutton" $nextpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                             </button>
                         </span>

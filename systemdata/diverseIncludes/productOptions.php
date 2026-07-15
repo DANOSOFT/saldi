@@ -105,6 +105,11 @@ function productOptions($defaultProvision) {
 	($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$numberFormat = $r['var_value']:$numberFormat = '.|,';
 	$qtxt = "SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'";
 	($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$minBeholdning = (int)$r["var_value"]:$minBeholdning = 0;
+	$packagingModuleEnabled = '';
+	$qtxt = "SELECT var_value FROM settings WHERE var_name='packagingModuleEnabled' AND var_grp='items'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		if ($r['var_value'] === 'on') $packagingModuleEnabled = 'checked';
+	}
 	print "<form name='productOptions' action='diverse.php?sektion=productOptions' method='post'>";
 	print "<tr><td colspan='6'><hr></td></tr>";
 	$text = findtekst('470|Varerelaterede valg',$sprog_id);
@@ -264,6 +269,11 @@ function productOptions($defaultProvision) {
 	$title = findtekst('2419|Minimumsbeholdning på varer', $sprog_id);
 	print "<tr><td title='$title'>$text</td>";
 	print "<td title='$title'><input type='text' class='inputbox' name='minBeholdning' value='$minBeholdning'></td></tr>";
+
+	$emb_label = ($sprog_id == 2) ? 'Use packaging module (extended producer responsibility)' : 'Anvend emballagemodul (producentansvar)';
+	$emb_title = ($sprog_id == 2) ? 'Activates the packaging module on product cards and reports' : 'Aktiverer emballagemodulet på varekort og rapporter';
+	print "<tr><td title='$emb_title'>$emb_label</td>";
+	print "<td title='$emb_title'><input type='checkbox' class='inputbox' name='packagingModuleEnabled' $packagingModuleEnabled></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td>";
 	$text = findtekst('471|Gem/opdatér', $sprog_id);
 	print "<td align = center><input class='button green medium' type=submit accesskey='g' value='$text' name='submit'><!--tekst 471--></td>";

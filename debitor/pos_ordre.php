@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-04-03 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
@@ -94,6 +94,13 @@
 // 20260225 PHR Updated cashCount
 // 20260316 PHR Corrected Currency error in cashCount
 // 20260403 PHR Added && '$leveres[0] != 0' as leveres else is set to 0 if qty was changed and kokkelprint became reset.
+// 20260523 CL/PHR function posbogfor: Changed payment type query to LEFT JOIN with COALESCE(felt_1) so orders
+//                 without pos_betalinger rows are included when finding distinct betaling types
+// 20260523 CL/PHR function posbogfor: Changed order lookup query to LEFT JOIN with COALESCE(felt_1/valuta)
+//                 so art='DO' orders without pos_betalinger are passed to bogfor_nu
+// 20260601 Sawaneh Out-of-stock popup now also fires for sub-items of a samlesæt (set), not just the master varenr
+// 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
+// 20260707 MJ Add kasse to form action URL so drawer kasse is preserved on POST; restore commented-out drawer redirect in aabn_skuffe
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -150,6 +157,7 @@ include("pos_ordre_includes/showPosLines/showPosLinesFunc.php"); #20190510
 
 include("pos_ordre_includes/exitFunc/exit.php"); #20190510
 
+global $baseCurrency;
 $valuta = $baseCurrency;
 if(isset($_GET["payment_id"])){
 	$_SESSION["payment_id"] = $_GET['payment_id'];
@@ -160,7 +168,7 @@ if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi
 	$zoom = usdecimal(get_settings_value("mobilzoom", "POS", "1.0", null, $_COOKIE["saldi_pos"]));
 	print "<meta name='viewport' content='width=$width, initial-scale=$zoom, maximum-scale=$zoom, user-scalable=0'>";
 }
-
+global $menu;
 if ($menu == 'T') {
 	if (!$bgcolor)
 		$bgcolor = "#000000";
@@ -170,6 +178,7 @@ if ($menu == 'T') {
 	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
+	global $meta_returside;
 	if ($meta_returside)
 		print "$meta_returside"; #20140502
 	if ($css)
@@ -212,7 +221,8 @@ if ($menu == 'T') {
 	<script type="text/javascript">
 		// jQuery funktion til autosize på textarea 
 		$(document).ready(function () {
-			$('.autosize').autosize();
+
+			if(typeof $('.autosize') !== 'undefined' && typeof $('.autosize').autosize !== 'undefined') $('.autosize').autosize();
 		});
 		// jQuery funktion til ordrelinjer i ordre.php. Ved tryk på enter submitter formen og ved shift+enter laver den ny linje i textarea
 		$(function () {
@@ -1496,45 +1506,98 @@ if ($vare_id) {
 					$rabat_ny *= 1;
 					db_modify("update ordrelinjer set rabat='$rabat_ny' where ordre_id='$id' and vare_id >'0' and rabat=0", __FILE__ . " linje " . __LINE__);
 				}
-				$qtxt = "select id,samlevare from varer where varenr = '$varenr_ny' or stregkode = '$varenr_ny'"; #20200929
+				$qtxt = "select id,samlevare,varenr from varer where varenr = '$varenr_ny' or stregkode = '$varenr_ny'"; #20200929
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				if ($r['samlevare'])
-					opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny);
-				else {
-					($beskrivelse_ny) ? $textNew = $beskrivelse_ny : $textNew = $beskrivelse_old; #20210906
-					$svar = opret_ordrelinje($id, '', $varenr_ny, $antal_ny, $textNew, usdecimal($pris_ny, 2), usdecimal($rabat_ny, 2), 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226 + 20140814 + 20200603
+				#-- Out-of-stock warning gate (Håndtering af salg af udsolgte varer) --
+				$stockWarningConfirmed = (isset($_POST['stock_warning_confirmed']) && $_POST['stock_warning_confirmed'] == '1');
+				$stockWarningNote      = isset($_POST['stock_warning_note']) ? trim($_POST['stock_warning_note']) : '';
+				$stockWarningOn        = is_stock_warning_enabled();
+				$stockInfo             = $stockWarningOn ? check_stock_warning($r['id'], $antal_ny) : array('out_of_stock' => false);
+				$swLogVareId           = $r['id'];
+				if ($stockWarningOn && empty($stockInfo['out_of_stock']) && trim($r['samlevare']) === 'on') {
+					$qSub = db_select("select vare_id, antal from styklister where indgaar_i = '" . (int)$r['id'] . "' and vare_id is not null and vare_id > 0", __FILE__ . " linje " . __LINE__);
+					while ($rSub = db_fetch_array($qSub)) {
+						$subAntal = (float)$rSub['antal'] * (float)$antal_ny;
+						$subInfo = check_stock_warning((int)$rSub['vare_id'], $subAntal);
+						$insufficient = ($subAntal > 0 && (float)$subInfo['beholdning'] < $subAntal);
+						if (!empty($subInfo['out_of_stock']) || $insufficient) {
+							$desc = trim((string)$subInfo['beskrivelse']) . ' (samlesæt: ' . (string)$r['varenr'];
+							if ($insufficient) $desc .= ', kræver ' . rtrim(rtrim(number_format($subAntal, 3, '.', ''), '0'), '.') . ' på lager: ' . rtrim(rtrim(number_format((float)$subInfo['beholdning'], 3, '.', ''), '0'), '.');
+							$desc .= ')';
+							$subInfo['beskrivelse']  = $desc;
+							$subInfo['out_of_stock'] = true;
+							$stockInfo   = $subInfo;
+							$swLogVareId = (int)$rSub['vare_id'];
+							break;
+						}
+					}
 				}
-				if (usdecimal($pris_ny, 2) == 0.00)
-					$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
-				if ($svar && !is_numeric($svar)) {
-					print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
-					$fokus = "pris_ny";
-				} else {
-					$qtxt = "select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'";
-					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-					if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
-						$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					}					
-					$varenr_ny = $next_varenr;
-					$tmp = $antal_ny; #Til kundedisplay
-					$antal_ny = NULL;
-					#			$sum=0;
+				$blockOnStockWarning   = ($stockWarningOn && $stockInfo['out_of_stock'] && !$stockWarningConfirmed);
+				if ($blockOnStockWarning) {
+					$swPayload = array(
+						'formName'    => 'pos_ordre',
+						'varenr'      => (string)$stockInfo['varenr'],
+						'beskrivelse' => (string)$stockInfo['beskrivelse'],
+						'extra' => array(
+							'varenr_ny' => (string)$varenr_ny,
+							'antal_ny'  => (string)$antal_ny,
+							'pris_ny'   => (string)$pris_ny,
+							'rabat_ny'  => (string)$rabat_ny,
+							'lager_ny'  => (string)$lager_ny,
+						),
+					);
+					$swPayloadJson = json_encode($swPayload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+					if ($swPayloadJson === false) $swPayloadJson = '{}';
+					$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+					if ($swTextsJson === false) $swTextsJson = '{}';
+					print "<script type=\"application/json\" id=\"saldi-sw-texts\">$swTextsJson</script>\n";
+					print "<script type=\"application/json\" id=\"saldi-sw-pos-payload\">$swPayloadJson</script>\n";
+					print "<script src=\"../javascript/stockWarningPopup.js\"></script>\n";
+					print "<script>document.addEventListener('DOMContentLoaded',function(){if(!window.SaldiStockWarning)return;var el=document.getElementById('saldi-sw-pos-payload');var __sw={};try{__sw=JSON.parse(el.textContent||el.innerText||'{}');}catch(e){return;}__sw.onCancel=function(){var f=document.forms['pos_ordre'];if(f){if(f.elements['antal_ny'])f.elements['antal_ny'].value='';var vn=f.elements['varenr_ny'];if(vn){vn.value='';try{vn.focus();}catch(e2){}}}};SaldiStockWarning.show(__sw);});</script>\n";
 				}
-				/*
-											if ($kundedisplay) {
-												 kundedisplay($beskrivelse_ny,usdecimal($pris_ny,2)*$tmp,0);
-							#					kundedisplay('Subtotal',$sum+$pris_ny*$tmp,0);
-											}
-							*/
+				if (!$blockOnStockWarning) {
+					if ($r['samlevare'])
+						opret_saet($id, $r['id'], usdecimal($pris_ny, 2), $momssats, $antal_ny, 'on', $lager_ny);
+					else {
+						($beskrivelse_ny) ? $textNew = $beskrivelse_ny : $textNew = $beskrivelse_old; #20210906
+						$svar = opret_ordrelinje($id, '', $varenr_ny, $antal_ny, $textNew, usdecimal($pris_ny, 2), usdecimal($rabat_ny, 2), 100, 'PO', '', '', '0', 'on', '', '', '', '', '', '0', $lager_ny, __LINE__); #20140226 + 20140814 + 20200603
+					}
+					if ($stockWarningConfirmed && $stockWarningNote !== '' && $stockInfo['out_of_stock']) {
+						$swLinjeId = 0;
+						// Find the line for the item that was actually warned about (master or sub-item of a samlesæt).
+						$rSW = db_fetch_array(db_select("select max(id) as lid from ordrelinjer where ordre_id = '$id' and vare_id = '" . (int)$swLogVareId . "'", __FILE__ . " linje " . __LINE__));
+						if ($rSW && $rSW['lid']) $swLinjeId = $rSW['lid'];
+						log_stock_warning($id, $swLogVareId, $stockWarningNote, $swLinjeId);
+					}
+				}
+				if (!$blockOnStockWarning) {
+					if (usdecimal($pris_ny, 2) == 0.00)
+						$obstxt = "Obs, vare $varenr_ny sælges til kr 0,00";
+					if ($svar && !is_numeric($svar)) {
+						print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
+						$fokus = "pris_ny";
+					} else {
+						$qtxt = "select max(id) as linje_id from ordrelinjer where ordre_id = '$id' and varenr='$varenr_ny'";
+						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						if ($r['linje_id'] && isset($leveret[0]) && is_numeric($leveret[0]) && $leveret[0] != 0) { #20260403
+							$qtxt = "update ordrelinjer set leveret='$leveret[0]' where id='$r[linje_id]'";
+							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						}
+						$varenr_ny = $next_varenr;
+						$tmp = $antal_ny; #Til kundedisplay
+						$antal_ny = NULL;
+						#			$sum=0;
+					}
+				}
 			}
 		} elseif ($varenr_ny)
-			$sum = find_pris($varenr_ny);
-		#		else $sum=0;
+				$sum = find_pris($varenr_ny);
+		// else $sum=0;
 	}
 }
 
 ############################
+global $regnaar;
 $x = 0;
 if ($id) {
 	$qtxt = "select id from ordrer where id = '$id' and art = 'PO'";
@@ -1617,7 +1680,7 @@ if ($tilfravalgNy && ($delFrTfv || $delFrTfv == '0')) {
 	}
 	$tilfravalgNy = trim($tilfravalgNy, chr(9));
 } else $tilfravalgNy = if_isset($_POST['tilfravalgNy']); #20220614
-print "<form name='pos_ordre' action='pos_ordre.php?id=$id&bundmenu=$bundmenu&sidemenu=$sidemenu&bordnr=$bordnr";
+print "<form name='pos_ordre' action='pos_ordre.php?id=$id&kasse=$kasse&bundmenu=$bundmenu&sidemenu=$sidemenu&bordnr=$bordnr";
 print "&del_bord=$del_bord&tilfravalgNy=" . str_replace(chr(9), '|', $tilfravalgNy) . "' method='post' autocomplete='off'>\n";
 print "<table width=\"100%\" height=\"100%\" bordercolor=\"#ffffff\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tbody>\n"; # Tabel 1 ->
 # 1 kvadrat.
@@ -2591,9 +2654,10 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	for ($x = 0; $x < count($fakturadate); $x++) {
 		$y = 0;
 		$betaling[$x] = array();
-		$qtxt = "select distinct(pos_betalinger.betalingstype) as betaling from pos_betalinger,ordrer where ";
-		$qtxt.= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate >= '$regnstart' and ";
-		$qtxt.= "ordrer.id=pos_betalinger.ordre_id order by pos_betalinger.betalingstype";
+		$qtxt = "select distinct COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) as betaling ";
+		$qtxt.= "from ordrer left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id where ";
+		$qtxt.= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate >= '$regnstart' ";
+		$qtxt.= "order by betaling";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($r['betaling']) {
@@ -2676,11 +2740,12 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 				$id = $kto_id = NULL;
 				$k = 0;
 
-				$qtxt = "select ordrer.id,ordrer.konto_id from ordrer,pos_betalinger where ordrer.felt_5='$kasse' ";
+				$qtxt = "select ordrer.id, ordrer.konto_id from ordrer ";
+				$qtxt .= "left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id ";
+				$qtxt .= "where ordrer.felt_5='$kasse' ";
 				$qtxt .= "and ordrer.fakturadate='$fakturadate[$x]' ";
-				$qtxt .= "and pos_betalinger.betalingstype='" . $betaling[$x][$y] . "' ";
-				$qtxt .= "and pos_betalinger.valuta='$valuta[$z]' and ordrer.status='3' ";
-				$qtxt .= "and ordrer.id=pos_betalinger.ordre_id"; #20150306 + 20150310
+				$qtxt .= "and COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) = '" . $betaling[$x][$y] . "' ";
+				$qtxt .= "and COALESCE(pos_betalinger.valuta, ordrer.valuta) = '$valuta[$z]' and ordrer.status='3'";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					if (strtolower($betaling[$x][$y]) == 'konto') {
@@ -3065,9 +3130,9 @@ function kasseoptalling( // Called from cashBalance.php
 	$kortdiff = 0;
 	if ($change_cardvalue) {
 		for ($x = 0; $x < count($kortsum); $x++) {
-			$ny_kortsum[$x] = (float)$ny_kortsum[$x];
+			$ny_kortsum[$x] = usdecimal($ny_kortsum[$x], 2);
 			$kortsum[$x] = (float)$kortsum[$x];
-			$kortdiff += $kortsum[$x] - usdecimal($ny_kortsum[$x], 2);
+			$kortdiff += $kortsum[$x] - $ny_kortsum[$x];
 		}
 		$kortdiff = afrund($kortdiff, 2);
 	}
@@ -3473,8 +3538,9 @@ function posvaluta($modtaget) {
 	if ($betvalkurs != $prevalkurs) {
 		$modtaget = NULL;
 		$valmodt = NULL;
-	} elseif ($betvalkurs != 100)
+	} elseif ($betvalkurs != 100) {
 		$modtaget *= $betvalkurs / 100;
+	}
 
 	return ($modtaget . chr(9) . $valmodt . chr(9) . $betvaluta . chr(9) . $betvalkurs);
 }

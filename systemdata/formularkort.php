@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formularkort --- patch 5.0.0 --- 2026-03-03 ---
+// --- systemdata/formularkort --- patch 5.0.0 --- 2026-06-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,6 +56,9 @@
 // 20260303 PHP8
 // 20260313 Sawaneh SD-420 Added ordre_email and ordre_tlf to form dropdown
 // 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
+// 20260529 CL/PHR Rettet: manglende xa-records (mailtekst/bilag) for art=5 oprettes nu automatisk ved visning
+// 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 @session_start();
 $s_id=session_id();
 
@@ -85,11 +88,11 @@ if (isset($_GET['upload']) && $_GET['upload']) {
 }
 */
 if (isset($_GET['nyt_sprog']) && $_GET['nyt_sprog']) {
-	$nyt_sprog=$_GET['nyt_sprog'];
+	$nyt_sprog = $_GET['nyt_sprog'];
 }
-$id = if_isset($_GET['id']);
+$id        = if_isset($_GET['id']);
 $returside = nav_back_url((isset($_GET['returside']) && $_GET['returside']) ? $_GET['returside'] : null);
-$navn=if_isset($_GET['navn']);
+$navn      = if_isset($_GET['navn']);
 
 if (isset($_POST) && $_POST) {
 
@@ -120,8 +123,8 @@ if (isset($_POST) && $_POST) {
 
 
 	if ($nyt_sprog) {
-		$nyt_sprog=if_isset($_POST['nyt_sprog']);
-		$skabelon=if_isset($_POST['skabelon']);
+		$nyt_sprog = if_isset($_POST['nyt_sprog']);
+		$skabelon  = if_isset($_POST['skabelon']);
 		if(isset($_POST['gem']) && $_POST['gem']) $handling = 'gem' ;
 		if (!$nyt_sprog) {
 			if (!$handling && isset($_POST['slet']) && $_POST['slet']) $handling='slet';
@@ -129,32 +132,32 @@ if (isset($_POST) && $_POST) {
 			if ($handling == 'slet') $nyt_sprog='slet';
 		}
 	}
-	$formular=if_isset($_POST['formular']);
-	$form_nr=if_isset($_POST['form_nr']);
-	$formularsprog=db_escape_string(if_isset($_POST['sprog']));
-	$art=if_isset($_POST['art']);
+	$formular      = if_isset($_POST['formular']);
+	$form_nr       = if_isset($_POST['form_nr']);
+	$formularsprog = db_escape_string(if_isset($_POST['sprog']));
+	$art           = if_isset($_POST['art']);
 	
 	if (isset($_POST['streger'])) {
 		$submit=$_POST['streger'];
 		if (strstr($submit, "Opdat")) $submit="Opdater";
 		$beskrivelse=if_isset($_POST['beskrivelse']);
 		$ny_beskrivelse=if_isset($_POST['ny_beskrivelse']);
-		$id=if_isset($_POST['id']);
-		$xa=if_isset($_POST['xa']);
-		$ya=if_isset($_POST['ya']);
-		$xb=if_isset($_POST['xb']);
-		$yb=if_isset($_POST['yb']);
-		$str=if_isset($_POST['str']);
-		$color=if_isset($_POST['color']);
-		$form_font=if_isset($_POST['form_font']);
-		$fed=if_isset($_POST['fed']);
-		$justering=if_isset($_POST['justering']);
-		$kursiv=if_isset($_POST['kursiv']);
-		$side=if_isset($_POST['side']);
-		$linjeantal=if_isset($_POST['linjeantal']);
-		$gebyr=if_isset($_POST['gebyr']);
-		$rentevnr=if_isset($_POST['rentevnr']);
-		$rentesats=if_isset($_POST['rentesats']);
+		$id         = if_isset($_POST['id']);
+		$xa         = if_isset($_POST['xa']);
+		$ya         = if_isset($_POST['ya']);
+		$xb         = if_isset($_POST['xb']);
+		$yb         = if_isset($_POST['yb']);
+		$str        = if_isset($_POST['str']);
+		$color      = if_isset($_POST['color']);
+		$form_font  = if_isset($_POST['form_font']);
+		$fed        = if_isset($_POST['fed']);
+		$justering  = if_isset($_POST['justering']);
+		$kursiv     = if_isset($_POST['kursiv']);
+		$side       = if_isset($_POST['side']);
+		$linjeantal = if_isset($_POST['linjeantal']);
+		$gebyr      = if_isset($_POST['gebyr']);
+		$rentevnr   = if_isset($_POST['rentevnr']);
+		$rentesats  = if_isset($_POST['rentesats']);
 	}
 	
 	if ($art) list($art_nr, $art_tekst)=explode(":", $art);
@@ -164,11 +167,11 @@ if (isset($_POST) && $_POST) {
 	if ($formularsprog && $formularsprog!='Dansk') {
 		$qtxt = "select kodenr from grupper where art = 'VSPR' and box1='$formularsprog'";
 		if ($r=db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$form_sprog_id=$r['kodenr'];
+			$form_sprog_id = $r['kodenr'];
 		} else {
-			$r=db_fetch_array($q=db_select("select max(kodenr) as kodenr from grupper where art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
-			$form_sprog_id=$r['kodenr']+1;
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1) values ('Formular og varesprog','$form_sprog_id','VSPR','$formularsprog')";
+			$r             = db_fetch_array($q=db_select("select max(kodenr) as kodenr from grupper where art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
+			$form_sprog_id = $r['kodenr']+1;
+			$qtxt          =  "insert into grupper (beskrivelse,kodenr,art,box1) values ('Formular og varesprog','$form_sprog_id','VSPR','$formularsprog')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}else{
@@ -176,9 +179,9 @@ if (isset($_POST) && $_POST) {
 	}
 	
 	if (isset($_POST['op']) || isset($_POST['hojre'])) { #Flytning af 0 punkt.
-		$op=$_POST['op']*1; $hojre=$_POST['hojre']*1;
-		$qtxt="select id, xa, xb, ya, yb from formularer where formular=$form_nr and sprog='$formularsprog'";
-		$query=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		$op    = $_POST['op']*1; $hojre=$_POST['hojre']*1;
+		$qtxt  = "select id, xa, xb, ya, yb from formularer where formular=$form_nr and sprog='$formularsprog'";
+		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($row=db_fetch_array($query)){
 			db_modify("update formularer set xa=$row[xa]+$hojre, ya=$row[ya]+$op where id=$row[id]",__FILE__ . " linje " . __LINE__);
 			if ($row['yb']) {
@@ -186,13 +189,13 @@ if (isset($_POST) && $_POST) {
 			}
 		}
 		if ($op<0) {
-			$op=$op*-1;
-			$otext="ned"; 
+			$op     = $op*-1;
+			$otext  = "ned"; 
 		}
-		else $otext="op";
+		else $otext = "op";
 		if ($hojre<0) {
-			$hojre=$hojre*-1;
-			$htext="venstre"; 
+			$hojre  = $hojre*-1;
+			$htext  = "venstre"; 
 		}
 		else $htext="højre";
 		print "<BODY onLoad=\"javascript:alert('Logo, tekster og Streger er flyttet $op mm $otext og $hojre mm til $htext')\">";
@@ -201,8 +204,8 @@ if (isset($_POST) && $_POST) {
 	if ($submit=='Opdater' && $form_nr>=6 && $form_nr<=8 && $art_nr==2 && $gebyr) { #Rykkergebyr
 		$tmp=strtoupper($gebyr);
 		if ($r1=db_fetch_array(db_select("select id,varenr from varer where upper(varenr) = '$tmp'",__FILE__ . " linje " . __LINE__))) { 
-			$gebyr=$r1['varenr'];
-			$qtxt = "select id from formularer where beskrivelse ='GEBYR' and formular='$form_nr' and art=2 and sprog='$formularsprog'";
+			$gebyr = $r1['varenr'];
+			$qtxt  = "select id from formularer where beskrivelse ='GEBYR' and formular='$form_nr' and art=2 and sprog='$formularsprog'";
 			if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				db_modify("update formularer set xb='$r1[id]' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
 			}	else {
@@ -213,8 +216,8 @@ if (isset($_POST) && $_POST) {
 		} else print "<BODY onLoad=\"javascript:alert('Varenummeret $gebyr findes ikke i varelisten')\">";
 	} elseif (($submit=='Opdater')&&($form_nr>=6)&&($form_nr<=8)&&($art_nr==2)&&(!$gebyr)) db_modify("delete from formularer where beskrivelse = 'GEBYR' and formular='$form_nr' and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__); #20140902
 	if ($submit=='Opdater' && $form_nr>=6 && $form_nr<=8 && $art_nr==2 && $rentevnr) { #Rykkerrenter
-		$tmp=strtoupper($rentevnr);
-		$rentesats=usdecimal($rentesats);
+		$tmp       = strtoupper($rentevnr);
+		$rentesats = usdecimal($rentesats);
 		if ($r1=db_fetch_array(db_select("select id, varenr from varer where upper(varenr) = '$tmp'",__FILE__ . " linje " . __LINE__))) { 
 			$rentevnr=$r['varenr'];
 			$qtxt = "select id from formularer where beskrivelse ='GEBYR' and formular='$form_nr' and art=2 and sprog='$formularsprog'";
@@ -242,7 +245,7 @@ if (isset($_POST) && $_POST) {
 			if (!isset($color[$x]) || !$color[$x]) $color[$x] = 0;
 			if (!isset($fed[$x])   || !$fed[$x])   $fed[$x]   = NULL;
 			if (!isset($kursiv[$x])|| !$kursiv[$x])$kursiv[$x]= NULL;
-			if (!isset($beskrivelse[$x])) $beskrivelse[$x]=NULL;
+			if (!isset($beskrivelse[$x])) $beskrivelse[$x]    = NULL;
 			if ((trim($xa[$x])=='-')&&($id[$x])&&($beskrivelse[$x]!='LOGO')) {
 				db_modify("delete from formularer where id =$id[$x] and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__);
 			} else {
@@ -259,9 +262,9 @@ if (isset($_POST) && $_POST) {
 					$beskrivelse[$x]=trim($beskrivelse[$x]." $".$ny_beskrivelse[$x].";");
 				}
 
-				$xa[$x]=str_replace(",",".",$xa[$x])*1; $ya[$x]=str_replace(",",".",$ya[$x])*1; 
-				$xb[$x]=str_replace(",",".",$xb[$x])*1; $yb[$x]=str_replace(",",".",$yb[$x])*1; 
-				$str[$x]=$str[$x]*1; $color[$x]=$color[$x]*1;
+				$xa[$x]  = str_replace(",",".",$xa[$x])*1; $ya[$x]=str_replace(",",".",$ya[$x])*1; 
+				$xb[$x]  = str_replace(",",".",$xb[$x])*1; $yb[$x]=str_replace(",",".",$yb[$x])*1; 
+				$str[$x] = $str[$x]*1; $color[$x]=$color[$x]*1;
 				if ($x==0 ||(!$id[$x] && (($art_nr==5) || $form_nr==10))) {
 					if ($xa[$x]>0) {
 						if (($art!='1') && ($str[$x]<=1)) $str[$x]=10;
@@ -278,11 +281,11 @@ if (isset($_POST) && $_POST) {
 					}
 				}	elseif ($id[$x]) {
 					if (strstr($beskrivelse[$x],'betalingsid(')) {
-						$streng=$beskrivelse[$x];
-						$start=strpos($streng,'betalingsid(')+12; # 1 karakter efter startparantesen 
-						$slut=strpos($streng,")");
-						$len=$slut-$start;
-						$streng=substr($streng,$start,$len);
+						$streng = $beskrivelse[$x];
+						$start  = strpos($streng,'betalingsid(')+12; # 1 karakter efter startparantesen 
+						$slut   = strpos($streng,")");
+						$len    = $slut-$start;
+						$streng = substr($streng,$start,$len);
 						list($kontolen,$faktlen)=explode(",",$streng);
 						if ($kontolen+$faktlen!=14) {
 							$tmp=14-$faktlen;
@@ -293,8 +296,8 @@ if (isset($_POST) && $_POST) {
 					if (!isset($justering[$x])) $justering[$x]='V';
 					if (!isset($form_font[$x])) $form_font[$x]='';
 					if (!isset($side[$x]))      $side[$x]='0';
-					$beskrivelse[$x] = str_replace('$formular_bruttovægt','$formular_grossWeight',$beskrivelse[$x]);
-					$beskrivelse[$x] = str_replace('$formular_nettovægt','$formular_netWeight',$beskrivelse[$x]);
+					$beskrivelse[$x] = str_replace('$formular_bruttovægt', '$formular_grossWeight', $beskrivelse[$x]);
+					$beskrivelse[$x] = str_replace('$formular_nettovægt',  '$formular_netWeight',   $beskrivelse[$x]);
 					$qtxt = "update formularer set beskrivelse='$beskrivelse[$x]',xa=$xa[$x],ya=$ya[$x],xb=$xb[$x],yb=$yb[$x],";
 					$qtxt.= "str=$str[$x],color=$color[$x],font='$form_font[$x]',fed='$fed[$x]',kursiv='$kursiv[$x]',";
 					$qtxt.= "side='$side[$x]',justering='$justering[$x]' where id = $id[$x]";
@@ -312,7 +315,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<div id=\"header\">\n";
 	print "<div class=\"headerbtnLft\">";
     print "<a class='button blue small' class=\"button red small left\" href=\"formular_indlaes_std.php\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</a> &nbsp;";
-    print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</a> &nbsp;"; #Bg. navn
+    print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a> &nbsp;";
     print "<a title=\"Email indstillinger for sprog\" class='button blue small' href=\"email_settings.php\" accesskey=\"e\">Email</a></div>\n";
 	print "<span class=\"headerTxt\"></span>\n";     
 	print "<div class=\"headerbtnRght\"><a title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\" class='button blue small' href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></div>";    
@@ -339,7 +342,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<td width='76%' align='center' style='$topStyle'>".findtekst('573|Formularkort', $sprog_id)."</td>\n";
 
 	print "<td width='6%'><span title='".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."'><a href=formularkort.php?nyt_sprog=yes accesskey='s'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</button></a></span></td>\n"; #Bg. navn
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.".findtekst('646|Navn', $sprog_id)."</button></a></span></td>\n";
 
 	print "<td width='6%'><span title='Email indstillinger for sprog'><a href=email_settings.php accesskey='e'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></a></span></td>\n";
@@ -348,6 +351,19 @@ if ($menu=='T') {  # 20150331 start
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></span></td>\n";#20210804
 
 	print "</tbody></table></td></tr>\n";
+
+	$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+	$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+	$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+	print "<script>
+	if (typeof window.saldiTranslations === 'undefined') {
+		window.saldiLanguage = " . (int)$sprog_id . ";
+		window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+	}
+	</script>";
+	print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+	print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+	print "<tr><td height='1%' align='left' valign='top'><div class=\"settings-search-standalone\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
 } else {
 	# 2013.11.21 Tilføjet meta så ÆØÅ vises rigtigt. Også viewport til bedre visning på tablet
 	//print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n";
@@ -362,29 +378,46 @@ if ($menu=='T') {  # 20150331 start
 	print "<table width=\"100%\" height=\"1%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
 	print "<td width=\"12%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=$returside accesskey=\"l\">".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('573|Formularkort', $sprog_id)."</td>\n";
-	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</a></span></td>\n"; #Bg. navn
+	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a></span></td>\n";
 	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></span></td>\n";#20210804
 	print "</tbody></table></td></tr>\n";
 }
 
+if ($form_nr >= 6 && $form_nr <= 8 && $art_nr == 2) {
+	$ltxt  = findtekst('1232|Opret', $sprog_id);
+	$title = "Åbner ny varekort i en ny fane";
+	$link  = "<a href='../lager/varekort.php?returside=../systemdata/formularkort.php' target='_blank' title='$title'>$ltxt</a>";
+	$txt1  = findtekst('3343|Rykkergebyr', $sprog_id);
+	$txt2  = findtekst('3344|Rentegebyr' , $sprog_id);
+	$txt3  = $link." ".findtekst('3345|en vare til rykkergebyret og angiv varenummeret her.', $sprog_id);
+	$txt4  = $link." ".findtekst('3346|en vare med salgspris 0 kr. og angiv varenummeret her. Rentesatsen (%) angives i feltet ved siden af.', $sprog_id);
+
+	print "<tr><td colspan=6 style='text-align:center;padding-right:0%;padding-top:20px;font-size:1em;color:#555;'>";
+	print "<div style='display:inline-block;text-align:left;'>";
+	print "<table cellspacing=0 cellpadding=2>";
+	print "<tr><td style='padding-right:5px;'><b>$txt1:</b></td><td>$txt3</td></tr>"; #Rykkergebyr:	Opret en vare til rykkergebyret og angiv varenummeret her.
+	print "<tr><td style='padding-right:5px;'><b>$txt2:</b></td><td>$txt4</td></tr>";  #Rentegebyr:	Opret en vare med salgspris 0 kr. og angiv varenummeret her. Rentesatsen (%) angives i feltet ved siden af.
+	print "</table></div></td></tr>\n";
+}
 if ($nyt_sprog) sprog($nyt_sprog,$skabelon,$handling);
+
 print "<tr><td align=center width=100%><table align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 
-$formular=array("",
-	findtekst('812|Tilbud', $sprog_id),
+$formular = array("",
+	findtekst('812|Tilbud'          , $sprog_id),
 	findtekst('575|Ordrebekræftelse', $sprog_id),
-	findtekst('576|Følgeseddel', $sprog_id),
-	findtekst('989|Faktura', $sprog_id),
-	findtekst('577|Kreditnota', $sprog_id),
-	findtekst('578|Rykker', $sprog_id)." 1",
-	findtekst('578|Rykker', $sprog_id)." 2",
-	findtekst('578|Rykker', $sprog_id)." 3",
-	findtekst('574|Plukliste', $sprog_id),
+	findtekst('576|Følgeseddel'     , $sprog_id),
+	findtekst('989|Faktura'         , $sprog_id),
+	findtekst('577|Kreditnota'      , $sprog_id),
+	findtekst('578|Rykker'          , $sprog_id)." 1",
+	findtekst('578|Rykker'          , $sprog_id)." 2",
+	findtekst('578|Rykker'          , $sprog_id)." 3",
+	findtekst('574|Plukliste'       , $sprog_id),
 	"Pos",
-	findtekst('515|Kontokort', $sprog_id),
-	findtekst('954|Indkøbsforslag', $sprog_id),
-	findtekst('579|Rekvisition', $sprog_id),
-	findtekst('580|Købsfaktura', $sprog_id)
+	findtekst('515|Kontokort'       , $sprog_id),
+	findtekst('954|Indkøbsforslag'  , $sprog_id),
+	findtekst('579|Rekvisition'     , $sprog_id),
+	findtekst('580|Købsfaktura'     , $sprog_id)
 );
 
 print "<tr><td colspan=\"10\" align=\"center\"><table><tbody>\n";
@@ -392,19 +425,19 @@ print "<form name=\"formularvalg\" action=\"$_SERVER[PHP_SELF]\" method=\"post\"
 print "<tr><td>".findtekst('780|Formularer', $sprog_id)."</td>\n";
 print "<td><SELECT class='inputbox' NAME=\"form_nr\">\n";
 if ($form_nr) print "<option value=\"$form_nr\">$formular[$form_nr]</option>\n";
-print "<option value=\"1\">".findtekst('812|Tilbud', $sprog_id)."</option>\n";
-print "<option value=\"9\">".findtekst('574|Plukliste', $sprog_id)."</option>\n";
-print "<option value=\"2\">".findtekst('575|Ordrebekræftelse', $sprog_id)."</option>\n";
-print "<option value=\"3\">".findtekst('576|Følgeseddel', $sprog_id)."</option>\n";
-print "<option value=\"4\">".findtekst('989|Faktura', $sprog_id)."</option>\n";
-print "<option value=\"5\">".findtekst('577|Kreditnota', $sprog_id)."</option>\n";
-print "<option value=\"6\">".findtekst('578|Rykker', $sprog_id)." 1</option>\n";
-print "<option value=\"7\">".findtekst('578|Rykker', $sprog_id)." 2</option>\n";
-print "<option value=\"8\">".findtekst('578|Rykker', $sprog_id)." 3</option>\n";
-print "<option value=\"11\">".findtekst('515|Kontokort', $sprog_id)."</option>";
-print "<option value=\"12\">".findtekst('954|Indkøbsforslag', $sprog_id)."</option>";
-print "<option value=\"13\">".findtekst('579|Rekvisition', $sprog_id)."</option>";
-print "<option value=\"14\">".findtekst('580|Købsfaktura', $sprog_id)."</option>";
+print "<option value=\"1\">" .findtekst('812|Tilbud'          , $sprog_id)."</option>\n";
+print "<option value=\"9\">" .findtekst('574|Plukliste'       , $sprog_id)."</option>\n";
+print "<option value=\"2\">" .findtekst('575|Ordrebekræftelse', $sprog_id)."</option>\n";
+print "<option value=\"3\">" .findtekst('576|Følgeseddel'     , $sprog_id)."</option>\n";
+print "<option value=\"4\">" .findtekst('989|Faktura'         , $sprog_id)."</option>\n";
+print "<option value=\"5\">" .findtekst('577|Kreditnota'      , $sprog_id)."</option>\n";
+print "<option value=\"6\">" .findtekst('578|Rykker'          , $sprog_id)." 1</option>\n";
+print "<option value=\"7\">" .findtekst('578|Rykker'          , $sprog_id)." 2</option>\n";
+print "<option value=\"8\">" .findtekst('578|Rykker'          , $sprog_id)." 3</option>\n";
+print "<option value=\"11\">".findtekst('515|Kontokort'       , $sprog_id)."</option>";
+print "<option value=\"12\">".findtekst('954|Indkøbsforslag'  , $sprog_id)."</option>";
+print "<option value=\"13\">".findtekst('579|Rekvisition'     , $sprog_id)."</option>";
+print "<option value=\"14\">".findtekst('580|Købsfaktura'     , $sprog_id)."</option>";
 # print "<option value=\"10\">Pos</option>";
 print "</SELECT></td>\n";
 print "<td>&nbsp;Type</td>\n";
@@ -416,7 +449,7 @@ print "<option value=\"1:Streger\">".findtekst('583|Streger', $sprog_id)."</opti
 print "<option value=\"4:Flyt center\">".findtekst('584|Flyt center', $sprog_id)."</option>\n";
 print "<option value=\"5:Mail tekst\">".findtekst('585|Mail tekst', $sprog_id)."</option>\n";
 print "</SELECT></td>\n";
-print "<td>Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</td>\n"; #Bg. navn
+print "<td>Bg.".findtekst('646|Navn', $sprog_id)."</td>\n";
 print "<td><SELECT class='inputbox' NAME=\"sprog\">\n";
 if (!isset($formularsprog) || !$formularsprog) $formularsprog="Dansk";
 print "<option value=\"". $formularsprog ."\">". bg_display_name($formularsprog) ."</option>\n";
@@ -439,10 +472,10 @@ if ($art_nr==1) {
 	print "<tr><td><br></td></tr>\n";
 		
 	print "<tr><td></td><td></td><td align=center>X</td><td align=center>Y</td></tr>\n";
-	$x=1;
-	$qtxt="select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse ='LOGO' and sprog = '$formularsprog'";
-	$query=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	$row=db_fetch_array($query);
+	$x     = 1;
+	$qtxt  = "select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse ='LOGO' and sprog = '$formularsprog'";
+	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$row   = db_fetch_array($query);
 	print "<tr>\n";
 	print "<input type=\"hidden\" name=\"id[$x]\" value=\"$row[id]\"><input type=\"hidden\" name=\"beskrivelse[$x]\" value=\"LOGO\">\n";
 	print "<td colspan=\"2\"></td><td align=\"center\">";
@@ -468,9 +501,9 @@ if ($art_nr==1) {
 	print "<td align=center><input class='inputbox' type='text' style='text-align:right;width:40px;' name=color[$x]>";
 	print "</tr>";
  
-	$x=1;
-	$qtxt="select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse !='LOGO' and sprog='$formularsprog' order by ya,xa,yb,xb";
-	$query=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$x     = 1;
+	$qtxt  = "select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse !='LOGO' and sprog='$formularsprog' order by ya,xa,yb,xb";
+	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row=db_fetch_array($query)){
 		$x++; 
 		print "<tr>";
@@ -486,41 +519,43 @@ if ($art_nr==1) {
 	$linjeantal=$x;
 } elseif ($art_nr==2) {
 	if ($form_nr>=6 && $form_nr<=9) {
-		$gebyr='';$rentevnr='';
-		$r=db_fetch_array(db_select("select xb,yb,str from formularer where beskrivelse ='GEBYR' and formular='$form_nr' and art='$art_nr' and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__));
-		$gebyr=$r['xb']*1;$rentevnr=$r['yb']*1;$rentesats=dkdecimal($r['str'],2);
-		$r=db_fetch_array(db_select("select varenr from varer where id ='$gebyr'",__FILE__ . " linje " . __LINE__));
-		$gebyr=$r['varenr'];
-		print "<tr><td colspan=11 align=center title='".findtekst('1782|Skriv det varenummer der skal bruges til rykkergebyr.', $sprog_id)."'>".findtekst('1783|Varenummer for rykkergebyr', $sprog_id)." <input class='inputbox' type='text' size=15 name=gebyr value=$gebyr></td></tr>";
-		$r=db_fetch_array(db_select("select varenr from varer where id ='$rentevnr'",__FILE__ . " linje " . __LINE__)); 
-		$rentevnr=$r['varenr'];
-		print "<tr><td colspan=11 align=center title='".findtekst('1784|Skriv det varenummer og rentesatsen som bruges ved renteberegning. Rentesatsen gælder pr påbegyndt måned', $sprog_id)."'>".findtekst('1785|Varenummer/sats for rente', $sprog_id)." <input class='inputbox' type='text' size=15 name=rentevnr value=$rentevnr><input class='inputbox' type='text' size=1 name=rentesats value=$rentesats></td></tr>";
+		$help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="20px" fill="#114691"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+		$gebyr     = '';$rentevnr='';
+		$r         = db_fetch_array(db_select("select xb,yb,str from formularer where beskrivelse ='GEBYR' and formular='$form_nr' and art='$art_nr' and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__));
+		$gebyr     = $r['xb']*1;$rentevnr=$r['yb']*1;$rentesats=dkdecimal($r['str'],2);
+		$r         = db_fetch_array(db_select("select varenr from varer where id ='$gebyr'",__FILE__ . " linje " . __LINE__));
+		$gebyr     = $r['varenr'];
+		print "<tr><td colspan=11 align=center style='padding:0px 0px 2px 0px;font-size:0.8em;color:#555;'><i>".sprintf(findtekst('3350|Hold musen over %s-ikonerne for uddybende forklaringer', $sprog_id), $help_icon).".</i></td></tr>";
+		print "<tr><td colspan=11 align=center title='".findtekst('1782|Skriv det varenummer der skal bruges til rykkergebyr.', $sprog_id)."'>$help_icon".findtekst('1783|Varenummer for rykkergebyr', $sprog_id)." <input class='inputbox' type='text' size=15 name=gebyr value=$gebyr></td></tr>";
+		$r         = db_fetch_array(db_select("select varenr from varer where id ='$rentevnr'",__FILE__ . " linje " . __LINE__)); 
+		$rentevnr  = $r['varenr'];
+		print "<tr><td colspan=11 align=center title='".findtekst('1784|Skriv det varenummer og rentesatsen som bruges ved renteberegning. Rentesatsen gælder pr påbegyndt måned', $sprog_id)."'>$help_icon".findtekst('1785|Varenummer/sats for rente', $sprog_id)." <input class='inputbox' type='text' size=15 name=rentevnr value=$rentevnr><input class='inputbox' type='text' size=1 name=rentesats value=$rentesats></td></tr>";
 		print "<tr><td colspan=11><hr></td></tr>";
 	}
 
 	print "<tr><td></td><td align=center>".findtekst('1163|Tekst', $sprog_id)."</td>";
 	print "<td align=center>X</td><td align=center>Y</td>";
 	print "<td align=center>".findtekst('1790|Højde', $sprog_id)."</td><td align=center> ".findtekst('1786|Farve', $sprog_id)."</td>";
-	$span=findtekst('1787|Justering - H: Højrestillet\n C: Centreret\n V: Venstrestillet', $sprog_id);
+	$span = findtekst('1787|Justering - H: Højrestillet\n C: Centreret\n V: Venstrestillet', $sprog_id);
 	print "<td align=center><span title = \"$span\">".findtekst('2495|Just.', $sprog_id)."</span></td><td align=center>Font</td>";
-	$span=findtekst('1788|1: Kun side 1\n!1: Alle foruden side 1\nS: Sidste side\n!S: Alle foruden sidste side\nA: Alle sider', $sprog_id);	
+	$span = findtekst('1788|1: Kun side 1\n!1: Alle foruden side 1\nS: Sidste side\n!S: Alle foruden sidste side\nA: Alle sider', $sprog_id);	
 	print "<td align=center><span title = \"$span\">".findtekst('2496|Side', $sprog_id)."</span></td>";
 	print "<td align=center>".findtekst('2497|Fed', $sprog_id)."</td><td align=center>".findtekst('1789|Kursiv', $sprog_id)."</td>";
 	#		print "<td align=center>Understr.</td></tr>";
 	drop_down(0,$form_nr,$art_nr,$formularsprog,"","","","","","","","","","","","","","");  
 	
 $tmp = db_escape_string($formularsprog);
-	$qtxt="select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse != 'GEBYR' and sprog='$tmp' order by ya desc, xa";
-	$query=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$qtxt  = "select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse != 'GEBYR' and sprog='$tmp' order by ya desc, xa";
+	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row=db_fetch_array($query)) {
 		$x++;
 		drop_down($x,$form_nr,$art_nr,$formularsprog,$row['id'],$row['beskrivelse'],$row['xa'],$row['xb'],$row['ya'],$row['yb'],$row['str'],$row['color'],$row['justering'],$row['font'],$row['fed'],$row['kursiv'],$row['side']);  
 	}
-	$linjeantal=$x;
+	$linjeantal = $x;
 } elseif ($art_nr==3) {
 	if ($form_nr==10) $x = pos_linjer($form_nr,$art_nr,$formularsprog);
 	else $x = ordrelinjer($form_nr,$art_nr,$formularsprog);
-	$linjeantal=$x;
+	$linjeantal = $x;
 } elseif ($art_nr==4) {
 	print "<tr><td><br></td></tr><tr><td><br></td></tr>\n";
 	print "<tr><td colspan=2 align=center>".findtekst('2499|Her har du mulighed for at flytte centreringen på formularen', $sprog_id).".</td></tr>";
@@ -533,9 +568,9 @@ $tmp = db_escape_string($formularsprog);
 	print "<tr><td><br></td></tr>";
 	print "<tr><td align=\"center\" colspan=\"2\">".findtekst('215|Emne og tekst til brug ved udsendelse som e-mail', $sprog_id)."</td></tr><tr><td><br></td></tr>\n";
 	$qtxt = "select * from formularer where formular = '$form_nr' and art = '$art_nr' and sprog='$formularsprog' order by xa,id";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$q    = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	($form_nr==1 || $form_nr==2 || $form_nr==4)?$i=3:$i=2; # 2013.11.21 Sætter $i til 3 hvis valg er Tilbud, Ordrer eller Faktura, ellers er $i = 2
-	$id1 = $id2 = $mailtext = $subjekt = NULL;
+	$id1 = $id2 = $id3 = $mailtext = $subjekt = NULL;
 	for ($x=1;$x<=$i;$x++) {
 		if ($r=db_fetch_array($q)) {
 			if ($r['xa']==1) {
@@ -555,14 +590,13 @@ $tmp = db_escape_string($formularsprog);
 			print "<input type=\"hidden\" name='sprog' value='$formularsprog'>\n";
 		}
 	}
-	if (!$id1) {
-		$max_fields = ($form_nr==1 || $form_nr==2 || $form_nr==4) ? 3 : 2; # Back to original field count
-		for ($x=1;$x<=$max_fields;$x++) {
-			$qtxt = "insert into formularer (xa, formular, art, sprog) values ('$x', '$form_nr',$art_nr,'$formularsprog')";
+	# Opret evt. manglende records for hvert xa-felt (fx xa=1 findes men xa=2 mangler)
+	$id_map = array(1 => $id1, 2 => $id2, 3 => $id3);
+	for ($x=1;$x<=$i;$x++) {
+		if (!$id_map[$x]) {
+			$qtxt = "insert into formularer (xa, formular, art, sprog) values ('$x', '$form_nr', $art_nr, '$formularsprog')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$qtxt = "select max id as id from formularer where ";
-			$qtxt.= "xa = '$x' and  formular =  '$form_nr', and art = $art_nr and  sprog = '$formularsprog'";
-			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			$r=db_fetch_array(db_select("select max(id) as id from formularer where xa='$x' and formular='$form_nr' and art=$art_nr and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__));
 			print "<input type=\"hidden\" name='id[$x]' value='$r[id]'>\n";
 			print "<input type=\"hidden\" name='xa[$x]' value='$x'>\n";
 			print "<input type=\"hidden\" name='form_nr' value='$form_nr'>\n";
@@ -637,9 +671,9 @@ if ($tmp!=$nyt_sprog) {
 			if (!$exists_in_formularer) {
 				// Get current max id to avoid sequence conflicts
 				$max_id_row = db_fetch_array(db_select("select MAX(id) as max_id from formularer", __FILE__ . " linje " . __LINE__));
-				$next_id = intval($max_id_row['max_id']) + 1;
+				$next_id    = intval($max_id_row['max_id']) + 1;
 
-				$q=db_select("select * from formularer where sprog = '$skabelon'",__FILE__ . " linje " . __LINE__);
+				$q = db_select("select * from formularer where sprog = '$skabelon'",__FILE__ . " linje " . __LINE__);
 				while ($r=db_fetch_array($q)) {
 					$xa=$r['xa']*1; $ya=$r['ya']*1; $xb=$r['xb']*1; $yb=$r['yb']*1;$str=$r['str']*1;$color=$r['color']*1;
 					db_modify("insert into formularer(id,formular,art,beskrivelse,justering,xa,ya,xb,yb,str,color,font,fed,kursiv,side,sprog) values ('$next_id','$r[formular]','$r[art]','".db_escape_string($r['beskrivelse'])."','$r[justering]','$xa','$ya','$xb','$yb','$str','$color','$r[font]','$r[fed]','$r[kursiv]','$r[side]','".db_escape_string($nyt_sprog)."')",__FILE__ . " linje " . __LINE__);
@@ -669,12 +703,12 @@ if ($tmp!=$nyt_sprog) {
     print "<tr><td width=100% align=center><table border=0><tbody>";
 
     // Free-text input: user types their own background/sprog name
-    print "<tr><td>".findtekst('3257|Indtast et navn på den baggrund, du vil tilføje', $sprog_id).":</td><td>";
+    print "<tr><td>Enter a background name you want to add:</td><td>";
     print "<input class='inputbox' type='text' name='nyt_sprog' size='20'>";
     print "</td></tr>";
 
     // Template dropdown (also used for deletion)
-    print "<tr><td>".findtekst('571|Baggrund', $sprog_id)." (".findtekst('3258|Vælg skabelon', $sprog_id)."):</td>"; #Baggrund (Vælg skabelon)
+    print "<tr><td>Background (Select template):</td>";
     print "<td><SELECT class='inputbox' NAME='skabelon'>";
     $q = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
     while ($r = db_fetch_array($q)) {
@@ -706,7 +740,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 	print "<option>eget_land</option>";
 	print "<option>eget_cvrnr</option>";
 	print "<option>egen_tlf</option>";
-	print "<option>egen_fax</option>";
+	print "<option>egen_mobile</option>";
 	print "<option>egen_bank_navn</option>";
 	print "<option>egen_bank_reg</option>";
 	print "<option>egen_bank_konto</option>";
@@ -718,20 +752,20 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 	print "<td><SELECT class='inputbox' style='width:100px;' NAME='ny_beskrivelse[$x]'>";
 	print "<option></option>";
 	print "<option value = 'eget_firmanavn'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('28|Firmanavn', $sprog_id))."</option>";                                  #Eget firmanavn
-	print "<option value = 'egen_addr1'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('44|Adresse 1', $sprog_id))."</option>";                          #Egen adresse 1
-	print "<option value = 'egen_addr2'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('45|Adresse 2', $sprog_id))."</option>";                          #Egen adresse 2
+	print "<option value = 'egen_addr1'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('44|Adresse 1', $sprog_id))."</option>";                                      #Egen adresse 1
+	print "<option value = 'egen_addr2'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('45|Adresse 2', $sprog_id))."</option>";                                      #Egen adresse 2
 	print "<option value = 'eget_postnr'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('36|Postnr.', $sprog_id))."</option>";                                       #Eget postnr.
 	print "<option value = 'eget_bynavn'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('910|Bynavn', $sprog_id))."</option>";                                       #Eget bynavn
 	print "<option value = 'eget_land'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('47|Land', $sprog_id))."</option>";                                            #Eget land
-	print "<option value = 'eget_cvrnr'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('48|Cvr-nr.', $sprog_id))."</option>";                                        #Eget Cvr nr.
-	print "<option value = 'egen_tlf'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                               #Egen tlf
-	print "<option value = 'egen_fax'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('50|Fax', $sprog_id))."</option>";                                              #Egen fax
+	print "<option value = 'eget_cvrnr'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('48|Cvr-nr.', $sprog_id))."</option>";                                        #Eget cvr-nr.
+	print "<option value = 'egen_tlf'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                              #Egen tlf
+	print "<option value = 'egen_mobile'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('50|Mobil', $sprog_id))."</option>";                                         #Egen mobil
 	print "<option value = 'egen_bank_navn'>".findtekst('2518|Eget', $sprog_id)." ".strtolower(findtekst('58|Banknavn', $sprog_id))."</option>";                                   #Eget banknavn
-	print "<option value = 'egen_bank_reg'>".findtekst('2517|Egen', $sprog_id)." bank_reg</option>";
+	print "<option value = 'egen_bank_reg'>".findtekst('2517|Egen', $sprog_id)." bank_reg</option>";                                                                               #Egen bank_reg
 	print "<option value = 'egen_bank_konto'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('60|Bankkonto', $sprog_id))."</option>";                                 #Egen bankkonto
 	print "<option value = 'egen_email'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                         #Egen e-mail
 	print "<option value = 'egen_web'>".findtekst('2517|Egen', $sprog_id)." web</option>";                                                                                         #Egen web
-	if ($form_nr<6  || $form_nr==10 || $form_nr>=12) {
+	if ($form_nr<6  || $form_nr==10 || $form_nr>=12) { 
 		print "<option value = 'ansat_initialer'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('647|Initialer', $sprog_id))."</option>";                            #Ansat initialer
 		print "<option value = 'ansat_navn'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('138|Navn', $sprog_id))."</option>";                                      #Ansat navn
 		print "<option value = 'ansat_addr1'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('44|Adresse 1', $sprog_id))."</option>";                                 #Ansat adresse 1
@@ -740,8 +774,8 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ansat_by'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('146|By', $sprog_id))."</option>";                                          #Ansat by
 		print "<option value = 'ansat_email'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                    #Ansat e-mail
 		print "<option value = 'ansat_mobil'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('401|Mobil', $sprog_id))."</option>";                                    #Mobil
-		print "<option value = 'ansat_tlf'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                          #Ansat tlf
-		print "<option value = 'ansat_fax'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('58|Banknavn', $sprog_id))."</option>";                                    #Ansat banknavn
+		print "<option value = 'ansat_tlf'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                         #Ansat tlf
+		print "<option value = 'ansat_mobile'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('58|Banknavn', $sprog_id))."</option>";                                 #Ansat banknavn
 		print "<option value = 'ansat_privattlf'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('656|Privat tlf', $sprog_id))."</option>";                           #Ansat privat tlf
 	} elseif ($form_nr==11) {
 		print "<option value = 'konto_firmanavn'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('28|Firmanavn', $sprog_id))."</option>";                             #Konto firmanavn
@@ -767,6 +801,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ordre_tlf'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                         #Ordre tlf
 	}
 	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
+		print "<option value = 'ordre_hvem'>Performed by</option>"; 
 		print "<option value = 'ordre_ean'>".findtekst('605|Ordre', $sprog_id)." EAN</option>";                                                                                    #Ordre EAN
 		print "<option value = 'ordre_felt_1'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 1</option>";                                  #Ordre felt 1
 		print "<option value = 'ordre_felt_2'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 2</option>";                                  #Ordre felt 2
@@ -788,6 +823,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ordre_ordrenr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('500|Ordrenr.', $sprog_id))."</option>";                               #Ordre ordrenr.
 		print "<option value = 'ordre_projekt'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('553|Projekt', $sprog_id))."</option>";                                #Ordre projekt
 		print "<option value = 'ordre_valuta'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('776|Valuta', $sprog_id))."</option>";                                  #Ordre valuta
+		 
 	}	
 	if ($form_nr==4 || $form_nr==5 || $form_nr==13) {
 		print "<option value = 'ordre_fakturanr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('828|Fakturanr.', $sprog_id))."</option>";                           #Ordre fakturanr.
@@ -885,9 +921,9 @@ function ordrelinjer($form_nr,$art_nr,$formularsprog){
 	print "<td align=center>Y</td>\n";
 	print "<td align=center>".findtekst('2503|Linjeafst.', $sprog_id)."</td></tr>\n";
 	#		print "<td align=center>Understr.</td></tr>";
-	$qtxt="select id from formularer where formular = $form_nr and art = $art_nr and beskrivelse = 'generelt' and sprog='$formularsprog' order by xa";
-	$x=0;
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$qtxt = "select id from formularer where formular = $form_nr and art = $art_nr and beskrivelse = 'generelt' and sprog='$formularsprog' order by xa";
+	$x    = 0;
+	$q    = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		if ($x >= 1) { #der er dubletter i nogle regnskaber som giver bøvl...
 			$qtxt="delete from formularer where id='$r[id]'";
@@ -899,9 +935,9 @@ function ordrelinjer($form_nr,$art_nr,$formularsprog){
 		$qtxt="insert into formularer (formular, art, beskrivelse, xa, ya, xb,sprog) values ($form_nr, $art_nr, 'generelt', 34, 185, 4,'$formularsprog')";
 		db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 	}
-	$qtxt="select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse = 'generelt' and sprog='$formularsprog' order by xa";
-	$query=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	$row=db_fetch_array($query);
+	$qtxt  = "select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse = 'generelt' and sprog='$formularsprog' order by xa";
+	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$row   = db_fetch_array($query);
 	print "<tr><td></td><td></td>\n";
 	print "<input type=hidden name=id[$x] value=$row[id]>\n";
 	print "<input type=hidden name='beskrivelse[$x]' value=$row[beskrivelse]>\n";
@@ -983,8 +1019,8 @@ $x=0;
 	print "<td align=center><input class='inputbox' type=checkbox name=kursiv[$x]></td>\n";
 	print "</tr>\n";
 
-	$x=1;
-	$query=db_select("select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse != 'generelt' and sprog='$formularsprog' order by xa",__FILE__ . " linje " . __LINE__);
+	$x     = 1;
+	$query = db_select("select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse != 'generelt' and sprog='$formularsprog' order by xa",__FILE__ . " linje " . __LINE__);
 	while ($row=db_fetch_array($query)){
 		$x++;
 		$besk[$x]=$row['beskrivelse'];
@@ -1063,9 +1099,9 @@ if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$fo
 		$q=db_modify ("insert into formularer (formular, art, beskrivelse, sprog, xa, ya, xb) values ('$form_nr','3','generelt','$formularsprog','4','2',4)",__FILE__ . " linje " . __LINE__);
 		$r=db_fetch_array(db_select("select * from formularer where formular = $form_nr and art = 3 and beskrivelse = 'generelt' and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__));
 	}
-	$header=str_replace(".",",",round($r['xa'],1));
-	$footer=str_replace(".",",",round($r['ya'],1));
-	$linespace=round($r['xb'],0);
+	$header    = str_replace(".",",",round($r['xa'],1));
+	$footer    = str_replace(".",",",round($r['ya'],1));
+	$linespace = round($r['xb'],0);
 	print "<tr><td></td><td></td>\n";
 	print "<input type=hidden name=id[$x] value=\"$r[id]\">\n";
 	print "<input type=hidden name='beskrivelse[$x]' value=\"$r[beskrivelse]\">\n";
@@ -1231,13 +1267,13 @@ if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$fo
 function kopier_alt($form_nr,$art_nr,$formularsprog,$kilde) {
 	if ($form_nr&&$art_nr&&$formularsprog) {
 		db_modify("delete from formularer where formular = '$form_nr' and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__);
-		$qtxt="select * from formularer where formular = '$kilde' and sprog='$formularsprog'";
-		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		$qtxt = "select * from formularer where formular = '$kilde' and sprog='$formularsprog'";
+		$q    = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
-			$xa=$r['xa']*1; $ya=$r['ya']*1; $xb=$r['xb']*1; $yb=$r['yb']*1;$str=$r['str']*1;$color=$r['color']*1;
-			$qtxt="insert into formularer(formular,art,beskrivelse,justering,xa,ya,xb,yb,str,color,font,fed,kursiv,side,sprog) values	";
-			$qtxt.="('$form_nr','$r[art]','".db_escape_string($r['beskrivelse'])."','$r[justering]','$xa','$ya','$xb','$yb','$str','$color',";
-			$qtxt.="'$r[font]','$r[fed]','$r[kursiv]','$r[side]','$formularsprog')";
+			$xa   = $r['xa']*1; $ya=$r['ya']*1; $xb=$r['xb']*1; $yb=$r['yb']*1;$str=$r['str']*1;$color=$r['color']*1;
+			$qtxt = "insert into formularer(formular,art,beskrivelse,justering,xa,ya,xb,yb,str,color,font,fed,kursiv,side,sprog) values	";
+			$qtxt.= "('$form_nr','$r[art]','".db_escape_string($r['beskrivelse'])."','$r[justering]','$xa','$ya','$xb','$yb','$str','$color',";
+			$qtxt.= "'$r[font]','$r[fed]','$r[kursiv]','$r[side]','$formularsprog')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 #		print "<meta http-equiv=\"refresh\" content=\"10;URL=formularkort.php?formular=$form_nr&art=$art_nr&sprog=$formularsprog\">";
@@ -1259,7 +1295,7 @@ if ($menu=='T') {
 	print "<td width='24%' style='$topStyle'></td>\n";
 
 	print "<td width=\"7%\"><title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</button></a></td>\n"; #Bg. navn
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.".findtekst('646|Navn', $sprog_id)."</button></a></td>\n";
 
 	print "<td width=\"7%\"><title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></td>\n";
@@ -1273,7 +1309,7 @@ if ($menu=='T') {
 	print "<td width='24%' ".$top_bund.">&nbsp;</td>\n";
   # 20150331 start bund
 		print "<td width=\"7%\" ".$top_bund."><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span ";
-		print "title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.&nbsp;".lcfirst(findtekst('646|Navn', $sprog_id))."</a></span></td>\n"; #Bg. navn
+		print "title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a></span></td>\n";
 		print "<td width=\"7%\" ".$top_bund."><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span ";
 		print "title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></span></td>\n";
 		print "    <td width='14%' ".$top_bund.">&nbsp;</td>\n";

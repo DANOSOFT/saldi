@@ -3,7 +3,7 @@ $addr1=NULL;$addr2=NULL;$afd=NULL;
 $bank_fi=NULL;$bank_konto=NULL;$bank_navn=NULL;$bank_reg=NULL;$bynavn=NULL;
 $cprnr=NULL;$cvrnr=NULL;
 $email=NULL;
-$fax=NULL;$firmanavn=NULL;$fokus=NULL;
+$mobile=NULL;$firmanavn=NULL;$fokus=NULL;
 $gruppe=NULL;$gruppe_id=NULL;
 $id=NULL;$initialer=NULL;
 $konto_id=NULL;$kontonr=NULL;$kreditmax=NULL;

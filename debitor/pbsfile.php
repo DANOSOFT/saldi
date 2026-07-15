@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pbsfile.php --- patchh 5.0.0 --- 2026-03-21 ---
+// --- debitor/pbsfile.php --- patch 5.0.0 --- 2026-07-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 
 // 23.08.2012 Tilretning til Leverandørservice
@@ -38,6 +38,8 @@
 // 20250820 PHP8
 // 20260320 PHR Replaced kontonr(numeric) with ktonr(varchar)
 // 20260321 PHR Reversed above as ktonr does not exist in all accounts
+// 20260601 PHR Removed PBS from CVR nr.
+// 20260711 MJ Two spaces after BS10605 in leverance BS002 header line.
 
 @session_start();
 $s_id=session_id();
@@ -111,12 +113,12 @@ if (!$afsendt) {
 	}
 */
 	$r=db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
-	$cvrnr[0]=$r['cvrnr'];
-	$bank_reg[0]=$r['bank_reg'];
-	$bank_konto[0]=$r['bank_konto'];
-	$pbs_nr[0]=$r['pbs_nr'];
-	$lev_pbs=$r['pbs'];
-	$debitorgruppe=$r['gruppe']*1;
+	$cvrnr[0]      = str_replace('DK','',$r['cvrnr']);
+	$bank_reg[0]   = $r['bank_reg'];
+	$bank_konto[0] = $r['bank_konto'];
+	$pbs_nr[0]     = $r['pbs_nr'];
+	$lev_pbs       = $r['pbs'];
+	$debitorgruppe = $r['gruppe']*1;
 	if (!$debitorgruppe) $debitorgruppe=1;
 	if ($lev_pbs=='L') while(strlen($pbs_nr[0])<5) $pbs_nr[0]="0".$pbs_nr[0];
 	else while(strlen($pbs_nr[0])<8) $pbs_nr[0]="0".$pbs_nr[0];
@@ -157,7 +159,7 @@ if (!$afsendt) {
 
 	if ($lev_pbs!='L') {
 		$lnr++;
-		$linje[$lnr]="BS002".$cvrnr[0]."BS10605".$leverance_id.filler(19," ").$dkdd."\n";
+		$linje[$lnr]="BS002".$cvrnr[0]."BS10605  ".$leverance_id.filler(19," ").$dkdd."\n";
 		$linjeoid[$lnr]=0;
 		if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 	}

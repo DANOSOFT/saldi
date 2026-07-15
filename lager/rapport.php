@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- patch 5.0.0 --- 2026.04.08---
+// --- lager/rapport.php --- patch 5.0.0 --- 2026-06-10---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20130318 $modulnr ændret fra 12  til 15
@@ -66,7 +66,16 @@
 // 20250820 PHR Added some line ident comments
 // 20251206 LOE some topline codes moved to ../includes/S_topLine.php also used by other files
 // 20260408 PHR set max_execution_time to 300
-
+// 20260507 CL Rettet forskydning i summary-række: tilføjet $tt_kost (Kostpris), flyttet $tt_k_pris til korrekt kolonne (Købspris), tilføjet manglende Solgt-celle
+// 20260526 LOE Added salg_rapport.php with sales report based on postnr and departments, to handle sales report for customers with postnr and departments. Based on datagrid, with flexible search and sorting.
+// 20260603 PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
+// 20260610 CL/PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
+// 20260707 SZ Added Grid Framework sticky header and footer to Item Sales report
+// 20260710 SZ Fixed 'Bestilt' (Ordered) column: open PO lines now count regardless of
+//             levdate (incl. 31-12-2099 placeholder and empty dates), and new items with
+//             an open PO but no prior stock/sales history now appear in the report
+// 20260710 SZ Added Grid Framework sticky header+footer (varegruppe(), summary + Detaljeret views)
+//             and fixed misaligned columns between the header row and data/Summeret rows
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -89,61 +98,68 @@ include("../includes/row-hover-style.js.php");
 if (!isset ($_GET['detaljer'])) $_GET['detaljer'] = NULL;
 if (!isset ($_GET['kun_salg'])) $_GET['kun_salg'] = NULL;
 if (!isset ($_GET['lagertal'])) $_GET['lagertal'] = NULL;
-$backUrl = isset($_GET['returside'])
-? $_GET['returside']
-: '../index/menu.php';
+$backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 if ($popup) $returside="../includes/luk.php";
 
 else $returside = $backUrl;
 
-$inventoryCount = if_isset($_POST['inventoryCount']);
-$lokMinMax        = if_isset($_POST['lokMinMax']);
+$inventoryCount = isset($_POST['inventoryCount']) ? $_POST['inventoryCount'] : null;
+$lokMinMax      = isset($_POST['lokMinMax']) ? $_POST['lokMinMax'] : null;
+
 if ($lokMinMax) {
 	$varegruppe = trim($_POST['varegruppe']);
-	$varenr     = if_isset($_POST['varenr']);
-	$varenavn   = if_isset($_POST['varenavn']);
-	$afd        = if_isset($_POST['afd']);
+	$varenr     = isset($_POST['varenr']) ? $_POST['varenr']: null;
+	$varenavn   = isset($_POST['varenavn']) ? $_POST['varenavn'] : null;
+	$afd        = isset($_POST['afd']) ? $_POST['afd'] : null;
 	print print "<meta http-equiv=\"refresh\" content=\"0;URL=minmaxstock.php?vgrp=$varegruppe&vnr=$varenr&vname=$varenavn&afd=$afd\">";
 }
+// 20260714 SZ - hydrate from $_GET first (this is the only source for plain navigation - pagination,
+// back button, direct links - which is always a GET request with no $_POST at all), then let an actual
+// form submit (POST) overlay on top. Same "GET baseline, POST overlay" shape as includes/salgsstat.php's
+// input handling, chosen over the previous if($_POST)/else($_GET) fork specifically because that fork
+// pattern is what caused lager/pricelist.php's pagination to silently reset every filter to its default:
+// a later elseif branch (added for csv/autoprint there) intercepted the GET case before it reached the
+// $_GET reads. Making $_GET the unconditional baseline means a future added branch can no longer do that.
+$varegruppe = isset($_GET['varegruppe']) ? $_GET['varegruppe'] : null;
+$afd        = isset($_GET['afd'])        ? $_GET['afd']        : null;
+$ref        = isset($_GET['ref'])        ? $_GET['ref']        : null;
+$lev        = isset($_GET['lev'])        ? $_GET['lev']        : null;
+$date_from  = isset($_GET['date_from'])  ? $_GET['date_from']  : null;
+$date_to    = isset($_GET['date_to'])    ? $_GET['date_to']    : null;
+$varenr     = isset($_GET['varenr'])     ? $_GET['varenr']     : null;
+$varenavn   = isset($_GET['varenavn'])   ? $_GET['varenavn']   : null;
+$detaljer   = isset($_GET['detaljer'])   ? $_GET['detaljer']   : null;
+$kun_salg   = isset($_GET['kun_salg'])   ? $_GET['kun_salg']   : null;
+$lagertal   = isset($_GET['lagertal'])   ? $_GET['lagertal']   : null;
+$submit     = isset($_GET['submit'])     ? $_GET['submit']     : null;
+
 if (isset($_POST['submit']) && $_POST['submit']) {
 	$submit=strtolower(trim($_POST['submit']));
 	$varegruppe=trim($_POST['varegruppe']);
-	$afd=if_isset($_POST['afd']);
-	$ref=if_isset($_POST['ref']);
-	$lev=if_isset($_POST['lev']);
+	$afd=isset($_POST['afd']) ? $_POST['afd'] : null;
+	$ref=isset($_POST['ref']) ? $_POST['ref'] : null;
+	$lev=isset($_POST['lev']) ? $_POST['lev'] : null;
 	$date_from=usdate($_POST['dato_fra']);
 	$date_to=usdate($_POST['dato_til']);
 #	$md=$_POST['md'];
-	$varenr       = if_isset($_POST['varenr']);
-	$varenavn     = if_isset($_POST['varenavn']);
-	$detaljer     = if_isset($_POST['detaljer']);
-	$kun_salg     = if_isset($_POST['kun_salg']);
-	$lagertal     = if_isset($_POST['lagertal']);
-	$vk_kost      = if_isset($_POST['vk_kost']);
+	$varenr       = isset($_POST['varenr']) ? $_POST['varenr'] : null;
+	$varenavn     = isset($_POST['varenavn']) ? $_POST['varenavn'] : null;
+	$detaljer     = isset($_POST['detaljer']) ? $_POST['detaljer'] : null;
+	$kun_salg     = isset($_POST['kun_salg']) ? $_POST['kun_salg'] : null;
+	$lagertal     = isset($_POST['lagertal']) ? $_POST['lagertal'] : null;
+	$vk_kost      = isset($_POST['vk_kost']) ? $_POST['vk_kost'] : null;
 	$varenr       = trim($varenr);
 	$varenavn     = trim($varenavn);
-} else {
-	$varegruppe=if_isset($_GET['varegruppe']);
-	$afd=if_isset($_GET['afd']);
-	$ref=if_isset($_GET['ref']);
-	$lev=if_isset($_GET['lev']);
-	$date_from=if_isset($_GET['date_from']);
-	$date_to=if_isset($_GET['date_to']);
-	$varenr=if_isset($_GET['varenr']);
-	$varenavn=if_isset($_GET['varenavn']);
-	$detaljer = $_GET['detaljer'];
-	$kun_salg = $_GET['kun_salg'];
-	$lagertal = $_GET['lagertal'];
-	$submit=if_isset($_GET['submit']);
 }
 
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
 
-#if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";}
+#if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";} 
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
-elseif ($submit == findtekst('992|Lagerstatus', $sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
-elseif ($submit == findtekst('2082|Prisliste', $sprog_id)) print print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
-elseif ($inventoryCount) print print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
+elseif (strtolower($submit) == strtolower(findtekst('992|Lagerstatus', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
+elseif (strtolower($submit) == strtolower(findtekst('2082|Prisliste', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
+elseif (strtolower($submit) == strtolower(findtekst('3360|Salg pr. postnummer', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=salg_rapport.php?varegruppe=$varegruppe&afd=$afd&ref=$ref&lev=$lev&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
+elseif ($inventoryCount) print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 
 #############################################################################################################
@@ -200,7 +216,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		print "</div><!-- end of header -->
 			<div class=\"maincontentLargeHolder\">\n";
 	} elseif ($menu=='S') {
-		$title = findtekst('964|Varerapport - forside', $sprog_id);
+		$title = findtekst('3361|Varerapporter', $sprog_id);
 
 		include("../includes/S_topLine.php"); 
 
@@ -256,7 +272,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		$x++;
 	}
 	$x=1;
-	$$lev_id=array();
+	$lev_id=array();
 	$q = db_select("select * from adresser where art = 'K' order by firmanavn",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (in_array($r['id'],$l_id)) {
@@ -268,6 +284,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	}
 	$ref_nr[0]='0';
 	$ref_navn[0]='Alle';
+	$ref_brugernavn[0]='';
 	$x=1;
 	$q = db_select("select * from brugere order by brugernavn",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -303,7 +320,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 		print "<tr bgcolor='$trbg'><td>".findtekst('966|Leverandør', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"lev\" style=\"width:200px;\">";
 		for ($x=0;$x<count($lev_id);$x++) {
-			if ($lev == $lev_id[$x]) print "<option value='$lev_id[$x]'>$lev_navn[$x]</option>";
+			if ($lev == $lev_id[$x]) print "<option value='$lev_id[$x]'>$lev_nr[$x] : $lev_navn[$x]</option>";
 		}
 		for ($x=0;$x<count($lev_id);$x++) {
 			if ($lev != $lev_id[$x]) print "<option value='$lev_id[$x]'>$lev_nr[$x] : $lev_navn[$x]</option>";
@@ -325,7 +342,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 		print "<tr bgcolor='$trbg'><td>".findtekst('884|Sælger', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"ref\" style=\"width:200px;\">";
 		for ($x=0;$x<=count($ref_nr);$x++) {
-			if ($ref == $ref_nr[$x]) print "<option value=$ref_nr[$x]>$ref_brugernavn[$x]</option>";
+			if (isset($ref_nr[$x]) && $ref == $ref_nr[$x]) print "<option value=$ref_nr[$x]>$ref_brugernavn[$x]</option>";
 		}
 		for ($x=0;$x<=count($ref_nr);$x++) {
 			if(isset($ref_brugernavn[$x])){
@@ -379,6 +396,11 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst('2082|Prisliste', $sprog_id)."\" name='submit'>";
 	$txt.= "</td></tr>\n";
 	print $txt;
+	print "<tr><td><hr></td></tr>\n";
+	$txt = "<tr><td ALIGN=center title='Se salg på postnumre'>";
+	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst('3360|Salg pr. postnummer', $sprog_id)."\" name='submit'>";
+	$txt.= "</td></tr>\n";
+	print $txt;
 	print "</form>";
 	print "</tbody></table></center>\n";
 	print "</td></tr>\n";
@@ -402,6 +424,12 @@ function varegruppe($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,
 	if ($detaljer) $cols=12;
 	elseif ($kun_salg) $cols=11;
 	else $cols=18;
+	// 20260710 SZ Grid Framework (sticky header+footer, internal scroll, mirrors includes/salgsstat.php).
+	// Covers both the default summary view and the 'Detaljeret' view. The two use different internal
+	// table structures below (Detaljeret has no single shared column set - see $vrDetailMode).
+	$vrGridMode = ($menu=='S');
+	$vrDetailMode = ($vrGridMode && $detaljer);
+	$vrTitleExtra = '';
 
 	$v_gr = array();
 	$v_navn = array();
@@ -432,6 +460,13 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		print "</div><!-- end of header -->
 			<div class=\"maincontentLargeHolder\">\n";
 		print "<table class='dataTable' width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	} elseif ($vrGridMode) {
+		// Grid Framework header bar - mirrors includes/salgsstat.php's $ssPageFlex header. The full title
+		// (incl. afd/lev/ref suffixes) and the grid table itself aren't printed until further down, once
+		// $vrTitleExtra / $lagergruppe are known - see the matching branches below.
+		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+		print "<div id='vrPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
 	} elseif ($menu=='S') {
 		print "<table width = 100% cellpadding='1' cellspacing='1' border='0'><tbody>";
 
@@ -440,7 +475,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 
 		print "<td width='10%'>$luk<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 		print findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-		
+
 		print "<td width='80%' align='center' style='$topStyle'>".findtekst('1142|Rapport', $sprog_id)." | ".findtekst('2746|Varesalg', $sprog_id)." | ".dkdato($date_from)." - ".dkdato($date_to);
 	} else {
 		print "<table width = 100% cellpadding='1' cellspacing='1' border='0'><tbody>";
@@ -452,13 +487,17 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	}
 	if ($afd) {
 		$r=db_fetch_array(db_select("select beskrivelse from grupper where art = 'AFD' and kodenr = '$afd'",__FILE__ . " linje " . __LINE__));
-		print " | $r[beskrivelse]";
+		$vrTitleExtra .= " | $r[beskrivelse]";
+		if (!$vrGridMode) print " | $r[beskrivelse]";
 	}
 	if ($lev) {
 		$r = db_fetch_array(db_select("select kontonr,firmanavn from adresser where id='$lev'",__FILE__ . " linje " . __LINE__));
 		$lev_nr=$r['kontonr'];
 		$lev_navn=$r['firmanavn'];
-		if ($lev_navn) print " | $lev_nr ($lev_navn)";
+		if ($lev_navn) {
+			$vrTitleExtra .= " | $lev_nr ($lev_navn)";
+			if (!$vrGridMode) print " | $lev_nr ($lev_navn)";
+		}
 		$x=0;
 		$q=db_select("select vare_id from vare_lev where lev_id='$lev'",__FILE__ . " linje " . __LINE__);
 		while($r=db_fetch_array($q)) {
@@ -476,10 +515,27 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			$ref_navn=$r['navn'];
 		}
 		if (!$ref_navn) $ref_navn=$ref_brugernavn;
-		if ($ref_navn) print " | $ref_navn";
+		if ($ref_navn) {
+			$vrTitleExtra .= " | $ref_navn";
+			if (!$vrGridMode) print " | $ref_navn";
+		}
 	}
 	if ($menu=='T') {
 
+	} elseif ($vrGridMode) {
+		// Full header bar now that $vrTitleExtra/$luk are known - back button (with icon, matching
+		// includes/salgsstat.php) / title / CSV export (reuses the existing CSV feature as the header's
+		// 3rd button, in place of salgsstat's "advanced search" button, since this report's own filter
+		// form lives on the front page (forside()), reached via Back).
+		$vrTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+		print "<td width='10%' align='left'>$luk
+			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$vrTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " | " . findtekst('2746|Varesalg', $sprog_id) . " | " . dkdato($date_from) . " - " . dkdato($date_to) . $vrTitleExtra . "</td>";
+		print "<td width='10%' align='center'><a href='../temp/$db/salgsrapport.csv' target='_blank'>
+			   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+		print "</tr></tbody></table>";
+		print "</div>\n"; // <- close flex:0 wrapper around the header bar
 	} elseif ($menu=='S') {
 	print "</td>";
 	print "<td width='10%'><a href='../temp/$db/salgsrapport.csv' target='_blank'>";
@@ -491,7 +547,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	print "<td width='10%' $top_bund><a href='../temp/$db/salgsrapport.csv' target='_blank'>CSV</a></td>";
 	print "</tbody></table>"; #B slut
 	}
-	print "</td></tr>\n";
+	if (!$vrGridMode) print "</td></tr>\n"; // vrGridMode's header bar already closed its own table above
 	$lagergruppe=array();
 	if ($gruppenr) {
 		$qtxt="select box8,box9 from grupper where kodenr ='$gruppenr' and art='VG' and fiscal_year = '$regnaar'";
@@ -594,7 +650,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		$qtxt .= "varer.gruppe = '$lagergruppe[$g]' ";
 	}
 	if ($g) $qtxt .= ") and ";
-	$qtxt.= "ordrelinjer.leveret < ordrelinjer.antal and ordrer.levdate >= '$date_from' and ordrer.levdate <= '$date_to' ";
+	$qtxt.= "ordrelinjer.leveret < ordrelinjer.antal "; #20260710 SZ - open PO lines count regardless of levdate/period, see below
 	$qtxt.= "group by ordrelinjer.vare_id,ordrelinjer.varenr,ordrelinjer.beskrivelse,varer.gruppe order by ordrelinjer.varenr";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -604,7 +660,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					$ov_qty[$v]=$r['qty'];
 				}
 			}
-		} elseif (in_array($r['vare_id'],$lev_vare_id)) {
+		} elseif (!$kun_salg && in_array($r['vare_id'],$vare_id)) { #20260710 SZ - was $lev_vare_id: new items with no stock history but an open PO were dropped unless filtering by supplier. Skipped in kun_salg mode, which has no Bestilt column.
 			$x++;
 			$v_id[$x]=trim($r['vare_id']);
 			$v_gr[$x]=trim($r['gruppe']);
@@ -621,7 +677,100 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	$csvfile=fopen("../temp/$db/salgsrapport.csv","w");
 	fwrite($csvfile, "\"\";\"\";\"Rapport | Varesalg | ".dkdato($date_from)." - ".dkdato($date_to)."\"\r\n");
 
-	if (!$detaljer) {
+	if ($vrGridMode) {
+		// Real (server-side) pagination for the Grid Framework footer - same $vr_page/$vr_per_page
+		// query-param pattern includes/salgsstat.php uses. Total row count is simply count($v_id): this
+		// report's item loop is flat (unlike salgsstat's per-account nesting), so only the per-item DATA
+		// row/block print needs to respect the page window - group-subtotal/grand-total rows always
+		// print (see the item loop and the "Summeret" block further down). Shared by both the summary
+		// and Detaljeret variants - pagination in Detaljeret mode is per ITEM (its whole Køb/Salg/
+		// Lagerreguleret block), not per individual transaction line.
+		$vrValidPageSizes=array(50,100,250,500,100000);
+		$vrPerPage=(int) (isset($_GET['vr_per_page']) ? $_GET['vr_per_page'] : 0);
+		if (!in_array($vrPerPage,$vrValidPageSizes)) $vrPerPage=50;
+		$vrPage=(int) (isset($_GET['vr_page']) ? $_GET['vr_page'] : 0);
+		if ($vrPage<1) $vrPage=1;
+		$vrTotalRows=count($v_id);
+		$vrTotalPages=max(1,ceil($vrTotalRows/$vrPerPage));
+		if ($vrPage>$vrTotalPages) $vrPage=$vrTotalPages;
+		$vrPageStart=($vrPage-1)*$vrPerPage;
+		$vrPageEnd=$vrPageStart+$vrPerPage;
+	}
+	if ($vrDetailMode) {
+		// Detaljeret has no single shared column set - each item prints its own Køb (6 cols), Salg
+		// (9 cols) and Lagerreguleret (2 cols) sub-sections, each with its own column-title row, exactly
+		// as the old chrome already did. So unlike the summary view, this uses table-layout:auto (no
+		// colgroup) to preserve each section's own natural column widths, and makes every section's own
+		// column-title row sticky (not just one at the very top) via a shared .vr-col-title-row class -
+		// so whichever section is currently scrolled into view keeps its own header pinned, matching how
+		// includes/salgsstat.php pins its (single) column-title row while its account data scrolls.
+		print "<style>
+#vrGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
+#vrGridTable { width:100%; }
+#vrGridTable tr.vr-col-title-row td { position:sticky; top:0; z-index:10; background-color:$bgcolor; box-sizing:border-box; }
+</style>\n";
+		print "<div id='vrGridWrapper'><table id='vrGridTable' width=100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	} elseif ($vrGridMode) {
+		// Same colgroup widths drive both the sticky column-title row and every data/total row below it
+		// (all in the same #vrGridTable) - this is the fix for the reported "header columns don't match
+		// data columns" bug (see the per-item Beholdning/Værdi condition fix and the Summeret-row fixes
+		// further down, which had the same class of bug: a column shown in the header under one condition
+		// but populated in the data/total rows under a different, inconsistent condition).
+		if ($kun_salg) {
+			$vrColgroupHtml = "<colgroup><col style='width:9%'><col style='width:8%'><col style='width:6%'><col style='width:20%'><col style='width:8%'><col style='width:9%'><col style='width:9%'><col style='width:9%'><col style='width:8%'><col style='width:7%'><col style='width:7%'></colgroup>";
+		} elseif ($lagertal && count($lagergruppe)) {
+			$vrColgroupHtml = "<colgroup><col style='width:7%'><col style='width:6%'><col style='width:5%'><col style='width:13%'><col style='width:6%'><col style='width:6%'><col style='width:5%'><col style='width:5%'><col style='width:6%'><col style='width:5%'><col style='width:6%'><col style='width:5%'><col style='width:5%'><col style='width:4%'><col style='width:4%'><col style='width:6%'><col style='width:6%'></colgroup>";
+		} else {
+			$vrColgroupHtml = "<colgroup><col style='width:8%'><col style='width:6%'><col style='width:5%'><col style='width:15%'><col style='width:6%'><col style='width:7%'><col style='width:6%'><col style='width:6%'><col style='width:7%'><col style='width:6%'><col style='width:7%'><col style='width:6%'><col style='width:6%'><col style='width:5%'><col style='width:4%'></colgroup>";
+		}
+		print "<style>
+#vrGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
+#vrGridTable { border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; }
+#vrGridTable th { position:sticky; top:0; z-index:10; padding:6px 4px; background-color:$bgcolor; box-sizing:border-box; text-align:left; }
+#vrGridTable td { box-sizing:border-box; padding:4px; overflow-wrap:anywhere; word-break:break-word; }
+#vrGridTable th.text-right { text-align:right; }
+</style>\n";
+		print "<div id='vrGridWrapper'><table id='vrGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$vrColgroupHtml<tbody>";
+		if ($kun_salg) {
+			print "<tr class='vr-col-title-row'><th>".findtekst('917|Varenr.', $sprog_id)."</th>
+			<th>(alias)</th>
+			<th>".findtekst('945|Enhed', $sprog_id)."</th>
+			<th>".findtekst('914|Beskrivelse', $sprog_id)."</th>
+			<th>(alias)</th>
+			<th class='text-right'>".findtekst('950|Kostpris', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('974|Solgt', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('949|Salgspris', $sprog_id)."</th>
+			<th class='text-right'>DB</th>
+			<th class='text-right'>DG</th>
+			<th class='text-right'>".findtekst('975|På lager', $sprog_id)."</th></tr>\n"; #20210402
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Solgt;Salgspris;DB;DG;". 'På lager' ."\r\n");
+		} else {
+			print "<tr class='vr-col-title-row'><th>".findtekst('917|Varenr.', $sprog_id)."</th>
+			<th>(alias)</th>
+			<th>".findtekst('945|Enhed', $sprog_id)."</th>
+			<th>".findtekst('914|Beskrivelse', $sprog_id)."</th>
+			<th>(alias)</th>
+			<th class='text-right'>".findtekst('950|Kostpris', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('976|Bestilt', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('977|Købt', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('978|Købspris', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('974|Solgt', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('949|Salgspris', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('770|Moms', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('979|Reguleret', $sprog_id)."</th>
+			<th class='text-right'>DB</th>
+			<th class='text-right'>DG</th>";
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Bestilt;". 'Købt' .";". 'Købspris' .";");
+			fwrite($csvfile, "Solgt;Salgspris;". '+moms' .";Reguleret;DB;DG");
+			if ($lagertal && count($lagergruppe)) {
+				print "<th class='text-right'>".findtekst('980|Beholdning', $sprog_id)."</th>
+				<th class='text-right'>".findtekst('476|Værdi', $sprog_id)."</th>";
+				fwrite($csvfile,";Beholdning;". 'Værdi');
+			}
+			print "</tr>\n";
+			fwrite($csvfile,"\r\n");
+		}
+	} elseif (!$detaljer) {
 		if ($kun_salg) {
 			print "<tr><td><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
 			<td><b>(alias)</b></td>
@@ -633,8 +782,8 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<td align=\"right\"><b>".findtekst('949|Salgspris', $sprog_id)."</b></td>
 			<td align=\"right\"><b>DB</b></td>
 			<td align=\"right\"><b>DG</b></td>
-			<td align=\"right\"><b>".findtekst('975|På lager', $sprog_id)."</b></td>"; #20210402
-			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Solgt;Salgspris;DB;DG;". mb_convert_encoding('På lager', 'ISO-8859-1', 'UTF-8') ."\r\n");
+			<td align=\"right\"><b>".findtekst('975|På lager', $sprog_id)."</b></td></tr>"; #20210402
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Solgt;Salgspris;DB;DG;". 'På lager' ."\r\n");
 		} else {
 			print "<tr><td><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
 			<td><b>(alias)</b></td>
@@ -652,24 +801,33 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<td align=\"right\"><b>DB</b></td>
 			<td align=\"right\"><b>DG</b></td>";
 			#<td align=\"right\"><b>K&oslash;bspris</b></td>";
-			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Bestilt;". mb_convert_encoding('Købt', 'ISO-8859-1', 'UTF-8') .";". mb_convert_encoding('Købspris', 'ISO-8859-1', 'UTF-8') .";");
-			fwrite($csvfile, "Solgt;Salgspris;". mb_convert_encoding('+moms', 'ISO-8859-1', 'UTF-8') .";Reguleret;DB;DG");
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Bestilt;". 'Købt' .";". 'Købspris' .";");
+			fwrite($csvfile, "Solgt;Salgspris;". '+moms' .";Reguleret;DB;DG");
 			if (count($lagergruppe) && $lagertal) {
 				print "<td align=\"right\"><b>".findtekst('980|Beholdning', $sprog_id)."</b></td>
 				<td align=\"right\"><b>".findtekst('476|Værdi', $sprog_id)."</b></td>";
-				fwrite($csvfile,";Beholdning;". mb_convert_encoding('Værdi', 'ISO-8859-1', 'UTF-8'));
+				fwrite($csvfile,";Beholdning;". 'Værdi');
 			}
 			print "</tr>\n";
 			fwrite($csvfile,"\r\n");
 		}
 	}
 	$tt_kobt=$tt_solgt=$tt_regul=$tt_k_pris=$tt_s_pris=$tt_moms=$tt_kost=$tt_dkBi=$tt_stockvalue=0;
-	$beskrivelse=$enhed=$varenr=$varenr_alias=$beskrivelse_alias=array();
+	// 20260714 SZ - renamed from $varenr to $v_varenr: this per-row array was shadowing the function's
+	// own $varenr parameter (the search-filter string, e.g. from the "Varenr." search box). Once shadowed,
+	// every $varenr reference below this point silently became the FULL per-row array instead of the
+	// original search string - harmless everywhere it was only ever printed, but $vrBaseUrl further down
+	// (built from the same now-clobbered $varenr) feeds it through http_build_query(), which serializes
+	// an array as varenr[0]=...&varenr[1]=...&varenr[2]=... for every single row in the report. On a
+	// large report this produces a pagination link with thousands of query params - long enough to trip
+	// the server's URI-length limit (414 Request-URI Too Long). Matches the existing $v_id/$v_gr/$v_navn/
+	// $v_kostpris per-row naming convention already used elsewhere in this same function.
+	$beskrivelse=$enhed=$v_varenr=$varenr_alias=$beskrivelse_alias=array();
 	for ($x=0;$x<count($v_id);$x++) {
 		$beholdning[$x]=0;
 	$qtxt="select * from varer where id='$v_id[$x]'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$varenr[$x]=$r['varenr'];
+	$v_varenr[$x]=$r['varenr'];
 	$varenr_alias[$x]=$r['varenr_alias'];
 	$enhed[$x]=$r['enhed'];
 	$beskrivelse[$x]=$r['beskrivelse'];
@@ -743,29 +901,36 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			}
 		}
 		if ($detaljer) {
+			// 20260710 SZ - capture this item's whole Køb/Salg/Lagerreguleret block so it can be skipped
+			// when outside the current Grid Framework page window (pagination here is per item, not per
+			// transaction line - see the pagination vars computed near the top of this function). The
+			// paired fwrite() calls throughout this block write straight to the CSV file handle, which
+			// ob_start() does not intercept, so CSV export still always contains every item regardless
+			// of page.
+			if ($vrGridMode) ob_start();
 			print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
-			print "<tr><td colspan=\"5\"><b>$varenr[$x] $beskrivelse[$x]</b></td></tr>\n";
+			print "<tr><td colspan=\"5\"><b>$v_varenr[$x] $beskrivelse[$x]</b></td></tr>\n";
 			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
 				print "<tr><td colspan=\"5\"><b>Alias: $varenr_alias[$x] $beskrivelse_alias[$x]</b></td></tr>\n";
 			}
-			fwrite($csvfile,";;;;\"$varenr[$x] ".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
+			fwrite($csvfile,";;;;\"$v_varenr[$x] ".$beskrivelse[$x]."\"\r\n");
 			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
-				fwrite($csvfile,";;;;\"Alias: $varenr_alias[$x] ".mb_convert_encoding($beskrivelse_alias[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
+				fwrite($csvfile,";;;;\"Alias: $varenr_alias[$x] ".$beskrivelse_alias[$x]."\"\r\n");
 			}
 #			if ($enhed[$x]) print "<tr><td colspan=\"3\">$enhed[$x]</td></tr>\n";
 #			print "<tr><td colspan=\"3\"><b>$beskrivelse[$x]</b></td></tr>\n";
 			print "<tr><td></td></tr>\n";
 			if (!$kun_salg) {
-				print "<tr>";
+				print "<tr" . ($vrDetailMode ? " class='vr-col-title-row'" : "") . ">";
 				print "<td>".findtekst('981|Købsdato', $sprog_id)."</td>";
 				print "<td align='right'>".findtekst('916|Antal', $sprog_id)."</td>";
 				print "<td align='right'>".findtekst('915|Pris', $sprog_id)."</td>";
 				print "<td align='right'>".findtekst('770|Moms', $sprog_id)."</td>";
 				print "<td align='right'>".findtekst('2747|Inkl. moms', $sprog_id)."</td>";
 				print "<td align='right'>".findtekst('107|Ordrer', $sprog_id)."</td></tr>\n";
-			fwrite($csvfile, mb_convert_encoding('Købsdato', 'ISO-8859-1', 'UTF-8') .";Antal;Pris;Moms;Incl. moms;Ordre\r\n");
+			fwrite($csvfile, 'Købsdato' .";Antal;Pris;Moms;Incl. moms;Ordre\r\n");
 				print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 				print "<!-- Line". __line__ ."-->\n";
 				for ($y=0;$y<count($k_antal);$y++) {
@@ -835,7 +1000,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					if ($ko_ant[$y]) {
 						$kostpris[$y]=0;
 						for($z=0;$z<$ko_ant[$y];$z++) {
-							$kostpris[$y]+=$kobs_ordre_pris[$z];
+							$kostpris[$y]+=(float)$kobs_ordre_pris[$z];
 						}
 						$kostpris[$y]/=$ko_ant[$y];
 					} elseif ($vk_kost) $kostpris[$y]=$v_kostpris;
@@ -885,7 +1050,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		if ($t_s_pris && $t_dkBi) $t_dg=$t_dkBi*100/$t_s_pris;
 		else $t_dg=100;
 		if ($detaljer) {
-			print "<tr>";
+			print "<tr" . ($vrDetailMode ? " class='vr-col-title-row'" : "") . ">";
 			print "<td>".findtekst('982|Salgsdato', $sprog_id)."</td>";
 			print "<td align=\"right\">".findtekst('916|Antal', $sprog_id)."</td>";
 			print "<td align=\"right\">".findtekst('915|Pris', $sprog_id)."</td>";
@@ -933,7 +1098,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			fwrite($csvfile, dkdecimal($t_dg,2)."\r\n");
 			if (!$kun_salg) print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 			if (!$afd && !$lev && !$ref && !$kun_salg) {
-			print "<tr><td>".findtekst('2237|Lagerreguleret', $sprog_id)."</td><td align=\"right\">".findtekst('916|Antal', $sprog_id)."</td></tr>\n";
+			print "<tr" . ($vrDetailMode ? " class='vr-col-title-row'" : "") . "><td>".findtekst('2237|Lagerreguleret', $sprog_id)."</td><td align=\"right\">".findtekst('916|Antal', $sprog_id)."</td></tr>\n";
 			fwrite($csvfile, "Lagerreguleret;Antal\r\n");
 			$fd=array_unique($fakturadate); #20160804
 			sort($fd);
@@ -966,6 +1131,10 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				fwrite($csvfile, "Samlet til-/afgang i perioden;".dkdecimal($t_kobt+$t_regul-$t_solgt,2)."\r\n");
 			}
 			}
+			if ($vrGridMode) {
+				$vrItemHtml = ob_get_clean();
+				if ($x >= $vrPageStart && $x < $vrPageEnd) print $vrItemHtml;
+			}
 		} else {
 			if (!$x && $lagertal) {
 				$qtxt="select beskrivelse from grupper where art='VG' and fiscal_year = '$regnaar' and kodenr='".$v_gr[$x]."'";
@@ -973,15 +1142,20 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 				print "<tr bgcolor='$linjebg'><td colspan='1'><b><big>$r[beskrivelse]</big></b></tr>\n";
-				fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8')."\r\n");
+				fwrite($csvfile, $r['beskrivelse']."\r\n");
 			}
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-			print "<tr bgcolor='$linjebg'><td>$varenr[$x]</td>";
+			// 20260710 SZ - capture this item's row so it can be skipped when outside the current Grid
+			// Framework page window (real server-side pagination, matching includes/salgsstat.php); the
+			// paired fwrite() calls below write straight to the CSV file handle, which ob_start() does
+			// not intercept, so the CSV export still always contains every item regardless of page.
+			if ($vrGridMode) ob_start();
+			print "<tr bgcolor='$linjebg'><td>$v_varenr[$x]</td>";
 			print "<td>$varenr_alias[$x]</td>";
 			print "<td>$enhed[$x]</td>";
 			print "<td>$beskrivelse[$x]</td>";
 			print "<td>$beskrivelse_alias[$x]</td>";
-			fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\";\"".mb_convert_encoding($beskrivelse_alias[$x], 'ISO-8859-1', 'UTF-8')."\";");
+			fwrite($csvfile, "\"$v_varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\";");
 			if ($kun_salg) {
 				print "<td align='right'>".dkdecimal($v_kostpris[$x],2)."</td>";
 				fwrite($csvfile, dkdecimal($v_kostpris[$x],2).";");
@@ -1019,7 +1193,15 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				fwrite($csvfile, dkdecimal($t_dg,2).";");
 #				print "<td align='right'>".dkdecimal($t_kobt+$t_regul-$t_solgt,2)."</td>";#20151105
 #				fwrite($csvfile, dkdecimal($t_kobt+$t_regul-$t_solgt,2).";");
-				if ($lagertal && in_array($v_gr[$x],$lagergruppe)) {
+				// 20260710 SZ - was "in_array($v_gr[$x],$lagergruppe)": the column header decides whether
+				// to show Beholdning/Værdi using count($lagergruppe) globally (see above), but this
+				// per-row check used a different, per-item condition - so whenever the report mixed items
+				// from a stock-tracked group and a non-stock-tracked group, some rows printed 2 fewer
+				// cells than the header, throwing every column after Beholdning out of alignment for those
+				// rows. Using the same condition as the header keeps every row's cell count consistent
+				// with it; $beholdning[$x] is already safely 0 for items outside a lagergruppe (see the
+				// per-item lookup above), so this is a correct 0,00 value, not a fabricated one.
+				if ($lagertal && count($lagergruppe)) {
 					print "<td align='right'>".dkdecimal($beholdning[$x],2)."</td>";#20180925
 					fwrite($csvfile, dkdecimal($beholdning[$x],2).";");
 					print "<td align='right'>".dkdecimal($beholdning[$x]*$v_kostpris[$x],2)."</td>";#20180925
@@ -1031,6 +1213,10 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				}
 				print "</tr>\n";
 				fwrite($csvfile, "\r\n");
+			}
+			if ($vrGridMode) {
+				$vrRowHtml = ob_get_clean();
+				if ($x >= $vrPageStart && $x < $vrPageEnd) print $vrRowHtml;
 			}
 
 			if ($lagertal && (!isset($v_gr[$x+1]) || $v_gr[$x]!=$v_gr[$x+1])) {
@@ -1044,7 +1230,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 				print "<tr bgcolor='$linjebg'><td><b>$r[beskrivelse]</b></td>";
-				fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8').";");
+				fwrite($csvfile, $r['beskrivelse'].";");
 				if (!$kun_salg) {
 					print "<td colspan='4'></td>";
 					print "<td align='right'><b>".dkdecimal($g_Ksum[$vg],2)."</b></td>";
@@ -1084,7 +1270,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 						($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 						print "<tr bgcolor='$linjebg'><td colspan='2'><b><big>$r[beskrivelse]</big></b></tr>\n\n";
-						fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8') ."\r\n");
+						fwrite($csvfile, $r['beskrivelse'] ."\r\n");
 					}
 				}
 			}
@@ -1103,13 +1289,19 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		fwrite($csvfile, "-------------\r\n");
 		if ($kun_salg) {
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
+			// 20260710 SZ - added the missing closing </tr> (this row was left open, relying on the
+			// browser to auto-close it once the next <tr> below started) and a trailing blank cell so
+			// this row's cell count (11) matches the "kun salg" column header (Varenr..PåLager, 11 cols) -
+			// there's no running "total på lager" value tracked anywhere to put here, so it stays blank,
+			// same as the other untracked totals below (e.g. Beholdning in the non-kun_salg branch).
 			print "<tr bgcolor='$linjebg'><td Colspan=\"5\"><b>Summeret</b></td>
 			<td align=\"right\">".findtekst('950|Kostpris', $sprog_id)."</td>
 			<td align=\"right\">".findtekst('974|Solgt', $sprog_id)."</td>
 			<td align=\"right\">".findtekst('949|Salgspris', $sprog_id)."</td>
 			<td align=\"right\">DB</td>
-			<td align=\"right\">DG</td>";
-		fwrite($csvfile, "Kostpris;Solgt;Salgspris;DB;DG\r\n");
+			<td align=\"right\">DG</td>
+			<td align=\"right\"></td></tr>";
+		fwrite($csvfile, "Kostpris;Solgt;Salgspris;DB;DG;\r\n");
 		} else {
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 			print "<tr bgcolor='$linjebg'><td Colspan=\"5\"><b>".findtekst('983|Summeret', $sprog_id)."</b></td>
@@ -1122,26 +1314,33 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<td align=\"right\">".findtekst('770|Moms', $sprog_id)."</td>
 			<td align=\"right\">".findtekst('984|Samlet til-/afgang i perioden', $sprog_id)."</td>
 			<td align=\"right\">DB</td>
-			<td align=\"right\">DG</td>
-<!--			<td align=\"right\"></td>  -->
-			<td align=\"right\"></td>";
-			if ($lagertal && $tt_stockvalue) print "<td align=\"right\">".findtekst('2748|Samlet lagerværdi', $sprog_id)."</td>";
+			<td align=\"right\">DG</td>";
+			// 20260710 SZ - unified with the same count($lagergruppe)&&$lagertal condition used by the
+			// column header/data rows above (was $lagertal && $tt_stockvalue, which could disagree with
+			// the header - e.g. if every tracked item happened to have zero stock value - and which,
+			// combined with the unconditional blank cell that used to follow this block regardless, gave
+			// this row 16 cells against the header's 15 whenever the extra columns weren't shown).
+			if ($lagertal && count($lagergruppe)) {
+				print "<td align=\"right\"></td>";
+				print "<td align=\"right\">".findtekst('2748|Samlet lagerværdi', $sprog_id)."</td>";
+			}
 			print "</tr>\n";
-			fwrite($csvfile, "Summeret;;;;;Kostpris;;". mb_convert_encoding('Købspris', 'ISO-8859-1', 'UTF-8') .";;Salgspris;Moms;;DB;DG;;". mb_convert_encoding('Værdi', 'ISO-8859-1', 'UTF-8') ."\r\n");
+			fwrite($csvfile, "Summeret;;;;;Kostpris;;". 'Købspris' .";;Salgspris;Moms;;DB;DG;;". 'Værdi' ."\r\n");
 		}
-		if (!isset($varenr[$x])) $varenr[$x]=$enhed[$x]=$beskrivelse[$x]=$varenr_alias[$x]=$beskrivelse_alias[$x]=NULL;
-		print "<tr><td>$varenr[$x]</td>";
+		if (!isset($v_varenr[$x])) $v_varenr[$x]=$enhed[$x]=$beskrivelse[$x]=$varenr_alias[$x]=$beskrivelse_alias[$x]=NULL;
+		print "<tr><td>$v_varenr[$x]</td>";
 		print "<td>$varenr_alias[$x]</td>";
 		print "<td>$enhed[$x]</td>";
 		print "<td>$beskrivelse[$x]</td>";
 		print "<td>$beskrivelse_alias[$x]</td>";
-		fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\";\"".mb_convert_encoding($beskrivelse_alias[$x], 'ISO-8859-1', 'UTF-8')."\"");
+		fwrite($csvfile, "\"$v_varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\"");
 		if (!$kun_salg) {
 #			print "<td align='right'> <b>".dkdecimal($tt_kobt,2)."</b></td>";
 #			fwrite($csvfile, dkdecimal($tt_kobt,2).";");
+			print "<td align='right'> <b>".dkdecimal($tt_kost,2)."</b></td>";
 			print "<td align='right'><b></b></td>";
 			print "<td align='right'><b></b></td>";
-			fwrite($csvfile,";;");
+			fwrite($csvfile, dkdecimal($tt_kost,2).";;");
 			print "<td align='right'> <b>".dkdecimal($tt_k_pris,2)."</b></td>";
 			fwrite($csvfile, ";". dkdecimal($tt_k_pris,2));
 			print "<td align='right'> <b></b></td>";
@@ -1170,21 +1369,110 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		if (!$kun_salg) {
 #			print "<td align='right'><b>".dkdecimal($tt_kobt+$tt_regul-$tt_solgt,2)."</b></td>";
 #			fwrite($csvfile, dkdecimal($tt_kobt+$tt_regul-$tt_solgt,2).";");
-			print "<td align='right'> <b></b></td>";
-			fwrite($csvfile, ";");
-			if ($lagertal && $tt_stockvalue) {
+			// 20260710 SZ - this pair (Beholdning-placeholder blank + Værdi) was previously split: the
+			// blank printed unconditionally (a 16th cell with NO matching column at all whenever the
+			// header is in its plain 15-column layout) and the Værdi cell gated on $lagertal &&
+			// $tt_stockvalue. Unified both under the same count($lagergruppe)&&$lagertal condition the
+			// header/data rows use, so this row is 15 cells in the plain case and 17 in the
+			// stock-tracked case, matching the header in both.
+			if ($lagertal && count($lagergruppe)) {
+				print "<td align='right'> <b></b></td>";
+				fwrite($csvfile, ";");
 				print "<td align='right'> <b>".dkdecimal($tt_stockvalue,2)."</b></td>";
 				fwrite($csvfile, ";".dkdecimal($tt_stockvalue,2));
 			}
+		} else {
+			// 20260710 SZ - trailing blank cell so this row's count (11) matches the "kun salg" header
+			// and the Summeret label row above it (no running "total på lager" value is tracked).
+			print "<td align='right'> <b></b></td>";
+			fwrite($csvfile, ";");
 		}
 		print "</tr>\n";
 		fwrite($csvfile, "\r\n");
 	}
-	print "</tbody></table>";
+	if ($vrGridMode) {
+		// Close #vrGridTable/#vrGridWrapper opened in the header block, then print the fixed Grid
+		// Framework footer with real (server-side) pagination - same $vrPageStart/$vrPageEnd-driven
+		// print-time filtering as the item loop above, and the same link/markup/CSS technique
+		// includes/salgsstat.php uses for its own #ssPageFooterBar.
+		print "</tbody></table>"; // close #vrGridTable
+		print "</div>\n"; // close #vrGridWrapper
+
+		$vrTxt1 = lcfirst(findtekst('2767|Af', $sprog_id));
+		$vrTxt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+		$vrOffsetFrom = $vrTotalRows ? (($vrPage - 1) * $vrPerPage) + 1 : 0;
+		$vrOffsetTo = min($vrTotalRows, $vrPage * $vrPerPage);
+		$vrBaseUrl = "rapport.php?" . http_build_query(array(
+			'varegruppe' => $varegruppe,
+			'afd' => $afd,
+			'lev' => $lev,
+			'ref' => $ref,
+			'date_from' => $date_from,
+			'date_to' => $date_to,
+			'varenr' => $varenr,
+			'varenavn' => $varenavn,
+			'detaljer' => $detaljer,
+			'kun_salg' => $kun_salg,
+			'lagertal' => $lagertal,
+			'submit' => 'ok',
+		));
+		$vrPrevIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
+		$vrNextIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
+
+		print "<style>
+#vrPageFooterBar { position:fixed; left:0; right:0; bottom:0; width:100%; margin:0; z-index:1000; background-color:$bgcolor; border-top:1px solid #b8bec8; padding:6px 12px; display:flex; align-items:center; justify-content:flex-end; gap:20px; flex-wrap:wrap; box-sizing:border-box; line-height:1; }
+#vrPageFooterBar #vrNavButtons { display:flex; align-items:center; gap:3px; }
+#vrPageFooterBar #vrNavButtons .navbutton { height:20px; min-width:20px; padding:0 4px; display:inline-flex; align-items:center; justify-content:center; background:#f0f0f0; color:#000; border:1px solid #b8bec8; border-radius:4px; text-decoration:none; }
+#vrPageFooterBar #vrNavButtons a.navbutton { cursor:pointer; }
+#vrPageFooterBar #vrNavButtons span.navbutton { opacity:0.5; }
+#vrPageFooterBar #vrNavButtons .navbutton.current { text-decoration:underline; }
+</style>\n";
+		print "<div id='vrPageFooterBar'>";
+		print "<span id='vrPageStatus'>" . ($vrTotalRows ? "$vrOffsetFrom-$vrOffsetTo $vrTxt1 $vrTotalRows" : "0 $vrTxt1 0") . "</span>";
+		print "<span>$vrTxt2 <select id='vrPageSize' onchange=\"window.location.href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=1&vr_per_page=' + this.value;\">";
+		foreach (array(50, 100, 250, 500, 100000) as $vrOpt) {
+			$vrSel = ($vrOpt == $vrPerPage) ? " selected" : "";
+			$vrLabel = ($vrOpt == 100000) ? "Alle" : $vrOpt;
+			print "<option value='$vrOpt'$vrSel>$vrLabel</option>";
+		}
+		print "</select></span>";
+		print "<span id='vrNavButtons'>";
+		if ($vrPage > 1)
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=" . ($vrPage - 1) . "&vr_per_page=$vrPerPage'>$vrPrevIcon</a>";
+		else
+			print "<span class='navbutton'>$vrPrevIcon</span>";
+		$vrPageRange = 2;
+		$vrStartPage = max(1, $vrPage - $vrPageRange);
+		$vrEndPage = min($vrTotalPages, $vrPage + $vrPageRange);
+		if ($vrStartPage > 1) {
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=1&vr_per_page=$vrPerPage'>1</a>";
+			if ($vrStartPage > 2)
+				print "<span>...</span>";
+		}
+		for ($vrP = $vrStartPage; $vrP <= $vrEndPage; $vrP++) {
+			if ($vrP == $vrPage)
+				print "<span class='navbutton current'>$vrP</span>";
+			else
+				print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=$vrP&vr_per_page=$vrPerPage'>$vrP</a>";
+		}
+		if ($vrEndPage < $vrTotalPages) {
+			if ($vrEndPage < $vrTotalPages - 1)
+				print "<span>...</span>";
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=$vrTotalPages&vr_per_page=$vrPerPage'>$vrTotalPages</a>";
+		}
+		if ($vrPage < $vrTotalPages)
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=" . ($vrPage + 1) . "&vr_per_page=$vrPerPage'>$vrNextIcon</a>";
+		else
+			print "<span class='navbutton'>$vrNextIcon</span>";
+		print "</span>";
+		print "</div>\n";
+		print "</div>\n"; // close #vrPageFlex
+	} else {
+		print "</tbody></table>";
+	}
 	fclose($csvfile);
 }
 #############################################################################################################
 
 ?>
 </html>
-

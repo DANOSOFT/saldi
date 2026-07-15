@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-04-08 ---
+// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-05-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -52,6 +52,8 @@
 // 20260326 PHR Added & '$vis_saet' as just POS orders must be listed for most systems
 // 20260326 PHR Removed sum shown bottom left
 // 20260408 PHR Trimming $_POST & made a quickfix for missing or wrong 'tidspkt'
+// 20260509 PHR '$svis_saet' was fetched from 'kodenr' 1. Changed to kodenr 2 and added fiscal_year
+// 20260709 SZ Added Grid Framework sticky header to Kassespor report
 
 ob_start();
 @session_start();
@@ -77,9 +79,9 @@ if ($r && $r['box2']) {
     }
 }
 
-$r = db_fetch_array(db_select("select box12 from grupper where art = 'POS' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
+$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($r && $r['box12'] == 'on') $vis_saet = 1;
-
 
 $status = if_isset($_GET['status']);
 $id = if_isset($_GET['id']);
@@ -180,28 +182,48 @@ if ($r[0]) {
 }
 
 
+if ($menu == 'S') {
+	// Grid Framework header — mirrors Finance -> Reports -> Balance (kontosaldo() in
+	// includes/rapportfunc.php) exactly: html,body{overflow:hidden} + a #ksPageFlex flex-column
+	// wrapper spanning the whole page, so only the actual log-entry ROWS scroll (inside
+	// #ksGridWrapper, opened further below, right before the big data table) — not the whole
+	// browser viewport. The back/title header bar here, the prev/linjeantal/next controls row
+	// (further below), and the column-title/filter rows (inside the data table, via a sticky
+	// <thead>) are all flex:0 0 auto siblings that stay fixed above the scrolling log entries. This
+	// replaces an earlier, simpler position:sticky-in-a-<td> attempt — that only kept a single short
+	// row visible and let the whole page scroll natively, which doesn't match kontosaldo()'s actual
+	// internal-scroll behaviour or keep the column titles in view.
+	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+	print "<div id='ksPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+	print "<td width='10%' align='left'><a href='rapport.php' accesskey=L style=\"text-decoration: none;\">";
+	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px; justify-content: flex-start; padding-left: 3px;' onMouseOver=\"this.style.cursor='pointer'\">";
+	print "$tilbage_icon " . findtekst(30,$sprog_id) . "</button></a></td>";
+	print "<td width='80%' align='center' style='$topStyle'>" . findtekst(455,$sprog_id) . "</td>";
+	print "<td width='10%' align='center' style='$topStyle'>&nbsp;</td>";
+	print "</tr></tbody></table>";
+	print "</div>\n"; // close flex:0 header bar
+}
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=rapport.php  accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "<div id=\"header\">";
+	print "<div class=\"headerbtnLft headLink\"><a href=rapport.php  accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
+	print "<div class=\"headerTxt\">$title</div>";
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu == 'S') {
+	// Header already printed above, before this table opened — see comment there. Wrapped in
+	// flex:0 0 auto (a second fixed sibling below the header bar, above the scrolling grid) so the
+	// prev/linjeantal/next controls row (filled in further below by the same shared code the
+	// old/default branch uses) stays visible while the log entries scroll underneath.
+	print "<div style='flex:0 0 auto;padding:0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
 	print "<center><table width=100% height=5% border=0 cellspacing=0 cellpadding=0><tbody>";
 	print "<tr><td height = 25 align=center valign=top>";
 	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-	print "<tr>";
-
-	print "<td width=10%><a href=rapport.php accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>\n";
-
-	print "<td width=80% align='center' style='$topStyle'>".findtekst(455,$sprog_id)."</td>\n";
-
-	print "<td width=10% align='center' style='$topStyle'><br></td>\n";
-	print "</tr>\n";
 	print "<tr>";
 } else {
 	print "<center><table width=100% height=5% border=0 cellspacing=0 cellpadding=0><tbody>";
@@ -297,6 +319,31 @@ if ($menu=='T') {
 	}
 	print "</tr>\n";
 	print "</tbody></table>";
+} elseif ($menu == 'S') {
+	if (!$linjeantal) $linjeantal=50;
+	$next=udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$summer,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$refs,$linjeantal,$start,'',$borde,$status);
+	if ($start>=$linjeantal) {
+		$tmp=$start-$linjeantal;
+		print "<td><a href='kassespor.php?sort=$sort&start=$tmp'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>\n";
+	} else print  "<td></td>\n";
+	print "<td align=center valign=top style='height:10%;><span title= '".findtekst(1609, $sprog_id)."'><input class=\"inputbox\" type=text style=\"text-align:right;width:30px\" name=\"linjeantal\" value=\"$linjeantal\"></td>\n";
+	$tmp=$start+$linjeantal;
+	if ($next>0) {
+		print "<td align=right><a href='kassespor.php?sort=$sort&start=$tmp'><img src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>\n";
+	} else {
+		print "<td></td>\n";
+	}
+	print "</tr>\n";
+	print "</tbody></table>";
+	// Close the outer <center><table>...<td></tr></tbody></table> opened for the controls-row
+	// wrapper above, then the flex:0 0 auto div around it — this row is a fully self-contained
+	// fixed block, unlike the old/default branch below where this same wrapper stays open all the
+	// way to the end of the file. Then open #ksGridWrapper (flex:1 1 auto, overflow-y:auto) so the
+	// big data table below — including its sticky <thead> — scrolls inside this region instead of
+	// the whole page scrolling natively.
+	print "</td></tr></tbody></table></center>";
+	print "</div>\n"; // close flex:0 controls-row wrapper
+	print "<div id='ksGridWrapper' style='flex:1 1 auto;overflow-y:auto;min-height:0;padding:0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
 } else {
 	if (!$linjeantal) $linjeantal=50;
 	$next=udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$summer,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$refs,$linjeantal,$start,'',$borde,$status);
@@ -321,9 +368,23 @@ if ($menu=='T') {
 	print "";
 }
 
-print "<table cellpadding=1 cellspacing=1 border=0 valign = top class='dataTable' width='100%'>";
+if ($menu == 'S') {
+	// #ksGridTable's <thead> holds TWO rows (column titles, then the search/filter row right below
+	// it) that need to stick together as one fixed unit while the tbody log entries scroll
+	// underneath. Sticky is applied at the <thead> level (not per-<th>, unlike the technique used
+	// for General Ledger's single-row header) because this is one physical <table> — column
+	// alignment between header and data is already guaranteed by the table's own column model, so
+	// the per-<th> workaround (needed there to fix a *separate-table* scrollbar-width misalignment
+	// bug) doesn't apply here. border-collapse:separate avoids the known sticky+border-collapse
+	// cross-browser rendering bug.
+	print "<style>
+#ksGridTable { border-collapse:separate; border-spacing:0; width:100%; }
+#ksGridTable thead { position:sticky; top:0; z-index:10; background-color:$bgcolor; }
+</style>\n";
+}
+print "<table id='ksGridTable' cellpadding=1 cellspacing=1 border=0 valign = top class='dataTable' width='100%'>";
 
-if ($menu=='T') {
+if ($menu=='T' || $menu == 'S') {
 	print "<thead>";
 } else {
 	print "<tbody>";
@@ -433,7 +494,7 @@ print "<th class='text-center'><span title= '".findtekst(1812, $sprog_id)."'><in
 print "<th></th><th width=5% class='text-center'><input class='button blue small' type=submit value=\"OK\" name=\"submit\"></th>\n";
 print "</form></tr>\n";
 
-if ($menu=='T') {
+if ($menu=='T' || $menu == 'S') {
 	print "</thead><tbody>";
 } else {
 	print "";
@@ -441,7 +502,7 @@ if ($menu=='T') {
 
 
 udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$summer,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$refs,$linjeantal,$start,'skriv',$borde,$status);
-if ($menu=='T') {
+if ($menu=='T' || $menu == 'S') {
 	print "</tbody><tfoot>";
 } else {
 	print "<tr><td colspan=20><hr></td></tr>\n";
@@ -527,8 +588,8 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	else $udvaelg=$udvaelg." and";
 	$x=0;
 	$id=array();
-	if ($straksbogfor && $vis_saet) $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
-	else $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
+	if ($vis_saet) $qtxt="select * from ordrer $udvaelg (art = 'PO' or art like 'D%') order by $sort limit 10000";
+	else $qtxt="select * from ordrer $udvaelg (art = 'PO') order by $sort limit 10000";
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$ordrestatus[$x]=$r['status'];
@@ -720,12 +781,10 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 							$dg_percent = 0;
 						}
 						print "<td align=right>" . dkdecimal($dg_percent, 2) . " %</td>\n";
-							
-
-				        } else  {
-						print "<td align=right><br></td>\n";
-						}
-					    /* print "<td></td>"; */
+					} else  {
+					print "<td align=right><br></td>\n";
+					}
+					/* print "<td></td>"; */
 				}
 			}
 		}
@@ -740,6 +799,16 @@ if (!isset ($y)) $y = NULL;
 if ($menu=='T') {
 	print "</tfoor></table></div>";
 	include_once '../includes/topmenu/footer.php';
+} elseif ($menu == 'S') {
+	// Close the data <tfoot>/<table> (opened above), then #ksGridWrapper (opened right after the
+	// controls row), then #ksPageFlex (opened at the very top of the S-mode header block). The
+	// controls-row wrapper's own <center><table>...<td></tr></tbody></table> was already closed
+	// right after that row printed — see the comment there — so none of that needs closing here.
+	print "</tfoot></table>";
+	print "</div>"; // close #ksGridWrapper
+	print "</div>"; // close #ksPageFlex
+	include_once '../includes/oldDesign/footer.php';
+	print "</body></html>";
 } else {
 	print "
 	</tbody>

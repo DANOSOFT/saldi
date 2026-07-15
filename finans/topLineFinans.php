@@ -12,7 +12,7 @@
 
 	print "<tr><td height = '25' align = 'center' valign = 'top'>";
 	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>"; # Tabel 1.1 ->
-	
+
 	# Dont show close on sidebar
 	if ($menu !== "S") {
 		print "<td width=5% style=$buttonStyle>
@@ -20,35 +20,52 @@
 			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			Luk</button></a></td>";
 	}
-
-	print "<td width=75% style='$topStyle' align=left><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
-
-		if ($valg=="Kladdeliste") {
-			print "<td width = '200px' align=center id='back-btn'>
-				<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_kladdeliste ".findtekst('639|Kladdeliste', $sprog_id)."
-				</button></td>";
-		} else {
-			print "<td width = '200px' align=center id='back-btn'>
-				<a href='kladdeliste.php?returside=$returside'>
-				<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_kladdeliste ".findtekst('639|Kladdeliste', $sprog_id)."
-				</button></a></td>";
-		}
-
-	print "</tbody></table></td>\n"; # <- Tabel 1.1.1
-
+	?>
+		<td width='100%' style='<?php echo $topStyle ?>' align=left>
+			<div style='display:flex; align-items:center;'>
+				<div style='width: 200px; padding: 2px;' align=center id='back-btn'>
+					<?php
+					if ($valg=="Kladdeliste") {
+						print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
+							$icon_kladdeliste ".findtekst('639|Kladdeliste', $sprog_id)."
+							</button>";
+					} else {
+						print "<a href='kladdeliste.php?returside=$returside'>
+							<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
+							$icon_kladdeliste ".findtekst('639|Kladdeliste', $sprog_id)."
+							</button></a>";
+					}
+					?>
+				</div>
+				<style>
+					.auth-status-icon {
+						display: inline-flex;
+						align-items: center;
+						gap: 4px;
+						margin-left: auto;
+						padding: 6px;
+						color: white;
+					}
+					.auth-status-icon img {
+						width: 16px;
+						height: 16px;
+					}
+				</style>
+				<?php include(__DIR__ . '/../bank_integration/includes/auth_check_icon.php'); ?>
+			</div>
+		</td>
+	<?php
 	print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
 	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print $help_icon;
 	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
-	
+
 	if ($valg=="Kladdeliste") {
 		print "<td id='create-new' width=5% style='$buttonStyle'>
 			<a href='kassekladde.php?returside=kladdeliste.php&tjek=-1' accesskey='N'>
 			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 				$add_icon ".
-				findtekst('39|Ny', $sprog_id)." 
+				findtekst('39|Ny', $sprog_id)."
 			</button></a></td>";
 	}
 

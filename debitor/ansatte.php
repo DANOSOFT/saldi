@@ -55,7 +55,7 @@ if ($_POST){
  	$postnr=addslashes(trim($_POST['postnr']));
  	$bynavn=addslashes(trim($_POST['bynavn']));
  	$tlf=addslashes(trim($_POST['tlf']));
- 	$fax=addslashes(trim($_POST['fax']));
+ 	$mobile=addslashes(trim($_POST['mobile']));
  	$mobil=addslashes(trim($_POST['mobil']));
  	$email=addslashes(trim($_POST['email']));
  	$cprnr=addslashes(trim($_POST['cprnr']));
@@ -169,13 +169,13 @@ if ($_POST){
 
 			if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
 			if (($id==0)&&($navn)){
-				$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, fax, mobil, email, cprnr, notes, lukket, posnr) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$fax', '$mobil', '$email', '$cprnr', '$notes', '','$posnr')",__FILE__ . " linje " . __LINE__);
+				$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, mobile, mobil, email, cprnr, notes, lukket, posnr) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$mobile', '$mobil', '$email', '$cprnr', '$notes', '','$posnr')",__FILE__ . " linje " . __LINE__);
 				$query = db_select("select id from ansatte where konto_id = '$konto_id' and navn='$navn' order by id desc",__FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($query);
 				$id = $row['id'];
 			}
 			elseif ($id > 0){
-				db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', fax = '$fax', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '', posnr = '$posnr' where id = '$id'",__FILE__ . " linje " . __LINE__);
+				db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', mobile = '$mobile', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '', posnr = '$posnr' where id = '$id'",__FILE__ . " linje " . __LINE__);
 			}
 
 			//select navn from ansatte where konto_id and posnr = 1;
@@ -285,7 +285,7 @@ if ($id > 0){
  	$bynavn=htmlentities($row['bynavn'],ENT_COMPAT,$charset);
  	$email=htmlentities($row['email'],ENT_COMPAT,$charset);
  	$tlf=htmlentities($row['tlf'],ENT_COMPAT,$charset);
- 	$fax=htmlentities($row['fax'],ENT_COMPAT,$charset);
+ 	$mobile=htmlentities($row['mobile'],ENT_COMPAT,$charset);
  	$mobil=htmlentities($row['mobil'],ENT_COMPAT,$charset);
  	$cprnr=htmlentities($row['cprnr'],ENT_COMPAT,$charset);
  	$notes=htmlentities($row['notes'],ENT_COMPAT,$charset);
@@ -319,7 +319,7 @@ print "<td><br></td>";
 print "<td>".findtekst('401|Mobil', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=mobil value=\"$mobil\"></td></tr>";
 print "<tr><td>".findtekst('654|Lokalnr.', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\"></td>";
 print "<td><br></td>";
-print "<td>".findtekst('655|Lokal fax', $sprog_id)."</td><td><br></td><td><input type=text class=\"inputbox\" size=10 name=fax value=\"$fax\"></td></tr>";
+print "<td>".findtekst('655|Lokal mobil', $sprog_id)."</td><td><br></td><td><input type=text class=\"inputbox\" size=10 name=mobile value=\"$mobile\"></td></tr>";
 print "<td><br></td>";
 print "<tr><td valign=top>".findtekst('659|Bemærkning', $sprog_id)."</td><td colspan=7><textarea class=\"inputbox\" name=\"notes\" rows=\"3\" cols=\"85\">$notes</textarea></td></tr>";
 print "<tr><td><br></td></tr>";
@@ -436,7 +436,7 @@ if ($menu == 'T') {
     $r = db_fetch_array(db_select("SELECT box7 FROM grupper WHERE art = 'DIV' AND kodenr = '2'", __FILE__ . " linje " . __LINE__));
     $jobkort = $r['box7'];
     $tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id);
-    $buttonText = findtekst('38|Stillingsliste', $sprog_id);
+    $buttonText = findtekst('38|Opgaveliste', $sprog_id);
     if ($jobkort) {
         print "<td width='10%' title='$tekst'>
                 <a href='jobliste.php?konto_id=$konto_id&returside=../debitor/ansatte.php?konto_id=$konto_id'
