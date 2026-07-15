@@ -1623,9 +1623,9 @@ if (!function_exists('formularprint')) {
 						4 => "$fakturanr-fakt-$kontonr-$dato",
 						5 => "$fakturanr-kn-$kontonr-$dato",
 						9 => "$ordrenr-plukliste-$kontonr-$dato",
-						12 => "creditorSuggestion$ordrenr",
-						13 => "creditorOrder$ordrenr",
-						14 => "creditorInvoice$ordrenr"
+						12 => "$ordrenr-creditorSuggestion-$kontonr-$dato",
+						13 => "$ordrenr-creditorOrder-$kontonr-$dato",
+						14 => "$ordrenr-creditorInvoice-$kontonr-$dato"
 					];
 				}
 
