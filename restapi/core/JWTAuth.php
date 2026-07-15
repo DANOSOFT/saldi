@@ -49,7 +49,8 @@ class JWTAuth
     }
     
     /**
-     * Get tenant database from JWT token or X-Tenant-ID header
+     * Get the account database using the JWT account ID.
+     * `tenant_id` and X-Tenant-ID are retained as legacy external names for regnskab.id.
      * Priority: 1) JWT token tenant_id, 2) X-Tenant-ID header
      * 
      * @return string|false Database name or false if not found
@@ -58,7 +59,7 @@ class JWTAuth
     {
         $tenant_id = null;
         
-        // First, try to get tenant_id from JWT token (if database was specified during login)
+        // First, get the account ID from the JWT's legacy tenant_id claim
         $payload = self::validateToken();
         if ($payload && isset($payload['tenant_id'])) {
             $tenant_id = (int)$payload['tenant_id'];
@@ -97,4 +98,3 @@ class JWTAuth
         return false;
     }
 }
-

@@ -62,7 +62,7 @@ abstract class BaseEndpoint
             return $this->db;
         }
         
-        // Try JWT tenant database
+        // Try the account database identified by the JWT tenant_id claim
         try {
             $tenantDb = JWTAuth::getTenantDatabase();
             if ($tenantDb) {
@@ -223,14 +223,14 @@ abstract class BaseEndpoint
             $this->userId = $payload['user_id'];
             $this->username = $payload['username'];
             
-            // Get tenant database from JWT token or X-Tenant-ID header
+            // Get the account database from the JWT or legacy X-Tenant-ID header
             $this->db = JWTAuth::getTenantDatabase();
             if (!$this->db) {
-                $this->sendResponse(false, null, 'Tenant database not found. Set X-Tenant-ID header.', 400);
+                $this->sendResponse(false, null, 'Account database not found. Login again or set the legacy X-Tenant-ID header to the numeric account ID.', 400);
                 return false;
             }
             
-            // Connect to tenant database (same as legacy access_check did)
+            // Connect to the selected account database
             global $sqhost, $squser, $sqpass;
             $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
             if (!$conn) {
@@ -243,7 +243,7 @@ abstract class BaseEndpoint
         }
 
         // No valid authentication provided
-        $this->sendResponse(false, null, 'Valid Bearer token required. Login via POST /auth/login with username, password and account_name.', 401);
+        $this->sendResponse(false, null, 'Valid Bearer token required. Login via POST /auth/login.php with username, password and account_name.', 401);
         return false;
     }
 
