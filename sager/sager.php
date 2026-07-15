@@ -610,8 +610,8 @@ function sagsliste() {
 	$sqlsort=urldecode($sort);
 	
 	$limitarray=array('500','1000','2500','5000','10000','NULL');
-	$limitnavn=array('500','1000','2500','5000','10000','Alle');
-	
+	$limitnavn=array('500','1000','2500','5000','10000',findtekst('2498|Alle', $sprog_id));
+
 	($sag_limit)?$limit=$sag_limit:$limit='500';
 	
 	//if ($vis=='ordrebekraeftelse') $where="where status ='Ordrebekræftelse'"; 
@@ -981,8 +981,8 @@ function sagsliste() {
 					<td><p><b>".findtekst('2793|Ansvarlig', $sprog_id).":</b></p></td>
 					<td><p>$sag_ansvarlig[$x]&nbsp;</p></td>
 					<td width=\"70\"><p><b>".findtekst('2129|Indtastet', $sprog_id).":</b></p></td>
-					<td><p>d.$dato[$x] kl. $tid[$x]</p></td>
-					<td width=\"25\"><p><b>Af:</b></p></td>
+					<td><p>".findtekst('2882|d.', $sprog_id)."$dato[$x] ".findtekst('2883|kl.', $sprog_id)." $tid[$x]</p></td>
+					<td width=\"25\"><p><b>".findtekst('638|Af', $sprog_id).":</b></p></td>
 					<td><p>$oprettet_af[$x]</p></td>
 				</tr>
 			</table>
@@ -1454,7 +1454,7 @@ function vis_sag() {
 		$ot_tidspkt[$x]=date("H:i",(int)$r['datotid']);
 		$ot_ref[$x]=$r['ref'];
 		$ot_status[$x]=$r['status'];
-		if ($ot_status[$x] == '0') $otstatus[$x] = "Tilbud";
+		if ($ot_status[$x] == '0') $otstatus[$x] = findtekst('812|Tilbud', $sprog_id);
 		$x++;
 	}
 	
@@ -1477,7 +1477,7 @@ function vis_sag() {
 		//if ($ordrer_status[$x] == '0') $opgstatus[$x] = "Tilbud";
 		//if ($ordrer_status[$x] == '1') $opgstatus[$x] = "Ordrebekræftelse";
 		//if ($ordrer_status[$x] == '2') $opgstatus[$x] = "Levering";
-		if ($faktura_status[$x] >= '3') $faktstatus[$x] = "Faktura";
+		if ($faktura_status[$x] >= '3') $faktstatus[$x] = findtekst('643|Faktura', $sprog_id);
 		$x++;
 	}
 	
@@ -1499,7 +1499,7 @@ function vis_sag() {
 		//if ($ordrer_status[$x] == '0') $opgstatus[$x] = "Tilbud";
 		//if ($ordrer_status[$x] == '1') $opgstatus[$x] = "Ordrebekræftelse";
 		//if ($ordrer_status[$x] == '2') $opgstatus[$x] = "Levering";
-		if ($kreditnota_status[$x] >= '3') $kreditnotastatus[$x] = "Kreditnota";
+		if ($kreditnota_status[$x] >= '3') $kreditnotastatus[$x] = findtekst('577|Kreditnota', $sprog_id);
 		$x++;
 	}
 	
@@ -1962,7 +1962,7 @@ function vis_sag() {
 					
 	print "<table border=\"0\" cellspacing=\"0\" class=\"tableSagerBorder\" style=\"width:100%;\">
 						<tr>
-							<td><a class=\"button gray small\" title=\"".findtekst('2914|klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
+							<td><a class=\"button gray small\" title=\"".findtekst('2914|Klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
 						</tr>
 					</table>";
 					
@@ -1983,7 +1983,7 @@ function vis_sag() {
 				</tbody>
 				<tbody>
 					<tr>
-						<td colspan=\"3\"><a class=\"button gray small\" title=\"".findtekst('2914|klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
+						<td colspan=\"3\"><a class=\"button gray small\" title=\"".findtekst('2914|Klik her for at se den samlede akkordliste på sagen', $sprog_id)."!\" href=\"sager.php?funktion=akkordliste&amp;sag_id=$id\">".findtekst('2867|Vis akkordlister', $sprog_id)."</a></td>
 					</tr>
 				</tbody>
 			</table>
@@ -2493,7 +2493,7 @@ function ret_opgave($sag_id) {
 			if($opgave_id) {
 			print "<div class=\"row\">
 					<div class=\"left\">".findtekst('65|Oprettet', $sprog_id).":</div>
-					<div class=\"right\">d.$opgave_dato kl. $opgave_tid</div>
+					<div class=\"right\">".findtekst('2882|d.', $sprog_id)."$opgave_dato ".findtekst('2883|kl.', $sprog_id)." $opgave_tid</div>
 					<div class=\"clear\"></div>
 			</div>
 			<div class=\"row\">
@@ -2790,7 +2790,7 @@ function ret_sag() {
  	 	 	 	if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'",__FILE__ . " linje " . __LINE__);
  	 	 	 	elseif (($y=="-")&&($ans_id[$x])){db_modify("delete from ansatte 	where id = '$ans_id[$x]'",__FILE__ . " linje " . __LINE__);}
  	 	 	 	else {
-					$alerttekst=findtekst(352,$sprog_id);
+					$alerttekst=findtekst('352|Hint! Du skal sætte et - (minus) som pos.-nr. for at slette en kontaktperson',$sprog_id);
 					print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
 				}
  	 	 	}
@@ -3075,7 +3075,7 @@ function ret_sag() {
 	<div style=\"float:left; width:828px;\">
 		<h3>".findtekst('2892|Planlægningsinformation', $sprog_id).":</h3>
 		<div class=\"contentA\">
-			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>".findtekst('2886|Her tastes den planlagte start- og slut dato for sagen, som vises under planlægning', $sprog_id)."</i></p></div>
+			<div style=\"float:left; padding:5px 0px 0px 7px;\"><p><i>".findtekst('3353|Her tastes den planlagte start- og slutdato for sagen, som vises under planlægning', $sprog_id)."</i></p></div>
 		</div><!-- end of contentA -->
 	</div><!-- end of full container -->
 	<div class=\"clear\"></div>
@@ -3341,14 +3341,14 @@ print "<hr>
 			print "<div class=\"contentA\" style=\"float:right;\">\n";
 			//if (strpos($_SERVER['PHP_SELF'],"kunder.php")) $href="<a href=\"kunder.php?konto_id=$id&amp;ansat_id=0&amp;funktion=ret_kunde_ansat\" class=\"button blue small\">";
 			$href="<a href=\"sager.php?konto_id=$konto_id&amp;sag_id=$id&amp;funktion=sag_kontakt\" class=\"button blue small printDisplayNone\">";
-			print "$href".findtekst(669,$sprog_id)."<!--tekst 669--></a>\n";
+			print "$href".findtekst('669|Ny kontakt',$sprog_id)."<!--tekst 669--></a>\n";
 			print "</div>\n";
 		} else {
 			print "<h3 class=\"printDisplayNone\">".findtekst('2928|Opret kontaktperson her', $sprog_id)."</h3>\n";
 			print "<div class=\"contentA\" style=\"float:left;\">\n";
 			//if (strpos($_SERVER['PHP_SELF'],"kunder.php")) $href="<a href=\"kunder.php?konto_id=$id&amp;ansat_id=0&amp;funktion=ret_kunde_ansat\" class=\"button blue small\">";
 			$href="<a href=\"sager.php?konto_id=$konto_id&amp;sag_id=$id&amp;funktion=sag_kontakt\" class=\"button blue small printDisplayNone\">";
-			print "$href".findtekst(669,$sprog_id)."<!--tekst 669--></a>\n";
+			print "$href".findtekst('669|Ny kontakt',$sprog_id)."<!--tekst 669--></a>\n";
 			print "</div>\n";
 		}
 	
@@ -3573,8 +3573,8 @@ function kopi_ordre() {
 	$sqlsort=urldecode($sort);
 	
 	$limitarray=array('500','1000','2500','5000','10000','NULL');
-	$limitnavn=array('500','1000','2500','5000','10000','Alle');
-	
+	$limitnavn=array('500','1000','2500','5000','10000',findtekst('2498|Alle', $sprog_id));
+
 	($kopi_ordre_limit)?$limit=$kopi_ordre_limit:$limit='500';
 	
 	//if ($vis=='ordrebekraeftelse') $where="where status ='Ordrebekræftelse'"; 
@@ -3811,7 +3811,7 @@ function sag_kontakt() {
 	print "<div class=\"row\"><div class=\"left\">".findtekst('52|E-mail', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"email\" value=\"$email\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "<div class=\"row\"><div class=\"left\">".findtekst('401|Mobil', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"mobil\" value=\"$mobil\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "<div class=\"row\"><div class=\"left\">".findtekst('654|Lokalnr.', $sprog_id)."</div><div class=\"right\"><input class=\"text\" type=\"text\" name=\"tlf\" value=\"$tlf\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-	print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal mobile', $sprog_id)."</div><div class=\"right\"><input type=\"text\" class=\"text\" name=\"mobile\" value=\"$mobile\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+	print "<div class=\"row\"><div class=\"left\">".findtekst('655|Lokal mobil', $sprog_id)."</div><div class=\"right\"><input type=\"text\" class=\"text\" name=\"mobile\" value=\"$mobile\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 	print "</div><!-- end of contentA -->\n";
 	print "</div><!-- end of right container -->\n";
 	print "<div style=\"float:left; width:828px;\">\n";

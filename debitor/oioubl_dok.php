@@ -37,15 +37,16 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/oioublfunk.php");
 include("../includes/var2str.php");
+include("../includes/topline_settings.php");
 
-$id=if_isset($_GET['id']);
-$doktype=if_isset($_GET['doktype']);
-$returside=if_isset($_GET['returside']);
-if ($popup) $returside= "../includes/luk.php";
-else $returside= "ordre.php?id=$id";
+$id        = if_isset($_GET['id']);
+$doktype   = if_isset($_GET['doktype']);
+$returside = if_isset($_GET['returside']);
+if ($popup) $returside = "../includes/luk.php";
+else $returside = "ordre.php?id=$id";
 
 
-$bg="nix";
+$bg = "nix";
 
 ## TIL TEST - START
 #$id = 2;
@@ -53,8 +54,8 @@ $bg="nix";
 ## TIL TEST - END
 
 # Udskriv OIOUBL-faktura
-$printfilnavn="doktype-".$doktype."_dokid-".$id.".xml";
-$testdok=NULL;
+$printfilnavn = "doktype-".$doktype."_dokid-".$id.".xml";
+$testdok      = NULL;
 
 if ( ! file_exists("../temp/$db") ) mkdir("../temp/$db", 0775);
 
@@ -62,12 +63,22 @@ if ( ! file_exists("../temp/$db") ) mkdir("../temp/$db", 0775);
 print "<div align=\"center\">
 <table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
 	<tr><td height = \"25\" align=\"center\" valign=\"top\">
-		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>
+		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>";
+		if ($menu=='S') {
+			print "
+			<td width=\"10%\" align=center><a href=\"$returside\" accesskey=L>
+			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></div></td>
+			<td width=\"80%\" style='$topStyle' align=center>$title</a></div></td>
+			<td width=\"10%\" style='$topStyle' align=center><br></div></td>";
+		} else {
+			print "
 			<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"$returside\" accesskey=L>Luk</a></div></td>
 			<td width=\"80%\" align=center><div class=\"top_bund\">$title</a></div></td>
-			<td width=\"10%\" align=center><div class=\"top_bund\"><br></div></td>
-			 </tr>
-			</tbody></table>
+			<td width=\"10%\" align=center><div class=\"top_bund\"><br></div></td>";
+		}
+		print "
+		</tr>
+		</tbody></table>
 	</td></tr>
  <tr><td valign=\"top\">
 <table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">
@@ -118,12 +129,12 @@ if ($r['box8']) {
 	print "OIOUBL-filen $printfilnavn</a></p>\n\n";
 
 	print "\n<h1>Send OIOUBL-filen</h1>\n\n";
-	print "Du kan bl.a. sende oioubl-filen via <a href=\"http://www.ebconnect.dk\" target=\"blank\">ebConnect</a> eller via <a href=\"http://www.sproom.net\" target=\"blank\">Sproom</a>\n\n";
+	print "Du kan bl.a. sende oioubl-filen via <a href=\"http://www.sproom.net\" target=\"blank\">Sproom</a>\n\n";
 
 	print "\n<h1>Test OIOUBL-filen</h1>\n\n";
 	print "<p>Hvis du vil teste OIOUBL-filen kan validering af filen ske med \n";
-	print "<a href=\"http://www.oioubl.info/validator/\" title=\"ITST - OIOUBL Online Validator\">OIOUBL Validator</a>.</p>\n";
-	print "<p>Hvis OIOUBL-filen ikke validerer s&aring; send filen vedlagt en e-mail til \n";
+	print "<a href=\"https://oioubl-demo.nemhandel.dk/validation\" title=\"ITST - OIOUBL Online Validator\" target=\"blank\">OIOUBL Validator</a>.</p>\n";
+	print "<p>Hvis OIOUBL-filen ikke validerer, s&aring; send filen vedlagt en e-mail til \n";
 	print "<a href=\"mailto:oio@saldi.dk\">oio@saldi.dk</a>, s&aring; vi kan finde &aring;rsagen. P&aring; forh&aring;nd tak.</p>\n\n";  
 
 }

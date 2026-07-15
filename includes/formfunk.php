@@ -613,7 +613,8 @@ if (!function_exists('find_form_tekst')) {
 				if (isset($streng[$x]) && substr($streng[$x], 0, 1) == "$") {
 					$streng[$x] = substr($streng[$x], 1);
 					list($tabel, $variabel) = explode("_", $streng[$x], 2);
-					if (($formular == 3) && ($tabel == "ordre") && (($variabel == "lev_navn") || ($variabel == "lev_addr1") || ($variabel == "lev_addr2") || ($variabel == "lev_postnr") || ($variabel == "lev_bynavn") || ($variabel == "lev_kontakt"))) {
+
+					if (($tabel == "ordre") && (($variabel == "lev_navn") || ($variabel == "lev_addr1") || ($variabel == "lev_addr2") || ($variabel == "lev_postnr") || ($variabel == "lev_bynavn") || ($variabel == "lev_kontakt")) && (($formular == 3) || get_settings_value("showBothAddrExtra", "ordre", "off") === "on")) {
 						$variabel = tjek_lev_addr($variabel, $id);
 					}
 					if ($tabel == "afdeling" && $variabel == "note") {
@@ -904,7 +905,10 @@ if (!function_exists('tjek_lev_addr')) {
 			$tmp = "firmanavn";
 		else
 			$tmp = substr($variabel, 4);
-		$query = db_select("select $tmp from ordrer where id=$id and lev_navn!='' and lev_addr1!='' and lev_postnr!='' and lev_bynavn!=''", __FILE__ . " linje " . __LINE__);
+		// 20260709 Sawaneh SD-562: when "show both" is enabled, only print the delivery address
+		// on the delivery note if the order's Show-delivery-address flag (vis_lev_addr) is on.
+		$vis_lev_cond = (get_settings_value("showBothAddrExtra", "ordre", "off") === "on") ? " and vis_lev_addr='on'" : "";
+		$query = db_select("select $tmp from ordrer where id=$id and lev_navn!='' and lev_addr1!='' and lev_postnr!='' and lev_bynavn!=''$vis_lev_cond", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			return $variabel;
 		} else {

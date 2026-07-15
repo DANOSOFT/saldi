@@ -99,6 +99,7 @@
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260420 NTR SST-578 Fixed QRcode always fetching kasse 2, instead of it's intended kasse
 // 20260605 CL/PHR function labels: fixed Standard label read from grupper (was incorrectly reading from labels table); added hidden editRawHTML to keep raw HTML mode after save
+// 20260709 Sawaneh Added "Show both delivery address and Extra fields on open orders" setting under Order-related options
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -120,8 +121,8 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	print "<tr><td colspan='6'><br></td></tr>\n";
 
 	$max_users = 1;
-	$masterDb = $sqdb;
-	$disabled = "";
+	$masterDb  = $sqdb;
+	$disabled  = "";
 	@session_start();
 	$s_id = session_id();
 	include("../includes/connect.php");
@@ -152,25 +153,25 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	</script>\n";
 
 	if (!$skiftnavn) {
-		$klik = findtekst('149|Klik her for at sortere på telefonnummer.', $sprog_id);
+		$klik  = findtekst('149|Klik her for at sortere på telefonnummer.', $sprog_id);
 		$klik1 = explode(" ", $klik);  #20210710
 		print "<tr><td colspan='6'>".findtekst('1237|Dit regnskab hedder', $sprog_id)." <span style='font-weight:bold'>$regnskab</span>. ";
 		print "$klik1[0] <a href='diverse.php?sektion=kontoindstillinger&amp;skiftnavn=ja'>".findtekst('2157|her', $sprog_id)."</a> ".findtekst('1238|for at ændre navnet.', $sprog_id)."</td></tr>\n";
 		print "<tr><td colspan='6'><hr></td></tr>\n";
 		$tmp = date('U') - 60 * 60 * 24 * 365;
 		$tmp = date("Y-m-d", $tmp);
-		$r = db_fetch_array(db_select("select count(id) as transantal from transaktioner where logdate>='$tmp'", __FILE__ . " linje " . __LINE__));
+		$r   = db_fetch_array(db_select("select count(id) as transantal from transaktioner where logdate>='$tmp'", __FILE__ . " linje " . __LINE__));
 		$transantal = $r['transantal'] * 1;
 		print "<tr><td>".findtekst('1233|Der er foretaget', $sprog_id)." $transantal ".findtekst('1234|posteringer de sidste 12 mdr.', $sprog_id)."</td></tr>";
-		$r = db_fetch_array(db_select("select felt_1,felt_2,felt_3,felt_4 from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
+		$r   = db_fetch_array(db_select("select felt_1,felt_2,felt_3,felt_4 from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
 		print "<tr><td colspan='6'><hr></td></tr>\n";
 		print "<form name='timezone' action='diverse.php?sektion=kontoindstillinger' method='post'>\n";
 		$title = findtekst('1235|Vælg den tidszone der skal gælde for dette regnskab', $sprog_id);
-		$text = findtekst('1236|Tidszone', $sprog_id);
+		$text  = findtekst('1236|Tidszone', $sprog_id);
 		print "<tr><td title='$title'><!--tekst 434-->$text<!--tekst 435--></td>";
 		print "<td title='$title'><select class='inputbox' style='width:200px' name='timezone'>";
 		$tz = fopen("../importfiler/timezones.csv", "r");
-		$x = 0;
+		$x  = 0;
 		while ($line = trim(fgets($tz))) {
 			list($a, $b[$x], $c[$x]) = explode(",", $line);
 			$b[$x] = trim($b[$x], '"');
@@ -225,7 +226,7 @@ function kontoindstillinger($regnskab, $skiftnavn)
 		$tekst1 = findtekst('760|Behold varer', $sprog_id);
 		$tekst2 = findtekst('761|Hvis du afmærker dette felt beholdes dine varer', $sprog_id);
 		print "<tr><tr><td title='$tekst2'>$tekst1</td><td title='$tekst2'><input type='checkbox' name='behold_varer'></td></tr>";
-		$tekst1 = findtekst('762|Er du sikker på at du vil nulstille dit regnskab? Tag en sikkerhedskopi først!', $sprog_id); $nulstil= findtekst('1239|Nulstil', $sprog_id);
+		$tekst1  = findtekst('762|Er du sikker på at du vil nulstille dit regnskab? Tag en sikkerhedskopi først!', $sprog_id); $nulstil = findtekst('1239|Nulstil', $sprog_id);
 		$nulstil = findtekst('1239|Nulstil', $sprog_id);
 		print "<tr><td></td><td><input class='button gray medium' style='width:200px' type='submit' name='nulstil' value='$nulstil' onclick=\"return confirm('$tekst1')\"></td></tr>";
 		print "</form>\n"; # <- 20170731
@@ -236,7 +237,7 @@ function kontoindstillinger($regnskab, $skiftnavn)
 		$tekst2 = findtekst('853|Hvis du sætter flueben i feltet og klikker på `Slet` slettes regnskabet og din konto lukkes. Vi beholder en sikkerhedskopi i 5 år jf. bogføringsloven.', $sprog_id);
 		print "<tr><td title='$tekst2'><b>$tekst1: $regnskab</b></td><td title='$tekst2'><input type='checkbox' name='slet_regnskab'></td></tr>";
 		$tekst1 = findtekst('851|Er du sikker på at du vil slette dit regnskab? Denne handling kan ikke fortrydes! - Tag en sikkerhedskopi først!', $sprog_id); $slet = findtekst('1099|Slet', $sprog_id);
-		$slet = findtekst('1099|Slet', $sprog_id);
+		$slet   = findtekst('1099|Slet', $sprog_id);
 		print "<tr><td></td><td><input class='button gray medium' title='$tekst2' style='width:200px' type='submit' name='slet' value='$slet' onclick=\"return confirm('$tekst1')\"></td></tr>";
 		print "</form>\n"; # <- 20170731
 	} else {
@@ -259,13 +260,13 @@ function provision() {
 
 	$qtxt = "select * from grupper where art = 'DIV' and kodenr = '1'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$id = $r['id'];
+		$id          = $r['id'];
 		$beskrivelse = $r['beskrivelse'];
-		$kodenr = $r['kodenr'];
-		$box1 = $r['box1'];
-		$box2 = $r['box2'];
-		$box3 = $r['box3'];
-		$box4 = $r['box4'];
+		$kodenr      = $r['kodenr'];
+		$box1        = $r['box1'];
+		$box2        = $r['box2'];
+		$box3        = $r['box3'];
+		$box4        = $r['box4'];
 	}
 	if ($box1 == 'ref') $ref = "checked";
 	elseif ($box1 == 'kua') $kua = "checked";
@@ -321,9 +322,9 @@ function kontoplan_io() {
 	$q = db_select("select * from grupper where art = 'RA' order by  kodenr", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$id[$x] = $r['id'];
+		$id[$x]          = $r['id'];
 		$beskrivelse[$x] = $r['beskrivelse'];
-		$kodenr[$x] = $r['kodenr'];
+		$kodenr[$x]      = $r['kodenr'];
 	}
 	$antal_regnskabsaar = $x;
 	print "<tr><td colspan='6'><hr></td></tr>";
@@ -487,14 +488,14 @@ function adresser_io() {
 function sqlquery_io($sqlstreng) {
 	global $bgcolor, $bgcolor5, $popup, $sprog_id;
 
-	$sqlQueryId = if_isset($_POST['sqlQueryId']);
+	$sqlQueryId  = if_isset($_POST['sqlQueryId']);
 	$deleteQuery = if_isset($_POST['deleteQuery']);
 	if ($sqlQueryId) {
 		if ($deleteQuery) {
 			db_modify("delete from queries where id = '$sqlQueryId'", __FILE__ . " linje " . __LINE__);
 		} else {
-			$qtxt = "select query from queries where id = '$sqlQueryId'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$qtxt      = "select query from queries where id = '$sqlQueryId'";
+			$r         = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			$sqlstreng = $r['query'];
 		}
 	}
@@ -515,9 +516,9 @@ function sqlquery_io($sqlstreng) {
 	}
 	if ($sqlstreng = trim($sqlstreng)) {
 		global $db, $bruger_id, $sprog_id;
-		$linje = NULL;
+		$linje   = NULL;
 		$filnavn = "../temp/$db/$bruger_id.csv";
-		$fp = fopen($filnavn, "w");
+		$fp      = fopen($filnavn, "w");
 		#	$sqlstreng=strtolower($sqlstreng);
 		list($del1, $del2) = explode("where", $sqlstreng, 2);
 		$fy_ord = array('brugere', 'grupper');
@@ -589,12 +590,12 @@ function sqlquery_io($sqlstreng) {
 	print "<form name='query' action='diverse.php?sektion=div_io' method='post'>";
 	print "<tr><td></td><td colspan='4'><select name='sqlQueryId' style='width:600px;'>";
 	$qtxt = "select * from queries order by query";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$q    = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		print "<option value='$r[id]'>$r[query]</option>";
 	}
-	$slet = findtekst(1099, $sprog_id);
-	print "</select>&nbsp;<input type='submit' name='query' value='" . findtekst(1078, $sprog_id) . "'>&nbsp;";
+	$slet = findtekst('1099|Slet', $sprog_id);
+	print "</select>&nbsp;<input type='submit' name='query' value='" . findtekst('1078|Hent', $sprog_id) . "'>&nbsp;";
 	print "<input type='submit' name='deleteQuery' value='$slet' onclick=\"return confirm('Slet denne søgning?')\"></td></tr>";
 	print "</form>";
 } # endfunc sqlquery_io
@@ -614,10 +615,10 @@ function jobkort () {
 	$q = db_select("select * from grupper where art = 'JOBKORT' order by kodenr", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$id[$x] = $r['id'];
+		$id[$x]          = $r['id'];
 		$beskrivelse[$x] = $r['beskrivelse'];
-		$kodenr[$x] = $r['kodenr'];
-		$sprogkode[$x] = $r['box1'];
+		$kodenr[$x]      = $r['kodenr'];
+		$sprogkode[$x]   = $r['box1'];
 	}
 	$antal_sprog = $x;
 	print "<form name=diverse action=diverse.php?sektion=sprog method=post>";
@@ -650,31 +651,31 @@ function personlige_valg() {
 	global $menu, $nuance;
 	global $popup, $sprog_id, $topmenu;
 
-	$gl_menu = NULL;
+	$gl_menu  = NULL;
 	$sidemenu = NULL;
 
-	$r = db_fetch_array(db_select("select * from grupper where art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__));
-	$id = $r['id'];
+	$r      = db_fetch_array(db_select("select * from grupper where art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__));
+	$id     = $r['id'];
 	$jsvars = $r['box1'];
 	($r['box2']) ? $popup = 'checked' : $popup = NULL;
 	if ($r['box3'] == 'S') $sidemenu = 'checked';
 	elseif ($r['box3'] == 'T') $topmenu = 'checked';
 	else $gl_menu = 'checked';
 	($r['box4']) ? $bgcolor = $r['box4'] : $bgcolor = NULL;
-	($r['box5']) ? $nuance = $r['box5'] : $nuance = NULL;
+	($r['box5']) ? $nuance  = $r['box5'] : $nuance = NULL;
 
 	$nuancefarver[0] = findtekst('418|Rød', $sprog_id);
-	$nuancekoder[0] = "+00-22-22";
+	$nuancekoder[0]  = "+00-22-22";
 	$nuancefarver[1] = findtekst('419|Grøn', $sprog_id);
-	$nuancekoder[1] = "-22+00-22";
+	$nuancekoder[1]  = "-22+00-22";
 	$nuancefarver[2] = findtekst('420|Blå', $sprog_id);
-	$nuancekoder[2] = "-22-22+00";
+	$nuancekoder[2]  = "-22-22+00";
 	$nuancefarver[3] = findtekst('421|Gul', $sprog_id);
-	$nuancekoder[3] = "+00+00-33";
+	$nuancekoder[3]  = "+00+00-33";
 	$nuancefarver[4] = findtekst('422|Magenta (lyselilla)', $sprog_id);
-	$nuancekoder[4] = "+00-33+00";
+	$nuancekoder[4]  = "+00-33+00";
 	$nuancefarver[5] = findtekst('423|Cyan (lyseblå)', $sprog_id);
-	$nuancekoder[5] = "-33+00+00";
+	$nuancekoder[5]  = "-33+00+00";
 
 	print "<form name=personlige_valg action=diverse.php?sektion=personlige_valg&popup=$popup method=post>";
 	print "<tr><td colspan='6'><hr></td></tr>";
@@ -735,21 +736,21 @@ function div_valg() {
 	$qp_merchant = $qp_md5secret = $qp_agreement_id = $qp_itemGrp = NULL;
 	$payment_days = NULL;
 
-	$q = db_select("select * from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array($q);
-	$id = $r['id'];
+	$q           = db_select("select * from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
+	$r           = db_fetch_array($q);
+	$id          = $r['id'];
 	$beskrivelse = $r['beskrivelse'];
-	$kodenr = $r['kodenr'];
-	$box1 = $r['box1'];
-	$box2 = $r['box2'];
-	$box3 = $r['box3'];
-	$box4 = $r['box4'];
-	$box5 = $r['box5'];
-	$box6 = $r['box6'];
-	$box7 = $r['box7'];
-	$box8 = $r['box8'];
-	$box9 = $r['box9'];
-	$box10 = $r['box10'];
+	$kodenr      = $r['kodenr'];
+	$box1        = $r['box1'];
+	$box2        = $r['box2'];
+	$box3        = $r['box3'];
+	$box4        = $r['box4'];
+	$box5        = $r['box5'];
+	$box6        = $r['box6'];
+	$box7        = $r['box7'];
+	$box8        = $r['box8'];
+	$box9        = $r['box9'];
+	$box10       = $r['box10'];
 	if ($box1 == 'on') $gruppevalg = "checked";
 	if ($box2 == 'on') $kuansvalg = "checked";
 	if ($box3 == 'on') $extra_ansat = "checked";
@@ -794,13 +795,13 @@ function div_valg() {
 		$gid = $r['group_id'] ?: 0;
 		if (!isset($dfm_pickup_addresses[$gid])) {
 			$dfm_pickup_addresses[$gid] = array(
-				'addr' => '', 'name1' => '', 'name2' => '', 
-				'street1' => '', 'street2' => '', 'town' => '', 'zipcode' => '',
+				'addr'       => '', 'name1'       => '', 'name2'       => '', 
+				'street1'    => '', 'street2'     => '', 'town'        => '', 'zipcode' => '',
 				'buttonname' => '',
-				'dfm_id' => '', 'dfm_user' => '', 'dfm_pass' => '',
-				'dfm_agree' => '', 'dfm_hub' => '', 'dfm_ship' => '',
-				'dfm_good' => '', 'dfm_pay' => '', 'dfm_sercode' => '',
-				'dfm_url' => '', 'dfm_gooddes' => ''
+				'dfm_id'     => '', 'dfm_user'    => '', 'dfm_pass'    => '',
+				'dfm_agree'  => '', 'dfm_hub'     => '', 'dfm_ship'    => '',
+				'dfm_good'   => '', 'dfm_pay'     => '', 'dfm_sercode' => '',
+				'dfm_url'    => '', 'dfm_gooddes' => ''
 			);
 		}
 		$field = str_replace('dfm_pickup_', '', $r['var_name']);
@@ -810,8 +811,8 @@ function div_valg() {
 	}
 	
 	// For backwards compatibility, also check old-style storage (single pickup in GLS group)
-	$qtxt = "select var_name,var_value from settings where var_grp='GLS' and var_name like 'dfm_pickup_%'";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$qtxt          = "select var_name,var_value from settings where var_grp='GLS' and var_name like 'dfm_pickup_%'";
+	$q             = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$has_old_style = false;
 	while ($r = db_fetch_array($q)) {
 		$has_old_style = true;
@@ -827,15 +828,15 @@ function div_valg() {
 	// If we have old-style data but no new-style, add it to the array
 	if ($has_old_style && empty($dfm_pickup_addresses) && $dfm_pickup_addr) {
 		$dfm_pickup_addresses[0] = array(
-			'addr' => $dfm_pickup_addr, 'name1' => $dfm_pickup_name1, 'name2' => $dfm_pickup_name2,
-			'street1' => $dfm_pickup_street1, 'street2' => $dfm_pickup_street2, 
-			'town' => $dfm_pickup_town, 'zipcode' => $dfm_pickup_zipcode,
+			'addr'       => $dfm_pickup_addr,    'name1'    => $dfm_pickup_name1,    'name2' => $dfm_pickup_name2,
+			'street1'    => $dfm_pickup_street1, 'street2'  => $dfm_pickup_street2, 
+			'town'       => $dfm_pickup_town,     'zipcode' => $dfm_pickup_zipcode,
 			'buttonname' => ''
 		);
 	}
 	
 	$qtxt = "select var_name,var_value from settings where var_grp='DanskeFragt'";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$q    = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($r['var_name'] == 'dfm_id')             $dfm_id             = $r['var_value'];
 		if ($r['var_name'] == 'dfm_user')           $dfm_user           = $r['var_value'];
@@ -851,39 +852,39 @@ function div_valg() {
 	}
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	($r['var_value']) ? $mySale = "checked='checked'" : $mySale = NULL;
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	($r['var_value']) ? $mySaleTest = "checked='checked'" : $mySaleTest = NULL;
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySaleLabel'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	($r['var_value']) ? $mySaleLabel = "checked='checked'" : $mySaleLabel = NULL;
 
 	$qtxt = "select var_value from settings where var_grp='creditor' and var_name='paperflow'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	($r['var_value']) ? $paperflow = "checked='checked'" : $paperflow = NULL;
 	if ($paperflow) {
-		$qtxt = "select var_value from settings where var_grp='creditor' and var_name='paperflowId'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$paperflowId = $r['var_value'];
-		$qtxt = "select var_value from settings where var_grp='creditor' and var_name='paperflowBearer'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$qtxt            = "select var_value from settings where var_grp='creditor' and var_name='paperflowId'";
+		$r               = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$paperflowId     = $r['var_value'];
+		$qtxt            = "select var_value from settings where var_grp='creditor' and var_name='paperflowBearer'";
+		$r               = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$paperflowBearer = $r['var_value'];
 	}
 	$qtxt = "select * from settings where var_grp = 'quickpay'";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$q    = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($r['var_name'] == 'qp_merchant')     $qp_merchant     = $r['var_value'];
 		if ($r['var_name'] == 'qp_md5secret')    $qp_md5secret    = $r['var_value'];
 		if ($r['var_name'] == 'qp_agreement_id') $qp_agreement_id = $r['var_value'];
 		if ($r['var_name'] == 'qp_itemGrp')      $qp_itemGrp      = $r['var_value'];
 	}
-	$x = 0;
+	$x    = 0;
 	$qtxt = "select * from grupper where art = 'VG' order by kodenr";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$q    = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$itemGrpNo[$x]   = $r['kodenr'];
 		$itemGrpName[$x] = $r['beskrivelse'];
@@ -916,11 +917,11 @@ function div_valg() {
 	print "<td title='".findtekst('185|Betalingslister giver mulighed for at overføre betalinger til bank via ERH (bankernes erhvervsformater). Hvis dette felt er afmærket', $sprog_id)."'>\n";
 	print "<!-- 184 : Brug betalingslister -->";
 	print "<select name='box10' class='inputbox'>\n";
-	if ($box10 == '') print "<option value = ''></option>";
+	if ($box10 == '')  print "<option value = ''></option>";
 	if ($box10 == 'B') print "<option value = 'B'>Begge</option>";
 	if ($box10 == 'D') print "<option value = 'D'>Debitorer</option>";
 	if ($box10 == 'K') print "<option value = 'K'>Kreditorer</option>";
-	if ($box10 != '') print "<option value = ''></option>";
+	if ($box10 != '')  print "<option value = ''></option>";
 	if ($box10 != 'B') print "<option value = 'B'>Begge</option>";
 	if ($box10 != 'D') print "<option value = 'D'>Debitorer</option>";
 	if ($box10 != 'K') print "<option value = 'K'>Kreditorer</option>";
@@ -1037,21 +1038,21 @@ function div_valg() {
 		print "<tr>\n<td title='Number of payment days'>Number of payment days</td>\n";
 		print "<td><input name='paymentDays' class='inputbox' style='width:150px;' type='text' value='$paymentDays'></td>\n</tr>\n";
 	}
-	$txt = findtekst('865|GLS ID', $sprog_id);
+	$txt   = findtekst('865|GLS ID', $sprog_id);
 	$title = findtekst('866|Skriv dit GLS ID hvis du har en konto hoS GLS og vil kunne sende oprette GLS labels fra Saldi.', $sprog_id);
 
 	if ($gls_id) {
 		print "<tr bgcolor='$bgcolor5'>\n<td style='font-weight:bold' title='$title'>$txt</td>\n";
 		print "<td title='$title'><input name='gls_id' class='inputbox' style='width:150px;' type='text' value='$gls_id'></td>\n</tr>\n";
-		$txt = findtekst('867|GLS Brugernavn', $sprog_id);
+		$txt   = findtekst('867|GLS Brugernavn', $sprog_id);
 		$title = findtekst('868|Skriv dit brugernavn hos GLS', $sprog_id);
 		print "<tr>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='gls_user' class='inputbox' style='width:150px;' type='text' value='$gls_user'></td>\n</tr>\n";
-		$txt = findtekst('873|GLS Kontakt ID', $sprog_id);
+		$txt   = findtekst('873|GLS Kontakt ID', $sprog_id);
 		$title = findtekst('874|Skriv dit Kontakt ID hos GLS', $sprog_id);
 		print "<tr>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='gls_ctId' class='inputbox' style='width:150px;' type='text' value='$gls_ctId'></td>\n</tr>\n";
-		$txt = findtekst('869|GLS adgangskode', $sprog_id);
+		$txt   = findtekst('869|GLS adgangskode', $sprog_id);
 		$title = findtekst('870|Skriv din adgangskode hos GLS', $sprog_id);
 		print "<tr>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='gls_pass' class='inputbox' style='width:150px;' type='password' value='$gls_pass'></td>\n</tr>\n";
@@ -1062,66 +1063,66 @@ function div_valg() {
 		print "<input name='gls_ctId' type='hidden' value='$gls_ctId'>\n";
 		print "<input name='gls_pass' type='hidden' value='$gls_pass'>\n";
 	}
-	$txt = findtekst('1020|Danske Fragtmænd aftalenummer', $sprog_id);
+	$txt   = findtekst('1020|Danske Fragtmænd aftalenummer', $sprog_id);
 	$title = findtekst('1021|Dit aftalenummer til Danske Fragtmænd, som ofte er virksomhedens telefonnummer.', $sprog_id);
 	$title.=" ".findtekst('1040|Kontakt Saldi.DK på telefon 46902208 og hør om hvordan.', $sprog_id);
 	print "<!-- 1020 Danske Fragtmænd aftalenummer -->";
 	if ($dfm_agree) {
 		print "<tr bgcolor='$bgcolor5'>\n<td style='font-weight:bold' title='$title'>$txt</td>\n";
 		print "<td title='$title'><input name='dfm_agree' class='inputbox' style='width:150px;' type='text' value='$dfm_agree'></td>\n</tr>\n";
-		$txt = findtekst('1022|Hub', $sprog_id);
+		$txt   = findtekst('1022|Hub', $sprog_id);
 		$title = findtekst('1023|En kode bestående af to bogstaver angiver den hub, som virksomheden benytter hos Danske Fragtmænd.', $sprog_id);
 		print "<!-- 1022 Hub -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_hub' class='inputbox' style='width:150px;' type='text' value='$dfm_hub'></td>\n</tr>\n";
-		$txt = findtekst('3129|API URL', $sprog_id);
+		$txt   = findtekst('3129|API URL', $sprog_id);
 		$title = findtekst('3130|URL for den API-server som skal benyttes til Danske Fragtmænd. Skal starte med https:// og slutte uden skråstreg.', $sprog_id);
 		print "<!-- 3129 API-URL -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_url' class='inputbox' style='width:150px;' type='text' value='$dfm_url'></td>\n</tr>\n";
-		$txt = findtekst('1014|ClientID til API', $sprog_id);
+		$txt   = findtekst('1014|ClientID til API', $sprog_id);
 		$title = findtekst('1015|Skriv det ClientID som benyttestil bestilling af fragt via API hos Danske Fragtmænd. Kontakt Saldi.DK på telefon 4690 2208 og hør om hvordan.', $sprog_id);
 		print "<!-- 1014 ClientID til API -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_id' class='inputbox' style='width:150px;' type='text' value='$dfm_id'></td>\n</tr>\n";
-		$txt = findtekst('1016|API-brugernavn', $sprog_id);
+		$txt   = findtekst('1016|API-brugernavn', $sprog_id);
 		$title = findtekst('1017|Brugernavn til Danske Fragtmænds API-løsning.', $sprog_id);
 		print "<!-- 1016 API-brugernavn -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_user' class='inputbox' style='width:150px;' type='text' value='$dfm_user'></td>\n</tr>\n";
-		$txt = findtekst('1018|API-password', $sprog_id);
+		$txt   = findtekst('1018|API-password', $sprog_id);
 		$title = findtekst('1019|Password til Danske Fragtmænds API-løsning.', $sprog_id);
 		print "<!-- 1018 API-password -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_pass' class='inputbox' style='width:150px;' type='password' value='$dfm_pass'></td>\n</tr>\n";
-		$txt = findtekst('1024|Shippingtype som standard', $sprog_id);
+		$txt   = findtekst('1024|Shippingtype som standard', $sprog_id);
 		$title = findtekst('1025|Den shippingtype der benyttes som standard hos Danske Fragtmænd fx Stykgods, PalleEnhedsForsendelse m.v.', $sprog_id);
 		print "<!-- 1024 Shippingtype som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_ship' class='inputbox' style='width:150px;' type='text' value='$dfm_ship'></td>\n</tr>\n";
-		$txt = findtekst('1026|Godstype som standard', $sprog_id);
+		$txt   = findtekst('1026|Godstype som standard', $sprog_id);
 		$title = findtekst('1027|Den godstype der benyttes som standard hos Danske Fragtmænd fx C10 eller PL1', $sprog_id);
 		print "<!-- 1026 Godstype som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_good' class='inputbox' style='width:150px;' type='text' value='$dfm_good'></td>\n</tr>\n";
-		$txt = findtekst('1028|Betalingmetode som standard', $sprog_id);
+		$txt   = findtekst('1028|Betalingmetode som standard', $sprog_id);
 		$title = findtekst('1029|Den betalingsmetode, der benyttes som standard hos Danske Fragtmænd fx Prepaid', $sprog_id);
 		print "<!-- 1028 Betalingmetode som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_pay' class='inputbox' style='width:150px;' type='text' value='$dfm_pay'></td>\n</tr>\n";
-		$txt = findtekst('1038|Shippingtype som standard', $sprog_id);
+		$txt   = findtekst('1038|Shippingtype som standard', $sprog_id);
 		$title = findtekst('1039|Beskrivelse af gods der angives som standard hos Danske Fragtmænd fx Havemøbler', $sprog_id);
 		print "<!-- 1038 Beskrivelse af gods som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_gooddes' class='inputbox' style='width:150px;' type='text' value='$dfm_gooddes'></td>\n</tr>\n";
-		$txt = findtekst('1058|Afleveringsmetode som standard', $sprog_id);
+		$txt   = findtekst('1058|Afleveringsmetode som standard', $sprog_id);
 		$title = findtekst('1059|Den afleveringsmetode, der skal benyttes som standard fx LUK', $sprog_id);
 		print "<!-- 1058 Leveringsmetode som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_sercode' class='inputbox' style='width:150px;' type='text' value='$dfm_sercode'></td>\n</tr>\n";
 
 		// Multiple pickup addresses section
-		$txt = findtekst('1043|Afhentningsadresse er en anden end hovedadressen', $sprog_id);
+		$txt   = findtekst('1043|Afhentningsadresse er en anden end hovedadressen', $sprog_id);
 		$title = findtekst('1044|Markeres hvis der skal hentes gods fra en anden adresse end hovedadressen.', $sprog_id);
 		print "<!-- 1043 Multiple Afhentningsadresser -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td colspan='2'><strong>- $txt</strong></td>\n</tr>\n";
@@ -1130,21 +1131,21 @@ function div_valg() {
 		print "<div id='dfm_pickup_container'>\n";
 		
 		// Text translations for JS
-		$txt_firmanavn = findtekst('360|Firmanavn', $sprog_id);
-		$title_firmanavn = findtekst('1046|Angiv navnet på det firma eller privatperson, der skal gods hentes fra.', $sprog_id);
-		$txt_ekstra_navn = findtekst('1047|Eventuelt ekstra navn', $sprog_id);
+		$txt_firmanavn     = findtekst( '360|Firmanavn', $sprog_id);
+		$title_firmanavn   = findtekst('1046|Angiv navnet på det firma eller privatperson, der skal gods hentes fra.', $sprog_id);
+		$txt_ekstra_navn   = findtekst('1047|Eventuelt ekstra navn', $sprog_id);
 		$title_ekstra_navn = findtekst('1048|Angiv hvis der er et ekstra navn eller undernavn til afhentningsted fx c/o ...', $sprog_id);
-		$txt_adresse = findtekst('361|Adresse', $sprog_id);
-		$title_adresse = findtekst('1050|Angiv vejnavn, husnummer, etage m.v.', $sprog_id);
-		$txt_ekstra_addr = findtekst('1051|Eventuelt ekstra adresselinje', $sprog_id);
+		$txt_adresse       = findtekst( '361|Adresse', $sprog_id);
+		$title_adresse     = findtekst('1050|Angiv vejnavn, husnummer, etage m.v.', $sprog_id);
+		$txt_ekstra_addr   = findtekst('1051|Eventuelt ekstra adresselinje', $sprog_id);
 		$title_ekstra_addr = findtekst('1052|Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.', $sprog_id);
-		$txt_postnr = findtekst('1053|Postnummer', $sprog_id);
-		$title_postnr = findtekst('1054|Angiv postnummeret for afhentningstedet', $sprog_id);
-		$txt_by = findtekst('1055|By', $sprog_id);
-		$title_by = findtekst('1056|Angiv bynavn eller postdistrikt for afhentningsstedet', $sprog_id);
-		$txt_knap_navn = findtekst('3127|Knap navn', $sprog_id);
-		$title_knap_navn = findtekst('3128|Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.', $sprog_id);
-		$txt_slet = 'Slet';
+		$txt_postnr        = findtekst('1053|Postnummer', $sprog_id);
+		$title_postnr      = findtekst('1054|Angiv postnummeret for afhentningstedet', $sprog_id);
+		$txt_by            = findtekst('1055|By', $sprog_id);
+		$title_by          = findtekst('1056|Angiv bynavn eller postdistrikt for afhentningsstedet', $sprog_id);
+		$txt_knap_navn     = findtekst('3127|Knap navn', $sprog_id);
+		$title_knap_navn   = findtekst('3128|Angiv det navn der skal vises på knappen i ordresiden. Hvis tomt bruges firmanavn eller bynavn.', $sprog_id);
+		$txt_slet          = findtekst('1099|Slet', $sprog_id);
 		
 		// Display existing pickup addresses
 		$pickup_idx = 0;
@@ -1188,16 +1189,16 @@ function div_valg() {
 		
 		// JavaScript for adding/removing pickup addresses
 		print "<script>
-var dfmPickupIdx = $pickup_idx;
+var dfmPickupIdx    = $pickup_idx;
 var dfmPickupLabels = {
-	firmanavn: '" . addslashes($txt_firmanavn) . "',
+	firmanavn:  '" . addslashes($txt_firmanavn)   . "',
 	ekstraNavn: '" . addslashes($txt_ekstra_navn) . "',
-	adresse: '" . addslashes($txt_adresse) . "',
+	adresse:    '" . addslashes($txt_adresse)     . "',
 	ekstraAddr: '" . addslashes($txt_ekstra_addr) . "',
-	postnr: '" . addslashes($txt_postnr) . "',
-	by: '" . addslashes($txt_by) . "',
-	slet: '" . addslashes($txt_slet) . "',
-	knapNavn: '" . addslashes($txt_knap_navn) . "'
+	postnr:     '" . addslashes($txt_postnr)      . "',
+	by:         '" . addslashes($txt_by)          . "',
+	slet:       '" . addslashes($txt_slet)        . "',
+	knapNavn:   '" . addslashes($txt_knap_navn)   . "'
 };
 
 function addDfmPickup() {
@@ -1210,18 +1211,18 @@ function addDfmPickup() {
 	var idx = dfmPickupIdx;
 	
 	// Create hidden inputs and add them directly to the form element
-	var hiddenGroupId = document.createElement('input');
-	hiddenGroupId.type = 'hidden';
-	hiddenGroupId.name = 'dfm_pickup_group_id[' + idx + ']';
+	var hiddenGroupId   = document.createElement('input');
+	hiddenGroupId.type  = 'hidden';
+	hiddenGroupId.name  = 'dfm_pickup_group_id[' + idx + ']';
 	hiddenGroupId.value = 'new_' + idx;
-	hiddenGroupId.id = 'dfm_pickup_group_id_' + idx;
+	hiddenGroupId.id    = 'dfm_pickup_group_id_' + idx;
 	form.appendChild(hiddenGroupId);
 	
-	var hiddenAddr = document.createElement('input');
-	hiddenAddr.type = 'hidden';
-	hiddenAddr.name = 'dfm_pickup_addr[' + idx + ']';
+	var hiddenAddr   = document.createElement('input');
+	hiddenAddr.type  = 'hidden';
+	hiddenAddr.name  = 'dfm_pickup_addr[' + idx + ']';
 	hiddenAddr.value = '1';
-	hiddenAddr.id = 'dfm_pickup_addr_' + idx;
+	hiddenAddr.id    = 'dfm_pickup_addr_' + idx;
 	form.appendChild(hiddenAddr);
 	
 	// Create visual block in container
@@ -1273,36 +1274,36 @@ function removeDfmPickup(idx) {
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>$txt</td>\n";
 		print "<td title='$title'><input name='dfm_agree' class='inputbox' style='width:150px;' type='text' value='$dfm_agree'></td>\n</tr>\n";
 
-		print "<input name='dfm_hub' type='hidden' value='$dfm_hub'>\n";
-		print "<input name='dfm_url' type='hidden' value='$dfm_url'>\n";
-		print "<input name='dfm_id' type='hidden' value='$dfm_id'>\n";
-		print "<input name='dfm_user' type='hidden' value='$dfm_user'>\n";
-		print "<input name='dfm_pass' type='hidden' value='$dfm_pass'>\n";
-		print "<input name='dfm_ship' type='hidden' value='$dfm_ship'>\n";
-		print "<input name='dfm_good' type='hidden' value='$dfm_good'>\n";
-		print "<input name='dfm_pay' type='hidden' value='$dfm_pay'>\n";
+		print "<input name='dfm_hub'     type='hidden' value='$dfm_hub'>\n";
+		print "<input name='dfm_url'     type='hidden' value='$dfm_url'>\n";
+		print "<input name='dfm_id'      type='hidden' value='$dfm_id'>\n";
+		print "<input name='dfm_user'    type='hidden' value='$dfm_user'>\n";
+		print "<input name='dfm_pass'    type='hidden' value='$dfm_pass'>\n";
+		print "<input name='dfm_ship'    type='hidden' value='$dfm_ship'>\n";
+		print "<input name='dfm_good'    type='hidden' value='$dfm_good'>\n";
+		print "<input name='dfm_pay'     type='hidden' value='$dfm_pay'>\n";
 		print "<input name='dfm_gooddes' type='hidden' value='$dfm_gooddes'>\n";
 		print "<input name='dfm_sercode' type='hidden' value='$dfm_sercode'>\n";
 	}
-	$txt =   'Quickpay agreement id';
+	$txt   =   'Quickpay agreement id';
 	$title = 'Aftale id fra Quickpay';
 	print "<!-- xxxx Aftale id fra Quickpay -->";
 	print "<tr bgcolor='$bgcolor5'><td title='$title'>$txt</td><td title='$title'>";
 	print "<input name='qp_agreement_id' class='inputbox' style='width:150px;' type='text' value='$qp_agreement_id'>";
 	print "</td>\n</tr>\n";
 	if ($qp_agreement_id) {
-		$txt =   'Quickpay merhcant';
+		$txt   = 'Quickpay merhcant';
 		$title = 'Forretnings nr fra Quickpay';
 		print "<!-- xxxx Forretnings nr id fra Quickpay -->";
 		print "<tr bgcolor='$bgcolor'><td title='$title'>$txt</td><td title='$title'>";
 		print "<input name='qp_merchant' class='inputbox' style='width:150px;' type='text' value='$qp_merchant'>";
 		print "</td>\n</tr>\n";
-		$txt =   'Quickpay md5 secret';
+		$txt   =   'Quickpay md5 secret';
 		$title = 'Krypteringsnøgle fra Quickpay';
 		print "<!-- xxxx Krypteringsnøgle fra Quickpay -->";
 		print "<tr bgcolor='$bgcolor5'><td title='$title'>$txt</td><td title='$title'>";
 		print "<input name='qp_md5secret' class='inputbox' style='width:150px;' type='text' value='$qp_md5secret'>";
-		$txt =   'Quickpay varegruppe';
+		$txt   =   'Quickpay varegruppe';
 		$title = 'Varegruppe for varer til betaling med Quickpay';
 		print "<!-- xxxx Quickpay varegruppe -->";
 		print "<tr bgcolor='$bgcolor'><td title='$title'>$txt</td><td title='$title'>";
@@ -1322,9 +1323,9 @@ function removeDfmPickup(idx) {
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 	# Guid form flatpay, looks like 9e802837-307b-48c3-9f0e-1b4cac291376
-	$guid = $r ? str_split($r[0], 7)[0] . "-xxxx-xxxx-xxxx-xxxxxxxxxxxx" : "";
+	$guid   = $r ? str_split($r[0], 7)[0] . "-xxxx-xxxx-xxxx-xxxxxxxxxxxx" : "";
 
-	$mtxt = findtekst('2314|Flatpay ID', $sprog_id);
+	$mtxt   = findtekst('2314|Flatpay ID', $sprog_id);
 	$mtitle = findtekst('2315|Dit hemmelige Flatpay ID, klik inputtet for at lave en ny', $sprog_id);
 	print "<tr>\n<td title='$mtitle'><!-- Tekst 2315 -->$mtxt <!-- Tekst 2314 --></td>\n";
 	print "<td title='$mtitle'>
@@ -1336,12 +1337,12 @@ function removeDfmPickup(idx) {
 
 	# API key for vibrant
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='vibrant_auth'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 	# Check if it exsists
 	$APIKEY = $r ? $r[0] : "";
 
-	$mtxt = findtekst('2317|Vibrant API nøjle', $sprog_id);
+	$mtxt   = findtekst('2317|Vibrant API nøjle', $sprog_id);
 	$mtitle = findtekst('2318|API nøjlen til din Vibrant APP', $sprog_id);
 	print "<tr>\n<td title='$mtitle'><!-- Tekst 2318 -->$mtxt <!-- Tekst 2317 --></td>\n";
 	print "<td title='$mtitle'>
@@ -1349,10 +1350,10 @@ function removeDfmPickup(idx) {
   </td>\n</tr>\n";
 
 	# Vibrant login setup
-	$qtxt = "SELECT var_name, var_value FROM settings WHERE var_grp='vibrant_account'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$qtxt   = "SELECT var_name, var_value FROM settings WHERE var_grp='vibrant_account'";
+	$r      = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-	$mtxt = findtekst('2322|Lav et vibrant login', $sprog_id);
+	$mtxt   = findtekst('2322|Lav et vibrant login', $sprog_id);
 	$mtitle = findtekst('2323|Kontoen du anvender til at logge ind på din vibrant terminal med', $sprog_id);
 	print "<tr>\n<td title='$mtitle'><!-- Tekst 2323 -->$mtxt <!-- Tekst 2322 --></td>\n";
 
@@ -1463,14 +1464,14 @@ function removeDfmPickup(idx) {
 	print "<td title='MobilePay'>\n";
 	print "</td></tr>\n";
 
-	$q = db_select("select var_value from settings where var_name = 'client_id' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$client_id = db_fetch_array($q)[0];
-	$q = db_select("select var_value from settings where var_name = 'client_secret' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
+	$q             = db_select("select var_value from settings where var_name = 'client_id' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
+	$client_id     = db_fetch_array($q)[0];
+	$q             = db_select("select var_value from settings where var_name = 'client_secret' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
 	$client_secret = db_fetch_array($q)[0];
-	$q = db_select("select var_value from settings where var_name = 'subscriptionKey' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$subscription = db_fetch_array($q)[0];
-	$q = db_select("select var_value from settings where var_name = 'MSN' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
-	$MSN = db_fetch_array($q)[0];
+	$q             = db_select("select var_value from settings where var_name = 'subscriptionKey' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
+	$subscription  = db_fetch_array($q)[0];
+	$q             = db_select("select var_value from settings where var_name = 'MSN' AND var_grp = 'mobilepay'", __FILE__ . " linje " . __LINE__);
+	$MSN           = db_fetch_array($q)[0];
 
 	print "<tr>\n<td title='MobilePay'>Mobilepay Client ID</td>\n";
 	print "<td title='MobilePay'>\n";
@@ -1507,7 +1508,7 @@ function removeDfmPickup(idx) {
 		print "<td title='MobilePay'>\n";
 		print "</td></tr>\n";
 
-		$query = db_select("SELECT * FROM grupper WHERE art = 'POS' AND kodenr = 1 AND fiscal_year = $regnaar", __FILE__ . " linje " . __LINE__);
+		$query  = db_select("SELECT * FROM grupper WHERE art = 'POS' AND kodenr = 1 AND fiscal_year = $regnaar", __FILE__ . " linje " . __LINE__);
 		$posnum = db_fetch_array($query)["box1"];
 		for ($i = 1; $i <= $posnum; $i++) {
 			$query = db_select("SELECT var_value FROM settings WHERE var_name = 'qrkodeuri' AND pos_id = $i AND var_grp='mobilepay'", __FILE__ . " linje " . __LINE__);
@@ -1621,7 +1622,7 @@ function removeDfmPickup(idx) {
 					curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-					$response = curl_exec($ch);
+					$response    = curl_exec($ch);
 					$status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
 					if ($response === false) {
@@ -1630,9 +1631,9 @@ function removeDfmPickup(idx) {
 						echo "Curl error: " . $error;
 					} else {
 						// Process response
-						echo "Response: " . $response . "\n";
+						echo "Response: "    . $response    . "\n";
 						echo "Status Code: " . $status_code . "\n";
-						$data = json_decode($response, true);
+						$data      = json_decode($response, true);
 						$mobilepay = $data["qrImageUrl"];
 
 						$qtxt = "insert into settings (var_name, var_grp, var_value, var_description, pos_id) values ('qrkodeuri', 'mobilepay', '$mobilepay', 'A QR code URI to access the QR image on vipps server', $i)";
@@ -1661,12 +1662,12 @@ function removeDfmPickup(idx) {
 
 	# API key for copayone
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='copayone_auth'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 	# Check if it exsists
 	$APIKEY = $r ? $r[0] : "";
 
-	$mtxt = findtekst('2108|Copayone nøgle', $sprog_id);
+	$mtxt   = findtekst('2108|Copayone nøgle', $sprog_id);
 	$mtitle = findtekst('2109|Nøglen du har fået fra copayone', $sprog_id);
 	print "<tr bgcolor='#e0e0f0'>\n<td title='$mtitle'><!-- Tekst 2108 -->$mtxt <!-- Tekst 2109 --></td>\n";
 	print "<td title='$mtitle'>
@@ -1772,10 +1773,10 @@ function ordre_valg() {
 
 	$hurtigfakt = $incl_moms_private = $incl_moms_business = $folge_s_tekst = $negativt_lager = $straks_bogf = $vis_nul_lev = $orderNoteEnabled = NULL;
 
-	$r = db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
-	$id = $r['id'];
+	$r           = db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
+	$id          = $r['id'];
 	$beskrivelse = $r['beskrivelse'];
-	$kodenr = $r['kodenr'];
+	$kodenr      = $r['kodenr'];
 	
 	// Store the original grupper data in a separate variable
 	$grupper_data = $r;
@@ -1796,7 +1797,7 @@ function ordre_valg() {
 	if (strstr($grupper_data['box5'], ';')) {
 		list($straks_deb, $straks_kred) = explode(';', $grupper_data['box5']); #20170404
 	} else {
-		$straks_deb = $grupper_data['box5'];
+		$straks_deb  = $grupper_data['box5'];
 		$straks_kred = $grupper_data['box5'];
 	}
 	($straks_deb == 'on') ? $straks_deb = 'checked' : $straks_deb = NULL;
@@ -1820,8 +1821,8 @@ function ordre_valg() {
 
 	$portovarenr = get_settings_value("porto_varnr", "ordre", "");
 	$debitoripad = get_settings_value("debitoripad", "ordre", "off");
-	$showDB = get_settings_value("showDB", "ordre", "");
-	$showDG = get_settings_value("showDG", "ordre", "");
+	$showDB      = get_settings_value("showDB", "ordre", "");
+	$showDG      = get_settings_value("showDG", "ordre", "");
 	$lockPayment = get_settings_value("lockedInvoiceButton", "debitor", "");
 	if($lockPayment === "on"){
 		$lockPayment = "checked";
@@ -1836,14 +1837,15 @@ function ordre_valg() {
 		$debitoripad = "checked";
 	}
 
-	$pluklisteEmail = get_settings_value("pluklisteEmail", "ordre", "");
+	$pluklisteEmail    = get_settings_value("pluklisteEmail", "ordre", "");
 	$ordreAutocomplete = get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id);
 	if ($ordreAutocomplete === "on") {
 		$ordreAutocomplete = "checked";
 	}
-	$gs1parsing = get_settings_value("gs1_parsing", "ordre", "off") === "on" ? "checked" : "";
-	$ourRefStockSwitch = get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" ? "checked" : "";
+	$gs1parsing          = get_settings_value("gs1_parsing", "ordre", "off") === "on" ? "checked" : "";
+	$ourRefStockSwitch   = get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" ? "checked" : "";
 	$stockWarningEnabled = get_settings_value("stockWarningEnabled", "ordre", "off") === "on" ? "checked" : "";
+	$showBothAddrExtra   = get_settings_value("showBothAddrExtra", "ordre", "off") === "on" ? "checked" : "";
 
 	$rabatvarenr = NULL;
 	if ($rabatvareid) {
@@ -1860,7 +1862,7 @@ function ordre_valg() {
 	$kostbeskrivelse[0] = findtekst('2527|Opdater ikke kostpris', $sprog_id);
 	$kostbeskrivelse[1] = findtekst('2528|Gennemsnitspris', $sprog_id);
 	$kostbeskrivelse[2] = findtekst('2529|Genanskaffelsespris', $sprog_id);
-	$saetvareid=$r['box8'];
+	$saetvareid = $r['box8'];
 	if ($saetvareid) {
 		$r = db_fetch_array(db_select("select varenr from varer where id = '$saetvareid'", __FILE__ . " linje " . __LINE__));
 		$saetvarenr = $r['varenr'];
@@ -1873,7 +1875,7 @@ function ordre_valg() {
 	print "<input type=hidden name=id value='$id'>";
 	$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	if($r = db_fetch_array(db_select($qtxt, __FILE__ . "linje " . __LINE__)))
-		print "<tr><td title='Låser fakturere knappen hvis den ikke er betalt'>Lås fakutrer knappen hvis ordren ikke er betalt</td><td><input type='checkbox' class='checkbox' name='lockPayment' $lockPayment><td></tr>";
+		print "<tr><td title='".findtekst('3356|Hvis dette felt afmærkes, låses fakturér-knappen hvis ordren ikke er betalt', $sprog_id)."'>".findtekst('3357|Lås fakturér-knappen, hvis ordren ikke er betalt', $sprog_id)."</td><td><input type='checkbox' class='checkbox' name='lockPayment' $lockPayment><td></tr>";
 
 	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (private kunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatPrivateCustomers $incl_moms_private></td></tr>";
 	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (erhvervskunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatBusinessCustomers $incl_moms_business></td></tr>";
@@ -1918,6 +1920,7 @@ function ordre_valg() {
 	print "<tr><td title=\"Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.\">If 'Our ref's stock is empty choose another</td><td><INPUT title=\"Opdater lager ud fra 'Vores ref.' når feltet ændres\" class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
 	$swT = function_exists('stock_warning_texts') ? stock_warning_texts(isset($sprog_id) ? $sprog_id : null) : array('setting_label' => 'Warn when selling out-of-stock items (popup + reason)', 'setting_title' => 'Show popup and require approval note when an out-of-stock item is added to a POS or Debtor order.');
 	print "<tr><td title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "'>" . $swT['setting_label'] . "</td><td><INPUT title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
+	print "<tr><td title='Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer'>Show both delivery address and Extra fields on open orders</td><td><INPUT title='Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
@@ -1948,9 +1951,9 @@ function variant_valg() {
 
 	// Include external CSS file and set CSS custom properties for theme colors
 	print "<link rel='stylesheet' href='../css/variant-valg.css'>";
-	$primaryColor = $buttonColor ?: '#3b82f6';
+	$primaryColor = $buttonColor      ?: '#3b82f6';
 	$primaryHover = $buttonColorHover ?: '#2563eb';
-	$primaryText = $buttonTxtColor ?: '#ffffff';
+	$primaryText  = $buttonTxtColor   ?: '#ffffff';
 	print "<style>:root { --variant-primary-color: $primaryColor; --variant-primary-hover: $primaryHover; --variant-primary-text: $primaryText; }</style>";
 
 	// JavaScript for toggling variant cards
@@ -1979,7 +1982,7 @@ function variant_valg() {
 
 	// Check for rename mode
 	$rename_var_type = if_isset($_GET['rename_var_type']);
-	$rename_variant = if_isset($_GET['rename_variant']);
+	$rename_variant  = if_isset($_GET['rename_variant']);
 
 	if ($rename_var_type) {
 		$r = db_fetch_array(db_select("select beskrivelse from variant_typer where id=$rename_var_type", __FILE__ . " linje " . __LINE__));
@@ -2045,9 +2048,9 @@ function variant_valg() {
 		$q = db_select("select * from varianter order by beskrivelse", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$variant = array(
-				'id' => $r['id'],
+				'id'          => $r['id'],
 				'beskrivelse' => $r['beskrivelse'],
-				'values' => array()
+				'values'      => array()
 			);
 			$q2 = db_select("select * from variant_typer where variant_id=".$r['id']." order by beskrivelse", __FILE__ . " linje " . __LINE__);
 			while ($r2 = db_fetch_array($q2)) {
@@ -2213,14 +2216,14 @@ function variant_valg() {
 
 function api_valg() {
 	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id, $buttonStyle;
-	$r = db_fetch_array(db_select("select * from grupper where art = 'API' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
-	$id = $r['id'];
-	$api_key = trim($r['box1']);
-	$ip_list = trim($r['box2']);
+	$r          = db_fetch_array(db_select("select * from grupper where art = 'API' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
+	$id         = $r['id'];
+	$api_key    = trim($r['box1']);
+	$ip_list    = trim($r['box2']);
 	$api_bruger = trim($r['box3']);
-	$api_fil = trim($r['box4']);
-	$api_fil2 = trim($r['box5']);
-	$api_fil3 = trim($r['box6']);
+	$api_fil    = trim($r['box4']);
+	$api_fil2   = trim($r['box5']);
+	$api_fil3   = trim($r['box6']);
 
 	$x = 0;
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
@@ -2232,7 +2235,7 @@ function api_valg() {
 		}
 	}
 	if (!$api_key) {
-		$chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		$chars   = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 		$api_key = '';
 		for ($x = 0; $x < 36; $x++) $api_key .= substr($chars, rand(0, strlen($chars) - 1), 1);
 	}
@@ -2323,10 +2326,10 @@ function labels($valg) {
         print "<input type='submit' style='width:200px' accesskey='s' value='".findtekst('1232|Opret', $sprog_id)."' name='createNewLabel'>";
         print "</td></tr></form>";
     } elseif ($valg) {
-        $x = 0;
+        $x          = 0;
         $labelNames = array();
-        $qtxt = "select id, labeltype, labelname from labels order by labelname";
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        $qtxt       = "select id, labeltype, labelname from labels order by labelname";
+        $q          = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         while ($r = db_fetch_array($q)) {
             $labelNames[$x] = $r['labelname'];
             $x++;
@@ -2515,7 +2518,7 @@ Pris $pris<br>
 			print "<div>";
 			for ($i = 1; $i <= 5; $i++) {
 			$textValue = isset($parsedLabel["custom_text_$i"]) ? $parsedLabel["custom_text_$i"] : '';
-			$fontSize = isset($parsedLabel["custom_text_{$i}_size"]) ? $parsedLabel["custom_text_{$i}_size"] : $parsedLabel['font_size'];
+			$fontSize  = isset($parsedLabel["custom_text_{$i}_size"]) ? $parsedLabel["custom_text_{$i}_size"] : $parsedLabel['font_size'];
 			print "<div style='margin-bottom: 10px; border: 1px solid #ccc; padding: 8px;'>";
 			print "<label><strong>Linje $i:</strong></label><br>";
 			print "<input type='text' name='custom_text_$i' value='$textValue' placeholder='Brugerdefineret tekst' style='width:150px; margin-bottom: 5px;'><br>";
@@ -2558,23 +2561,23 @@ Pris $pris<br>
 
 function parseLabelTemplate($labelText) {
     $parsed = array(
-        'cols' => 1,
-        'rows' => 1,
-        'txtlen' => 50,
-        'width' => '38.1',
-        'height' => '21.2',
-        'font_size' => '12',
-        'margin_top' => '7',
-        'margin_left' => '3',
-        'show_varenr' => false,
-        'show_varemrk' => false,
-        'show_beskrivelse' => false,
-        'show_pris' => false,
-        'show_barcode' => false,
-        'varenr_font_size' => '12',
-        'varemrk_font_size' => '12',
+        'cols'                  => 1,
+        'rows'                  => 1,
+        'txtlen'                => 50,
+        'width'                 => '38.1',
+        'height'                => '21.2',
+        'font_size'             => '12',
+        'margin_top'            => '7',
+        'margin_left'           => '3',
+        'show_varenr'           => false,
+        'show_varemrk'          => false,
+        'show_beskrivelse'      => false,
+        'show_pris'             => false,
+        'show_barcode'          => false,
+        'varenr_font_size'      => '12',
+        'varemrk_font_size'     => '12',
         'beskrivelse_font_size' => '12',
-        'pris_font_size' => '12'
+        'pris_font_size'        => '12'
     );
     
     if (empty($labelText)) return $parsed;
@@ -2613,16 +2616,16 @@ function parseLabelTemplate($labelText) {
     }
     
     // Check what fields are shown
-    $parsed['show_varenr'] = strpos($labelText, '$varenr') !== false;
-    $parsed['show_varemrk'] = strpos($labelText, '$varemrk') !== false;
+    $parsed['show_varenr']      = strpos($labelText,  '$varenr')      !== false;
+    $parsed['show_varemrk']     = strpos($labelText,  '$varemrk')     !== false;
     $parsed['show_beskrivelse'] = (strpos($labelText, '$beskrivelse') !== false || strpos($labelText, '$minbeskrivelse') !== false);
-    $parsed['show_pris'] = (strpos($labelText, '$pris') !== false || strpos($labelText, '$minpris') !== false);
-    $parsed['show_barcode'] = strpos($labelText, '$img') !== false;
+    $parsed['show_pris']        = (strpos($labelText, '$pris')        !== false || strpos($labelText, '$minpris')        !== false);
+    $parsed['show_barcode']     = strpos($labelText,  '$img')         !== false;
     
     // Parse individual font sizes for each element
     if (preg_match('/<p>(.*?)<\/p>/s', $labelText, $matches)) {
         $content = $matches[1];
-        $lines = explode('<br>', $content);
+        $lines   = explode('<br>', $content);
         
         foreach ($lines as $line) {
             $line = trim($line);
@@ -2651,8 +2654,8 @@ function parseLabelTemplate($labelText) {
     
     // Extract custom text with individual font sizes
     if (preg_match('/<p>(.*?)<\/p>/s', $labelText, $matches)) {
-        $content = $matches[1];
-        $lines = explode('<br>', $content);
+        $content         = $matches[1];
+        $lines           = explode('<br>', $content);
         $customLineCount = 1;
         foreach ($lines as $line) {
             $line = trim($line);
@@ -2663,10 +2666,10 @@ function parseLabelTemplate($labelText) {
                 
                 // Check if this line has a specific font-size
                 if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>(.*?)<\/span>/i', $line, $spanMatches)) {
-                    $parsed["custom_text_$customLineCount"] = trim(strip_tags($spanMatches[2]));
+                    $parsed["custom_text_$customLineCount"]        = trim(strip_tags($spanMatches[2]));
                     $parsed["custom_text_{$customLineCount}_size"] = $spanMatches[1];
                 } else {
-                    $parsed["custom_text_$customLineCount"] = trim(strip_tags($line));
+                    $parsed["custom_text_$customLineCount"]        = trim(strip_tags($line));
                     $parsed["custom_text_{$customLineCount}_size"] = $parsed['font_size'];
                 }
                 $customLineCount++;
@@ -2680,44 +2683,44 @@ function parseLabelTemplate($labelText) {
 
 function generateLabelTemplate($data) {
     $template = "\$cols={$data['cols']};\n";
-    $template .= "\$rows={$data['rows']};\n";
-    $template .= "\$txtlen={$data['txtlen']};\n";
-    $template .= "<top>\n<style>\n";
-    $template .= "#main {\n";
-    $template .= "width: 100%;\n";
-    $template .= "overflow:hidden;\n";
-    $template .= "margin-top: {$data['margin_top']}mm;\n";
-    $template .= "margin-bottom: 0mm;\n";
-    $template .= "margin-right: 0mm;\n";
-    $template .= "margin-left: {$data['margin_left']}mm;}\n\n";
+    $template.= "\$rows={$data['rows']};\n";
+    $template.= "\$txtlen={$data['txtlen']};\n";
+    $template.= "<top>\n<style>\n";
+    $template.= "#main {\n";
+    $template.= "width: 100%;\n";
+    $template.= "overflow:hidden;\n";
+    $template.= "margin-top: {$data['margin_top']}mm;\n";
+    $template.= "margin-bottom: 0mm;\n";
+    $template.= "margin-right: 0mm;\n";
+    $template.= "margin-left: {$data['margin_left']}mm;}\n\n";
     
-    $template .= "p {\n";
-    $template .= "width: {$data['width']}mm;\n";
-    $template .= "display: inline-block;\n";
-    $template .= "height: {$data['height']}mm;\n";
-    $template .= "padding-bottom:0px;\n";
-    $template .= "margin-top: 0mm;\n";
-    $template .= "margin-bottom: 0mm;\n";
-    $template .= "margin-right: 0mm;\n";
-    $template .= "margin-left: 1mm;\n";
-    $template .= "font-size: {$data['font_size']}px}\n\n";
+    $template.= "p {\n";
+    $template.= "width: {$data['width']}mm;\n";
+    $template.= "display: inline-block;\n";
+    $template.= "height: {$data['height']}mm;\n";
+    $template.= "padding-bottom:0px;\n";
+    $template.= "margin-top: 0mm;\n";
+    $template.= "margin-bottom: 0mm;\n";
+    $template.= "margin-right: 0mm;\n";
+    $template.= "margin-left: 1mm;\n";
+    $template.= "font-size: {$data['font_size']}px}\n\n";
     
     if ($data['show_barcode']) {
-        $template .= "img {\n";
-        $template .= "width: 90%;\n";
-        $template .= "height: 5mm;\n";
-        $template .= "margin-left:-4px}\n";
+        $template.= "img {\n";
+        $template.= "width: 90%;\n";
+        $template.= "height: 5mm;\n";
+        $template.= "margin-left:-4px}\n";
     }
     
-    $template .= "</style>\t\n";
-    $template .= "<div id=\"main\">\n";
-    $template .= "</top>\n\n";
+    $template.= "</style>\t\n";
+    $template.= "<div id=\"main\">\n";
+    $template.= "</top>\n\n";
     
-    $template .= "<p>\n";
+    $template.= "<p>\n";
     
     // Add content based on selections with individual font sizes
     if ($data['show_varenr'] && $data['show_varemrk']) {
-        $varenrSize = $data['varenr_font_size'];
+        $varenrSize  = $data['varenr_font_size'];
         $varemrkSize = $data['varemrk_font_size'];
         if ($varenrSize == $varemrkSize && $varenrSize == $data['font_size']) {
             $template .= "\$varenr / \$varemrk<br>\n";
@@ -2790,25 +2793,25 @@ function prislister()
 
 	$filtyper = $filtypebeskrivelse = $lev_id = $prislister = array();
 	$antal = 0;
-	$q = db_select("select * from grupper where art = 'PL' order by beskrivelse", __FILE__ . " linje " . __LINE__);
+	$q     = db_select("select * from grupper where art = 'PL' order by beskrivelse", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$antal++;
-		$id[$antal] = $r['id'];
+		$id[$antal]          = $r['id'];
 		$beskrivelse[$antal] = $r['beskrivelse'];
-		$lev_id[$antal] = $r['box1'];
-		$prisfil[$antal] = $r['box2'];
-		$opdateret[$antal] = $r['box3'];
-		$aktiv[$antal] = $r['box4'];
-		$rabat[$antal] = $r['box6'];
-		$gruppe[$antal] = $r['box8'];
-		$filtype[$antal] = $r['box9'];
+		$lev_id[$antal]      = $r['box1'];
+		$prisfil[$antal]     = $r['box2'];
+		$opdateret[$antal]   = $r['box3'];
+		$aktiv[$antal]       = $r['box4'];
+		$rabat[$antal]       = $r['box6'];
+		$gruppe[$antal]      = $r['box8'];
+		$filtype[$antal]     = $r['box9'];
 	}
 
 	$vgrpantal = 0;
-	$q = db_select("select * from grupper where art = 'VG' order by kodenr", __FILE__ . " linje " . __LINE__);
+	$q         = db_select("select * from grupper where art = 'VG' order by kodenr", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$vgrpantal++;
-		$vgrp[$vgrpantal] = $r['kodenr'];
+		$vgrp[$vgrpantal]   = $r['kodenr'];
 		$vgbesk[$vgrpantal] = $r['beskrivelse'];
 	}
 
@@ -3036,8 +3039,8 @@ function rykker_valg()
 
 	$box1 = $box2 = $box3 = $box4 = $box5 = $box6 = $box7 = $box8 = $box9 = NULL;
 
-	$r = db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '4'", __FILE__ . " linje " . __LINE__));
-	$id = $r['id'];
+	$r    = db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '4'", __FILE__ . " linje " . __LINE__));
+	$id   = $r['id'];
 	$box1 = $r['box1'];
 	$box2 = $r['box2'];
 	if ($r['box3']) $box3 = $r['box3'] * 1;
@@ -3049,7 +3052,7 @@ function rykker_valg()
 	$box9 = $r['box9']; # Inkasso.
 	if ($box9) {
 		$qtxt = "select kontonr from adresser where id='$box9'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$box9 = $r['kontonr'];
 	}
 	#	$box10=$r['box10'];
@@ -3058,7 +3061,7 @@ function rykker_valg()
 	$q = db_select("select id,brugernavn from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$br_id[$x] = $r['id'];
+		$br_id[$x]   = $r['id'];
 		$br_navn[$x] = $r['brugernavn'];
 		if ($box1 == $br_id[$x]) $box1 = $br_navn[$x];
 	}
@@ -3070,12 +3073,19 @@ function rykker_valg()
 		} else print "<BODY onLoad=\"JavaScript:alert('Varenummer ikke gyldigt')\">";
 	}
 */
+	$help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="20px" fill="#114691"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+
 	print "<form name='diverse action=diverse.php?sektion=rykker_valg' method='post'>\n";
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</b></td></tr>\n";
 	print "<input type='hidden' name=id value='$id'>\n";
 	#Box1 Brugernavn for "rykkeransvarlig - Naar bruger logger ind adviseres hvis der skal rykkes - Hvis navn ikke angives adviseres alle..
 	$title = ""; # HERTIL
-	print "<tr><td title='".findtekst('224|Brugernavn for rykkeransvarlig - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.', $sprog_id)."'>".findtekst('225|Brugernavn', $sprog_id)."</td>\n"; #20210713
+	$txt1  = "<i>".findtekst('3342|Disse indstillinger styrer påmindelser til den rykkeransvarlige om at sende rykkere. Vær opmærksom på at rykkere ikke sendes automatisk af systemet.', $sprog_id)."<i>";
+	$txt2  = "<i>".sprintf(findtekst('3350|Hold musen over %s-ikonerne for uddybende forklaringer', $sprog_id), $help_icon).".<i>";
+	print "<tr><td colspan='6' style='padding:4px 0px 0px 0px;font-size:0.9em;color:#555;'>$txt1</td></tr>\n";
+	print "<tr><td colspan='6' style='padding:0px 0px 12px 0px;font-size:0.9em;color:#555;'>$txt2</td></tr>\n";
+	
+	print "<tr><td title='".findtekst('224|Brugernavn for rykkeransvarlig - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.', $sprog_id)."'>".findtekst('225|Brugernavn', $sprog_id)."$help_icon</td>\n"; #20210713
 	print "<td title='".findtekst('224|Brugernavn for rykkeransvarlig - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.', $sprog_id)."'><select class='inputbox' name='box1' style='width:80px'>\n";
 	if ($box1) print "    <option>$box1</option>\n";
 	print "<option value=''>- ".findtekst('2498|Alle', $sprog_id)." -</option>\n";
@@ -3084,21 +3094,21 @@ function rykker_valg()
 	}
 	print "</select></td></tr>\n";
 	#Box2 Mailadresse for rykkeransvarlig hvis angivet sendes email naar der skal rykkes. (Naar nogen logger ind - uanset hvem)
-	print "<tr><td title='".findtekst('226|Mailadresse for rykkeransvarlig. Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem)', $sprog_id)."'>".findtekst('227|Mailadresse', $sprog_id)."</td>\n";
+	print "<tr><td title='".findtekst('226|Mailadresse for rykkeransvarlig. Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem)', $sprog_id)."'>".findtekst('227|Mailadresse', $sprog_id)."$help_icon</td>\n";
 	print "<td title='".findtekst('226|Mailadresse for rykkeransvarlig. Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem)', $sprog_id)."'><input class='inputbox' type='text' size='30' name='box2' value='$box2'></td></tr>\n"; # 20150625
 	#Box4 Varenummer for rente
 #	print "<tr><td title='".findtekst(230, $sprog_id)."'>".findtekst(231, $sprog_id)."</td><td><input class='inputbox' type=text size=15 name=box4 value='$box4'></td></tr>";
 	#Box3 Rentesats % pr paabegyndt md.
 #	print "<tr><td title='".findtekst('228|Rentesats i % pr. påbegyndt måned', $sprog_id)."'>".findtekst(229, $sprog_id)."</td><td><input class='inputbox' type=text style='text-align:right' size=1 name=box3 value='$box3'> %</td></tr>";
 	#Box5 Dage betalingsfrist skal vaere overskredet foer der rykkes.
-	print "<tr><td title='".findtekst('232|Antal dage betalingsfristen skal være overskredet, før der påmindes om 1. rykker', $sprog_id)."'>".findtekst('233|Frist for rykker 1', $sprog_id)."</td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box5' value='$box5'> ".findtekst('1332|Dage', $sprog_id)."</td></tr>\n";
+	print "<tr><td title='".findtekst('232|Antal dage betalingsfristen skal være overskredet, før der påmindes om 1. rykker', $sprog_id)."'>".findtekst('233|Frist for rykker 1', $sprog_id)."$help_icon</td>\n";
+	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box5' value='$box5'> ".lcfirst(findtekst('1332|Dage', $sprog_id))."</td></tr>\n";
 	#Box6 Dage fra rykker 1 til rykker 2
-	print "<tr><td title='".findtekst('234|Antal dage betalingsfristen for rykker 1 skal være overskredet, før der påmindes om 2. rykker', $sprog_id)."'>".findtekst('235|Frist for rykker 2', $sprog_id)." </td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box6' value='$box6'> ".findtekst('1332|Dage', $sprog_id)."</td></tr>\n";
+	print "<tr><td title='".findtekst('234|Antal dage betalingsfristen for rykker 1 skal være overskredet, før der påmindes om 2. rykker', $sprog_id)."'>".findtekst('235|Frist for rykker 2', $sprog_id)."$help_icon</td>\n";
+	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box6' value='$box6'> ".lcfirst(findtekst('1332|Dage', $sprog_id))."</td></tr>\n";
 	#Box7 Dage fra rykker 2 til rykker 3
-	print "<tr><td title='".findtekst('236|Antal dage betalingsfristen for rykker 2 skal være overskredet, før der påmindes om 3. rykker', $sprog_id)."'>".findtekst('237|Frist for rykker 3', $sprog_id)." </td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box7' value='$box7'> ".findtekst('1332|Dage', $sprog_id)."</td></tr>\n";
+	print "<tr><td title='".findtekst('236|Antal dage betalingsfristen for rykker 2 skal være overskredet, før der påmindes om 3. rykker', $sprog_id)."'>".findtekst('237|Frist for rykker 3', $sprog_id)."$help_icon</td>\n";
+	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box7' value='$box7'> ".lcfirst(findtekst('1332|Dage', $sprog_id))."</td></tr>\n";
 	print "<td colspan='3'>&nbsp;</td>\n";
 	if (!strpos(findtekst('833|Kontonr for inkassoadvokat.', $sprog_id), 'inkasso')) db_modify("delete from tekster where tekst_id='833' and sprog_id='$sprog_id'", __FILE__ . " linje " . __LINE__); #20211019
 	if (!strpos(findtekst('834|Ved at udfylde dette felt med kontonummer for din inkassoadvokat (kreditor)', $sprog_id),'udfylde')) db_modify("delete from tekster where tekst_id='834' and sprog_id='$sprog_id'", __FILE__ . " linje " . __LINE__);
@@ -3106,6 +3116,15 @@ function rykker_valg()
 	print "<td><input class='inputbox' type='text' style='text-align:right;width=20px;' name='box9' value='$box9'></td></tr>\n";
 	print "<td colspan='3'>&nbsp;</td>\n";
 	print "<td align='center'><input class='button green medium' type='submit' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'></td>\n";
+
+	$title = findtekst('3347|Åbner Formularer i ny fane', $sprog_id); #Åbner 'Formularer' i en ny fane
+	$ltxt  = findtekst('573|Formularkort', $sprog_id);
+	$link  = "<a href='formularkort.php?valg=formularer' target='_blank' title='$title'>".lcfirst($ltxt)."</a>";
+	$txt1  = findtekst('3348|Rykkergebyr og rente tilføjes under rykkernes', $sprog_id)." $link."; #Rykkergebyr og rente tilføjes under rykkernes formularkort
+	$txt2  = findtekst('3349|System > Indstillinger > Formularer > vælg Rykker', $sprog_id);       #System > Indstillinger > Formularer > vælg 'Rykker'
+	print "<tr><td colspan='6' style='padding:0px 0px 0px 0px;'>$txt1</td></tr>\n";
+	print "<tr><td colspan='6' style='padding:4px 0px 0px 0px;font-size:0.9em;color:#555;'><i>$txt2<i></td></tr>\n";
+	
 	print "</form>\n";
 } # endfunc rykker_valg
 
@@ -3116,39 +3135,39 @@ function tjekliste() {
 	global $bgcolor5;
 
 	$ret = if_isset($_GET['ret']);
-	$id = array();
-	$x = 0;
-	$q = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' order by fase", __FILE__ . " linje " . __LINE__);
+	$id  = array();
+	$x   = 0;
+	$q   = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '0' order by fase", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
-		$id[$x] = $r['id'];
+		$id[$x]        = $r['id'];
 		$tjekpunkt[$x] = $r['tjekpunkt'];
-		$fase[$x] = $r['fase'] * 1;
+		$fase[$x]      = $r['fase'] * 1;
 		$assign_id[$x] = $r['assign_id'] * 1;
-		$punkt_id[$x] = 0;
+		$punkt_id[$x]  = 0;
 		$gruppe_id[$x] = 0;
-		$liste_id[$x] = $id[$x];
-		$q2 = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '$id[$x]' order by tjekpunkt", __FILE__ . " linje " . __LINE__);
+		$liste_id[$x]  = $id[$x];
+		$q2            = db_select("select * from tjekliste where assign_to = 'sager' and assign_id = '$id[$x]' order by tjekpunkt", __FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 			$x++;
-			$max_gruppe = $x;
-			$id[$x] = $r2['id'];
+			$max_gruppe    = $x;
+			$id[$x]        = $r2['id'];
 			$tjekpunkt[$x] = $r2['tjekpunkt'];
 			$assign_id[$x] = $r2['assign_id'] * 1;
-			$fase[$x] = $fase[$x - 1];
-			$punkt_id[$x] = 0;
+			$fase[$x]      = $fase[$x - 1];
+			$punkt_id[$x]  = 0;
 			$gruppe_id[$x] = $id[$x];
-			$liste_id[$x] = $liste_id[$x - 1];
+			$liste_id[$x]  = $liste_id[$x - 1];
 			$q3 = db_select("select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by tjekpunkt", __FILE__ . " linje " . __LINE__);
 			while ($r3 = db_fetch_array($q3)) {
 				$x++;
-				$id[$x] = $r3['id'];
+				$id[$x]        = $r3['id'];
 				$tjekpunkt[$x] = $r3['tjekpunkt'];
 				$assign_id[$x] = $r3['assign_id'] * 1;
-				$fase[$x] = $fase[$x - 1];
-				$punkt_id[$x] = $id[$x];
+				$fase[$x]      = $fase[$x - 1];
+				$punkt_id[$x]  = $id[$x];
 				$gruppe_id[$x] = $gruppe_id[$x - 1];
-				$liste_id[$x] = $liste_id[$x - 1];
+				$liste_id[$x]  = $liste_id[$x - 1];
 			}
 		}
 	}
@@ -3221,12 +3240,12 @@ function docubizz() {
 	</script>
 
 <?php
-	$q = db_select("select * from grupper where art = 'DocBiz'", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array($q);
-	$id = $r['id'];
-	$ftpsted = $r['box1'];
-	$ftplogin = $r['box2'];
-	$ftpkode = $r['box3'];
+	$q              = db_select("select * from grupper where art = 'DocBiz'", __FILE__ . " linje " . __LINE__);
+	$r              = db_fetch_array($q);
+	$id             = $r['id'];
+	$ftpsted        = $r['box1'];
+	$ftplogin       = $r['box2'];
+	$ftpkode        = $r['box3'];
 	$ftp_dnld_mappe = $r['box4'];
 	$ftp_upld_mappe = $r['box5'];
 
@@ -3261,8 +3280,8 @@ function docubizz() {
 function bilag()
 {
 	global $bgcolor, $bgcolor5, $db, $s_id, $sprog_id;
-	$ftp_bilag_mappe = $ftp_dokument_mappe = $id = $internFTP = null; #20211019
-	$onclick = $internFTP = $internFTP = $google_docs = null;
+	$ftp_bilag_mappe = $ftp_dokument_mappe = $id        = $internFTP   = null; #20211019
+	$onclick         = $internFTP          = $internFTP = $google_docs = null;
 ?>
 	<script Language="JavaScript">
 		<!--
@@ -3279,15 +3298,15 @@ function bilag()
 	</script>
 
 <?php
-	$externFTP = NULL;
+	$externFTP   = NULL;
 	$storageType = if_isset($_POST['storageType']);
 
 	$r = db_fetch_array(db_select("select * from grupper where art = 'bilag'", __FILE__ . " linje " . __LINE__));
 	if ($r) {	 #20211019 This checks whether $r is true before assigning values to the variables ..it prevents Trying to access array offset on value of type bool in..error.
-		$id = $r['id'];
-		$ftpsted = $r['box1'];
+		$id       = $r['id'];
+		$ftpsted  = $r['box1'];
 		$ftplogin = $r['box2'];
-		$ftpkode = '********';
+		$ftpkode  = '********';
 		$ftp_bilag_mappe = $r['box4'];
 		$ftp_dokument_mappe = $r['box5'];
 		if ($r['box6'] == 'on') {
@@ -3295,17 +3314,17 @@ function bilag()
 		} else {
 			$internFTP = NULL;
 			if (!$ftpsted && !$ftplogin) {
-				$ftpsted = NULL;
-				$ftplogin = NULL;
-				$ftp_bilag_mappe = NULL;
+				$ftpsted            = NULL;
+				$ftplogin           = NULL;
+				$ftp_bilag_mappe    = NULL;
 				$ftp_dokument_mappe = NULL;
-				$externFTP = NULL;
+				$externFTP          = NULL;
 			} else $externFTP = 'checked';
 		}
 
 		if ($storageType == 'externFTP') $externFTP = 'checked';
 		if (!isset($sprog_id)) $sprog_id = null;
-		if (!isset($onclick)) $onclick = null;
+		if (!isset($onclick)) $onclick   = null;
 		if (!$ftp_bilag_mappe) $ftp_bilag_mappe = 'bilag';
 		if (!$ftp_dokument_mappe) $ftp_dokument_mappe = 'dokumenter';
 		($r['box7']) ? $google_docs = 'checked' : $google_docs = NULL;
@@ -3368,9 +3387,9 @@ function orediff($diffkto)
 	global $bgcolor;
 	global $bgcolor5;
 
-	$q = db_select("select * from grupper where art = 'OreDif'", __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array($q);
-	$id = $r['id'];
+	$q       = db_select("select * from grupper where art = 'OreDif'", __FILE__ . " linje " . __LINE__);
+	$r       = db_fetch_array($q);
+	$id      = $r['id'];
 	$maxdiff = dkdecimal($r['box1']);
 	if (!$diffkto) $diffkto = $r['box2'];
 
@@ -3394,7 +3413,7 @@ function massefakt() {
 	global $bgcolor;
 	global $bgcolor5;
 
-	$id = $levfrist = 0;
+	$id    = $levfrist    = 0;
 	$batch = $brug_dellev = $brug_mfakt = $folge_s_tekst = $gruppevalg = $kua = $kuansvalg = $ref = $smart = NULL;
 
 	$q = db_select("select * from grupper where art = 'MFAKT' and kodenr = '1'", __FILE__ . " linje " . __LINE__);
@@ -3432,10 +3451,10 @@ function testftp($box1, $box2, $box3, $box4, $box5, $box6)
 		}
 		fclose($fp);
 
-		$tmp = $_SERVER['SERVER_NAME'] . "/";
-		$tmp = str_replace($tmp, '', $box1);
-		$tmp1 = $db . "/";
-		$tmp = str_replace($tmp1, '', $tmp);
+		$tmp      = $_SERVER['SERVER_NAME'] . "/";
+		$tmp      = str_replace($tmp, '', $box1);
+		$tmp1     = $db . "/";
+		$tmp      = str_replace($tmp1, '', $tmp);
 		$kommando = "cd ../temp/$db\n$exec_path/ncftp ftp://" . $box2 . ":" . $box3 . "@" . $tmp . " < ftpscript1 > ftplog1\nrm testfil.txt\n";
 		system($kommando);
 	}
@@ -3459,8 +3478,8 @@ function testftp($box1, $box2, $box3, $box4, $box5, $box6)
 	$kommando = "cd ../temp/$db\n$exec_path/ncftp ftp://" . $box2 . ":'" . $box3 . "'@" . $box1 . "/" . $box4 . " < ftpscript3 > ftplog3\n"; #rm ftpscript\nrm ftplog\n";
 	system($kommando);
 	($box6) ? $tmp = "Dokumentserver" : $tmp = "FTP";
-	$alert = findtekst(1733, $sprog_id);
-	$alert1 = findtekst(1734, $sprog_id);
+	$alert  = findtekst('1733|tilgængelig', $sprog_id);
+	$alert1 = findtekst('1734|ikke', $sprog_id);
 
 	if (file_exists("../temp/$db/testfil.txt")) print "<BODY onLoad=\"JavaScript:alert('$tmp $alert')\">";
 	else print "<BODY onLoad=\"JavaScript:alert('$tmp $alert1 $alert')\">";

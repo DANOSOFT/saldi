@@ -91,6 +91,14 @@
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260306 Sawaneh - Added Simple guides feature: sidebar overlay with hardcoded Finance + Scaffolding PDF links
 // 20260326 Sawaneh -Added ourRefStockSwitch setting
+// 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
+// 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+
+
+
+
+
 
 @session_start();
 $s_id = session_id();
@@ -101,10 +109,10 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 $csrf_token = $_SESSION['csrf_token'];
-$title = "Diverse Indstillinger";
-$modulnr = 1;
-$css = "../css/standard.css";
-$diffkto = NULL;
+$title      = "Diverse Indstillinger";
+$modulnr    = 1;
+$css        = "../css/standard.css";
+$diffkto    = NULL;
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -152,13 +160,13 @@ if ($menu == 'T') {
 }
 
 if (!isset($exec_path)) $exec_path = "/usr/bin";
-$sektion = if_isset($_GET, null, 'sektion');
+$sektion    = if_isset($_GET, null, 'sektion');
 $pricelists = if_isset($_POST, null, 'pricelists');
 if ($sektion == 'personlige_valg') $sektion = 'userSettings';
-$skiftnavn = if_isset($_GET['skiftnavn']);
+$skiftnavn  = if_isset($_GET['skiftnavn']);
 if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	if ($sektion == 'provision') {
-		$id = $_POST['id'];
+		$id   = $_POST['id'];
 		$box1 = $_POST['box1'];
 		$box2 = $_POST['box2'];
 		$box3 = $_POST['box3'];
@@ -198,7 +206,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$qtxt = "update grupper set box1='$jsvars',box2='$popup',box3='$menu',box4='$bgcolor',box5='$nuance' WHERE id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		$qtxt = "select id from settings where var_name = 'bgcolor' and var_grp = 'colors' and user_id = '$bruger_id'";
+		$qtxt  = "select id from settings where var_name = 'bgcolor' and var_grp = 'colors' and user_id = '$bruger_id'";
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		if (db_num_rows($query) > 0){
 			$r = db_fetch_array($query);
@@ -211,7 +219,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$qtxt.= "('colors','bgcolor','$bgcolor','Background color for user settings','$bruger_id')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		$qtxt = "select id from settings where var_name = 'fgcolor' and var_grp = 'colors' and user_id = '$bruger_id'";
+		$qtxt  = "select id from settings where var_name = 'fgcolor' and var_grp = 'colors' and user_id = '$bruger_id'";
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		if (db_num_rows($query) > 0){
 			$r = db_fetch_array($query);
@@ -240,7 +248,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$qtxt.= "('colors','buttonTxtColor','$buttonTxtColor','Button color for user settings','$bruger_id')";
 		}
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$cookie_name = "refresh_opener";
+		$cookie_name  = "refresh_opener";
 		$cookie_value = "true";
 		setcookie($cookie_name, $cookie_value, time() + 30, "/"); // 30 seconds expiry
 
@@ -249,63 +257,63 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'div_valg') {
 		// DEBUG: Log POST data for pickup addresses
 		$debug_log = "/tmp/saldi_debug_pickup.log";
-		file_put_contents($debug_log, date('Y-m-d H:i:s') . " POST data:\n", FILE_APPEND);
-		file_put_contents($debug_log, "dfm_pickup_group_id: " . print_r(isset($_POST['dfm_pickup_group_id']) ? $_POST['dfm_pickup_group_id'] : 'NOT SET', true) . "\n", FILE_APPEND);
-		file_put_contents($debug_log, "dfm_pickup_name1: " . print_r(isset($_POST['dfm_pickup_name1']) ? $_POST['dfm_pickup_name1'] : 'NOT SET', true) . "\n", FILE_APPEND);
+		file_put_contents($debug_log, date('Y-m-d H:i:s')       . " POST data:\n", FILE_APPEND);
+		file_put_contents($debug_log, "dfm_pickup_group_id: "   . print_r(isset($_POST['dfm_pickup_group_id'])   ? $_POST['dfm_pickup_group_id']   : 'NOT SET', true) . "\n", FILE_APPEND);
+		file_put_contents($debug_log, "dfm_pickup_name1: "      . print_r(isset($_POST['dfm_pickup_name1'])      ? $_POST['dfm_pickup_name1']      : 'NOT SET', true) . "\n", FILE_APPEND);
 		file_put_contents($debug_log, "dfm_pickup_buttonname: " . print_r(isset($_POST['dfm_pickup_buttonname']) ? $_POST['dfm_pickup_buttonname'] : 'NOT SET', true) . "\n", FILE_APPEND);
 		file_put_contents($debug_log, "---\n", FILE_APPEND);
-		$id      = (int) $_POST['id'];
-		$box1    = $_POST['box1']; #gruppevalg
-		$box2    = $_POST['box2']; #kuansvalg
-		$box3    = $_POST['box3']; #extra_ansat
-		$box4    = $_POST['box4']; #forskellige_datoer
-		$box5    = $_POST['box5']; #debtor2orderphone
-		$box6    = $_POST['box6']; #docubizz
-		$box7    = $_POST['box7']; #jobkort
-//		$box8    = $_POST['box8']; #ebconnect
-		$box8    = $_POST['box8']; #paymentdays
-		$box9    = $_POST['box9']; #ledig
-		$box10   = $_POST['box10']; #betalingsliste
-		$box12   = $_POST['box12'];
-		$pv_box1 = $_POST['pv_box1']; #Direkte print til lokal printer
-		$pv_box3            = $_POST['pv_box3']; #formulargenerator html/ps
-		$gls_id             = $_POST['gls_id'];
-		$gls_user           = if_isset($_POST['gls_user']);
-		$gls_pass           = if_isset($_POST['gls_pass']);
-		$gls_ctId           = if_isset($_POST['gls_ctId']);
-		$dfm_id             = $_POST['dfm_id'];
-		$dfm_user           = if_isset($_POST['dfm_user']);
-		$dfm_pass           = if_isset($_POST['dfm_pass']);
-		$dfm_agree          = if_isset($_POST['dfm_agree']);
-		$dfm_hub            = if_isset($_POST['dfm_hub']);
-		$dfm_ship           = if_isset($_POST['dfm_ship']);
-		$dfm_good           = if_isset($_POST['dfm_good']);
-		$dfm_pay            = if_isset($_POST['dfm_pay']);
-		$dfm_url            = if_isset($_POST['dfm_url']);
-		$dfm_gooddes        = if_isset($_POST['dfm_gooddes']);
-		$dfm_sercode        = if_isset($_POST['dfm_sercode']);
+		$id          = (int) $_POST['id'];
+		$box1        = $_POST['box1'];    #gruppevalg
+		$box2        = $_POST['box2'];    #kuansvalg
+		$box3        = $_POST['box3'];    #extra_ansat
+		$box4        = $_POST['box4'];    #forskellige_datoer
+		$box5        = $_POST['box5'];    #debtor2orderphone
+		$box6        = $_POST['box6'];    #docubizz
+		$box7        = $_POST['box7'];    #jobkort
+//		$box8        = $_POST['box8'];    #ebconnect
+		$box8        = $_POST['box8'];    #paymentdays
+		$box9        = $_POST['box9'];    #ledig
+		$box10       = $_POST['box10'];   #betalingsliste
+		$box12       = $_POST['box12'];
+		$pv_box1     = $_POST['pv_box1']; #Direkte print til lokal printer
+		$pv_box3     = $_POST['pv_box3']; #formulargenerator html/ps
+		$gls_id      = $_POST['gls_id'];
+		$gls_user    = if_isset($_POST['gls_user']);
+		$gls_pass    = if_isset($_POST['gls_pass']);
+		$gls_ctId    = if_isset($_POST['gls_ctId']);
+		$dfm_id      = $_POST['dfm_id'];
+		$dfm_user    = if_isset($_POST['dfm_user']);
+		$dfm_pass    = if_isset($_POST['dfm_pass']);
+		$dfm_agree   = if_isset($_POST['dfm_agree']);
+		$dfm_hub     = if_isset($_POST['dfm_hub']);
+		$dfm_ship    = if_isset($_POST['dfm_ship']);
+		$dfm_good    = if_isset($_POST['dfm_good']);
+		$dfm_pay     = if_isset($_POST['dfm_pay']);
+		$dfm_url     = if_isset($_POST['dfm_url']);
+		$dfm_gooddes = if_isset($_POST['dfm_gooddes']);
+		$dfm_sercode = if_isset($_POST['dfm_sercode']);
 		// Multiple pickup addresses - now handled as arrays
-		$dfm_pickup_group_ids = isset($_POST['dfm_pickup_group_id']) && is_array($_POST['dfm_pickup_group_id']) ? $_POST['dfm_pickup_group_id'] : array();
-		$dfm_pickup_addrs     = isset($_POST['dfm_pickup_addr']) && is_array($_POST['dfm_pickup_addr']) ? $_POST['dfm_pickup_addr'] : array();
-		$dfm_pickup_name1s    = isset($_POST['dfm_pickup_name1']) && is_array($_POST['dfm_pickup_name1']) ? $_POST['dfm_pickup_name1'] : array();
-		$dfm_pickup_name2s    = isset($_POST['dfm_pickup_name2']) && is_array($_POST['dfm_pickup_name2']) ? $_POST['dfm_pickup_name2'] : array();
-		$dfm_pickup_street1s  = isset($_POST['dfm_pickup_street1']) && is_array($_POST['dfm_pickup_street1']) ? $_POST['dfm_pickup_street1'] : array();
-		$dfm_pickup_street2s  = isset($_POST['dfm_pickup_street2']) && is_array($_POST['dfm_pickup_street2']) ? $_POST['dfm_pickup_street2'] : array();
-		$dfm_pickup_towns     = isset($_POST['dfm_pickup_town']) && is_array($_POST['dfm_pickup_town']) ? $_POST['dfm_pickup_town'] : array();
-		$dfm_pickup_zipcodes  = isset($_POST['dfm_pickup_zipcode']) && is_array($_POST['dfm_pickup_zipcode']) ? $_POST['dfm_pickup_zipcode'] : array();
+		$dfm_pickup_group_ids   = isset($_POST['dfm_pickup_group_id'])   && is_array($_POST['dfm_pickup_group_id'])   ? $_POST['dfm_pickup_group_id']   : array();
+		$dfm_pickup_addrs       = isset($_POST['dfm_pickup_addr'])       && is_array($_POST['dfm_pickup_addr'])       ? $_POST['dfm_pickup_addr']       : array();
+		$dfm_pickup_name1s      = isset($_POST['dfm_pickup_name1'])      && is_array($_POST['dfm_pickup_name1'])      ? $_POST['dfm_pickup_name1']      : array();
+		$dfm_pickup_name2s      = isset($_POST['dfm_pickup_name2'])      && is_array($_POST['dfm_pickup_name2'])      ? $_POST['dfm_pickup_name2']      : array();
+		$dfm_pickup_street1s    = isset($_POST['dfm_pickup_street1'])    && is_array($_POST['dfm_pickup_street1'])    ? $_POST['dfm_pickup_street1']    : array();
+		$dfm_pickup_street2s    = isset($_POST['dfm_pickup_street2'])    && is_array($_POST['dfm_pickup_street2'])    ? $_POST['dfm_pickup_street2']    : array();
+		$dfm_pickup_towns       = isset($_POST['dfm_pickup_town'])       && is_array($_POST['dfm_pickup_town'])       ? $_POST['dfm_pickup_town']       : array();
+		$dfm_pickup_zipcodes    = isset($_POST['dfm_pickup_zipcode'])    && is_array($_POST['dfm_pickup_zipcode'])    ? $_POST['dfm_pickup_zipcode']    : array();
 		$dfm_pickup_buttonnames = isset($_POST['dfm_pickup_buttonname']) && is_array($_POST['dfm_pickup_buttonname']) ? $_POST['dfm_pickup_buttonname'] : array();
 		
-		$dfm_pickup_ids = isset($_POST['dfm_pickup_id']) && is_array($_POST['dfm_pickup_id']) ? $_POST['dfm_pickup_id'] : array();
-		$dfm_pickup_users = isset($_POST['dfm_pickup_user']) && is_array($_POST['dfm_pickup_user']) ? $_POST['dfm_pickup_user'] : array();
-		$dfm_pickup_passes = isset($_POST['dfm_pickup_pass']) && is_array($_POST['dfm_pickup_pass']) ? $_POST['dfm_pickup_pass'] : array();
-		$dfm_pickup_agrees = isset($_POST['dfm_pickup_agree']) && is_array($_POST['dfm_pickup_agree']) ? $_POST['dfm_pickup_agree'] : array();
-		$dfm_pickup_urls = isset($_POST['dfm_pickup_url']) && is_array($_POST['dfm_pickup_url']) ? $_POST['dfm_pickup_url'] : array();
-		$dfm_pickup_hubs = isset($_POST['dfm_pickup_hub']) && is_array($_POST['dfm_pickup_hub']) ? $_POST['dfm_pickup_hub'] : array();
-		$dfm_pickup_ships = isset($_POST['dfm_pickup_ship']) && is_array($_POST['dfm_pickup_ship']) ? $_POST['dfm_pickup_ship'] : array();
-		$dfm_pickup_goods = isset($_POST['dfm_pickup_good']) && is_array($_POST['dfm_pickup_good']) ? $_POST['dfm_pickup_good'] : array();
-		$dfm_pickup_gooddess = isset($_POST['dfm_pickup_gooddes']) && is_array($_POST['dfm_pickup_gooddes']) ? $_POST['dfm_pickup_gooddes'] : array();
-		$dfm_pickup_pays = isset($_POST['dfm_pickup_pay']) && is_array($_POST['dfm_pickup_pay']) ? $_POST['dfm_pickup_pay'] : array();
-		$dfm_pickup_sercodes = isset($_POST['dfm_pickup_sercode']) && is_array($_POST['dfm_pickup_sercode']) ? $_POST['dfm_pickup_sercode'] : array();
+		$dfm_pickup_ids         = isset($_POST['dfm_pickup_id'])         && is_array($_POST['dfm_pickup_id'])         ? $_POST['dfm_pickup_id']         : array();
+		$dfm_pickup_users       = isset($_POST['dfm_pickup_user'])       && is_array($_POST['dfm_pickup_user'])       ? $_POST['dfm_pickup_user']       : array();
+		$dfm_pickup_passes      = isset($_POST['dfm_pickup_pass'])       && is_array($_POST['dfm_pickup_pass'])       ? $_POST['dfm_pickup_pass']       : array();
+		$dfm_pickup_agrees      = isset($_POST['dfm_pickup_agree'])      && is_array($_POST['dfm_pickup_agree'])      ? $_POST['dfm_pickup_agree']      : array();
+		$dfm_pickup_urls        = isset($_POST['dfm_pickup_url'])        && is_array($_POST['dfm_pickup_url'])        ? $_POST['dfm_pickup_url']        : array();
+		$dfm_pickup_hubs        = isset($_POST['dfm_pickup_hub'])        && is_array($_POST['dfm_pickup_hub'])        ? $_POST['dfm_pickup_hub']        : array();
+		$dfm_pickup_ships       = isset($_POST['dfm_pickup_ship'])       && is_array($_POST['dfm_pickup_ship'])       ? $_POST['dfm_pickup_ship']       : array();
+		$dfm_pickup_goods       = isset($_POST['dfm_pickup_good'])       && is_array($_POST['dfm_pickup_good'])       ? $_POST['dfm_pickup_good']       : array();
+		$dfm_pickup_gooddess    = isset($_POST['dfm_pickup_gooddes'])    && is_array($_POST['dfm_pickup_gooddes'])    ? $_POST['dfm_pickup_gooddes']    : array();
+		$dfm_pickup_pays        = isset($_POST['dfm_pickup_pay'])        && is_array($_POST['dfm_pickup_pay'])        ? $_POST['dfm_pickup_pay']        : array();
+		$dfm_pickup_sercodes    = isset($_POST['dfm_pickup_sercode'])    && is_array($_POST['dfm_pickup_sercode'])    ? $_POST['dfm_pickup_sercode']    : array();
 		
 		$mySale             = if_isset($_POST['mySale']);
 		$mySaleLabel        = if_isset($_POST['mySaleLabel']);
@@ -350,7 +358,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		if ($copay_api) {
 			# Expect a posted ID
 			$qtxt = "SELECT var_value FROM settings WHERE var_name='copayone_auth'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 			# If the row already exsists
 			if ($r) {
@@ -389,15 +397,15 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 		}
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'PV' and kodenr='1'", __FILE__ . " linje " . __LINE__))) {
-			$id = $r['id'];
+			$id   = $r['id'];
 			$qtxt = "update grupper set  box1='$pv_box1', box3='$pv_box3' WHERE id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
 			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3) values ('Udskrift','1','PV','$pv_box1','','$pv_box3')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		$var_name = array('gls_id', 'gls_user', 'gls_pass', 'gls_ctId');
-		$var_value = array("$gls_id", "$gls_user", "$gls_pass", "$gls_ctId");
+		$var_name        = array('gls_id', 'gls_user', 'gls_pass', 'gls_ctId');
+		$var_value       = array("$gls_id", "$gls_user", "$gls_pass", "$gls_ctId");
 		$var_description = array('GLS id', 'GLS brugernavn', 'GLS password', 'GLS kontakt ID');
 		for ($x = 0; $x < count($var_name); $x++) {
 			$var_description[$x] .= ', used at GLS integration';
@@ -470,7 +478,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		// First, get all existing group_ids from DFM_Pickup to know which to delete
 		$existing_group_ids = array();
 		$qtxt = "select distinct group_id from settings where var_grp='DFM_Pickup'";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$q    = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$existing_group_ids[] = $r['group_id'];
 		}
@@ -488,7 +496,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				if (strpos((string)$group_id, 'new_') === 0) {
 					// New address - find the next available group_id
 					$qtxt = "select coalesce(max(group_id), 0) + 1 as next_id from settings where var_grp='DFM_Pickup'";
-					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					$actual_group_id = $r['next_id'];
 				} else {
 					$actual_group_id = intval($group_id);
@@ -498,25 +506,25 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				
 				// Pickup address fields to save
 				$pickup_fields = array(
-					'dfm_pickup_addr' => isset($dfm_pickup_addrs[$idx]) ? $dfm_pickup_addrs[$idx] : '1',
-					'dfm_pickup_name1' => isset($dfm_pickup_name1s[$idx]) ? $dfm_pickup_name1s[$idx] : '',
-					'dfm_pickup_name2' => isset($dfm_pickup_name2s[$idx]) ? $dfm_pickup_name2s[$idx] : '',
-					'dfm_pickup_street1' => isset($dfm_pickup_street1s[$idx]) ? $dfm_pickup_street1s[$idx] : '',
-					'dfm_pickup_street2' => isset($dfm_pickup_street2s[$idx]) ? $dfm_pickup_street2s[$idx] : '',
-					'dfm_pickup_town' => isset($dfm_pickup_towns[$idx]) ? $dfm_pickup_towns[$idx] : '',
-					'dfm_pickup_zipcode' => isset($dfm_pickup_zipcodes[$idx]) ? $dfm_pickup_zipcodes[$idx] : '',
+					'dfm_pickup_addr'       => isset($dfm_pickup_addrs[$idx])       ? $dfm_pickup_addrs[$idx]       : '1',
+					'dfm_pickup_name1'      => isset($dfm_pickup_name1s[$idx])      ? $dfm_pickup_name1s[$idx]      : '',
+					'dfm_pickup_name2'      => isset($dfm_pickup_name2s[$idx])      ? $dfm_pickup_name2s[$idx]      : '',
+					'dfm_pickup_street1'    => isset($dfm_pickup_street1s[$idx])    ? $dfm_pickup_street1s[$idx]    : '',
+					'dfm_pickup_street2'    => isset($dfm_pickup_street2s[$idx])    ? $dfm_pickup_street2s[$idx]    : '',
+					'dfm_pickup_town'       => isset($dfm_pickup_towns[$idx])       ? $dfm_pickup_towns[$idx]       : '',
+					'dfm_pickup_zipcode'    => isset($dfm_pickup_zipcodes[$idx])    ? $dfm_pickup_zipcodes[$idx]    : '',
 					'dfm_pickup_buttonname' => isset($dfm_pickup_buttonnames[$idx]) ? $dfm_pickup_buttonnames[$idx] : '',
-					'dfm_id' => isset($dfm_pickup_ids[$idx]) ? $dfm_pickup_ids[$idx] : '',
-					'dfm_user' => isset($dfm_pickup_users[$idx]) ? $dfm_pickup_users[$idx] : '',
-					'dfm_pass' => isset($dfm_pickup_passes[$idx]) ? $dfm_pickup_passes[$idx] : '',
-					'dfm_agree' => isset($dfm_pickup_agrees[$idx]) ? $dfm_pickup_agrees[$idx] : '',
-					'dfm_url' => isset($dfm_pickup_urls[$idx]) ? $dfm_pickup_urls[$idx] : '',
-					'dfm_hub' => isset($dfm_pickup_hubs[$idx]) ? $dfm_pickup_hubs[$idx] : '',
-					'dfm_ship' => isset($dfm_pickup_ships[$idx]) ? $dfm_pickup_ships[$idx] : '',
-					'dfm_good' => isset($dfm_pickup_goods[$idx]) ? $dfm_pickup_goods[$idx] : '',
-					'dfm_gooddes' => isset($dfm_pickup_gooddess[$idx]) ? $dfm_pickup_gooddess[$idx] : '',
-					'dfm_pay' => isset($dfm_pickup_pays[$idx]) ? $dfm_pickup_pays[$idx] : '',
-					'dfm_sercode' => isset($dfm_pickup_sercodes[$idx]) ? $dfm_pickup_sercodes[$idx] : ''
+					'dfm_id'                => isset($dfm_pickup_ids[$idx])         ? $dfm_pickup_ids[$idx]         : '',
+					'dfm_user'              => isset($dfm_pickup_users[$idx])       ? $dfm_pickup_users[$idx]       : '',
+					'dfm_pass'              => isset($dfm_pickup_passes[$idx])      ? $dfm_pickup_passes[$idx]      : '',
+					'dfm_agree'             => isset($dfm_pickup_agrees[$idx])      ? $dfm_pickup_agrees[$idx]      : '',
+					'dfm_url'               => isset($dfm_pickup_urls[$idx])        ? $dfm_pickup_urls[$idx]        : '',
+					'dfm_hub'               => isset($dfm_pickup_hubs[$idx])        ? $dfm_pickup_hubs[$idx]        : '',
+					'dfm_ship'              => isset($dfm_pickup_ships[$idx])       ? $dfm_pickup_ships[$idx]       : '',
+					'dfm_good'              => isset($dfm_pickup_goods[$idx])       ? $dfm_pickup_goods[$idx]       : '',
+					'dfm_gooddes'           => isset($dfm_pickup_gooddess[$idx])    ? $dfm_pickup_gooddess[$idx]    : '',
+					'dfm_pay'               => isset($dfm_pickup_pays[$idx])        ? $dfm_pickup_pays[$idx]        : '',
+					'dfm_sercode'           => isset($dfm_pickup_sercodes[$idx])    ? $dfm_pickup_sercodes[$idx]    : ''
 				);
 				
 				foreach ($pickup_fields as $field_name => $field_value) {
@@ -612,35 +620,38 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
 	} elseif ($sektion == 'ordre_valg') {
-		$vatPrivateCustomers = if_isset($_POST['vatPrivateCustomers']);
+		$vatPrivateCustomers  = if_isset($_POST['vatPrivateCustomers']);
 		$vatBusinessCustomers = if_isset($_POST['vatBusinessCustomers']);
-		$box2             = if_isset($_POST['box2']); #Rabatvarenr
-		$box3             = if_isset($_POST['box3']); #folge_s_tekst
-		$box4             = if_isset($_POST['box4']); #hurtigfakt
-		$box5             = if_isset($_POST['straks_deb']) . ";" . if_isset($_POST['straks_kred']); #straks_bogf
-		$box6             = if_isset($_POST['box6']); #fifo
-		$box7             = if_isset($_POST['box7']); #
-		$box8             = if_isset($_POST['box8']); #vis_nul_lev
-		$box9             = if_isset($_POST['box9']); #negativt_lager
-		$box10            = if_isset($_POST['box10']); #
-		$box11            = if_isset($_POST['box11']); #advar_lav_beh
-		$box12            = if_isset($_POST['box12']); #$procentfakt
-		$box13            = if_isset($_POST['procenttillag']) . chr(9) . if_isset($_POST['procentvare']);
-		$box14            = if_isset($_POST['box14']);
-		$rabatvarenr      = if_isset($_POST['rabatvarenr']);
-		$kostmetode       = if_isset($_POST['kostmetode']);
-		$saetvarenr       = if_isset($_POST['saetvarenr']); #20150907
-		$orderNoteEnabled = if_isset($_POST, null, 'orderNoteEnabled');
-		$debitoripad      = if_isset($_POST, null, 'debitoripad');
-		$portovarenr      = if_isset($_POST, null, 'portovarenr');
-		$showDB           = if_isset($_POST, null, 'showDB');
-		$showDG           = if_isset($_POST, null, 'showDG');
-		$pluklisteEmail   = if_isset($_POST, null, 'pluklisteEmail');
-		$lockPayment       = if_isset($_POST["lockPayment"]);
-		$ordreAutocomplete = if_isset($_POST, null, 'ordreAutocomplete');
-		$gs1parsing        = if_isset($_POST, null, 'gs1_parsing');
-		$ourRefStockSwitch = if_isset($_POST, null, 'ourRefStockSwitch');
-		$stockWarningEnabled = if_isset($_POST, null, 'stockWarningEnabled');
+		$box2                 = if_isset($_POST['box2']); #Rabatvarenr
+		$box3                 = if_isset($_POST['box3']); #folge_s_tekst
+		$box4                 = if_isset($_POST['box4']); #hurtigfakt
+		$box5                 = if_isset($_POST['straks_deb']) . ";" . if_isset($_POST['straks_kred']); #straks_bogf
+		$box6                 = if_isset($_POST['box6']); #fifo
+		$box7                 = if_isset($_POST['box7']); #
+		$box8                 = if_isset($_POST['box8']); #vis_nul_lev
+		$box9                 = if_isset($_POST['box9']); #negativt_lager
+		$box10                = if_isset($_POST['box10']); #
+		$box11                = if_isset($_POST['box11']); #advar_lav_beh
+		$box12                = if_isset($_POST['box12']); #$procentfakt
+		$box13                = if_isset($_POST['procenttillag']) . chr(9) . if_isset($_POST['procentvare']);
+		$box14                = if_isset($_POST['box14']);
+		$rabatvarenr          = if_isset($_POST['rabatvarenr']);
+		$kostmetode           = if_isset($_POST['kostmetode']);
+		$saetvarenr           = if_isset($_POST['saetvarenr']); #20150907
+		$orderNoteEnabled     = if_isset($_POST, null, 'orderNoteEnabled');
+		$debitoripad          = if_isset($_POST, null, 'debitoripad');
+		$portovarenr          = if_isset($_POST, null, 'portovarenr');
+		$showDB               = if_isset($_POST, null, 'showDB');
+		$showDG               = if_isset($_POST, null, 'showDG');
+		$pluklisteEmail       = if_isset($_POST, null, 'pluklisteEmail');
+		$lockPayment          = if_isset($_POST["lockPayment"]);
+		$ordreAutocomplete    = if_isset($_POST, null, 'ordreAutocomplete');
+		$gs1parsing           = if_isset($_POST, null, 'gs1_parsing');
+		$ourRefStockSwitch    = if_isset($_POST, null, 'ourRefStockSwitch');
+		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
+
+		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
+
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
@@ -652,6 +663,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("gs1_parsing", "ordre", $gs1parsing, "Enable GS1 barcode parsing on order line item entry");
 		update_settings_value("ourRefStockSwitch", "ordre", $ourRefStockSwitch, "Update order stock/warehouse from Our ref when the reference changes"); // Removed single quotes from description to avoid SQL syntax error
 		update_settings_value("stockWarningEnabled", "ordre", $stockWarningEnabled, "Show popup and require approval note when selling out-of-stock items (POS + Debtor/Order)");
+		update_settings_value("showBothAddrExtra", "ordre", $showBothAddrExtra, "Show both delivery address and extra fields simultaneously on open orders");
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
 		} elseif ($box2) {
@@ -684,7 +696,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 */
 		# <- 20150907
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='3'", __FILE__ . " linje " . __LINE__))) {
-			$id = $r['id'];
+			$id   = $r['id'];
 			$qtxt = "update grupper set  box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',";
 			$qtxt.= "box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13',";
 			$qtxt.= "box14='$box14' WHERE id = '$id'";
@@ -710,7 +722,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 
 		if ($r = db_fetch_array(db_select("select id from settings where var_name='orderNoteEnabled'", __FILE__ . " linje " . __LINE__))) { #20210729
-			$id = $r['id'];
+			$id   = $r['id'];
 			$qtxt = "update settings set var_value='$orderNoteEnabled' WHERE id='$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
@@ -813,7 +825,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 		if ($commissionAccountNew) {
 			$qtxt = "select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'D' and kontonr='$commissionAccountNew'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
 				if ($commissionAccountNewId) {
 					$qtxt = "update settings set var_value='$commissionAccountNew' ";
@@ -833,7 +845,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		if ($commissionAccountUsed) {
 			$qtxt = "select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'D' and kontonr='$commissionAccountUsed'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				if ($commissionAccountUsedId) {
@@ -854,7 +866,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		if ($customerCommissionAccountNew) {
 			$qtxt = "select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'S' and kontonr='$customerCommissionAccountNew'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			if ($r['id']) {
 				if ($customerCommissionAccountNewId) {
 					$qtxt = "update settings set var_value='$customerCommissionAccountNew' ";
@@ -987,10 +999,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify("update grupper set  box1='$box1' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 		}
 		if ($convertExisting) {
-			$x = 0;
+			$x    = 0;
 			$qtxt = "select id, varenr, kostpris, retail_price, provision from varer where (varenr like 'kb%' or varenr like 'kn%') ";
 			$qtxt.= "and ((retail_price > 0 and retail_price < 100) or (kostpris > 0 and kostpris < 1)) order by varenr";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			$q    = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if (!$r['provision']) {
 					$id = $r['id'];
@@ -1028,13 +1040,13 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		# varevalg slut
 		#######################################################################################
 	} elseif ($sektion == 'variant_valg') {
-		$id = if_isset($_POST['id']);
-		$variant_beskrivelse = if_isset($_POST['variant_beskrivelse']);
-		$variant_id = if_isset($_POST['variant_id']);
+		$id                   = if_isset($_POST['id']);
+		$variant_beskrivelse  = if_isset($_POST['variant_beskrivelse']);
+		$variant_id           = if_isset($_POST['variant_id']);
 		$var_type_beskrivelse = if_isset($_POST['var_type_beskrivelse']);
-		$variant_antal = if_isset($_POST['variant_antal']);
-		$rename_varianter = if_isset($_POST['rename_varianter']);
-		$rename_var_type = if_isset($_POST['rename_var_type']);
+		$variant_antal        = if_isset($_POST['variant_antal']);
+		$rename_varianter     = if_isset($_POST['rename_varianter']);
+		$rename_var_type      = if_isset($_POST['rename_var_type']);
 		if ($rename_var_type) {
 			db_modify("update variant_typer set  beskrivelse='$var_type_beskrivelse' WHERE id = '$rename_var_type'", __FILE__ . " linje " . __LINE__);
 		} elseif ($rename_varianter) {
@@ -1049,7 +1061,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'variant_valg_import_types') {
 		// Import variant types (main categories like Color, Size)
 		$imported = 0;
-		$skipped = 0;
+		$skipped  = 0;
 		if (isset($_FILES['variant_types_file']) && $_FILES['variant_types_file']['error'] == 0) {
 			$filnavn = $_FILES['variant_types_file']['tmp_name'];
 			if (($handle = fopen($filnavn, "r")) !== FALSE) {
@@ -1085,8 +1097,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	#######################################################################################
 	} elseif ($sektion == 'variant_valg_import_values') {
 		// Import variant values (values for existing types like Red, Blue for Color)
-		$imported = 0;
-		$skipped = 0;
+		$imported  = 0;
+		$skipped   = 0;
 		$not_found = 0;
 		if (isset($_FILES['variant_values_file']) && $_FILES['variant_values_file']['error'] == 0) {
 			$filnavn = $_FILES['variant_values_file']['tmp_name'];
@@ -1169,7 +1181,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 // 		#######################################################################################
 // 	} 
 	elseif ($sektion == 'api_valg') {
-		$id = if_isset($_POST['id']);
+		$id   = if_isset($_POST['id']);
 		$box1 = db_escape_string(if_isset($_POST['api_key']));
 		$box2 = db_escape_string(if_isset($_POST['ip_list']));
 		$box3 = db_escape_string(if_isset($_POST['api_bruger']));
@@ -1190,15 +1202,15 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		#######################################################################################
 	} elseif ($sektion == 'labels') {
 		// Generate template from form data
-		$valg = if_isset($_GET['valg']);
-    $labelName = if_isset($_POST['labelName']);
-    $newLabelName = if_isset($_POST['newLabelName']);
-    $labelTemplate = if_isset($_POST['labelTemplate']);
-    $saveLabel = if_isset($_POST['saveLabel']);
-    $saveRawHTML = if_isset($_POST['saveRawHTML']);
-    $deleteLabel = if_isset($_POST['deleteLabel']);
-    $createNewLabel = if_isset($_POST['createNewLabel']);
-    $switchToVisual = if_isset($_POST['switchToVisual']);
+		$valg           = if_isset($_GET['valg']);
+    	$labelName      = if_isset($_POST['labelName']);
+    	$newLabelName   = if_isset($_POST['newLabelName']);
+    	$labelTemplate  = if_isset($_POST['labelTemplate']);
+    	$saveLabel      = if_isset($_POST['saveLabel']);
+    	$saveRawHTML    = if_isset($_POST['saveRawHTML']);
+    	$deleteLabel    = if_isset($_POST['deleteLabel']);
+    	$createNewLabel = if_isset($_POST['createNewLabel']);
+    	$switchToVisual = if_isset($_POST['switchToVisual']);
         // Ensure labelName is preserved when switching between editors
     if ($switchToVisual && !$labelName) {
         $labelName = if_isset($_GET['labelName'], 'Standard');
@@ -1240,7 +1252,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
     } elseif ($switchToVisual) {
 		// When switching from raw HTML to visual editor, we need to save the raw HTML first
-		$rawHTML = if_isset($_POST['rawHTML'], '');
+		$rawHTML   = if_isset($_POST['rawHTML'], '');
 		$labelType = if_isset($_POST['labelType'], 'sheet');
 		
 		if ($labelName == 'Standard') {
@@ -1265,24 +1277,24 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($saveLabel) {
             // Generate template from form data (visual editor)
     $formData = array(
-        'cols' => if_isset($_POST['cols'], 1),
-        'rows' => if_isset($_POST['rows'], 1),
-        'txtlen' => if_isset($_POST['txtlen'], 50),
-        'width' => if_isset($_POST['width'], '38.1'),
-        'height' => if_isset($_POST['height'], '21.2'),
-        'font_size' => if_isset($_POST['font_size'], '12'),
-        'margin_top' => if_isset($_POST['margin_top'], '7'),
-        'margin_left' => if_isset($_POST['margin_left'], '3'),
-        'show_varenr' => if_isset($_POST['show_varenr']) == 'on',
-        'show_varemrk' => if_isset($_POST['show_varemrk']) == 'on',
-        'show_beskrivelse' => if_isset($_POST['show_beskrivelse']) == 'on',
-        'show_pris' => if_isset($_POST['show_pris']) == 'on',
-        'show_barcode' => if_isset($_POST['show_barcode']) == 'on',
+        'cols'                  => if_isset($_POST['cols'], 1),
+        'rows'                  => if_isset($_POST['rows'], 1),
+        'txtlen'                => if_isset($_POST['txtlen'], 50),
+        'width'                 => if_isset($_POST['width'], '38.1'),
+        'height'                => if_isset($_POST['height'], '21.2'),
+        'font_size'             => if_isset($_POST['font_size'], '12'),
+        'margin_top'            => if_isset($_POST['margin_top'], '7'),
+        'margin_left'           => if_isset($_POST['margin_left'], '3'),
+        'show_varenr'           => if_isset($_POST['show_varenr'])      == 'on',
+        'show_varemrk'          => if_isset($_POST['show_varemrk'])     == 'on',
+        'show_beskrivelse'      => if_isset($_POST['show_beskrivelse']) == 'on',
+        'show_pris'             => if_isset($_POST['show_pris'])        == 'on',
+        'show_barcode'          => if_isset($_POST['show_barcode'])     == 'on',
         // Individual font sizes for each element
-        'varenr_font_size' => if_isset($_POST['varenr_font_size'], if_isset($_POST['font_size'], '12')),
-        'varemrk_font_size' => if_isset($_POST['varemrk_font_size'], if_isset($_POST['font_size'], '12')),
+        'varenr_font_size'      => if_isset($_POST['varenr_font_size'],      if_isset($_POST['font_size'], '12')),
+        'varemrk_font_size'     => if_isset($_POST['varemrk_font_size'],     if_isset($_POST['font_size'], '12')),
         'beskrivelse_font_size' => if_isset($_POST['beskrivelse_font_size'], if_isset($_POST['font_size'], '12')),
-        'pris_font_size' => if_isset($_POST['pris_font_size'], if_isset($_POST['font_size'], '12'))
+        'pris_font_size'        => if_isset($_POST['pris_font_size'],        if_isset($_POST['font_size'], '12'))
     );
     
     // Add custom text lines with individual font sizes
@@ -1318,19 +1330,19 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		#######################################################################################
 	} elseif ($pricelists) {
-		$id = $_POST['id'];
+		$id          = $_POST['id'];
 		$beskrivelse = $_POST['beskrivelse'];
-		$box1 = $_POST['lev_id'];
-		$box2 = $_POST['prisfil'];
-		$box3 = $_POST['opdateret'];
-		$box4 = $_POST['aktiv'];
-		$box5 = $_POST['rabatter'];
-		$box6 = $_POST['rabat'];
-		$box7 = $_POST['grupper'];
-		$box8 = $_POST['gruppe'];
-		$box9 = $_POST['filtype'];
-		$slet = $_POST['slet'];
-		$antal = $_POST['antal'];
+		$box1        = $_POST['lev_id'];
+		$box2        = $_POST['prisfil'];
+		$box3        = $_POST['opdateret'];
+		$box4        = $_POST['aktiv'];
+		$box5        = $_POST['rabatter'];
+		$box6        = $_POST['rabat'];
+		$box7        = $_POST['grupper'];
+		$box8        = $_POST['gruppe'];
+		$box9        = $_POST['filtype'];
+		$slet        = $_POST['slet'];
+		$antal       = $_POST['antal'];
 
 		for ($x = 0; $x < count($id); $x++) {
 #			if (!$box4[$x]) $box1[$x]=''; # 20160225
@@ -1355,7 +1367,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 	#######################################################################################
 	} elseif ($sektion == 'rykker_valg') {
-		$id = if_isset($_POST['id']);
+		$id   = if_isset($_POST['id']);
 		$box1 = if_isset($_POST['box1']);
 		$box2 = if_isset($_POST['box2']);
 		$box3 = if_isset($_POST['box3']);
@@ -1366,12 +1378,12 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		# $box8 er reserveret til dato for sidst afsendte mail.
 		$box9 = if_isset($_POST['box9']); #Inkasso
 		if ($box1) {
-			$r = db_fetch_array(db_select("select id from brugere WHERE brugernavn = '$box1'", __FILE__ . " linje " . __LINE__));
+			$r    = db_fetch_array(db_select("select id from brugere WHERE brugernavn = '$box1'", __FILE__ . " linje " . __LINE__));
 			$box1 = $r['id'];
 		}
 		if ($box9) {
 			$qtxt = "select id from adresser WHERE kontonr='$box9'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			$box9 = $r['id'];
 		}
 		if (($id == 0) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='4'", __FILE__ . " linje " . __LINE__))))
@@ -1383,25 +1395,25 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 	#######################################################################################
 	} elseif ($sektion == 'posOptions') {
-		$id1 = if_isset($_POST['id1']) * 1;
-		$box1 = if_isset($_POST['kasseantal']) * 1;
-		$afd_nr = if_isset($_POST['afd_nr']);
-		$kassekonti = if_isset($_POST['kassekonti']);
-		$box4 = if_isset($_POST['kortantal']) * 1;
-		$korttyper = if_isset($_POST['korttyper']);
-		$kortkonti = if_isset($_POST['kortkonti']);
-		$moms_nr = if_isset($_POST['moms_nr']);
-		$rabatvarenr = if_isset($_POST['rabatvarenr']);
-		$box9 = if_isset($_POST['straksbogfor']);
-		$box10 = if_isset($_POST['udskriv_bon']);
-		$box11 = if_isset($_POST['vis_kontoopslag']);
-		$box12 = if_isset($_POST['vis_hurtigknap']);
-		$box13 = if_isset($_POST['timeout']);
-		$box14 = if_isset($_POST['vis_indbetaling']);
+		$id1            = (int) if_isset($_POST, 0, ['id1']);
+		$box1           = if_isset($_POST['kasseantal']) * 1;
+		$afd_nr         = if_isset($_POST['afd_nr']);
+		$kassekonti     = if_isset($_POST['kassekonti']);
+		$box4           = if_isset($_POST['kortantal']) * 1;
+		$korttyper      = if_isset($_POST['korttyper']);
+		$kortkonti      = if_isset($_POST['kortkonti']);
+		$moms_nr        = if_isset($_POST['moms_nr']);
+		$rabatvarenr    = if_isset($_POST['rabatvarenr']);
+		$box9           = if_isset($_POST['straksbogfor']);
+		$box10          = if_isset($_POST['udskriv_bon']);
+		$box11          = if_isset($_POST['vis_kontoopslag']);
+		$box12          = if_isset($_POST['vis_hurtigknap']);
+		$box13          = if_isset($_POST['timeout']);
+		$box14          = if_isset($_POST['vis_indbetaling']);
 
-		$ValutaKode = if_isset($_POST['ValutaKode']);
-		$ValutaKonti = if_isset($_POST['ValutaKonti']);
-		$ValutaMlKonti = if_isset($_POST['ValutaMlKonti']);
+		$ValutaKode     = if_isset($_POST['ValutaKode']);
+		$ValutaKonti    = if_isset($_POST['ValutaKonti']);
+		$ValutaMlKonti  = if_isset($_POST['ValutaMlKonti']);
 		$ValutaDifKonti = if_isset($_POST['ValutaDifKonti']);
 
 		if (!$ValutaKode)
@@ -1473,7 +1485,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		if ($planamount > $plans - 1) {
 			# For every difference in plans we add an empty one
 			for ($i = 0; $i <= $planamount - $plans; $i++) {
-				$id = $plans + $i;
+				$id   = $plans + $i;
 				$qtxt = "INSERT INTO table_pages(id, name) VALUES ($id, '')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
@@ -1484,7 +1496,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		# Save the created fields
 		for ($i = 1; $i <= count($plan) + 1; $i++) {
 			if (isset($plan[$i])) {
-				$id = $i;
+				$id   = $i;
 				$name = $plan[$i];
 				$qtxt = "UPDATE table_pages SET name='$name' WHERE id=$id";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -1504,8 +1516,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		for ($x = 0; $x < count($kortno); $x++) { // hjemmelavet sortering da array_multisort flytter '$betalingskort'
 			if ($kortno[$x] <= 9)
 				$kortno[$x] = '0' . $kortno[$x];
-			$kort[$x] = "$kortno[$x]" . chr(9) . "$korttyper[$x]" . chr(9) . "$kortkonti[$x]" . chr(9) . "$betalingskort[$x]" . chr(9);
-			$kort[$x] .= "$voucher[$x]" . chr(9) . "$voucherText[$x]" . chr(9) . "$enabled[$x]";
+			$kort[$x] = "$kortno[$x]"  . chr(9) . "$korttyper[$x]"   . chr(9) . "$kortkonti[$x]" . chr(9) . "$betalingskort[$x]" . chr(9);
+			$kort[$x].= "$voucher[$x]" . chr(9) . "$voucherText[$x]" . chr(9) . "$enabled[$x]";
 		}
 //		array_multisort($kortno, $korttyper, $kortkonti, $betalingskort, $voucher, $voucherText, $enabled);
 		sort($kort);
@@ -1513,22 +1525,22 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			list($kortno[$x], $korttyper[$x], $kortkonti[$x], $betalingskort[$x], $voucher[$x], $voucherText[$x], $enabled[$x]) = explode(chr(9), $kort[$x]);
 		}
 
-		$id3 = if_isset($_POST['id3']) * 1;
-		$box1_3 = if_isset($_POST['brugervalg']);
-		$pfs = if_isset($_POST['pfs']);
-		$box3_3 = if_isset($_POST['kundedisplay']);
+		$id3          = if_isset($_POST['id3']) * 1;
+		$box1_3       = if_isset($_POST['brugervalg']);
+		$pfs          = if_isset($_POST['pfs']);
+		$box3_3       = if_isset($_POST['kundedisplay']);
 		$postEachSale = if_isset($_POST['postEachSale']);
-		$mobilpos = if_isset($_POST['mobilpos']);
-		$mobilwidth = if_isset($_POST['mobilwidth']);
-		$mobilzoom = if_isset($_POST['mobilzoom']);
-		$omv_menu = if_isset($_POST['omv_menu']);
-		$box2 = NULL;
-		$box3 = NULL;
-		$box7 = NULL;
-		$box8 = NULL;
-		$box3_2 = NULL;
-		$box4_2 = NULL;
-		$box11_2 = NULL;
+		$mobilpos     = if_isset($_POST['mobilpos']);
+		$mobilwidth   = if_isset($_POST['mobilwidth']);
+		$mobilzoom    = if_isset($_POST['mobilzoom']);
+		$omv_menu     = if_isset($_POST['omv_menu']);
+		$box2         = NULL;
+		$box3         = NULL;
+		$box7         = NULL;
+		$box8         = NULL;
+		$box3_2       = NULL;
+		$box4_2       = NULL;
+		$box11_2      = NULL;
 		for ($x = 0; $x < $box1; $x++) {
 			if (!isset($bordvalg[$x]))
 				$bordvalg[$x] = NULL;
@@ -1550,7 +1562,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					$txt = findtekst('278|Kontonr. skal udfyldes for alle kasser', $sprog_id);
 				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 			}
-			$txt = '';
+			$txt  = '';
 			$qtxt = "select id from kontoplan WHERE kontonr = '$mellemkonti[$x]'";
 			if (($mellemkonti[$x] && is_numeric($mellemkonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))));
 			else {
@@ -1575,8 +1587,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 			# Set terminal type
 			$kasse_id = $x + 1;
-			$qtxt = "SELECT var_value FROM settings WHERE pos_id=$kasse_id and var_name='terminal_type'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$qtxt     = "SELECT var_value FROM settings WHERE pos_id=$kasse_id and var_name='terminal_type'";
+			$r        = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			$termtype = $terminal_type[$x];
 
 			# Check if a payment type has been setup on this term
@@ -1605,34 +1617,34 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 
 			if ($box2) {
-				$box2 .= chr(9) . $kassekonti[$x];
-				$box3 .= chr(9) . $afd_nr[$x];
-				$box7 .= chr(9) . $moms_nr[$x];
-				$box3_2 .= chr(9) . $printer_ip[$x];
-				$box4_2 .= chr(9) . $terminal_ip[$x];
-				$box8_2 .= chr(9) . $mellemkonti[$x];
-				$box9_2 .= chr(9) . $diffkonti[$x];
+				$box2    .= chr(9) . $kassekonti[$x];
+				$box3    .= chr(9) . $afd_nr[$x];
+				$box7    .= chr(9) . $moms_nr[$x];
+				$box3_2  .= chr(9) . $printer_ip[$x];
+				$box4_2  .= chr(9) . $terminal_ip[$x];
+				$box8_2  .= chr(9) . $mellemkonti[$x];
+				$box9_2  .= chr(9) . $diffkonti[$x];
 				$box10_2 .= chr(9) . $koekkenprinter[$x];
 				$box13_2 .= chr(9) . $bordvalg[$x];	 #20161116
-				$box2_3 .= chr(9) . $pfs[$x];	 #20161116
-				$poEaSa .= chr(9) . $postEachSale[$x];
+				$box2_3  .= chr(9) . $pfs[$x];	 #20161116
+				$poEaSa  .= chr(9) . $postEachSale[$x];
 				for ($y = 0; $y < count($ValutaKode); $y++) {
 					$VKbox4[$y] .= chr(9) . $ValutaKonti[$x][$y];
 					$VKbox5[$y] .= chr(9) . $ValutaMlKonti[$x][$y];
 					$VKbox6[$y] .= chr(9) . $ValutaDifKonti[$x][$y];
 				}
 			} else {
-				$box2 = $kassekonti[$x];
-				$box3 = $afd_nr[$x];
-				$box7 = $moms_nr[$x];
-				$box3_2 = $printer_ip[$x];
-				$box4_2 = $terminal_ip[$x];
-				$box8_2 = $mellemkonti[$x];
-				$box9_2 = $diffkonti[$x];
+				$box2    = $kassekonti[$x];
+				$box3    = $afd_nr[$x];
+				$box7    = $moms_nr[$x];
+				$box3_2  = $printer_ip[$x];
+				$box4_2  = $terminal_ip[$x];
+				$box8_2  = $mellemkonti[$x];
+				$box9_2  = $diffkonti[$x];
 				$box10_2 = $koekkenprinter[$x];
 				$box13_2 = $bordvalg[$x];	 #20161116
-				$box2_3 = $pfs[$x];
-				$poEaSa = $postEachSale[$x];
+				$box2_3  = $pfs[$x];
+				$poEaSa  = $postEachSale[$x];
 				for ($y = 0; $y < count($ValutaKode); $y++) {
 					$VKbox4[$y] = $ValutaKonti[$x][$y];
 					$VKbox5[$y] = $ValutaMlKonti[$x][$y];
@@ -1679,21 +1691,21 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				} else
 					$voucherItemId[$x] = '0';
 				if ($box5) {
-					$box5 .= chr(9) . trim($korttyper[$x]);
-					$box6 .= chr(9) . trim($kortkonti[$x]);
-					$box5_2 .= chr(9) . trim($betalingskort[$x]);	 #20121210
-					$box4_3 .= chr(9) . trim($voucher[$x]);	 #20181029
-					$box5_3 .= chr(9) . trim($voucherText[$x]);	 #20181029
+					$box5         .= chr(9) . trim($korttyper[$x]);
+					$box6         .= chr(9) . trim($kortkonti[$x]);
+					$box5_2       .= chr(9) . trim($betalingskort[$x]); #20121210
+					$box4_3       .= chr(9) . trim($voucher[$x]);	    #20181029
+					$box5_3       .= chr(9) . trim($voucherText[$x]);   #20181029
 					$voucherItems .= chr(9) . trim($voucherItemId[$x]); #20200116
-					$card_enabled .= chr(9) . trim($enabled[$x]);	 #20181215
+					$card_enabled .= chr(9) . trim($enabled[$x]);	    #20181215
 				} else {
-					$box5 = trim($korttyper[$x]);
-					$box6 = trim($kortkonti[$x]);
-					$box5_2 = trim($betalingskort[$x]);	#20121210
-					$box4_3 = trim($voucher[$x]);	#20181029
-					$box5_3 = trim($voucherText[$x]);	#20181029
+					$box5         = trim($korttyper[$x]);
+					$box6         = trim($kortkonti[$x]);
+					$box5_2       = trim($betalingskort[$x]); #20121210
+					$box4_3       = trim($voucher[$x]);       #20181029
+					$box5_3       = trim($voucherText[$x]);	  #20181029
 					$voucherItems = trim($voucherItemId[$x]); #20200116
-					$card_enabled = trim($enabled[$x]);	 #20181215
+					$card_enabled = trim($enabled[$x]);       #20181215
 				}
 			}
 		}
@@ -1801,7 +1813,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 		#######################################################################################
 	} elseif ($sektion == 'docubizz') {
-		$id = $_POST['id'];
+		$id   = $_POST['id'];
 		$box1 = $_POST['box1'];
 		$box2 = $_POST['box2'];
 		$box3 = $_POST['box3'];
@@ -1824,7 +1836,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		print "<BODY onLoad=\"JavaScript:alert('$alert')\">";
 		#######################################################################################
 	} elseif ($sektion == 'bilag') {
-		$id = if_isset($_POST['id']);
+		$id   = if_isset($_POST['id']);
 		$box1 = if_isset($_POST['box1']);
 		$box2 = if_isset($_POST['box2']);
 		$box3 = if_isset($_POST['box3']);
@@ -1880,16 +1892,16 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		#######################################################################################
 	} elseif ($sektion == 'email') {
-		$id = $_POST['id'];
-		$box1 = db_escape_string($_POST['box1']);
-		$box2 = db_escape_string($_POST['box2']);
-		$box3 = db_escape_string($_POST['box3']);
-		$box4 = db_escape_string($_POST['box4']);
-		$box5 = db_escape_string($_POST['box5']);
-		$box6 = db_escape_string($_POST['box6']);
-		$box7 = db_escape_string($_POST['box7']);
-		$box8 = db_escape_string($_POST['box8']);
-		$box9 = db_escape_string($_POST['box9']);
+		$id    = $_POST['id'];
+		$box1  = db_escape_string($_POST['box1']);
+		$box2  = db_escape_string($_POST['box2']);
+		$box3  = db_escape_string($_POST['box3']);
+		$box4  = db_escape_string($_POST['box4']);
+		$box5  = db_escape_string($_POST['box5']);
+		$box6  = db_escape_string($_POST['box6']);
+		$box7  = db_escape_string($_POST['box7']);
+		$box8  = db_escape_string($_POST['box8']);
+		$box9  = db_escape_string($_POST['box9']);
 		$box10 = db_escape_string($_POST['box10']);
 
 		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'MAIL' and kodenr = '1'", __FILE__ . " linje " . __LINE__))))
@@ -1901,7 +1913,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		#######################################################################################
 	} elseif ($sektion == 'orediff') {
-		$id = $_POST['id'];
+		$id   = $_POST['id'];
 		$box1 = $_POST['box1'];
 		$box2 = $_POST['box2'] * 1;
 		if ($box1)
@@ -1923,14 +1935,14 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		######################################################################################
 	} elseif ($sektion == 'massefakt') {
-		$id = if_isset($_POST['id']);
+		$id         = if_isset($_POST['id']);
 		$brug_mfakt = if_isset($_POST['brug_mfakt']);
 		if ($brug_mfakt) {
 			$brug_dellev = if_isset($_POST['brug_dellev']);
-			$levfrist = if_isset($_POST['levfrist']);
+			$levfrist    = if_isset($_POST['levfrist']);
 		} else {
 			$brug_dellev = NULL;
-			$levfrist = 0;
+			$levfrist    = 0;
 		}
 		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'MFAKT'", __FILE__ . " linje " . __LINE__))))
 			$id = $r['id'];
@@ -1986,7 +1998,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				exit;
 			}
 			
-			$ch = curl_init();
+			$ch       = curl_init();
 			$curl_url = "https://saldi.dk/locator/locator.php?action=insertUserCount&userCount=$new_max_users&dbName=$db";
 			curl_setopt($ch, CURLOPT_URL, $curl_url);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -1994,7 +2006,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				'Content-Type: application/json',
 				'Accept: application/json'
 			));
-			$response = curl_exec($ch);
+			$response  = curl_exec($ch);
 			$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 			curl_close($ch);
 			if ($http_code != 200) {
@@ -2004,13 +2016,13 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 
 			$current_regnskab_name = $regnskab;
-			$current_username = $brugernavn;
-			$update_successful = false;
-			$old_max_users_value = null;
+			$current_username      = $brugernavn;
+			$update_successful     = false;
+			$old_max_users_value   = null;
 		
 			$masterDb = $sqdb;
 			include("../includes/connect.php");
-				$query_select = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
+				$query_select  = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
 				$result_select = db_select($query_select, __FILE__ . " linje " . __LINE__);
 		
 				if ($result_select && db_num_rows($result_select) > 0) {
@@ -2060,7 +2072,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$baseCurrency = $_POST['baseCurrency'];
 			if ($baseCurrency) {
 				$qtxt = "select id from settings where var_name='baseCurrency'";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				if ($r['id'])
 					$qtxt = "update settings set var_value='$baseCurrency', user_id='0' where id='$r[id]'";
 				else {
@@ -2107,10 +2119,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$qtxt = "DELETE From settings where (var_grp = 'debitor' or var_grp = 'mySale') and (var_name = 'mailSubject' or var_name = 'mailText')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			if ($_POST['behold_debkred'] == '') {
-				$qtxt = "select id from adresser WHERE art='S'";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$qtxt    = "select id from adresser WHERE art='S'";
+				$r       = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$eget_id = $r['id'];
-				$qtxt = "DELETE FROM adresser WHERE id!='$eget_id'";
+				$qtxt    = "DELETE FROM adresser WHERE id!='$eget_id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				$qtxt = "TRUNCATE ansatte,ansatmappe,ansatmappebilag,vare_lev,shop_adresser restart identity";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -2134,23 +2146,23 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 		}
 	} elseif ($sektion == 'smtp') {
-		$smtp = trim(db_escape_string($_POST['smtp']));
-		$smtpuser = trim(db_escape_string($_POST['smtpuser']));
-		$smtppass = trim(db_escape_string($_POST['smtppass']));
+		$smtp      = trim(db_escape_string($_POST['smtp']));
+		$smtpuser  = trim(db_escape_string($_POST['smtpuser']));
+		$smtppass  = trim(db_escape_string($_POST['smtppass']));
 		$smtpcrypt = trim(db_escape_string($_POST['smtpcrypt']));
 		db_modify("update adresser set felt_1 = '$smtp',felt_2 = '$smtpuser',felt_3 = '$smtppass',felt_4 = '$smtpcrypt' WHERE art='S'", __FILE__ . " linje " . __LINE__);
 		$sektion = 'kontoindstillinger';
 	} elseif ($sektion == 'tjekliste') {
-		$id = if_isset($_POST['id']);
-		$tjekantal = if_isset($_POST['tjekantal']);
-		$fase = if_isset($_POST['fase']);
-		$ny_fase = if_isset($_POST['ny_fase']);
+		$id            = if_isset($_POST['id']);
+		$tjekantal     = if_isset($_POST['tjekantal']);
+		$fase          = if_isset($_POST['fase']);
+		$ny_fase       = if_isset($_POST['ny_fase']);
 		$ny_tjekgruppe = if_isset($_POST['ny_tjekgruppe']);
-		$tjekpunkt = if_isset($_POST['tjekpunkt']);
+		$tjekpunkt     = if_isset($_POST['tjekpunkt']);
 		$nyt_tjekpunkt = if_isset($_POST['nyt_tjekpunkt']);
-		$liste_id = if_isset($_POST['liste_id']);
-		$gruppe_id = if_isset($_POST['gruppe_id']);
-		$ret = if_isset($_POST['ret']);
+		$liste_id      = if_isset($_POST['liste_id']);
+		$gruppe_id     = if_isset($_POST['gruppe_id']);
+		$ret           = if_isset($_POST['ret']);
 
 		if ($ny_tjekliste = $_POST['ny_tjekliste']) {
 			$r = db_fetch_array($q = db_select("select max(fase) as fase from tjekliste WHERE assign_to = 'sager'", __FILE__ . " linje " . __LINE__));
@@ -2184,7 +2196,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 	}
 } else {
-	$valg = if_isset($_GET['valg']);
+	$valg    = if_isset($_GET['valg']);
 	// $sektion = if_isset($_GET['sektion']);
 	$sektion = if_isset($_GET, null, 'sektion');
 	#	if ($sektion == 'personlige_valg') $sektion = 'userSettings';
@@ -2201,6 +2213,19 @@ if ($menu != 'T') {
 	print "<td width=\"170px\" valign=\"top\">";
 	print "<table cellpadding=\"2\" cellspacing=\"2\" border=\"0\" width=\"100%\"><tbody>";
 	if ($menu == 'S') {
+		$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+		$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+		$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+		print "<script>
+		if (typeof window.saldiTranslations === 'undefined') {
+			window.saldiLanguage = " . (int)$sprog_id . ";
+			window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+		}
+		</script>";
+		print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+		print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+		print "<tr><td valign='top' align=left><div class=\"settings-search-wrapper\" style=\"padding-top:0;\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
+
 		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; ".findtekst('30|Tilbage', $sprog_id)."</b></button></a></td></tr>\n"; // 200240428
 
 		print "<tr><td align=left><a href=diverse.php?sektion=kontoindstillinger>
