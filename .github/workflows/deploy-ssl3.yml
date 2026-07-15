@@ -29,17 +29,29 @@ jobs:
         run: |
           set -euo pipefail
 
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+          # Fail early with a clear message if the secret is missing/empty.
+          if [ -z "${SSH_KEY:-}" ]; then
+            echo "::error::SSL3_SSH_KEY secret is empty or not set"
+            exit 1
+          fi
+
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+
+          # Sanity-check the key format (does not print the key itself).
+          echo "Validating private key format:"
+          ssh-keygen -y -f "$HOME/.ssh/deploy_key" > /dev/null && echo "  key OK"
 
           # Pin the server's host key so the connection can't be MITM'd.
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
-          chmod 644 ~/.ssh/known_hosts
+          echo "Scanning host key for $SSH_HOST:$SSH_PORT"
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > "$HOME/.ssh/known_hosts"
+          chmod 644 "$HOME/.ssh/known_hosts"
 
-          ssh -i ~/.ssh/deploy_key \
-              -o UserKnownHostsFile=~/.ssh/known_hosts \
+          # -v gives a full connection/auth trace in the log if this fails.
+          ssh -v -i "$HOME/.ssh/deploy_key" \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
               -o IdentitiesOnly=yes \
               -p "$SSH_PORT" \
               "$SSH_USER@$SSH_HOST" \
