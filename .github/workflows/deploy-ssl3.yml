@@ -37,7 +37,9 @@ jobs:
 
           mkdir -p "$HOME/.ssh"
           chmod 700 "$HOME/.ssh"
-          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/deploy_key"
+          # The secret holds the private key base64-encoded (single line, no
+          # newlines/CRLF to corrupt). Decode it back to the real key here.
+          printf '%s' "$SSH_KEY" | base64 -d > "$HOME/.ssh/deploy_key"
           chmod 600 "$HOME/.ssh/deploy_key"
 
           # Sanity-check the key format (does not print the key itself).
