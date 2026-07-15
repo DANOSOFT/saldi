@@ -70,12 +70,15 @@
 // 20260526 LOE Added salg_rapport.php with sales report based on postnr and departments, to handle sales report for customers with postnr and departments. Based on datagrid, with flexible search and sorting.
 // 20260603 PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
 // 20260610 CL/PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
-// 20260707 SZ Added Grid Framework sticky header and footer to Item Sales report
+// 20260707 CL/SZ Added Grid Framework sticky header and footer to Item Sales report
 // 20260710 SZ Fixed 'Bestilt' (Ordered) column: open PO lines now count regardless of
 //             levdate (incl. 31-12-2099 placeholder and empty dates), and new items with
 //             an open PO but no prior stock/sales history now appear in the report
 // 20260710 SZ Added Grid Framework sticky header+footer (varegruppe(), summary + Detaljeret views)
 //             and fixed misaligned columns between the header row and data/Summeret rows
+// 20260715 CL/SZ Restored the ordrer.levdate range filter on the 'Bestilt' (Ordered) query
+//             (see 20260710 above) per explicit request; open POs with a placeholder/no
+//             delivery date, or one outside the report period, are excluded again
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -650,7 +653,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		$qtxt .= "varer.gruppe = '$lagergruppe[$g]' ";
 	}
 	if ($g) $qtxt .= ") and ";
-	$qtxt.= "ordrelinjer.leveret < ordrelinjer.antal "; #20260710 SZ - open PO lines count regardless of levdate/period, see below
+	$qtxt.= "ordrelinjer.leveret < ordrelinjer.antal and ordrer.levdate >= '$date_from' and ordrer.levdate <= '$date_to' "; #20260715 CL/SZ - restored levdate range filter (was removed 20260710 to fix the Ordered column excluding placeholder/no-date POs; reinstated per explicit request)
 	$qtxt.= "group by ordrelinjer.vare_id,ordrelinjer.varenr,ordrelinjer.beskrivelse,varer.gruppe order by ordrelinjer.varenr";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
