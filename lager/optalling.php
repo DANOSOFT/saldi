@@ -45,6 +45,8 @@
 // 20230224 CA  Case insensitive and 'like' search using % and _. Searching for _vd% gets DVD, Vd, dvd-player
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260518 CL/PHR Bedre fejlhåndtering ved fil-upload: viser fejlkode og returnerer. MAX_FILE_SIZE øget til 100 MB.
+// 20260707 SZ Added Grid Framework sticky header and footer to Stock Count report
+// 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
 
 @session_start();
 $s_id = session_id();
@@ -179,21 +181,26 @@ while ($r = db_fetch_array($q)) {
 global $menu;
 $vnr = $varenr;
 
-if ($menu == 'S') {
-	// print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
-	print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
+$loGridMode = ($menu == 'S');
 
-	print "<td width=10%><a href=$returside accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('2172|Luk', $sprog_id) . "</button></a></td>";
+if ($loGridMode) {
+	$loTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+	print "<div id='loPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
 
-	print "<td width=80% style='$topStyle' align='center'>$title</td>";
+	print "<td width='10%' align='left'><a href='$returside' accesskey=L>
+		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$loTilbageIcon" . findtekst('2172|Luk', $sprog_id) . "</button></a></td>";
 
-	print "<td width=10%>";
-	($importer) ? print "<a href=optalling.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('81|Afbryd', $sprog_id) . "</button>"
-		: print "<a href=optalling.php?importer=1&lager=$lager&dato=$dato><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('1356|Importér', $sprog_id) . "</button>";
+	print "<td width='80%' align='center' style='$topStyle'>$title</td>";
+
+	print "<td width='10%' align='center'>";
+	($importer) ? print "<a href='optalling.php'><button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('81|Afbryd', $sprog_id) . "</button>"
+		: print "<a href='optalling.php?importer=1&lager=$lager&dato=$dato'><button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('1356|Importér', $sprog_id) . "</button>";
 	print "</a></td>";
 
-	print "</tbody></table name=\"tabel_1.1\"></td></tr>\n"; # <- tabel 1.1
+	print "</tr></tbody></table>\n";
 } else {
 	print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
 	print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
@@ -207,10 +214,19 @@ if ($menu == 'S') {
 
 if ($vis_ej_exist)
 	$vis_ej_exist = "<a href=\"../temp/$db/optael_ej_exist.txt\" target=\"blank\">Ikke oprettede varer</a>";
-print "<tr><td>$vis_ej_exist<br></td></tr>\n";
+
+if ($loGridMode) {
+	print "<div>$vis_ej_exist<br></div>\n";
+	print "</div>\n"; // close flex:0 header wrapper (title bar)
+	print "<div id='loGridWrapper' style='flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;background-color:$bgcolor;padding:0 8px 8px 8px;box-sizing:border-box;'>\n";
+} else {
+	print "<tr><td>$vis_ej_exist<br></td></tr>\n";
+}
 
 if ($importer) {
 	importer($lager, $dato);
+	if ($loGridMode)
+		print "</div></div>\n"; // close loGridWrapper + loPageFlex
 	exit;
 }
 
@@ -396,6 +412,11 @@ if ($fokus) {
 	print "    document.optalling.$fokus.focus();\n";
 	print "};\n";
 	print "</script>\n";
+}
+
+if ($loGridMode) {
+	print "</div>\n"; // close loGridWrapper
+	print "</div>\n"; // close loPageFlex
 }
 
 
