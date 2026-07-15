@@ -19,6 +19,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Language-specific sender email settings
+// 20260710 SZ Added Settings search box to standalone/topmenu layouts (settingsSearch.php/.js/.css)
 
 @session_start();
 $s_id=session_id();
@@ -123,6 +124,19 @@ if ($menu=='T') {  # Top menu layout
 
 	print "<td width='76%' align='center' style='$topStyle'>Email Indstillinger</td>\n";
 	print "</tbody></table></td></tr>\n";
+
+	$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+	$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+	$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+	print "<script>
+	if (typeof window.saldiTranslations === 'undefined') {
+		window.saldiLanguage = " . (int)$sprog_id . ";
+		window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+	}
+	</script>";
+	print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+	print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+	print "<tr><td height='1%' align='left' valign='top'><div class=\"settings-search-standalone\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
 } else {
 	# Fallback for other menu types
 	print "<html>\n";
