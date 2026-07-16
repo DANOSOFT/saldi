@@ -291,6 +291,12 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(871, $sprog_id) . "' value='lastYear'>" . findtekst(872, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "momsangivelse")
 		print "<option title='" . findtekst(514, $sprog_id) . "' value='momsangivelse'>" . findtekst(520, $sprog_id) . "</option>\n";
+	elseif ($rapportart == "moms_transaktioner")
+		print "<option value='moms_transaktioner'>Posteringer pr. momskode</option>\n";
+	elseif ($rapportart == "moms_rubrik")
+		print "<option value='moms_rubrik'>Momsrubrikker (A/B/C)</option>\n";
+	elseif ($rapportart == "moms_afstemning")
+		print "<option value='moms_afstemning'>Momsafstemning</option>\n";
 	elseif ($rapportart == "saft")
 		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "regnskabbasis")
@@ -318,6 +324,12 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<option title='" . findtekst(871, $sprog_id) . "' value='lastYear'>" . findtekst(872, $sprog_id) . "</option>\n";
 	if ($rapportart != "momsangivelse")
 		print "<option title='" . findtekst(514, $sprog_id) . "' value='momsangivelse'>" . findtekst(520, $sprog_id) . "</option>\n";
+	if ($rapportart != "moms_transaktioner")
+		print "<option value='moms_transaktioner'>Posteringer pr. momskode</option>\n";
+	if ($rapportart != "moms_rubrik")
+		print "<option value='moms_rubrik'>Momsrubrikker (A/B/C)</option>\n";
+	if ($rapportart != "moms_afstemning")
+		print "<option value='moms_afstemning'>Momsafstemning</option>\n";
 	if ($rapportart != "saft")
 		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	if ($rapportart != "regnskabbasis")
