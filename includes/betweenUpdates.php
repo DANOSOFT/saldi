@@ -52,6 +52,12 @@ db_modify("CREATE INDEX IF NOT EXISTS batch_salg_linje_id_idx ON batch_salg (lin
 db_modify("CREATE INDEX IF NOT EXISTS grupper_art_kodenr_idx ON grupper (art, kodenr)",__FILE__ . " linje " . __LINE__);
 db_modify("CREATE INDEX IF NOT EXISTS kontoplan_kontonr_regnskabsaar_idx ON kontoplan (kontonr, regnskabsaar)",__FILE__ . " linje " . __LINE__);
 
+# 20260715 CL/SZ - lager/rapport.php's per-item loop looks up kostpriser (vare_id, transdate)
+# once per item whenever the report's end date isn't today (~line 893). kostpriser only had its
+# primary key, so every item forced a full table scan of kostpriser to find its latest price -
+# on a large item report this is the same "no index on the hot per-row lookup" issue as above.
+db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpriser (vare_id, transdate)",__FILE__ . " linje " . __LINE__);
+
 #####
 
 ?>
