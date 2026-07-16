@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/syssetup.php --- lap 4.1.0 -- 2024-06-04 --
+// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-07-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 //
 // 20132127 Indsat kontrol for at kodenr er numerisk på momskoder.
@@ -43,6 +43,7 @@
 // 20220614 MSC - Added div class divSys
 // 20240407 PHR - save moved to syssetupIncludes/saveData.php
 // 20240604 PHR PHP8
+// 20260716 MJ  Tilfoejede Land (OSS) og Type til SM-momskoder for OSS B2C EU momsangivelse.
 
 @session_start();
 $s_id=session_id();
@@ -152,8 +153,10 @@ if ($valg=='moms'){
 	print "<td align=\"center\"><span title='$spantxt2'>".findtekst('440|Konto', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt3'>".findtekst('995|Sats', $sprog_id)."</span></td>";
 	print "<td></td><td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td>";
-	print "<td align=\"center\"><span title='Rubrik paa momsangivelsen (A-varer, A-ydelser, B-varer, B-ydelser, C)'>Rubrik</span></td></tr>\n";		#20210513
-	$y=skriv_formtabel('SM',$x,$y,$art,$id,'S',$kodenr,$beskrivelse,$box1,'6' ,$box2,'6','','6',$box4,'6',$box5,'6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	print "<td align=\"center\"><span title='Rubrik paa momsangivelsen (A-varer, A-ydelser, B-varer, B-ydelser, C)'>Rubrik</span></td>\n";		#20210513
+	print "<td align=\"center\"><span title='Land for OSS B2C EU-moms (f.eks. Sverige, Finland). Udfyldes kun paa SM-koder for salg til EU-privatpersoner.'>Land (OSS)</span></td>\n";
+	print "<td align=\"center\"><span title='Type for OSS-angivelse: varer eller ydelser. Udfyldes kun paa OSS-koder.'>Type</span></td></tr>\n";
+	$y=skriv_formtabel('SM',$x,$y,$art,$id,'S',$kodenr,$beskrivelse,$box1,'6' ,$box2,'6','','6',$box4,'6',$box5,'6',$box6,'10',$box7,'8','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
 	print "<tr><td><br></td></tr>\n";
 	$spantxt2=findtekst('2245|Det nummer i kontoplanen som købsmomsen skal konteres på.', $sprog_id);
 	print "<tr><td></td><td colspan=3><b><span title='".findtekst('2431|Den moms du skal have retur fra SKAT', $sprog_id)."'>".findtekst('996|Købsmoms (indgående moms)', $sprog_id)."</span></td></tr>\n";
