@@ -1,0 +1,12 @@
+# Companion workflow policy file required alongside verification.yaml by
+# apps/control-plane/lib/repository-profile.ts (loadRepositoryProfile fails
+# closed - ok:false - unless BOTH verification.yaml and workflow.yaml exist).
+version: 1
+
+approvalRequiredFor:
+  - protected_path_change
+  - merge
+
+defaults:
+  requireReviewer: true
+  keepPrDraftUntilHumanApproval: true
