@@ -99,6 +99,8 @@
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260420 NTR SST-578 Fixed QRcode always fetching kasse 2, instead of it's intended kasse
 // 20260605 CL/PHR function labels: fixed Standard label read from grupper (was incorrectly reading from labels table); added hidden editRawHTML to keep raw HTML mode after save
+// 20260709 Sawaneh Added "Show both delivery address and Extra fields on open orders" setting under Order-related options
+// 20260715 CDX/NTR Made the REST API Swagger link relative to the current installation
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -1844,6 +1846,7 @@ function ordre_valg() {
 	$gs1parsing          = get_settings_value("gs1_parsing", "ordre", "off") === "on" ? "checked" : "";
 	$ourRefStockSwitch   = get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" ? "checked" : "";
 	$stockWarningEnabled = get_settings_value("stockWarningEnabled", "ordre", "off") === "on" ? "checked" : "";
+	$showBothAddrExtra   = get_settings_value("showBothAddrExtra", "ordre", "off") === "on" ? "checked" : "";
 
 	$rabatvarenr = NULL;
 	if ($rabatvareid) {
@@ -1918,6 +1921,7 @@ function ordre_valg() {
 	print "<tr><td title=\"Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.\">If 'Our ref's stock is empty choose another</td><td><INPUT title=\"Opdater lager ud fra 'Vores ref.' når feltet ændres\" class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
 	$swT = function_exists('stock_warning_texts') ? stock_warning_texts(isset($sprog_id) ? $sprog_id : null) : array('setting_label' => 'Warn when selling out-of-stock items (popup + reason)', 'setting_title' => 'Show popup and require approval note when an out-of-stock item is added to a POS or Debtor order.');
 	print "<tr><td title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "'>" . $swT['setting_label'] . "</td><td><INPUT title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
+	print "<tr><td title='Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer'>Show both delivery address and Extra fields on open orders</td><td><INPUT title='Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
@@ -2246,7 +2250,7 @@ function api_valg() {
 		if ($api_bruger) {
 			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
 			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
-			print "<tr><td>Swagger: </td><td td colspan='3'><a href='https://ssl12.saldi.dk/pblm/restapi/swagger-ui.html#/' target='_blank' style='$buttonStyle; text-decoration:none; display: inline-block; padding: 2px;'>Swagger</a></td></tr>";
+			print "<tr><td>Swagger: </td><td td colspan='3'><a href='../restapi/swagger-ui.html#/' target='_blank' style='$buttonStyle; text-decoration:none; display: inline-block; padding: 2px;'>Swagger</a></td></tr>";
 			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key' readonly></td></tr>";
 			print "<tr><td title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822-->".findtekst('821|Tilladte IP adresser', $sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";

@@ -3,28 +3,146 @@ info:
   title: SALDI REST API
   description: |
     A comprehensive REST API for managing orders, customers, products, and inventory.
-    
+
+    ## Database terminology
+    - **Registry database**: the owning database, such as `test`. Its `regnskab`
+      table maps account IDs and names to account databases.
+    - **Account database**: an owned accounting database, such as `test_36`. Users
+      and accounting data are stored here.
+    - **`tenant_id`**: the legacy JWT claim name for the numeric account ID
+      (`regnskab.id`). It does not identify the registry database.
+    - **`tenant` response field**: the legacy field name for the selected account.
+
     ## Authentication
-    All endpoints require authentication via headers:
-    - `x-db`: Database identifier
-    - `x-saldiuser`: User identifier
-    - `Authorization`: API key for authentication
-    
-  version: 1.0.0
+    Protected endpoints use JWT bearer authentication. The legacy `x-db`,
+    `x-saldiuser`, and API-key-style `Authorization` headers are not accepted.
+
+    1. Call `POST /auth/login.php` with the Saldi username, password, and account name.
+    2. Copy `data.access_token` from the response.
+    3. Send it as `Authorization: Bearer <access_token>`.
+
+    Access tokens expire after 3600 seconds. Login also returns a refresh token
+    with a 30-day lifetime for use with `POST /auth/refresh.php`.
+
+    The selected account ID is embedded in the token as `tenant_id`, so
+    `X-Tenant-ID` is not normally needed. It is only a compatibility fallback for
+    an older token without that claim. Its value is the numeric account ID, not a
+    registry or account database name.
+
+  version: 1.1.0
   contact:
     name: API Support
 servers:
-  - url: https://ssl12.saldi.dk/pblm/restapi/endpoints/v1
-    description: Local development server
-  - url: https://saldi.dk/v1
-    description: Production server
+  - url: ./endpoints/v1
+    description: REST API in the current SALDI installation
 
 security:
-  - DatabaseAuth: []
-    UserAuth: []
-    ApiKeyAuth: []
+  - BearerAuth: []
 
 paths:
+  # Authentication
+  /auth/login.php:
+    post:
+      tags:
+        - Authentication
+      summary: Log in and obtain JWT tokens
+      description: |
+        Authenticates a user in the selected account database and returns an access
+        token and refresh token. `account_name` is the account name shown in Saldi;
+        it is not the internal database identifier formerly sent as `x-db`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: api
+              password: your-api-user-password
+              account_name: Your Saldi account name
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Username, password, or account name is missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The selected account is closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account name not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Database connection failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh.php:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh an access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Access token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '400':
+          description: Refresh token is missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Refresh token is invalid or expired, has the wrong type, or its user no longer exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The selected account is closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Database connection failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # Debitor Orders
   /debitor/orders/:
     get:
@@ -2505,61 +2623,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    delete:
-      tags:
-        - Product Groups
-      summary: Delete a product group
-      parameters:
-        
-        
-        
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: Product group ID
-          example: 1
-      responses:
-        '200':
-          description: Product group deleted successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: "Product group deleted successfully"
-        '400':
-          description: Bad request - group may be referenced by products
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                group_in_use:
-                  summary: Group In Use
-                  value:
-                    success: false
-                    message: "Cannot delete product group as it is referenced by existing products"
-                    data: null
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Product group not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   # Accounts Management
   /accounts/:
     get:
@@ -3085,28 +3148,13 @@ paths:
     post:
       tags:
         - Attachments
-      summary: Upload a new file
-      parameters:
+      summary: Upload a base64-encoded file
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
-              type: object
-              required:
-                - file
-              properties:
-                file:
-                  type: string
-                  format: binary
-                  description: File to upload
-                filename:
-                  type: string
-                  description: Custom filename (optional)
-                  example: "my_document.pdf"
-            encoding:
-              file:
-                contentType: '*/*'
+              $ref: '#/components/schemas/AttachmentUploadRequest'
       responses:
         '201':
           description: File uploaded successfully
@@ -3178,192 +3226,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  # VAT Management
+  # VAT Codes
   /vat/:
     get:
       tags:
         - VAT
-      summary: Get all VAT items
-      description: |
-        Get all VAT items with optional filtering and sorting.
-        
-
-        - `description` - VAT description
-        - `vatCode` - VAT code
-        - `number` - VAT number
-        - `fiscalYear` - Fiscal year
-        - `account` - Account ID
-        - `rate` - VAT rate percentage
-        - `contraAccount` - Contra account ID
-        - `mapping` - Mapping information
-      parameters:
-        
-        
-        
-        - name: orderBy
-          in: query
-          schema:
-            type: string
-            default: number
-            enum: [id, number, description, vatCode, fiscalYear, rate]
-          description: Field to order by
-          example: "number"
-        - name: orderDirection
-          in: query
-          schema:
-            type: string
-            enum: [ASC, DESC]
-            default: ASC
-          description: Sort direction
-        - name: field
-          in: query
-          schema:
-            type: string
-            enum: [id, number, description, vatCode, fiscalYear, rate]
-          description: Field to filter by
-          example: "description"
-        - name: value
-          in: query
-          schema:
-            type: string
-          description: Value to filter by
-          example: "Standard VAT"
-        - name: vatcode
-          in: query
-          schema:
-            type: string
-          description: VAT code to search for
-          example: "A25"
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-            maximum: 200
-            minimum: 1
-          description: Maximum number of VAT items to return
-          example: 20
+      summary: Get all VAT codes
+      description: Read-only list of VAT codes from the selected account database's `grupper` table.
       responses:
         '200':
-          description: List of VAT items
+          description: List of VAT codes
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VatListResponse'
-              examples:
-                all_vat_items:
-                  summary: All VAT Items
-                  description: Get all VAT items with basic information
-                  value:
-                    success: true
-                    data:
-                      - id: 1
-                        description: "Standard VAT 25%"
-                        vatCode: "A"
-                        number: 25
-                        fiscalYear: 2025
-                        account: 1520
-                        rate: 25.0
-                        contraAccount: 0
-                        mapping: ""
-                      - id: 2
-                        description: "Reduced VAT 5%"
-                        vatCode: "B"
-                        number: 5
-                        fiscalYear: 2025
-                        account: 1521
-                        rate: 5.0
-                        contraAccount: 0
-                        mapping: ""
-                filtered_by_vatcode:
-                  summary: Filtered by VAT Code
-                  description: Get VAT items filtered by VAT code
-                  value:
-                    success: true
-                    data:
-                      - id: 1
-                        description: "Standard VAT 25%"
-                        vatCode: "A"
-                        number: 25
-                        fiscalYear: 2025
-                        account: 1520
-                        rate: 25.0
-                        contraAccount: 0
-                        mapping: ""
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    post:
-      tags:
-        - VAT
-      summary: Create a new VAT item
-      parameters:
-        
-        
-        
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateVatRequest'
-            examples:
-              basic_vat:
-                summary: Basic VAT Item
-                description: Create a VAT item with minimal required fields
-                value:
-                  description: "Standard VAT 25%"
-                  vatCode: "A"
-                  number: 25
-              detailed_vat:
-                summary: Detailed VAT Item
-                description: Create a VAT item with all available fields
-                value:
-                  description: "Standard VAT 25%"
-                  vatCode: "A"
-                  number: 25
-                  account: 1520
-                  rate: 25.0
-                  contraAccount: 0
-                  mapping: "EU-VAT"
-      responses:
-        '201':
-          description: VAT item created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: "VAT item created successfully"
-                  data:
-                    $ref: '#/components/schemas/VatResponse'
-        '400':
-          description: Bad request - validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                missing_required_fields:
-                  summary: Missing Required Fields
-                  value:
-                    success: false
-                    message: "VAT code, number, and description are required"
-                    data: null
-                duplicate_vat_code:
-                  summary: Duplicate VAT Code
-                  value:
-                    success: false
-                    message: "VAT item with code 'A25' already exists"
-                    data: null
+                $ref: '#/components/schemas/VatCodeListResponse'
         '401':
           description: Authentication failed
           content:
@@ -3371,226 +3247,213 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /vat/{id}:
+  /vat-codes:
     get:
       tags:
         - VAT
-      summary: Get a specific VAT item
-      parameters:
-        
-        
-        
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: VAT item ID
-          example: 1
+      summary: Get all VAT codes
+      description: Read-only alias of `GET /vat/`.
       responses:
         '200':
-          description: VAT item details
+          description: List of VAT codes
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    $ref: '#/components/schemas/VatResponse'
+                $ref: '#/components/schemas/VatCodeListResponse'
         '401':
           description: Authentication failed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: VAT item not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    put:
-      tags:
-        - VAT
-      summary: Update a VAT item
-      description: |
-        Update an existing VAT item
-      parameters:
-        
-        
-        
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: VAT item ID
-          example: 1
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateVatRequest'
-            examples:
-              update_description:
-                summary: Update Description
-                value:
-                  id: 1
-                  description: "Updated Standard VAT 25%"
-              update_rate:
-                summary: Update Rate
-                value:
-                  id: 1
-                  rate: 27.0
-              update_all:
-                summary: Update All Fields
-                value:
-                  id: 1
-                  description: "Standard VAT 25%"
-                  vatCode: "A"
-                  number: 25
-                  account: 1520
-                  rate: 25.0
-                  contraAccount: 0
-                  mapping: "Updated mapping"
-      responses:
-        '200':
-          description: VAT item updated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: "VAT item updated successfully"
-                  data:
-                    $ref: '#/components/schemas/VatResponse'
-        '400':
-          description: Bad request - validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: VAT item not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    delete:
-      tags:
-        - VAT
-      summary: Delete a VAT item
-      parameters:
-        
-        
-        
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: VAT item ID
-          example: 1
-      responses:
-        '200':
-          description: VAT item deleted successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: "VAT item deleted successfully"
-        '400':
-          description: Bad request - VAT item may be referenced by other records
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                vat_in_use:
-                  summary: VAT Item In Use
-                  value:
-                    success: false
-                    message: "Cannot delete VAT item as it is referenced by existing transactions"
-                    data: null
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: VAT item not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
 components:
   securitySchemes:
-    DatabaseAuth:
-      type: apiKey
-      in: header
-      name: x-db
-      description: Database identifier
-    UserAuth:
-      type: apiKey
-      in: header
-      name: x-saldiuser
-      description: User identifier
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: Authorization
-      description: API key for authentication
-
-  parameters:
-    DatabaseHeader:
-      name: x-db
-      in: header
-      required: true
-      description: Database identifier
-      schema:
-        type: string
-        example: "mycompany_db"
-    UserHeader:
-      name: x-saldiuser
-      in: header
-      required: true
-      description: User identifier
-      schema:
-        type: string
-        example: "user123"
-    ApiKeyHeader:
-      name: Authorization
-      in: header
-      required: true
-      description: API key for authentication
-      schema:
-        type: string
-        example: "your-api-key-here"
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token returned by POST /auth/login.php
 
   schemas:
+    # VAT Code Schemas
+    VatCodeListResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: ""
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VatCode'
+
+    VatCode:
+      type: object
+      required:
+        - code
+        - rate
+        - description
+      properties:
+        code:
+          type: integer
+          example: 1
+        rate:
+          type: number
+          format: float
+          example: 25.0
+        description:
+          type: string
+          example: Standard VAT
+
+    # Authentication Schemas
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+        - account_name
+      properties:
+        username:
+          type: string
+          description: Username of a user in the selected Saldi account
+          example: api
+        password:
+          type: string
+          format: password
+          description: Password configured for that Saldi user
+          example: your-api-user-password
+        account_name:
+          type: string
+          description: Account name as shown in Saldi (the `regnskab` value), not the database name
+          example: Your Saldi account name
+
+    LoginResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login successful
+        data:
+          type: object
+          required:
+            - access_token
+            - refresh_token
+            - token_type
+            - expires_in
+            - user
+            - tenant
+          properties:
+            access_token:
+              type: string
+              description: JWT access token to send in the Authorization header
+            refresh_token:
+              type: string
+              description: JWT refresh token with a 30-day lifetime
+            token_type:
+              type: string
+              enum: [Bearer]
+              example: Bearer
+            expires_in:
+              type: integer
+              description: Access-token lifetime in seconds
+              example: 3600
+            user:
+              $ref: '#/components/schemas/AuthenticatedUser'
+            tenant:
+              $ref: '#/components/schemas/AuthenticatedAccount'
+
+    AuthenticatedUser:
+      type: object
+      required:
+        - id
+        - username
+        - is_admin
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: api
+        is_admin:
+          type: boolean
+          example: false
+
+    AuthenticatedAccount:
+      type: object
+      description: Selected account; returned under the legacy response field name `tenant`.
+      required:
+        - id
+        - name
+        - db
+      properties:
+        id:
+          type: integer
+          description: Numeric account ID (`regnskab.id`) embedded in the JWT as `tenant_id`
+          example: 3
+        name:
+          type: string
+          description: Account name used as `account_name` during login
+          example: Your Saldi account name
+        db:
+          type: string
+          description: Account database name
+          example: saldi_3
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh token returned by POST /auth/login.php
+
+    RefreshTokenResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Token refreshed successfully
+        data:
+          type: object
+          required:
+            - access_token
+            - token_type
+            - expires_in
+          properties:
+            access_token:
+              type: string
+              description: New JWT access token
+            token_type:
+              type: string
+              enum: [Bearer]
+              example: Bearer
+            expires_in:
+              type: integer
+              example: 3600
+
     # Order Schemas
     CreateOrderRequest:
       type: object
@@ -3799,7 +3662,7 @@ components:
           example: "1001"
         reference:
           type: string
-          description: Reference/user (auto-set from x-saldiuser header)
+          description: Reference/user (auto-set from the authenticated JWT username)
           example: "user123"
         orderNumber:
           type: integer
@@ -5806,7 +5669,64 @@ components:
           type: string
           example: "Current fiscal year retrieved successfully"
           
-          # Attachment Schemas
+    # Attachment Schemas
+    AttachmentUploadRequest:
+      type: object
+      required:
+        - image_base64
+      properties:
+        image_base64:
+          type: string
+          format: byte
+          description: Base64 file content, optionally prefixed with a data URI
+        filename:
+          type: string
+          description: Optional filename; a random suffix is added before its extension
+          example: invoice.pdf
+        id:
+          type: string
+          description: Optional exact custom filename; takes precedence over `filename`
+        accountnr:
+          type: string
+          description: Optional account number stored with the attachment
+        extracted_data:
+          type: object
+          properties:
+            total_amount:
+              type: number
+              format: float
+            invoice_date:
+              type: string
+              format: date
+            invoice_number:
+              type: string
+            invoice_description:
+              type: string
+            currency:
+              type: string
+              example: DKK
+
+    Attachment:
+      type: object
+      properties:
+        filename:
+          type: string
+          example: invoice.pdf
+        size:
+          type: integer
+          description: File size in bytes
+          example: 2048576
+        mimeType:
+          type: string
+          example: application/pdf
+        uploadDate:
+          type: string
+          description: File modification time in `YYYY-MM-DD HH:MM:SS` format
+          example: "2026-07-15 10:30:00"
+        metadata:
+          type: object
+          additionalProperties: true
+
     AttachmentResponse:
       type: object
       properties:
@@ -5814,29 +5734,7 @@ components:
           type: boolean
           example: true
         data:
-          type: object
-          properties:
-            filename:
-              type: string
-              example: "document.pdf"
-            filepath:
-              type: string
-              example: "/var/www/html/pblm/bilag/test_4/pulje/document.pdf"
-            size:
-              type: integer
-              description: File size in bytes
-              example: 2048576
-            mimeType:
-              type: string
-              example: "application/pdf"
-            uploadDate:
-              type: string
-              format: date-time
-              example: "2025-07-29T10:30:00Z"
-            downloadUrl:
-              type: string
-              description: URL to download the file
-              example: "/attachment?file=document.pdf&download=true"
+          $ref: '#/components/schemas/Attachment'
 
     AttachmentListResponse:
       type: object
@@ -5847,27 +5745,7 @@ components:
         data:
           type: array
           items:
-            type: object
-            properties:
-              filename:
-                type: string
-                example: "document.pdf"
-              filepath:
-                type: string
-                example: "/var/www/html/pblm/bilag/test_4/pulje/document.pdf"
-              size:
-                type: integer
-                example: 2048576
-              mimeType:
-                type: string
-                example: "application/pdf"
-              uploadDate:
-                type: string
-                format: date-time
-                example: "2025-07-29T10:30:00Z"
-              downloadUrl:
-                type: string
-                example: "/attachment?file=document.pdf&download=true"
+            $ref: '#/components/schemas/Attachment'
 
     AttachmentUploadResponse:
       type: object
@@ -5879,31 +5757,7 @@ components:
           type: string
           example: "File uploaded successfully"
         data:
-          type: object
-          properties:
-            filename:
-              type: string
-              example: "document.pdf"
-            originalFilename:
-              type: string
-              example: "my_document.pdf"
-            size:
-              type: integer
-              example: 2048576
-            mimeType:
-              type: string
-              example: "application/pdf"
-            uploadDate:
-              type: string
-              format: date-time
-              example: "2025-07-29T10:30:00Z"
-            converted:
-              type: boolean
-              description: Whether the file was converted (e.g., image to PDF)
-              example: false
-            downloadUrl:
-              type: string
-              example: "/attachment?file=document.pdf&download=true"
+          $ref: '#/components/schemas/Attachment'
 
     # Common Response Schemas
     ErrorResponse:
@@ -5937,6 +5791,8 @@ components:
 
 
 tags:
+  - name: Authentication
+    description: Obtain and refresh JWT access tokens
   - name: Debitor Orders
     description: Operations for debitor orders
   - name: Creditor Orders

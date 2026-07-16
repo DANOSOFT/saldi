@@ -24,6 +24,10 @@
 // ----------------------------------------------------------------------
 
 // 20260526 LOE Created new report based on datagrid, with flexible search and sorting, to handle sales report based on postnr and departments.
+// 20260707 SZ Added Grid Framework sticky header and footer to Sales by Postal Code report
+// 20260711 SZ Added Grid Framework sticky page header (flex layout, same icon/button style as other
+//             Lager reports) replacing the calc(100vh) height hack; the datagrid itself already
+//             provides its own sticky header row + sticky footer with pagination via includes/grid.php
 
 
 @session_start();
@@ -42,6 +46,22 @@ include("../includes/topline_settings.php");
 include("../includes/grid.php");
 
 $title = findtekst('3360|Salg pr. postnummer', $sprog_id);
+
+// 20260714 SZ - rapport.php's redirect into this page (the only entry point - see
+// lager/rapport.php's "Salg pr. postnummer" submit branch) never carries offset[salg_rapport]/
+// sort[salg_rapport]/rowcount[salg_rapport]/search[salg_rapport], since those are this grid's own
+// state params, not rapport.php's filters. includes/grid.php's create_datagrid() persists that state
+// in the datatables table across visits by design (so paging/sorting/resizing don't reset each other),
+// but it can't tell "fresh entry into the report" apart from "returning to keep browsing" - both look
+// like a bare GET with none of those keys. Once this grid has ever been paged past page 1 for a user,
+// every later fresh visit silently resumes from the stored offset instead of starting at page 1, unlike
+// lager/rapport.php|lagerstatus.php|pricelist.php's own footers, which have no cross-visit memory.
+// Forcing offset back to 0 only on a genuine fresh entry (no grid state params at all present) restores
+// that same "always starts on page 1" behavior without touching grid.php's shared persistence logic.
+if (!isset($_GET['offset']['salg_rapport']) && !isset($_GET['sort']['salg_rapport'])
+    && !isset($_GET['rowcount']['salg_rapport']) && !isset($_GET['search']['salg_rapport'])) {
+    $_GET['offset']['salg_rapport'] = 0;
+}
 
 /* ============================================================
  * 1. READ FILTERS FROM $_GET
@@ -125,24 +145,34 @@ ORDER BY {{SORT}}";
 /* ============================================================
  * 4. PAGE HEADER
  * ============================================================ */
-print "<center><table width='100%' cellpadding='0' cellspacing='0' border='0'><tbody>";
-if ($menu == 'T') {
-    $leftbutton = "<a class='button red small' href='../lager/rapport.php' accesskey='L'>Luk</a>";
-    include("../includes/top_header.php");
-    include("../includes/top_menu.php");
-    print "<div id='header'><div class='headerbtnLft'>$leftbutton</div><span class='headerTxt'>$title</span><div class='headerbtnRght'></div></div><div class='maincontentLargeHolder'>";
-} elseif ($menu == 'S') {
-    print "<tr><td colspan='5' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
-        <td width='10%'><a href='../lager/rapport.php' accesskey='L'><button style='$buttonStyle; width:100%'>" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>
-        <td width='80%' style='$topStyle' align='center'>$title</td>
-        <td width='10%' style='$topStyle'><br></td>
-    </table>";
+$srGridMode = ($menu == 'S');
+
+if ($srGridMode) {
+    $srTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+    print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+    print "<div id='srPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+    print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+    print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+    print "<td width='10%' align='left'><a href='../lager/rapport.php' accesskey='L'>
+           <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$srTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+    print "<td width='80%' align='center' style='$topStyle'>$title</td>";
+    print "<td width='10%' align='center' style='$topStyle'>&nbsp;</td>";
+    print "</tr></tbody></table>\n";
+    print "</div>\n"; // close flex:0 header wrapper
 } else {
-    print "<tr><td colspan='4' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
-        <td width='10%' $top_bund><a href='../lager/rapport.php' accesskey='L'>Luk</a></td>
-        <td width='80%' $top_bund>$title</td>
-        <td width='10%' $top_bund></td>
-    </tr></tbody>...</td></tr>";
+    print "<center><table width='100%' cellpadding='0' cellspacing='0' border='0'><tbody>";
+    if ($menu == 'T') {
+        $leftbutton = "<a class='button red small' href='../lager/rapport.php' accesskey='L'>Luk</a>";
+        include("../includes/top_header.php");
+        include("../includes/top_menu.php");
+        print "<div id='header'><div class='headerbtnLft'>$leftbutton</div><span class='headerTxt'>$title</span><div class='headerbtnRght'></div></div><div class='maincontentLargeHolder'>";
+    } else {
+        print "<tr><td colspan='4' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
+            <td width='10%' $top_bund><a href='../lager/rapport.php' accesskey='L'>Luk</a></td>
+            <td width='80%' $top_bund>$title</td>
+            <td width='10%' $top_bund></td>
+        </tr></tbody>...</td></tr>";
+    }
 }
 
 /* ============================================================
@@ -303,7 +333,11 @@ $grid_data = [
     'filters' => [],
 ];
 
-print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+if ($srGridMode) {
+    print "<div style='flex:1 1 auto; min-height:0; width:100%; box-sizing:border-box; padding:0 8px 8px 8px;'>";
+} else {
+    print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+}
 
 create_datagrid('salg_rapport', $grid_data);
 
@@ -319,6 +353,36 @@ create_datagrid('salg_rapport', $grid_data);
 .datatable-wrapper {
     margin-top: 0 !important;
     padding-top: 0 !important;
+}
+/* Restyle this report's own footer/pagination bar to match the Grid Framework
+   footer used on lager/lagerstatus.php etc. (scoped to this page's datagrid only -
+   includes/grid.php is shared by other pages and keeps its default footer look). */
+#datatable-wrapper-salg_rapport .datatable tfoot,
+#datatable-wrapper-salg_rapport .datatable tfoot tr,
+#datatable-wrapper-salg_rapport .datatable tfoot td {
+    background-color: <?= $bgcolor ?>;
+    border-top: 1px solid #b8bec8;
+}
+#datatable-wrapper-salg_rapport #footer-box {
+    padding: 6px 12px;
+    line-height: 1;
+}
+#datatable-wrapper-salg_rapport #footer-box .navbutton {
+    height: 20px;
+    width: auto;
+    min-width: 20px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    color: #000;
+    border: 1px solid #b8bec8;
+    border-radius: 4px;
+}
+#datatable-wrapper-salg_rapport #footer-box .navbutton:disabled {
+    opacity: 0.5;
+    cursor: default;
 }
 .datatable thead tr:first-child th {
     padding-top: 4px;
@@ -473,7 +537,6 @@ create_datagrid('salg_rapport', $grid_data);
             }
             const input = document.createElement('input');
             input.type = 'text';
-            input.name  = 'search[salg_rapport][fakturadate]';
             input.id = 'dato_range_picker';
             input.className = 'custom-date-range-input';
            
@@ -556,6 +619,11 @@ create_datagrid('salg_rapport', $grid_data);
 </script>
 
 <?php
-if ($menu == 'T') print "</div>";
-print "</tbody></table></center>";
+if ($srGridMode) {
+    print "</div>\n"; // close flex:1 datagrid wrapper opened above
+    print "</div>\n"; // close srPageFlex
+} else {
+    if ($menu == 'T') print "</div>";
+    print "</tbody></table></center>";
+}
 ?>

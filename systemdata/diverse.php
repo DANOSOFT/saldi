@@ -92,6 +92,13 @@
 // 20260306 Sawaneh - Added Simple guides feature: sidebar overlay with hardcoded Finance + Scaffolding PDF links
 // 20260326 Sawaneh -Added ourRefStockSwitch setting
 // 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
+// 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+
+
+
+
+
 
 @session_start();
 $s_id = session_id();
@@ -643,6 +650,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$ourRefStockSwitch    = if_isset($_POST, null, 'ourRefStockSwitch');
 		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
 
+		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
+
+
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
 		update_settings_value("porto_varnr", "ordre", $portovarenr, "Varenr to autmatically include on new orders");
@@ -653,6 +663,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		update_settings_value("gs1_parsing", "ordre", $gs1parsing, "Enable GS1 barcode parsing on order line item entry");
 		update_settings_value("ourRefStockSwitch", "ordre", $ourRefStockSwitch, "Update order stock/warehouse from Our ref when the reference changes"); // Removed single quotes from description to avoid SQL syntax error
 		update_settings_value("stockWarningEnabled", "ordre", $stockWarningEnabled, "Show popup and require approval note when selling out-of-stock items (POS + Debtor/Order)");
+		update_settings_value("showBothAddrExtra", "ordre", $showBothAddrExtra, "Show both delivery address and extra fields simultaneously on open orders");
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
 		} elseif ($box2) {
@@ -2202,6 +2213,19 @@ if ($menu != 'T') {
 	print "<td width=\"170px\" valign=\"top\">";
 	print "<table cellpadding=\"2\" cellspacing=\"2\" border=\"0\" width=\"100%\"><tbody>";
 	if ($menu == 'S') {
+		$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+		$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+		$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+		print "<script>
+		if (typeof window.saldiTranslations === 'undefined') {
+			window.saldiLanguage = " . (int)$sprog_id . ";
+			window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+		}
+		</script>";
+		print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+		print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+		print "<tr><td valign='top' align=left><div class=\"settings-search-wrapper\" style=\"padding-top:0;\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
+
 		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; ".findtekst('30|Tilbage', $sprog_id)."</b></button></a></td></tr>\n"; // 200240428
 
 		print "<tr><td align=left><a href=diverse.php?sektion=kontoindstillinger>

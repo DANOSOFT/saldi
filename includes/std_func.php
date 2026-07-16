@@ -2970,9 +2970,34 @@ if (!function_exists('darkenColor')) {
         $r = max(0, $r - ($amount * $r));
         $g = max(0, $g - ($amount * $g));
         $b = max(0, $b - ($amount * $b));
-        
+
         // Convert back to hex
         return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
     }
+}
+
+// Returns an error message string if $transdate falls in a closed moms period, NULL otherwise.
+// Returns NULL silently if the moms_periode_luk table does not yet exist (before first setup).
+function check_periode_luk($transdate) {
+    $exists = db_fetch_array(db_select(
+        "SELECT 1 FROM information_schema.tables WHERE table_name='moms_periode_luk' LIMIT 1",
+        __FILE__ . " linje " . __LINE__));
+    if (!$exists) return null;
+    $safe = db_escape_string($transdate);
+    $q = db_select(
+        "SELECT 1 FROM moms_periode_luk"
+        . " WHERE kalender_aar    = EXTRACT(YEAR  FROM DATE '$safe')"
+        . " AND   kalender_maaned = EXTRACT(MONTH FROM DATE '$safe')"
+        . " AND   status = 'closed' LIMIT 1",
+        __FILE__ . " linje " . __LINE__
+    );
+    if (db_fetch_array($q)) {
+        $dt  = DateTime::createFromFormat('Y-m-d', $transdate);
+        $mdr = ['','januar','februar','marts','april','maj','juni',
+                'juli','august','september','oktober','november','december'];
+        $label = $dt ? ($mdr[(int)$dt->format('n')] . ' ' . $dt->format('Y')) : $transdate;
+        return "Perioden $label er lukket for bogfoering. Kontakt bogholder for at genaabne perioden.";
+    }
+    return null;
 }
 ?>
