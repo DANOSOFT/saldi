@@ -37,7 +37,7 @@
 // 20251209 PHR closed products in now hidden by default
 // 20260206 PHR	fiscal_year
 // 20260217 PHR Removed fiscal_year from 'LG' serach
-// 20260707 SZ Added Grid Framework sticky header and footer to Stock Status report
+// 20260707 CL/SZ Added Grid Framework sticky header and footer to Stock Status report
 // 20260710 SZ Added Grid Framework sticky header+footer with pagination and internal-scroll grid
 
 @session_start();

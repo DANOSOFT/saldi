@@ -31,6 +31,33 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify("update tekster set tekst = '' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 }
 
+# 20260715 CL/SZ - lager/rapport.php's "Bestilt" (Ordered) column query lost its ordrer.levdate
+# range filter (see lager/rapport.php ~line 653) so open orders are found by status/leveret alone.
+# Neither was ever indexed, so that query now scans far more rows than the old (incorrect)
+# date-bounded version did. These target the actual filter conditions it uses.
+db_modify("CREATE INDEX IF NOT EXISTS ordrer_status_idx ON ordrer (status)",__FILE__ . " linje " . __LINE__);
+db_modify("CREATE INDEX IF NOT EXISTS ordrelinjer_open_ordre_id_idx ON ordrelinjer (ordre_id) WHERE leveret < antal",__FILE__ . " linje " . __LINE__);
+
+# 20260715 CL/SZ - the ordrer.levdate range filter on the Bestilt query above was restored, so
+# index that too now that it's back in active use.
+db_modify("CREATE INDEX IF NOT EXISTS ordrer_levdate_idx ON ordrer (levdate)",__FILE__ . " linje " . __LINE__);
+
+# 20260715 CL/SZ - lager/rapport.php's detailed Koeb/Salg loop calls find_kostpris()/
+# find_varemomssats() (includes/ordrefunc.php / includes/std_func.php) once per order line -
+# also used by debitor/ordre.php, kreditor/ordre.php(M) and includes/rapport.php. These hit
+# batch_salg.linje_id, grupper (art,kodenr) and kontoplan (kontonr,regnskabsaar) with no
+# supporting index (grupper/kontoplan only had their primary key), forcing a full table scan
+# on every single order line processed - the main cost of a large report, not the Bestilt query.
+db_modify("CREATE INDEX IF NOT EXISTS batch_salg_linje_id_idx ON batch_salg (linje_id)",__FILE__ . " linje " . __LINE__);
+db_modify("CREATE INDEX IF NOT EXISTS grupper_art_kodenr_idx ON grupper (art, kodenr)",__FILE__ . " linje " . __LINE__);
+db_modify("CREATE INDEX IF NOT EXISTS kontoplan_kontonr_regnskabsaar_idx ON kontoplan (kontonr, regnskabsaar)",__FILE__ . " linje " . __LINE__);
+
+# 20260715 CL/SZ - lager/rapport.php's per-item loop looks up kostpriser (vare_id, transdate)
+# once per item whenever the report's end date isn't today (~line 893). kostpriser only had its
+# primary key, so every item forced a full table scan of kostpriser to find its latest price -
+# on a large item report this is the same "no index on the hot per-row lookup" issue as above.
+db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpriser (vare_id, transdate)",__FILE__ . " linje " . __LINE__);
+
 #####
 
 ?>
