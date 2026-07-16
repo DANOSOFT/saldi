@@ -59,6 +59,7 @@
 // -------- As well as adding the ability to check for object properties if you pass an object instead of an array and the key is a string, so you can do if_isset($object, $default, 'property') to check for $object->property
 // -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
 // 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
+// 20260716 CL/PHR Added caller-owned transaction support to order and invoice numbering.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2108,14 +2109,15 @@ if (!function_exists('get_next_number')) {
 }
 
 if (!function_exists('get_next_order_number')) {
-	function get_next_order_number($art = 'DO')
+	function get_next_order_number($art = 'DO', $callerOwnsTransaction = false)
 	{
 		/**
 		 * Generates the next available order number (ordrenr) for a given 'art' (type).
 		 * Uses database transactions and table locking to prevent race conditions and duplicate numbers.
 		 * 
 		 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
-		 * 
+		 * @param bool $callerOwnsTransaction - Skip transaction control when the caller owns it.
+		 *
 		 * @return int - The next available order number.
 		 * @throws Exception - If unable to generate unique order number after maximum attempts.
 		 */
@@ -2126,7 +2128,9 @@ if (!function_exists('get_next_order_number')) {
 		$ordrenr = null;
 
 		// Start transaction to ensure atomicity
-		transaktion('begin');
+		if (!$callerOwnsTransaction) {
+			transaktion('begin');
+		}
 		try {
 			while ($attempt < $max_attempts) {
 				$attempt++;
@@ -2163,7 +2167,9 @@ if (!function_exists('get_next_order_number')) {
 				
 				if (!$check_r || !$check_r['id']) {
 					// Order number is unique, commit transaction and return
-					transaktion('commit');
+					if (!$callerOwnsTransaction) {
+						transaktion('commit');
+					}
 					return $ordrenr;
 				} else {
 					// Order number already exists (shouldn't happen with proper locking)
@@ -2175,11 +2181,15 @@ if (!function_exists('get_next_order_number')) {
 			}
 			
 			// If we get here, we couldn't generate a unique number
-			transaktion('rollback');
+			if (!$callerOwnsTransaction) {
+				transaktion('rollback');
+			}
 			throw new Exception("Could not generate unique order number after $max_attempts attempts");
-			
+
 		} catch (Exception $e) {
-			transaktion('rollback');
+			if (!$callerOwnsTransaction) {
+				transaktion('rollback');
+			}
 			throw $e;
 		}
 	}
@@ -2187,7 +2197,7 @@ if (!function_exists('get_next_order_number')) {
 
 //                   ----------------------------- get_next_invoice_number ------------------------------
 if (!function_exists('get_next_invoice_number')) {
-	function get_next_invoice_number($art = 'DO', $id = null)
+	function get_next_invoice_number($art = 'DO', $id = null, $callerOwnsTransaction = false)
 	{
 		/**
 		 * Generates the next available invoice number (fakturanr) for a given 'art' (type).
@@ -2196,7 +2206,8 @@ if (!function_exists('get_next_invoice_number')) {
 		 * 
 		 * @param string $art - The order type ('DO', 'DK', 'PO', etc.)
 		 * @param int $id - The order ID to exclude from checks (optional)
-		 * 
+		 * @param bool $callerOwnsTransaction - Skip transaction control when the caller owns it.
+		 *
 		 * @return int - The next available invoice number.
 		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
 		 */
@@ -2241,7 +2252,9 @@ if (!function_exists('get_next_invoice_number')) {
 				if ($debug) echo "<pre>  Attempt $attempt/$max_attempts</pre>";
 
 				// Start a fresh transaction for each attempt
-				transaktion('begin');
+				if (!$callerOwnsTransaction) {
+					transaktion('begin');
+				}
 
 				// Lock the ordrer table to prevent concurrent access
 				global $connection;
@@ -2249,6 +2262,9 @@ if (!function_exists('get_next_invoice_number')) {
 				if (!$lock_result) {
 					$err = pg_last_error($connection);
 					if ($debug) echo "<pre>  LOCK failed: $err — rollback and retry</pre>";
+					if ($callerOwnsTransaction) {
+						throw new Exception("Could not lock orders for invoice numbering: $err");
+					}
 					transaktion('rollback');
 					usleep(rand(50000, 200000));
 					continue;
@@ -2265,6 +2281,9 @@ if (!function_exists('get_next_invoice_number')) {
 				if (!$r) {
 					$err = pg_last_error($connection);
 					if ($debug) echo "<pre>  SELECT MAX failed: $err — rollback and retry</pre>";
+					if ($callerOwnsTransaction) {
+						throw new Exception("Could not read invoice numbering: $err");
+					}
 					transaktion('rollback');
 					usleep(rand(50000, 200000));
 					continue;
@@ -2296,11 +2315,16 @@ if (!function_exists('get_next_invoice_number')) {
 					}
 
 					// Invoice number is unique, commit transaction and return
-					transaktion('commit');
+					if (!$callerOwnsTransaction) {
+						transaktion('commit');
+					}
 					if ($debug) echo "<pre>  OK — returning fakturanr=$fakturanr (attempt $attempt)</pre>";
 					return $fakturanr;
 				} else {
 					if ($debug) echo "<pre>  Duplicate! fakturanr=$fakturanr already on order id=" . $check_r['id'] . " — rollback and retry</pre>";
+					if ($callerOwnsTransaction) {
+						throw new Exception("Invoice number $fakturanr is already in use");
+					}
 					transaktion('rollback');
 					usleep(rand(10000, 50000));
 				}
@@ -2311,7 +2335,9 @@ if (!function_exists('get_next_invoice_number')) {
 			throw new Exception("Could not generate unique invoice number after $max_attempts attempts");
 
 		} catch (Exception $e) {
-			transaktion('rollback');
+			if (!$callerOwnsTransaction) {
+				transaktion('rollback');
+			}
 			if ($debug) echo "<pre>  EXCEPTION: " . $e->getMessage() . "</pre>";
 			throw $e;
 		}

@@ -23,6 +23,7 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20260716 CL/PHR Added unique Stripe paid-invoice import key.
 
 
 
@@ -57,6 +58,12 @@ db_modify("CREATE INDEX IF NOT EXISTS kontoplan_kontonr_regnskabsaar_idx ON kont
 # primary key, so every item forced a full table scan of kostpriser to find its latest price -
 # on a large item report this is the same "no index on the hot per-row lookup" issue as above.
 db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpriser (vare_id, transdate)",__FILE__ . " linje " . __LINE__);
+
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'ordrer' AND indexname = 'ordrer_stripe_paid_invoice_uidx'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE UNIQUE INDEX ordrer_stripe_paid_invoice_uidx ON ordrer (kundeordnr) WHERE art = 'DO' AND shop_status = 'stripe_paid_bridge'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 #####
 
