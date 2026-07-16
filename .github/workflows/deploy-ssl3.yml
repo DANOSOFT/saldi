@@ -1,7 +1,8 @@
 name: Deploy to ssl3
 
-# Pulls the latest master into /var/www/html/master on ssl3.saldi.dk
-# whenever a commit lands on the master branch.
+# Runs on a self-hosted runner installed on ssl3 itself, so the deploy is
+# just a local git operation in /var/www/html/master - no SSH, no secrets.
+# Fires whenever a commit lands on master.
 on:
   push:
     branches:
@@ -9,52 +10,21 @@ on:
   # Allows triggering the deploy manually from the Actions tab.
   workflow_dispatch:
 
-# Ensure only one deploy runs at a time; queued runs are cancelled in
-# favour of the newest, so ssl3 always ends up on the latest master.
+# Only one deploy at a time; newest push wins so ssl3 ends up on latest master.
 concurrency:
   group: deploy-ssl3
   cancel-in-progress: true
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # Targets the runner installed on ssl3 (see the 'ssl3' label added
+    # during runner setup). 'self-hosted' + 'ssl3' must both match.
+    runs-on: [self-hosted, ssl3]
     steps:
-      - name: Pull latest master on ssl3
-        env:
-          SSH_KEY: ${{ secrets.SSL3_SSH_KEY }}
-          SSH_HOST: ssl3.saldi.dk
-          SSH_USER: ntr
-          SSH_PORT: "22"
-          DEPLOY_PATH: /var/www/html/master
+      - name: Pull latest master into /var/www/html/master
         run: |
           set -euo pipefail
-
-          # Fail early with a clear message if the secret is missing/empty.
-          if [ -z "${SSH_KEY:-}" ]; then
-            echo "::error::SSL3_SSH_KEY secret is empty or not set"
-            exit 1
-          fi
-
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          # The secret holds the private key base64-encoded (single line, no
-          # newlines/CRLF to corrupt). Decode it back to the real key here.
-          printf '%s' "$SSH_KEY" | base64 -d > "$HOME/.ssh/deploy_key"
-          chmod 600 "$HOME/.ssh/deploy_key"
-
-          # Sanity-check the key format (does not print the key itself).
-          echo "Validating private key format:"
-          ssh-keygen -y -f "$HOME/.ssh/deploy_key" > /dev/null && echo "  key OK"
-
-          # Pin the server's host key so the connection can't be MITM'd.
-          echo "Scanning host key for $SSH_HOST:$SSH_PORT"
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > "$HOME/.ssh/known_hosts"
-          chmod 644 "$HOME/.ssh/known_hosts"
-
-          # -v gives a full connection/auth trace in the log if this fails.
-          ssh -v -i "$HOME/.ssh/deploy_key" \
-              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-              -o IdentitiesOnly=yes \
-              -p "$SSH_PORT" \
-              "$SSH_USER@$SSH_HOST" \
-              "cd '$DEPLOY_PATH' && git fetch origin master && git reset --hard origin/master"
+          cd /var/www/html/master
+          git fetch origin master
+          git pull --ff-only origin master
+          echo "Deployed $(git rev-parse --short HEAD) to /var/www/html/master"
