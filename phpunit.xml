@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Factory-seeded PHPUnit config (PROVE slice).
+
+  scripts/gates/run-gates.mjs runPhpTestsGate invokes the PHP runner with NO
+  test path, relying on PHPUnit self-discovery. Characterization suites follow
+  ralph's ".test.php" naming convention (so ralph acceptanceCandidatesFor globs
+  discover them), which is NOT PHPUnit's default "Test.php" suffix. This config
+  wires the two together: bare PHPUnit discovers every ".test.php" file under
+  tests/characterization, so the client-mode php-tests-executed capability sees
+  real executed tests.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         colors="true"
+         failOnWarning="false"
+         cacheDirectory="tools/php/.phpunit.cache">
+  <testsuites>
+    <testsuite name="characterization">
+      <directory suffix=".test.php">tests/characterization</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>
