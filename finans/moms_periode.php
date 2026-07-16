@@ -26,6 +26,8 @@
 // 20260716 MJ R5 – Aaben/luk individuelle maaneder. Lukket maaned blokkerer alle
 //                  posteringsveje via PostgreSQL-trigger paa transaktioner-tabellen.
 //                  Audit trail gemmes i moms_periode_luk-tabellen.
+// 20260716 MJ     Flyttet DDL (CREATE TABLE/FUNCTION/TRIGGER) til betweenUpdates.php for at
+//                  undgaa falsk positiv i injecttjek() paa semikolon i PL/pgSQL-kroppen.
 
 @session_start();
 $s_id = session_id();
@@ -43,41 +45,6 @@ $md = [];
 $md[1]='januar'; $md[2]='februar'; $md[3]='marts';    $md[4]='april';
 $md[5]='maj';    $md[6]='juni';    $md[7]='juli';      $md[8]='august';
 $md[9]='september'; $md[10]='oktober'; $md[11]='november'; $md[12]='december';
-
-// --- ensure schema exists ---
-db_modify("CREATE TABLE IF NOT EXISTS moms_periode_luk (
-    id               SERIAL PRIMARY KEY,
-    kalender_aar     INTEGER NOT NULL,
-    kalender_maaned  INTEGER NOT NULL CHECK (kalender_maaned BETWEEN 1 AND 12),
-    status           VARCHAR(6) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
-    lukket_af        VARCHAR(100),
-    lukket_dato      TIMESTAMP,
-    aabnet_af        VARCHAR(100),
-    aabnet_dato      TIMESTAMP,
-    UNIQUE (kalender_aar, kalender_maaned)
-)", __FILE__." linje ".__LINE__);
-
-// Trigger function — blocks inserts/updates on transaktioner for closed months
-db_modify("CREATE OR REPLACE FUNCTION check_moms_periode_luk()
-RETURNS TRIGGER AS \$\$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM moms_periode_luk
-        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate)
-          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate)
-          AND status = 'closed'
-    ) THEN
-        RAISE EXCEPTION 'Perioden % er lukket for bogfoering – kontakt bogholder for at genaabne.',
-            TO_CHAR(NEW.transdate, 'MM-YYYY');
-    END IF;
-    RETURN NEW;
-END;
-\$\$ LANGUAGE plpgsql", __FILE__." linje ".__LINE__);
-
-db_modify("DROP TRIGGER IF EXISTS tr_check_moms_periode_luk ON transaktioner", __FILE__." linje ".__LINE__);
-db_modify("CREATE TRIGGER tr_check_moms_periode_luk
-    BEFORE INSERT OR UPDATE ON transaktioner
-    FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()", __FILE__." linje ".__LINE__);
 
 // --- permission: require finans access (modulnr 2, bit >= 1) ---
 $kan_aendre = ($rettigheder && substr($rettigheder, 2, 1) >= '1');
