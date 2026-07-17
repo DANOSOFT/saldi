@@ -37,6 +37,7 @@
 // 20250511 LOE Various changes to ehance user's experience
 // 20260127 LOE Updated migrateMySQLToPostgreSQL for some isolated fixes.
 // 20260129 PHR Added some str_replace  and a call to connect.php before lookup in 'regnskab'
+// 20260702 CX/PHR Close target PostgreSQL connection and terminate active sessions before DROP DATABASE in restore
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -511,6 +512,14 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 		// }
 		db_modify("delete from online where db='$db'",__FILE__ . " linje " . __LINE__);
 		db_modify("update regnskab set version = '' where db='$db'",__FILE__ . " linje " . __LINE__);
+		if ($db_type=='postgresql') {
+			// Reconnect to the maintenance database so the active connection is NOT the
+			// database we are about to drop, then terminate any other sessions still on it.
+			db_close($connection);
+			$connection = db_connect($sqhost, $squser, $sqpass, "postgres", __FILE__ . " linje " . __LINE__);
+			$escapedDb = pg_escape_string($connection, $db);
+			db_select("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$escapedDb' AND pid <> pg_backend_pid()", __FILE__ . " linje " . __LINE__);
+		}
 		db_modify("DROP DATABASE $db",__FILE__ . " linje " . __LINE__);
 		db_create($db);
 		print "<!-- Saldi-kommentar for at skjule uddata til siden \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
