@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-06-11 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 //
 // 2020.01.22 PHR function send_mails. Added mail format check #20200122
@@ -53,6 +53,7 @@
 // 20260623 Sawaneh Log 'Reason' (out-of-stock approval note) now prints only on the delivery note, not on quotes/orders/invoices.
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
+// 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -1128,11 +1129,11 @@ if (!function_exists('formularprint')) {
 			if ($formular == 9)
 				$printfilnavn = "plukliste";
 			if ($formular == 12)
-				$printfilnavn = "forslag";
+				$printfilnavn = "creditorSuggestion";
 			if ($formular == 13)
-				$printfilnavn = "rekvisition";
+				$printfilnavn = "creditorOrder";
 			if ($formular == 14)
-				$printfilnavn = "lev_fakt";
+				$printfilnavn = "creditorInvoice";
 			#		$psfp1=fopen("$mappe/$printfilnavn.ps","w");
 			#		$htmfp1=fopen("$mappe/$printfilnavn.htm","w");
 		}
@@ -1611,7 +1612,10 @@ if (!function_exists('formularprint')) {
 					3 => $flgs_navn,
 					4 => "fakt$fakturanr",
 					5 => "kn$fakturanr",
-					9 => "plukliste$ordrenr"
+					9 => "plukliste$ordrenr",
+					12 => "creditorSuggestion$ordrenr",
+					13 => "creditorOrder$ordrenr",
+					14 => "creditorInvoice$ordrenr"
 				];
 				if ($db == "saldi_1022") {
 					$dato = date('Y-m-d');
@@ -1622,7 +1626,10 @@ if (!function_exists('formularprint')) {
 						3 => $flgs_navn_1022,
 						4 => "$fakturanr-fakt-$kontonr-$dato",
 						5 => "$fakturanr-kn-$kontonr-$dato",
-						9 => "$ordrenr-plukliste-$kontonr-$dato"
+						9 => "$ordrenr-plukliste-$kontonr-$dato",
+						12 => "$ordrenr-creditorSuggestion-$kontonr-$dato",
+						13 => "$ordrenr-creditorOrder-$kontonr-$dato",
+						14 => "$ordrenr-creditorInvoice-$kontonr-$dato"
 					];
 				}
 

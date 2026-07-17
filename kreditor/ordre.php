@@ -1377,7 +1377,7 @@ function ansatopslag($sort, $fokus, $id){
 	sidehoved($id, "../kreditor/ordre.php", "../kreditor/kreditorkort.php", $fokus, "Leverand&oslash;rordre $id");
 	# print"<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	# print"<tr>
-	# <td valign=\"top\">";
+	//<td valign=\"top\">";
 	print"<table cellpadding='1' cellspacing='1' border='0	' width='100%' valign='top'
 	class='dataTable'>";
 	print"<tbody>
@@ -1568,9 +1568,9 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 				</tr>\n";
 				$vist=1;
 			}
-			# if ($konto_id && $y==1) print "
-			# <meta http-equiv=\"refresh\"
-			# content=\"0;URL=ordre.php?vare_id=$vare_id&fokus=$fokus&konto_id=$row2[lev_id]&id=$id\">";
+			// if ($konto_id && $y==1) print "
+			// <meta http-equiv=\"refresh\"
+			// content=\"0;URL=ordre.php?vare_id=$vare_id&fokus=$fokus&konto_id=$row2[lev_id]&id=$id\">";
 		}
 
 		if ($kontonr && !$vist && $row['samlevare']!='on' && !in_array($vare_id,$skjul_vare_id)) {

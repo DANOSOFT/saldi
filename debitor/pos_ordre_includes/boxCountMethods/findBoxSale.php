@@ -26,6 +26,10 @@
 // 20260605 CL/PHR findBoxSale: inkluder kasse_nr=0 transaktioner for ordrer tilhørende denne kasse i kasseopgørelsen
 
 // PHR Changed DKK to $baseCurrency
+// 20260523 CL/PHR Fixed typo: status = ' 3' (space before 3) corrected to status = '3' in else-branch
+// 20260523 CL/PHR Changed INNER JOIN with pos_betalinger to LEFT JOIN with COALESCE fallback to ordrer.felt_1/valuta,
+//                 so orders without pos_betalinger rows (art='DO') are included in cash balance calculation
+// 20260523 CL/PHR Fixed negative tilgang: skip retur calculation when pos_betalinger has no rows (NULL amount)
 function findBoxSale ($kasse,$optalt,$valuta) {
 	echo "<!-- function findBoxSale begin -->"; 
   	global $baseCurrency,$db,$regnaar;
@@ -170,12 +174,17 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$kontosum = 0;
 		$tmp=NULL;
 		($o_liste)?$tmp=" and (ordrer.status='3' or $o_liste)":$tmp=" and ordrer.status='3'"; #20150519
-		$qtxt="select pos_betalinger.*,ordrer.sum,ordrer.moms,ordrer.status from pos_betalinger,ordrer ";
+		$qtxt="select ordrer.id as ordre_id, ";
+		$qtxt.="COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) as betalingstype, ";
+		$qtxt.="COALESCE(pos_betalinger.amount, ordrer.sum + ordrer.moms) as amount, ";
+		$qtxt.="COALESCE(pos_betalinger.valuta, ordrer.valuta) as valuta, ";
+		$qtxt.="ordrer.sum, ordrer.moms, ordrer.status ";
+		$qtxt.="from ordrer left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id ";
 		$qtxt.="where ordrer.felt_5='$kasse' $tmp and ordrer.fakturadate >= '$regnstart' ";
 		$qtxt.="and ordrer.fakturadate <= '$dd' and ordrer.valuta = '$valuta' ";
 		if (count($oList)) $qtxt.= "and ordrer.status >= '3' ";
-		else $qtxt.= "and ordrer.status = ' 3'";
-		$qtxt.="and ordrer.id=pos_betalinger.ordre_id order by pos_betalinger.betalingstype, ordrer.id";
+		else $qtxt.= "and ordrer.status = '3'";
+		$qtxt.=" order by betalingstype, ordrer.id";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			if ($r['status'] == '3' || in_array($r['ordre_id'],$oList)) {
@@ -217,7 +226,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$lineCount=0;
 		$qtxt="select sum(amount) as amount from pos_betalinger where ordre_id=$oid[$b]";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$retur+=($r['amount']-$osum[$b]);
+		if (is_numeric($r['amount'])) $retur+=($r['amount']-$osum[$b]);
 		$qtxt="select * from ordrelinjer where ordre_id=$oid[$b]";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {

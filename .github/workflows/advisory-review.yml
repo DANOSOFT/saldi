@@ -1,0 +1,74 @@
+# Copy-paste example for the CLIENT repository only.
+# Operator setup required:
+# - The AI review layer is OFF by default (fail-closed). Enable it ONLY after
+#   the client DPA is signed (SALDI-INTEGRATION-AUDIT 4.2) by setting the
+#   ADVISORY_AI_CMD env on the "Advisory review" step to a sanctioned reviewer
+#   command (the claude-gpt proxy lane; direct Codex CLI dispatch is
+#   prohibited). Without it the review posts mechanical findings only.
+# - Keep this workflow advisory. It must NOT be configured as a required status check.
+# - Coordinate with the client operator before adding this to the client GitHub org.
+
+name: Advisory AI PR review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  # Commenting on a PR via the issues API requires pull-requests: write IN
+  # ADDITION to issues: write (verified live 2026-07-16: with pull-requests:
+  # read the post 403s "Resource not accessible by integration" even though
+  # the token shows Issues: write).
+  pull-requests: write
+  issues: write
+
+jobs:
+  advisory-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        continue-on-error: true
+        with:
+          php-version: "8.3"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        continue-on-error: true
+        with:
+          node-version: "20"
+
+      # SALDI-INTEGRATION-AUDIT 2.1: this step is deliberately NOT
+      # continue-on-error. The "Advisory review" step below IS
+      # continue-on-error (the AI/mechanical review layer is advisory and
+      # must never block a merge), which means a missing script file was
+      # previously swallowed silently -- the job stayed green while posting
+      # zero advisory output, the exact failure the paid wedge cannot afford.
+      # This step fails the job loudly and immediately if the vendored
+      # script is not present, with a message that names the fix.
+      - name: Verify advisory-review script is vendored
+        run: |
+          if [ ! -f tools/advisory-review/advisory-review.mjs ]; then
+            echo "::error::tools/advisory-review/advisory-review.mjs is missing from this repo. The advisory-review script must be vendored before this workflow can run. From the factory repo, run: node integrations/saldi/advisory-review/install-into-client.mjs --target <this-repo-checkout>, then commit the vendored file. See integrations/saldi/advisory-review/README.md for the full install flow." >&2
+            exit 1
+          fi
+          echo "tools/advisory-review/advisory-review.mjs found."
+
+      - name: Advisory review
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # ADVISORY_AI_CMD: "<sanctioned reviewer command>"  # post-DPA ONLY (SALDI-INTEGRATION-AUDIT 4.2); leave unset for mechanical-only review
+        run: |
+          node tools/advisory-review/advisory-review.mjs \
+            --base origin/${{ github.base_ref }} \
+            --head HEAD \
+            --repo-dir . \
+            --post ${{ github.repository }} \
+            --pr ${{ github.event.pull_request.number }}

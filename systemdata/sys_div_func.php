@@ -100,6 +100,7 @@
 // 20260420 NTR SST-578 Fixed QRcode always fetching kasse 2, instead of it's intended kasse
 // 20260605 CL/PHR function labels: fixed Standard label read from grupper (was incorrectly reading from labels table); added hidden editRawHTML to keep raw HTML mode after save
 // 20260709 Sawaneh Added "Show both delivery address and Extra fields on open orders" setting under Order-related options
+// 20260715 CDX/NTR Made the REST API Swagger link relative to the current installation
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -2226,6 +2227,7 @@ function api_valg() {
 	$api_fil3   = trim($r['box6']);
 
 	$x = 0;
+	$userId = array();
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (strpos($r['rettigheder'], '1') === false) {
@@ -2249,7 +2251,7 @@ function api_valg() {
 		if ($api_bruger) {
 			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
 			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
-			print "<tr><td>Swagger: </td><td td colspan='3'><a href='https://ssl12.saldi.dk/pblm/restapi/swagger-ui.html#/' target='_blank' style='$buttonStyle; text-decoration:none; display: inline-block; padding: 2px;'>Swagger</a></td></tr>";
+			print "<tr><td>Swagger: </td><td td colspan='3'><a href='../restapi/swagger-ui.html#/' target='_blank' style='$buttonStyle; text-decoration:none; display: inline-block; padding: 2px;'>Swagger</a></td></tr>";
 			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key' readonly></td></tr>";
 			print "<tr><td title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822-->".findtekst('821|Tilladte IP adresser', $sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";

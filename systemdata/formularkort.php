@@ -58,6 +58,7 @@
 // 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
 // 20260529 CL/PHR Rettet: manglende xa-records (mailtekst/bilag) for art=5 oprettes nu automatisk ved visning
 // 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 @session_start();
 $s_id=session_id();
 
@@ -355,6 +356,19 @@ if ($menu=='T') {  # 20150331 start
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></span></td>\n";#20210804
 
 	print "</tbody></table></td></tr>\n";
+
+	$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+	$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+	$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+	print "<script>
+	if (typeof window.saldiTranslations === 'undefined') {
+		window.saldiLanguage = " . (int)$sprog_id . ";
+		window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+	}
+	</script>";
+	print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+	print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+	print "<tr><td height='1%' align='left' valign='top'><div class=\"settings-search-standalone\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
 } else {
 	# 2013.11.21 Tilføjet meta så ÆØÅ vises rigtigt. Også viewport til bedre visning på tablet
 	//print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n";
