@@ -514,13 +514,23 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 		db_modify("update regnskab set version = '' where db='$db'",__FILE__ . " linje " . __LINE__);
 		if ($db_type=='postgresql') {
 			// Reconnect to the maintenance database so the active connection is NOT the
-			// database we are about to drop, then terminate any other sessions still on it.
+			// database we are about to drop, then block new connections and terminate any
+			// other sessions still on it before dropping.
 			db_close($connection);
 			$connection = db_connect($sqhost, $squser, $sqpass, "postgres", __FILE__ . " linje " . __LINE__);
+			$quotedDb = pg_escape_identifier($connection, $db);
 			$escapedDb = pg_escape_string($connection, $db);
-			db_select("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$escapedDb' AND pid <> pg_backend_pid()", __FILE__ . " linje " . __LINE__);
+			@pg_query($connection, "ALTER DATABASE $quotedDb CONNECTION LIMIT 0"); // best effort; requires ownership
+			$terminated = pg_query($connection, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$escapedDb' AND pid <> pg_backend_pid()");
+			if (!$terminated) {
+				print "<BODY ONLOAD=\"javascript:alert('Kunne ikke afbryde aktive forbindelser til regnskabet - genskab afbrudt')\">";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=backup.php\">";
+				return;
+			}
+			db_modify("DROP DATABASE $quotedDb",__FILE__ . " linje " . __LINE__);
+		} else {
+			db_modify("DROP DATABASE $db",__FILE__ . " linje " . __LINE__);
 		}
-		db_modify("DROP DATABASE $db",__FILE__ . " linje " . __LINE__);
 		db_create($db);
 		print "<!-- Saldi-kommentar for at skjule uddata til siden \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
 		$mysql = $psql = NULL;
