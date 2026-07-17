@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankReconcile.php --- patch 5.0.0 --- 2026.04.16 ---
+// --- finans/bankReconcile.php --- patch 5.0.0 --- 2026.06.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,9 @@
 // 20240403 PHR Added instruction text
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260416 PHR	Some errorfixing
+// 20260624 CL/PHR Normalize bank dates before reconciliation, find fiscal year by date interval,
+// 20260624 CL/PHR apply 'vend' during reconciliation, show all CSV columns, and remember 'vend'.
+// 20260624 CL/PHR Normalize bank file text encoding when reconciling.
 
 ini_set("auto_detect_line_endings", true);
 
@@ -45,10 +48,17 @@ include("../includes/topline_settings.php");
 global $menu;
 global $fokus;
 
+if (!isset($menu)) $menu = '';
+if (!isset($buttonStyle)) $buttonStyle = '';
+if (!isset($topStyle)) $topStyle = '';
+if (!isset($top_bund)) $top_bund = '';
+
 $up = $vend = NULL;
+$reconcile = $filnavn = $splitter = $kontonr = $gebyrkonto = $valuta = $valuta_kode = $afd = NULL;
 $show = null;
 $kladde_id = null;
 $bilag = null;
+$feltnavn = array();
 $feltantal = 0;
 
 if ($menu == 'T') {
@@ -86,28 +96,28 @@ if ($menu == 'T') {
 }
 if ($_POST) {
 
-	$reconcile = if_isset($_POST['reconcile'], NULL);
-	$show = if_isset($_POST['show'], NULL);
-	$filnavn = if_isset($_POST['filnavn'], NULL);
-	$splitter = if_isset($_POST['splitter'], NULL);
-	$feltnavn = if_isset($_POST['feltnavn'], NULL);
-	$feltantal = if_isset($_POST['feltantal'], 0);
-	$kontonr = if_isset($_POST['kontonr'], 0);
-	$gebyrkonto = (int) if_isset($_POST['gebyrkonto'], NULL);
-	$valuta = if_isset($_POST['valuta'], NULL);
-	$valuta_kode = if_isset($_POST['valuta_kode'], NULL);
-	$bilag = if_isset($_POST['bilag'], NULL);
-	$afd = if_isset($_POST['afd'], NULL);
-	$vend = if_isset($_POST['vend'], NULL);
+	$reconcile = if_isset($_POST, NULL, 'reconcile');
+	$show = if_isset($_POST, NULL, 'show');
+	$filnavn = if_isset($_POST, NULL, 'filnavn');
+	$splitter = if_isset($_POST, NULL, 'splitter');
+	$feltnavn = if_isset($_POST, array(), 'feltnavn');
+	$feltantal = if_isset($_POST, 0, 'feltantal');
+	$kontonr = if_isset($_POST, 0, 'kontonr');
+	$gebyrkonto = (int) if_isset($_POST, NULL, 'gebyrkonto');
+	$valuta = if_isset($_POST, NULL, 'valuta');
+	$valuta_kode = if_isset($_POST, NULL, 'valuta_kode');
+	$bilag = if_isset($_POST, NULL, 'bilag');
+	$afd = if_isset($_POST, NULL, 'afd');
+	$vend = if_isset($_POST, NULL, 'vend');
 	if ($vend)
 		$vend = 'checked';
 } elseif ($_GET) {
-	$reconcile = if_isset($_GET['reconcile'], NULL);
-	$filnavn = if_isset($_GET['filnavn'], NULL);
-	$splitter = if_isset($_GET['splitter'], NULL);
-	$feltnavn = explode("|", if_isset($_GET['feltnavne'], NULL));
-	$kontonr = if_isset($_GET['kontonr'], 0);
-	$vend = if_isset($_GET['vend'], NULL);
+	$reconcile = if_isset($_GET, NULL, 'reconcile');
+	$filnavn = if_isset($_GET, NULL, 'filnavn');
+	$splitter = if_isset($_GET, NULL, 'splitter');
+	$feltnavn = explode("|", if_isset($_GET, '', 'feltnavne'));
+	$kontonr = if_isset($_GET, 0, 'kontonr');
+	$vend = if_isset($_GET, NULL, 'vend');
 	if ($vend)
 		$vend = 'checked';
 } else {
@@ -145,22 +155,22 @@ if (isset($_FILES['uploadedfile']) && basename($_FILES['uploadedfile']['name']))
 	if (move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $filnavn)) {
 		$qtxt = "SELECT * FROM grupper WHERE art = 'KASKL' AND kode='3' AND kodenr='$bruger_id'";
 		if ($r = db_fetch_array(db_SELECT($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$kontonr = if_isset($r['box1']);
-			$feltantal = if_isset($r['box2']);
-			$feltnavn[0] = if_isset($r['box3']);
-			$feltnavn[1] = if_isset($r['box4']);
-			$feltnavn[2] = if_isset($r['box5']);
-			$feltnavn[3] = if_isset($r['box6']);
-			$feltnavn[4] = if_isset($r['box7']);
-			$feltnavn[5] = if_isset($r['box8']);
-			$feltnavn[6] = if_isset($r['box9']);
-			$feltnavn[7] = if_isset($r['box10']);
+			$kontonr = if_isset($r, NULL, 'box1');
+			$feltantal = if_isset($r, NULL, 'box2');
+			$feltnavn[0] = if_isset($r, '', 'box3');
+			$feltnavn[1] = if_isset($r, '', 'box4');
+			$feltnavn[2] = if_isset($r, '', 'box5');
+			$feltnavn[3] = if_isset($r, '', 'box6');
+			$feltnavn[4] = if_isset($r, '', 'box7');
+			$feltnavn[5] = if_isset($r, '', 'box8');
+			$feltnavn[6] = if_isset($r, '', 'box9');
+			$feltnavn[7] = if_isset($r, '', 'box10');
+			$vend = if_isset($r, NULL, 'box11') ? 'checked' : NULL;
 			if ($feltantal > 8) {
 				for ($x = 9; $x <= $feltantal; $x++) {
 					$feltnavn[$x - 1] = null;
 				}
 			}
-			// $gebyrkonto = if_isset($r['box11']) * 1;
 		} else {
 			$qtxt = "insert into grupper (beskrivelse,art,kode,kodenr) values ('Bankimport','KASKL','3','$bruger_id')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -194,7 +204,7 @@ if ($menu == 'T') {
 ################################################################################################################
 function upload($kladde_id, $bilag)
 {
-	global $bgcolor2;$charset;
+	global $bgcolor2, $charset;
 	global $sprog_id;
 	global $menu;
 
@@ -223,8 +233,11 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	global $bruger_id, $charset, $sprog_id;
 	$bankName = '';
 	$komma = $punktum = $semikolon = $tabulator = $x = 0;
+	$cols = 1;
 	$valuta_kode = null;
 	$valuta = array();
+	$valutakode = array();
+	$ny_linje = array();
 	$q = db_select("SELECT kodenr,box1 FROM grupper WHERE art='VK' order by box1", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (trim($r['box1'])) {
@@ -344,7 +357,7 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 					}
 				}
 				if ($z > $feltantal)
-					$feltantal = $z;
+					$feltantal = $z - 1;
 				if (!isset($felt[$x]))
 					$felt[$x] = NULL;
 				for ($x = 1; $x <= $z; $x++) {
@@ -451,8 +464,9 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	// print_r($feltnavn);
 	// echo $feltantal;
 	// print "<tr><td><span title='" . findtekst(1404, $sprog_id) . "'><input type=text size=4 name=bilag value=$bilag></span></td>";
-	$belob = $beskr = $dato = $kundenr = 0;
-	for ($y = 0; $y < $feltantal; $y++) {
+	$belob = $beskr = $dato = $kundenr = $saldo = $recieverAccount = 0;
+	for ($y = 0; $y <= $feltantal; $y++) {
+		if (!isset($feltnavn[$y])) $feltnavn[$y] = '';
 		if ($feltnavn[$y] == 'dato' && $dato == 1) {
 			$aalert = findtekst(1405, $sprog_id);
 			alert("$aalert");
@@ -526,7 +540,7 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 						$felt[$y] = trim($felt[$y], '"');
 						if ((substr($felt[$y], 0, 1) == '"') && (substr($felt[$y], -1) == '"'))
 							$felt[$y] = substr($felt[$y], 1, strlen($felt[$y]) - 2);
-						if (isset($feltnavn[$y]) == 'dato') { # 20140203
+						if (isset($feltnavn[$y]) && $feltnavn[$y] == 'dato') { # 20140203
 							if (is_numeric($felt[$y]) && strlen($felt[$y]) == '8') { #20210916
 								$thisYear = date('Y');
 								if (
@@ -589,7 +603,7 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 				}
 				if ($skriv_linje == 1) {
 					print "<tr>"; #<td>$bilag</td>";
-					for ($y = 0; $y < $feltantal; $y++) {
+				for ($y = 0; $y <= $feltantal; $y++) {
 						if (isset($felt[$y])) {
 							if ($feltnavn[$y] == 'belob' || $feltnavn[$y] == 'saldo') {
 								print "<td align=right>$felt[$y]&nbsp;</td>";
@@ -601,10 +615,12 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 					}
 					print "</tr>";
 					// $bilag++;
-				} else {
-					print "<tr><td><span style=\"color: rgb(153, 153, 153);\">-</span></td>";
-					for ($y = 0; $y <= $feltantal; $y++) {
-						if ($feltnavn[$y] == 'belob' || $feltnavn[$y] == 'saldo') {
+					} else {
+						print "<tr><td><span style=\"color: rgb(153, 153, 153);\">-</span></td>";
+						for ($y = 0; $y <= $feltantal; $y++) {
+							if (!isset($felt[$y])) $felt[$y] = '';
+							if (!isset($feltnavn[$y])) $feltnavn[$y] = '';
+							if ($feltnavn[$y] == 'belob' || $feltnavn[$y] == 'saldo') {
 							print "<td align=right><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
 						} elseif ($feltnavn[$y])
 							print "<td><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
@@ -620,11 +636,13 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	fclose($fp);
 	print "</tbody></table>";
 	print "</td></tr>";
-	db_modify("update grupper set box1='$kontonr', box2='$feltantal' WHERE art='KASKL' AND kode='3' AND kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+	$saveVend = $vend ? 'on' : '';
+	db_modify("update grupper set box1='$kontonr', box2='$feltantal', box11='$saveVend' WHERE art='KASKL' AND kode='3' AND kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
 	for ($y = 0; $y <= $feltantal; $y++) {
 		$box = $y + 3;
 		if ($box <= 10) {
 			$box = "box$box";
+			if (!isset($feltnavn[$y])) $feltnavn[$y] = '';
 			db_modify("update grupper set $box='$feltnavn[$y]' WHERE art='KASKL' AND kode='3' AND kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -632,31 +650,26 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 {
 	global $bgcolor, $bgcolor5, $bruger_id, $charset, $fokus, $regnaar, $sprog_id;
-	if ($splitter == 'Semikolon')
-		$splitter = ';';
-	$fileLines = explode("\n", file_get_contents($filnavn));
+	$splitter = bankReconcileSplitter($splitter);
+	$fileLines = bankReconcileFileLines($filnavn, $vend);
+	$bankAmount = $bankDate = $bankSaldo = $bankText = $match = array();
+	$transAmount = $transDate = $transId = $transPos = $transText = array();
 
-	$feltnavne = $feltnavn[0];
+	$feltnavne = if_isset($feltnavn, '', 0);
 	for ($i = 1; $i < count($feltnavn); $i++) {
-		$feltnavne .= "|" . $feltnavn[$i];
+		$feltnavne .= "|" . if_isset($feltnavn, '', $i);
 	}
-	$up = if_isset($_GET['up'], 0);
-	$down = if_isset($_GET['down'], 0);
-	if ($up) $fokus = "u" . $up;
-	if ($down) $fokus = "d" . $down;
-	$byt = if_isset($_GET['byt'], 0);
-/*
-	if ($byt) {
-		$qtxt = "select transdate from transaktioner where id = '$byt'";
-
-	}
-*/
+	$up = if_isset($_GET, 0, 'up');
+	$down = if_isset($_GET, 0, 'down');
+	if ($up)
+		$fokus = "u" . $up;
+	if ($down)
+		$fokus = "d" . $down;
+	$byt = if_isset($_GET, 0, 'byt');
 	if ($up && $byt) {
 		$qtxt = "update transaktioner set pos = pos+1 where id = $byt";
-#echo "$qtxt<br>";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "update transaktioner set pos = pos-1 where id = $up";
-#echo "$qtxt<br>";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	} elseif ($down && $byt) {
 		$qtxt = "update transaktioner set pos = pos-1 where id = $byt";
@@ -670,68 +683,63 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	$enddate = '2000-01-01';
 	$i = 0;
 	for ($l = 0; $l < count($fileLines); $l++) {
-		$fileLines[$l] = mb_convert_encoding($fileLines[$l], 'UTF-8', 'ISO-8859-1');
 		$columns[$l] = explode($splitter, $fileLines[$l]);
 		for ($c = 0; $c < count($columns[$l]); $c++) {
 			if (!isset($feltnavn[$c]))
 				$feltnavn[$c] = null;
 			if ($feltnavn[$c] == 'dato') {
-				$columns[$l][$c] = str_replace('/', '-', $columns[$l][$c]);
-				$columns[$l][$c] = str_replace('.', '-', $columns[$l][$c]);
+				$columns[$l][$c] = bankReconcileDate($columns[$l][$c]);
 				$bankDate[$i] = $columns[$l][$c];
-				if (substr($bankDate[$i], -5,1) == '-') $bankDate[$i] = usdate($bankDate[$i]);
-				if (is_numeric(str_replace('-', '', $bankDate[$i]))) {
-					if ($bankDate[$i] <= $startdate)
-						$startdate = $bankDate[$i];
-					if ($bankDate[$i] >= $enddate)
-						$enddate = $bankDate[$i];
+				if ($columns[$l][$c]) {
+					if ($columns[$l][$c] <= $startdate)
+						$startdate = $columns[$l][$c];
+					if ($columns[$l][$c] >= $enddate)
+						$enddate = $columns[$l][$c];
 				}
 			} elseif ($feltnavn[$c] == 'belob') {
-				if (!is_numeric($columns[$l][$c])) {
-					$tmp = str_replace(',','',$columns[$l][$c]);
-					$tmp = str_replace('.','',$tmp);
-					if (is_numeric($tmp)) {
-						$columns[$l][$c] = usdecimal($columns[$l][$c], 2);
-					}
+				if (substr($columns[$l][$c], -3, 1) == ',' && is_numeric(substr($columns[$l][$c], -2))) {
+					$columns[$l][$c] = usdecimal($columns[$l][$c], 2);
+					$bankAmount[$i] = $columns[$l][$c];
 				}
-				$bankAmount[$i] = $columns[$l][$c];
 			} elseif ($feltnavn[$c] == 'saldo') {
-				if (!is_numeric($columns[$l][$c])) {
-					$tmp = str_replace(',','',$columns[$l][$c]);
-					$tmp = str_replace('.','',$tmp);
-					if (is_numeric($tmp)) {
-						$columns[$l][$c] = usdecimal($columns[$l][$c], 2);
-					}
+				if (substr($columns[$l][$c], -3, 1) == ',' && is_numeric(substr($columns[$l][$c], -2))) {
+					$columns[$l][$c] = usdecimal($columns[$l][$c], 2);
+					$bankSaldo[$i] = $columns[$l][$c];
 				}
-				$bankSaldo[$i] = $columns[$l][$c];
 			} elseif ($feltnavn[$c] == 'beskrivelse') {
 				$bankText[$i] = $columns[$l][$c];
 			}
 		}
-		if (is_numeric(str_replace('-', '', $bankDate[$i])))
+		if (isset($bankDate[$i]) && $bankDate[$i]) {
+			if (!isset($bankAmount[$i])) $bankAmount[$i] = 0;
+			if (!isset($bankSaldo[$i])) $bankSaldo[$i] = 0;
+			if (!isset($bankText[$i])) $bankText[$i] = '';
 			$i++;
+		}
 	}
 	$fiscalYear = '';
-	list($y, $m, $d) = explode('-', $startdate);
 	$qtxt = "SELECT * FROM grupper WHERE art = 'RA' order by kodenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while (!$fiscalYear && $r = db_fetch_array($q)) {
-		if ($r['box2'] <= $y && $r['box1'] >= $m && $r['box4'] >= $y && $r['box3'] <= $m) {
+		$fiscalYearStart = sprintf('%04d-%02d-01', (int)$r['box2'], (int)$r['box1']);
+		$fiscalYearEnd = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', (int)$r['box4'], (int)$r['box3'])));
+		if ($startdate >= $fiscalYearStart && $startdate <= $fiscalYearEnd) {
 			$fiscalYear = $r['kodenr'];
-			$fiscalYearStart = $r['box2'] . "-" . $r['box1'] . "-01";
-		} elseif ($r['box2'] <= $y && $r['box1'] <= $m && $r['box4'] >= $y && $r['box3'] >= $m) {
-			$fiscalYear = $r['kodenr'];
-			$fiscalYearStart = $r['box2'] . "-" . $r['box1'] . "-01";
 		}
+	}
+	if (!$fiscalYear) {
+		print "<tr><td colspan='10' style='color:red'>Kan ikke finde regnskabsår for bankdato $startdate.</td></tr>";
+		print "</table>";
+		return;
 	}
 	$qtxt = "SELECT primo FROM kontoplan WHERE kontonr = '$kontonr' AND regnskabsaar = '$fiscalYear'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$primo = $r['primo'];
+	$primo = (float)if_isset($r, 0, 'primo');
 
 	$qtxt = "SELECT (SUM(debet) - SUM(kredit)) AS amount FROM transaktioner ";
 	$qtxt .= "WHERE kontonr= $kontonr AND transdate < '$startdate' AND transdate > '$fiscalYearStart'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$primo += $r['amount'];
+	$primo += (float)if_isset($r, 0, 'amount');
 
 	$counter = $i = 1;
 	$qtxt = "select * FROM transaktioner WHERE kontonr = '$kontonr' AND transdate >= '$startdate' AND transdate <= '$enddate' ";
@@ -743,42 +751,39 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 		$transDate[$i] = $r['transdate'];
 		$transText[$i] = $r['beskrivelse'];
 		$transAmount[$i] = $r['debet'] - $r['kredit'];
-		if ($i > 1 && $transDate[$i] != $transDate[$i - 1]) $counter = 1;
-		$qtxt = "update transaktioner set pos = '$counter' where id = '$transId[$i]'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		if ($i > 1 && $transDate[$i] != $transDate[$i - 1])
+			$counter = 1;
+		if ($transPos[$i] == 0) {
+			$qtxt = "update transaktioner set pos = '$counter' where id = '$transId[$i]'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
 		$counter++;
 		$i++;
 	}
 	$transSaldo = $primo;
 
 	$bg = $i = 0;
-	print "<tr><td colspan = '5' align = 'center'><b>BANK</b></td><td></td><td colspan = '5' align = 'center'><b>SALDI</b></td></tr>";
 	print "<tr><td>Dato</td><td>Tekst</td><td>Beløb</td><td>Saldo</td><td colspan='2'></td>";
 	print "<td>Dato</td><td>Tekst</td><td>Beløb</td><td>Saldo</td></tr>";
-	// reads from file $l=fileline number
 	for ($l = 0; $l < count($fileLines); $l++) {
-		$amountMatch[$l] = 0;
-		// compares to reads from Saldi
+		$match[$l] = 0;
 		for ($x = 1; $x <= count($transAmount); $x++) {
-			if ($transDate[$x] == $bankDate[$l] && !in_array($transId[$x], $amountMatch)) {
-				if ($transAmount[$x] == $bankAmount[$l]) {
-					$amountMatch[$l] = $transId[$x];
-				} else {
-
+			if (if_isset($transDate, '', $x) == if_isset($bankDate, '', $l) && !in_array(if_isset($transId, 0, $x), $match)) {
+				#echo "$transDate[$x] == $bankDate[$l] && $bankAmount[$l]<br>";
+				#if ($bankDate[$l] == '2023-12-01') echo "$transDate[$x] == $bankDate[$l] && $transAmount[$x] == $bankAmount[$l]<br>";
+				if (if_isset($transAmount, 0, $x) == if_isset($bankAmount, 0, $l)) {
+					$match[$l] = $transId[$x];
 				}
 			}
 		}
-#		if ($bruger_id == -1 && $bankDate[$l] == '2025-07-09') {
-#			echo "A $transDate[$x] == $bankDate[$l] && $bankAmount[$l]<br>";
-#		}
 		$amountLine = 0;
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 		print "<tr bgcolor = '$bg' >";
-		($amountMatch[$l]) ? $txtcolor = 'black' : $txtcolor = 'red';
-		print "<td style='color:$txtcolor'>$l $bankDate[$l]</td>
-		<td style='color:$txtcolor'>" . if_isset($bankText[$l]) . "</td>
-		<td style='color:$txtcolor'>" . dkdecimal(if_isset($bankAmount[$l])) . "</td>
-		<td style='color:$txtcolor'>" . dkdecimal(if_isset($bankSaldo[$l])) . "</td>";
+		($match[$l]) ? $txtcolor = 'black' : $txtcolor = 'red';
+		print "<td style='color:$txtcolor'>" . if_isset($bankDate, '', $l) . "</td>
+		<td style='color:$txtcolor'>" . if_isset($bankText, '', $l) . "</td>
+		<td style='color:$txtcolor'>" . dkdecimal(if_isset($bankAmount, 0, $l)) . "</td>
+		<td style='color:$txtcolor'>" . dkdecimal(if_isset($bankSaldo, 0, $l)) . "</td>";
 		/*
 											  for ($c = 0; $c < count($columns[$l]); $c++) {
 												  if (isset($feltnavn[$c]) && $feltnavn[$c]) {
@@ -795,16 +800,15 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 											  }
 											  */
 		$amountLine = 1;
-		if ($amountLine && $amountMatch[$l]) {
+		if ($amountLine && $match[$l] && isset($transAmount[$i + 1])) {
 			$i++;
 			$transSaldo += $transAmount[$i];
-			$transtjek = afrund($bankAmount[$l] - $transAmount[$i], 2);
+			$transtjek = afrund(if_isset($bankAmount, 0, $l) - $transAmount[$i], 2);
 			($transtjek != 0) ? $txtcolor = 'red' : $txtcolor = 'black';
-			$saldotjek = afrund($bankSaldo[$l] - $transSaldo, 2);
+			$saldotjek = afrund(if_isset($bankSaldo, 0, $l) - $transSaldo, 2);
 			#			($saldotjek != 0) ? $txtcolor = 'red' : $txtcolor = 'black';
 			print "<td width = '25px'>";
 			if ($i > 1 && $transDate[$i - 1] == $transDate[$i]) {
-				$actualDate = $transDate[$i];
 				print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
 				print "&up=$transId[$i]&byt=" . $transId[$i - 1] . "&feltnavne=$feltnavne&splitter=$splitter' id='u$transId[$i]'>";
 				print "<img src='../ikoner/up.png' width='25px' height='25px' style='border: 0px solid;'></a>";
@@ -826,54 +830,66 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 			print "<td style='color:$txtcolor'>$transDate[$i]</td>";
 			print "<td style='color:$txtcolor'>$transText[$i]</td>";
 			print "<td align = 'right' style='color:$txtcolor'>" . dkdecimal($transAmount[$i]) . "</td>";
-			print "<td align = 'right' style='color:$txtcolor'>" . dkdecimal($transSaldo) . "</td>";
-			if ($saldotjek) {
-				print "<td align = 'right' style='color:red'>(" . dkdecimal($bankSaldo[$l] - $transSaldo) . ")</td>";
-			}
-		} else print "<td colspan = '6'></td>";
-		print "</tr>";
-		if ($bankDate[$l] != $bankDate[$l+1]) {
-			$txtcolor = 'red';
-			while (isset($transDate[$i]) && $bankDate[$l] == $transDate[$i] && $transDate[$i] == $transDate[$i + 1]) {
-				$i++;
-				print "<tr><td colspan = '4'></td>";
-			print "<td width = '25px'>";
-			if ($i > 1 && $transDate[$i - 1] == $transDate[$i]) {
-				$actualDate = $transDate[$i];
-				print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
-				print "&up=$transId[$i]&byt=" . $transId[$i - 1] . "&feltnavne=$feltnavne&splitter=$splitter' id='u$transId[$i]'>";
-				print "<img src='../ikoner/up.png' width='25px' height='25px' style='border: 0px solid;'></a>";
-			} else {
-				print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
-				print "&feltnavne=$feltnavne&splitter=$splitter' id='u$transId[$i]'>";
-			}
-			print "</td>";
-			print "<td width = '25px'>";
-			if (isset($transDate[$i + 1]) && $transDate[$i] == $transDate[$i + 1]) {
-				print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
-				print "&down=$transId[$i]&byt=" . $transId[$i + 1] . "&feltnavne=$feltnavne&splitter=$splitter' id='d$transId[$i]'>";
-				print "<img src='../ikoner/down.png' width='25px' height='25px' style='border: 0px solid;'></a>";
-			} else {
-				print "<a href='../finans/bankReconcile.php?reconcile=1&filnavn=$filnavn&kontonr=$kontonr&vend=$vend";
-				print "&feltnavne=$feltnavne&splitter=$splitter' id='d$transId[$i]'>";
-			}
-			print "</td>";
-				print "<td style='color:$txtcolor'>$transDate[$i]</td>";
-				print "<td style='color:$txtcolor'>$transText[$i]</td>";
-				print "<td align = 'right' style='color:$txtcolor'>" . dkdecimal($transAmount[$i]) . "</td>";
 				print "<td align = 'right' style='color:$txtcolor'>" . dkdecimal($transSaldo) . "</td>";
 				if ($saldotjek) {
-					print "<td align = 'right' style='color:red'>(" . dkdecimal($bankSaldo[$l] - $transSaldo) . ")</td>";
+					print "<td align = 'right' style='color:red'>(" . dkdecimal(if_isset($bankSaldo, 0, $l) - $transSaldo) . ")</td>";
 				}
-			}
-		}
+		} else
+			print "<td colspan = '6'></td>";
+		print "</tr>";
 	}
-
 	print "</table>";
 }
 # endfunc # vis_data
 
 # endfunc # vis_data
+
+function bankReconcileDate($date)
+{
+	$date = trim($date);
+	if (!$date) return NULL;
+	$date = str_replace('/', '-', $date);
+	$date = str_replace('.', '-', $date);
+	if (preg_match('/^([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})$/', $date, $match)) {
+		if (checkdate((int)$match[2], (int)$match[3], (int)$match[1])) {
+			return sprintf('%04d-%02d-%02d', (int)$match[1], (int)$match[2], (int)$match[3]);
+		}
+	}
+	if (preg_match('/^([0-9]{1,2})-([0-9]{1,2})-([0-9]{2,4})$/', $date, $match)) {
+		$year = (int)$match[3];
+		if ($year < 80) $year += 2000;
+		elseif ($year < 100) $year += 1900;
+		if (checkdate((int)$match[2], (int)$match[1], $year)) {
+			return sprintf('%04d-%02d-%02d', $year, (int)$match[2], (int)$match[1]);
+		}
+	}
+	return NULL;
+}
+
+function bankReconcileFileLines($filnavn, $vend)
+{
+	global $charset;
+
+	$fileLines = file($filnavn, FILE_IGNORE_NEW_LINES);
+	if (!is_array($fileLines)) return array();
+	for ($i = 0; $i < count($fileLines); $i++) {
+		if ($charset == 'UTF-8' && !mb_check_encoding($fileLines[$i], 'UTF-8')) {
+			$fileLines[$i] = mb_convert_encoding($fileLines[$i], 'UTF-8', 'ISO-8859-1');
+		} elseif ($charset != 'UTF-8' && mb_check_encoding($fileLines[$i], 'UTF-8')) {
+			$fileLines[$i] = mb_convert_encoding($fileLines[$i], 'ISO-8859-1', 'UTF-8');
+		}
+	}
+	if ($vend) $fileLines = array_reverse($fileLines);
+	return $fileLines;
+}
+
+function bankReconcileSplitter($splitter)
+{
+	if ($splitter == 'Semikolon') return ';';
+	if ($splitter == 'Komma') return ',';
+	if ($splitter == 'Tabulator') return chr(9);
+	return $splitter;
+}
 
 function nummertjek($nummer)
 {
