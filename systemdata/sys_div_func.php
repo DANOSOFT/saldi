@@ -2227,6 +2227,7 @@ function api_valg() {
 	$api_fil3   = trim($r['box6']);
 
 	$x = 0;
+	$userId = array();
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (strpos($r['rettigheder'], '1') === false) {

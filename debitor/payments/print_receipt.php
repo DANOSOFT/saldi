@@ -27,7 +27,7 @@
 if (isset($_GET['id']))       $id       = $_GET['id'];
 if (isset($_GET['filename'])) $filename = $_GET['filename'];
 
-$kasse = $_COOKIE["saldi_pos"];
+if (!isset($kasse) || !$kasse) $kasse = isset($_COOKIE["saldi_pos"]) ? $_COOKIE["saldi_pos"] : null;
 
 if (!$printserver) {
 $qtxt = "select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";

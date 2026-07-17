@@ -9,3 +9,4 @@
 - [Pre-PR test report](feedback_pre_pr_test_report.md) — Before a draft PR goes ready, proactively list affected functions/files with concrete manual test scenarios for each
 - [SQL escaping](convention_sql_escaping.md) — Cast (`intval`/`floatval`) or escape (`db_escape_string`) any externally-sourced value before interpolating into a SQL string; `injecttjek()` is not a substitute
 - [Curly braces](convention_curly_braces.md) — Require `{}` for if/elseif/else/for/foreach/while/do-while whenever the body isn't on the same line as the control statement
+- [SQL alias resolution](convention_sql_alias_resolution.md) — ORDER BY/GROUP BY alias-vs-column ambiguity resolves differently on mysqli vs Postgres; repeat the expression in GROUP BY instead of relying on the bare alias

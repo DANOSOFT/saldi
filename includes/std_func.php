@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 5.0.0 --- 2026-04-29 ---
+// --- includes/std_func.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,6 +59,7 @@
 // -------- As well as adding the ability to check for object properties if you pass an object instead of an array and the key is a string, so you can do if_isset($object, $default, 'property') to check for $object->property
 // -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
 // 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
+// 20260706 CX/PHR get_next_invoice_number uses SAVEPOINT when called inside an active transaction to avoid premature commit during invoice posting
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2201,7 +2202,7 @@ if (!function_exists('get_next_invoice_number')) {
 		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
 		 */
 		
-		global $db, $bruger_id;
+		global $connection, $db, $db_type, $bruger_id;
 
 		$debug = ($bruger_id == -1);
 		$max_attempts = 10;
@@ -2235,13 +2236,20 @@ if (!function_exists('get_next_invoice_number')) {
 
 		if ($debug) echo "<pre>get_next_invoice_number(art=$art, id=$id) db=$db art2=$art2 ekstra=$ekstra</pre>";
 
+		$useOwnTransaction = true;
+		if (!in_array(strtolower($db_type), array('mysql', 'mysqli')) && function_exists('pg_transaction_status')) {
+			$useOwnTransaction = (pg_transaction_status($connection) == PGSQL_TRANSACTION_IDLE);
+		}
+		$savepoint = 'get_next_invoice_number';
+
 		try {
 			while ($attempt < $max_attempts) {
 				$attempt++;
 				if ($debug) echo "<pre>  Attempt $attempt/$max_attempts</pre>";
 
-				// Start a fresh transaction for each attempt
-				transaktion('begin');
+				// Start a fresh transaction unless the caller already controls one.
+				if ($useOwnTransaction) transaktion('begin');
+				else transaktion("SAVEPOINT $savepoint");
 
 				// Lock the ordrer table to prevent concurrent access
 				global $connection;
@@ -2249,7 +2257,11 @@ if (!function_exists('get_next_invoice_number')) {
 				if (!$lock_result) {
 					$err = pg_last_error($connection);
 					if ($debug) echo "<pre>  LOCK failed: $err — rollback and retry</pre>";
-					transaktion('rollback');
+					if ($useOwnTransaction) transaktion('rollback');
+					else {
+						transaktion("ROLLBACK TO SAVEPOINT $savepoint");
+						transaktion("RELEASE SAVEPOINT $savepoint");
+					}
 					usleep(rand(50000, 200000));
 					continue;
 				}
@@ -2265,7 +2277,11 @@ if (!function_exists('get_next_invoice_number')) {
 				if (!$r) {
 					$err = pg_last_error($connection);
 					if ($debug) echo "<pre>  SELECT MAX failed: $err — rollback and retry</pre>";
-					transaktion('rollback');
+					if ($useOwnTransaction) transaktion('rollback');
+					else {
+						transaktion("ROLLBACK TO SAVEPOINT $savepoint");
+						transaktion("RELEASE SAVEPOINT $savepoint");
+					}
 					usleep(rand(50000, 200000));
 					continue;
 				}
@@ -2295,13 +2311,18 @@ if (!function_exists('get_next_invoice_number')) {
 						db_modify("UPDATE ordrer SET fakturanr='$fakturanr' WHERE id='$id'", __FILE__ . " linje " . __LINE__);
 					}
 
-					// Invoice number is unique, commit transaction and return
-					transaktion('commit');
+					// Invoice number is unique; commit only if we started the transaction.
+					if ($useOwnTransaction) transaktion('commit');
+					else transaktion("RELEASE SAVEPOINT $savepoint");
 					if ($debug) echo "<pre>  OK — returning fakturanr=$fakturanr (attempt $attempt)</pre>";
 					return $fakturanr;
 				} else {
 					if ($debug) echo "<pre>  Duplicate! fakturanr=$fakturanr already on order id=" . $check_r['id'] . " — rollback and retry</pre>";
-					transaktion('rollback');
+					if ($useOwnTransaction) transaktion('rollback');
+					else {
+						transaktion("ROLLBACK TO SAVEPOINT $savepoint");
+						transaktion("RELEASE SAVEPOINT $savepoint");
+					}
 					usleep(rand(10000, 50000));
 				}
 			}
@@ -2311,7 +2332,11 @@ if (!function_exists('get_next_invoice_number')) {
 			throw new Exception("Could not generate unique invoice number after $max_attempts attempts");
 
 		} catch (Exception $e) {
-			transaktion('rollback');
+			if ($useOwnTransaction) transaktion('rollback');
+			else {
+				transaktion("ROLLBACK TO SAVEPOINT $savepoint");
+				transaktion("RELEASE SAVEPOINT $savepoint");
+			}
 			if ($debug) echo "<pre>  EXCEPTION: " . $e->getMessage() . "</pre>";
 			throw $e;
 		}

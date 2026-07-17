@@ -76,7 +76,7 @@
 // 20260415 PHR Modtag (Receive) was set to 0 in creditnote
 // 20260420 PHR Removed GLS codes
 // 20260422 PHR Defined $fast_db as array; 
-// 20260432	PHR Warning when $ref id changes
+// 20260423	PHR Warning when $ref id changes
 // 20260427 PHR Fixed vat added twice when open order was copies. ($sourceStatus)
 // 20260429 PHR Changed 'PBS' to 'BS' as colunm is varchar(2)
 // 20260429 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
@@ -97,8 +97,11 @@
 // 20260611 LOE Added UI for hvem and updated its logic
 // 20260630 Sawaneh Made 'Performed by' (hvem) display-only: removed its order-locking side effects, added a blank option so it can be cleared, and made clearing to blank persist on save
 // 20260701 NTR Updated the first plukliste buttons to be the same logic as the second plukliste.
+// 20260702 PHR Disabled "if ($vis_saet) $fakturadato = date("d-m-Y");"
+// 20260706 PHR Added $tmp to avoid division by zero
 // 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
+// 20260715 PHR Valuto was omittet when copying order
 
 @session_start();
 $s_id = session_id();
@@ -1547,7 +1550,7 @@ if ($b_submit) {
 		$y = "ialt" . $x;
 		$ialt[$x] = if_isset($_POST, NULL, $y);
 		if (($godkend == "on") && ($status == 0)) {
-			if ($vis_saet) $fakturadato = date("d-m-Y");
+			# if ($vis_saet) $fakturadato = date("d-m-Y");
 			$leveres[$x] = $antal[$x];
 			if (isset($linje_id[$x]) && $varenr[$x]) batch($linje_id[$x]);
 		}
@@ -2550,6 +2553,10 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$tilbudnr = (int)if_isset($tilbudnr, 0);
 		$sag_id = (int)if_isset($sag_id, NULL); #20250528
 		$sagsnr = (int)if_isset($sagsnr, 0);
+		if (!$valuta) { #20260715
+			$valuta = 'DKK';
+			$valutakurs = 100;
+		}
 		$nr = (int)if_isset($nr, 0);
 		$qtxt = "insert into ordrer";
 		$qtxt .= "(ordrenr,konto_id,kontonr,kundeordnr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,";
@@ -6055,7 +6062,7 @@ function ordreside($id, $regnskab)
 			#cho __line__." $sum<br>";
 			$diff = afrund($samlet_pris - ($sum + $moms), 3);
 			$tmp = $sum + $moms;
-			if ($samlet_rabat) {
+			if ($samlet_rabat && $tmp != 0) { #20260706 Added $tmp to avoid division by zero
 				$ms = afrund($moms * 100 / ($sum + $moms), 2); #20150318
 				$r = db_fetch_array(db_select("select id,beskrivelse from varer where varenr = '$rvnr' or varenr_alias = '$rvnr' or stregkode = '$rvnr'", __FILE__ . " linje " . __LINE__));
 				opret_ordrelinje($id, $r['id'], $rvnr, 1, $r['beskrivelse'], $diff, $ms, 100, 'DO', '', '', '0', '', '', '', '', '', '0', '0', $lager[0], __LINE__);

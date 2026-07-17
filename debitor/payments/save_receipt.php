@@ -40,6 +40,7 @@ $json = json_decode(file_get_contents('php://input'), true);
 $data = $json["data"];
 $id = $json["id"];
 $type = $json["type"];
+$kasse = isset($json["kasse"]) ? $json["kasse"] : null;
 $terminal_id = isset($json["terminal_id"]) ? $json["terminal_id"] : null;
 
 echo "<pre>";
