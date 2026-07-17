@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------ systemdata/syssetup_skriv_formtabel.php -- lap 4.1.0 -- 2024-05-01 --
+// ------ systemdata/skriv_formtabel.inc.php --- patch 5.0.0 --- 2026-07-17 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,13 +23,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 //
 // 20181102 PHR Oprydning, udefinerede variabler.
 // 20190221 MSC - Rettet isset fejl
 // 20200308 PHR - Added $stockIO
 // 20240604 PHR - PHP8
+// 20260717 MJ  Rubrik (box5) og Type (box7) vises nu som dropdown paa SM/KM/YM/EM-koder.
 
 function skriv_formtabel($a,$x,$y,$art,$id,$k,$kodenr,$beskrivelse,$box1,$b1,$box2,$b2,$box3,$b3,$box4,$b4,$box5,$b5,$box6,$b6,$box7,$b7,$box8,$b8,$box9,$b9,$box10,$b10,$box11,$b11,$box12,$b12,$box13,$b13,$box14,$b14) {
 
@@ -126,15 +127,36 @@ if (!isset ($b)) $b = null;
 				else {print "<td><input class=\"inputbox\" type=\"checkbox\" name=\"box4[$i]\"></td>\n";}
 			}
 			print "<input type = \"hidden\" name=id[$i] value='$id[$i]'><input type = \"hidden\" name=\"art[$i]\" value=\"$art[$i]\"><input type = \"hidden\" name=\"kode[$i]\" value=\"$k\">";
-			if ($box5!="-") {print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"$b5\" name=\"box5[$i]\" value=\"$box5[$i]\"></td>\n";}
+			if ($box5!="-") {
+				if (in_array($art[$i], ['SM','KM','YM','EM'])) {
+					print "<td><select class=\"inputbox\" name=\"box5[$i]\">";
+					foreach (['' => '–', 'A-varer' => 'A-varer', 'A-ydelser' => 'A-ydelser', 'B-varer' => 'B-varer', 'B-ydelser' => 'B-ydelser', 'C' => 'C'] as $v => $l) {
+						$sel = ((string)$box5[$i] === $v) ? ' selected' : '';
+						print "<option value=\"$v\"$sel>$l</option>";
+					}
+					print "</select></td>\n";
+				} else {
+					print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"$b5\" name=\"box5[$i]\" value=\"$box5[$i]\"></td>\n";
+				}
+			}
 #			if ($box6!="-") {print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"$b6\" name=\"box6[$i]\" value=\"$box6[$i]\"></td>\n";}
 			if (($box6!="-")&&($b6!="checkbox")) {print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"$b6\" name=\"box6[$i]\" value=\"$box6[$i]\"></td>\n";}
 			elseif($b6=="checkbox"){
 				if (strstr($box6[$i],'on')){print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box6[$i]\" checked></td>\n";}
 				else {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box6[$i]\"></td>\n";}
 			}
-			if (($box7!="-")&&($b7!="checkbox")) {print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"$b7\" name=\"box7[$i]\" value=\"$box7[$i]\"></td>\n";}
-			elseif($b7=="checkbox"){
+			if (($box7!="-")&&($b7!="checkbox")) {
+				if ($art[$i] === 'SM') {
+					print "<td><select class=\"inputbox\" name=\"box7[$i]\">";
+					foreach (['' => '–', 'varer' => 'varer', 'ydelser' => 'ydelser'] as $v => $l) {
+						$sel = ((string)$box7[$i] === $v) ? ' selected' : '';
+						print "<option value=\"$v\"$sel>$l</option>";
+					}
+					print "</select></td>\n";
+				} else {
+					print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"$b7\" name=\"box7[$i]\" value=\"$box7[$i]\"></td>\n";
+				}
+			} elseif($b7=="checkbox"){
 				if (strstr($box7[$i],'on')){print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box7[$i]\" checked></td>\n";}
 				else {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box7[$i]\"></td>\n";}
 			}
@@ -229,12 +251,31 @@ if (!isset ($b)) $b = null;
 		if (($box4!="-")&&($b4!="checkbox")) {print "<td title=\"".titletxt($art[$y],'box4')."\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"$b4\" name=\"box4[$y]\"></td>\n";}
 		elseif($b4=="checkbox") {print "<td><input class=\"inputbox\" type=\"checkbox\" name=\"box4[$y]\"></td>\n";}
 		print "<input type = hidden name=\"id[$y]\" value='0'><input type = hidden name=\"kode[$y]\" value='$k'><input type = hidden name=\"art[$y]\" value=\"$a\">\n";
-		if ($box5!="-") {print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b5 name=\"box5[$y]\"></td>\n";}
+		if ($box5!="-") {
+			if (in_array($a, ['SM','KM','YM','EM'])) {
+				print "<td><select class=\"inputbox\" name=\"box5[$y]\">";
+				foreach (['' => '–', 'A-varer' => 'A-varer', 'A-ydelser' => 'A-ydelser', 'B-varer' => 'B-varer', 'B-ydelser' => 'B-ydelser', 'C' => 'C'] as $v => $l) {
+					print "<option value=\"$v\">$l</option>";
+				}
+				print "</select></td>\n";
+			} else {
+				print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b5 name=\"box5[$y]\"></td>\n";
+			}
+		}
 #		if ($box6!="-") {print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b6 name=\"box6[$y]\"></td>\n";}
 		if (($box6!="-")&&($b6!="checkbox")) {print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b6 name=\"box6[$y]\"></td>\n";}
 		elseif($b6=="checkbox") {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box6[$y]\"></td>\n";}
-		if (($box7!="-")&&($b7!="checkbox")) {print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b7 name=\"box7[$y]\"></td>\n";}
-		elseif($b7=="checkbox") {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box7[$y]\"></td>\n";}
+		if (($box7!="-")&&($b7!="checkbox")) {
+			if ($a === 'SM') {
+				print "<td><select class=\"inputbox\" name=\"box7[$y]\">";
+				foreach (['' => '–', 'varer' => 'varer', 'ydelser' => 'ydelser'] as $v => $l) {
+					print "<option value=\"$v\">$l</option>";
+				}
+				print "</select></td>\n";
+			} else {
+				print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b7 name=\"box7[$y]\"></td>\n";
+			}
+		} elseif($b7=="checkbox") {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box7[$y]\"></td>\n";}
 		if (($box8!="-")&&($b8!="checkbox")) {print "<td align=\"center\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b8 name=\"box8[$y]\"></td>\n";}
 		elseif($b8=="checkbox") {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box8[$y]\"></td>\n";}
 		if (($box9!="-")&&($b9!="checkbox")) {print "<td align=\"center\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b9 name=\"box9[$y]\"></td>\n";}
