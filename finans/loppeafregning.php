@@ -26,6 +26,7 @@
 // 20211020 PHR Comparing $gruppesum[$y] to $totalsum and regulating $gruppesum[$y] if diff less than 0.1 to avoid diff in ledger.
 // 20250530 PHR Fixed an error in extraction the account no. and added % or text
 // 20251119 PHR Changed transdate ($dd) to date of settlement
+// 20260714 CX/PHR Skip items whose account part (from character six) is not numeric
 
 @session_start();
 $s_id=session_id();
@@ -72,9 +73,18 @@ if ($kladde_id && $fra && $til && $vareprefix) {
 	$x=0;
 	$y=0;
 	$varenr=array();
+	$invalidVarenr=array();
 	$totalsum=0;
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
+		$kontoNr=substr($r['varenr'],5);
+		if ($kontoNr === '' || !ctype_digit($kontoNr)) {
+			if (!isset($invalidVarenr[$r['varenr']])) {
+				$invalidVarenr[$r['varenr']]=true;
+				print "Varenummeret " . htmlspecialchars($r['varenr']) . " er sprunget over: Kontonummeret efter de første fem tegn skal være numerisk.<br>";
+			}
+			continue;
+		}
 		if (in_array($r['varenr'],$varenr)) {
 			$sum[$x]+=$r['antal']*$r['pris'];
 			$cost[$x]+=$r['antal']*$r['kostpris'];
@@ -88,14 +98,7 @@ if ($kladde_id && $fra && $til && $vareprefix) {
 		} else {
 			$x++;
 			$varenr[$x]=$r['varenr'];
-			// $konto[$x]=str_replace($vareprefix,'',$varenr[$x])*1;
-
-			// Sawaneh 2025-05-24 FIX: Ensure numeric konto value after stripping prefix (avoids type error)
-/*
-			$kontoStr = str_replace($vareprefix, '', $varenr[$x]);
-      $konto[$x] = is_numeric($kontoStr) ? (int)$kontoStr : 0;
-*/
-			$konto[$x]=substr($varenr[$x],-4);
+			$konto[$x]=$kontoNr;
 
 			$sum[$x]=$r['antal']*$r['pris'];
 			$cost[$x]=$r['antal']*$r['kostpris'];

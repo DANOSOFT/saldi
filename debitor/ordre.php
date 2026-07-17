@@ -99,6 +99,7 @@
 // 20260701 NTR Updated the first plukliste buttons to be the same logic as the second plukliste.
 // 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
+// 20260706 PHR Added $tmp to avoid division by zero
 
 @session_start();
 $s_id = session_id();
@@ -6055,7 +6056,7 @@ function ordreside($id, $regnskab)
 			#cho __line__." $sum<br>";
 			$diff = afrund($samlet_pris - ($sum + $moms), 3);
 			$tmp = $sum + $moms;
-			if ($samlet_rabat) {
+			if ($samlet_rabat && $tmp != 0) { #20260706 Added $tmp to avoid division by zero
 				$ms = afrund($moms * 100 / ($sum + $moms), 2); #20150318
 				$r = db_fetch_array(db_select("select id,beskrivelse from varer where varenr = '$rvnr' or varenr_alias = '$rvnr' or stregkode = '$rvnr'", __FILE__ . " linje " . __LINE__));
 				opret_ordrelinje($id, $r['id'], $rvnr, 1, $r['beskrivelse'], $diff, $ms, 100, 'DO', '', '', '0', '', '', '', '', '', '0', '0', $lager[0], __LINE__);

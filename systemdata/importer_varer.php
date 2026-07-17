@@ -500,9 +500,11 @@ if ($itemGroup) {
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$VATcode = substr($r['moms'],0,1).'M';
 			$VATcodeNo = substr($r['moms'],1);
-			$qtxt = "select box2 from grupper where art = '$VATcode' and kodenr = '$VATcodeNo' and fiscal_year = '$regnaar'";
-			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$VATrate = $r['box2'];
+			if ($VATcode && $VATcodeNo) {
+				$qtxt = "select box2 from grupper where art = '$VATcode' and kodenr = '$VATcodeNo' and fiscal_year = '$regnaar'";
+				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					$VATrate = $r['box2'];
+				}
 			}
 		}
 	}
@@ -786,13 +788,12 @@ if ($fp) {
 				}
 				$dd=date("Y-m-d");
 				$qtxt="select id,kostpris,transdate from kostpriser where vare_id='$vare_id' order by transdate desc limit 1"; #20150224
-				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					if ($r['transdate'] != $dd && $r['kostpris'] != $kostpris) {
-						$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
-					}	elseif ($r['transdate'] == $dd && $r['kostpris'] != $kostpris) {
-						$qtxt="update kostpriser set kostpris=$kostpris where id = '$r[id]'";
-					} else $qtxt=NULL;
-				}	else $qtxt=NULL;
+				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+				if ($r['transdate'] != $dd && $r['kostpris'] != $kostpris) {
+					$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
+				}	elseif ($r['transdate'] == $dd && $r['kostpris'] != $kostpris) {
+					$qtxt="update kostpriser set kostpris=$kostpris where id = '$r[id]'";
+				} else $qtxt=NULL;
 				if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				if (isset($leverandor) && $leverandor) {
 					if (!is_numeric($leverandor)) $leverandor = 0;

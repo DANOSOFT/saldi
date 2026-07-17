@@ -55,7 +55,8 @@
 // 04-02-2025 PBLM added discountType to insert_shop_orderline
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260223 PHR Fixed currency error (Valutakurs)
-// 20260806 PHR removed fakturadate from insert_shop_order. It is set in 'fakturer_ordre'
+// 20260608 PHR removed fakturadate from insert_shop_order. It is set in 'fakturer_ordre'
+// 20260622 PHR Improved set fakturadate in 'fakturer_ordre'
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -801,10 +802,20 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	} else {
-		$qtxt="update ordrer set fakturadate=ordredate where id='$saldi_id'";
+		$qtxt="update ordrer set fakturadate=ordredate, lev_date=ordredate where id='$saldi_id'";
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	}
+	transaktion('commit');
+	$qtxt="select fakturadate from ordrer where id='$saldi_id'";
+	fwrite($log,__line__." $qtxt\n");
+	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$fakturadate = $r['fakturadate'];
+	if (!$fakturadate) {
+		return "fakturadate not set";
+		exit;
+	}
+	transaktion('begin');
 	$qtxt="update ordrelinjer set leveres = antal where ordre_id='$saldi_id'";
 	fwrite($log,__line__." $qtxt\n");
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);	

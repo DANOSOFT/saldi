@@ -2227,6 +2227,7 @@ function api_valg() {
 	$api_fil3   = trim($r['box6']);
 
 	$x = 0;
+	$userId = array();
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (strpos($r['rettigheder'], '1') === false) {
@@ -2246,7 +2247,7 @@ function api_valg() {
 	print "<tr><td><br></td></tr>";
 	list($tmp, $folder, $tmp) = explode('/', $_SERVER['REQUEST_URI'], 3);
 	$url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]/$folder/api";
-	if ($userId) {
+	if (count($userId)) {
 		if ($api_bruger) {
 			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
 			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
