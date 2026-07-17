@@ -8,6 +8,7 @@
 // Product lookup page using grid system for order entry 
 // Based on vareliste.php grid implementation
 // 20260513 CL/PHR Addet lager_ialt som valghmulighed
+// 20260618 CL/PHR replaced lower(vv.variant_type) by lower(vv.variant_type::text) to avoid Fatal error
 
 @session_start();
 $s_id = session_id();
@@ -239,7 +240,7 @@ $columns[] = array(
         foreach ($words as $word) {
             if (!empty($word)) {
                 $word = db_escape_string($word);
-                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%' or lower(vv.variant_stregkode) like '%$word%' or lower(vv.variant_type) like '%$word%' or lower(vv.variant_text) like '%$word%')";
+                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%' or lower(vv.variant_stregkode) like '%$word%' or lower(vv.variant_type::text) like '%$word%' or lower(vv.variant_text) like '%$word%')";
             }
         }
         return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";

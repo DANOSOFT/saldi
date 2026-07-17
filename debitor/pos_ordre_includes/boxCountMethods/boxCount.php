@@ -41,6 +41,7 @@
 // 20260211 PHR Updated cashCount
 // 20260225 PHR Updated cashCount
 // 20260604 PHR setCreditCards: dkdecimal() tilføjet til visning af ny_kortsum — konvertering sker nu i pos_ordre.php via usdecimal()
+// 20260706 CX/PHR setCreditCards: sort VAT rate/amount pairs defensively to avoid array_multisort fatal on uneven arrays
 
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
@@ -319,11 +320,25 @@ function setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_
 	#	$space = ' ';
 	#	while (strlen($txt1.$space.$txt2." $curr") < 40) $space.= ' ';
 	#	file_put_contents("../temp/$db/x-repport.txt",$txt1.$space.$txt2." $curr\n", FILE_APPEND);
-	$acountExists = array();
-	array_multisort($vatRates,$vatAmounts);
+	$acountExists = $vatRows = array();
+	if (!is_array($vatRates)) $vatRates = array();
+	if (!is_array($vatAmounts)) $vatAmounts = array();
 	for ($i=0;$i<count($vatRates);$i++) {
-		$a = "Omsætning ".dkdecimal($vatRates[$i])."% ". findtekst(770, $sprog_id);
-		$b = $vatAmounts[$i] += $vatAmounts[$i]*$vatRates[$i]/100;
+		if (!isset($vatAmounts[$i]) || $vatRates[$i] === '') continue;
+		$vatRows[] = array(
+			'rate' => (float)$vatRates[$i],
+			'amount' => (float)$vatAmounts[$i]
+		);
+	}
+	usort($vatRows, function($a, $b) {
+		if ($a['rate'] == $b['rate']) return 0;
+		return ($a['rate'] < $b['rate']) ? -1 : 1;
+	});
+	for ($i=0;$i<count($vatRows);$i++) {
+		$vatRate = $vatRows[$i]['rate'];
+		$vatAmount = $vatRows[$i]['amount'];
+		$a = "Omsætning ".dkdecimal($vatRate)."% ". findtekst(770, $sprog_id);
+		$b = $vatAmount += $vatAmount*$vatRate/100;
 		createXreport($a,$b,$curr);
 		displayLine($a,$b,$curr);
 		#		$dkAmount  = dkdecimal($vatAmounts[$i] += $vatAmounts[$i]*$vatRates[$i]/100 );
