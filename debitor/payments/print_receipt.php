@@ -28,6 +28,10 @@ if (isset($_GET['id']))       $id       = $_GET['id'];
 if (isset($_GET['filename'])) $filename = $_GET['filename'];
 
 if (!isset($kasse) || !$kasse) $kasse = isset($_COOKIE["saldi_pos"]) ? $_COOKIE["saldi_pos"] : null;
+// Normalize to a positive integer: kasse indexes the printer list and is part of
+// the receipt path, so reject non-numeric/zero/negative values from request or cookie.
+$kasse = (int)$kasse;
+if ($kasse < 1) $kasse = null;
 
 if (!$printserver) {
 $qtxt = "select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
