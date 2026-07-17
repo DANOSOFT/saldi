@@ -26,6 +26,7 @@
 // 20240213	PHR Copied from bankimport.php
 // 20240403 PHR Added instruction text
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260416 PHR	Some errorfixing
 // 20260624 CL/PHR Normalize bank dates before reconciliation, find fiscal year by date interval,
 // 20260624 CL/PHR apply 'vend' during reconciliation, show all CSV columns, and remember 'vend'.
 // 20260624 CL/PHR Normalize bank file text encoding when reconciling.
@@ -600,7 +601,7 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 				}
 				if ($skriv_linje == 1) {
 					print "<tr>"; #<td>$bilag</td>";
-					for ($y = 0; $y < $feltantal; $y++) {
+				for ($y = 0; $y <= $feltantal; $y++) {
 						if (isset($felt[$y])) {
 							if ($feltnavn[$y] == 'belob' || $feltnavn[$y] == 'saldo') {
 								print "<td align=right>$felt[$y]&nbsp;</td>";
@@ -766,7 +767,6 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	$transSaldo = $primo;
 
 	$bg = $i = 0;
-	print "<tr><td colspan = '5' align = 'center'><b>BANK</b></td><td></td><td colspan = '5' align = 'center'><b>SALDI</b></td></tr>";
 	print "<tr><td>Dato</td><td>Tekst</td><td>Beløb</td><td>Saldo</td><td colspan='2'></td>";
 	print "<td>Dato</td><td>Tekst</td><td>Beløb</td><td>Saldo</td></tr>";
 	for ($l = 0; $l < count($fileLines); $l++) {
@@ -874,10 +874,10 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 				if ($saldotjek) {
 					print "<td align = 'right' style='color:red'>(" . dkdecimal(if_isset($bankSaldo, 0, $l) - $transSaldo) . ")</td>";
 				}
-			}
-		}
+		} else
+			print "<td colspan = '6'></td>";
+		print "</tr>";
 	}
-
 	print "</table>";
 }
 # endfunc # vis_data
