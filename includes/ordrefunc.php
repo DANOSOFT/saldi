@@ -100,6 +100,7 @@
 // 20260618 Sawaneh Stock warning popup now triggers when sale quantity would leave stock below min_lager
 // 20260619 Sawaneh check_stock_warning reads stock from lagerstatus (sum across warehouses) like the order-line red-highlight, not the drifting varer.beholdning field
 // 20260630 CDX/PK Changed the cleanup so that negative lines are only deleted if there is also at least one normal line (item no. >= 0) on the same order.
+// 20260716 CL/PHR Passed caller-owned transactions through invoice numbering for atomic imports.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -1145,7 +1146,7 @@ function samlevare($id, $art, $linje_id, $v_id, $leveres)
 	#exit;
 } # endfunc samlevare
 ###############################################################
-function bogfor($id, $webservice=false)
+function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=false)
 {
 	/* print "<!--function bogfor start-->"; */
 
@@ -1437,7 +1438,7 @@ function bogfor($id, $webservice=false)
 		if ($art != "PO") {
 			// Generate unique invoice number using the thread-safe function
 			// Note: get_next_invoice_number now also sets fakturanr on the order atomically
-			$fakturanr = get_next_invoice_number($art, $id);
+			$fakturanr = get_next_invoice_number($art, $id, $callerOwnsTransaction);
 			$ny_id = array();
 			$x = 0;
 			$q = db_select("select * from ordrelinjer where pris != '0' and m_rabat != '0' and rabat = '0' and ordre_id='$id'", __FILE__ . " linje " . __LINE__);
