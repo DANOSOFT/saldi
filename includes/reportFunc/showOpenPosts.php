@@ -436,8 +436,16 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<input type=submit value=\"Opret rykker\" name=\"submit\"></span>&nbsp;&nbsp;";
 		if ($udlign) {
 			$udlign=trim($udlign,",'");
-			$visAlleParam = $vis_alle ? "&vis_alle_poster=on" : "&vis_aabenpost=on";
-			print "	<input type='button' onclick=\"location.href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$visAlleParam&udlign=$udlign';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
+			// URL-encode the report filter values and escape the attribute so quotes in
+			// request-supplied values cannot break out of the inline handler (XSS).
+			$udlignUrl = 'rapport.php?submit=ok&rapportart=openpost'
+				. '&dato_fra=' . rawurlencode($dato_fra)
+				. '&dato_til=' . rawurlencode($dato_til)
+				. '&konto_fra=' . rawurlencode($konto_fra)
+				. '&konto_til=' . rawurlencode($konto_til)
+				. ($vis_alle ? '&vis_alle_poster=on' : '&vis_aabenpost=on')
+				. '&udlign=' . rawurlencode($udlign);
+			print "	<input type='button' onclick=\"location.href='" . htmlspecialchars($udlignUrl, ENT_QUOTES) . "';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
 			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
 		} else {
 			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
