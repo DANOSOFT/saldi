@@ -789,13 +789,12 @@ if ($fp) {
 				}
 				$dd=date("Y-m-d");
 				$qtxt="select id,kostpris,transdate from kostpriser where vare_id='$vare_id' order by transdate desc limit 1"; #20150224
-				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					if ($r['transdate'] != $dd && $r['kostpris'] != $kostpris) {
-						$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
-					}	elseif ($r['transdate'] == $dd && $r['kostpris'] != $kostpris) {
-						$qtxt="update kostpriser set kostpris=$kostpris where id = '$r[id]'";
-					} else $qtxt=NULL;
-				}	else $qtxt=NULL;
+				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+				if ($r['transdate'] != $dd && $r['kostpris'] != $kostpris) {
+					$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
+				}	elseif ($r['transdate'] == $dd && $r['kostpris'] != $kostpris) {
+					$qtxt="update kostpriser set kostpris=$kostpris where id = '$r[id]'";
+				} else $qtxt=NULL;
 				if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				if (isset($leverandor) && $leverandor) {
 					if (!is_numeric($leverandor)) $leverandor = 0;
