@@ -28,6 +28,7 @@
 // 20260226 PHR Changed posnr=posnr+1000000 to posnr=posnr+1000 as posnr is smallint
 // 20260602 PHR Definet $mQt as array if empty.
 // 20260708 MJ Guard all POST arrays; fetch antal/leveret from DB to fix index mismatch causing blank page; guard setval for MySQL.
+// 20260702 MJ/CX Set leveret on split order lines, reset batch working arrays per line, and persist the batch_kob antal/rest update.
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
@@ -100,7 +101,7 @@ else {
 			if ($mQt[$x]) $antal[$x] = $antal[$x] - $mQt[$x];
 			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$qtxt = "UPDATE ordrelinjer SET antal = '$mQt[$x]', ordre_id = '$newId' WHERE id='$newLineId'";
+			$qtxt = "UPDATE ordrelinjer SET antal = '$mQt[$x]', leveret = '0', ordre_id = '$newId' WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "DROP TABLE temp_table";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -126,9 +127,9 @@ else {
 			}
 			$antal[$x] = $antal[$x] - $mSQt[$x];
 			$leveret[$x] = $leveret[$x] - $mSQt[$x];
-			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], leveret = $leveret[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$qtxt = "UPDATE ordrelinjer SET antal = '$mSQt[$x]', ordre_id = '$newId' WHERE id='$newLineId'";
+			$qtxt = "UPDATE ordrelinjer SET antal = '$mSQt[$x]', leveret = '$mSQt[$x]', ordre_id = '$newId' WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "SELECT id FROM serienr WHERE kobslinje_id='$linje_id[$x]' ORDER BY id";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -144,6 +145,8 @@ else {
 			$qtxt = "SELECT * FROM batch_kob WHERE linje_id='$linje_id[$x]' ORDER BY id";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			$bk = $mvRm = 0;
+			$bkId = $bkQt = $bkRm = $bkDt = array();
+			$deliveryDate = date("Y-m-d");
 			while ($r = db_fetch_array($q)) {
 				$bkId[$bk]  = $r['id'];
 				$bkQt[$bk]  = (float)$r['antal'];
@@ -171,6 +174,7 @@ else {
 						$bkRm[$bk] = 0;
 					}
 					$qtxt = "UPDATE batch_kob SET antal = '$bkQt[$bk]', rest = '$bkRm[$bk]' WHERE id = $bkId[$bk]";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 			}
 			if ($mvQt) {

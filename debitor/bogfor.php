@@ -27,6 +27,7 @@
 // --------------------------------------------------------------------------
 // 2013.05.06 Tilføjet transaktionskontrol.
 // 2015.03.05 Betalinger indsættes nu i POS_betalinger hvis betingelser er opfyldt - søg pos_betalinger
+// 20260706 CX/PHR Rollback transaction before alert/redirect when bogfor() returns an error
 
 @session_start();
 $s_id=session_id();
@@ -51,6 +52,7 @@ if ($id && $id>0) {
 	$svar=bogfor($id,'');
 	
 	if ($svar && $svar!='OK') {
+		transaktion('rollback');
 		echo "Svar $svar<br>";;
 		print "<BODY onLoad=\"javascript:alert('$svar')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordre.php?id=$id\">";
