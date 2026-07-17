@@ -737,9 +737,18 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 	$primo = (float)if_isset($r, 0, 'primo');
 
 	$qtxt = "SELECT (SUM(debet) - SUM(kredit)) AS amount FROM transaktioner ";
-	$qtxt .= "WHERE kontonr= $kontonr AND transdate < '$startdate' AND transdate > '$fiscalYearStart'";
+	$qtxt .= "WHERE kontonr= $kontonr AND transdate < '$startdate' AND transdate >= '$fiscalYearStart'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$primo += (float)if_isset($r, 0, 'amount');
+
+	// Highest existing pos per date, so rows still on pos=0 get positions that
+	// cannot collide with already-numbered rows on the same date.
+	$maxPos = array();
+	$qtxt = "SELECT transdate, MAX(pos) AS maxpos FROM transaktioner WHERE kontonr = '$kontonr' ";
+	$qtxt .= "AND transdate >= '$startdate' AND transdate <= '$enddate' AND (debet != 0 OR kredit != 0) GROUP BY transdate";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q))
+		$maxPos[$r['transdate']] = (int)$r['maxpos'];
 
 	$counter = $i = 1;
 	$qtxt = "select * FROM transaktioner WHERE kontonr = '$kontonr' AND transdate >= '$startdate' AND transdate <= '$enddate' ";
@@ -751,8 +760,8 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 		$transDate[$i] = $r['transdate'];
 		$transText[$i] = $r['beskrivelse'];
 		$transAmount[$i] = $r['debet'] - $r['kredit'];
-		if ($i > 1 && $transDate[$i] != $transDate[$i - 1])
-			$counter = 1;
+		if ($i == 1 || $transDate[$i] != $transDate[$i - 1])
+			$counter = (int)if_isset($maxPos, 0, $transDate[$i]) + 1;
 		if ($transPos[$i] == 0) {
 			$qtxt = "update transaktioner set pos = '$counter' where id = '$transId[$i]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -781,7 +790,7 @@ function reconcile($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 		print "<tr bgcolor = '$bg' >";
 		($match[$l]) ? $txtcolor = 'black' : $txtcolor = 'red';
 		print "<td style='color:$txtcolor'>" . if_isset($bankDate, '', $l) . "</td>
-		<td style='color:$txtcolor'>" . if_isset($bankText, '', $l) . "</td>
+		<td style='color:$txtcolor'>" . htmlspecialchars(if_isset($bankText, '', $l), ENT_QUOTES) . "</td>
 		<td style='color:$txtcolor'>" . dkdecimal(if_isset($bankAmount, 0, $l)) . "</td>
 		<td style='color:$txtcolor'>" . dkdecimal(if_isset($bankSaldo, 0, $l)) . "</td>";
 		/*
