@@ -1,5 +1,5 @@
 <?php
-// -------------kreditor/ordre2csv.php----------lap 2.0.5------2009-02-24----
+// -------------kreditor/ordre2csv.php----------patch 5.0.0------2026-07-06----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,10 +14,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2009 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 03/02/2025 PBLM fixed lev_varenummer
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260706 MJ CSV filename now uses creditorSuggestion/creditorOrder/creditorInvoice prefix and order number.
 
 @session_start();
 $s_id = session_id();
@@ -42,16 +43,23 @@ print "</tbody></table></td></tr>"; #B1 slut
 print "<tr><td valign=top>";
 print "<table width=\"400\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; #B2
 
-$filnavn = "../temp/" . $db . "/" . $ordre_id . ".csv";
+$r = db_fetch_array(db_select("select ordrenr, status, art from ordrer where id = '$ordre_id'", __FILE__ . " linje " . __LINE__));
+$ordrenr = $r['ordrenr'] ? $r['ordrenr'] : $ordre_id;
+$csvPrefix = "creditorOrder";
+if ($r['art'] == 'KO') {
+	if ($r['status'] <= 1) $csvPrefix = "creditorSuggestion";
+	elseif ($r['status'] > 2) $csvPrefix = "creditorInvoice";
+}
+$filnavn = "../temp/" . $db . "/" . $csvPrefix . $ordrenr . ".csv";
 #echo "Filnavn $filnavn<br>";
 $fp = fopen($filnavn, "w");
 
-fwrite($fp, "Pos" . chr(9) . "Vores varenummer" . chr(9) . "Deres varenummer" . chr(9) . "Beskrivelse" . chr(9) . "Antal" . chr(9) . "Pris" . chr(9) . "Rabat" . chr(9) . "I alt" . chr(9) . "\n");
+fwrite($fp, "Pos" . ";" . "Vores varenummer" . ";" . "Deres varenummer" . ";" . "Beskrivelse" . ";" . "Antal" . ";" . "Pris" . ";" . "Rabat" . ";" . "I alt" . "\n");
 $q = db_select("select * from ordrelinjer where ordre_id = $ordre_id order by posnr", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-	$beskrivelse = str_replace(chr(9), " ", $r['beskrivelse']);
-	$varenr = str_replace(chr(9), " ", $r['varenr']);
-	$lev_vnr = str_replace(chr(9), " ", $r['lev_varenr']);
+	$beskrivelse = str_replace(";", " ", $r['beskrivelse']);
+	$varenr = str_replace(";", " ", $r['varenr']);
+	$lev_vnr = str_replace(";", " ", $r['lev_varenr']);
 	if ($charset == 'UTF-8') {
 		$beskrivelse = mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 		$varenr = mb_convert_encoding($varenr, 'ISO-8859-1', 'UTF-8');
@@ -62,12 +70,12 @@ while ($r = db_fetch_array($q)) {
 	$rabat = dkdecimal($r['rabat']);
 	$ialt = dkdecimal($r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] / 100 * $r['rabat']));
 
-	fwrite($fp, $r["posnr"] . chr(9) . $varenr . chr(9) . $lev_vnr . chr(9) . $beskrivelse . chr(9) . $antal . chr(9) . $pris . chr(9) . $rabat . chr(9) . $ialt . "\n");
+	fwrite($fp, $r["posnr"] . ";" . $varenr . ";" . $lev_vnr . ";" . $beskrivelse . ";" . $antal . ";" . $pris . ";" . $rabat . ";" . $ialt . "\n");
 	# Get serialnumbers for export
 	$q2 = db_select("select serienr from serienr where kobslinje_id = '$r[id]'", __FILE__ . " linje " . __LINE__);
 	while ($r2 = db_fetch_array($q2)) {
 		$serienr = $r2["serienr"];
-		fwrite($fp,chr(9).$varenr.chr(9).$lev_vnr.chr(9).'sn:'.$serienr.chr(9).chr(9).chr(9).chr(9)."\n");
+		fwrite($fp,";".$varenr.";".$lev_vnr.";".'sn:'.$serienr.";".";".";"."\n");
 	}
 }
 fclose($fp);

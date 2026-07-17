@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------patch 5.0.0 ----2026-05-13--------------
+// -------debitor/rapport.php------patch 5.0.0 ----2026-07-06--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,14 +33,19 @@
 // 20210805 - LOE Translated some texts 
 // 20250923 - LOE Sets rapportart to $rapportart = 'kontokort'; only if not accountChart 
 // 20260513 PHR Cleanup
+// 20260702 CX/PHR Split comma-separated openpost autoudlign account list
+// 20260706 MJ Release session before long read-only reports to avoid blocking navigation.
+// 20260706 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
 
 @session_start();
 $s_id = session_id();
+ini_set('max_execution_time', 300);
 $css = "../css/std.css";
 $title = "Debitorrapport";
 $modulnr = 12;
 
 $tmp = NULL;
+$initialSubmitValue = isset($_POST['submit']) ? strtolower(trim($_POST['submit'])) : (isset($_GET['submit']) ? strtolower(trim($_GET['submit'])) : NULL);
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -50,7 +55,18 @@ include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
 include("../includes/row-hover-style-with-links.js.php");
 
+if (!function_exists('autoudlign_liste')) {
+	function autoudlign_liste($udlign) {
+		$udlign = explode(",", $udlign);
+		for ($x = 0; $x < count($udlign); $x++) {
+			if ((float)$udlign[$x] > 0) autoudlign($udlign[$x]);
+		}
+	}
+}
 
+$skipPopupCheck = (isset($_GET['rapportart']) && $_GET['rapportart'] == 'openpost') || isset($_POST['openpost']);
+
+if (!$skipPopupCheck) {
 ?>
 <script>
 function checkPopupBlocked() {
@@ -76,6 +92,7 @@ if (res) {
 }
 </script>
 <?php
+}
 
 print '
 <style>
@@ -156,12 +173,9 @@ if (isset($_GET['ny_rykker'])) {
 	$konto_fra = if_isset($_GET['konto_fra']);
 	$konto_til = if_isset($_GET['konto_til']);
 	$rapportart = $_GET['rapportart']; 
-	if (isset($_GET['udlign'])) {
-		$udlign = explode(",", $_GET['udlign']);
-		#		$autoudlign=array($udlign);
-		for ($x = 0; $x < count($udlign); $x++) {
-			autoudlign($udlign[$x]);
-		}
+	if ($_GET['udlign']) {
+		autoudlign_liste($_GET['udlign']);
+		unset($_GET['udlign']);
 	}
 	if ($rapportart == 'kontokort' && if_isset($_GET['layout']) == 'grid' && $konto_fra && $konto_fra == $konto_til) {
 		include_once 'generalLedger.php';
@@ -370,8 +384,10 @@ if (isset($_POST['submit']) || $rapportart) {
 	#	$regnaar=$_GET['regnaar'];
 	$submit = $_GET['submit'] ?? NULL;
 	$returside = $_GET['returside'] ?? NULL;
-	if ($udlign = $_GET['udlign'])
-		autoudlign($udlign);
+	if (($udlign = $_GET['udlign'])) {
+		autoudlign_liste($udlign);
+	}
+	unset($_GET['udlign']);
 } elseif (isset($_GET['kontonr'])) {
 	$konto_fra = $_GET['kontonr'];
 	$konto_til = $_GET['kontonr'];
@@ -390,8 +406,9 @@ if (isset($_POST['submit']) || $rapportart) {
 #if ($dato_fra) $dato_fra=find_maaned_nr($dato_fra); 
 #if ($dato_til) $dato_til=find_maaned_nr($dato_til); 
 
-if ($udlign = if_isset($_GET['udlign']))
-	autoudlign($udlign);
+if (($udlign = if_isset($_GET['udlign']))) {
+	autoudlign_liste($udlign);
+}
 if (strstr($rapportart, "ben post"))
 	$rapportart = "openpost";
 if (!isset($submit))
@@ -409,6 +426,38 @@ if (!isset($konto_fra))
 	$konto_fra = NULL;
 if (!isset($konto_til))
 	$konto_til = NULL;
+
+if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE && in_array($submit, array('openpost', 'kontokort', 'kontosaldo', 'accountChart'))) {
+	session_write_close();
+}
+
+if ($submit == 'openpost' && !isset($_GET['openpost_content']) && !isset($_POST['openpost_content'])) {
+	$writeActions = array('mail kontoudtog', 'opret rykker', 'ryk alle', 'slet', 'udskriv', 'ny rykker', 'afslut', 'inkasso');
+	$isWriteAction = in_array($initialSubmitValue, $writeActions) || strstr((string)$initialSubmitValue, 'bogf');
+	if (!$isWriteAction) {
+		$params = array(
+			'rapportart' => 'openpost',
+			'submit' => 'ok',
+			'dato_fra' => $dato_fra,
+			'dato_til' => $dato_til,
+			'konto_fra' => $konto_fra,
+			'konto_til' => $konto_til,
+			'openpost_content' => 1
+		);
+		foreach (array('vis_aabenpost', 'vis_alle_poster', 'skjul_aabenpost', 'kun_debet', 'kun_kredit', 'showPBS', 'openpost_page', 'openpost_page_size') as $key) {
+			if (isset($_GET[$key])) $params[$key] = $_GET[$key];
+			elseif (isset($_POST[$key])) $params[$key] = $_POST[$key];
+		}
+		$frameSrc = 'rapport.php?' . str_replace('&', '&amp;', http_build_query($params));
+		print "<div id='openpostAsyncShell' style='padding:12px;'>";
+		print "<div id='openpostAsyncStatus' style='padding:10px; text-align:center;'>Indl&aelig;ser &aring;bne poster...</div>";
+		print "<iframe id='openpostAsyncFrame' data-src='$frameSrc' style='width:100%; min-height:720px; border:0;' onload=\"document.getElementById('openpostAsyncStatus').style.display='none'; this.style.minHeight=Math.max(720, (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body ? this.contentWindow.document.body.scrollHeight + 40 : 720)) + 'px';\"></iframe>";
+		print "<script>setTimeout(function(){var frame=document.getElementById('openpostAsyncFrame'); if(frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.getAttribute('data-src'));}, 10);</script>";
+		print "</div>";
+		print "</html>";
+		exit;
+	}
+}
 
 $submit($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D', $returside);
 
