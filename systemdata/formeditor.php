@@ -49,7 +49,7 @@ $s_id = session_id();
 // that output on the API path so the fetch() always receives pure JSON.
 // ---------------------------------------------------------------------------
 $fe_action = isset($_GET['fe_action']) ? $_GET['fe_action'] : '';
-$FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remove','savedraft','discarddraft'), true);
+$FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remove','savedraft','discarddraft','save_mail'), true);
 
 if ($FE_API) ob_start();
 
@@ -462,6 +462,41 @@ if ($fe_action === 'savedraft' || $fe_action === 'discarddraft') {
 	exit;
 }
 
+// ---------------------------------------------------------------------------
+//  SAVE MAIL TEXT ENDPOINT  (POST ?fe_action=save_mail, JSON body)
+//  The e-mail that sends with the PDF: art=5, xa 1=subject, 2=body, 3=attach.
+// ---------------------------------------------------------------------------
+if ($fe_action === 'save_mail') {
+	@ob_end_clean();
+	header('Content-Type: application/json; charset=utf-8');
+	if (empty($db_id)) { http_response_code(401); print json_encode(array('ok'=>false,'error'=>'session')); exit; }
+	$payload = json_decode(file_get_contents('php://input'), true);
+	$form_nr = isset($payload['form_nr']) ? (int) $payload['form_nr'] : 0;
+	$sprog   = isset($payload['sprog']) ? db_escape_string((string) $payload['sprog']) : '';
+	$valid_forms = array(1,2,3,4,5,6,7,8,9,11,12,13,14);
+	if (!in_array($form_nr, $valid_forms, true) || $sprog === '') {
+		http_response_code(400); print json_encode(array('ok'=>false,'error'=>'payload')); exit;
+	}
+	$has_attach = in_array($form_nr, array(1,2,4), true);
+	$vals = array(
+		1 => db_escape_string((string) (isset($payload['subject']) ? $payload['subject'] : '')),
+		2 => db_escape_string((string) (isset($payload['body'])    ? $payload['body']    : '')),
+	);
+	if ($has_attach) $vals[3] = db_escape_string((string) (isset($payload['attach']) ? $payload['attach'] : ''));
+	transaktion('begin');
+	foreach ($vals as $xa => $v) {
+		$r = db_fetch_array(db_select("select id from formularer where formular=$form_nr and art=5 and sprog='$sprog' and xa='$xa'", __FILE__ . " linje " . __LINE__));
+		if ($r && $r['id']) {
+			db_modify("update formularer set beskrivelse='$v' where id=" . (int) $r['id'] . " and formular=$form_nr and art=5", __FILE__ . " linje " . __LINE__);
+		} else {
+			db_modify("insert into formularer (xa, formular, art, sprog, beskrivelse) values ('$xa', $form_nr, 5, '$sprog', '$v')", __FILE__ . " linje " . __LINE__);
+		}
+	}
+	transaktion('commit');
+	print json_encode(array('ok'=>true));
+	exit;
+}
+
 
 
 // ---- helpers ---------------------------------------------------------------
@@ -713,6 +748,16 @@ if ($tbl_gen && $tbl_cols) {
 $variants = array();
 $qv = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
 while ($rv = db_fetch_array($qv)) $variants[] = $rv['sprog'];
+
+// ---- e-mail text (art=5): xa 1=subject, 2=body, 3=attachment ---------------
+$fe_mail = array('subject'=>'', 'body'=>'', 'attach'=>'', 'has_attach'=>in_array($form_nr, array(1,2,4), true));
+$qmail = db_select("select xa, beskrivelse from formularer where formular = $form_nr and art = 5 and sprog = '$sprog_db' order by xa", __FILE__ . " linje " . __LINE__);
+while ($rm = db_fetch_array($qmail)) {
+	$mxa = (int) $rm['xa'];
+	if ($mxa === 1) $fe_mail['subject'] = $rm['beskrivelse'];
+	elseif ($mxa === 2) $fe_mail['body'] = $rm['beskrivelse'];
+	elseif ($mxa === 3) $fe_mail['attach'] = $rm['beskrivelse'];
+}
 
 // ---- background letterhead (rendered to PNG, best effort, cached) ----------
 $bg_url = '';
@@ -1030,6 +1075,13 @@ if ($menu == 'T') {
     cursor:pointer; font-size:10px; color:#334; padding:0; line-height:1; }
   .fe-tc-btn.on { background:#1769ff; color:#fff; border-color:#1257cc; }
   .fe-tc-btn:hover { border-color:#9db4e6; }
+  .fe-tc-color { width:24px; height:21px; padding:0; border:1px solid #d3d8e0; border-radius:4px; cursor:pointer; background:none; }
+  #fe-mail-modal { position:fixed; inset:0; z-index:9998; background:rgba(20,26,40,.45); display:flex; align-items:center; justify-content:center; }
+  .fe-mail-row { display:flex; align-items:center; gap:10px; margin:9px 0; font-size:13px; color:#334; }
+  .fe-mail-row label { width:150px; flex:0 0 auto; color:#556; }
+  .fe-mail-row input, .fe-mail-row textarea { flex:1; font-size:13px; padding:5px 8px; border:1px solid #d3d8e0;
+    border-radius:5px; box-sizing:border-box; font-family:Arial,Helvetica,sans-serif; }
+  .fe-mail-row textarea { resize:vertical; line-height:1.4; }
   #fe-status { font-size:12px; color:#444; margin-left:auto; }
   .fe-btn { font-size:13px; padding:4px 10px; cursor:pointer; }
   .fe-btn.fe-active { background:#1769ff !important; color:#fff !important; border:1px solid #1257cc !important; border-radius:3px; }
@@ -1124,6 +1176,7 @@ if ($menu == 'T') {
     <button type="button" class="fe-btn" id="fe-design-open" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Vælg en færdig skabelon (Klassisk/Moderne/Minimal) og brand-farve/skrifttype','Pick a ready-made template (Classic/Modern/Minimal) and brand colour/font'); ?>">&#127912; <?php echo $T('Skabeloner','Templates'); ?></button>
     <?php $bg_label = $bg_url ? $T('Skift baggrund','Change background') : $T('Tilføj baggrund','Add background'); ?>
     <a id="fe-bg-btn" class="fe-btn" style="text-decoration:none;color:inherit;border:1px solid #c7cdd6;border-radius:3px;" href="logoupload.php?upload=yes" target="_blank" rel="noopener" title="<?php echo $T('Upload eller skift baggrund/logo (letterhead)','Upload or change background/logo (letterhead)'); ?>">&#128444; <?php echo htmlspecialchars($bg_label); ?></a>
+    <button type="button" class="fe-btn" id="fe-mail-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Rediger e-mailteksten der sendes med PDF&apos;en','Edit the e-mail text sent with the PDF'); ?>">&#9993; <?php echo $T('E-mailtekst','Email text'); ?></button>
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-undo" title="Ctrl+Z">&#8630; <?php echo $T('Fortryd','Undo'); ?></button>
     <button type="button" class="fe-btn" id="fe-redo" title="Ctrl+Y">&#8631; <?php echo $T('Gentag','Redo'); ?></button>
@@ -1370,11 +1423,14 @@ if ($menu == 'T') {
 
   var elements = <?php echo json_encode($fe_data); ?> || [];
   var table    = <?php echo json_encode($fe_table); ?>;
+  var tableInit = table ? JSON.parse(JSON.stringify(table)) : null;   // pristine copy for "Reset table"
+  var tableGroupInit = [];   // pristine geometry of the table's headers/border lines (filled at init)
   var VAR_MAP  = <?php echo json_encode(fe_var_map()); ?> || {};
   var DK_UI    = <?php echo $dk_ui ? 'true' : 'false'; ?>;
   var LOGO_URL = <?php echo json_encode($fe_logo_url); ?>;
   var LOGO_NAT = { w: <?php echo (int) $fe_logo_w; ?>, h: <?php echo (int) $fe_logo_h; ?> };
   var FE_DRAFT = <?php echo json_encode($fe_draft); ?>;   // saved working state, or null
+  var FE_MAIL  = <?php echo json_encode($fe_mail); ?>;    // e-mail text (subject/body/attachment)
   var formNr = <?php echo (int) $form_nr; ?>;
   var sprog  = <?php echo json_encode($sprog); ?>;
   var COND_TIP = {
@@ -1628,6 +1684,10 @@ if ($menu == 'T') {
     // bottom handle = number of item rows (expand / reduce)
     var hb=document.createElement('div'); hb.className='fe-thandle bottom'; hb.title=RESIZE_ROWS_TIP;
     hb.addEventListener('mousedown', function(ev){ startResizeRows(ev); }); box.appendChild(hb);
+    // right handle = stretch the table wider/narrower (gives big amounts more room)
+    var hr=document.createElement('div'); hr.className='fe-thandle right';
+    hr.title=(DK_UI?'Træk for at gøre tabellen bredere (mere plads til store beløb)':'Drag to make the table wider (more room for large amounts)');
+    hr.addEventListener('mousedown', function(ev){ startResizeTableWidth(ev); }); box.appendChild(hr);
 
     box.addEventListener('mousedown', function(ev){ if (ev.target===box || ev.target===cap) startDragTable(ev); });
     page.appendChild(box);
@@ -1673,6 +1733,62 @@ if ($menu == 'T') {
     }
     function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); if(moved) markDirty(); }
     document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+  }
+  // Stretch the whole table wider/narrower around its left edge — spreads the
+  // columns (and their headers) so large amounts have room instead of squeezing.
+  function startResizeTableWidth(ev) {
+    ev.preventDefault(); ev.stopPropagation(); selectTable();
+    var s=pxmm(), sx=ev.clientX;
+    var leftX=table.leftX, span0=Math.max(1, table.rightX-leftX);
+    var cols0=table.cols.map(function(c){ return c.xa; });
+    var grp=tableGroup().map(function(el){ return {el:el, xa:el.xa, xb:el.xb}; });
+    var moved=false;
+    function mv(e){
+      if(!moved){ pushUndo(); moved=true; }
+      var scale=(span0 + (e.clientX-sx)/s)/span0;
+      if(scale<0.3) scale=0.3;
+      var maxX=leftX; cols0.forEach(function(x){ maxX=Math.max(maxX, leftX+(x-leftX)*scale); });
+      if(maxX>PAGE_W-2) scale=(PAGE_W-2-leftX)/span0;   // keep widest column on the page
+      table.cols.forEach(function(c,i){ c.xa=clampX(leftX+(cols0[i]-leftX)*scale); });
+      grp.forEach(function(o){
+        o.el.xa=clampX(leftX+(o.xa-leftX)*scale);
+        if(o.el.kind==='line') o.el.xb=clampX(leftX+(o.xb-leftX)*scale);
+      });
+      var xs=table.cols.map(function(c){ return c.xa; });
+      table.leftX=Math.min.apply(null,xs); table.rightX=Math.max.apply(null,xs);
+      render();
+    }
+    function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); if(moved) markDirty(); }
+    document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+  }
+  // Scale the table columns AND their headers by `factor` around an anchor edge
+  // ('left'=extend right, 'right'=extend left, 'center'=both). Headers move with
+  // the columns so they stay aligned. Auto-limits so nothing runs off the page.
+  function stretchTable(factor, anchor){
+    if(!table || !table.cols.length) return;
+    var ax = anchor==='left' ? table.leftX : (anchor==='right' ? table.rightX : (table.leftX+table.rightX)/2);
+    var cols0 = table.cols.map(function(c){ return c.xa; });
+    function span(f){ var mn=Infinity,mx=-Infinity; cols0.forEach(function(x){ var nx=ax+(x-ax)*f; mn=Math.min(mn,nx); mx=Math.max(mx,nx); }); return {mn:mn,mx:mx}; }
+    var sp=span(factor);
+    while(factor>0.4 && (sp.mx>PAGE_W-2 || sp.mn<2)){ factor -= 0.02; sp=span(factor); }   // keep on page
+    if(Math.abs(factor-1)<0.001) return;
+    pushUndo();
+    var grp=tableGroup();
+    table.cols.forEach(function(c,i){ c.xa=clampX(ax+(cols0[i]-ax)*factor); });
+    grp.forEach(function(el){ el.xa=clampX(ax+(el.xa-ax)*factor); if(el.kind==='line') el.xb=clampX(ax+(el.xb-ax)*factor); });
+    var xs=table.cols.map(function(c){ return c.xa; });
+    table.leftX=Math.min.apply(null,xs); table.rightX=Math.max.apply(null,xs);
+    render(); markDirty();
+  }
+  function changeRows(d){ if(!table) return; pushUndo(); table.gen.count=Math.max(1, Math.round((table.gen.count||1)+d)); render(); markDirty(); }
+  // Reset the table (columns + headers/border lines) to how it looked on load.
+  function resetTable(){
+    if(!tableInit) return;
+    pushUndo();
+    table = JSON.parse(JSON.stringify(tableInit));
+    tableGroupInit.forEach(function(g){ var el=elById(g.id); if(el){ el.xa=g.xa; el.ya=g.ya; el.xb=g.xb; el.yb=g.yb; } });
+    selId='table'; render(); showProps(); markDirty();
+    flashStatus((DK_UI?'Tabel nulstillet':'Table reset'), '#1769ff');
   }
   // find the header text (art=2) that belongs to a column: a text element just
   // above the item area whose x is closest to the column's x.
@@ -2215,6 +2331,51 @@ if ($menu == 'T') {
     if (c.kind === 'line') { c.xb = clampX(c.xb + 3); c.yb = clampY(c.yb - 3); }
     elements.push(c); selId = c.id; render(); showProps(); markDirty();
   }
+  // ---- copy / paste / duplicate / select-all (text + lines) ---------------
+  var feClipboard = null;
+  var FE_CLIP_FIELDS = ['art','kind','besk','xa','ya','xb','yb','str','color','font','fed','kursiv','side','justering'];
+  function feSelectedMovable(){
+    var ids = selSet.length ? selSet : (selId!=null && selId!=='table' ? [selId] : []);
+    return ids.map(elById).filter(function(e){ return e && (e.kind==='text'||e.kind==='line'); });
+  }
+  function feCopy(){
+    var els = feSelectedMovable(); if(!els.length) return;
+    feClipboard = els.map(function(e){ var o={}; FE_CLIP_FIELDS.forEach(function(f){ o[f]=e[f]; }); return o; });
+    try { localStorage.setItem('fe_clipboard', JSON.stringify(feClipboard)); } catch(err){}   // works across forms/tabs
+    flashStatus((DK_UI?'Kopieret: ':'Copied: ')+els.length, '#1769ff');
+  }
+  function fePaste(){
+    var clip = feClipboard;
+    if(!clip){ try { clip = JSON.parse(localStorage.getItem('fe_clipboard')||'null'); } catch(err){} }
+    if(!clip || !clip.length) return;
+    pushUndo();
+    var ids=[];
+    clip.forEach(function(d){
+      var el={}; FE_CLIP_FIELDS.forEach(function(f){ el[f]=d[f]; });
+      el.id = nextTmpId--;
+      el.xa = clampX((el.xa||0)+4); el.ya = clampY((el.ya||0)-4);
+      if(el.kind==='line'){ el.xb = clampX((el.xb||0)+4); el.yb = clampY((el.yb||0)-4); }
+      elements.push(el); ids.push(el.id);
+    });
+    render(); setSel(ids); markDirty();
+    flashStatus((DK_UI?'Indsat: ':'Pasted: ')+ids.length, '#2a7d2a');
+  }
+  function feDuplicate(){
+    var els = feSelectedMovable(); if(!els.length) return;
+    pushUndo();
+    var ids=[];
+    els.forEach(function(e){
+      var c={}; FE_CLIP_FIELDS.forEach(function(f){ c[f]=e[f]; });
+      c.id = nextTmpId--; c.xa = clampX(c.xa+4); c.ya = clampY(c.ya-4);
+      if(c.kind==='line'){ c.xb=clampX(c.xb+4); c.yb=clampY(c.yb-4); }
+      elements.push(c); ids.push(c.id);
+    });
+    render(); setSel(ids); markDirty();
+  }
+  function feSelectAll(){
+    var ids = elements.filter(function(e){ return e.kind==='text'||e.kind==='line'; }).map(function(e){ return e.id; });
+    if(ids.length) setSel(ids);
+  }
   // change a line's thickness by delta (min 0.5)
   function changeLineWidth(delta) {
     var el = elById(selId); if (!el || el.kind !== 'line') return;
@@ -2615,6 +2776,14 @@ if ($menu == 'T') {
     if ((e.ctrlKey||e.metaKey) && (e.key==='y'||e.key==='Y')) { e.preventDefault(); redo(); return; }
     if ((e.ctrlKey||e.metaKey) && (e.key==='z'||e.key==='Z')) { e.preventDefault(); undo(); return; }
     var inField = document.activeElement && (document.activeElement.tagName==='INPUT' || document.activeElement.tagName==='TEXTAREA' || document.activeElement.tagName==='SELECT');
+    // ---- editor clipboard shortcuts (copy/paste like a real editor) --------
+    if ((e.ctrlKey||e.metaKey) && !inField) {
+      var k=(e.key||'').toLowerCase();
+      if (k==='c') { feCopy(); return; }
+      if (k==='v') { e.preventDefault(); fePaste(); return; }
+      if (k==='d') { e.preventDefault(); feDuplicate(); return; }
+      if (k==='a') { e.preventDefault(); feSelectAll(); return; }
+    }
     if ((e.key==='Delete') && (selId!==null || selSet.length) && !inField) { e.preventDefault(); deleteSelected(); return; }
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.key)<0) return;
     if (inField) return;
@@ -2812,6 +2981,9 @@ if ($menu == 'T') {
     function row(k,v){ return '<tr><td class="k">'+k+'</td><td>'+v+'</td></tr>'; }
     var shortcuts='<table class="fe-help-tbl">'
       + row('Ctrl+Z / Ctrl+Y', DA?'Fortryd / Gentag':'Undo / Redo')
+      + row('Ctrl+C / Ctrl+V', DA?'Kopiér / indsæt (også til andre formularer)':'Copy / paste (also into other forms)')
+      + row('Ctrl+D', DA?'Dupliker det valgte':'Duplicate selection')
+      + row('Ctrl+A', DA?'Vælg alt':'Select all')
       + row(DA?'Piletaster':'Arrow keys', DA?'Flyt 0,5&nbsp;mm (Shift = 5&nbsp;mm)':'Move 0.5&nbsp;mm (Shift = 5&nbsp;mm)')
       + row('Delete', DA?'Slet det valgte':'Delete selected')
       + row('Shift + '+(DA?'klik':'click'), DA?'Vælg flere felter':'Add to selection')
@@ -2841,6 +3013,80 @@ if ($menu == 'T') {
     return helpModal;
   }
   document.getElementById('fe-help-btn').addEventListener('click', function(){ buildHelpModal().style.display='flex'; });
+
+  // ---- e-mail text editor (the message sent with the PDF; art=5) ----------
+  // Body is stored with <br> (Saldi sends the mail as HTML). We show real line
+  // breaks in the textarea and convert back on save, so the client never sees HTML.
+  function mailBr2nl(s){ return String(s||'').replace(/<br\s*\/?>/gi,'\n'); }
+  function mailNl2br(s){ return String(s||'').replace(/\r?\n/g,'<br>'); }
+  var EMAIL_TEMPLATES = [
+    { name:(DK_UI?'Standard':'Standard'),
+      subject:(DK_UI?'Faktura':'Invoice'),
+      body:(DK_UI?'Hej\n\nHermed fremsendes fakturaen. Beløbet bedes betalt inden forfaldsdatoen.\n\nMed venlig hilsen':'Hello\n\nPlease find your invoice attached. Kindly pay by the due date.\n\nKind regards') },
+    { name:(DK_UI?'Venlig':'Friendly'),
+      subject:(DK_UI?'Tak for din ordre':'Thank you for your order'),
+      body:(DK_UI?'Hej\n\nTusind tak for din ordre! Din faktura er vedhæftet. Sig endelig til, hvis du har spørgsmål.\n\nDe bedste hilsner':'Hi\n\nThank you so much for your order! Your invoice is attached. Just let us know if you have any questions.\n\nAll the best') },
+    { name:(DK_UI?'Formel':'Formal'),
+      subject:(DK_UI?'Faktura vedhæftet':'Invoice enclosed'),
+      body:(DK_UI?'Til rette vedkommende\n\nVedhæftet finder De fakturaen til betaling i henhold til de aftalte betalingsbetingelser.\n\nMed venlig hilsen':'To whom it may concern\n\nPlease find enclosed the invoice for payment in accordance with the agreed terms.\n\nYours sincerely') },
+    { name:(DK_UI?'Påmindelse':'Reminder'),
+      subject:(DK_UI?'Venlig betalingspåmindelse':'Friendly payment reminder'),
+      body:(DK_UI?'Hej\n\nVi kan se, at fakturaen endnu ikke er betalt. Måske er den blot overset? Vi vedhæfter den igen.\n\nMed venlig hilsen':'Hello\n\nWe notice the invoice hasn’t been paid yet — perhaps it was simply overlooked? We’re attaching it again.\n\nKind regards') }
+  ];
+  var mailModal=null;
+  function buildMailModal(){
+    if(mailModal) return mailModal;
+    var attachRow = FE_MAIL.has_attach
+      ? '<div class="fe-mail-row"><label>'+(DK_UI?'Vedhæftning (bilagsnavn)':'Attachment (file name)')+'</label><input type="text" id="fe-mail-attach"></div>' : '';
+    mailModal=document.createElement('div'); mailModal.id='fe-mail-modal'; mailModal.style.display='none';
+    mailModal.innerHTML='<div class="fe-dlg" style="width:600px;max-width:94vw;">'
+      +'<div class="fe-dlg-head"><span>&#9993; '+(DK_UI?'E-mailtekst':'Email text')+'</span><button type="button" class="fe-x" id="fe-mail-close" title="'+(DK_UI?'Luk':'Close')+'">&times;</button></div>'
+      +'<div class="fe-dlg-body">'
+      +'<div class="fe-dlg-sub">'+(DK_UI?'Teksten der sendes sammen med PDF&apos;en. Felter som $ordre_fakturanr bevares.':'The message sent together with the PDF. Fields like $ordre_fakturanr are kept.')+'</div>'
+      +'<div class="fe-mail-row"><label>'+(DK_UI?'Skabeloner':'Templates')+'</label><span id="fe-mail-tpls" style="display:flex;gap:6px;flex-wrap:wrap;"></span></div>'
+      +'<div class="fe-mail-row"><label>'+(DK_UI?'Emne':'Subject')+'</label><input type="text" id="fe-mail-subject"></div>'
+      +'<div class="fe-mail-row" style="align-items:flex-start;"><label>'+(DK_UI?'Besked':'Message')+'</label><textarea id="fe-mail-body" rows="6" spellcheck="false"></textarea></div>'
+      + attachRow
+      +'</div>'
+      +'<div class="fe-dlg-foot"><span id="fe-mail-status" class="fe-dlg-sub" style="margin:0;margin-right:auto;"></span>'
+      +'<button type="button" class="fe-btn" id="fe-mail-cancel" style="margin-right:8px;">'+(DK_UI?'Luk':'Close')+'</button>'
+      +'<button type="button" class="fe-btn" id="fe-mail-save" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;">'+(DK_UI?'Gem e-mailtekst':'Save email text')+'</button></div>'
+      +'</div>';
+    document.getElementById('fe-wrap').appendChild(mailModal);
+    mailModal.querySelector('#fe-mail-subject').value = FE_MAIL.subject||'';
+    mailModal.querySelector('#fe-mail-body').value = mailBr2nl(FE_MAIL.body);
+    if(FE_MAIL.has_attach) mailModal.querySelector('#fe-mail-attach').value = FE_MAIL.attach||'';
+    // ready-made templates: fill Subject + Message (client just edits, no HTML)
+    var tplHost=mailModal.querySelector('#fe-mail-tpls');
+    EMAIL_TEMPLATES.forEach(function(t){
+      var b=document.createElement('button'); b.type='button'; b.className='fe-mini-btn'; b.textContent=t.name;
+      b.addEventListener('click', function(){
+        mailModal.querySelector('#fe-mail-subject').value=t.subject;
+        mailModal.querySelector('#fe-mail-body').value=t.body;
+      });
+      tplHost.appendChild(b);
+    });
+    function close(){ mailModal.style.display='none'; }
+    mailModal.addEventListener('mousedown', function(e){ if(e.target===mailModal) close(); });
+    mailModal.querySelector('#fe-mail-close').addEventListener('click', close);
+    mailModal.querySelector('#fe-mail-cancel').addEventListener('click', close);
+    mailModal.querySelector('#fe-mail-save').addEventListener('click', function(){
+      var st=mailModal.querySelector('#fe-mail-status'); st.textContent=(DK_UI?'Gemmer…':'Saving…'); st.style.color='#444';
+      var body={ form_nr:formNr, sprog:sprog,
+        subject:mailModal.querySelector('#fe-mail-subject').value,
+        body:mailNl2br(mailModal.querySelector('#fe-mail-body').value) };
+      if(FE_MAIL.has_attach) body.attach=mailModal.querySelector('#fe-mail-attach').value;
+      fetch('formeditor.php?fe_action=save_mail',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body),credentials:'same-origin'})
+        .then(function(r){return r.json();}).then(function(j){
+          if(j&&j.ok){ FE_MAIL.subject=body.subject; FE_MAIL.body=body.body; if(FE_MAIL.has_attach) FE_MAIL.attach=body.attach;
+            st.textContent=(DK_UI?'Gemt ✓':'Saved ✓'); st.style.color='#2a7d2a'; }
+          else if(j&&j.error==='session'){ st.textContent=(DK_UI?'Session udløbet':'Session expired'); st.style.color='#c00'; }
+          else { st.textContent=(DK_UI?'Kunne ikke gemme':'Could not save'); st.style.color='#c00'; }
+        }).catch(function(){ st.textContent=(DK_UI?'Netværksfejl':'Network error'); st.style.color='#c00'; });
+    });
+    return mailModal;
+  }
+  document.getElementById('fe-mail-btn').addEventListener('click', function(){ buildMailModal().style.display='flex'; });
 
   // ---- first-run guided tour (Tier 3): friendly coach-marks ---------------
   // Two tours: a short Quick-start (auto-runs first visit) and a Full tour
@@ -3050,6 +3296,11 @@ if ($menu == 'T') {
       var bb=document.createElement('button'); bb.type='button'; bb.className='fe-tc-btn'+(c.fed?' on':''); bb.textContent='B'; bb.style.fontWeight='bold';
       bb.addEventListener('click', function(){ pushUndo(); c.fed=c.fed?0:1; markDirty(); render(); buildColStyleList(); });
       row.appendChild(bb);
+      // per-column colour (e.g. tint the Total column in the accent colour)
+      var ci=document.createElement('input'); ci.type='color'; ci.className='fe-tc-color';
+      ci.value=rgbToHex(colorNumToRgb(c.color||0)); ci.title=(DK_UI?'Kolonnens farve':'Column colour');
+      ci.addEventListener('change', function(){ pushUndo(); c.color=feHexNum(ci.value); markDirty(); render(); });
+      row.appendChild(ci);
       host.appendChild(row);
     });
   }
@@ -3591,7 +3842,18 @@ if ($menu == 'T') {
     } else {
       var s=pxmm(), rect=page.getBoundingClientRect();
       var xmm=(e.clientX-rect.left)/s, ymm=PAGE_H-(e.clientY-rect.top)/s;
-      items.push({ label:L.ctxAddText, fn:function(){ addTextAt(xmm, ymm); } });
+      if (table && inTableRect(xmm, ymm, tableRectMM())) {
+        // right-click on the order-line table: resize options (headers follow)
+        selectTable();
+        items.push({ label:(DK_UI?'Tabel bredere → mod højre':'Table wider → to the right'), fn:function(){ stretchTable(1.15,'left'); } });
+        items.push({ label:(DK_UI?'Tabel bredere ← mod venstre':'Table wider ← to the left'), fn:function(){ stretchTable(1.15,'right'); } });
+        items.push({ label:(DK_UI?'Tabel smallere':'Table narrower'), fn:function(){ stretchTable(0.87,'center'); } });
+        items.push({ label:(DK_UI?'Flere linjer':'More rows'), fn:function(){ changeRows(1); } });
+        items.push({ label:(DK_UI?'Færre linjer':'Fewer rows'), fn:function(){ changeRows(-1); } });
+        if (tableInit) items.push({ label:(DK_UI?'Nulstil tabel':'Reset table'), danger:true, fn:resetTable });
+      } else {
+        items.push({ label:L.ctxAddText, fn:function(){ addTextAt(xmm, ymm); } });
+      }
     }
     if (items.length) showCtx(e.clientX, e.clientY, items);
   });
@@ -3599,6 +3861,7 @@ if ($menu == 'T') {
   // Automatically show the standard captions in the account's language (like
   // the rest of Saldi). Reversible with Ctrl+Z; Save to keep it for printing.
   var _preTr = JSON.stringify({ e: elements, t: table, d: deletedIds });
+  if (table) tableGroupInit = tableGroup().map(function(el){ return {id:el.id, xa:el.xa, ya:el.ya, xb:el.xb, yb:el.yb}; });
   var _autoTr = applyTranslation();
   render();
   if (_autoTr > 0) { undoStack.push(_preTr); markDirty(); flashStatus(AUTO_TR_MSG, '#b26a00'); }
