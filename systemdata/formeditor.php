@@ -49,7 +49,7 @@ $s_id = session_id();
 // that output on the API path so the fetch() always receives pure JSON.
 // ---------------------------------------------------------------------------
 $fe_action = isset($_GET['fe_action']) ? $_GET['fe_action'] : '';
-$FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remove','savedraft','discarddraft','save_mail','import_apply','design_save','design_list','design_delete'), true);
+$FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remove','savedraft','discarddraft','save_mail'), true);
 
 if ($FE_API) ob_start();
 
@@ -496,85 +496,6 @@ if ($fe_action === 'save_mail') {
 	print json_encode(array('ok'=>true));
 	exit;
 }
-
-if ($fe_action === 'import_apply') {
-	@ob_end_clean();
-	header('Content-Type: application/json; charset=utf-8');
-	if (empty($db_id)) { http_response_code(401); print json_encode(array('ok'=>false,'error'=>'session')); exit; }
-	$payload = json_decode(file_get_contents('php://input'), true);
-	$form_nr = isset($payload['form_nr']) ? (int) $payload['form_nr'] : 0;
-	$sprog   = isset($payload['sprog']) ? db_escape_string((string) $payload['sprog']) : '';
-	$els     = (isset($payload['elements']) && is_array($payload['elements'])) ? $payload['elements'] : null;
-	$tbl     = (isset($payload['table']) && is_array($payload['table'])) ? $payload['table'] : null;
-	$valid_forms = array(1,2,3,4,5,6,7,8,9,11,12,13,14);
-	// reads-first: refuse to wipe the form on an empty/invalid import
-	if (!in_array($form_nr, $valid_forms, true) || $sprog === '' || !$els || count($els) < 3) {
-		http_response_code(400); print json_encode(array('ok'=>false,'error'=>'payload')); exit;
-	}
-	$fonts = array('Helvetica','Times','Courier','Palatino','NewCenturySchlbk','Ocrbb12');
-	$num = function($v){ return round((float) $v, 2); };
-	$col = function($v){ $c=(int) round((float) $v); return $c<0?0:$c; };
-	$rows = array();
-	foreach ($els as $el) {
-		$art = (int) (isset($el['art']) ? $el['art'] : 0);
-		if (!in_array($art, array(1,2), true)) continue;
-		$besk = db_escape_string((string) (isset($el['besk']) ? $el['besk'] : ''));
-		$just = strtoupper((string) (isset($el['justering']) ? $el['justering'] : 'V')); if (!in_array($just, array('V','C','H'), true)) $just='V';
-		$font = (string) (isset($el['font']) ? $el['font'] : 'Helvetica'); if (!in_array($font, $fonts, true)) $font='Helvetica';
-		$rows[] = "($form_nr,$art,'$besk'," . $num($el['xa']??0) . "," . $num($el['ya']??0) . "," . $num($el['xb']??0) . "," . $num($el['yb']??0) . "," . $num($el['str']??0) . "," . $col($el['color']??0) . ",'" . db_escape_string($font) . "','" . ((!empty($el['fed']))?'on':'') . "','" . ((!empty($el['kursiv']))?'on':'') . "','" . db_escape_string((string)(isset($el['side'])?$el['side']:'A')) . "','$just','$sprog')";
-	}
-	if ($tbl && isset($tbl['gen']) && isset($tbl['cols']) && is_array($tbl['cols'])) {
-		$g = $tbl['gen'];
-		$rows[] = "($form_nr,3,'generelt'," . $num($g['count']??0) . "," . $num($g['ya']??0) . "," . $num($g['spacing']??0) . ",0,0,0,'','','','','','$sprog')";
-		foreach ($tbl['cols'] as $cc) {
-			$cjust = strtoupper((string) (isset($cc['just']) ? $cc['just'] : 'V')); if (!in_array($cjust, array('V','C','H'), true)) $cjust='V';
-			$rows[] = "($form_nr,3,'" . db_escape_string((string)(isset($cc['type'])?$cc['type']:'')) . "'," . $num($cc['xa']??0) . "," . $num($cc['ya']??0) . "," . $num($cc['xb']??0) . ",0," . $num($cc['str']??0) . "," . $col($cc['color']??0) . ",'','" . ((!empty($cc['fed']))?'on':'') . "','','','$cjust','$sprog')";
-		}
-	}
-	if (count($rows) < 3) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'empty')); exit; }
-	transaktion('begin');
-	db_modify("delete from formularer where formular=$form_nr and art in (1,2,3) and sprog='$sprog' and upper(beskrivelse) <> 'GEBYR'", __FILE__ . " linje " . __LINE__);
-	db_modify("insert into formularer (formular,art,beskrivelse,xa,ya,xb,yb,str,color,font,fed,kursiv,side,justering,sprog) values " . implode(',', $rows), __FILE__ . " linje " . __LINE__);
-	transaktion('commit');
-	print json_encode(array('ok'=>true, 'rows'=>count($rows)));
-	exit;
-}
-
-if ($fe_action === 'design_save' || $fe_action === 'design_list' || $fe_action === 'design_delete') {
-	@ob_end_clean();
-	header('Content-Type: application/json; charset=utf-8');
-	if (empty($db_id)) { http_response_code(401); print json_encode(array('ok'=>false,'error'=>'session')); exit; }
-	if (!is_dir("../logolib/$db_id")) @mkdir("../logolib/$db_id", 0775, true);
-	$file  = "../logolib/$db_id/fe_designs.json";
-	$store = file_exists($file) ? json_decode(@file_get_contents($file), true) : array();
-	if (!is_array($store)) $store = array();
-	$payload = json_decode(file_get_contents('php://input'), true);
-
-	if ($fe_action === 'design_list') {
-		$out = array();
-		foreach ($store as $name => $d) {
-			$out[] = array('name'=>$name, 'ts'=>isset($d['ts'])?$d['ts']:0, 'form'=>isset($d['form'])?$d['form']:0,
-				'elements'=>isset($d['elements'])?$d['elements']:array(), 'table'=>isset($d['table'])?$d['table']:null);
-		}
-		print json_encode(array('ok'=>true, 'designs'=>$out)); exit;
-	}
-	if ($fe_action === 'design_delete') {
-		$name = (string) (isset($payload['name']) ? $payload['name'] : '');
-		if (isset($store[$name])) { unset($store[$name]); @file_put_contents($file, json_encode($store)); }
-		print json_encode(array('ok'=>true)); exit;
-	}
-	$name = preg_replace('/[^\p{L}\p{N} _\-\.]/u', '', trim((string) (isset($payload['name']) ? $payload['name'] : '')));
-	$name = function_exists('mb_substr') ? mb_substr($name, 0, 60) : substr($name, 0, 60);
-	$els  = (isset($payload['elements']) && is_array($payload['elements'])) ? $payload['elements'] : null;
-	if ($name === '' || !$els || count($els) < 3) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'payload')); exit; }
-	if (count($store) >= 50 && !isset($store[$name])) { print json_encode(array('ok'=>false,'error'=>'toomany')); exit; }
-	$store[$name] = array('ts'=>time(), 'form'=>(int)(isset($payload['form'])?$payload['form']:0),
-		'sprog'=>(string)(isset($payload['sprog'])?$payload['sprog']:''), 'elements'=>$els, 'table'=>isset($payload['table'])?$payload['table']:null);
-	$ok = @file_put_contents($file, json_encode($store)) !== false;
-	print json_encode($ok ? array('ok'=>true) : array('ok'=>false,'error'=>'store')); exit;
-}
-
-
 
 // ---- helpers ---------------------------------------------------------------
 function fe_bg_display_name($sprog_value) {
@@ -1154,13 +1075,6 @@ if ($menu == 'T') {
   .fe-tc-btn:hover { border-color:#9db4e6; }
   .fe-tc-color { width:24px; height:21px; padding:0; border:1px solid #d3d8e0; border-radius:4px; cursor:pointer; background:none; }
   #fe-mail-modal { position:fixed; inset:0; z-index:9998; background:rgba(20,26,40,.45); display:flex; align-items:center; justify-content:center; }
-  #fe-designs-modal { position:fixed; inset:0; z-index:9998; background:rgba(20,26,40,.45); display:flex; align-items:center; justify-content:center; }
-  .fe-design-item { display:flex; align-items:center; gap:8px; padding:7px 4px; border-bottom:1px solid #eef1f6; font-size:13px; }
-  .fe-di-name { flex:1; color:#223; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .fe-design-item .fe-btn { border:1px solid #c7cdd6; border-radius:4px; background:#f6f8fb; padding:4px 12px; cursor:pointer; }
-  .fe-design-item .fe-btn:hover { background:#e9f0ff; border-color:#9db4e6; }
-  .fe-design-item .fe-di-del { color:#b23b3b; border-color:#e0b4b4; }
-  .fe-design-item .fe-di-del:hover { background:#fbeaea; border-color:#d98a8a; }
   .fe-mail-row { display:flex; align-items:center; gap:10px; margin:9px 0; font-size:13px; color:#334; }
   .fe-mail-row label { width:150px; flex:0 0 auto; color:#556; }
   .fe-mail-row input, .fe-mail-row textarea { flex:1; font-size:13px; padding:5px 8px; border:1px solid #d3d8e0;
@@ -1277,10 +1191,6 @@ if ($menu == 'T') {
     <button type="button" class="fe-btn" id="fe-save" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;" title="<?php echo $T('Gem og gør aktiv (bruges ved udskrift)','Save and make live (used for printing)'); ?>"><?php echo $T('Gem & aktivér','Save & activate'); ?></button>
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-reset" style="color:#b23b3b;border:1px solid #d9a1a1;border-radius:3px;background:#fff;" title="<?php echo $T('Nulstil denne formular til Saldis standard','Reset this form to Saldi&apos;s standard'); ?>">&#8635; <?php echo $T('Nulstil','Reset'); ?></button>
-    <button type="button" class="fe-btn" id="fe-export-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Download designet som fil (backup / del)','Download the design as a file (backup / share)'); ?>">&#8681; <?php echo $T('Eksportér','Export'); ?></button>
-    <button type="button" class="fe-btn" id="fe-import-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Indlæs et design fra en fil (erstatter denne formular)','Load a design from a file (replaces this form)'); ?>">&#8679; <?php echo $T('Importér','Import'); ?></button>
-    <input type="file" id="fe-import-file" accept="application/json,.json" style="display:none;">
-    <button type="button" class="fe-btn" id="fe-designs-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Gem og hent designs efter navn (ingen filer)','Save and load designs by name (no files)'); ?>">&#11088; <?php echo $T('Mine designs','My designs'); ?></button>
     <button type="button" class="fe-btn" id="fe-help-btn" style="border:1px solid #c7cdd6;border-radius:50%;background:#fff;width:26px;height:26px;padding:0;font-weight:bold;color:#556;" title="<?php echo $T('Hjælp og tastaturgenveje','Help &amp; keyboard shortcuts'); ?>">?</button>
     <span id="fe-status"></span>
   </div>
@@ -3204,104 +3114,6 @@ if ($menu == 'T') {
     return mailModal;
   }
   document.getElementById('fe-mail-btn').addEventListener('click', function(){ buildMailModal().style.display='flex'; });
-
-  function feCleanEl(el){ var o={}; ['art','kind','besk','xa','ya','xb','yb','str','color','font','fed','kursiv','side','justering'].forEach(function(f){ o[f]=el[f]; }); return o; }
-  function exportDesign(){
-    var data = { v:1, form:formNr, sprog:sprog, elements:elements.map(feCleanEl), table:feCurrentTable() };
-    var a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([JSON.stringify(data)], {type:'application/json'}));
-    a.download='saldi-formular-'+formNr+'-'+String(sprog).replace(/[^A-Za-z0-9]/g,'')+'.json'; a.click();
-    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
-    flashStatus((DK_UI?'Design eksporteret':'Design exported'), '#1769ff');
-  }
-  document.getElementById('fe-export-btn').addEventListener('click', exportDesign);
-
-  function feCurrentTable(){
-    return table ? { gen:{ count:table.gen.count, ya:table.gen.ya, spacing:table.gen.spacing },
-      cols: table.cols.map(function(c){ return { type:c.type, xa:c.xa, ya:c.ya, xb:c.xb, str:c.str, color:c.color, just:c.just, fed:c.fed }; }) } : null;
-  }
-  function feApplyImport(els, tbl){
-    if(!els || !(els.length>=3)){ alert(DK_UI?'Designet er ikke gyldigt.':'The design is not valid.'); return; }
-    if(!window.confirm(DK_UI
-      ? 'Anvend dette design på den aktuelle formular?\n\nDet ERSTATTER det nuværende design på denne formular og sprogvariant. Du kan altid nulstille til Saldis standard bagefter.'
-      : 'Apply this design onto the current form?\n\nIt REPLACES the current design on this form and language variant. You can always Reset to Saldi’s standard afterwards.')) return;
-    flashStatus((DK_UI?'Anvender…':'Applying…'),'#444');
-    fetch('formeditor.php?fe_action=import_apply',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-      body:JSON.stringify({ form_nr:formNr, sprog:sprog, elements:els, table:tbl }), credentials:'same-origin'})
-      .then(function(r){return r.json();}).then(function(j){
-        if(j&&j.ok){ if(typeof clearAutosave==='function') clearAutosave(); flashStatus((DK_UI?'Anvendt – genindlæser…':'Applied – reloading…'),'#2a7d2a'); setTimeout(function(){ location.reload(); },500); }
-        else if(j&&j.error==='session'){ alert(DK_UI?'Session udløbet – genindlæs siden.':'Session expired – reload the page.'); }
-        else { alert(DK_UI?'Handlingen mislykkedes.':'The action failed.'); }
-      }).catch(function(){ alert(DK_UI?'Netværksfejl.':'Network error.'); });
-  }
-  var _impBtn=document.getElementById('fe-import-btn'), _impFile=document.getElementById('fe-import-file');
-  if(_impBtn && _impFile){
-    _impBtn.addEventListener('click', function(){ _impFile.value=''; _impFile.click(); });
-    _impFile.addEventListener('change', function(){
-      var f=_impFile.files && _impFile.files[0]; if(!f) return;
-      var rd=new FileReader();
-      rd.onload=function(){
-        var data; try { data=JSON.parse(rd.result); } catch(e){ alert(DK_UI?'Filen kunne ikke læses (ugyldig JSON).':'Could not read the file (invalid JSON).'); return; }
-        if(!data || !data.elements){ alert(DK_UI?'Filen indeholder ikke et gyldigt design.':'The file does not contain a valid design.'); return; }
-        feApplyImport(data.elements, data.table);
-      };
-      rd.readAsText(f);
-    });
-  }
-
-  var designsModal=null;
-  function buildDesignsModal(){
-    if(designsModal) return designsModal;
-    designsModal=document.createElement('div'); designsModal.id='fe-designs-modal'; designsModal.style.display='none';
-    designsModal.innerHTML='<div class="fe-dlg" style="width:520px;max-width:94vw;">'
-      +'<div class="fe-dlg-head"><span>&#11088; '+(DK_UI?'Mine designs':'My designs')+'</span><button type="button" class="fe-x" id="fe-designs-close">&times;</button></div>'
-      +'<div class="fe-dlg-body">'
-      +'<div class="fe-dlg-sub">'+(DK_UI?'Gem det aktuelle design med et navn, og hent det igen når som helst – ingen filer.':'Save the current design with a name and load it any time — no files.')+'</div>'
-      +'<div style="display:flex;gap:8px;margin:8px 0;"><input type="text" id="fe-design-name" maxlength="60" placeholder="'+(DK_UI?'Navn på design':'Design name')+'" style="flex:1;font-size:13px;padding:6px 8px;border:1px solid #d3d8e0;border-radius:5px;">'
-      +'<button type="button" class="fe-btn" id="fe-design-save" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:4px;padding:6px 12px;">'+(DK_UI?'Gem design':'Save design')+'</button></div>'
-      +'<div id="fe-design-list"></div>'
-      +'</div><div class="fe-dlg-foot"><button type="button" class="fe-btn" id="fe-designs-done" style="background:#eef1f6;border:1px solid #c7cdd6;border-radius:4px;padding:6px 14px;">'+(DK_UI?'Luk':'Close')+'</button></div></div>';
-    document.getElementById('fe-wrap').appendChild(designsModal);
-    function close(){ designsModal.style.display='none'; }
-    designsModal.addEventListener('mousedown', function(e){ if(e.target===designsModal) close(); });
-    designsModal.querySelector('#fe-designs-close').addEventListener('click', close);
-    designsModal.querySelector('#fe-designs-done').addEventListener('click', close);
-    designsModal.querySelector('#fe-design-save').addEventListener('click', function(){
-      var nm=designsModal.querySelector('#fe-design-name').value.trim();
-      if(!nm){ designsModal.querySelector('#fe-design-name').focus(); return; }
-      fetch('formeditor.php?fe_action=design_save',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ name:nm, form:formNr, sprog:sprog, elements:elements.map(feCleanEl), table:feCurrentTable() }), credentials:'same-origin'})
-        .then(function(r){return r.json();}).then(function(j){
-          if(j&&j.ok){ designsModal.querySelector('#fe-design-name').value=''; loadDesignList(); flashStatus(DK_UI?'Design gemt':'Design saved','#2a7d2a'); }
-          else if(j&&j.error==='toomany'){ alert(DK_UI?'Du har nået grænsen på 50 gemte designs.':'You have reached the limit of 50 saved designs.'); }
-          else { alert(DK_UI?'Kunne ikke gemme designet.':'Could not save the design.'); }
-        }).catch(function(){ alert(DK_UI?'Netværksfejl.':'Network error.'); });
-    });
-    return designsModal;
-  }
-  function loadDesignList(){
-    if(!designsModal) return;
-    var host=designsModal.querySelector('#fe-design-list'); host.innerHTML='<div class="fe-dlg-sub">'+(DK_UI?'Indlæser…':'Loading…')+'</div>';
-    fetch('formeditor.php?fe_action=design_list',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-      host.innerHTML='';
-      if(!j || !j.ok || !j.designs || !j.designs.length){ host.innerHTML='<div class="fe-dlg-sub">'+(DK_UI?'Ingen gemte designs endnu.':'No saved designs yet.')+'</div>'; return; }
-      j.designs.sort(function(a,b){ return (b.ts||0)-(a.ts||0); }).forEach(function(d){
-        var row=document.createElement('div'); row.className='fe-design-item';
-        var nm=document.createElement('span'); nm.className='fe-di-name'; nm.textContent=d.name; row.appendChild(nm);
-        var ap=document.createElement('button'); ap.type='button'; ap.className='fe-btn'; ap.textContent=(DK_UI?'Hent':'Load');
-        ap.addEventListener('click', function(){ feApplyImport(d.elements, d.table); });
-        row.appendChild(ap);
-        var del=document.createElement('button'); del.type='button'; del.className='fe-btn fe-di-del'; del.textContent=(DK_UI?'Slet':'Delete');
-        del.addEventListener('click', function(){
-          if(!window.confirm((DK_UI?'Slet designet ':'Delete design ')+'“'+d.name+'”?')) return;
-          fetch('formeditor.php?fe_action=design_delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:d.name}),credentials:'same-origin'}).then(function(){ loadDesignList(); });
-        });
-        row.appendChild(del);
-        host.appendChild(row);
-      });
-    }).catch(function(){ host.innerHTML='<div class="fe-dlg-sub">'+(DK_UI?'Netværksfejl':'Network error')+'</div>'; });
-  }
-  document.getElementById('fe-designs-btn').addEventListener('click', function(){ buildDesignsModal().style.display='flex'; loadDesignList(); });
 
   // ---- first-run guided tour (Tier 3): friendly coach-marks ---------------
   // Two tours: a short Quick-start (auto-runs first visit) and a Full tour
