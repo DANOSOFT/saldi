@@ -909,6 +909,18 @@ if ($menu == 'T') {
   .fe-help-tbl { width:100%; border-collapse:collapse; font-size:12px; color:#334; }
   .fe-help-tbl td { padding:4px 6px; border-bottom:1px solid #eef1f6; vertical-align:top; }
   .fe-help-tbl td.k { white-space:nowrap; color:#1746a0; font-weight:bold; width:46%; }
+  #fe-tour-hi { position:fixed; z-index:10000; border-radius:6px; pointer-events:none;
+    box-shadow:0 0 0 9999px rgba(15,20,30,.55); transition:left .2s, top .2s, width .2s, height .2s; }
+  #fe-tour-tip { position:fixed; z-index:10001; background:#fff; border-radius:9px; width:290px;
+    box-shadow:0 10px 34px rgba(0,0,0,.32); padding:14px 16px 12px; font-family:Arial,Helvetica,sans-serif;
+    font-size:13px; color:#223; }
+  #fe-tour-tip .fe-tour-body { color:#445; line-height:1.5; margin-bottom:12px; }
+  #fe-tour-tip .fe-tour-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  #fe-tour-tip .fe-tour-dots { font-size:11px; color:#98a2b3; }
+  .fe-tour-btn { font-size:12px; padding:5px 12px; border-radius:6px; cursor:pointer; border:1px solid #c7cdd6; background:#fff; color:#334; }
+  .fe-tour-btn.primary { background:#1769ff; color:#fff; border-color:#1257cc; }
+  .fe-tour-skip { position:absolute; top:9px; right:11px; font-size:11px; color:#98a2b3; cursor:pointer; background:none; border:none; }
+  .fe-tour-skip:hover { color:#556; }
   #fe-ctx {
     position:fixed; z-index:9999; background:#fff; border:1px solid #c7cdd6; border-radius:6px;
     box-shadow:0 6px 22px rgba(0,0,0,.22); padding:4px 0; min-width:150px;
@@ -1162,8 +1174,8 @@ if ($menu == 'T') {
               <option value="Times">Times (serif)</option>
               <option value="Palatino">Palatino (serif)</option>
               <option value="NewCenturySchlbk">Century Schoolbook (serif)</option>
-              <option value="Courier">Courier (monospace)</option>
-              <option value="Ocrbb12">OCR-B (technical)</option>
+              <option value="Courier">Courier (<?php echo $T('fast bredde','monospace'); ?>)</option>
+              <option value="Ocrbb12">OCR-B (<?php echo $T('teknisk','technical'); ?>)</option>
             </select>
           </div>
           <div id="fe-font-sample">Aa Bb Cc &ndash; 1.250,00 kr</div>
@@ -2819,15 +2831,142 @@ if ($menu == 'T') {
       +'<div><h4>'+(DA?'Tastaturgenveje':'Keyboard shortcuts')+'</h4>'+shortcuts+'</div>'
       +'<div><h4>'+(DA?'Funktioner':'Features')+'</h4>'+feats+'</div>'
       +'</div><div class="fe-dlg-sub" style="margin-top:12px;">'+(DA?'Tip: intet går live før du trykker “Gem &amp; aktivér”.':'Tip: nothing goes live until you press “Save &amp; activate”.')+'</div>'
-      +'</div><div class="fe-dlg-foot"><button type="button" class="fe-btn" id="fe-help-done" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;">'+(DA?'Luk':'Close')+'</button></div></div>';
+      +'</div><div class="fe-dlg-foot"><button type="button" class="fe-btn" id="fe-help-tour" style="margin-right:8px;">&#127891; '+(DA?'Fuld guide':'Full tour')+'</button><button type="button" class="fe-btn" id="fe-help-done" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;">'+(DA?'Luk':'Close')+'</button></div></div>';
     document.getElementById('fe-wrap').appendChild(helpModal);
     function close(){ helpModal.style.display='none'; }
     helpModal.addEventListener('mousedown', function(e){ if(e.target===helpModal) close(); });
     helpModal.querySelector('#fe-help-close').addEventListener('click', close);
     helpModal.querySelector('#fe-help-done').addEventListener('click', close);
+    helpModal.querySelector('#fe-help-tour').addEventListener('click', function(){ close(); startTour(fullTourSteps); });
     return helpModal;
   }
   document.getElementById('fe-help-btn').addEventListener('click', function(){ buildHelpModal().style.display='flex'; });
+
+  // ---- first-run guided tour (Tier 3): friendly coach-marks ---------------
+  // Two tours: a short Quick-start (auto-runs first visit) and a Full tour
+  // (from Help) that also dives inside the Templates modal.
+  var TOUR_KEY='fe_tour_done_v1', tourIdx=0, tourHi=null, tourTip=null, tourList=[];
+  var tourSteps=[
+    { el:null, title:(DK_UI?'Velkommen! 👋':'Welcome! 👋'),
+      body:(DK_UI?'Lav en flot, professionel faktura i få trin. Intet går live før du gemmer.':'Let’s make a polished, professional invoice in a few steps. Nothing goes live until you save.') },
+    { el:'fe-design-open', title:(DK_UI?'1. Udseende & farver':'1. Look & colours'),
+      body:(DK_UI?'Klik “Skabeloner” for et færdigt design + dine brand-farver (accent + tekst) og skrifttype.':'Click “Templates” for a ready-made design, plus your brand colours (accent + text) and font.') },
+    { el:'fe-bg-btn', title:(DK_UI?'2. Tilføj brevpapir':'2. Add letterhead'),
+      body:(DK_UI?'Upload dit brevpapir/baggrund her. (Et logo tilføjes via Felter → Logo.)':'Upload your letterhead / background here. (A logo is added via Fields → Logo.)') },
+    { el:'fe-add-text', title:(DK_UI?'3. Tilføj & rediger':'3. Add & edit'),
+      body:(DK_UI?'Klik på et felt for at redigere det, træk for at flytte. Tilføj tekst eller streger her.':'Click any field to edit it, drag to move. Add text or lines here.') },
+    { el:'fe-fields-btn', title:(DK_UI?'4. Find alle felter':'4. Find every field'),
+      body:(DK_UI?'Søg og vælg ethvert element – også skjulte, som dit logo.':'Search & select any element — even hidden ones, like your logo.') },
+    { el:'fe-undo', title:(DK_UI?'5. Fortryd trygt':'5. Undo safely'),
+      body:(DK_UI?'Fortryd/gentag alt (Ctrl+Z / Ctrl+Y). Eksperimentér frit.':'Undo/redo anything (Ctrl+Z / Ctrl+Y). Experiment freely.') },
+    { el:'fe-preview', title:(DK_UI?'6. Se udskriften':'6. Preview'),
+      body:(DK_UI?'“Vis kladde” viser hvordan udskriften ser ud med eksempeldata.':'“Show draft” previews how the print looks with sample data.') },
+    { el:'fe-save', title:(DK_UI?'7. Gå live':'7. Go live'),
+      body:(DK_UI?'Når du er tilfreds: klik “Gem & aktivér”. Så bruges designet ved udskrift.':'When you’re happy, click “Save & activate”. That’s when it’s used for printing.') },
+    { el:'fe-reset', title:(DK_UI?'8. Start forfra':'8. Start over'),
+      body:(DK_UI?'“Nulstil” sætter formularen tilbage til Saldis standard.':'“Reset” returns the form to Saldi’s standard.') }
+  ];
+  // Full tour — also opens the Templates modal and walks its colours/theme/font.
+  var fullTourSteps=[
+    { el:null, title:(DK_UI?'Fuld rundvisning 🎬':'Full tour 🎬'),
+      body:(DK_UI?'Vi ser på alt – inkl. farver, temaer og skrifttyper inde i Skabeloner.':'We’ll walk through everything — including the colours, themes and fonts inside Templates.') },
+    { el:'fe-design-open', title:(DK_UI?'Skabeloner':'Templates'),
+      body:(DK_UI?'Her åbner du design & brand. Lad os kigge indenfor…':'This opens design & brand. Let’s look inside…') },
+    { el:'fe-theme-cards', modal:true, run:openDesign, title:(DK_UI?'10 udseender':'10 looks'),
+      body:(DK_UI?'Ét klik anvender et helt design (Klassisk, Moderne, Fed, Elegant, Hero …).':'One click applies a whole design (Classic, Modern, Bold, Elegant, Hero …).') },
+    { el:'fe-schemes', modal:true, run:openDesign, title:(DK_UI?'Farvesæt':'Colour schemes'),
+      body:(DK_UI?'Harmoniske accent+tekst-farvepar med ét klik.':'Harmonious accent+text colour pairs in one click.') },
+    { el:'fe-brand-accent', modal:true, run:openDesign, title:(DK_UI?'Accentfarve':'Accent colour'),
+      body:(DK_UI?'Farver overskrifterne. “Fra logo” henter farven fra dit logo.':'Colours the headings. “From logo” pulls the colour from your logo.') },
+    { el:'fe-brand-text', modal:true, run:openDesign, title:(DK_UI?'Tekstfarve':'Text colour'),
+      body:(DK_UI?'Farver brødtekst, værdier og tabellinjer. “Match accent” afstemmer dem.':'Colours body text, values and table rows. “Match accent” coordinates them.') },
+    { el:'fe-brand-font', modal:true, run:openDesign, title:(DK_UI?'Skrifttype':'Font'),
+      body:(DK_UI?'6 skrifttyper. Prøven nedenfor viser hvordan de ser ud.':'6 fonts. The sample below shows how they look.') },
+    { el:'fe-bg-btn', title:(DK_UI?'Brevpapir':'Letterhead'),
+      body:(DK_UI?'Upload dit brevpapir/baggrund. (Logo tilføjes via Felter → Logo.)':'Upload your letterhead / background. (A logo is added via Fields → Logo.)') },
+    { el:'fe-add-text', title:(DK_UI?'Tilføj & rediger':'Add & edit'),
+      body:(DK_UI?'Klik for at redigere, træk for at flytte. Tilføj tekst eller streger.':'Click to edit, drag to move. Add text or lines.') },
+    { el:'fe-fields-btn', title:(DK_UI?'Felter':'Fields'),
+      body:(DK_UI?'Søg og vælg ethvert element – også skjulte, som logoet.':'Search & select any element — even hidden ones, like the logo.') },
+    { el:'fe-ruler-toggle', title:(DK_UI?'Linealer & marginer':'Rulers & margins'),
+      body:(DK_UI?'Slå mm-linealer og margin-guides til; felter snapper til dem.':'Turn on mm rulers and margin guides; fields snap to them.') },
+    { el:'fe-grid-toggle', title:(DK_UI?'Gitter':'Grid'),
+      body:(DK_UI?'5 mm snap-gitter for helt præcis placering.':'A 5 mm snap grid for precise placement.') },
+    { el:'fe-undo', title:(DK_UI?'Fortryd':'Undo'),
+      body:(DK_UI?'Fortryd/gentag alt (Ctrl+Z / Ctrl+Y).':'Undo/redo anything (Ctrl+Z / Ctrl+Y).') },
+    { el:'fe-preview', title:(DK_UI?'Se udskriften':'Preview'),
+      body:(DK_UI?'“Vis kladde” viser udskriften med eksempeldata.':'“Show draft” previews the print with sample data.') },
+    { el:'fe-save', title:(DK_UI?'Gem & aktivér':'Save & activate'),
+      body:(DK_UI?'Gør designet aktivt ved udskrift. Intet går live før det.':'Makes the design live for printing. Nothing goes live until then.') },
+    { el:'fe-reset', title:(DK_UI?'Nulstil':'Reset'),
+      body:(DK_UI?'Sætter formularen tilbage til Saldis standard.':'Returns the form to Saldi’s standard.') }
+  ];
+  function buildTour(){
+    if(tourTip) return;
+    tourHi=document.createElement('div'); tourHi.id='fe-tour-hi'; document.body.appendChild(tourHi);
+    tourTip=document.createElement('div'); tourTip.id='fe-tour-tip';
+    tourTip.innerHTML='<button type="button" class="fe-tour-skip">'+(DK_UI?'Spring over':'Skip')+'</button>'
+      +'<div class="fe-tour-title" style="font-weight:bold;font-size:14px;margin-bottom:6px;"></div>'
+      +'<div class="fe-tour-body"></div>'
+      +'<div class="fe-tour-foot"><span class="fe-tour-dots"></span><span>'
+      +'<button type="button" class="fe-tour-btn fe-tour-back">'+(DK_UI?'Tilbage':'Back')+'</button> '
+      +'<button type="button" class="fe-tour-btn primary fe-tour-next"></button></span></div>';
+    document.body.appendChild(tourTip);
+    tourTip.querySelector('.fe-tour-next').addEventListener('click', function(){ showTourStep(tourIdx+1); });
+    tourTip.querySelector('.fe-tour-back').addEventListener('click', function(){ showTourStep(tourIdx-1); });
+    tourTip.querySelector('.fe-tour-skip').addEventListener('click', endTour);
+    window.addEventListener('resize', function(){ if(tourTip && tourTip.style.display!=='none' && tourList[tourIdx]) positionTour(tourList[tourIdx]); });
+  }
+  function positionTour(step){
+    var target = step.el ? document.getElementById(step.el) : null;
+    var W=window.innerWidth, H=window.innerHeight, tw=290, th=tourTip.offsetHeight||160, m=10;
+    if(target && target.getClientRects().length){
+      try { target.scrollIntoView({block:'nearest', inline:'nearest'}); } catch(e){}
+      var r=target.getBoundingClientRect(), pad=6;
+      // spotlight, clamped to the viewport so a tall/off-screen target still shows
+      var hlL=Math.max(2, r.left-pad), hlT=Math.max(2, r.top-pad);
+      var hlR=Math.min(W-2, r.right+pad), hlB=Math.min(H-2, r.bottom+pad);
+      tourHi.style.display='block';
+      tourHi.style.left=hlL+'px'; tourHi.style.top=hlT+'px';
+      tourHi.style.width=Math.max(0,hlR-hlL)+'px'; tourHi.style.height=Math.max(0,hlB-hlT)+'px';
+      // tip: prefer below the visible top of the target, else above, else beside;
+      // then hard-clamp fully on-screen so Back/Next are ALWAYS reachable.
+      var tipTop, tipLeft=r.left-20;
+      if (hlB+12+th <= H-m)      tipTop=hlB+12;                 // below the (clamped) highlight
+      else if (r.top-12-th >= m) tipTop=r.top-12-th;            // above the target
+      else {                                                    // tall target: sit beside it, centred
+        tipLeft=(r.left>=tw+2*m)?(r.left-tw-14):(r.right+14);
+        tipTop=r.top + Math.min(r.height, H)/2 - th/2;
+      }
+      tipLeft=Math.min(Math.max(m, tipLeft), W-tw-m);
+      tipTop =Math.min(Math.max(m, tipTop),  H-th-m);
+      tourTip.style.left=tipLeft+'px'; tourTip.style.top=tipTop+'px';
+    } else {
+      tourHi.style.display='none';
+      tourTip.style.left=Math.max(m, W/2-145)+'px';
+      tourTip.style.top=Math.max(60, H/2-110)+'px';
+    }
+  }
+  function showTourStep(i){
+    if(i>=tourList.length){ endTour(); return; } if(i<0) i=0;
+    tourIdx=i; var step=tourList[i];
+    // modal steps open the Templates dialog; a non-modal step closes it again
+    if (step.run) step.run();
+    else if (!step.modal && designModal && designModal.style.display!=='none') closeDesign();
+    tourTip.querySelector('.fe-tour-title').textContent=step.title;
+    tourTip.querySelector('.fe-tour-body').textContent=step.body;
+    tourTip.querySelector('.fe-tour-dots').textContent=(i+1)+' / '+tourList.length;
+    tourTip.querySelector('.fe-tour-back').style.visibility=(i>0)?'visible':'hidden';
+    tourTip.querySelector('.fe-tour-next').textContent=(i===tourList.length-1)?(DK_UI?'Færdig':'Done'):(DK_UI?'Næste':'Next');
+    positionTour(step);
+    requestAnimationFrame(function(){ if(tourList[tourIdx]===step) positionTour(step); });   // re-measure after any modal layout
+  }
+  function startTour(steps){ tourList = steps || tourSteps; buildTour(); tourHi.style.display='block'; tourTip.style.display='block'; showTourStep(0); }
+  function endTour(){
+    if (designModal && designModal.style.display!=='none') closeDesign();
+    if(tourHi) tourHi.style.display='none'; if(tourTip) tourTip.style.display='none';
+    try{ localStorage.setItem(TOUR_KEY,'1'); }catch(e){}
+  }
 
   // ---- text style presets (Tier 3+): one-click typographic styles ---------
   var TEXT_PRESETS = {
@@ -3465,9 +3604,12 @@ if ($menu == 'T') {
   if (_autoTr > 0) { undoStack.push(_preTr); markDirty(); flashStatus(AUTO_TR_MSG, '#b26a00'); }
   if (!elements.length) { statusEl.textContent=L.noel; }
   // Offer to continue a saved draft (working state not yet activated).
-  if (FE_DRAFT && FE_DRAFT.state) { showDraftBanner(FE_DRAFT.ts); }
-  else { var _as = readAutosave(); if (_as) showAutosaveBanner(_as.ts); }   // else offer local autosave
+  var _bannerShown = !!(FE_DRAFT && FE_DRAFT.state);
+  if (_bannerShown) { showDraftBanner(FE_DRAFT.ts); }
+  else { var _as = readAutosave(); if (_as) { showAutosaveBanner(_as.ts); _bannerShown = true; } }
   autosaveArmed = true;   // arm only after init (so the initial auto-translation isn't autosaved)
+  // First-run guided tour: only on a clean first visit (no draft/autosave banner).
+  try { if (!_bannerShown && !localStorage.getItem(TOUR_KEY) && elements.length) setTimeout(function(){ startTour(tourSteps); }, 700); } catch(e){}
 })();
 </script>
 
