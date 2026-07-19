@@ -1082,6 +1082,13 @@ if ($menu == 'T') {
   .fe-mail-row input, .fe-mail-row textarea { flex:1; font-size:13px; padding:5px 8px; border:1px solid #d3d8e0;
     border-radius:5px; box-sizing:border-box; font-family:Arial,Helvetica,sans-serif; }
   .fe-mail-row textarea { resize:vertical; line-height:1.4; }
+  .fe-mail-format { display:flex; gap:4px; margin-bottom:5px; flex-wrap:wrap; }
+  .fe-mail-format button { min-width:28px; height:26px; border:1px solid #d3d8e0; background:#f6f8fb;
+    border-radius:4px; cursor:pointer; font-size:13px; color:#334; padding:0 6px; }
+  .fe-mail-format button:hover { background:#e9f0ff; border-color:#9db4e6; }
+  .fe-mail-rte { min-height:130px; max-height:300px; overflow:auto; border:1px solid #d3d8e0; border-radius:5px;
+    padding:8px 10px; font-size:13px; line-height:1.5; background:#fff; font-family:Arial,Helvetica,sans-serif; }
+  .fe-mail-rte:focus { outline:2px solid #9db4e6; }
   #fe-status { font-size:12px; color:#444; margin-left:auto; }
   .fe-btn { font-size:13px; padding:4px 10px; cursor:pointer; }
   .fe-btn.fe-active { background:#1769ff !important; color:#fff !important; border:1px solid #1257cc !important; border-radius:3px; }
@@ -1186,6 +1193,7 @@ if ($menu == 'T') {
     <button type="button" class="fe-btn" id="fe-save" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;" title="<?php echo $T('Gem og gør aktiv (bruges ved udskrift)','Save and make live (used for printing)'); ?>"><?php echo $T('Gem & aktivér','Save & activate'); ?></button>
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-reset" style="color:#b23b3b;border:1px solid #d9a1a1;border-radius:3px;background:#fff;" title="<?php echo $T('Nulstil denne formular til Saldis standard','Reset this form to Saldi&apos;s standard'); ?>">&#8635; <?php echo $T('Nulstil','Reset'); ?></button>
+    <button type="button" class="fe-btn" id="fe-export-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Download designet som fil (backup / del)','Download the design as a file (backup / share)'); ?>">&#8681; <?php echo $T('Eksportér','Export'); ?></button>
     <button type="button" class="fe-btn" id="fe-help-btn" style="border:1px solid #c7cdd6;border-radius:50%;background:#fff;width:26px;height:26px;padding:0;font-weight:bold;color:#556;" title="<?php echo $T('Hjælp og tastaturgenveje','Help &amp; keyboard shortcuts'); ?>">?</button>
     <span id="fe-status"></span>
   </div>
@@ -3017,8 +3025,15 @@ if ($menu == 'T') {
   // ---- e-mail text editor (the message sent with the PDF; art=5) ----------
   // Body is stored with <br> (Saldi sends the mail as HTML). We show real line
   // breaks in the textarea and convert back on save, so the client never sees HTML.
-  function mailBr2nl(s){ return String(s||'').replace(/<br\s*\/?>/gi,'\n'); }
   function mailNl2br(s){ return String(s||'').replace(/\r?\n/g,'<br>'); }
+  function mailSanitize(html){
+    var d=document.createElement('div'); d.innerHTML=String(html||'');
+    Array.prototype.forEach.call(d.querySelectorAll('script,style'), function(n){ n.remove(); });
+    Array.prototype.forEach.call(d.querySelectorAll('*'), function(n){
+      for(var i=n.attributes.length-1;i>=0;i--){ if(/^on/i.test(n.attributes[i].name)) n.removeAttribute(n.attributes[i].name); }
+    });
+    return d.innerHTML;
+  }
   var EMAIL_TEMPLATES = [
     { name:(DK_UI?'Standard':'Standard'),
       subject:(DK_UI?'Faktura':'Invoice'),
@@ -3045,7 +3060,15 @@ if ($menu == 'T') {
       +'<div class="fe-dlg-sub">'+(DK_UI?'Teksten der sendes sammen med PDF&apos;en. Felter som $ordre_fakturanr bevares.':'The message sent together with the PDF. Fields like $ordre_fakturanr are kept.')+'</div>'
       +'<div class="fe-mail-row"><label>'+(DK_UI?'Skabeloner':'Templates')+'</label><span id="fe-mail-tpls" style="display:flex;gap:6px;flex-wrap:wrap;"></span></div>'
       +'<div class="fe-mail-row"><label>'+(DK_UI?'Emne':'Subject')+'</label><input type="text" id="fe-mail-subject"></div>'
-      +'<div class="fe-mail-row" style="align-items:flex-start;"><label>'+(DK_UI?'Besked':'Message')+'</label><textarea id="fe-mail-body" rows="6" spellcheck="false"></textarea></div>'
+      +'<div class="fe-mail-row" style="align-items:flex-start;"><label>'+(DK_UI?'Besked':'Message')+'</label>'
+      +'<div style="flex:1;"><div class="fe-mail-format" id="fe-mail-format">'
+      +'<button type="button" data-cmd="bold" title="'+(DK_UI?'Fed':'Bold')+'" style="font-weight:bold;">B</button>'
+      +'<button type="button" data-cmd="italic" title="'+(DK_UI?'Kursiv':'Italic')+'" style="font-style:italic;">I</button>'
+      +'<button type="button" data-cmd="underline" title="'+(DK_UI?'Understreget':'Underline')+'" style="text-decoration:underline;">U</button>'
+      +'<button type="button" data-cmd="insertUnorderedList" title="'+(DK_UI?'Punktliste':'Bullet list')+'">&#8226;</button>'
+      +'<button type="button" data-cmd="hr" title="'+(DK_UI?'Linje':'Divider')+'">&#8213;</button>'
+      +'<button type="button" data-cmd="clear" title="'+(DK_UI?'Ryd formatering':'Clear formatting')+'">&#10008;</button>'
+      +'</div><div class="fe-mail-rte" id="fe-mail-body" contenteditable="true" spellcheck="false"></div></div></div>'
       + attachRow
       +'</div>'
       +'<div class="fe-dlg-foot"><span id="fe-mail-status" class="fe-dlg-sub" style="margin:0;margin-right:auto;"></span>'
@@ -3053,18 +3076,25 @@ if ($menu == 'T') {
       +'<button type="button" class="fe-btn" id="fe-mail-save" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;">'+(DK_UI?'Gem e-mailtekst':'Save email text')+'</button></div>'
       +'</div>';
     document.getElementById('fe-wrap').appendChild(mailModal);
+    var bodyEl=mailModal.querySelector('#fe-mail-body');
     mailModal.querySelector('#fe-mail-subject').value = FE_MAIL.subject||'';
-    mailModal.querySelector('#fe-mail-body').value = mailBr2nl(FE_MAIL.body);
+    bodyEl.innerHTML = mailNl2br(FE_MAIL.body);
     if(FE_MAIL.has_attach) mailModal.querySelector('#fe-mail-attach').value = FE_MAIL.attach||'';
-    // ready-made templates: fill Subject + Message (client just edits, no HTML)
     var tplHost=mailModal.querySelector('#fe-mail-tpls');
     EMAIL_TEMPLATES.forEach(function(t){
       var b=document.createElement('button'); b.type='button'; b.className='fe-mini-btn'; b.textContent=t.name;
-      b.addEventListener('click', function(){
-        mailModal.querySelector('#fe-mail-subject').value=t.subject;
-        mailModal.querySelector('#fe-mail-body').value=t.body;
-      });
+      b.addEventListener('click', function(){ mailModal.querySelector('#fe-mail-subject').value=t.subject; bodyEl.innerHTML=mailNl2br(t.body); });
       tplHost.appendChild(b);
+    });
+    Array.prototype.forEach.call(mailModal.querySelectorAll('#fe-mail-format button'), function(b){
+      b.addEventListener('mousedown', function(e){ e.preventDefault(); });
+      b.addEventListener('click', function(){
+        var cmd=b.getAttribute('data-cmd'); bodyEl.focus();
+        try { document.execCommand('styleWithCSS', false, false); } catch(err){}
+        if(cmd==='hr') document.execCommand('insertHorizontalRule');
+        else if(cmd==='clear') document.execCommand('removeFormat');
+        else document.execCommand(cmd);
+      });
     });
     function close(){ mailModal.style.display='none'; }
     mailModal.addEventListener('mousedown', function(e){ if(e.target===mailModal) close(); });
@@ -3074,7 +3104,7 @@ if ($menu == 'T') {
       var st=mailModal.querySelector('#fe-mail-status'); st.textContent=(DK_UI?'Gemmer…':'Saving…'); st.style.color='#444';
       var body={ form_nr:formNr, sprog:sprog,
         subject:mailModal.querySelector('#fe-mail-subject').value,
-        body:mailNl2br(mailModal.querySelector('#fe-mail-body').value) };
+        body:mailSanitize(mailModal.querySelector('#fe-mail-body').innerHTML) };
       if(FE_MAIL.has_attach) body.attach=mailModal.querySelector('#fe-mail-attach').value;
       fetch('formeditor.php?fe_action=save_mail',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body),credentials:'same-origin'})
         .then(function(r){return r.json();}).then(function(j){
@@ -3087,6 +3117,19 @@ if ($menu == 'T') {
     return mailModal;
   }
   document.getElementById('fe-mail-btn').addEventListener('click', function(){ buildMailModal().style.display='flex'; });
+
+  function feCleanEl(el){ var o={}; ['art','kind','besk','xa','ya','xb','yb','str','color','font','fed','kursiv','side','justering'].forEach(function(f){ o[f]=el[f]; }); return o; }
+  function exportDesign(){
+    var t = table ? { gen:{ count:table.gen.count, ya:table.gen.ya, spacing:table.gen.spacing },
+      cols: table.cols.map(function(c){ return { type:c.type, xa:c.xa, ya:c.ya, xb:c.xb, str:c.str, color:c.color, just:c.just, fed:c.fed }; }) } : null;
+    var data = { v:1, form:formNr, sprog:sprog, elements:elements.map(feCleanEl), table:t };
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(data)], {type:'application/json'}));
+    a.download='saldi-formular-'+formNr+'-'+String(sprog).replace(/[^A-Za-z0-9]/g,'')+'.json'; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+    flashStatus((DK_UI?'Design eksporteret':'Design exported'), '#1769ff');
+  }
+  document.getElementById('fe-export-btn').addEventListener('click', exportDesign);
 
   // ---- first-run guided tour (Tier 3): friendly coach-marks ---------------
   // Two tours: a short Quick-start (auto-runs first visit) and a Full tour
