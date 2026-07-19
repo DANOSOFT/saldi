@@ -174,7 +174,7 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
               .   " WHERE art = 'SM' AND box6 IS NOT NULL AND box6 != ''"
               .   " ORDER BY art, kodenr, fiscal_year DESC NULLS LAST"
               . " ) g ON g.art = UPPER(SUBSTRING(kp.moms FROM 1 FOR 1)) || 'M'"
-              .   " AND g.kodenr = SUBSTRING(kp.moms FROM 2)"
+              .   " AND CAST(g.kodenr AS TEXT) = SUBSTRING(kp.moms FROM 2)"
               . " WHERE t.transdate >= '$regnstart' AND t.transdate <= '$regnslut'"
               . " AND kp.moms IS NOT NULL AND kp.moms != ''"
               . " $dim";
