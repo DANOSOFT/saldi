@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_rubrik.php --- patch 5.0.0 --- 2026-07-16 ---
+// --- finans/rapport_includes/moms_rubrik.php --- patch 5.0.0 --- 2026-07-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -129,6 +129,16 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $firmanavn = $row ? $row['firmanavn'] : '';
     print "<div style='padding:8px 12px;'><big><b>$firmanavn</b></big><br>";
     print "Periode: " . dkdato($regnstart) . " – " . dkdato($regnslut) . "</div>";
+
+    // Quarter shortcuts
+    $q_base = "rapport.php?rapportart=moms_rubrik&regnaar=$regnaar&dato_fra=01&dato_til=31"
+            . "&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til"
+            . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
+    print "<div class='no-print' style='padding:2px 12px 6px; font-size:0.9em; color:#555;'>Genveje: ";
+    foreach (['Q1'=>[1,3],'Q2'=>[4,6],'Q3'=>[7,9],'Q4'=>[10,12]] as $ql => $qm) {
+        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$startaar&maaned_til={$qm[1]}&aar_til=$startaar' style='margin-right:8px;'>$ql</a>";
+    }
+    print "<a href='$q_base&maaned_fra=$startmaaned&aar_fra=$startaar&maaned_til=$slutmaaned&aar_til=$slutaar'>Hele &aring;ret</a></div>";
 
     // Rubrik labels per spec section 2.3
     $rubrikker = [

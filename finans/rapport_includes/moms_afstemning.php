@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_afstemning.php --- patch 5.0.0 --- 2026-07-16 ---
+// --- finans/rapport_includes/moms_afstemning.php --- patch 5.0.0 --- 2026-07-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -82,8 +82,13 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $dim = '';
     if ($afd || $afd == '0') $dim = "AND t.afd = $afd ";
 
-    // configurable tolerance (default 0)
-    $tolerance = abs((float)if_isset($_GET, 0, 'tolerance'));
+    // configurable tolerance — persisted in session so it survives report navigation
+    if (array_key_exists('tolerance', $_GET) && $_GET['tolerance'] !== '') {
+        $tolerance = abs((float)$_GET['tolerance']);
+        $_SESSION['moms_afstemning_tolerance'] = $tolerance;
+    } else {
+        $tolerance = isset($_SESSION['moms_afstemning_tolerance']) ? (float)$_SESSION['moms_afstemning_tolerance'] : 0;
+    }
 
     $konto_filter = '';
     if ($konto_fra && $konto_til && $konto_fra != $konto_til)
@@ -142,6 +147,17 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     print "Periode: " . dkdato($regnstart) . " – " . dkdato($regnslut);
     print " &nbsp;|&nbsp; Tolerance: " . dkdecimal($tolerance, 2) . " kr.";
     print "</div>";
+
+    // Quarter shortcuts
+    $q_base = "rapport.php?rapportart=moms_afstemning&regnaar=$regnaar&dato_fra=01&dato_til=31"
+            . "&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til"
+            . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev"
+            . "&tolerance=$tolerance";
+    print "<div class='no-print' style='padding:2px 12px 6px; font-size:0.9em; color:#555;'>Genveje: ";
+    foreach (['Q1'=>[1,3],'Q2'=>[4,6],'Q3'=>[7,9],'Q4'=>[10,12]] as $ql => $qm) {
+        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$startaar&maaned_til={$qm[1]}&aar_til=$startaar' style='margin-right:8px;'>$ql</a>";
+    }
+    print "<a href='$q_base&maaned_fra=$startmaaned&aar_fra=$startaar&maaned_til=$slutmaaned&aar_til=$slutaar'>Hele &aring;ret</a></div>";
 
     // tolerance filter form
     print "<form method='GET' action='rapport.php' style='padding:4px 12px; display:inline-block;'>";
@@ -202,11 +218,34 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         "Konto;Kontonavn;Momskode;Momsnavn;Sats %;Omsaetning;Beregnet moms;Bogfoert moms;Difference\n",
         'ISO-8859-1', 'UTF-8'));
 
+    // Buffer results so we can show summary before the table
+    $rows = [];
+    while ($r = db_fetch_array($q)) $rows[] = $r;
+
+    // Compute summary
+    $total_rows = count($rows);
+    $diff_rows  = 0;
+    foreach ($rows as $r) {
+        $s = ($r['momssats'] !== null) ? (float)$r['momssats'] : 0;
+        if ($s > 0 && abs(afrund((float)$r['bogfoert_moms'] - afrund((float)$r['omsaetning'] * $s / 100, 2), 2)) > $tolerance)
+            $diff_rows++;
+    }
+    if ($total_rows > 0) {
+        $sum_bg    = $diff_rows > 0 ? '#ffe0e0' : '#d4edda';
+        $sum_color = $diff_rows > 0 ? '#c00'    : '#155724';
+        print "<div style='padding:6px 12px; margin:4px 12px 8px; border-radius:4px; background:$sum_bg; color:$sum_color;'>";
+        if ($diff_rows > 0)
+            print "<b>$diff_rows af $total_rows r&aelig;kker</b> har afvigelse over tolerance (" . dkdecimal($tolerance, 2) . " kr.).";
+        else
+            print "<b>Ingen afvigelser</b> fundet i $total_rows r&aelig;kker.";
+        print "</div>";
+    }
+
     $row_bg = ['#ffffff','#f5f5f5'];
     $row_i  = 0;
     $has_rows = false;
 
-    while ($row = db_fetch_array($q)) {
+    foreach ($rows as $row) {
         $has_rows    = true;
         $sats        = ($row['momssats'] !== null) ? (float)$row['momssats'] : 0;
         $omsaetning  = (float)$row['omsaetning'];
@@ -245,7 +284,7 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
             . "\"" . dkdecimal($bogfoert, 2) . "\";"
             . "\"" . ($sats > 0 ? dkdecimal($diff, 2) : '') . "\"\n",
             'ISO-8859-1', 'UTF-8'));
-    }
+    } // end foreach $rows
 
     if (!$has_rows) {
         print "<tr><td colspan='9' align='center' style='padding:16px; color:#888;'>"
