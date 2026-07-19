@@ -148,7 +148,7 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
           .   " FROM grupper WHERE art IN ('SM','KM','YM','EM')"
           .   " ORDER BY art, kodenr, fiscal_year DESC NULLS LAST"
           . " ) g ON g.art = UPPER(SUBSTRING(kp.moms FROM 1 FOR 1)) || 'M'"
-          .   " AND g.kodenr = SUBSTRING(kp.moms FROM 2)"
+          .   " AND CAST(g.kodenr AS TEXT) = SUBSTRING(kp.moms FROM 2)"
           . " WHERE t.transdate >= '$regnstart' AND t.transdate <= '$regnslut'"
           . " AND kp.moms IS NOT NULL AND kp.moms != ''"
           . " AND g.box5 IS NOT NULL AND g.box5 != ''"

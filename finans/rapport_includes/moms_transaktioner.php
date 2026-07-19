@@ -217,7 +217,7 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
           .   " ORDER BY art, kodenr, fiscal_year DESC NULLS LAST"
           . " ) g ON kp.moms IS NOT NULL AND kp.moms != ''"
           .   " AND g.art = UPPER(SUBSTRING(kp.moms FROM 1 FOR 1)) || 'M'"
-          .   " AND g.kodenr = SUBSTRING(kp.moms FROM 2)"
+          .   " AND CAST(g.kodenr AS TEXT) = SUBSTRING(kp.moms FROM 2)"
           . " WHERE t.transdate >= '$regnstart' AND t.transdate <= '$regnslut'"
           . " $konto_filter $kode_filter $dim"
           . " ORDER BY COALESCE(kp.moms,'ZZZ') NULLS LAST, t.transdate, t.bilag, t.id";
