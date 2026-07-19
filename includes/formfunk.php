@@ -196,8 +196,8 @@ if (!function_exists('skriv')) {
 			$form_font = $form_font . '-Italic-ISOLatin9 findfont';
 		elseif (($fed == 'on' || $startfed == 'on') && ($italic == 'on'))
 			$form_font = $form_font . '-BoldItalic-ISOLatin9 findfont';
-		elseif ($form_font == "Times")
-			$form_font = $form_font . '-Roman-ISOLatin9 findfont';
+		elseif ($form_font == "Times" || $form_font == "Palatino" || $form_font == "NewCenturySchlbk")
+			$form_font = $form_font . '-Roman-ISOLatin9 findfont';   // these families' regular face is "-Roman"
 		else
 			$form_font = $form_font . '-ISOLatin9 findfont';
 		if (strstr($tekstinfo, 'ordrelinjer')) {

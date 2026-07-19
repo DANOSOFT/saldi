@@ -200,10 +200,20 @@ if ($fe_action === 'save') {
 		}
 
 		if ($art === 3) {
-			// Order-line table: only the geometry the editor changes (row count /
-			// top Y / spacing / column X). Never touch str/color/typography so
-			// column styling is preserved exactly.
+			// Order-line table: geometry the editor changes (row count / top Y /
+			// spacing / column X). Column str/typography stay untouched; colour is
+			// written ONLY for the column rows (which send 'color'), so the data
+			// follows the theme's Text colour. The 'generelt' geometry row sends no
+			// 'color' key and is never recoloured.
 			$set = "xa=$xa, ya=$ya, xb=$xb";
+			if (array_key_exists('color', $el)) $set .= ", color=$color";
+			// per-column alignment + bold (only the column rows send these; the
+			// 'generelt' geometry row does not, so it's never touched).
+			if (array_key_exists('justering', $el)) {
+				$cjust = strtoupper((string) $el['justering']);
+				if (in_array($cjust, array('V','C','H'), true)) $set .= ", justering='$cjust'";
+			}
+			if (array_key_exists('fed', $el)) $set .= ", fed='" . (!empty($el['fed']) ? 'on' : '') . "'";
 		} else {
 			// Geometry + colour for every row; alignment/bold/italic ONLY for text
 			// rows (art=2) so line/logo rows are never even cosmetically altered.
@@ -214,6 +224,13 @@ if ($fe_action === 'save') {
 				$fed    = (!empty($el['fed']))    ? 'on' : '';
 				$kursiv = (!empty($el['kursiv'])) ? 'on' : '';
 				$set .= ", justering='$just', fed='$fed', kursiv='$kursiv'";
+				// Font family (brand presets). Only ever WRITE a family the print
+				// engine + PostScript prolog fully support across bold/italic (see
+				// includes/faktinit.ps + formfunk.php). An unknown/exotic stored font
+				// is left untouched so we can never coerce a working form's font away.
+				if (isset($el['font']) && in_array((string) $el['font'], array('Helvetica','Times','Courier','Palatino','NewCenturySchlbk','Ocrbb12'), true)) {
+					$set .= ", font='" . db_escape_string((string) $el['font']) . "'";
+				}
 				// text content is editable in the editor now (FR-2.1). Escape it;
 				// this is the same field the classic Formularkort text box writes.
 				if (array_key_exists('besk', $el)) {
@@ -642,6 +659,7 @@ while ($r = db_fetch_array($q)) {
 		'yb'        => (float) $r['yb'],
 		'str'       => (float) $r['str'],
 		'color'     => (int) round((float) $r['color']),
+		'font'      => $r['font'] ? $r['font'] : 'Helvetica',
 		'justering' => $r['justering'] ? strtoupper($r['justering']) : 'V',
 		'fed'       => ($r['fed'] === 'on') ? 1 : 0,
 		'kursiv'    => ($r['kursiv'] === 'on') ? 1 : 0,
@@ -674,7 +692,9 @@ while ($rt = db_fetch_array($qt)) {
 			'ya'    => (float) $rt['ya'],   // preserved unchanged on save
 			'str'   => (float) $rt['str'],
 			'xb'    => (float) $rt['xb'],   // description length - preserved
+			'color' => (int) round((float) $rt['color']),
 			'just'  => $rt['justering'] ? strtoupper($rt['justering']) : 'V',
+			'fed'   => ($rt['fed'] === 'on') ? 1 : 0,
 		);
 	}
 }
@@ -838,17 +858,57 @@ if ($menu == 'T') {
   #fe-toolbar label { font-size:12px; color:#333; }
   #fe-toolbar select, #fe-toolbar input[type=number] { font-size:13px; padding:2px 4px; }
   #fe-toolbar .sep { width:1px; height:22px; background:#c7cdd6; }
-  #fe-main { display:flex; align-items:flex-start; gap:0; }
+  #fe-main { display:flex; align-items:flex-start; gap:0; position:relative; }
+  #fe-canvas-area { position:relative; flex:1 1 auto; height:calc(100vh - 190px); min-height:420px; }
   #fe-canvas-scroll {
-    flex:1 1 auto; overflow:auto; background:#8a90a0;
-    height:calc(100vh - 190px); min-height:420px; padding:24px;
+    position:absolute; inset:0; overflow:auto; background:#8a90a0; padding:24px;
   }
+  #fe-canvas-area.fe-rulers #fe-canvas-scroll { top:18px; left:18px; }
   #fe-page {
     position:relative; background:#fff; margin:0 auto;
     box-shadow:0 3px 14px rgba(0,0,0,.35);
   }
   #fe-page .fe-bg { position:absolute; inset:0; width:100%; height:100%; opacity:.9; pointer-events:none; }
+  #fe-page.fe-bg-dim .fe-bg { opacity:.12 !important; }
   #fe-grid { position:absolute; inset:0; pointer-events:none !important; }
+  #fe-ruler-h { position:absolute; top:0; left:18px; right:0; height:18px; z-index:8; pointer-events:none;
+    background:#eef1f6; border-bottom:1px solid #d3d8e0; }
+  #fe-ruler-v { position:absolute; top:18px; left:0; bottom:0; width:18px; z-index:8; pointer-events:none;
+    background:#eef1f6; border-right:1px solid #d3d8e0; }
+  #fe-ruler-corner { position:absolute; top:0; left:0; width:18px; height:18px; z-index:9;
+    background:#e2e6ec; border-right:1px solid #d3d8e0; border-bottom:1px solid #d3d8e0; }
+  .fe-rubber { position:absolute; z-index:35; border:1px dashed #1769ff;
+    background:rgba(23,105,255,.08); pointer-events:none; }
+  #fe-align-bar { position:absolute; z-index:40; top:8px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:3px; background:#fff; border:1px solid #c7cdd6;
+    border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.18); padding:5px 8px; font-family:Arial,Helvetica,sans-serif; }
+  #fe-align-bar .fe-ab-btn { min-width:27px; height:26px; border:1px solid #d3d8e0; background:#f6f8fb;
+    border-radius:5px; cursor:pointer; font-size:13px; color:#334; line-height:1; }
+  #fe-align-bar .fe-ab-btn:hover { background:#e9f0ff; border-color:#9db4e6; }
+  #fe-align-bar .fe-ab-sep { width:1px; height:20px; background:#d3d8e0; margin:0 3px; }
+  #fe-align-bar .fe-ab-count { font-size:11px; color:#667; margin-right:4px; white-space:nowrap; }
+  #fe-fields-drawer { position:absolute; z-index:39; top:8px; left:8px; width:234px; max-height:calc(100vh - 240px);
+    background:#fff; border:1px solid #c7cdd6; border-radius:8px; box-shadow:0 6px 22px rgba(0,0,0,.18);
+    display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; }
+  #fe-fields-drawer .fe-fd-head { display:flex; align-items:center; justify-content:space-between;
+    padding:8px 10px; border-bottom:1px solid #e2e6ec; font-weight:bold; font-size:13px; color:#223; }
+  #fe-fields-drawer .fe-fd-head .fe-x { font-size:20px; }
+  #fe-fd-search { margin:8px 10px 6px; padding:5px 8px; border:1px solid #d3d8e0; border-radius:5px; font-size:12px; }
+  #fe-fd-list { overflow:auto; padding:0 6px 8px; }
+  .fe-fd-item { display:flex; align-items:center; gap:7px; padding:5px 6px; border-radius:5px; cursor:pointer; font-size:12px; color:#334; }
+  .fe-fd-item:hover { background:#eef3ff; }
+  .fe-fd-item.active { background:#dbe7ff; }
+  .fe-fd-ic { width:16px; text-align:center; color:#8894ad; font-size:11px; flex:0 0 16px; }
+  .fe-fd-lbl { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fe-fd-empty { color:#8894ad; font-size:12px; padding:8px 8px; }
+  #fe-help-modal { position:fixed; inset:0; z-index:9998; background:rgba(20,26,40,.45);
+    display:flex; align-items:center; justify-content:center; }
+  .fe-help-cols { display:flex; gap:22px; flex-wrap:wrap; }
+  .fe-help-cols > div { flex:1 1 220px; }
+  .fe-help-cols h4 { margin:0 0 8px; font-size:13px; color:#223; }
+  .fe-help-tbl { width:100%; border-collapse:collapse; font-size:12px; color:#334; }
+  .fe-help-tbl td { padding:4px 6px; border-bottom:1px solid #eef1f6; vertical-align:top; }
+  .fe-help-tbl td.k { white-space:nowrap; color:#1746a0; font-weight:bold; width:46%; }
   #fe-ctx {
     position:fixed; z-index:9999; background:#fff; border:1px solid #c7cdd6; border-radius:6px;
     box-shadow:0 6px 22px rgba(0,0,0,.22); padding:4px 0; min-width:150px;
@@ -942,6 +1002,22 @@ if ($menu == 'T') {
   #fe-side .row { display:flex; align-items:center; justify-content:space-between; margin:6px 0; font-size:12px; }
   #fe-side .row input[type=number] { width:80px; }
   #fe-side .muted { color:#888; font-size:12px; }
+  #fe-style-presets, #fe-page-align { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
+  .fe-sp { font-size:11px; padding:4px 2px; border:1px solid #d3d8e0; border-radius:5px;
+    background:#f6f8fb; color:#334; cursor:pointer; }
+  .fe-sp:hover { background:#e9f0ff; border-color:#9db4e6; }
+  .fe-sp[disabled] { opacity:.45; cursor:default; }
+  .fe-el.fe-locked { cursor:not-allowed; }
+  .fe-el.fe-locked::after { content:"\1F512"; position:absolute; top:-8px; right:-8px; font-size:10px; opacity:.8; }
+  #fe-page.fe-reveal .fe-el { outline:1px solid rgba(23,105,255,.7) !important; background:rgba(23,105,255,.06) !important; }
+  .fe-el.fe-placeholder { outline:1px dashed #c9a227; background:rgba(201,162,39,.06); }
+  #fe-tcols { display:flex; flex-direction:column; gap:5px; }
+  .fe-tc-row { display:flex; align-items:center; gap:4px; font-size:11px; }
+  .fe-tc-name { flex:1; color:#334; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fe-tc-btn { width:21px; height:21px; border:1px solid #d3d8e0; background:#f6f8fb; border-radius:4px;
+    cursor:pointer; font-size:10px; color:#334; padding:0; line-height:1; }
+  .fe-tc-btn.on { background:#1769ff; color:#fff; border-color:#1257cc; }
+  .fe-tc-btn:hover { border-color:#9db4e6; }
   #fe-status { font-size:12px; color:#444; margin-left:auto; }
   .fe-btn { font-size:13px; padding:4px 10px; cursor:pointer; }
   .fe-btn.fe-active { background:#1769ff !important; color:#fff !important; border:1px solid #1257cc !important; border-radius:3px; }
@@ -949,6 +1025,54 @@ if ($menu == 'T') {
   #fe-page.fe-preview .fe-el { outline:none !important; background:transparent !important; cursor:default; }
   #fe-page.fe-preview .fe-el.fe-selected { outline:none !important; box-shadow:none !important; }
   .fe-toggle { font-size:12px; }
+
+  /* ---- Design / templates modal (Tier 1) --------------------------------- */
+  #fe-design-modal { position:fixed; inset:0; z-index:9998; background:rgba(20,26,40,.45);
+    display:flex; align-items:center; justify-content:center; }
+  .fe-dlg { background:#fff; width:720px; max-width:94vw; max-height:90vh; overflow:auto;
+    border-radius:8px; box-shadow:0 12px 48px rgba(0,0,0,.35); font-family:Arial,Helvetica,sans-serif; }
+  .fe-dlg-head { display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid #e2e6ec; font-size:15px; font-weight:bold; color:#223; }
+  .fe-x { border:0; background:transparent; font-size:22px; line-height:1; cursor:pointer; color:#889; padding:0 4px; }
+  .fe-x:hover { color:#334; }
+  .fe-dlg-body { padding:14px 16px; }
+  .fe-dlg-sub { font-size:12px; color:#788; margin:2px 0 12px; line-height:1.45; }
+  .fe-theme-cards { display:flex; gap:12px; flex-wrap:wrap; }
+  .fe-theme-card { position:relative; flex:1 1 150px; border:1px solid #d5dae2; border-radius:6px; padding:10px;
+    cursor:pointer; background:#fbfcfe; text-align:center; transition:border-color .12s, box-shadow .12s, transform .1s; }
+  .fe-theme-card:hover { border-color:#9db4e6; transform:translateY(-2px); }
+  .fe-theme-card.active { border-color:#1769ff; box-shadow:0 0 0 2px rgba(23,105,255,.25); background:#fff; }
+  .fe-theme-card.active::after { content:"\2713"; position:absolute; top:6px; right:8px;
+    width:19px; height:19px; line-height:19px; text-align:center; background:#1769ff; color:#fff;
+    border-radius:50%; font-size:12px; font-weight:bold; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  .fe-tc-thumb { display:flex; justify-content:center; margin-bottom:8px; }
+  .fe-tc-name { font-size:13px; font-weight:bold; color:#223; }
+  .fe-tc-desc { font-size:11px; color:#788; margin-top:2px; line-height:1.3; }
+  .fe-brand { margin-top:16px; border-top:1px solid #e2e6ec; padding-top:12px; }
+  .fe-brand-row { display:flex; align-items:center; gap:10px; margin:8px 0; font-size:13px; color:#334; }
+  .fe-brand-row label { width:104px; color:#556; flex:0 0 auto; }
+  .fe-swatches { display:flex; gap:6px; flex-wrap:wrap; }
+  .fe-swatch { width:20px; height:20px; border-radius:50%; border:1px solid rgba(0,0,0,.18);
+    cursor:pointer; transition:transform .1s; }
+  .fe-swatch:hover { transform:scale(1.15); }
+  .fe-dlg-foot { padding:12px 16px; border-top:1px solid #e2e6ec; text-align:right; }
+  .fe-schemes { display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 4px; }
+  .fe-scheme { cursor:pointer; border-radius:7px; overflow:hidden; width:66px;
+    border:1px solid #d5dae2; background:#fff; transition:border-color .12s, transform .1s; }
+  .fe-scheme:hover { border-color:#9db4e6; transform:translateY(-2px); }
+  .fe-scheme .sw { height:26px; display:flex; }
+  .fe-scheme .sw i { flex:1; display:block; }
+  .fe-scheme .sw i.t { flex:0 0 20px; }
+  .fe-scheme .nm { font-size:9.5px; color:#556; padding:3px 2px; line-height:1.1;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
+  .fe-swatch.active { box-shadow:0 0 0 2px #fff, 0 0 0 4px #1769ff; }
+  .fe-brand-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .fe-mini-btn { font-size:12px; padding:4px 10px; border:1px solid #c7cdd6; border-radius:14px;
+    background:#fff; cursor:pointer; color:#334; white-space:nowrap; transition:border-color .12s, background .12s; }
+  .fe-mini-btn:hover { border-color:#9db4e6; background:#f4f8ff; }
+  .fe-mini-btn[disabled] { opacity:.45; cursor:default; }
+  #fe-font-sample { margin:6px 0 4px 114px; font-size:17px; color:#223; line-height:1.2;
+    padding:4px 0; border-bottom:1px dashed #e2e6ec; }
 </style>
 
 <div id="fe-wrap">
@@ -973,11 +1097,19 @@ if ($menu == 'T') {
     <label>Zoom</label>
     <input type="range" id="fe-zoom" min="50" max="200" value="100" step="5" style="width:110px;">
     <span id="fe-zoom-val" style="font-size:12px;width:38px;">100%</span>
+    <button type="button" class="fe-btn" id="fe-zoom-fit" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;padding:2px 7px;" title="<?php echo $T('Tilpas hele siden i vinduet','Fit the whole page in the window'); ?>"><?php echo $T('Tilpas','Fit'); ?></button>
+    <button type="button" class="fe-btn" id="fe-zoom-width" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;padding:2px 7px;" title="<?php echo $T('Tilpas sidebredden','Fit the page width'); ?>"><?php echo $T('Bredde','Width'); ?></button>
+    <button type="button" class="fe-btn" id="fe-zoom-100" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;padding:2px 7px;" title="100%">100%</button>
     <span class="sep"></span>
     <label class="fe-toggle"><input type="checkbox" id="fe-grid-toggle"> <?php echo $T('Gitter','Grid'); ?> (5mm)</label>
+    <label class="fe-toggle"><input type="checkbox" id="fe-ruler-toggle"> <?php echo $T('Linealer','Rulers'); ?></label>
+    <button type="button" class="fe-btn" id="fe-fields-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Vis liste over alle felter – søg og vælg (også skjulte)','List all fields – search and select (even hidden ones)'); ?>">&#9776; <?php echo $T('Felter','Fields'); ?></button>
+    <?php if ($bg_url) { ?><label class="fe-toggle"><input type="checkbox" id="fe-bgdim-toggle"> <?php echo $T('Dæmp bg','Dim bg'); ?></label><?php } ?>
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-add-text" title="<?php echo $T('Tilføj tekstfelt','Add text box'); ?>">&#43; <?php echo $T('Tekst','Text'); ?></button>
     <button type="button" class="fe-btn" id="fe-add-line" title="<?php echo $T('Tilføj streg','Add line'); ?>">&#43; <?php echo $T('Streg','Line'); ?></button>
+    <span class="sep"></span>
+    <button type="button" class="fe-btn" id="fe-design-open" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Vælg en færdig skabelon (Klassisk/Moderne/Minimal) og brand-farve/skrifttype','Pick a ready-made template (Classic/Modern/Minimal) and brand colour/font'); ?>">&#127912; <?php echo $T('Skabeloner','Templates'); ?></button>
     <?php $bg_label = $bg_url ? $T('Skift baggrund','Change background') : $T('Tilføj baggrund','Add background'); ?>
     <a id="fe-bg-btn" class="fe-btn" style="text-decoration:none;color:inherit;border:1px solid #c7cdd6;border-radius:3px;" href="logoupload.php?upload=yes" target="_blank" rel="noopener" title="<?php echo $T('Upload eller skift baggrund/logo (letterhead)','Upload or change background/logo (letterhead)'); ?>">&#128444; <?php echo htmlspecialchars($bg_label); ?></a>
     <span class="sep"></span>
@@ -989,6 +1121,7 @@ if ($menu == 'T') {
     <button type="button" class="fe-btn" id="fe-save" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;" title="<?php echo $T('Gem og gør aktiv (bruges ved udskrift)','Save and make live (used for printing)'); ?>"><?php echo $T('Gem & aktivér','Save & activate'); ?></button>
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-reset" style="color:#b23b3b;border:1px solid #d9a1a1;border-radius:3px;background:#fff;" title="<?php echo $T('Nulstil denne formular til Saldis standard','Reset this form to Saldi&apos;s standard'); ?>">&#8635; <?php echo $T('Nulstil','Reset'); ?></button>
+    <button type="button" class="fe-btn" id="fe-help-btn" style="border:1px solid #c7cdd6;border-radius:50%;background:#fff;width:26px;height:26px;padding:0;font-weight:bold;color:#556;" title="<?php echo $T('Hjælp og tastaturgenveje','Help &amp; keyboard shortcuts'); ?>">?</button>
     <span id="fe-status"></span>
   </div>
 
@@ -998,13 +1131,64 @@ if ($menu == 'T') {
     <button type="button" id="fe-draft-discard" class="fe-btn" style="border:1px solid #d9a1a1;color:#b23b3b;background:#fff;border-radius:3px;"><?php echo $T('Kassér kladde','Discard draft'); ?></button>
   </div>
 
+  <div id="fe-design-modal" style="display:none;">
+    <div class="fe-dlg">
+      <div class="fe-dlg-head">
+        <span>&#127912; <?php echo $T('Skabeloner &amp; brand','Templates &amp; brand'); ?></span>
+        <button type="button" id="fe-design-close" class="fe-x" title="<?php echo $T('Luk','Close'); ?>">&times;</button>
+      </div>
+      <div class="fe-dlg-body">
+        <div class="fe-dlg-sub" style="margin-bottom:10px;"><?php echo $T('Vælg et udseende – det anvendes med det samme og kan fortrydes (Ctrl+Z). Intet går live før du trykker “Gem &amp; aktivér”.', 'Pick a look – it is applied instantly and can be undone (Ctrl+Z). Nothing goes live until you press “Save &amp; activate”.'); ?></div>
+        <div id="fe-theme-cards" class="fe-theme-cards"></div>
+        <div class="fe-brand">
+          <div class="fe-dlg-sub" style="margin:2px 0 6px;font-weight:bold;color:#556;"><?php echo $T('Hurtige farvesæt (accent + tekst)','Quick colour schemes (accent + text)'); ?></div>
+          <div id="fe-schemes" class="fe-schemes"></div>
+          <div class="fe-brand-row">
+            <label><?php echo $T('Accent (overskrifter)','Accent (headings)'); ?></label>
+            <input type="color" id="fe-brand-accent" value="#000066">
+            <span class="fe-swatches" id="fe-brand-swatches"></span>
+            <button type="button" id="fe-brand-fromlogo" class="fe-mini-btn" title="<?php echo $T('Hent accentfarven fra dit uploadede logo','Pick the accent colour from your uploaded logo'); ?>">&#127919; <?php echo $T('Fra logo','From logo'); ?></button>
+          </div>
+          <div class="fe-brand-row">
+            <label><?php echo $T('Tekst (brødtekst)','Text (body)'); ?></label>
+            <input type="color" id="fe-brand-text" value="#2b2b2b">
+            <span class="fe-swatches" id="fe-brand-text-swatches"></span>
+            <button type="button" id="fe-text-match" class="fe-mini-btn" title="<?php echo $T('Sæt tekstfarven til en læsbar mørk nuance af accentfarven','Set the text colour to a readable dark shade of the accent'); ?>">&#127760; <?php echo $T('Match accent','Match accent'); ?></button>
+          </div>
+          <div class="fe-brand-row">
+            <label><?php echo $T('Skrifttype','Font'); ?></label>
+            <select id="fe-brand-font">
+              <option value="Helvetica">Helvetica (sans-serif)</option>
+              <option value="Times">Times (serif)</option>
+              <option value="Palatino">Palatino (serif)</option>
+              <option value="NewCenturySchlbk">Century Schoolbook (serif)</option>
+              <option value="Courier">Courier (monospace)</option>
+              <option value="Ocrbb12">OCR-B (technical)</option>
+            </select>
+          </div>
+          <div id="fe-font-sample">Aa Bb Cc &ndash; 1.250,00 kr</div>
+          <div class="fe-dlg-sub" style="margin-bottom:0;"><?php echo $T('Accent farver overskrifterne; tekstfarven farver etiketter, værdier og ordrelinjer. Skrifttypen gælder al tekst.','Accent colours the headings; the text colour colours labels, values and order lines. The font applies to all text.'); ?></div>
+        </div>
+      </div>
+      <div class="fe-dlg-foot">
+        <button type="button" id="fe-design-done" class="fe-btn" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;"><?php echo $T('Luk','Close'); ?></button>
+      </div>
+    </div>
+  </div>
+
   <div id="fe-main">
-    <div id="fe-canvas-scroll">
-      <div id="fe-page">
-        <?php if ($bg_url) { echo '<img class="fe-bg" src="' . htmlspecialchars($bg_url) . '" alt="">'; } ?>
-        <svg id="fe-lines" style="position:absolute;inset:0;pointer-events:none;overflow:visible;"></svg>
-        <canvas id="fe-grid"></canvas>
-        <!-- elements injected by JS -->
+    <div id="fe-canvas-area">
+      <!-- sticky rulers: pinned to the visible canvas edges (drawn from scroll pos) -->
+      <div id="fe-ruler-corner" style="display:none;"></div>
+      <canvas id="fe-ruler-h" style="display:none;"></canvas>
+      <canvas id="fe-ruler-v" style="display:none;"></canvas>
+      <div id="fe-canvas-scroll">
+        <div id="fe-page">
+          <?php if ($bg_url) { echo '<img class="fe-bg" src="' . htmlspecialchars($bg_url) . '" alt="">'; } ?>
+          <svg id="fe-lines" style="position:absolute;inset:0;pointer-events:none;overflow:visible;"></svg>
+          <canvas id="fe-grid"></canvas>
+          <!-- elements injected by JS -->
+        </div>
       </div>
     </div>
 
@@ -1013,6 +1197,30 @@ if ($menu == 'T') {
       <div id="fe-noselect" class="muted"><?php echo $T('Klik på et element for at redigere det. Træk for at flytte. Piletaster: 0,5&nbsp;mm (Shift: 5&nbsp;mm).', 'Click an element to edit it. Drag to move. Arrow keys: 0.5&nbsp;mm (Shift: 5&nbsp;mm).'); ?></div>
       <div id="fe-props" style="display:none;">
         <div class="row"><span id="fe-prop-kind" style="font-weight:bold;"></span></div>
+        <div class="row"><label>&#128274; <?php echo $T('Lås','Lock'); ?></label><input type="checkbox" id="fe-lock" title="<?php echo $T('Lås så elementet ikke kan flyttes ved et uheld','Lock so it can\'t be moved by accident'); ?>"></div>
+        <div class="row" data-text-only style="flex-direction:column;align-items:stretch;gap:4px;">
+          <span class="muted" style="font-size:11px;"><?php echo $T('Hurtig stil','Quick style'); ?></span>
+          <div id="fe-style-presets">
+            <button type="button" class="fe-sp" data-sp="title"><?php echo $T('Titel','Title'); ?></button>
+            <button type="button" class="fe-sp" data-sp="heading"><?php echo $T('Overskrift','Heading'); ?></button>
+            <button type="button" class="fe-sp" data-sp="label"><?php echo $T('Etiket','Label'); ?></button>
+            <button type="button" class="fe-sp" data-sp="body"><?php echo $T('Brødtekst','Body'); ?></button>
+            <button type="button" class="fe-sp" data-sp="total"><?php echo $T('Total','Total'); ?></button>
+            <button type="button" class="fe-sp" data-sp="fine"><?php echo $T('Fintryk','Fine print'); ?></button>
+          </div>
+        </div>
+        <div class="row" data-text-only style="flex-direction:column;align-items:stretch;gap:4px;">
+          <span class="muted" style="font-size:11px;"><?php echo $T('Placér på siden','Place on page'); ?></span>
+          <div id="fe-page-align">
+            <button type="button" class="fe-sp" data-pa="left"><?php echo $T('Venstre','Left'); ?></button>
+            <button type="button" class="fe-sp" data-pa="center"><?php echo $T('Centrér','Centre'); ?></button>
+            <button type="button" class="fe-sp" data-pa="right"><?php echo $T('Højre','Right'); ?></button>
+          </div>
+        </div>
+        <div class="row" data-text-only style="gap:6px;">
+          <button type="button" class="fe-sp" id="fe-copystyle" style="flex:1;">&#128203; <?php echo $T('Kopiér stil','Copy style'); ?></button>
+          <button type="button" class="fe-sp" id="fe-pastestyle" style="flex:1;" disabled>&#127912; <?php echo $T('Indsæt stil','Paste style'); ?></button>
+        </div>
         <div class="row"><label>X (mm)</label><input type="number" step="0.1" id="fe-x"></div>
         <div class="row"><label>Y (mm)</label><input type="number" step="0.1" id="fe-y"></div>
         <div class="row" data-line-only><label>X2 (mm)</label><input type="number" step="0.1" id="fe-x2"></div>
@@ -1088,6 +1296,10 @@ if ($menu == 'T') {
       <div id="fe-tprops" style="display:none;">
         <div class="row"><span style="font-weight:bold;"><?php echo $T('Ordrelinje-tabel','Order-line table'); ?></span></div>
         <div class="row"><span class="muted" style="font-size:11px;line-height:1.3;"><?php echo $T('Træk tabellen for at flytte den, og træk det nederste håndtag for at gøre den højere/lavere. Træk kolonne-skillelinjerne for at flytte kolonner.','Drag the table to move it, and drag the bottom handle to make it taller/shorter. Drag the column dividers to move columns.'); ?></span></div>
+        <div class="row" style="flex-direction:column;align-items:stretch;gap:5px;margin-top:8px;">
+          <span class="muted" style="font-size:11px;"><?php echo $T('Kolonner (justering + fed)','Columns (alignment + bold)'); ?></span>
+          <div id="fe-tcols"></div>
+        </div>
         <details style="margin-top:6px;">
           <summary style="cursor:pointer;font-size:12px;color:#556;"><?php echo $T('Avanceret (præcise tal)','Advanced (exact numbers)'); ?></summary>
           <div class="row" style="margin-top:6px;"><label><?php echo $T('Antal linjer','Number of rows'); ?></label><input type="number" step="1" min="1" id="fe-trows"></div>
@@ -1108,6 +1320,7 @@ if ($menu == 'T') {
   var BASE_PXMM = 3.2;                 // px per mm at 100%
   var zoom = 1.0;
   var grid = false;
+  var rulersOn = false;
   var previewMode = false;   // "Show draft": fill variables with sample data
   // Sample values used only for the on-screen preview (Spec FR-3.1 sample data).
   var SAMPLE = {
@@ -1141,6 +1354,7 @@ if ($menu == 'T') {
     varemomssats:['25','25','25'], linjemoms:['625,00','765,00','450,00'], projekt:['P-07','P-07','P-07'], lokation:['A-1','A-2','B-1']
   };
   var GRID_MM = 5;
+  var MARGIN_MM = 10;   // standard page margin (guides + snap)
 
   var elements = <?php echo json_encode($fe_data); ?> || [];
   var table    = <?php echo json_encode($fe_table); ?>;
@@ -1212,8 +1426,12 @@ if ($menu == 'T') {
   var page   = document.getElementById('fe-page');
   var svg    = document.getElementById('fe-lines');
   var gridC  = document.getElementById('fe-grid');
+  var rulerH = document.getElementById('fe-ruler-h');
+  var rulerV = document.getElementById('fe-ruler-v');
+  var rulerCorner = document.getElementById('fe-ruler-corner');
   var statusEl = document.getElementById('fe-status');
   var selId = null;
+  var selSet = [];   // multi-selection (element ids)
   var undoStack = [];
   var redoStack = [];
   var deletedIds = [];   // ids removed in this session, applied on Save
@@ -1246,6 +1464,56 @@ if ($menu == 'T') {
     gridC.width  = PAGE_W*pxmm();
     gridC.height = PAGE_H*pxmm();
     drawGrid();
+    drawMargins();
+    drawRulers();
+  }
+
+  // Rulers (Tier 2): top + left mm scales that track zoom. Vertical ruler counts
+  // mm from the BOTTOM so it matches the Y (mm) field. Purely visual overlay.
+  // Sticky rulers: pinned to the visible canvas edges. Tick positions come from
+  // where the page currently sits in the viewport (getBoundingClientRect already
+  // accounts for scroll), so they stay on-screen and show the mm of the visible
+  // region as you scroll/zoom. Vertical ruler counts mm from the BOTTOM (matches Y).
+  function drawRulers() {
+    var area = document.getElementById('fe-canvas-area');
+    var scroll = document.getElementById('fe-canvas-scroll');
+    var show = rulersOn && !previewMode;
+    if (area) area.classList.toggle('fe-rulers', show);
+    rulerH.style.display = show ? '' : 'none';
+    rulerV.style.display = show ? '' : 'none';
+    rulerCorner.style.display = show ? '' : 'none';
+    if (!show || !scroll) return;
+    var s = pxmm();
+    var pr = page.getBoundingClientRect(), sr = scroll.getBoundingClientRect();
+    var offX = pr.left - sr.left, offY = pr.top - sr.top;   // page origin in the viewport
+    var HW = rulerH.clientWidth || (sr.width-0), VH = rulerV.clientHeight || sr.height;
+    if (HW < 1 || VH < 1) return;
+    rulerH.width = HW; rulerH.height = 18;
+    var ch = rulerH.getContext('2d');
+    ch.clearRect(0,0,HW,18); ch.fillStyle='#eef1f6'; ch.fillRect(0,0,HW,18);
+    ch.strokeStyle='#8b96a8'; ch.fillStyle='#556'; ch.font='8px Arial,Helvetica,sans-serif'; ch.textBaseline='top';
+    for (var x=0; x<=PAGE_W; x+=5){ var px=offX+x*s; if (px<-6||px>HW+6) continue; var maj=(x%10===0);
+      ch.beginPath(); ch.moveTo(px,18); ch.lineTo(px, maj?7:12); ch.stroke();
+      if (x%20===0 && x>0 && px>8) ch.fillText(x, px+1.5, 1);
+    }
+    rulerV.width = 18; rulerV.height = VH;
+    var cv = rulerV.getContext('2d');
+    cv.clearRect(0,0,18,VH); cv.fillStyle='#eef1f6'; cv.fillRect(0,0,18,VH);
+    cv.strokeStyle='#8b96a8'; cv.fillStyle='#556'; cv.font='8px Arial,Helvetica,sans-serif';
+    for (var y=0; y<=PAGE_H; y+=5){ var py=offY+(PAGE_H-y)*s; if (py<-6||py>VH+6) continue; var maj=(y%10===0);
+      cv.beginPath(); cv.moveTo(18,py); cv.lineTo(maj?7:12, py); cv.stroke();
+      if (y%20===0 && y>0 && py>10){ cv.save(); cv.translate(9,py+1); cv.rotate(-Math.PI/2); cv.textAlign='right'; cv.textBaseline='top'; cv.fillText(y,0,-4); cv.restore(); }
+    }
+  }
+  // margin guides drawn on the page canvas (they scroll with the page, on purpose)
+  function drawMargins() {
+    if (!rulersOn || previewMode) return;
+    var s=pxmm(), W=PAGE_W*s, H=PAGE_H*s;
+    var gx=gridC.getContext('2d'); gx.save();
+    gx.strokeStyle='rgba(224,120,40,.45)'; gx.lineWidth=1; gx.setLineDash([4,3]);
+    [MARGIN_MM, PAGE_W-MARGIN_MM].forEach(function(mx){ gx.beginPath(); gx.moveTo(mx*s,0); gx.lineTo(mx*s,H); gx.stroke(); });
+    [MARGIN_MM, PAGE_H-MARGIN_MM].forEach(function(my){ gx.beginPath(); gx.moveTo(0,my*s); gx.lineTo(W,my*s); gx.stroke(); });
+    gx.restore();
   }
   function drawGrid() {
     var ctx = gridC.getContext('2d');
@@ -1270,6 +1538,7 @@ if ($menu == 'T') {
     });
     if (table) { if (previewMode) renderTablePreview(); else renderTable(); }
     highlight();
+    if (fieldsOpen && _fieldCount !== elements.length) refreshFieldList(fieldSearchVal());
   }
 
   // Preview: draw a few sample item rows at the column positions (no frame).
@@ -1286,8 +1555,9 @@ if ($menu == 'T') {
         d.className = 'fe-el fe-text';
         d.style.left = (c.xa*s) + 'px'; d.style.top = ((PAGE_H - ymm)*s) + 'px';
         var tx = (c.just==='C') ? '-50%' : (c.just==='H' ? '-100%' : '0');
-        d.style.transform = 'translate(' + tx + ', 0)';
+        d.style.transform = 'translate(' + tx + ', -0.8em)';   // baseline (WYSIWYG), matches print
         d.style.fontSize = Math.max(4, (c.str>0?c.str:10) * PT_TO_MM * s) + 'px';
+        d.style.fontWeight = c.fed ? 'bold' : 'normal';
         d.style.pointerEvents = 'none';
         d.textContent = val;
         page.appendChild(d);
@@ -1515,12 +1785,17 @@ if ($menu == 'T') {
   function renderBox(el) {
     var s = pxmm();
     var d = document.createElement('div');
-    d.className = 'fe-el ' + (el.kind === 'logo' ? 'fe-logo' : 'fe-text');
+    d.className = 'fe-el ' + (el.kind === 'logo' ? 'fe-logo' : 'fe-text') + (el._locked ? ' fe-locked' : '')
+      + ((el.kind==='text' && !previewMode && (el.besk===NEW_TEXT || !el.besk)) ? ' fe-placeholder' : '');
     d.setAttribute('data-id', el.id);
     d.style.left = (el.xa*s) + 'px';
     d.style.top  = ((PAGE_H-el.ya)*s) + 'px';
     var tx = (el.justering==='C') ? '-50%' : (el.justering==='H' ? '-100%' : '0');
-    d.style.transform = 'translate(' + tx + ', 0)';
+    // WYSIWYG: print draws text from its baseline (ya). CSS positions by the top,
+    // so shift the box up ~1 ascent (0.8em) to place the baseline on the ya line —
+    // this matches the print, so a big title sits where it prints instead of
+    // overhanging the fields below it. (Logo keeps top-left positioning below.)
+    d.style.transform = 'translate(' + tx + ', -0.8em)';
 
     if (el.kind === 'logo') {
       d.style.transform = 'translate(0,0)';
@@ -1550,6 +1825,7 @@ if ($menu == 'T') {
     } else {
       var fs = Math.max(4, (el.str>0?el.str:10) * PT_TO_MM * s);
       d.style.fontSize = fs + 'px';
+      d.style.fontFamily = feCssFont(el.font);
       d.style.fontWeight = el.fed ? 'bold' : 'normal';
       d.style.fontStyle  = el.kursiv ? 'italic' : 'normal';
       var rgb = colorNumToRgb(el.color);
@@ -1665,15 +1941,170 @@ if ($menu == 'T') {
 
   function select(id) {
     selId = id;
+    selSet = (id===null || id==='table') ? [] : [id];   // single-select resets the group
     highlight();
     showProps();
+    updateAlignBar();
+  }
+  // --- multi-select helpers (Tier 2) ---------------------------------------
+  function selHas(id){ return selSet.indexOf(id) >= 0; }
+  function toggleSel(id){
+    if (id==null || id==='table') return;
+    var i = selSet.indexOf(id);
+    if (i>=0) selSet.splice(i,1); else selSet.push(id);
+    selId = selSet.length ? selSet[selSet.length-1] : null;
+    highlight(); showProps(); updateAlignBar();
+  }
+  function setSel(ids){
+    selSet = ids.slice();
+    selId = selSet.length ? selSet[selSet.length-1] : null;
+    highlight(); showProps(); updateAlignBar();
+  }
+  // move an element's anchor to v; a line translates its far end by the same delta
+  function setElemX(e,v){ var d=v-e.xa; e.xa=Math.round(v*100)/100; if(e.kind==='line') e.xb=Math.round((e.xb+d)*100)/100; }
+  function setElemY(e,v){ var d=v-e.ya; e.ya=Math.round(v*100)/100; if(e.kind==='line') e.yb=Math.round((e.yb+d)*100)/100; }
+  function alignSelected(mode){
+    var els = selSet.map(elById).filter(function(e){return e && e.kind!=='logo';});
+    if (els.length<2) return;
+    pushUndo();
+    var xs=els.map(function(e){return e.xa;}), ys=els.map(function(e){return e.ya;});
+    var minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs);
+    var minY=Math.min.apply(null,ys), maxY=Math.max.apply(null,ys);
+    els.forEach(function(e){
+      if      (mode==='left')    setElemX(e,minX);
+      else if (mode==='right')   setElemX(e,maxX);
+      else if (mode==='centerX') setElemX(e,(minX+maxX)/2);
+      else if (mode==='top')     setElemY(e,maxY);   // top = larger y (from bottom)
+      else if (mode==='bottom')  setElemY(e,minY);
+      else if (mode==='middleY') setElemY(e,(minY+maxY)/2);
+    });
+    render(); syncProps(); markDirty();
+  }
+  function distributeSel(mode){
+    var els = selSet.map(elById).filter(function(e){return e && e.kind!=='logo';});
+    if (els.length<3) return;
+    pushUndo();
+    var horiz=(mode==='distH');
+    els.sort(function(a,b){ return horiz ? a.xa-b.xa : a.ya-b.ya; });
+    var first = horiz ? els[0].xa : els[0].ya;
+    var last  = horiz ? els[els.length-1].xa : els[els.length-1].ya;
+    var step  = (last-first)/(els.length-1);
+    els.forEach(function(e,i){ var v=first+step*i; if(horiz) setElemX(e,v); else setElemY(e,v); });
+    render(); syncProps(); markDirty();
+  }
+  var alignBar = null;
+  function buildAlignBar(){
+    if (alignBar) return alignBar;
+    alignBar = document.createElement('div'); alignBar.id='fe-align-bar'; alignBar.style.display='none';
+    var cnt=document.createElement('span'); cnt.className='fe-ab-count'; cnt.id='fe-ab-count'; alignBar.appendChild(cnt);
+    var defs=[
+      ['left','L', DK_UI?'Justér venstre':'Align left'],
+      ['centerX','C', DK_UI?'Centrér vandret':'Centre horizontally'],
+      ['right','R', DK_UI?'Justér højre':'Align right'],
+      ['sep'],
+      ['top','T', DK_UI?'Justér top':'Align top'],
+      ['middleY','M', DK_UI?'Centrér lodret':'Centre vertically'],
+      ['bottom','B', DK_UI?'Justér bund':'Align bottom'],
+      ['sep'],
+      ['distH','↔', DK_UI?'Fordel vandret (3+)':'Distribute horizontally (3+)'],
+      ['distV','↕', DK_UI?'Fordel lodret (3+)':'Distribute vertically (3+)']
+    ];
+    defs.forEach(function(d){
+      if (d[0]==='sep'){ var sp=document.createElement('span'); sp.className='fe-ab-sep'; alignBar.appendChild(sp); return; }
+      var b=document.createElement('button'); b.type='button'; b.className='fe-ab-btn'; b.textContent=d[1]; b.title=d[2];
+      b.addEventListener('click', function(){ (d[0]==='distH'||d[0]==='distV') ? distributeSel(d[0]) : alignSelected(d[0]); });
+      alignBar.appendChild(b);
+    });
+    document.getElementById('fe-main').appendChild(alignBar);
+    return alignBar;
+  }
+  function updateAlignBar(){
+    var bar=buildAlignBar();
+    if (selSet.length>=2){ bar.style.display='flex';
+      var c=document.getElementById('fe-ab-count'); if(c) c.textContent=selSet.length+(DK_UI?' valgt':' selected'); }
+    else bar.style.display='none';
+  }
+
+  // ---- searchable Fields panel (Tier 2) -----------------------------------
+  var fieldsDrawer=null, fieldsOpen=false, _fieldCount=-1;
+  function fieldLabel(el){
+    if (el.kind==='logo') return L.logo;
+    if (el.kind==='line') return L.line;
+    var parts = feTokenize(el.besk||'');
+    var s = parts.map(function(p){ return (p.t==='text') ? p.v : (p.label||p.v); }).join('').trim();
+    return s || EMPTY_LBL;
+  }
+  function scrollToElement(el){
+    var sc=document.getElementById('fe-canvas-scroll'); if(!sc||!el) return;
+    var s=pxmm();
+    sc.scrollTop  = Math.max(0, (PAGE_H-el.ya)*s - sc.clientHeight/2);
+    sc.scrollLeft = Math.max(0, el.xa*s - sc.clientWidth/2);
+  }
+  function buildFieldsDrawer(){
+    if (fieldsDrawer) return fieldsDrawer;
+    fieldsDrawer=document.createElement('div'); fieldsDrawer.id='fe-fields-drawer'; fieldsDrawer.style.display='none';
+    fieldsDrawer.innerHTML='<div class="fe-fd-head"><span>&#9776; '+(DK_UI?'Felter':'Fields')+'</span>'
+      +'<span><button type="button" id="fe-fd-flash" class="fe-mini-btn" style="padding:2px 8px;" title="'+(DK_UI?'Blink alle felter':'Flash every field')+'">&#10024; '+(DK_UI?'Vis alle':'Reveal')+'</button> '
+      +'<button type="button" id="fe-fd-close" class="fe-x" title="'+(DK_UI?'Luk':'Close')+'">&times;</button></span></div>'
+      +'<input type="text" id="fe-fd-search" placeholder="'+(DK_UI?'Søg felter…':'Search fields…')+'" spellcheck="false">'
+      +'<div id="fe-fd-list"></div>';
+    document.getElementById('fe-main').appendChild(fieldsDrawer);
+    fieldsDrawer.querySelector('#fe-fd-close').addEventListener('click', function(){ toggleFields(false); });
+    fieldsDrawer.querySelector('#fe-fd-flash').addEventListener('click', flashAllFields);
+    fieldsDrawer.querySelector('#fe-fd-search').addEventListener('input', function(){ refreshFieldList(this.value); });
+    return fieldsDrawer;
+  }
+  function fieldSearchVal(){ var s=document.getElementById('fe-fd-search'); return s?s.value:''; }
+  function refreshFieldList(filter){
+    buildFieldsDrawer();
+    var list=document.getElementById('fe-fd-list'); if(!list) return;
+    _fieldCount = elements.length;
+    var f=(filter||'').toLowerCase();
+    list.innerHTML='';
+    var shown=0;
+    function addItem(idVal, kind, label){
+      if (f && label.toLowerCase().indexOf(f)<0) return;
+      shown++;
+      var it=document.createElement('div');
+      var isSel = (idVal==='table') ? (selId==='table') : (idVal===selId || selHas(idVal));
+      it.className='fe-fd-item'+(isSel?' active':''); it.setAttribute('data-id', idVal);
+      var ic = kind==='logo'?'&#9635;':(kind==='line'?'&#9472;':(kind==='table'?'&#9638;':'T'));
+      it.innerHTML='<span class="fe-fd-ic">'+ic+'</span><span class="fe-fd-lbl"></span>';
+      it.querySelector('.fe-fd-lbl').textContent = label;
+      it.addEventListener('click', function(ev){
+        if (idVal==='table'){ selectTable(); }
+        else if (ev.shiftKey){ toggleSel(idVal); }
+        else { select(idVal); var el=elById(idVal); if(el) scrollToElement(el); }
+        refreshFieldList(fieldSearchVal());
+      });
+      list.appendChild(it);
+    }
+    elements.forEach(function(el){ addItem(el.id, el.kind, fieldLabel(el)); });
+    if (table) addItem('table','table', TABLE_CAP);
+    if (!shown){ var e=document.createElement('div'); e.className='fe-fd-empty'; e.textContent=(DK_UI?'Ingen match':'No matches'); list.appendChild(e); }
+  }
+  function toggleFields(open){
+    buildFieldsDrawer();
+    fieldsOpen = (open!==undefined) ? open : !fieldsOpen;
+    fieldsDrawer.style.display = fieldsOpen ? 'flex' : 'none';
+    if (fieldsOpen) refreshFieldList(fieldSearchVal());
+  }
+  function syncFieldActive(){
+    if (!fieldsDrawer || !fieldsOpen) return;
+    Array.prototype.forEach.call(fieldsDrawer.querySelectorAll('.fe-fd-item'), function(it){
+      var a=it.getAttribute('data-id');
+      var on = (a==='table') ? (selId==='table') : (parseInt(a,10)===selId || selHas(parseInt(a,10)));
+      it.classList.toggle('active', on);
+    });
   }
   function highlight() {
     Array.prototype.slice.call(page.querySelectorAll('.fe-el')).forEach(function(n){
-      n.classList.toggle('fe-selected', parseInt(n.getAttribute('data-id'),10) === selId);
+      var idn = parseInt(n.getAttribute('data-id'),10);
+      n.classList.toggle('fe-selected', idn === selId || selHas(idn));
     });
     var tb = document.getElementById('fe-table-el');
     if (tb) tb.classList.toggle('fe-selected', selId === 'table');
+    syncFieldActive();
   }
 
   function snapshot() { return JSON.stringify({ e: elements, t: table, d: deletedIds }); }
@@ -1687,9 +2118,20 @@ if ($menu == 'T') {
   // Core elements are structural and can never be deleted (logo + the table).
   function isCore(el) { return !el || el.kind === 'logo'; }
   function deleteSelected() {
+    // Multi-select: delete every deletable element in the group (skip core/logo).
+    if (selSet.length > 1) {
+      var toDel = selSet.map(elById).filter(function(el){ return el && !isCore(el) && el.kind!=='logo' && !el._locked; });
+      if (!toDel.length) { flashStatus(L.coreCantDelete, '#b26a00'); return; }
+      pushUndo();
+      toDel.forEach(function(el){ if (el.id>0) deletedIds.push(el.id); });
+      elements = elements.filter(function(x){ return toDel.indexOf(x)<0; });
+      selSet=[]; selId=null; render(); showProps(); updateAlignBar(); markDirty();
+      return;
+    }
     if (selId === 'table') { flashStatus(L.coreCantDelete, '#b26a00'); return; }
     var el = elById(selId);
     if (!el) return;
+    if (el._locked) { flashStatus(DK_UI?'Låst – lås op først':'Locked – unlock first', '#b26a00'); return; }
     // The logo can't be deleted as an element (it's a fixed slot), but pressing
     // Delete on it should offer to remove the uploaded logo image itself.
     if (el.kind === 'logo') { removeLogo(); return; }
@@ -1697,7 +2139,7 @@ if ($menu == 'T') {
     pushUndo();
     if (el.id > 0) deletedIds.push(el.id);
     elements = elements.filter(function (x) { return x !== el; });
-    selId = null; render(); showProps(); markDirty();
+    selId = null; selSet=[]; render(); showProps(); updateAlignBar(); markDirty();
   }
   // Remove the uploaded logo image and restore the clean background. Prompts
   // first. Shared by the Delete key, the panel button and the context menu.
@@ -1796,27 +2238,39 @@ if ($menu == 'T') {
 
   function startDrag(ev, el, node) {
     ev.preventDefault();
-    select(el.id);
+    if (ev.shiftKey) { toggleSel(el.id); return; }   // shift-click toggles selection, no move
+    if (!selHas(el.id)) select(el.id);               // dragging an unselected element selects just it
+    if (el._locked) return;                          // locked: selectable but not draggable
     var s = pxmm();
     var startX = ev.clientX, startY = ev.clientY;
-    var origXa = el.xa, origYa = el.ya;
     var moved = false;
+    var group = (selSet.length > 1) && selHas(el.id);
+    // snapshot original positions of everything that will move (locked ones stay put)
+    var movers = group ? selSet.map(elById).filter(function(m){ return m && !m._locked; }) : [el];
+    var orig = movers.map(function(m){ return { m:m, xa:m.xa, ya:m.ya, xb:m.xb, yb:m.yb }; });
     function onMove(e) {
       if (!moved) { pushUndo(); moved = true; }
-      var dx = e.clientX-startX, dy = e.clientY-startY;
-      var nx = clampX(origXa + dx/s);
-      var ny = clampY(origYa - dy/s);   // screen down = y decreases
-      if (grid) { el.xa = clampX(snap(nx)); el.ya = clampY(snap(ny)); clearGuides(); }
-      else {
-        // smart guides: snap to other elements' x / y so fields line up
-        var gx = snapVal(nx, snapTargetsX(el));
-        var gy = snapVal(ny, snapTargetsY(el));
-        el.xa = (gx !== null) ? gx : nx;
-        el.ya = (gy !== null) ? gy : ny;
-        drawGuides(gx, gy);
+      var dx = (e.clientX-startX)/s, dy = -(e.clientY-startY)/s;   // mm; screen down = smaller y
+      if (!group) {
+        var nx = clampX(orig[0].xa + dx), ny = clampY(orig[0].ya + dy);
+        if (grid) { el.xa = clampX(snap(nx)); el.ya = clampY(snap(ny)); clearGuides(); }
+        else {
+          var gx = snapVal(nx, snapTargetsX(el)), gy = snapVal(ny, snapTargetsY(el));
+          el.xa = (gx !== null) ? gx : nx;
+          el.ya = (gy !== null) ? gy : ny;
+          drawGuides(gx, gy);
+        }
+        node.style.left = (el.xa*s) + 'px';
+        node.style.top  = ((PAGE_H-el.ya)*s) + 'px';
+      } else {
+        // group move: translate every selected element by the same delta
+        if (grid) { dx = snap(dx); dy = snap(dy); }
+        orig.forEach(function(o){
+          o.m.xa = clampX(o.xa + dx); o.m.ya = clampY(o.ya + dy);
+          if (o.m.kind === 'line') { o.m.xb = clampX(o.xb + dx); o.m.yb = clampY(o.yb + dy); }
+        });
+        render();
       }
-      node.style.left = (el.xa*s) + 'px';
-      node.style.top  = ((PAGE_H-el.ya)*s) + 'px';
       syncProps();
     }
     function onUp() {
@@ -1832,13 +2286,13 @@ if ($menu == 'T') {
   // ---- smart alignment guides (snap to other elements' edges) --------------
   var SNAP_MM = 1.3;
   function snapTargetsX(self) {
-    var xs = [105];   // page centre
+    var xs = [105, MARGIN_MM, PAGE_W-MARGIN_MM];   // page centre + left/right margins
     elements.forEach(function(e){ if (e !== self && e.kind !== 'line') xs.push(e.xa); });
     if (table) table.cols.forEach(function(c){ xs.push(c.xa); });
     return xs;
   }
   function snapTargetsY(self) {
-    var ys = [];
+    var ys = [MARGIN_MM, PAGE_H-MARGIN_MM];         // top/bottom margins
     elements.forEach(function(e){ if (e !== self && e.kind !== 'line') ys.push(e.ya); });
     return ys;
   }
@@ -1898,6 +2352,7 @@ if ($menu == 'T') {
   function startDragLine(ev, el) {
     ev.preventDefault();
     select(el.id);
+    if (el._locked) return;   // locked line: selectable but not draggable
     var s = pxmm();
     var startX = ev.clientX, startY = ev.clientY;
     var oXa=el.xa,oYa=el.ya,oXb=el.xb,oYb=el.yb;
@@ -1944,6 +2399,7 @@ if ($menu == 'T') {
       setVal('fe-trows', Math.round(table.gen.count));
       setVal('fe-tspace', table.gen.spacing);
       setVal('fe-ttopy', table.gen.ya);
+      buildColStyleList();
       return;
     }
     tPropsBox.style.display='none';
@@ -1955,6 +2411,7 @@ if ($menu == 'T') {
     Array.prototype.slice.call(propsBox.querySelectorAll('[data-text-only]')).forEach(function(n){ n.style.display = (el.kind==='text')?'flex':'none'; });
     Array.prototype.slice.call(propsBox.querySelectorAll('[data-line-only]')).forEach(function(n){ n.style.display = (el.kind==='line')?'flex':'none'; });
     Array.prototype.slice.call(propsBox.querySelectorAll('[data-logo-only]')).forEach(function(n){ n.style.display = (el.kind==='logo')?'flex':'none'; });
+    var lk=document.getElementById('fe-lock'); if (lk) lk.checked = !!el._locked;
     syncProps();
     var cn = document.getElementById('fe-content');
     cn.innerHTML=''; if (el.kind==='text') cn.appendChild(contentNode(el, true));
@@ -2146,17 +2603,22 @@ if ($menu == 'T') {
     if ((e.ctrlKey||e.metaKey) && (e.key==='y'||e.key==='Y')) { e.preventDefault(); redo(); return; }
     if ((e.ctrlKey||e.metaKey) && (e.key==='z'||e.key==='Z')) { e.preventDefault(); undo(); return; }
     var inField = document.activeElement && (document.activeElement.tagName==='INPUT' || document.activeElement.tagName==='TEXTAREA' || document.activeElement.tagName==='SELECT');
-    if ((e.key==='Delete') && selId!==null && !inField) { e.preventDefault(); deleteSelected(); return; }
-    var el = elById(selId); if (!el) return;
+    if ((e.key==='Delete') && (selId!==null || selSet.length) && !inField) { e.preventDefault(); deleteSelected(); return; }
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.key)<0) return;
-    if (document.activeElement && document.activeElement.tagName==='INPUT') return;
+    if (inField) return;
+    var movers = ((selSet.length>1) ? selSet.map(elById).filter(Boolean)
+               : (elById(selId) ? [elById(selId)] : [])).filter(function(el){ return !el._locked; });
+    if (!movers.length) return;
     e.preventDefault();
     var step = e.shiftKey ? 5 : 0.5;
+    var dx=0, dy=0;
+    if (e.key==='ArrowUp') dy=step; else if (e.key==='ArrowDown') dy=-step;
+    else if (e.key==='ArrowLeft') dx=-step; else dx=step;   // ArrowRight
     pushUndo();
-    if (e.key==='ArrowUp')    { el.ya=clampY(el.ya+step); if(el.kind==='line') el.yb=clampY(el.yb+step); }
-    if (e.key==='ArrowDown')  { el.ya=clampY(el.ya-step); if(el.kind==='line') el.yb=clampY(el.yb-step); }
-    if (e.key==='ArrowLeft')  { el.xa=clampX(el.xa-step); if(el.kind==='line') el.xb=clampX(el.xb-step); }
-    if (e.key==='ArrowRight') { el.xa=clampX(el.xa+step); if(el.kind==='line') el.xb=clampX(el.xb+step); }
+    movers.forEach(function(el){
+      el.xa=clampX(el.xa+dx); el.ya=clampY(el.ya+dy);
+      if(el.kind==='line'){ el.xb=clampX(el.xb+dx); el.yb=clampY(el.yb+dy); }
+    });
     render(); syncProps(); markDirty();
   });
 
@@ -2164,13 +2626,13 @@ if ($menu == 'T') {
     if (!undoStack.length) return;
     redoStack.push(snapshot());
     restore(undoStack.pop());
-    selId = null; render(); showProps(); markDirty();
+    selId = null; selSet = []; render(); showProps(); updateAlignBar(); markDirty();
   }
   function redo() {
     if (!redoStack.length) return;
     undoStack.push(snapshot());
     restore(redoStack.pop());
-    selId = null; render(); showProps(); markDirty();
+    selId = null; selSet = []; render(); showProps(); updateAlignBar(); markDirty();
   }
   document.getElementById('fe-undo').addEventListener('click', undo);
   var _redoBtn = document.getElementById('fe-redo'); if (_redoBtn) _redoBtn.addEventListener('click', redo);
@@ -2178,10 +2640,15 @@ if ($menu == 'T') {
 
   // ---- dirty / save -------------------------------------------------------
   var dirty = false;
-  function markDirty(){ dirty=true; statusEl.textContent=L.unsaved; statusEl.style.color='#b26a00'; }
+  function markDirty(){ dirty=true; statusEl.textContent=L.unsaved; statusEl.style.color='#b26a00'; scheduleAutosave(); }
   window.addEventListener('beforeunload', function(e){ if (dirty){ e.preventDefault(); e.returnValue=''; } });
 
   document.getElementById('fe-save').addEventListener('click', function(){
+    // quality guard: warn about unedited "New text" / empty placeholders going live
+    var ph = elements.filter(function(el){ return el.kind==='text' && (el.besk===NEW_TEXT || !String(el.besk||'').trim()); }).length;
+    if (ph > 0 && !window.confirm(ph + (DK_UI ? ' tomme/uredigerede tekstfelter (fx “Ny tekst”) kommer med på udskriften. Gem & aktivér alligevel?'
+                                             : ' empty/unedited text fields (e.g. “New text”) will appear on the print. Save & activate anyway?'))) return;
+    if (feClampText()) { render(); if (selId) syncProps(); }   // never save a title that would print off the top
     statusEl.textContent=L.saving; statusEl.style.color='#444';
     var payload = elements.map(function(el){
       return { id: el.id, art: el.art, xa: el.xa, ya: el.ya, xb: el.xb, yb: el.yb, str: el.str, color: el.color, justering: el.justering, fed: el.fed, kursiv: el.kursiv, besk: el.besk, font: el.font, side: el.side };
@@ -2189,7 +2656,7 @@ if ($menu == 'T') {
     if (table) {
       // generelt row: xa=row count, ya=top Y, xb=row spacing
       payload.push({ id: table.gen.id, art: 3, xa: table.gen.count, ya: table.gen.ya, xb: table.gen.spacing });
-      table.cols.forEach(function(c){ payload.push({ id: c.id, art: 3, xa: c.xa, ya: c.ya, xb: c.xb }); });
+      table.cols.forEach(function(c){ payload.push({ id: c.id, art: 3, xa: c.xa, ya: c.ya, xb: c.xb, color: c.color, justering: c.just, fed: c.fed }); });
     }
     var body = { form_nr: formNr, sprog: sprog, elements: payload, deleted: deletedIds };
     fetch('formeditor.php?fe_action=save', {
@@ -2197,7 +2664,7 @@ if ($menu == 'T') {
       body: JSON.stringify(body), credentials:'same-origin'
     }).then(function(r){ return r.json(); }).then(function(j){
       if (j && j.ok) {
-        dirty=false; deletedIds=[];
+        dirty=false; deletedIds=[]; clearAutosave();   // work is live now
         // patch newly-inserted elements with their real DB ids
         if (j.inserted) { elements.forEach(function(el){ if (el.id<=0 && j.inserted[el.id]!=null) el.id = j.inserted[el.id]; }); }
         hideDraftBanner();   // activating supersedes the draft (server deleted it)
@@ -2252,6 +2719,44 @@ if ($menu == 'T') {
     }).catch(function(){});
   });
 
+  // ---- autosave (Tier 3): local safety net so work survives a tab close ---
+  // Debounced snapshot to localStorage (client-only, never hits the server or
+  // goes live). On reload we offer to restore it. Cleared on Save & activate.
+  var AUTO_KEY = 'fe_autosave_' + formNr + '_' + String(sprog).replace(/[^A-Za-z0-9_]/g,'_');
+  var autosaveArmed = false, autosaveTimer = null, autoBanner = null;
+  function scheduleAutosave(){
+    if (!autosaveArmed) return;
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(function(){
+      try { localStorage.setItem(AUTO_KEY, JSON.stringify({ ts: Math.floor(Date.now()/1000), state: currentState() })); } catch(e){}
+    }, 1500);
+  }
+  function clearAutosave(){ try { localStorage.removeItem(AUTO_KEY); } catch(e){} }
+  function readAutosave(){ try { var s=JSON.parse(localStorage.getItem(AUTO_KEY)||'null'); return (s&&s.state&&s.state.elements)?s:null; } catch(e){ return null; } }
+  function loadState(st){
+    if (st.elements) elements = st.elements;
+    if (st.table !== undefined) table = st.table;
+    deletedIds = st.deletedIds || [];
+    var minId=0; elements.forEach(function(el){ if(el.id<minId) minId=el.id; });
+    if (minId<0) nextTmpId = minId-1;
+    selId=null; selSet=[]; undoStack=[]; render(); showProps(); updateAlignBar(); markDirty();
+  }
+  function showAutosaveBanner(ts){
+    if (!autoBanner){
+      autoBanner=document.createElement('div'); autoBanner.id='fe-autosave-banner';
+      autoBanner.style.cssText='display:flex;align-items:center;gap:12px;padding:8px 14px;background:#fff8e1;border-bottom:1px solid #e6cf8b;color:#7a5a00;font-family:Arial,Helvetica,sans-serif;font-size:13px;';
+      var txt=document.createElement('span'); txt.id='fe-autosave-text';
+      var b1=document.createElement('button'); b1.type='button'; b1.className='fe-btn'; b1.style.cssText='background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;'; b1.textContent=DK_UI?'Gendan':'Restore';
+      var b2=document.createElement('button'); b2.type='button'; b2.className='fe-btn'; b2.style.cssText='border:1px solid #d9a1a1;color:#b23b3b;background:#fff;border-radius:3px;'; b2.textContent=DK_UI?'Kassér':'Discard';
+      autoBanner.appendChild(txt); autoBanner.appendChild(b1); autoBanner.appendChild(b2);
+      document.getElementById('fe-wrap').insertBefore(autoBanner, document.getElementById('fe-main'));
+      b1.addEventListener('click', function(){ var s=readAutosave(); if(s){ loadState(s.state); flashStatus(DK_UI?'Gendannet – Gem & aktivér for at gå live':'Restored – Save & activate to go live','#2a7d2a'); } autoBanner.style.display='none'; });
+      b2.addEventListener('click', function(){ clearAutosave(); autoBanner.style.display='none'; });
+    }
+    document.getElementById('fe-autosave-text').textContent = (DK_UI?'Du har ugemte ændringer fra ':'You have unsaved changes from ')+fmtTs(ts)+'.';
+    autoBanner.style.display='flex';
+  }
+
   // ---- reset this form + variant to Saldi's standard ----------------------
   document.getElementById('fe-reset').addEventListener('click', function(){
     if (!window.confirm(L.resetConfirm)) return;
@@ -2269,15 +2774,166 @@ if ($menu == 'T') {
 
   // ---- toolbar ------------------------------------------------------------
   var zEl = document.getElementById('fe-zoom'), zVal=document.getElementById('fe-zoom-val');
+  function setZoom(z){
+    z = Math.max(0.5, Math.min(2.0, z));
+    zoom = z;
+    var pct = Math.round(z*100);
+    zEl.value = pct; zVal.textContent = pct+'%';
+    render();
+  }
+  function fitZoom(widthOnly){
+    var sc=document.getElementById('fe-canvas-scroll'); if(!sc) return;
+    var pad=24, avW=sc.clientWidth-2*pad, avH=sc.clientHeight-2*pad;
+    var zw = avW/(PAGE_W*BASE_PXMM), zh = avH/(PAGE_H*BASE_PXMM);
+    setZoom(widthOnly ? zw : Math.min(zw, zh));
+  }
   zEl.addEventListener('input', function(){ zoom=parseInt(zEl.value,10)/100; zVal.textContent=zEl.value+'%'; render(); });
+  document.getElementById('fe-zoom-fit').addEventListener('click', function(){ fitZoom(false); });
+  document.getElementById('fe-zoom-width').addEventListener('click', function(){ fitZoom(true); });
+  document.getElementById('fe-zoom-100').addEventListener('click', function(){ setZoom(1.0); });
+
+  // ---- Help & keyboard-shortcuts card (Tier 3) ----------------------------
+  var helpModal=null;
+  function buildHelpModal(){
+    if(helpModal) return helpModal;
+    var DA=DK_UI;
+    function row(k,v){ return '<tr><td class="k">'+k+'</td><td>'+v+'</td></tr>'; }
+    var shortcuts='<table class="fe-help-tbl">'
+      + row('Ctrl+Z / Ctrl+Y', DA?'Fortryd / Gentag':'Undo / Redo')
+      + row(DA?'Piletaster':'Arrow keys', DA?'Flyt 0,5&nbsp;mm (Shift = 5&nbsp;mm)':'Move 0.5&nbsp;mm (Shift = 5&nbsp;mm)')
+      + row('Delete', DA?'Slet det valgte':'Delete selected')
+      + row('Shift + '+(DA?'klik':'click'), DA?'Vælg flere felter':'Add to selection')
+      + row(DA?'Træk på tomt ark':'Drag on empty sheet', DA?'Ramme-vælg flere':'Rubber-band select')
+      + '</table>';
+    var feats='<table class="fe-help-tbl">'
+      + row(DA?'Skabeloner':'Templates', DA?'Færdige udseender + brand-farver/skrift':'Ready looks + brand colours/fonts')
+      + row(DA?'Linealer':'Rulers', DA?'mm-skala + marginer at snappe til':'mm scale + margins to snap to')
+      + row(DA?'Felter':'Fields', DA?'Søg &amp; vælg ethvert element (også skjulte)':'Search &amp; select any element (even hidden)')
+      + row(DA?'Gitter':'Grid', DA?'5&nbsp;mm snap-gitter':'5&nbsp;mm snap grid')
+      + row(DA?'Vis kladde':'Show draft', DA?'Forhåndsvis med eksempeldata':'Preview with sample data')
+      + '</table>';
+    helpModal=document.createElement('div'); helpModal.id='fe-help-modal'; helpModal.style.display='none';
+    helpModal.innerHTML='<div class="fe-dlg" style="width:560px;">'
+      +'<div class="fe-dlg-head"><span>&#63;&nbsp; '+(DA?'Hjælp':'Help')+'</span><button type="button" class="fe-x" id="fe-help-close" title="'+(DA?'Luk':'Close')+'">&times;</button></div>'
+      +'<div class="fe-dlg-body"><div class="fe-help-cols">'
+      +'<div><h4>'+(DA?'Tastaturgenveje':'Keyboard shortcuts')+'</h4>'+shortcuts+'</div>'
+      +'<div><h4>'+(DA?'Funktioner':'Features')+'</h4>'+feats+'</div>'
+      +'</div><div class="fe-dlg-sub" style="margin-top:12px;">'+(DA?'Tip: intet går live før du trykker “Gem &amp; aktivér”.':'Tip: nothing goes live until you press “Save &amp; activate”.')+'</div>'
+      +'</div><div class="fe-dlg-foot"><button type="button" class="fe-btn" id="fe-help-done" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:3px;">'+(DA?'Luk':'Close')+'</button></div></div>';
+    document.getElementById('fe-wrap').appendChild(helpModal);
+    function close(){ helpModal.style.display='none'; }
+    helpModal.addEventListener('mousedown', function(e){ if(e.target===helpModal) close(); });
+    helpModal.querySelector('#fe-help-close').addEventListener('click', close);
+    helpModal.querySelector('#fe-help-done').addEventListener('click', close);
+    return helpModal;
+  }
+  document.getElementById('fe-help-btn').addEventListener('click', function(){ buildHelpModal().style.display='flex'; });
+
+  // ---- text style presets (Tier 3+): one-click typographic styles ---------
+  var TEXT_PRESETS = {
+    title:   { str:24, fed:1, color:'ACCENT' },
+    heading: { str:14, fed:1, color:'ACCENT' },
+    label:   { str:10, fed:1, color:'TEXT'   },
+    body:    { str:10, fed:0, color:'TEXT'   },
+    total:   { str:11, fed:1, color:'TEXT'   },
+    fine:    { str:8,  fed:0, color:'#888888' }
+  };
+  function applyTextPreset(name){
+    var p = TEXT_PRESETS[name]; if(!p) return;
+    var targets = (selSet.length>1)
+      ? selSet.map(elById).filter(function(e){ return e && e.kind==='text'; })
+      : (function(){ var e=elById(selId); return (e && e.kind==='text') ? [e] : []; })();
+    if(!targets.length) return;
+    pushUndo();
+    targets.forEach(function(el){
+      el.str = p.str; el.fed = p.fed;
+      var col = feResolveColor(p.color, null); if(col!=null) el.color = feHexNum(col);
+    });
+    render(); syncProps(); markDirty();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#fe-style-presets .fe-sp'), function(b){
+    b.addEventListener('click', function(){ applyTextPreset(b.getAttribute('data-sp')); });
+  });
+
+  function feTextTargets(){
+    return (selSet.length>1) ? selSet.map(elById).filter(function(e){ return e && e.kind==='text'; })
+      : (function(){ var e=elById(selId); return (e && e.kind==='text') ? [e] : []; })();
+  }
+  // Snap-to-page: align selected text to the left margin / page centre / right margin
+  function snapToPage(mode){
+    var t=feTextTargets(); if(!t.length) return;
+    pushUndo();
+    t.forEach(function(el){
+      if(mode==='left'){ el.xa=MARGIN_MM; el.justering='V'; }
+      else if(mode==='center'){ el.xa=PAGE_W/2; el.justering='C'; }
+      else if(mode==='right'){ el.xa=PAGE_W-MARGIN_MM; el.justering='H'; }
+    });
+    render(); syncProps(); markDirty();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#fe-page-align .fe-sp'), function(b){
+    b.addEventListener('click', function(){ snapToPage(b.getAttribute('data-pa')); });
+  });
+  // Format painter: copy one text's look, paint it onto others
+  var copiedStyle=null;
+  function copyStyle(){
+    var e=elById(selId); if(!e||e.kind!=='text') return;
+    copiedStyle={ str:e.str, fed:e.fed, kursiv:e.kursiv, color:e.color, font:e.font, justering:e.justering };
+    var pb=document.getElementById('fe-pastestyle'); if(pb) pb.disabled=false;
+    flashStatus(DK_UI?'Stil kopieret – vælg felter og indsæt':'Style copied – select fields and paste','#1769ff');
+  }
+  function pasteStyle(){
+    if(!copiedStyle) return; var t=feTextTargets(); if(!t.length) return;
+    pushUndo();
+    t.forEach(function(el){ el.str=copiedStyle.str; el.fed=copiedStyle.fed; el.kursiv=copiedStyle.kursiv;
+      el.color=copiedStyle.color; el.font=copiedStyle.font; el.justering=copiedStyle.justering; });
+    render(); syncProps(); markDirty();
+  }
+  var _cs=document.getElementById('fe-copystyle'); if(_cs) _cs.addEventListener('click', copyStyle);
+  var _ps=document.getElementById('fe-pastestyle'); if(_ps) _ps.addEventListener('click', pasteStyle);
+  // Lock: freeze an element so it can't be dragged/nudged/deleted (session only)
+  var _lock=document.getElementById('fe-lock');
+  if(_lock) _lock.addEventListener('change', function(){ var el=elById(selId); if(!el) return; el._locked=this.checked; render(); });
+  // Reveal all: briefly flash every element's outline
+  function flashAllFields(){ page.classList.add('fe-reveal'); setTimeout(function(){ page.classList.remove('fe-reveal'); }, 1400); }
+
+  // Per-column table styling: alignment (L/C/R) + bold for each order-line column
+  function buildColStyleList(){
+    var host=document.getElementById('fe-tcols'); if(!host||!table||!table.cols) return;
+    host.innerHTML='';
+    table.cols.forEach(function(c){
+      var row=document.createElement('div'); row.className='fe-tc-row';
+      var nm=document.createElement('span'); nm.className='fe-tc-name'; nm.textContent=c.label||c.type; nm.title=c.label||c.type; row.appendChild(nm);
+      [['V','L'],['C','C'],['H','R']].forEach(function(a){
+        var b=document.createElement('button'); b.type='button'; b.className='fe-tc-btn'+(c.just===a[0]?' on':''); b.textContent=a[1];
+        b.addEventListener('click', function(){ pushUndo(); c.just=a[0]; markDirty(); render(); buildColStyleList(); });
+        row.appendChild(b);
+      });
+      var bb=document.createElement('button'); bb.type='button'; bb.className='fe-tc-btn'+(c.fed?' on':''); bb.textContent='B'; bb.style.fontWeight='bold';
+      bb.addEventListener('click', function(){ pushUndo(); c.fed=c.fed?0:1; markDirty(); render(); buildColStyleList(); });
+      row.appendChild(bb);
+      host.appendChild(row);
+    });
+  }
   document.getElementById('fe-grid-toggle').addEventListener('change', function(e){ grid=e.target.checked; render(); });
+  document.getElementById('fe-ruler-toggle').addEventListener('change', function(e){ rulersOn=e.target.checked; render(); });
+  (function(){ var sc=document.getElementById('fe-canvas-scroll');
+    if (sc) sc.addEventListener('scroll', function(){ if (rulersOn) drawRulers(); }); })();
+  window.addEventListener('resize', function(){ if (rulersOn) drawRulers(); });
+  document.getElementById('fe-fields-btn').addEventListener('click', function(){ toggleFields(); });
+  var _bgDim=document.getElementById('fe-bgdim-toggle');
+  if(_bgDim) _bgDim.addEventListener('change', function(e){ page.classList.toggle('fe-bg-dim', e.target.checked); });
 
   // Show draft: toggle preview (sample data, clean look, no editing chrome)
   document.getElementById('fe-preview').addEventListener('click', function(){
     previewMode = !previewMode;
     this.classList.toggle('fe-active', previewMode);
     page.classList.toggle('fe-preview', previewMode);
-    if (previewMode) { selId = null; showProps(); }
+    if (previewMode) {
+      selId = null; selSet = []; showProps(); updateAlignBar();
+      if (fieldsDrawer) fieldsDrawer.style.display = 'none';   // clean WYSIWYG preview
+    } else if (fieldsOpen && fieldsDrawer) {
+      fieldsDrawer.style.display = 'flex';                     // restore the panel
+    }
     flashStatus(previewMode ? PREVIEW_ON : '', previewMode ? '#1769ff' : '#444');
     render();
   });
@@ -2295,7 +2951,461 @@ if ($menu == 'T') {
     }
   });
 
-  page.addEventListener('mousedown', function(e){ if (drawLineMode) return; if (e.target===page || e.target===gridC) { selId=null; highlight(); showProps(); } });
+  // Empty-canvas mousedown: rubber-band select (drag) or clear (plain click).
+  page.addEventListener('mousedown', function(e){
+    if (drawLineMode) return;
+    if (!(e.target===page || e.target===gridC || (e.target.classList && e.target.classList.contains('fe-bg')))) return;
+    var s=pxmm(), rect=page.getBoundingClientRect();
+    var x0=e.clientX, y0=e.clientY, dragged=false;
+    var band=document.createElement('div'); band.className='fe-rubber'; page.appendChild(band);
+    function mv(ev){
+      if (Math.abs(ev.clientX-x0)+Math.abs(ev.clientY-y0) > 3) dragged=true;
+      var Lx=Math.min(x0,ev.clientX)-rect.left, Ty=Math.min(y0,ev.clientY)-rect.top;
+      band.style.left=Lx+'px'; band.style.top=Ty+'px';
+      band.style.width=Math.abs(ev.clientX-x0)+'px'; band.style.height=Math.abs(ev.clientY-y0)+'px';
+    }
+    function up(ev){
+      document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); band.remove();
+      if (!dragged){ select(null); return; }
+      var xL=(Math.min(x0,ev.clientX)-rect.left)/s, xR=(Math.max(x0,ev.clientX)-rect.left)/s;
+      var yTop=PAGE_H-(Math.min(y0,ev.clientY)-rect.top)/s, yBot=PAGE_H-(Math.max(y0,ev.clientY)-rect.top)/s;
+      var ids=[];
+      elements.forEach(function(el){ if (el.kind==='logo') return;
+        if (el.xa>=xL && el.xa<=xR && el.ya<=yTop && el.ya>=yBot) ids.push(el.id); });
+      if (ev.shiftKey){ ids.forEach(function(id){ if(!selHas(id)) selSet.push(id); });
+        selId=selSet.length?selSet[selSet.length-1]:null; highlight(); showProps(); updateAlignBar(); }
+      else setSel(ids);
+    }
+    document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+  });
+
+  // ---- Templates & brand (Tier 1) -----------------------------------------
+  // A "theme" is a client-side restyle over the elements already loaded: it sets
+  // font / colour / weight / line width per element ROLE. Nothing is inserted or
+  // deleted, so it is idempotent, works on every form + variant, is fully
+  // undoable and only persists through the normal Save path.
+  var designTheme  = null;          // null until the user picks one
+  var designAccent = '#000066';     // brand accent — headings/emphasis
+  var designText   = '#2b2b2b';     // body text — labels, values, order lines
+  var designFont   = 'Helvetica';   // PostScript base family
+  var FE_PALETTES = [
+    { name: DK_UI?'Marineblå':'Navy',        hex:'#000066' },
+    { name: DK_UI?'Klar blå':'Bright blue',  hex:'#1769ff' },
+    { name: DK_UI?'Petrol':'Teal',           hex:'#0f766e' },
+    { name: DK_UI?'Skovgrøn':'Forest',       hex:'#2e7d32' },
+    { name: DK_UI?'Blomme':'Plum',           hex:'#6d28d9' },
+    { name: DK_UI?'Rødvin':'Bordeaux',       hex:'#b23b3b' },
+    { name: DK_UI?'Rust':'Rust',             hex:'#c2410c' },
+    { name: DK_UI?'Grafit':'Graphite',       hex:'#333333' }
+  ];
+  // curated accent+text pairs — one click to a harmonious, professional look
+  var FE_SCHEMES = [
+    { name:(DK_UI?'Marine':'Navy'),        a:'#1b3a5b', t:'#22303f' },
+    { name:(DK_UI?'Grafit':'Graphite'),    a:'#3a4657', t:'#1f2430' },
+    { name:(DK_UI?'Skov':'Forest'),        a:'#245c3b', t:'#26332b' },
+    { name:(DK_UI?'Petrol':'Teal'),        a:'#0f6e6a', t:'#1b3936' },
+    { name:(DK_UI?'Bordeaux':'Bordeaux'),  a:'#7a2233', t:'#2f2327' },
+    { name:(DK_UI?'Blomme':'Plum'),        a:'#5b2a6b', t:'#2c2233' },
+    { name:(DK_UI?'Rust':'Rust'),          a:'#b4531f', t:'#3a2a1e' },
+    { name:(DK_UI?'Guld & blæk':'Gold & Ink'), a:'#9a7b1f', t:'#1e2430' }
+  ];
+  feLoadPrefs();   // restore this customer's brand (accent + font) if saved
+
+  var THEME_META = [
+    { id:'classic',   name: DK_UI?'Klassisk':'Classic',     desc: DK_UI?'Traditionel, sort/hvid':'Traditional, black & white' },
+    { id:'modern',    name: DK_UI?'Moderne':'Modern',       desc: DK_UI?'Accentfarve & fede overskrifter':'Accent colour & bold headings' },
+    { id:'minimal',   name: DK_UI?'Minimal':'Minimal',      desc: DK_UI?'Tynde streger, luftigt':'Hairline rules, airy' },
+    { id:'bold',      name: DK_UI?'Kraftig':'Bold',         desc: DK_UI?'Stor titel, tung, høj kontrast':'Big title, heavy, high contrast' },
+    { id:'elegant',   name: DK_UI?'Elegant':'Elegant',      desc: DK_UI?'Serif, forfinet, luftig':'Serif, refined, airy' },
+    { id:'editorial', name: DK_UI?'Redaktionel':'Editorial',desc: DK_UI?'Serif-overskrift + god linjeafstand':'Serif heading + roomy spacing' },
+    { id:'centered',  name: DK_UI?'Centreret':'Centered',   desc: DK_UI?'Centreret brevhoved':'Centered letterhead' },
+    { id:'condensed', name: DK_UI?'Kompakt':'Condensed',    desc: DK_UI?'Tæt – plads til mange linjer':'Tight – fits many lines' },
+    { id:'colorful',  name: DK_UI?'Farverig':'Colourful',   desc: DK_UI?'Accentfarve overalt, livlig':'Accent everywhere, lively' },
+    { id:'hero',      name: DK_UI?'Stor titel':'Hero',      desc: DK_UI?'Kæmpe centreret titel':'Huge centred title' }
+  ];
+  // Roles that layout transforms may reposition/realign (always reversibly).
+  var FE_LAYOUT_ROLES = ['title','company'];
+  // Per role: color ('ACCENT' = brand accent), bold, optional font override
+  // ('Helvetica'/'Times'), optional scale (title size × baseline). Lines: color +
+  // width (pt). tableSpace = row-spacing multiplier for the order-line table.
+  // Colours: 'ACCENT' = user accent (headings/emphasis), 'TEXT' = user body colour
+  // (labels, values, order lines), or a fixed hex (rules / intentional shades).
+  var THEMES = {
+    classic: {
+      title:{color:'TEXT',bold:true,scale:1.0}, colheader:{color:'TEXT',bold:true},
+      total:{color:'TEXT',bold:false}, company:{color:'TEXT'},
+      body:{color:'TEXT'}, ruleHeader:{color:'#000000',width:1}, rule:{color:'#000000',width:1},
+      tableSpace:1.0
+    },
+    modern: {
+      title:{color:'ACCENT',bold:true,scale:1.15}, colheader:{color:'ACCENT',bold:true},
+      total:{color:'TEXT',bold:true}, company:{color:'ACCENT'},
+      body:{color:'TEXT'}, ruleHeader:{color:'ACCENT',width:2}, rule:{color:'#888888',width:1},
+      tableSpace:1.0
+    },
+    minimal: {
+      title:{color:'TEXT',bold:true,scale:1.0}, colheader:{color:'TEXT',bold:false},
+      total:{color:'TEXT',bold:true}, company:{color:'TEXT'},
+      body:{color:'TEXT'}, ruleHeader:{color:'#999999',width:0.3}, rule:{color:'#aaaaaa',width:0.3},
+      tableSpace:1.12
+    },
+    bold: {
+      title:{color:'ACCENT',bold:true,scale:1.45}, colheader:{color:'ACCENT',bold:true},
+      total:{color:'ACCENT',bold:true}, company:{color:'TEXT',bold:true},
+      body:{color:'TEXT'}, ruleHeader:{color:'ACCENT',width:3}, rule:{color:'#666666',width:1.5},
+      tableSpace:1.0
+    },
+    elegant: {
+      title:{color:'ACCENT',bold:false,scale:1.28,font:'Palatino'}, colheader:{color:'TEXT',bold:false,font:'Palatino'},
+      total:{color:'TEXT',bold:false,font:'Palatino'}, company:{color:'TEXT',font:'Palatino'},
+      body:{color:'TEXT',font:'Palatino'}, ruleHeader:{color:'#8a7a55',width:0.5}, rule:{color:'#c9bfa6',width:0.5},
+      tableSpace:1.14
+    },
+    editorial: {
+      title:{color:'ACCENT',bold:true,scale:1.32,font:'Times'}, colheader:{color:'ACCENT',bold:true},
+      total:{color:'TEXT',bold:true}, company:{color:'TEXT'},
+      body:{color:'TEXT'}, ruleHeader:{color:'ACCENT',width:1.5}, rule:{color:'#bbbbbb',width:0.4},
+      tableSpace:1.2
+    },
+    // --- way-different formats (layout / density, not just typography) --------
+    centered: {   // centered letterhead: title + sender block pulled to page centre
+      title:{color:'ACCENT',bold:true,scale:1.2}, colheader:{color:'ACCENT',bold:true},
+      total:{color:'TEXT',bold:true}, company:{color:'TEXT'},
+      body:{color:'TEXT'}, ruleHeader:{color:'ACCENT',width:1.5}, rule:{color:'#bbbbbb',width:0.5},
+      tableSpace:1.05,
+      layout:{ title:{align:'C',x:105}, company:{align:'C',x:105} }
+    },
+    condensed: { // small + tight, to fit long invoices on fewer pages
+      title:{color:'TEXT',bold:true,scale:1.0}, colheader:{color:'TEXT',bold:true,scale:0.9},
+      total:{color:'TEXT',bold:true,scale:0.9}, company:{color:'TEXT',scale:0.88},
+      body:{color:'TEXT',scale:0.88}, ruleHeader:{color:'#333333',width:0.5}, rule:{color:'#cccccc',width:0.3},
+      tableSpace:0.82
+    },
+    colorful: {  // accent colour used generously; lively
+      title:{color:'ACCENT',bold:true,scale:1.2}, colheader:{color:'ACCENT',bold:true},
+      total:{color:'ACCENT',bold:true}, company:{color:'ACCENT'},
+      body:{color:'TEXT'}, ruleHeader:{color:'ACCENT',width:2.5}, rule:{color:'ACCENT',width:1},
+      tableSpace:1.05
+    },
+    hero: {      // one huge centred title, everything else quiet
+      title:{color:'ACCENT',bold:true,scale:1.9}, colheader:{color:'TEXT',bold:false},
+      total:{color:'TEXT',bold:true}, company:{color:'TEXT'},
+      body:{color:'TEXT'}, ruleHeader:{color:'ACCENT',width:1}, rule:{color:'#dddddd',width:0.3},
+      tableSpace:1.1,
+      layout:{ title:{align:'C',x:105} }
+    }
+  };
+
+  var FE_COLWORDS = /(^|[^a-zæøå])(antal|beskrivelse|pris|sum|varenr|nummer|enhed|rabat|pos|stk|description|qty|price|amount|number|item|unit|disc)([^a-zæøå]|$)/i;
+  var FE_TOTWORDS = /(i alt|nettosum|moms|subtotal|netto|total|at betale|restg|grand total|balance)/i;
+  var FE_TOTVARS  = /formular_(sum|moms|ialt|momsgrundlag|transportsum)|forfalden_sum|rykker_gebyr/i;
+
+  function findTitleId(){
+    var best=null, bs=12.5;   // only a genuinely large text counts as the title
+    for (var i=0;i<elements.length;i++){ var el=elements[i];
+      if (el.kind==='text' && el.str>bs){ bs=el.str; best=el.id; } }
+    return best;
+  }
+  function feRole(el, titleId){
+    if (el.kind==='logo') return 'logo';
+    if (el.kind==='line'){
+      var horiz = Math.abs(el.ya-el.yb) < 0.5;
+      return (horiz && el.ya>=185) ? 'ruleHeader' : 'rule';
+    }
+    if (titleId!=null && el.id===titleId) return 'title';
+    var low = (el.besk||'').toLowerCase();
+    if (FE_TOTVARS.test(low)) return 'total';
+    if (table && table.gen){ var top=table.gen.ya;
+      if (el.ya>=top-2 && el.ya<=top+12 && FE_COLWORDS.test(low)) return 'colheader'; }
+    if (/\$e(get|gen)_/.test(low)) return 'company';
+    if (el.xa>=118 && FE_TOTWORDS.test(low)) return 'total';
+    return 'body';
+  }
+  // map a stored PostScript family to a CSS stack so the canvas previews it
+  function feCssFont(font){
+    if (font==='Times' || font==='Times-Roman') return '"Times New Roman", Times, serif';
+    if (font==='Palatino') return '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif';
+    if (font==='NewCenturySchlbk') return '"Century Schoolbook", "Century Schoolbook L", "TeX Gyre Schola", Georgia, serif';
+    if (font==='Courier') return '"Courier New", Courier, monospace';
+    if (font==='Ocrbb12') return '"OCR B", "OCRB", "Courier New", monospace';
+    return 'Helvetica, Arial, sans-serif';
+  }
+  function feHexNum(hex){ var r=hexToRgb(hex); return rgbToColorNum(r[0],r[1],r[2]); }
+  // 'ACCENT' = brand/heading colour, 'TEXT' = body colour, else a literal hex
+  function feResolveColor(c, fb){ if(c==null) return (fb!=null?fb:null); if(c==='ACCENT') return designAccent; if(c==='TEXT') return designText; return c; }
+  // blend two hex colours (t = weight of h1)
+  function feMix(h1,h2,t){ var a=hexToRgb(h1),b=hexToRgb(h2);
+    return rgbToHex([Math.round(a[0]*t+b[0]*(1-t)),Math.round(a[1]*t+b[1]*(1-t)),Math.round(a[2]*t+b[2]*(1-t))]); }
+  // a body-text colour that coordinates with the accent but stays readable:
+  // dark accents are used as-is (true match); bright ones are darkened, hue kept.
+  function feReadableText(hex){
+    var r=hexToRgb(hex), lum=0.2126*r[0]+0.7152*r[1]+0.0722*r[2];
+    return (lum<=72) ? hex : feMix(hex, '#242424', 0.42);   // dark accents kept; brighter ones darkened for body readability
+  }
+  function feStyleColor(st){ if(!st||st.color==null) return null; return feResolveColor(st.color, null); }
+  // Safety net: print draws text from its baseline upward, so a tall title whose
+  // baseline sits too near the top edge runs off the page. Reposition ONLY a text
+  // element that would genuinely overflow the top — anything already on the page
+  // is left exactly where it is (so nothing that currently prints fine is touched).
+  function feClampText(){
+    var changed=false;
+    for(var i=0;i<elements.length;i++){ var el=elements[i];
+      if(el.kind!=='text' || !(el.str>0)) continue;
+      var ascMm = el.str * PT_TO_MM * 0.82;         // ascent above the baseline
+      if((PAGE_H - el.ya) - ascMm < 0){             // text top is above the page edge
+        el.ya = Math.round((PAGE_H - 3 - ascMm)*100)/100;   // bring it back with a 3mm margin
+        changed=true;
+      }
+    }
+    return changed;
+  }
+
+  function applyDesign(){
+    if (!elements.length || !designTheme) return;
+    pushUndo();
+    var th = THEMES[designTheme] || THEMES.classic;
+    var titleId = findTitleId();
+    elements.forEach(function(el){
+      if (el.kind==='logo') return;              // logo is never restyled
+      var role = feRole(el, titleId);
+      var st = th[role];
+      if (el.kind==='text'){
+        if (el._str0==null)  el._str0  = el.str;         // baseline size (once)
+        if (el._xa0==null)   el._xa0   = el.xa;          // baseline x     (once)
+        if (el._just0==null) el._just0 = el.justering;   // baseline align (once)
+        el.font = (st && st.font) ? st.font : designFont;
+        // size is always derived from the baseline, so every theme is a clean,
+        // reversible reset (no scale on a role => back to original size).
+        var sc = (st && st.scale!=null) ? st.scale : 1;
+        el.str = Math.round(el._str0 * sc * 10) / 10;
+        // A large title is drawn from its baseline (ya) upward when printed, so a
+        // big font near the top can run off the top edge. Clamp the title down just
+        // enough to keep it on the page (reversible: small titles restore to ya0).
+        if (role==='title'){
+          if (el._ya0==null) el._ya0 = el.ya;
+          var maxYa = PAGE_H - 5 - el.str * PT_TO_MM * 0.82;   // top margin + font ascent above baseline
+          el.ya = Math.min(el._ya0, maxYa);                    // only moves down if it would overflow
+        }
+        if (!st) st = th.body;
+        if (st){
+          var col = feStyleColor(st); if (col!=null) el.color = feHexNum(col);
+          if (st.bold===true) el.fed=1; else if (st.bold===false) el.fed=0;
+        }
+        // layout: only title + sender block ever move, and always reversibly.
+        if (FE_LAYOUT_ROLES.indexOf(role) >= 0){
+          var lay = th.layout && th.layout[role];
+          if (lay){
+            if (lay.x!=null)  el.xa = lay.x;
+            if (lay.align)    el.justering = lay.align;
+          } else {                                       // theme has no layout => restore
+            el.xa = el._xa0; el.justering = el._just0;
+          }
+        }
+      } else if (el.kind==='line'){
+        if (!st) st = th.rule;
+        if (st){
+          var lcol = feStyleColor(st); if (lcol!=null) el.color = feHexNum(lcol);
+          if (st.width!=null) el.str = st.width;
+        }
+      }
+    });
+    // order-line table row spacing (reversible; baseline captured once)
+    if (table && table.gen && th.tableSpace!=null){
+      if (table.gen._space0==null) table.gen._space0 = table.gen.spacing;
+      table.gen.spacing = Math.round(table.gen._space0 * th.tableSpace * 10) / 10;
+    }
+    // order-line DATA colour follows the body Text colour (headers are art2 = accent)
+    if (table && table.cols){
+      var tcol = feHexNum(designText);
+      table.cols.forEach(function(c){ c.color = tcol; });
+    }
+    markDirty(); render(); if (selId) showProps();
+  }
+  function setTheme(id){
+    designTheme=id; applyDesign(); markActiveCard(); feSavePrefs();
+    var m=null; for(var i=0;i<THEME_META.length;i++) if(THEME_META[i].id===id) m=THEME_META[i];
+    if(m) flashStatus((DK_UI?'Skabelon: ':'Template: ')+m.name+' ✓','#1769ff');
+  }
+
+  // small live SVG preview of a theme applied to the CURRENT form
+  function themeThumb(name){
+    var th = THEMES[name] || THEMES.classic, s=0.5;
+    var W=(PAGE_W*s).toFixed(1), H=(PAGE_H*s).toFixed(1);
+    var titleId=findTitleId();
+    var p=['<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="background:#fff;border:1px solid #d5dae2;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.12)">'];
+    elements.forEach(function(el){
+      var role=feRole(el,titleId), y=(PAGE_H-el.ya)*s;
+      if (el.kind==='line'){
+        var st=th[role]||th.rule, col=feResolveColor(st&&st.color, '#333');
+        var w=(st&&st.width!=null)?st.width:1;
+        p.push('<line x1="'+(el.xa*s).toFixed(1)+'" y1="'+y.toFixed(1)+'" x2="'+(el.xb*s).toFixed(1)+'" y2="'+((PAGE_H-el.yb)*s).toFixed(1)+'" stroke="'+col+'" stroke-width="'+Math.max(0.35,w*0.5).toFixed(2)+'"/>');
+      } else if (el.kind==='logo'){
+        p.push('<rect x="'+(el.xa*s).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+Math.max(6,el.xb*s).toFixed(1)+'" height="'+Math.max(4,el.yb*s).toFixed(1)+'" rx="1" fill="#dfe5ee"/>');
+      } else {
+        var st2=th[role]||th.body, c2=feResolveColor(st2&&st2.color, '#444');
+        var txt=(el.besk||'').replace(/if\([^)]*\)/g,'').replace(/\$[a-z0-9_]+/gi,'xxxxxx').replace(/;/g,'');
+        var len=Math.max(3,Math.min(48,txt.length));
+        var base=(el._str0!=null?el._str0:el.str)||10;
+        var eff=base*((st2&&st2.scale!=null)?st2.scale:1);
+        // mirror the layout engine so centred/hero previews look right
+        var exa=el.xa, ejust=el.justering;
+        if (FE_LAYOUT_ROLES.indexOf(role) >= 0){
+          var bxa=(el._xa0!=null?el._xa0:el.xa), bj=(el._just0!=null?el._just0:el.justering);
+          var lay=th.layout && th.layout[role];
+          if (lay){ exa=(lay.x!=null?lay.x:bxa); ejust=lay.align||bj; } else { exa=bxa; ejust=bj; }
+        }
+        var w2=len*s*1.3, h2=Math.max(1.3, eff*0.353*s*1.05);
+        var x=exa*s; if (ejust==='H') x-=w2; else if (ejust==='C') x-=w2/2; if (x<0) x=0;
+        p.push('<rect x="'+x.toFixed(1)+'" y="'+(y-h2).toFixed(1)+'" width="'+w2.toFixed(1)+'" height="'+h2.toFixed(1)+'" rx="0.4" fill="'+c2+'" opacity="'+((st2&&st2.bold)?0.95:0.72)+'"/>');
+      }
+    });
+    p.push('</svg>'); return p.join('');
+  }
+
+  var designModal = document.getElementById('fe-design-modal');
+  function buildDesignCards(){
+    var host=document.getElementById('fe-theme-cards'); if(!host) return;
+    host.innerHTML='';
+    THEME_META.forEach(function(m){
+      var card=document.createElement('div');
+      card.className='fe-theme-card'+(m.id===designTheme?' active':'');
+      card.setAttribute('data-theme', m.id);
+      card.innerHTML='<div class="fe-tc-thumb">'+themeThumb(m.id)+'</div><div class="fe-tc-name">'+m.name+'</div><div class="fe-tc-desc">'+m.desc+'</div>';
+      card.addEventListener('click', function(){ setTheme(m.id); });
+      host.appendChild(card);
+    });
+  }
+  function markActiveCard(){
+    var host=document.getElementById('fe-theme-cards'); if(!host) return;
+    Array.prototype.forEach.call(host.children, function(c){
+      c.classList.toggle('active', c.getAttribute('data-theme')===designTheme);
+    });
+  }
+  function openDesign(){
+    if(!designModal) return;
+    if(accentInput) accentInput.value=designAccent;
+    if(textInput) textInput.value=designText;
+    if(fontSel) fontSel.value=designFont;
+    var fl=document.getElementById('fe-brand-fromlogo'); if(fl) fl.disabled=!LOGO_URL;
+    buildDesignCards(); updateSwatchActive(); updateFontSample();
+    designModal.style.display='flex';
+  }
+  function closeDesign(){ if(designModal) designModal.style.display='none'; }
+
+  var _dOpen=document.getElementById('fe-design-open'); if(_dOpen) _dOpen.addEventListener('click', openDesign);
+  var _dClose=document.getElementById('fe-design-close'); if(_dClose) _dClose.addEventListener('click', closeDesign);
+  var _dDone=document.getElementById('fe-design-done'); if(_dDone) _dDone.addEventListener('click', closeDesign);
+  if (designModal) designModal.addEventListener('mousedown', function(e){ if(e.target===designModal) closeDesign(); });
+
+  var accentInput=document.getElementById('fe-brand-accent');
+  var textInput=document.getElementById('fe-brand-text');
+  var fontSel=document.getElementById('fe-brand-font');
+  var swHost=document.getElementById('fe-brand-swatches');
+  var swTextHost=document.getElementById('fe-brand-text-swatches');
+  // readable dark body colours that echo the accent hues (navy/teal/green/plum/bordeaux/rust)
+  var FE_TEXT_SWATCHES=['#2b2b2b','#000000','#20304a','#123b38','#1c3a20','#33214d','#4a2323','#4a2a15'];
+
+  function feSavePrefs(){ try{ localStorage.setItem('fe_design', JSON.stringify({accent:designAccent, text:designText, font:designFont, theme:designTheme})); }catch(e){} }
+  function feLoadPrefs(){ try{ var p=JSON.parse(localStorage.getItem('fe_design')||'null'); if(p){ if(p.accent) designAccent=p.accent; if(p.text) designText=p.text; if(p.font && ['Helvetica','Times','Palatino','NewCenturySchlbk','Courier','Ocrbb12'].indexOf(p.font)>=0) designFont=p.font; } }catch(e){} }
+  function updateFontSample(){ var s=document.getElementById('fe-font-sample'); if(s){ s.style.fontFamily=feCssFont(designFont); s.style.color=designText; } }
+  function swatchSync(host, current){ if(!host) return; Array.prototype.forEach.call(host.children,function(b){
+    b.classList.toggle('active', (b.getAttribute('data-hex')||'').toLowerCase()===String(current).toLowerCase()); }); }
+  function updateSwatchActive(){ swatchSync(swHost, designAccent); swatchSync(swTextHost, designText); }
+  function setAccent(hex, apply){ designAccent=hex; if(accentInput) accentInput.value=hex; updateSwatchActive(); buildDesignCards(); if(apply){ applyDesign(); feSavePrefs(); } }
+  function setTextColor(hex, apply){ designText=hex; if(textInput) textInput.value=hex; updateSwatchActive(); updateFontSample(); buildDesignCards(); if(apply){ applyDesign(); feSavePrefs(); } }
+
+  if (accentInput){
+    accentInput.value=designAccent;
+    accentInput.addEventListener('input',  function(){ designAccent=accentInput.value; updateSwatchActive(); buildDesignCards(); });
+    accentInput.addEventListener('change', function(){ setAccent(accentInput.value, true); });
+  }
+  if (textInput){
+    textInput.value=designText;
+    textInput.addEventListener('input',  function(){ designText=textInput.value; updateSwatchActive(); updateFontSample(); buildDesignCards(); });
+    textInput.addEventListener('change', function(){ setTextColor(textInput.value, true); });
+  }
+  if (fontSel){
+    fontSel.value=designFont;
+    fontSel.addEventListener('change', function(){ designFont=fontSel.value; updateFontSample(); applyDesign(); feSavePrefs(); });
+  }
+  if (swHost){
+    FE_PALETTES.forEach(function(p){
+      var b=document.createElement('span'); b.className='fe-swatch'; b.style.background=p.hex;
+      b.title=p.name; b.setAttribute('data-hex', p.hex);
+      b.addEventListener('click', function(){ setAccent(p.hex, true); });
+      swHost.appendChild(b);
+    });
+  }
+  if (swTextHost){
+    FE_TEXT_SWATCHES.forEach(function(hex){
+      var b=document.createElement('span'); b.className='fe-swatch'; b.style.background=hex;
+      b.title=hex; b.setAttribute('data-hex', hex);
+      b.addEventListener('click', function(){ setTextColor(hex, true); });
+      swTextHost.appendChild(b);
+    });
+  }
+  // 🌐 Match accent — derive a readable dark body colour from the current accent
+  var _textMatch=document.getElementById('fe-text-match');
+  if(_textMatch) _textMatch.addEventListener('click', function(){
+    setTextColor(feReadableText(designAccent), true);
+    flashStatus(DK_UI?'Tekstfarve afstemt med accent':'Text colour matched to accent','#1769ff');
+  });
+
+  // one-click coordinated colour schemes (sets accent + text together)
+  function setScheme(a, t){
+    designAccent=a; designText=t;
+    if(accentInput) accentInput.value=a;
+    if(textInput)   textInput.value=t;
+    if(!designTheme){ designTheme='modern'; markActiveCard(); }   // so the colours are visible
+    updateSwatchActive(); updateFontSample(); buildDesignCards();
+    applyDesign(); feSavePrefs();
+  }
+  var schemeHost=document.getElementById('fe-schemes');
+  if(schemeHost){
+    FE_SCHEMES.forEach(function(s){
+      var c=document.createElement('div'); c.className='fe-scheme'; c.title=s.name;
+      c.innerHTML='<div class="sw"><i style="background:'+s.a+'"></i><i class="t" style="background:'+s.t+'"></i></div><div class="nm">'+s.name+'</div>';
+      c.addEventListener('click', function(){ setScheme(s.a, s.t); flashStatus((DK_UI?'Farvesæt: ':'Scheme: ')+s.name,'#1769ff'); });
+      schemeHost.appendChild(c);
+    });
+  }
+
+  // 🎯 From logo — sample the dominant vivid colour of the uploaded logo
+  var _fromLogo=document.getElementById('fe-brand-fromlogo');
+  if(_fromLogo) _fromLogo.addEventListener('click', function(){
+    if(!LOGO_URL) return;
+    var img=new Image();
+    img.onload=function(){
+      try{
+        var W=Math.min(96, img.naturalWidth||96), H=Math.min(96, img.naturalHeight||96);
+        var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+        var ctx=cv.getContext('2d'); ctx.drawImage(img,0,0,W,H);
+        var d=ctx.getImageData(0,0,W,H).data, buckets={};
+        for(var i=0;i<d.length;i+=4){
+          var r=d[i],g=d[i+1],b=d[i+2],a=d[i+3]; if(a<128) continue;
+          var mx=Math.max(r,g,b), mn=Math.min(r,g,b), sat=mx-mn, lum=(r+g+b)/3;
+          if(sat<28 || lum>238 || lum<18) continue;   // skip greys / near-white / near-black
+          var key=(r>>5)+'-'+(g>>5)+'-'+(b>>5);
+          var bk=buckets[key]||(buckets[key]={r:0,g:0,b:0,n:0,s:0});
+          bk.r+=r; bk.g+=g; bk.b+=b; bk.n++; bk.s+=sat;
+        }
+        var best=null, bestScore=-1;
+        for(var k in buckets){ var bk=buckets[k]; var score=bk.n*(bk.s/bk.n); if(score>bestScore){ bestScore=score; best=bk; } }
+        if(best){
+          var hex=rgbToHex([Math.round(best.r/best.n), Math.round(best.g/best.n), Math.round(best.b/best.n)]);
+          if(!designTheme){ designTheme='modern'; markActiveCard(); }   // so the colour is actually visible
+          setAccent(hex, true);
+          flashStatus('🎯 '+(DK_UI?'Accentfarve hentet fra logo':'Accent colour taken from logo'),'#1769ff');
+        } else {
+          flashStatus(DK_UI?'Ingen tydelig farve i logoet':'No clear colour found in the logo','#b26a00');
+        }
+      }catch(e){ flashStatus(DK_UI?'Kunne ikke læse logoet':'Could not read the logo','#b26a00'); }
+    };
+    img.onerror=function(){ flashStatus(DK_UI?'Kunne ikke indlæse logoet':'Could not load the logo','#b26a00'); };
+    img.src=LOGO_URL;
+  });
+
+  updateFontSample();
 
   // ---- right-click context menu -------------------------------------------
   var ctx = document.createElement('div'); ctx.id='fe-ctx'; ctx.style.display='none'; document.body.appendChild(ctx);
@@ -2356,6 +3466,8 @@ if ($menu == 'T') {
   if (!elements.length) { statusEl.textContent=L.noel; }
   // Offer to continue a saved draft (working state not yet activated).
   if (FE_DRAFT && FE_DRAFT.state) { showDraftBanner(FE_DRAFT.ts); }
+  else { var _as = readAutosave(); if (_as) showAutosaveBanner(_as.ts); }   // else offer local autosave
+  autosaveArmed = true;   // arm only after init (so the initial auto-translation isn't autosaved)
 })();
 </script>
 
