@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_transaktioner.php --- patch 5.0.0 --- 2026-07-16 ---
+// --- finans/rapport_includes/moms_transaktioner.php --- patch 5.0.0 --- 2026-07-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -164,13 +164,23 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
     if ($konto_fra) print " &nbsp;|&nbsp; Konto: $konto_fra" . ($konto_til && $konto_til != $konto_fra ? "–$konto_til" : '');
     print "</div>";
 
+    // Quarter shortcuts
+    $q_base = "rapport.php?rapportart=moms_transaktioner&regnaar=$regnaar&dato_fra=01&dato_til=31"
+            . "&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til"
+            . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
+    print "<div class='no-print' style='padding:2px 12px 6px; font-size:0.9em; color:#555;'>Genveje: ";
+    foreach (['Q1'=>[1,3],'Q2'=>[4,6],'Q3'=>[7,9],'Q4'=>[10,12]] as $ql => $qm) {
+        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$startaar&maaned_til={$qm[1]}&aar_til=$startaar' style='margin-right:8px;'>$ql</a>";
+    }
+    print "<a href='$q_base&maaned_fra=$startmaaned&aar_fra=$startaar&maaned_til=$slutmaaned&aar_til=$slutaar'>Hele &aring;ret</a></div>";
+
     // --- VAT code filter dropdown ---
     $all_codes = [];
     $q = db_select("SELECT DISTINCT kp.moms, g.beskrivelse FROM kontoplan kp"
                  . " LEFT JOIN (SELECT DISTINCT ON (art,kodenr) art, kodenr, beskrivelse FROM grupper"
                  . "   WHERE art IN ('SM','KM','YM','EM') ORDER BY art, kodenr, fiscal_year DESC NULLS LAST) g"
                  . " ON g.art = UPPER(SUBSTRING(kp.moms FROM 1 FOR 1)) || 'M'"
-                 . " AND g.kodenr = SUBSTRING(kp.moms FROM 2)"
+                 . " AND CAST(g.kodenr AS TEXT) = SUBSTRING(kp.moms FROM 2)"
                  . " WHERE kp.regnskabsaar = '$regnaar' AND kp.moms IS NOT NULL AND kp.moms != ''"
                  . " ORDER BY kp.moms", __FILE__." linje ".__LINE__);
     while ($r = db_fetch_array($q)) $all_codes[$r['moms']] = $r['beskrivelse'];

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/moms_periode.php --- patch 5.0.0 --- 2026-07-16 ---
+// --- finans/moms_periode.php --- patch 5.0.0 --- 2026-07-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,22 +55,50 @@ if ($_POST && $kan_aendre) {
     $action = if_isset($_POST, NULL, 'action');
     $aar    = (int)if_isset($_POST, NULL, 'aar');
     $maaned = (int)if_isset($_POST, NULL, 'maaned');
-    $now    = date('Y-m-d H:i:s');
+    $now         = date('Y-m-d H:i:s');
+    $safe_bruger = db_escape_string($brugernavn);
 
     if ($aar >= 2000 && $aar <= 2100 && $maaned >= 1 && $maaned <= 12) {
         if ($action === 'luk') {
-            db_modify("INSERT INTO moms_periode_luk (kalender_aar, kalender_maaned, status, lukket_af, lukket_dato)
-                VALUES ($aar, $maaned, 'closed', '$brugernavn', '$now')
-                ON CONFLICT (kalender_aar, kalender_maaned)
-                DO UPDATE SET status='closed', lukket_af='$brugernavn', lukket_dato='$now'",
+            // Check for unposted journal drafts dated in this month
+            $draft_advarsel = '';
+            $qd = db_select(
+                "SELECT COUNT(DISTINCT k.kladde_id) AS cnt FROM kassekladde k"
+                . " JOIN kladdeliste kl ON kl.id = k.kladde_id"
+                . " WHERE (kl.bogfort = '-' OR kl.bogfort = '!')"
+                . " AND EXTRACT(YEAR  FROM k.transdate::date) = $aar"
+                . " AND EXTRACT(MONTH FROM k.transdate::date) = $maaned",
                 __FILE__." linje ".__LINE__);
-            $msg = "Perioden $maaned-$aar er nu lukket.";
+            if ($rd = db_fetch_array($qd)) {
+                $cnt = (int)$rd['cnt'];
+                if ($cnt > 0)
+                    $draft_advarsel = " OBS: $cnt ikke-bogfoert kladde(r) med dato i denne periode vil ikke kunne bogfoeres foer perioden genaabnes.";
+            }
+
+            db_modify("INSERT INTO moms_periode_luk (kalender_aar, kalender_maaned, status, lukket_af, lukket_dato)
+                VALUES ($aar, $maaned, 'closed', '$safe_bruger', '$now')
+                ON CONFLICT (kalender_aar, kalender_maaned)
+                DO UPDATE SET status='closed', lukket_af='$safe_bruger', lukket_dato='$now'",
+                __FILE__." linje ".__LINE__);
+            $msg = "Perioden " . ucfirst($md[$maaned]) . " $aar er nu lukket.$draft_advarsel";
         } elseif ($action === 'aaben') {
             db_modify("UPDATE moms_periode_luk
-                SET status='open', aabnet_af='$brugernavn', aabnet_dato='$now'
+                SET status='open', aabnet_af='$safe_bruger', aabnet_dato='$now'
                 WHERE kalender_aar=$aar AND kalender_maaned=$maaned",
                 __FILE__." linje ".__LINE__);
-            $msg = "Perioden $maaned-$aar er nu aabnet.";
+            $msg = "Perioden " . ucfirst($md[$maaned]) . " $aar er nu aabnet.";
+        } elseif ($action === 'bulk_luk') {
+            $til = (int)if_isset($_POST, 0, 'bulk_til_maaned');
+            if ($til >= 1 && $til <= 12) {
+                for ($m = 1; $m <= $til; $m++) {
+                    db_modify("INSERT INTO moms_periode_luk (kalender_aar, kalender_maaned, status, lukket_af, lukket_dato)
+                        VALUES ($aar, $m, 'closed', '$safe_bruger', '$now')
+                        ON CONFLICT (kalender_aar, kalender_maaned)
+                        DO UPDATE SET status='closed', lukket_af='$safe_bruger', lukket_dato='$now'",
+                        __FILE__." linje ".__LINE__);
+                }
+                $msg = "Maanederne januar–" . ucfirst($md[$til]) . " $aar er nu lukket.";
+            }
         }
     }
     // redirect to avoid form resubmit on refresh
@@ -117,11 +145,27 @@ if (!$kan_aendre) {
 }
 
 // Year navigation
-print "<div style='margin-bottom:16px;'>";
+print "<div style='margin-bottom:12px;'>";
 print "<a href='moms_periode.php?vis_aar=" . ($vis_aar - 1) . "'>&laquo; " . ($vis_aar - 1) . "</a> &nbsp;";
 print "<b>$vis_aar</b> &nbsp;";
 print "<a href='moms_periode.php?vis_aar=" . ($vis_aar + 1) . "'>" . ($vis_aar + 1) . " &raquo;</a>";
 print "</div>";
+
+// Bulk lock
+if ($kan_aendre) {
+    print "<form method='POST' style='margin-bottom:16px; display:inline-block;'>";
+    print "<input type='hidden' name='action' value='bulk_luk'>";
+    print "<input type='hidden' name='aar' value='$vis_aar'>";
+    print "<input type='hidden' name='vis_aar' value='$vis_aar'>";
+    print "Luk alle maaneder op til: <select name='bulk_til_maaned' style='margin:0 6px;'>";
+    for ($m = 1; $m <= 12; $m++) {
+        print "<option value='$m'>" . ucfirst($md[$m]) . " $vis_aar</option>";
+    }
+    print "</select>";
+    print "<button type='submit' onclick=\"return confirm('Luk alle maaneder op til den valgte? Allerede lukkede maaneder forbliver lukket.');\" "
+        . "style='background:#dc3545; color:#fff; border:none; padding:4px 10px; cursor:pointer; border-radius:3px;'>Masselos</button>";
+    print "</form>";
+}
 
 print "<table border='0' cellspacing='1' cellpadding='6' style='border-collapse:collapse; min-width:600px;'>";
 print "<thead><tr style='background:#eeeef0;'>";

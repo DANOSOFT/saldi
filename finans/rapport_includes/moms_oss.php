@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_oss.php --- patch 5.0.0 --- 2026-07-17 ---
+// --- finans/rapport_includes/moms_oss.php --- patch 5.0.0 --- 2026-07-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -96,7 +96,13 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
               . "&ansat_fra=$ansat_fra&ansat_til=$ansat_til"
               . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til"
               . "&simulering=$simulering&lagerbev=$lagerbev";
-    $csv_btn  = "<a href='$csvfile' style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
+    $csv_btn   = "<a href='$csvfile' style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
+    $print_btn = "<button onclick='window.print()' style='background:transparent;border:none;color:#fff;cursor:pointer;padding:0;'><i class='fa fa-print'></i> Print</button>";
+    print "<style>@media print{"
+        . ".no-print,button,form,a[href*='rapport.php'],a[href*='confirmClose']{display:none!important}"
+        . "table{page-break-inside:auto}tr{page-break-inside:avoid}"
+        . "body,div{font-size:10pt}"
+        . "}</style>";
 
     include("../includes/topline_settings.php");
 
@@ -116,7 +122,8 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         print "<td width='5%'><a href=\"javascript:confirmClose('$back_url','')\" accesskey=L>"
             . "<button class='headerbtn' type='button' style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px;'>"
             . "$back_icon Tilbage</button></a></td>";
-        print "<td width='85%' align='center' style='$topStyle'>OSS B2C EU-salg</td>";
+        print "<td width='80%' align='center' style='$topStyle'>OSS B2C EU-salg</td>";
+        print "<td width='5%' align='center' style='$buttonStyle'>$print_btn</td>";
         print "<td width='10%' align='center' style='$buttonStyle'>$csv_btn</td>";
         print "</tbody></table></td></tr></tbody></table>";
     } else {
@@ -133,6 +140,16 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $firmanavn = $row ? $row['firmanavn'] : '';
     print "<div style='padding:8px 12px;'><big><b>$firmanavn</b></big><br>";
     print "Periode: " . dkdato($regnstart) . " – " . dkdato($regnslut) . "</div>";
+
+    // Quarter shortcuts
+    $q_base = "rapport.php?rapportart=moms_oss&regnaar=$regnaar&dato_fra=01&dato_til=31"
+            . "&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd"
+            . "&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
+    print "<div class='no-print' style='padding:2px 12px 6px; font-size:0.9em; color:#555;'>Genveje: ";
+    foreach (['Q1'=>[1,3],'Q2'=>[4,6],'Q3'=>[7,9],'Q4'=>[10,12]] as $ql => $qm) {
+        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$startaar&maaned_til={$qm[1]}&aar_til=$startaar' style='margin-right:8px;'>$ql</a>";
+    }
+    print "<a href='$q_base&maaned_fra=$startmaaned&aar_fra=$startaar&maaned_til=$slutmaaned&aar_til=$slutaar'>Hele &aring;ret</a></div>";
 
     // Check if any OSS codes are configured
     $has_oss = db_fetch_array(db_select(
