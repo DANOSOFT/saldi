@@ -25,6 +25,8 @@
 // ----------------------------------------------------------------------
 // 20260507 NTR - Added batch invoice matching (this)
 // 20260513 PK - Changed padding from 20px to 8px
+// 20260720 Sawaneh Pre-check a row only when both amount and date match, via the
+//                new popupManager isRowChecked predicate.
 ?>
 
 <script src='../javascript/popupManager.js'></script>
@@ -90,6 +92,8 @@
     }
     
     const popuper = new PopupManager(columns, popupStyle, AttachAll, "Attach selected");
+    // Only pre-check a row when both the amount and the date match.
+    popuper.isRowChecked = (row) => row.beloeb_match == 1 && row.date_match == 1;
     popuper.onResult.push(function(container){
         container.querySelectorAll('.autocomplete-item').forEach(element => {
             element.addEventListener('mouseover', function(e) { showPreview(element, e); });
