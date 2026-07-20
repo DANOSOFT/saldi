@@ -39,6 +39,18 @@
 // 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
 // 20260706 MJ Fix $id clobbering by contacts foreach loops; fix UPDATE adresser using wrong id; fix redirect after save; allow save when kontotype not yet set in DB
 // 20260707 MJ Fix primary email deletion on save; fix blank ordre after Account card → Luk
+// 20260717 SZ Added collapse/expand toggles (scrollable, glanceable summaries) for Ekstra e-mails
+//                and Kategorier; fixed purchase history grid's internal scrolling and default height
+// 20260717 SZ Replaced invoice overview's drag-to-resize handle with a plain click-to-toggle title
+//                (like Ekstra e-mails/Kategorier); moved Historik/Kontokort/Fakturaliste/Print buttons
+//                out of the grid's own footer so they stay visible when that section is collapsed
+// 20260717 SZ Added a row count to the invoice overview title; toggle now only hides the column
+//                headers/data rows, leaving the pagination footer visible (its controls submit their
+//                own <form> and can't safely be relocated); added sizePageLayout() so the page never
+//                needs a whole-page scrollbar
+// 20260717 SZ Replaced the fixed setTimeout grid-render guesses with waitForGridReady() polling;
+//                all three collapsible sections (Ekstra e-mails/Kategorier/Invoice overview) now
+//                persist their expand/collapse state in localStorage across page loads
 @session_start();
 $s_id = session_id();
 
@@ -1460,9 +1472,30 @@ print "</td></tr>\n";
 
 // Ekstra e-mails section header
 $extra_count = ($kontakt_email_count > 1) ? $kontakt_email_count - 1 : 0;
+$ke_initially_visible = 'none'; // always collapsed on load, matching da_collapsible convention
+
+// Glanceable summary of extra e-mails by type, so the collapsed header shows
+// something useful instead of just a total count.
+$ke_type_labels = array('tilbud' => 'Tilbud', 'ordre' => 'Ordre', 'faktura' => 'Faktura', 'kontoudtog' => 'Kontoudtog', 'rykker' => 'Rykker', 'andet' => 'Andet');
+$ke_type_counts = array();
+for ($ke_ci = 2; $ke_ci <= $kontakt_email_count; $ke_ci++) {
+	$ke_t = $kontakt_email_types[$ke_ci];
+	if (!isset($ke_type_counts[$ke_t])) $ke_type_counts[$ke_t] = 0;
+	$ke_type_counts[$ke_t]++;
+}
+$ke_summary_parts = array();
+foreach ($ke_type_labels as $ke_t_key => $ke_t_label) {
+	if (!empty($ke_type_counts[$ke_t_key])) $ke_summary_parts[] = $ke_type_counts[$ke_t_key] . ' ' . $ke_t_label;
+}
+$ke_summary_text = implode(', ', array_slice($ke_summary_parts, 0, 3));
+if (count($ke_summary_parts) > 3) $ke_summary_text .= ', ...';
+
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td style='vertical-align:top'>";
-print "<b>Ekstra e-mails</b> <small>(<span id='ekstra_email_count'>$extra_count</span>)</small>";
+print "<b>Ekstra e-mails</b> ";
+print "<a href='#' onclick='keToggle(); return false;' style='text-decoration:none; cursor:pointer;'>";
+print "<small>(<span id='ekstra_email_count'>$extra_count</span><span id='ke_summary_text'>" . ($ke_summary_text ? ": $ke_summary_text" : '') . "</span> <span id='ke_toggle_icon'>&#9660;</span>)</small>";
+print "</a>";
 print "</td><td>";
 print "<button type='button' onclick='addEmailRow()' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">+ Ny</button>";
 print "</td></tr>\n";
@@ -1480,11 +1513,11 @@ print "<input type='hidden' name='kontakt_emails_json' id='kontakt_emails_json' 
 
 // Display rows (visual only — data synced to hidden field on submit)
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td colspan=2><div id='ekstra_emails_container'>\n";
+print "<tr bgcolor=$bg id='ekstra_emails_row' style='display:{$ke_initially_visible};'><td colspan=2><div id='ekstra_emails_container' style='max-height:30vh; overflow-y:auto;'>\n";
 for ($em_i = 2; $em_i <= $kontakt_email_count; $em_i++) {
 	$idx = $em_i - 2;
 	print "<div class='ekstra-email-row' style='margin-bottom:3px;' data-db-id='" . $kontakt_email_ids[$em_i] . "'>";
-	print "<select class='inputbox ke-type' onchange=\"javascript:docChange = true;\">";
+	print "<select class='inputbox ke-type' onchange=\"docChange = true; updateEmailCount();\">";
 	$email_types = array('tilbud' => 'Tilbud', 'ordre' => 'Ordre', 'faktura' => 'Faktura/Kreditnota', 'kontoudtog' => 'Kontoudtog', 'rykker' => 'Rykker', 'andet' => 'Andet');
 	foreach ($email_types as $et_val => $et_label) {
 		$et_sel = ($kontakt_email_types[$em_i] == $et_val) ? ' selected' : '';
@@ -1520,7 +1553,7 @@ function addEmailRow() {
     row.style.marginBottom = '3px';
     row.setAttribute('data-db-id', '0');
     row.innerHTML =
-        "<select class='inputbox ke-type' onchange='docChange=true'>" +
+        "<select class='inputbox ke-type' onchange='docChange=true; updateEmailCount();'>" +
         "<option value='tilbud'>Tilbud</option>" +
         "<option value='ordre'>Ordre</option>" +
         "<option value='faktura'>Faktura/Kreditnota</option>" +
@@ -1533,19 +1566,112 @@ function addEmailRow() {
     container.appendChild(row);
     updateEmailCount();
     docChange = true;
+
+    // If the list is collapsed, expand it so the new row is visible
+    var keRow = document.getElementById('ekstra_emails_row');
+    if (keRow && keRow.style.display === 'none') keToggle();
 }
- 
+
 function removeEmailRow(el) {
     el.closest('.ekstra-email-row').remove();
     updateEmailCount();
     docChange = true;
 }
- 
+
 function updateEmailCount() {
     var rows = document.querySelectorAll('#ekstra_emails_container .ekstra-email-row');
     document.getElementById('ekstra_email_count').textContent = rows.length;
+
+    var labels = {tilbud: 'Tilbud', ordre: 'Ordre', faktura: 'Faktura', kontoudtog: 'Kontoudtog', rykker: 'Rykker', andet: 'Andet'};
+    var counts = {};
+    rows.forEach(function (row) {
+        var typeEl = row.querySelector('.ke-type');
+        if (!typeEl) return;
+        counts[typeEl.value] = (counts[typeEl.value] || 0) + 1;
+    });
+    var parts = [];
+    Object.keys(labels).forEach(function (key) {
+        if (counts[key]) parts.push(counts[key] + ' ' + labels[key]);
+    });
+    var summary = parts.slice(0, 3).join(', ') + (parts.length > 3 ? ', ...' : '');
+    var summaryEl = document.getElementById('ke_summary_text');
+    if (summaryEl) summaryEl.textContent = summary ? ': ' + summary : '';
 }
- 
+
+function keToggle() {
+    var row  = document.getElementById('ekstra_emails_row');
+    var icon = document.getElementById('ke_toggle_icon');
+    if (!row) return;
+    var expanding = row.style.display === 'none';
+    if (expanding) {
+        row.style.display = '';
+        if (icon) icon.innerHTML = '&#9650;'; // up arrow = visible
+    } else {
+        row.style.display = 'none';
+        if (icon) icon.innerHTML = '&#9660;'; // down arrow = hidden
+    }
+    localStorage.setItem('debitorkort_ke_expanded', expanding ? '1' : '0');
+}
+window.keToggle = keToggle;
+
+function catToggle() {
+    var row  = document.getElementById('cat_content_row');
+    var icon = document.getElementById('cat_toggle_icon');
+    if (!row) return;
+    var expanding = row.style.display === 'none';
+    if (expanding) {
+        row.style.display = '';
+        if (icon) icon.innerHTML = '&#9650;'; // up arrow = visible
+    } else {
+        row.style.display = 'none';
+        if (icon) icon.innerHTML = '&#9660;'; // down arrow = hidden
+    }
+    localStorage.setItem('debitorkort_cat_expanded', expanding ? '1' : '0');
+}
+window.catToggle = catToggle;
+
+// Restore each section's last collapse choice (defaults to collapsed if never toggled).
+// Skipped for categories while a rename is in progress — that flow needs to stay expanded.
+document.addEventListener('DOMContentLoaded', function () {
+    if (localStorage.getItem('debitorkort_ke_expanded') === '1') {
+        var keRow = document.getElementById('ekstra_emails_row');
+        var keIcon = document.getElementById('ke_toggle_icon');
+        if (keRow && keRow.style.display === 'none') {
+            keRow.style.display = '';
+            if (keIcon) keIcon.innerHTML = '&#9650;';
+        }
+    }
+    // Categories: skip restoring from localStorage if the row is already expanded
+    // server-side (a rename is in progress and needs to stay visible).
+    var catRow = document.getElementById('cat_content_row');
+    var catAlreadyExpanded = catRow && catRow.style.display !== 'none';
+    if (catRow && !catAlreadyExpanded && localStorage.getItem('debitorkort_cat_expanded') === '1') {
+        var catIcon = document.getElementById('cat_toggle_icon');
+        catRow.style.display = '';
+        if (catIcon) catIcon.innerHTML = '&#9650;';
+    }
+});
+
+function updateCatSummary() {
+    var countEl = document.getElementById('cat_count');
+    if (!countEl) return;
+    var rows = document.querySelectorAll('#cat_content_row tbody tr');
+    var names = [];
+    rows.forEach(function (tr) {
+        var cb = tr.querySelector('input[type="checkbox"]');
+        var nameTd = tr.querySelector('td');
+        if (cb && cb.checked && nameTd) names.push(nameTd.textContent.trim());
+    });
+    if (names.length === 0) {
+        countEl.textContent = '0 valgt';
+    } else {
+        var shown = names.slice(0, 2).join(', ');
+        var extra = names.length > 2 ? ', +' + (names.length - 2) : '';
+        countEl.textContent = names.length + ' valgt: ' + shown + extra;
+    }
+}
+window.updateCatSummary = updateCatSummary;
+
 /* ---- SINGLE onsubmit hook — registered once at DOMContentLoaded ---- */
 document.addEventListener('DOMContentLoaded', function () {
     var form = document.forms['debitorkort'];
@@ -2162,7 +2288,32 @@ print "<tr><td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"1\" border=
 
 
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td colspan=\"4\" valign=\"top\">" . findtekst('388|Kategorier', $sprog_id) . "<!--tekst 388--></td></tr>\n";
+// Keep the category list expanded when a rename is in progress (user came here to edit it);
+// otherwise start collapsed, same convention as the delivery-address / extra-email sections.
+$cat_initially_expanded = is_numeric($rename_category);
+$cat_row_display = $cat_initially_expanded ? '' : 'none';
+$cat_toggle_icon_initial = $cat_initially_expanded ? '&#9650;' : '&#9660;';
+
+// Glanceable summary of the categories actually assigned to this debtor, so
+// the collapsed header shows something useful instead of just a total count.
+$cat_assigned_names = array();
+for ($ci = 0; $ci < count($cat_id); $ci++) {
+	if (in_array($cat_id[$ci], $kategori)) $cat_assigned_names[] = $cat_beskrivelse[$ci];
+}
+$cat_assigned_count = count($cat_assigned_names);
+if ($cat_assigned_count > 0) {
+	$cat_summary_text = $cat_assigned_count . ' valgt: ' . implode(', ', array_slice($cat_assigned_names, 0, 2));
+	if ($cat_assigned_count > 2) $cat_summary_text .= ', +' . ($cat_assigned_count - 2);
+} else {
+	$cat_summary_text = '0 valgt';
+}
+
+print "<tr bgcolor=$bg><td colspan=\"4\" valign=\"top\">" . findtekst('388|Kategorier', $sprog_id) . "<!--tekst 388-->";
+print " <a href='#' onclick='catToggle(); return false;' style='text-decoration:none; cursor:pointer;'>";
+print "<small>(<span id='cat_count'>$cat_summary_text</span> <span id='cat_toggle_icon'>$cat_toggle_icon_initial</span>)</small>";
+print "</a>";
+print "</td></tr>\n";
+print "<tr id='cat_content_row' style='display:{$cat_row_display};'><td colspan=\"4\"><div style='max-height:30vh; overflow-y:auto;'><table cellpadding=\"0\" cellspacing=\"1\" border=\"0\" width=\"100%\"><tbody>\n";
 $x = 0;
 if (!is_numeric($rename_category)) {
 	for ($x = 0; $x < count($cat_id); $x++) {
@@ -2174,7 +2325,7 @@ if (!is_numeric($rename_category)) {
 			print "<tr><td>$cat_beskrivelse[$x]</td>\n";
 			$tekst = findtekst('395|Afmærk her for at knytte $firmanavn til denne kategori', $sprog_id);
 			$tekst = str_replace('$firmanavn', $firmanavn, $tekst);
-			print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"cat_valg[$x]\" $checked></td>\n";
+			print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"cat_valg[$x]\" $checked onchange=\"updateCatSummary()\"></td>\n";
 			print "<td title=\"" . findtekst('396|Klik her for at omdøbe denne kategori', $sprog_id) . "\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&rename_category=$cat_id[$x]\" id=\"rename_category-$x\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
 			print "<td title=\"" . findtekst('397|Klik her for at slette denne kategori', $sprog_id) . "\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&delete_category=$cat_id[$x]\" id=\"delete_category-$x\" onclick=\"return confirm('Vil du slette denne kategori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
 			print "</tr>\n";
@@ -2208,6 +2359,7 @@ if (is_numeric($rename_category)) {
 	// Use placeholders and titles for better user guidance
 	print "<tr><td colspan=\"4\" title=\"" . findtekst('390|For at oprette en ny kategori skrives navnet på kategorien her. For at oprette en underkategori skrives id på den overstående kategori foran navnet med | som adskillelse', $sprog_id) . "\"><!--tekst 390--><input class='inputbox' type=\"text\" size=\"25\" name=\"newCatName\" placeholder=\"" . findtekst('343|Skriv evt. ny kategori her', $sprog_id) . "\"></td></tr>\n";
 }
+print "</tbody></table></div></td></tr>\n";
 
 
 print "</tbody></table></td>"; # <- TABEL 1.2.4.1
@@ -2455,19 +2607,28 @@ if (!$id || substr($cvrnr,0,1)  == '*') {
 
 ################## PURCHASE HISTORY GRID ##################
 if ($id > 0) {
-	print "<div id='resize-handle' title='drag to resize purchase history' style='height:12px; background:#e0e0f0; cursor:ns-resize; flex-shrink:0; position:relative;'>
-  <span style='position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:3px;'>
-    <span style='width:20px;height:2px;background:#888;border-radius:1px;'></span>
-  </span>
-  <span style='position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:3px; transform:translateY(-5px);'>
-    <span style='width:20px;height:2px;background:#888;border-radius:1px;'></span>
-  </span>
-  <span style='position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:3px; transform:translateY(5px);'>
-    <span style='width:20px;height:2px;background:#888;border-radius:1px;'></span>
-  </span>
+	// Glanceable count for the collapsed header, same convention as the other sections.
+	$ph_count_row = db_fetch_array(db_select("
+		SELECT COUNT(*) AS cnt FROM (
+			SELECT 1
+			FROM ordrelinjer
+			INNER JOIN ordrer ON ordrelinjer.ordre_id = ordrer.id
+			INNER JOIN varer ON ordrelinjer.vare_id = varer.id
+			WHERE ordrer.konto_id = '$id'
+			GROUP BY varer.varenr, varer.id, varer.beskrivelse, ordrelinjer.pris, ordrer.ordredate
+		) AS purchase_history_count
+	", __FILE__ . " linje " . __LINE__));
+	$ph_total_count = $ph_count_row['cnt'] ?? 0;
+
+	// Collapsed by default, same convention as the extra-email / category sections.
+	// Only the column headers + data rows collapse — the pagination footer stays put,
+	// since its controls (rowcount select, page buttons) submit their own <form> and
+	// would break if physically moved outside the grid.
+	print "<div id='ph_toggle_bar' onclick='phToggle()' style='padding:4px 8px; cursor:pointer; user-select:none; background:#f4f4f4; border-top:1px solid #ddd; font-size:12px; flex-shrink:0;'>
+	<b>Invoice overview</b> (<span id='ph_count'>$ph_total_count</span> <span id='ph_toggle_icon'>&#9660;</span>)
 </div>";
     // Start purchase history wrapper - separate from form
-    echo "<div class='purchase-history-wrapper'>";
+    echo "<div class='purchase-history-wrapper ph-collapsed'>";
     
 $purchase_columns = [
     [
@@ -3221,18 +3382,25 @@ document.addEventListener('DOMContentLoaded', function() {
 		flex-shrink: 0;
 		overflow-y: auto;
 		overflow-x: hidden;
-		max-height: calc(100% - 120px); 
-		/* border-bottom: 2px solid #ddd; */
-		/* padding-bottom: 10px; */
+		/* height is set in JS by sizePageLayout() so it always shrinks to make
+		   room for the toggle bar / grid / footer below it */
 	}
 
 	.purchase-history-wrapper {
-		flex: 1;
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
+		flex-shrink: 0;
+	}
+	/* Expanded: column headers + rows visible, bounded height, internal scroll */
+	.purchase-history-wrapper.ph-expanded {
+		height: 40vh;
 		min-height: 200px;
 		padding-top: 10px;
+	}
+	/* Collapsed: only the pagination footer is visible, sized to its own content */
+	.purchase-history-wrapper.ph-collapsed {
+		height: auto;
 	}
 
 	#datatable-wrapper-purchase_history {
@@ -3298,16 +3466,6 @@ document.addEventListener('DOMContentLoaded', function() {
 	.dropdown{
 		display:none !important;
 	}
-	#resize-handle {
-    background: #ccc;
-    cursor: ns-resize;
-    height: 6px;
-    flex-shrink: 0;
-    transition: background 0.2s;
-	}
-	#resize-handle:hover {
-		background: #999;
-	}
 	/* Prevent scrollbar on tfoot/footer buttons */
 	#datatable-wrapper-purchase_history tfoot {
 		position: sticky;
@@ -3321,47 +3479,72 @@ document.addEventListener('DOMContentLoaded', function() {
 		overflow: hidden;
 	}
 
-	/* Ensure the datatable search wrapper does NOT scroll — only tbody scrolls */
-	#datatable-wrapper-purchase_history .datatable-search-wrapper {
-		overflow: hidden;
-	}
-
 
 </style>
 
 <script>
+// Polls for the grid's own footer instead of guessing a fixed delay — resolves as
+// soon as the grid is actually rendered (fast page: near-instant; slow page: still
+// works, up to maxWaitMs before giving up and proceeding anyway).
+function waitForGridReady(callback, maxWaitMs) {
+    maxWaitMs = (typeof maxWaitMs === 'number') ? maxWaitMs : 4000;
+    var start = Date.now();
+    (function poll() {
+        if (document.querySelector('#datatable-purchase_history tfoot') || (Date.now() - start) >= maxWaitMs) {
+            callback();
+            return;
+        }
+        setTimeout(poll, 50);
+    })();
+}
+window.waitForGridReady = waitForGridReady;
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Wait a moment for the grid to render
-    setTimeout(function() {
-        var tfoot = document.querySelector('#datatable-wrapper-purchase_history tfoot');
-        if (tfoot) {
-            // Create a new row
-            var row = document.createElement('tr');
-            var cell = document.createElement('td');
-            cell.colSpan = 100;
-            cell.style.padding = '0';
-            cell.style.margin = '0';
-            
-            // Insert the translated buttons (directly from PHP)
-            cell.innerHTML = '<?php echo $buttons_html_escaped; ?>';
-            
-            // Fix any styling on the buttons container
-            var buttonsDiv = cell.querySelector('.sticky-custom-buttons');
+    waitForGridReady(function() {
+        // Page-level nav buttons (Historik/Kontokort/Fakturaliste/Print) — appended as
+        // their own element at the bottom of the page, NOT inside the invoice overview
+        // grid's own footer, so they stay visible even when that section is collapsed.
+        var outer = document.querySelector('.outer-datatable-wrapper');
+        if (outer) {
+            var footerBar = document.createElement('div');
+            footerBar.id = 'debkort-page-footer';
+            footerBar.style.flexShrink = '0';
+            footerBar.innerHTML = '<?php echo $buttons_html_escaped; ?>';
+
+            var buttonsDiv = footerBar.querySelector('.sticky-custom-buttons');
             if (buttonsDiv) {
                 buttonsDiv.style.position = 'static';
                 buttonsDiv.style.margin = '0';
                 buttonsDiv.style.padding = '10px 0';
             }
-            
-            row.appendChild(cell);
-            tfoot.appendChild(row);
-            
-            // Add inline style to remove gaps
-            var style = document.createElement('style');
-            style.textContent = '#datatable-wrapper-purchase_history tfoot tr:last-child { border-spacing: 0 !important; margin: 0 !important; }';
-            document.head.appendChild(style);
+
+            outer.appendChild(footerBar);
         }
-    }, 500);
+
+        // Invoice overview: restore the user's last collapse choice (default collapsed
+        // if they've never toggled it). Only the column headers + data rows are hidden —
+        // the pagination footer stays visible (it lives in its own <form> and can't
+        // safely be detached from the grid).
+        var thead = document.querySelector('#datatable-purchase_history thead');
+        var tbody = document.querySelector('#datatable-purchase_history tbody');
+        var gridWrapper = document.querySelector('.purchase-history-wrapper');
+        var icon = document.getElementById('ph_toggle_icon');
+        var wasExpanded = localStorage.getItem('debitorkort_ph_expanded') === '1';
+        if (thead && tbody && gridWrapper) {
+            if (wasExpanded) {
+                gridWrapper.classList.remove('ph-collapsed');
+                gridWrapper.classList.add('ph-expanded');
+                thead.style.display = '';
+                tbody.style.display = '';
+                if (icon) icon.innerHTML = '&#9650;';
+            } else {
+                thead.style.display = 'none';
+                tbody.style.display = 'none';
+            }
+        }
+
+        sizePageLayout();
+    });
 });
 </script>
 
@@ -3569,123 +3752,60 @@ function printPurchaseHistory() {
     };
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Wait for grid to be fully rendered 
-    setTimeout(initResizableLayout, 800);
-});
+function phToggle() {
+    var gridWrapper = document.querySelector('.purchase-history-wrapper');
+    var thead       = document.querySelector('#datatable-purchase_history thead');
+    var tbody       = document.querySelector('#datatable-purchase_history tbody');
+    var icon        = document.getElementById('ph_toggle_icon');
+    if (!gridWrapper || !thead || !tbody) return;
 
-function initResizableLayout() {
-    const outer = document.querySelector('.outer-datatable-wrapper');
-    const formWrapper = document.querySelector('.form-wrapper');
-    const gridWrapper = document.querySelector('.purchase-history-wrapper');
-    const handle = document.getElementById('resize-handle');
-
-    if (!outer || !formWrapper || !gridWrapper || !handle) {
-        console.error('Required layout elements missing');
-        return;
-    }
-
-    // Get tfoot height (the footer of the grid)
-    const tfoot = document.querySelector('#datatable-purchase_history tfoot');
-    if (!tfoot) {
-        console.error('Table tfoot not found');
-        return;
-    }
-    const tfootHeight = tfoot.offsetHeight; 
-
-    //Set minimum height of grid wrapper to footer height
-    gridWrapper.style.minHeight = tfootHeight + 'px';
-
-   
-    const outerHeight = outer.clientHeight;
-    const handleHeight = handle.offsetHeight;
-    const availableHeight = outerHeight - handleHeight; 
-
-    // Determine initial height: prefer saved value, else default
-    let savedHeight = localStorage.getItem('debitorkort_form_height');
-    let maxFormHeight = availableHeight - tfootHeight;
-    if (maxFormHeight < 0) maxFormHeight = 0;
-    
-    let formWrapperHeight;
-    if (savedHeight !== null) {
-        formWrapperHeight = Math.min(maxFormHeight, Math.max(0, parseInt(savedHeight, 10)));
+    var expanding = gridWrapper.classList.contains('ph-collapsed');
+    if (expanding) {
+        gridWrapper.classList.remove('ph-collapsed');
+        gridWrapper.classList.add('ph-expanded');
+        thead.style.display = '';
+        tbody.style.display = '';
+        if (icon) icon.innerHTML = '&#9650;'; // up arrow = visible
     } else {
-        formWrapperHeight = maxFormHeight;
+        gridWrapper.classList.remove('ph-expanded');
+        gridWrapper.classList.add('ph-collapsed');
+        thead.style.display = 'none';
+        tbody.style.display = 'none';
+        if (icon) icon.innerHTML = '&#9660;'; // down arrow = hidden
     }
-    formWrapper.style.height = formWrapperHeight + 'px';
-
-    // Force grid wrapper to not be smaller than footer
-    if (gridWrapper.clientHeight < tfootHeight) {
-        gridWrapper.style.height = tfootHeight + 'px';
-    }
-
-    //Dragging logic
-    let isDragging = false;
-    let startY, startFormHeight; 
-
-    function startDrag(e) {
-        isDragging = true;
-        startY = e.clientY;
-        startFormHeight = formWrapper.clientHeight;
-        document.body.style.userSelect = 'none'; // prevent text selection
-    }
-
-    function onDrag(e) {
-        if (!isDragging) return;
-        const deltaY = e.clientY - startY;
-        let newHeight = startFormHeight + deltaY;
-
-        // Clamp: between 0 and (availableHeight - tfootHeight)
-        const maxFormHeight = availableHeight - tfootHeight;
-        newHeight = Math.min(maxFormHeight, Math.max(0, newHeight));
-
-        formWrapper.style.height = newHeight + 'px';
-        // Ensure grid wrapper never shrinks below footer height
-        if (gridWrapper.clientHeight < tfootHeight) {
-            gridWrapper.style.height = tfootHeight + 'px';
-        }
-    }
-
-    function stopDrag() {
-        if (isDragging) {
-            // Save the new height
-            localStorage.setItem('debitorkort_form_height', formWrapper.clientHeight);
-        }
-        isDragging = false;
-        document.body.style.userSelect = '';
-    }
-
-    handle.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', stopDrag);
-
-    //  Recalculate on window resize
-    window.addEventListener('resize', function() {
-        formWrapper.style.height = '';
-        setTimeout(() => {
-            const newOuterHeight = outer.clientHeight;
-            const newHandleHeight = handle.offsetHeight;
-            const newAvailable = newOuterHeight - newHandleHeight;
-            // Re-fetch tfoot height in case it changed (e.g. buttons wrap)
-            const newTfoot = document.querySelector('#datatable-purchase_history tfoot');
-            const newTfootHeight = newTfoot ? newTfoot.offsetHeight : tfootHeight;
-            let newMaxFormHeight = newAvailable - newTfootHeight;
-            if (newMaxFormHeight < 0) newMaxFormHeight = 0;
-            
-            let saved = localStorage.getItem('debitorkort_form_height');
-            let newFormHeight;
-            if (saved !== null) {
-                newFormHeight = Math.min(newMaxFormHeight, Math.max(0, parseInt(saved, 10)));
-            } else {
-                newFormHeight = newMaxFormHeight;
-            }
-            formWrapper.style.height = newFormHeight + 'px';
-            if (gridWrapper.clientHeight < newTfootHeight) {
-                gridWrapper.style.height = newTfootHeight + 'px';
-            }
-        }, 50);
-    });
+    localStorage.setItem('debitorkort_ph_expanded', expanding ? '1' : '0');
+    sizePageLayout();
 }
+window.phToggle = phToggle;
+
+// Keeps the page fitting inside one viewport instead of scrolling as a whole: the
+// form area's height is measured in JS (robust) rather than left to CSS percentage
+// math (fragile), so it always shrinks to make room for whatever sits below it —
+// the invoice overview toggle bar, the grid itself when expanded, and the page footer.
+function sizePageLayout() {
+    var outer = document.querySelector('.outer-datatable-wrapper');
+    var formWrapper = document.querySelector('.form-wrapper');
+    if (!outer || !formWrapper) return;
+
+    var toggleBar   = document.getElementById('ph_toggle_bar');
+    var gridWrapper = document.querySelector('.purchase-history-wrapper');
+    var footerBar   = document.getElementById('debkort-page-footer');
+
+    var usedHeight = 0;
+    if (toggleBar) usedHeight += toggleBar.offsetHeight;
+    if (gridWrapper) usedHeight += gridWrapper.offsetHeight; // just the pagination bar while collapsed
+    if (footerBar) usedHeight += footerBar.offsetHeight;
+
+    var formHeight = outer.clientHeight - usedHeight;
+    if (formHeight < 0) formHeight = 0;
+    formWrapper.style.height = formHeight + 'px';
+}
+window.sizePageLayout = sizePageLayout;
+
+// Initial sizing already happens inside the waitForGridReady() callback above
+// (after the footer bar + collapse state are set up); this just keeps it in
+// sync on viewport changes.
+window.addEventListener('resize', sizePageLayout);
 
 // Map legacy fields to new DA fields
 document.addEventListener('DOMContentLoaded', function () {
