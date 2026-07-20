@@ -55,6 +55,10 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $startaar    = (int)($row['box2'] ?? $regnaar);
     $slutmaaned  = (int)($row['box3'] ?? 12);
     $slutaar     = (int)($row['box4'] ?? $regnaar);
+    $fy_startmaaned = $startmaaned;
+    $fy_slutmaaned  = $slutmaaned;
+    $fy_startaar    = $startaar;
+    $fy_slutaar     = $slutaar;
     $startdato   = 1;
     $slutdato    = 31;
 
@@ -136,9 +140,10 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
             . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
     print "<div class='no-print' style='padding:2px 12px 6px; font-size:0.9em; color:#555;'>Genveje: ";
     foreach (['Q1'=>[1,3],'Q2'=>[4,6],'Q3'=>[7,9],'Q4'=>[10,12]] as $ql => $qm) {
-        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$startaar&maaned_til={$qm[1]}&aar_til=$startaar' style='margin-right:8px;'>$ql</a>";
+        $qaar = ($fy_startaar !== $fy_slutaar && $qm[0] >= $fy_startmaaned) ? $fy_startaar : $fy_slutaar;
+        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$qaar&maaned_til={$qm[1]}&aar_til=$qaar' style='margin-right:8px;'>$ql</a>";
     }
-    print "<a href='$q_base&maaned_fra=$startmaaned&aar_fra=$startaar&maaned_til=$slutmaaned&aar_til=$slutaar'>Hele &aring;ret</a></div>";
+    print "<a href='$q_base&maaned_fra=$fy_startmaaned&aar_fra=$fy_startaar&maaned_til=$fy_slutmaaned&aar_til=$fy_slutaar'>Hele &aring;ret</a></div>";
 
     // Rubrik labels per spec section 2.3
     $rubrikker = [

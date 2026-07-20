@@ -809,4 +809,10 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
         . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()");
 }
 
+// Add note column to moms_periode_luk if not present (safe migration — ALTER TABLE IF NOT EXISTS is idempotent)
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='moms_periode_luk' AND column_name='note' LIMIT 1";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("ALTER TABLE moms_periode_luk ADD COLUMN note TEXT", __FILE__ . " linje " . __LINE__);
+}
+
 ?>
