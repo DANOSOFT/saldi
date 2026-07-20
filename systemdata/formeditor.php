@@ -1076,11 +1076,8 @@ if ($menu == 'T') {
   .fe-tc-color { width:24px; height:21px; padding:0; border:1px solid #d3d8e0; border-radius:4px; cursor:pointer; background:none; }
   #fe-mail-modal { position:fixed; inset:0; z-index:9998; background:rgba(20,26,40,.45); display:flex; align-items:center; justify-content:center; }
   #fe-lang-toggle { display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#556; }
-  #fe-lang-toggle .fe-lang-opt { border:1px solid #c7cdd6; background:#fff; color:#334; font-size:12px; padding:4px 10px; cursor:pointer; }
-  #fe-lang-toggle .fe-lang-opt:first-of-type { border-radius:4px 0 0 4px; }
-  #fe-lang-toggle .fe-lang-opt:last-of-type { border-radius:0 4px 4px 0; border-left:0; }
-  #fe-lang-toggle .fe-lang-opt.active { background:#1769ff; color:#fff; border-color:#1257cc; cursor:default; }
-  #fe-lang-toggle .fe-lang-opt:not(.active):hover { background:#e9f0ff; }
+  #fe-lang-toggle .fe-lang-select { font-size:12px; padding:4px 8px; border:1px solid #c7cdd6; border-radius:4px; background:#fff; color:#334; cursor:pointer; }
+  #fe-lang-toggle .fe-lang-select:hover { border-color:#9db4e6; }
   .fe-mail-row { display:flex; align-items:center; gap:10px; margin:9px 0; font-size:13px; color:#334; }
   .fe-mail-row label { width:150px; flex:0 0 auto; color:#556; }
   .fe-mail-row input, .fe-mail-row textarea { flex:1; font-size:13px; padding:5px 8px; border:1px solid #d3d8e0;
@@ -1188,8 +1185,8 @@ if ($menu == 'T') {
     <?php $bg_label = $bg_url ? $T('Skift baggrund','Change background') : $T('Tilføj baggrund','Add background'); ?>
     <a id="fe-bg-btn" class="fe-btn" style="text-decoration:none;color:inherit;border:1px solid #c7cdd6;border-radius:3px;" href="logoupload.php?upload=yes" target="_blank" rel="noopener" title="<?php echo $T('Upload eller skift baggrund/logo (letterhead)','Upload or change background/logo (letterhead)'); ?>">&#128444; <?php echo htmlspecialchars($bg_label); ?></a>
     <button type="button" class="fe-btn" id="fe-mail-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Rediger e-mailteksten der sendes med PDF&apos;en','Edit the e-mail text sent with the PDF'); ?>">&#9993; <?php echo $T('E-mailtekst','Email text'); ?></button>
-    <span id="fe-lang-toggle" title="<?php echo $T('Skift sproget på alle tekster','Switch the language of all captions'); ?>">&#127760;
-      <button type="button" class="fe-lang-opt" id="fe-lang-da">Dansk</button><button type="button" class="fe-lang-opt" id="fe-lang-en">English</button></span>
+    <label id="fe-lang-toggle" title="<?php echo $T('Skift sproget på alle tekster','Switch the language of all captions'); ?>">&#127760;
+      <select id="fe-lang-select" class="fe-lang-select"><option value="da">Dansk</option><option value="en">English</option></select></label>
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-undo" title="Ctrl+Z">&#8630; <?php echo $T('Fortryd','Undo'); ?></button>
     <button type="button" class="fe-btn" id="fe-redo" title="Ctrl+Y">&#8631; <?php echo $T('Gentag','Redo'); ?></button>
@@ -3133,7 +3130,7 @@ if ($menu == 'T') {
     ['Momssats','VAT rate'], ['Moms','VAT'], ['Projekt','Project'], ['Lokation','Location'], ['Position','Position'],
     ['Nettosum','Net amount'], ['Nettobeløb','Net amount'], ['Subtotal','Subtotal'],
     ['I alt inkl. moms','Total incl. VAT'], ['I alt','Total'], ['At betale','Amount due'], ['Beløb','Amount'], ['Sum','Amount'],
-    ['Transport til side','Carried forward to page'], ['Transport','Carried forward'], ['Overført','Brought forward'],
+    ['Transport til side','Carried to page'], ['Transport','Carried fwd'], ['Overført','Brought fwd'],
     ['Restbeløb','Outstanding amount'], ['Rest','Balance'], ['Saldo','Balance'], ['Debet','Debit'], ['Kredit','Credit'],
     ['Valuta','Currency'],
     ['Bankoverførsel','Bank transfer'], ['Bankkonto','Bank account'], ['Kontonummer','Account number'],
@@ -3177,12 +3174,7 @@ if ($menu == 'T') {
     return en>da ? 'en' : 'da';
   }
   var feCurLang = 'da';
-  function updateLangToggle(){
-    var da=document.getElementById('fe-lang-da'), en=document.getElementById('fe-lang-en');
-    if(!da||!en) return;
-    da.classList.toggle('active', feCurLang==='da');
-    en.classList.toggle('active', feCurLang==='en');
-  }
+  function updateLangToggle(){ var s=document.getElementById('fe-lang-select'); if(s) s.value=feCurLang; }
   function feSwitchLang(toEN){
     var want = toEN?'en':'da';
     if(feCurLang===want){ updateLangToggle(); return; }
@@ -3193,8 +3185,7 @@ if ($menu == 'T') {
     flashStatus(toEN ? (DK_UI?'Alle tekster skiftet til engelsk':'All captions switched to English')
                      : (DK_UI?'Alle tekster skiftet til dansk':'All captions switched to Danish'), '#1769ff');
   }
-  document.getElementById('fe-lang-da').addEventListener('click', function(){ feSwitchLang(false); });
-  document.getElementById('fe-lang-en').addEventListener('click', function(){ feSwitchLang(true); });
+  (function(){ var s=document.getElementById('fe-lang-select'); if(s) s.addEventListener('change', function(){ feSwitchLang(this.value==='en'); }); })();
 
   // ---- first-run guided tour (Tier 3): friendly coach-marks ---------------
   // Two tours: a short Quick-start (auto-runs first visit) and a Full tour
