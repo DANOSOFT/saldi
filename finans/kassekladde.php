@@ -4,8 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-05-21 ---
-// verifying fork target points to DANOSOFT/saldi
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-07-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20240329 PHR - Alert when clicking clip, if not saved
@@ -59,6 +58,8 @@
 // 20260619 PHR - build_kassekladde_query: LEFT JOIN grupper VK brugte text=integer uden cast → rettet til kodenr::text=k.valuta::text
 // 20260619 PHR - Valuta nulstilledes til DKK på alle linjer ved valideringsfejl: valuta gemt som kode-string i tmpkassekl håndteres nu korrekt ved genvisning
 // 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
+// 20260720 CX/PHR - Qualified the description grid search as k.beskrivelse to avoid an ambiguous column error after the currency join.
+// 20260720 CX/PHR - Scoped the posted cash journal grid ID by journal to prevent saved searches leaking between journals.
 
 ob_start(); //Starter output buffering
 
@@ -1536,7 +1537,8 @@ $columns = array(
 		'type' => 'text',
 		'width' => '3',
 		'sortable' => false,
-		'searchable' => true
+		'searchable' => true,
+		'sqlOverride' => 'k.beskrivelse'
 	),
 
 	// D/K Type for Debet
@@ -2300,14 +2302,15 @@ else
 ##########################
 // Create the datagrid
 if (($bogfort && $bogfort != '-') || $udskriv) {
-   	#echo "<center>";
+  	#echo "<center>";
     if (!$udskriv) {  // Close the form if it's open Searches don't work without this
         print "</form>";
     }
 	print "<div style='width: 100%; height: calc(98vh - 34px - 18px);'>";
+		$cashGridId = "kass_{$bruger_id}_{$kladde_id}";
 		// 20260306 Sawaneh - Changed $brugernavn to $bruger_id to fix bug when username is an email (e.g. hau@skjern-net.dk). Special chars like @ and . break JS function names, CSS selectors and HTML IDs.
 		// OLD: create_datagrid("kass_$brugernavn", $grid_data);
-		create_datagrid("kass_$bruger_id", $grid_data);
+		create_datagrid($cashGridId, $grid_data);
 	print "</div>";
 	########
 	// Add preserved parameters // heredoc works as long as it'd indent is the same indentation as the least indented line in the heredoc
@@ -2315,7 +2318,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		<script>
 		document.addEventListener('DOMContentLoaded', function() {
 			// OLD: const form = document.querySelector('#datatable-wrapper-kass_$brugernavn form');
-			const form = document.querySelector('#datatable-wrapper-kass_$bruger_id form');
+			const form = document.querySelector('#datatable-wrapper-$cashGridId form');
 			if (form) {
 				// Add kladde_id
 				const kladdeInput = document.createElement('input');
