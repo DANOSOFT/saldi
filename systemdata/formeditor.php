@@ -1093,6 +1093,9 @@ if ($menu == 'T') {
   #fe-status { font-size:12px; color:#444; margin-left:auto; }
   .fe-btn { font-size:13px; padding:4px 10px; cursor:pointer; }
   .fe-btn.fe-active { background:#1769ff !important; color:#fff !important; border:1px solid #1257cc !important; border-radius:3px; }
+  /* carry-over elements (only print on continuation pages): dimmed in edit so
+     they don't read as an overlap with the last-page totals */
+  #fe-page:not(.fe-preview) .fe-el.fe-carryover { opacity:.4; }
   /* clean look while previewing (Show draft) */
   #fe-page.fe-preview .fe-el { outline:none !important; background:transparent !important; cursor:default; }
   #fe-page.fe-preview .fe-el.fe-selected { outline:none !important; box-shadow:none !important; }
@@ -1856,6 +1859,7 @@ if ($menu == 'T') {
     ln.setAttribute('stroke-width', Math.max(1, (el.str||0.3) * PT_TO_MM * s));
     ln.setAttribute('data-id', el.id);
     ln.style.pointerEvents = 'none';
+    if (el.side==='!S') ln.style.opacity = '0.4';   // carry-over line: dimmed in edit
     if (el.id === selId) { ln.setAttribute('stroke-dasharray','4 3'); }
     svg.appendChild(ln);
     // wide invisible hit-area so a thin line is easy to click and move
@@ -1927,8 +1931,10 @@ if ($menu == 'T') {
     var s = pxmm();
     var d = document.createElement('div');
     d.className = 'fe-el ' + (el.kind === 'logo' ? 'fe-logo' : 'fe-text') + (el._locked ? ' fe-locked' : '')
-      + ((el.kind==='text' && !previewMode && (el.besk===NEW_TEXT || !el.besk)) ? ' fe-placeholder' : '');
+      + ((el.kind==='text' && !previewMode && (el.besk===NEW_TEXT || !el.besk)) ? ' fe-placeholder' : '')
+      + (el.side==='!S' ? ' fe-carryover' : '');
     d.setAttribute('data-id', el.id);
+    if (el.side==='!S') d.title = (DK_UI?'Vises kun på fortsættelsessider (ikke på en enkeltsidet udskrift)':'Shows only on continuation pages (not on a single-page print)');
     d.style.left = (el.xa*s) + 'px';
     d.style.top  = ((PAGE_H-el.ya)*s) + 'px';
     var tx = (el.justering==='C') ? '-50%' : (el.justering==='H' ? '-100%' : '0');
