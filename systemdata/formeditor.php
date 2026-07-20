@@ -3169,23 +3169,45 @@ if ($menu == 'T') {
   document.getElementById('fe-mail-btn').addEventListener('click', function(){ buildMailModal().style.display='flex'; });
 
   // ---- language versions: translate captions & save as another variant -----
+  // DA <-> EN caption dictionary. Longest phrases win (sorted at build time);
+  // $variables are never touched. English side matches Saldi's standard forms.
   var TR_PAIRS = [
     ['Ordrebekræftelse','Order confirmation'], ['Købsfaktura','Purchase invoice'], ['Kreditnota','Credit note'],
-    ['Følgeseddel','Delivery note'], ['Kontoudtog','Account statement'], ['Indkøbsforslag','Purchase suggestion'],
-    ['Rekvisition','Requisition'], ['Plukliste','Picking list'], ['Rykkerbrev','Reminder'],
+    ['Følgeseddel','Delivery note'], ['Pakkeseddel','Packing slip'], ['Kontoudtog','Account statement'],
+    ['Kontoudskrift','Account statement'], ['Indkøbsforslag','Purchase suggestion'], ['Rekvisition','Requisition'],
+    ['Plukliste','Picking list'], ['Rykkerskrivelse','Reminder'], ['Rykkerbrev','Reminder'],
     ['Faktura','Invoice'], ['Tilbud','Quote'], ['Ordre','Order'],
-    ['Transport til side','Carried forward to page'], ['Deres ordre nr','Your order no.'], ['Vores ordre nr','Our order no.'],
-    ['Deres ordre','Your order'], ['Deres ref','Your ref'], ['Med venlig hilsen','Kind regards'],
-    ['Betalingsbetingelser','Payment terms'], ['Betalingsbet','Payment terms'], ['Forfaldsdato','Due date'],
-    ['Forventet lev.','Expected delivery'], ['Forventet lev','Expected delivery'], ['Varenummer','Item number'],
-    ['Varenr','Item no.'], ['Beskrivelse','Description'], ['Nettosum','Net amount'], ['Initialer','Initials'],
-    ['Nummer','Number'], ['Antal','Qty'], ['Pris','Price'], ['I alt','Total'], ['Sum','Amount'],
-    ['Dato','Date'], ['Side','Page'], ['Tekst','Text'], ['Rest','Balance'], ['Saldo','Balance'],
-    ['Debet','Debit'], ['Kredit','Credit'], ['Konto','Account'], ['Leveret','Delivered'], ['Leveres','Delivery'],
-    ['Danmark','Denmark'], ['1. Rykker','1st reminder'], ['2. Rykker','2nd reminder'], ['3. Rykker','3rd reminder'],
-    ['CVR nr:','VAT no:'], ['Cvr.nr:','VAT no:'], ['CVR nr','VAT no'], ['Cvr.:','VAT:'],
-    ['Tlf:','Phone:'], ['Telefon:','Phone:'], ['Fax:','Fax:'], ['Att.:','Attn:'], ['Att:','Attn:'],
-    ['Emne','Subject'], ['Bilag','Attachment']
+    ['1. Rykker','1st reminder'], ['2. Rykker','2nd reminder'], ['3. Rykker','3rd reminder'], ['Rykker','Reminder'],
+    ['Deres ordre nr','Your order no.'], ['Vores ordre nr','Our order no.'], ['Deres ordre','Your order'],
+    ['Ordrenummer','Order number'], ['Ordrenr','Order no.'], ['Ordredato','Order date'],
+    ['Fakturanummer','Invoice number'], ['Fakturanr','Invoice no.'], ['Fakturadato','Invoice date'],
+    ['Kundenummer','Customer number'], ['Kundenr','Customer no.'], ['Kunde','Customer'],
+    ['Leverandørnr','Supplier no.'], ['Leverandør','Supplier'],
+    ['Rekvisitionsnr','Requisition no.'], ['Deres ref','Your ref'], ['Vores ref','Our ref'], ['Reference','Reference'],
+    ['Kontaktperson','Contact'], ['Vores kontakt','Our contact'], ['Deres kontakt','Your contact'], ['Sælger','Salesperson'],
+    ['Betalingsbetingelser','Payment terms'], ['Betalingsbet','Payment terms'], ['Betalingsdato','Payment date'],
+    ['Leveringsbetingelser','Delivery terms'], ['Leveringsdato','Delivery date'], ['Leveringsadresse','Delivery address'],
+    ['Forfaldsdato','Due date'], ['Forfald','Due'], ['Forventet levering','Expected delivery'],
+    ['Forventet lev.','Expected delivery'], ['Forventet lev','Expected delivery'],
+    ['Varenummer','Item number'], ['Varenr','Item no.'], ['Vare','Item'], ['Beskrivelse','Description'], ['Tekst','Text'],
+    ['Enhedspris','Unit price'], ['Enhed','Unit'], ['Antal','Qty'], ['Mængde','Quantity'], ['Stk','Pcs'],
+    ['Pris pr. enhed','Price per unit'], ['Pris','Price'], ['Rabat','Discount'], ['Linjesum','Line total'],
+    ['Momssats','VAT rate'], ['Moms','VAT'], ['Projekt','Project'], ['Lokation','Location'], ['Position','Position'],
+    ['Nettosum','Net amount'], ['Nettobeløb','Net amount'], ['Subtotal','Subtotal'],
+    ['I alt inkl. moms','Total incl. VAT'], ['I alt','Total'], ['At betale','Amount due'], ['Beløb','Amount'], ['Sum','Amount'],
+    ['Transport til side','Carried forward to page'], ['Transport','Carried forward'], ['Overført','Brought forward'],
+    ['Restbeløb','Outstanding amount'], ['Rest','Balance'], ['Saldo','Balance'], ['Debet','Debit'], ['Kredit','Credit'],
+    ['Valuta','Currency'],
+    ['Bankoverførsel','Bank transfer'], ['Bankkonto','Bank account'], ['Kontonummer','Account number'],
+    ['Kontonr','Account no.'], ['Konto','Account'], ['Reg. nr','Reg. no.'], ['Reg.nr','Reg. no.'],
+    ['CVR-nr','VAT no.'], ['CVR nr','VAT no'], ['Cvr.nr:','VAT no:'], ['CVR nr:','VAT no:'], ['Cvr.:','VAT:'],
+    ['Telefon:','Phone:'], ['Telefon','Phone'], ['Tlf:','Phone:'], ['Tlf','Phone'], ['Mobil','Mobile'],
+    ['Fax:','Fax:'], ['E-mail','Email'], ['Hjemmeside','Website'], ['Adresse','Address'], ['Postnr','Postcode'],
+    ['By','City'], ['Land','Country'], ['Danmark','Denmark'],
+    ['Leveret','Delivered'], ['Leveres','To be delivered'], ['Levering','Delivery'], ['Restordre','Back order'],
+    ['Nummer','Number'], ['Dato','Date'], ['Side','Page'], ['Initialer','Initials'], ['Underskrift','Signature'],
+    ['Med venlig hilsen','Kind regards'], ['Venlig hilsen','Kind regards'], ['Att.:','Attn:'], ['Att:','Attn:'],
+    ['Emne','Subject'], ['Bilag','Attachment'], ['dage','days']
   ];
   function feEsc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
   var _trCache={};
@@ -3207,14 +3229,26 @@ if ($menu == 'T') {
     return parts.join('');
   }
   function feTranslateStats(toEN){
-    var t=0,u=0;
+    var t=0,u=0,samples=[];
     elements.forEach(function(el){
       if(el.art!==2) return;
       var b=String(el.besk||''); var core=b.replace(/\$[A-Za-z0-9_]+;?/g,'');
       if(!/[A-Za-zÀ-ÿ]/.test(core)) return;
-      if(feTranslateCaption(b,toEN)!==b) t++; else u++;
+      var out=feTranslateCaption(b,toEN);
+      if(out!==b){ t++; if(samples.length<3) samples.push(b.replace(/\s+/g,' ').trim()+' → '+out.replace(/\s+/g,' ').trim()); }
+      else u++;
     });
-    return {t:t,u:u};
+    return {t:t,u:u,samples:samples};
+  }
+  function feDetectLang(){
+    var da=0,en=0;
+    elements.forEach(function(el){
+      if(el.art!==2) return;
+      var b=String(el.besk||''); if(!/[A-Za-zÀ-ÿ]/.test(b.replace(/\$[A-Za-z0-9_]+;?/g,''))) return;
+      if(feTranslateCaption(b,true)!==b) da++;
+      if(feTranslateCaption(b,false)!==b) en++;
+    });
+    return en>da ? 'en' : 'da';
   }
   function feGoToVariant(target){
     var sel=document.querySelector('select[name="sprog"]');
@@ -3226,14 +3260,16 @@ if ($menu == 'T') {
     }
     location.reload();
   }
-  function feCurLangIsDanish(){ var s=String(sprog||'').toLowerCase(); return s.indexOf('dansk')>=0 || s==='da' || s==='dk'; }
   var langModal=null;
   function feUpdateLangPreview(){
     var toEN=(document.getElementById('fe-lang-to').value!=='da');
     var s=feTranslateStats(toEN);
-    document.getElementById('fe-lang-preview').textContent = DK_UI
-      ? (s.t+' tekster oversættes, '+s.u+' bevares (ukendte/tilpassede)')
-      : (s.t+' captions translated, '+s.u+' kept as-is (unknown/custom)');
+    var head = DK_UI ? ('<b>'+s.t+'</b> tekster oversættes · '+s.u+' uden kendt oversættelse (bevares)')
+                     : ('<b>'+s.t+'</b> captions translated · '+s.u+' with no known translation (kept)');
+    var ex = s.samples.length ? ('<br><span style="font-weight:normal;color:#788;">'+(DK_UI?'fx: ':'e.g. ')+s.samples.map(function(x){return x.replace(/</g,'&lt;');}).join(' &nbsp;·&nbsp; ')+'</span>') : '';
+    document.getElementById('fe-lang-preview').innerHTML = head + ex;
+    var btn=document.getElementById('fe-lang-apply');
+    if(btn){ var ln=toEN?'English':'Dansk'; btn.textContent = DK_UI ? ('Opret '+ln+'-version') : ('Create '+ln+' version'); }
   }
   function feFillLangTargets(){
     var toEN=(document.getElementById('fe-lang-to').value!=='da');
@@ -3249,12 +3285,13 @@ if ($menu == 'T') {
   function buildLangModal(){
     if(langModal) return langModal;
     langModal=document.createElement('div'); langModal.id='fe-lang-modal'; langModal.style.display='none';
-    var danishFirst=feCurLangIsDanish();
+    var detected=feDetectLang(); var detName=(detected==='en')?'English':'Dansk'; var defTo=(detected==='en')?'da':'en';
     langModal.innerHTML='<div class="fe-dlg" style="width:540px;max-width:94vw;">'
       +'<div class="fe-dlg-head"><span>&#127760; '+(DK_UI?'Sprogversion':'Language version')+'</span><button type="button" class="fe-x" id="fe-lang-close">&times;</button></div>'
       +'<div class="fe-dlg-body">'
-      +'<div class="fe-dlg-sub">'+(DK_UI?'Oversætter alle genkendte tekster og gemmer det aktuelle design som en anden sprogversion. Denne version røres ikke. Felter ($ tal/datoer/totaler) tilpasser sig selv.':'Translates all recognized captions and saves the current design as another language version. This version is left untouched. Fields ($ numbers/dates/totals) adapt automatically.')+'</div>'
-      +'<div class="fe-mail-row"><label>'+(DK_UI?'Oversæt til':'Translate to')+'</label><select id="fe-lang-to" style="flex:1;font-size:13px;padding:5px 8px;border:1px solid #d3d8e0;border-radius:5px;"><option value="en"'+(danishFirst?' selected':'')+'>English</option><option value="da"'+(danishFirst?'':' selected')+'>Dansk</option></select></div>'
+      +'<div class="fe-dlg-sub">'+(DK_UI?'Gemmer det aktuelle design som en anden sprogversion med oversatte tekster. Denne version røres ikke. Felter ($ tal/datoer/totaler) tilpasser sig selv.':'Saves the current design as another language version with translated captions. This version is left untouched. Fields ($ numbers/dates/totals) adapt automatically.')+'</div>'
+      +'<div class="fe-dlg-sub" style="margin:2px 0 8px;">'+(DK_UI?('Denne formular ser ud til at være på <b>'+detName+'</b>.'):('This form looks like it is in <b>'+detName+'</b>.'))+'</div>'
+      +'<div class="fe-mail-row"><label>'+(DK_UI?'Sprog':'Language')+'</label><select id="fe-lang-to" style="flex:1;font-size:13px;padding:5px 8px;border:1px solid #d3d8e0;border-radius:5px;"><option value="en"'+(defTo==='en'?' selected':'')+'>English</option><option value="da"'+(defTo==='da'?' selected':'')+'>Dansk</option></select></div>'
       +'<div class="fe-mail-row"><label>'+(DK_UI?'Gem som version':'Save into variant')+'</label><select id="fe-lang-target" style="flex:1;font-size:13px;padding:5px 8px;border:1px solid #d3d8e0;border-radius:5px;"></select></div>'
       +'<div class="fe-dlg-sub" id="fe-lang-preview" style="margin:6px 0 2px;font-weight:bold;color:#556;"></div>'
       +'<div class="fe-dlg-sub" style="margin-top:2px;">'+(DK_UI?'Vælg den version din udskrift bruger til det sprog. Findes den, erstattes dens layout. Ukendte/tilpassede tekster bevares, så du kan finjustere bagefter.':'Pick the variant your printing uses for that language. If it exists, its layout is replaced. Unknown/custom captions are kept, so you can fine-tune afterwards.')+'</div>'
