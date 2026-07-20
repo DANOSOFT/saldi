@@ -49,7 +49,7 @@ $s_id = session_id();
 // that output on the API path so the fetch() always receives pure JSON.
 // ---------------------------------------------------------------------------
 $fe_action = isset($_GET['fe_action']) ? $_GET['fe_action'] : '';
-$FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remove','savedraft','discarddraft','save_mail','save_translation'), true);
+$FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remove','savedraft','discarddraft','save_mail'), true);
 
 if ($FE_API) ob_start();
 
@@ -494,56 +494,6 @@ if ($fe_action === 'save_mail') {
 	}
 	transaktion('commit');
 	print json_encode(array('ok'=>true));
-	exit;
-}
-
-// ---------------------------------------------------------------------------
-//  SAVE TRANSLATION ENDPOINT  (POST ?fe_action=save_translation, JSON body)
-//  Writes the current layout with translated captions into ANOTHER language
-//  variant (target sprog), leaving the source variant untouched. Captions are
-//  translated client-side; this only persists. Reads-first, transaction,
-//  preserves GEBYR + the e-mail text (art=5) of the target.
-// ---------------------------------------------------------------------------
-if ($fe_action === 'save_translation') {
-	@ob_end_clean();
-	header('Content-Type: application/json; charset=utf-8');
-	if (empty($db_id)) { http_response_code(401); print json_encode(array('ok'=>false,'error'=>'session')); exit; }
-	$payload = json_decode(file_get_contents('php://input'), true);
-	$form_nr = isset($payload['form_nr']) ? (int) $payload['form_nr'] : 0;
-	$target  = isset($payload['target']) ? trim((string) $payload['target']) : '';
-	$target_db = db_escape_string($target);
-	$els     = (isset($payload['elements']) && is_array($payload['elements'])) ? $payload['elements'] : null;
-	$tbl     = (isset($payload['table']) && is_array($payload['table'])) ? $payload['table'] : null;
-	$valid_forms = array(1,2,3,4,5,6,7,8,9,11,12,13,14);
-	if (!in_array($form_nr, $valid_forms, true) || $target === '' || !$els || count($els) < 3) {
-		http_response_code(400); print json_encode(array('ok'=>false,'error'=>'payload')); exit;
-	}
-	$fonts = array('Helvetica','Times','Courier','Palatino','NewCenturySchlbk','Ocrbb12');
-	$num = function($v){ return round((float) $v, 2); };
-	$col = function($v){ $c=(int) round((float) $v); return $c<0?0:$c; };
-	$rows = array();
-	foreach ($els as $el) {
-		$art = (int) (isset($el['art']) ? $el['art'] : 0);
-		if (!in_array($art, array(1,2), true)) continue;
-		$besk = db_escape_string((string) (isset($el['besk']) ? $el['besk'] : ''));
-		$just = strtoupper((string) (isset($el['justering']) ? $el['justering'] : 'V')); if (!in_array($just, array('V','C','H'), true)) $just='V';
-		$font = (string) (isset($el['font']) ? $el['font'] : 'Helvetica'); if (!in_array($font, $fonts, true)) $font='Helvetica';
-		$rows[] = "($form_nr,$art,'$besk'," . $num($el['xa']??0) . "," . $num($el['ya']??0) . "," . $num($el['xb']??0) . "," . $num($el['yb']??0) . "," . $num($el['str']??0) . "," . $col($el['color']??0) . ",'" . db_escape_string($font) . "','" . ((!empty($el['fed']))?'on':'') . "','" . ((!empty($el['kursiv']))?'on':'') . "','" . db_escape_string((string)(isset($el['side'])?$el['side']:'A')) . "','$just','$target_db')";
-	}
-	if ($tbl && isset($tbl['gen']) && isset($tbl['cols']) && is_array($tbl['cols'])) {
-		$g = $tbl['gen'];
-		$rows[] = "($form_nr,3,'generelt'," . $num($g['count']??0) . "," . $num($g['ya']??0) . "," . $num($g['spacing']??0) . ",0,0,0,'','','','','','$target_db')";
-		foreach ($tbl['cols'] as $cc) {
-			$cjust = strtoupper((string) (isset($cc['just']) ? $cc['just'] : 'V')); if (!in_array($cjust, array('V','C','H'), true)) $cjust='V';
-			$rows[] = "($form_nr,3,'" . db_escape_string((string)(isset($cc['type'])?$cc['type']:'')) . "'," . $num($cc['xa']??0) . "," . $num($cc['ya']??0) . "," . $num($cc['xb']??0) . ",0," . $num($cc['str']??0) . "," . $col($cc['color']??0) . ",'','" . ((!empty($cc['fed']))?'on':'') . "','','','$cjust','$target_db')";
-		}
-	}
-	if (count($rows) < 3) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'empty')); exit; }
-	transaktion('begin');
-	db_modify("delete from formularer where formular=$form_nr and art in (1,2,3) and sprog='$target_db' and upper(beskrivelse) <> 'GEBYR'", __FILE__ . " linje " . __LINE__);
-	db_modify("insert into formularer (formular,art,beskrivelse,xa,ya,xb,yb,str,color,font,fed,kursiv,side,justering,sprog) values " . implode(',', $rows), __FILE__ . " linje " . __LINE__);
-	transaktion('commit');
-	print json_encode(array('ok'=>true, 'rows'=>count($rows), 'target'=>$target));
 	exit;
 }
 
@@ -1125,7 +1075,12 @@ if ($menu == 'T') {
   .fe-tc-btn:hover { border-color:#9db4e6; }
   .fe-tc-color { width:24px; height:21px; padding:0; border:1px solid #d3d8e0; border-radius:4px; cursor:pointer; background:none; }
   #fe-mail-modal { position:fixed; inset:0; z-index:9998; background:rgba(20,26,40,.45); display:flex; align-items:center; justify-content:center; }
-  #fe-lang-modal { position:fixed; inset:0; z-index:9998; background:rgba(20,26,40,.45); display:flex; align-items:center; justify-content:center; }
+  #fe-lang-toggle { display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#556; }
+  #fe-lang-toggle .fe-lang-opt { border:1px solid #c7cdd6; background:#fff; color:#334; font-size:12px; padding:4px 10px; cursor:pointer; }
+  #fe-lang-toggle .fe-lang-opt:first-of-type { border-radius:4px 0 0 4px; }
+  #fe-lang-toggle .fe-lang-opt:last-of-type { border-radius:0 4px 4px 0; border-left:0; }
+  #fe-lang-toggle .fe-lang-opt.active { background:#1769ff; color:#fff; border-color:#1257cc; cursor:default; }
+  #fe-lang-toggle .fe-lang-opt:not(.active):hover { background:#e9f0ff; }
   .fe-mail-row { display:flex; align-items:center; gap:10px; margin:9px 0; font-size:13px; color:#334; }
   .fe-mail-row label { width:150px; flex:0 0 auto; color:#556; }
   .fe-mail-row input, .fe-mail-row textarea { flex:1; font-size:13px; padding:5px 8px; border:1px solid #d3d8e0;
@@ -1233,7 +1188,8 @@ if ($menu == 'T') {
     <?php $bg_label = $bg_url ? $T('Skift baggrund','Change background') : $T('Tilføj baggrund','Add background'); ?>
     <a id="fe-bg-btn" class="fe-btn" style="text-decoration:none;color:inherit;border:1px solid #c7cdd6;border-radius:3px;" href="logoupload.php?upload=yes" target="_blank" rel="noopener" title="<?php echo $T('Upload eller skift baggrund/logo (letterhead)','Upload or change background/logo (letterhead)'); ?>">&#128444; <?php echo htmlspecialchars($bg_label); ?></a>
     <button type="button" class="fe-btn" id="fe-mail-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Rediger e-mailteksten der sendes med PDF&apos;en','Edit the e-mail text sent with the PDF'); ?>">&#9993; <?php echo $T('E-mailtekst','Email text'); ?></button>
-    <button type="button" class="fe-btn" id="fe-lang-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Oversæt alle tekster og gem som en anden sprogversion','Translate all captions and save as another language version'); ?>">&#127760; <?php echo $T('Sprogversion','Language version'); ?></button>
+    <span id="fe-lang-toggle" title="<?php echo $T('Skift sproget på alle tekster','Switch the language of all captions'); ?>">&#127760;
+      <button type="button" class="fe-lang-opt" id="fe-lang-da">Dansk</button><button type="button" class="fe-lang-opt" id="fe-lang-en">English</button></span>
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-undo" title="Ctrl+Z">&#8630; <?php echo $T('Fortryd','Undo'); ?></button>
     <button type="button" class="fe-btn" id="fe-redo" title="Ctrl+Y">&#8631; <?php echo $T('Gentag','Redo'); ?></button>
@@ -1490,7 +1446,6 @@ if ($menu == 'T') {
   var FE_MAIL  = <?php echo json_encode($fe_mail); ?>;    // e-mail text (subject/body/attachment)
   var formNr = <?php echo (int) $form_nr; ?>;
   var sprog  = <?php echo json_encode($sprog); ?>;
-  var FE_VARIANTS = <?php echo json_encode(array_values($variants)); ?>;
   var COND_TIP = {
     yes: <?php echo json_encode($T('Vises kun hvis "%s" er udfyldt', 'Only shown if "%s" is filled')); ?>,
     no:  <?php echo json_encode($T('Vises kun hvis "%s" er tom', 'Only shown if "%s" is empty')); ?>
@@ -2757,34 +2712,17 @@ if ($menu == 'T') {
     document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true);
   }, true);
 
-  // ---- translate the standard literal captions (Danish <-> English) --------
-  // Only whole-caption text elements are touched; variable chips are never
-  // altered. Content editing is already safe + undoable.
-  var CAPTION_PAIRS = [
-    ['Nummer','Number'],['Dato','Date'],['Side','Page'],['Sælger','Seller'],['Afdeling','Department'],
-    ['Betalingsbet','Payment terms'],['Betalingsbet.','Payment terms'],['Forfaldsdato','Due date'],
-    ['Kontonr','Account no.'],['Deres ref','Your ref'],['Vores ordre nr','Our order no.'],
-    ['Inden levering','Before delivery'],['Telefon','Phone'],['Tlf','Phone'],['Varenr','Item no.'],
-    ['Beskrivelse','Description'],['Antal','Qty'],['Pris','Price'],['Sum','Total'],['Rabat','Discount'],
-    ['Enhed','Unit'],['Netto','Net'],['moms','VAT'],['I alt','Total'],['Transport til side','Carried forward'],
-    ['Kundenr','Customer no.'],['Faktura','Invoice'],['Tilbud','Quote'],['Kreditnota','Credit note'],
-    ['Følgeseddel','Delivery note'],['Ordrebekræftelse','Order confirmation'],['Købsfaktura','Purchase invoice'],
-    ['Rekvisition','Requisition'],['Att','Att'],['CVR-nr','VAT no.'],['CVR nr','VAT no.'],['EAN','EAN']
-  ];
-  // Silently map the standard captions toward the account's UI language.
-  // Returns the number changed. Variables (chips) are never touched.
+  // Map the standard captions toward the account's UI language on load, using
+  // the shared translator (feTranslateCaption / TR_PAIRS). Only text captions
+  // are touched, never variables/chips. Reversible + undoable. Returns count.
   function applyTranslation() {
-    var toEN = !DK_UI;               // English UI -> Danish template captions to English
-    var map = {};
-    CAPTION_PAIRS.forEach(function(p){ map[(toEN?p[0]:p[1]).toLowerCase()] = toEN?p[1]:p[0]; });
+    var toEN = !DK_UI;               // English UI -> template captions to English
     var n = 0;
     elements.forEach(function(el){
       if (el.kind!=='text') return;
-      var t = (el.besk||'').trim(); if (!t) return;
-      var punc='', core=t;
-      if (/[:.]$/.test(t)) { punc=t.slice(-1); core=t.slice(0,-1).trim(); }
-      var hit = map[core.toLowerCase()];
-      if (hit && hit.toLowerCase()!==core.toLowerCase()) { el.besk = hit + punc; n++; }
+      var t = String(el.besk||''); if (!t.trim()) return;
+      var out = feTranslateCaption(t, toEN);
+      if (out !== t) { el.besk = out; n++; }
     });
     return n;
   }
@@ -3168,9 +3106,9 @@ if ($menu == 'T') {
   }
   document.getElementById('fe-mail-btn').addEventListener('click', function(){ buildMailModal().style.display='flex'; });
 
-  // ---- language versions: translate captions & save as another variant -----
-  // DA <-> EN caption dictionary. Longest phrases win (sorted at build time);
-  // $variables are never touched. English side matches Saldi's standard forms.
+  // ---- language toggle: switch all captions between Dansk and English -------
+  // Shared DA<->EN dictionary. Longest phrases win; $variables and table column
+  // keys are never touched. Reversible (Ctrl+Z); Save & activate to keep.
   var TR_PAIRS = [
     ['Ordrebekræftelse','Order confirmation'], ['Købsfaktura','Purchase invoice'], ['Kreditnota','Credit note'],
     ['Følgeseddel','Delivery note'], ['Pakkeseddel','Packing slip'], ['Kontoudtog','Account statement'],
@@ -3228,112 +3166,35 @@ if ($menu == 'T') {
     }
     return parts.join('');
   }
-  function feTranslateStats(toEN){
-    var t=0,u=0,samples=[];
-    elements.forEach(function(el){
-      if(el.art!==2) return;
-      var b=String(el.besk||''); var core=b.replace(/\$[A-Za-z0-9_]+;?/g,'');
-      if(!/[A-Za-zÀ-ÿ]/.test(core)) return;
-      var out=feTranslateCaption(b,toEN);
-      if(out!==b){ t++; if(samples.length<3) samples.push(b.replace(/\s+/g,' ').trim()+' → '+out.replace(/\s+/g,' ').trim()); }
-      else u++;
-    });
-    return {t:t,u:u,samples:samples};
-  }
   function feDetectLang(){
     var da=0,en=0;
     elements.forEach(function(el){
-      if(el.art!==2) return;
+      if(el.kind!=='text') return;
       var b=String(el.besk||''); if(!/[A-Za-zÀ-ÿ]/.test(b.replace(/\$[A-Za-z0-9_]+;?/g,''))) return;
       if(feTranslateCaption(b,true)!==b) da++;
       if(feTranslateCaption(b,false)!==b) en++;
     });
     return en>da ? 'en' : 'da';
   }
-  function feGoToVariant(target){
-    var sel=document.querySelector('select[name="sprog"]');
-    if(sel){
-      var has=false; for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===target){ has=true; break; } }
-      if(!has){ var o=document.createElement('option'); o.value=target; o.textContent=target; sel.appendChild(o); }
-      sel.value=target;
-      if(sel.form){ sel.form.submit(); return; }
-    }
-    location.reload();
+  var feCurLang = 'da';
+  function updateLangToggle(){
+    var da=document.getElementById('fe-lang-da'), en=document.getElementById('fe-lang-en');
+    if(!da||!en) return;
+    da.classList.toggle('active', feCurLang==='da');
+    en.classList.toggle('active', feCurLang==='en');
   }
-  var langModal=null;
-  function feUpdateLangPreview(){
-    var toEN=(document.getElementById('fe-lang-to').value!=='da');
-    var s=feTranslateStats(toEN);
-    var head = DK_UI ? ('<b>'+s.t+'</b> tekster oversættes · '+s.u+' uden kendt oversættelse (bevares)')
-                     : ('<b>'+s.t+'</b> captions translated · '+s.u+' with no known translation (kept)');
-    var ex = s.samples.length ? ('<br><span style="font-weight:normal;color:#788;">'+(DK_UI?'fx: ':'e.g. ')+s.samples.map(function(x){return x.replace(/</g,'&lt;');}).join(' &nbsp;·&nbsp; ')+'</span>') : '';
-    document.getElementById('fe-lang-preview').innerHTML = head + ex;
-    var btn=document.getElementById('fe-lang-apply');
-    if(btn){ var ln=toEN?'English':'Dansk'; btn.textContent = DK_UI ? ('Opret '+ln+'-version') : ('Create '+ln+' version'); }
+  function feSwitchLang(toEN){
+    var want = toEN?'en':'da';
+    if(feCurLang===want){ updateLangToggle(); return; }
+    pushUndo();
+    elements.forEach(function(el){ if(el.kind==='text') el.besk = feTranslateCaption(String(el.besk||''), toEN); });
+    feCurLang = want;
+    render(); if(selId) showProps(); markDirty(); updateLangToggle();
+    flashStatus(toEN ? (DK_UI?'Alle tekster skiftet til engelsk':'All captions switched to English')
+                     : (DK_UI?'Alle tekster skiftet til dansk':'All captions switched to Danish'), '#1769ff');
   }
-  function feFillLangTargets(){
-    var toEN=(document.getElementById('fe-lang-to').value!=='da');
-    var std=toEN?'English':'Dansk';
-    var sel=document.getElementById('fe-lang-target'); sel.innerHTML='';
-    if(FE_VARIANTS.indexOf(std)<0){ var o=document.createElement('option'); o.value=std; o.textContent=std+(DK_UI?' (ny)':' (new)'); sel.appendChild(o); }
-    FE_VARIANTS.forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v+(v===sprog?(DK_UI?' (nuværende)':' (current)'):''); sel.appendChild(o); });
-    var pick=std; var found=false; for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===std){ found=true; break; } }
-    if(!found && sel.options.length) pick=sel.options[0].value;
-    sel.value=pick;
-    feUpdateLangPreview();
-  }
-  function buildLangModal(){
-    if(langModal) return langModal;
-    langModal=document.createElement('div'); langModal.id='fe-lang-modal'; langModal.style.display='none';
-    var detected=feDetectLang(); var detName=(detected==='en')?'English':'Dansk'; var defTo=(detected==='en')?'da':'en';
-    langModal.innerHTML='<div class="fe-dlg" style="width:540px;max-width:94vw;">'
-      +'<div class="fe-dlg-head"><span>&#127760; '+(DK_UI?'Sprogversion':'Language version')+'</span><button type="button" class="fe-x" id="fe-lang-close">&times;</button></div>'
-      +'<div class="fe-dlg-body">'
-      +'<div class="fe-dlg-sub">'+(DK_UI?'Gemmer det aktuelle design som en anden sprogversion med oversatte tekster. Denne version røres ikke. Felter ($ tal/datoer/totaler) tilpasser sig selv.':'Saves the current design as another language version with translated captions. This version is left untouched. Fields ($ numbers/dates/totals) adapt automatically.')+'</div>'
-      +'<div class="fe-dlg-sub" style="margin:2px 0 8px;">'+(DK_UI?('Denne formular ser ud til at være på <b>'+detName+'</b>.'):('This form looks like it is in <b>'+detName+'</b>.'))+'</div>'
-      +'<div class="fe-mail-row"><label>'+(DK_UI?'Sprog':'Language')+'</label><select id="fe-lang-to" style="flex:1;font-size:13px;padding:5px 8px;border:1px solid #d3d8e0;border-radius:5px;"><option value="en"'+(defTo==='en'?' selected':'')+'>English</option><option value="da"'+(defTo==='da'?' selected':'')+'>Dansk</option></select></div>'
-      +'<div class="fe-mail-row"><label>'+(DK_UI?'Gem som version':'Save into variant')+'</label><select id="fe-lang-target" style="flex:1;font-size:13px;padding:5px 8px;border:1px solid #d3d8e0;border-radius:5px;"></select></div>'
-      +'<div class="fe-dlg-sub" id="fe-lang-preview" style="margin:6px 0 2px;font-weight:bold;color:#556;"></div>'
-      +'<div class="fe-dlg-sub" style="margin-top:2px;">'+(DK_UI?'Vælg den version din udskrift bruger til det sprog. Findes den, erstattes dens layout. Ukendte/tilpassede tekster bevares, så du kan finjustere bagefter.':'Pick the variant your printing uses for that language. If it exists, its layout is replaced. Unknown/custom captions are kept, so you can fine-tune afterwards.')+'</div>'
-      +'</div><div class="fe-dlg-foot"><button type="button" class="fe-btn" id="fe-lang-cancel" style="margin-right:8px;border:1px solid #c7cdd6;border-radius:4px;background:#eef1f6;padding:6px 14px;">'+(DK_UI?'Annullér':'Cancel')+'</button>'
-      +'<button type="button" class="fe-btn" id="fe-lang-apply" style="background:#1769ff;color:#fff;border:1px solid #1257cc;border-radius:4px;padding:6px 14px;">'+(DK_UI?'Opret version':'Create version')+'</button></div></div>';
-    document.getElementById('fe-wrap').appendChild(langModal);
-    function close(){ langModal.style.display='none'; }
-    langModal.addEventListener('mousedown', function(e){ if(e.target===langModal) close(); });
-    langModal.querySelector('#fe-lang-close').addEventListener('click', close);
-    langModal.querySelector('#fe-lang-cancel').addEventListener('click', close);
-    langModal.querySelector('#fe-lang-to').addEventListener('change', feFillLangTargets);
-    langModal.querySelector('#fe-lang-target').addEventListener('change', feUpdateLangPreview);
-    langModal.querySelector('#fe-lang-apply').addEventListener('click', feApplyLang);
-    return langModal;
-  }
-  function feApplyLang(){
-    var toEN=(document.getElementById('fe-lang-to').value!=='da');
-    var target=document.getElementById('fe-lang-target').value;
-    if(!target) return;
-    var exists=FE_VARIANTS.indexOf(target)>=0;
-    var msg = exists
-      ? (DK_UI ? '“'+target+'” findes allerede.\n\nDette ERSTATTER hele layoutet i den version med det oversatte design. Fortsæt?'
-               : '“'+target+'” already exists.\n\nThis REPLACES that version’s entire layout with the translated design. Continue?')
-      : (DK_UI ? 'Opret en ny “'+target+'” sprogversion ud fra dette design?'
-               : 'Create a new “'+target+'” language version from this design?');
-    if(!window.confirm(msg)) return;
-    var payloadEls=elements.filter(function(el){ return el.art===1||el.art===2; }).map(function(el){
-      var besk=el.besk; if(el.art===2) besk=feTranslateCaption(String(besk||''), toEN);
-      return { art:el.art, besk:besk, xa:el.xa, ya:el.ya, xb:el.xb, yb:el.yb, str:el.str, color:el.color, font:el.font, fed:el.fed, kursiv:el.kursiv, side:el.side, justering:el.justering };
-    });
-    var tbl = table ? { gen:{ count:table.gen.count, ya:table.gen.ya, spacing:table.gen.spacing },
-      cols: table.cols.map(function(c){ return { type:c.type, xa:c.xa, ya:c.ya, xb:c.xb, str:c.str, color:c.color, just:c.just, fed:c.fed }; }) } : null;
-    flashStatus(DK_UI?'Opretter sprogversion…':'Creating language version…','#444');
-    fetch('formeditor.php?fe_action=save_translation',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-      body:JSON.stringify({ form_nr:formNr, target:target, elements:payloadEls, table:tbl }), credentials:'same-origin'})
-      .then(function(r){return r.json();}).then(function(j){
-        if(j&&j.ok){ dirty=false; if(typeof clearAutosave==='function') clearAutosave(); flashStatus((DK_UI?'Oprettet – åbner ':'Created – opening ')+'“'+target+'”…','#2a7d2a'); setTimeout(function(){ feGoToVariant(target); },500); }
-        else if(j&&j.error==='session'){ alert(DK_UI?'Session udløbet – genindlæs siden.':'Session expired – reload the page.'); }
-        else { alert(DK_UI?'Kunne ikke gemme sprogversionen.':'Could not save the language version.'); }
-      }).catch(function(){ alert(DK_UI?'Netværksfejl.':'Network error.'); });
-  }
-  document.getElementById('fe-lang-btn').addEventListener('click', function(){ buildLangModal(); feFillLangTargets(); langModal.style.display='flex'; });
+  document.getElementById('fe-lang-da').addEventListener('click', function(){ feSwitchLang(false); });
+  document.getElementById('fe-lang-en').addEventListener('click', function(){ feSwitchLang(true); });
 
   // ---- first-run guided tour (Tier 3): friendly coach-marks ---------------
   // Two tours: a short Quick-start (auto-runs first visit) and a Full tour
@@ -4112,6 +3973,7 @@ if ($menu == 'T') {
   var _autoTr = applyTranslation();
   render();
   if (_autoTr > 0) { undoStack.push(_preTr); markDirty(); flashStatus(AUTO_TR_MSG, '#b26a00'); }
+  feCurLang = feDetectLang(); updateLangToggle();
   if (!elements.length) { statusEl.textContent=L.noel; }
   // Offer to continue a saved draft (working state not yet activated).
   var _bannerShown = !!(FE_DRAFT && FE_DRAFT.state);
