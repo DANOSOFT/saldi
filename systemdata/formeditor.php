@@ -1611,6 +1611,9 @@ if ($menu == 'T') {
     sizePage();
 
     elements.forEach(function (el) {
+      // carry-over elements (side "!S") only print on continuation pages, never
+      // on a normal one-pager — hide them in preview so it matches the PDF.
+      if (previewMode && el.side === '!S') return;
       if (el.kind === 'line') { renderLine(el); return; }
       renderBox(el);
     });
