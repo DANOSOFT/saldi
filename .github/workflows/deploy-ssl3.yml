@@ -21,10 +21,13 @@ jobs:
     # during runner setup). 'self-hosted' + 'ssl3' must both match.
     runs-on: [self-hosted, ssl3]
     steps:
-      - name: Pull latest master into /var/www/html/master
+      - name: Sync /var/www/html/master to origin/master
         run: |
           set -euo pipefail
           cd /var/www/html/master
           git fetch origin master
-          git pull --ff-only origin master
+          # Mirror origin exactly - hard reset (not --ff-only pull) so the
+          # deploy still succeeds after master history is rewritten/force-pushed.
+          # Only touches tracked files; runtime files (temp/, per-db data) are left alone.
+          git reset --hard origin/master
           echo "Deployed $(git rev-parse --short HEAD) to /var/www/html/master"
