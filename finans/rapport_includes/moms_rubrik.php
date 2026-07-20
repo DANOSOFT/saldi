@@ -27,6 +27,7 @@
 //                  summerer nettobeloeb pr. rubrik baseret paa box5 paa momskoder.
 //                  Kraever at box5 (Rubrik) er sat i Indstillinger -> Moms.
 //                  CSV-eksport.
+// 20260720 CL/MJ  Fiscal-year-aware kvartalsgenveje (fy_start/slut vars).
 
 function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                      $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,

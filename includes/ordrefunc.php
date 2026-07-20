@@ -100,7 +100,7 @@
 // 20260618 Sawaneh Stock warning popup now triggers when sale quantity would leave stock below min_lager
 // 20260619 Sawaneh check_stock_warning reads stock from lagerstatus (sum across warehouses) like the order-line red-highlight, not the drifting varer.beholdning field
 // 20260630 CDX/PK Changed the cleanup so that negative lines are only deleted if there is also at least one normal line (item no. >= 0) on the same order.
-// 20260720 MJ  bogfor(): check_periode_luk() called on fakturadate for friendly period-lock error on invoice posting.
+// 20260720 CL/MJ bogfor(): check_periode_luk() called on fakturadate for friendly period-lock error on invoice posting.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */

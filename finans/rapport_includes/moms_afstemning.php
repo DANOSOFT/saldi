@@ -26,6 +26,7 @@
 // 20260716 MJ R4 – Momsafstemning (momssandsynliggoerelse): pr. (konto, momskode)
 //                  sammenligner bogfoert moms med beregnet moms. Differencer fremhaeves.
 //                  CSV-eksport.
+// 20260720 CL/MJ  Fiscal-year-aware kvartalsgenveje (fy_start/slut vars).
 
 function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                          $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,

@@ -28,7 +28,7 @@
 //                  Audit trail gemmes i moms_periode_luk-tabellen.
 // 20260716 MJ     Flyttet DDL (CREATE TABLE/FUNCTION/TRIGGER) til betweenUpdates.php for at
 //                  undgaa falsk positiv i injecttjek() paa semikolon i PL/pgSQL-kroppen.
-// 20260720 MJ     Bulk unlock, note-felt paa luk-handling, posteringsantal pr. maaned.
+// 20260720 CL/MJ  Bulk unlock, note-felt paa luk-handling, posteringsantal pr. maaned.
 
 @session_start();
 $s_id = session_id();

@@ -31,6 +31,7 @@
 // 20260717 MJ     Tilfoejede detaljeret posteringsoversigt (alle OSS-linjer med dato,
 //                  bilag, tekst, beloeb, moms, beloeb inkl. moms) over sammendrag.
 //                  Sammendrag omstruktureret med separate kolonner for varer/ydelser.
+// 20260720 CL/MJ  Fiscal-year-aware kvartalsgenveje; note om at kontofilter ikke galder OSS.
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,

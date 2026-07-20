@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20260716 MJ R1 – Posteringer pr. momskode: alle transaktioner med momskode-kolonne,
 //                  subtotaler pr. kode og grand total. CSV-eksport.
+// 20260720 CL/MJ  Fiscal-year-aware kvartalsgenveje (fy_start/slut vars).
 
 function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                              $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,

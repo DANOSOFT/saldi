@@ -31,6 +31,7 @@
 // 20260716 MJ  R5 moms periodelaasning: opret tabel, triggerfunction og trigger ved login.
 //              CREATE FUNCTION indeholder PL/pgSQL-semikolon og maa ikke koere via db_modify()
 //              (injecttjek() ville flagge dem). Bruges pg_query() direkte i stedet.
+// 20260720 CL/MJ ADD COLUMN note TEXT til moms_periode_luk (idempotent guard).
 
 if ($db_type == 'postgresql') {
 	$performanceIndexes = array(
