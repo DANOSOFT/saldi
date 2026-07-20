@@ -49,7 +49,7 @@ $s_id = session_id();
 // that output on the API path so the fetch() always receives pure JSON.
 // ---------------------------------------------------------------------------
 $fe_action = isset($_GET['fe_action']) ? $_GET['fe_action'] : '';
-$FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remove','savedraft','discarddraft','save_mail'), true);
+$FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remove','savedraft','discarddraft','save_mail','set_printlang'), true);
 
 if ($FE_API) ob_start();
 
@@ -497,6 +497,33 @@ if ($fe_action === 'save_mail') {
 	exit;
 }
 
+// ---------------------------------------------------------------------------
+//  SET PRINT-LANGUAGE LOCK  (POST ?fe_action=set_printlang, JSON body)
+//  Writes/removes ../logolib/<db_id>/fe_printlang_<form>.json. When present,
+//  the print engine forces this form into that language for every customer.
+// ---------------------------------------------------------------------------
+if ($fe_action === 'set_printlang') {
+	@ob_end_clean();
+	header('Content-Type: application/json; charset=utf-8');
+	if (empty($db_id)) { http_response_code(401); print json_encode(array('ok'=>false,'error'=>'session')); exit; }
+	$payload = json_decode(file_get_contents('php://input'), true);
+	$form_nr = isset($payload['form_nr']) ? (int) $payload['form_nr'] : 0;
+	$valid_forms = array(1,2,3,4,5,6,7,8,9,11,12,13,14);
+	if (!in_array($form_nr, $valid_forms, true)) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'form')); exit; }
+	if (!is_dir("../logolib/$db_id")) @mkdir("../logolib/$db_id", 0775, true);
+	$file = "../logolib/$db_id/fe_printlang_$form_nr.json";
+	$lock = !empty($payload['lock']);
+	if ($lock) {
+		$sp = trim((string) (isset($payload['sprog']) ? $payload['sprog'] : ''));
+		if ($sp === '') { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'sprog')); exit; }
+		@file_put_contents($file, json_encode(array('sprog'=>$sp)));
+	} else {
+		@unlink($file);
+	}
+	print json_encode(array('ok'=>true, 'locked'=>$lock));
+	exit;
+}
+
 // ---- helpers ---------------------------------------------------------------
 function fe_bg_display_name($sprog_value) {
 	global $sprog_id;
@@ -746,6 +773,11 @@ if ($tbl_gen && $tbl_cols) {
 $variants = array();
 $qv = db_select("select distinct sprog from formularer order by sprog", __FILE__ . " linje " . __LINE__);
 while ($rv = db_fetch_array($qv)) $variants[] = $rv['sprog'];
+
+// print-language lock: the sprog this form is forced to print in (or '')
+$fe_printlang = '';
+$_plf = "../logolib/$db_id/fe_printlang_$form_nr.json";
+if (@file_exists($_plf)) { $_pl = @json_decode(@file_get_contents($_plf), true); if (is_array($_pl) && !empty($_pl['sprog'])) $fe_printlang = (string) $_pl['sprog']; }
 
 // ---- e-mail text (art=5): xa 1=subject, 2=body, 3=attachment ---------------
 $fe_mail = array('subject'=>'', 'body'=>'', 'attach'=>'', 'has_attach'=>in_array($form_nr, array(1,2,4), true));
@@ -1078,6 +1110,8 @@ if ($menu == 'T') {
   #fe-lang-toggle { display:inline-flex; align-items:center; gap:5px; font-size:13px; color:#556; }
   #fe-lang-toggle .fe-lang-select { font-size:12px; padding:4px 8px; border:1px solid #c7cdd6; border-radius:4px; background:#fff; color:#334; cursor:pointer; }
   #fe-lang-toggle .fe-lang-select:hover { border-color:#9db4e6; }
+  #fe-printlang-wrap { display:inline-flex; align-items:center; gap:4px; font-size:12px; color:#556; cursor:pointer; user-select:none; }
+  #fe-printlang-wrap input { cursor:pointer; }
   .fe-mail-row { display:flex; align-items:center; gap:10px; margin:9px 0; font-size:13px; color:#334; }
   .fe-mail-row label { width:150px; flex:0 0 auto; color:#556; }
   .fe-mail-row input, .fe-mail-row textarea { flex:1; font-size:13px; padding:5px 8px; border:1px solid #d3d8e0;
@@ -1190,6 +1224,7 @@ if ($menu == 'T') {
     <button type="button" class="fe-btn" id="fe-mail-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Rediger e-mailteksten der sendes med PDF&apos;en','Edit the e-mail text sent with the PDF'); ?>">&#9993; <?php echo $T('E-mailtekst','Email text'); ?></button>
     <label id="fe-lang-toggle" title="<?php echo $T('Skift sproget på alle tekster','Switch the language of all captions'); ?>">&#127760;
       <select id="fe-lang-select" class="fe-lang-select"><option value="da">Dansk</option><option value="en">English</option></select></label>
+    <label id="fe-printlang-wrap" title="<?php echo $T('Tving denne formular til altid at udskrive i den valgte sprogversion – uanset kundens sprog','Force this form to always print in the selected language version – regardless of the customer&apos;s language'); ?>"><input type="checkbox" id="fe-printlang"> <?php echo $T('Lås udskrift','Lock print'); ?></label>
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-undo" title="Ctrl+Z">&#8630; <?php echo $T('Fortryd','Undo'); ?></button>
     <button type="button" class="fe-btn" id="fe-redo" title="Ctrl+Y">&#8631; <?php echo $T('Gentag','Redo'); ?></button>
@@ -1446,6 +1481,7 @@ if ($menu == 'T') {
   var FE_MAIL  = <?php echo json_encode($fe_mail); ?>;    // e-mail text (subject/body/attachment)
   var formNr = <?php echo (int) $form_nr; ?>;
   var sprog  = <?php echo json_encode($sprog); ?>;
+  var FE_PRINTLANG = <?php echo json_encode($fe_printlang); ?>;   // sprog this form is forced to print in, or ''
   var COND_TIP = {
     yes: <?php echo json_encode($T('Vises kun hvis "%s" er udfyldt', 'Only shown if "%s" is filled')); ?>,
     no:  <?php echo json_encode($T('Vises kun hvis "%s" er tom', 'Only shown if "%s" is empty')); ?>
@@ -3195,6 +3231,25 @@ if ($menu == 'T') {
                      : (DK_UI?'Alle tekster skiftet til dansk':'All captions switched to Danish'), '#1769ff');
   }
   (function(){ var s=document.getElementById('fe-lang-select'); if(s) s.addEventListener('change', function(){ feSwitchLang(this.value==='en'); }); })();
+
+  // print-language lock: force this form to always print in the current variant,
+  // regardless of the customer's language (writes a per-form lock file server-side).
+  (function(){
+    var cb=document.getElementById('fe-printlang'); if(!cb) return;
+    cb.checked = (FE_PRINTLANG !== '' && FE_PRINTLANG != null);
+    cb.addEventListener('change', function(){
+      var lock=cb.checked;
+      if(lock && !window.confirm(DK_UI
+        ? 'Alle “'+sprog+'” udskrifter af denne formular vil altid være på denne sprogversion – uanset kundens sprog.\n\nAktivér?'
+        : 'Every printout of this form will always use this language version “'+sprog+'” – regardless of the customer’s language.\n\nEnable?')) { cb.checked=false; return; }
+      fetch('formeditor.php?fe_action=set_printlang',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ form_nr:formNr, sprog:sprog, lock:lock }), credentials:'same-origin'})
+        .then(function(r){return r.json();}).then(function(j){
+          if(j&&j.ok){ FE_PRINTLANG = lock ? sprog : ''; flashStatus(lock ? (DK_UI?'Udskriftssprog låst':'Print language locked') : (DK_UI?'Udskriftssprog frigivet':'Print language unlocked'), '#2a7d2a'); }
+          else { cb.checked=!lock; alert(DK_UI?'Handlingen mislykkedes.':'The action failed.'); }
+        }).catch(function(){ cb.checked=!lock; alert(DK_UI?'Netværksfejl.':'Network error.'); });
+    });
+  })();
 
   // ---- first-run guided tour (Tier 3): friendly coach-marks ---------------
   // Two tours: a short Quick-start (auto-runs first visit) and a Full tour

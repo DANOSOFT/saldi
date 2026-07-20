@@ -1261,6 +1261,15 @@ if (!function_exists('formularprint')) {
 
 				if (!$formularsprog)
 					$formularsprog = "dansk";
+				// Per-form print-language lock (set in the visual form editor):
+				// force the whole print into one language regardless of the
+				// customer's language. No lock file => behaviour unchanged.
+				$fe_lock = "../logolib/$db_id/fe_printlang_$formular.json";
+				if (@file_exists($fe_lock)) {
+					$fe_pl = @json_decode(@file_get_contents($fe_lock), true);
+					if (is_array($fe_pl) && !empty($fe_pl['sprog']))
+						$formularsprog = strtolower($fe_pl['sprog']);
+				}
 				if (($formular == 4) || ($formular == 5)) {
 					if (!$fakturanr) { #20130508
 						return ("Fakturering afbrudt ($ordre_id[$o] -> $ordrenr -> Fakturanr mangler) ");
