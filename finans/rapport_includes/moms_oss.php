@@ -32,6 +32,7 @@
 //                  bilag, tekst, beloeb, moms, beloeb inkl. moms) over sammendrag.
 //                  Sammendrag omstruktureret med separate kolonner for varer/ydelser.
 // 20260720 CL/MJ  Fiscal-year-aware kvartalsgenveje; note om at kontofilter ikke galder OSS.
+// 20260720 CL/MJ  Bugfix: t.tekst → t.beskrivelse AS tekst (transaktioner har ikke kolonne tekst).
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -210,7 +211,7 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $qtxt_detail = "SELECT"
         . " t.transdate AS dato,"
         . " t.bilag,"
-        . " t.tekst,"
+        . " t.beskrivelse AS tekst,"
         . " kp.moms AS momskode,"
         . " g.beskrivelse AS kode_navn,"
         . " CAST(COALESCE(NULLIF(g.box2,''),NULL) AS NUMERIC(10,2)) AS momssats,"

@@ -29,6 +29,7 @@
 // 20260716 MJ     Flyttet DDL (CREATE TABLE/FUNCTION/TRIGGER) til betweenUpdates.php for at
 //                  undgaa falsk positiv i injecttjek() paa semikolon i PL/pgSQL-kroppen.
 // 20260720 CL/MJ  Bulk unlock, note-felt paa luk-handling, posteringsantal pr. maaned.
+// 20260720 CL/MJ  Bugfix: bulk_luk/bulk_aaben frigjort fra maaned-guard (bulk forms sender ikke maaned).
 
 @session_start();
 $s_id = session_id();
@@ -62,36 +63,8 @@ if ($_POST && $kan_aendre) {
     $note = db_escape_string(trim(if_isset($_POST, '', 'note')));
     $note_sql = ($note !== '') ? "'$note'" : 'NULL';
 
-    if ($aar >= 2000 && $aar <= 2100 && $maaned >= 1 && $maaned <= 12) {
-        if ($action === 'luk') {
-            // Check for unposted journal drafts dated in this month
-            $draft_advarsel = '';
-            $qd = db_select(
-                "SELECT COUNT(DISTINCT k.kladde_id) AS cnt FROM kassekladde k"
-                . " JOIN kladdeliste kl ON kl.id = k.kladde_id"
-                . " WHERE (kl.bogfort = '-' OR kl.bogfort = '!')"
-                . " AND EXTRACT(YEAR  FROM k.transdate::date) = $aar"
-                . " AND EXTRACT(MONTH FROM k.transdate::date) = $maaned",
-                __FILE__." linje ".__LINE__);
-            if ($rd = db_fetch_array($qd)) {
-                $cnt = (int)$rd['cnt'];
-                if ($cnt > 0)
-                    $draft_advarsel = " OBS: $cnt ikke-bogfoert kladde(r) med dato i denne periode vil ikke kunne bogfoeres foer perioden genaabnes.";
-            }
-
-            db_modify("INSERT INTO moms_periode_luk (kalender_aar, kalender_maaned, status, lukket_af, lukket_dato, note)
-                VALUES ($aar, $maaned, 'closed', '$safe_bruger', '$now', $note_sql)
-                ON CONFLICT (kalender_aar, kalender_maaned)
-                DO UPDATE SET status='closed', lukket_af='$safe_bruger', lukket_dato='$now', note=$note_sql",
-                __FILE__." linje ".__LINE__);
-            $msg = "Perioden " . ucfirst($md[$maaned]) . " $aar er nu lukket.$draft_advarsel";
-        } elseif ($action === 'aaben') {
-            db_modify("UPDATE moms_periode_luk
-                SET status='open', aabnet_af='$safe_bruger', aabnet_dato='$now'
-                WHERE kalender_aar=$aar AND kalender_maaned=$maaned",
-                __FILE__." linje ".__LINE__);
-            $msg = "Perioden " . ucfirst($md[$maaned]) . " $aar er nu aabnet.";
-        } elseif ($action === 'bulk_luk') {
+    if ($aar >= 2000 && $aar <= 2100) {
+        if ($action === 'bulk_luk') {
             $til = (int)if_isset($_POST, 0, 'bulk_til_maaned');
             if ($til >= 1 && $til <= 12) {
                 for ($m = 1; $m <= $til; $m++) {
@@ -114,6 +87,36 @@ if ($_POST && $kan_aendre) {
                         __FILE__." linje ".__LINE__);
                 }
                 $msg = "Maanederne " . ucfirst($md[$fra]) . "–" . ucfirst($md[$til]) . " $aar er nu aabnet.";
+            }
+        } elseif ($maaned >= 1 && $maaned <= 12) {
+            if ($action === 'luk') {
+                // Check for unposted journal drafts dated in this month
+                $draft_advarsel = '';
+                $qd = db_select(
+                    "SELECT COUNT(DISTINCT k.kladde_id) AS cnt FROM kassekladde k"
+                    . " JOIN kladdeliste kl ON kl.id = k.kladde_id"
+                    . " WHERE (kl.bogfort = '-' OR kl.bogfort = '!')"
+                    . " AND EXTRACT(YEAR  FROM k.transdate::date) = $aar"
+                    . " AND EXTRACT(MONTH FROM k.transdate::date) = $maaned",
+                    __FILE__." linje ".__LINE__);
+                if ($rd = db_fetch_array($qd)) {
+                    $cnt = (int)$rd['cnt'];
+                    if ($cnt > 0)
+                        $draft_advarsel = " OBS: $cnt ikke-bogfoert kladde(r) med dato i denne periode vil ikke kunne bogfoeres foer perioden genaabnes.";
+                }
+
+                db_modify("INSERT INTO moms_periode_luk (kalender_aar, kalender_maaned, status, lukket_af, lukket_dato, note)
+                    VALUES ($aar, $maaned, 'closed', '$safe_bruger', '$now', $note_sql)
+                    ON CONFLICT (kalender_aar, kalender_maaned)
+                    DO UPDATE SET status='closed', lukket_af='$safe_bruger', lukket_dato='$now', note=$note_sql",
+                    __FILE__." linje ".__LINE__);
+                $msg = "Perioden " . ucfirst($md[$maaned]) . " $aar er nu lukket.$draft_advarsel";
+            } elseif ($action === 'aaben') {
+                db_modify("UPDATE moms_periode_luk
+                    SET status='open', aabnet_af='$safe_bruger', aabnet_dato='$now'
+                    WHERE kalender_aar=$aar AND kalender_maaned=$maaned",
+                    __FILE__." linje ".__LINE__);
+                $msg = "Perioden " . ucfirst($md[$maaned]) . " $aar er nu aabnet.";
             }
         }
     }
