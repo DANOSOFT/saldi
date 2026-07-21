@@ -87,6 +87,17 @@
 // 20260720 SZ Grouped the badge+summary into a "chip-left" span and switched the chip to
 //                justify-content:space-between, so the chevron always sits pinned to the
 //                right edge of the chip instead of bunched up next to the summary text
+// 20260721 SZ Flipped the default state of all three collapsible sections back to
+//                collapsed on first load
+// 20260721 SZ Made the Invoice overview grid's height dynamic: 40vh is now a max-height
+//                (was a fixed height), so a handful of rows no longer leaves empty space
+//                below them; also overrode grid.php's global "tbody{min-height:300px}"
+//                and switched the wrapper chain from height:100% to flex:1/min-height:0
+//                so it still caps at 40vh with internal scroll once rows exceed that
+// 20260721 SZ Removed the localStorage persistence added 20260717 — all three sections
+//                must always start collapsed on a fresh page load, even if the user had
+//                expanded one just before navigating away; toggling still works normally
+//                within the same page view, it just no longer survives a reload
 @session_start();
 $s_id = session_id();
 
@@ -1508,8 +1519,8 @@ print "</td></tr>\n";
 
 // Ekstra e-mails section header
 $extra_count = ($kontakt_email_count > 1) ? $kontakt_email_count - 1 : 0;
-$ke_initially_visible = ''; // expanded on load by default; keToggle()/localStorage can collapse it
-$ke_chevron_class = 'chip-chevron is-expanded';
+$ke_initially_visible = 'none'; // always collapsed on load; keToggle() can expand it for this page view
+$ke_chevron_class = 'chip-chevron';
 
 // Glanceable summary of extra e-mails by type, so the collapsed header shows
 // something useful instead of just a total count.
@@ -1651,7 +1662,6 @@ function keToggle() {
         row.style.display = 'none';
         if (icon) icon.classList.remove('is-expanded');
     }
-    localStorage.setItem('debitorkort_ke_expanded', expanding ? '1' : '0');
 }
 window.keToggle = keToggle;
 
@@ -1667,32 +1677,8 @@ function catToggle() {
         row.style.display = 'none';
         if (icon) icon.classList.remove('is-expanded');
     }
-    localStorage.setItem('debitorkort_cat_expanded', expanding ? '1' : '0');
 }
 window.catToggle = catToggle;
-
-// Restore each section's last collapse choice. Default is expanded (server-rendered that
-// way); only collapse here if the user explicitly collapsed it on a previous visit.
-// Skipped for categories while a rename is in progress — that flow needs to stay expanded.
-document.addEventListener('DOMContentLoaded', function () {
-    if (localStorage.getItem('debitorkort_ke_expanded') === '0') {
-        var keRow = document.getElementById('ekstra_emails_row');
-        var keIcon = document.getElementById('ke_toggle_icon');
-        if (keRow && keRow.style.display !== 'none') {
-            keRow.style.display = 'none';
-            if (keIcon) keIcon.classList.remove('is-expanded');
-        }
-    }
-    // Categories: skip restoring from localStorage if the row is already expanded
-    // server-side (a rename is in progress and needs to stay visible).
-    var catRow = document.getElementById('cat_content_row');
-    var catAlreadyExpanded = catRow && catRow.style.display !== 'none';
-    if (catRow && !catAlreadyExpanded && localStorage.getItem('debitorkort_cat_expanded') !== '0') {
-        var catIcon = document.getElementById('cat_toggle_icon');
-        catRow.style.display = '';
-        if (catIcon) catIcon.classList.add('is-expanded');
-    }
-});
 
 function updateCatSummary() {
     var badgeEl = document.getElementById('cat_count_badge');
@@ -2332,10 +2318,10 @@ print "<tr><td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"1\" border=
 
 
 $bg = $bgcolor5;
-// Expanded on load by default (catToggle()/localStorage can collapse it); a rename in
-// progress always forces it expanded regardless of any stored collapse choice.
-$cat_row_display = '';
-$cat_chevron_class = 'chip-chevron is-expanded';
+// Always collapsed on load (catToggle() can expand it for this page view); a rename in
+// progress always forces it expanded regardless of that default.
+$cat_row_display = is_numeric($rename_category) ? '' : 'none';
+$cat_chevron_class = is_numeric($rename_category) ? 'chip-chevron is-expanded' : 'chip-chevron';
 
 // Glanceable summary of the categories actually assigned to this debtor, so
 // the collapsed header shows something useful instead of just a total count.
@@ -2671,7 +2657,7 @@ if ($id > 0) {
 	$ph_tooltip = findtekst('5030|Klik for at vise/skjule', $sprog_id);
 	$ph_summary_label = findtekst('5031|Fakturaer', $sprog_id);
 
-	// Expanded by default, same convention as the extra-email / category sections.
+	// Collapsed by default, same convention as the extra-email / category sections.
 	// Only the column headers + data rows collapse — the pagination footer stays put,
 	// since its controls (rowcount select, page buttons) submit their own <form> and
 	// would break if physically moved outside the grid.
@@ -2681,11 +2667,11 @@ if ($id > 0) {
 	<span class='chip-badge' id='ph_count'>$ph_total_count</span>
 	<span class='chip-summary'>$ph_summary_label</span>
 	</span>
-	<span class='chip-chevron is-expanded' id='ph_toggle_icon'></span>
+	<span class='chip-chevron' id='ph_toggle_icon'></span>
 	</a>
 </div>";
     // Start purchase history wrapper - separate from form
-    echo "<div class='purchase-history-wrapper ph-expanded'>";
+    echo "<div class='purchase-history-wrapper ph-collapsed'>";
     
 $purchase_columns = [
     [
@@ -3519,10 +3505,11 @@ document.addEventListener('DOMContentLoaded', function() {
 		flex-direction: column;
 		flex-shrink: 0;
 	}
-	/* Expanded: column headers + rows visible, bounded height, internal scroll */
+	/* Expanded: column headers + rows visible. 40vh is now a ceiling, not a fixed size —
+	   the wrapper shrinks to fit a handful of rows and only grows up to 40vh before its
+	   internal scroll region (.datatable-search-wrapper below) takes over. */
 	.purchase-history-wrapper.ph-expanded {
-		height: 40vh;
-		min-height: 200px;
+		max-height: 40vh;
 		padding-top: 10px;
 	}
 	/* Collapsed: only the pagination footer is visible, sized to its own content */
@@ -3531,9 +3518,11 @@ document.addEventListener('DOMContentLoaded', function() {
 	}
 
 	#datatable-wrapper-purchase_history {
-		height: 100%;
 		display: flex;
 		flex-direction: column;
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: hidden;
 	}
 
 	/* Make the search wrapper fill available space */
@@ -3557,6 +3546,13 @@ document.addEventListener('DOMContentLoaded', function() {
 		width: 100%;
 		border-collapse: collapse;
 		flex: 1;
+	}
+
+	/* Overrides render_dropdown_style()'s global "tbody { min-height: 300px; }" — that
+	   floor is what kept this grid tall even for a couple of rows; without it the wrapper
+	   above can actually shrink to fit real content, up to its 40vh max-height cap. */
+	#datatable-wrapper-purchase_history tbody {
+		min-height: 0;
 	}
 
 	/* The filler row should have height: 100% to expand */
@@ -3648,17 +3644,14 @@ document.addEventListener('DOMContentLoaded', function() {
             outer.appendChild(footerBar);
         }
 
-        // Invoice overview: restore the user's last collapse choice. Default is expanded
-        // (server-rendered that way); only collapse here if the user explicitly collapsed
-        // it on a previous visit. Only the column headers + data rows are hidden — the
-        // pagination footer stays visible (it lives in its own <form> and can't safely
-        // be detached from the grid).
+        // Invoice overview: always collapsed on load, regardless of any earlier visit.
+        // Only the column headers + data rows are hidden — the pagination footer stays
+        // visible (it lives in its own <form> and can't safely be detached from the grid).
         var thead = document.querySelector('#datatable-purchase_history thead');
         var tbody = document.querySelector('#datatable-purchase_history tbody');
         var gridWrapper = document.querySelector('.purchase-history-wrapper');
         var icon = document.getElementById('ph_toggle_icon');
-        var wasCollapsed = localStorage.getItem('debitorkort_ph_expanded') === '0';
-        if (thead && tbody && gridWrapper && wasCollapsed) {
+        if (thead && tbody && gridWrapper) {
             gridWrapper.classList.remove('ph-expanded');
             gridWrapper.classList.add('ph-collapsed');
             thead.style.display = 'none';
@@ -3896,7 +3889,6 @@ function phToggle() {
         tbody.style.display = 'none';
         if (icon) icon.classList.remove('is-expanded');
     }
-    localStorage.setItem('debitorkort_ph_expanded', expanding ? '1' : '0');
     sizePageLayout();
 }
 window.phToggle = phToggle;
