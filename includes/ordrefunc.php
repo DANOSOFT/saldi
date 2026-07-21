@@ -1171,7 +1171,7 @@ function bogfor($id, $webservice=false)
 	$ordredate = $row['ordredate'];
 	$levdate = $row['levdate'];
 	$fakturadate = $row['fakturadate'];
-	if (function_exists('check_periode_luk') && ($err = check_periode_luk($fakturadate)))
+	if ($fakturadate && function_exists('check_periode_luk') && ($err = check_periode_luk($fakturadate)))
 		return $err;
 	$nextfakt = $row['nextfakt'];
 	$art = $row['art'];
