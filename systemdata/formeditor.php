@@ -917,14 +917,33 @@ if ($menu == 'T') {
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class=\"maincontentLargeHolder\">\n";
 } else {
-	print "<div style='padding:6px 10px;background:#000066;color:#fff;font-family:Arial,Helvetica,sans-serif;'>";
-	print "<a style='color:#fff' href=\"" . htmlspecialchars($returside) . "\">&laquo; " . findtekst('30|Tilbage', $sprog_id) . "</a>";
-	print " &nbsp; | &nbsp; <b>Formulareditor</b>";
+	// Embedded (inside main.php): a self-contained header styled to match the
+	// standard Saldi page header (#header in top_menu.css) without pulling in
+	// external CSS, so nothing below it — canvas, rulers, alignment — shifts.
+	print "<link href=\"https://fonts.googleapis.com/css2?family=Exo:wght@700;800&display=swap\" rel=\"stylesheet\">";
+	print "<div id=\"fe-header\">";
+	print "<div class=\"fe-header-side\">";
+	print "<a class=\"fe-hbtn fe-hbtn-gray\" href=\"" . htmlspecialchars($returside) . "\">&laquo; " . findtekst('30|Tilbage', $sprog_id) . "</a>";
+	print "<a class=\"fe-hbtn fe-hbtn-blue\" href=\"formularkort.php\">" . findtekst('573|Formularkort', $sprog_id) . "</a>";
+	print "</div>";
+	print "<span class=\"fe-header-title\">" . htmlspecialchars($title) . "</span>";
+	print "<div class=\"fe-header-side\"></div>";
 	print "</div>";
 }
 ?>
 <style>
   #fe-wrap { font-family: Arial, Helvetica, sans-serif; }
+  /* Saldi-style page header (mirrors #header in top_menu.css), self-contained */
+  #fe-header { display:flex; align-items:center; background:#1792A2; color:#fff; padding:8px 12px; }
+  #fe-header .fe-header-side { flex:0 0 auto; display:flex; align-items:center; gap:8px; }
+  #fe-header .fe-header-title { flex:1 1 auto; text-align:center; margin:0 8px;
+    font-family:'Exo',Tahoma,Arial,sans-serif; text-transform:uppercase; font-weight:800; font-size:19px; letter-spacing:.5px; }
+  #fe-header .fe-hbtn { display:inline-block; text-decoration:none; color:#fff; font-size:13px; line-height:1.2;
+    padding:6px 12px; border-radius:5px; font-family:'Montserrat',Arial,Helvetica,sans-serif; }
+  #fe-header .fe-hbtn-gray { background:#6e6e6e; border:1px solid #666; }
+  #fe-header .fe-hbtn-gray:hover { background:#5c5c5c; }
+  #fe-header .fe-hbtn-blue { background:rgb(28,124,185); border:1px solid #18689b; }
+  #fe-header .fe-hbtn-blue:hover { background:rgb(24,104,155); }
   #fe-toolbar {
     display:flex; align-items:center; flex-wrap:wrap; gap:10px;
     padding:8px 12px; background:#f2f4f8; border-bottom:1px solid #d3d8e0;
