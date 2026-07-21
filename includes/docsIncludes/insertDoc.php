@@ -339,10 +339,14 @@ if ($docFolder && $source == 'creditorOrder') {
     
 
 
+	$fileName = basename($fileName); // strip any path/traversal from the filename
 	$path = "$docFolder/finance/$kladde_id/$sourceId/";
 	$showDoc = $path.$fileName;
 	$targetDir = dirname($showDoc);
-	if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
+	if (!is_dir($targetDir) && !mkdir($targetDir, 0777, true) && !is_dir($targetDir)) {
+		print "creation of $targetDir failed<br>";
+		exit;
+	}
 	$filePath = "/finance/$kladde_id/$sourceId";
 }
 
