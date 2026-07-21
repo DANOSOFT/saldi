@@ -935,12 +935,12 @@ if ($menu == 'T') {
   #fe-wrap { font-family: Arial, Helvetica, sans-serif; }
   /* Saldi-style page header — matches the modern navy chrome (sidebar_style.css:
      #114691 / #1b54a4). Self-contained so nothing below it shifts. */
-  #fe-header { display:flex; align-items:center; background:#114691; color:#fff; padding:8px 12px; }
+  #fe-header { display:flex; align-items:center; background:#114691; color:#fff; padding:5px 12px; }
   #fe-header .fe-header-side { flex:0 0 auto; display:flex; align-items:center; gap:8px; }
   #fe-header .fe-header-title { flex:1 1 auto; text-align:center; margin:0 8px;
-    font-family:'Exo',Tahoma,Arial,sans-serif; text-transform:uppercase; font-weight:800; font-size:19px; letter-spacing:.5px; }
-  #fe-header .fe-hbtn { display:inline-block; text-decoration:none; color:#fff; font-size:13px; line-height:1.2;
-    padding:6px 12px; border-radius:5px; font-family:'Montserrat',Arial,Helvetica,sans-serif;
+    font-family:'Exo',Tahoma,Arial,sans-serif; text-transform:uppercase; font-weight:800; font-size:16px; letter-spacing:.5px; }
+  #fe-header .fe-hbtn { display:inline-block; text-decoration:none; color:#fff; font-size:12px; line-height:1.2;
+    padding:5px 11px; border-radius:5px; font-family:'Montserrat',Arial,Helvetica,sans-serif;
     background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); }
   #fe-header .fe-hbtn:hover { background:rgba(255,255,255,.22); }
   #fe-header .fe-hbtn-blue { background:#1b54a4; border-color:#2a63b5; }
