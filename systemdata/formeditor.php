@@ -917,14 +917,14 @@ if ($menu == 'T') {
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class=\"maincontentLargeHolder\">\n";
 } else {
-	// Embedded (inside main.php): a self-contained header styled to match the
-	// standard Saldi page header (#header in top_menu.css) without pulling in
-	// external CSS, so nothing below it — canvas, rulers, alignment — shifts.
-	print "<link href=\"https://fonts.googleapis.com/css2?family=Exo:wght@700;800&display=swap\" rel=\"stylesheet\">";
-	print "<div id=\"fe-header\">";
+	// Embedded header, theme-driven exactly like the rest of Saldi via
+	// topline_settings.php ($buttonColor / $buttonTxtColor / $butDownStyle,
+	// already included at the top). Inherits the system font. Self-contained,
+	// so nothing below it (canvas, rulers, alignment) shifts.
+	print "<div id=\"fe-header\" style=\"background-color:$buttonColor;color:$buttonTxtColor;\">";
 	print "<div class=\"fe-header-side\">";
-	print "<a class=\"fe-hbtn fe-hbtn-gray\" href=\"" . htmlspecialchars($returside) . "\">&laquo; " . findtekst('30|Tilbage', $sprog_id) . "</a>";
-	print "<a class=\"fe-hbtn fe-hbtn-blue\" href=\"formularkort.php\">" . findtekst('573|Formularkort', $sprog_id) . "</a>";
+	print "<a class=\"fe-hbtn\" style=\"$butDownStyle\" href=\"" . htmlspecialchars($returside) . "\">&laquo; " . findtekst('30|Tilbage', $sprog_id) . "</a>";
+	print "<a class=\"fe-hbtn\" style=\"$butDownStyle\" href=\"formularkort.php\">" . findtekst('573|Formularkort', $sprog_id) . "</a>";
 	print "</div>";
 	print "<span class=\"fe-header-title\">" . htmlspecialchars($title) . "</span>";
 	print "<div class=\"fe-header-side\"></div>";
@@ -933,18 +933,13 @@ if ($menu == 'T') {
 ?>
 <style>
   #fe-wrap { font-family: Arial, Helvetica, sans-serif; }
-  /* Saldi-style page header — matches the modern navy chrome (sidebar_style.css:
-     #114691 / #1b54a4). Self-contained so nothing below it shifts. */
-  #fe-header { display:flex; align-items:center; background:#114691; color:#fff; padding:5px 12px; }
+  /* Header — theme-driven via topline_settings.php (colors set inline); matches
+     the rest of Saldi and inherits the system font. Self-contained. */
+  #fe-header { display:flex; align-items:center; padding:5px 12px; font-family:Arial,Helvetica,sans-serif; }
   #fe-header .fe-header-side { flex:0 0 auto; display:flex; align-items:center; gap:8px; }
-  #fe-header .fe-header-title { flex:1 1 auto; text-align:center; margin:0 8px;
-    font-family:'Exo',Tahoma,Arial,sans-serif; text-transform:uppercase; font-weight:800; font-size:16px; letter-spacing:.5px; }
-  #fe-header .fe-hbtn { display:inline-block; text-decoration:none; color:#fff; font-size:12px; line-height:1.2;
-    padding:5px 11px; border-radius:5px; font-family:'Montserrat',Arial,Helvetica,sans-serif;
-    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); }
-  #fe-header .fe-hbtn:hover { background:rgba(255,255,255,.22); }
-  #fe-header .fe-hbtn-blue { background:#1b54a4; border-color:#2a63b5; }
-  #fe-header .fe-hbtn-blue:hover { background:#2560c0; }
+  #fe-header .fe-header-title { flex:1 1 auto; text-align:center; margin:0 8px; font-size:16px; font-weight:bold; }
+  #fe-header .fe-hbtn { display:inline-block; text-decoration:none; font-size:12px; line-height:1.2; padding:5px 11px; }
+  #fe-header .fe-hbtn:hover { filter:brightness(1.08); }
   #fe-toolbar {
     display:flex; align-items:center; flex-wrap:wrap; gap:10px;
     padding:8px 12px; background:#f2f4f8; border-bottom:1px solid #d3d8e0;
