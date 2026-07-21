@@ -917,29 +917,20 @@ if ($menu == 'T') {
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class=\"maincontentLargeHolder\">\n";
 } else {
-	// Embedded header, theme-driven exactly like the rest of Saldi via
-	// topline_settings.php ($buttonColor / $buttonTxtColor / $butDownStyle,
-	// already included at the top). Inherits the system font. Self-contained,
-	// so nothing below it (canvas, rulers, alignment) shifts.
-	print "<div id=\"fe-header\" style=\"background-color:$buttonColor;color:$buttonTxtColor;\">";
-	print "<div class=\"fe-header-side\">";
-	print "<a class=\"fe-hbtn\" style=\"$butDownStyle\" href=\"" . htmlspecialchars($returside) . "\">&laquo; " . findtekst('30|Tilbage', $sprog_id) . "</a>";
-	print "<a class=\"fe-hbtn\" style=\"$butDownStyle\" href=\"formularkort.php\">" . findtekst('573|Formularkort', $sprog_id) . "</a>";
-	print "</div>";
-	print "<span class=\"fe-header-title\">" . htmlspecialchars($title) . "</span>";
-	print "<div class=\"fe-header-side\"></div>";
+
+	print "<div id=\"fe-header\">";
+	print "<table width=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>";
+	print "<td width=\"170\"><a href=\"" . htmlspecialchars($returside) . "\" accesskey=\"L\"><button type=\"button\" style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+	print "<td align=\"center\" style='$topStyle'>" . htmlspecialchars($title) . "<br></td>";
+	print "<td width=\"170\" style='$topStyle'><br></td>";
+	print "</tr></tbody></table>";
 	print "</div>";
 }
 ?>
 <style>
   #fe-wrap { font-family: Arial, Helvetica, sans-serif; }
-  /* Header — theme-driven via topline_settings.php (colors set inline); matches
-     the rest of Saldi and inherits the system font. Self-contained. */
-  #fe-header { display:flex; align-items:center; padding:5px 12px; font-family:Arial,Helvetica,sans-serif; }
-  #fe-header .fe-header-side { flex:0 0 auto; display:flex; align-items:center; gap:8px; }
-  #fe-header .fe-header-title { flex:1 1 auto; text-align:center; margin:0 8px; font-size:16px; font-weight:bold; }
-  #fe-header .fe-hbtn { display:inline-block; text-decoration:none; font-size:12px; line-height:1.2; padding:5px 11px; }
-  #fe-header .fe-hbtn:hover { filter:brightness(1.08); }
+
+  #fe-header table { font-family: Arial, Helvetica, sans-serif; }
   #fe-toolbar {
     display:flex; align-items:center; flex-wrap:wrap; gap:10px;
     padding:8px 12px; background:#f2f4f8; border-bottom:1px solid #d3d8e0;
