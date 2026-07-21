@@ -51,6 +51,42 @@
 // 20260717 SZ Replaced the fixed setTimeout grid-render guesses with waitForGridReady() polling;
 //                all three collapsible sections (Ekstra e-mails/Kategorier/Invoice overview) now
 //                persist their expand/collapse state in localStorage across page loads
+// 20260720 SZ Made the three collapsible sections' click affordance clearer: swapped the plain
+//                unicode arrows for the same fa-chevron-down/up icons the sidebar menu uses,
+//                widened the clickable area to the whole title (not just the small count text),
+//                and added a hover highlight + tooltip so it reads as a toggle at a glance
+// 20260720 SZ The page's global "a:link{text-decoration:none}" rule was making the toggle look
+//                like plain black text, not a link, so the chevron alone wasn't enough of a
+//                hint; styled the whole toggle bar as a colored, underlined link and added an
+//                explicit "Show/Hide" text label next to the chevron on all three sections
+// 20260720 SZ The new "Ekstra e-mails"/"Invoice overview"/"Show/Hide"/tooltip strings were
+//                hardcoded in Danish/English and not translated for Norwegian; added tekst_id
+//                5027-5030 to importfiler/tekster.csv (da/en/no) and wired all four through
+//                findtekst() so they follow the same convention as "Kategorier" (tekst_id 388)
+// 20260720 SZ Replaced the underlined-link toggle with two disclosure patterns from design
+//                review: a bordered "chip" control (border + count badge + chevron) for the
+//                inline Ekstra e-mails/Kategorier rows, and a full-width sunken accordion bar
+//                (chevron-right/down + rounded count badge) for the larger Invoice overview
+//                section — both read as real controls instead of decorated text
+// 20260720 SZ Switched Invoice overview from the sunken accordion bar to the same bordered
+//                chip control used by Ekstra e-mails/Kategorier, for visual consistency across
+//                all three sections; removed the now-unused sunken-bar CSS
+// 20260720 SZ Changed the default state of all three collapsible sections from collapsed to
+//                expanded on first load; localStorage still remembers an explicit collapse
+//                choice across reloads, only the "never toggled before" default changed
+// 20260720 SZ Replaced the fa-chevron-* icon font glyphs (which depend on an external CDN
+//                and were rendering blank in a no-internet test environment) with plain
+//                Unicode &#9650;/&#9660; arrows for the three toggle chevrons — zero network
+//                dependency, same up/down swap logic, now via innerHTML instead of className
+// 20260720 SZ Replaced the Unicode arrow glyphs with a pure-CSS chevron (two rotated borders
+//                forming a "v") matching the shape of the sidebar's fa-chevron icon without any
+//                icon-font dependency; toggling now rotates the chevron via a CSS class instead
+//                of swapping its content, for a smoother animated open/close
+// 20260720 SZ Widened the Kategorier/Invoice overview chips (min-width, more padding/gap) to
+//                match the design mockup's proportions; Ekstra e-mails chip left compact
+// 20260720 SZ Grouped the badge+summary into a "chip-left" span and switched the chip to
+//                justify-content:space-between, so the chevron always sits pinned to the
+//                right edge of the chip instead of bunched up next to the summary text
 @session_start();
 $s_id = session_id();
 
@@ -1472,7 +1508,8 @@ print "</td></tr>\n";
 
 // Ekstra e-mails section header
 $extra_count = ($kontakt_email_count > 1) ? $kontakt_email_count - 1 : 0;
-$ke_initially_visible = 'none'; // always collapsed on load, matching da_collapsible convention
+$ke_initially_visible = ''; // expanded on load by default; keToggle()/localStorage can collapse it
+$ke_chevron_class = 'chip-chevron is-expanded';
 
 // Glanceable summary of extra e-mails by type, so the collapsed header shows
 // something useful instead of just a total count.
@@ -1492,9 +1529,13 @@ if (count($ke_summary_parts) > 3) $ke_summary_text .= ', ...';
 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td style='vertical-align:top'>";
-print "<b>Ekstra e-mails</b> ";
-print "<a href='#' onclick='keToggle(); return false;' style='text-decoration:none; cursor:pointer;'>";
-print "<small>(<span id='ekstra_email_count'>$extra_count</span><span id='ke_summary_text'>" . ($ke_summary_text ? ": $ke_summary_text" : '') . "</span> <span id='ke_toggle_icon'>&#9660;</span>)</small>";
+print "<b>" . findtekst('5027|Ekstra e-mails', $sprog_id) . "</b> ";
+print "<a href='#' onclick='keToggle(); return false;' class='disclosure-chip' title=\"" . findtekst('5030|Klik for at vise/skjule', $sprog_id) . "\">";
+print "<span class='chip-left'>";
+print "<span class='chip-badge' id='ekstra_email_count'>$extra_count</span>";
+print "<span class='chip-summary' id='ke_summary_text'>$ke_summary_text</span>";
+print "</span>";
+print "<span class='$ke_chevron_class' id='ke_toggle_icon'></span>";
 print "</a>";
 print "</td><td>";
 print "<button type='button' onclick='addEmailRow()' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">+ Ny</button>";
@@ -1595,7 +1636,7 @@ function updateEmailCount() {
     });
     var summary = parts.slice(0, 3).join(', ') + (parts.length > 3 ? ', ...' : '');
     var summaryEl = document.getElementById('ke_summary_text');
-    if (summaryEl) summaryEl.textContent = summary ? ': ' + summary : '';
+    if (summaryEl) summaryEl.textContent = summary;
 }
 
 function keToggle() {
@@ -1605,10 +1646,10 @@ function keToggle() {
     var expanding = row.style.display === 'none';
     if (expanding) {
         row.style.display = '';
-        if (icon) icon.innerHTML = '&#9650;'; // up arrow = visible
+        if (icon) icon.classList.add('is-expanded');
     } else {
         row.style.display = 'none';
-        if (icon) icon.innerHTML = '&#9660;'; // down arrow = hidden
+        if (icon) icon.classList.remove('is-expanded');
     }
     localStorage.setItem('debitorkort_ke_expanded', expanding ? '1' : '0');
 }
@@ -1621,40 +1662,42 @@ function catToggle() {
     var expanding = row.style.display === 'none';
     if (expanding) {
         row.style.display = '';
-        if (icon) icon.innerHTML = '&#9650;'; // up arrow = visible
+        if (icon) icon.classList.add('is-expanded');
     } else {
         row.style.display = 'none';
-        if (icon) icon.innerHTML = '&#9660;'; // down arrow = hidden
+        if (icon) icon.classList.remove('is-expanded');
     }
     localStorage.setItem('debitorkort_cat_expanded', expanding ? '1' : '0');
 }
 window.catToggle = catToggle;
 
-// Restore each section's last collapse choice (defaults to collapsed if never toggled).
+// Restore each section's last collapse choice. Default is expanded (server-rendered that
+// way); only collapse here if the user explicitly collapsed it on a previous visit.
 // Skipped for categories while a rename is in progress — that flow needs to stay expanded.
 document.addEventListener('DOMContentLoaded', function () {
-    if (localStorage.getItem('debitorkort_ke_expanded') === '1') {
+    if (localStorage.getItem('debitorkort_ke_expanded') === '0') {
         var keRow = document.getElementById('ekstra_emails_row');
         var keIcon = document.getElementById('ke_toggle_icon');
-        if (keRow && keRow.style.display === 'none') {
-            keRow.style.display = '';
-            if (keIcon) keIcon.innerHTML = '&#9650;';
+        if (keRow && keRow.style.display !== 'none') {
+            keRow.style.display = 'none';
+            if (keIcon) keIcon.classList.remove('is-expanded');
         }
     }
     // Categories: skip restoring from localStorage if the row is already expanded
     // server-side (a rename is in progress and needs to stay visible).
     var catRow = document.getElementById('cat_content_row');
     var catAlreadyExpanded = catRow && catRow.style.display !== 'none';
-    if (catRow && !catAlreadyExpanded && localStorage.getItem('debitorkort_cat_expanded') === '1') {
+    if (catRow && !catAlreadyExpanded && localStorage.getItem('debitorkort_cat_expanded') !== '0') {
         var catIcon = document.getElementById('cat_toggle_icon');
         catRow.style.display = '';
-        if (catIcon) catIcon.innerHTML = '&#9650;';
+        if (catIcon) catIcon.classList.add('is-expanded');
     }
 });
 
 function updateCatSummary() {
-    var countEl = document.getElementById('cat_count');
-    if (!countEl) return;
+    var badgeEl = document.getElementById('cat_count_badge');
+    var summaryEl = document.getElementById('cat_count');
+    if (!summaryEl) return;
     var rows = document.querySelectorAll('#cat_content_row tbody tr');
     var names = [];
     rows.forEach(function (tr) {
@@ -1662,12 +1705,13 @@ function updateCatSummary() {
         var nameTd = tr.querySelector('td');
         if (cb && cb.checked && nameTd) names.push(nameTd.textContent.trim());
     });
+    if (badgeEl) badgeEl.textContent = names.length;
     if (names.length === 0) {
-        countEl.textContent = '0 valgt';
+        summaryEl.textContent = '';
     } else {
         var shown = names.slice(0, 2).join(', ');
         var extra = names.length > 2 ? ', +' + (names.length - 2) : '';
-        countEl.textContent = names.length + ' valgt: ' + shown + extra;
+        summaryEl.textContent = shown + extra;
     }
 }
 window.updateCatSummary = updateCatSummary;
@@ -2288,11 +2332,10 @@ print "<tr><td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"1\" border=
 
 
 $bg = $bgcolor5;
-// Keep the category list expanded when a rename is in progress (user came here to edit it);
-// otherwise start collapsed, same convention as the delivery-address / extra-email sections.
-$cat_initially_expanded = is_numeric($rename_category);
-$cat_row_display = $cat_initially_expanded ? '' : 'none';
-$cat_toggle_icon_initial = $cat_initially_expanded ? '&#9650;' : '&#9660;';
+// Expanded on load by default (catToggle()/localStorage can collapse it); a rename in
+// progress always forces it expanded regardless of any stored collapse choice.
+$cat_row_display = '';
+$cat_chevron_class = 'chip-chevron is-expanded';
 
 // Glanceable summary of the categories actually assigned to this debtor, so
 // the collapsed header shows something useful instead of just a total count.
@@ -2302,15 +2345,20 @@ for ($ci = 0; $ci < count($cat_id); $ci++) {
 }
 $cat_assigned_count = count($cat_assigned_names);
 if ($cat_assigned_count > 0) {
-	$cat_summary_text = $cat_assigned_count . ' valgt: ' . implode(', ', array_slice($cat_assigned_names, 0, 2));
-	if ($cat_assigned_count > 2) $cat_summary_text .= ', +' . ($cat_assigned_count - 2);
+	$cat_names_text = implode(', ', array_slice($cat_assigned_names, 0, 2));
+	if ($cat_assigned_count > 2) $cat_names_text .= ', +' . ($cat_assigned_count - 2);
 } else {
-	$cat_summary_text = '0 valgt';
+	$cat_names_text = '';
 }
 
-print "<tr bgcolor=$bg><td colspan=\"4\" valign=\"top\">" . findtekst('388|Kategorier', $sprog_id) . "<!--tekst 388-->";
-print " <a href='#' onclick='catToggle(); return false;' style='text-decoration:none; cursor:pointer;'>";
-print "<small>(<span id='cat_count'>$cat_summary_text</span> <span id='cat_toggle_icon'>$cat_toggle_icon_initial</span>)</small>";
+print "<tr bgcolor=$bg><td colspan=\"4\" valign=\"top\">";
+print "<b>" . findtekst('388|Kategorier', $sprog_id) . "</b> <!--tekst 388-->";
+print "<a href='#' onclick='catToggle(); return false;' class='disclosure-chip chip-wide' title=\"" . findtekst('5030|Klik for at vise/skjule', $sprog_id) . "\">";
+print "<span class='chip-left'>";
+print "<span class='chip-badge' id='cat_count_badge'>$cat_assigned_count</span>";
+print "<span class='chip-summary' id='cat_count'>$cat_names_text</span>";
+print "</span>";
+print "<span class='$cat_chevron_class' id='cat_toggle_icon'></span>";
 print "</a>";
 print "</td></tr>\n";
 print "<tr id='cat_content_row' style='display:{$cat_row_display};'><td colspan=\"4\"><div style='max-height:30vh; overflow-y:auto;'><table cellpadding=\"0\" cellspacing=\"1\" border=\"0\" width=\"100%\"><tbody>\n";
@@ -2619,16 +2667,25 @@ if ($id > 0) {
 		) AS purchase_history_count
 	", __FILE__ . " linje " . __LINE__));
 	$ph_total_count = $ph_count_row['cnt'] ?? 0;
+	$ph_title = findtekst('5028|Fakturaoversigt', $sprog_id);
+	$ph_tooltip = findtekst('5030|Klik for at vise/skjule', $sprog_id);
+	$ph_summary_label = findtekst('5031|Fakturaer', $sprog_id);
 
-	// Collapsed by default, same convention as the extra-email / category sections.
+	// Expanded by default, same convention as the extra-email / category sections.
 	// Only the column headers + data rows collapse — the pagination footer stays put,
 	// since its controls (rowcount select, page buttons) submit their own <form> and
 	// would break if physically moved outside the grid.
-	print "<div id='ph_toggle_bar' onclick='phToggle()' style='padding:4px 8px; cursor:pointer; user-select:none; background:#f4f4f4; border-top:1px solid #ddd; font-size:12px; flex-shrink:0;'>
-	<b>Invoice overview</b> (<span id='ph_count'>$ph_total_count</span> <span id='ph_toggle_icon'>&#9660;</span>)
+	print "<div id='ph_toggle_bar' style='flex-shrink:0; padding:4px 8px;'>
+	<b>$ph_title</b> <a href='#' onclick='phToggle(); return false;' class='disclosure-chip chip-wide' title=\"$ph_tooltip\">
+	<span class='chip-left'>
+	<span class='chip-badge' id='ph_count'>$ph_total_count</span>
+	<span class='chip-summary'>$ph_summary_label</span>
+	</span>
+	<span class='chip-chevron is-expanded' id='ph_toggle_icon'></span>
+	</a>
 </div>";
     // Start purchase history wrapper - separate from form
-    echo "<div class='purchase-history-wrapper ph-collapsed'>";
+    echo "<div class='purchase-history-wrapper ph-expanded'>";
     
 $purchase_columns = [
     [
@@ -3386,6 +3443,76 @@ document.addEventListener('DOMContentLoaded', function() {
 		   room for the toggle bar / grid / footer below it */
 	}
 
+	/* Disclosure affordances for Ekstra e-mails / Kategorier / Invoice overview.
+	   Bordered chip: for the inline field rows (Ekstra e-mails, Kategorier) — the
+	   summary sits inside a real bordered control (border + badge + chevron + hover),
+	   so it reads as a button rather than decorated text. */
+	.disclosure-chip {
+		display: inline-flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		border: 1px solid #d0d5dd;
+		border-radius: 6px;
+		background: #fff;
+		padding: 3px 10px;
+		cursor: pointer;
+		user-select: none;
+		text-decoration: none;
+		color: #333;
+		font-size: 13px;
+		transition: background 0.15s ease, border-color 0.15s ease;
+	}
+	.disclosure-chip .chip-left {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.disclosure-chip.chip-wide {
+		min-width: 220px;
+		padding: 5px 14px;
+	}
+	.disclosure-chip.chip-wide .chip-left {
+		gap: 10px;
+	}
+	.disclosure-chip:hover {
+		background: #f5f7fa;
+		border-color: #b6bdc9;
+	}
+	.disclosure-chip .chip-badge {
+		display: inline-block;
+		background: #eaf1fc;
+		color: #1a5fb4;
+		font-weight: 600;
+		font-size: 12px;
+		border-radius: 10px;
+		padding: 1px 8px;
+		min-width: 14px;
+		text-align: center;
+	}
+	.disclosure-chip .chip-summary {
+		color: #555;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 260px;
+	}
+	/* Pure-CSS chevron (two borders forming a "v", rotated) — same shape as the sidebar's
+	   fa-chevron icon, but with no icon-font dependency, and animates smoothly on toggle. */
+	.chip-chevron {
+		display: inline-block;
+		width: 6px;
+		height: 6px;
+		border-right: 2px solid #888;
+		border-bottom: 2px solid #888;
+		transform: rotate(45deg);
+		transition: transform 0.15s ease;
+		margin: 0 2px;
+	}
+	.chip-chevron.is-expanded {
+		transform: rotate(-135deg);
+	}
+
 	.purchase-history-wrapper {
 		overflow: hidden;
 		display: flex;
@@ -3521,26 +3648,22 @@ document.addEventListener('DOMContentLoaded', function() {
             outer.appendChild(footerBar);
         }
 
-        // Invoice overview: restore the user's last collapse choice (default collapsed
-        // if they've never toggled it). Only the column headers + data rows are hidden —
-        // the pagination footer stays visible (it lives in its own <form> and can't
-        // safely be detached from the grid).
+        // Invoice overview: restore the user's last collapse choice. Default is expanded
+        // (server-rendered that way); only collapse here if the user explicitly collapsed
+        // it on a previous visit. Only the column headers + data rows are hidden — the
+        // pagination footer stays visible (it lives in its own <form> and can't safely
+        // be detached from the grid).
         var thead = document.querySelector('#datatable-purchase_history thead');
         var tbody = document.querySelector('#datatable-purchase_history tbody');
         var gridWrapper = document.querySelector('.purchase-history-wrapper');
         var icon = document.getElementById('ph_toggle_icon');
-        var wasExpanded = localStorage.getItem('debitorkort_ph_expanded') === '1';
-        if (thead && tbody && gridWrapper) {
-            if (wasExpanded) {
-                gridWrapper.classList.remove('ph-collapsed');
-                gridWrapper.classList.add('ph-expanded');
-                thead.style.display = '';
-                tbody.style.display = '';
-                if (icon) icon.innerHTML = '&#9650;';
-            } else {
-                thead.style.display = 'none';
-                tbody.style.display = 'none';
-            }
+        var wasCollapsed = localStorage.getItem('debitorkort_ph_expanded') === '0';
+        if (thead && tbody && gridWrapper && wasCollapsed) {
+            gridWrapper.classList.remove('ph-expanded');
+            gridWrapper.classList.add('ph-collapsed');
+            thead.style.display = 'none';
+            tbody.style.display = 'none';
+            if (icon) icon.classList.remove('is-expanded');
         }
 
         sizePageLayout();
@@ -3765,13 +3888,13 @@ function phToggle() {
         gridWrapper.classList.add('ph-expanded');
         thead.style.display = '';
         tbody.style.display = '';
-        if (icon) icon.innerHTML = '&#9650;'; // up arrow = visible
+        if (icon) icon.classList.add('is-expanded');
     } else {
         gridWrapper.classList.remove('ph-expanded');
         gridWrapper.classList.add('ph-collapsed');
         thead.style.display = 'none';
         tbody.style.display = 'none';
-        if (icon) icon.innerHTML = '&#9660;'; // down arrow = hidden
+        if (icon) icon.classList.remove('is-expanded');
     }
     localStorage.setItem('debitorkort_ph_expanded', expanding ? '1' : '0');
     sizePageLayout();
