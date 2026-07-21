@@ -29,6 +29,7 @@
 //20240329 PHR Now returns to kassekladde when done.
 //20260603 CL/PHR debitorOrdrer-blok tilføjet (opretter debitor/orders/$sourceId/).
 //                  Redirect hardkodede source=creditorOrder rettet til source=$source
+//20260720 Sawaneh kassekladde-bilagssti bruger nu $docFolder (ikke hardkodet ../bilag) og opretter mappen rekursivt via dirname()+mkdir(...,true).
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -338,21 +339,10 @@ if ($docFolder && $source == 'creditorOrder') {
     
 
 
-	$path = "../bilag/$db/finance/$kladde_id/$sourceId/";
+	$path = "$docFolder/finance/$kladde_id/$sourceId/";
 	$showDoc = $path.$fileName;
-	if(!file_exists("../bilag/$db")) 							mkdir ("../bilag/$db",0777);
-	if(!file_exists("../bilag/$db")) {
-		print "creation of ../bilag/$db failed<br>";
-		exit;
-	}
-	if (!file_exists($docFolder))                 			mkdir ($docFolder,0777);
-	if (!file_exists("$docFolder")) print "Ku ik oprette $docFolder<br>";
-	if (!file_exists("$docFolder/finance"))        		mkdir ("$docFolder/finance",0777);
-	if (!file_exists("$docFolder/finance")) print "Ku ik oprette $docFolder/finance<br>";
-	if (!file_exists("$docFolder/finance/$kladde_id")) 	mkdir ("$docFolder/finance/$kladde_id",0777); //Groups the individual attached files
-# 	if (!file_exists("$docFolder/finance/$kladde_id")) #cho "Ku ik oprette $docFolder/finance/$kladde_id<br>";
-	if (!file_exists("$docFolder/finance/$kladde_id/$sourceId")) 	mkdir ("$docFolder/finance/$kladde_id/$sourceId",0777);
-#	if (!file_exists("$docFolder/finance/$kladde_id/$sourceId")) #cho "Ku ik oprette $docFolder/finance/$kladde_id/$sourceId<br>";
+	$targetDir = dirname($showDoc);
+	if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
 	$filePath = "/finance/$kladde_id/$sourceId";
 }
 
