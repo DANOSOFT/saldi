@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_rubrik.php --- patch 5.0.0 --- 2026-07-19 ---
+// --- finans/rapport_includes/moms_rubrik.php --- patch 5.0.0 --- 2026-07-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,8 @@
 //                  summerer nettobeloeb pr. rubrik baseret paa box5 paa momskoder.
 //                  Kraever at box5 (Rubrik) er sat i Indstillinger -> Moms.
 //                  CSV-eksport.
+// 20260722 CL/MJ  COALESCE(debet,0)/COALESCE(kredit,0) i SUM: NULL-aritmetik
+//                 gav NULL (vist som 0) for rene debet- eller kreditkonti.
 
 function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                      $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -150,7 +152,7 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     ];
 
     // Aggregate: SUM(debet - kredit) per rubrik using box5 on the VAT code row
-    $qtxt = "SELECT g.box5 AS rubrik, SUM(t.debet - t.kredit) AS nettobeloeb"
+    $qtxt = "SELECT g.box5 AS rubrik, SUM(COALESCE(t.debet, 0) - COALESCE(t.kredit, 0)) AS nettobeloeb"
           . " FROM transaktioner t"
           . " JOIN kontoplan kp ON kp.kontonr = t.kontonr AND kp.regnskabsaar = '$regnaar'"
           . " JOIN ("

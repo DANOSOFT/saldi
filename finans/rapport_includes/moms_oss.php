@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_oss.php --- patch 5.0.0 --- 2026-07-19 ---
+// --- finans/rapport_includes/moms_oss.php --- patch 5.0.0 --- 2026-07-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,8 @@
 // 20260717 MJ     Tilfoejede detaljeret posteringsoversigt (alle OSS-linjer med dato,
 //                  bilag, tekst, beloeb, moms, beloeb inkl. moms) over sammendrag.
 //                  Sammendrag omstruktureret med separate kolonner for varer/ydelser.
+// 20260722 CL/MJ  COALESCE(debet,0)/COALESCE(kredit,0) i beloeb-udtryk: NULL-
+//                 aritmetik gav NULL for rene debet- eller kreditposteringer.
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -208,9 +210,9 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         . " CAST(COALESCE(NULLIF(g.box2,''),NULL) AS NUMERIC(10,2)) AS momssats,"
         . " g.box6 AS land,"
         . " COALESCE(NULLIF(TRIM(g.box7),''), '') AS type,"
-        . " (t.kredit - t.debet) AS beloeb,"
-        . " -t.moms AS momsbeloeb,"
-        . " (t.kredit - t.debet) - t.moms AS beloeb_inkl_moms"
+        . " (COALESCE(t.kredit, 0) - COALESCE(t.debet, 0)) AS beloeb,"
+        . " -COALESCE(t.moms, 0) AS momsbeloeb,"
+        . " (COALESCE(t.kredit, 0) - COALESCE(t.debet, 0)) - COALESCE(t.moms, 0) AS beloeb_inkl_moms"
         . " FROM transaktioner t"
         . $oss_join
         . " ORDER BY g.box6, t.transdate, t.bilag, t.id";
@@ -338,11 +340,11 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $qtxt_sum = "SELECT"
         . " g.box6 AS land,"
         . " CAST(COALESCE(NULLIF(g.box2,''),NULL) AS NUMERIC(10,2)) AS momssats,"
-        . " SUM(CASE WHEN LOWER(TRIM(g.box7)) LIKE 'var%' THEN (t.kredit - t.debet) ELSE 0 END) AS beloeb_varer,"
+        . " SUM(CASE WHEN LOWER(TRIM(g.box7)) LIKE 'var%' THEN COALESCE(t.kredit, 0) - COALESCE(t.debet, 0) ELSE 0 END) AS beloeb_varer,"
         . " SUM(CASE WHEN LOWER(TRIM(g.box7)) LIKE 'yd%' OR LOWER(TRIM(g.box7)) LIKE 'ser%'"
-        .       " THEN (t.kredit - t.debet) ELSE 0 END) AS beloeb_ydelser,"
-        . " SUM(t.kredit - t.debet) AS beloeb_total,"
-        . " -SUM(t.moms) AS momsbeloeb"
+        .       " THEN COALESCE(t.kredit, 0) - COALESCE(t.debet, 0) ELSE 0 END) AS beloeb_ydelser,"
+        . " SUM(COALESCE(t.kredit, 0) - COALESCE(t.debet, 0)) AS beloeb_total,"
+        . " -SUM(COALESCE(t.moms, 0)) AS momsbeloeb"
         . " FROM transaktioner t"
         . $oss_join
         . " GROUP BY g.box6, g.box2"
