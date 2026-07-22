@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_transaktioner.php --- patch 5.0.0 --- 2026-07-19 ---
+// --- finans/rapport_includes/moms_transaktioner.php --- patch 5.0.0 --- 2026-07-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,8 @@
 // 20260716 MJ R1 – Posteringer pr. momskode: alle transaktioner med momskode-kolonne,
 //                  subtotaler pr. kode og grand total. CSV-eksport.
 // 20260720 CL/MJ  Fiscal-year-aware kvartalsgenveje (fy_start/slut vars).
+// 20260722 CL/MJ  COALESCE(debet,0)/COALESCE(kredit,0) i beloeb: NULL-aritmetik
+//                 gav NULL (vist som 0) for rene debet- eller kreditposteringer.
 
 function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                              $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -223,7 +225,7 @@ function moms_transaktioner($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_t
           . " COALESCE(kp.moms, '') AS momskode,"
           . " g.beskrivelse AS moms_navn,"
           . " CAST(COALESCE(NULLIF(g.box2,''),NULL) AS NUMERIC(10,2)) AS momssats,"
-          . " (t.debet - t.kredit) AS beloeb,"
+          . " (COALESCE(t.debet, 0) - COALESCE(t.kredit, 0)) AS beloeb,"
           . " t.moms AS momsbeloeb"
           . " FROM transaktioner t"
           . " LEFT JOIN kontoplan kp ON kp.kontonr = t.kontonr AND kp.regnskabsaar = '$regnaar'"
