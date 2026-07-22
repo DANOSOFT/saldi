@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_afstemning.php --- patch 5.0.0 --- 2026-07-19 ---
+// --- finans/rapport_includes/moms_afstemning.php --- patch 5.0.0 --- 2026-07-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,8 @@
 // 20260716 MJ R4 – Momsafstemning (momssandsynliggoerelse): pr. (konto, momskode)
 //                  sammenligner bogfoert moms med beregnet moms. Differencer fremhaeves.
 //                  CSV-eksport.
+// 20260722 CL/MJ  Omsaetning tæller kun momsbelagte linjer så VAT-fri-posteringer
+//                 ikke nulstiller grundlaget for konti med blandet momstatus.
 
 function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                          $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -174,15 +176,17 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         . "<input type='submit' value='Opdater'></form>";
 
     // Main aggregation query:
-    // Per (kontonr, momskode): sum net turnover, sum booked VAT from t.moms,
-    // derive calculated VAT = turnover * rate / 100
+    // Per (kontonr, momskode): sum VAT-bearing turnover (lines where moms != 0 only),
+    // sum booked VAT from t.moms, derive calculated VAT = turnover * rate / 100.
+    // Only counting moms-bearing lines in omsaetning prevents VAT-free postings on the
+    // same account from masking the real taxable base.
     $qtxt = "SELECT"
           . " kp.kontonr,"
           . " kp.beskrivelse AS konto_navn,"
           . " kp.moms AS momskode,"
           . " g.beskrivelse AS moms_navn,"
           . " CAST(COALESCE(NULLIF(g.box2,''),NULL) AS NUMERIC(10,4)) AS momssats,"
-          . " SUM(t.debet - t.kredit) AS omsaetning,"
+          . " SUM(CASE WHEN NULLIF(t.moms, 0) IS NOT NULL THEN t.debet - t.kredit ELSE 0 END) AS omsaetning,"
           . " SUM(t.moms) AS bogfoert_moms"
           . " FROM transaktioner t"
           . " JOIN kontoplan kp ON kp.kontonr = t.kontonr AND kp.regnskabsaar = '$regnaar'"
