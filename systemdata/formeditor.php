@@ -515,7 +515,15 @@ if ($fe_action === 'set_printlang') {
 	$lock = !empty($payload['lock']);
 	if ($lock) {
 		$sp = trim((string) (isset($payload['sprog']) ? $payload['sprog'] : ''));
-		if ($sp === '') { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'sprog')); exit; }
+		// The print engine interpolates this value into SQL, so only accept a real
+		// existing variant name with no odd characters (blocks 2nd-order injection).
+		$sp_clean = preg_replace('/[^\p{L}\p{N} ._\-]/u', '', $sp);
+		$ok_variant = false;
+		if ($sp !== '' && $sp_clean === $sp) {
+			$r = db_fetch_array(db_select("select 1 as ok from formularer where sprog='" . db_escape_string($sp) . "' limit 1", __FILE__ . " linje " . __LINE__));
+			$ok_variant = ($r && $r['ok']);
+		}
+		if (!$ok_variant) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'sprog')); exit; }
 		@file_put_contents($file, json_encode(array('sprog'=>$sp)));
 	} else {
 		@unlink($file);
@@ -1441,6 +1449,7 @@ if ($menu == 'T') {
   var grid = false;
   var rulersOn = false;
   var previewMode = false;   // "Show draft": fill variables with sample data
+  var DK_UI    = <?php echo $dk_ui ? 'true' : 'false'; ?>;   // Danish UI? (SAMPLE below reads it, so it must be set first)
   // Sample values used only for the on-screen preview (Spec FR-3.1 sample data).
   var SAMPLE = {
     ordre_firmanavn:'Acme Trading ApS', ordre_addr1:'Nørregade 12', ordre_addr2:'2. sal',
@@ -1480,7 +1489,6 @@ if ($menu == 'T') {
   var tableInit = table ? JSON.parse(JSON.stringify(table)) : null;   // pristine copy for "Reset table"
   var tableGroupInit = [];   // pristine geometry of the table's headers/border lines (filled at init)
   var VAR_MAP  = <?php echo json_encode(fe_var_map()); ?> || {};
-  var DK_UI    = <?php echo $dk_ui ? 'true' : 'false'; ?>;
   var LOGO_URL = <?php echo json_encode($fe_logo_url); ?>;
   var LOGO_NAT = { w: <?php echo (int) $fe_logo_w; ?>, h: <?php echo (int) $fe_logo_h; ?> };
   var FE_DRAFT = <?php echo json_encode($fe_draft); ?>;   // saved working state, or null

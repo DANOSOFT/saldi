@@ -1267,8 +1267,12 @@ if (!function_exists('formularprint')) {
 				$fe_lock = "../logolib/$db_id/fe_printlang_$formular.json";
 				if (@file_exists($fe_lock)) {
 					$fe_pl = @json_decode(@file_get_contents($fe_lock), true);
-					if (is_array($fe_pl) && !empty($fe_pl['sprog']))
-						$formularsprog = strtolower($fe_pl['sprog']);
+					if (is_array($fe_pl) && !empty($fe_pl['sprog'])) {
+						// value is interpolated into SQL below; restrict to a safe
+						// charset in case the lock file was tampered with on disk.
+						$fe_lang = preg_replace('/[^\p{L}\p{N} ._\-]/u', '', (string) $fe_pl['sprog']);
+						if ($fe_lang !== '') $formularsprog = strtolower($fe_lang);
+					}
 				}
 				if (($formular == 4) || ($formular == 5)) {
 					if (!$fakturanr) { #20130508
