@@ -28,6 +28,8 @@
 //                  CSV-eksport.
 // 20260722 CL/MJ  Omsaetning tæller kun momsbelagte linjer så VAT-fri-posteringer
 //                 ikke nulstiller grundlaget for konti med blandet momstatus.
+//                 COALESCE(debet,0)/COALESCE(kredit,0): transaktioner gemmer ubrugt
+//                 side som NULL; NULL-aritmetik gav NULL (vist som 0) i SUM.
 
 function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                          $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -186,7 +188,7 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
           . " kp.moms AS momskode,"
           . " g.beskrivelse AS moms_navn,"
           . " CAST(COALESCE(NULLIF(g.box2,''),NULL) AS NUMERIC(10,4)) AS momssats,"
-          . " SUM(CASE WHEN NULLIF(t.moms, 0) IS NOT NULL THEN t.debet - t.kredit ELSE 0 END) AS omsaetning,"
+          . " SUM(CASE WHEN NULLIF(t.moms, 0) IS NOT NULL THEN COALESCE(t.debet, 0) - COALESCE(t.kredit, 0) ELSE 0 END) AS omsaetning,"
           . " SUM(t.moms) AS bogfoert_moms"
           . " FROM transaktioner t"
           . " JOIN kontoplan kp ON kp.kontonr = t.kontonr AND kp.regnskabsaar = '$regnaar'"
