@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-07-16 ---
+// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-07-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,8 @@
 // 20240407 PHR - save moved to syssetupIncludes/saveData.php
 // 20240604 PHR PHP8
 // 20260716 MJ  Tilfoejede Land (OSS) og Type til SM-momskoder for OSS B2C EU momsangivelse.
+// 20260723 CL/MJ  EU-zone-dropdown (box10) paa DG-debitorgrupper til OSS-klassificering.
+// 20260723 CL/MJ  Varer/ydelser-type (box5) til VG-varegrupper for Momsrubrikker A/B/C-afledning.
 
 @session_start();
 $s_id=session_id();
@@ -268,6 +270,7 @@ elseif($valg=='varer'){
 		if ($stockIO) print "<td align=\"center\">".findtekst('608|Lager', $sprog_id)."-</td><td align=\"center\">".findtekst('608|Lager', $sprog_id)."-</td>";
 		print "<td align=\"center\"><!--Køb--></td>";
 		print "<td align=\"center\"><!--".findtekst('1007|Salgs', $sprog_id)."--></td>";
+		print "<td align=\"center\">Varer/</td>\n";
 		#<td align=\"center\">Lager-</td>";
 		print "<td title=\"$t6\" align=\"center\">Omvendt-</td>";
 		print "<td align=\"center\">".findtekst('770|Moms', $sprog_id)."-</td>";
@@ -283,6 +286,7 @@ elseif($valg=='varer'){
 		if ($stockIO) print "<td align=\"center\">tilgang</td><td align=\"center\">træk</td>";
 		print "<td align=\"center\">".findtekst('1012|Køb', $sprog_id)."</td>";
 		print "<td align=\"center\">".findtekst('2468|Salg', $sprog_id)."<!--".findtekst('1007|Salgs', $sprog_id)."--></td>";
+			print "<td align=\"center\">ydelser</td>\n";
 		#<td align=\"center\">regulering</td>
 		print "<td  title=\"$t6\" align=\"center\">betaling</td>";
 		print "<td align=\"center\">fri</td>";
@@ -294,9 +298,9 @@ elseif($valg=='varer'){
 		print "<td title='Kontonummer for en af Varekøb uden for EU, Ydelseskøb uden for EU eller Vare- og ydelseskøb uden for EU.'>for EU</td>\n";
 		print "<td title='Kontonummer for en af Varesalg uden for EU, Ydelsessalg uden for EU eller Vare- og ydelsessalg uden for EU (Rubrik C). Hvis en af de to første angives, så skal kontonummeret være blandt de kontonumre, som summeres til en samlekonto for Vare- og ydelsessalg uden for EU (Rubrik C).'>for EU</td></tr>\n";
 		if ($stockIO) {
-		$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'4',$box4,'4','-','',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
+		$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'4',$box4,'4',$box5,'vg-type',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
 		} else {
-			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,'-','','-','',$box3,'4',$box4,'4','-','',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
+			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,'-','','-','',$box3,'4',$box4,'4',$box5,'vg-type',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
 		}
 	} else {
 		print "<tr><td colspan=20 align=\"center\"><b>".findtekst('774|Varegrupper', $sprog_id)."</td></tr><tr><td colspan=20><hr></td></tr>\n";
@@ -305,6 +309,7 @@ elseif($valg=='varer'){
 			print "<td align=\"center\">".findtekst('608|Lager', $sprog_id)."-</td><td align=\"center\">".findtekst('608|Lager', $sprog_id)."-</td>";
 		}	
 		print "<td align=\"center\">".findtekst('110|Varer', $sprog_id)."-</td><td align=\"center\">".findtekst('110|Varer', $sprog_id)."-</td>";
+		print "<td align=\"center\">Varer/</td>\n";
 #		print "<td align=\"center\">Lager-</td>";
 		print "<td align=\"center\">Omvendt-</td>";
 		print "<td align=\"center\">".findtekst('770|Moms', $sprog_id)."-</td>";
@@ -320,6 +325,7 @@ elseif($valg=='varer'){
 		if ($stockIO) print "<td align=\"center\">tilgang</td><td align=\"center\">træk</td>";
 		print "<td align=\"center\">".findtekst('1012|Køb', $sprog_id)."</td>";
 		print "<td align=\"center\">".findtekst('1007|Salgs', $sprog_id)."</td>";
+			print "<td align=\"center\">ydelser</td>\n";
 #		print "<td align=\"center\">regulering</td>";
 		print "<td  title=\"$t6\" align=\"center\">betaling</td>";
 		print "<td align=\"center\">fri</td>";
@@ -331,9 +337,9 @@ elseif($valg=='varer'){
 		print "<td title='Kontonummer for en af Varekø uden for EU, Ydelseskø uden for EU eller Vare- og ydelseskø uden for EU.'>for EU</td>\n";
 		print "<td title='Kontonummer for en af Varesalg uden for EU, Ydelsessalg uden for EU eller Vare- og ydelsessalg uden for EU (Rubrik C). Hvis en af de to første angives, så skal kontonummeret være blandt de kontonumre, som summeres til en samlekonto for Vare- og ydelsessalg uden for EU (Rubrik C).'>for EU</td></tr>\n";
 		if ($stockIO) {
-			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'4',$box4,'4','-','',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
+			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'4',$box4,'4',$box5,'vg-type',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
 		} else {
-			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,'-','','-','',$box3,'4',$box4,'4','-','',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
+			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,'-','','-','',$box3,'4',$box4,'4',$box5,'vg-type',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
 		}
 	}
 	print "<tr><td colspan=20 align=\"center\"><hr><b>".findtekst('2471|Prisgrupper', $sprog_id)."</td></tr><tr><td colspan=20><hr></td></tr>\n";

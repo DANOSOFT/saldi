@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_rubrik.php --- patch 5.0.0 --- 2026-07-22 ---
+// --- finans/rapport_includes/moms_rubrik.php --- patch 5.0.0 --- 2026-07-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,11 @@
 // 20260720 CL/MJ  Fiscal-year-aware kvartalsgenveje (fy_start/slut vars).
 // 20260722 CL/MJ  COALESCE(debet,0)/COALESCE(kredit,0) i SUM: NULL-aritmetik
 //                 gav NULL (vist som 0) for rene debet- eller kreditkonti.
+// 20260723 CL/MJ  Rubrik afleder nu fra ordrelinjer: ordrer.art (DO/DK=salg, KO/KK=kob) +
+//                  DG.box10 (EU-zone paa debitorgruppe) + VG.box5 (varer/ydelser).
+//                  B-varer/B-ydelser: salgsordrer til B2B-EU-kunder.
+//                  C: salgsordrer til kunder udenfor EU.
+//                  A-varer/A-ydelser: afventer klassificering paa kreditorgrupper.
 
 function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                      $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -157,35 +162,57 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         'C'         => 'Rubrik C: V&aelig;rdien af andre varer og ydelser leveret uden afgift',
     ];
 
-    // Aggregate: SUM(debet - kredit) per rubrik using box5 on the VAT code row
-    $qtxt = "SELECT g.box5 AS rubrik, SUM(COALESCE(t.debet, 0) - COALESCE(t.kredit, 0)) AS nettobeloeb"
-          . " FROM transaktioner t"
-          . " JOIN kontoplan kp ON kp.kontonr = t.kontonr AND kp.regnskabsaar = '$regnaar'"
-          . " JOIN ("
-          .   " SELECT DISTINCT ON (art, kodenr) art, kodenr, box5"
-          .   " FROM grupper WHERE art IN ('SM','KM','YM','EM')"
-          .   " ORDER BY art, kodenr, fiscal_year DESC NULLS LAST"
-          . " ) g ON g.art = UPPER(SUBSTRING(kp.moms FROM 1 FOR 1)) || 'M'"
-          .   " AND CAST(g.kodenr AS TEXT) = SUBSTRING(kp.moms FROM 2)"
-          . " WHERE t.transdate >= '$regnstart' AND t.transdate <= '$regnslut'"
-          . " AND kp.moms IS NOT NULL AND kp.moms != ''"
-          . " AND g.box5 IS NOT NULL AND g.box5 != ''"
-          . " $dim"
-          . " GROUP BY g.box5"
-          . " ORDER BY g.box5";
+    // Rubrik B + C: derive from sales orderlines via DG EU-zone + VG varer/ydelser type.
+    // Rubrik A: pending — needs EU-zone on creditor groups (KG).
+    $qtxt = "WITH vg AS ("
+          . " SELECT DISTINCT ON (kodenr) CAST(kodenr AS TEXT) AS kodenr,"
+          .   " NULLIF(TRIM(COALESCE(box5,'')), '') AS vg_type"
+          . " FROM grupper WHERE art = 'VG'"
+          . " ORDER BY kodenr, fiscal_year DESC NULLS LAST"
+          . "), dg AS ("
+          . " SELECT DISTINCT ON (kodenr) CAST(kodenr AS TEXT) AS kodenr,"
+          .   " NULLIF(TRIM(COALESCE(box10,'')), '') AS eu_zone"
+          . " FROM grupper WHERE art = 'DG'"
+          . " ORDER BY kodenr, fiscal_year DESC NULLS LAST"
+          . ")"
+          . " SELECT"
+          .   " CASE"
+          .     " WHEN dg.eu_zone = 'B2B-EU' AND vg.vg_type = 'ydelser' THEN 'B-ydelser'"
+          .     " WHEN dg.eu_zone = 'B2B-EU' THEN 'B-varer'"
+          .     " WHEN dg.eu_zone IN ('B2B-UDL','B2C-UDL') THEN 'C'"
+          .   " END AS rubrik,"
+          .   " SUM(ol.pris * (1 - COALESCE(ol.rabat,0)/100) * ol.antal"
+          .     " * COALESCE(ord.valutakurs,100)/100) AS nettobeloeb"
+          . " FROM ordrelinjer ol"
+          . " JOIN ordrer ord ON ord.id = ol.ordre_id"
+          .   " AND ord.art IN ('DO','DK')"
+          .   " AND ord.status >= 3"
+          .   " AND ord.fakturadate >= '$regnstart'"
+          .   " AND ord.fakturadate <= '$regnslut'"
+          . " JOIN varer v ON v.id = ol.vare_id AND ol.vare_id > 0"
+          . " JOIN vg ON vg.kodenr = CAST(v.gruppe AS TEXT)"
+          . " JOIN adresser adr ON adr.id = ord.konto_id"
+          . " JOIN dg ON dg.kodenr = CAST(adr.gruppe AS TEXT)"
+          . " WHERE ol.momsfri = 'on'"
+          . " GROUP BY rubrik"
+          . " HAVING rubrik IS NOT NULL"
+          . " ORDER BY rubrik";
     $q = db_select($qtxt, __FILE__." linje ".__LINE__);
     $rubrik_sum = [];
     while ($r = db_fetch_array($q)) $rubrik_sum[$r['rubrik']] = (float)$r['nettobeloeb'];
 
-    // Check if any rubrik mapping exists
+    // Check if DG groups have EU-zone configured (prerequisite for rubrik derivation)
     $has_mapping = db_fetch_array(db_select(
-        "SELECT 1 FROM grupper WHERE art IN ('SM','KM','YM','EM') AND box5 IS NOT NULL AND box5 != '' LIMIT 1",
+        "SELECT 1 FROM grupper WHERE art = 'DG'"
+        . " AND NULLIF(TRIM(COALESCE(box10,'')), '') IS NOT NULL LIMIT 1",
         __FILE__." linje ".__LINE__));
     if (!$has_mapping) {
         print "<div style='padding:16px 12px; color:#c00;'>";
-        print "<b>Rubrik-mapping ikke konfigureret.</b><br>";
-        print "Gaa til <a href='../systemdata/syssetup.php?valg=moms'>Indstillinger &rarr; Moms</a> ";
-        print "og udfyld feltet <b>Rubrik</b> for de momskoder, der skal indg&aring; i rubrik-rapporten.";
+        print "<b>Rubrik-konfiguration mangler.</b><br>";
+        print "Gaa til <a href='../systemdata/syssetup.php?valg=debitorer'>Indstillinger &rarr; Debitorgrupper</a> ";
+        print "og udfyld feltet <b>EU-zone</b> for dine kundegrupper.<br>";
+        print "S&aelig;t ogs&aring; <b>Varer/ydelser</b>-typen paa dine ";
+        print "<a href='../systemdata/syssetup.php?valg=varer'>Varegrupper</a>.";
         print "</div>";
     }
 
@@ -219,6 +246,15 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     print "<td align='right'>" . dkdecimal($grand, 2) . "</td>";
     print "</tr>";
     print "</tbody></table></div>";
+
+    print "<div style='padding:6px 12px 12px; font-size:0.85em; color:#888;'>";
+    print "<b>Rubrik A</b> (EU-k&oslash;b) medtages n&aring;r EU-zone-klassificering er sat p&aring; kreditorgrupper.<br>";
+    print "Rubrik B + C afledes fra fakturerede salgsordrer: ";
+    print "EU-zone p&aring; <a href='../systemdata/syssetup.php?valg=debitorer'>Debitorgrupper</a> ";
+    print "+ Varer/ydelser-type p&aring; <a href='../systemdata/syssetup.php?valg=varer'>Varegrupper</a>. ";
+    print "Manuelle finansposteringer uden ordretilknytning indg&aring;r ikke.";
+    print "</div>";
+
     fclose($csv);
 
     if ($menu == 'T') {

@@ -32,6 +32,7 @@
 // 20240604 PHR - PHP8
 // 20260717 MJ  Rubrik (box5) og Type (box7) vises nu som dropdown paa SM/KM/YM/EM-koder.
 // 20260723 CL/MJ  EU-zone dropdown (box10) paa DG-debitorgrupper til OSS-klassificering.
+// 20260723 CL/MJ  Varer/ydelser-dropdown (box5, b5='vg-type') paa VG-varegrupper til Momsrubrikker.
 
 function skriv_formtabel($a,$x,$y,$art,$id,$k,$kodenr,$beskrivelse,$box1,$b1,$box2,$b2,$box3,$b3,$box4,$b4,$box5,$b5,$box6,$b6,$box7,$b7,$box8,$b8,$box9,$b9,$box10,$b10,$box11,$b11,$box12,$b12,$box13,$b13,$box14,$b14) {
 
@@ -133,6 +134,13 @@ if (!isset ($b)) $b = null;
 					print "<td><select class=\"inputbox\" name=\"box5[$i]\">";
 					foreach (['' => '–', 'A-varer' => 'A-varer', 'A-ydelser' => 'A-ydelser', 'B-varer' => 'B-varer', 'B-ydelser' => 'B-ydelser', 'C' => 'C'] as $v => $l) {
 						$sel = ((string)$box5[$i] === $v) ? ' selected' : '';
+						print "<option value=\"$v\"$sel>$l</option>";
+					}
+					print "</select></td>\n";
+				} elseif ($art[$i] === 'VG' && $b5 === 'vg-type') {
+					print "<td><select class=\"inputbox\" name=\"box5[$i]\">";
+					foreach (['' => '–', 'varer' => 'Varer', 'ydelser' => 'Ydelser'] as $v => $l) {
+						$sel = ((string)($box5[$i] ?? '') === $v) ? ' selected' : '';
 						print "<option value=\"$v\"$sel>$l</option>";
 					}
 					print "</select></td>\n";
@@ -266,6 +274,12 @@ if (!isset ($b)) $b = null;
 			if (in_array($a, ['SM','KM','YM','EM'])) {
 				print "<td><select class=\"inputbox\" name=\"box5[$y]\">";
 				foreach (['' => '–', 'A-varer' => 'A-varer', 'A-ydelser' => 'A-ydelser', 'B-varer' => 'B-varer', 'B-ydelser' => 'B-ydelser', 'C' => 'C'] as $v => $l) {
+					print "<option value=\"$v\">$l</option>";
+				}
+				print "</select></td>\n";
+			} elseif ($a === 'VG' && $b5 === 'vg-type') {
+				print "<td><select class=\"inputbox\" name=\"box5[$y]\">";
+				foreach (['' => '–', 'varer' => 'Varer', 'ydelser' => 'Ydelser'] as $v => $l) {
 					print "<option value=\"$v\">$l</option>";
 				}
 				print "</select></td>\n";
