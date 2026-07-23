@@ -31,6 +31,7 @@
 // 20200308 PHR - Added $stockIO
 // 20240604 PHR - PHP8
 // 20260717 MJ  Rubrik (box5) og Type (box7) vises nu som dropdown paa SM/KM/YM/EM-koder.
+// 20260723 CL/MJ  EU-zone dropdown (box10) paa DG-debitorgrupper til OSS-klassificering.
 
 function skriv_formtabel($a,$x,$y,$art,$id,$k,$kodenr,$beskrivelse,$box1,$b1,$box2,$b2,$box3,$b3,$box4,$b4,$box5,$b5,$box6,$b6,$box7,$b7,$box8,$b8,$box9,$b9,$box10,$b10,$box11,$b11,$box12,$b12,$box13,$b13,$box14,$b14) {
 
@@ -171,7 +172,17 @@ if (!isset ($b)) $b = null;
 				else {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box9[$i]\"></td>\n";}
 			}
 			if (($box10!="-")&&($b10!="checkbox")) {
-				print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"$b10\" name=\"box10[$i]\" value=\"$box10[$i]\"></td>\n";
+				if ($art[$i] === 'DG' && $b10 === 'eu-zone') {
+					$eu_opts = ['' => '–', 'B2C-EU' => 'B2C EU (privat)', 'B2C-UDL' => 'B2C udenfor EU', 'B2B-EU' => 'B2B EU (m. CVR)', 'B2B-UDL' => 'B2B udenfor EU'];
+					print "<td><select class=\"inputbox\" name=\"box10[$i]\">";
+					foreach ($eu_opts as $v => $l) {
+						$sel = ((string)($box10[$i] ?? '') === $v) ? ' selected' : '';
+						print "<option value=\"$v\"$sel>$l</option>";
+					}
+					print "</select></td>\n";
+				} else {
+					print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"$b10\" name=\"box10[$i]\" value=\"$box10[$i]\"></td>\n";
+				}
 			}	elseif($b10=="checkbox") {
 				if (strstr($box10[$i],'on')) {
 					print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=box10[$i] checked></td>\n";
@@ -280,7 +291,16 @@ if (!isset ($b)) $b = null;
 		elseif($b8=="checkbox") {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box8[$y]\"></td>\n";}
 		if (($box9!="-")&&($b9!="checkbox")) {print "<td align=\"center\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b9 name=\"box9[$y]\"></td>\n";}
 		elseif($b9=="checkbox") {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box9[$y]\"></td>\n";}
-		if (($box10!="-")&&($b10!="checkbox")) {print "<td align=\"center\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b10 name=\"box10[$y]\"></td>\n";}
+		if (($box10!="-")&&($b10!="checkbox")) {
+			if ($a === 'DG' && $b10 === 'eu-zone') {
+				$eu_opts = ['' => '–', 'B2C-EU' => 'B2C EU (privat)', 'B2C-UDL' => 'B2C udenfor EU', 'B2B-EU' => 'B2B EU (m. CVR)', 'B2B-UDL' => 'B2B udenfor EU'];
+				print "<td><select class=\"inputbox\" name=\"box10[$y]\">";
+				foreach ($eu_opts as $v => $l) { print "<option value=\"$v\">$l</option>"; }
+				print "</select></td>\n";
+			} else {
+				print "<td align=\"center\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b10 name=\"box10[$y]\"></td>\n";
+			}
+		}
 		elseif($b10=="checkbox") {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box10[$y]\"></td>\n";}
 		if (($box11!="-")&&($b11!="checkbox")) {print "<td align=\"center\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=$b11 name=\"box11[$y]\"></td>\n";}
 		elseif($b11=="checkbox") {print "<td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"box11[$y]\"></td>\n";}
