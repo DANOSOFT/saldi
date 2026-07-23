@@ -85,6 +85,8 @@ email.php
 
 # hidden files
 .ht*
+*.log
+!doc/rettelser*.log
 
 # Live Service
 /index/redirect.php
