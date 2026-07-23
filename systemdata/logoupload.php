@@ -330,23 +330,25 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 	
 	if (move_uploaded_file($fra, $til)) {
 
-		$pinfo = @shell_exec("pdfinfo " . escapeshellarg($til) . " 2>/dev/null");
-		$isA4 = ($pinfo && preg_match('/Page size:\s*([\d.]+)\s*x\s*([\d.]+)/', $pinfo, $mps)
-		         && abs((float)$mps[1] - 595) <= 3 && abs((float)$mps[2] - 842) <= 3);
-		if (!$isA4 && function_exists('shell_exec')) {
-		
-			$pref  = $til . "_a4tmp";
-			$png1  = $pref . "-1.png";
-			$a4tmp = $til . ".a4.pdf";
-			@shell_exec("pdftoppm -png -r 200 -f 1 -l 1 " . escapeshellarg($til) . " " . escapeshellarg($pref) . " 2>/dev/null");
-			if (file_exists($png1)) {
-				@shell_exec("convert " . escapeshellarg($png1) . " -resize 1654x2339 -background white -gravity center -extent 1654x2339 -units PixelsPerInch -density 200 " . escapeshellarg($a4tmp) . " 2>/dev/null");
-				if (file_exists($a4tmp) && filesize($a4tmp) > 0) @rename($a4tmp, $til);
-				else @unlink($a4tmp);
-				@unlink($png1);
+		if (function_exists('shell_exec')) {
+			$pinfo = @shell_exec("pdfinfo " . escapeshellarg($til) . " 2>/dev/null");
+			$isA4 = ($pinfo && preg_match('/Page size:\s*([\d.]+)\s*x\s*([\d.]+)/', $pinfo, $mps)
+			         && abs((float)$mps[1] - 595) <= 3 && abs((float)$mps[2] - 842) <= 3);
+            if (!$isA4) {
+
+                $pref  = $til . "_a4tmp";
+                $png1  = $pref . "-1.png";
+                $a4tmp = $til . ".a4.pdf";
+                @shell_exec("pdftoppm -png -r 200 -f 1 -l 1 " . escapeshellarg($til) . " " . escapeshellarg($pref) . " 2>/dev/null");
+                if (file_exists($png1)) {
+                    @shell_exec("convert " . escapeshellarg($png1) . " -resize 1654x2339 -background white -gravity center -extent 1654x2339 -units PixelsPerInch -density 200 " . escapeshellarg($a4tmp) . " 2>/dev/null");
+                    if (file_exists($a4tmp) && filesize($a4tmp) > 0) @rename($a4tmp, $til);
+                    else @unlink($a4tmp);
+                    @unlink($png1);
+                }
 			}
 		}
-#		$pdftk = shell_exec("which pdftk");
+		// $pdftk = shell_exec("which pdftk");
 		if ($pdftk) {
 			$alert= findtekst('1751|The page has been loaded.', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert')\">";

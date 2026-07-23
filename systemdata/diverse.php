@@ -644,8 +644,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$gs1parsing           = if_isset($_POST, null, 'gs1_parsing');
 		$ourRefStockSwitch    = if_isset($_POST, null, 'ourRefStockSwitch');
 		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
-		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
-
+		
 		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
 
 

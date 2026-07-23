@@ -48,10 +48,23 @@ $s_id = session_id();
 // on some (legacy) menu types it also prints a page <head>; we buffer + discard
 // that output on the API path so the fetch() always receives pure JSON.
 // ---------------------------------------------------------------------------
+if (!isset($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$fe_csrf_token = $_SESSION['csrf_token'];
+
 $fe_action = isset($_GET['fe_action']) ? $_GET['fe_action'] : '';
 $FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remove','savedraft','discarddraft','save_mail','set_printlang'), true);
 
-if ($FE_API) ob_start();
+if ($FE_API) {
+	ob_start();
+	$fe_submitted_token = isset($_SERVER['HTTP_X_CSRF_TOKEN']) ? $_SERVER['HTTP_X_CSRF_TOKEN'] : (isset($_GET['csrf_token']) ? $_GET['csrf_token'] : '');
+	if (!$fe_submitted_token || !hash_equals($fe_csrf_token, $fe_submitted_token)) {
+		ob_end_clean();
+		header('Content-Type: application/json');
+		http_response_code(403);
+		echo json_encode(array('ok' => false, 'error' => 'csrf'));
+		exit;
+	}
+}
 
 $title = "Formulareditor";
 $css   = "../css/standard.css";
@@ -1495,6 +1508,7 @@ if ($menu == 'T') {
   var FE_MAIL  = <?php echo json_encode($fe_mail); ?>;    // e-mail text (subject/body/attachment)
   var formNr = <?php echo (int) $form_nr; ?>;
   var sprog  = <?php echo json_encode($sprog); ?>;
+  var FE_CSRF = <?php echo json_encode($fe_csrf_token); ?>;
   var FE_PRINTLANG = <?php echo json_encode($fe_printlang); ?>;   // sprog this form is forced to print in, or ''
   var COND_TIP = {
     yes: <?php echo json_encode($T('Vises kun hvis "%s" er udfyldt', 'Only shown if "%s" is filled')); ?>,
@@ -2345,7 +2359,7 @@ if ($menu == 'T') {
     if (!window.confirm(L.logoRemoveConfirm)) return;
     flashStatus(L.logoRemoving, '#444');
     fetch('formeditor.php?fe_action=logo_remove', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':FE_CSRF},
       body: JSON.stringify({ form_nr: formNr, sprog: sprog }), credentials:'same-origin'
     }).then(function(r){ return r.json(); }).then(function(j){
       if(j && j.ok){
@@ -2795,7 +2809,7 @@ if ($menu == 'T') {
       var el=elById(selId); if(!el||el.kind!=='logo') return;
       flashStatus(<?php echo json_encode($T('Uploader logo…','Uploading logo…')); ?>, '#444');
       var fd=new FormData(); fd.append('logo', fin.files[0]);
-      fetch('formeditor.php?fe_action=logo_upload', { method:'POST', body:fd, credentials:'same-origin' })
+      fetch('formeditor.php?fe_action=logo_upload', { method:'POST', headers:{'X-CSRF-Token':FE_CSRF}, body:fd, credentials:'same-origin' })
         .then(function(r){ return r.json(); }).then(function(j){
           if(j && j.ok){
             LOGO_URL=j.url; LOGO_NAT={w:j.w,h:j.h};
@@ -2893,7 +2907,7 @@ if ($menu == 'T') {
     }
     var body = { form_nr: formNr, sprog: sprog, elements: payload, deleted: deletedIds };
     fetch('formeditor.php?fe_action=save', {
-      method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':FE_CSRF},
       body: JSON.stringify(body), credentials:'same-origin'
     }).then(function(r){ return r.json(); }).then(function(j){
       if (j && j.ok) {
@@ -2915,7 +2929,7 @@ if ($menu == 'T') {
   document.getElementById('fe-savedraft').addEventListener('click', function(){
     statusEl.textContent=L.savingDraft; statusEl.style.color='#444';
     fetch('formeditor.php?fe_action=savedraft', {
-      method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':FE_CSRF},
       body: JSON.stringify({ form_nr: formNr, sprog: sprog, state: currentState() }), credentials:'same-origin'
     }).then(function(r){ return r.json(); }).then(function(j){
       if (j && j.ok) { dirty=false; statusEl.textContent=L.draftSaved; statusEl.style.color='#2a7d2a'; }
@@ -2947,7 +2961,7 @@ if ($menu == 'T') {
   document.getElementById('fe-draft-discard').addEventListener('click', function(){
     hideDraftBanner();
     fetch('formeditor.php?fe_action=discarddraft', {
-      method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':FE_CSRF},
       body: JSON.stringify({ form_nr: formNr, sprog: sprog }), credentials:'same-origin'
     }).catch(function(){});
   });
@@ -2995,7 +3009,7 @@ if ($menu == 'T') {
     if (!window.confirm(L.resetConfirm)) return;
     statusEl.textContent=L.resetting; statusEl.style.color='#444';
     fetch('formeditor.php?fe_action=reset', {
-      method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':FE_CSRF},
       body: JSON.stringify({ form_nr: formNr, sprog: sprog }), credentials:'same-origin'
     }).then(function(r){ return r.json(); }).then(function(j){
       if (j && j.ok) { dirty=false; statusEl.textContent=L.resetDone; statusEl.style.color='#2a7d2a'; setTimeout(function(){ location.reload(); }, 400); }
@@ -3150,7 +3164,7 @@ if ($menu == 'T') {
         subject:mailModal.querySelector('#fe-mail-subject').value,
         body:mailSanitize(mailModal.querySelector('#fe-mail-body').innerHTML) };
       if(FE_MAIL.has_attach) body.attach=mailModal.querySelector('#fe-mail-attach').value;
-      fetch('formeditor.php?fe_action=save_mail',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body),credentials:'same-origin'})
+      fetch('formeditor.php?fe_action=save_mail',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':FE_CSRF},body:JSON.stringify(body),credentials:'same-origin'})
         .then(function(r){return r.json();}).then(function(j){
           if(j&&j.ok){ FE_MAIL.subject=body.subject; FE_MAIL.body=body.body; if(FE_MAIL.has_attach) FE_MAIL.attach=body.attach;
             st.textContent=(DK_UI?'Gemt ✓':'Saved ✓'); st.style.color='#2a7d2a'; }
@@ -3256,7 +3270,7 @@ if ($menu == 'T') {
       if(lock && !window.confirm(DK_UI
         ? 'Alle “'+sprog+'” udskrifter af denne formular vil altid være på denne sprogversion – uanset kundens sprog.\n\nAktivér?'
         : 'Every printout of this form will always use this language version “'+sprog+'” – regardless of the customer’s language.\n\nEnable?')) { cb.checked=false; return; }
-      fetch('formeditor.php?fe_action=set_printlang',{method:'POST',headers:{'Content-Type':'application/json'},
+      fetch('formeditor.php?fe_action=set_printlang',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':FE_CSRF},
         body:JSON.stringify({ form_nr:formNr, sprog:sprog, lock:lock }), credentials:'same-origin'})
         .then(function(r){return r.json();}).then(function(j){
           if(j&&j.ok){ FE_PRINTLANG = lock ? sprog : ''; flashStatus(lock ? (DK_UI?'Udskriftssprog låst':'Print language locked') : (DK_UI?'Udskriftssprog frigivet':'Print language unlocked'), '#2a7d2a'); }
