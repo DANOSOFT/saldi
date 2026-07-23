@@ -95,3 +95,10 @@ email.php
 /varenr_alias.txt
 /varer.csv
 /index/redirect.php
+
+# Runtime/tooling artifacts (SD-592)
+*.log
+*.phar
+!tools/php/composer.phar
+.svn/
+tools/php/.phpunit.cache/
