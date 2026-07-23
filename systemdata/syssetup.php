@@ -224,8 +224,9 @@ elseif($valg=='debitor'){
 	$spantitle="Business to business!\n".findtekst('2454|Afmærk her, hvis der skal anvendes B2B priser ved salg til denne kundegruppe', $sprog_id);
 	print "<td align=\"center\"><span title=\"".$spantitle."\">B2B</td>\n";
 	$spantitle=findtekst('2455|Omvendt betalingspligt', $sprog_id)."!\n".findtekst('2456|Afmærk her, hvis denne kundegruppe er omfattet af omvendt betalingspligt', $sprog_id);
- 	print "<td align=\"center\"><span title=\"".$spantitle."\">".findtekst('2457|OB', $sprog_id)."</td></tr>\n"; # 20141212B spantilte -> spantitle (slut)
-	$y=skriv_formtabel('DG',$x,$y,$art,$id,'D',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'6','-','4',$box7,'4',$box8,'checkbox',$box9,'checkbox','-','2','-','2','-','2','-','2','-','2');
+ 	print "<td align=\"center\"><span title=\"".$spantitle."\">".findtekst('2457|OB', $sprog_id)."</td>";
+	print "<td align=\"center\"><span title='EU-zone: klassificering til OSS-rapport. B2C EU = privat i EU (OSS-pligtig), B2C udenfor EU, B2B EU = erhverv m. CVR i EU, B2B udenfor EU.'>EU-zone</span></td></tr>\n"; // 20260723 CL/MJ
+	$y=skriv_formtabel('DG',$x,$y,$art,$id,'D',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'6','-','4',$box7,'4',$box8,'checkbox',$box9,'checkbox',$box10,'eu-zone','-','2','-','2','-','2','-','2');
 	print "<tr><td><br></td></tr>\n";
 	print "<tr><td></td><td colspan=2><b>".findtekst('1183|Kreditorgrupper', $sprog_id)."</td><td></td></tr>\n";
 	print "<tr><td></td><td>".findtekst('2248|Nr.', $sprog_id)."</td>";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_oss.php --- patch 5.0.0 --- 2026-07-22 ---
+// --- finans/rapport_includes/moms_oss.php --- patch 5.0.0 --- 2026-07-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,10 @@
 // 20260720 CL/MJ  Bugfix: t.tekst → t.beskrivelse AS tekst (transaktioner har ikke kolonne tekst).
 // 20260722 CL/MJ  COALESCE(debet,0)/COALESCE(kredit,0) i beloeb-udtryk: NULL-
 //                 aritmetik gav NULL for rene debet- eller kreditposteringer.
+// 20260723 CL/MJ  EU-zone klassificering via debitorgruppe (grupper.box10): poster
+//                 knyttes til kundetype (B2C-EU/B2B-EU/B2C-UDL/B2B-UDL) via
+//                 transaktioner.ordre_id → ordrer → adresser → grupper(DG).
+//                 OSS-oversigt filtreres til B2C-EU; oevrige vises separat.
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -194,18 +198,46 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         print "</div>";
     }
 
-    // Shared JOIN fragment used by both queries
-    $oss_join = " JOIN kontoplan kp ON kp.kontonr = t.kontonr AND kp.regnskabsaar = '$regnaar'"
-              . " JOIN ("
-              .   " SELECT DISTINCT ON (art, kodenr) art, kodenr, beskrivelse, box2, box6, box7"
-              .   " FROM grupper"
-              .   " WHERE art = 'SM' AND box6 IS NOT NULL AND box6 != ''"
-              .   " ORDER BY art, kodenr, fiscal_year DESC NULLS LAST"
-              . " ) g ON g.art = UPPER(SUBSTRING(kp.moms FROM 1 FOR 1)) || 'M'"
-              .   " AND CAST(g.kodenr AS TEXT) = SUBSTRING(kp.moms FROM 2)"
-              . " WHERE t.transdate >= '$regnstart' AND t.transdate <= '$regnslut'"
-              . " AND kp.moms IS NOT NULL AND kp.moms != ''"
-              . " $dim";
+    // Core JOIN: kontoplan + SM VAT code (used by all queries)
+    $j_kp_sm = " JOIN kontoplan kp ON kp.kontonr = t.kontonr AND kp.regnskabsaar = '$regnaar'"
+             . " JOIN ("
+             .   " SELECT DISTINCT ON (art, kodenr) art, kodenr, beskrivelse, box2, box6, box7"
+             .   " FROM grupper"
+             .   " WHERE art = 'SM' AND box6 IS NOT NULL AND box6 != ''"
+             .   " ORDER BY art, kodenr, fiscal_year DESC NULLS LAST"
+             . " ) g ON g.art = UPPER(SUBSTRING(kp.moms FROM 1 FOR 1)) || 'M'"
+             .   " AND CAST(g.kodenr AS TEXT) = SUBSTRING(kp.moms FROM 2)";
+
+    // EU-zone JOIN: ordre → adresser → debitorgruppe (box10)
+    $j_dg = " LEFT JOIN ordrer ord ON ord.id = t.ordre_id AND t.ordre_id > 0"
+          . " LEFT JOIN adresser adr ON adr.id = ord.konto_id"
+          . " LEFT JOIN ("
+          .   " SELECT DISTINCT ON (kodenr) kodenr, box10"
+          .   " FROM grupper WHERE art = 'DG'"
+          .   " ORDER BY kodenr, fiscal_year DESC NULLS LAST"
+          . " ) dg ON CAST(dg.kodenr AS TEXT) = CAST(adr.gruppe AS TEXT)";
+
+    $oss_where = " WHERE t.transdate >= '$regnstart' AND t.transdate <= '$regnslut'"
+               . " AND kp.moms IS NOT NULL AND kp.moms != ''"
+               . " $dim";
+
+    // Check whether any debitor groups have EU-zone configured
+    $has_eu_zone = db_fetch_array(db_select(
+        "SELECT 1 FROM grupper WHERE art = 'DG' AND box10 IS NOT NULL AND box10 != '' LIMIT 1",
+        __FILE__." linje ".__LINE__));
+
+    // EU-zone display map
+    $zone_style = [
+        'B2C-EU'  => ['label' => 'B2C EU',         'bg' => '#d4edda', 'color' => '#155724'],
+        'B2C-UDL' => ['label' => 'B2C udenfor EU',  'bg' => '#fff3cd', 'color' => '#856404'],
+        'B2B-EU'  => ['label' => 'B2B EU',          'bg' => '#cce5ff', 'color' => '#004085'],
+        'B2B-UDL' => ['label' => 'B2B udenfor EU',  'bg' => '#d6d8db', 'color' => '#383d41'],
+        ''        => ['label' => 'Uklassificeret',  'bg' => '#f8d7da', 'color' => '#721c24'],
+    ];
+    $zone_hdr_bg = [
+        'B2C-EU'  => '#1a6b3a', 'B2C-UDL' => '#6c5700',
+        'B2B-EU'  => '#004085', 'B2B-UDL' => '#4b4f54', '' => '#721c24',
+    ];
 
     // ----------------------------------------------------------------
     // SECTION 1 — per-posting detail
@@ -221,22 +253,35 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         . " COALESCE(NULLIF(TRIM(g.box7),''), '') AS type,"
         . " (COALESCE(t.kredit, 0) - COALESCE(t.debet, 0)) AS beloeb,"
         . " -COALESCE(t.moms, 0) AS momsbeloeb,"
-        . " (COALESCE(t.kredit, 0) - COALESCE(t.debet, 0)) - COALESCE(t.moms, 0) AS beloeb_inkl_moms"
+        . " (COALESCE(t.kredit, 0) - COALESCE(t.debet, 0)) - COALESCE(t.moms, 0) AS beloeb_inkl_moms,"
+        . " COALESCE(NULLIF(TRIM(dg.box10),''), '') AS eu_zone"
         . " FROM transaktioner t"
-        . $oss_join
-        . " ORDER BY g.box6, t.transdate, t.bilag, t.id";
+        . $j_kp_sm . $j_dg . $oss_where
+        . " ORDER BY"
+        .   " CASE COALESCE(NULLIF(TRIM(dg.box10),''),'')"
+        .   " WHEN 'B2C-EU' THEN 1 WHEN 'B2B-EU' THEN 2"
+        .   " WHEN 'B2C-UDL' THEN 3 WHEN 'B2B-UDL' THEN 4 ELSE 5 END,"
+        .   " g.box6, t.transdate, t.bilag, t.id";
 
     $q_detail = db_select($qtxt_detail, __FILE__." linje ".__LINE__);
 
     $section_h = "style='margin:16px 12px 6px; font-size:1.05em; font-weight:bold; color:#334;'";
 
     print "<p $section_h>Alle posteringer</p>";
+    if (!$has_eu_zone) {
+        print "<div style='padding:4px 12px 6px; color:#856404; background:#fff3cd; border-radius:4px; margin:0 12px 8px;'>";
+        print "<b>Tip:</b> Sæt <b>EU-zone</b> paa debitorgrupperne under "
+            . "<a href='../systemdata/syssetup.php?valg=debitor'>Indstillinger &rarr; Debitor</a> "
+            . "(B2C EU, B2C udenfor EU, B2B EU, B2B udenfor EU) for at adskille OSS-pligtige posteringer fra oevrige.";
+        print "</div>";
+    }
     print "<div style='overflow-x:auto; padding:0 12px;'>";
     print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
     print "<thead><tr style='background:#eeeef0;'>";
     print "<th align='left'  style='width:90px'>Dato</th>";
     print "<th align='left'  style='width:70px'>Bilag</th>";
     print "<th align='left'>Tekst</th>";
+    print "<th align='left'  style='width:110px'>Kundetype</th>";
     print "<th align='left'  style='width:70px'>Momskode</th>";
     print "<th align='right' style='width:60px'>Sats %</th>";
     print "<th align='right' style='width:130px'>Beloeb</th>";
@@ -246,32 +291,34 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
     fwrite($csv, mb_convert_encoding(
         "ALLE POSTERINGER\n"
-        . "Dato;Bilag;Tekst;Momskode;Sats %;Beloeb;Moms;Beloeb inkl. moms\n",
+        . "Dato;Bilag;Tekst;Kundetype;Momskode;Sats %;Beloeb;Moms;Beloeb inkl. moms\n",
         'ISO-8859-1', 'UTF-8'));
 
-    $row_bg       = ['#ffffff','#f5f5f5'];
-    $row_i        = 0;
-    $has_rows     = false;
-    $cur_land     = null;
-    $land_base    = 0.0;
-    $land_moms    = 0.0;
-    $land_inkl    = 0.0;
-    $grand_base   = 0.0;
-    $grand_moms   = 0.0;
-    $grand_inkl   = 0.0;
+    $row_bg     = ['#ffffff','#f5f5f5'];
+    $row_i      = 0;
+    $has_rows   = false;
+    $cur_zone   = null;
+    $cur_land   = null;
+    $land_base  = 0.0; $land_moms  = 0.0; $land_inkl  = 0.0;
+    $zone_base  = 0.0; $zone_moms  = 0.0; $zone_inkl  = 0.0;
+    $grand_base = 0.0; $grand_moms = 0.0; $grand_inkl = 0.0;
 
     while ($row = db_fetch_array($q_detail)) {
         $has_rows = true;
+        $zone     = $row['eu_zone'] ?? '';
         $land     = $row['land'] ?? '';
         $base     = (float)$row['beloeb'];
         $moms     = (float)$row['momsbeloeb'];
         $inkl     = (float)$row['beloeb_inkl_moms'];
         $sats     = ($row['momssats'] !== null) ? (float)$row['momssats'] : 0;
 
-        // Land subtotal break
-        if ($cur_land !== null && $cur_land !== $land) {
+        // Zone or land break
+        $zone_changed = ($cur_zone !== null && $cur_zone !== $zone);
+        $land_changed = ($cur_land !== null && ($cur_land !== $land || $zone_changed));
+
+        if ($land_changed) {
             print "<tr style='background:#dce8f0; font-weight:bold;'>";
-            print "<td colspan='5' align='right' style='padding-right:6px;'>Subtotal " . htmlspecialchars($cur_land) . "</td>";
+            print "<td colspan='6' align='right' style='padding-right:6px;'>Subtotal " . htmlspecialchars($cur_land) . "</td>";
             print "<td align='right'>" . dkdecimal($land_base, 2) . "</td>";
             print "<td align='right'>" . dkdecimal($land_moms, 2) . "</td>";
             print "<td align='right'>" . dkdecimal($land_inkl, 2) . "</td>";
@@ -280,25 +327,55 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
             $row_i = 0;
         }
 
-        // Land header row
-        if ($cur_land !== $land) {
+        if ($zone_changed) {
+            $zh = $zone_style[$cur_zone] ?? $zone_style[''];
+            print "<tr style='background:#d6e4f0; font-weight:bold;'>";
+            print "<td colspan='6' align='right' style='padding-right:6px;'>Zone-total " . htmlspecialchars($zh['label']) . "</td>";
+            print "<td align='right'>" . dkdecimal($zone_base, 2) . "</td>";
+            print "<td align='right'>" . dkdecimal($zone_moms, 2) . "</td>";
+            print "<td align='right'>" . dkdecimal($zone_inkl, 2) . "</td>";
+            print "</tr>\n";
+            $zone_base = 0.0; $zone_moms = 0.0; $zone_inkl = 0.0;
+        }
+
+        // Zone group header
+        if ($cur_zone !== $zone) {
+            $zh  = $zone_style[$zone] ?? $zone_style[''];
+            $hbg = $zone_hdr_bg[$zone] ?? '#333';
+            print "<tr style='background:$hbg; color:#fff;'>";
+            print "<td colspan='9' style='padding:5px 8px; font-weight:bold; letter-spacing:0.03em;'>"
+                . htmlspecialchars($zh['label'])
+                . ($zone === 'B2C-EU' ? ' — OSS-pligtig' : ' — ikke OSS')
+                . "</td></tr>\n";
+            $cur_zone = $zone;
+            fwrite($csv, mb_convert_encoding("\n" . $zh['label'] . "\n", 'ISO-8859-1', 'UTF-8'));
+        }
+
+        // Land header
+        if ($cur_land !== $land || $land_changed) {
             print "<tr style='background:#c8d8e8;'>";
-            print "<td colspan='8' style='padding:4px 8px; font-weight:bold;'>" . htmlspecialchars($land) . "</td>";
+            print "<td colspan='9' style='padding:4px 8px; font-weight:bold;'>" . htmlspecialchars($land) . "</td>";
             print "</tr>\n";
             $cur_land = $land;
-            fwrite($csv, mb_convert_encoding("\n" . $land . "\n", 'ISO-8859-1', 'UTF-8'));
+            fwrite($csv, mb_convert_encoding($land . "\n", 'ISO-8859-1', 'UTF-8'));
         }
 
         $land_base  += $base;  $land_moms  += $moms;  $land_inkl  += $inkl;
+        $zone_base  += $base;  $zone_moms  += $moms;  $zone_inkl  += $inkl;
         $grand_base += $base;  $grand_moms += $moms;  $grand_inkl += $inkl;
 
-        $bg = $row_bg[$row_i % 2];
+        $bg  = $row_bg[$row_i % 2];
         $row_i++;
+        $zs  = $zone_style[$zone] ?? $zone_style[''];
+        $zbadge = "<span style='padding:1px 5px; border-radius:3px; font-size:0.82em;"
+                . " background:{$zs['bg']}; color:{$zs['color']};'>"
+                . htmlspecialchars($zs['label']) . "</span>";
 
         print "<tr style='background:$bg;'>";
         print "<td>" . dkdato($row['dato']) . "</td>";
         print "<td>" . htmlspecialchars($row['bilag'] ?? '') . "</td>";
         print "<td>" . htmlspecialchars($row['tekst'] ?? '') . "</td>";
+        print "<td>$zbadge</td>";
         print "<td style='font-size:0.85em;'>" . htmlspecialchars($row['momskode']) . "</td>";
         print "<td align='right'>" . ($sats > 0 ? dkdecimal($sats, 2) : '') . "</td>";
         print "<td align='right'>" . dkdecimal($base, 2) . "</td>";
@@ -310,6 +387,7 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
             dkdato($row['dato']) . ";"
             . ($row['bilag'] ?? '') . ";"
             . ($row['tekst'] ?? '') . ";"
+            . $zs['label'] . ";"
             . $row['momskode'] . ";"
             . ($sats > 0 ? dkdecimal($sats, 2) : '') . ";"
             . "\"" . dkdecimal($base, 2) . "\";"
@@ -319,33 +397,44 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     }
 
     if (!$has_rows) {
-        print "<tr><td colspan='8' align='center' style='padding:16px; color:#888;'>"
-            . "Ingen OSS B2C-posteringer i den valgte periode.</td></tr>";
+        print "<tr><td colspan='9' align='center' style='padding:16px; color:#888;'>"
+            . "Ingen OSS-posteringer i den valgte periode.</td></tr>";
     } else {
-        // Last land subtotal
+        // Last land and zone subtotal
         print "<tr style='background:#dce8f0; font-weight:bold;'>";
-        print "<td colspan='5' align='right' style='padding-right:6px;'>Subtotal " . htmlspecialchars($cur_land) . "</td>";
+        print "<td colspan='6' align='right' style='padding-right:6px;'>Subtotal " . htmlspecialchars($cur_land) . "</td>";
         print "<td align='right'>" . dkdecimal($land_base, 2) . "</td>";
         print "<td align='right'>" . dkdecimal($land_moms, 2) . "</td>";
         print "<td align='right'>" . dkdecimal($land_inkl, 2) . "</td>";
         print "</tr>\n";
+        $zh = $zone_style[$cur_zone] ?? $zone_style[''];
+        print "<tr style='background:#d6e4f0; font-weight:bold;'>";
+        print "<td colspan='6' align='right' style='padding-right:6px;'>Zone-total " . htmlspecialchars($zh['label']) . "</td>";
+        print "<td align='right'>" . dkdecimal($zone_base, 2) . "</td>";
+        print "<td align='right'>" . dkdecimal($zone_moms, 2) . "</td>";
+        print "<td align='right'>" . dkdecimal($zone_inkl, 2) . "</td>";
+        print "</tr>\n";
         // Grand total
         print "<tr style='background:#c8d8e8; font-weight:bold;'>";
-        print "<td colspan='5' align='right'>I alt</td>";
+        print "<td colspan='6' align='right'>I alt</td>";
         print "<td align='right'>" . dkdecimal($grand_base, 2) . "</td>";
         print "<td align='right'>" . dkdecimal($grand_moms, 2) . "</td>";
         print "<td align='right'>" . dkdecimal($grand_inkl, 2) . "</td>";
         print "</tr>";
         fwrite($csv, mb_convert_encoding(
-            "\nI alt;;;;;;\"" . dkdecimal($grand_base, 2) . "\";\"" . dkdecimal($grand_moms, 2) . "\";\"" . dkdecimal($grand_inkl, 2) . "\"\n",
+            "\nI alt;;;;;;;\"" . dkdecimal($grand_base, 2) . "\";\"" . dkdecimal($grand_moms, 2) . "\";\"" . dkdecimal($grand_inkl, 2) . "\"\n",
             'ISO-8859-1', 'UTF-8'));
     }
 
     print "</tbody></table></div>";
 
     // ----------------------------------------------------------------
-    // SECTION 2 — summary for OSS filing (per land × momssats)
+    // SECTION 2 — OSS filing summary (B2C-EU only, per land × momssats)
     // ----------------------------------------------------------------
+    $b2c_filter = $has_eu_zone
+        ? " AND COALESCE(NULLIF(TRIM(dg.box10),''),'') = 'B2C-EU'"
+        : "";
+
     $qtxt_sum = "SELECT"
         . " g.box6 AS land,"
         . " CAST(COALESCE(NULLIF(g.box2,''),NULL) AS NUMERIC(10,2)) AS momssats,"
@@ -355,13 +444,16 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         . " SUM(COALESCE(t.kredit, 0) - COALESCE(t.debet, 0)) AS beloeb_total,"
         . " -SUM(COALESCE(t.moms, 0)) AS momsbeloeb"
         . " FROM transaktioner t"
-        . $oss_join
+        . $j_kp_sm . $j_dg . $oss_where . $b2c_filter
         . " GROUP BY g.box6, g.box2"
         . " ORDER BY g.box6, g.box2";
 
     $q_sum = db_select($qtxt_sum, __FILE__." linje ".__LINE__);
 
-    print "<p $section_h>Salg til private kunder i EU – Oversigt</p>";
+    $sum_title = $has_eu_zone
+        ? "OSS-angivelse – kun B2C EU (privat i EU)"
+        : "Salg til private kunder i EU – Oversigt";
+    print "<p $section_h>$sum_title</p>";
     print "<div style='overflow-x:auto; padding:0 12px;'>";
     print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
     print "<thead><tr style='background:#eeeef0;'>";
@@ -420,8 +512,10 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     }
 
     if (!$has_rows2) {
-        print "<tr><td colspan='6' align='center' style='padding:16px; color:#888;'>"
-            . "Ingen OSS B2C-posteringer i den valgte periode.</td></tr>";
+        $no_msg = $has_eu_zone
+            ? "Ingen B2C EU-posteringer (OSS-pligtige) i den valgte periode."
+            : "Ingen OSS-posteringer i den valgte periode.";
+        print "<tr><td colspan='6' align='center' style='padding:16px; color:#888;'>" . $no_msg . "</td></tr>";
     } else {
         print "<tr style='background:#c8d8e8; font-weight:bold;'>";
         print "<td colspan='2' align='right'>I alt</td>";
@@ -441,10 +535,94 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
 
     print "</tbody></table></div>";
     print "<div style='padding:8px 12px; color:#666; font-size:0.85em;'>"
-        . "Beloeb ekskl. moms. OSS-koder konfigureres under "
-        . "<a href='../systemdata/syssetup.php?valg=moms'>Indstillinger &rarr; Moms</a> "
-        . "(felt: Land (OSS))."
+        . "Beloeb ekskl. moms. OSS-koder: "
+        . "<a href='../systemdata/syssetup.php?valg=moms'>Indstillinger &rarr; Moms</a> (felt: Land (OSS)). "
+        . "EU-zone: <a href='../systemdata/syssetup.php?valg=debitor'>Indstillinger &rarr; Debitor</a>."
         . "</div>";
+
+    // ----------------------------------------------------------------
+    // SECTION 3 — non-OSS postings (when EU-zone is configured)
+    // ----------------------------------------------------------------
+    if ($has_eu_zone) {
+        $qtxt_other = "SELECT eu_zone, land, SUM(beloeb) AS beloeb_total, SUM(momsbeloeb) AS momsbeloeb, COUNT(*) AS antal"
+            . " FROM ("
+            .   " SELECT COALESCE(NULLIF(TRIM(dg.box10),''), 'Uklassificeret') AS eu_zone,"
+            .   " g.box6 AS land,"
+            .   " COALESCE(t.kredit, 0) - COALESCE(t.debet, 0) AS beloeb,"
+            .   " -COALESCE(t.moms, 0) AS momsbeloeb"
+            .   " FROM transaktioner t"
+            .   $j_kp_sm . $j_dg . $oss_where
+            .   " AND COALESCE(NULLIF(TRIM(dg.box10),''),'') != 'B2C-EU'"
+            . " ) sub"
+            . " GROUP BY eu_zone, land"
+            . " ORDER BY eu_zone, land";
+
+        $q_other = db_select($qtxt_other, __FILE__." linje ".__LINE__);
+
+        $zone_labels_other = [
+            'B2B-EU'         => 'B2B EU (omvendt betalingspligt)',
+            'B2C-UDL'        => 'B2C udenfor EU (eksport)',
+            'B2B-UDL'        => 'B2B udenfor EU (eksport)',
+            'Uklassificeret' => 'Uklassificeret (mangler EU-zone paa debitorgruppe)',
+        ];
+
+        $rows_other = [];
+        while ($r = db_fetch_array($q_other)) $rows_other[] = $r;
+
+        if ($rows_other) {
+            print "<p $section_h>Ikke-OSS posteringer (ekskluderet fra OSS-angivelse)</p>";
+            print "<div style='overflow-x:auto; padding:0 12px;'>";
+            print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
+            print "<thead><tr style='background:#eeeef0;'>";
+            print "<th align='left'>Kundetype</th>";
+            print "<th align='left'>Land</th>";
+            print "<th align='right' style='width:80px'>Antal</th>";
+            print "<th align='right' style='width:160px'>Beloeb ekskl. moms</th>";
+            print "<th align='right' style='width:130px'>Momsbeloeb</th>";
+            print "</tr></thead><tbody>";
+
+            fwrite($csv, mb_convert_encoding(
+                "\nIKKE-OSS POSTERINGER\nKundetype;Land;Antal;Beloeb;Moms\n",
+                'ISO-8859-1', 'UTF-8'));
+
+            $cur_other_zone = null;
+            $row_i = 0;
+            foreach ($rows_other as $r) {
+                $oz    = $r['eu_zone'];
+                $olbl  = $zone_labels_other[$oz] ?? $oz;
+                $zs    = $zone_style[$oz === 'Uklassificeret' ? '' : $oz] ?? $zone_style[''];
+                $bt    = (float)$r['beloeb_total'];
+                $bm    = (float)$r['momsbeloeb'];
+
+                if ($cur_other_zone !== $oz) {
+                    $hbg = $zone_hdr_bg[$oz === 'Uklassificeret' ? '' : $oz] ?? '#555';
+                    print "<tr style='background:$hbg; color:#fff; font-weight:bold;'>";
+                    print "<td colspan='5' style='padding:4px 8px;'>" . htmlspecialchars($olbl) . "</td></tr>\n";
+                    $cur_other_zone = $oz;
+                    $row_i = 0;
+                }
+                $bg = $row_bg[$row_i % 2];
+                $row_i++;
+                print "<tr style='background:$bg;'>";
+                print "<td><span style='padding:1px 5px; border-radius:3px; font-size:0.82em;"
+                    . " background:{$zs['bg']}; color:{$zs['color']};'>"
+                    . htmlspecialchars($zs['label']) . "</span></td>";
+                print "<td>" . htmlspecialchars($r['land'] ?? '') . "</td>";
+                print "<td align='right'>" . (int)$r['antal'] . "</td>";
+                print "<td align='right'>" . dkdecimal($bt, 2) . "</td>";
+                print "<td align='right'>" . dkdecimal($bm, 2) . "</td>";
+                print "</tr>\n";
+                fwrite($csv, mb_convert_encoding(
+                    $olbl . ";" . ($r['land'] ?? '') . ";"
+                    . (int)$r['antal'] . ";"
+                    . "\"" . dkdecimal($bt, 2) . "\";"
+                    . "\"" . dkdecimal($bm, 2) . "\"\n",
+                    'ISO-8859-1', 'UTF-8'));
+            }
+            print "</tbody></table></div>";
+        }
+    }
+
     fclose($csv);
 
     if ($menu == 'T') {
