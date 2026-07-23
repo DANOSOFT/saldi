@@ -227,11 +227,29 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         .   " AND ord.fakturadate >= '$regnstart' AND ord.fakturadate <= '$regnslut'"
         .   " AND dg.eu_zone IN ('B2B-EU','B2B-UDL','B2C-UDL')",
         __FILE__." linje ".__LINE__));
+    $d4 = db_fetch_array(db_select(
+        "WITH vg AS ("
+        . " SELECT DISTINCT ON (kodenr) CAST(kodenr AS TEXT) AS kodenr"
+        . " FROM grupper WHERE art = 'VG'"
+        . " ORDER BY kodenr, fiscal_year DESC NULLS LAST"
+        . ")"
+        . " SELECT COUNT(DISTINCT ol.id) AS cnt FROM ordrelinjer ol"
+        . " JOIN ordrer ord ON ord.id = ol.ordre_id"
+        .   " AND ord.art IN ('DO','DK') AND ord.status >= 3"
+        .   " AND ord.fakturadate >= '$regnstart' AND ord.fakturadate <= '$regnslut'"
+        . " JOIN varer v ON v.id = ol.vare_id AND ol.vare_id > 0"
+        . " JOIN vg ON vg.kodenr = CAST(v.gruppe AS TEXT)",
+        __FILE__." linje ".__LINE__));
+    $dvg = db_fetch_array(db_select(
+        "SELECT COUNT(*) AS cnt FROM grupper WHERE art = 'VG'",
+        __FILE__." linje ".__LINE__));
     print "<div style='padding:6px 12px; font-size:0.85em; background:#f5f5f0; border-left:3px solid #aaa; margin:8px 12px;'>";
     print "<b>Diagnostik:</b> ";
-    print "Fakturerede salgsordrer i periode: <b>" . (int)($d1['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
-    print "Ordrelinjer med varer: <b>" . (int)($d2['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
-    print "Ordrer med EU-zone-kunde: <b>" . (int)($d3['cnt'] ?? 0) . "</b>";
+    print "Salgsordrer: <b>" . (int)($d1['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
+    print "Linjer m. varer: <b>" . (int)($d2['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
+    print "Ordrer m. EU-zone-kunde: <b>" . (int)($d3['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
+    print "Linjer der matcher VG-gruppe: <b>" . (int)($d4['cnt'] ?? 0) . "</b> ";
+    print "(VG-grupper i alt: <b>" . (int)($dvg['cnt'] ?? 0) . "</b>)";
     print "</div>";
 
     // Check if DG groups have EU-zone configured (prerequisite for rubrik derivation)
