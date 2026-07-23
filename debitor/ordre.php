@@ -952,6 +952,12 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	}
 	if ($udskriv_til == 'oioubl') $oioubl = "on";
 
+	// safety: ordrer.pbs / mail_fakt / mail_bilag are all varchar(2). Clamp any
+	// over-long value so a legacy/long code can't crash the write ("value too long
+	// for type character varying(2)"). No-op for normal values (''/on/BS/FI).
+	if (strlen((string)$pbs) > 2)        $pbs        = substr((string)$pbs, 0, 2);
+	if (strlen((string)$mail_fakt) > 2)  $mail_fakt  = substr((string)$mail_fakt, 0, 2);
+	if (strlen((string)$mail_bilag) > 2) $mail_bilag = substr((string)$mail_bilag, 0, 2);
 	$qtxt = "update ordrer set sprog = '$formularsprog', email='$email',mail_fakt='$mail_fakt',phone='$phone',pbs='$pbs',";
 	$qtxt .= "udskriv_til='$udskriv_til',  mail_bilag='$mail_bilag',ean='$ean' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);

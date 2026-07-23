@@ -23,6 +23,13 @@
 // Copyright (c) 2024-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20251005 PHR some cleanup.
+// 20260720 NTR Guard against direct access; relies on scope from save_receipt.php
+
+// This file is only ever include()d from save_receipt.php and relies on its
+// scope ($type, $filename, $directory, $db, ...). Refuse direct HTTP access.
+if (realpath(__FILE__) == realpath($_SERVER['SCRIPT_FILENAME'])) {
+	die('print_receipt.php must be included from save_receipt.php, not accessed directly');
+}
 
 if (isset($_GET['id']))       $id       = $_GET['id'];
 if (isset($_GET['filename'])) $filename = $_GET['filename'];
