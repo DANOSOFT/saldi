@@ -68,7 +68,7 @@ if (preg_match('#[/\\\\]|\.\.#', (string)$db)) { print "invalid database identif
 file_put_contents('/tmp/debug_insert.log', date('Y-m-d H:i:s') . " - Request: " . print_r($_REQUEST, true) . "\n", FILE_APPEND);
 
 $docFolder.= "/$db";
-if ($poolFile && !$fileName) $fileName = $poolFile;
+if ($poolFile && !isset($fileName)) $fileName = $poolFile;
 
 // Handle updateOnly action (Save button) — early return, no file handling needed
 if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {

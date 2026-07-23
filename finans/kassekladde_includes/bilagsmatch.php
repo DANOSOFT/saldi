@@ -308,7 +308,7 @@
     .doc-info { flex: 1; }
     .doc-name { font-weight: bold; color: #333; }
     .doc-meta { font-size: 12px; color: #666; margin-top: 4px; }
-    .link-btn { background: $buttonColor; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 13px; flex-shrink: 0; }
+    .link-btn { background: <?= $buttonColor ?>; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 13px; flex-shrink: 0; }
     .link-btn:hover { opacity: 0.9; }
     .empty-msg { padding: 40px; text-align: center; color: #666; }
     .search-box { margin-bottom: 15px; }
