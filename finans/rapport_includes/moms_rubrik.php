@@ -193,9 +193,9 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
           . " JOIN vg ON vg.kodenr = CAST(v.gruppe AS TEXT)"
           . " JOIN adresser adr ON adr.id = ord.konto_id"
           . " JOIN dg ON dg.kodenr = CAST(adr.gruppe AS TEXT)"
-          . " GROUP BY rubrik"
-          . " HAVING rubrik IS NOT NULL"
-          . " ORDER BY rubrik";
+          . " WHERE dg.eu_zone IN ('B2B-EU','B2B-UDL','B2C-UDL')"
+          . " GROUP BY 1"
+          . " ORDER BY 1";
     $q = db_select($qtxt, __FILE__." linje ".__LINE__);
     $rubrik_sum = [];
     while ($r = db_fetch_array($q)) $rubrik_sum[$r['rubrik']] = (float)$r['nettobeloeb'];
