@@ -33,6 +33,7 @@
 // 20260717 MJ  Rubrik (box5) og Type (box7) vises nu som dropdown paa SM/KM/YM/EM-koder.
 // 20260723 CL/MJ  EU-zone dropdown (box10) paa DG-debitorgrupper til OSS-klassificering.
 // 20260723 CL/MJ  Varer/ydelser-dropdown (box5, b5='vg-type') paa VG-varegrupper til Momsrubrikker.
+// 20260723 CL/MJ  Fjernet Rubrik-dropdown (box5) for SM/KM/YM/EM: kolonnen er fjernet fra Moms-siden.
 
 function skriv_formtabel($a,$x,$y,$art,$id,$k,$kodenr,$beskrivelse,$box1,$b1,$box2,$b2,$box3,$b3,$box4,$b4,$box5,$b5,$box6,$b6,$box7,$b7,$box8,$b8,$box9,$b9,$box10,$b10,$box11,$b11,$box12,$b12,$box13,$b13,$box14,$b14) {
 
@@ -130,14 +131,7 @@ if (!isset ($b)) $b = null;
 			}
 			print "<input type = \"hidden\" name=id[$i] value='$id[$i]'><input type = \"hidden\" name=\"art[$i]\" value=\"$art[$i]\"><input type = \"hidden\" name=\"kode[$i]\" value=\"$k\">";
 			if ($box5!="-") {
-				if (in_array($art[$i], ['SM','KM','YM','EM'])) {
-					print "<td><select class=\"inputbox\" name=\"box5[$i]\">";
-					foreach (['' => '–', 'A-varer' => 'A-varer', 'A-ydelser' => 'A-ydelser', 'B-varer' => 'B-varer', 'B-ydelser' => 'B-ydelser', 'C' => 'C'] as $v => $l) {
-						$sel = ((string)$box5[$i] === $v) ? ' selected' : '';
-						print "<option value=\"$v\"$sel>$l</option>";
-					}
-					print "</select></td>\n";
-				} elseif ($art[$i] === 'VG' && $b5 === 'vg-type') {
+				if ($art[$i] === 'VG' && $b5 === 'vg-type') {
 					print "<td><select class=\"inputbox\" name=\"box5[$i]\">";
 					foreach (['' => '–', 'varer' => 'Varer', 'ydelser' => 'Ydelser'] as $v => $l) {
 						$sel = ((string)($box5[$i] ?? '') === $v) ? ' selected' : '';
@@ -271,13 +265,7 @@ if (!isset ($b)) $b = null;
 		elseif($b4=="checkbox") {print "<td><input class=\"inputbox\" type=\"checkbox\" name=\"box4[$y]\"></td>\n";}
 		print "<input type = hidden name=\"id[$y]\" value='0'><input type = hidden name=\"kode[$y]\" value='$k'><input type = hidden name=\"art[$y]\" value=\"$a\">\n";
 		if ($box5!="-") {
-			if (in_array($a, ['SM','KM','YM','EM'])) {
-				print "<td><select class=\"inputbox\" name=\"box5[$y]\">";
-				foreach (['' => '–', 'A-varer' => 'A-varer', 'A-ydelser' => 'A-ydelser', 'B-varer' => 'B-varer', 'B-ydelser' => 'B-ydelser', 'C' => 'C'] as $v => $l) {
-					print "<option value=\"$v\">$l</option>";
-				}
-				print "</select></td>\n";
-			} elseif ($a === 'VG' && $b5 === 'vg-type') {
+			if ($a === 'VG' && $b5 === 'vg-type') {
 				print "<td><select class=\"inputbox\" name=\"box5[$y]\">";
 				foreach (['' => '–', 'varer' => 'Varer', 'ydelser' => 'Ydelser'] as $v => $l) {
 					print "<option value=\"$v\">$l</option>";

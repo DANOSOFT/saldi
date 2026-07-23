@@ -46,6 +46,7 @@
 // 20260716 MJ  Tilfoejede Land (OSS) og Type til SM-momskoder for OSS B2C EU momsangivelse.
 // 20260723 CL/MJ  EU-zone-dropdown (box10) paa DG-debitorgrupper til OSS-klassificering.
 // 20260723 CL/MJ  Varer/ydelser-type (box5) til VG-varegrupper for Momsrubrikker A/B/C-afledning.
+// 20260723 CL/MJ  Fjernet Rubrik-kolonne (box5) fra SM/KM/YM/EM-momskoder: bruges ikke laengere.
 
 @session_start();
 $s_id=session_id();
@@ -155,10 +156,9 @@ if ($valg=='moms'){
 	print "<td align=\"center\"><span title='$spantxt2'>".findtekst('440|Konto', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt3'>".findtekst('995|Sats', $sprog_id)."</span></td>";
 	print "<td></td><td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td>";
-	print "<td align=\"center\"><span title='Rubrik paa momsangivelsen (A-varer, A-ydelser, B-varer, B-ydelser, C)'>Rubrik</span></td>\n";		#20210513
 	print "<td align=\"center\"><span title='Land for OSS B2C EU-moms (f.eks. Sverige, Finland). Udfyldes kun paa SM-koder for salg til EU-privatpersoner.'>Land (OSS)</span></td>\n";
 	print "<td align=\"center\"><span title='Type for OSS-angivelse: varer eller ydelser. Udfyldes kun paa OSS-koder.'>Type</span></td></tr>\n";
-	$y=skriv_formtabel('SM',$x,$y,$art,$id,'S',$kodenr,$beskrivelse,$box1,'6' ,$box2,'6','','6',$box4,'6',$box5,'6',$box6,'10',$box7,'8','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	$y=skriv_formtabel('SM',$x,$y,$art,$id,'S',$kodenr,$beskrivelse,$box1,'6' ,$box2,'6','','6',$box4,'6','-','',$box6,'10',$box7,'8','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
 	print "<tr><td><br></td></tr>\n";
 	$spantxt2=findtekst('2245|Det nummer i kontoplanen som købsmomsen skal konteres på.', $sprog_id);
 	print "<tr><td></td><td colspan=3><b><span title='".findtekst('2431|Den moms du skal have retur fra SKAT', $sprog_id)."'>".findtekst('996|Købsmoms (indgående moms)', $sprog_id)."</span></td></tr>\n";
@@ -166,9 +166,8 @@ if ($valg=='moms'){
 	print "<td align=\"center\"><span title='$spantxt1'>".findtekst('914|Beskrivelse', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt2'>".findtekst('440|Konto', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt3'>".findtekst('995|Sats', $sprog_id)."</span></td>\n";
-	print "<td></td><td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td>";
-	print "<td align=\"center\"><span title='Rubrik paa momsangivelsen (A-varer, A-ydelser, B-varer, B-ydelser, C)'>Rubrik</span></td></tr>\n";		#20210513
-	$y=skriv_formtabel('KM',$x,$y,$art,$id,"K",$kodenr,$beskrivelse,$box1,'6',$box2,'6','','6',$box4,'6',$box5,'6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	print "<td></td><td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";
+	$y=skriv_formtabel('KM',$x,$y,$art,$id,"K",$kodenr,$beskrivelse,$box1,'6',$box2,'6','','6',$box4,'6','-','','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
 	print "<tr><td><br></td></tr>\n";
 	$spantxty2=findtekst('2432|Konto til postering af salgsmoms for ydelseskøb i udlandet', $sprog_id);
 	$spantxty4=findtekst('2433|Konto til postering af købsmoms for ydelseskøb i udlandet', $sprog_id);
@@ -179,9 +178,8 @@ if ($valg=='moms'){
 	print "<td align=\"center\"><span title='$spantxt2'>".findtekst('440|Konto', $sprog_id)."<span></td>";
 	print "<td align=\"center\"><span title='$spantxt3'>".findtekst('995|Sats', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt4'>".findtekst('1013|Modkonto', $sprog_id)."</span></td>\n";
-	print "<td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td>";
-	print "<td align=\"center\"><span title='Rubrik paa momsangivelsen (A-varer, A-ydelser, B-varer, B-ydelser, C)'>Rubrik</span></td></tr>\n";		#20210513
-	$y=skriv_formtabel('YM',$x,$y,$art,$id,"Y",$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'6',$box4,'6',$box5,'6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	print "<td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";
+	$y=skriv_formtabel('YM',$x,$y,$art,$id,"Y",$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'6',$box4,'6','-','','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
 	print "<tr><td><br></td></tr>\n";
 	$spantxt2=findtekst('2434|Konto til postering af salgsmoms for køb i udlandet', $sprog_id);
 	$spantxte4=findtekst('2435|Konto til postering af købsmoms for køb i udlandet', $sprog_id);
@@ -192,9 +190,8 @@ if ($valg=='moms'){
 	print "<td align=\"center\"><span title='$spantxt2'>".findtekst('440|Konto', $sprog_id)."<span></td>";
 	print "<td align=\"center\"><span title='$spantxt3'>".findtekst('995|Sats', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt4'>".findtekst('1013|Modkonto', $sprog_id)."</span></td>\n";
-	print "<td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td>";
-	print "<td align=\"center\"><span title='Rubrik paa momsangivelsen (A-varer, A-ydelser, B-varer, B-ydelser, C)'>Rubrik</span></td></tr>\n";		#20210513
-	$y=skriv_formtabel('EM',$x,$y,$art,$id,"E",$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'6',$box4,'6',$box5,'6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	print "<td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";
+	$y=skriv_formtabel('EM',$x,$y,$art,$id,"E",$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'6',$box4,'6','-','','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
 	print "<tr><td><br></td></tr>\n";
 	print "<tr><td></td><td colspan=3><b>".findtekst('1009|Momsrapport (konti som skal indgå i momsrapport)', $sprog_id)."</b></td></tr>\n";
 	print "<tr><td></td><td>".findtekst('2248|Nr.', $sprog_id)."</td>";
