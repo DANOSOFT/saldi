@@ -59,6 +59,19 @@ if     (is_dir("$sth/owncloud"))  $docFolder = '../owncloud';
 elseif (is_dir("$sth/bilag"))     $docFolder = '../bilag';
 elseif (is_dir("$sth/documents")) $docFolder = '../documents';
 else                              $docFolder = '../bilag';
+// A requested docFolder is only honored if it resolves (via realpath) to one
+// of the known folders under $sth; anything else keeps the auto-detected one.
+if (isset($_REQUEST['docFolder'])) {
+	$fe_docFolder_name = basename($_REQUEST['docFolder']);
+	$fe_docFolder_real = realpath("$sth/$fe_docFolder_name");
+	foreach (array('owncloud', 'bilag', 'documents') as $fe_docFolder_candidate) {
+		$fe_docFolder_candidate_real = realpath("$sth/$fe_docFolder_candidate");
+		if ($fe_docFolder_real && $fe_docFolder_candidate_real && $fe_docFolder_real === $fe_docFolder_candidate_real) {
+			$docFolder = "../$fe_docFolder_candidate";
+			break;
+		}
+	}
+}
 $poolFile = isset($_REQUEST['poolFile']) ? $_REQUEST['poolFile'] : (isset($poolFile) ? $poolFile : null);
 if (isset($_REQUEST['db'])) $db = $_REQUEST['db']; // Ensure db is set if passed
 // SECURITY: $db becomes a path segment — reject slashes and traversal.
