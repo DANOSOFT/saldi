@@ -53,7 +53,13 @@ $cmd = array_merge($cmd, $args);
 // Array-form proc_open (PHP >= 7.4) execs directly, no shell quoting issues.
 $proc = proc_open($cmd, array(0 => STDIN, 1 => STDOUT, 2 => STDERR), $pipes);
 if (!is_resource($proc)) {
-    fwrite(STDERR, "phpw: failed to launch " . implode(' ', $cmd) . "\n");
+    $executable = $cmd[0];
+    $argCount = max(0, count($cmd) - 1);
+    $summary = $executable;
+    if ($argCount > 0) {
+        $summary .= sprintf(' [args: %d redacted]', $argCount);
+    }
+    fwrite(STDERR, "phpw: failed to launch " . $summary . "\n");
     exit(1);
 }
 exit(proc_close($proc));
