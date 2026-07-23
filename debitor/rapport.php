@@ -33,6 +33,8 @@
 // 20210805 - LOE Translated some texts 
 // 20250923 - LOE Sets rapportart to $rapportart = 'kontokort'; only if not accountChart 
 // 20260513 PHR Cleanup
+// 20260612 MJ Release session before long read-only reports to avoid blocking navigation.
+// 20260612 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
 // 20260706 MJ Release session before long read-only reports to avoid blocking navigation.
 // 20260706 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
 

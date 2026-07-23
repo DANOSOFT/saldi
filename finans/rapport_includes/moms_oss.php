@@ -31,6 +31,8 @@
 // 20260717 MJ     Tilfoejede detaljeret posteringsoversigt (alle OSS-linjer med dato,
 //                  bilag, tekst, beloeb, moms, beloeb inkl. moms) over sammendrag.
 //                  Sammendrag omstruktureret med separate kolonner for varer/ydelser.
+// 20260720 CL/MJ  Fiscal-year-aware kvartalsgenveje; note om at kontofilter ikke galder OSS.
+// 20260720 CL/MJ  Bugfix: t.tekst → t.beskrivelse AS tekst (transaktioner har ikke kolonne tekst).
 // 20260722 CL/MJ  COALESCE(debet,0)/COALESCE(kredit,0) i beloeb-udtryk: NULL-
 //                 aritmetik gav NULL for rene debet- eller kreditposteringer.
 // 20260723 CL/MJ  EU-zone klassificering via debitorgruppe (grupper.box10): poster
@@ -65,6 +67,10 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $startaar    = (int)($row['box2'] ?? $regnaar);
     $slutmaaned  = (int)($row['box3'] ?? 12);
     $slutaar     = (int)($row['box4'] ?? $regnaar);
+    $fy_startmaaned = $startmaaned;
+    $fy_slutmaaned  = $slutmaaned;
+    $fy_startaar    = $startaar;
+    $fy_slutaar     = $slutaar;
     $startdato   = 1;
     $slutdato    = 31;
 
@@ -153,9 +159,12 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
             . "&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
     print "<div class='no-print' style='padding:2px 12px 6px; font-size:0.9em; color:#555;'>Genveje: ";
     foreach (['Q1'=>[1,3],'Q2'=>[4,6],'Q3'=>[7,9],'Q4'=>[10,12]] as $ql => $qm) {
-        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$startaar&maaned_til={$qm[1]}&aar_til=$startaar' style='margin-right:8px;'>$ql</a>";
+        $qaar = ($fy_startaar !== $fy_slutaar && $qm[0] >= $fy_startmaaned) ? $fy_startaar : $fy_slutaar;
+        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$qaar&maaned_til={$qm[1]}&aar_til=$qaar' style='margin-right:8px;'>$ql</a>";
     }
-    print "<a href='$q_base&maaned_fra=$startmaaned&aar_fra=$startaar&maaned_til=$slutmaaned&aar_til=$slutaar'>Hele &aring;ret</a></div>";
+    print "<a href='$q_base&maaned_fra=$fy_startmaaned&aar_fra=$fy_startaar&maaned_til=$fy_slutmaaned&aar_til=$fy_slutaar'>Hele &aring;ret</a></div>";
+    print "<div class='no-print' style='padding:0 12px 6px; font-size:0.85em; color:#888;'>"
+        . "Kontofilter gælder ikke for OSS-rapporten — den dækker alle konti med OSS-momskoder.</div>";
 
     // Check if any OSS codes are configured
     $has_oss = db_fetch_array(db_select(
@@ -236,7 +245,7 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $qtxt_detail = "SELECT"
         . " t.transdate AS dato,"
         . " t.bilag,"
-        . " t.tekst,"
+        . " t.beskrivelse AS tekst,"
         . " kp.moms AS momskode,"
         . " g.beskrivelse AS kode_navn,"
         . " CAST(COALESCE(NULLIF(g.box2,''),NULL) AS NUMERIC(10,2)) AS momssats,"

@@ -18,6 +18,7 @@
 // ----------------------------------------------------------------------
 // 03/02/2025 PBLM fixed lev_varenummer
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260612 MJ Use creditor order number, not internal id, for exported CSV filename.
 // 20260706 MJ CSV filename now uses creditorSuggestion/creditorOrder/creditorInvoice prefix and order number.
 
 @session_start();

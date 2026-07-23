@@ -16,6 +16,14 @@
 //
 // Copyright (c) 2004-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
+// 20260612 MJ Optimized open items report to fetch relevant open posts in one query and preload order/reminder data.
+// 20260612 MJ Deferred reminder lists so open items page load can finish when the open items table is shown.
+// 20260612 MJ Stopped open items report from updating due dates while rendering.
+// 20260612 MJ Cached aging bucket date calculations for large open item reports.
+// 20260612 MJ Load reminder sections without reloading the open items report.
+// 20260612 MJ Only recalculate order due terms when open items have no due date.
+// 20260612 MJ Paginated open item account rendering to avoid loading every account row at once.
+// 20260612 MJ Fetch only the current open item page for PostgreSQL default reports.
 // 20260706 MJ Optimized open items report to fetch relevant open posts in one query and preload order/reminder data.
 // 20260706 MJ Deferred reminder lists so open items page load can finish when the open items table is shown.
 // 20260706 MJ Cached aging bucket date calculations for large open item reports.
@@ -36,7 +44,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 	<script LANGUAGE="JavaScript" SRC="../javascript/overlib.js"></script>
 	<?php
 
-	// echo "KF1 $konto_fra<br>";
+#echo "KF1 $konto_fra<br>";
 
 	$forfaldsum=NULL;$forfaldsum_plus8=NULL;$forfaldsum_plus30=NULL;$forfaldsum_plus60=NULL;$forfaldsum_plus90=NULL;
 	$linjebg=NULL;$tmp1=NULL;$tmp2=NULL;
@@ -83,17 +91,17 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 		elseif ($rykker_type==3) $skjul_afsluttet_rykker='on';
 	}
 	if ($ny_rykker) {
-		// echo "1;URL=rapport.php?ny_rykker=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart"; 
+#		echo "1;URL=rapport.php?ny_rykker=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart"; 
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=rapport.php?ny_rykker=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart\">"; 
 	}
-	/*
-		if ($dato_fra && strstr($dato_fra," ")) list ($x,$tmp1) = explode(" ",$dato_fra);
-		if ($dato_til && strstr($dato_til," ")) list ($x,$tmp2) = explode(" ",$dato_til);
-		if ($tmp1 && $tmp2) {
-			$dato_fra=$tmp1;
-			$dato_til=$tmp2;
-		}
-	*/	
+/*
+	if ($dato_fra && strstr($dato_fra," ")) list ($x,$tmp1) = explode(" ",$dato_fra);
+	if ($dato_til && strstr($dato_til," ")) list ($x,$tmp2) = explode(" ",$dato_til);
+	if ($tmp1 && $tmp2) {
+		$dato_fra=$tmp1;
+		$dato_til=$tmp2;
+	}
+*/	
 	$maaned_fra=trim($maaned_fra);
 	$maaned_til=trim($maaned_til);
 
@@ -101,24 +109,24 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 	print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 	print "<tr><td width=100% height=\"8\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-	// print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php?rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til\">Luk</a></td>";
+#	print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php?rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til\">Luk</a></td>";
 	print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">Luk</a></td>";
 	print "<td width=\"80%\" $top_bund>Rapport - $rapportart</td>";
 	print "<td width=\"10%\" $top_bund>";
 	if ($skjul_aabenpost=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kotno_fra&konto_til=$konto_til&skjul_aabenpost=off>Vis</a><td></tr>";
 	else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on>Skjul</a><td></tr>";
-	// <a accesskey=l href=\"rapport.php?rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til\"><br></a></td>";
+#	<a accesskey=l href=\"rapport.php?rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til\"><br></a></td>";
 	print "</tbody></table></td></tr>\n"; #B slut
 
-	// echo "XX $dato_fra,$dato_til,$konto_fra,$konto_til,$art<br>";
+#echo "XX $dato_fra,$dato_til,$konto_fra,$konto_til,$art<br>";
 	if ($skjul_aabenpost!='on') vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art);
 	} else {
 		print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 	}
 
- 	####################################### Rykkeroversigt ##############################################
+	####################################### Rykkeroversigt ##############################################
  	
-	// if ($skjul_aaben_rykker!='on' || $skjul_bogfort_rykker!='on' || $skjul_afsluttet_rykker!='on') 
+# if ($skjul_aaben_rykker!='on' || $skjul_bogfort_rykker!='on' || $skjul_afsluttet_rykker!='on') 
 	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
 		$tekst = "select id from ordrer where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art LIKE 'R%' limit 1";
 	} elseif ($konto_fra && $konto_fra!='*') {
@@ -127,13 +135,13 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 		$tmp2=strtoupper($konto_fra);
 		$tekst = "select id from ordrer where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' limit 1";
 	}	else $tekst = "select id from ordrer where art LIKE 'R%' limit 1";
-	// echo "tekst $tekst<br>";
+#	echo "tekst $tekst<br>";
 
 
 
 	if ($art=='D' && db_fetch_array(db_select("$tekst",__FILE__ . " linje " . __LINE__))) {
-	// if ($art=='D' && db_fetch_array(db_select("select * from ordrer where art LIKE 'R%'",__FILE__ . " linje " . __LINE__))) {
-		// print "<tr><td><br></td></tr>\n";
+#	if ($art=='D' && db_fetch_array(db_select("select * from ordrer where art LIKE 'R%'",__FILE__ . " linje " . __LINE__))) {
+#		print "<tr><td><br></td></tr>\n";
 		if (!$rykker_only) {
 			$rykkerBaseUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rykker_only=on&load_rykker=on";
 			print "<script>
@@ -208,10 +216,10 @@ function saldiToggleRykker(sectionId, frameId, url) {
 				$tmp2=strtoupper($konto_fra);
 				$tekst = "select * from ordrer where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' $betalt and status $status order by firmanavn";
 			}	else $tekst = "select * from ordrer where art LIKE 'R%' $betalt and status $status order by firmanavn";
-			// echo "tekst $tekst<br>";
+#			echo "tekst $tekst<br>";
 
 			$q1 = db_select("$tekst",__FILE__ . " linje " . __LINE__);
-			// $q1 = db_select("select * from ordrer where art LIKE 'R%' $betalt and status $status order by ordrenr desc",__FILE__ . " linje " . __LINE__);
+#			$q1 = db_select("select * from ordrer where art LIKE 'R%' $betalt and status $status order by ordrenr desc",__FILE__ . " linje " . __LINE__);
 			$x=0;
 			$reminders=array();
 			$reminderIds=array();
@@ -265,7 +273,7 @@ function saldiToggleRykker(sectionId, frameId, url) {
 			}
 			foreach ($reminders as $r1) {
 				$rykkernr=substr($r1['art'],-1);
-				// $belob=dkdecimal($r1['sum']);
+#				$belob=dkdecimal($r1['sum']);
 				$x++;
 				$sum[$x]=$reminderSums[$r1['id']];
 				$udlignet=$reminderOpenStatus[$r1['id']];
@@ -315,9 +323,9 @@ function saldiToggleRykker(sectionId, frameId, url) {
 				if ($taeller==1) print " &nbsp;<input type=submit value=\"Bogf&oslash;r\" name=\"submit\" onClick=\"return confirmSubmit('Bogf&oslash;r valgte ?')\"></td></tr>\n";
 				else print "</td></tr>\n";
 				}
-			#		if ($taeller==1) print "<tr><td>Bogf&oslash;rte</td><td colspan=9><hr></td></tr>\n";
-			#			elseif ($taeller==2) print "<tr><td>Afsluttede</td><td colspan=9><hr></td></tr>\n";
-			#			else print "<tr><td colspan=10><hr></td></tr>\n";
+#		if ($taeller==1) print "<tr><td>Bogf&oslash;rte</td><td colspan=9><hr></td></tr>\n";
+#			elseif ($taeller==2) print "<tr><td>Afsluttede</td><td colspan=9><hr></td></tr>\n";
+#			else print "<tr><td colspan=10><hr></td></tr>\n";
 			print "</form>\n";
 			print "</tbody></table></td></tr>";
 			}}
@@ -346,59 +354,59 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 	elseif ($openpostPageSize > 500) $openpostPageSize=500;
 	$openpostOffset=($openpostPage-1)*$openpostPageSize;
 
-	# echo "SS $fromdate $todate KF $konto_fra<br>";
+# echo "SS $fromdate $todate KF $konto_fra<br>";
 
-	/*
-		# Finder start og slut paa regnskabsaar
-		for ($x=1; $x<=12; $x++) {
-			if ($maaned_fra==$md[$x]){$maaned_fra=$x;}
-			if ($maaned_til==$md[$x]){$maaned_til=$x;}
-		}
-
-		$query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
-		$row = db_fetch_array($query);
-	#	$regnaar=$row[kodenr];
-		$startmaaned=$row['box1']*1;
-		$startaar=$row['box2']*1;
-		$slutmaaned=$row['box3']*1;
-		$slutaar=$row['box4']*1;
-		$slutdato=31;
-
-		##
-
-		if ($maaned_fra) $startmaaned=$maaned_fra;
-		if ($maaned_til) $slutmaaned=$maaned_til;
-
-	if (!is_numeric($startmaaned)) {
-		if (strstr($startmaaned," ")) list($tmp,$startmaaned)=explode(" ",$startmaaned);
-		if (!is_numeric($startmaaned)) list ($tmp,$startmaaned)=explode(" ",find_maaned_nr($startmaaned));
-	}
-	if (!is_numeric($slutmaaned)) {
-		if (strstr($slutmaaned," ")) list($tmp,$slutmaaned)=explode(" ",$slutmaaned);
-		if (!is_numeric($slutmaaned)) list ($tmp,$slutmaaned)=explode(" ",find_maaned_nr($slutmaaned));
+/*
+	# Finder start og slut paa regnskabsaar
+	for ($x=1; $x<=12; $x++) {
+		if ($maaned_fra==$md[$x]){$maaned_fra=$x;}
+		if ($maaned_til==$md[$x]){$maaned_til=$x;}
 	}
 
+	$query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
+	$row = db_fetch_array($query);
+#	$regnaar=$row[kodenr];
+	$startmaaned=$row['box1']*1;
+	$startaar=$row['box2']*1;
+	$slutmaaned=$row['box3']*1;
+	$slutaar=$row['box4']*1;
+	$slutdato=31;
 
-		while (!checkdate($slutmaaned,$slutdato,$slutaar))	{
-			$slutdato=$slutdato-1;
-			if ($slutdato<28) break;
-		}
+	##
 
-	#	if ($slutmaaned<10){$slutmaaned="0".$slutmaaned;}
+	if ($maaned_fra) $startmaaned=$maaned_fra;
+	if ($maaned_til) $slutmaaned=$maaned_til;
+
+if (!is_numeric($startmaaned)) {
+	if (strstr($startmaaned," ")) list($tmp,$startmaaned)=explode(" ",$startmaaned);
+	if (!is_numeric($startmaaned)) list ($tmp,$startmaaned)=explode(" ",find_maaned_nr($startmaaned));
+}
+if (!is_numeric($slutmaaned)) {
+	if (strstr($slutmaaned," ")) list($tmp,$slutmaaned)=explode(" ",$slutmaaned);
+	if (!is_numeric($slutmaaned)) list ($tmp,$slutmaaned)=explode(" ",find_maaned_nr($slutmaaned));
+}
 
 
-	$regnstart = $startaar. "-" . $startmaaned . "-" . '01';
-		$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
-	*/
+	while (!checkdate($slutmaaned,$slutdato,$slutaar))	{
+		$slutdato=$slutdato-1;
+		if ($slutdato<28) break;
+	}
+
+#	if ($slutmaaned<10){$slutmaaned="0".$slutmaaned;}
 
 
-	#$regnslut = "2005-05-04";
+$regnstart = $startaar. "-" . $startmaaned . "-" . '01';
+	$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
+*/
+
+
+#$regnslut = "2005-05-04";
 	print "<form name=aabenpost action=rapport.php method=post>";
 	print "<tr><td colspan=10><hr></td></tr>\n";
 
 	$x=0;
 
-	# echo "KF $konto_fra<br>";
+# echo "KF $konto_fra<br>";
 
 	$kontonr=array();
 	$accountIndex=array();
@@ -472,11 +480,11 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 	}
 	$q=db_select("$tekst",__FILE__ . " linje " . __LINE__);
 
-	#	if ($konto_fra && $konto_til) $tmp=nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and ";
-	#	elseif ($konto_fra) $tmp=nr_cast('kontonr').">='$konto_fra' and ";
-	#	elseif ($konto_til) $tmp=nr_cast('kontonr')."<='$konto_til'and ";
-	#	else $tmp="";
-	#	$q = db_select("select * from adresser where $tmp art = '$art' order by firmanavn",__FILE__ . " linje " . __LINE__);
+#	if ($konto_fra && $konto_til) $tmp=nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and ";
+#	elseif ($konto_fra) $tmp=nr_cast('kontonr').">='$konto_fra' and ";
+#	elseif ($konto_til) $tmp=nr_cast('kontonr')."<='$konto_til'and ";
+#	else $tmp="";
+#	$q = db_select("select * from adresser where $tmp art = '$art' order by firmanavn",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (!isset($accountIndex[$r['account_id']])) {
 			$x++;
@@ -547,14 +555,14 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 		$faktnr=array();
 		$f=0;
 
-		#		if ($fromdate && $todate) $q=db_select("select * from openpost where transdate>='$fromdate' and transdate<='$todate' and konto_id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
-		#		elseif ($todate) $q=db_select("select * from openpost where transdate<='$todate' and konto_id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
-		#		else $q=db_select("select * from openpost where konto_id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
+#		if ($fromdate && $todate) $q=db_select("select * from openpost where transdate>='$fromdate' and transdate<='$todate' and konto_id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
+#		elseif ($todate) $q=db_select("select * from openpost where transdate<='$todate' and konto_id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
+#		else $q=db_select("select * from openpost where konto_id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
 
-		#		if ($fromdate && $todate) $tekst="select * from openpost where transdate>='$fromdate' and transdate<='$todate' and konto_id='$konto_id[$x]' order by faktnr,amount $tmp";
+#		if ($fromdate && $todate) $tekst="select * from openpost where transdate>='$fromdate' and transdate<='$todate' and konto_id='$konto_id[$x]' order by faktnr,amount $tmp";
 
-		#		if ($regnaar) $q=db_select("select * from openpost where konto_id=$id[$x] and transdate <= '$regnslut' order by faktnr,amount $tmp",__FILE__ . " linje " . __LINE__);
-		#		else $q=db_select("select * from openpost where konto_id=$id[$x] and udlignet!='1' order by faktnr,amount $tmp",__FILE__ . " linje " . __LINE__);
+#		if ($regnaar) $q=db_select("select * from openpost where konto_id=$id[$x] and transdate <= '$regnslut' order by faktnr,amount $tmp",__FILE__ . " linje " . __LINE__);
+#		else $q=db_select("select * from openpost where konto_id=$id[$x] and udlignet!='1' order by faktnr,amount $tmp",__FILE__ . " linje " . __LINE__);
 		foreach ($accountPosts[$x] as $r) {
 			if ($r['udlignet']!=1 || ($r['transdate'] <= $todate && $r['udlign_date'] && $r['udlign_date'] > $todate)) {
 				if ($r['faktnr'] && !in_array($r['faktnr'],$faktnr)) {
@@ -589,15 +597,15 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 							$forfaldsdag=$tmp;
 						}
 					}
-				} #elseif ()
+				} #elseif () 
 				$amount=$amount*$valutakurs/100;
 				if ($amount>0) $amount=round($amount+0.0001,2);
 				else $amount=round($amount-0.0001,2);
-				### nedenstående er indført grundet en fejl i 2.0.3 som skrev forkert forfaldsdato i openpost	og fjernet i 2.0.8.
-				#				$tmp=usdate(forfaldsdag($transdate, $betalingsbet[$x], $betalingsdage[$x]));
-				#				if ($tmp && !$forfaldsdag) db_modify("update openpost set forfaldsdate='$tmp' where id='$oid'",__FILE__ . " linje " . __LINE__);
-				#				$forfaldsdag=$tmp;
-				################
+### nedenstående er indført grundet en fejl i 2.0.3 som skrev forkert forfaldsdato i openpost	og fjernet i 2.0.8.
+#				$tmp=usdate(forfaldsdag($transdate, $betalingsbet[$x], $betalingsdage[$x]));
+#				if ($tmp && !$forfaldsdag) db_modify("update openpost set forfaldsdate='$tmp' where id='$oid'",__FILE__ . " linje " . __LINE__);
+#				$forfaldsdag=$tmp;
+################
 				$fakt_utid=strtotime($transdate);
 				$forf_utid=strtotime($forfaldsdag);
 				$dage=round(($forf_utid-$fakt_utid)/86400,0);
@@ -625,10 +633,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 			}
 		}
 		($y>0) ? $y=round($y+0.0001,2) : $y=round($y-0.0001,2);
-		if (($y>0.01)||($udlignet=="0"))	{
+		if (($y>0.01)||($udlignet=="0"))	{	
 			if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 			elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
-
+		
 			$forfaldsum=$forfaldsum+$forfalden;
 			$forfaldsum_plus8=$forfaldsum_plus8+$forfalden_plus8;
 			$forfaldsum_plus30=$forfaldsum_plus30+$forfalden_plus30;
@@ -636,34 +644,34 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 			$forfaldsum_plus90=$forfaldsum_plus90+$forfalden_plus90;
 			$sum=$sum+$y;
 			$formIndex++;
-
+			
 			print "<tr bgcolor=\"$linjebg\">";
 			print "<input type=hidden name=konto_id[$formIndex] value=$konto_id[$x]>";
 			if ($popup) print "<td onClick=\"window.open('rapport.php?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kontonr[$x]&konto_til=$kontonr[$x]&submit=ok','kreditorrapport','$jsvars')\" onMouseOver=\"this.style.cursor = 'pointer'\"><a>";
 			else print "<td><a href=rapport.php?rapportart=kontokort&kilde=openpost&kto_fra=$konto_fra&kilde_kto_til=$konto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kontonr[$x]&konto_til=$kontonr[$x]&submit=ok>";
 			print "<span title='Klik for detaljer' style=\"text-decoration: underline;\">$kontonr[$x]</span></a></td>";
 			print "<td>$firmanavn[$x]</td>";
-			/*
-				if ($forfalden_plus90 != 0) $color="rgb(255, 0, 0)";
-				else $color="rgb(0, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus90);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-				if ($forfalden_plus60 != 0) $color="rgb(255, 0, 0)";
-				else $color="rgb(0, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus60);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-				if ($forfalden_plus60 != 0) $color="rgb(255, 0, 0)";
-				else $color="rgb(0, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus30);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-				if ($forfalden_plus30 != 0) $color="rgb(255, 0, 0)";
-				else $color="rgb(0, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus8);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-				if ($forfalden != 0) $color="rgb(255, 0, 0)";
-				else $color="rgb(0, 0, 0)";
-				$tmp=dkdecimal($forfalden);
-			*/
+/*	
+	if ($forfalden_plus90 != 0) $color="rgb(255, 0, 0)";
+	else $color="rgb(0, 0, 0)";
+	$tmp=dkdecimal($forfalden_plus90);
+	print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+	if ($forfalden_plus60 != 0) $color="rgb(255, 0, 0)";
+	else $color="rgb(0, 0, 0)";
+	$tmp=dkdecimal($forfalden_plus60);
+	print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+	if ($forfalden_plus60 != 0) $color="rgb(255, 0, 0)";
+	else $color="rgb(0, 0, 0)";
+	$tmp=dkdecimal($forfalden_plus30);
+	print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+	if ($forfalden_plus30 != 0) $color="rgb(255, 0, 0)";
+	else $color="rgb(0, 0, 0)";
+	$tmp=dkdecimal($forfalden_plus8);
+	print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+	if ($forfalden != 0) $color="rgb(255, 0, 0)";
+	else $color="rgb(0, 0, 0)";
+	$tmp=dkdecimal($forfalden);
+*/
 			if (($art=='D' && $forfalden_plus90 > 0) || ($art=='K' && $forfalden_plus90 < 0)) $color="rgb(255, 0, 0)";
 			else $color="rgb(0, 0, 0)";
 			$tmp=dkdecimal($forfalden_plus90);

@@ -19,7 +19,8 @@
 // -----------------------------------------------------------
 // 20200918 Ckeck bypassed if no email.
 // 20230524 PHR php8
-// 20260707 MJ Fix fatal re-declaration of std_func when included from login; fix missing globals in reminderCheck; fix BODY onLoad popup
+// 20260619 MJ Fixed login reminder check globals, all-user popup, and separated daily email guard from popup.
+// 20260707 MJ Fix fatal re-declaration of std_func when included from login; fix BODY onLoad popup
 
 @session_start();
 $s_id=session_id();
@@ -49,12 +50,14 @@ if ($r = db_fetch_array(db_select("select * from grupper where art='DIV' and kod
 	$ffdage=$r['box5'];
 	$chkdate=$r['box8'];
 }
-if ($email) reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate);
+if (isset($ffdage)) reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate);
 
 function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
-	global $dd, $bruger_id, $sprog_id;
-	if (!$ffdage || $chkdate==$dd) echo '';
+	global $bruger_id, $dd, $sprog_id;
+
+	if ($ffdage === "" || $ffdage === NULL) echo "";
 	else {
+		$ffdage=(int)$ffdage;
 		$rykkerdate=usdate(forfaldsdag($dd,'netto',$ffdage));
 		$x=0;
 		$konto_id=array();
@@ -66,7 +69,7 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 			$rykkerdate=usdate(forfaldsdag($r['forfaldsdate'],'netto',$ffdage));
 #	echo "$rykkerdate <= $dd<br>";
 			if ($rykkerdate <= $dd) {
-				if (!db_fetch_array(db_select("select id from ordrelinjer where enhed = '$r[id]'",__FILE__ . " linje " . __LINE__))) { #Tjekker om der allerede eksisterer en rykker på ordren. #Checks if there's already a payment reminder on the order.
+				if (!db_fetch_array(db_select("select id from ordrelinjer where enhed = '$r[id]'",__FILE__ . " linje " . __LINE__))) { #Tjekker om der allerede eksisterer en rykker p� ordren.
 					if (!in_array($r['konto_id'],$konto_id)) {
 						$konto_id[$x]=$r['konto_id']; #Liste over konto id numre der skal rykkes
 						$x++;
@@ -76,15 +79,17 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 		}
 		$ff_antal=$x;
 #echo "$ff_antal $rykkerdate <br>";
-#exit;
-#echo "$ff_antal && $email && $bruger_id != $mailmodt_id<br>";
-		if ($ff_antal && $email && $bruger_id != $mailmodt_id) {
+		$hasMailRecipient=trim((string)$email)!="";
+		$hasResponsibleUser=trim((string)$mailmodt_id)!="";
+		$isResponsibleUser=(!$hasResponsibleUser || (string)$bruger_id==(string)$mailmodt_id);
+		if ($ff_antal && $hasMailRecipient && $chkdate!=$dd) {
 			$subjekt=findtekst(238,$sprog_id);
 			$mailtext=findtekst(239,$sprog_id);
 #echo "send_mail($email,$subjekt,$mailtext)<br>";
 			send_mail($email,$subjekt,$mailtext);
 			db_modify("update grupper set box8='$dd' where art='DIV' and kodenr= '4'");
-		}	elseif ($ff_antal && $bruger_id == $mailmodt_id) {
+		}
+		if ($ff_antal && $isResponsibleUser) {
 #echo "$ff_antal && $bruger_id == $mailmodt_id<br>";
 			$tmp=findtekst(240,$sprog_id);
 #echo "$tmp<br>";
@@ -95,6 +100,8 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 #exit;
 }
 function send_mail($email,$subjekt,$mailtext) {
+	global $db;
+
 	$r = db_fetch_array(db_select("select * from adresser where art='S'",__FILE__ . " linje " . __LINE__));
 	$afsendermail=$from=$r['email'];
 	$afsendernavn=$r['firmanavn'];

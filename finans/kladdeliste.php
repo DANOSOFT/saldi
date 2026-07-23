@@ -34,6 +34,7 @@
 // 16/05/2025 make sure the back button redirect too the previous page rather than going back to the dashboard
 // 20251021 LOE Added pagination and static header and footer
 // 20260126 PHR fixed $exitDraft
+// 20260612 MJ Optimized cash journal list entry counts for large databases.
 // 20260706 MJ Optimized cash journal list entry counts for large databases.
 
 @session_start();
@@ -815,6 +816,7 @@ function deleteKladde(kladdeId) {
 
 
 
+
 // Tutorial setup 
 $steps = array();
 $steps[] = array(
@@ -932,8 +934,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 300);
 });
 </script>
-
-
 
 
 

@@ -1,7 +1,25 @@
 <?php
-// --- includes/stdFunc/getKontaktEmail.php --- ver 4.1.0 --- 2026-03-27 ---
+// --- includes/stdFunc/getKontaktEmail.php --- ver 5.0.0 --- 2026-06-11 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+//
+// Copyright (c) 2008-2026 Danosoft.ApS
+// ----------------------------------------------------------------------
 // Retrieves email(s) from kontakt_emails table by konto_id and optional email_type.
 // Falls back to adresser.email if no matching kontakt_emails record found.
+// 20260611 MJ Normalize email_type matching so purpose-specific emails are not skipped.
 
 /**
  * Get customer email by type from kontakt_emails table.
@@ -15,8 +33,8 @@ function getKontaktEmail($konto_id, $email_type = '') {
 
 	// If specific type requested, try that first
 	if ($email_type) {
-		$email_type = db_escape_string(trim($email_type));
-		$qtxt = "SELECT email FROM kontakt_emails WHERE konto_id = '$konto_id' AND email_type = '$email_type' ORDER BY id LIMIT 1";
+		$email_type = db_escape_string(strtolower(trim($email_type)));
+		$qtxt = "SELECT email FROM kontakt_emails WHERE konto_id = '$konto_id' AND lower(trim(email_type)) = '$email_type' ORDER BY id LIMIT 1";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($r && trim($r['email'])) return trim($r['email']);
 	}
@@ -47,8 +65,8 @@ function getAllKontaktEmails($konto_id, $email_type = '') {
 
 	$emails = array();
 	if ($email_type) {
-		$email_type = db_escape_string(trim($email_type));
-		$qtxt = "SELECT email FROM kontakt_emails WHERE konto_id = '$konto_id' AND email_type = '$email_type' ORDER BY id";
+		$email_type = db_escape_string(strtolower(trim($email_type)));
+		$qtxt = "SELECT email FROM kontakt_emails WHERE konto_id = '$konto_id' AND lower(trim(email_type)) = '$email_type' ORDER BY id";
 	} else {
 		$qtxt = "SELECT email FROM kontakt_emails WHERE konto_id = '$konto_id' ORDER BY id";
 	}

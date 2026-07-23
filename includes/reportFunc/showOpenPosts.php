@@ -29,8 +29,8 @@
 // 20250527 PHR Fixed problem with small corrency diffs that listed alligned accounts at unequal
 // 20260507 CL/PHR Added $vis_alle parameter: false = only show udlignet != '1' (Vis åbne poster), true = show all (Vis alle poster).
 // 20260513 PHR Columns were shifted when $usePBS was NULL
-// 20260518 CL/PHR PBS-kolonne printes kun hvis $usePBS er sat. isset()-check tilføjet for $kontoudtog.
 // 20260528 PHR Bottomline was overlooked 20260513
+// 20260612 MJ Paginated and batched debtor open items report queries for large databases.
 // 20260706 MJ Paginated and batched debtor open items report queries for large databases.
 
 if (!function_exists('vis_aabne_poster')) {

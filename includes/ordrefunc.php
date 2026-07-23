@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-04-27 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-07-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,6 +100,7 @@
 // 20260618 Sawaneh Stock warning popup now triggers when sale quantity would leave stock below min_lager
 // 20260619 Sawaneh check_stock_warning reads stock from lagerstatus (sum across warehouses) like the order-line red-highlight, not the drifting varer.beholdning field
 // 20260630 CDX/PK Changed the cleanup so that negative lines are only deleted if there is also at least one normal line (item no. >= 0) on the same order.
+// 20260720 CL/MJ bogfor(): check_periode_luk() called on fakturadate for friendly period-lock error on invoice posting.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -1170,6 +1171,8 @@ function bogfor($id, $webservice=false)
 	$ordredate = $row['ordredate'];
 	$levdate = $row['levdate'];
 	$fakturadate = $row['fakturadate'];
+	if ($fakturadate && function_exists('check_periode_luk') && ($err = check_periode_luk($fakturadate)))
+		return $err;
 	$nextfakt = $row['nextfakt'];
 	$art = $row['art'];
 	$kred_ord_id = $row['kred_ord_id'];

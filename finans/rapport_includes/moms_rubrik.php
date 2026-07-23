@@ -27,6 +27,7 @@
 //                  summerer nettobeloeb pr. rubrik baseret paa box5 paa momskoder.
 //                  Kraever at box5 (Rubrik) er sat i Indstillinger -> Moms.
 //                  CSV-eksport.
+// 20260720 CL/MJ  Fiscal-year-aware kvartalsgenveje (fy_start/slut vars).
 // 20260722 CL/MJ  COALESCE(debet,0)/COALESCE(kredit,0) i SUM: NULL-aritmetik
 //                 gav NULL (vist som 0) for rene debet- eller kreditkonti.
 // 20260723 CL/MJ  Rubrik afleder nu fra ordrelinjer: ordrer.art (DO/DK=salg, KO/KK=kob) +
@@ -62,6 +63,10 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $startaar    = (int)($row['box2'] ?? $regnaar);
     $slutmaaned  = (int)($row['box3'] ?? 12);
     $slutaar     = (int)($row['box4'] ?? $regnaar);
+    $fy_startmaaned = $startmaaned;
+    $fy_slutmaaned  = $slutmaaned;
+    $fy_startaar    = $startaar;
+    $fy_slutaar     = $slutaar;
     $startdato   = 1;
     $slutdato    = 31;
 
@@ -143,9 +148,10 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
             . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
     print "<div class='no-print' style='padding:2px 12px 6px; font-size:0.9em; color:#555;'>Genveje: ";
     foreach (['Q1'=>[1,3],'Q2'=>[4,6],'Q3'=>[7,9],'Q4'=>[10,12]] as $ql => $qm) {
-        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$startaar&maaned_til={$qm[1]}&aar_til=$startaar' style='margin-right:8px;'>$ql</a>";
+        $qaar = ($fy_startaar !== $fy_slutaar && $qm[0] >= $fy_startmaaned) ? $fy_startaar : $fy_slutaar;
+        print "<a href='$q_base&maaned_fra={$qm[0]}&aar_fra=$qaar&maaned_til={$qm[1]}&aar_til=$qaar' style='margin-right:8px;'>$ql</a>";
     }
-    print "<a href='$q_base&maaned_fra=$startmaaned&aar_fra=$startaar&maaned_til=$slutmaaned&aar_til=$slutaar'>Hele &aring;ret</a></div>";
+    print "<a href='$q_base&maaned_fra=$fy_startmaaned&aar_fra=$fy_startaar&maaned_til=$fy_slutmaaned&aar_til=$fy_slutaar'>Hele &aring;ret</a></div>";
 
     // Rubrik labels per spec section 2.3
     $rubrikker = [
@@ -193,6 +199,40 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $q = db_select($qtxt, __FILE__." linje ".__LINE__);
     $rubrik_sum = [];
     while ($r = db_fetch_array($q)) $rubrik_sum[$r['rubrik']] = (float)$r['nettobeloeb'];
+
+    // Diagnostic: show counts at each join step to pinpoint empty-results cause
+    $d1 = db_fetch_array(db_select(
+        "SELECT COUNT(*) AS cnt FROM ordrer"
+        . " WHERE art IN ('DO','DK') AND status >= 3"
+        . " AND fakturadate >= '$regnstart' AND fakturadate <= '$regnslut'",
+        __FILE__." linje ".__LINE__));
+    $d2 = db_fetch_array(db_select(
+        "SELECT COUNT(DISTINCT ol.id) AS cnt FROM ordrelinjer ol"
+        . " JOIN ordrer ord ON ord.id = ol.ordre_id"
+        .   " AND ord.art IN ('DO','DK') AND ord.status >= 3"
+        .   " AND ord.fakturadate >= '$regnstart' AND ord.fakturadate <= '$regnslut'"
+        . " JOIN varer v ON v.id = ol.vare_id AND ol.vare_id > 0",
+        __FILE__." linje ".__LINE__));
+    $d3 = db_fetch_array(db_select(
+        "WITH dg AS ("
+        . " SELECT DISTINCT ON (kodenr) CAST(kodenr AS TEXT) AS kodenr,"
+        .   " NULLIF(TRIM(COALESCE(box10,'')), '') AS eu_zone"
+        . " FROM grupper WHERE art = 'DG'"
+        . " ORDER BY kodenr, fiscal_year DESC NULLS LAST"
+        . ")"
+        . " SELECT COUNT(DISTINCT ord.id) AS cnt FROM ordrer ord"
+        . " JOIN adresser adr ON adr.id = ord.konto_id"
+        . " JOIN dg ON dg.kodenr = CAST(adr.gruppe AS TEXT)"
+        . " WHERE ord.art IN ('DO','DK') AND ord.status >= 3"
+        .   " AND ord.fakturadate >= '$regnstart' AND ord.fakturadate <= '$regnslut'"
+        .   " AND dg.eu_zone IN ('B2B-EU','B2B-UDL','B2C-UDL')",
+        __FILE__." linje ".__LINE__));
+    print "<div style='padding:6px 12px; font-size:0.85em; background:#f5f5f0; border-left:3px solid #aaa; margin:8px 12px;'>";
+    print "<b>Diagnostik:</b> ";
+    print "Fakturerede salgsordrer i periode: <b>" . (int)($d1['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
+    print "Ordrelinjer med varer: <b>" . (int)($d2['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
+    print "Ordrer med EU-zone-kunde: <b>" . (int)($d3['cnt'] ?? 0) . "</b>";
+    print "</div>";
 
     // Check if DG groups have EU-zone configured (prerequisite for rubrik derivation)
     $has_mapping = db_fetch_array(db_select(

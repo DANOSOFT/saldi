@@ -43,6 +43,7 @@
 // 20250925 LOE Kilde added to determine which emails to send
 // 20260303 PHR removed call to old phpmailer
 // 20260602 PHR Removed echo "Mail sent to ...";
+// 20260611 MJ Use kontoudtog-specific kontakt_emails when mailing account statements.
 // 20260706 MJ Use kontakt_emails 'kontoudtog' address when sending account statements.
 
 @session_start();
@@ -199,7 +200,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 	$til[$x]=dkdato($todate[$x]);
 	$query = db_select("select * from adresser where id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($query);
-	if (!$email[$x]) $email[$x] = getKontaktEmail($konto_id[$x], 'kontoudtog');
+	if (!$email[$x]) $email[$x] = getAllKontaktEmails($konto_id[$x], 'kontoudtog');
 	$accountId[$x]=$r['id'];
 	$r2=db_fetch_array(db_select("select box3 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 	$kontovaluta[$x]=$r2['box3'];
@@ -516,7 +517,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailtext .= " * ".$r['addr2'];
 			if ( $r['postnr'] ) $mailtext .= " * ".$r['postnr']." ".$r['bynavn'];
 			if ( $r['tlf'] ) $mailtext .= " * tlf ".$r['tlf'];
-			if ( $r['mobile'] ) $mailtext .= " * mobile ".$r['mobile'];
+			if ( $r['fax'] ) $mailtext .= " * fax ".$r['fax'];
 			if ( $r['cvrnr'] ) $mailtext .= " * cvr ".$r['cvrnr'];
 			$mailtext .= "<p>\n</td></tr>\n";
 			$mailtext .= "</table></body></html>\n";
@@ -546,7 +547,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['addr2'] ) $mailbody .= $r['addr2']."<br />\n";
 			if ( $r['postnr'] ) $mailbody .= $r['postnr']." ".$r['bynavn']."<br />\n";
 			if ( $r['tlf'] ) $mailbody .= "tlf ".$r['tlf'];
-			if ( $r['mobile'] ) $mailbody .= " * mobile ".$r['mobile'];
+			if ( $r['fax'] ) $mailbody .= " * fax ".$r['fax'];
 			if ( $r['cvrnr'] ) $mailbody .= " * cvr ".$r['cvrnr'];
 			$mailbody .= "</p></body></html>";
 
@@ -601,4 +602,3 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	return $sent_emails;
 }
 ?>
-

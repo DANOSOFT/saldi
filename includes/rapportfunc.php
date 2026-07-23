@@ -81,6 +81,7 @@
 // 20260507 CL/PHR Vis åbne poster now only shows unaligned posts (udlignet != '1'). Added 'Vis alle poster' option for full view.
 // 20260513 CL/PHR kontokort & kontosaldo viser nu dato i toplinje og kontokort tager kun konti med bevægelser i perioden.
 // 20260518 CL/PHR kontokort & kontosaldo viser nu dato i toplinje. Kontokort tager kun konti med bevægelser i perioden. Null-safety og array-initialisering.
+// 20260612 MJ Preserve asynchronous debtor open items content mode when report links are used inside the loader frame.
 include("../includes/reportFunc/showOpenPosts.php"); 
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -176,6 +177,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	$kun_debet = $f;
 	$kun_kredit = $g;
 	($a || $f || $g) ? $skjul_aabenpost = NULL : $skjul_aabenpost = 'on';
+	$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
 
 	if ($ny_rykker) {
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=rapport.php?ny_rykker=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart\">";
@@ -227,11 +229,11 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
 		elseif ($vis_alle_poster == 'on') print "<option>" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
 		else print "<option>" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
-		if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
-		if (!$vis_alle_poster) print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
-		if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
-		if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
-		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
+		if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
+		if (!$vis_alle_poster) print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
+		if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
+		if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
+		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
 		print "</select></center>\n";
 		print "<td>\n";
 		print "</tr>";
@@ -257,11 +259,11 @@ a:link{text-decoration:none;}</style>\n";
 		elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
 		elseif ($vis_alle_poster == 'on') print "<option>" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
 		else print "<option>" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
-		if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
-		if (!$vis_alle_poster) print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
-		if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
-		if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
-		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
+		if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
+		if (!$vis_alle_poster) print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_alle_poster=on\">" . findtekst('2699|Vis alle poster', $sprog_id) . "</option>\n";
+		if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
+		if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
+		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
 		print "</select>\n";
 		print "</td>";
 		print "</tbody></table><!--Tabel 1.2 slut-->\n\n";
@@ -299,20 +301,20 @@ a:link{text-decoration:none;}</style>\n";
 					print "<td width=10% align=center class='sub-title-kund-left'><br></td>";
 					print "<td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1130, $sprog_id) . "</td>";
 					print "<td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-					if ($vis_aaben_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aaben_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aaben_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
+					if ($vis_aaben_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_aaben_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_aaben_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
 				} elseif ($taeller == 2) {
 					print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1135, $sprog_id) . "</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-					if ($vis_inkasso == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_inkasso=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></tr>\n";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_inkasso=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></tr></thead></table></div><br>\n";
+					if ($vis_inkasso == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_inkasso=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_inkasso=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></tr></thead></table></div><br>\n";
 				} elseif ($taeller == 3) {
 					print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1136, $sprog_id) . "</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-					if ($vis_bogfort_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_bogfort_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>\n";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_bogfort_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
+					if ($vis_bogfort_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_bogfort_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_bogfort_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
 				} else {
 					print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1137, $sprog_id) . "</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-					if ($vis_afsluttet_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_afsluttet_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_afsluttet_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
+					if ($vis_afsluttet_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_afsluttet_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&vis_afsluttet_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
 				}
 				if (($taeller == 1 && $vis_aaben_rykker == 'on') || ($taeller == 2 && $vis_inkasso == 'on') || ($taeller == 3 && $vis_bogfort_rykker == 'on') || ($taeller == 4 && $vis_afsluttet_rykker == 'on')) {
 					print "<tr><th>" . findtekst(1134, $sprog_id) . "</th><th>" . findtekst(360, $sprog_id) . "</th><th colspan=2>" . findtekst(635, $sprog_id) . "</th><th align=center>" . findtekst(1131, $sprog_id) . "</th><th colspan=3 align=left>" . findtekst(934, $sprog_id) . "</th><th colspan=1 align=left></th></tr>\n";
