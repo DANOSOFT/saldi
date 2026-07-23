@@ -55,9 +55,14 @@ else alert ('Missing global ID');
 // Extract variables from REQUEST if not already set (for AJAX/POST support without register_globals)
 $source = isset($_REQUEST['source']) ? $_REQUEST['source'] : (isset($source) ? $source : null);
 $kladde_id = isset($_REQUEST['kladde_id']) ? $_REQUEST['kladde_id'] : (isset($kladde_id) ? $kladde_id : null);
-$docFolder = isset($_REQUEST['docFolder']) ? $_REQUEST['docFolder'] : (isset($docFolder) ? $docFolder : null);
+if     (is_dir("$sth/owncloud"))  $docFolder = '../owncloud';
+elseif (is_dir("$sth/bilag"))     $docFolder = '../bilag';
+elseif (is_dir("$sth/documents")) $docFolder = '../documents';
+else                              $docFolder = '../bilag';
 $poolFile = isset($_REQUEST['poolFile']) ? $_REQUEST['poolFile'] : (isset($poolFile) ? $poolFile : null);
 if (isset($_REQUEST['db'])) $db = $_REQUEST['db']; // Ensure db is set if passed
+// SECURITY: $db becomes a path segment — reject slashes and traversal.
+if (preg_match('#[/\\\\]|\.\.#', (string)$db)) { print "invalid database identifier<br>"; exit; }
 
 // Debug logging
 file_put_contents('/tmp/debug_insert.log', date('Y-m-d H:i:s') . " - Request: " . print_r($_REQUEST, true) . "\n", FILE_APPEND);
@@ -339,15 +344,17 @@ if ($docFolder && $source == 'creditorOrder') {
     
 
 
-	$fileName = basename($fileName); // strip any path/traversal from the filename
-	$path = "$docFolder/finance/$kladde_id/$sourceId/";
+	$fileName   = basename($fileName);   // strip any path/traversal from the filename
+	$safeKladde = (int)$kladde_id;       // path segments must be numeric IDs
+	$safeSource = (int)$sourceId;
+	$path = "$docFolder/finance/$safeKladde/$safeSource/";
 	$showDoc = $path.$fileName;
 	$targetDir = dirname($showDoc);
 	if (!is_dir($targetDir) && !mkdir($targetDir, 0777, true) && !is_dir($targetDir)) {
 		print "creation of $targetDir failed<br>";
 		exit;
 	}
-	$filePath = "/finance/$kladde_id/$sourceId";
+	$filePath = "/finance/$safeKladde/$safeSource";
 }
 
 /* // Debug logging
