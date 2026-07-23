@@ -193,7 +193,6 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
           . " JOIN vg ON vg.kodenr = CAST(v.gruppe AS TEXT)"
           . " JOIN adresser adr ON adr.id = ord.konto_id"
           . " JOIN dg ON dg.kodenr = CAST(adr.gruppe AS TEXT)"
-          . " WHERE ol.momsfri = 'on'"
           . " GROUP BY rubrik"
           . " HAVING rubrik IS NOT NULL"
           . " ORDER BY rubrik";
