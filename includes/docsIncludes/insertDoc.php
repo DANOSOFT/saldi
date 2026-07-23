@@ -75,7 +75,7 @@ if (isset($_REQUEST['docFolder'])) {
 $poolFile = isset($_REQUEST['poolFile']) ? $_REQUEST['poolFile'] : (isset($poolFile) ? $poolFile : null);
 if (isset($_REQUEST['db'])) $db = $_REQUEST['db']; // Ensure db is set if passed
 // SECURITY: $db becomes a path segment — reject slashes and traversal.
-if (preg_match('#[/\\\\]|\.\.#', (string)$db)) { print "invalid database identifier<br>"; exit; }
+if (preg_match('#[/\\\\]|\.\.#', (string)$db) || !isset($db) || trim($db) == "") { print "invalid database identifier<br>"; exit; }
 
 // Debug logging
 file_put_contents('/tmp/debug_insert.log', date('Y-m-d H:i:s') . " - Request: " . print_r($_REQUEST, true) . "\n", FILE_APPEND);
