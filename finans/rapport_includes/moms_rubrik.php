@@ -243,13 +243,40 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $dvg = db_fetch_array(db_select(
         "SELECT COUNT(*) AS cnt FROM grupper WHERE art = 'VG'",
         __FILE__." linje ".__LINE__));
+    $d5 = db_fetch_array(db_select(
+        "WITH vg AS ("
+        . " SELECT DISTINCT ON (kodenr) CAST(kodenr AS TEXT) AS kodenr,"
+        .   " NULLIF(TRIM(COALESCE(box5,'')), '') AS vg_type"
+        . " FROM grupper WHERE art = 'VG'"
+        . " ORDER BY kodenr, fiscal_year DESC NULLS LAST"
+        . "), dg AS ("
+        . " SELECT DISTINCT ON (kodenr) CAST(kodenr AS TEXT) AS kodenr,"
+        .   " NULLIF(TRIM(COALESCE(box10,'')), '') AS eu_zone"
+        . " FROM grupper WHERE art = 'DG'"
+        . " ORDER BY kodenr, fiscal_year DESC NULLS LAST"
+        . ")"
+        . " SELECT COUNT(DISTINCT ol.id) AS cnt,"
+        .   " COUNT(DISTINCT CASE WHEN dg.eu_zone IS NOT NULL THEN ol.id END) AS cnt_eu_zone,"
+        .   " COUNT(DISTINCT CASE WHEN dg.eu_zone IN ('B2B-EU','B2B-UDL','B2C-UDL') THEN ol.id END) AS cnt_rubrik"
+        . " FROM ordrelinjer ol"
+        . " JOIN ordrer ord ON ord.id = ol.ordre_id"
+        .   " AND ord.art IN ('DO','DK') AND ord.status >= 3"
+        .   " AND ord.fakturadate >= '$regnstart' AND ord.fakturadate <= '$regnslut'"
+        . " JOIN varer v ON v.id = ol.vare_id AND ol.vare_id > 0"
+        . " JOIN vg ON vg.kodenr = CAST(v.gruppe AS TEXT)"
+        . " JOIN adresser adr ON adr.id = ord.konto_id"
+        . " JOIN dg ON dg.kodenr = CAST(adr.gruppe AS TEXT)",
+        __FILE__." linje ".__LINE__));
     print "<div style='padding:6px 12px; font-size:0.85em; background:#f5f5f0; border-left:3px solid #aaa; margin:8px 12px;'>";
-    print "<b>Diagnostik:</b> ";
+    print "<b>Diagnostik:</b><br>";
     print "Salgsordrer: <b>" . (int)($d1['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
     print "Linjer m. varer: <b>" . (int)($d2['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
     print "Ordrer m. EU-zone-kunde: <b>" . (int)($d3['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
-    print "Linjer der matcher VG-gruppe: <b>" . (int)($d4['cnt'] ?? 0) . "</b> ";
-    print "(VG-grupper i alt: <b>" . (int)($dvg['cnt'] ?? 0) . "</b>)";
+    print "Linjer der matcher VG: <b>" . (int)($d4['cnt'] ?? 0) . "</b> ";
+    print "(VG-grupper: <b>" . (int)($dvg['cnt'] ?? 0) . "</b>)<br>";
+    print "Fuld join (VG+DG) – alle linjer: <b>" . (int)($d5['cnt'] ?? 0) . "</b> &nbsp;|&nbsp; ";
+    print "heraf med eu_zone sat: <b>" . (int)($d5['cnt_eu_zone'] ?? 0) . "</b> &nbsp;|&nbsp; ";
+    print "heraf med rubrik-maessig eu_zone: <b>" . (int)($d5['cnt_rubrik'] ?? 0) . "</b>";
     print "</div>";
 
     // Check if DG groups have EU-zone configured (prerequisite for rubrik derivation)
