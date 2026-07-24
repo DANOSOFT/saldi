@@ -39,6 +39,65 @@
 // 20260513 PHR Added "and lukket = ''" to 'ansatte' lookup
 // 20260706 MJ Fix $id clobbering by contacts foreach loops; fix UPDATE adresser using wrong id; fix redirect after save; allow save when kontotype not yet set in DB
 // 20260707 MJ Fix primary email deletion on save; fix blank ordre after Account card → Luk
+// 20260717 SZ Added collapse/expand toggles (scrollable, glanceable summaries) for Ekstra e-mails
+//                and Kategorier; fixed purchase history grid's internal scrolling and default height
+// 20260717 SZ Replaced invoice overview's drag-to-resize handle with a plain click-to-toggle title
+//                (like Ekstra e-mails/Kategorier); moved Historik/Kontokort/Fakturaliste/Print buttons
+//                out of the grid's own footer so they stay visible when that section is collapsed
+// 20260717 SZ Added a row count to the invoice overview title; toggle now only hides the column
+//                headers/data rows, leaving the pagination footer visible (its controls submit their
+//                own <form> and can't safely be relocated); added sizePageLayout() so the page never
+//                needs a whole-page scrollbar
+// 20260717 SZ Replaced the fixed setTimeout grid-render guesses with waitForGridReady() polling;
+//                all three collapsible sections (Ekstra e-mails/Kategorier/Invoice overview) now
+//                persist their expand/collapse state in localStorage across page loads
+// 20260720 SZ Made the three collapsible sections' click affordance clearer: swapped the plain
+//                unicode arrows for the same fa-chevron-down/up icons the sidebar menu uses,
+//                widened the clickable area to the whole title (not just the small count text),
+//                and added a hover highlight + tooltip so it reads as a toggle at a glance
+// 20260720 SZ The page's global "a:link{text-decoration:none}" rule was making the toggle look
+//                like plain black text, not a link, so the chevron alone wasn't enough of a
+//                hint; styled the whole toggle bar as a colored, underlined link and added an
+//                explicit "Show/Hide" text label next to the chevron on all three sections
+// 20260720 SZ The new "Ekstra e-mails"/"Invoice overview"/"Show/Hide"/tooltip strings were
+//                hardcoded in Danish/English and not translated for Norwegian; added tekst_id
+//                5027-5030 to importfiler/tekster.csv (da/en/no) and wired all four through
+//                findtekst() so they follow the same convention as "Kategorier" (tekst_id 388)
+// 20260720 SZ Replaced the underlined-link toggle with two disclosure patterns from design
+//                review: a bordered "chip" control (border + count badge + chevron) for the
+//                inline Ekstra e-mails/Kategorier rows, and a full-width sunken accordion bar
+//                (chevron-right/down + rounded count badge) for the larger Invoice overview
+//                section — both read as real controls instead of decorated text
+// 20260720 SZ Switched Invoice overview from the sunken accordion bar to the same bordered
+//                chip control used by Ekstra e-mails/Kategorier, for visual consistency across
+//                all three sections; removed the now-unused sunken-bar CSS
+// 20260720 SZ Changed the default state of all three collapsible sections from collapsed to
+//                expanded on first load; localStorage still remembers an explicit collapse
+//                choice across reloads, only the "never toggled before" default changed
+// 20260720 SZ Replaced the fa-chevron-* icon font glyphs (which depend on an external CDN
+//                and were rendering blank in a no-internet test environment) with plain
+//                Unicode &#9650;/&#9660; arrows for the three toggle chevrons — zero network
+//                dependency, same up/down swap logic, now via innerHTML instead of className
+// 20260720 SZ Replaced the Unicode arrow glyphs with a pure-CSS chevron (two rotated borders
+//                forming a "v") matching the shape of the sidebar's fa-chevron icon without any
+//                icon-font dependency; toggling now rotates the chevron via a CSS class instead
+//                of swapping its content, for a smoother animated open/close
+// 20260720 SZ Widened the Kategorier/Invoice overview chips (min-width, more padding/gap) to
+//                match the design mockup's proportions; Ekstra e-mails chip left compact
+// 20260720 SZ Grouped the badge+summary into a "chip-left" span and switched the chip to
+//                justify-content:space-between, so the chevron always sits pinned to the
+//                right edge of the chip instead of bunched up next to the summary text
+// 20260721 SZ Flipped the default state of all three collapsible sections back to
+//                collapsed on first load
+// 20260721 SZ Made the Invoice overview grid's height dynamic: 40vh is now a max-height
+//                (was a fixed height), so a handful of rows no longer leaves empty space
+//                below them; also overrode grid.php's global "tbody{min-height:300px}"
+//                and switched the wrapper chain from height:100% to flex:1/min-height:0
+//                so it still caps at 40vh with internal scroll once rows exceed that
+// 20260721 SZ Removed the localStorage persistence added 20260717 — all three sections
+//                must always start collapsed on a fresh page load, even if the user had
+//                expanded one just before navigating away; toggling still works normally
+//                within the same page view, it just no longer survives a reload
 @session_start();
 $s_id = session_id();
 
@@ -1460,9 +1519,35 @@ print "</td></tr>\n";
 
 // Ekstra e-mails section header
 $extra_count = ($kontakt_email_count > 1) ? $kontakt_email_count - 1 : 0;
+$ke_initially_visible = 'none'; // always collapsed on load; keToggle() can expand it for this page view
+$ke_chevron_class = 'chip-chevron';
+
+// Glanceable summary of extra e-mails by type, so the collapsed header shows
+// something useful instead of just a total count.
+$ke_type_labels = array('tilbud' => 'Tilbud', 'ordre' => 'Ordre', 'faktura' => 'Faktura', 'kontoudtog' => 'Kontoudtog', 'rykker' => 'Rykker', 'andet' => 'Andet');
+$ke_type_counts = array();
+for ($ke_ci = 2; $ke_ci <= $kontakt_email_count; $ke_ci++) {
+	$ke_t = $kontakt_email_types[$ke_ci];
+	if (!isset($ke_type_counts[$ke_t])) $ke_type_counts[$ke_t] = 0;
+	$ke_type_counts[$ke_t]++;
+}
+$ke_summary_parts = array();
+foreach ($ke_type_labels as $ke_t_key => $ke_t_label) {
+	if (!empty($ke_type_counts[$ke_t_key])) $ke_summary_parts[] = $ke_type_counts[$ke_t_key] . ' ' . $ke_t_label;
+}
+$ke_summary_text = implode(', ', array_slice($ke_summary_parts, 0, 3));
+if (count($ke_summary_parts) > 3) $ke_summary_text .= ', ...';
+
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td style='vertical-align:top'>";
-print "<b>Ekstra e-mails</b> <small>(<span id='ekstra_email_count'>$extra_count</span>)</small>";
+print "<b>" . findtekst('5027|Ekstra e-mails', $sprog_id) . "</b> ";
+print "<a href='#' onclick='keToggle(); return false;' class='disclosure-chip' title=\"" . findtekst('5030|Klik for at vise/skjule', $sprog_id) . "\">";
+print "<span class='chip-left'>";
+print "<span class='chip-badge' id='ekstra_email_count'>$extra_count</span>";
+print "<span class='chip-summary' id='ke_summary_text'>$ke_summary_text</span>";
+print "</span>";
+print "<span class='$ke_chevron_class' id='ke_toggle_icon'></span>";
+print "</a>";
 print "</td><td>";
 print "<button type='button' onclick='addEmailRow()' class='button green small' style='$buttonStyle; padding: 2px 10px 2px 10px' onMouseOver=\"this.style.cursor='pointer'\">+ Ny</button>";
 print "</td></tr>\n";
@@ -1480,11 +1565,11 @@ print "<input type='hidden' name='kontakt_emails_json' id='kontakt_emails_json' 
 
 // Display rows (visual only — data synced to hidden field on submit)
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td colspan=2><div id='ekstra_emails_container'>\n";
+print "<tr bgcolor=$bg id='ekstra_emails_row' style='display:{$ke_initially_visible};'><td colspan=2><div id='ekstra_emails_container' style='max-height:30vh; overflow-y:auto;'>\n";
 for ($em_i = 2; $em_i <= $kontakt_email_count; $em_i++) {
 	$idx = $em_i - 2;
 	print "<div class='ekstra-email-row' style='margin-bottom:3px;' data-db-id='" . $kontakt_email_ids[$em_i] . "'>";
-	print "<select class='inputbox ke-type' onchange=\"javascript:docChange = true;\">";
+	print "<select class='inputbox ke-type' onchange=\"docChange = true; updateEmailCount();\">";
 	$email_types = array('tilbud' => 'Tilbud', 'ordre' => 'Ordre', 'faktura' => 'Faktura/Kreditnota', 'kontoudtog' => 'Kontoudtog', 'rykker' => 'Rykker', 'andet' => 'Andet');
 	foreach ($email_types as $et_val => $et_label) {
 		$et_sel = ($kontakt_email_types[$em_i] == $et_val) ? ' selected' : '';
@@ -1520,7 +1605,7 @@ function addEmailRow() {
     row.style.marginBottom = '3px';
     row.setAttribute('data-db-id', '0');
     row.innerHTML =
-        "<select class='inputbox ke-type' onchange='docChange=true'>" +
+        "<select class='inputbox ke-type' onchange='docChange=true; updateEmailCount();'>" +
         "<option value='tilbud'>Tilbud</option>" +
         "<option value='ordre'>Ordre</option>" +
         "<option value='faktura'>Faktura/Kreditnota</option>" +
@@ -1533,19 +1618,90 @@ function addEmailRow() {
     container.appendChild(row);
     updateEmailCount();
     docChange = true;
+
+    // If the list is collapsed, expand it so the new row is visible
+    var keRow = document.getElementById('ekstra_emails_row');
+    if (keRow && keRow.style.display === 'none') keToggle();
 }
- 
+
 function removeEmailRow(el) {
     el.closest('.ekstra-email-row').remove();
     updateEmailCount();
     docChange = true;
 }
- 
+
 function updateEmailCount() {
     var rows = document.querySelectorAll('#ekstra_emails_container .ekstra-email-row');
     document.getElementById('ekstra_email_count').textContent = rows.length;
+
+    var labels = {tilbud: 'Tilbud', ordre: 'Ordre', faktura: 'Faktura', kontoudtog: 'Kontoudtog', rykker: 'Rykker', andet: 'Andet'};
+    var counts = {};
+    rows.forEach(function (row) {
+        var typeEl = row.querySelector('.ke-type');
+        if (!typeEl) return;
+        counts[typeEl.value] = (counts[typeEl.value] || 0) + 1;
+    });
+    var parts = [];
+    Object.keys(labels).forEach(function (key) {
+        if (counts[key]) parts.push(counts[key] + ' ' + labels[key]);
+    });
+    var summary = parts.slice(0, 3).join(', ') + (parts.length > 3 ? ', ...' : '');
+    var summaryEl = document.getElementById('ke_summary_text');
+    if (summaryEl) summaryEl.textContent = summary;
 }
- 
+
+function keToggle() {
+    var row  = document.getElementById('ekstra_emails_row');
+    var icon = document.getElementById('ke_toggle_icon');
+    if (!row) return;
+    var expanding = row.style.display === 'none';
+    if (expanding) {
+        row.style.display = '';
+        if (icon) icon.classList.add('is-expanded');
+    } else {
+        row.style.display = 'none';
+        if (icon) icon.classList.remove('is-expanded');
+    }
+}
+window.keToggle = keToggle;
+
+function catToggle() {
+    var row  = document.getElementById('cat_content_row');
+    var icon = document.getElementById('cat_toggle_icon');
+    if (!row) return;
+    var expanding = row.style.display === 'none';
+    if (expanding) {
+        row.style.display = '';
+        if (icon) icon.classList.add('is-expanded');
+    } else {
+        row.style.display = 'none';
+        if (icon) icon.classList.remove('is-expanded');
+    }
+}
+window.catToggle = catToggle;
+
+function updateCatSummary() {
+    var badgeEl = document.getElementById('cat_count_badge');
+    var summaryEl = document.getElementById('cat_count');
+    if (!summaryEl) return;
+    var rows = document.querySelectorAll('#cat_content_row tbody tr');
+    var names = [];
+    rows.forEach(function (tr) {
+        var cb = tr.querySelector('input[type="checkbox"]');
+        var nameTd = tr.querySelector('td');
+        if (cb && cb.checked && nameTd) names.push(nameTd.textContent.trim());
+    });
+    if (badgeEl) badgeEl.textContent = names.length;
+    if (names.length === 0) {
+        summaryEl.textContent = '';
+    } else {
+        var shown = names.slice(0, 2).join(', ');
+        var extra = names.length > 2 ? ', +' + (names.length - 2) : '';
+        summaryEl.textContent = shown + extra;
+    }
+}
+window.updateCatSummary = updateCatSummary;
+
 /* ---- SINGLE onsubmit hook — registered once at DOMContentLoaded ---- */
 document.addEventListener('DOMContentLoaded', function () {
     var form = document.forms['debitorkort'];
@@ -2162,7 +2318,36 @@ print "<tr><td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"1\" border=
 
 
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td colspan=\"4\" valign=\"top\">" . findtekst('388|Kategorier', $sprog_id) . "<!--tekst 388--></td></tr>\n";
+// Always collapsed on load (catToggle() can expand it for this page view); a rename in
+// progress always forces it expanded regardless of that default.
+$cat_row_display = is_numeric($rename_category) ? '' : 'none';
+$cat_chevron_class = is_numeric($rename_category) ? 'chip-chevron is-expanded' : 'chip-chevron';
+
+// Glanceable summary of the categories actually assigned to this debtor, so
+// the collapsed header shows something useful instead of just a total count.
+$cat_assigned_names = array();
+for ($ci = 0; $ci < count($cat_id); $ci++) {
+	if (in_array($cat_id[$ci], $kategori)) $cat_assigned_names[] = $cat_beskrivelse[$ci];
+}
+$cat_assigned_count = count($cat_assigned_names);
+if ($cat_assigned_count > 0) {
+	$cat_names_text = implode(', ', array_slice($cat_assigned_names, 0, 2));
+	if ($cat_assigned_count > 2) $cat_names_text .= ', +' . ($cat_assigned_count - 2);
+} else {
+	$cat_names_text = '';
+}
+
+print "<tr bgcolor=$bg><td colspan=\"4\" valign=\"top\">";
+print "<b>" . findtekst('388|Kategorier', $sprog_id) . "</b> <!--tekst 388-->";
+print "<a href='#' onclick='catToggle(); return false;' class='disclosure-chip chip-wide' title=\"" . findtekst('5030|Klik for at vise/skjule', $sprog_id) . "\">";
+print "<span class='chip-left'>";
+print "<span class='chip-badge' id='cat_count_badge'>$cat_assigned_count</span>";
+print "<span class='chip-summary' id='cat_count'>$cat_names_text</span>";
+print "</span>";
+print "<span class='$cat_chevron_class' id='cat_toggle_icon'></span>";
+print "</a>";
+print "</td></tr>\n";
+print "<tr id='cat_content_row' style='display:{$cat_row_display};'><td colspan=\"4\"><div style='max-height:30vh; overflow-y:auto;'><table cellpadding=\"0\" cellspacing=\"1\" border=\"0\" width=\"100%\"><tbody>\n";
 $x = 0;
 if (!is_numeric($rename_category)) {
 	for ($x = 0; $x < count($cat_id); $x++) {
@@ -2174,7 +2359,7 @@ if (!is_numeric($rename_category)) {
 			print "<tr><td>$cat_beskrivelse[$x]</td>\n";
 			$tekst = findtekst('395|Afmærk her for at knytte $firmanavn til denne kategori', $sprog_id);
 			$tekst = str_replace('$firmanavn', $firmanavn, $tekst);
-			print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"cat_valg[$x]\" $checked></td>\n";
+			print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"cat_valg[$x]\" $checked onchange=\"updateCatSummary()\"></td>\n";
 			print "<td title=\"" . findtekst('396|Klik her for at omdøbe denne kategori', $sprog_id) . "\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&rename_category=$cat_id[$x]\" id=\"rename_category-$x\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
 			print "<td title=\"" . findtekst('397|Klik her for at slette denne kategori', $sprog_id) . "\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&delete_category=$cat_id[$x]\" id=\"delete_category-$x\" onclick=\"return confirm('Vil du slette denne kategori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
 			print "</tr>\n";
@@ -2208,6 +2393,7 @@ if (is_numeric($rename_category)) {
 	// Use placeholders and titles for better user guidance
 	print "<tr><td colspan=\"4\" title=\"" . findtekst('390|For at oprette en ny kategori skrives navnet på kategorien her. For at oprette en underkategori skrives id på den overstående kategori foran navnet med | som adskillelse', $sprog_id) . "\"><!--tekst 390--><input class='inputbox' type=\"text\" size=\"25\" name=\"newCatName\" placeholder=\"" . findtekst('343|Skriv evt. ny kategori her', $sprog_id) . "\"></td></tr>\n";
 }
+print "</tbody></table></div></td></tr>\n";
 
 
 print "</tbody></table></td>"; # <- TABEL 1.2.4.1
@@ -2455,19 +2641,37 @@ if (!$id || substr($cvrnr,0,1)  == '*') {
 
 ################## PURCHASE HISTORY GRID ##################
 if ($id > 0) {
-	print "<div id='resize-handle' title='drag to resize purchase history' style='height:12px; background:#e0e0f0; cursor:ns-resize; flex-shrink:0; position:relative;'>
-  <span style='position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:3px;'>
-    <span style='width:20px;height:2px;background:#888;border-radius:1px;'></span>
-  </span>
-  <span style='position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:3px; transform:translateY(-5px);'>
-    <span style='width:20px;height:2px;background:#888;border-radius:1px;'></span>
-  </span>
-  <span style='position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:3px; transform:translateY(5px);'>
-    <span style='width:20px;height:2px;background:#888;border-radius:1px;'></span>
-  </span>
+	// Glanceable count for the collapsed header, same convention as the other sections.
+	$ph_count_row = db_fetch_array(db_select("
+		SELECT COUNT(*) AS cnt FROM (
+			SELECT 1
+			FROM ordrelinjer
+			INNER JOIN ordrer ON ordrelinjer.ordre_id = ordrer.id
+			INNER JOIN varer ON ordrelinjer.vare_id = varer.id
+			WHERE ordrer.konto_id = '$id'
+			GROUP BY varer.varenr, varer.id, varer.beskrivelse, ordrelinjer.pris, ordrer.ordredate
+		) AS purchase_history_count
+	", __FILE__ . " linje " . __LINE__));
+	$ph_total_count = $ph_count_row['cnt'] ?? 0;
+	$ph_title = findtekst('5028|Fakturaoversigt', $sprog_id);
+	$ph_tooltip = findtekst('5030|Klik for at vise/skjule', $sprog_id);
+	$ph_summary_label = findtekst('5031|Fakturaer', $sprog_id);
+
+	// Collapsed by default, same convention as the extra-email / category sections.
+	// Only the column headers + data rows collapse — the pagination footer stays put,
+	// since its controls (rowcount select, page buttons) submit their own <form> and
+	// would break if physically moved outside the grid.
+	print "<div id='ph_toggle_bar' style='flex-shrink:0; padding:4px 8px;'>
+	<b>$ph_title</b> <a href='#' onclick='phToggle(); return false;' class='disclosure-chip chip-wide' title=\"$ph_tooltip\">
+	<span class='chip-left'>
+	<span class='chip-badge' id='ph_count'>$ph_total_count</span>
+	<span class='chip-summary'>$ph_summary_label</span>
+	</span>
+	<span class='chip-chevron' id='ph_toggle_icon'></span>
+	</a>
 </div>";
     // Start purchase history wrapper - separate from form
-    echo "<div class='purchase-history-wrapper'>";
+    echo "<div class='purchase-history-wrapper ph-collapsed'>";
     
 $purchase_columns = [
     [
@@ -3221,24 +3425,104 @@ document.addEventListener('DOMContentLoaded', function() {
 		flex-shrink: 0;
 		overflow-y: auto;
 		overflow-x: hidden;
-		max-height: calc(100% - 120px); 
-		/* border-bottom: 2px solid #ddd; */
-		/* padding-bottom: 10px; */
+		/* height is set in JS by sizePageLayout() so it always shrinks to make
+		   room for the toggle bar / grid / footer below it */
+	}
+
+	/* Disclosure affordances for Ekstra e-mails / Kategorier / Invoice overview.
+	   Bordered chip: for the inline field rows (Ekstra e-mails, Kategorier) — the
+	   summary sits inside a real bordered control (border + badge + chevron + hover),
+	   so it reads as a button rather than decorated text. */
+	.disclosure-chip {
+		display: inline-flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		border: 1px solid #d0d5dd;
+		border-radius: 6px;
+		background: #fff;
+		padding: 3px 10px;
+		cursor: pointer;
+		user-select: none;
+		text-decoration: none;
+		color: #333;
+		font-size: 13px;
+		transition: background 0.15s ease, border-color 0.15s ease;
+	}
+	.disclosure-chip .chip-left {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.disclosure-chip.chip-wide {
+		min-width: 220px;
+		padding: 5px 14px;
+	}
+	.disclosure-chip.chip-wide .chip-left {
+		gap: 10px;
+	}
+	.disclosure-chip:hover {
+		background: #f5f7fa;
+		border-color: #b6bdc9;
+	}
+	.disclosure-chip .chip-badge {
+		display: inline-block;
+		background: #eaf1fc;
+		color: #1a5fb4;
+		font-weight: 600;
+		font-size: 12px;
+		border-radius: 10px;
+		padding: 1px 8px;
+		min-width: 14px;
+		text-align: center;
+	}
+	.disclosure-chip .chip-summary {
+		color: #555;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 260px;
+	}
+	/* Pure-CSS chevron (two borders forming a "v", rotated) — same shape as the sidebar's
+	   fa-chevron icon, but with no icon-font dependency, and animates smoothly on toggle. */
+	.chip-chevron {
+		display: inline-block;
+		width: 6px;
+		height: 6px;
+		border-right: 2px solid #888;
+		border-bottom: 2px solid #888;
+		transform: rotate(45deg);
+		transition: transform 0.15s ease;
+		margin: 0 2px;
+	}
+	.chip-chevron.is-expanded {
+		transform: rotate(-135deg);
 	}
 
 	.purchase-history-wrapper {
-		flex: 1;
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
-		min-height: 200px;
+		flex-shrink: 0;
+	}
+	/* Expanded: column headers + rows visible. 40vh is now a ceiling, not a fixed size —
+	   the wrapper shrinks to fit a handful of rows and only grows up to 40vh before its
+	   internal scroll region (.datatable-search-wrapper below) takes over. */
+	.purchase-history-wrapper.ph-expanded {
+		max-height: 40vh;
 		padding-top: 10px;
+	}
+	/* Collapsed: only the pagination footer is visible, sized to its own content */
+	.purchase-history-wrapper.ph-collapsed {
+		height: auto;
 	}
 
 	#datatable-wrapper-purchase_history {
-		height: 100%;
 		display: flex;
 		flex-direction: column;
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow: hidden;
 	}
 
 	/* Make the search wrapper fill available space */
@@ -3262,6 +3546,13 @@ document.addEventListener('DOMContentLoaded', function() {
 		width: 100%;
 		border-collapse: collapse;
 		flex: 1;
+	}
+
+	/* Overrides render_dropdown_style()'s global "tbody { min-height: 300px; }" — that
+	   floor is what kept this grid tall even for a couple of rows; without it the wrapper
+	   above can actually shrink to fit real content, up to its 40vh max-height cap. */
+	#datatable-wrapper-purchase_history tbody {
+		min-height: 0;
 	}
 
 	/* The filler row should have height: 100% to expand */
@@ -3298,16 +3589,6 @@ document.addEventListener('DOMContentLoaded', function() {
 	.dropdown{
 		display:none !important;
 	}
-	#resize-handle {
-    background: #ccc;
-    cursor: ns-resize;
-    height: 6px;
-    flex-shrink: 0;
-    transition: background 0.2s;
-	}
-	#resize-handle:hover {
-		background: #999;
-	}
 	/* Prevent scrollbar on tfoot/footer buttons */
 	#datatable-wrapper-purchase_history tfoot {
 		position: sticky;
@@ -3321,47 +3602,65 @@ document.addEventListener('DOMContentLoaded', function() {
 		overflow: hidden;
 	}
 
-	/* Ensure the datatable search wrapper does NOT scroll — only tbody scrolls */
-	#datatable-wrapper-purchase_history .datatable-search-wrapper {
-		overflow: hidden;
-	}
-
 
 </style>
 
 <script>
+// Polls for the grid's own footer instead of guessing a fixed delay — resolves as
+// soon as the grid is actually rendered (fast page: near-instant; slow page: still
+// works, up to maxWaitMs before giving up and proceeding anyway).
+function waitForGridReady(callback, maxWaitMs) {
+    maxWaitMs = (typeof maxWaitMs === 'number') ? maxWaitMs : 4000;
+    var start = Date.now();
+    (function poll() {
+        if (document.querySelector('#datatable-purchase_history tfoot') || (Date.now() - start) >= maxWaitMs) {
+            callback();
+            return;
+        }
+        setTimeout(poll, 50);
+    })();
+}
+window.waitForGridReady = waitForGridReady;
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Wait a moment for the grid to render
-    setTimeout(function() {
-        var tfoot = document.querySelector('#datatable-wrapper-purchase_history tfoot');
-        if (tfoot) {
-            // Create a new row
-            var row = document.createElement('tr');
-            var cell = document.createElement('td');
-            cell.colSpan = 100;
-            cell.style.padding = '0';
-            cell.style.margin = '0';
-            
-            // Insert the translated buttons (directly from PHP)
-            cell.innerHTML = '<?php echo $buttons_html_escaped; ?>';
-            
-            // Fix any styling on the buttons container
-            var buttonsDiv = cell.querySelector('.sticky-custom-buttons');
+    waitForGridReady(function() {
+        // Page-level nav buttons (Historik/Kontokort/Fakturaliste/Print) — appended as
+        // their own element at the bottom of the page, NOT inside the invoice overview
+        // grid's own footer, so they stay visible even when that section is collapsed.
+        var outer = document.querySelector('.outer-datatable-wrapper');
+        if (outer) {
+            var footerBar = document.createElement('div');
+            footerBar.id = 'debkort-page-footer';
+            footerBar.style.flexShrink = '0';
+            footerBar.innerHTML = '<?php echo $buttons_html_escaped; ?>';
+
+            var buttonsDiv = footerBar.querySelector('.sticky-custom-buttons');
             if (buttonsDiv) {
                 buttonsDiv.style.position = 'static';
                 buttonsDiv.style.margin = '0';
                 buttonsDiv.style.padding = '10px 0';
             }
-            
-            row.appendChild(cell);
-            tfoot.appendChild(row);
-            
-            // Add inline style to remove gaps
-            var style = document.createElement('style');
-            style.textContent = '#datatable-wrapper-purchase_history tfoot tr:last-child { border-spacing: 0 !important; margin: 0 !important; }';
-            document.head.appendChild(style);
+
+            outer.appendChild(footerBar);
         }
-    }, 500);
+
+        // Invoice overview: always collapsed on load, regardless of any earlier visit.
+        // Only the column headers + data rows are hidden — the pagination footer stays
+        // visible (it lives in its own <form> and can't safely be detached from the grid).
+        var thead = document.querySelector('#datatable-purchase_history thead');
+        var tbody = document.querySelector('#datatable-purchase_history tbody');
+        var gridWrapper = document.querySelector('.purchase-history-wrapper');
+        var icon = document.getElementById('ph_toggle_icon');
+        if (thead && tbody && gridWrapper) {
+            gridWrapper.classList.remove('ph-expanded');
+            gridWrapper.classList.add('ph-collapsed');
+            thead.style.display = 'none';
+            tbody.style.display = 'none';
+            if (icon) icon.classList.remove('is-expanded');
+        }
+
+        sizePageLayout();
+    });
 });
 </script>
 
@@ -3569,123 +3868,59 @@ function printPurchaseHistory() {
     };
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Wait for grid to be fully rendered 
-    setTimeout(initResizableLayout, 800);
-});
+function phToggle() {
+    var gridWrapper = document.querySelector('.purchase-history-wrapper');
+    var thead       = document.querySelector('#datatable-purchase_history thead');
+    var tbody       = document.querySelector('#datatable-purchase_history tbody');
+    var icon        = document.getElementById('ph_toggle_icon');
+    if (!gridWrapper || !thead || !tbody) return;
 
-function initResizableLayout() {
-    const outer = document.querySelector('.outer-datatable-wrapper');
-    const formWrapper = document.querySelector('.form-wrapper');
-    const gridWrapper = document.querySelector('.purchase-history-wrapper');
-    const handle = document.getElementById('resize-handle');
-
-    if (!outer || !formWrapper || !gridWrapper || !handle) {
-        console.error('Required layout elements missing');
-        return;
-    }
-
-    // Get tfoot height (the footer of the grid)
-    const tfoot = document.querySelector('#datatable-purchase_history tfoot');
-    if (!tfoot) {
-        console.error('Table tfoot not found');
-        return;
-    }
-    const tfootHeight = tfoot.offsetHeight; 
-
-    //Set minimum height of grid wrapper to footer height
-    gridWrapper.style.minHeight = tfootHeight + 'px';
-
-   
-    const outerHeight = outer.clientHeight;
-    const handleHeight = handle.offsetHeight;
-    const availableHeight = outerHeight - handleHeight; 
-
-    // Determine initial height: prefer saved value, else default
-    let savedHeight = localStorage.getItem('debitorkort_form_height');
-    let maxFormHeight = availableHeight - tfootHeight;
-    if (maxFormHeight < 0) maxFormHeight = 0;
-    
-    let formWrapperHeight;
-    if (savedHeight !== null) {
-        formWrapperHeight = Math.min(maxFormHeight, Math.max(0, parseInt(savedHeight, 10)));
+    var expanding = gridWrapper.classList.contains('ph-collapsed');
+    if (expanding) {
+        gridWrapper.classList.remove('ph-collapsed');
+        gridWrapper.classList.add('ph-expanded');
+        thead.style.display = '';
+        tbody.style.display = '';
+        if (icon) icon.classList.add('is-expanded');
     } else {
-        formWrapperHeight = maxFormHeight;
+        gridWrapper.classList.remove('ph-expanded');
+        gridWrapper.classList.add('ph-collapsed');
+        thead.style.display = 'none';
+        tbody.style.display = 'none';
+        if (icon) icon.classList.remove('is-expanded');
     }
-    formWrapper.style.height = formWrapperHeight + 'px';
-
-    // Force grid wrapper to not be smaller than footer
-    if (gridWrapper.clientHeight < tfootHeight) {
-        gridWrapper.style.height = tfootHeight + 'px';
-    }
-
-    //Dragging logic
-    let isDragging = false;
-    let startY, startFormHeight; 
-
-    function startDrag(e) {
-        isDragging = true;
-        startY = e.clientY;
-        startFormHeight = formWrapper.clientHeight;
-        document.body.style.userSelect = 'none'; // prevent text selection
-    }
-
-    function onDrag(e) {
-        if (!isDragging) return;
-        const deltaY = e.clientY - startY;
-        let newHeight = startFormHeight + deltaY;
-
-        // Clamp: between 0 and (availableHeight - tfootHeight)
-        const maxFormHeight = availableHeight - tfootHeight;
-        newHeight = Math.min(maxFormHeight, Math.max(0, newHeight));
-
-        formWrapper.style.height = newHeight + 'px';
-        // Ensure grid wrapper never shrinks below footer height
-        if (gridWrapper.clientHeight < tfootHeight) {
-            gridWrapper.style.height = tfootHeight + 'px';
-        }
-    }
-
-    function stopDrag() {
-        if (isDragging) {
-            // Save the new height
-            localStorage.setItem('debitorkort_form_height', formWrapper.clientHeight);
-        }
-        isDragging = false;
-        document.body.style.userSelect = '';
-    }
-
-    handle.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', stopDrag);
-
-    //  Recalculate on window resize
-    window.addEventListener('resize', function() {
-        formWrapper.style.height = '';
-        setTimeout(() => {
-            const newOuterHeight = outer.clientHeight;
-            const newHandleHeight = handle.offsetHeight;
-            const newAvailable = newOuterHeight - newHandleHeight;
-            // Re-fetch tfoot height in case it changed (e.g. buttons wrap)
-            const newTfoot = document.querySelector('#datatable-purchase_history tfoot');
-            const newTfootHeight = newTfoot ? newTfoot.offsetHeight : tfootHeight;
-            let newMaxFormHeight = newAvailable - newTfootHeight;
-            if (newMaxFormHeight < 0) newMaxFormHeight = 0;
-            
-            let saved = localStorage.getItem('debitorkort_form_height');
-            let newFormHeight;
-            if (saved !== null) {
-                newFormHeight = Math.min(newMaxFormHeight, Math.max(0, parseInt(saved, 10)));
-            } else {
-                newFormHeight = newMaxFormHeight;
-            }
-            formWrapper.style.height = newFormHeight + 'px';
-            if (gridWrapper.clientHeight < newTfootHeight) {
-                gridWrapper.style.height = newTfootHeight + 'px';
-            }
-        }, 50);
-    });
+    sizePageLayout();
 }
+window.phToggle = phToggle;
+
+// Keeps the page fitting inside one viewport instead of scrolling as a whole: the
+// form area's height is measured in JS (robust) rather than left to CSS percentage
+// math (fragile), so it always shrinks to make room for whatever sits below it —
+// the invoice overview toggle bar, the grid itself when expanded, and the page footer.
+function sizePageLayout() {
+    var outer = document.querySelector('.outer-datatable-wrapper');
+    var formWrapper = document.querySelector('.form-wrapper');
+    if (!outer || !formWrapper) return;
+
+    var toggleBar   = document.getElementById('ph_toggle_bar');
+    var gridWrapper = document.querySelector('.purchase-history-wrapper');
+    var footerBar   = document.getElementById('debkort-page-footer');
+
+    var usedHeight = 0;
+    if (toggleBar) usedHeight += toggleBar.offsetHeight;
+    if (gridWrapper) usedHeight += gridWrapper.offsetHeight; // just the pagination bar while collapsed
+    if (footerBar) usedHeight += footerBar.offsetHeight;
+
+    var formHeight = outer.clientHeight - usedHeight;
+    if (formHeight < 0) formHeight = 0;
+    formWrapper.style.height = formHeight + 'px';
+}
+window.sizePageLayout = sizePageLayout;
+
+// Initial sizing already happens inside the waitForGridReady() callback above
+// (after the footer bar + collapse state are set up); this just keeps it in
+// sync on viewport changes.
+window.addEventListener('resize', sizePageLayout);
 
 // Map legacy fields to new DA fields
 document.addEventListener('DOMContentLoaded', function () {

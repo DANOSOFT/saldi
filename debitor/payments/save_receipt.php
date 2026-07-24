@@ -23,6 +23,7 @@
 // Copyright (c) 204-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20240227 PHR Added include print_receipt
+// 20260720 NTR Recreate temp/$db if missing (cleared daily) before saving receipt
 //
 
 @session_start();
@@ -40,6 +41,7 @@ $json = json_decode(file_get_contents('php://input'), true);
 $data = $json["data"];
 $id = $json["id"];
 $type = $json["type"];
+$kasse = isset($json["kasse"]) ? $json["kasse"] : null;
 $terminal_id = isset($json["terminal_id"]) ? $json["terminal_id"] : null;
 
 echo "<pre>";
@@ -47,6 +49,9 @@ print_r($data);
 echo "</pre>";
 
 $directory = "../../temp/$db";
+
+// temp/$db is cleared daily, so recreate it if it is missing before writing
+if (!is_dir($directory)) mkdir($directory, 0777, true);
 
 // Set the initial filename
 $filename = "$directory/receipt_$id.txt";

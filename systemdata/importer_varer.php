@@ -43,6 +43,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20251007 PHR aliases
 // 202605## PHR Added Max_execution_time setting.
+// 20260708 PHR defined v_nr as array()
 
 @session_start();
 $s_id=session_id();
@@ -500,9 +501,11 @@ if ($itemGroup) {
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$VATcode = substr($r['moms'],0,1).'M';
 			$VATcodeNo = substr($r['moms'],1);
-			$qtxt = "select box2 from grupper where art = '$VATcode' and kodenr = '$VATcodeNo' and fiscal_year = '$regnaar'";
-			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$VATrate = $r['box2'];
+			if ($VATcode && $VATcodeNo) {
+				$qtxt = "select box2 from grupper where art = '$VATcode' and kodenr = '$VATcodeNo' and fiscal_year = '$regnaar'";
+				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					$VATrate = $r['box2'];
+				}
 			}
 		}
 	}

@@ -24,7 +24,7 @@
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
-// 20260707 SZ Added Grid Framework sticky header and footer to Price List report
+// 20260707 CL/SZ Added Grid Framework sticky header and footer to Price List report
 // 20260711 SZ Added Grid Framework sticky header+footer with pagination and internal-scroll grid
 // 20260711 SZ Fixed duplicate entries in Category dropdown: grupper has one row per fiscal_year,
 //             the VG group queries were missing that filter (same fix pattern as rapport.php/lagerstatus.php)

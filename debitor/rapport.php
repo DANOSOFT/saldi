@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20121105 - Fejl ved "masseudligning (Klik på 0,00 i åbenpostoversigt) når kun 1 dato sat. Søg 20121105 
@@ -39,6 +39,7 @@
 
 @session_start();
 $s_id = session_id();
+ini_set('max_execution_time', 300);
 $css = "../css/std.css";
 $title = "Debitorrapport";
 $modulnr = 12;
@@ -383,8 +384,9 @@ if (isset($_POST['submit']) || $rapportart) {
 	#	$regnaar=$_GET['regnaar'];
 	$submit = $_GET['submit'] ?? NULL;
 	$returside = $_GET['returside'] ?? NULL;
-	if ($udlign = $_GET['udlign'])
+	if (($udlign = $_GET['udlign'])) {
 		autoudlign_liste($udlign);
+	}
 	unset($_GET['udlign']);
 } elseif (isset($_GET['kontonr'])) {
 	$konto_fra = $_GET['kontonr'];
@@ -404,7 +406,7 @@ if (isset($_POST['submit']) || $rapportart) {
 #if ($dato_fra) $dato_fra=find_maaned_nr($dato_fra); 
 #if ($dato_til) $dato_til=find_maaned_nr($dato_til); 
 
-if ($udlign = if_isset($_GET['udlign'])) {
+if (($udlign = if_isset($_GET['udlign']))) {
 	autoudlign_liste($udlign);
 }
 if (strstr($rapportart, "ben post"))
