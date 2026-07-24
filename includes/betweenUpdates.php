@@ -28,6 +28,10 @@
 // genuinely new statements below (not present in opdat_4.3.php) were pulled in from production.
 // 20260717 CL/NTR Guard the API-key insert/update blocks so an existing but
 //                  incomplete .ht_keys.txt can't silently write an empty var_value.
+// 20260724 Sawaneh  MobilePay webhook reconciliation: add connect/read timeouts and
+//                  fail-soft logging to the api.vipps.no calls, and gate the whole
+//                  block behind a one-shot marker so it no longer runs (or makes any
+//                  outbound HTTP) on every login.
 
 
 
@@ -156,71 +160,129 @@ if ($mp_client_id) {
 
 	$expected_url = 'https://' . $_SERVER['SERVER_NAME'] . '/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db;
 
-	// Get access token
-	$ch = curl_init('https://api.vipps.no/accesstoken/get');
-	curl_setopt($ch, CURLOPT_POST, 1);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, [
-		'Content-Type: application/json',
-		"Client_id: $mp_client_id",
-		"Client_secret: $mp_client_secret",
-		"Ocp-Apim-Subscription-Key: $mp_subscription",
-		"Merchant-Serial-Number: $mp_msn",
-		'Content-Length: 0'
-	]);
-	$token_resp = json_decode(curl_exec($ch), true);
-	curl_close($ch);
-	$mp_token = $token_resp['access_token'] ?? null;
+	// One-shot gate: reconciliation only talks to Vipps once per webhook URL. Once the
+	// URL for this server/db is confirmed, the stored marker matches $expected_url and
+	// the whole block (and all outbound HTTP) is skipped on subsequent logins. A changed
+	// SERVER_NAME/db, or a first-time setup, changes/clears the marker and re-triggers it.
+	$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_reconciled_url'", __FILE__ . " linje " . __LINE__);
+	$mp_reconciled_url = db_fetch_array($q)['var_value'] ?? null;
 
-	if ($mp_token) {
-		$mp_headers = [
-			"Authorization: Bearer $mp_token",
+	if ($mp_reconciled_url !== $expected_url) {
+		$mp_reconciled = false;
+
+		// Get access token
+		$ch = curl_init('https://api.vipps.no/accesstoken/get');
+		curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Content-Type: application/json',
+			"Client_id: $mp_client_id",
+			"Client_secret: $mp_client_secret",
 			"Ocp-Apim-Subscription-Key: $mp_subscription",
 			"Merchant-Serial-Number: $mp_msn",
-			'Content-Type: application/json'
-		];
-
-		// List registered webhooks
-		$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-		$webhooks = json_decode(curl_exec($ch), true)['webhooks'] ?? [];
+			'Content-Length: 0'
+		]);
+		$token_raw = curl_exec($ch);
+		$token_err = curl_error($ch);
 		curl_close($ch);
+		if ($token_raw === false) {
+			error_log("betweenUpdates.php: MobilePay accesstoken request failed, skipping webhook reconciliation: $token_err");
+			$mp_token = null;
+		} else {
+			$mp_token = json_decode($token_raw, true)['access_token'] ?? null;
+		}
 
-		$correct_webhook_exists = false;
-		foreach ($webhooks as $wh) {
-			if ($wh['url'] === $expected_url) {
-				$correct_webhook_exists = true;
+		if ($mp_token) {
+			$mp_headers = [
+				"Authorization: Bearer $mp_token",
+				"Ocp-Apim-Subscription-Key: $mp_subscription",
+				"Merchant-Serial-Number: $mp_msn",
+				'Content-Type: application/json'
+			];
+
+			// List registered webhooks
+			$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+			curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+			curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+			curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
+			$list_raw = curl_exec($ch);
+			$list_err = curl_error($ch);
+			curl_close($ch);
+			if ($list_raw === false) {
+				error_log("betweenUpdates.php: MobilePay webhook list request failed, skipping webhook reconciliation: $list_err");
+				$webhooks = null;
 			} else {
-				// Delete webhook pointing to a different URL for this db
-				if (strpos($wh['url'], 'webhook_recive.php?db=' . $db) !== false) {
-					$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks/' . $wh['id']);
-					curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+				$webhooks = json_decode($list_raw, true)['webhooks'] ?? [];
+			}
+
+			// A failed list ($webhooks === null) is left unreconciled so the next login retries.
+			if (is_array($webhooks)) {
+				$correct_webhook_exists = false;
+				foreach ($webhooks as $wh) {
+					if ($wh['url'] === $expected_url) {
+						$correct_webhook_exists = true;
+					} else {
+						// Delete webhook pointing to a different URL for this db
+						if (strpos($wh['url'], 'webhook_recive.php?db=' . $db) !== false) {
+							$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks/' . $wh['id']);
+							curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+							curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+							curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+							curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+							curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
+							if (curl_exec($ch) === false) {
+								error_log("betweenUpdates.php: MobilePay webhook delete request failed: " . curl_error($ch));
+							}
+							curl_close($ch);
+						}
+					}
+				}
+
+				if ($correct_webhook_exists) {
+					$mp_reconciled = true;
+				} else {
+					// Register webhook with correct URL
+					$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
+					curl_setopt($ch, CURLOPT_POST, true);
 					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+					curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 					curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-					curl_exec($ch);
+					curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+						'url' => $expected_url,
+						'events' => ['epayments.payment.authorized.v1', 'user.checked-in.v1', 'epayments.payment.cancelled.v1', 'epayments.payment.aborted.v1', 'epayments.payment.expired.v1', 'epayments.payment.terminated.v1']
+					]));
+					$reg_raw = curl_exec($ch);
+					$reg_err = curl_error($ch);
 					curl_close($ch);
+					if ($reg_raw === false) {
+						error_log("betweenUpdates.php: MobilePay webhook register request failed: $reg_err");
+						$reg_resp = null;
+					} else {
+						$reg_resp = json_decode($reg_raw, true);
+					}
+
+					if (!empty($reg_resp['secret'])) {
+						db_modify("DELETE FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_secret'", __FILE__ . " linje " . __LINE__);
+						$new_secret = db_escape_string($reg_resp['secret']);
+						db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_secret', 'mobilepay', '$new_secret', 'The secret that is generated for the webhook')", __FILE__ . " linje " . __LINE__);
+						$mp_reconciled = true;
+					}
 				}
 			}
 		}
 
-		if (!$correct_webhook_exists) {
-			// Register webhook with correct URL
-			$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-			curl_setopt($ch, CURLOPT_POST, true);
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-				'url' => $expected_url,
-				'events' => ['epayments.payment.authorized.v1', 'user.checked-in.v1', 'epayments.payment.cancelled.v1', 'epayments.payment.aborted.v1', 'epayments.payment.expired.v1', 'epayments.payment.terminated.v1']
-			]));
-			$reg_resp = json_decode(curl_exec($ch), true);
-			curl_close($ch);
-
-			if (!empty($reg_resp['secret'])) {
-				db_modify("DELETE FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_secret'", __FILE__ . " linje " . __LINE__);
-				$new_secret = db_escape_string($reg_resp['secret']);
-				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_secret', 'mobilepay', '$new_secret', 'The secret that is generated for the webhook')", __FILE__ . " linje " . __LINE__);
+		// Persist the marker only after a confirmed reconciliation, so a transient Vipps
+		// outage leaves it unchanged and the next login retries rather than assuming success.
+		if ($mp_reconciled) {
+			$new_reconciled_url = db_escape_string($expected_url);
+			if ($mp_reconciled_url === null) {
+				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_reconciled_url', 'mobilepay', '$new_reconciled_url', 'Last webhook URL reconciled with Vipps - one-shot gate for betweenUpdates.php')", __FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify("UPDATE settings SET var_value = '$new_reconciled_url' WHERE var_grp = 'mobilepay' AND var_name = 'webhook_reconciled_url'", __FILE__ . " linje " . __LINE__);
 			}
 		}
 	}
