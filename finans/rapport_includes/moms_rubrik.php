@@ -278,6 +278,44 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     print "</tr>";
     print "</tbody></table></div>";
 
+    // Diagnostic: show which VG groups drive B2B-EU sales and what vg_type the CTE resolves
+    $dq = db_select(
+        "WITH vg AS ("
+        . " SELECT DISTINCT ON (kodenr) CAST(kodenr AS TEXT) AS kodenr,"
+        .   " NULLIF(TRIM(COALESCE(box5,'')), '') AS vg_type,"
+        .   " fiscal_year"
+        . " FROM grupper WHERE art = 'VG'"
+        . " ORDER BY kodenr, fiscal_year DESC NULLS LAST"
+        . "), dg AS ("
+        . " SELECT DISTINCT ON (kodenr) CAST(kodenr AS TEXT) AS kodenr,"
+        .   " NULLIF(TRIM(COALESCE(box10,'')), '') AS eu_zone"
+        . " FROM grupper WHERE art = 'DG'"
+        . " ORDER BY kodenr, fiscal_year DESC NULLS LAST"
+        . ")"
+        . " SELECT vg.kodenr, vg.vg_type, vg.fiscal_year,"
+        .   " ROUND(SUM(ol.pris * (1 - COALESCE(ol.rabat,0)/100) * ol.antal"
+        .     " * COALESCE(ord.valutakurs,100)/100)::numeric, 2) AS beloeb"
+        . " FROM ordrelinjer ol"
+        . " JOIN ordrer ord ON ord.id = ol.ordre_id AND ord.art IN ('DO','DK') AND ord.status >= 3"
+        .   " AND ord.fakturadate >= '$regnstart' AND ord.fakturadate <= '$regnslut'"
+        . " JOIN varer v ON v.id = ol.vare_id AND ol.vare_id > 0"
+        . " JOIN vg ON vg.kodenr = CAST(v.gruppe AS TEXT)"
+        . " JOIN adresser adr ON adr.id = ord.konto_id"
+        . " JOIN dg ON dg.kodenr = CAST(adr.gruppe AS TEXT)"
+        . " WHERE dg.eu_zone = 'B2B-EU'"
+        . " GROUP BY vg.kodenr, vg.vg_type, vg.fiscal_year"
+        . " ORDER BY beloeb DESC LIMIT 15",
+        __FILE__." linje ".__LINE__);
+    print "<div style='padding:6px 12px; font-size:0.82em; background:#f0f0f8; border-left:3px solid #99b; margin:8px 12px;'>";
+    print "<b>Diagnostik B2B-EU – top varegrupper (salgsordrer i periode):</b><br>";
+    print "<table style='font-size:1em; border-collapse:collapse;'>";
+    print "<tr><th align='left' style='padding-right:16px'>VG-nr</th><th align='left' style='padding-right:16px'>vg_type (CTE ser)</th><th align='left' style='padding-right:16px'>fiscal_year (raekke)</th><th align='right'>Beloeb</th></tr>";
+    while ($dr = db_fetch_array($dq)) {
+        $vt = $dr['vg_type'] ?: '<span style="color:#c00">NULL</span>';
+        print "<tr><td style='padding-right:16px'>{$dr['kodenr']}</td><td style='padding-right:16px'>$vt</td><td style='padding-right:16px'>{$dr['fiscal_year']}</td><td align='right'>" . dkdecimal((float)$dr['beloeb'], 2) . "</td></tr>";
+    }
+    print "</table></div>";
+
     print "<div style='padding:6px 12px 12px; font-size:0.85em; color:#888;'>";
     print "Rubrik A afledes fra fakturerede k&oslash;bsordrer: ";
     print "EU-zone p&aring; <a href='../systemdata/syssetup.php?valg=kreditorer'>Kreditorgrupper</a> ";
