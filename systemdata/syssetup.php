@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-07-23 ---
+// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-07-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,7 @@
 // 20260723 CL/MJ  EU-zone-dropdown (box10) paa DG-debitorgrupper til OSS-klassificering.
 // 20260723 CL/MJ  Varer/ydelser-type (box5) til VG-varegrupper for Momsrubrikker A/B/C-afledning.
 // 20260723 CL/MJ  Fjernet Rubrik-kolonne (box5) fra SM/KM/YM/EM-momskoder: bruges ikke laengere.
+// 20260724 CL/MJ  EU-zone-dropdown (box10) paa KG-kreditorgrupper til Momsrubrikker Rubrik A.
 
 @session_start();
 $s_id=session_id();
@@ -237,9 +238,10 @@ elseif($valg=='debitor'){
 	print "<td align=\"center\"><span title=\"".findtekst('2550|Modkonto ved udligning af åbne poster', $sprog_id)."\">".findtekst('1013|Modkonto', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title=\"".findtekst('2462|Momsgruppe for salgsmoms ved omvendt betalingspligt', $sprog_id)."'>".findtekst('2463|S.moms grp.', $sprog_id)."</span></td>";
 	$spantitle=findtekst('2455|Omvendt betalingspligt', $sprog_id)."!\n".findtekst('2465|Afmærk her, hvis denne leverandørgruppe er omfattet af omvendt betalingspligt', $sprog_id);
-	print "<td align=\"center\"><span title=\"".$spantitle."\">".findtekst('2457|OB', $sprog_id)."</td></tr>\n";
+	print "<td align=\"center\"><span title=\"".$spantitle."\">".findtekst('2457|OB', $sprog_id)."</td>";
+	print "<td align=\"center\"><span title='EU-zone: klassificering til Momsrubrikker Rubrik A. EU (andet EU-land) = leverandoer i andet EU-land.'>EU-zone</span></td></tr>\n"; // 20260724 CL/MJ
 #	print "<td align=\"center\"><span title=\"Omvendt betaligspligt!\"Afmærk her,hvis denne leverandørgruppe er omfattet af omvendt betalingspligt>O/B</span></td></tr>\n";
-	$y=skriv_formtabel('KG',$x,$y,$art,$id,'K',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'10',$box6,'6','-','6','-','6',$box9,'checkbox','-','6','-','6','-','6','-','6','-','2');
+	$y=skriv_formtabel('KG',$x,$y,$art,$id,'K',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'10',$box6,'6','-','6','-','6',$box9,'checkbox',$box10,'eu-zone','-','6','-','6','-','6','-','2');
 }
 elseif($valg=='afdelinger'){
 	include("settings/departments.php");
