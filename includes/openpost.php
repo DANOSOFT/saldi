@@ -21,6 +21,7 @@
 // 20260706 MJ Cached aging bucket date calculations for large open item reports.
 // 20260706 MJ Load reminder sections without reloading the open items report.
 // 20260706 MJ Paginated open item account rendering to avoid loading every account row at once.
+// 20260723 sawaneh Fixed $rbox8->$box8 in bogfor_rykker so a stock-tracked item used as a fee is blocked; removed dead commented-out code.
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $art) {
 	?>
 	<script LANGUAGE="JavaScript">
@@ -768,13 +769,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 			$q2 = db_select("select * from grupper where art='VG' and kodenr='$gruppe[$x]'",__FILE__ . " linje " . __LINE__);
 			$r2 = db_fetch_array($q2);
 			$box1[$x]=trim($r2['box1']); $box2[$x]=trim($r2['box2']); $box3[$x]=trim($r2['box3']); $box4[$x]=trim($r2['box4']); $box8[$x]=trim($r2['box8']); $box9[$x]=trim($r2['box9']);
-			if ($rbox8[$x]!='on') {
+			if ($box8[$x]!='on') {
 				db_modify("update ordrelinjer set bogf_konto=$box4[$x] where id=$ordre_linje_id[$x]",__FILE__ . " linje " . __LINE__);
 				db_modify("update ordrer set status=3 where id=$id",__FILE__ . " linje " . __LINE__);
-#					transaktion('begin');
-#					bogfor_nu($id);
-#					transaktion('commit');
-				} else {
+			} else {
 				$fejl=1;
 				print "<BODY onLoad=\"javascript:alert('Der er anvendt en lagerf&oslash;rt vare som gebyr - rykker kan ikke bogf&oslash;res')\">";
 			}

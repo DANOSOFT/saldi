@@ -81,7 +81,8 @@
 // 20260507 CL/PHR Vis åbne poster now only shows unaligned posts (udlignet != '1'). Added 'Vis alle poster' option for full view.
 // 20260513 CL/PHR kontokort & kontosaldo viser nu dato i toplinje og kontokort tager kun konti med bevægelser i perioden.
 // 20260518 CL/PHR kontokort & kontosaldo viser nu dato i toplinje. Kontokort tager kun konti med bevægelser i perioden. Null-safety og array-initialisering.
-include("../includes/reportFunc/showOpenPosts.php"); 
+// 20260723 sawaneh Fixed $rbox8->$box8 so the guard against a stock-tracked item used as a fee works in bogfor_rykker.
+include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
 {
@@ -506,7 +507,7 @@ function bogfor_rykker($id)
 			$box4[$x] = trim($r2['box4']);
 			$box8[$x] = trim($r2['box8']);
 			$box9[$x] = trim($r2['box9']);
-			if ($rbox8[$x] != 'on') {
+			if ($box8[$x] != 'on') {
 				db_modify("update ordrelinjer set bogf_konto=$box4[$x] where id=$ordre_linje_id[$x]", __FILE__ . " linje " . __LINE__);
 				db_modify("update ordrer set status=3 where id=$id", __FILE__ . " linje " . __LINE__);
 			} else {
