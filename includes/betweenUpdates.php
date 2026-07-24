@@ -186,9 +186,10 @@ if ($mp_client_id) {
 		]);
 		$token_raw = curl_exec($ch);
 		$token_err = curl_error($ch);
+		$token_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 		curl_close($ch);
-		if ($token_raw === false) {
-			error_log("betweenUpdates.php: MobilePay accesstoken request failed, skipping webhook reconciliation: $token_err");
+		if ($token_raw === false || $token_code < 200 || $token_code >= 300) {
+			error_log("betweenUpdates.php: MobilePay accesstoken request failed (curl: $token_err, http: $token_code), skipping webhook reconciliation");
 			$mp_token = null;
 		} else {
 			$mp_token = json_decode($token_raw, true)['access_token'] ?? null;
@@ -210,9 +211,12 @@ if ($mp_client_id) {
 			curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
 			$list_raw = curl_exec($ch);
 			$list_err = curl_error($ch);
+			$list_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 			curl_close($ch);
-			if ($list_raw === false) {
-				error_log("betweenUpdates.php: MobilePay webhook list request failed, skipping webhook reconciliation: $list_err");
+			if ($list_raw === false || $list_code < 200 || $list_code >= 300) {
+				// A non-2xx list (curl false, 4xx/5xx error body, etc.) must NOT be read as
+				// "no webhooks" - that would register a duplicate. Leave it unreconciled.
+				error_log("betweenUpdates.php: MobilePay webhook list request failed (curl: $list_err, http: $list_code), skipping webhook reconciliation");
 				$webhooks = null;
 			} else {
 				$webhooks = json_decode($list_raw, true)['webhooks'] ?? [];
@@ -257,9 +261,10 @@ if ($mp_client_id) {
 					]));
 					$reg_raw = curl_exec($ch);
 					$reg_err = curl_error($ch);
+					$reg_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 					curl_close($ch);
-					if ($reg_raw === false) {
-						error_log("betweenUpdates.php: MobilePay webhook register request failed: $reg_err");
+					if ($reg_raw === false || $reg_code < 200 || $reg_code >= 300) {
+						error_log("betweenUpdates.php: MobilePay webhook register request failed (curl: $reg_err, http: $reg_code)");
 						$reg_resp = null;
 					} else {
 						$reg_resp = json_decode($reg_raw, true);
