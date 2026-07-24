@@ -11,6 +11,7 @@ ob_start();
 
 // Include database connection
 include_once("../connect.php");
+include_once(__DIR__ . "/poolAmountNormalizer.php");
 
 // Get database name from POST
 $db = isset($_POST['db']) ? $_POST['db'] : '';
@@ -264,13 +265,19 @@ if ($action === 'save') {
 	// Format date using the normalization function (handles Danish months, etc.)
 	$dateToUse = !empty($newDate) ? $newDate : $existingDate;
 	$finalDate = normalizeDateFormat($dateToUse);
-	
+
+	// Normalize the amount to a real number now, so Bilagsmatch scoring can join on
+	// norm_amount directly instead of re-parsing this free-form string at query time.
+	$finalNormAmount = normalizePoolAmount($finalAmount);
+	$normAmountSql = ($finalNormAmount === null) ? 'NULL' : db_escape_string((string) $finalNormAmount);
+
 	// Update or Insert into Database
 	if ($existingRow) {
 		$qtxt = "UPDATE pool_files SET
 			subject = '". db_escape_string($finalSubject) ."',
 			account = '". db_escape_string($finalAccount) ."',
 			amount = '". db_escape_string($finalAmount) ."',
+			norm_amount = $normAmountSql,
 			invoice_number = '". db_escape_string($finalInvoiceNumber) ."',
 			description = '". db_escape_string($finalDescription) ."',
 			currency = '". db_escape_string($finalCurrency) ."',
@@ -279,11 +286,12 @@ if ($action === 'save') {
 			WHERE filename = '". db_escape_string($poolFile) ."'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	} else {
-		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, currency) VALUES (
+		$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency) VALUES (
 			'". db_escape_string($poolFile) ."',
 			'". db_escape_string($finalSubject) ."',
 			'". db_escape_string($finalAccount) ."',
 			'". db_escape_string($finalAmount) ."',
+			$normAmountSql,
 			'". db_escape_string($finalDate) ."',
 			'". db_escape_string($finalInvoiceNumber) ."',
 			'". db_escape_string($finalDescription) ."',

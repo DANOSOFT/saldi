@@ -1949,7 +1949,7 @@ print '<style>
         bottom: 0;
         background-color: #f1f1f1;
         z-index: 9;
-        padding: 8px 0;
+        padding: 8px 0 16px;
         border-top: 1px solid #ccc;
     }
 
@@ -4152,7 +4152,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	print "</tbody></table>";
 	print "<script language=\"javascript\">";
-	print "document.kassekladde.$fokus.focus()";
+	// preventScroll: focusing a field far down an existing draft (e.g. besk108 on a
+	// 109-line kladde) otherwise makes the browser auto-scroll the whole document to
+	// reveal it, dragging the sticky top bar up out of view.
+	print "document.kassekladde.$fokus.focus({preventScroll: true})";
 	print "</script>";
 	// if ($menu == 'T') {
 	// 	include_once '../includes/topmenu/footer.php';
@@ -4277,7 +4280,11 @@ body {
 
 /*scrollable container for the editable form */
 .kassekladde-scroll-container {
-    height: calc(100vh - 98px);
+    /* 98px only covered the header row; it didn't leave room for the
+       .kassekladde-footer row below (padding+border+margin+button row is
+       ~70-80px on its own), so the footer's tail was clipped once html/body
+       stopped allowing page-level scroll. */
+    height: calc(100vh - 130px);
     overflow-y: auto;
     border: 1px solid #ddd;
     margin-bottom: 10px;
@@ -4301,7 +4308,7 @@ body {
     bottom: 0;
     background-color: #f1f1f1;
     z-index: 10;
-    padding: 10px 0;
+    padding: 10px 0 18px;
     border-top: 2px solid #ccc;
     margin-top: 10px;
 }

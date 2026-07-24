@@ -5024,3 +5024,19 @@
 5024	vare(r) udløber inden for	item(s) expiring within	vare(r) utløper innen
 5025	dage	days	dager
 5026	Klik for at se udløbsrapporten	Click to view the expiry report	Klikk for å se utløpsrapporten
+5032	Konto	Account	Konto
+5033	Modkonto	Contra account	Motkonto
+5034	Valuta	Currency	Valuta
+5035	Præcision	Precision	Presisjon
+5036	Annullér	Cancel	Avbryt
+5037	$n match valgt · $m fundet	$n matches selected · $m found	$n treff valgt · $m funnet
+5038	0 fundet	0 found	0 funnet
+5039	Ingen forslag til match fundet for denne kladde.	No suggested matches found for this journal.	Ingen forslag til treff funnet for denne posteringen.
+5040	Type	Type	Type
+5041	Klik for at forhåndsvise/åbne dokumentet	Click to preview/open the document	Klikk for å forhåndsvise/åpne dokumentet
+5042	Slå konto op	Look up account	Slå opp konto
+5043	Bilagsmatch	Voucher match	Bilagsmatch
+5044	Dato	Date	Dato
+5045	Bilag	Voucher no.	Bilag
+5046	Tekst	Text	Tekst
+5047	Beløb	Amount	Beløp
