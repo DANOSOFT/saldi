@@ -1230,13 +1230,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		$valutakode = 0;
 		$firstdate = date("Y-m-d");
 		$lastdate = '1970-01-01';
-		$dkkamount = array();
-		$kladde_id = array();
-		$projekt = array();
-		$refnr = array();
-		$transdate = array();
-		$udlignet = array();
-		$udlign_id = array();
 
 		include("../includes/topline_settings.php");
 
@@ -1244,8 +1237,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		$qtxt = "select max(id) as max_valdif_id from openpost where konto_id='$kto_id[$x]' and abs(amount) = '0.001'";
 		$r2 = db_fetch_array(db_select("$qtxt", __FILE__ . " linje " . __LINE__));
 		$max_valdif_id = $r2['max_valdif_id'] ?? 0;
-		$dkktmp = '';
-		$valutakode = 0;
 
 		if ($todate)
 			$qtxt = "select * from openpost where konto_id='$kto_id[$x]' and transdate<='$todate' order by transdate,id,faktnr,refnr"; //20160414
@@ -1260,7 +1251,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			$amount[$y] = $r2['amount'];
 			$beskrivelse[$y] = $r2['beskrivelse'];
 			$valutakurs[$y] = $r2['valutakurs'] * 1;
-			$dkkamount[$y] = $amount[$y]; // default; overwritten below if currency conversion applies
 			$oppvaluta[$y] = $r2['valuta'];
 			$faktnr[$y] = $r2['faktnr'];
 			if (!$oppvaluta[$y]) {
@@ -2095,47 +2085,6 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		print "</tbody></table>"; //B slut
 		print "</td></tr>\n";
 	}
-	if (is_numeric($konto_fra) && is_numeric($konto_fra)) {
-		$qtxt = "select adresser.id from adresser,openpost where adresser.kontonr >= '$konto_fra' ";
-		$qtxt .= "and adresser.kontonr <= '$konto_til' and adresser.art = '$kontoart' and openpost.konto_id = adresser.id ";
-		$qtxt .= "order by kontonr";
-	} elseif ($konto_fra && $konto_fra != '*') {
-		$konto_fra = str_replace("*", "%", $konto_fra);
-		$tmp1 = strtolower($konto_fra);
-		$tmp2 = strtoupper($konto_fra);
-		$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
-	} else {
-		$qtxt = "select openpost.konto_id as id from adresser,openpost where adresser.art = '$kontoart' ";
-		$qtxt .= "and openpost.konto_id = adresser.id and openpost.udlignet != '2' group by openpost.konto_id, adresser.firmanavn ";
-		$qtxt .= "order by adresser.firmanavn";
-	}
-	$kontonr = array();
-	$x = 0;
-	$q = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$x++;
-		$konto_id[$x] = $r['id'];
-	}
-	$kto_id = array();
-	$kontoantal = $x;
-	$x = 0;
-	for ($y = 1; $y <= $kontoantal; $y++) {
-		if (isset($todate)) {
-			$qtxt = "select sum(amount) as amount from openpost where transdate<='$todate' and konto_id='$konto_id[$y]'";
-		} else {
-			$qtxt = "select sum(amount) as amount from openpost where konto_id='$konto_id[$y]'";
-		}
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		while ($row = db_fetch_array($q)) {
-			if (!in_array($konto_id[$y], $kto_id)) {
-				$x++;
-				$kto_id[$x] = $konto_id[$y];
-			}
-		}
-	}
-
-	$kontoantal = $x;
-
 	if (!isset($todate))
 		$todate = NULL;
 	if (!isset($totalsum))
@@ -2176,42 +2125,41 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 	}
 
 
-	for ($x = 1; $x <= $kontoantal; $x++) {
-		$r = db_fetch_array(db_select("select	* from adresser where id=$kto_id[$x]", __FILE__ . " linje " . __LINE__));
-		$kontonr[$x] = stripslashes($r['kontonr']);
-		$firmanavn[$x] = stripslashes($r['firmanavn']);
-		$kontosum[$x] = 0;
-		$primo[$x] = 0;
-		$primoprint[$x] = 0;
-		$bgcolor = '';
-
-		if ($todate) {
-			$qtxt = "select * from openpost where konto_id='$kto_id[$x]' and transdate<='$todate' order by transdate, faktnr, refnr";
-		} else
-			$qtxt = "select * from openpost where konto_id='$kto_id[$x]' order by transdate, faktnr, refnr";
-		$q2 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
-		while ($r2 = db_fetch_array($q2)) {
-			$amount = afrund($r2['amount'], 2);
-			$oppvaluta = $r2['valuta'];
-			if (!$oppvaluta)
-				$oppvaluta = 'DKK';
-			$oppkurs = $r2['valutakurs'] * 1;
-			if (!$oppkurs)
-				$oppkurs = 100;
-			$dkkamount = $amount;
-			if ($oppvaluta == 'DKK')
-				$belob = dkdecimal($amount, 2);
-			else
-				$belob = dkdecimal($amount * 100 / $oppkurs, 2);
-			$forfaldsdag = $r2['forfaldsdate'];
-			$transdate = $r2['transdate'];
-			if ($oppvaluta != 'DKK' && $oppkurs != 100) { //postering foert i anden valuta end Debitors som er DKK
-				$amount = $amount * $oppkurs / 100;
-			}
-			$kontosum[$x] += afrund($amount, 2);
-		}
-		$totalsum = $totalsum + $kontosum[$x];
-		if (afrund($kontosum[$x], 2)) {
+	$qtxt = "select adresser.kontonr, adresser.firmanavn, ";
+	$qtxt .= "sum(round(case when coalesce(openpost.valuta,'DKK') != 'DKK' ";
+	$qtxt .= "and coalesce(openpost.valutakurs,0) != 0 and openpost.valutakurs != 100 ";
+	$qtxt .= "then round(openpost.amount,2) * openpost.valutakurs / 100 ";
+	$qtxt .= "else round(openpost.amount,2) end,2)) as kontosum ";
+	$qtxt .= "from adresser join openpost on openpost.konto_id = adresser.id ";
+	$qtxt .= "where adresser.art = '$kontoart' ";
+	if ($todate)
+		$qtxt .= "and openpost.transdate <= '$todate' ";
+	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
+		$qtxt .= "and adresser.kontonr >= '$konto_fra' and adresser.kontonr <= '$konto_til' ";
+		$having = NULL;
+		$orderBy = "adresser.kontonr";
+	} elseif ($konto_fra && $konto_fra != '*') {
+		$konto_fra = str_replace("*", "%", $konto_fra);
+		$tmp1 = strtolower($konto_fra);
+		$tmp2 = strtoupper($konto_fra);
+		$qtxt .= "and (adresser.firmanavn like '$konto_fra' or lower(adresser.firmanavn) like '$tmp1' or upper(adresser.firmanavn) like '$tmp2') ";
+		$having = NULL;
+		$orderBy = "adresser.firmanavn";
+	} else {
+		$having = "having max(case when openpost.udlignet != '2' then 1 else 0 end) = 1 ";
+		$orderBy = "adresser.firmanavn";
+	}
+	$qtxt .= "group by adresser.id, adresser.kontonr, adresser.firmanavn ";
+	if ($having)
+		$qtxt .= $having;
+	$qtxt .= "order by $orderBy";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$kontonr = stripslashes($r['kontonr']);
+		$firmanavn = stripslashes($r['firmanavn']);
+		$kontosum = $r['kontosum'];
+		$totalsum = $totalsum + $kontosum;
+		if (afrund($kontosum, 2)) {
 			if ($linjebg != $bgcolor) {
 				$linjebg = $bgcolor;
 				$color = '#000000';
@@ -2219,8 +2167,8 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 				$linjebg = $bgcolor5;
 				$color = '#000000';
 			}
-			print "<tr bgcolor=\"$linjebg\"><td>$kontonr[$x]</td><td>$firmanavn[$x]</td>";
-			$tmp = dkdecimal($kontosum[$x], 2);
+			print "<tr bgcolor=\"$linjebg\"><td>$kontonr</td><td>$firmanavn</td>";
+			$tmp = dkdecimal($kontosum, 2);
 			print "<td align=right> $tmp</td></tr>\n";
 		}
 	}

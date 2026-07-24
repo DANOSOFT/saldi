@@ -31,6 +31,7 @@
 // 20260513 PHR Columns were shifted when $usePBS was NULL
 // 20260518 CL/PHR PBS-kolonne printes kun hvis $usePBS er sat. isset()-check tilføjet for $kontoudtog.
 // 20260528 PHR Bottomline was overlooked 20260513
+// 20260702 CX/PHR Build "Udlign alle" from unaligned openpost balance when showing all posts.
 // 20260706 MJ Paginated and batched debtor open items report queries for large databases.
 
 if (!function_exists('vis_aabne_poster')) {
@@ -117,7 +118,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	if (!$showPBS) $accountWhere.= " and (adresser.pbs_nr is NULL or adresser.pbs_nr = '' or adresser.pbs_nr = '0')";
 	if ($kontoart=='D') $tmp="";
 	else $tmp="desc";
-	if ($vis_alle) {
+	if ($vis_alle || $todate != $currentdate) {
 		$postWhere = "1=1";
 	} elseif ($db_type == 'postgresql') {
 		$postWhere = "openpost.udlignet IS DISTINCT FROM '1'";
@@ -212,18 +213,25 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$forfalden_plus60=0;
 		$forfalden_plus90=0;
 		$kontrol=0;
+		$openKontrol=0;
 		$y=0;
+		$openY=0;
 		$faktnr=array();
 		$f=0;
 		$ks=0;
 		foreach ($accountPosts[$x] as $r) {
 			$aligned = $r['udlignet'];
-			if (!$r['udlignet']) $accountAligned = 0;
-      if ((float)$r['valutakurs'] && $r['valuta']!='-') {
-				$kontrol+=afrund($r['amount']*$r['valutakurs']/100,2); //2012.03.30 afrunding rettet til 2 (Ørediff hos saldi_390) 
-			} else {
-				$kontrol+=afrund($r['amount'],2);
+			if ($todate != $currentdate && $r['udlignet'] == '1' && (!$r['udlign_date'] || $r['udlign_date'] > $todate)) {
+				$aligned = 0;
 			}
+			if (!$aligned) $accountAligned = 0;
+      if ((float)$r['valutakurs'] && $r['valuta']!='-') {
+				$kontrolAmount=afrund($r['amount']*$r['valutakurs']/100,2); //2012.03.30 afrunding rettet til 2 (Ørediff hos saldi_390) 
+			} else {
+				$kontrolAmount=afrund($r['amount'],2);
+			}
+			$kontrol+=$kontrolAmount;
+			if (!$aligned) $openKontrol+=$kontrolAmount;
 			$ks+=$kontrol;
 #			if ($r['udlignet']!=1 || ($r['transdate'] <= $todate && $r['udlign_date'] && $r['udlign_date'] > $todate)) {
 /*
@@ -281,6 +289,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 					$forfalden_plus90=$forfalden_plus90+$amount;
 				}
 			$y=$y+$amount;
+			if (!$aligned) $openY=$openY+$amount;
 #			}
 		}
 		if ($kun_debet && $y<=0) {$accountAligned=1;$y=0;$kontrol=0;}  
@@ -354,7 +363,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				ret_openpost($konto_id[$x]);
 				$tmp=dkdecimal($kontrol,2);
 			} else $tmp=dkdecimal($y,2);
-			if (abs($y)<0.01 && abs($kontrol)<0.01) {
+			if ($accountAligned=="0" && abs($openY)<0.01 && abs($openKontrol)<0.01) {
 				$udlign.=$konto_id[$x].",";
 				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&udlign=$konto_id[$x]\">$tmp</a></td>";
 			}
@@ -426,8 +435,17 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<span title='Klik her for at oprette rykker til de som er afm&aelig;rkede herover'>";
 		print "<input type=submit value=\"Opret rykker\" name=\"submit\"></span>&nbsp;&nbsp;";
 		if ($udlign) {
-			$udlign=trim($udlign,"'");
-			print "	<input type='button' onclick=\"location.href='rapport.php?rapportart=openpost&udlign=$udlign';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
+			$udlign=trim($udlign,",'");
+			// URL-encode the report filter values and escape the attribute so quotes in
+			// request-supplied values cannot break out of the inline handler (XSS).
+			$udlignUrl = 'rapport.php?submit=ok&rapportart=openpost'
+				. '&dato_fra=' . rawurlencode($dato_fra)
+				. '&dato_til=' . rawurlencode($dato_til)
+				. '&konto_fra=' . rawurlencode($konto_fra)
+				. '&konto_til=' . rawurlencode($konto_til)
+				. ($vis_alle ? '&vis_alle_poster=on' : '&vis_aabenpost=on')
+				. '&udlign=' . rawurlencode($udlign);
+			print "	<input type='button' onclick=\"location.href='" . htmlspecialchars($udlignUrl, ENT_QUOTES) . "';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
 			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
 		} else {
 			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";

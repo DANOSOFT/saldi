@@ -26,6 +26,9 @@ $s_id=session_id();
 // 20250503 LOE Updated with improved if_isset func.
 // 20260507 CL/PHR Blå topline med hvid tekst. Admin Panel link styres af settings.showAdminPanel. Fjernet apostroffer fra Vis/Skjul Luk.
 // 20260521 PHR Added email.
+// 20260717 CL/NTR Warning (accept to continue) before opening a regnskab, only on master at
+//                  ssl3.saldi.dk. Click fetches details from master_warning_info.php and shows
+//                  db name, db version, master version and why opening live from master is risky.
 $css="../css/standard.css";
 $title="vis regnskaber";
 
@@ -98,6 +101,15 @@ $vr_btnStyle = "background-color:#1d4ed8;color:#ffffff;border:0;border-radius:5p
 $vr_topBund  = "style=\"background-color:#2563eb;color:#ffffff;padding:2px 6px;text-decoration:none;\" align=\"center\"";
 $r_ap = db_fetch_array(db_select("select var_value from settings where var_name='useAdminPanel'", __FILE__ . " linje " . __LINE__));
 $showAdminPanel = ($r_ap && $r_ap['var_value']) ? true : false;
+
+// Warn before opening a regnskab, but only on the master install at ssl3.saldi.dk.
+// The click is intercepted by vrWarnOpen() (printed below), which fetches the regnskab's
+// details on demand from master_warning_info.php, so no per-database work happens on load.
+$vr_serverName  = if_isset($_SERVER, '', 'SERVER_NAME');
+$vr_pathParts   = explode('/', trim(if_isset($_SERVER, '', 'PHP_SELF'), '/'));
+$vr_firstFolder = if_isset($vr_pathParts, '', 0);
+$vr_warnOpen    = ($vr_serverName == 'ssl3.saldi.dk' && $vr_firstFolder == 'master');
+$vr_openConfirm = $vr_warnOpen ? " onclick=\"return vrWarnOpen(this);\"" : "";
 
 if (isset($menu) && $menu=='S') {
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
@@ -275,6 +287,34 @@ if ($beregn) {
 		}
 	}
 }
+// On master@ssl3 only: intercept the click, fetch this regnskab's details on demand and warn.
+// window.location is set from the promise (fetch is async), so vrWarnOpen always returns false.
+if ($vr_warnOpen) {
+	print <<<'JS'
+<script>
+function vrWarnOpen(link) {
+	var id = new URLSearchParams(link.search).get('db_id');
+	var reason = "Hvis du går ind i et live-regnskab mens du er på master, kan du ændre databasestrukturen og gøre den inkompatibel med live-versionen eller forhindre at fremtidige opdateringer migrerer korrekt.";
+	fetch('master_warning_info.php?db_id=' + encodeURIComponent(id), {credentials: 'same-origin'})
+		.then(function (r) { return r.json(); })
+		.then(function (d) {
+			if (d.error) { alert(d.error); return; }
+			var msg = "ADVARSEL - du er ved at åbne et live-regnskab fra master!\n\n"
+				+ "Database: " + d.db + "\n"
+				+ "Databasens version: " + d.dbver + "\n"
+				+ "Masters version: " + d.master + "\n\n"
+				+ reason + "\n\n"
+				+ "Vil du fortsætte?";
+			if (confirm(msg)) window.location.href = link.href;
+		})
+		.catch(function () {
+			if (confirm("Kunne ikke hente regnskabets oplysninger. Vil du fortsætte alligevel?")) window.location.href = link.href;
+		});
+	return false;
+}
+</script>
+JS;
+}
 if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post>";
 	for ($x=0;$x<count($id);$x++) {
 		if (!$sidst[$x]) $sidst[$x]=0;
@@ -286,7 +326,7 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 			print "<input type=hidden name=\"gl_posteringer[$x]\" value=\"$posteringer[$x]\">";
 			print "<input type=hidden name=\"gl_betalt_til[$x]\" value=\"$betalt_til[$x]\">";
 			print "<input type=hidden name=\"gl_logintekst[$x]\" value=\"$logintekst[$x]\">";
-			print "<tr><td align='right'> $id[$x]</td><td><a href=aaben_regnskab.php?db_id=$id[$x]>$regnskab[$x]</a></td>";
+			print "<tr><td align='right'> $id[$x]</td><td><a href=aaben_regnskab.php?db_id=$id[$x]$vr_openConfirm>$regnskab[$x]</a></td>";
 			print "<td><input type=text size=\"5\" style=\"text-align:right\" name=\"brugerantal[$x]\" value=\"$brugerantal[$x]\"></td>";
 			print "<td><input type=text size=\"5\" style=\"text-align:right\" name=\"posteringer[$x]\" value=\"$posteringer[$x]\"</td>";
 			print "<td align='right'>$posteret[$x]</td>";
@@ -308,7 +348,7 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 						echo "$qtxt<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
-					print "<tr><td align='right'> $id[$x]</td><td><a href=aaben_regnskab.php?db_id=$id[$x]>$regnskab[$x]</a></td>";
+					print "<tr><td align='right'> $id[$x]</td><td><a href=aaben_regnskab.php?db_id=$id[$x]$vr_openConfirm>$regnskab[$x]</a></td>";
 					print "<td>$brugerantal[$x]<br></td>";
 					print "<td>$posteringer[$x]<br></td>";
 					print "<td align='right'>$posteret[$x]<br></td>";

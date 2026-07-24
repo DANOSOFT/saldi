@@ -36,6 +36,7 @@
 // 20260703 NTR - Added var_grp to db_select for companyID and updatedCompany to avoid conflicts with other modules that might use the same var_name in settings table.
 // 20260703 NTR - Added filtering out lines with 0 amount and not just empty description, so if either is empty, the line will be skipped. This is to avoid sending empty lines to EasyUBL, which I suspect crashes their code.
 // 20260706 CL/NTR - Changed the way headers are captured from EasyUBL responses, using CURLOPT_HEADERFUNCTION instead of splitting the header string, which can mis-split on HTTP/2 responses. This should improve reliability of header capture.
+// 20260722 NTR - Changed logic of antal 0 lines, from dropping the lines to changing their antal to 1 as well as changing price to 0, to try and avoid errors.
 
     @session_start();
     $s_id=session_id();
@@ -745,8 +746,13 @@
                 $res["momssats"] = 0;
             }
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
-            if(trim($res["beskrivelse"]) == "" || (float)$res["antal"] == 0){
+            if(trim($res["beskrivelse"]) == ""){
                 continue;
+            }
+            if((float)$res["antal"] == 0) {
+                $res["antal"] = 1;
+                $res["pris"] = 0;
+                $res["rabat"] = 0;
             }
             file_put_contents("../temp/$db/ordrelinjer.json", json_encode($res, JSON_PRETTY_PRINT), FILE_APPEND);
             if($res["rabat"] > 0) {
