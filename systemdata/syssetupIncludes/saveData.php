@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- systemdata/syssetupIncludes/saveData.php ---patch 4.1.1 ----2025-09-03 ---
+//--- systemdata/syssetupIncludes/saveData.php ---patch 5.0.0 ----2026-07-24 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // -----------------------------------------------------------
 // 20240604 PHR PHP8
 // 20250903 PHR Definition of array $adr_konto_id
+// 20260724 CL/MJ  Propagate VG.box5 og DG/KG.box10 til alle fiscal_year-raekker ved gem.
 if ($_POST){
 	$id=if_isset($_POST['id']);
 	$beskrivelse=if_isset($_POST['beskrivelse']);
@@ -257,6 +258,14 @@ if ($_POST){
 				else {
 					$qtxt = "update grupper set beskrivelse = '$beskrivelse[$x]',kode = '$kode[$x]',box1 = '$box1[$x]',box2 = '$box2[$x]',box3 = '$box3[$x]',box4 = '$box4[$x]',box5 = '$box5[$x]',box6 = '$box6[$x]',box7 = '$box7[$x]',box8 = '$box8[$x]',box9 = '$box9[$x]',box10 = '$box10[$x]',box11 = '$box11[$x]',box12 = '$box12[$x]',box13 = '$box13[$x]',box14 = '$box14[$x]' WHERE id = '$id[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					// 20260724 CL/MJ Propagate year-agnostic fields to all fiscal_years for the same group.
+					// VG box5 (varer/ydelser) and DG/KG box10 (eu-zone) are group-level classifications
+					// that do not vary per accounting year, but grupper has one row per fiscal_year.
+					if ($art[$x] === 'VG') {
+						db_modify("UPDATE grupper SET box5 = '$box5[$x]' WHERE art = 'VG' AND kodenr = '$kodenr[$x]'",__FILE__." linje ".__LINE__);
+					} elseif ($art[$x] === 'DG' || $art[$x] === 'KG') {
+						db_modify("UPDATE grupper SET box10 = '$box10[$x]' WHERE art = '$art[$x]' AND kodenr = '$kodenr[$x]'",__FILE__." linje ".__LINE__);
+					}
 				}
 				if ($art[$x]=='VK') { #ValutaKoder
 				if ($r=db_fetch_array(db_select("select id,kurs from valuta where valdate = '$box3[$x]' and gruppe =	'$kodenr[$x]'",__FILE__ . " linje " . __LINE__))) {
