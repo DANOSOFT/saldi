@@ -85,6 +85,8 @@ email.php
 
 # hidden files
 .ht*
+*.log
+!doc/rettelser*.log
 
 # Live Service
 /index/redirect.php
@@ -93,3 +95,13 @@ email.php
 /varenr_alias.txt
 /varer.csv
 /index/redirect.php
+
+# Runtime/tooling artifacts (SD-592)
+*.log
+*.phar
+!tools/php/composer.phar
+.svn/
+tools/php/.phpunit.cache/
+node_modules/
+test-results/
+playwright-report/
