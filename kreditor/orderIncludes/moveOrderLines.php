@@ -28,6 +28,7 @@
 // 20260226 PHR Changed posnr=posnr+1000000 to posnr=posnr+1000 as posnr is smallint
 // 20260602 PHR Definet $mQt as array if empty.
 // 20260708 MJ Guard all POST arrays; fetch antal/leveret from DB to fix index mismatch causing blank page; guard setval for MySQL.
+// 20260702 MJ/CX Set leveret on split order lines, reset batch working arrays per line, and persist the batch_kob antal/rest update.
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
