@@ -26,6 +26,18 @@
 // 20260507 NTR - A generalised popup manager that can be reused in the future for other popup functions.
 // 20260702 NTR - Added onClose event to allow for cleanup when the popup is closed.
 //              - Moved the confirmed exit button to the footer of the popup instead of header.
+// 20260721 CL/SZ - Added an options object (closeLabel, preSelectFn, summaryFn, noResultsHtml)
+//                   for the Bilagsmatch redesign; footer summary now recomputes live as rows
+//                   are toggled instead of showing a static count. Removed a leftover debug
+//                   console.log from the constructor.
+// 20260721 CL/SZ - Second pass to actually match the Bilagsmatch mockup, not just its column
+//                   set: the header close button is now an icon-only "x" (was rendering the
+//                   closeLabel text, e.g. "Annullér", in the header - the mockup only has an
+//                   "x" there), the summary line moved from the footer to directly under the
+//                   header (mockup shows it above the table, not in the footer), and the
+//                   footer now renders BOTH a secondary cancel button (closeLabel) and the
+//                   primary exit button side by side (was exit-only, with cancel stranded in
+//                   the header) - both cancel affordances close without calling exitCall.
 
 /**
  * Describes a single column in a PopupManager table.
@@ -66,21 +78,32 @@ class ColumnInfo {
  * @param {function(Object[]): void} exitCall - Called with the array of selected
  *   row objects when the exit button is clicked. Each object is keyed by
  *   ColumnInfo.key.
- * @param {string} exitName - Label shown on the exit/confirm button.
+ * @param {string} exitName - Label shown on the primary exit/confirm button (footer).
  * @param {Object|null} [background_dimmer_style] - CSS-in-JS overrides for the
  *   semi-transparent background overlay.
+ * @param {Object} [options] - Optional behavior overrides (all backward-compatible):
+ *   - closeLabel {string}: accessible label/tooltip on the header "x" button, and the
+ *     visible label on the footer's secondary cancel button (default "Close"). Both
+ *     close without calling exitCall.
+ *   - preSelectFn {function(Object): boolean}: given a result row, returns whether its
+ *     checkbox should start checked (default: always checked, the original behavior).
+ *   - summaryFn {function(number selectedCount, number totalCount): string}: text shown
+ *     in a bar directly under the header, recomputed live whenever a row is toggled
+ *     (default: the original static "Viser {total} resultater").
+ *   - noResultsHtml {string}: markup shown instead of the table when there are no results.
+ *   - checkboxHeaderLabel {string}: header text above the selection checkbox column
+ *     (default "Add.", the original hardcoded text).
  */
 class PopupManager {
     popupContainer = null;
     background_dimmer = null;
     style = null;
-    
+
     onNoResult = [];
     onResult = [];
     onClose = [];
 
-    constructor(columns, popupStyle = null, exitCall, exitName, background_dimmer_style = null){
-        console.log('popupManager.js loaded - version with logging');
+    constructor(columns, popupStyle = null, exitCall, exitName, background_dimmer_style = null, options = {}){
         this.columns = columns;
         this.columnKeys = columns.map(col => col.key);
         this.popupStyle = Object.assign({
@@ -113,6 +136,12 @@ class PopupManager {
         }, background_dimmer_style);
         this.exitCall = exitCall;
         this.exitName = exitName;
+
+        this.closeLabel = options.closeLabel ?? 'Close';
+        this.preSelectFn = options.preSelectFn ?? (() => true);
+        this.summaryFn = options.summaryFn ?? ((selectedCount, totalCount) => `Viser ${totalCount} resultater`);
+        this.noResultsHtml = options.noResultsHtml ?? '<div class="popup-no-results">Ingen resultater fundet</div>';
+        this.checkboxHeaderLabel = options.checkboxHeaderLabel ?? 'Add.';
     }
 
     convert_js_to_css(jsObject){
@@ -147,21 +176,25 @@ class PopupManager {
      */
     popup(results, title) {
 
+        const totalCount = results ? results.length : 0;
+        const initialSelected = results ? results.filter(item => this.preSelectFn(item)).length : 0;
+
         let html = `
             <div id="popup-header">
                 <span id="popup-header-title">${title}</span>
-                <button type="button" id="popup-close-btn" class="saldi-button">Close</button>
+                <button type="button" id="popup-close-btn" class="popup-close-x" title="${this.closeLabel}" aria-label="${this.closeLabel}">&times;</button>
             </div>
+            <div id="popup-summary-bar">${this.summaryFn(initialSelected, totalCount)}</div>
             <div id="popup-results">
         `;
 
         if (!results || results.length === 0) {
             if (this.onNoResult.some(fn => fn() === true)) return;
-            html += '<div class="popup-no-results">Ingen resultater fundet</div>';
+            html += this.noResultsHtml;
         } else {
             html += '<table class="popup-table"><thead><tr>';
 
-            html += '<th class="popup-checkmark">Add.</th>';
+            html += `<th class="popup-checkmark">${this.checkboxHeaderLabel}</th>`;
             this.columns.forEach(
                 column => {
                     html += `<th ${column.headerAtt}>${column.display}</th>\n`;
@@ -173,7 +206,8 @@ class PopupManager {
             results.forEach(item => {
                 html += `<tr class="autocomplete-item">\n`;
 
-                html += `<td><input class='active-checkbox' type='checkbox' checked/></td>\n`;
+                const checked = this.preSelectFn(item) ? 'checked' : '';
+                html += `<td><input class='active-checkbox' type='checkbox' ${checked}/></td>\n`;
                 this.columns.forEach(
                     column => {
                         html += `<td ${column.columnAtt}>${(typeof column.selector == "function" ? column.selector(item) : item[column.selector]) ?? '' }</td>\n`;
@@ -188,13 +222,22 @@ class PopupManager {
         html += `
             </div> <!-- popup-results -->
             <div class="popup-footer">
-                <span class="popup-footer-info">Viser ${results ? results.length : 0} resultater</span>
-                <button type="button" id="popup-exit-call-btn" class="saldi-button">${this.exitName}</button>
+                <button type="button" id="popup-cancel-btn" class="saldi-button popup-btn-secondary">${this.closeLabel}</button>
+                <button type="button" id="popup-exit-call-btn" class="saldi-button popup-btn-primary">${this.exitName}</button>
             </div>
         `;
 
         const popupMenuCon = this.getPopupContainer();
         popupMenuCon.innerHTML = html;
+
+        // Recomputes the summary bar from the checkboxes actually checked right now -
+        // called after every toggle so it always reflects the live selection.
+        const updateSummary = () => {
+            const info = popupMenuCon.querySelector('#popup-summary-bar');
+            if (!info) return;
+            const selected = popupMenuCon.querySelectorAll('#popup-results tbody input.active-checkbox:checked').length;
+            info.textContent = this.summaryFn(selected, totalCount);
+        };
 
         // Event listeners for results
         popupMenuCon.querySelectorAll('.autocomplete-item').forEach(item => {
@@ -204,8 +247,11 @@ class PopupManager {
                 e.stopPropagation();
                 if (box && e.target != box) {
                     box.checked = !box.checked;
+                    updateSummary();
                 }
             });
+            const box = item.querySelector('.active-checkbox');
+            if (box) box.addEventListener('change', updateSummary);
         });
 
         // finish button
@@ -225,12 +271,15 @@ class PopupManager {
             this.closeDropdown();
         }.bind(this));
 
-        // Close button
-        popupMenuCon.querySelector('#popup-close-btn').addEventListener('click', function (e) {
+        // Close button (header "x") and footer cancel button both discard without
+        // calling exitCall.
+        const closeWithoutSaving = function (e) {
             e.preventDefault();
             e.stopPropagation();
             this.closeDropdown();
-        }.bind(this));
+        }.bind(this);
+        popupMenuCon.querySelector('#popup-close-btn').addEventListener('click', closeWithoutSaving);
+        popupMenuCon.querySelector('#popup-cancel-btn').addEventListener('click', closeWithoutSaving);
 
 
         if (results && results.length !== 0) {
