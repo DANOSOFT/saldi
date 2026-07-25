@@ -162,6 +162,141 @@ guards for the already-fixed halves are in the same test file and pass.
 
 ---
 
+## P2-3 — A customer's email is discarded when created through the REST API
+
+**Where:** `restapi/models/customers/CustomerModel.php:250` calling `:439`.
+
+**Pinned by:** `tests/restapi/CustomersEndpointTest.php`
+(`test_the_email_supplied_on_create_is_discarded`)
+
+`save()` INSERTs the new customer with its email, then calls
+`saveKontaktEmails()` unconditionally on the create path. That method ends
+with a "sync primary email back for backward compatibility" step:
+
+```php
+$r = db_fetch_array(db_select("SELECT email FROM kontakt_emails
+                               WHERE konto_id = '$this->id' ORDER BY id LIMIT 1"));
+$sync_email = $r ? db_escape_string($r['email']) : '';
+db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$this->id'");
+```
+
+A caller who sent `email` but not `contactEmails` has no rows in
+`kontakt_emails`, so the sync writes an empty string over the address that was
+just stored. The customer ends up with no email anywhere. The create response
+still echoes the submitted email back, which is what makes it hard to notice.
+
+Two consequences:
+
+1. invoices cannot be emailed to any customer created through the API;
+2. the duplicate-email guard (`CustomerService::createCustomer:113`) can never
+   fire, because no customer ever has an email to match. The
+   identically-shaped duplicate-**phone** guard does fire — that asymmetry is
+   what led here.
+
+The update path is unaffected: there `saveKontaktEmails()` only runs
+`if (!empty($this->kontakt_emails))` (`:212`).
+
+**Suggested fix:** only run the sync-back when `kontakt_emails` is non-empty,
+matching the update path.
+
+---
+
+## P2-4 — `limit` reaches the SQL as a raw string on three endpoints
+
+**Where:** `restapi/endpoints/v1/products/index.php:30`,
+`accounts/index.php:54`, `currencies/index.php:30` — into
+`VareModel::getAllItems:132`, `AccountModel::getAllItems:213`,
+`CurrencyModel::getAllItems:89`.
+
+**Pinned by:** `tests/restapi/ProductsEndpointTest.php`
+(`test_the_limit_parameter_accepts_a_sql_fragment`) and
+`tests/restapi/ReferenceDataEndpointTest.php`
+
+The models interpolate the value straight into the query:
+
+```php
+$query = "SELECT * FROM varer ORDER BY $orderBy $orderDirection LIMIT $limit";
+```
+
+The only guard is products' numeric comparison against what is actually a
+string:
+
+```php
+$limit = $_GET['limit'] ?? 20;
+if ($limit > 100 || $limit < 1) { $limit = 20; }
+```
+
+PHP 8 compares a non-numeric string with an int **as strings**. `"1 OFFSET 5"`
+sorts below `"100"` (space < `'0'`) and above `"1"`, so both guards pass and
+the fragment lands in the query. Verified: `?limit=1 OFFSET 4` returns exactly
+the fifth row. `accounts` and `currencies` have no guard at all.
+
+Bounded, but real: stacked statements do **not** execute through this driver
+(verified — a `1; CREATE TABLE ...` payload creates nothing), so this is not
+arbitrary SQL execution. What an authenticated caller *can* do is page past
+the 100-row cap and walk an entire table, and any change to the query's shape
+widens it.
+
+The sibling endpoints already do the right thing — `debitor/customers`,
+`debitor/orders`, `debitor/invoices`, `creditor/orders` and `labels` all cast
+with `(int)`.
+
+**Suggested fix:** `(int)` cast at all three call sites, then clamp.
+
+---
+
+## P2-5 — Two REST endpoints cannot execute at all
+
+**Where:** `restapi/endpoints/v1/dashboard/stats.php:16` and
+`restapi/endpoints/v1/vat-codes/index.php:15`.
+
+**Pinned by:** `tests/restapi/EndpointAuthorizationTest.php`
+(`test_endpoint_is_dead_for_every_caller`)
+
+Both declare `private $db;` while `restapi/core/BaseEndpoint.php` declares the
+same property `protected`. PHP refuses to compile a subclass that narrows an
+inherited property's visibility:
+
+```
+PHP Fatal error: Access level to DashboardStatsEndpoint::$db must be
+protected (as in class BaseEndpoint) or weaker
+```
+
+The fatal happens at class-declaration time, before routing or auth, so both
+endpoints answer **500 with an empty body to every caller**, authenticated or
+not. They have never worked on this codebase.
+
+**Suggested fix:** delete the redundant `private $db;` from both — the base
+class already provides it.
+
+---
+
+## P2-6 — The product-groups endpoint always returns an empty list
+
+**Where:** `restapi/models/lager/VareGruppeModel.php:233`.
+
+**Pinned by:** `tests/restapi/ReferenceDataEndpointTest.php`
+(`test_the_product_groups_list_is_always_empty`)
+
+```php
+global $regnaar;
+$qtxt = "SELECT id FROM grupper WHERE art = 'VG' AND fiscal_year = '$regnaar' ...";
+```
+
+`$regnaar` is a legacy page-script global that a REST request never sets, so
+the filter becomes `fiscal_year = ''` and matches nothing. The neighbouring
+models already stopped trusting it — `AccountModel:170` and `VatModel:55` both
+call `self::getFiscalYear()` — which is why `/accounts` and `/vat` return real
+rows while this one returns none.
+
+Item groups decide an item's posting accounts and whether it is stock-tracked,
+so an API client cannot build a working create-a-product form.
+
+**Suggested fix:** resolve the year through `getFiscalYear()` like the other
+models.
+
+---
+
 ## P3-1 — `selext` typo makes a query a permanent no-op
 
 **Where:** `docsIncludes/updateCashDraft.php:25` and its duplicate

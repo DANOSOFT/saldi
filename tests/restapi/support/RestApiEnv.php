@@ -118,9 +118,35 @@ final class RestApiEnv
         return $out;
     }
 
+    /** Guards bootstrapTenantOnce(); static state lives for the whole PHPUnit process. */
+    private static bool $bootstrapped = false;
+
+    /** Cached bearer token for the seeded user; dropped whenever the tenant is rebuilt. */
+    private static ?string $token = null;
+
+    /**
+     * Provision the tenant the first time any suite asks for it, and reuse it
+     * for the rest of the run.
+     *
+     * Re-cloning per test class is not just slow, it is wrong: dropping and
+     * recreating the database renumbers the master `regnskab` rows, so a
+     * token another suite is still holding points at an account id that no
+     * longer exists and every later request fails with "Account database not
+     * found". Suites keep their rows apart by naming them uniquely instead.
+     */
+    public static function bootstrapTenantOnce(): void
+    {
+        if (self::$bootstrapped) {
+            return;
+        }
+        self::bootstrapTenant();
+        self::$bootstrapped = true;
+    }
+
     /** Clone the template tenant, register open+closed regnskab rows, seed the API user. */
     public static function bootstrapTenant(): void
     {
+        self::$token = null; // any token issued against the old tenant is now stale
         $master = self::connect(self::masterDb());
         $test = self::testDb();
         $template = self::templateDb();
@@ -206,17 +232,16 @@ final class RestApiEnv
         ]);
     }
 
-    /** Access token for the seeded test user (cached per process). */
+    /** Access token for the seeded test user (cached until the tenant is rebuilt). */
     public static function accessToken(): string
     {
-        static $token = null;
-        if ($token === null) {
+        if (self::$token === null) {
             $res = self::login(self::USER, self::PASSWORD, self::ACCOUNT_OPEN);
-            $token = $res['json']['data']['access_token'] ?? '';
-            if ($token === '') {
+            self::$token = $res['json']['data']['access_token'] ?? '';
+            if (self::$token === '') {
                 throw new RuntimeException('login for seeded test user failed: ' . $res['body']);
             }
         }
-        return $token;
+        return self::$token;
     }
 }
