@@ -127,6 +127,41 @@ until roughly ten vouchers have accumulated it.
 
 ---
 
+## P1-3 — The "days before first dunning" setting has never had any effect
+
+**Where:** `debitor/ny_rykker.php:75`.
+
+**Pinned by:** `tests/characterization/debitor/DunningCharacterizationTest.test.php`
+(`test_the_first_dunning_grace_period_is_ignored`)
+
+```php
+$rykkerfrist1 = usdate(forfaldsdag($dd, 'netto', $ffdage1));   // line 75
+...
+if ($konto_id[0] == "alle") {
+    $dd = date("Y-m-d");                                        // line 83
+```
+
+`$dd` does not exist yet on line 75. `forfaldsdag()` returns `NULL` for an
+empty date (`includes/forfaldsdag.php:33`), and `usdate(NULL)` falls back to
+today (`includes/std_func.php`). So `$rykkerfrist1` is *today*, the open-post
+query at `:121` selects everything with `forfaldsdate <= today`, and
+`$ffdage1` — the grace period the customer configured under Div_valg (Rykker)
+— is discarded.
+
+Customers are dunned the day after an invoice falls due, regardless of the
+setting. Verified against the live behaviour: with `ffdage1 = 8`, an invoice
+one day overdue is still dunned; an invoice not yet due is not.
+
+This is the same family as the `ffdage2`/`ffdage3` semicolon fixed in
+b09ccd49 (PR #422) — a third site that fix did not reach. The two escalation
+grace periods are now correct; this first one is not.
+
+**Suggested fix:** move the `$rykkerfrist1` assignment below the `$dd`
+assignment, or compute it from `date("Y-m-d")` directly. The regression
+guards for the already-fixed halves are in the same test file and pass.
+
+---
+
 ## P3-1 — `selext` typo makes a query a permanent no-op
 
 **Where:** `docsIncludes/updateCashDraft.php:25` and its duplicate

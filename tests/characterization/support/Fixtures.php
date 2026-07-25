@@ -240,18 +240,37 @@ final class Fixtures
      * A stock item. `beholdning` seeds the on-hand quantity so delivery
      * paths have something to draw down.
      *
+     * By default the item lands in a STOCK-TRACKED item group. That matters:
+     * `linjeopdat()` (includes/ordrefunc.php:429) only touches
+     * `varer.beholdning` when the group's box8 is 'on'; for a group without
+     * it, delivering writes a `batch_salg` row and leaves the stock balance
+     * alone. The stock chart ships both kinds - "Handelsvarer" is tracked,
+     * "Ydelser" is not - and picking the wrong one makes a stock assertion
+     * silently untestable. Pass `stocked => false` for a service item.
+     *
      * @param array<string,mixed> $overrides
-     * @return array{id:int, varenr:string, salgspris:float, kostpris:float}
+     * @return array{id:int, varenr:string, salgspris:float, kostpris:float, gruppe:int}
      */
     public function item(array $overrides = []): array
     {
         $n = self::nextSeq();
         $varenr = (string)($overrides['varenr'] ?? (self::TAG . $n));
+        $stocked = ($overrides['stocked'] ?? true) ? 'on' : '';
         $gruppe = CharacterizationEnv::one(
             $this->conn,
-            "SELECT kodenr FROM grupper WHERE art = 'VG' AND fiscal_year = $1 ORDER BY kodenr LIMIT 1",
-            [$this->regnaar]
+            "SELECT kodenr FROM grupper
+             WHERE art = 'VG' AND fiscal_year = $1 AND COALESCE(trim(box8), '') = $2
+               AND COALESCE(trim(box3), '') <> '' AND COALESCE(trim(box4), '') <> ''
+             ORDER BY kodenr LIMIT 1",
+            [$this->regnaar, $stocked]
         );
+        if ($gruppe === null) {
+            throw new RuntimeException(
+                $stocked === 'on'
+                    ? 'template tenant has no stock-tracked item group (VG with box8=on)'
+                    : 'template tenant has no untracked item group'
+            );
+        }
 
         $salgspris = (float)($overrides['salgspris'] ?? 125.00);
         $kostpris = (float)($overrides['kostpris'] ?? 75.00);
@@ -269,7 +288,7 @@ final class Fixtures
                 (float)($overrides['beholdning'] ?? 100),
                 (float)($overrides['min_lager'] ?? 0),
                 (float)($overrides['max_lager'] ?? 0),
-                $gruppe ? (int)$gruppe['kodenr'] : 1,
+                (int)$gruppe['kodenr'],
             ]
         );
         return [
@@ -277,6 +296,7 @@ final class Fixtures
             'varenr' => (string)$row['varenr'],
             'salgspris' => $salgspris,
             'kostpris' => $kostpris,
+            'gruppe' => (int)$gruppe['kodenr'],
         ];
     }
 
@@ -362,6 +382,68 @@ final class Fixtures
         }
 
         return ['id' => $orderId, 'ordrenr' => (int)$order['ordrenr'], 'sum' => $sum, 'moms' => $moms];
+    }
+
+    // ----------------------------------------------------------------- dunning
+
+    /**
+     * The settings debitor/ny_rykker.php reads before it does anything:
+     * the three grace-day counts and the fee/interest items.
+     *
+     * A stock tenant ships none of this - grupper DIV/4 box5-7 are empty and
+     * there are no GEBYR formularer rows - so the dunning run finds nothing to
+     * do. Tests that care about dunning have to supply it.
+     *
+     * ffdage1 is the days an invoice may stay overdue before it is dunned at
+     * all; ffdage2 and ffdage3 are how long an R1 / R2 dunning may stand
+     * before it is booked and escalated (ny_rykker.php:132/145).
+     *
+     * @return array{fee_item:array, fee:float}
+     */
+    public function dunningConfig(int $ffdage1, int $ffdage2, int $ffdage3, float $fee = 100.0): array
+    {
+        CharacterizationEnv::rows(
+            $this->conn,
+            "UPDATE grupper SET box5 = $1, box6 = $2, box7 = $3 WHERE art = 'DIV' AND kodenr = '4'",
+            [(string)$ffdage1, (string)$ffdage2, (string)$ffdage3]
+        );
+
+        $feeItem = $this->item(['salgspris' => $fee, 'kostpris' => 0, 'beskrivelse' => self::TAG . ' rykkergebyr']);
+        $interestItem = $this->item(['salgspris' => 0, 'kostpris' => 0, 'beskrivelse' => self::TAG . ' rente']);
+
+        // One GEBYR row per dunning level: xb points at the fee item, yb at
+        // the interest item, str carries the interest rate.
+        CharacterizationEnv::rows($this->conn, "DELETE FROM formularer WHERE beskrivelse = 'GEBYR'");
+        foreach ([6, 7, 8] as $formular) {
+            CharacterizationEnv::rows(
+                $this->conn,
+                "INSERT INTO formularer (formular, art, beskrivelse, xb, yb, str)
+                 VALUES ($1, 0, 'GEBYR', $2, $3, 0)",
+                [$formular, $feeItem['id'], $interestItem['id']]
+            );
+        }
+
+        return ['fee_item' => $feeItem, 'fee' => $fee];
+    }
+
+    /**
+     * An unsettled open post standing directly on a debtor, dated in the past.
+     *
+     * Dunning works off `openpost`, not off orders, so this is the cheapest
+     * way to put an overdue receivable in front of it.
+     */
+    public function openPost(array $debtor, float $amount, int $daysOverdue, string $faktnr): int
+    {
+        $due = date('Y-m-d', strtotime("-$daysOverdue days"));
+        $row = CharacterizationEnv::one(
+            $this->conn,
+            "INSERT INTO openpost (konto_id, konto_nr, faktnr, amount, beskrivelse, udlignet,
+                                   transdate, forfaldsdate, valuta, valutakurs, projekt)
+             VALUES ($1, $2, $3, $4, $5, '0', $6, $6, 'DKK', 100, '')
+             RETURNING id",
+            [$debtor['id'], $debtor['kontonr'], $faktnr, $amount, self::TAG . ' faktura ' . $faktnr, $due]
+        );
+        return (int)$row['id'];
     }
 
     // -------------------------------------------------------------- kassekladde
