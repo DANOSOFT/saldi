@@ -384,6 +384,21 @@ final class Fixtures
         return ['id' => $orderId, 'ordrenr' => (int)$order['ordrenr'], 'sum' => $sum, 'moms' => $moms];
     }
 
+    /**
+     * A creditor (purchase) order. Same table and same lifecycle functions as
+     * a debtor order - the difference is art='KO' and that delivering it
+     * RECEIVES goods rather than shipping them.
+     *
+     * @param array{id:int,kontonr:string} $creditor
+     * @param list<array{item:array,antal?:float,pris?:float,rabat?:float}> $lines
+     * @param array<string,mixed> $overrides
+     * @return array{id:int, ordrenr:int, sum:float, moms:float}
+     */
+    public function creditorOrder(array $creditor, array $lines, array $overrides = []): array
+    {
+        return $this->order($creditor, $lines, $overrides + ['art' => 'KO']);
+    }
+
     // ----------------------------------------------------------------- dunning
 
     /**

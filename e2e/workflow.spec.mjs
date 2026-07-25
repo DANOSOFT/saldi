@@ -94,7 +94,13 @@ test("login, create kassekladde voucher, post it, verify it is posted", async ({
   await page.locator('[name="bogfor"]').click({ noWaitAfter: true });
 
   // After posting the page redirects to the kladde list.
-  await page.waitForURL(/kladdeliste\.php/, { timeout: 45_000 });
+  //
+  // The generous timeout is not defensive padding: posting calls
+  // genberegn($regnaar) three times (finans/bogfor.php:74, :224, :561) and
+  // each call recomputes every account balance in the chart with one query
+  // per account - about 900 statements per posting. It gets slower as the
+  // ledger grows. See doc/TESTING_FINDINGS.md P1-2.
+  await page.waitForURL(/kladdeliste\.php/, { timeout: 120_000 });
 
   // --- 4. Verify via the UI that the voucher is posted ---
   // Re-opening the posting page for the same kladde must refuse: the page

@@ -45,11 +45,12 @@ compare total debit against total credit, but only fires above `0.1` kr and
 only emails `fejl@saldi.dk` — the person who posted the voucher sees a normal
 success message either way.
 
-**Reachability:** anywhere sub-øre amounts enter a journal. Currency
-conversion (`valutaopslag`, used at `bogfor.php:723`) produces them by
-construction, and bank/CSV import writes `amount` straight into the
-3-decimal column. Whether the kassekladde UI itself accepts a third decimal is
-covered by the e2e suite.
+**Reachability:** not from the keyboard. `e2e/voucher-precision.spec.mjs`
+types `100,005` into the cash journal and the form hands back a two-decimal
+amount, so a bookkeeper cannot enter one by hand. What remains are the paths
+that write `kassekladde.amount` directly: currency conversion
+(`valutaopslag`, used at `bogfor.php:723`) produces sub-øre amounts by
+construction, and the bank/CSV importers write the column straight.
 
 **Suggested fix:** round each leg to 2 decimals *before* the balance guard
 sums it, so the guard sees the same numbers the ledger will.
@@ -159,6 +160,117 @@ grace periods are now correct; this first one is not.
 **Suggested fix:** move the `$rykkerfrist1` assignment below the `$dd`
 assignment, or compute it from `date("Y-m-d")` directly. The regression
 guards for the already-fixed halves are in the same test file and pass.
+
+---
+
+## P1-4 — Anyone on the internet can create an accounting entity
+
+**Where:** `admin/opret.php:118`.
+
+**Pinned by:** `tests/restapi/AdminOpretAuthorizationTest.php`
+
+`admin/opret.php` creates a whole tenant: a new PostgreSQL database with the
+full ~116-table schema, seeded from `importfiler/`, plus an administrator
+account that can log into it. It is reached from the admin panel, so it should
+sit behind the same session check as everything else there. The check exists —
+on the wrong side of the condition:
+
+```php
+if (!isset($_POST['regnskab']) || !$_POST['brugernavn']
+    || !$_POST['passwd'] || !$_POST['passwd2']) {
+    include("../includes/online.php");            // the only auth check
+    if ($db != $sqdb) { ...refuse and log out... }
+}
+```
+
+The session is consulted **only when the form fields are missing**. Supply all
+four and `includes/online.php` is never loaded, so nothing is checked and the
+creation below runs for anybody.
+
+Verified against the docker stack with a single anonymous request — no cookie,
+no token, no credentials:
+
+```bash
+curl -X POST http://localhost:5000/saldi/admin/opret.php \
+  -d regnskab=probe -d brugernavn=probeadmin \
+  -d passwd=... -d passwd2=...
+```
+
+It returned 200 and left behind a registry row, a database `saldi_88` with
+**116 tables**, and a working `probeadmin` login. Omitting any one of the four
+fields reaches the session check and is refused — which is what shows the
+check works and is simply in the wrong branch.
+
+Impact: unauthenticated database creation on any reachable Saldi installation.
+Repeat it in a loop and it is a disk-exhaustion denial of service; do it once
+and the caller has a foothold with a real login on someone else's server.
+
+**Suggested fix:** include `../includes/online.php` and run the `$db != $sqdb`
+check unconditionally, before any `$_POST` handling.
+
+---
+
+## P2-0 — Six stock pages return HTTP 500 to every user
+
+**Where:** `includes/dkdecimal.php:21`; `lager/minmaxstock.php:140`.
+
+**Pinned by:** `e2e/pages.spec.mjs` (`stock pages that cannot be opened`)
+
+Five of them — `lager/enheder.php`, **`lager/vareliste.php`** (the item list),
+`lager/fuld_stykliste.php`, `lager/opdater_kostpriser.php`,
+`lager/vareimport.php` — include `../includes/dkdecimal.php`, which declares
+
+```php
+function dkdecimal($tal) { ... }        // no function_exists guard
+```
+
+while `includes/stdFunc/dkDecimal.php:27` declares a *guarded* two-argument
+`dkdecimal($tal, $decimaler)` that `includes/online.php` has already loaded by
+the time the page gets there:
+
+```
+PHP Fatal error: Cannot redeclare dkdecimal() (previously declared in
+.../includes/stdFunc/dkDecimal.php:27) in .../includes/dkdecimal.php on line 21
+```
+
+The sixth, `lager/minmaxstock.php`, dies on its own:
+
+```
+PHP Fatal error: Uncaught TypeError: in_array(): Argument #2 ($haystack)
+must be of type array, null given in .../lager/minmaxstock.php:140
+```
+
+All six answer 500 to a fully authenticated user. The item list being dead
+means there is no way to browse stock in the UI at all.
+
+Seven more files include the same unguarded `dkdecimal.php`
+(`debitor/basis_stykliste.php`, `debitor/udlign_openpost.php`,
+`finans/simuler.php`, `produktion/ordre.php`, `produktion/ordreliste.php`,
+`produktion/rapport.php`, `lager/vvsimport.php`). Those survive today only
+because of their include order — they are one edit away from the same fatal.
+
+**Suggested fix:** delete `includes/dkdecimal.php` and point its seven
+remaining callers at `includes/stdFunc/dkDecimal.php`; guard the `in_array`
+in minmaxstock.
+
+---
+
+## P2-1b — The stock balance list logs the user out on first open
+
+**Where:** `lager/beholdningsliste.php`.
+
+**Pinned by:** `e2e/pages.spec.mjs` (`the stock balance list`)
+
+Log in, open `/saldi/lager/beholdningsliste.php`, and the browser lands on the
+login page. Navigate to it a second time and it works, and keeps working for
+the rest of the session. Reproduced deterministically, with and without
+visiting another stock page first, so it is this page's own first request that
+loses the session.
+
+The mechanism is not identified. Worth noting the page opens with its module
+number commented out — `# $modulnr=9;` (`:25`) — while `includes/online.php:331`
+authorises with `substr($rettigheder, $modulnr, 1)`; that is the first thing to
+look at, but the test only pins the behaviour that was observed.
 
 ---
 

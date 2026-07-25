@@ -166,15 +166,34 @@ final class CharacterizationEnv
         $regnaar = (int)($ra['ra'] ?? 1);
         pg_close($tenant);
 
+        // `rettigheder` is a positional digit string, one character per module
+        // (includes/online.php:331 checks substr($rettigheder, $modulnr, 1)),
+        // so "all permissions" means filling it with 9s. Its width is not the
+        // same everywhere - a fresh install declares varchar(30), older
+        // tenants are wider - and overflowing it makes the INSERT fail
+        // silently, leaving every page-driven test without a session. Take
+        // the width from the column itself.
+        $width = self::one(
+            $master,
+            "SELECT character_maximum_length AS n FROM information_schema.columns
+             WHERE table_name = 'online' AND column_name = 'rettigheder'"
+        );
+        $rettigheder = str_repeat('9', max(1, (int)($width['n'] ?? 30)));
+
         pg_query_params($master, 'DELETE FROM online WHERE session_id = $1', [self::SESSION_ID]);
-        pg_query_params(
+        $r = pg_query_params(
             $master,
             'INSERT INTO online (session_id, brugernavn, db, dbuser, rettigheder, regnskabsaar, logtime, revisor, language_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, false, 0)',
-            // rettigheder is a positional digit string, one char per module
-            // (includes/online.php:331 checks substr($rettigheder,$modulnr,1)).
-            [self::SESSION_ID, 'chartest', $test, self::pgUser(), str_repeat('9', 50), $regnaar, (string)time()]
+            [self::SESSION_ID, 'chartest', $test, self::pgUser(), $rettigheder, $regnaar, (string)time()]
         );
+        if ($r === false) {
+            $err = pg_last_error($master);
+            pg_close($master);
+            // Without this row every page-driven test runs without a session
+            // and fails somewhere far away from the cause. Fail here instead.
+            throw new RuntimeException('could not seed the online session row: ' . $err);
+        }
         pg_close($master);
     }
 
