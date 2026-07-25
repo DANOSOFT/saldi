@@ -19,6 +19,7 @@
 //
 // History:
 // 20260723 CL/LH SD-601: created.
+// 20260725 CL/LH Re-sync sequences after the clone; add nextId() for fixtures that mirror the app's MAX(id)+1 allocation.
 
 final class CharacterizationEnv
 {
@@ -160,6 +161,7 @@ final class CharacterizationEnv
 
         // Seed the online-session row the legacy page scripts authenticate by.
         $tenant = self::connect($test);
+        self::resyncSequences($tenant);
         $ra = self::one($tenant, "SELECT max(kodenr) AS ra FROM grupper WHERE art = 'RA'");
         $regnaar = (int)($ra['ra'] ?? 1);
         pg_close($tenant);
@@ -174,6 +176,80 @@ final class CharacterizationEnv
             [self::SESSION_ID, 'chartest', $test, self::pgUser(), str_repeat('9', 50), $regnaar, (string)time()]
         );
         pg_close($master);
+    }
+
+    /** Guards bootstrapTenantOnce() - static state survives for the whole PHPUnit process. */
+    private static bool $bootstrapped = false;
+
+    /**
+     * Clone the tenant the first time any suite asks for it, and reuse it for
+     * the rest of the run.
+     *
+     * Re-cloning per test class costs a few seconds each and buys nothing:
+     * fixtures name their rows uniquely (see Fixtures), so suites do not
+     * collide. Set SALDI_CHAR_FRESH_TENANT=1 to force a clone per class when
+     * a suite genuinely needs virgin ledger state.
+     */
+    public static function bootstrapTenantOnce(): void
+    {
+        if (self::$bootstrapped && !getenv('SALDI_CHAR_FRESH_TENANT')) {
+            return;
+        }
+        self::bootstrapTenant();
+        self::$bootstrapped = true;
+    }
+
+    /**
+     * Fast-forward every owned sequence in the tenant past the highest value
+     * already present in its column.
+     *
+     * Saldi allocates several primary keys itself with "SELECT MAX(id)+1"
+     * and inserts the id explicitly (finans/kassekladde.php:1045,
+     * admin/bankfordeling.php:516, bank_integration/aiia_import.php:69),
+     * so the serial sequences behind those tables never advance and a clone
+     * of a used tenant starts out with sequences far behind its data. Any
+     * fixture that relies on the column default would then collide with an
+     * existing row. Re-syncing after the clone makes the throwaway tenant
+     * behave like a freshly created one regardless of what the template has
+     * been through.
+     */
+    public static function resyncSequences($conn): void
+    {
+        $stmts = self::rows($conn, <<<'SQL'
+            SELECT 'SELECT setval('
+                     || quote_literal(quote_ident(sn.nspname) || '.' || quote_ident(s.relname))
+                     || ', COALESCE((SELECT MAX(' || quote_ident(a.attname) || ') FROM '
+                     || quote_ident(tn.nspname) || '.' || quote_ident(t.relname) || '), 0) + 1, false)' AS stmt
+            FROM pg_class s
+            JOIN pg_namespace sn ON sn.oid = s.relnamespace
+            JOIN pg_depend d ON d.objid = s.oid AND d.classid = 'pg_class'::regclass AND d.deptype IN ('a', 'i')
+            JOIN pg_class t ON t.oid = d.refobjid
+            JOIN pg_namespace tn ON tn.oid = t.relnamespace
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+            WHERE s.relkind = 'S' AND sn.nspname NOT IN ('pg_catalog', 'information_schema')
+        SQL);
+
+        foreach ($stmts as $row) {
+            if (pg_query($conn, $row['stmt']) === false) {
+                throw new RuntimeException('sequence resync failed: ' . pg_last_error($conn));
+            }
+        }
+    }
+
+    /**
+     * Allocate the next primary key the way the legacy pages do (MAX(id)+1).
+     *
+     * Used by fixtures that must mirror the application's own allocation
+     * rather than the column default - see resyncSequences() for why the two
+     * disagree in a real tenant.
+     */
+    public static function nextId($conn, string $table): int
+    {
+        if (!preg_match('/^[a-z0-9_]+$/', $table)) {
+            throw new RuntimeException('unsafe table name');
+        }
+        $r = self::one($conn, "SELECT COALESCE(MAX(id), 0) + 1 AS id FROM $table");
+        return (int)$r['id'];
     }
 
     /**

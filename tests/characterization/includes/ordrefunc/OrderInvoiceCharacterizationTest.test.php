@@ -17,95 +17,25 @@
 //
 // History:
 // 20260723 CL/LH SD-601: created.
+// 20260725 CL/LH Moved onto CharacterizationTestCase + Fixtures.
 
-use PHPUnit\Framework\TestCase;
+require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
-require_once __DIR__ . '/../../support/CharacterizationEnv.php';
-
-final class OrderInvoiceCharacterizationTest extends TestCase
+final class OrderInvoiceCharacterizationTest extends CharacterizationTestCase
 {
-    /** @var resource|\PgSql\Connection */
-    private static $tenant;
-    private static int $regnaar;
-
-    public static function setUpBeforeClass(): void
-    {
-        $reason = CharacterizationEnv::unavailableReason();
-        if ($reason !== null) {
-            self::markTestSkipped($reason);
-        }
-        CharacterizationEnv::bootstrapTenant();
-        self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
-        $ra = CharacterizationEnv::one(self::$tenant, "SELECT max(kodenr) AS ra FROM grupper WHERE art = 'RA'");
-        self::$regnaar = (int)$ra['ra'];
-    }
-
-    public static function tearDownAfterClass(): void
-    {
-        if (isset(self::$tenant) && self::$tenant) {
-            pg_close(self::$tenant);
-        }
-    }
-
-    /** Create debtor + item + order with one line: qty 2 x 125.00, 25% VAT. */
+    /** Debtor + item + order with one line: qty 2 x 125.00, 25% VAT. */
     private function createOrderFixture(): array
     {
-        $t = self::$tenant;
+        $debtor = self::$fx->debtor();
+        $item = self::$fx->item(['salgspris' => 125.00, 'kostpris' => 75.00]);
+        $order = self::$fx->order($debtor, [['item' => $item, 'antal' => 2]]);
 
-        $dg = CharacterizationEnv::one($t, "SELECT kodenr FROM grupper WHERE art = 'DG' ORDER BY kodenr LIMIT 1");
-        $debtor = CharacterizationEnv::one(
-            $t,
-            "INSERT INTO adresser (kontonr, firmanavn, addr1, postnr, bynavn, email, art, gruppe, betalingsbet, betalingsdage)
-             VALUES (91001, 'Chartest Kunde', 'Testvej 1', '8000', 'Aarhus', 'chartest@example.invalid', 'D', $1, 'Netto', 8)
-             RETURNING id",
-            [$dg ? (int)$dg['kodenr'] : 1]
-        );
-        $debtorId = (int)$debtor['id'];
-
-        $vg = CharacterizationEnv::one($t, "SELECT kodenr FROM grupper WHERE art = 'VG' AND fiscal_year = $1 ORDER BY kodenr LIMIT 1", [self::$regnaar]);
-        $item = CharacterizationEnv::one(
-            $t,
-            "INSERT INTO varer (varenr, beskrivelse, enhed, salgspris, kostpris, gruppe)
-             VALUES ('CHAR1', 'Chartest vare', 'stk', 125.00, 75.00, $1)
-             RETURNING id",
-            [$vg ? (int)$vg['kodenr'] : 1]
-        );
-        $itemId = (int)$item['id'];
-
-        $sum = 250.00;      // 2 x 125
-        $moms = 62.50;      // 25%
-        $order = CharacterizationEnv::one(
-            $t,
-            "INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsbet, betalingsdage, kontonr, art, valuta,
-                                 ordredate, levdate, ordrenr, sum, moms, momssats, status, konto_id, udskriv_til)
-             VALUES ('Chartest Kunde', 'Testvej 1', '8000', 'Aarhus', 'chartest@example.invalid', 'Netto', 8, 91001, 'DO', 'DKK',
-                     CURRENT_DATE, CURRENT_DATE,
-                     (SELECT COALESCE(max(ordrenr), 0) + 1 FROM ordrer), $1, $2, 25, 1, $3, 'email')
-             RETURNING id, ordrenr",
-            [$sum, $moms, $debtorId]
-        );
-        $orderId = (int)$order['id'];
-
-        CharacterizationEnv::rows(
-            $t,
-            "INSERT INTO ordrelinjer (ordre_id, vare_id, varenr, beskrivelse, enhed, posnr, antal, pris, rabat, momssats, procent)
-             VALUES ($1, $2, 'CHAR1', 'Chartest vare', 'stk', 1, 2, 125.00, 0, 25, 100)",
-            [$orderId, $itemId]
-        );
-
-        return [$orderId, $debtorId, $sum, $moms];
+        return [$order['id'], $debtor['id'], $order['sum'], $order['moms']];
     }
 
     private function runInvoice(string $scenario, int $orderId): array
     {
-        $res = CharacterizationEnv::runChild(
-            __DIR__ . '/../../support/run_order_invoice.php',
-            [$scenario, $orderId, CharacterizationEnv::testDb()]
-        );
-        $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
-        $json = $lines !== [] ? json_decode(end($lines), true) : null;
-        $this->assertIsArray($json, "runner must emit JSON (stdout: {$res['stdout']} stderr: {$res['stderr']})");
-        return $json;
+        return $this->runChildJson('run_order_invoice.php', [$scenario, $orderId, CharacterizationEnv::testDb()]);
     }
 
     public function test_invoicing_an_open_order_assigns_invoice_number_and_invoiced_status(): void
@@ -123,8 +53,7 @@ final class OrderInvoiceCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta($sum, (float)$out['sum'], 0.005, 'order sum unchanged by invoicing');
         $this->assertEqualsWithDelta($moms, (float)$out['moms'], 0.005, 'order VAT unchanged by invoicing');
 
-        $lines = CharacterizationEnv::rows(
-            self::$tenant,
+        $lines = self::rows(
             'SELECT antal, pris, leveres, leveret FROM ordrelinjer WHERE ordre_id = $1 AND vare_id > 0',
             [$orderId]
         );
