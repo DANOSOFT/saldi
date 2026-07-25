@@ -2,15 +2,36 @@
 
 Defects and risks surfaced while building the regression suite (July 2026).
 Every entry has a reproduction that runs against the repo's own
-docker-compose stack. Entries marked **pinned** have a test in
-`tests/characterization/` that asserts the current (wrong) behavior, so the
-test fails the moment the behavior changes.
+docker-compose stack. Entries marked **pinned** have a test that asserts the
+current (wrong) behavior, so the test fails the moment the behavior changes -
+which is the signal to rewrite it as an assertion of the correct behavior.
 
 Severity is about money and data, not about how hard it is to hit:
 
-- **P1** — the general ledger or a customer's money can end up wrong.
+- **P1** — the general ledger, a customer's money, or the server itself can
+  end up wrong.
 - **P2** — data loss, corruption, or a failure the user is not told about.
 - **P3** — dead code, wrong-but-harmless behavior, maintenance hazards.
+
+## Summary
+
+| # | Sev | What | Where |
+|---|---|---|---|
+| P1-4 | **P1** | Anyone on the internet can create an accounting entity | `admin/opret.php:118` |
+| P1-1 | **P1** | A voucher that balances on entry can post an unbalanced ledger entry | `finans/bogfor.php:751`, `:962` |
+| P1-2 | **P1** | Every posting recomputes the whole chart of accounts three times | `finans/bogfor.php:74`, `:224`, `:561` |
+| P1-3 | **P1** | The "days before first dunning" setting has never had any effect | `debitor/ny_rykker.php:75` |
+| P2-0 | P2 | Six stock pages return HTTP 500 to every user, including the item list | `includes/dkdecimal.php:21` |
+| P2-1 | P2 | `kladdeliste.id` allocated with `MAX(id)+1` by three writers | `finans/kassekladde.php:1045` +2 |
+| P2-1b | P2 | The stock balance list logs the user out on first open | `lager/beholdningsliste.php` |
+| P2-2 | P2 | Ledger imbalance is emailed to the vendor, never shown to the user | `includes/std_func.php:703` |
+| P2-3 | P2 | A customer's email is discarded when created through the REST API | `CustomerModel.php:250` |
+| P2-4 | P2 | `limit` reaches the SQL as a raw string on three endpoints | `products/index.php:30` +2 |
+| P2-5 | P2 | Two REST endpoints cannot execute at all | `dashboard/stats.php:16` +1 |
+| P2-6 | P2 | The product-groups endpoint always returns an empty list | `VareGruppeModel.php:233` |
+| P3-1 | P3 | `selext` typo makes a query a permanent no-op | `docsIncludes/updateCashDraft.php:25` |
+
+Every one of these was found by a test rather than by reading code.
 
 ---
 
@@ -424,4 +445,62 @@ same file.
 
 ---
 
-*(Findings are appended as the suite grows.)*
+---
+
+# What the suite does not cover
+
+A list of findings is only meaningful next to the shape of the search that
+produced it. These areas were **not** exercised, so their silence means
+nothing:
+
+**Modules with no coverage at all.** POS (`debitor/pos_ordre.php`),
+production (`produktion/`), projects (`sager/`), rental (`rental/`), booking
+(`booking/`), table plans (`bordplaner/`), payroll (`sager/opdat_loen.php`).
+POS is the largest of these and carries its own order and crediting logic that
+does not go through the paths tested here.
+
+**The other two API surfaces.** Only `restapi/` is covered.
+`api/rest_api.php` (the legacy webshop API, with its own auth) and `api/v2/`
+(API keys) are untested and unmapped. The July debt audit flagged a pre-auth
+SQL injection in `api/rest_api.php`; nothing here confirms or refutes it.
+
+**Reports and their arithmetic.** The e2e sweep proves report pages *load*;
+no test checks a single number any of them prints. `finans/rapport.php`,
+`reportFunc/`, VAT settlement (`listeangivelse.php`) and the annual accounts
+are unverified.
+
+**Money leaving the system.** Payment files (`debitor/pbsfile.php`), Nets/PBS
+integration, MobilePay and Stripe webhooks, e-invoicing (`easyUBL`,
+NemHandel), and the webshop sync are all untouched. These are the highest-value
+paths in the product and the least tested.
+
+**Multi-tenancy and permissions.** Every test runs as one user with every
+permission bit set, against one tenant. Nothing verifies that a user without a
+module's permission is refused, or that one tenant cannot reach another's
+data. Given P1-4, the tenant-isolation question deserves its own pass.
+
+**Concurrency.** The `MAX(id)+1` races (P2-1) and the read-modify-write in
+`lagerstatus()` are described from the code and reproduced only single-
+threaded. No test runs two writers at once.
+
+**Upgrades.** `includes/opdat_*.php` and `betweenUpdates.php` migrate customer
+databases between versions. Nothing tests that an older tenant survives them,
+which is the failure mode that would hit every customer at once.
+
+**Browsers.** Chromium only.
+
+## Suggested next steps
+
+1. Fix P1-4 first. It is the only finding that exposes the server rather than
+   the books, and the fix is three lines.
+2. Land the fixes for P2-0 and P2-5 — dead pages and dead endpoints are cheap
+   to fix and each one is a feature a customer cannot currently use.
+3. Decide what P1-1 should do. The engine currently accepts a voucher that
+   posts an unbalanced entry; the fix (round each leg before the balance
+   guard sums it) changes posted numbers, so it wants a deliberate decision
+   rather than a drive-by patch.
+4. Take P1-2 seriously before the next large customer. Posting time already
+   exceeds fifteen seconds on a book with ten transactions in it, and the cost
+   grows with the ledger.
+5. Extend coverage to the payment and e-invoicing paths — the money-leaving
+   paths listed above are the largest remaining hole.
