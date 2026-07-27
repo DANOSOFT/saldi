@@ -58,6 +58,8 @@
 // 20260608 PHR removed fakturadate from insert_shop_order. It is set in 'fakturer_ordre'
 // 20260622 PHR Improved set fakturadate in 'fakturer_ordre
 // 20260717 CX/PHR Corrected lev_date to levdate in 'fakturer_ordre'
+// 20260727 CL/SZ Validated/escaped $_GET['db'] in access_check() to close a
+//                pre-auth SQL injection on the master connection (SD-588)
 
 // ----------------------------------------------------------------------
 
@@ -1051,6 +1053,11 @@ function access_check(){
 	$log=fopen("../temp/$db/rest_api.log","a");
 	if (isset($_GET['db'])) {
 		$db=$_GET['db'];
+		if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]{0,24}$/',$db)) {
+			fwrite($log,__line__." Invalid db format: $db\n");
+			fclose($log);
+			return 'missing db';
+		}
 		(strpos($db,'_'))?list($master,$db_skriv_id)=explode('_',$db):$master=$db;
 		fwrite($log,__line__." $master,$db_skriv_id\n");
 	}	else {
@@ -1058,7 +1065,7 @@ function access_check(){
 		fclose($log);
 		return 'missing db';
 	}
-	$qtxt="select id,lukket from regnskab where db='$db'"; #20201223
+	$qtxt="select id,lukket from regnskab where db='".db_escape_string($db)."'"; #20201223
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['id']) {
