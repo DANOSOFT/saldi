@@ -95,11 +95,6 @@
 // 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 
-
-
-
-
-
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -649,7 +644,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$gs1parsing           = if_isset($_POST, null, 'gs1_parsing');
 		$ourRefStockSwitch    = if_isset($_POST, null, 'ourRefStockSwitch');
 		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
-
+		
 		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
 
 

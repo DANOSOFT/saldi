@@ -26,6 +26,8 @@
 // 20260507 NTR - A generalised popup manager that can be reused in the future for other popup functions.
 // 20260702 NTR - Added onClose event to allow for cleanup when the popup is closed.
 //              - Moved the confirmed exit button to the footer of the popup instead of header.
+// 20260720 Sawaneh Added optional isRowChecked predicate so callers can control
+//                each row's initial checkbox state instead of always checking all.
 
 /**
  * Describes a single column in a PopupManager table.
@@ -78,6 +80,13 @@ class PopupManager {
     onNoResult = [];
     onResult = [];
     onClose = [];
+
+    /**
+     * Optional predicate deciding each row's initial checkbox state.
+     * @type {?function(Object): boolean} - function(row) returning whether the
+     *   row starts checked. When null, every row starts checked.
+     */
+    isRowChecked = null;
 
     constructor(columns, popupStyle = null, exitCall, exitName, background_dimmer_style = null){
         console.log('popupManager.js loaded - version with logging');
@@ -173,7 +182,8 @@ class PopupManager {
             results.forEach(item => {
                 html += `<tr class="autocomplete-item">\n`;
 
-                html += `<td><input class='active-checkbox' type='checkbox' checked/></td>\n`;
+                const checked = (typeof this.isRowChecked === 'function') ? this.isRowChecked(item) : true;
+                html += `<td><input class='active-checkbox' type='checkbox' ${checked ? 'checked' : ''}/></td>\n`;
                 this.columns.forEach(
                     column => {
                         html += `<td ${column.columnAtt}>${(typeof column.selector == "function" ? column.selector(item) : item[column.selector]) ?? '' }</td>\n`;
