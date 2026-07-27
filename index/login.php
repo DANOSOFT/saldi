@@ -47,6 +47,7 @@
 // 20260422 LOE Updated sanitize_input function to allow more characters for email address like usernames.
 // 20260425 LOE Fixed a bug where same account name with different case could cause login issues. Now first tries to find exact match and only if that fails, it tries case-insensitive match.
 // 20260707 MJ Restore rykkertjek.php include at login (was commented out)
+// 20262707 PK Have outcomment rykkertjek.php again, as phpmailer is missing and you can't log in to the individual accounts. Can only log in as admin.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -855,7 +856,7 @@ if(!isset($afbryd)){
 				}
 			}
 		}
-		if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
+		#if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php"); #20262707
 		# Lager status mail
 		if (file_exists("../lager/lagerstatusmail.php")) {
 			$email = get_settings_value("mail", "lagerstatus", "");
