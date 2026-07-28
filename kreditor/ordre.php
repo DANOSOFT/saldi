@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-05-06---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-07-28---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,6 +61,7 @@
 // 20260225 PHR Order taken by ---
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
+// 20260728 MJ Fix: leverandoerspecifik pris fra vare_lev sprunget over naar lev_varenr[0] allerede var sat (via lev_varenr-felt eller varenr matchede lev_varenr); pris faldt tilbage paa varer.kostpris (Diatec) selvom Sound Wize-ordre.
 @session_start();
 $s_id=session_id();
 
@@ -894,15 +895,15 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 							alert ("Ulovlig værdi i \"Antal\" ($antal[0])");
 							$antal[0] = 1;
 						}
-						if (!$lev_varenr[0]) {
-							if (!$konto_id) {
-								if ($r1=db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art = 'K'",__FILE__ . " linje " . __LINE__))) {
-									$konto_id=$r1['id'];
-								}
+						if (!$konto_id) {
+							if ($r1=db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art = 'K'",__FILE__ . " linje " . __LINE__))) {
+								$konto_id=$r1['id'];
 							}
+						}
+						if ($vare_id[0] && $konto_id) {
 							if ($r1=db_fetch_array(db_select("select * from vare_lev where vare_id = '$vare_id[0]' and lev_id = '$konto_id'",__FILE__ . " linje " . __LINE__))) {
 								if (!$pris[0]) $pris[0]=$r1['kostpris'];
-								$lev_varenr[0]=db_escape_string($r1['lev_varenr']);
+								if (!$lev_varenr[0]) $lev_varenr[0]=db_escape_string($r1['lev_varenr']);
 							}
 						}
 						if (!$pris[0]) $pris[0]=$r0['kostpris'];
