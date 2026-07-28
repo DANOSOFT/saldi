@@ -86,6 +86,7 @@ print "          <a href='../finans/kladdeliste.php'>".findtekst(105,$sprog_id).
 print "          <a href='../finans/regnskab.php'>".findtekst(849,$sprog_id)."</a>";
 print "          <a href='../finans/budget.php'>".findtekst(1067,$sprog_id)."</a>";
 print "          <a href='../finans/rapport.php'>".findtekst(603,$sprog_id)."</a>";
+print "          <a href='../finans/moms_periode.php'>Momsperioder</a>";
 print "          </div>";
 print "      </li>";
 print "      <li class='dropDown'>";

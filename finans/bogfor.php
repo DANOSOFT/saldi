@@ -217,13 +217,22 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 		include("../includes/online.php");
 	}
 	if ($bogfor) {
-		transaktion('begin');
-		bogfor($kladde_id, $kladdenote,'');
-		db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
-		transaktion('commit');
-		genberegn($regnaar);
-		equalizeMatchingRecords();
-		if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+		$periode_fejl = NULL;
+		$q_dates = db_select("SELECT DISTINCT transdate FROM kassekladde WHERE kladde_id=$kladde_id", __FILE__." linje ".__LINE__);
+		while ($rd = db_fetch_array($q_dates)) {
+			if ($err = check_periode_luk($rd['transdate'])) { $periode_fejl = $err; break; }
+		}
+		if ($periode_fejl) {
+			print "<BODY onLoad=\"javascript:alert('" . addslashes($periode_fejl) . "')\">";
+		} else {
+			transaktion('begin');
+			bogfor($kladde_id, $kladdenote,'');
+			db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
+			transaktion('commit');
+			genberegn($regnaar);
+			equalizeMatchingRecords();
+			if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+		}
 	} elseif ($simuler) {
 		transaktion('begin');
 		bogfor($kladde_id, $kladdenote,'on');
