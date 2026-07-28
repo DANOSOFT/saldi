@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20260507 NTR - Added batch invoice matching (this)
 // 20260513 PK - Changed padding from 20px to 8px
+<<<<<<< HEAD
 // 20260721 CL/SZ - Rewrote the popup per the new design: Type/Dato/Bilag/Tekst/Beløb/Konto/
 //                   Modkonto/Valuta/Præcision/link-icon columns, a live "{n} valgt · {m}
 //                   fundet" summary, high-confidence rows pre-selected, Annullér/OK footer,
@@ -64,6 +65,10 @@ $bm_empty_title    = findtekst('5038|0 fundet', $sprog_id);
 $bm_empty_message  = findtekst('5039|Ingen forslag til match fundet for denne kladde.', $sprog_id);
 $bm_link_tooltip   = findtekst('5041|Klik for at forhåndsvise/åbne dokumentet', $sprog_id);
 $bm_lookup_tooltip = findtekst('5042|Slå konto op', $sprog_id);
+=======
+// 20260720 Sawaneh Pre-check a row only when both amount and date match, via the
+//                new popupManager isRowChecked predicate.
+>>>>>>> origin/master
 ?>
 
 <script src='../javascript/popupManager.js'></script>
@@ -183,6 +188,7 @@ $bm_lookup_tooltip = findtekst('5042|Slå konto op', $sprog_id);
         }
         location.replace(location.pathname + location.search);
     }
+<<<<<<< HEAD
 
     const dimmerStyle = {
         // Default position:absolute anchors the dimmer to the document, not the
@@ -202,6 +208,12 @@ $bm_lookup_tooltip = findtekst('5042|Slå konto op', $sprog_id);
             <div class="popup-no-results-message"><?= $bm_empty_message ?></div>
         </div>`,
     });
+=======
+    
+    const popuper = new PopupManager(columns, popupStyle, AttachAll, "Attach selected");
+    // Only pre-check a row when both the amount and the date match.
+    popuper.isRowChecked = (row) => row.beloeb_match == 1 && row.date_match == 1;
+>>>>>>> origin/master
     popuper.onResult.push(function(container){
         container.querySelectorAll('.autocomplete-item').forEach(element => {
             element.addEventListener('mouseover', function(e) { showPreview(element, e); });
@@ -526,7 +538,7 @@ $bm_lookup_tooltip = findtekst('5042|Slå konto op', $sprog_id);
     .doc-info { flex: 1; }
     .doc-name { font-weight: bold; color: #333; }
     .doc-meta { font-size: 12px; color: #666; margin-top: 4px; }
-    .link-btn { background: $buttonColor; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 13px; flex-shrink: 0; }
+    .link-btn { background: <?= $buttonColor ?>; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 13px; flex-shrink: 0; }
     .link-btn:hover { opacity: 0.9; }
     .empty-msg { padding: 40px; text-align: center; color: #666; }
     .search-box { margin-bottom: 15px; }

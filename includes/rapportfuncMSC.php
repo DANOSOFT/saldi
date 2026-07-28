@@ -69,6 +69,7 @@
 // 20220901 MSC - Implementing new design
 // 20220905 MSC - Implementing new design
 // 20230111 MSC - Implementing new design
+// 20260723 sawaneh Fixed $rbox8->$box8 so the guard against a stock-tracked item used as a fee works in bogfor_rykker.
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
 ?>
@@ -764,7 +765,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$q2 = db_select("select * from grupper where art='VG' and kodenr='$gruppe[$x]'",__FILE__ . " linje " . __LINE__);
 			$r2 = db_fetch_array($q2);
 			$box1[$x]=trim($r2['box1']); $box2[$x]=trim($r2['box2']); $box3[$x]=trim($r2['box3']); $box4[$x]=trim($r2['box4']); $box8[$x]=trim($r2['box8']); $box9[$x]=trim($r2['box9']);
-			if ($rbox8[$x]!='on') {
+			if ($box8[$x]!='on') {
 				db_modify("update ordrelinjer set bogf_konto=$box4[$x] where id=$ordre_linje_id[$x]",__FILE__ . " linje " . __LINE__);
 				db_modify("update ordrer set status=3 where id=$id",__FILE__ . " linje " . __LINE__);
 				} else {

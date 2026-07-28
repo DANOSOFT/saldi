@@ -27,6 +27,8 @@
 // 20260721 CL/SZ Added pool_files.norm_amount column + index + one-time backfill, and a
 //                 one-time guarded attempt at CREATE EXTENSION pg_trgm, for the Bilagsmatch
 //                 scoring engine rewrite.
+// 20260727 NTR Removed current version parameter, as it was incorrect and resulted in no update.
+//              opdat_func now automatically fetches the version from the database.
 
 
 if (!function_exists('opdat_4_3')) {
@@ -42,9 +44,9 @@ function opdat_4_3($majorNo, $subNo, $fixNo){
 	
 	include_once(__DIR__ . "/opdat_func/opdat_func.php");
 
-	$current_version = opdat_version_string($majorNo, $subNo, $fixNo);
 	$nextver='4.3.0';
-	opdat_to($current_version, $nextver, function () {
+	opdat_to($nextver, function () {
+		global $db_type;
 		
 		#####
 		$qtxt = "SELECT column_name
