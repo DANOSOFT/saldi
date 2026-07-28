@@ -20,6 +20,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $konto_id = isset($_GET['konto_id']) ? intval($_GET['konto_id']) : 0;
+$kreditor_order = isset($_GET['kreditor_order']) ? intval($_GET['kreditor_order']) : 0;
 $search_field = isset($_GET['search_field']) ? $_GET['search_field'] : 'varenr';
 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $limit = 50;
@@ -90,9 +91,18 @@ if ($search !== '') {
     }
 }
 
+// 20260728 MJ Fix: kreditor autocomplete returnerede varer.kostpris i stedet for leverandoerspecifik vl.kostpris
 $leverandorJoin = '';
+$levKostprisSelect = 'varer.kostpris';
+$levDetailsSelect = '';
 if ($konto_id > 0) {
-    $leverandorJoin = "INNER JOIN vare_lev vl ON vl.vare_id = varer.id AND vl.lev_id = $konto_id";
+    if ($kreditor_order) {
+        $leverandorJoin = "INNER JOIN vare_lev vl ON vl.vare_id = varer.id AND vl.lev_id = $konto_id LEFT JOIN adresser a ON a.id = vl.lev_id";
+        $levKostprisSelect = "COALESCE(vl.kostpris, varer.kostpris)";
+        $levDetailsSelect = ", COALESCE(vl.lev_id, 0) as lev_id, COALESCE(a.kontonr, '') as lev_kontonr, COALESCE(a.firmanavn, '') as lev_firmanavn";
+    } else {
+        $leverandorJoin = "INNER JOIN vare_lev vl ON vl.vare_id = varer.id AND vl.lev_id = $konto_id";
+    }
 } elseif ($search_field === 'lev_varenr') {
     $leverandorJoin = "INNER JOIN vare_lev vl ON vl.vare_id = varer.id";
 }
@@ -107,7 +117,7 @@ if ($countQuery) {
 
 // Include gruppe (product group) in query for VAT-free check
 $levVarenrSelect = $leverandorJoin ? ", COALESCE(vl.lev_varenr, '') as lev_varenr" : ", '' as lev_varenr";
-$qtxt = "SELECT varer.id, varer.varenr, varer.beskrivelse, COALESCE(vv.variant_salgspris, varer.salgspris) AS salgspris, varer.kostpris, varer.enhed, varer.beholdning, varer.gruppe, vv.variant_stregkode AS vv_stregkode, vv.variant_text AS vv_variant_text $levVarenrSelect
+$qtxt = "SELECT varer.id, varer.varenr, varer.beskrivelse, COALESCE(vv.variant_salgspris, varer.salgspris) AS salgspris, $levKostprisSelect AS kostpris, varer.enhed, varer.beholdning, varer.gruppe, vv.variant_stregkode AS vv_stregkode, vv.variant_text AS vv_variant_text $levVarenrSelect $levDetailsSelect
          FROM varer $variantJoin $leverandorJoin
          WHERE $baseWhere
          ORDER BY varer.varenr ASC LIMIT $limit OFFSET $offset";
@@ -137,6 +147,9 @@ if ($query) {
             'beholdning' => floatval($row['beholdning']),
             'vv_stregkode' => $row['vv_stregkode'] ? trim($row['vv_stregkode']) : null,
             'vv_variant_text' => $row['vv_variant_text'] ? trim($row['vv_variant_text']) : null,
+            'lev_id' => isset($row['lev_id']) ? intval($row['lev_id']) : 0,
+            'lev_kontonr' => isset($row['lev_kontonr']) ? trim($row['lev_kontonr']) : '',
+            'lev_firmanavn' => isset($row['lev_firmanavn']) ? trim($row['lev_firmanavn']) : '',
         );
     }
 }

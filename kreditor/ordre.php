@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-05-06---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-07-28---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@
 // 20260217 PHR kundeordrnr
 // 20260219 PHR if ($leveres[$x] < $antal[$x] + $tidl_lev[$x]) changed to if ($leveres[$x] && $leveres[$x] < $antal[$x] + $tidl_lev[$x])
 // 20260223 LOE Fixed SD-350-creditor-order-lookup-does-not-work-on-new-supplier-order
+// 20260728 MJ Fix: kreditorOrdreAutocomplete sendte ikke konto_id til itemSearch; viste varer.kostpris i stedet for leverandoerspecifik vl.kostpris
 // 20260225 PHR Order taken by ---
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
@@ -1802,7 +1803,7 @@ if ($menu=='T') {
 
 <?php if (get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on") { ?>
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
-<script src="../javascript/kreditorOrdreAutocomplete.js"></script>
+<script src="../javascript/kreditorOrdreAutocomplete.js?v=<?= filemtime(__DIR__ . '/../javascript/kreditorOrdreAutocomplete.js') ?>"></script>
 <?php } ?>
 
 <style>
