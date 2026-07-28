@@ -26,6 +26,8 @@
 // 20260507 NTR - A generalised popup manager that can be reused in the future for other popup functions.
 // 20260702 NTR - Added onClose event to allow for cleanup when the popup is closed.
 //              - Moved the confirmed exit button to the footer of the popup instead of header.
+// 20260720 Sawaneh Added optional isRowChecked predicate so callers can control
+//                each row's initial checkbox state instead of always checking all.
 // 20260721 CL/SZ - Added an options object (closeLabel, preSelectFn, summaryFn, noResultsHtml)
 //                   for the Bilagsmatch redesign; footer summary now recomputes live as rows
 //                   are toggled instead of showing a static count. Removed a leftover debug
@@ -102,6 +104,13 @@ class PopupManager {
     onNoResult = [];
     onResult = [];
     onClose = [];
+
+    /**
+     * Optional predicate deciding each row's initial checkbox state.
+     * @type {?function(Object): boolean} - function(row) returning whether the
+     *   row starts checked. When null, every row starts checked.
+     */
+    isRowChecked = null;
 
     constructor(columns, popupStyle = null, exitCall, exitName, background_dimmer_style = null, options = {}){
         this.columns = columns;
@@ -206,8 +215,8 @@ class PopupManager {
             results.forEach(item => {
                 html += `<tr class="autocomplete-item">\n`;
 
-                const checked = this.preSelectFn(item) ? 'checked' : '';
-                html += `<td><input class='active-checkbox' type='checkbox' ${checked}/></td>\n`;
+                const checked = (typeof this.isRowChecked === 'function') ? this.isRowChecked(item) : (typeof this.preSelectFn === 'function')  ? this.preSelectFn(item) : true;
+                html += `<td><input class='active-checkbox' type='checkbox' ${checked ? 'checked' : ''}/></td>\n`;
                 this.columns.forEach(
                     column => {
                         html += `<td ${column.columnAtt}>${(typeof column.selector == "function" ? column.selector(item) : item[column.selector]) ?? '' }</td>\n`;

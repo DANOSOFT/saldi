@@ -29,6 +29,10 @@ $s_id=session_id();
 // 20260717 CL/NTR Warning (accept to continue) before opening a regnskab, only on master at
 //                  ssl3.saldi.dk. Click fetches details from master_warning_info.php and shows
 //                  db name, db version, master version and why opening live from master is risky.
+// 20260728 NTR Fixed lukket, booking and email being shuffled/missing.
+// 20260728 CL/NTR Changed how show/hide closed button is rendered, both so all params are preserved, but also so we don't have duplicate markup. Also made it a http_build_query so that it's easier to read.
+//                 Both the mobile and computer version.
+
 $css="../css/standard.css";
 $title="vis regnskaber";
 
@@ -122,24 +126,35 @@ if (isset($menu) && $menu=='S') {
 	print "<td width='80%' align='center' style='$vr_topStyle'>".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
 	print "<td width='5%' align = 'center' style='$vr_topStyle'>";
 
-	if ($showClosed) {
-		print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>
-			   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('1906|Skjul Luk', $sprog_id)."</button></a>";#Skjul Luk
-	} else {
-		print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>
-			   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst('1907|Vis Luk', $sprog_id)."</button></a>";#Vis Luk
-	}
+	$showClosedParams = array_filter([
+		'sort'       => $sort,
+		'sort2'      => $sort2,
+		'desc'       => $desc,
+		'rediger'    => $rediger,
+		'showClosed' => $showClosed ? NULL : 'on',
+	], fn($v) => isset($v) && $v !== '');
+	$showClosedLabel = $showClosed ? findtekst('1906|Skjul Luk', $sprog_id) : findtekst('1907|Vis Luk', $sprog_id);
+
+	print "<a href='vis_regnskaber.php?".http_build_query($showClosedParams)."'>
+		   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   .$showClosedLabel."</button></a>";
+
 	print "</td><td align='center' style='$vr_topStyle'>";
 
-	if ($rediger) {
-		print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' >
-			   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('1908|Lås', $sprog_id)."</button></a>"; #Lås
-	} else {
-		print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R>
-			   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('1206|Ret', $sprog_id)."</button></a>";#Ret
-	}
+	$redigerParams = array_filter([
+		'sort'       => $sort,
+		'sort2'      => $sort2,
+		'desc'       => $desc,
+		'showClosed' => $showClosed,
+		'rediger'    => $rediger ? NULL : 'on',
+	], fn($v) => isset($v) && $v !== '');
+	$redigerAccesskey = $rediger ? "" : " accesskey=R";
+	$redigerLabel = $rediger ? findtekst('1908|Lås', $sprog_id) : findtekst('1206|Ret', $sprog_id);
+
+	print "<a href='vis_regnskaber.php?".http_build_query($redigerParams)."'$redigerAccesskey>
+		   <button style='$vr_btnStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   .$redigerLabel."</button></a>";
+
 	print "</td>";
 	print "</tbody></table>";
 	print "</td></tr>";
@@ -153,12 +168,32 @@ if (isset($menu) && $menu=='S') {
 	print "<td width=\"10%\" $vr_topBund><a href=../index/admin_menu.php accesskey=L style='color:#ffffff;'>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 	print "<td width=\"75%\" $vr_topBund align=\"center\">".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
 	if ($showAdminPanel) print "<td width='5%' $vr_topBund><a href='admin_panel.php' style='color:#ffffff;'>Admin Panel</a></td>";
+
+	$showClosedParams = array_filter([
+		'sort'       => $sort,
+		'sort2'      => $sort2,
+		'desc'       => $desc,
+		'rediger'    => $rediger,
+		'showClosed' => $showClosed ? NULL : 'on',
+	], fn($v) => isset($v) && $v !== '');
+	$showClosedLabel = $showClosed ? findtekst('1906|Skjul Luk', $sprog_id) : findtekst('1907|Vis Luk', $sprog_id);
+
 	print "<td width=\"5%\" $vr_topBund align = \"center\">";
-	if ($showClosed) print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger' style='color:#ffffff;'>".findtekst('1906|Skjul Luk', $sprog_id)." </a>";#Skjul Luk
-	else print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on' style='color:#ffffff;'>".findtekst('1907|Vis Luk', $sprog_id)." </a>";#Vis Luk
+	print "<a href='vis_regnskaber.php?".http_build_query($showClosedParams)."' style='color:#ffffff;'>".$showClosedLabel." </a>";
+
+	$redigerParams = array_filter([
+		'sort'       => $sort,
+		'sort2'      => $sort2,
+		'desc'       => $desc,
+		'showClosed' => $showClosed,
+		'rediger'    => $rediger ? NULL : 'on',
+	], fn($v) => isset($v) && $v !== '');
+	$redigerAccesskey = $rediger ? "" : " accesskey=R";
+	$redigerLabel = $rediger ? findtekst('1908|Lås', $sprog_id) : findtekst('1206|Ret', $sprog_id);
+
 	print "</td><td $vr_topBund align = \"center\">";
-	if ($rediger) print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' style='color:#ffffff;'> ".findtekst('1908|Lås', $sprog_id)."</a>"; #Lås
-	else print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R style='color:#ffffff;'> ".findtekst('1206|Ret', $sprog_id)."</a>";#Ret
+	print "<a href='vis_regnskaber.php?".http_build_query($redigerParams)."'$redigerAccesskey style='color:#ffffff;'> ".$redigerLabel."</a>";
+	
 	print "</td>";
 	print "</tbody></table>";
 	print "</td></tr>";
@@ -223,6 +258,7 @@ while ($r=db_fetch_array($q)) {
 		$sidst[$x]=$r['sidst'];
 		$email[$x]=$r['email'];
 #		$oprettet[$x]=date("d-m-Y",$r['oprettet']);
+		($r['booking'] == 'on')?$booking[$x]='X':$booking[$x]=NULL;
 		($r['lukket'] == 'on')?$lukket[$x]='X':$lukket[$x]=NULL;
 		($r['lukkes'] == 'on')?$lukkes[$x]='X':$lukkes[$x]=NULL;
 		$betalt_til[$x] = if_isset($r, NULL, 'betalt_til');
@@ -332,6 +368,7 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 			print "<td align='right'>$posteret[$x]</td>";
 			print "<td align='right'>".date("d-m-Y",$sidst[$x])."</td>";
 			print "<td><input type='checkbox' name='booking[$x]' $booking[$x]></td>";
+			print "<td align='left'>$email[$x]<br></td>";
 			if ($lukket[$x]) $lukket[$x]="checked";
 			if ($showClosed) print "<td align=center><input type=checkbox name=lukket[$x] $lukket[$x]></td>";
 			if ($saldiregnskab) {
@@ -353,8 +390,9 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 					print "<td>$posteringer[$x]<br></td>";
 					print "<td align='right'>$posteret[$x]<br></td>";
 					print "<td align='right'>".date("d-m-Y",$sidst[$x])."<br></td>";
-					print "<td align='center'>$lukket[$x]<br></td>";
+					print "<td align='center'>$booking[$x]<br></td>";
 					print "<td align='left'>$email[$x]<br></td>";
+					print "<td align='center'>$lukket[$x]<br></td>";
 					if ($saldiregnskab) {
 						print "<td align='right'>$betalt_til[$x]<br></td>";
 // 						print "<td align='right'>$lukkes[$x]<br></td>";

@@ -338,6 +338,28 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			# error_log("DIAG: pdftk_bin=$pdftk");
 
 			if ($pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
+				// Self-heal non-A4 letterheads. A background that isn't A4 makes pdftk
+				if (function_exists('shell_exec')) {
+					$pinf = @shell_exec("pdfinfo " . escapeshellarg($bg_fil) . " 2>/dev/null");
+					if ($pinf && strpos($pinf, '(A4)') === false) {
+						$a4c = preg_replace('/\.pdf$/i', '', $bg_fil) . '.a4.pdf';
+						if (!file_exists($a4c) || filemtime($a4c) < filemtime($bg_fil)) {
+							$pf = $a4c . '.' . getmypid() . '.tmp';
+							$a4c_tmp = $a4c . '.' . getmypid() . '.new';
+							@shell_exec("pdftoppm -png -r 200 -f 1 -l 1 " . escapeshellarg($bg_fil) . " " . escapeshellarg($pf) . " 2>/dev/null");
+							if (file_exists($pf . '-1.png')) {
+								@shell_exec("convert " . escapeshellarg($pf . '-1.png') . " -resize 1654x2339 -background white -gravity center -extent 1654x2339 -units PixelsPerInch -density 200 " . escapeshellarg($a4c_tmp) . " 2>/dev/null");
+								@unlink($pf . '-1.png');
+								if (file_exists($a4c_tmp) && filesize($a4c_tmp) > 0) {
+									@rename($a4c_tmp, $a4c);
+								} else {
+									@unlink($a4c_tmp);
+								}
+							}
+						}
+						if (file_exists($a4c) && filesize($a4c) > 0) $bg_fil = $a4c;
+					}
+				}
 				$out = "../temp/" . $ps_fil . "x.pdf";
 				system("$pdftk ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
 				error_log("DIAG: pdftk rc=$rc, out_exists=" . (file_exists($out) ? 'YES' : 'NO'));
