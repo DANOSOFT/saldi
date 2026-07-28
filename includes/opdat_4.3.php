@@ -533,62 +533,10 @@ function opdat_4_3($majorNo, $subNo, $fixNo){
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 
-		// Bilagsmatch scoring engine: pool_files.amount is a free-form string ("1.234,56",
-		// "1,234.56", etc). Add a real NUMERIC column so matching can join on it directly
-		// instead of re-parsing the string with a regex on every query.
-		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pool_files' and column_name='norm_amount'";
-		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			db_modify("ALTER TABLE pool_files ADD COLUMN norm_amount NUMERIC(15,3)", __FILE__ . " linje " . __LINE__);
-		}
-		$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
-		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			db_modify("CREATE INDEX idx_pool_files_norm_amount ON pool_files(norm_amount)", __FILE__ . " linje " . __LINE__);
-		}
-
-		// One-time backfill of norm_amount for rows written before this column existed.
-		$already_backfilled = db_fetch_array(db_select(
-			"SELECT var_value FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled' AND var_grp = 'system'",
-			__FILE__ . " linje " . __LINE__
-		));
-		if (!$already_backfilled) {
-			include_once(__DIR__ . "/docsIncludes/poolAmountNormalizer.php");
-			$q_backfill = db_select("SELECT id, amount FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
-			while ($r_backfill = db_fetch_array($q_backfill)) {
-				$normalized = normalizePoolAmount($r_backfill['amount']);
-				if ($normalized !== null) {
-					db_modify(
-						"UPDATE pool_files SET norm_amount = " . db_escape_string((string) $normalized) . " WHERE id = " . (int) $r_backfill['id'],
-						__FILE__ . " linje " . __LINE__
-					);
-				}
-			}
-			db_modify(
-				"INSERT INTO settings (var_name, var_grp, var_value, var_description)
-				VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes', 'One-time backfill of pool_files.norm_amount from the legacy amount text column')",
-				__FILE__ . " linje " . __LINE__
-			);
-		}
-
-		// Bilagsmatch text-similarity scoring uses pg_trgm when available; on tenants where
-		// CREATE EXTENSION isn't permitted (managed hosting without superuser), fetchbilagsmatch.php
-		// falls back to ILIKE/position() matching instead - this must never block the migration.
-		// Attempted only once (flag below) so a tenant that lacks the privilege doesn't retry
-		// (and re-email the error) on every future migration run.
-		$trgm_attempted = db_fetch_array(db_select(
-			"SELECT var_value FROM settings WHERE var_name = 'pg_trgm_extension_attempted' AND var_grp = 'system'",
-			__FILE__ . " linje " . __LINE__
-		));
-		if (!$trgm_attempted) {
-			$qtxt = "SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'";
-			if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				db_modify("CREATE EXTENSION IF NOT EXISTS pg_trgm", __FILE__ . " linje " . __LINE__);
-			}
-			db_modify(
-				"INSERT INTO settings (var_name, var_grp, var_value, var_description)
-				VALUES ('pg_trgm_extension_attempted', 'system', 'yes', 'Whether pg_trgm CREATE EXTENSION has been attempted for Bilagsmatch text scoring')",
-				__FILE__ . " linje " . __LINE__
-			);
-		}
+		// Bilagsmatch norm_amount/pg_trgm setup lives in includes/betweenUpdates.php, not
+		// here - see the comment there for why (this opdat_to('4.3.0', ...) gate had
+		// already run on tenants before this feature was added to it, so appending new
+		// statements inside this closure meant they'd never execute on those DBs).
 
 		// Create kontakt_emails table for multiple emails per customer
 		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='kontakt_emails'";

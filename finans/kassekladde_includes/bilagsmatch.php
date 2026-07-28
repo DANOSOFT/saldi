@@ -204,9 +204,7 @@ $bm_lookup_tooltip = findtekst('5042|Slå konto op', $sprog_id);
             <div class="popup-no-results-message"><?= $bm_empty_message ?></div>
         </div>`,
     });
-    
-    // Only pre-check a row when both the amount and the date match.
-    popuper.isRowChecked = (row) => row.beloeb_match == 1 && row.date_match == 1;
+
     popuper.onResult.push(function(container){
         container.querySelectorAll('.autocomplete-item').forEach(element => {
             element.addEventListener('mouseover', function(e) { showPreview(element, e); });
