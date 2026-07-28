@@ -40,6 +40,7 @@
 // 20260212 PHR pdfmerge replaced by pdftk
 // 20260320 PHR cleanup (pdftk)
 // 20260526 NTR Generating and storing a random key for encrypting the OAuth data in the database, and moving the auth check to a separate file that can be included on every page without causing excessive load on Aiia.
+// 20260727 CL/SZ Also generate a random JWT signing secret per install (SD-587)
 
 session_start();
 ob_start(); //Starter output buffering
@@ -337,6 +338,7 @@ if (isset($_POST['opret'])){
 	// rename("../includes/connect", "../includes/connect.php");
 	
 	file_put_contents('bank_integration/.ht_oauth_key.bin', random_bytes(32));
+	file_put_contents('restapi/.ht_jwt_secret.bin', random_bytes(32));
 	
 	if ($fp=fopen("../includes/connect.php","w")) {
 		skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type);
