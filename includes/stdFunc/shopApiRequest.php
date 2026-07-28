@@ -101,7 +101,8 @@ if (!function_exists('shopApiRequest')) {
 	 * }
 	 */
 	function shopApiRequest($endpoint, array $params = array(), $log = null, array $options = array()) {
-		static $deadEndpoints = array();
+		static $degraded = array();
+		static $failCount = array();
 
 		$options += array(
 			'context'        => '',
@@ -110,6 +111,7 @@ if (!function_exists('shopApiRequest')) {
 			'retries'        => 1,
 			'userAgent'      => 'Saldi shop sync',
 			'maxBodyLog'     => 500,
+			'failThreshold'  => 3,
 		);
 		$result = array(
 			'ok'       => false,
@@ -131,9 +133,9 @@ if (!function_exists('shopApiRequest')) {
 
 		$parts = parse_url($url);
 		$endpointKey = strtolower($parts['scheme'] . '://' . $parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '');
-		if (isset($deadEndpoints[$endpointKey])) {
+		if (isset($degraded[$endpointKey])) {
 			$result['skipped'] = true;
-			$result['error']   = 'endpoint unreachable earlier in this request: ' . $deadEndpoints[$endpointKey];
+			$result['error']   = 'endpoint degraded earlier in this request: ' . $degraded[$endpointKey];
 			shopApiLogFailure($log, $options['context'], $url, $result);
 			return $result;
 		}
@@ -150,6 +152,7 @@ if (!function_exists('shopApiRequest')) {
 			if ($call['error'] === '' && $call['httpCode'] > 0 && $call['httpCode'] < 400) {
 				$result['ok']    = true;
 				$result['error'] = '';
+				$failCount[$endpointKey] = 0;
 				if (is_resource($log)) {
 					fwrite($log, date('Y-m-d H:i:s') . ' shop sync ok ' . $options['context'] . ' http ' . $call['httpCode'] . ' ' . $url . "\n");
 				}
@@ -160,12 +163,15 @@ if (!function_exists('shopApiRequest')) {
 				? $call['error']
 				: 'http status ' . $call['httpCode'];
 			if (!$call['transient'] || $attempt === $attempts) {
-				if ($call['unreachable']) {
-					$deadEndpoints[$endpointKey] = $result['error'];
+				$failCount[$endpointKey] = (isset($failCount[$endpointKey]) ? $failCount[$endpointKey] : 0) + 1;
+				// No response at all means every further call would pay the same timeout, so stop
+				// at once. Other failures need to repeat before the endpoint counts as degraded.
+				if ($call['unreachable'] || $failCount[$endpointKey] >= (int)$options['failThreshold']) {
+					$degraded[$endpointKey] = $result['error'];
 				}
 				break;
 			}
-			usleep(300000);
+			usleep(300000 * $attempt);
 		}
 
 		shopApiLogFailure($log, $options['context'], $url, $result, $options['maxBodyLog']);
@@ -248,14 +254,16 @@ if (!function_exists('shopApiShellCall')) {
 			. ' --max-time ' . (int)$options['timeout']
 			. ' -A ' . escapeshellarg((string)$options['userAgent'])
 			. ' -o ' . escapeshellarg($bodyFile)
-			. ' -w ' . escapeshellarg('%{http_code}')
+			. ' -w ' . escapeshellarg("\nSALDI_HTTP:%{http_code}\n")
 			. ' ' . escapeshellarg($url) . ' 2>&1';
 		$out      = shell_exec($cmd);
 		$body     = (string)@file_get_contents($bodyFile);
 		@unlink($bodyFile);
 
+		// stderr is merged into the output, so read the status from its own marker rather
+		// than from trailing digits, which could come from an error message instead.
 		$out      = trim((string)$out);
-		$httpCode = preg_match('/(\d{3})\s*$/', $out, $m) ? (int)$m[1] : 0;
+		$httpCode = preg_match('/SALDI_HTTP:(\d{3})/', $out, $m) ? (int)$m[1] : 0;
 		$error    = $httpCode ? '' : ('curl command failed: ' . ($out === '' ? 'no output' : $out));
 
 		return array(
@@ -286,7 +294,7 @@ if (!function_exists('shopApiLogFailure')) {
 			. ' - ' . $result['error'] . ' - ' . $url;
 		if (isset($result['body']) && $result['body'] !== '' && !$result['skipped']) {
 			$body = preg_replace('/\s+/', ' ', $result['body']);
-			$line .= ' - response: ' . mb_substr($body, 0, max(0, (int)$maxBodyLog));
+			$line .= ' - response: ' . substr($body, 0, max(0, (int)$maxBodyLog));
 		}
 		if (is_resource($log)) {
 			fwrite($log, $line . "\n");

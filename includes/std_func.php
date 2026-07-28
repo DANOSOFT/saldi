@@ -1838,7 +1838,7 @@ if (!function_exists('sync_shop_vare')) {
 				'update_stock' => $shop_id,
 				'stock'        => $variant_beholdning,
 				'stockno'      => $lager,
-				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''),
+				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''), # always empty, no query here selects lagerbeh - kept so the url is unchanged
 				'file'         => __FILE__,
 				'line'         => __LINE__,
 			);
@@ -1907,7 +1907,9 @@ if (!function_exists('sync_shop_vare')) {
 					}
 				}
 			}
-			$stock = (int)$stock;
+			# lagerstatus.beholdning is numeric, so keep decimals - totalStock and variant stock
+			# are already sent undecimated. Default to 0 when the query above found no row.
+			$stock = (isset($stock) && $stock !== '' && $stock !== null) ? $stock : 0;
 
 			if ($itemNo) {
 				#			if (($shop_id || $itemNo) && is_numeric($stock)) {
@@ -1918,6 +1920,7 @@ if (!function_exists('sync_shop_vare')) {
 					'costPrice' => $costPrice,
 					'rand'      => $rand,
 				);
+				# api_fil3 is left out here as in the original code, this call never went to endpoint 3
 				foreach (array($api_fil, $api_fil2) as $endpoint) {
 					if (!$endpoint) {
 						continue;
