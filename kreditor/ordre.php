@@ -1803,7 +1803,7 @@ if ($menu=='T') {
 
 <?php if (get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on") { ?>
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
-<script src="../javascript/kreditorOrdreAutocomplete.js?v=<?= filemtime(__DIR__ . '/../javascript/kreditorOrdreAutocomplete.js') ?>"></script>
+<script src="../javascript/kreditorOrdreAutocomplete.js"></script>
 <?php } ?>
 
 <style>
