@@ -98,6 +98,7 @@
 //                must always start collapsed on a fresh page load, even if the user had
 //                expanded one just before navigating away; toggling still works normally
 //                within the same page view, it just no longer survives a reload
+// 20260727 NTR Added a if statement around $an_id as if there was no ansatte with that id, it would throw an error and set an_id to 0 instead of unset.
 @session_start();
 $s_id = session_id();
 
@@ -2414,7 +2415,9 @@ print "<tr><td colspan=6></td></tr>\n";
 
 $z2 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 $y2 = db_fetch_array($z2);
-$an_id = $y2['id'];
+if(false !== $y2){
+	$an_id = $y2['id'];
+}
 
 ###########
 
