@@ -98,6 +98,7 @@
 //                must always start collapsed on a fresh page load, even if the user had
 //                expanded one just before navigating away; toggling still works normally
 //                within the same page view, it just no longer survives a reload
+// 20260727 NTR Added a if statement around $an_id as if there was no ansatte with that id, it would throw an error and set an_id to 0 instead of unset.
 @session_start();
 $s_id = session_id();
 
@@ -272,6 +273,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 
 		$vis_lev_addr = db_escape_string(if_isset($_POST['vis_lev_addr'], NULL));
 		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
+
+		$auto_lookup_cvr = db_escape_string(if_isset($_POST['auto_lookup_cvr'], NULL));
+		update_settings_value("auto_lookup_cvr", "ordrer", $auto_lookup_cvr, "If CVR-nr. should be looked up automatically when 8 digits are entered", $bruger_id);
 
 		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
 		$enduser_type = db_escape_string(if_isset($_POST['enduser_type'], ''));
@@ -1396,6 +1400,8 @@ function validateDebitorkort(form) {
 
 print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
+$auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
+$auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
 if ($vis_addr == "on") {
 	print "<input type=hidden name=\"felt_1\" value='$felt_1'>\n";
 	print "<input type=hidden name=\"felt_2\" value='$felt_2'>\n";
@@ -1445,7 +1451,7 @@ print "</select></td>\n";
 print "<td align=right>" . findtekst('355|Vis leveringsadresse', $sprog_id) . "<!--tekst 355--><input class='inputbox' type=\"checkbox\" name=\"vis_lev_addr\" $vis_lev_addr> <a href=\"labelprint.php?id=$id\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></td></tr>\n";
 print "<tr><td valign=top height=250px><table border=0 width=100%><tbody>"; # TABEL 1.2.1 ->
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td>" . findtekst('357|Kundenr.', $sprog_id) . "<!--tekst 357--></td><td><input class='inputbox' type='text' size='25' name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('357|Kundenr.', $sprog_id) . "<!--tekst 357--></td><td><input class='inputbox' type='text' size='25' name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af *, +, eller / for automatisk opslag, eller marker 'Auto-lookup CVR nr.' for opslag ved 8 cifre (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 
 if (!isset($firmanavn)) $firmanavn = NULL;
 if (!isset($addr1)) $addr1 = NULL;
@@ -1826,7 +1832,9 @@ if ($drg = $x) {
 print "</tbody></table></td>"; # <- TABEL 1.2.1
 print "<td valign=top><table border=0 width=100%><tbody>"; # TABEL 1.2.2 ->
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 376--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>Auto-lookup CVR nr.</td><td><input class='inputbox' type=\"checkbox\" name=\"auto_lookup_cvr\" $auto_lookup_cvr_checked onchange=\"javascript:docChange = true;\"></td></tr>\n";
+($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 376--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af *, +, eller / for automatisk opslag, eller marker 'Auto-lookup CVR nr.' for opslag ved 8 cifre (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
@@ -1950,13 +1958,8 @@ if ($vis_addr == "on") {
     print "<tr bgcolor=$bg><td height=\"25px\">" . findtekst('502|Kontakt', $sprog_id) . "</td><td height=\"25px\"><input class='inputbox' type='text' size=\"25px\" name=lev_kontakt value=\"$lev_kontakt\" onchange=\"javascript:docChange = true;\">\n";
     ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
     print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_tlf value=\"$lev_tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>";
-	$oLibTxt = findtekst('2217|Sæt grænse for, hvor mange varer en kunde kan oprette', $sprog_id);
-	print "<span onmouseover=\"return overlib('$oLibTxt', WIDTH=600);\" onmouseout=\"return nd();\">" . findtekst('2215|Varegrænse', $sprog_id) . "</span>";
-	print "</td><td><input type='text' class='inputbox' name=\"productlimit\" size=\"25\" value=\"" . dkdecimal($productlimit, 0) . "\"></td></tr>\n";
- 
-    
+
+
     // Additional delivery addresses section
    
     ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
@@ -2414,7 +2417,9 @@ print "<tr><td colspan=6></td></tr>\n";
 
 $z2 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 $y2 = db_fetch_array($z2);
-$an_id = $y2['id'];
+if(false !== $y2){
+	$an_id = $y2['id'];
+}
 
 ###########
 

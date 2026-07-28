@@ -856,7 +856,7 @@ if(!isset($afbryd)){
 				}
 			}
 		}
-		#if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php"); #20262707
+		// if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php"); #20262707
 		# Lager status mail
 		if (file_exists("../lager/lagerstatusmail.php")) {
 			$email = get_settings_value("mail", "lagerstatus", "");
