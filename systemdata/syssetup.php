@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/syssetup.php --- lap 4.1.0 -- 2024-06-04 --
+// --- systemdata/syssetup.php --- patch 5.0.0 --- 2026-07-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 //
 // 20132127 Indsat kontrol for at kodenr er numerisk på momskoder.
@@ -43,6 +43,11 @@
 // 20220614 MSC - Added div class divSys
 // 20240407 PHR - save moved to syssetupIncludes/saveData.php
 // 20240604 PHR PHP8
+// 20260716 MJ  Tilfoejede Land (OSS) og Type til SM-momskoder for OSS B2C EU momsangivelse.
+// 20260723 MJ  EU-zone-dropdown (box10) paa DG-debitorgrupper til OSS-klassificering.
+// 20260723 MJ  Varer/ydelser-type (box5) til VG-varegrupper for Momsrubrikker A/B/C-afledning.
+// 20260723 MJ  Fjernet Rubrik-kolonne (box5) fra SM/KM/YM/EM-momskoder: bruges ikke laengere.
+// 20260724 MJ  EU-zone-dropdown (box10) paa KG-kreditorgrupper til Momsrubrikker Rubrik A.
 
 @session_start();
 $s_id=session_id();
@@ -151,8 +156,10 @@ if ($valg=='moms'){
 	print "<td align=\"center\"><span title='$spantxt1'>".findtekst('914|Beskrivelse', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt2'>".findtekst('440|Konto', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt3'>".findtekst('995|Sats', $sprog_id)."</span></td>";
-	print "<td></td><td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";		#20210513
-	$y=skriv_formtabel('SM',$x,$y,$art,$id,'S',$kodenr,$beskrivelse,$box1,'6' ,$box2,'6','','6',$box4,'6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	print "<td></td><td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td>";
+	print "<td align=\"center\"><span title='Land for OSS B2C EU-moms (f.eks. Sverige, Finland). Udfyldes kun paa SM-koder for salg til EU-privatpersoner.'>Land (OSS)</span></td>\n";
+	print "<td align=\"center\"><span title='Type for OSS-angivelse: varer eller ydelser. Udfyldes kun paa OSS-koder.'>Type</span></td></tr>\n";
+	$y=skriv_formtabel('SM',$x,$y,$art,$id,'S',$kodenr,$beskrivelse,$box1,'6' ,$box2,'6','','6',$box4,'6','-','',$box6,'10',$box7,'8','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
 	print "<tr><td><br></td></tr>\n";
 	$spantxt2=findtekst('2245|Det nummer i kontoplanen som købsmomsen skal konteres på.', $sprog_id);
 	print "<tr><td></td><td colspan=3><b><span title='".findtekst('2431|Den moms du skal have retur fra SKAT', $sprog_id)."'>".findtekst('996|Købsmoms (indgående moms)', $sprog_id)."</span></td></tr>\n";
@@ -160,8 +167,8 @@ if ($valg=='moms'){
 	print "<td align=\"center\"><span title='$spantxt1'>".findtekst('914|Beskrivelse', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt2'>".findtekst('440|Konto', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt3'>".findtekst('995|Sats', $sprog_id)."</span></td>\n";
-	print "<td></td><td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";		#20210513
-	$y=skriv_formtabel('KM',$x,$y,$art,$id,"K",$kodenr,$beskrivelse,$box1,'6',$box2,'6','','6',$box4,'6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	print "<td></td><td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";
+	$y=skriv_formtabel('KM',$x,$y,$art,$id,"K",$kodenr,$beskrivelse,$box1,'6',$box2,'6','','6',$box4,'6','-','','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
 	print "<tr><td><br></td></tr>\n";
 	$spantxty2=findtekst('2432|Konto til postering af salgsmoms for ydelseskøb i udlandet', $sprog_id);
 	$spantxty4=findtekst('2433|Konto til postering af købsmoms for ydelseskøb i udlandet', $sprog_id);
@@ -172,8 +179,8 @@ if ($valg=='moms'){
 	print "<td align=\"center\"><span title='$spantxt2'>".findtekst('440|Konto', $sprog_id)."<span></td>";
 	print "<td align=\"center\"><span title='$spantxt3'>".findtekst('995|Sats', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt4'>".findtekst('1013|Modkonto', $sprog_id)."</span></td>\n";
-	print "<td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";		#20210513
-	$y=skriv_formtabel('YM',$x,$y,$art,$id,"Y",$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'6',$box4,'6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	print "<td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";
+	$y=skriv_formtabel('YM',$x,$y,$art,$id,"Y",$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'6',$box4,'6','-','','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
 	print "<tr><td><br></td></tr>\n";
 	$spantxt2=findtekst('2434|Konto til postering af salgsmoms for køb i udlandet', $sprog_id);
 	$spantxte4=findtekst('2435|Konto til postering af købsmoms for køb i udlandet', $sprog_id);
@@ -184,8 +191,8 @@ if ($valg=='moms'){
 	print "<td align=\"center\"><span title='$spantxt2'>".findtekst('440|Konto', $sprog_id)."<span></td>";
 	print "<td align=\"center\"><span title='$spantxt3'>".findtekst('995|Sats', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title='$spantxt4'>".findtekst('1013|Modkonto', $sprog_id)."</span></td>\n";
-	print "<td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";		#20210513
-	$y=skriv_formtabel('EM',$x,$y,$art,$id,"E",$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'6',$box4,'6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	print "<td align=\"center\"><span title='$spantxt5'>$spantxt4</span></td></tr>\n";
+	$y=skriv_formtabel('EM',$x,$y,$art,$id,"E",$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'6',$box4,'6','-','','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
 	print "<tr><td><br></td></tr>\n";
 	print "<tr><td></td><td colspan=3><b>".findtekst('1009|Momsrapport (konti som skal indgå i momsrapport)', $sprog_id)."</b></td></tr>\n";
 	print "<tr><td></td><td>".findtekst('2248|Nr.', $sprog_id)."</td>";
@@ -217,8 +224,9 @@ elseif($valg=='debitor'){
 	$spantitle="Business to business!\n".findtekst('2454|Afmærk her, hvis der skal anvendes B2B priser ved salg til denne kundegruppe', $sprog_id);
 	print "<td align=\"center\"><span title=\"".$spantitle."\">B2B</td>\n";
 	$spantitle=findtekst('2455|Omvendt betalingspligt', $sprog_id)."!\n".findtekst('2456|Afmærk her, hvis denne kundegruppe er omfattet af omvendt betalingspligt', $sprog_id);
- 	print "<td align=\"center\"><span title=\"".$spantitle."\">".findtekst('2457|OB', $sprog_id)."</td></tr>\n"; # 20141212B spantilte -> spantitle (slut)
-	$y=skriv_formtabel('DG',$x,$y,$art,$id,'D',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'6','-','4',$box7,'4',$box8,'checkbox',$box9,'checkbox','-','2','-','2','-','2','-','2','-','2');
+ 	print "<td align=\"center\"><span title=\"".$spantitle."\">".findtekst('2457|OB', $sprog_id)."</td>";
+	print "<td align=\"center\"><span title='EU-zone: klassificering til OSS-rapport. B2C EU = privat i EU (OSS-pligtig), B2C udenfor EU, B2B EU = erhverv m. CVR i EU, B2B udenfor EU.'>EU-zone</span></td></tr>\n"; // 20260723 MJ
+	$y=skriv_formtabel('DG',$x,$y,$art,$id,'D',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'6','-','4',$box7,'4',$box8,'checkbox',$box9,'checkbox',$box10,'eu-zone','-','2','-','2','-','2','-','2');
 	print "<tr><td><br></td></tr>\n";
 	print "<tr><td></td><td colspan=2><b>".findtekst('1183|Kreditorgrupper', $sprog_id)."</td><td></td></tr>\n";
 	print "<tr><td></td><td>".findtekst('2248|Nr.', $sprog_id)."</td>";
@@ -230,9 +238,10 @@ elseif($valg=='debitor'){
 	print "<td align=\"center\"><span title=\"".findtekst('2550|Modkonto ved udligning af åbne poster', $sprog_id)."\">".findtekst('1013|Modkonto', $sprog_id)."</span></td>";
 	print "<td align=\"center\"><span title=\"".findtekst('2462|Momsgruppe for salgsmoms ved omvendt betalingspligt', $sprog_id)."'>".findtekst('2463|S.moms grp.', $sprog_id)."</span></td>";
 	$spantitle=findtekst('2455|Omvendt betalingspligt', $sprog_id)."!\n".findtekst('2465|Afmærk her, hvis denne leverandørgruppe er omfattet af omvendt betalingspligt', $sprog_id);
-	print "<td align=\"center\"><span title=\"".$spantitle."\">".findtekst('2457|OB', $sprog_id)."</td></tr>\n";
+	print "<td align=\"center\"><span title=\"".$spantitle."\">".findtekst('2457|OB', $sprog_id)."</td>";
+	print "<td align=\"center\"><span title='EU-zone: klassificering til Momsrubrikker Rubrik A. EU (andet EU-land) = leverandoer i andet EU-land.'>EU-zone</span></td></tr>\n"; // 20260724 MJ
 #	print "<td align=\"center\"><span title=\"Omvendt betaligspligt!\"Afmærk her,hvis denne leverandørgruppe er omfattet af omvendt betalingspligt>O/B</span></td></tr>\n";
-	$y=skriv_formtabel('KG',$x,$y,$art,$id,'K',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'10',$box6,'6','-','6','-','6',$box9,'checkbox','-','6','-','6','-','6','-','6','-','2');
+	$y=skriv_formtabel('KG',$x,$y,$art,$id,'K',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'10',$box6,'6','-','6','-','6',$box9,'checkbox',$box10,'eu-zone','-','6','-','6','-','6','-','2');
 }
 elseif($valg=='afdelinger'){
 	include("settings/departments.php");
@@ -260,6 +269,7 @@ elseif($valg=='varer'){
 		if ($stockIO) print "<td align=\"center\">".findtekst('608|Lager', $sprog_id)."-</td><td align=\"center\">".findtekst('608|Lager', $sprog_id)."-</td>";
 		print "<td align=\"center\"><!--Køb--></td>";
 		print "<td align=\"center\"><!--".findtekst('1007|Salgs', $sprog_id)."--></td>";
+		print "<td align=\"center\">Varer/</td>\n";
 		#<td align=\"center\">Lager-</td>";
 		print "<td title=\"$t6\" align=\"center\">Omvendt-</td>";
 		print "<td align=\"center\">".findtekst('770|Moms', $sprog_id)."-</td>";
@@ -275,6 +285,7 @@ elseif($valg=='varer'){
 		if ($stockIO) print "<td align=\"center\">tilgang</td><td align=\"center\">træk</td>";
 		print "<td align=\"center\">".findtekst('1012|Køb', $sprog_id)."</td>";
 		print "<td align=\"center\">".findtekst('2468|Salg', $sprog_id)."<!--".findtekst('1007|Salgs', $sprog_id)."--></td>";
+			print "<td align=\"center\">ydelser</td>\n";
 		#<td align=\"center\">regulering</td>
 		print "<td  title=\"$t6\" align=\"center\">betaling</td>";
 		print "<td align=\"center\">fri</td>";
@@ -286,9 +297,9 @@ elseif($valg=='varer'){
 		print "<td title='Kontonummer for en af Varekøb uden for EU, Ydelseskøb uden for EU eller Vare- og ydelseskøb uden for EU.'>for EU</td>\n";
 		print "<td title='Kontonummer for en af Varesalg uden for EU, Ydelsessalg uden for EU eller Vare- og ydelsessalg uden for EU (Rubrik C). Hvis en af de to første angives, så skal kontonummeret være blandt de kontonumre, som summeres til en samlekonto for Vare- og ydelsessalg uden for EU (Rubrik C).'>for EU</td></tr>\n";
 		if ($stockIO) {
-		$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'4',$box4,'4','-','',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
+		$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'4',$box4,'4',$box5,'vg-type',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
 		} else {
-			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,'-','','-','',$box3,'4',$box4,'4','-','',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
+			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,'-','','-','',$box3,'4',$box4,'4',$box5,'vg-type',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
 		}
 	} else {
 		print "<tr><td colspan=20 align=\"center\"><b>".findtekst('774|Varegrupper', $sprog_id)."</td></tr><tr><td colspan=20><hr></td></tr>\n";
@@ -297,6 +308,7 @@ elseif($valg=='varer'){
 			print "<td align=\"center\">".findtekst('608|Lager', $sprog_id)."-</td><td align=\"center\">".findtekst('608|Lager', $sprog_id)."-</td>";
 		}	
 		print "<td align=\"center\">".findtekst('110|Varer', $sprog_id)."-</td><td align=\"center\">".findtekst('110|Varer', $sprog_id)."-</td>";
+		print "<td align=\"center\">Varer/</td>\n";
 #		print "<td align=\"center\">Lager-</td>";
 		print "<td align=\"center\">Omvendt-</td>";
 		print "<td align=\"center\">".findtekst('770|Moms', $sprog_id)."-</td>";
@@ -312,6 +324,7 @@ elseif($valg=='varer'){
 		if ($stockIO) print "<td align=\"center\">tilgang</td><td align=\"center\">træk</td>";
 		print "<td align=\"center\">".findtekst('1012|Køb', $sprog_id)."</td>";
 		print "<td align=\"center\">".findtekst('1007|Salgs', $sprog_id)."</td>";
+			print "<td align=\"center\">ydelser</td>\n";
 #		print "<td align=\"center\">regulering</td>";
 		print "<td  title=\"$t6\" align=\"center\">betaling</td>";
 		print "<td align=\"center\">fri</td>";
@@ -323,9 +336,9 @@ elseif($valg=='varer'){
 		print "<td title='Kontonummer for en af Varekø uden for EU, Ydelseskø uden for EU eller Vare- og ydelseskø uden for EU.'>for EU</td>\n";
 		print "<td title='Kontonummer for en af Varesalg uden for EU, Ydelsessalg uden for EU eller Vare- og ydelsessalg uden for EU (Rubrik C). Hvis en af de to første angives, så skal kontonummeret være blandt de kontonumre, som summeres til en samlekonto for Vare- og ydelsessalg uden for EU (Rubrik C).'>for EU</td></tr>\n";
 		if ($stockIO) {
-			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'4',$box4,'4','-','',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
+			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'4',$box4,'4',$box5,'vg-type',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
 		} else {
-			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,'-','','-','',$box3,'4',$box4,'4','-','',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
+			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,'-','','-','',$box3,'4',$box4,'4',$box5,'vg-type',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
 		}
 	}
 	print "<tr><td colspan=20 align=\"center\"><hr><b>".findtekst('2471|Prisgrupper', $sprog_id)."</td></tr><tr><td colspan=20><hr></td></tr>\n";
