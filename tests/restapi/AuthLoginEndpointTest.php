@@ -20,7 +20,7 @@ final class AuthLoginEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenantOnce();
     }
 
     public function test_login_with_valid_credentials_returns_tokens_and_tenant(): void

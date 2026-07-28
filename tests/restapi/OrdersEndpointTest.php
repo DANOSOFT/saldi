@@ -29,7 +29,7 @@ final class OrdersEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenantOnce();
     }
 
     private function authHeaders(): array
