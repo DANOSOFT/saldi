@@ -343,7 +343,7 @@ HTML;
 	$lbl_create = ($sprog_id == 2) ? 'Create new supplier' : 'Opret ny leverandør';
 	$lbl_name = findtekst('360|Navn', $sprog_id);
 	$lbl_address = findtekst('648|Adresse', $sprog_id);
-	$lbl_zipcode = findtekst('549|Postnr', $sprog_id);
+	$lbl_zipcode = findtekst('144|Postnr', $sprog_id);
 	$lbl_city = findtekst('1055|By', $sprog_id);
 	$lbl_telephone = findtekst('37|Telefon', $sprog_id);
 	$lbl_contact = findtekst('632|Kontaktperson', $sprog_id);
@@ -388,10 +388,10 @@ HTML;
   <form name="create_creditor" action="ordre.php" method="post" onsubmit="return validateCreateCreditor()">
     <input type="hidden" name="id" value="$id">
     <table>
-      <tr><td>Kontonr</td><td><input type="text" name="kontonr" value="$kontonr_safe"></td></tr>
-      <tr><td>$lbl_name <span style="color:red">*</span></td><td><input type="text" name="firmanavn" id="create_firmanavn" value="$firmanavn_safe"></td></tr>
+      <tr><td>Kontonr<span style="color:red">*</span></td><td><input type="text" name="kontonr" value="$kontonr_safe"></td></tr>
+      <tr><td>$lbl_name<span style="color:red">*</span></td><td><input type="text" name="firmanavn" id="create_firmanavn" value="$firmanavn_safe"></td></tr>
       <tr><td>$lbl_address</td><td><input type="text" name="addr1" value=""></td></tr>
-      <tr><td>$lbl_address</td><td><input type="text" name="addr2" value=""></td></tr>
+      <tr><td>$lbl_address 2</td><td><input type="text" name="addr2" value=""></td></tr>
       <tr><td>$lbl_zipcode</td><td><input type="text" name="postnr" value=""></td></tr>
       <tr><td>$lbl_city</td><td><input type="text" name="bynavn" value=""></td></tr>
       <tr><td>$lbl_telephone</td><td><input type="text" name="tlf" value=""></td></tr>
