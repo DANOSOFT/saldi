@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-04-27 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-07-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
 
 
@@ -100,6 +100,7 @@
 // 20260618 Sawaneh Stock warning popup now triggers when sale quantity would leave stock below min_lager
 // 20260619 Sawaneh check_stock_warning reads stock from lagerstatus (sum across warehouses) like the order-line red-highlight, not the drifting varer.beholdning field
 // 20260630 CDX/PK Changed the cleanup so that negative lines are only deleted if there is also at least one normal line (item no. >= 0) on the same order.
+// 20260729 CX/PHR function bogfor: Preserve an existing invoice number and only call get_next_invoice_number when no invoice number is assigned
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -1435,9 +1436,13 @@ function bogfor($id, $webservice=false)
 	}
 	if (!$fejl) {
 		if ($art != "PO") {
-			// Generate unique invoice number using the thread-safe function
-			// Note: get_next_invoice_number now also sets fakturanr on the order atomically
-			$fakturanr = get_next_invoice_number($art, $id);
+			// Preserve an invoice number already assigned to the order. This is
+			// required when an existing invoice is posted again after an
+			// interrupted posting.
+			if (!$fakturanr) {
+				// get_next_invoice_number also sets fakturanr on the order atomically.
+				$fakturanr = get_next_invoice_number($art, $id);
+			}
 			$ny_id = array();
 			$x = 0;
 			$q = db_select("select * from ordrelinjer where pris != '0' and m_rabat != '0' and rabat = '0' and ordre_id='$id'", __FILE__ . " linje " . __LINE__);
