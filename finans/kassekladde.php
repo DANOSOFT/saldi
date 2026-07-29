@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-07-20 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-07-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,6 +60,7 @@
 // 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
 // 20260720 CX/PHR - Qualified the description grid search as k.beskrivelse to avoid an ambiguous column error after the currency join.
 // 20260720 CX/PHR - Scoped the posted cash journal grid ID by journal to prevent saved searches leaking between journals.
+// 20260729 MJ Rettet fejl: location.reload() gensendte POST-data og oprettede dubletter via auto-balance forududfyldning
 
 ob_start(); //Starter output buffering
 
@@ -5013,8 +5014,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 			if (data.success) {
 				console.log('uploadFileToClip - success:', data);
-				// Refresh the page to show the updated clip icon (paper.png instead of clip.png)
-				location.reload();
+				// Force GET navigation so the browser does not replay the POST form on reload,
+				// which would re-submit auto-balance pre-filled blank rows and create duplicate entries.
+				window.location.href = window.location.href;
 			} else {
 				alert('Fejl ved upload: ' + (data.message || 'Ukendt fejl'));
 			}
