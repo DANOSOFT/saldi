@@ -53,6 +53,10 @@
 // 20251210 PHR - Missing financialYear in vat account lookup for E & Y
 // 20260316 PHR Better error handling for missing debitor group
 // 20260417 Sawaneh: overwrite vat selection
+// 20260729 CL/NTR function bogfor: Wrapped in transaktion('begin')/('commit'), with transaktion('rollback')
+//                 added before every early exit, so a failed posting no longer leaves partial writes
+//                 (kontoplan/kladdeliste updates) committed without the corresponding transaktioner rows.
+//                 Requested via CodeRabbit review.
 
 
 @session_start();
@@ -704,7 +708,9 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 		return("Kladden er allerede bogført");
 		exit;
 	}
-	
+
+	transaktion('begin');
+
 	$d_momsart=array(); $k_momsart=array();
 	if ($kladdenote) db_modify("update kladdeliste set kladdenote = '$kladdenote' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
 	$y=0;
@@ -975,6 +981,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 		$kontodebet[$y]=array();  
 		for ($i=1;$i<=$b_antal;$i++) {
 			if ($bilag[$i]!=$bilag[$i-1] && $bilag[$i]!=$bilag[$i+1] && (!$debet[$i]||!$kredit[$i]) && $valuta[$i] != $valuta[$i-1]) { # 20131117 -- 20140228 tilføjet: && $valuta[$i] != $valuta[$i-1] 
+				transaktion('rollback');
 				print "<BODY onLoad=\"javascript:alert('Manglende modpostering i bilag $bilag[$i]!')\">";
 				exit;
 			}
@@ -1038,9 +1045,10 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 					} 
 */					
 				} elseif (($kontokredit[$y] || $kontodebet[$y]) && !$b_diffkonto[$i] && $valuta[$i])  { #20131028 -- 20140228 tilføjet: && $valuta[$i
+				transaktion('rollback');
 				print "<BODY onLoad=\"javascript:alert('Manglende konto til valutadiffencer! (bilag: $b_bilag[$i])')\">";
 				exit;
-			} 
+			}
 		}
 	}
 	if (abs($tjeksum)<=0.01) { # && $transtjek==$transantal){
@@ -1062,8 +1070,10 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				db_modify("update kontoplan set saldo = $transamount[$x] where id = '$kasklid[$x]'",__FILE__ . " linje " . __LINE__);
 			}
 		}
+		transaktion('commit');
 #xit;
 	} else {
+		transaktion('rollback');
 		print "<tr><td align=center>$font Der er konstateret en afvigelse!\nKladde ikke bogført\nKontakt venligst Saldi's udviklerteam!</td></tr>";
 		exit;
 	}

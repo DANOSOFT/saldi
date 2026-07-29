@@ -93,8 +93,8 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $regnstart = "$startaar-$startmaaned-$startdato";
     $regnslut  = "$slutaar-$slutmaaned-$slutdato";
 
-    $dim = '';
-    if ($afd || $afd == '0') $dim = "AND t.afd = $afd ";
+    $afd_filter = '';
+    if ($afd || $afd == '0') $afd_filter = "AND ord.afd = $afd ";
 
     $csvfile = "../temp/$db/moms_rubrik.csv";
     $csv     = fopen($csvfile, "w");
@@ -215,6 +215,7 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
             .   " AND ord.status >= 3"
             .   " AND ord.fakturadate >= '$regnstart'"
             .   " AND ord.fakturadate <= '$regnslut'"
+            .   " $afd_filter"
             . " JOIN varer v ON v.id = ol.vare_id AND ol.vare_id > 0"
             . " JOIN vg ON vg.kodenr = CAST(v.gruppe AS TEXT)"
             . " JOIN adresser adr ON adr.id = ord.konto_id"
@@ -249,6 +250,7 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
           .   " AND ord.status >= 3"
           .   " AND ord.fakturadate >= '$regnstart'"
           .   " AND ord.fakturadate <= '$regnslut'"
+          .   " $afd_filter"
           . " JOIN varer v ON v.id = ol.vare_id AND ol.vare_id > 0"
           . " JOIN vg ON vg.kodenr = CAST(v.gruppe AS TEXT)"
           . " JOIN adresser adr ON adr.id = ord.konto_id"
