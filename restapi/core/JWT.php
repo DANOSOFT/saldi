@@ -11,7 +11,11 @@
 
 class JWT {
     private static $secret;
-    
+
+    public static function secretPath(): string {
+        return __DIR__ . '/../.ht_jwt_secret.bin';
+    }
+
     public static function setSecret($secret) {
         self::$secret = $secret;
     }

@@ -18,7 +18,7 @@ require_once __DIR__ . '/JWTAuth.php';
 // (from restapi/core), or let index/install.php create it for new installs.
 if (!function_exists('_jwtLoadSecret')) {
     function _jwtLoadSecret(): string {
-        $path = __DIR__ . '/../.ht_jwt_secret.bin';
+        $path = JWT::secretPath();
         if (!is_readable($path)) {
             throw new \RuntimeException('JWT secret file not found: ' . $path);
         }
