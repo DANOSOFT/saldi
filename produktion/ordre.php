@@ -26,8 +26,8 @@
 	include("../includes/online.php");
 	include("../includes/dkdato.php");
 	include("../includes/usdate.php");
-	include("../includes/dkdecimal.php");
-	include("../includes/usdecimal.php");
+    include("../includes/stdFunc/dkDecimal.php"); 
+	include("../includes/stdFunc/usDecimal.php");
 	
 	$tidspkt=date("U");
 		
