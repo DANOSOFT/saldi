@@ -5029,19 +5029,19 @@
 5029	Vis/Skjul	Show/Hide	Vis/Skjul
 5030	Klik for at vise/skjule	Click to show/hide	Klikk for å vise/skjule
 5031	Fakturaer	Invoices	Fakturaer
-5032	Konto	Account	Konto
-5033	Modkonto	Contra account	Motkonto
-5034	Valuta	Currency	Valuta
-5035	Præcision	Precision	Presisjon
-5036	Annullér	Cancel	Avbryt
-5037	$n match valgt · $m fundet	$n matches selected · $m found	$n treff valgt · $m funnet
-5038	0 fundet	0 found	0 funnet
-5039	Ingen forslag til match fundet for denne kladde.	No suggested matches found for this journal.	Ingen forslag til treff funnet for denne posteringen.
-5040	Type	Type	Type
-5041	Klik for at forhåndsvise/åbne dokumentet	Click to preview/open the document	Klikk for å forhåndsvise/åpne dokumentet
-5042	Slå konto op	Look up account	Slå opp konto
-5043	Bilagsmatch	Voucher match	Bilagsmatch
-5044	Dato	Date	Dato
-5045	Bilag	Voucher no.	Bilag
-5046	Tekst	Text	Tekst
-5047	Beløb	Amount	Beløp
+5040	Konto	Account	Konto
+5041	Modkonto	Contra account	Motkonto
+5042	Valuta	Currency	Valuta
+5043	Præcision	Precision	Presisjon
+5044	Annullér	Cancel	Avbryt
+5045	$n match valgt · $m fundet	$n matches selected · $m found	$n treff valgt · $m funnet
+5046	0 fundet	0 found	0 funnet
+5047	Ingen forslag til match fundet for denne kladde.	No suggested matches found for this journal.	Ingen forslag til treff funnet for denne posteringen.
+5048	Type	Type	Type
+5049	Klik for at forhåndsvise/åbne dokumentet	Click to preview/open the document	Klikk for å forhåndsvise/åpne dokumentet
+5050	Slå konto op	Look up account	Slå opp konto
+5051	Bilagsmatch	Voucher match	Bilagsmatch
+5052	Dato	Date	Dato
+5053	Bilag	Voucher no.	Bilag
+5054	Tekst	Text	Tekst
+5055	Beløb	Amount	Beløp

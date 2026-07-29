@@ -47,25 +47,29 @@
 //                   via $buttonStyle) instead of OK only - was hardcoded red/green
 //                   (#F44336/#4CAF50), matching neither the mockup nor this app's button
 //                   convention.
+// 20260729 CL/SZ - Renumbered the Bilagsmatch tekst_id block from 5032-5047 to 5040-5055:
+//                   upstream/master independently claimed 5032-5039 for unrelated GS1/POS
+//                   strings after this branch's merge-base, so keeping the old numbers would
+//                   collide once the branches meet. See importfiler/tekster.csv.
 ?>
 
 <?php
-$bm_title          = findtekst('5043|Bilagsmatch', $sprog_id);
-$bm_col_type       = findtekst('5040|Type', $sprog_id);
-$bm_col_dato       = findtekst('5044|Dato', $sprog_id);
-$bm_col_bilag      = findtekst('5045|Bilag', $sprog_id);
-$bm_col_tekst      = findtekst('5046|Tekst', $sprog_id);
-$bm_col_beloeb     = findtekst('5047|Beløb', $sprog_id);
-$bm_col_konto      = findtekst('5032|Konto', $sprog_id);
-$bm_col_modkonto   = findtekst('5033|Modkonto', $sprog_id);
-$bm_col_valuta     = findtekst('5034|Valuta', $sprog_id);
-$bm_col_praecision = findtekst('5035|Præcision', $sprog_id);
-$bm_cancel         = findtekst('5036|Annullér', $sprog_id);
-$bm_summary_tpl    = findtekst('5037|$n match valgt · $m fundet', $sprog_id);
-$bm_empty_title    = findtekst('5038|0 fundet', $sprog_id);
-$bm_empty_message  = findtekst('5039|Ingen forslag til match fundet for denne kladde.', $sprog_id);
-$bm_link_tooltip   = findtekst('5041|Klik for at forhåndsvise/åbne dokumentet', $sprog_id);
-$bm_lookup_tooltip = findtekst('5042|Slå konto op', $sprog_id);
+$bm_title          = findtekst('5051|Bilagsmatch', $sprog_id);
+$bm_col_type       = findtekst('5048|Type', $sprog_id);
+$bm_col_dato       = findtekst('5052|Dato', $sprog_id);
+$bm_col_bilag      = findtekst('5053|Bilag', $sprog_id);
+$bm_col_tekst      = findtekst('5054|Tekst', $sprog_id);
+$bm_col_beloeb     = findtekst('5055|Beløb', $sprog_id);
+$bm_col_konto      = findtekst('5040|Konto', $sprog_id);
+$bm_col_modkonto   = findtekst('5041|Modkonto', $sprog_id);
+$bm_col_valuta     = findtekst('5042|Valuta', $sprog_id);
+$bm_col_praecision = findtekst('5043|Præcision', $sprog_id);
+$bm_cancel         = findtekst('5044|Annullér', $sprog_id);
+$bm_summary_tpl    = findtekst('5045|$n match valgt · $m fundet', $sprog_id);
+$bm_empty_title    = findtekst('5046|0 fundet', $sprog_id);
+$bm_empty_message  = findtekst('5047|Ingen forslag til match fundet for denne kladde.', $sprog_id);
+$bm_link_tooltip   = findtekst('5049|Klik for at forhåndsvise/åbne dokumentet', $sprog_id);
+$bm_lookup_tooltip = findtekst('5050|Slå konto op', $sprog_id);
 ?>
 
 <script src='../javascript/popupManager.js'></script>
