@@ -292,13 +292,13 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	elseif ($rapportart == "momsangivelse")
 		print "<option title='" . findtekst(514, $sprog_id) . "' value='momsangivelse'>" . findtekst(520, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "moms_transaktioner")
-		print "<option value='moms_transaktioner'>Posteringer pr. momskode</option>\n";
+		print "<option value='moms_transaktioner'>" . findtekst("3362|Posteringer pr. momskode", $sprog_id) . "</option>\n";
 	elseif ($rapportart == "moms_rubrik")
-		print "<option value='moms_rubrik'>Momsrubrikker (A/B/C)</option>\n";
+		print "<option value='moms_rubrik'>" . findtekst("3363|Momsrubrikker", $sprog_id) . " (A/B/C)</option>\n";
 	elseif ($rapportart == "moms_afstemning")
-		print "<option value='moms_afstemning'>Momsafstemning</option>\n";
+		print "<option value='moms_afstemning'>" . findtekst("3364|Momsafstemning", $sprog_id) . "</option>\n";
 	elseif ($rapportart == "moms_oss")
-		print "<option value='moms_oss'>OSS B2C EU-salg</option>\n";
+		print "<option value='moms_oss'>" . findtekst("3365|OSS B2C EU-salg", $sprog_id) . "</option>\n";
 	elseif ($rapportart == "saft")
 		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "regnskabbasis")

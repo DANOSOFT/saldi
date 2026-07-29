@@ -3359,10 +3359,10 @@
 3359	Finansrapporter	Financial reports	Finansrapporter
 3360	Salg pr. postnummer	Sales by postal code	Salg per postnummer
 3361	Varerapporter	Item reports	Varerapporter		
-3362			
-3363			
-3364			
-3365			
+3362	Posteringer pr. momskode.	Entried pr. VAT code	Posteringer per MVA-kode.
+3363	Momsrubrikker	VAT categories	Momsrubrikker
+3364	Momsafstemning	VAT reconciliation	MVA-avstemming
+3365	OSS B2C EU-salg	B2C EU Sales	OSS B2C EU-salg
 3366			
 3367			
 3368			
