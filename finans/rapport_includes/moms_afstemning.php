@@ -213,22 +213,7 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $q = db_select($qtxt, __FILE__." linje ".__LINE__);
 
     print "<div style='overflow-x:auto; padding:0 12px;'>";
-    print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
-    print "<thead><tr style='position:sticky; top:0; background:#eeeef0;'>";
-    print "<th align='left'  style='width:80px'>Konto</th>";
-    print "<th align='left'>Kontonavn</th>";
-    print "<th align='left'  style='width:70px'>Momskode</th>";
-    print "<th align='left'  style='width:100px'>Momsnavn</th>";
-    print "<th align='right' style='width:50px'>Sats %</th>";
-    print "<th align='right' style='width:120px'>Omsaetning</th>";
-    print "<th align='right' style='width:120px'>Beregnet moms</th>";
-    print "<th align='right' style='width:120px'>Bogfoert moms</th>";
-    print "<th align='right' style='width:120px'>Difference</th>";
-    print "</tr></thead><tbody>";
 
-    fwrite($csv, mb_convert_encoding(
-        "Konto;Kontonavn;Momskode;Momsnavn;Sats %;Omsaetning;Beregnet moms;Bogfoert moms;Difference\n",
-        'ISO-8859-1', 'UTF-8'));
 
     // Buffer results so we can show summary before the table
     $rows = [];
@@ -252,6 +237,25 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
             print "<b>Ingen afvigelser</b> fundet i $total_rows r&aelig;kker.";
         print "</div>";
     }
+
+    // Write the table
+    print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
+    print "<thead><tr style='position:sticky; top:0; background:#eeeef0;'>";
+    print "<th align='left'  style='width:80px'>Konto</th>";
+    print "<th align='left'>Kontonavn</th>";
+    print "<th align='left'  style='width:70px'>Momskode</th>";
+    print "<th align='left'  style='width:100px'>Momsnavn</th>";
+    print "<th align='right' style='width:50px'>Sats %</th>";
+    print "<th align='right' style='width:120px'>Omsaetning</th>";
+    print "<th align='right' style='width:120px'>Beregnet moms</th>";
+    print "<th align='right' style='width:120px'>Bogfoert moms</th>";
+    print "<th align='right' style='width:120px'>Difference</th>";
+    print "</tr></thead><tbody>";
+
+    fwrite($csv, mb_convert_encoding(
+        "Konto;Kontonavn;Momskode;Momsnavn;Sats %;Omsaetning;Beregnet moms;Bogfoert moms;Difference\n",
+        'ISO-8859-1', 'UTF-8'));
+
 
     $row_bg = ['#ffffff','#f5f5f5'];
     $row_i  = 0;
