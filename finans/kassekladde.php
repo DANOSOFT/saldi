@@ -61,6 +61,7 @@
 // 20260720 CX/PHR - Qualified the description grid search as k.beskrivelse to avoid an ambiguous column error after the currency join.
 // 20260720 CX/PHR - Scoped the posted cash journal grid ID by journal to prevent saved searches leaking between journals.
 // 20260729 MJ Rettet fejl: location.reload() gensendte POST-data og oprettede dubletter via auto-balance forududfyldning
+// 20260729 MJ Rettet fejl: clipDragSourceId-rest forhindrede fil-drop naar forrige clip-drag ikke var ryddet op
 
 ob_start(); //Starter output buffering
 
@@ -4830,7 +4831,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			// Check if this is a file being dragged from the OS
 			const hasFiles = event.dataTransfer.types.includes('Files');
 
-			if (hasFiles && !clipDragSourceId) {
+			if (hasFiles) {
 				// File drag from OS - always allow, show file-specific highlight
 				event.dataTransfer.dropEffect = 'copy';
 				cell.classList.add('drag-over-file');
@@ -4873,7 +4874,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		}
 
 		// Check if files are being dropped from the OS file system
-		if (event.dataTransfer.files && event.dataTransfer.files.length > 0 && !clipDragSourceId) {
+		if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
 			console.log('clipDrop - FILE DROP detected, files:', event.dataTransfer.files.length);
 			uploadFileToClip(event.dataTransfer.files[0], targetSourceId, targetBilag, cell);
 			return;
