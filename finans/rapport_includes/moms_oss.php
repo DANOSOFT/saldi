@@ -39,6 +39,8 @@
 //                 knyttes til kundetype (B2C-EU/B2B-EU/B2C-UDL/B2B-UDL) via
 //                 transaktioner.ordre_id → ordrer → adresser → grupper(DG).
 //                 OSS-oversigt filtreres til B2C-EU; oevrige vises separat.
+// 20260729 NTR - Reported by CodeRabbit - topline-settings should be before print not after.
+//              - Reported by CodeRabbit - transactions that's not a varer nor a service doesn't add up to total as neither beloab_varer nor beloab_ydelser gets assigned, now beloab_andet takes the unknown transactions, for future use.
 
 function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                   $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -110,13 +112,14 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
               . "&simulering=$simulering&lagerbev=$lagerbev";
     $csv_btn   = "<a href='$csvfile' style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
     $print_btn = "<button onclick='window.print()' style='background:transparent;border:none;color:#fff;cursor:pointer;padding:0;'><i class='fa fa-print'></i> Print</button>";
+    include("../includes/topline_settings.php");
+
     print "<style>@media print{"
         . ".no-print,button,form,a[href*='rapport.php'],a[href*='confirmClose']{display:none!important}"
         . "table{page-break-inside:auto}tr{page-break-inside:avoid}"
         . "body,div{font-size:10pt}"
         . "}</style>";
 
-    include("../includes/topline_settings.php");
 
     if ($menu == 'T') {
         include_once '../includes/top_header.php';
@@ -441,6 +444,8 @@ function moms_oss($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         . " SUM(CASE WHEN LOWER(TRIM(g.box7)) LIKE 'var%' THEN COALESCE(t.kredit, 0) - COALESCE(t.debet, 0) ELSE 0 END) AS beloeb_varer,"
         . " SUM(CASE WHEN LOWER(TRIM(g.box7)) LIKE 'yd%' OR LOWER(TRIM(g.box7)) LIKE 'ser%'"
         .       " THEN COALESCE(t.kredit, 0) - COALESCE(t.debet, 0) ELSE 0 END) AS beloeb_ydelser,"
+        . " SUM(CASE WHEN LOWER(TRIM(g.box7)) NOT LIKE 'var%' AND LOWER(TRIM(g.box7)) NOT LIKE 'yd%' AND LOWER(TRIM(g.box7)) NOT LIKE 'ser%'"
+        .       " THEN COALESCE(t.kredit, 0) - COALESCE(t.debet, 0) ELSE 0 END) AS beloeb_andet,"
         . " SUM(COALESCE(t.kredit, 0) - COALESCE(t.debet, 0)) AS beloeb_total,"
         . " -SUM(COALESCE(t.moms, 0)) AS momsbeloeb"
         . " FROM transaktioner t"
