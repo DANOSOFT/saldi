@@ -1,6 +1,6 @@
 name: Assign PR author
 on:
-  pull_request:
+  pull_request_target:
     types: [opened]
 
 permissions:
