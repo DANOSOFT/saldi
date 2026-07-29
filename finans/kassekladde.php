@@ -62,6 +62,7 @@
 // 20260720 CX/PHR - Scoped the posted cash journal grid ID by journal to prevent saved searches leaking between journals.
 // 20260729 MJ Rettet fejl: location.reload() gensendte POST-data og oprettede dubletter via auto-balance forududfyldning
 // 20260729 MJ Rettet fejl: clipDragSourceId-rest forhindrede fil-drop naar forrige clip-drag ikke var ryddet op
+// 20260729 MJ Rettet fejl: upload-succces opdaterer nu kun clip-ikonet i DOM istedet for at genindlaese siden
 
 ob_start(); //Starter output buffering
 
@@ -5015,9 +5016,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
 			if (data.success) {
 				console.log('uploadFileToClip - success:', data);
-				// Force GET navigation so the browser does not replay the POST form on reload,
-				// which would re-submit auto-balance pre-filled blank rows and create duplicate entries.
-				window.location.href = window.location.href;
+				// Update the clip cell DOM directly — no page reload of any kind.
+				// Any reload (location.reload or href=href) on a POST-rendered page risks
+				// replaying the form, which submits auto-balance pre-filled blank rows and
+				// inserts them as real kassekladde entries.
+				const bilag = data.bilag || '';
+				const clipCell = document.querySelector('.clip-cell[data-source-id="' + data.sourceId + '"]');
+				if (clipCell) {
+					const img = clipCell.querySelector('img.clip-icon');
+					if (img) {
+						img.src = img.src.replace('clip.png', 'paper.png');
+						img.style.cursor = 'grab';
+					}
+					const span = clipCell.querySelector('span');
+					if (span) {
+						const docHref = '../includes/documents.php?source=kassekladde&sourceId=' + data.sourceId + '&kladde_id=' + data.kladde_id + '&bilag=' + encodeURIComponent(bilag);
+						const warnTxt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
+						span.onclick = function() { confirmClose(docHref, warnTxt); };
+						span.draggable = true;
+						span.addEventListener('dragstart', function(e) {
+							clipDragStart(e, data.sourceId, bilag);
+						});
+					}
+					clipCell.classList.remove('clip-no-doc');
+					clipCell.classList.add('clip-has-doc');
+				} else {
+					// Fallback: clip cell not in DOM (edge case) — use GET navigation
+					window.location.replace(window.location.pathname + window.location.search);
+				}
 			} else {
 				alert('Fejl ved upload: ' + (data.message || 'Ukendt fejl'));
 			}
