@@ -41,6 +41,7 @@
 // 20260320 PHR cleanup (pdftk)
 // 20260526 NTR Generating and storing a random key for encrypting the OAuth data in the database, and moving the auth check to a separate file that can be included on every page without causing excessive load on Aiia.
 // 20260727 CL/SZ Also generate a random JWT signing secret per install (SD-587)
+// 20260729 NTR Added guards to put_file functions so that it throws an error, when not having access to writing the files.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -337,8 +338,16 @@ if (isset($_POST['opret'])){
 	transaktion("commit");
 	// rename("../includes/connect", "../includes/connect.php");
 	
-	file_put_contents('bank_integration/.ht_oauth_key.bin', random_bytes(32));
-	file_put_contents('restapi/.ht_jwt_secret.bin', random_bytes(32));
+	$secret_bank_key = random_bytes(32);
+	if (file_put_contents('bank_integration/.ht_oauth_key.bin', $secret_bank_key, LOCK_EX) !== strlen($secret_bank_key)) {  
+		throw new \RuntimeException('Unable to create JWT signing secret');  
+	} 
+	unset($secret_bank_key);
+	$secret_api_key = random_bytes(32);
+	if (file_put_contents('restapi/.ht_jwt_secret.bin', $secret_api_key, LOCK_EX) !== strlen($secret_api_key)) {  
+		throw new \RuntimeException('Unable to create JWT signing secret');  
+	} 
+	unset($secret_api_key);
 	
 	if ($fp=fopen("../includes/connect.php","w")) {
 		skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type);
