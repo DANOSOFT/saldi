@@ -244,8 +244,8 @@ if(!isset($afbryd)){
 			db_modify("delete from online where brugernavn = '".db_escape_string($brugernavn)."' and db = '$db' and session_id != '$s_id'",__FILE__ . " linje " . __LINE__);
 			include("../includes/online.php");
 		}
-		if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
-#		transtjek();
+		// if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
+		// transtjek();
 		}
 		if (!$sag_rettigheder&&$rettigheder) print "<meta http-equiv=\"refresh\" content=\"0;URL=menu.php\">";
 		elseif (substr($sag_rettigheder,2,1)) print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/sager.php\">";
