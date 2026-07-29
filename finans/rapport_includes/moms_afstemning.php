@@ -31,6 +31,7 @@
 //                 ikke nulstiller grundlaget for konti med blandet momstatus.
 //                 COALESCE(debet,0)/COALESCE(kredit,0): transaktioner gemmer ubrugt
 //                 side som NULL; NULL-aritmetik gav NULL (vist som 0) i SUM.
+// 20260729 NTR - Reported by CodeRabbit - moved summery of over tolerance above table instead of in the table's body.
 
 function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                          $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
