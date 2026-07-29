@@ -27,10 +27,15 @@ $modulnr=9;
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/dkdecimal.php");
+include("../includes/stdFunc/dkDecimal.php");
  include("../includes/fuld_stykliste.php");
 
-list($vare_id, $vare_antal, $antal) = fuld_stykliste($_GET[id], '', 'basisvarer');
+ if(!isset($_GET['id']) || $_GET['id'] === '') {
+	return;
+	exit;
+}
+
+list($vare_id, $vare_antal, $antal) = fuld_stykliste($_GET['id'], '', 'basisvarer');
 for ($x=1; $x<=$antal; $x++) {
 	echo "ID $vare_id[$x], antal $vare_antal[$x]<br>";
 }

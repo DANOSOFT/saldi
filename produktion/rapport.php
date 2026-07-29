@@ -1,34 +1,37 @@
 <?php
 
 // -------------produktion/rapport.php-------lap 1.9.3a-----2008-04-16-------
-// LICENS
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// The program is published with the hope that it will be beneficial, 
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
 //
-// Copyright (c) 2004-2005 DANOSOFT ApS
+//
+// Copyright (c) 2004-2026 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20260729 LOE Updated to include stdFunc/dkDecimal.php and removed dkdecimal.php which is no longer used.
 
 
 	@session_start();
 	$s_id=session_id();
  
 	$modulnr=12;
- 
+    include("../includes/std_func.php");
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/usdate.php");
 	include("../includes/dkdato.php");
-	include("../includes/dkdecimal.php");
+	include("../includes/stdFunc/dkDecimal.php");
 #	include("../includes/db_query.php");
 
 ?>

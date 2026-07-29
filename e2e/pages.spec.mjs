@@ -50,6 +50,8 @@ const PAGES = [
   ["settings: users", "/saldi/systemdata/brugere.php"],
   ["settings: misc", "/saldi/systemdata/diverse.php"],
   ["settings: email", "/saldi/systemdata/email_settings.php"],
+  ["stock: min/max", "/saldi/lager/minmaxstock.php"],
+  ["stock: full BOM", "/saldi/lager/fuld_stykliste.php"],
 ];
 
 test.describe("module pages load", () => {
@@ -176,38 +178,5 @@ test.describe("the stock balance list", () => {
   });
 });
 
-const DEAD_PAGES = [
-  ["stock: units", "/saldi/lager/enheder.php"],
-  ["stock: item list", "/saldi/lager/vareliste.php"],
-  ["stock: full BOM", "/saldi/lager/fuld_stykliste.php"],
-  ["stock: update cost prices", "/saldi/lager/opdater_kostpriser.php"],
-  ["stock: item import", "/saldi/lager/vareimport.php"],
-  ["stock: min/max", "/saldi/lager/minmaxstock.php"],
-];
 
-test.describe("stock pages that cannot be opened", () => {
-  let page;
 
-  test.beforeAll(async ({ browser }) => {
-    page = await browser.newPage();
-    captureDialogs(page);
-    await login(page);
-  });
-
-  test.afterAll(async () => {
-    await logout(page);
-    await page.close();
-  });
-
-  for (const [name, path] of DEAD_PAGES) {
-    test(`${name} answers 500 for an authenticated user`, async () => {
-      const response = await page.goto(path, { waitUntil: "domcontentloaded" });
-
-      expect(response, `${name}: no response`).not.toBeNull();
-      expect(
-        response.status(),
-        `${name} is no longer fatal - see the docblock above and move it into PAGES`
-      ).toBe(500);
-    });
-  }
-});

@@ -4,7 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------lager/minmaxstock.php------------patch 3.9.0-------2020.03.13----
+// -----------lager/minmaxstock.php------------patch 5.0.0-------2026.07.29----
+// -------------------fuld_stykliste.php------Patch 5.0.0--2026.07.28---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,13 +17,15 @@
 // It is forbidden to use this program in competition with Saldi.DK ApS
 // or other proprietor of the program without prior written agreement.
 //
-// The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
-// GNU General Public License for more details.
+// The program is published with the hope that it will be beneficial, 
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+//
+// Copyright (c) 2003-2026 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260729 LOE Initiated some variables to array, and guarded against unset groups and items to avoid warnings and errors.
 
 @session_start();
 $s_id=session_id();
@@ -35,12 +38,19 @@ $vk_kost=NULL;
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");
+include("../includes/std_func.php"); 
 
-$afd=if_isset($_GET['afd']);
-$vgrp=if_isset($_GET['vgrp']);
-$vnr=if_isset($_GET['vnr']);
-$vname=if_isset($_GET['vname']);
+$afd=if_isset($_GET,0,'afd');
+$vgrp=if_isset($_GET, NULL,'vgrp');
+$vnr=if_isset($_GET, NULL,'vnr');
+$vname=if_isset($_GET, NULL,'vname');
+
+$itemId = array();
+$itemNo = array();
+$itemGrp = array();
+$itemMin = array();
+$itemMax = array();
+$itemDescription = array();
 
 if ($popup) $returside="../includes/luk.php";
 else $returside="rapport.php?varenr=$vnr&afd=$afd&varegruppe=$vrgp&varenavn=$vname";
@@ -135,7 +145,9 @@ print "<tr bgcolor='$bgc'><td>Afd</td><td>Varenr</td><td>Beskrivelse</td><td wid
 print "<td width='80px' align='center'>Min</td><td width='80px' align='center'>Max</td>";
 print "<td width='80px' align='center'>Køb</td><tr>";
 fwrite($fp,"Afd;Varenr;Beskrivelse;Beholdning;Min;Max;".mb_convert_encoding('Køb', 'ISO-8859-1', 'UTF-8')."\n");
-
+if (empty($vGr) || empty($itemGrp)) {
+	print "<tr><td colspan='7' align='center'>".findtekst('1685|Item does not belong to any item group - check item and settings!',$sprog_id)."</td></tr>";
+}
 for ($a=0;$a<count($vGr);$a++) {
 	if (in_array($vGr[$a],$itemGrp)) {
 		for ($b=0;$b<count($itemId);$b++) {

@@ -38,7 +38,7 @@ elseif ($nysort) {$sort=$nysort;}
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/dkdato.php");
-include("../includes/dkdecimal.php");
+include("../includes/stdFunc/dkDecimal.php");
 
 print "<div align=center>";
 print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>";
