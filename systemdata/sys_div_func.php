@@ -103,6 +103,8 @@
 // 20260715 CDX/NTR Made the REST API Swagger link relative to the current installation
 // 20260727 CL/Sawaneh Translated the last four order-related settings (GS1, 'Vores ref.' stock,
 //                     out-of-stock warning, delivery address + extra fields) via findtekst(), tekst_id 9902-9909
+// 20260729 NTR Fixed $r being set to a bool due to && without guarding parenteses, causing error when trying to assign $timezone.
+//              Changed the tekst_id's of the previous translation to be 3032-3039 instead.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -112,7 +114,7 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	#	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone'];
 	#	else {
 	$qtxt = "select id,var_value from settings where var_name='timezone'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && (isset($r['var_value']))) {
+	if (($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && (isset($r['var_value']))) {
 		$timezone = $r['var_value'];
 		if ($timezone) {
 			date_default_timezone_set($timezone);
@@ -1919,12 +1921,12 @@ function ordre_valg() {
 	print "<tr><td title='Dette felt deaktiverer visning af DG på ordre siden'>Skjul dækningsgrad</td><td><INPUT title='Dette felt deaktiverer visning af DG på ordre siden', class='inputbox' type='checkbox' name='showDG' $showDG></td></tr>";
 	print "<tr><td title='Angiv en e-mail adresse til modtagelse af pluklister'>Plukliste email</td><td><INPUT title='E-mail adresse til at sende pluklister til' class='inputbox' type='email' style='width:200px;' name='pluklisteEmail' value='$pluklisteEmail'></td></tr>";
 	print "<tr><td title='Aktiverer autosøgning/autocomplete på ordresider (bruger specifik indstilling)'>Anvend autosøgning på ordrer</td><td><INPUT title='Aktiverer autosøgning/autocomplete på ordresider' class='inputbox' type='checkbox' name='ordreAutocomplete' $ordreAutocomplete></td></tr>";
-	print "<tr><td title='".findtekst('9903|Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)', $sprog_id)."'>".findtekst('9902|Anvend GS1 stregkodefortolkning', $sprog_id)."</td><td><INPUT title='".findtekst('9903|Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)', $sprog_id)."' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
-	$ourRefStockTitle = htmlspecialchars(findtekst("9905|Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.", $sprog_id), ENT_QUOTES);
-	print "<tr><td title='$ourRefStockTitle'>".findtekst("9904|Vælg en anden vare, hvis lageret på 'Vores ref.' er tomt", $sprog_id)."</td><td><INPUT title='$ourRefStockTitle' class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
-	$stockWarningTitle = htmlspecialchars(findtekst('9907|Aktiverer popup-advarsel og krav om begrundelse ved salg af udsolgte varer i både POS og Debitor/Ordre. Godkendelsen logges på ordren.', $sprog_id), ENT_QUOTES);
-	print "<tr><td title='$stockWarningTitle'>".findtekst('9906|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
-	print "<tr><td title='".findtekst('9909|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('9908|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('9909|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
+	print "<tr><td title='".findtekst('5033|Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)', $sprog_id)."'>".findtekst('5032|Anvend GS1 stregkodefortolkning', $sprog_id)."</td><td><INPUT title='".findtekst('5033|Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)', $sprog_id)."' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
+	$ourRefStockTitle = htmlspecialchars(findtekst("5035|Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.", $sprog_id), ENT_QUOTES);
+	print "<tr><td title='$ourRefStockTitle'>".findtekst("5034|Vælg en anden vare, hvis lageret på 'Vores ref.' er tomt", $sprog_id)."</td><td><INPUT title='$ourRefStockTitle' class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
+	$stockWarningTitle = htmlspecialchars(findtekst('5037|Aktiverer popup-advarsel og krav om begrundelse ved salg af udsolgte varer i både POS og Debitor/Ordre. Godkendelsen logges på ordren.', $sprog_id), ENT_QUOTES);
+	print "<tr><td title='$stockWarningTitle'>".findtekst('5036|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
+	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
