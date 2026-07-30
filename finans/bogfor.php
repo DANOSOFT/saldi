@@ -53,10 +53,10 @@
 // 20251210 PHR - Missing financialYear in vat account lookup for E & Y
 // 20260316 PHR Better error handling for missing debitor group
 // 20260417 Sawaneh: overwrite vat selection
-// 20260729 CL/NTR function bogfor: Wrapped in transaktion('begin')/('commit'), with transaktion('rollback')
-//                 added before every early exit, so a failed posting no longer leaves partial writes
-//                 (kontoplan/kladdeliste updates) committed without the corresponding transaktioner rows.
-//                 Requested via CodeRabbit review.
+// 20260730 CL/NTR function bogfor: Removed the internal transaktion('begin')/('commit') so the caller
+//                 (which already wraps the call together with the tmpkassekl cleanup) keeps ownership of
+//                 the transaction; transaktion('rollback') before an early exit is kept since those paths
+//                 still terminate the request immediately.
 
 
 @session_start();
@@ -709,8 +709,6 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 		exit;
 	}
 
-	transaktion('begin');
-
 	$d_momsart=array(); $k_momsart=array();
 	if ($kladdenote) db_modify("update kladdeliste set kladdenote = '$kladdenote' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
 	$y=0;
@@ -1070,7 +1068,6 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				db_modify("update kontoplan set saldo = $transamount[$x] where id = '$kasklid[$x]'",__FILE__ . " linje " . __LINE__);
 			}
 		}
-		transaktion('commit');
 #xit;
 	} else {
 		transaktion('rollback');

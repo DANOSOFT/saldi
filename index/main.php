@@ -28,6 +28,7 @@
 // 20260630 CDX/NTR Fixed Lager/varer from refreshing once every time we try to access it.
 //                  This possibly has changes across everything, but I have tested it, and it has also fixed rendering prematurely.
 // 20260716 MJ      Tilfoejede Momsperioder-link i Finans-sidebar.
+// 20260730 NTR - Added translation to momsperioder.
 @session_start();
 $s_id = session_id();
 
@@ -202,7 +203,7 @@ function brightenColor($color, $amount = 0.2) {
           echo '<li><a href="#" id="rapport" onclick=\'update_iframe("/finans/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(2, 3, 4))) {
-          echo '<li><a href="#" id="moms_periode" onclick=\'update_iframe("/finans/moms_periode.php")\'>Momsperioder</a></li>';
+          echo '<li><a href="#" id="moms_periode" onclick=\'update_iframe("/finans/moms_periode.php")\'>'.findtekst('3366|Momsperioder', $sprog_id).'</a></li>';
         }
         ?>
       </ul>
