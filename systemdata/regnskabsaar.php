@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 5.0.0 --- 2026-01-30 --
+// --- systemdata/regnskabsaar.php --- ver 5.0.0 --- 2026-07-30 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250903 PHR	Changed 5 year calculation to include months.
 // 20260130 PHR - Improved check for empty fiscal year before deletion and used ICONSVG icons.
+// 20260730 MJ Tilfoejede Momsperioder-knap; fjernede linket fra finans-sidebaren i main.php
 
 @session_start();
 $s_id = session_id();
@@ -295,6 +296,7 @@ foreach($fiscalYears as $index => $row){
 ($bgcolor1 != $bgcolor) ? $bgcolor1 = $bgcolor : $bgcolor1 = $bgcolor5;
 print "<td  bgcolor='$bgcolor1' colspan='9'><br></td>";
 print "<tr><td colspan=\"9\" style=\"text-align:center\"><a href=\"regnskabskort.php\"  title=\"" . findtekst('507|Klik her for at oprette nyt regnskabsår.', $sprog_id) . "\"><button class='button green medium'>" . findtekst('508|Opret nyt regnskabsår', $sprog_id) . "</button></a></td></tr>";
+print "<tr><td colspan=\"9\" style=\"text-align:center\"><a href=\"../finans/moms_periode.php\"><button class='button medium'>" . findtekst('3366|Momsperioder', $sprog_id) . "</button></a></td></tr>";
 if ($x < 1)
 	print "<meta http-equiv=refresh content=0;url=regnskabskort.php>";
 ?>
