@@ -1027,7 +1027,7 @@ function access_check(){
 		$api_key=trim($r['box1']);
 		if (strpos($r['box2'],',')) $ip_list=explode(',',trim($r['box2']));
 		else $ip_list[0]=trim($r['box2']);
-		if (!$api_key || !hash_equals($api_key,(string) (isset($_GET['key']) ? $_GET['key'] : '')))) {
+		if (!$api_key || !hash_equals($api_key,(string) (isset($_GET['key']) ? $_GET['key'] : ''))) {
 			$log=fopen("../temp/$db/rest_api.log","a");
 			fwrite($log,__line__." Access denied (key)\n");
 			return "Access denied (key)";
