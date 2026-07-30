@@ -93,8 +93,9 @@ $webservice='on';
 // therefore removed outright rather than replaced, and fetch_from_table() is
 // narrowed to the single known-good shape actually used: no table/column/
 // where-clause pass-through, no arbitrary SQL of any kind.
-function fetch_from_table($select,$from,$where,$order_by,$limit) {
+function fetch_from_table($select, $from, $where, $order_by, $limit) {
 	global $db;
+	if(!isset($where)) $where = '';
 
 	$log=fopen("../temp/$db/rest_api.log","a");
 
@@ -103,7 +104,7 @@ function fetch_from_table($select,$from,$where,$order_by,$limit) {
 		fclose($log);
 		return 'unsupported query shape';
 	}
-	if ($where !== '') {
+	if ('' !== $where) {
 		fwrite($log,__line__." rejected: where clause no longer supported ($where)\n");
 		fclose($log);
 		return 'unsupported query shape';
