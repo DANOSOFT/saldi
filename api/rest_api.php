@@ -1055,9 +1055,9 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			// SD-589: select/from/where are no longer passed through to SQL —
 			// fetch_from_table() itself now only accepts the one known-good
 			// shape (varenr,beholdning from varer, no where clause).
-			$select = if_isset($_GET['select']);
-			$from   = if_isset($_GET['from']);
-			$where  = if_isset($_GET['where']);
+			$select = if_isset($_GET, false, ['select']);
+			$from   = if_isset($_GET, false, ['from']);
+			$where  = if_isset($_GET, '', ['where']);
 			if ($select && $from) $value = fetch_from_table($select,$from,$where,'','');
 ##############################################
 		} elseif ($action=='get_sold_labels') {
