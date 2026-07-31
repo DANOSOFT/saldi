@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-09--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-07-31--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,7 @@
 // 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
+// 20260731 MJ Rettet kolonneoverskrift for hvem til findtekst('3367|Udført af')
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 
 @session_start();
@@ -1621,14 +1622,9 @@ $columns[] = array(
         return $actions;
     }
 );
- if ($sprog_id == 2) {
-        $columnHd = 'Performed by'; //TODO: findtekst
- } else{
-        $columnHd = 'Hvem';
- }
  $columns[] = array(
         "field" => "hvem",
-        "headerName" => $columnHd,
+        "headerName" => findtekst('3367|Udført af', $sprog_id),
         "width" => "1",
         "type" => "text",
         "hidden" => true,
