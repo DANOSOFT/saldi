@@ -30,7 +30,7 @@
 // 20170119 PK - Tilføjet query der henter 'antal' af alle sager fra kunde i function ret_kunde, da limet ellers kun viser 100. Søg #20170119
 // 20170119 PK - Har indsat 'Ansvarlig' i listen med sager fra kunde.
 // 20230927 PHR Page title now set in online.php
-
+// 20260731 Sawaneh Loads cvrapiopslag.js so CVR lookup also works on the customer card under sager
 
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id = session_id();
@@ -60,7 +60,7 @@
 	
 	if (isset($_GET['konto_id']))      $konto_id = (int)$_GET['konto_id'];
 	elseif (isset($_POST['konto_id'])) $konto_id = (int)$_POST['konto_id'];
-	else $konto_id = (int)$_POST['id'];
+	else $konto_id = (int)if_isset($_POST,0,'id');
 	$funktion = if_isset($_GET['funktion']);
 	if (!$funktion)$funktion="kundeliste";
 	
@@ -111,6 +111,15 @@
 			</div><!-- end of wrapper -->  
 		<!-- <div id=\"footer\"><p>Pluder | Pluder</p></div> -->
 		<script type=\"text/javascript\" src=\"../javascript/jquery.kunder.js\"></script>";
+		$cvr_tekster = json_encode(array(
+			'fejl'           => findtekst('5058|CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.', $sprog_id),
+			'QUOTA_EXCEEDED' => findtekst('5059|Kvoten for CVR-opslag er opbrugt.', $sprog_id),
+			'NOT_FOUND'      => findtekst('5060|CVR-nummeret blev ikke fundet.', $sprog_id),
+			'INVALID_VAT'    => findtekst('5061|CVR-nummeret er ikke gyldigt.', $sprog_id),
+			'soeger'         => findtekst('5062|Søger...', $sprog_id)
+		));
+		print "<script type=\"text/javascript\">var cvrLookupProxy = 'cvrLookupProxy.php'; var cvrAutoFelter = ['cvrnr']; var cvrTekster = $cvr_tekster;</script>
+		<script type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>";
 		print "</body></html>";
 		
 

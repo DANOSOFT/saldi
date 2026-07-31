@@ -76,6 +76,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 		}
 */
 		$ny_kontonr=db_escape_string(trim($_POST['ny_kontonr']));
+		$auto_kontonr=(int)if_isset($_POST,0,'auto_kontonr');	# Customer no. that was assigned automatically when the card was shown
 		$gl_kontotype=db_escape_string(trim($_POST['gl_kontotype']));
 		$kontotype=db_escape_string(trim($_POST['kontotype']));
 		$fornavn=db_escape_string(trim($_POST['fornavn']));
@@ -250,7 +251,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
  		 	$tmp2=$tmp2.$y;
  		}
  		$tmp2=(int)$tmp2;
- 		if ($tmp2!=$ny_kontonr) {
+ 		if ($ny_kontonr!=='' && $tmp2!=$ny_kontonr) {	# An empty field is not an error - the number is assigned automatically further down
 			$alerttekst=findtekst(345,$sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 345-->";
 		}
@@ -311,6 +312,16 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
  		if(!$betalingsdage){$betalingsdage=0;}
  	 	if(!$kreditmax){$kreditmax=0;}
  	 	if ($id==0) {
+			if ($auto_kontonr && $ny_kontonr==$auto_kontonr) {	# Move on to the next free no. if the auto-assigned one was taken in the meantime
+				$ktoliste=array();
+				$q = db_select("select kontonr from adresser where art = 'D'",__FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					$ktoliste[]=$r['kontonr'];
+				}
+				while (in_array($ny_kontonr,$ktoliste)) {
+					$ny_kontonr++;
+				}
+			}
  	 	 	$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__);
  	 	 	$r = db_fetch_array($q);
  	 	 	if ($r['id']) {
@@ -329,10 +340,11 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 			}
  	 	} elseif ($id > 0) {
  	 	 	if ($ny_kontonr!=$kontonr) {
- 	 	 	 	$q = db_select("select kontonr from adresser where art = 'D' order by kontonr",__FILE__ . " linje " . __LINE__);
+ 	 	 	 	$x=0;
+ 	 	 	 	$q = db_select("select kontonr from adresser where art = 'D' and id != '$id' order by kontonr",__FILE__ . " linje " . __LINE__);
  	 	 	 	while ($r = db_fetch_array($q)) {
  	 	 	 	 	$x++;
- 	 	 	 	 	$ktoliste[$x]=$r[kontonr];
+ 	 	 	 	 	$ktoliste[$x]=$r['kontonr'];
  	 	 	 	}
  	 	 	 	if (in_array($ny_kontonr, $ktoliste)) {
 					$alerttekst=findtekst(351,$sprog_id);
