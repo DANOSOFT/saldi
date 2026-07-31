@@ -126,7 +126,14 @@ function showConfirmOverlay(existingData, incomingData) {
 	});
 }
 
-function cvrapi(param, country, type, felt){
+function cvrapi(param, country, type, felt, noegle){
+	// A failed lookup must release the dedup key, otherwise retyping the same number never
+	// retries. Only the key belonging to this request is cleared, so a newer lookup started
+	// in the meantime keeps its own.
+	var frigivNoegle = function () {
+		if (noegle && cvrSidste === noegle) cvrSidste = null;
+	};
+
 	// A page can point at a server proxy by setting cvrLookupProxy before this script is
 	// loaded. cvrapi.dk answers 403 to the jsonp call because the browser cannot set the
 	// required User-Agent, so the proxy calls cvrapi.dk from the server instead.
@@ -144,6 +151,7 @@ function cvrapi(param, country, type, felt){
 		success: function (b)
 		{
 			if (!b || b.error) {
+				frigivNoegle();
 				cvrFejl(felt, b ? b.error : '');
 				return;
 			}
@@ -160,6 +168,7 @@ function cvrapi(param, country, type, felt){
 		},
 		error: function ()
 		{
+			frigivNoegle();
 			cvrFejl(felt, '');
 		}
 	});
@@ -217,7 +226,7 @@ function cvrOpslag(felt, vaerdi, type){
 	var noegle = (felt && felt.length ? felt.attr('name') : '')+'|'+type+'|'+vaerdi;
 	if (cvrSidste === noegle) return;
 	cvrSidste = noegle;
-	cvrapi(vaerdi, 'dk', type, felt);
+	cvrapi(vaerdi, 'dk', type, felt, noegle);
 }
 
 // Auto lookup on 8 bare digits is only wanted in the fields the page names in

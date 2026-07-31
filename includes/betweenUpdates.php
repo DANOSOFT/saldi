@@ -339,7 +339,9 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ansatte' and column_name = 'mobile'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER TABLE ansatte ADD mobile text";
+	# IF NOT EXISTS because betweenUpdates.php runs at login: two concurrent logins can both
+	# get past the check above, and one of the two ALTER statements would then fail.
+	$qtxt = "ALTER TABLE ansatte ADD COLUMN IF NOT EXISTS mobile text";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
