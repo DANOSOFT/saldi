@@ -44,6 +44,7 @@
 // 20251007 PHR aliases
 // 202605## PHR Added Max_execution_time setting.
 // 20260708 PHR defined v_nr as array()
+// 20260731 MJ Insert first kostpriser row explicitly when a product has none yet (no bool array access)
 
 @session_start();
 $s_id=session_id();
@@ -790,7 +791,9 @@ if ($fp) {
 				$dd=date("Y-m-d");
 				$qtxt="select id,kostpris,transdate from kostpriser where vare_id='$vare_id' order by transdate desc limit 1"; #20150224
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				if ($r['transdate'] != $dd && $r['kostpris'] != $kostpris) {
+				if (!$r) {
+					$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
+				} elseif ($r['transdate'] != $dd && $r['kostpris'] != $kostpris) {
 					$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
 				}	elseif ($r['transdate'] == $dd && $r['kostpris'] != $kostpris) {
 					$qtxt="update kostpriser set kostpris=$kostpris where id = '$r[id]'";

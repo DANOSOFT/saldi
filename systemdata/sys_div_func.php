@@ -122,6 +122,7 @@
 //                query (was mislabeled $mySaleTest but still read var_name='mySale');
 //                also dropped the debug echo block referencing it. Never saved
 //                ($_POST['mySaleTest'] was read nowhere) and had no consumer. MB-28.
+// 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -2286,7 +2287,10 @@ function api_valg() {
 		print "<tr><td colspan='6'><hr></td></tr>";
 		print "<tr><td title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi.', $sprog_id)."'><!--tekst 740-->".findtekst('741|Hent nye varer fra shop', $sprog_id)."<!--tekst 741--></td><td colspan='3' title='".findtekst('740|Klik her for at hente nye varer fra shop til Saldi', $sprog_id)."'><!--tekst 740--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=1><input style='text-align:center;width:300px;' type='button' value='".findtekst('741|Hent nye varer fra shop', $sprog_id)."'><!--tekst 749--></a></td></tr>";
 		print "<tr><td title='".findtekst('1726|Opdaterer beskrivelse, stregkode og pris fra shop', $sprog_id)."'><!--tekst 1726-->".findtekst('2546|Opdater fra shop', $sprog_id)."<!--tekst 2546--></td><td colspan='3' title='".findtekst('1726|Opdaterer beskrivelse, stregkode og pris fra shop', $sprog_id)."'><!--tekst 1726--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=2><input style='text-align:center;width:300px;' type='button' value='".findtekst('2546|Opdater fra shop', $sprog_id)."'><!--tekst 2546--></a></td></tr>";
-	} else print "<tr><td colspan='2'>".findtekst('825|Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.', $sprog_id)."</td></tr>";
+	} else {
+		print "<tr><td colspan='2'>".findtekst('825|Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.', $sprog_id)."</td></tr>";
+		print "</form>";
+	}
 	print "<tr><td colspan='6'><hr></td></tr>";
 	if (isset($_GET['varesync']) && $_GET['varesync']) {
 		include("../api/varesync.php");
