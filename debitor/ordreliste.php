@@ -1622,6 +1622,14 @@ $columns[] = array(
         return $actions;
     }
 );
+$hvem_options = array();
+$r_s = db_fetch_array(db_select("select id from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
+if ($r_s) {
+    $q_ansatte = db_select("select navn from ansatte where konto_id = '" . intval($r_s['id']) . "' and lukket != 'on' order by navn", __FILE__ . " linje " . __LINE__);
+    while ($row_a = db_fetch_array($q_ansatte)) {
+        $hvem_options[] = $row_a['navn'];
+    }
+}
  $columns[] = array(
         "field" => "hvem",
         "headerName" => 'Udført af',
@@ -1630,6 +1638,17 @@ $columns[] = array(
         "hidden" => false,
         "sortable" => true,
         "searchable" => true,
+        "renderSearch" => function ($column, $currentTerm, $id) use ($hvem_options) {
+            $html = "<select class='inputbox' name='search[$id][{$column['field']}]' onchange='this.form.submit()'>";
+            $html .= "<option value=''></option>";
+            foreach ($hvem_options as $naam) {
+                $selected = ($currentTerm === $naam) ? " selected" : "";
+                $escaped = htmlspecialchars($naam, ENT_QUOTES);
+                $html .= "<option value='$escaped'$selected>$escaped</option>";
+            }
+            $html .= "</select>";
+            return $html;
+        },
         "render" => function ($value, $row, $column) {
             return "<td align='{$column['align']}'>$value</td>";
         }
