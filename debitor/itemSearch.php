@@ -97,7 +97,8 @@ $levKostprisSelect = 'varer.kostpris';
 $levDetailsSelect = '';
 if ($konto_id > 0) {
     if ($kreditor_order) {
-        $leverandorJoin = "INNER JOIN vare_lev vl ON vl.vare_id = varer.id AND vl.lev_id = $konto_id LEFT JOIN adresser a ON a.id = vl.lev_id";
+        $vareLevJoinType = ($search_field === 'lev_varenr') ? 'INNER JOIN' : 'LEFT JOIN';  
+        $leverandorJoin = $vareLevJoinType . " vare_lev vl ON vl.vare_id = varer.id AND vl.lev_id = $konto_id LEFT JOIN adresser a ON a.id = vl.lev_id";
         $levKostprisSelect = "COALESCE(vl.kostpris, varer.kostpris)";
         $levDetailsSelect = ", COALESCE(vl.lev_id, 0) as lev_id, COALESCE(a.kontonr, '') as lev_kontonr, COALESCE(a.firmanavn, '') as lev_firmanavn";
     } else {
