@@ -29,7 +29,7 @@ Severity is about money and data, not about how hard it is to hit:
 | P2-4 | P2 | `limit` reaches the SQL as a raw string on three endpoints | `products/index.php:30` +2 |
 | P2-5 | P2 | Two REST endpoints cannot execute at all | `dashboard/stats.php:16` +1 |
 | P2-6 | P2 | The product-groups endpoint always returns an empty list | `VareGruppeModel.php:233` |
-| P3-1 | P3 | `selext` typo makes a query a permanent no-op | `docsIncludes/updateCashDraft.php:25` |
+| P3-1 | P3 | Two unreferenced cash-draft helpers were removed instead of repaired | Former `docsIncludes/updateCashDraft.php` and `includes/docsIncludes/updateCashDraft.php` |
 
 Every one of these was found by a test rather than by reading code.
 
@@ -430,18 +430,23 @@ models.
 
 ---
 
-## P3-1 — `selext` typo makes a query a permanent no-op
+## P3-1 — Dead cash-draft helpers removed instead of repaired
 
-**Where:** `docsIncludes/updateCashDraft.php:25` and its duplicate
-`includes/docsIncludes/updateCashDraft.php:25`.
+**Where:** the former `docsIncludes/updateCashDraft.php` and
+`includes/docsIncludes/updateCashDraft.php` paths.
 
-```php
-$qtxt = "selext max(id) as sourceid from kassekladde where kladde_id = '$kladde_id'";
-```
+The two identical helpers had no runtime include, require, route, link, or
+other caller. Direct execution was inert too: neither file bootstrapped the
+application, and the code was guarded by `$moveDoc`. The dormant branch would
+insert an empty `kassekladde` row and then try to assign its ID to `$sourceId`
+through a malformed query that had never succeeded. Nothing downstream could
+therefore have read a `$sourceId` produced by either helper.
 
-`selext` is not SQL. The query cannot ever have returned a row, so
-`$sourceid` has always been empty on this path — in two separate copies of the
-same file.
+The live document workflow instead reads `$sourceId` from GET or POST in
+`includes/documents.php`; the existing document-list and move handlers use
+that value for document lookup, deletion, and redirects. Both dead duplicate
+helpers were deleted rather than repairing the query and activating unjustified
+orphan `kassekladde` row creation.
 
 ---
 
