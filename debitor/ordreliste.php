@@ -2045,7 +2045,7 @@ echo "<script>
     sel.name = input.name;
     sel.className = input.className;
     sel.style.cssText = input.style.cssText;
-    sel.onchange = function() { input.form.submit(); };
+    sel.onchange = function() { this.form.submit(); };
     var blank = document.createElement('option');
     blank.value = '';
     sel.appendChild(blank);
