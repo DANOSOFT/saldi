@@ -4056,7 +4056,7 @@ function ordreside($id, $regnskab)
 		print "&nbsp;+&nbsp;$betalingsdage\n";
 		print "</td></tr>";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('1097|Vor ref.', $sprog_id) . "</b></td><td>$ref &nbsp; $afd_navn</td></tr>\n";
-		print "<tr class='tableTexting2'><td><b>" . findtekst('3367|Udført af', $sprog_id) . "</b></td><td>$hvem</td></tr>\n";
+		print "<tr class='tableTexting2'><td><b>Udført af</b></td><td>$hvem</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td><td>$fakturanr</td></tr>\n";
 		$tmp = dkdecimal($valutakurs, 2);
 		if ($valuta) print "<tr class='tableTexting2'><td><b>" . findtekst('552|Valuta / Kurs', $sprog_id) . "</b></td><td>$valuta / $tmp</td></tr>\n";
@@ -5166,7 +5166,7 @@ function ordreside($id, $regnskab)
 			print "<INPUT TYPE = 'hidden' NAME = 'oldhvem' VALUE = \"$hvem\">";
 			for ($x=0;$x<count($ansat);$x++) {
 				if (!$x) {
-				print "<tr><td>" . findtekst('3367|Udført af', $sprog_id) . "</td>\n";
+				print "<tr><td>Udført af</td>\n";
 				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"hvem\" $disabled>\n";
 				print "<option>$hvem</option>\n";
 				// Always offer a blank option so 'Performed by' can be cleared back to blank. #20260629
