@@ -282,12 +282,9 @@ foreach($fiscalYears as $index => $row){
 			$txt1.= "varer er oprettet i regnskabsåret og ikke har været handlet siden ";
 			$txt1.= "samt kunder og leverandører som er urørte i efterfølgende år";
 			$txt2 = "Vil du slette dette regnskabsår ?";
-			print "<a href='regnskabsaar.php?deleteYear=$row[kodenr]' title='$txt1' onclick=\"return confirm('$txt2')\">";
-			print "<td style='border:none; display:flex; justify-content:center; align-items:center;'>
-						<a href='regnskabsaar.php?deleteEmptyYear=$row[kodenr]' title='$txt1' onclick=\"return confirm('$txt2')\" style='font-weight:bold; text-decoration:none; cursor: pointer;'> 
-							$trash_icon
-						</a> 
-			</td></a>";
+			print "<a href='regnskabsaar.php?deleteYear=$row[kodenr]' title='$txt1' onclick=\"return confirm('$txt2')\" style='font-weight:bold; text-decoration:none; cursor: pointer;'>
+						$trash_icon
+					</a>";
 		}
 		print "</td>";
 		print renderEmptyFiscalYearButton($canDeleteThisyear, $isEmpty[$x], $row['kodenr'], $sprog_id, $trash_icon);
