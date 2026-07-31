@@ -50,6 +50,15 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
+function check_permissions($permarr)
+{
+  global $rettigheder;
+  $filtered = array_filter($permarr, function ($item) use ($rettigheder) {
+    return (substr($rettigheder, $item, 1) == "1");
+  });
+  return !empty($filtered);
+}
+
 $aktiver = if_isset($_GET['aktiver']);
 $deleteYear = if_isset($_GET['deleteYear']);
 $deleteEmptyYear = if_isset($_GET['deleteEmptyYear']);
@@ -298,7 +307,9 @@ foreach($fiscalYears as $index => $row){
 print "<td  bgcolor='$bgcolor1' colspan='9'><br></td>";
 print "<tr><td colspan=\"9\" style=\"text-align:center\"><a class='button green medium' href=\"regnskabskort.php\" title=\"" . findtekst('507|Klik her for at oprette nyt regnskabsår.', $sprog_id) . "\">" . findtekst('508|Opret nyt regnskabsår', $sprog_id) . "</a></td></tr>";
 
-print "<tr><td colspan=\"9\" style=\"text-align:center\"><a class='button gray medium' href=\"../finans/moms_periode.php\">" . findtekst('3366|Momsperioder', $sprog_id) . "</a></td></tr>";
+if (check_permissions(array(2, 3, 4))) {
+	print "<tr><td colspan=\"9\" style=\"text-align:center\"><a class='button gray medium' href=\"../finans/moms_periode.php\">" . findtekst('3366|Momsperioder', $sprog_id) . "</a></td></tr>";
+}
 
 if ($x < 1) {
 	print "<meta http-equiv=refresh content=0;url=regnskabskort.php>";
