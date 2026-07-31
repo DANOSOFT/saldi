@@ -81,19 +81,22 @@
     // kassekladde.valuta is an integer code, not a currency string - it points at
     // grupper(art='VK').kodenr, whose box1 holds the actual ISO code (same lookup the
     // main kassekladde grid uses in build_kassekladde_query()). No match -> base currency.
+    // pool_files.amount is text and sometimes '' (blank import), so it's converted to
+    // numeric per-row with NULL sentinel default instead of via a precomputed column.
     $qtxt = "
         WITH kl AS (
             SELECT k.*,
-                UPPER(COALESCE(
+                UPPER(TRIM(COALESCE(
                     (SELECT vkg.box1 FROM grupper vkg WHERE vkg.art = 'VK' AND vkg.kodenr::text = k.valuta::text LIMIT 1),
                     '$base_currency_escaped'
-                )) AS currency_code
+                ))) AS currency_code
             FROM kassekladde k
             WHERE k.kladde_id = $kladde_id
         ), pf AS (
             SELECT *,
                 (CASE WHEN file_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN file_date::date ELSE NULL END) AS safe_file_date,
-                UPPER(COALESCE(NULLIF(currency, ''), '$base_currency_escaped')) AS currency_code
+                NULLIF(TRIM(amount), '')::numeric as norm_amount,
+                UPPER(TRIM(COALESCE(NULLIF(currency, ''), '$base_currency_escaped'))) AS currency_code
             FROM pool_files
         )
         SELECT * FROM (
