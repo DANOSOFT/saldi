@@ -49,6 +49,11 @@
 		exit;
 	}
 
+	# session_start() holds the session lock until this script ends, and nothing below writes
+	# to the session. Released here so a slow cvrapi.dk call cannot block the user's other
+	# requests for up to the 10 second timeout.
+	session_write_close();
+
 	$url = "https://cvrapi.dk/api?".$type."=".urlencode($param)."&country=".urlencode($country);
 
 	$ch = curl_init($url);
