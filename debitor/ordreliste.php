@@ -1638,17 +1638,6 @@ if ($r_s) {
         "hidden" => false,
         "sortable" => true,
         "searchable" => true,
-        "renderSearch" => function ($column, $currentTerm, $id) use ($hvem_options) {
-            $html = "<select class='inputbox' name='search[$id][{$column['field']}]' onchange='this.form.submit()'>";
-            $html .= "<option value=''></option>";
-            foreach ($hvem_options as $naam) {
-                $selected = ($currentTerm === $naam) ? " selected" : "";
-                $escaped = htmlspecialchars($naam, ENT_QUOTES);
-                $html .= "<option value='$escaped'$selected>$escaped</option>";
-            }
-            $html .= "</select>";
-            return $html;
-        },
         "render" => function ($value, $row, $column) {
             return "<td align='{$column['align']}'>$value</td>";
         }
@@ -2042,6 +2031,35 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
 // The grid will create its own form - no outer form needed
 // Create the grid first (it creates its own form for pagination/search)
 $rows = create_datagrid($grid_id, $data);
+
+// Replace the hvem text input with a dropdown
+$hvem_options_json = json_encode($hvem_options, JSON_UNESCAPED_UNICODE);
+$hvem_search_term  = isset($_GET['search'][$grid_id]['hvem']) ? htmlspecialchars($_GET['search'][$grid_id]['hvem'], ENT_QUOTES) : '';
+echo "<script>
+(function() {
+    var options = $hvem_options_json;
+    var current = " . json_encode($hvem_search_term) . ";
+    var input = document.querySelector('input[name=\"search[$grid_id][hvem]\"]');
+    if (!input) return;
+    var sel = document.createElement('select');
+    sel.name = input.name;
+    sel.className = input.className;
+    sel.style.cssText = input.style.cssText;
+    sel.onchange = function() { input.form.submit(); };
+    var blank = document.createElement('option');
+    blank.value = '';
+    sel.appendChild(blank);
+    options.forEach(function(name) {
+        var opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        if (name === current) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    input.parentNode.replaceChild(sel, input);
+})();
+</script>";
+
 #######
 // Build ordreliste for box1 (used by other parts of the system)
 
