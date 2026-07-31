@@ -1622,22 +1622,29 @@ $columns[] = array(
         return $actions;
     }
 );
-$hvem_options = array();
-$r_s = db_fetch_array(db_select("select id from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
-if ($r_s) {
-    $q_ansatte = db_select("select navn from ansatte where konto_id = '" . intval($r_s['id']) . "' and lukket != 'on' order by navn", __FILE__ . " linje " . __LINE__);
-    while ($row_a = db_fetch_array($q_ansatte)) {
-        $hvem_options[] = $row_a['navn'];
-    }
-}
  $columns[] = array(
         "field" => "hvem",
         "headerName" => 'Udført af',
         "width" => "1",
-        "type" => "text",
+        "type" => "dropdown",
         "hidden" => false,
         "sortable" => true,
         "searchable" => true,
+        "dropdownOptions" => function () use ($valg, $hurtigfakt) {
+            if ($hurtigfakt) {
+                $status_condition = ($valg == "faktura") ? "status >= 3" : "status < 3";
+            } else {
+                if ($valg == "tilbud")       $status_condition = "status < 1";
+                elseif ($valg == "faktura")  $status_condition = "status >= 3";
+                else                         $status_condition = "(status = 1 OR status = 2)";
+            }
+            $options = array();
+            $q = db_select("SELECT DISTINCT hvem FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND hvem IS NOT NULL AND hvem != '' ORDER BY hvem", __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                $options[] = $r['hvem'];
+            }
+            return $options;
+        },
         "render" => function ($value, $row, $column) {
             return "<td align='{$column['align']}'>$value</td>";
         }
@@ -2031,34 +2038,6 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
 // The grid will create its own form - no outer form needed
 // Create the grid first (it creates its own form for pagination/search)
 $rows = create_datagrid($grid_id, $data);
-
-// Replace the hvem text input with a dropdown
-$hvem_options_json = json_encode($hvem_options, JSON_UNESCAPED_UNICODE);
-$hvem_search_term  = isset($_GET['search'][$grid_id]['hvem']) ? htmlspecialchars($_GET['search'][$grid_id]['hvem'], ENT_QUOTES) : '';
-echo "<script>
-(function() {
-    var options = $hvem_options_json;
-    var current = " . json_encode($hvem_search_term) . ";
-    var input = document.querySelector('input[name=\"search[$grid_id][hvem]\"]');
-    if (!input) return;
-    var sel = document.createElement('select');
-    sel.name = input.name;
-    sel.className = input.className;
-    sel.style.cssText = input.style.cssText;
-    sel.onchange = function() { this.form.submit(); };
-    var blank = document.createElement('option');
-    blank.value = '';
-    sel.appendChild(blank);
-    options.forEach(function(name) {
-        var opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        if (name === current) opt.selected = true;
-        sel.appendChild(opt);
-    });
-    input.parentNode.replaceChild(sel, input);
-})();
-</script>";
 
 #######
 // Build ordreliste for box1 (used by other parts of the system)
