@@ -212,8 +212,11 @@ var cvrSidste = null;
 
 function cvrOpslag(felt, vaerdi, type){
 	if (cvrTimer) { clearTimeout(cvrTimer); cvrTimer = null; }
-	if (cvrSidste === type+vaerdi) return;
-	cvrSidste = type+vaerdi;
+	// The key must include the field name - otherwise the lookup is skipped when the same
+	// number is typed in both customer no. and CVR no., and the second field gets no message.
+	var noegle = (felt && felt.length ? felt.attr('name') : '')+'|'+type+'|'+vaerdi;
+	if (cvrSidste === noegle) return;
+	cvrSidste = noegle;
 	cvrapi(vaerdi, 'dk', type, felt);
 }
 

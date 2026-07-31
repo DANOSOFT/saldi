@@ -40,7 +40,7 @@ if ($delete_category=if_isset($_GET['delete_category'])) {
 $rename_category=if_isset($_GET['rename_category']);
 if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 	$submit=db_escape_string(trim($_POST['submit']));
- 	$id=$_POST['id'];
+ 	$id=(int)$_POST['id'];	# Kommer fra formularen og bruges direkte i SQL nedenfor
  	if ($submit!="Slet") {
 		$notes=$_POST['notes'];
 		$firmanavn=db_escape_string(trim($_POST['firmanavn']));

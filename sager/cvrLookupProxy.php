@@ -16,10 +16,6 @@
 //
 // Copyright (c) 2004-2026 saldi.dk aps
 // ----------------------------------------------------------------------
-// 20260730 Sawaneh New file. cvrapi.dk answers 403 to lookups made directly from the
-//                  browser, as it requires a User-Agent identifying the caller. The browser
-//                  cannot set that header itself, so the lookup goes through the server.
-
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id=session_id();
 
@@ -27,13 +23,21 @@
 	$header='nix';
 
 	$modulnr=0;
-	ob_start();	# online.php prints html - it must not end up in the json response
+	ob_start();	# online.php skriver html - den maa ikke havne i json-svaret
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 	ob_end_clean();
 
 	header('Content-Type: application/json; charset=utf-8');
+
+	# online.php only rejects anonymous calls when $nextver is unset, so the login is
+	# checked explicitly here - otherwise anyone could use the proxy to call cvrapi.dk.
+	if (empty($brugernavn) || empty($db)) {
+		http_response_code(403);
+		print json_encode(array('error'=>'not authenticated'));
+		exit;
+	}
 
 	$type    = if_isset($_GET,'vat','type');
 	$param   = if_isset($_GET,'','param');
@@ -62,8 +66,11 @@
 	curl_close($ch);
 
 	if ($body === false || $code >= 400) {
+		# curl_error() can reveal internal network details, so it is logged instead of
+		# being sent to the browser.
+		if ($err) error_log("cvrLookupProxy: call to cvrapi.dk failed (status $code): $err");
 		http_response_code($code ? $code : 502);
-		print json_encode(array('error'=>'upstream error','status'=>$code,'detail'=>$err));
+		print json_encode(array('error'=>'upstream error','status'=>$code));
 		exit;
 	}
 
