@@ -5163,17 +5163,17 @@ function ordreside($id, $regnskab)
 			}
 
 			#####
+			if ($hvem != '' && !in_array($hvem, $ansat)) {
+				$r2 = db_fetch_array(db_select("select ansatte.navn from ansatte,brugere where brugere.brugernavn='$hvem' and ansatte.id=".nr_cast('brugere.ansat_id')."", __FILE__ . " linje " . __LINE__));
+				if (!empty($r2['navn'])) $hvem = $r2['navn'];
+			}
 			print "<INPUT TYPE = 'hidden' NAME = 'oldhvem' VALUE = \"$hvem\">";
 			for ($x=0;$x<count($ansat);$x++) {
 				if (!$x) {
 				print "<tr><td>Udført af</td>\n";
 				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"hvem\" $disabled>\n";
 				print "<option>$hvem</option>\n";
-				// Always offer a blank option so 'Performed by' can be cleared back to blank. #20260629
 				if (trim($hvem) != '') print "<option value=\"\"></option>\n";
-				    if ($brugernavn != $hvem && !in_array($brugernavn, $ansat)) {
-						print "<option value=\"$brugernavn\">$brugernavn</option>\n";
-					}
 				}
 				if ($hvem!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
 			}
