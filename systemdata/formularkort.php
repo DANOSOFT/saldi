@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formularkort --- patch 5.0.0 --- 2026-06-04 ---
+// --- systemdata/formularkort --- patch 5.0.0 --- 2026-07-31 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,6 +59,7 @@
 // 20260529 CL/PHR Rettet: manglende xa-records (mailtekst/bilag) for art=5 oprettes nu automatisk ved visning
 // 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+// 20260731 MJ Rettet 'Performed by'-label til 'Udført af' i formular-feltvaelger
 @session_start();
 $s_id=session_id();
 
@@ -809,7 +810,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value = 'ordre_tlf'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('49|Tlf', $sprog_id))."</option>";                                         #Ordre tlf
 	}
 	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
-		print "<option value = 'ordre_hvem'>Performed by</option>"; 
+		print "<option value = 'ordre_hvem'>Udført af</option>";
 		print "<option value = 'ordre_ean'>".findtekst('605|Ordre', $sprog_id)." EAN</option>";                                                                                    #Ordre EAN
 		print "<option value = 'ordre_felt_1'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 1</option>";                                  #Ordre felt 1
 		print "<option value = 'ordre_felt_2'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 2</option>";                                  #Ordre felt 2

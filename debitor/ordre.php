@@ -4056,7 +4056,7 @@ function ordreside($id, $regnskab)
 		print "&nbsp;+&nbsp;$betalingsdage\n";
 		print "</td></tr>";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('1097|Vor ref.', $sprog_id) . "</b></td><td>$ref &nbsp; $afd_navn</td></tr>\n";
-		print "<tr class='tableTexting2'><td><b>Udført af</b></td><td>$hvem</td></tr>\n";
+		if (trim($hvem) != '') print "<tr class='tableTexting2'><td><b>Udført af</b></td><td>$hvem</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td><td>$fakturanr</td></tr>\n";
 		$tmp = dkdecimal($valutakurs, 2);
 		if ($valuta) print "<tr class='tableTexting2'><td><b>" . findtekst('552|Valuta / Kurs', $sprog_id) . "</b></td><td>$valuta / $tmp</td></tr>\n";
