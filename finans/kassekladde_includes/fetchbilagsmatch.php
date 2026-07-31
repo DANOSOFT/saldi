@@ -23,13 +23,13 @@
 //
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-
 // 20260507 NTR - Added batch invoice matching
 // 20260721 CL/SZ - Replaced the raw OR-join (amount = OR date =) with a weighted scoring
 //                   engine (currency hard gate + amount/date/text/invoice-no signals, 0-100),
 //                   cast kladde_id to int to close a SQL injection hole, and joined on the
 //                   new indexed pool_files.norm_amount column instead of parsing amounts at
 //                   query time.
+// 20260731 NTR - fixed previous rework, it was missing norm_amount in the with statement for pf and trimmed the currency codes.
 
     // Start buffering
     ob_start();
