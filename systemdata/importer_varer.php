@@ -43,6 +43,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20251007 PHR aliases
 // 202605## PHR Added Max_execution_time setting.
+// 20260708 PHR defined v_nr as array()
 
 @session_start();
 $s_id=session_id();

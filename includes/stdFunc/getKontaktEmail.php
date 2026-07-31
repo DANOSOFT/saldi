@@ -1,5 +1,22 @@
 <?php
-// --- includes/stdFunc/getKontaktEmail.php --- ver 4.1.0 --- 2026-03-27 ---
+// --- includes/stdFunc/getKontaktEmail.php --- ver 5.0.0 --- 2026-06-11 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+//
+// Copyright (c) 2008-2026 Danosoft.ApS
+// ----------------------------------------------------------------------
 // Retrieves email(s) from kontakt_emails table by konto_id and optional email_type.
 // Falls back to adresser.email if no matching kontakt_emails record found.
 // 20260611 MJ Normalize email_type matching so purpose-specific emails are not skipped.

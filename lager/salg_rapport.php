@@ -24,7 +24,7 @@
 // ----------------------------------------------------------------------
 
 // 20260526 LOE Created new report based on datagrid, with flexible search and sorting, to handle sales report based on postnr and departments.
-// 20260707 SZ Added Grid Framework sticky header and footer to Sales by Postal Code report
+// 20260707 CL/SZ Added Grid Framework sticky header and footer to Sales by Postal Code report
 // 20260711 SZ Added Grid Framework sticky page header (flex layout, same icon/button style as other
 //             Lager reports) replacing the calc(100vh) height hack; the datagrid itself already
 //             provides its own sticky header row + sticky footer with pagination via includes/grid.php

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-06-08 ---
+// --- api/rest_api.php --- lap 5.0.0 --- 2026-07-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2026 saldi.dk aps
+// Copyright (c) 2016-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20180307 Tilføjet 'pos_betaling' i 'fakturer_ordre' 
 // 20180316 Tilføjet 'lagerstatus' i '$allowed_tables' i funktion 'fetch_from_table'
@@ -57,6 +57,8 @@
 // 20260223 PHR Fixed currency error (Valutakurs)
 // 20260608 PHR removed fakturadate from insert_shop_order. It is set in 'fakturer_ordre'
 // 20260622 PHR Improved set fakturadate in 'fakturer_ordre'
+// 20260717 CX/PHR Corrected lev_date to levdate in 'fakturer_ordre'
+
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -802,7 +804,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	} else {
-		$qtxt="update ordrer set fakturadate=ordredate, lev_date=ordredate where id='$saldi_id'";
+		$qtxt="update ordrer set fakturadate=ordredate, levdate=ordredate where id='$saldi_id'";
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	}
