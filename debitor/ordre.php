@@ -5161,6 +5161,7 @@ function ordreside($id, $regnskab)
 				}
 				if ($ref!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
 			}
+			if (count($ansat) > 0) print "</select></td></tr>\n";
 
 			#####
 			if ($hvem != '' && !in_array($hvem, $ansat)) {
@@ -5177,6 +5178,7 @@ function ordreside($id, $regnskab)
 				}
 				if ($hvem!=$ansat[$x]) print "<option> $ansat[$x]</option>\n";
 			}
+			if (count($ansat) > 0) print "</select></td></tr>\n";
 			####
 
 					
