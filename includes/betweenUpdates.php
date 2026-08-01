@@ -29,6 +29,7 @@
 // 20260717 CL/NTR Guard the API-key insert/update blocks so an existing but
 //                  incomplete .ht_keys.txt can't silently write an empty var_value.
 // 20260728 CL/SZ Moved the Bilagsmatch pool_files.norm_amount/pg_trgm setup here from
+// 20260801 MJ SD-532 manglede omdoebning af ansatte.fax til ansatte.mobile (kun adresser blev rettet)
 //                  includes/opdat_4.3.php's opdat_to('4.3.0', ...) gate: that gate had
 //                  already run on tenants (including the reviewer's test DB) before this
 //                  code was added to it, so opdat_to() skipped the whole closure and
@@ -127,6 +128,13 @@ db_modify("CREATE INDEX IF NOT EXISTS kontoplan_kontonr_regnskabsaar_idx ON kont
 # primary key, so every item forced a full table scan of kostpriser to find its latest price -
 # on a large item report this is the same "no index on the hot per-row lookup" issue as above.
 db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpriser (vare_id, transdate)",__FILE__ . " linje " . __LINE__);
+
+// 20260801 MJ SD-532 omdoebte ansatte_save.php til at bruge kolonnen 'mobile', men DB-omdoebningen
+// daekkede kun adresser-tabellen. Paa aeldre databaser hedder kolonnen stadig 'fax', og INSERT fejler.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'ansatte' AND column_name = 'fax'";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("ALTER TABLE ansatte RENAME COLUMN fax TO mobile", __FILE__ . " linje " . __LINE__);
+}
 
 #####
 
