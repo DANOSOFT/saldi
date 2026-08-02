@@ -96,6 +96,7 @@
 // 20260610 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
 // 20260611 LOE Added UI for hvem and updated its logic
 // 20260630 Sawaneh Made 'Performed by' (hvem) display-only: removed its order-locking side effects, added a blank option so it can be cleared, and made clearing to blank persist on save
+// 20260802 MJ Auto-udfyld 'Udfoert af' med indlogget medarbejder paa nye ordrer
 // 20260701 NTR Updated the first plukliste buttons to be the same logic as the second plukliste.
 // 20260702 PHR Disabled "if ($vis_saet) $fakturadato = date("d-m-Y");"
 // 20260706 PHR Added $tmp to avoid division by zero
@@ -3688,6 +3689,7 @@ function ordreside($id, $regnskab)
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$ref = if_isset($r['ref']); #20210719 error thrown here when they are not set
 		$afd = if_isset($r['afd']);
+		if (!$hvem && isset($r['ref'])) $hvem = $r['ref']; // 20260802 MJ auto-udfyld Udfoert af paa nye ordrer
 	}
 	$afd = (int)$afd;
 	$afd_navn = NULL;
