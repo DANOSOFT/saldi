@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-07-08 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -2446,7 +2446,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	if (($b_submit == 'Gem' || $b_submit == 'save') && $id && $konto_id) {
 		// Only proceed if essential fields are filled
 		if (!empty($lev_navn) && !empty($lev_addr1) && !empty($lev_postnr) && !empty($lev_bynavn)) {
-			
+			// 20260802 MJ SD-533 Guard: skip if table doesn't exist yet (betweenUpdates.php creates it on next login)
+			$_da_exists = db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='delivery_addresses' LIMIT 1", __FILE__ . " L " . __LINE__));
+			if ($_da_exists) {
 			// Demote all existing primary addresses for this customer
 			db_modify("UPDATE delivery_addresses 
 					SET is_primary = 'f' 
@@ -2489,8 +2491,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 									'" . db_escape_string($lev_kontakt) . "',
 									'" . db_escape_string($lev_email) . "',
 									't', 0)";
-				db_modify($qtxt_insert, __FILE__ . " L " . __LINE__); 
+				db_modify($qtxt_insert, __FILE__ . " L " . __LINE__);
 			}
+			} // end if ($_da_exists)
 		}
 	}
 	// -- Out-of-stock approval logging (Håndtering af salg af udsolgte varer) --
