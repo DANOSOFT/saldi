@@ -339,8 +339,8 @@
             console.log('kontoId from URL:', kontoId);
 
             // Fallback: read from form hidden inputs (page is often loaded via POST, so URL may not have these)
-            // Fallback: read from form hidden inputs
-            if (!orderId) {
+            // Also treat id=0 as missing — '0' is truthy in JS but means no real order yet
+            if (!orderId || orderId === '0') {
                 // First try the form that the input belongs to (most reliable)
                 if (input.form) {
                     const formIdInput = input.form.querySelector('input[name="id"]');
