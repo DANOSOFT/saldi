@@ -131,8 +131,10 @@ db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpr
 
 // 20260801 MJ SD-532 omdoebte ansatte_save.php til at bruge kolonnen 'mobile', men DB-omdoebningen
 // daekkede kun adresser-tabellen. Paa aeldre databaser hedder kolonnen stadig 'fax', og INSERT fejler.
-$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'ansatte' AND column_name = 'fax'";
-if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+// 20260802 MJ SD-532 tilfoejede tjek for at 'mobile' ikke allerede eksisterer (undgaar fejl hvis begge kolonner findes)
+$_has_fax    = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'ansatte' AND column_name = 'fax'", __FILE__ . " linje " . __LINE__));
+$_has_mobile = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'ansatte' AND column_name = 'mobile'", __FILE__ . " linje " . __LINE__));
+if ($_has_fax && !$_has_mobile) {
     db_modify("ALTER TABLE ansatte RENAME COLUMN fax TO mobile", __FILE__ . " linje " . __LINE__);
 }
 
