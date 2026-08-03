@@ -12,10 +12,36 @@
 // Locks expire after 30 minutes of inactivity
 define('RECORD_LOCK_TTL', 1800);
 
+// Create the record_locks table if it doesn't exist yet.
+// betweenUpdates.php also handles this, but only when the app version is ahead
+// of the DB version. This guard ensures the table is always ready on first use.
+function _ensure_record_locks_table() {
+    static $ensured = false;
+    if ($ensured) return;
+    $r = db_fetch_array(db_select(
+        "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='record_locks' LIMIT 1",
+        __FILE__ . " linje " . __LINE__
+    ));
+    if (!$r) {
+        db_modify("CREATE TABLE IF NOT EXISTS record_locks (
+            id SERIAL PRIMARY KEY,
+            tabel VARCHAR(50) NOT NULL DEFAULT 'ordrer',
+            record_id INTEGER NOT NULL,
+            brugernavn VARCHAR(100) NOT NULL DEFAULT '',
+            session_id VARCHAR(100) NOT NULL DEFAULT '',
+            locked_at BIGINT NOT NULL DEFAULT 0,
+            CONSTRAINT record_locks_unique UNIQUE (tabel, record_id)
+        )", __FILE__ . " linje " . __LINE__);
+    }
+    $ensured = true;
+}
+
 // Check for a conflicting lock and acquire the lock for the current session.
 // Returns null if the lock was acquired (or already held by this session).
 // Returns the existing lock row array if another session holds it.
 function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) {
+    _ensure_record_locks_table();
+
     $expire    = time() - RECORD_LOCK_TTL;
     $tabel_esc = db_escape_string($tabel);
     $brug_esc  = db_escape_string($brugernavn);
@@ -58,6 +84,8 @@ function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) 
 
 // Release the lock held by the current session for a specific record.
 function order_lock_release($tabel, $record_id, $session_id) {
+    _ensure_record_locks_table();
+
     $tabel_esc = db_escape_string($tabel);
     $sess_esc  = db_escape_string($session_id);
     $rid       = (int)$record_id;
