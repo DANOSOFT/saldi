@@ -384,8 +384,7 @@
             console.log('FINAL redirectUrl:', redirectUrl);
 
             var submitButton = document.getElementById("submit");
-            submitButton.url = redirectUrl;
-            
+            submitButton.formAction = redirectUrl;
             submitButton.click();
             //window.location.href = redirectUrl;
         } else if (type === 'customer') {
@@ -394,11 +393,9 @@
 
             var submitButton = document.getElementById("submit");
             if (input.name === 'newAccountNo') {
-                submitButton.url = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
-                //window.location.href = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
+                submitButton.formAction = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
             } else {
-                submitButton.url = `ordre.php?konto_id=${id}`;
-                //window.location.href = `ordre.php?konto_id=${id}`;
+                submitButton.formAction = `ordre.php?konto_id=${id}`;
             }
             submitButton.click();
         } else {
