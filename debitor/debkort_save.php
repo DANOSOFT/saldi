@@ -293,6 +293,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 		}  
  	## Tildeler aut kontonr hvis det ikke er angivet
 	 	$ktoliste=array();
+	 	$auto_tildelt=0;	# Set when the number was chosen by the system and not typed by the user
  		if (($firmanavn)&&(($ny_kontonr < 1)||(!$ny_kontonr))) {
  		 	if (!$id) {$id="0";}
  		 	$x=0;
@@ -303,6 +304,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
  			}
  			$ny_kontonr=1000;
  			while(in_array($ny_kontonr, $ktoliste)) $ny_kontonr++;
+ 			$auto_tildelt=1;
 			$alerttekst=findtekst(349,$sprog_id);
 				$alerttekst=str_replace('$ny_kontonr',$ny_kontonr,$alerttekst);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 349-->\n";
@@ -312,7 +314,21 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
  		if(!$betalingsdage){$betalingsdage=0;}
  	 	if(!$kreditmax){$kreditmax=0;}
  	 	if ($id==0) {
-			if ($auto_kontonr && $ny_kontonr==$auto_kontonr) {	# Move on to the next free no. if the auto-assigned one was taken in the meantime
+			# Two users creating a customer at the same time could pick the same number: the
+			# free number is found by one query and used by the next. The allocation is
+			# serialised with a Postgres advisory lock so only one save at a time runs from
+			# "find the free number" to "insert". The lock is held on the connection and is
+			# released by the database when the request ends, also if the script stops early.
+			# Skipped on MySQL, where the function does not exist - behaviour is then as before.
+			$kto_laas = 0;
+			$akt_db_type = if_isset($GLOBALS,'postgres','db_type');
+			if ($akt_db_type != 'mysql' && $akt_db_type != 'mysqli') {
+				db_select("select pg_advisory_lock(5130513)",__FILE__ . " linje " . __LINE__);
+				$kto_laas = 1;
+			}
+			# Only numbers the system chose are moved on - a number typed by the user is left
+			# alone, so the existing "already in use" warning still appears for it.
+			if ($auto_tildelt || ($auto_kontonr && $ny_kontonr==$auto_kontonr)) {
 				$ktoliste=array();
 				$q = db_select("select kontonr from adresser where art = 'D'",__FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
@@ -338,6 +354,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 				$qtxt = "insert into ansatte(konto_id, navn) values ('$id', '$kontakt')";
 				if ($kontakt && $id) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
+			if ($kto_laas) db_select("select pg_advisory_unlock(5130513)",__FILE__ . " linje " . __LINE__);
  	 	} elseif ($id > 0) {
  	 	 	if ($ny_kontonr!=$kontonr) {
  	 	 	 	$x=0;
