@@ -102,9 +102,8 @@
 // 20260706 PHR Added $tmp to avoid division by zero
 // 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
-// 20260715 PHR Valuta was omittet when copying order
-// 20260806 CX/PHR Show split-order button instead of invoice button when an order is only partly delivered.
-// 20260807 CX/PHR Allow free text in the Att. field while retaining customer contact suggestions.
+// 20260715 PHR Valuto was omittet when copying order
+// 20260803 MJ ordrer.vis_lev_addr er varchar(2); 'off' (3 tegn) sprængte kolonnen og udløste db_modify-fejl efter varen var gemt
 
 @session_start();
 $s_id = session_id();
@@ -1082,8 +1081,9 @@ if ($b_submit) {
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
 	else $lev_bynavn = db_escape_string($lev_bynavn);
 	$lev_kontakt = if_isset($_POST, NULL, 'lev_kontakt') ? db_escape_string(trim($_POST['lev_kontakt'])) : '';
-	$vis_lev_addr = if_isset($_POST, NULL, 'vis_lev_addr');
-	update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
+	$vis_lev_addr         = if_isset($_POST, NULL, 'vis_lev_addr') === 'on' ? 'on' : '';
+	$vis_lev_addr_setting = $vis_lev_addr === 'on' ? 'on' : 'off';
+	update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr_setting, "If the adress field should be showen as standard value", $bruger_id);
 
 	$felt_1 = db_escape_string(trim($_POST['felt_1']));
 	$felt_2 = db_escape_string(trim($_POST['felt_2']));
