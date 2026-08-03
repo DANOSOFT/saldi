@@ -101,6 +101,9 @@
 // 20260619 Sawaneh check_stock_warning reads stock from lagerstatus (sum across warehouses) like the order-line red-highlight, not the drifting varer.beholdning field
 // 20260630 CDX/PK Changed the cleanup so that negative lines are only deleted if there is also at least one normal line (item no. >= 0) on the same order.
 // 20260729 CX/PHR function bogfor: Preserve an existing invoice number and only call get_next_invoice_number when no invoice number is assigned
+// 20260729 CL/SZ functions bogfor and momsupdat: check global $db_modify_fejl before reporting
+//                "OK" so a failed write inside the posting transaction surfaces as an error
+//                instead of a phantom success (SD-595)
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -1158,6 +1161,7 @@ function bogfor($id, $webservice=false)
 	global $regnaar, $retur;
 	global $sprog_id;
 	global $valutakurs;
+	global $db_modify_fejl; #20260729 SZ (SD-595)
 
 	$fejl = 0;
 
@@ -1594,6 +1598,7 @@ function bogfor($id, $webservice=false)
 		}
 	} elseif (!$svar)
 		$svar = $fejl;
+	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595)
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor
@@ -1604,6 +1609,7 @@ function momsupdat($id)
 	# Hvis begge betingelser er opfyldt beregnes momsen ud fra det totale beløb og hvis ikke beregnes momsen for hver ordrelinje og summeres til sidst.
 	global $db, $db_skriv_id;
 	global $brugernavn, $regnaar;
+	global $db_modify_fejl; #20260729 SZ (SD-595)
 	$sum = 0;
 	$moms = 0;
 	$antal_diff_moms = 0; #indfort 20110323 grundet momsafvigelse paa 3 ore i faktura 30283 regnskab 329
@@ -1658,6 +1664,7 @@ function momsupdat($id)
 		$moms *= 1;
 		db_modify("update ordrer set sum=$sum, moms=$moms where id = '$id'", __FILE__ . " linje " . __LINE__);
 	}
+	if ($db_modify_fejl) return ("Database write failed while updating moms for order $id"); #20260729 SZ (SD-595)
 	return ("OK");
 }
 ###########################################################
