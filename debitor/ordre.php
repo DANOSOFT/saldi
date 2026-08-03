@@ -5274,9 +5274,11 @@ function ordreside($id, $regnskab)
 		<td></tr>
 		<?php
 		if (!$showBothAddrExtra) {
+			// 20260803 MJ vis korrekt overskrift: Leveringsadresse naar adresse vises, Ekstrafelter naar ekstrafelter vises
+			$_card_header = $show_addr ? findtekst('554|Leveringsadresse', $sprog_id) : findtekst('243|Ekstrafelter', $sprog_id);
 			?>
 			<tr><td colspan="2"><hr><td></tr>
-			<tr><td colspan="2" align="center"><b><?= htmlspecialchars(findtekst('554|Leveringsadresse', $sprog_id)) ?></b></td></tr>
+			<tr><td colspan="2" align="center"><b><?= htmlspecialchars($_card_header) ?></b></td></tr>
 			<tr><td colspan="2"><hr></b></tr>
 			<?php
 		}
