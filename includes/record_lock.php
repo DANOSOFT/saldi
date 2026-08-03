@@ -36,9 +36,11 @@ function _ensure_record_locks_table() {
     $ensured = true;
 }
 
-// Check for a conflicting lock and acquire the lock for the current session.
-// Returns null if the lock was acquired (or already held by this session).
-// Returns the existing lock row array if another session holds it.
+// Check for a conflicting lock and acquire the lock for the current user.
+// Lock identity is brugernavn (not session_id) so the same user is never
+// blocked by their own old lock after a session change or iframe reload.
+// Returns null if the lock was acquired (or already held by this user).
+// Returns the existing lock row array if a different user holds it.
 function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) {
     _ensure_record_locks_table();
 
@@ -60,16 +62,16 @@ function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) 
     ));
 
     if ($r) {
-        if ($r['session_id'] === $session_id) {
-            // Same session — refresh timestamp
+        if ($r['brugernavn'] === $brugernavn) {
+            // Same user (session may differ after reload/iframe change) — refresh lock
             db_modify(
-                "UPDATE record_locks SET locked_at=" . time() . ", brugernavn='$brug_esc'"
-                . " WHERE tabel='$tabel_esc' AND record_id=$rid AND session_id='$sess_esc'",
+                "UPDATE record_locks SET locked_at=" . time() . ", session_id='$sess_esc'"
+                . " WHERE tabel='$tabel_esc' AND record_id=$rid AND brugernavn='$brug_esc'",
                 __FILE__ . " linje " . __LINE__
             );
             return null;
         }
-        // Different session holds the lock
+        // Different user holds the lock
         return $r;
     }
 
@@ -82,15 +84,15 @@ function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) 
     return null;
 }
 
-// Release the lock held by the current session for a specific record.
-function order_lock_release($tabel, $record_id, $session_id) {
+// Release the lock held by the given user for a specific record.
+function order_lock_release($tabel, $record_id, $brugernavn) {
     _ensure_record_locks_table();
 
     $tabel_esc = db_escape_string($tabel);
-    $sess_esc  = db_escape_string($session_id);
+    $brug_esc  = db_escape_string($brugernavn);
     $rid       = (int)$record_id;
     db_modify(
-        "DELETE FROM record_locks WHERE tabel='$tabel_esc' AND record_id=$rid AND session_id='$sess_esc'",
+        "DELETE FROM record_locks WHERE tabel='$tabel_esc' AND record_id=$rid AND brugernavn='$brug_esc'",
         __FILE__ . " linje " . __LINE__
     );
 }
