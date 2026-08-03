@@ -3768,15 +3768,15 @@ function ordreside($id, $regnskab)
 		if ($returside == "ordreliste.php") sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 		else sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 	}
-	// -- Ordrelås-banner: vises når en anden bruger har bilaget åbent — 20260803 MJ
+	// -- Ordrelås: spær adgang hvis en anden bruger har bilaget åbent — 20260803 MJ
 	if ($order_lock_conflict) {
 		$lock_mins = (int)((time() - (int)$order_lock_conflict['locked_at']) / 60);
 		$lock_who  = htmlspecialchars($order_lock_conflict['brugernavn'], ENT_QUOTES, 'UTF-8');
-		$lock_ago  = $lock_mins <= 1 ? 'for et øjeblik siden' : "for $lock_mins minutter siden";
-		print "<div style='background:#fff3cd;color:#664d03;border:1px solid #ffca2c;border-radius:3px;padding:6px 14px;margin:4px 2px;'>"
-			. "<b>Advarsel:</b> Denne ordre er &aring;ben af <b>$lock_who</b> ($lock_ago)."
-			. " Samtidige &aelig;ndringer kan overskrive hinanden."
-			. "</div>\n";
+		$lock_ago  = $lock_mins <= 1 ? 'for et &oslash;jeblik siden' : "for $lock_mins minutter siden";
+		$txt = "Denne ordre er &aring;ben af <b>$lock_who</b> ($lock_ago) og kan ikke &aelig;ndres nu &mdash; pr&oslash;v igen n&aring;r $lock_who er f&aelig;rdig.";
+		print tekstboks($txt);
+		print "<meta http-equiv=\"refresh\" content=\"4;URL=$returside\">";
+		exit;
 	}
 	// -- Frigiv ordrelås ved navigering væk (bedst mulig indsats via beforeunload) — 20260803 MJ
 	if ($id > 0) {
