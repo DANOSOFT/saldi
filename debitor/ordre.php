@@ -2681,23 +2681,10 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			$formular = 2;
 			$ps_fil = "formularprint.php";
 		} else {
-			$print_lev_nr = 0;
-			$r_lev = db_fetch_array(db_select("select max(lev_nr) as max_lev from batch_salg where ordre_id=$id", __FILE__ . " linje " . __LINE__));
-			if ($r_lev && (int)$r_lev['max_lev'] > 0) {
-				// 20260803 MJ gaa direkte til foelgeseddel for seneste levering; undgaar valgsiden
-				$print_lev_nr = (int)$r_lev['max_lev'];
-				$formular = 3;
-				$ps_fil = "formularprint.php";
-			} elseif (db_fetch_array(db_select("select leveres from ordrelinjer where ordre_id=$id and leveres>0", __FILE__ . " linje " . __LINE__))) {
-				// 20260803 MJ gaa direkte til ordrebekraeftelse; plukliste tilgaas via dedikeret Print plukliste-knap
-				$temp = "rdrebek";
-				$formular = 2;
-				$ps_fil = "formularprint.php";
-			} else {
-				$temp = "rdrebek";
-				$formular = 2;
-				$ps_fil = "formularprint.php";
-			}
+			// 20260803 MJ gaa altid direkte til ordrebekraeftelse; foelgeseddel/plukliste via dedikerede knapper
+			$temp = "rdrebek";
+			$formular = 2;
+			$ps_fil = "formularprint.php";
 		}
 	} else {
 		$temp = "ilbud";
@@ -2852,10 +2839,9 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 		$oioubl = '';
 		$edifakt = '';
 		#    if ($udskriv_til!='historik') $udskriv_til='';
-		$lev_nr_param = (isset($print_lev_nr) && $print_lev_nr) ? "&lev_nr=$print_lev_nr" : "";
-		if ($popup) print "<BODY onLoad=\"JavaScript:window.open('$ps_fil?id=$id&formular=$formular&udskriv_til=$udskriv_til&lagervarer=$lagervarer$lev_nr_param' ,'' ,',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,location=1');\">\n";
+		if ($popup) print "<BODY onLoad=\"JavaScript:window.open('$ps_fil?id=$id&formular=$formular&udskriv_til=$udskriv_til&lagervarer=$lagervarer' ,'' ,',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,location=1');\">\n";
 		else {
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$formular&udskriv_til=$udskriv_til&lagervarer=$lagervarer$lev_nr_param\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$formular&udskriv_til=$udskriv_til&lagervarer=$lagervarer\">\n";
 		}
 	}
 }
