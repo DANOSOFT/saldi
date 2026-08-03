@@ -377,9 +377,10 @@
             if (kontoId) {
                 redirectUrl += `konto_id=${kontoId}&`;
             }
-            redirectUrl += `vare_id=${id}`;
             const vsc = selected.dataset.vsc;
-            if (vsc) redirectUrl += `&vsc=${encodeURIComponent(vsc)}`;
+            if (vsc) input.value = vsc;
+
+            redirectUrl = redirectUrl.replace(/[?&]$/, '');
 
             console.log('FINAL redirectUrl:', redirectUrl);
 
