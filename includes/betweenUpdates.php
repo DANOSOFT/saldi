@@ -381,4 +381,18 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("CREATE INDEX idx_delivery_addresses_account_id ON delivery_addresses(account_id)", __FILE__ . " linje " . __LINE__);
 }
 
+// 20260803 MJ Ordrelås-tabel — forhindrer samtidige redigeringer af bilag
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='record_locks'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE TABLE record_locks (
+		id SERIAL PRIMARY KEY,
+		tabel VARCHAR(50) NOT NULL DEFAULT 'ordrer',
+		record_id INTEGER NOT NULL,
+		brugernavn VARCHAR(100) NOT NULL DEFAULT '',
+		session_id VARCHAR(100) NOT NULL DEFAULT '',
+		locked_at BIGINT NOT NULL DEFAULT 0,
+		CONSTRAINT record_locks_unique UNIQUE (tabel, record_id)
+	)", __FILE__ . " linje " . __LINE__);
+}
+
 ?>
