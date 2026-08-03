@@ -2685,8 +2685,10 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 				$formular = 3;
 				$ps_fil = "udskriftsvalg.php";
 			} elseif (db_fetch_array(db_select("select leveres from ordrelinjer where ordre_id=$id and leveres>0", __FILE__ . " linje " . __LINE__))) {
-				$formular = 9;
-				$ps_fil = "udskriftsvalg.php";
+				// 20260803 MJ gaa direkte til ordrebekraeftelse; plukliste tilgaas via dedikeret Print plukliste-knap
+				$temp = "rdrebek";
+				$formular = 2;
+				$ps_fil = "formularprint.php";
 			} else {
 				$temp = "rdrebek";
 				$formular = 2;
