@@ -73,9 +73,6 @@ $returside    = if_isset($_GET, NULL, 'returside');
 $locat      = if_isset($_GET, NULL, 'locat');
 
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
-	// 20260803 MJ returside til specifik ordre naar id er tilgaengeligt; undgaar redirect til listesiden
-	if (substr($art,0,1) == 'K' && !$returside) $returside = $id ? "../kreditor/ordre.php?id=$id" : '../kreditor/ordreliste.php';
-	elseif (!$returside) $returside = $id ? "../debitor/ordre.php?id=$id" : '../debitor/ordreliste.php';
     if (!$pdftk || !file_exists($pdftk)) {
         error_log("ERROR: pdftk is not installed. Please install pdftk first.");
         
@@ -93,11 +90,6 @@ if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
 if ($returside=='ordreliste.php') { #20200113
 	if ($art=='KO' || $art=='KK') $returside="../kreditor/ordreliste.php";
 	else $returside="../debitor/ordreliste.php";
-}
-// 20260803 MJ naar returside er listesiden men id kendes, gaa til specifik ordre i stedet
-if ($id) {
-	if ($returside == "../debitor/ordreliste.php") $returside = "../debitor/ordre.php?id=$id";
-	elseif ($returside == "../kreditor/ordreliste.php") $returside = "../kreditor/ordre.php?id=$id";
 }
 
 if ($udskriv_til=='historik') {
