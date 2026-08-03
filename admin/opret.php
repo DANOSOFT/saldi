@@ -103,6 +103,8 @@
 // 20250503 LOE Use conditionals to adjust for MySQL vs PostgreSQL
 // 20250510 LOE Optimized to work with mysql database, long and lat now using decimal instead of int
 // 20250804	PHR Corrected error in create  proforma
+// 20260803 CL/SZ Require an authenticated session unconditionally, before any
+//                $_POST handling (SD-615)
 
 @session_start();
 $s_id=session_id();
@@ -114,14 +116,11 @@ include("../includes/std_func.php");
 
 $modulnr=101;
 
-
-if (!isset($_POST['regnskab'])||!$_POST['brugernavn']||!$_POST['passwd']||!$_POST['passwd2']) {
-	include("../includes/online.php");
-	if ($db != $sqdb) {
-		print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
-		print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
-		exit;
-	}
+include("../includes/online.php"); // the only auth check, must run for every request regardless of $_POST content (SD-615)
+if ($db != $sqdb) {
+	print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
+	exit;
 }
 
 # if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 0pt 1px;\" align=\"center\" background=\"../img/knap_bg.gif\";";
@@ -162,12 +161,9 @@ if ($_POST){
 	$brugernavn=db_escape_string(trim($_POST['brugernavn']));
 	$passwd=db_escape_string(trim($_POST['passwd']));
 	$passwd2=db_escape_string(trim($_POST['passwd2']));
-	(isset($_POST['posteringer']))?$posteringer=$_POST['posteringer']:$posteringer=0;
-	(isset($_POST['brugerantal']))?$brugerantal=$_POST['brugerantal']:$brugerantal=0;
+	(isset($_POST['posteringer']))?$posteringer=(int)$_POST['posteringer']:$posteringer=0;
+	(isset($_POST['brugerantal']))?$brugerantal=(int)$_POST['brugerantal']:$brugerantal=0;
 	(isset($_POST['std_kto_plan']))?$std_kto_plan=$_POST['std_kto_plan']:$std_kto_plan=NULL;
-
-	$posteringer*=1;
-	$brugerantal*=1;
 	if ((($revisorregnskab && $passwd) || !$revisorregnskab)  && $passwd!=$passwd2 ) {
 		print "<BODY onLoad=\"javascript:alert('Adgangskoder er ikke ens')\">";
 		forside($regnskab,$brugernavn);
