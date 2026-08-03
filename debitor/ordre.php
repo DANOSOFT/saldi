@@ -2681,9 +2681,13 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 			$formular = 2;
 			$ps_fil = "formularprint.php";
 		} else {
-			if (db_fetch_array(db_select("select lev_nr from batch_salg where ordre_id=$id and lev_nr=1", __FILE__ . " linje " . __LINE__))) {
+			$print_lev_nr = 0;
+			$r_lev = db_fetch_array(db_select("select max(lev_nr) as max_lev from batch_salg where ordre_id=$id", __FILE__ . " linje " . __LINE__));
+			if ($r_lev && (int)$r_lev['max_lev'] > 0) {
+				// 20260803 MJ gaa direkte til foelgeseddel for seneste levering; undgaar valgsiden
+				$print_lev_nr = (int)$r_lev['max_lev'];
 				$formular = 3;
-				$ps_fil = "udskriftsvalg.php";
+				$ps_fil = "formularprint.php";
 			} elseif (db_fetch_array(db_select("select leveres from ordrelinjer where ordre_id=$id and leveres>0", __FILE__ . " linje " . __LINE__))) {
 				// 20260803 MJ gaa direkte til ordrebekraeftelse; plukliste tilgaas via dedikeret Print plukliste-knap
 				$temp = "rdrebek";
@@ -2848,9 +2852,10 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 		$oioubl = '';
 		$edifakt = '';
 		#    if ($udskriv_til!='historik') $udskriv_til='';
-		if ($popup) print "<BODY onLoad=\"JavaScript:window.open('$ps_fil?id=$id&formular=$formular&udskriv_til=$udskriv_til&lagervarer=$lagervarer' ,'' ,',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,location=1');\">\n";
+		$lev_nr_param = (isset($print_lev_nr) && $print_lev_nr) ? "&lev_nr=$print_lev_nr" : "";
+		if ($popup) print "<BODY onLoad=\"JavaScript:window.open('$ps_fil?id=$id&formular=$formular&udskriv_til=$udskriv_til&lagervarer=$lagervarer$lev_nr_param' ,'' ,',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,location=1');\">\n";
 		else {
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$formular&udskriv_til=$udskriv_til&lagervarer=$lagervarer\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$formular&udskriv_til=$udskriv_til&lagervarer=$lagervarer$lev_nr_param\">\n";
 		}
 	}
 }
@@ -3334,6 +3339,13 @@ function ordreside($id, $regnskab)
 
 	$r = db_fetch_array(db_select("select * from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
 
+	// 20260803 MJ Tjek og optag ordrelås for at advare ved samtidige redigeringer
+	$order_lock_conflict = null;
+	if ($id > 0) {
+		include_once('../includes/record_lock.php');
+		$order_lock_conflict = order_lock_check_acquire('ordrer', $id, $brugernavn, $s_id);
+	}
+
 	$sag_id = if_isset($r, NULL, 'sag_id') * 1; #20210719
 	if ($sag_id) {
 		$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
@@ -3756,6 +3768,29 @@ function ordreside($id, $regnskab)
 		if ($returside == "ordreliste.php") sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 		else sidehoved($id, "$returside", "", "", "$kundeordre $ordrenr - $temp");
 	}
+	// -- Ordrelås-banner: vises når en anden bruger har bilaget åbent — 20260803 MJ
+	if ($order_lock_conflict) {
+		$lock_mins = (int)((time() - (int)$order_lock_conflict['locked_at']) / 60);
+		$lock_who  = htmlspecialchars($order_lock_conflict['brugernavn'], ENT_QUOTES, 'UTF-8');
+		$lock_ago  = $lock_mins <= 1 ? 'for et øjeblik siden' : "for $lock_mins minutter siden";
+		print "<div style='background:#fff3cd;color:#664d03;border:1px solid #ffca2c;border-radius:3px;padding:6px 14px;margin:4px 2px;'>"
+			. "<b>Advarsel:</b> Denne ordre er &aring;ben af <b>$lock_who</b> ($lock_ago)."
+			. " Samtidige &aelig;ndringer kan overskrive hinanden."
+			. "</div>\n";
+	}
+	// -- Frigiv ordrelås ved navigering væk (bedst mulig indsats via beforeunload) — 20260803 MJ
+	if ($id > 0) {
+		print "<script type=\"text/javascript\">"
+			. "(function(){"
+			. "var _lid=" . (int)$id . ";"
+			. "window.addEventListener('beforeunload',function(){"
+			. "var d=new FormData();d.append('tabel','ordrer');d.append('record_id',_lid);"
+			. "navigator.sendBeacon('../includes/lock_release.php',d);"
+			. "});"
+			. "})();"
+			. "</script>\n";
+	}
+
 	// -- Stock-warning banner: sits between the title bar (rendered by sidehoved()) and the order form.
 	if ($id && function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
 		// Count active vs. deleted approvals. Deleted-line approvals stay in the
