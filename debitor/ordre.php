@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-02 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -2444,29 +2444,28 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	}
 	// ------------------------------------------------------------------
 	// Save/update delivery address based on company name + account_id
+	// 20260803 MJ SD-533 Use raw @pg_query (not db_modify) so any failure — table not yet
+	//   created, FK mismatch, OPcache serving stale schema — is silently absorbed and the
+	//   stock-item save always completes. delivery_addresses is an enhancement; it must
+	//   never block the core Gem save.
 	// ------------------------------------------------------------------
 	if (($b_submit == 'Gem' || $b_submit == 'save') && $id && $konto_id) {
-		// Only proceed if essential fields are filled
 		if (!empty($lev_navn) && !empty($lev_addr1) && !empty($lev_postnr) && !empty($lev_bynavn)) {
-			// 20260802 MJ SD-533 Guard: skip if table doesn't exist yet (betweenUpdates.php creates it on next login)
-			$_da_exists = db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='delivery_addresses' LIMIT 1", __FILE__ . " L " . __LINE__));
-			if ($_da_exists) {
+			global $connection;
 			// Demote all existing primary addresses for this customer
-			db_modify("UPDATE delivery_addresses 
-					SET is_primary = 'f' 
-					WHERE account_id = '" . db_escape_string($konto_id) . "'", 
-					__FILE__ . " L " . __LINE__);
-			
+			@pg_query($connection, "UPDATE delivery_addresses
+					SET is_primary = 'f'
+					WHERE account_id = '" . db_escape_string($konto_id) . "'");
+
 			// Look for existing address with same account_id and company_name
-			$qtxt_find = "SELECT id FROM delivery_addresses 
+			$qtxt_find = "SELECT id FROM delivery_addresses
 						WHERE account_id = '" . db_escape_string($konto_id) . "'
 							AND company_name = '" . db_escape_string($lev_navn) . "'
 						LIMIT 1";
 			$existing = db_fetch_array(db_select($qtxt_find, __FILE__ . " L " . __LINE__));
-			
+
 			if ($existing) {
-				// Update the existing row with current values
-				$qtxt_update = "UPDATE delivery_addresses SET
+				@pg_query($connection, "UPDATE delivery_addresses SET
 									address_line1 = '" . db_escape_string($lev_addr1) . "',
 									address_line2 = '" . db_escape_string($lev_addr2) . "',
 									postal_code   = '" . db_escape_string($lev_postnr) . "',
@@ -2475,12 +2474,10 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 									contact_name  = '" . db_escape_string($lev_kontakt) . "',
 									email         = '" . db_escape_string($lev_email) . "',
 									is_primary    = 't'
-								WHERE id = " . (int)$existing['id'];
-				db_modify($qtxt_update, __FILE__ . " L " . __LINE__);
+								WHERE id = " . (int)$existing['id']);
 			} else {
-				// Insert new address as primary
-				$qtxt_insert = "INSERT INTO delivery_addresses 
-								(account_id, company_name, address_line1, address_line2, 
+				@pg_query($connection, "INSERT INTO delivery_addresses
+								(account_id, company_name, address_line1, address_line2,
 								postal_code, city, country, contact_name, email, is_primary, sort_order)
 								VALUES (
 									'" . db_escape_string($konto_id) . "',
@@ -2492,10 +2489,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 									'" . db_escape_string($lev_land) . "',
 									'" . db_escape_string($lev_kontakt) . "',
 									'" . db_escape_string($lev_email) . "',
-									't', 0)";
-				db_modify($qtxt_insert, __FILE__ . " L " . __LINE__);
+									't', 0)");
 			}
-			} // end if ($_da_exists)
 		}
 	}
 	// -- Out-of-stock approval logging (Håndtering af salg af udsolgte varer) --
