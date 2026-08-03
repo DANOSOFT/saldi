@@ -61,6 +61,12 @@
 // 20260727 CL/SZ Validated/escaped $_GET['db'] in access_check() to close a
 //                pre-auth SQL injection on the master connection (SD-588)
 // 20260729 CoPilot/NTR - reported by codeRabbit - access check reworking missing db check and logging.
+// 20260728 CL/SZ Removed update_table/insert_into_table (unused arbitrary-SQL
+//                surface) and narrowed fetch_from_table() to the one known
+//                query shape actually used; hardened the access_check() API
+//                key comparison (SD-589)
+
+
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -75,143 +81,49 @@ $brugernavn=NULL;
 $db_skriv_id=NULL;
 $webservice='on';
 
-function fetch_from_table($select,$from,$where,$order_by,$limit) {
-	global $db,$db_skriv_id;
-	global $brugernavn;
-	global $webservice;
-	
-	$log=fopen("../temp/$db/rest_api.log","a");
-	
-	$allowed_tables = array('adresser','batch_kob','batch_salg','kassekladde','lagerstatus','mylabel','openpost','ordrer','ordrelinjer');
-	array_push($allowed_tables,'transaktioner','varer','shop_ordrer','shop_varer','rental');
-	if ($_SERVER['REMOTE_ADDR'] == '91.235.100.32')  array_push($allowed_tables,'mysale','regnskab');
+// SD-589: fetch_from_table(), update_table() and insert_into_table() used to
+// take $select/$from/$where/$set/$fields/$values straight from $_GET and
+// interpolate them into SQL, guarded only by a ';' check and a table-name
+// allowlist that never touched $select/$where/$set — a single-statement
+// UNION/subquery (no ';' needed) was a general read/write SQL primitive over
+// the tenant DB for anyone past access_check(). Caller enumeration (only
+// api/rest_api_client.php, a 2017 reference client) found exactly one real,
+// working use: exporting varenr+beholdning from 'varer' for stock sync via
+// action=fetch_from_table. Its update_table call passes the misspelled
+// action 'update_tablee' and can never have worked; its insert_into_table
+// wrapper is an unwired manual query tool. Order creation already goes
+// through the separate, already-parameterized insert_shop_order/
+// insert_shop_orderline functions. update_table()/insert_into_table() are
+// therefore removed outright rather than replaced, and fetch_from_table() is
+// narrowed to the single known-good shape actually used: no table/column/
+// where-clause pass-through, no arbitrary SQL of any kind.
+function fetch_from_table($select, $from, $where, $order_by, $limit) {
+	global $db;
+	if(!isset($where)) $where = '';
 
-	fwrite($log,__line__." Query: select ".$select." from ".$from." where ".$where." order by ".$order_by." limit ".$limit."\n");
-	if (strpos($select,';') || strpos($from,';') || strpos($where,';') || strpos($order_by,';') || strpos($limit,';')) {
-		fwrite($log,__line__." sql_injection attempt\n");
-		fclose ($log);
-		return 'sql_injection attempt';
-		exit;
+	$log=fopen("../temp/$db/rest_api.log","a");
+
+	if ($from !== 'varer' || !in_array(str_replace(' ','',$select), array('varenr,beholdning'), true)) {
+		fwrite($log,__line__." rejected: unsupported select/from ($select / $from)\n");
+		fclose($log);
+		return 'unsupported query shape';
 	}
-	(strpos($from,','))?$q_tables=explode(',',$from):$q_tables[0]=$from;
-		fwrite($log,count($q_tables)." $q_tables[0] \n");
-	for ($i=0;$i<count($q_tables);$i++) {		
-		if (in_array($q_tables[$i],$allowed_tables)) fwrite($log,__line__." legal tabel ($q_tables[$i]) \n");
-		else {
-			fwrite($log,__line__." illegal tabel ($q_tables[$i]) \n");
-			fclose ($log);
-			return "illegal tabel ($q_tables[$i])";
-			exit;
-		}
+	if ('' !== $where) {
+		fwrite($log,__line__." rejected: where clause no longer supported ($where)\n");
+		fclose($log);
+		return 'unsupported query shape';
 	}
-	$qtxt="select $select from $from";
-	if ($where) $qtxt.=" where $where";
-	if ($order_by) $qtxt.=" order by $order_by";
-	if ($limit) $qtxt.=" limit $limit";
+
+	$qtxt="select varenr, beholdning from varer order by varenr";
 	fwrite($log,__line__." Query: $qtxt\n");
 	$result = array();
-	$x=0;
-	$y=0;
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($y < db_num_fields($q)) {
-		$fieldName[$y] = db_field_name($q,$y); 
-		$fieldType[$y] = db_field_type($q,$y);
-		$result[$x][$y]=$fieldName[$y]."(".$fieldType[$y].")";
-		fwrite($log,__line__." result ".$result[$x][$y]."\n");
-		$y++;
+	while ($r=db_fetch_array($q)) {
+		$result[] = array('varenr' => $r['varenr'], 'beholdning' => $r['beholdning']);
 	}
-	$x++;
-  while($result[$x]=db_fetch_array($q)) $x++;
-	fclose ($log);
+	fclose($log);
 	return $result;
 } #endfunc fetch_from_table
-
-function update_table($update,$set,$where) {
-	global $db,$db_skriv_id;
-	global $brugernavn;
-	global $webservice;
-	
-	$log=fopen("../temp/$db/rest_api.log","a");
-	$allowed_tables=array('ordrer','shop_ordrer','ordrelinjer','varer','shop_varer','vare_lev','adresser','ansatte','shop_adresser','kladdeliste','kassekladde');
-	fwrite($log,__line__." Query: update ".$update." set ".$set." where ".$where."\n");
-	if (strpos($update,';') || strpos($set,';') || strpos($where,';')) {
-		fwrite($log,__line__." sql_injection attempt\n");
-		fclose ($log);
-		return 'sql_injection attempt';
-		exit;
-	}
-	if (in_array($update,$allowed_tables)) fwrite($log,__line__." legal tabel ($update) \n");
-	else {
-		fwrite($log,__line__." illegal tabel ($update) \n");
-		fclose ($log);
-		return "illegal tabel ($update)";
-		exit;
-	}
-	(strpos($set,','))?$q_sets=explode(',',$set):$q_sets[0]=$set;
-	for ($i=0;$i<count($q_sets);$i++) {
-		list ($q_set_a,$q_set_b)=explode("=",$q_sets[$i]);
-		if (strtolower(trim($q_set_a))=='id') {
-			fwrite($log,__line__." illegal field ($q_sets[$i]) \n");
-			fclose ($log);
-			return "illegal field ($q_sets[$i])";
-			exit;
-	} else fwrite($log,__line__." legal field ($q_sets[$i]) \n");
-	}
-	$qtxt="update $update set $set where $where";
-#	if ($where) $qtxt.=" where $where";
-	fwrite($log,__line__." Query: $qtxt\n");
-	$result = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$x=0;
-	$y=0;
-	fclose ($log);
-	return $result;
-}
-
-function insert_into_table($insert,$fields,$values) {
-	global $db,$db_skriv_id;
-	global $brugernavn;
-	global $webservice;
-	
-	$log=fopen("../temp/$db/rest_api.log","a");
-
-	$valchk=explode(",",$values);
-	for ($x=0;$x<count($valchk);$x++) {
-		if (substr($valchk[$x],0,1) != "'" || substr($valchk[$x],-1) != "'") {
-			return "Each value must be surrounded by ' (apostrophes) !";
-		}
-	}
-	$allowed_tables=array('ordrer','shop_ordrer','ordrelinjer','varer','shop_varer','vare_lev','adresser','ansatte','shop_adresser','kladdeliste','kassekladde');
-	fwrite($log,__line__." Query: insert into ".$insert." fields ".$fields." values ".$values."\n");
-	if (strpos($insert,';') || strpos($fields,';') || strpos($values,';')) {
-		fwrite($log,__line__." sql_injection attempt\n");
-		fclose ($log);
-		return 'sql_injection attempt';
-		exit;
-	}
-	if (in_array($insert,$allowed_tables)) fwrite($log,__line__." legal tabel ($insert) \n");
-	else {
-		fwrite($log,__line__." illegal tabel ($insert) \n");
-		fclose ($log);
-		return "illegal tabel ($insert)";
-		exit;
-	}
-	(strpos($fields,','))?$q_fieldss=explode(',',$fields):$q_fieldss[0]=$fields;
-	for ($i=0;$i<count($q_fieldss);$i++) {
-		if (strtolower(trim($q_fieldss[$i]))=='id') {
-			fwrite($log,__line__." illegal field ($q_fieldss[$i]) \n");
-			fclose ($log);
-			return "illegal field ($q_fieldss[$i])";
-			exit;
-		} else fwrite($log,__line__." legal field ($q_fieldss[$i]) \n");
-	}
-	$qtxt="insert into $insert ($fields) values ($values)";
-	fwrite($log,__line__." Query: $qtxt\n");
-	$result = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$x=0;
-	$y=0;
-	fclose ($log);
-	return $result;
-}
 
 function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
 
@@ -1122,9 +1034,9 @@ function access_check(){
 		$api_key=trim($r['box1']);
 		if (strpos($r['box2'],',')) $ip_list=explode(',',trim($r['box2']));
 		else $ip_list[0]=trim($r['box2']);
-		if ($api_key != $_GET['key']) {
+		if (!$api_key || !hash_equals($api_key,(string) (isset($_GET['key']) ? $_GET['key'] : ''))) {
 			$log=fopen("../temp/$db/rest_api.log","a");
-			fwrite($log,__line__." Access denied (key) $api_key != $_GET[key]\n");
+			fwrite($log,__line__." Access denied (key)\n");
 			return "Access denied (key)";
 		} elseif (!in_array($ip,$ip_list) && !in_array('*',$ip_list)) {
 			fwrite($log,__line__." Access denied (key) ($ip) != $r[box2]\n");
@@ -1138,7 +1050,7 @@ function access_check(){
 	} elseif ($ip != '91.235.100.32') return 'Wrong IP';
 	return 'OK';
 }
-$possible_url = array("fetch_from_table,update_table,insert_shop_order,insert_shop_orderline");
+$possible_url = array("fetch_from_table,insert_shop_order,insert_shop_orderline");
 $value = "An error has occurred";
 if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 	$action=trim($_GET['action']);
@@ -1148,13 +1060,13 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 		fwrite($log,__line__." Action:".$_GET['action']."\n");
 		if ($action=='fetch_from_table') {
 			fclose ($log);
-			$select    = if_isset($_GET['select']);
-			$from      = if_isset($_GET['from']);
-			$where     = if_isset($_GET['where']);
-			$where     = str_replace("**","%",$where);
-			$order_by  = if_isset($_GET['order_by']);
-			$limit     = if_isset($_GET['limit']);
-			if ($select && $from) $value = fetch_from_table($select,$from,$where,$order_by,$limit);
+			// SD-589: select/from/where are no longer passed through to SQL —
+			// fetch_from_table() itself now only accepts the one known-good
+			// shape (varenr,beholdning from varer, no where clause).
+			$select = if_isset($_GET, false, ['select']);
+			$from   = if_isset($_GET, false, ['from']);
+			$where  = if_isset($_GET, '', ['where']);
+			if ($select && $from) $value = fetch_from_table($select,$from,$where,'','');
 ##############################################
 		} elseif ($action=='get_sold_labels') {
 			fclose ($log);
@@ -1163,14 +1075,6 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 		} elseif ($action=='get_all_labels') {
 			fclose ($log);
 			$value = get_all_labels();
-##############################################
-		} elseif ($action=='update_table') {
-			fclose ($log);
-			$value = update_table($_GET['update'],$_GET['set'],str_replace("**","%",$_GET['where']));
-##############################################
-		}	elseif ($action=='insert_into_table') {
-			fclose ($log);
-			$value = insert_into_table($_GET['insert'],$_GET['fields'],$_GET['values']);
 ##############################################
 		}	elseif ($action=='getNextAccountNo') {
 			fclose ($log);
