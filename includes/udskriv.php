@@ -94,6 +94,11 @@ if ($returside=='ordreliste.php') { #20200113
 	if ($art=='KO' || $art=='KK') $returside="../kreditor/ordreliste.php";
 	else $returside="../debitor/ordreliste.php";
 }
+// 20260803 MJ naar returside er listesiden men id kendes, gaa til specifik ordre i stedet
+if ($id) {
+	if ($returside == "../debitor/ordreliste.php") $returside = "../debitor/ordre.php?id=$id";
+	elseif ($returside == "../kreditor/ordreliste.php") $returside = "../kreditor/ordre.php?id=$id";
+}
 
 if ($udskriv_til=='historik') {
 	historik($id,$ps_fil);
