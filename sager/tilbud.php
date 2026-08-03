@@ -57,85 +57,46 @@ $beskrivelse = $row['beskrivelse'];
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <link rel="stylesheet" type="text/css" href="../css/main.css">
-        <script type="text/javascript" src="../tiny_mce/tiny_mce.js"></script>
+        <script type="text/javascript" src="../tiny_mce/tinymce.min.js"></script>
 
         <script type="text/javascript">
             var templates = <?php echo json_encode($template); ?>;
-            // Creates a new plugin class and a custom listbox
-            tinymce.create('tinymce.plugins.TemplatePlugin', {
-                createControl: function(n, cm) {
-                    switch (n) {
-                        case 'mytemplate':
-                            var mlb = cm.createListBox('mytemplate', {
-                                title : '<?php echo findtekst('803|Skabelon', $sprog_id); ?>',
-                                onselect : function(v){
-                                    var ed=this.control_manager.editor; 
-                                    ed.focus();
-                                    ed.selection.setContent(v);
-                                    return false;
+            // Toolbar dropdown that inserts a stored sagstekster template at the cursor
+            tinymce.PluginManager.add('mytemplate', function (editor) {
+                editor.ui.registry.addMenuButton('mytemplate', {
+                    text: '<?php echo findtekst('803|Skabelon', $sprog_id); ?>',
+                    fetch: function (callback) {
+                        callback(templates.map(function (tpl) {
+                            return {
+                                type: 'menuitem',
+                                text: tpl.beskrivelse,
+                                onAction: function () {
+                                    editor.focus();
+                                    editor.selection.setContent(tpl.tekst);
                                 }
-                            });
-
-                            // Add some values to the list box
-                            for(i=0;i<templates.length;i++)
-                            {
-                                var val = templates[i];
-                                mlb.add(val.beskrivelse, val.tekst);
-                            }
-                            
-                            // Return the new listbox instance
-                            return mlb;
-     
-                        }
-
-                        return null;
+                            };
+                        }));
                     }
                 });
+                return {};
+            });
 
-                // Register plugin with a short name
-                tinymce.PluginManager.add('mytemplate', tinymce.plugins.TemplatePlugin);
-
-                tinyMCE.init({
-                    // General options
-                    mode: "exact",
-                    language : "<?php echo ($sprog_id == 2) ? 'en' : 'da'; ?>",
-                    elements : "tilbud",
-                    theme : "advanced",
-                    plugins : "-mytemplate,autolink,lists,spellchecker,pagebreak,style,layer,table,save,advhr,advimage,advlink,emotions,iespell,inlinepopups,insertdatetime,preview,media,searchreplace,print,contextmenu,paste,directionality,fullscreen,noneditable,visualchars,nonbreaking,xhtmlxtras,template,wordcount",
-                    plugin_insertdate_dateFormat : "%d-%m-%Y",
-                    
-                    // Theme options
-                    theme_advanced_buttons1 : "mytemplate,save,newdocument,|,bold,italic,underline,strikethrough,|,justifyleft,justifycenter,justifyright,justifyfull,|,styleselect,formatselect,fontselect,fontsizeselect",
-                    theme_advanced_buttons2 : "cut,copy,paste,pastetext,pasteword,|,search,replace,|,bullist,numlist,|,outdent,indent,blockquote,|,undo,redo,|,link,unlink,anchor,image,cleanup,help,code,|,insertdate,inserttime,preview,|,forecolor,backcolor",
-                    theme_advanced_buttons3 : "tablecontrols,|,hr,removeformat,visualaid,|,sub,sup,|,charmap,emotions,iespell,media,advhr,|,print,|,ltr,rtl,|,fullscreen",
-                    theme_advanced_buttons4 : "insertlayer,moveforward,movebackward,absolute,|,styleprops,spellchecker,|,cite,abbr,acronym,del,ins,attribs,|,visualchars,nonbreaking,template,blockquote,pagebreak,|,insertfile,insertimage",
-                    theme_advanced_toolbar_location : "top",
-                    theme_advanced_toolbar_align : "left",
-                    theme_advanced_statusbar_location : "bottom",
-                    theme_advanced_resizing : false,
-        
-                    width: "778",
-                    height: "600",
-
-                    // Skin options
-                    skin : "o2k7",
-                    skin_variant : "silver",
-
-                    // Example content CSS (should be your site CSS)
-                    content_css : "css/example.css",
-
-                    // Drop lists for link/image/../img/template dialogs
-                    template_external_list_url : "js/template_list.js",
-                    external_link_list_url : "js/link_list.js",
-                    external_image_list_url : "js/image_list.js",
-                    media_external_list_url : "js/media_list.js",
-
-                    // Replace values for the template plugin
-                    template_replace_values : {
-                        username : "Some User",
-                        staffid : "991234"
-                    }
-                });
+            tinymce.init({
+                license_key: 'gpl',
+                selector: '#tilbud',
+                language: '<?php echo ($sprog_id == 2) ? 'en' : 'da'; ?>',
+                plugins: 'mytemplate autolink lists table save image link emoticons insertdatetime preview media searchreplace directionality fullscreen visualchars nonbreaking pagebreak wordcount charmap code visualblocks anchor help',
+                toolbar: [
+                    'mytemplate save | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | blocks fontfamily fontsize',
+                    'searchreplace | bullist numlist | outdent indent blockquote | undo redo | link unlink anchor image code help | insertdatetime preview | forecolor backcolor',
+                    'table | hr removeformat visualblocks | subscript superscript | charmap emoticons media | ltr rtl | fullscreen',
+                    'visualchars nonbreaking pagebreak'
+                ],
+                browser_spellcheck: true,
+                promotion: false,
+                width: '778',
+                height: '600'
+            });
         </script>
 <?php
 print "<title>".findtekst('2783|Stillads', $sprog_id)."</title>
