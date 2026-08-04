@@ -9,6 +9,8 @@
 //
 // History:
 // 20260803 CL/SZ SD-615: created.
+// 20260804 CL/SZ Assert the logout refusal body (not just status != 0) so the
+//                test fails on a 500 instead of passing on any failure.
 
 use PHPUnit\Framework\TestCase;
 
@@ -38,6 +40,11 @@ final class AdminOpretAuthorizationTest extends TestCase
         ]);
 
         $this->assertNotSame(0, $res['status'], 'admin/opret.php was not reachable at all');
+        $this->assertStringContainsString(
+            'logud.php',
+            $res['body'],
+            'an anonymous request must reach the logout refusal path'
+        );
 
         $master = RestApiEnv::connect(RestApiEnv::masterDb());
         $rows = RestApiEnv::rows($master, 'SELECT id, db FROM regnskab WHERE regnskab = $1', [$regnskab]);
