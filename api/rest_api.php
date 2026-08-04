@@ -960,18 +960,25 @@ function access_check(){
 	global $webservice;
 	global $regnaar;
 
-	if (isset($_GET['db'])) {
+	if (isset($_GET['db']) && is_string($_GET['db'])) {
 		$db=$_GET['db'];
-		if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]{0,24}$/',$db)) {
+		if (!preg_match('/\A[A-Za-z_][A-Za-z0-9_]{0,24}\z/',$db)) {
 			return 'missing db';
 		}
 	} else {
 		return 'missing db';
 	}
 
-	if (!file_exists("../temp")) mkdir("../temp",0666);
-	if (!file_exists("../temp/$db")) mkdir("../temp/$db",0666);
+	if (!file_exists("../temp") && !mkdir("../temp",0750) && !file_exists("../temp")) {
+		return 'Unable to create temp directory';
+	}
+	if (!file_exists("../temp/$db") && !mkdir("../temp/$db",0750) && !file_exists("../temp/$db")) {
+		return 'Unable to create temp directory';
+	}
 	$log=fopen("../temp/$db/rest_api.log","a");
+	if (!$log) {
+		return 'Unable to open log file';
+	}
 	(strpos($db,'_'))?list($master,$db_skriv_id)=explode('_',$db):$master=$db;
 	fwrite($log,__line__." $master,$db_skriv_id\n");
 
