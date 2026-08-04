@@ -166,9 +166,9 @@ if(isset($_GET['edit']) && is_numeric($_GET['edit']))
                 license_key: 'gpl',
                 selector: '#temptext',
                 language: '<?php echo ($sprog_id == 2) ? 'en' : 'da'; ?>',
-                plugins: 'mytemplate autolink lists table save image link emoticons insertdatetime preview media searchreplace directionality fullscreen visualchars nonbreaking pagebreak wordcount charmap code visualblocks anchor help',
+                plugins: 'mytemplate autolink lists table image link emoticons insertdatetime preview media searchreplace directionality fullscreen visualchars nonbreaking pagebreak wordcount charmap code visualblocks anchor help',
                 toolbar: [
-                    'mytemplate save | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | blocks fontfamily fontsize',
+                    'mytemplate | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | blocks fontfamily fontsize',
                     'searchreplace | bullist numlist | outdent indent blockquote | undo redo | link unlink anchor image code help | insertdatetime preview | forecolor backcolor',
                     'table | hr removeformat visualblocks | subscript superscript | charmap emoticons media | ltr rtl | fullscreen',
                     'visualchars nonbreaking pagebreak'
