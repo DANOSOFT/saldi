@@ -56,6 +56,7 @@
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260804 CDX/NTR Kept blank Genfakt. dates last when sorting invoices.
 
 @session_start();
 $s_id = session_id();
@@ -943,7 +944,9 @@ $custom_columns = array(
         "width" => "1",
         "type" => "date",
         "searchable" => true,
+        "sqlOverride" => "o.nextfakt",
         "defaultSortDirection" => "desc",
+        "nullsLast" => true,
         "hidden" => ($valg != "faktura"),
         "render" => function ($value, $row, $column) {
             return "<td align='{$column['align']}'>" . dkdato($value) . "</td>";

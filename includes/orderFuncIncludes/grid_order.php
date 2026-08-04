@@ -5,6 +5,7 @@
 // 20260612 pk - Changed the size of the arrow buttons in pagination so that they are the same size as the number buttons
 // 20260630 Sawaneh render_table_row now wraps render-less column values in a <td> so raw values no longer leak as text above the grid
 // 20260701 CDX/NTR - Changed DEFAULT_GENERATE_SEARCH to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
+// 20260804 CDX/NTR Added opt-in database-portable NULL-last grid sorting.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -348,6 +349,13 @@ $defaultValues = [
      * @var string
      */
     'defaultSortDirection' => "asc",
+
+    /**
+     * Keeps NULL values after non-NULL values in both sort directions.
+     *
+     * @var bool
+     */
+    'nullsLast' => false,
 
     /**
      * Determines if the column is hidden by default.
@@ -810,6 +818,36 @@ function get_default_sort($columns) {
 }
 
 /**
+ * Builds the ORDER BY expression for a grid column.
+ *
+ * @param array $columns The grid column definitions.
+ * @param string $sort The requested sort field and direction.
+ * @return string The sort expression, including opt-in NULL placement.
+ */
+function build_grid_sort($columns, $sort) {
+    $sortParts = preg_split('/\s+/', trim($sort), 2);
+    $sortField = $sortParts[0];
+    $sortDirection = isset($sortParts[1]) ? ' ' . $sortParts[1] : '';
+
+    foreach ($columns as $column) {
+        if (!isset($column['field']) || $column['field'] !== $sortField) {
+            continue;
+        }
+
+        $sortExpression = !empty($column['sqlOverride']) ? $column['sqlOverride'] : $sortField;
+        if (!empty($column['nullsLast'])) {
+            return "CASE WHEN $sortExpression IS NULL THEN 1 ELSE 0 END ASC, $sortExpression$sortDirection";
+        }
+        if (!empty($column['sqlOverride'])) {
+            return $sortExpression . $sortDirection;
+        }
+        break;
+    }
+
+    return $sort;
+}
+
+/**
  * Builds a query string based on filters, search terms, sorting, pagination, and other parameters.
  *
  * @param string $id The ID used to reference the query.
@@ -932,18 +970,7 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
     }
     
     # Is always set due to get_default_sort
-    # Translate sort field to sqlOverride if one exists for proper sorting (e.g., for varchar columns that need numeric sorting)
-    $sortParts = preg_split('/\s+/', trim($sort), 2);
-    $sortField = $sortParts[0];
-    $sortDirection = isset($sortParts[1]) ? ' ' . $sortParts[1] : '';
-    
-    foreach ($columns as $column) {
-        if ($column['field'] === $sortField && !empty($column['sqlOverride'])) {
-            $sort = $column['sqlOverride'] . $sortDirection;
-            break;
-        }
-    }
-    
+    $sort = build_grid_sort($columns, $sort);
     $finalSort = $exactMatchOrdering . $sort;
     $query = str_replace("{{SORT}}", $finalSort, $query);
     // ========================================================================
@@ -1021,16 +1048,7 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         $query = str_replace("{{WHERE}}", $filterstring == "" ? "1=1" : $filterstring, $query);
     }
 
-    // Apply sqlOverride to sort field so ORDER BY uses the qualified column (mirrors build_query).
-    $sortParts = preg_split('/\s+/', trim($sort), 2);
-    $sortField = $sortParts[0];
-    $sortDirection = isset($sortParts[1]) ? ' ' . $sortParts[1] : '';
-    foreach ($columns as $column) {
-        if (isset($column['field']) && $column['field'] === $sortField && !empty($column['sqlOverride'])) {
-            $sort = $column['sqlOverride'] . $sortDirection;
-            break;
-        }
-    }
+    $sort = build_grid_sort($columns, $sort);
     $query = str_replace("{{SORT}}", $sort, $query);
 
     // Remove the LIMIT clause to count all rows
