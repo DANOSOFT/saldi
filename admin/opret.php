@@ -105,6 +105,8 @@
 // 20250804	PHR Corrected error in create  proforma
 // 20260803 CL/SZ Require an authenticated session unconditionally, before any
 //                $_POST handling (SD-615)
+// 20260804 SZ Also terminate on the webservice "Session expired" include return,
+//             instead of relying only on $db != $sqdb (SD-615)
 
 @session_start();
 $s_id=session_id();
@@ -116,8 +118,8 @@ include("../includes/std_func.php");
 
 $modulnr=101;
 
-include("../includes/online.php"); // the only auth check, must run for every request regardless of $_POST content (SD-615)
-if ($db != $sqdb) {
+$online_result=include("../includes/online.php"); // the only auth check, must run for every request regardless of $_POST content (SD-615)
+if ($online_result === 'Session expired' || $db != $sqdb) {
 	print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
 	exit;
