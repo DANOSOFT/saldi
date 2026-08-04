@@ -13,11 +13,14 @@
 //
 // argv: 1 = session id (must match the seeded online row)
 //
-// Prints CHARTEST_PAGE_DONE on stdout if the include ran to completion; the
-// test asserts on database state, not on this marker.
+// Prints CHARTEST_PAGE_DONE on stdout if the include ran to completion. The
+// tests assert on database state, but they check this marker and the exit code
+// first: several of them assert that no dunning was raised, and a child that
+// died early would satisfy that for the wrong reason.
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20260803 Sawaneh Documented that the completion marker is now asserted.
 
 if ($argc < 2) {
     fwrite(STDERR, "usage: php run_ny_rykker.php <session_id>\n");

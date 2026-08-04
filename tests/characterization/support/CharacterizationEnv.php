@@ -20,6 +20,8 @@
 // History:
 // 20260723 CL/LH SD-601: created.
 // 20260725 CL/LH Re-sync sequences after the clone; add nextId() for fixtures that mirror the app's MAX(id)+1 allocation.
+// 20260803 Sawaneh runChild() drained stdout to EOF before reading stderr, which deadlocks once the
+//                  stderr buffer fills; both pipes are now read concurrently.
 
 final class CharacterizationEnv
 {
@@ -285,11 +287,38 @@ final class CharacterizationEnv
             throw new RuntimeException('could not start child php');
         }
         fclose($pipes[0]);
-        $stdout = stream_get_contents($pipes[1]);
-        $stderr = stream_get_contents($pipes[2]);
+
+        // Both pipes have to be drained concurrently. Reading one to EOF first
+        // lets the other's buffer (~64 KB on Linux) fill up, at which point the
+        // child blocks writing while the parent blocks reading - a deadlock
+        // with no timeout. run_ny_rykker.php writes the whole captured page to
+        // stderr when SALDI_CHAR_DEBUG is set, and the legacy pages print HTML,
+        // so this is reachable rather than theoretical.
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+        $buffer = [1 => '', 2 => ''];
+        $open = [1 => $pipes[1], 2 => $pipes[2]];
+        while ($open !== []) {
+            $read = array_values($open);
+            $write = $except = [];
+            if (@stream_select($read, $write, $except, null) === false) {
+                break;
+            }
+            foreach ($read as $stream) {
+                $fd = $stream === $pipes[1] ? 1 : 2;
+                $chunk = fread($stream, 8192);
+                if ($chunk === false || $chunk === '') {
+                    if (feof($stream)) {
+                        unset($open[$fd]);
+                    }
+                    continue;
+                }
+                $buffer[$fd] .= $chunk;
+            }
+        }
         fclose($pipes[1]);
         fclose($pipes[2]);
         $exit = proc_close($proc);
-        return ['exit' => $exit, 'stdout' => (string)$stdout, 'stderr' => (string)$stderr];
+        return ['exit' => $exit, 'stdout' => $buffer[1], 'stderr' => $buffer[2]];
     }
 }

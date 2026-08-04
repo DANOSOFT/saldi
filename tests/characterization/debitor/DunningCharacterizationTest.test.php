@@ -35,7 +35,9 @@
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20260803 Sawaneh Rewrote the pinned ffdage1 defect as a grace-period
-//                  assertion now that the cutoff honours ffdage1.
+//                  assertion now that the cutoff honours ffdage1; runDunning()
+//                  now checks the child completed, so the tests that assert no
+//                  dunning cannot pass on a dead child.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -64,9 +66,27 @@ final class DunningCharacterizationTest extends CharacterizationTestCase
         return (string)(++self::$faktnrSeq);
     }
 
+    /**
+     * Several tests below assert that NO dunning was raised. A child that
+     * fataled or exited early raises none either, so without checking that the
+     * run actually completed those assertions would pass for the wrong reason -
+     * run_ny_rykker.php lowers error_reporting because the legacy page is
+     * warning-noisy, which makes a failure silent.
+     */
     private function runDunning(): void
     {
-        self::runChild('run_ny_rykker.php', [CharacterizationEnv::SESSION_ID]);
+        $result = self::runChild('run_ny_rykker.php', [CharacterizationEnv::SESSION_ID]);
+
+        $this->assertSame(
+            0,
+            $result['exit'],
+            "run_ny_rykker.php exited with {$result['exit']}\nstderr: {$result['stderr']}"
+        );
+        $this->assertStringContainsString(
+            'CHARTEST_PAGE_DONE',
+            $result['stdout'],
+            "run_ny_rykker.php did not run to completion\nstderr: {$result['stderr']}"
+        );
     }
 
     /** @return list<array<string,string>> dunning orders for a debtor, oldest first */
