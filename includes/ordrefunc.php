@@ -109,6 +109,10 @@
 // 20260729 CL/SZ functions bogfor and momsupdat: check global $db_modify_fejl before reporting
 //                "OK" so a failed write inside the posting transaction surfaces as an error
 //                instead of a phantom success (SD-595)
+// 20260804 SZ function bogfor: the master merge moved the $db_modify_fejl check inside the
+//             elseif(!$svar) branch, right after $fejl (which is never reassigned), making it
+//             dead code and leaving the committed-success path unchecked; moved it back to
+//             sit unconditionally before the shared return (SD-595)
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -1623,8 +1627,8 @@ function bogfor($id, $webservice=false)
 	} elseif (!$svar) {
 		transaktion('rollback');
 		$svar = $fejl;
-  	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595)
 	}
+	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor
