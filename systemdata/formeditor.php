@@ -594,7 +594,7 @@ function fe_var_map() {
 			'konto_kontakt'   => array('Konto kontakt', 'Account contact'),
 			'konto_cvrnr'     => array('Konto CVR-nr.', 'Account VAT no.'),
 			'konto_valuta'    => array('Konto valuta', 'Account currency'),
-			'konto_udtog'     => array('Konto udtog', 'Account statement'),  // 20260805 MJ
+			'konto_udtog'     => array('Konto udtog', 'Account Statement'),  // 20260805 MJ
 			// --- customer / order (ordre) ---
 			'ordre_firmanavn' => array('Kunde firmanavn', 'Customer company name'),
 			'ordre_addr1'     => array('Kunde adresse 1', 'Customer address 1'),
