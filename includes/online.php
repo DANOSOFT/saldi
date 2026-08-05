@@ -127,7 +127,7 @@ $sag_rettigheder = NULL;
 $unixtime        = date("U");
 
 $qtxt = "select * from online where session_id = '$s_id' order by logtime desc limit 1";
-$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__, true);
 if ($r = db_fetch_array($q)) {
 	$dbuser = trim(if_isset($r['dbuser'], ''));
 	$db = trim(if_isset($r['db'], ''));
@@ -141,7 +141,7 @@ if ($r = db_fetch_array($q)) {
 	$sprog_id = $languageID;
 	if ($logtime) {
 		$qtxt = "update online set logtime = '$unixtime' where session_id = '$s_id'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
 	}
 } elseif ($title != 'login' && $title != 'opdat' && $title != 'logud' && $title != 'Aaben regnskab') {
 	if ($webservice) return ('Session expired');
@@ -173,7 +173,7 @@ if ($modulnr && $modulnr < 100 && $db == $sqdb) { #Lukker vinduet hvis revisorbr
 	print "<meta http-equiv=\"refresh\" content=\"4;URL=../includes/luk.php\">";
 	exit;
 }
-if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", __FILE__ . " linje " . __LINE__))) {
+if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", __FILE__ . " linje " . __LINE__, true))) {
 	$db_id = $row['id'];
 	$db_skriv_id = $db_id;
 	$db_ver = $row['version']; # 20150104

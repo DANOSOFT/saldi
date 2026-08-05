@@ -294,6 +294,7 @@ async function print_str(baseurl, apikey, data) {
                     data: data, 
                     id: '<?php print $ordre_id; ?>',
                     type: 'move3500',
+                    kasse: '<?php print $kasse; ?>',
                     terminal_id: '<?php print $terminal_id; ?>'
                 })
             }

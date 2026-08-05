@@ -1,0 +1,3 @@
+# Factory-added: phars are executable archives - never text-diff or merge
+# them (a phpunit.phar text-diffs as ~120k lines, observed on PR #399).
+*.phar binary

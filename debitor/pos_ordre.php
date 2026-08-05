@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-06-04 ---
+// --- debitor/pos_ordre.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 2019-01-06 - PHR Tilføjet mulighed for totalrabat - Søg 'totalrabat'  
 // 2019-01-07 - PHR Kortbeløb kan nu rettes ved kasseoptælling - Søg 'change_cardvalue'  
@@ -100,6 +100,7 @@
 //                 so art='DO' orders without pos_betalinger are passed to bogfor_nu
 // 20260601 Sawaneh Out-of-stock popup now also fires for sub-items of a samlesæt (set), not just the master varenr
 // 20260604 PHR change_cardvalue: (float)$ny_kortsum[$x] → usdecimal() — dansk format "12.378,02" blev tolket som 12.378
+// 20260707 MJ Add kasse to form action URL so drawer kasse is preserved on POST; restore commented-out drawer redirect in aabn_skuffe
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1679,7 +1680,7 @@ if ($tilfravalgNy && ($delFrTfv || $delFrTfv == '0')) {
 	}
 	$tilfravalgNy = trim($tilfravalgNy, chr(9));
 } else $tilfravalgNy = if_isset($_POST['tilfravalgNy']); #20220614
-print "<form name='pos_ordre' action='pos_ordre.php?id=$id&bundmenu=$bundmenu&sidemenu=$sidemenu&bordnr=$bordnr";
+print "<form name='pos_ordre' action='pos_ordre.php?id=$id&kasse=$kasse&bundmenu=$bundmenu&sidemenu=$sidemenu&bordnr=$bordnr";
 print "&del_bord=$del_bord&tilfravalgNy=" . str_replace(chr(9), '|', $tilfravalgNy) . "' method='post' autocomplete='off'>\n";
 print "<table width=\"100%\" height=\"100%\" bordercolor=\"#ffffff\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tbody>\n"; # Tabel 1 ->
 # 1 kvadrat.
@@ -3465,7 +3466,7 @@ function aabn_skuffe($id, $kasse)
 	countDrawOpening($kasse);
 	if ($tracelog)
 		fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls $printserver/saldiprint.php (openDrawer)\n");
-	//print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
 	exit;
 }
 

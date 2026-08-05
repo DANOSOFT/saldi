@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-06-11 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-07-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 //
 // 2020.01.22 PHR function send_mails. Added mail format check #20200122
@@ -53,6 +53,7 @@
 // 20260623 Sawaneh Log 'Reason' (out-of-stock approval note) now prints only on the delivery note, not on quotes/orders/invoices.
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
+// 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -195,8 +196,8 @@ if (!function_exists('skriv')) {
 			$form_font = $form_font . '-Italic-ISOLatin9 findfont';
 		elseif (($fed == 'on' || $startfed == 'on') && ($italic == 'on'))
 			$form_font = $form_font . '-BoldItalic-ISOLatin9 findfont';
-		elseif ($form_font == "Times")
-			$form_font = $form_font . '-Roman-ISOLatin9 findfont';
+		elseif ($form_font == "Times" || $form_font == "Palatino" || $form_font == "NewCenturySchlbk")
+			$form_font = $form_font . '-Roman-ISOLatin9 findfont';   // these families' regular face is "-Roman"
 		else
 			$form_font = $form_font . '-ISOLatin9 findfont';
 		if (strstr($tekstinfo, 'ordrelinjer')) {
@@ -267,10 +268,10 @@ if (!function_exists('skriv')) {
 								$qtxt = "select $variabel from ordrer where id=$id";
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "eget" || $tabel == "egen") {
-								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 								$q2 = db_select("select $db_variabel as $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 							} elseif (($tabel == "adresser") || ($tabel == "adresser")) {
-								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 								$q2 = db_select("select $db_variabel as $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "ansat" && $ref) {
 								$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
@@ -612,7 +613,8 @@ if (!function_exists('find_form_tekst')) {
 				if (isset($streng[$x]) && substr($streng[$x], 0, 1) == "$") {
 					$streng[$x] = substr($streng[$x], 1);
 					list($tabel, $variabel) = explode("_", $streng[$x], 2);
-					if (($formular == 3) && ($tabel == "ordre") && (($variabel == "lev_navn") || ($variabel == "lev_addr1") || ($variabel == "lev_addr2") || ($variabel == "lev_postnr") || ($variabel == "lev_bynavn") || ($variabel == "lev_kontakt"))) {
+
+					if (($tabel == "ordre") && (($variabel == "lev_navn") || ($variabel == "lev_addr1") || ($variabel == "lev_addr2") || ($variabel == "lev_postnr") || ($variabel == "lev_bynavn") || ($variabel == "lev_kontakt")) && (($formular == 3) || get_settings_value("showBothAddrExtra", "ordre", "off") === "on")) {
 						$variabel = tjek_lev_addr($variabel, $id);
 					}
 					if ($tabel == "afdeling" && $variabel == "note") {
@@ -639,7 +641,7 @@ if (!function_exists('find_form_tekst')) {
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						}
 					} elseif ($tabel == "eget" || $tabel == "egen") {
-						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 						$q2 = db_select("select $db_variabel as $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "adresser" || $tabel == "konto") {
 						if ($variabel == 'valuta') {
@@ -649,11 +651,11 @@ if (!function_exists('find_form_tekst')) {
 							$qtxt .= "and fiscal_year = $regnaar";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						} else {
-							$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+							$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 							$q2 = db_select("select $db_variabel as $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
 						}
 					} elseif ($tabel == "kunde") {
-						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 						$q2 = db_select("select $db_variabel as $variabel from adresser where art='D' and id=$id", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "levering") {
 						$q2 = db_select("select $variabel from batch_salg where ordre_id=$id and lev_nr=$lev_nr", __FILE__ . " linje " . __LINE__);
@@ -903,7 +905,10 @@ if (!function_exists('tjek_lev_addr')) {
 			$tmp = "firmanavn";
 		else
 			$tmp = substr($variabel, 4);
-		$query = db_select("select $tmp from ordrer where id=$id and lev_navn!='' and lev_addr1!='' and lev_postnr!='' and lev_bynavn!=''", __FILE__ . " linje " . __LINE__);
+		// 20260709 Sawaneh SD-562: when "show both" is enabled, only print the delivery address
+		// on the delivery note if the order's Show-delivery-address flag (vis_lev_addr) is on.
+		$vis_lev_cond = (get_settings_value("showBothAddrExtra", "ordre", "off") === "on") ? " and vis_lev_addr='on'" : "";
+		$query = db_select("select $tmp from ordrer where id=$id and lev_navn!='' and lev_addr1!='' and lev_postnr!='' and lev_bynavn!=''$vis_lev_cond", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			return $variabel;
 		} else {
@@ -1124,11 +1129,11 @@ if (!function_exists('formularprint')) {
 			if ($formular == 9)
 				$printfilnavn = "plukliste";
 			if ($formular == 12)
-				$printfilnavn = "forslag";
+				$printfilnavn = "creditorSuggestion";
 			if ($formular == 13)
-				$printfilnavn = "rekvisition";
+				$printfilnavn = "creditorOrder";
 			if ($formular == 14)
-				$printfilnavn = "lev_fakt";
+				$printfilnavn = "creditorInvoice";
 			#		$psfp1=fopen("$mappe/$printfilnavn.ps","w");
 			#		$htmfp1=fopen("$mappe/$printfilnavn.htm","w");
 		}
@@ -1256,6 +1261,19 @@ if (!function_exists('formularprint')) {
 
 				if (!$formularsprog)
 					$formularsprog = "dansk";
+				// Per-form print-language lock (set in the visual form editor):
+				// force the whole print into one language regardless of the
+				// customer's language. No lock file => behaviour unchanged.
+				$fe_lock = "../logolib/$db_id/fe_printlang_$formular.json";
+				if (@file_exists($fe_lock)) {
+					$fe_pl = @json_decode(@file_get_contents($fe_lock), true);
+					if (is_array($fe_pl) && !empty($fe_pl['sprog'])) {
+						// value is interpolated into SQL below; restrict to a safe
+						// charset in case the lock file was tampered with on disk.
+						$fe_lang = preg_replace('/[^\p{L}\p{N} ._\-]/u', '', (string) $fe_pl['sprog']);
+						if ($fe_lang !== '') $formularsprog = strtolower($fe_lang);
+					}
+				}
 				if (($formular == 4) || ($formular == 5)) {
 					if (!$fakturanr) { #20130508
 						return ("Fakturering afbrudt ($ordre_id[$o] -> $ordrenr -> Fakturanr mangler) ");
@@ -1607,7 +1625,10 @@ if (!function_exists('formularprint')) {
 					3 => $flgs_navn,
 					4 => "fakt$fakturanr",
 					5 => "kn$fakturanr",
-					9 => "plukliste$ordrenr"
+					9 => "plukliste$ordrenr",
+					12 => "creditorSuggestion$ordrenr",
+					13 => "creditorOrder$ordrenr",
+					14 => "creditorInvoice$ordrenr"
 				];
 				if ($db == "saldi_1022") {
 					$dato = date('Y-m-d');
@@ -1618,7 +1639,10 @@ if (!function_exists('formularprint')) {
 						3 => $flgs_navn_1022,
 						4 => "$fakturanr-fakt-$kontonr-$dato",
 						5 => "$fakturanr-kn-$kontonr-$dato",
-						9 => "$ordrenr-plukliste-$kontonr-$dato"
+						9 => "$ordrenr-plukliste-$kontonr-$dato",
+						12 => "$ordrenr-creditorSuggestion-$kontonr-$dato",
+						13 => "$ordrenr-creditorOrder-$kontonr-$dato",
+						14 => "$ordrenr-creditorInvoice-$kontonr-$dato"
 					];
 				}
 

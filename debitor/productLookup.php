@@ -4,10 +4,29 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/productLookup.php --- patch 5.0.0 --- 2026-04-13 ---
+// --- debitor/productLookup.php --- patch 5.0.0 --- 2026-06-18 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+//
+// Copyright (c) 2003-2026 Danosoft ApS
+// ----------------------------------------------------------------------
+
 // Product lookup page using grid system for order entry 
 // Based on vareliste.php grid implementation
-// 20260513 CL/PHR Addet lager_ialt som valghmulighed
+// 20260513 CL/PHR Added lager_ialt som valghmulighed
+// 20260618 CL/PHR replaced lower(vv.variant_type) by lower(vv.variant_type::text) to avoid Fatal error
 
 @session_start();
 $s_id = session_id();
@@ -239,7 +258,7 @@ $columns[] = array(
         foreach ($words as $word) {
             if (!empty($word)) {
                 $word = db_escape_string($word);
-                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%' or lower(vv.variant_stregkode) like '%$word%' or lower(vv.variant_type) like '%$word%' or lower(vv.variant_text) like '%$word%')";
+                $conditions[] = "(lower(v.varenr) like '%$word%' or lower(v.varenr_alias) like '%$word%' or lower(v.stregkode) like '%$word%' or lower(v.beskrivelse) like '%$word%' or lower(vv.variant_stregkode) like '%$word%' or lower(vv.variant_type::text) like '%$word%' or lower(vv.variant_text) like '%$word%')";
             }
         }
         return !empty($conditions) ? "(" . implode(" AND ", $conditions) . ")" : "1=1";

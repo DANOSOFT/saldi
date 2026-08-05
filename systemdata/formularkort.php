@@ -58,6 +58,7 @@
 // 20260313 Sawaneh SD-427 Default background shown as Standard/Default instead of Dansk
 // 20260529 CL/PHR Rettet: manglende xa-records (mailtekst/bilag) for art=5 oprettes nu automatisk ved visning
 // 20260604 LOE Added 'Performed by' to form dropdown..to be translated later when needed.
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
 @session_start();
 $s_id=session_id();
 
@@ -308,11 +309,16 @@ if (isset($_POST) && $_POST) {
 	}
 }
 
+$fe_link = "formeditor.php?form_nr=".urlencode(($form_nr ?? '') ?: 4)."&amp;sprog=".urlencode(($formularsprog ?? '') ?: 'Dansk');
+$fe_label = ($sprog_id == 1) ? 'Visuel editor' : 'Visual editor';
+$fe_title = ($sprog_id == 1) ? 'Ny visuel formulareditor (træk og slip)' : 'New visual form editor (drag & drop)';
+
 if ($menu=='T') {  # 20150331 start
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">\n";
 	print "<div class=\"headerbtnLft\">";
+    print "<a title=\"$fe_title\" class='button green small left' href=\"$fe_link\">$fe_label</a> &nbsp;";
     print "<a class='button blue small' class=\"button red small left\" href=\"formular_indlaes_std.php\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</a> &nbsp;";
     print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a> &nbsp;";
     print "<a title=\"Email indstillinger for sprog\" class='button blue small' href=\"email_settings.php\" accesskey=\"e\">Email</a></div>\n";
@@ -338,7 +344,9 @@ if ($menu=='T') {  # 20150331 start
 	print "<td width='12%'><a href=$returside accesskey='l'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
 
-	print "<td width='76%' align='center' style='$topStyle'>".findtekst('573|Formularkort', $sprog_id)."</td>\n";
+	print "<td width='12%'><a href=\"$fe_link\" title='$fe_title'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$fe_label</button></a></td>\n";
+
+	print "<td width='64%' align='center' style='$topStyle'>".findtekst('573|Formularkort', $sprog_id)."</td>\n";
 
 	print "<td width='6%'><span title='".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."'><a href=formularkort.php?nyt_sprog=yes accesskey='s'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Bg.".findtekst('646|Navn', $sprog_id)."</button></a></span></td>\n";
@@ -350,6 +358,19 @@ if ($menu=='T') {  # 20150331 start
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></span></td>\n";#20210804
 
 	print "</tbody></table></td></tr>\n";
+
+	$searchPlaceholder = ($sprog_id == 2) ? 'Search settings...' : (($sprog_id == 3) ? 'Søk i innstillinger...' : 'Søg i indstillinger...');
+	$noResultsText = ($sprog_id == 2) ? 'No results' : (($sprog_id == 3) ? 'Ingen resultater' : 'Ingen resultater');
+	$matchHintText = ($sprog_id == 2) ? 'Found via' : (($sprog_id == 3) ? 'Funnet via' : 'Fundet via');
+	print "<script>
+	if (typeof window.saldiTranslations === 'undefined') {
+		window.saldiLanguage = " . (int)$sprog_id . ";
+		window.saldiTranslations = { settingsNoResults: " . json_encode($noResultsText) . ", settingsMatchHint: " . json_encode($matchHintText) . " };
+	}
+	</script>";
+	print "<link rel=\"stylesheet\" href=\"../css/settingsSearch.css\">";
+	print "<script src=\"../javascript/settingsSearch.js\" defer></script>";
+	print "<tr><td height='1%' align='left' valign='top'><div class=\"settings-search-standalone\"><input type=\"text\" class=\"settings-search-input\" autocomplete=\"off\" placeholder=\"" . htmlspecialchars($searchPlaceholder) . "\"></div></td></tr>\n";
 } else {
 	# 2013.11.21 Tilføjet meta så ÆØÅ vises rigtigt. Også viewport til bedre visning på tablet
 	//print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n";
@@ -363,7 +384,8 @@ if ($menu=='T') {  # 20150331 start
 	print "<tr><td width=\"\" height=\"1%\" align=\"center\" valign=\"top\" collspan=\"2\">\n";
 	print "<table width=\"100%\" height=\"1%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
 	print "<td width=\"12%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=$returside accesskey=\"l\">".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
-	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('573|Formularkort', $sprog_id)."</td>\n";
+	print "<td width=\"12%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"$fe_link\" title=\"$fe_title\">$fe_label</a></td>\n";
+	print "<td width=\"68%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('573|Formularkort', $sprog_id)."</td>\n";
 	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">Bg.".findtekst('646|Navn', $sprog_id)."</a></span></td>\n";
 	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></span></td>\n";#20210804
 	print "</tbody></table></td></tr>\n";

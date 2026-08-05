@@ -31,6 +31,7 @@
 // 20210507 PHR Added dec limit 1 to query as it took the oldest currency and not the newest. 2021057 
 // 20220818 PHR Added db_escape_string at line ~247 
 // 20250731 PHR PHP8
+// 20260723 sawaneh Removed misplaced ';' after date('U') so ffdage2/3 are subtracted again; R2/R3 fees are booked only after grace days.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -128,7 +129,7 @@ if ($konto_id[0]=="alle") {
 	}
 	$konto_antal=$x;
 	$rykker_id=array();
-	$utid=date('U');-$ffdage2*3600*24;
+	$utid=date('U')-$ffdage2*3600*24;
 	$rykkerfrist2=date("Y-m-d",$utid);
 	#finder aabne level_1 rykkere som har overskredet rykkerdato med ffdage2.og bogforer disse
 	$q=db_select("select id,konto_id from ordrer where art = 'R1' and status < '3' and ordredate < '$rykkerfrist2'",__FILE__ . " linje " . __LINE__);
@@ -138,7 +139,7 @@ if ($konto_id[0]=="alle") {
 		bogfor_rykker($r['id']);
 		$rykker_id[$x]=$r['id'];
 	}
-	$utid=date('U');-$ffdage3*3600*24;
+	$utid=date('U')-$ffdage3*3600*24;
 	$rykkerfrist3=date("Y-m-d",$utid);
 	#finder aabne level_2 rykkere som har overskredet rykkerdato med ffdage3.og bogforer disse
 	$q=db_select("select id,konto_id from ordrer where art = 'R2' and status < '3' and ordredate < '$rykkerfrist3' and betalt != 'on'",__FILE__ . " linje " . __LINE__);

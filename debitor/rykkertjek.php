@@ -1,5 +1,5 @@
 <?php
-// --- debitor/rykkertjek.php --- lap 4.0.8 --- 2023-05-24 ---
+// --- debitor/rykkertjek.php --- patch 5.0.0 --- 2026-07-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,10 +15,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft.ApS
 // -----------------------------------------------------------
 // 20200918 Ckeck bypassed if no email.
 // 20230524 PHR php8
+// 20260707 MJ Fix fatal re-declaration of std_func when included from login; fix missing globals in reminderCheck; fix BODY onLoad popup
 
 @session_start();
 $s_id=session_id();
@@ -29,7 +30,7 @@ $email = NULL;
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");
+if (!function_exists('findtekst')) include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 
 if(!class_exists('phpmailer')) {
@@ -51,6 +52,7 @@ if ($r = db_fetch_array(db_select("select * from grupper where art='DIV' and kod
 if ($email) reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate);
 
 function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
+	global $dd, $bruger_id, $sprog_id;
 	if (!$ffdage || $chkdate==$dd) echo '';
 	else {
 		$rykkerdate=usdate(forfaldsdag($dd,'netto',$ffdage));
@@ -64,7 +66,7 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 			$rykkerdate=usdate(forfaldsdag($r['forfaldsdate'],'netto',$ffdage));
 #	echo "$rykkerdate <= $dd<br>";
 			if ($rykkerdate <= $dd) {
-				if (!db_fetch_array(db_select("select id from ordrelinjer where enhed = '$r[id]'",__FILE__ . " linje " . __LINE__))) { #Tjekker om der allerede eksisterer en rykker på ordren.
+				if (!db_fetch_array(db_select("select id from ordrelinjer where enhed = '$r[id]'",__FILE__ . " linje " . __LINE__))) { #Tjekker om der allerede eksisterer en rykker pÃ¥ ordren. #Checks if there's already a payment reminder on the order.
 					if (!in_array($r['konto_id'],$konto_id)) {
 						$konto_id[$x]=$r['konto_id']; #Liste over konto id numre der skal rykkes
 						$x++;
@@ -86,7 +88,7 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 #echo "$ff_antal && $bruger_id == $mailmodt_id<br>";
 			$tmp=findtekst(240,$sprog_id);
 #echo "$tmp<br>";
-			print "<BODY onLoad=\"javascript:alert('$tmp')\">";
+			print "<script>alert(" . json_encode((string)$tmp) . ");</script>";
 		}
 # exit;
 	}

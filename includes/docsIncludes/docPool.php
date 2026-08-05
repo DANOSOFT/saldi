@@ -3944,38 +3944,34 @@ JS;
 			})
 			.then(async function(data) {
 				if (data && data.success) {
-					uploadedCount++;
-					lastUploadedFilename = data.filename;
 					if (isAutoExtractEnabled()) {
-					try {
-						console.time('[Upload] File ' + (index+1) + ' extract API');
-						const extractFormData = new FormData();
-						extractFormData.append('action', 'extract');
-						extractFormData.append('poolFile', data.filename);
-						extractFormData.append('db', '$db');
-						extractFormData.append('docFolder', '$docFolder');
-						const extRes = await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: extractFormData });
-						const extData = await extRes.json();
-						console.timeEnd('[Upload] File ' + (index+1) + ' extract API');
-						if (extData.success && extData.data) {
+						const extracted = data.extracted;
+						if (extracted) {
 							const svData = new FormData();
 							svData.append('action', 'save');
 							svData.append('poolFile', data.filename);
 							svData.append('db', '$db');
-							const d = extData.data;
-							if(d.amount) svData.append('newAmount', d.amount);
-							if(d.date) svData.append('newDate', d.date);
-							if(d.vendor) svData.append('newSubject', d.vendor);
-							if(d.invoiceNumber) svData.append('newInvoiceNumber', d.invoiceNumber);
-							if(d.description) svData.append('newDescription', d.description);
+							svData.append('docFolder', '$docFolder');
+							if (extracted.amount) svData.append('newAmount', extracted.amount);
+							if (extracted.date) svData.append('newDate', extracted.date);
+							if (extracted.vendor) svData.append('newSubject', extracted.vendor);
+							if (extracted.invoiceNumber) svData.append('newInvoiceNumber', extracted.invoiceNumber);
+							if (extracted.description) svData.append('newDescription', extracted.description);
+							if (extracted.currency) svData.append('newCurrency', extracted.currency);
 							console.time('[Upload] File ' + (index+1) + ' save extracted data');
-							await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: svData });
+							const saveResponse = await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: svData });
 							console.timeEnd('[Upload] File ' + (index+1) + ' save extracted data');
+							if (!saveResponse.ok) throw new Error('Metadata save failed (' + saveResponse.status + ')');
+							const saveResult = await saveResponse.json();
+							if (!saveResult.success) throw new Error(saveResult.error || 'Metadata save failed');
+						} else {
+							console.error('[Upload] File ' + (index+1) + ' automatic extraction returned no result; skipping save');
 						}
-					} catch(e) { console.error('Auto-extract failed', e); }
 					} else {
 						console.log('[Upload] File ' + (index+1) + ' auto-extract disabled, skipping');
 					}
+					uploadedCount++;
+					lastUploadedFilename = data.filename;
 				} else {
 					failedCount++;
 					console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');

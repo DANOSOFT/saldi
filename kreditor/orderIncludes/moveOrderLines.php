@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/moveOrderLines.php --- lap 5.0.0 --- 2026-06-02 ---
+// --- kreditor/orderIncludes/moveOrderLines.php --- patch 5.0.0 --- 2026-07-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,22 +20,26 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2008-2026 Saldi.dk ApS
+// Copyright (c) 2008-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 //
 // 20230118 PHR Added '$mSQt[$x] !=	 0 && ' as orders with some qty less than 0 could not split. 
 // 20230206 PHR id_seq id now updated after inserting new orderlines.
 // 20260226 PHR Changed posnr=posnr+1000000 to posnr=posnr+1000 as posnr is smallint
 // 20260602 PHR Definet $mQt as array if empty.
+// 20260708 MJ Guard all POST arrays; fetch antal/leveret from DB to fix index mismatch causing blank page; guard setval for MySQL.
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
 
-$mQt    = $_POST['mQt'];
-$mSQt   = $_POST['mSQt'];
-$maxQt  = $_POST['maxQt'];
-$maxSQt = $_POST['maxSQt'];
-if (!$mQt) $mQt = array();
+$mQt    = isset($_POST['mQt'])    ? $_POST['mQt']    : array();
+$mSQt   = isset($_POST['mSQt'])   ? $_POST['mSQt']   : array();
+$maxQt  = isset($_POST['maxQt'])  ? $_POST['maxQt']  : array();
+$maxSQt = isset($_POST['maxSQt']) ? $_POST['maxSQt'] : array();
+if (!$mQt)    $mQt    = array();
+if (!$mSQt)   $mSQt   = array();
+if (!$maxQt)  $maxQt  = array();
+if (!$maxSQt) $maxSQt = array();
 for ($x = 1; $x <= count($mQt); $x++) {
 	if (usdecimal($mQt[$x], 3)  > $maxQt[$x]) {
 		$mQt[$x]  = $maxQt[$x];
@@ -61,13 +65,18 @@ else {
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "INSERT INTO ordrer SELECT * FROM temp_table";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		$qtxt = "SELECT setval('ordrer_id_seq', $newId)";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		if ($db_type != 'mysql' && $db_type != 'mysqli') {
+			$qtxt = "SELECT setval('ordrer_id_seq', $newId)";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
 		$qtxt = "DROP TABLE temp_table";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 	# Loop over each orderline
 	for ($x = 1; $x <= count($linje_id); $x++) {
+		$r = db_fetch_array(db_select("SELECT antal, leveret FROM ordrelinjer WHERE id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__));
+		$antal[$x]   = $r ? usdecimal($r['antal'],   2) : 0;
+		$leveret[$x] = $r ? usdecimal($r['leveret'], 2) : 0;
 		if ($mQt[$x] && $antal[$x] == $mQt[$x]) {
 			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -83,13 +92,15 @@ else {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "INSERT INTO ordrelinjer SELECT * FROM temp_table WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$qtxt = "SELECT setval('ordrelinjer_id_seq', $newLineId)";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($db_type != 'mysql' && $db_type != 'mysqli') {
+				$qtxt = "SELECT setval('ordrelinjer_id_seq', $newLineId)";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
 			if (!$antal[$x]) $antal[$x] = 0;
 			if ($mQt[$x]) $antal[$x] = $antal[$x] - $mQt[$x];
 			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$qtxt = "UPDATE ordrelinjer SET antal = '$mQt[$x]', ordre_id = '$newId' WHERE id='$newLineId'";
+			$qtxt = "UPDATE ordrelinjer SET antal = '$mQt[$x]', leveret = '0', ordre_id = '$newId' WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "DROP TABLE temp_table";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -109,13 +120,15 @@ else {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "INSERT INTO ordrelinjer SELECT * FROM temp_table WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$qtxt = "SELECT setval('ordrelinjer_id_seq', $newLineId)";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($db_type != 'mysql' && $db_type != 'mysqli') {
+				$qtxt = "SELECT setval('ordrelinjer_id_seq', $newLineId)";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
 			$antal[$x] = $antal[$x] - $mSQt[$x];
 			$leveret[$x] = $leveret[$x] - $mSQt[$x];
-			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
+			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x], leveret = $leveret[$x], posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$qtxt = "UPDATE ordrelinjer SET antal = '$mSQt[$x]', ordre_id = '$newId' WHERE id='$newLineId'";
+			$qtxt = "UPDATE ordrelinjer SET antal = '$mSQt[$x]', leveret = '$mSQt[$x]', ordre_id = '$newId' WHERE id='$newLineId'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "SELECT id FROM serienr WHERE kobslinje_id='$linje_id[$x]' ORDER BY id";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -131,6 +144,8 @@ else {
 			$qtxt = "SELECT * FROM batch_kob WHERE linje_id='$linje_id[$x]' ORDER BY id";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			$bk = $mvRm = 0;
+			$bkId = $bkQt = $bkRm = $bkDt = array();
+			$deliveryDate = date("Y-m-d");
 			while ($r = db_fetch_array($q)) {
 				$bkId[$bk]  = $r['id'];
 				$bkQt[$bk]  = (float)$r['antal'];
@@ -158,6 +173,7 @@ else {
 						$bkRm[$bk] = 0;
 					}
 					$qtxt = "UPDATE batch_kob SET antal = '$bkQt[$bk]', rest = '$bkRm[$bk]' WHERE id = $bkId[$bk]";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 			}
 			if ($mvQt) {

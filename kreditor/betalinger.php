@@ -26,6 +26,8 @@
 // 20220201 PHR Copied from debitor/betalinger.php and adjusted
 // 20221013 PHR Inserted some 'db_escape_string' in query
 // 20230501 Created kladdeliste option
+// 20260713 CL/NTR Fixed SQL injection: cast $_GET[kladde_id] with intval()
+//                  before interpolating into the query
 
 $dan_liste=$gem=$listenote=$slet_ugyldige=$udskriv=NULL;
 
@@ -278,7 +280,8 @@ if ($find || isset($_GET["kladde_id"])) {
 		$qtxt.= " and openpost.konto_id = adresser.id and adresser.art = 'K' order by openpost.forfaldsdate";
 */
 		if(isset($_GET["kladde_id"])){
-			$qtxt="select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,openpost.faktnr as faktnr,openpost.transdate as transdate,openpost.bilag_id as bilag_id,openpost.forfaldsdate as duedate,openpost.betal_id as paymentid,adresser.erh as erh, openpost.refnr as refnr, openpost.kladde_id as kladde_id, adresser.bank_reg as modt_reg, adresser.bank_konto as modt_konto, adresser.firmanavn as modt_navn,adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage from openpost, adresser where openpost.udlignet != '1' and openpost.amount < 0 and openpost.konto_id = adresser.id and adresser.art = 'K' and kladde_id = $_GET[kladde_id] order by forfaldsdate";
+			$kladde_id_filter = intval($_GET["kladde_id"]);
+			$qtxt="select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,openpost.faktnr as faktnr,openpost.transdate as transdate,openpost.bilag_id as bilag_id,openpost.forfaldsdate as duedate,openpost.betal_id as paymentid,adresser.erh as erh, openpost.refnr as refnr, openpost.kladde_id as kladde_id, adresser.bank_reg as modt_reg, adresser.bank_konto as modt_konto, adresser.firmanavn as modt_navn,adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage from openpost, adresser where openpost.udlignet != '1' and openpost.amount < 0 and openpost.konto_id = adresser.id and adresser.art = 'K' and kladde_id = $kladde_id_filter order by forfaldsdate";
 		}else{
 			$qtxt="select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,openpost.faktnr as faktnr,openpost.transdate as transdate,openpost.bilag_id as bilag_id,openpost.forfaldsdate as duedate,openpost.betal_id as paymentid,adresser.erh as erh, openpost.refnr as refnr, openpost.kladde_id as kladde_id, adresser.bank_reg as modt_reg, adresser.bank_konto as modt_konto, adresser.firmanavn as modt_navn,adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage from openpost, adresser where openpost.udlignet != '1' and openpost.amount < 0 and openpost.konto_id = adresser.id and adresser.art = 'K' order by forfaldsdate";
 		}
