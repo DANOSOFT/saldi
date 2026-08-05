@@ -773,7 +773,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 	print "<option value = 'egen_bank_konto'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('60|Bankkonto', $sprog_id))."</option>";                                 #Egen bankkonto
 	print "<option value = 'egen_email'>".findtekst('2517|Egen', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                         #Egen e-mail
 	print "<option value = 'egen_web'>".findtekst('2517|Egen', $sprog_id)." web</option>";                                                                                         #Egen web
-	print "<option value = 'konto_udtog'>".findtekst('440|Konto', $sprog_id)." udtog</option>";                                                                                     #Konto udtog (account statement balance) — 20260805 MJ
+	print "<option value = 'konto_udtog'>".findtekst('1803|Kontoudtog', $sprog_id)."</option>";                                                                                        #Konto udtog (account statement balance) — 20260805 MJ
 	if ($form_nr<6  || $form_nr==10 || $form_nr>=12) {
 		print "<option value = 'ansat_initialer'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('647|Initialer', $sprog_id))."</option>";                            #Ansat initialer
 		print "<option value = 'ansat_navn'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('138|Navn', $sprog_id))."</option>";                                      #Ansat navn
