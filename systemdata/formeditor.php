@@ -594,6 +594,7 @@ function fe_var_map() {
 			'konto_kontakt'   => array('Konto kontakt', 'Account contact'),
 			'konto_cvrnr'     => array('Konto CVR-nr.', 'Account VAT no.'),
 			'konto_valuta'    => array('Konto valuta', 'Account currency'),
+			'konto_udtog'     => array('Konto udtog', 'Account statement'),  // 20260805 MJ
 			// --- customer / order (ordre) ---
 			'ordre_firmanavn' => array('Kunde firmanavn', 'Customer company name'),
 			'ordre_addr1'     => array('Kunde adresse 1', 'Customer address 1'),
@@ -1480,7 +1481,7 @@ if ($menu == 'T') {
     egen_tlf:'00 00 00 00', egen_mobile:'00 00 00 00', egen_email:'test@example.com', egen_web:'www.example.com',
     egen_bank_navn:(DK_UI?'Testbank':'Test Bank'), egen_bank_reg:'0000', egen_bank_konto:'0000000000',
     ansat_navn:(DK_UI?'Test Sælger':'Test Seller'), ansat_initialer:'TS', ansat_email:'test@example.com', ansat_tlf:'00 00 00 00', ansat_mobil:'00 00 00 00',
-    konto_firmanavn:(DK_UI?'Testkunde ApS':'Test Customer Ltd'), konto_addr1:(DK_UI?'Testvej 1':'Test Street 1'), konto_postnr:'1000', konto_bynavn:(DK_UI?'Testby':'Test City'), konto_cvrnr:'12345678',
+    konto_firmanavn:(DK_UI?'Testkunde ApS':'Test Customer Ltd'), konto_addr1:(DK_UI?'Testvej 1':'Test Street 1'), konto_postnr:'1000', konto_bynavn:(DK_UI?'Testby':'Test City'), konto_cvrnr:'12345678', konto_udtog:'10.000,00',
     formular_ialt:'12.500,00', formular_moms:'2.500,00', formular_momsgrundlag:'10.000,00',
     formular_side:'1', formular_nextside:'2', formular_preside:'0', formular_transportsum:'0,00',
     formular_forfaldsdato:'22-07-2026', formular_betalingsid:'71000000123456', formular_grossWeight:'12,50', formular_netWeight:'10,00',
