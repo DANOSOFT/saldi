@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-07-20 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-07-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,6 +60,9 @@
 // 20260707 Sawaneh New line copies the date from the previous line; only falls back to today's date when there is no previous line.
 // 20260720 CX/PHR - Qualified the description grid search as k.beskrivelse to avoid an ambiguous column error after the currency join.
 // 20260720 CX/PHR - Scoped the posted cash journal grid ID by journal to prevent saved searches leaking between journals.
+// 20260729 MJ Rettet fejl: location.reload() gensendte POST-data og oprettede dubletter via auto-balance forududfyldning
+// 20260729 MJ Rettet fejl: clipDragSourceId-rest forhindrede fil-drop naar forrige clip-drag ikke var ryddet op
+// 20260729 MJ Rettet fejl: upload-succces opdaterer nu kun clip-ikonet i DOM istedet for at genindlaese siden
 
 ob_start(); //Starter output buffering
 
@@ -4836,7 +4839,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			// Check if this is a file being dragged from the OS
 			const hasFiles = event.dataTransfer.types.includes('Files');
 
-			if (hasFiles && !clipDragSourceId) {
+			if (hasFiles) {
 				// File drag from OS - always allow, show file-specific highlight
 				event.dataTransfer.dropEffect = 'copy';
 				cell.classList.add('drag-over-file');
@@ -4879,7 +4882,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		}
 
 		// Check if files are being dropped from the OS file system
-		if (event.dataTransfer.files && event.dataTransfer.files.length > 0 && !clipDragSourceId) {
+		if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
 			console.log('clipDrop - FILE DROP detected, files:', event.dataTransfer.files.length);
 			uploadFileToClip(event.dataTransfer.files[0], targetSourceId, targetBilag, cell);
 			return;
@@ -5020,8 +5023,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
 			if (data.success) {
 				console.log('uploadFileToClip - success:', data);
-				// Refresh the page to show the updated clip icon (paper.png instead of clip.png)
-				location.reload();
+				// Update the clip cell DOM directly — no page reload of any kind.
+				// Any reload (location.reload or href=href) on a POST-rendered page risks
+				// replaying the form, which submits auto-balance pre-filled blank rows and
+				// inserts them as real kassekladde entries.
+				const bilag = data.bilag || '';
+				const clipCell = document.querySelector('.clip-cell[data-source-id="' + data.sourceId + '"]');
+				if (clipCell) {
+					const img = clipCell.querySelector('img.clip-icon');
+					if (img) {
+						img.src = img.src.replace('clip.png', 'paper.png');
+						img.style.cursor = 'grab';
+					}
+					const span = clipCell.querySelector('span');
+					if (span) {
+						const docHref = '../includes/documents.php?source=kassekladde&sourceId=' + data.sourceId + '&kladde_id=' + data.kladde_id + '&bilag=' + encodeURIComponent(bilag);
+						const warnTxt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
+						span.onclick = function() { confirmClose(docHref, warnTxt); };
+						span.draggable = true;
+						span.addEventListener('dragstart', function(e) {
+							clipDragStart(e, data.sourceId, bilag);
+						});
+					}
+					clipCell.classList.remove('clip-no-doc');
+					clipCell.classList.add('clip-has-doc');
+				} else {
+					// Fallback: clip cell not in DOM (edge case) — use GET navigation
+					window.location.replace(window.location.pathname + window.location.search);
+				}
 			} else {
 				alert('Fejl ved upload: ' + (data.message || 'Ukendt fejl'));
 			}
