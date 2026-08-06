@@ -33,6 +33,9 @@
 // 20260528 PHR Bottomline was overlooked 20260513
 // 20260702 CX/PHR Build "Udlign alle" from unaligned openpost balance when showing all posts.
 // 20260706 MJ Paginated and batched debtor open items report queries for large databases.
+// 20260805 Sawaneh Dropped the openpost_content link parameter; the iframe shell it belonged to is gone.
+// 20260805 Sawaneh Restored the grid markup (colgroup, column-title row outside the scroll area, #opGridWrapper)
+//                  that 20260706 replaced with the old plain table while openpost() kept its grid header.
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
@@ -66,17 +69,43 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>>90</th><th align=right  class='text-right'>60-90</th><th align=right class='text-right'>30-60</th><th align=right class='text-right'>8-30</th><th align=right class='text-right'>0-8</th><th align=right class='text-right'>I alt</th><th align=right</th>";
 		print "</thead><tbody>";
 	} else {
-		print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
-		print "<tr><td>Kontonr.</th>";
 		if ($usePBS) {
-			$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
+			$opColWidths = array(9, 7, 22, 8, 8, 8, 8, 8, 9, 13);
+		} else {
+			$opColWidths = array(10, 26, 8, 8, 8, 8, 8, 10, 14);
+		}
+		$opColgroupHtml = "<colgroup>";
+		foreach ($opColWidths as $opColW) { $opColgroupHtml .= "<col style='width:{$opColW}%'>"; }
+		$opColgroupHtml .= "</colgroup>";
+
+		print "<style>
+#opHeaderTitleTable { width:100%; table-layout:fixed; border-collapse:collapse; background-color:$bgcolor; }
+#opHeaderTitleTable td { padding:6px 4px; border-bottom:2px solid #ddd; }
+#opGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:auto; width:100%; background-color:$bgcolor; padding:0 8px 8px 8px; box-sizing:border-box; }
+#opGridTable { border-collapse:collapse; width:100%; table-layout:fixed; }
+#opGridTable tfoot { background-color:$bgcolor; border-top:2px solid #ddd; }
+#opGridTable tfoot tr, #opGridTable tfoot td { background-color:$bgcolor; }
+</style>\n";
+
+		// Column-title row sits in normal flow (flex:0 0 auto), outside the scrollable area —
+		// same approach as the blue bar in openpost(), so it can never scroll away regardless of
+		// where the scrollable grid below it has scrolled to. Both tables share $opColgroupHtml so
+		// the titles stay aligned with the data columns.
+		print "<div style='flex:0 0 auto;padding:0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+		print "<table id='opHeaderTitleTable' cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$opColgroupHtml<tbody><tr>";
+		print "<td>Kontonr.</td>";
+		if ($usePBS) {
 			if ($showPBS) {
-				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&showPBS=0'>skjul BS</a></td>";
+				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=0'>skjul BS</a></td>";
 			} else {
-				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&showPBS=1'>vis BS</a></td>";
+				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=1'>vis BS</a></td>";
 			}
 		}
 		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
+		print "</tr></tbody></table>";
+		print "</div>\n";
+
+		print "<div id='opGridWrapper'><table id='opGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$opColgroupHtml<tbody>\n";
 	}
 
 	$currentdate=date("Y-m-d");
@@ -187,8 +216,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$formIndex=0;
 	$displayFirst=($kontoantal) ? $openpostOffset+1 : 0;
 	$displayLast=min($kontoantal, $openpostOffset+$pageAccountCount);
-	$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
-	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&openpost_page_size=$openpostPageSize";
+	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&openpost_page_size=$openpostPageSize";
 	if ($vis_alle) $basePageUrl.="&vis_alle_poster=on";
 	elseif ($kun_debet) $basePageUrl.="&kun_debet=on";
 	elseif ($kun_kredit) $basePageUrl.="&kun_kredit=on";
@@ -391,6 +419,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "</tbody><tfoot>";
 		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
 	} else {
+		print "</tbody><tfoot>";
 		print "<tr><td colspan=10><hr></td></tr>\n";
 		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
 	}
@@ -464,8 +493,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	if ($menu=='T') {
 		print "</tfoot></table></div></tfoot></table>";
 	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
-		print "</tbody></table>";
+		print "</tfoot></table>"; // <- #opGridWrapper stays open; closed later by openpost() after Rykkeroversigt
 	}
 
 	if ($menu=='T') {
