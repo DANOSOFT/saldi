@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-06-09--------------
+// --- debitor/ordreliste.php -----patch 5.0.0 ----2026-07-31--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,7 @@
 // 20260609 LOE Enabled hvem column and migrated this user's settings from grupper to datatables grid for better persistence and flexibility.
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
+// 20260731 MJ Rettet kolonneoverskrift for hvem til findtekst('3367|Udført af')
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 
 @session_start();
@@ -1621,18 +1622,29 @@ $columns[] = array(
         return $actions;
     }
 );
- if ($sprog_id == 2) {
-        $columnHd = 'Performed by'; //TODO: findtekst
- } else{
-        $columnHd = 'Hvem';
- }
  $columns[] = array(
         "field" => "hvem",
-        "headerName" => $columnHd,
+        "headerName" => 'Udført af',
         "width" => "1",
-        "type" => "text",
-        "hidden" => true,
+        "type" => "dropdown",
+        "hidden" => false,
+        "sortable" => true,
         "searchable" => true,
+        "dropdownOptions" => function () use ($valg, $hurtigfakt) {
+            if ($hurtigfakt) {
+                $status_condition = ($valg == "faktura") ? "status >= 3" : "status < 3";
+            } else {
+                if ($valg == "tilbud")       $status_condition = "status < 1";
+                elseif ($valg == "faktura")  $status_condition = "status >= 3";
+                else                         $status_condition = "(status = 1 OR status = 2)";
+            }
+            $options = array();
+            $q = db_select("SELECT DISTINCT hvem FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND hvem IS NOT NULL AND hvem != '' ORDER BY hvem", __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                $options[] = $r['hvem'];
+            }
+            return $options;
+        },
         "render" => function ($value, $row, $column) {
             return "<td align='{$column['align']}'>$value</td>";
         }
@@ -2026,6 +2038,7 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
 // The grid will create its own form - no outer form needed
 // Create the grid first (it creates its own form for pagination/search)
 $rows = create_datagrid($grid_id, $data);
+
 #######
 // Build ordreliste for box1 (used by other parts of the system)
 

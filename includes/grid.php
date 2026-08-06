@@ -254,6 +254,15 @@ $defaultValues = [
      * @var int
      */
     'decimalPrecision' => 2,
+
+    /**
+     * A function that renders a custom search input for the column.
+     * When set, replaces the default text input in the search row.
+     * Receives ($column, $searchTerms, $id) and must return HTML string.
+     *
+     * @var callable|null
+     */
+    'renderSearch' => null,
 ];
 
 /**
@@ -1055,7 +1064,11 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
         echo "<th class='$column[field]'>";
         if ($column["searchable"]) {
             $columnSearchTerm = isset($searchTerms[$column['field']]) ? $searchTerms[$column['field']] : '';
-            echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+            if ($column['renderSearch']) {
+                echo $column['renderSearch']($column, $columnSearchTerm, $id);
+            } else {
+                echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
+            }
         }
         echo "</th>";
     }

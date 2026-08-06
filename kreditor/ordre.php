@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-07-28---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-08-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1204,6 +1204,13 @@ function ordreside($id) {
 	print "<form name='ordre' action='ordre.php' method='post'>";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
+	// 20260803 MJ Tjek og optag ordrelås for at advare ved samtidige redigeringer
+	$order_lock_conflict = null;
+	if ($id > 0) {
+		include_once('../includes/record_lock.php');
+		$order_lock_conflict = order_lock_check_acquire('ordrer', $id, $brugernavn, $s_id);
+	}
+
 	if ($id) {
 		$q = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
@@ -1318,6 +1325,28 @@ function ordreside($id) {
 		sidehoved($id, "$returside", "", "", "Leverand&oslash;rordre $ordrenr (krediteret p&aring; KN nr: $krediteret)");
 	}	else {
 		sidehoved($id, "$returside", "", "", "Leverand&oslash;rordre $ordrenr");
+	}
+	// -- Ordrelås: spær adgang hvis en anden bruger har bilaget åbent — 20260803 MJ
+	if ($order_lock_conflict) {
+		$lock_mins = (int)((time() - (int)$order_lock_conflict['locked_at']) / 60);
+		$lock_who  = htmlspecialchars($order_lock_conflict['brugernavn'], ENT_QUOTES, 'UTF-8');
+		$lock_ago  = $lock_mins <= 1 ? 'for et &oslash;jeblik siden' : "for $lock_mins minutter siden";
+		$txt = "Denne ordre er &aring;ben af <b>$lock_who</b> ($lock_ago) og kan ikke &aelig;ndres nu &mdash; pr&oslash;v igen n&aring;r $lock_who er f&aelig;rdig.";
+		print tekstboks($txt);
+		print "<meta http-equiv=\"refresh\" content=\"4;URL=$returside\">";
+		exit;
+	}
+	// -- Frigiv ordrelås ved navigering væk (bedst mulig indsats via beforeunload) — 20260803 MJ
+	if ($id > 0) {
+		print "<script type=\"text/javascript\">"
+			. "(function(){"
+			. "var _lid=" . (int)$id . ";"
+			. "window.addEventListener('beforeunload',function(){"
+			. "var d=new FormData();d.append('tabel','ordrer');d.append('record_id',_lid);"
+			. "navigator.sendBeacon('../includes/lock_release.php',d);"
+			. "});"
+			. "})();"
+			. "</script>\n";
 	}
 	if (!$status) $status=0;
 	print "<input type=\"hidden\" name=\"ordrenr\" value=\"$ordrenr\">";

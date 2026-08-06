@@ -339,8 +339,8 @@
             console.log('kontoId from URL:', kontoId);
 
             // Fallback: read from form hidden inputs (page is often loaded via POST, so URL may not have these)
-            // Fallback: read from form hidden inputs
-            if (!orderId) {
+            // Also treat id=0 as missing — '0' is truthy in JS but means no real order yet
+            if (!orderId || orderId === '0') {
                 // First try the form that the input belongs to (most reliable)
                 if (input.form) {
                     const formIdInput = input.form.querySelector('input[name="id"]');
@@ -377,15 +377,15 @@
             if (kontoId) {
                 redirectUrl += `konto_id=${kontoId}&`;
             }
-            redirectUrl += `vare_id=${id}`;
             const vsc = selected.dataset.vsc;
-            if (vsc) redirectUrl += `&vsc=${encodeURIComponent(vsc)}`;
+            if (vsc) input.value = vsc;
+
+            redirectUrl = redirectUrl.replace(/[?&]$/, '');
 
             console.log('FINAL redirectUrl:', redirectUrl);
 
             var submitButton = document.getElementById("submit");
-            submitButton.url = redirectUrl;
-            
+            submitButton.formAction = redirectUrl;
             submitButton.click();
             //window.location.href = redirectUrl;
         } else if (type === 'customer') {
@@ -394,11 +394,9 @@
 
             var submitButton = document.getElementById("submit");
             if (input.name === 'newAccountNo') {
-                submitButton.url = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
-                //window.location.href = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
+                submitButton.formAction = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
             } else {
-                submitButton.url = `ordre.php?konto_id=${id}`;
-                //window.location.href = `ordre.php?konto_id=${id}`;
+                submitButton.formAction = `ordre.php?konto_id=${id}`;
             }
             submitButton.click();
         } else {
