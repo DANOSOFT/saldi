@@ -3193,7 +3193,6 @@ if ($b_submit == 'doInvoice' && $status < 3) {
 ################### NEGATIVE LEVERES (subtract from delivered) ####
 // 20260304 When user enters negative leveres on a fully-delivered order and clicks Gem,
 // trigger the delivery flow to adjust batch_salg records and leveret.
-/*
 if ($b_submit == 'Gem' && $bogfor != 0 && $status < 3 && $id) {
 	$q_neg = db_select("select id from ordrelinjer where ordre_id = '$id' and leveres < 0", __FILE__ . " linje " . __LINE__);
 	if (db_fetch_array($q_neg)) {
@@ -3201,7 +3200,6 @@ if ($b_submit == 'Gem' && $bogfor != 0 && $status < 3 && $id) {
 		exit;
 	}
 }
-*/
 ############################ LEVER ################################
 
 if (strstr($b_submit, 'Lev') && $bogfor != 0 && $status < 3) {
