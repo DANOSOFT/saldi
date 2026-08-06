@@ -370,7 +370,7 @@
 370	Kontant	Cash	Kontant
 371	Efterkrav	Cash on delivery	Kontantbetaling ved levering
 372	Netto	Net	Netto
-373	Lb. md.	EOM.	Løp. md.
+373	Lb. md.	EOM.	Løp. mnd.
 374	Debitorgruppe	Debtor group	Debitorgruppe
 375	Rabatgruppe	Discount group	Rabattgruppe
 376	CVR-nr.	VAT no.	MVA-nr.
@@ -602,7 +602,7 @@
 602	Regnskab	Financial Accounting	Finansregnskap
 603	Rapporter	Reports	Rapporter
 604	Debitor	Debtor	Debitor
-605	Ordre	Order	Rekkefølge
+605	Ordre	Order	Ordre
 606	Konti	Accounts	Kontoer
 607	Kreditorer	Creditors	Kreditorer
 608	Lager	Inventory	Lager
@@ -985,7 +985,7 @@
 985	Åbne ordrer	Open orders	Åpne ordrer
 986	Invoice	Invoiced orders	Fakturerte ordrer
 987	Sagsstyring	Case management	Saksbehandling
-988	Leverandører	Supplier	Leverandør
+988	Leverandører	Suppliers	Leverandører
 989	Faktura	Invoice	Faktura
 990	Bruger	User	Bruker
 991	Kunder	Customers	Kunder
@@ -1205,9 +1205,9 @@
 1205	Diff. konto	Diff. account	Diff. konto
 1206	Ret	Modify	Rett
 1207	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen.\\nEllers risikerer du at lave rod i dit regnskab	If the exchange rate changes, do not correct the exchange rate, but add a new exchange rate stating the date of the exchange rate change.\\nOtherwise, you risk messing up your accounts.	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse av dato for kursændringen.\\nEllers risikerer du at lave rod i ditt regnskap
-1208	Start md.	Start mnth.	Start md.
+1208	Start md.	Start mo.	Start mnd.
 1209	Start år	Start yr.	Startår
-1210	Slut md.	End mnth.	Slutt md.
+1210	Slut md.	End mo.	Slutt mnd.
 1211	Slut år	End yr.	Slutten av året
 1212	Sæt alle	Set all	Putt alle
 1213	Sæt aktivt	Set active	Sett aktivt
@@ -3366,19 +3366,19 @@
 3366	Momsperioder	Vat periods	MVA-perioder
 3367	Indkøb	Purchasing	Innkjøp
 3368	Serienumre	Serial numbers	Serienumre
-3369			
-3370			
-3371			
-3372			
-3373			
-3374			
-3375			
-3376			
-3377			
-3378			
-3379			
-3380			
-3381			
+3369	Autoudfyld	Auto-fill	Autoutfyll
+3370	Bestiller	Ordering	Bestiller
+3371	Bestillinger oprettet	Orders created	Bestillinger opprettet
+3372	Fejl ved oprettelse af bestillinger	Error creating orders	Feil ved opprettelse av bestillinger
+3373	Ingen værdier angivet	No values entered	Ingen verdier angitt
+3374	Indkøbsordre	Purchase order	Innkjøpsordre
+3375	Gen.	Reord.	Gen.
+3376	Salgspris u.m.	Sales price ex. VAT	Salgspris u.mva.
+3377	DG	GM	DG
+3378	md.	mo.	mnd.
+3379	Vis udgået	Show discontinued	Vis utgått
+3380	Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.	Shows how many products are in offers, orders, or purchase suggestions.	Viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.
+3381	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.			
 3382			
 3383			
 3384			

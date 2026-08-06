@@ -57,12 +57,12 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
     <div style="width:100%; display: flex; justify-content: flex-end">
         <button type="button" id="autoudfyldBtn" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="m422-232 207-248H469l29-227-185 267h139l-30 208ZM320-80l40-280H160l360-520h80l-40 320h240L400-80h-80Zm151-390Z"/></svg>
-            Autoudfyld
+            <?php echo findtekst('3369|Autoudfyld', $sprog_id) ?>
         </button>
         &nbsp;
         <button type="button" id="bestilBtn" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg>
-            Bestil
+            <?php echo findtekst('2218|Bestil', $sprog_id) ?>
         </button>
     </div>
 </div>
@@ -96,26 +96,26 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
         if (data.length > 0) {
             // Show loading state
             this.disabled = true;
-            this.innerHTML = 'Bestiller...';
+            this.innerHTML = '<?php echo findtekst("3370|Bestiller", $sprog_id) ?>...';
             
             // Process each item with AJAX calls to orderapi.php
             processOrders(data).then(() => {
                 // Reset button
                 this.disabled = false;
-                this.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg> Bestil';
+                this.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg> <?php echo findtekst("2218|Bestil", $sprog_id) ?>';
                 // Clear all input values
                 inputs.forEach(input => {
                     input.value = '';
                 });
-                alert('Bestillinger oprettet!');
+                alert('<?php echo findtekst("3371|Bestillinger oprettet", $sprog_id) ?>!');
             }).catch((error) => {
                 // Reset button on error
                 this.disabled = false;
-                this.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg> Bestil';
-                alert('Fejl ved oprettelse af bestillinger!');
+                this.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg> <?php echo findtekst("2218|Bestil", $sprog_id) ?>';
+                alert('<?php echo findtekst("3372|Fejl ved oprettelse af bestillinger", $sprog_id) ?>!');
             });
         } else {
-            alert('No values to submit!');
+            alert('<?php echo findtekst("3373|Ingen værdier angivet", $sprog_id) ?>');
         }
     });
 
@@ -154,7 +154,7 @@ $columns = array();
 
 $columns[] = array(
     "field" => "varenr",
-    "headerName" => "Vare Nr.",
+    "headerName" => findtekst('917|Varenr.', $sprog_id),
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
 
@@ -165,7 +165,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "beskrivelse",
-    "headerName" => "Navn",
+    "headerName" => findtekst('138|Navn', $sprog_id),
     "width" => "3",
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
@@ -177,31 +177,31 @@ $columns[] = array(
 );
 $columns[] =    array(
     "field" => "trademark",
-    "headerName" => "Varemærke",
+    "headerName" => findtekst('2015|Varemærke', $sprog_id),
     "hidden" => false,
     "sqlOverride" => "v.trademark"
 );
 $columns[] =    array(
     "field" => "varegruppe",
-    "headerName" => "Varegruppe",
+    "headerName" => findtekst('429|Varegruppe', $sprog_id),
     "sqlOverride" => "vg.beskrivelse",
     "hidden" => false,
 );
 $columns[] =    array(
     "field" => "momssats",
-    "headerName" => "Momssats",
+    "headerName" => findtekst('1095|Momssats', $sprog_id),
     "width" => "0.5",
     "sqlOverride" => "sm.box2",
     "hidden" => true,
 );
 $columns[] =    array(
     "field" => "stregkode",
-    "headerName" => "Stregkode",
+    "headerName" => findtekst('2016|Stregkode', $sprog_id),
     "sqlOverride" => "v.stregkode"
 );
 $columns[] = array(
     "field" => "leverandør",
-    "headerName" => "Leverandør",
+    "headerName" => findtekst('951|Leverandør', $sprog_id),
     "width" => "1.5",
     "sqlOverride" => "levs.lev",
     "render" => function ($value, $row, $column) {
@@ -219,13 +219,14 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "enhed",
-    "headerName" => "Enhed",
+    "headerName" => findtekst('945|Enhed', $sprog_id),
     "width" => "0.5",
     "sqlOverride" => "v.enhed"
 );
 
 // Add in_sales_offer field
 function renderColumn($value, $row, $column, $type, $idField, $orderField, $amountField, $dateField, $style = "") {
+    global $sprog_id;
     if ($value == "0,00" || !$value) {
         return "<td align='$column[align]' style='$style'>0,00</td>";
     }
@@ -245,7 +246,7 @@ function renderColumn($value, $row, $column, $type, $idField, $orderField, $amou
         $dateList = explode(', ', $dates);
 
         $details .= '<table>';
-        $details .= '<thead><tr><th>Ordrenr</th><th>Antal</th><th>Dato</th><th>('.count($idList).')</th></tr></thead>';
+        $details .= '<thead><tr><th>'.findtekst('500|Ordrenr.', $sprog_id).'</th><th>'.findtekst('916|Antal', $sprog_id).'</th><th>'.findtekst('438|Dato', $sprog_id).'</th><th>('.count($idList).')</th></tr></thead>';
         $details .= '<tbody>';
         foreach ($ordrenrList as $index => $ordrenr) {
             $id = $idList[$index];
@@ -269,7 +270,7 @@ function renderColumn($value, $row, $column, $type, $idField, $orderField, $amou
 
 $columns[] = array(
     "field" => "in_sales_offer",
-    "headerName" => "Tilbud",
+    "headerName" => findtekst('812|Tilbud', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -280,7 +281,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_sales_order",
-    "headerName" => "Ordre",
+    "headerName" => findtekst('605|Ordre', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -291,7 +292,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_buy_proposal",
-    "headerName" => "Indkøbsforslag",
+    "headerName" => findtekst('954|Indkøbsforslag', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -302,7 +303,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "in_buy_order",
-    "headerName" => "Indkøbsordre",
+    "headerName" => findtekst('3374|Indkøbsordre', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -314,7 +315,7 @@ $columns[] = array(
 // Add lager_total field
 $columns[] = array(
     "field" => "lager_total",
-    "headerName" => "Beholdn.",
+    "headerName" => findtekst('948|Beholdn.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -329,7 +330,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "min_lager",
-    "headerName" => "Min.",
+    "headerName" => findtekst('2153|Min.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -343,7 +344,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "max_lager",
-    "headerName" => "Max.",
+    "headerName" => findtekst('2154|Maks.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -373,7 +374,7 @@ $columns[] = array(
     "field" => "genbestil",
     'defaultSort' => true,
     'defaultSortDirection' =>'desc',
-    "headerName" => "Gen.",
+    "headerName" => findtekst('3375|Gen.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -399,7 +400,7 @@ $columns[] = array(
 // Continue adding other fields if needed
 $columns[] = array(
     "field" => "salgspris",
-    "headerName" => "Salgspris u.m",
+    "headerName" => findtekst('3376|Salgspris u.m.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -408,8 +409,9 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "momspris",
-    "headerName" => "Salgspris",
-    "description" => "(incl.moms)",
+    "headerName" => findtekst('949|Salgspris', $sprog_id),
+    "description" => "(".findtekst('2747|Inkl. moms', $sprog_id).")",
+    "headerName" => "DG",
     "hidden" => true,
     "type" => "number",
     "align" => "right",
@@ -440,7 +442,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "sales_last_6_months",
-    "headerName" => "6md.",
+    "headerName" => "6".findtekst('3378|md.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -451,7 +453,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_3_months",
-    "headerName" => "3md.",
+    "headerName" => "3".findtekst('3378|md.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -459,7 +461,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_1_month",
-    "headerName" => "1md.",
+    "headerName" => "1".findtekst('3378|md.', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -472,7 +474,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "kostpris",
-    "headerName" => "Kostpris",
+    "headerName" => findtekst('950|Kostpris', $sprog_id),
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
@@ -495,7 +497,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
-    "filterName" => "Varegrupper",
+    "filterName" => findtekst('774|Varegrupper', $sprog_id),
     "joinOperator" => "or",
     "options" => $VGs
 );
@@ -519,18 +521,18 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
-    "filterName" => "Leverandøre",
+    "filterName" => findtekst('988|Leverandører', $sprog_id),
     "joinOperator" => "or",
     "options" => $levs
 );
 
 // Misc
 $filters[] = array(
-    "filterName" => "Misc",
+    "filterName" => findtekst('782|Diverse', $sprog_id),
     "joinOperator" => "and",
     "options" => array(
         array(
-            "name" => "Vis udgået",
+            "name" => findtekst('3379|Vis udgået', $sprog_id),
             "checked" => "checked",
             "sqlOn" => "",
             "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",
@@ -793,43 +795,43 @@ print "</div>";
 $steps = array();
 $steps[] = array(
     "selector" => "#back-btn",
-    "content" => "Klik her for at vende tilbage til varelisten."
+    "content" => findtekst('2645|Klik her for at vende tilbage til varelisten', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".leverandør",
-    "content" => "Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør. <br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører."
+    "content" => findtekst('2650|Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør. Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => "Viser hvor mange varer der er i tilbud, ordre eller indkøbsforslag. <br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer."
+    "content" => findtekst('3380|Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag', $sprog_id)."<br><br>".findtekst('3381|Hold musen over et beholdningstal', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".lager_total",
-    "content" => "Viser, hvor mange enheder du har på lager af varen."
+    "content" => findtekst('2647|Viser hvor mange enheder af varen der er på lager', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".min_lager,.max_lager",
-    "content" => "Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum."
+    "content" => findtekst('2651|Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".volume_lager",
-    "content" => "Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i f.eks. batches af 8."
+    "content" => findtekst('2652|Hvis varen skal bestilles i bestemte mængder', $sprog_id)." 8."
 );
 $steps[] = array(
     "selector" => ".genbestil",
-    "content" => "Her ser du, hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordre og andre faktorer."
+    "content" => findtekst('2648|Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".sales_last_6_months,.sales_last_1_month",
-    "content" => "Se, hvor meget du har solgt af varen over de sidste 6 måneder, 3 måneder eller 1 måned."
+    "content" => findtekst('2649|Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "#autoudfyldBtn",
-    "content" => "Klik for at autoudfylde alle beregnede genbestillingsværdier."
+    "content" => findtekst('2653|Klik for at autoudfylde alle beregnede genbestillingsværdier', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "#bestilBtn",
-    "content" => "Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato."
+    "content" => findtekst('2654|Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.', $sprog_id)
 );
 
 include (get_relative()."includes/tutorial.php");
