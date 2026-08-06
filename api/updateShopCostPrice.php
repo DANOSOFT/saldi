@@ -22,6 +22,11 @@
 //
 // Copyright (c) 2003-2023 saldi.dk aps
 // --------------------------------------------------------------
+// 20260727 Sawaneh Sends the cost price with shopApiRequest() instead of a backgrounded
+//                 shell curl, so failures are logged and item data cannot reach the shell.
+
+require_once(__DIR__ . '/../includes/stdFunc/shopApiRequest.php');
+
 if (!function_exists('updateShopCostPrice')) {
 function updateShopCostPrice($productId) {
 	global $db;
@@ -46,10 +51,20 @@ function updateShopCostPrice($productId) {
 #		fwrite($log,__file__." ".__line__." $qtxt\n");
 #		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $shop_id=$r['shop_id'];
 		$rand = rand();
-		$txt = "$api_fil?sku=". urlencode("$sku") ."&costPrice=$costPrice&file=". __FILE__ ."&line=". __LINE__ ."&rand=$rand";
-		fwrite($log,__file__." ".__line__." nohup curl '$txt' &\n");
-		shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+		$params = array(
+			'sku'       => $sku,
+			'costPrice' => $costPrice,
+			'file'      => __FILE__,
+			'line'      => __LINE__,
+			'rand'      => $rand,
+		);
+		$res = shopApiRequest($api_fil, $params, $log, array('context' => "updateShopCostPrice productId $productId"));
+		if (!$res['ok']) {
+			fclose($log);
+			return ('sync error'); # detail stays in rest_api.log, it may name internal hosts
+		}
 	}
+	fclose($log);
 	return ('OK');
 }} #endfunc sync_shop_vare()
 

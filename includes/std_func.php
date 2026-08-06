@@ -60,6 +60,9 @@
 // -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
 // 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
 // 20260706 CX/PHR get_next_invoice_number uses SAVEPOINT when called inside an active transaction to avoid premature commit during invoice posting
+// 20260727 Sawaneh sync_shop_price/sync_shop_vare send shop updates with shopApiRequest() instead of backgrounded
+//                 shell curl/wget: exit status and http code are captured, failures are logged and returned,
+//                 item data is url-encoded so it can no longer reach the shell, and the shared curl.txt is gone
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -67,6 +70,7 @@ include(__DIR__ . '/stdFunc/strStartsWith.php');
 include(__DIR__ . '/stdFunc/usDecimal.php');
 include(__DIR__ . '/stdFunc/navStack.php');
 include(__DIR__ . '/stdFunc/fefo.php');
+include(__DIR__ . '/stdFunc/shopApiRequest.php');
 if (!function_exists('locateDir')) {
 	function locateDir($baseRelativeDir) {
 		/**
@@ -1725,6 +1729,8 @@ if(!function_exists("sync_shop_price")){
 	function sync_shop_price($vare_id){
 	  global $bruger_id,$db;
 	  $costPrice = 0;
+	  $shop_id = $rand = ''; # never assigned in this function, kept empty as in the original url
+	  $failed = 0;
 	  $log = fopen("../temp/$db/rest_api.log", "a");
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
@@ -1747,20 +1753,30 @@ if(!function_exists("sync_shop_price")){
 		$retailPrice = $r["retail_price"];
 		$webFragt = $r["colli_webfragt"];
 		$stregkode = $r["stregkode"];
-		$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-		fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-		shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-		if($api_fil2){
-		  $txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-		  fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-		  shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-		}
-		if($api_fil3){
-		  $txt = "$api_fil3?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-		  fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-		  shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+		$params = array(
+			'update_price' => $shop_id,
+			'salesPrice'   => $salesPrice,
+			'discountType' => $discountType,
+			'discount'     => $discount,
+			'itemNo'       => $itemNo,
+			'rand'         => $rand,
+			'costPrice'    => $costPrice,
+			'retailPrice'  => $retailPrice,
+			'webFragt'     => $webFragt,
+			'barcode'      => $stregkode,
+		);
+		foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+		  if (!$endpoint) {
+			continue;
+		  }
+		  $res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
+		  if (!$res['ok']) {
+			$failed++;
+		  }
 		}
 	  }
+	  fclose($log);
+	  return ($failed ? "sync errors: $failed" : 'OK');
 	}
   }
   
@@ -1769,6 +1785,7 @@ if (!function_exists('sync_shop_vare')) {
 	function sync_shop_vare($vare_id, $variant_id, $lager) {
 		global $bruger_id,$db,$regnaar;
 		$costPrice = 0;
+		$failed = 0;
 		$log = fopen("../temp/$db/rest_api.log", "a");
 		$qtxt = "select box4, box5, box6 from grupper where art='API'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
@@ -1799,7 +1816,7 @@ if (!function_exists('sync_shop_vare')) {
 			return ('no stock');
 		}
 		
-		$header = "User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+		$userAgent = "Mozilla/5.0 Gecko/20100101 Firefox/23.0";
 		if ($variant_id) {
 			$qtxt = "select shop_variant from shop_varer where saldi_variant='$variant_id'";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -1817,21 +1834,22 @@ if (!function_exists('sync_shop_vare')) {
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$costPrice = $r['kostpris'];
 			}
-			$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil?update_stock=$shop_id";
-			$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
-			fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-			exec("nohup $txt > /dev/null 2>&1 &\n");
-			if($api_fil2){
-				$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil2?update_stock=$shop_id";
-				$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
-				fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-				exec("nohup $txt > /dev/null 2>&1 &\n");
-			}
-			if($api_fil3){
-				$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil3?update_stock=$shop_id";
-				$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
-				fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-				exec("nohup $txt > /dev/null 2>&1 &\n");
+			$params = array(
+				'update_stock' => $shop_id,
+				'stock'        => $variant_beholdning,
+				'stockno'      => $lager,
+				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''), # always empty, no query here selects lagerbeh - kept so the url is unchanged
+				'file'         => __FILE__,
+				'line'         => __LINE__,
+			);
+			foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+				if (!$endpoint) {
+					continue;
+				}
+				$res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_vare update_stock variant_id $variant_id", 'userAgent' => $userAgent));
+				if (!$res['ok']) {
+					$failed++;
+				}
 			}
 		} else {
 			$qtxt = "select varer.varenr, varer.varenr_alias, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
@@ -1866,51 +1884,76 @@ if (!function_exists('sync_shop_vare')) {
 				$retailPrice = $r["retail_price"];
 				$webFragt = $r["colli_webfragt"];
 				$stregkode = $r["stregkode"];
-				$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-#if ($bruger_id == '-1') echo "$txt<br>";
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				if($api_fil2){
-					$txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				}
-				if($api_fil3){
-					$txt = "$api_fil3?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				$params = array(
+					'update_price' => $shop_id,
+					'salesPrice'   => $salesPrice,
+					'discountType' => $discountType,
+					'discount'     => $discount,
+					'itemNo'       => $itemNo,
+					'itemNoAlias'  => $itemNoAlias,
+					'rand'         => (isset($rand) ? $rand : ''),
+					'costPrice'    => $costPrice,
+					'retailPrice'  => $retailPrice,
+					'webFragt'     => $webFragt,
+					'barcode'      => $stregkode,
+				);
+				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+					if (!$endpoint) {
+						continue;
+					}
+					$res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_vare update_price vare_id $vare_id", 'userAgent' => $userAgent));
+					if (!$res['ok']) {
+						$failed++;
+					}
 				}
 			}
-			$stock = (int)$stock;
+			# lagerstatus.beholdning is numeric, so keep decimals - totalStock and variant stock
+			# are already sent undecimated. Default to 0 when the query above found no row.
+			$stock = (isset($stock) && $stock !== '' && $stock !== null) ? $stock : 0;
 
 			if ($itemNo) {
 				#			if (($shop_id || $itemNo) && is_numeric($stock)) {
 				$rand = rand();
-				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&skuAlias=" . urlencode("$itemNoAlias") . "&costPrice=$costPrice&rand=$rand";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				if($api_fil2){
-					$txt = "$api_fil2?sku=" . urlencode("$itemNo") . "&skuAlias=" . urlencode("$itemNoAlias") . "&costPrice=$costPrice&rand=$rand";
-					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				$skuParams = array(
+					'sku'       => $itemNo,
+					'skuAlias'  => $itemNoAlias,
+					'costPrice' => $costPrice,
+					'rand'      => $rand,
+				);
+				# api_fil3 is left out here as in the original code, this call never went to endpoint 3
+				foreach (array($api_fil, $api_fil2) as $endpoint) {
+					if (!$endpoint) {
+						continue;
+					}
+					$res = shopApiRequest($endpoint, $skuParams, $log, array('context' => "sync_shop_vare sku vare_id $vare_id", 'userAgent' => $userAgent));
+					if (!$res['ok']) {
+						$failed++;
+					}
 				}
-				$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-				$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				if($api_fil2){
-					$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-#if ($bruger_id == '-1') echo "$txt<br>";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				}
-				if($api_fil3){
-					$txt = "$api_fil3?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-#if ($bruger_id == '-1') echo "$txt<br>";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				$stockParams = array(
+					'update_stock' => $shop_id,
+					'stock'        => $stock,
+					'totalStock'   => $totalStock,
+					'stockno'      => $lager,
+					'costPrice'    => $costPrice,
+					'salesPrice'   => $salesPrice,
+					'discountType' => $discountType,
+					'discount'     => $discount,
+					'itemNo'       => $itemNo,
+					'itemNoAlias'  => $itemNoAlias,
+					'rand'         => $rand,
+					'retailPrice'  => $retailPrice,
+					'webFragt'     => $webFragt,
+					'barcode'      => $stregkode,
+				);
+				foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+					if (!$endpoint) {
+						continue;
+					}
+					$res = shopApiRequest($endpoint, $stockParams, $log, array('context' => "sync_shop_vare update_stock vare_id $vare_id", 'userAgent' => $userAgent));
+					if (!$res['ok']) {
+						$failed++;
+					}
 				}
 				if ($partOfItem) {
 					$x = 0;
@@ -1943,48 +1986,43 @@ if (!function_exists('sync_shop_vare')) {
 						$qtxt = "select shop_id from shop_varer where saldi_id = $partOf[$x]";
 						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $shop_id = $r['shop_id'];
 						list($totalStock, $stock) = explode('|', getAvailable($partOf[$x], $lager));
-						$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-						$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
-						$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-						fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-						exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						if($api_fil2){
-#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
-							$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
-							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						}
-						if($api_fil3){
-#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
-							$txt = "$api_fil3?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
-							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						}
-						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-						shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						if($api_fil2){
-							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
-						}
-						if($api_fil3){
-							$txt = "$api_fil3?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
-#if ($bruger_id == '-1') echo __line__." $txt<br>";
-							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						$partStockParams = array(
+							'update_stock' => $shop_id,
+							'stock'        => $stock,
+							'totalStock'   => $totalStock,
+							'stockno'      => $lager,
+							'costPrice'    => $costPrice,
+							'itemNo'       => $productNo,
+							'itemNoAlias'  => $productNoAlias,
+							'sku'          => $productNo,
+							'skuAlias'     => $productNoAlias,
+							'file'         => __FILE__,
+							'line'         => __LINE__,
+						);
+						$partCostParams = array(
+							'costPrice' => $costPrice,
+							'sku'       => $productNo,
+							'skuAlias'  => $productNoAlias,
+						);
+						foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
+							if (!$endpoint) {
+								continue;
+							}
+							$res = shopApiRequest($endpoint, $partStockParams, $log, array('context' => "sync_shop_vare update_stock part vare_id $partOf[$x]", 'userAgent' => $userAgent));
+							if (!$res['ok']) {
+								$failed++;
+							}
+							$res = shopApiRequest($endpoint, $partCostParams, $log, array('context' => "sync_shop_vare costPrice part vare_id $partOf[$x]", 'userAgent' => $userAgent));
+							if (!$res['ok']) {
+								$failed++;
+							}
 						}
 					}
 				}
 			}
 		}
-		return ('OK');
+		fclose($log);
+		return ($failed ? "sync errors: $failed" : 'OK');
 	}
 } #endfunc sync_shop_vare()
 
