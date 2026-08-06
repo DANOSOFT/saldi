@@ -336,4 +336,37 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER TABLE moms_periode_luk ADD COLUMN note TEXT", __FILE__ . " linje " . __LINE__);
 }
 
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ansatte' and column_name = 'mobile'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# IF NOT EXISTS because betweenUpdates.php runs at login: two concurrent logins can both
+	# get past the check above, and one of the two ALTER statements would then fail.
+	$qtxt = "ALTER TABLE ansatte ADD COLUMN IF NOT EXISTS mobile text";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+
+$qtxt = "Select id from tekster where sprog_id = '2' and tekst_id = '351' and tekst = 'not changed'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("update tekster set tekst = 'Account number already exists - not changed' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
+}
+
+$cvr_gamle_tekster = array(
+	'Auto-opslag','Auto lookup','Auto-oppslag',
+	'CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.',
+	'The VAT lookup could not be completed. Please fill in the fields manually.',
+	'Oppslaget kunne ikke gjennomføres. Fyll ut feltene manuelt.',
+	'Kvoten for CVR-opslag er opbrugt.','The quota for VAT lookups has been used up.','Kvoten for oppslag er brukt opp.',
+	'CVR-nummeret blev ikke fundet.','The VAT number was not found.','Organisasjonsnummeret ble ikke funnet.',
+	'CVR-nummeret er ikke gyldigt.','The VAT number is not valid.','Organisasjonsnummeret er ikke gyldig.',
+	'Søger...','Searching...','Søker...'
+);
+foreach ($cvr_gamle_tekster as $cvr_tekst) {
+	$cvr_tekst = db_escape_string($cvr_tekst);
+	db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst = '$cvr_tekst'", __FILE__ . " linje " . __LINE__);
+}
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast CVR-nr. efterfulgt%'", __FILE__ . " linje " . __LINE__);
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Enter the VAT no. followed%'", __FILE__ . " linje " . __LINE__);
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast inn org.nr. etterfulgt%'", __FILE__ . " linje " . __LINE__);
+
 ?>
