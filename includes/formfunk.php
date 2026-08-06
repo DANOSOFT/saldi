@@ -644,7 +644,18 @@ if (!function_exists('find_form_tekst')) {
 						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 						$q2 = db_select("select $db_variabel as $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "adresser" || $tabel == "konto") {
-						if ($variabel == 'valuta') {
+						if ($variabel == 'udtog') {
+							// 20260805 MJ konto_udtog: udestående saldo fra openpost
+							if ($formular == 11) {
+								$kid = (int)$id;
+							} else {
+								$r2 = db_fetch_array(db_select("select konto_id from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
+								$kid = (int)$r2['konto_id'];
+							}
+							$r2 = db_fetch_array(db_select("select sum(amount) as saldo from openpost where konto_id='$kid' and udlignet='0'", __FILE__ . " linje " . __LINE__));
+							$streng[$x] = dkdecimal((float)$r2['saldo'], 2);
+							$q2 = NULL;
+						} elseif ($variabel == 'valuta') {
 							$qtxt = "select gruppe from adresser where id='$id'";
 							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$qtxt = "select box3 as valuta from grupper where art='DG' and kodenr='$r2[gruppe]' ";
