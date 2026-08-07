@@ -997,6 +997,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # Debtor Groups
+  /debitor/groups/:
+    get:
+      tags:
+        - Debtor Groups
+      summary: Get current fiscal year's debtor groups
+      responses:
+        '200':
+          description: List of debtor groups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DebtorGroupResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # Customers (Debitors)
   /debitor/customers/:
     get:
@@ -4194,6 +4223,32 @@ components:
         art:
           type: string
           example: "D"
+
+    DebtorGroupResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        number:
+          type: integer
+        description:
+          type: string
+        vatGroup:
+          type: string
+        currency:
+          type: string
+        language:
+          type: string
+        contraAccount:
+          type: string
+        commissionPercentage:
+          type: string
+        b2b:
+          type: boolean
+        reversePayment:
+          type: boolean
+        fiscalYear:
+          type: integer
 
     CustomerListResponse:
       type: object

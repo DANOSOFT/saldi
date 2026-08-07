@@ -196,8 +196,8 @@ if (!function_exists('skriv')) {
 			$form_font = $form_font . '-Italic-ISOLatin9 findfont';
 		elseif (($fed == 'on' || $startfed == 'on') && ($italic == 'on'))
 			$form_font = $form_font . '-BoldItalic-ISOLatin9 findfont';
-		elseif ($form_font == "Times")
-			$form_font = $form_font . '-Roman-ISOLatin9 findfont';
+		elseif ($form_font == "Times" || $form_font == "Palatino" || $form_font == "NewCenturySchlbk")
+			$form_font = $form_font . '-Roman-ISOLatin9 findfont';   // these families' regular face is "-Roman"
 		else
 			$form_font = $form_font . '-ISOLatin9 findfont';
 		if (strstr($tekstinfo, 'ordrelinjer')) {
@@ -268,10 +268,10 @@ if (!function_exists('skriv')) {
 								$qtxt = "select $variabel from ordrer where id=$id";
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "eget" || $tabel == "egen") {
-								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 								$q2 = db_select("select $db_variabel as $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 							} elseif (($tabel == "adresser") || ($tabel == "adresser")) {
-								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 								$q2 = db_select("select $db_variabel as $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "ansat" && $ref) {
 								$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
@@ -641,7 +641,7 @@ if (!function_exists('find_form_tekst')) {
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						}
 					} elseif ($tabel == "eget" || $tabel == "egen") {
-						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 						$q2 = db_select("select $db_variabel as $variabel from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "adresser" || $tabel == "konto") {
 						if ($variabel == 'valuta') {
@@ -651,11 +651,11 @@ if (!function_exists('find_form_tekst')) {
 							$qtxt .= "and fiscal_year = $regnaar";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						} else {
-							$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+							$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 							$q2 = db_select("select $db_variabel as $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
 						}
 					} elseif ($tabel == "kunde") {
-						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : $variabel;
+						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 						$q2 = db_select("select $db_variabel as $variabel from adresser where art='D' and id=$id", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "levering") {
 						$q2 = db_select("select $variabel from batch_salg where ordre_id=$id and lev_nr=$lev_nr", __FILE__ . " linje " . __LINE__);
@@ -1261,6 +1261,19 @@ if (!function_exists('formularprint')) {
 
 				if (!$formularsprog)
 					$formularsprog = "dansk";
+				// Per-form print-language lock (set in the visual form editor):
+				// force the whole print into one language regardless of the
+				// customer's language. No lock file => behaviour unchanged.
+				$fe_lock = "../logolib/$db_id/fe_printlang_$formular.json";
+				if (@file_exists($fe_lock)) {
+					$fe_pl = @json_decode(@file_get_contents($fe_lock), true);
+					if (is_array($fe_pl) && !empty($fe_pl['sprog'])) {
+						// value is interpolated into SQL below; restrict to a safe
+						// charset in case the lock file was tampered with on disk.
+						$fe_lang = preg_replace('/[^\p{L}\p{N} ._\-]/u', '', (string) $fe_pl['sprog']);
+						if ($fe_lang !== '') $formularsprog = strtolower($fe_lang);
+					}
+				}
 				if (($formular == 4) || ($formular == 5)) {
 					if (!$fakturanr) { #20130508
 						return ("Fakturering afbrudt ($ordre_id[$o] -> $ordrenr -> Fakturanr mangler) ");

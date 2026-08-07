@@ -34,6 +34,7 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250524 PHR Bogfor now set to 0 if tidl_lev (Delivered) differs from antal (qty)
 // 20251113 PHR Corrected error in $tidl_lev for creditnotas
+// 20260611 MJ Changed creditor print button fallback text to English.
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
 
@@ -313,7 +314,7 @@ if(!count($posnr) && $id) {
     $txt     = findtekst(2310, $sprog_id);
   } else {
     $spantxt = findtekst(1506, $sprog_id);
-    $txt     = findtekst(880, $sprog_id);
+    $txt     = findtekst('880|Print', $sprog_id);
   }
   print "<td align=center><span title='".$spantxt."'>";
   print "<input type = 'submit' style = 'width:120px;' value='".$txt."' ";

@@ -18,6 +18,7 @@ finans/kladdeliste.php, systemdata/kontoplan.php, kreditor/kreditor.php, kredito
 Regards:) 20260220 LOE
 20260513 PK - Added class="navbutton" to the navigation buttons with svg, as those buttons were too high compared to the page selector buttons
 */
+// 20260620 MJ Recover from invalid saved datatable setup so stale user grid state does not block page loading.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -298,11 +299,11 @@ function create_datagrid($id, $grid_data) {
         if_isset($searchId2, array()),
         $filters
     );
-    $columns_setup = json_decode($columns_setup, true);
+    $columns_setup = decode_grid_json_array($columns_setup, $columns_filtered);
     $columns_updated = fill_missing_values($columns_setup, $columns);
 
     // Process search input
-    $search_setup = json_decode($search_setup, true);
+    $search_setup = decode_grid_json_array($search_setup, array());
     $s3 = if_isset($_GET, NULL,"search"); // prevent excessive error logs
     $s4 = if_isset($s3, NULL, $id);
     $searchTerms = if_isset($s4, $search_setup);
@@ -393,7 +394,7 @@ function create_datagrid($id, $grid_data) {
     }
 
     // Process filters
-    $filters_setup = json_decode($filter_setup, true);
+    $filters_setup = decode_grid_json_array($filter_setup, array());
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
@@ -499,6 +500,14 @@ function create_datagrid($id, $grid_data) {
     render_dropdown_script($id, $query);
 
     return $rows;
+}
+
+function decode_grid_json_array($json, $fallback = array()) {
+    if (is_array($json)) return $json;
+    if ($json === null || $json === '') return $fallback;
+
+    $decoded = json_decode($json, true);
+    return is_array($decoded) ? $decoded : $fallback;
 }
 
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-07-08 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -76,7 +76,7 @@
 // 20260415 PHR Modtag (Receive) was set to 0 in creditnote
 // 20260420 PHR Removed GLS codes
 // 20260422 PHR Defined $fast_db as array; 
-// 20260432	PHR Warning when $ref id changes
+// 20260423	PHR Warning when $ref id changes
 // 20260427 PHR Fixed vat added twice when open order was copies. ($sourceStatus)
 // 20260429 PHR Changed 'PBS' to 'BS' as colunm is varchar(2)
 // 20260429 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
@@ -97,8 +97,13 @@
 // 20260611 LOE Added UI for hvem and updated its logic
 // 20260630 Sawaneh Made 'Performed by' (hvem) display-only: removed its order-locking side effects, added a blank option so it can be cleared, and made clearing to blank persist on save
 // 20260701 NTR Updated the first plukliste buttons to be the same logic as the second plukliste.
+// 20260702 PHR Disabled "if ($vis_saet) $fakturadato = date("d-m-Y");"
+// 20260706 PHR Added $tmp to avoid division by zero
 // 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
+// 20260715 PHR Valuta was omittet when copying order
+// 20260806 CX/PHR Show split-order button instead of invoice button when an order is only partly delivered.
+// 20260807 CX/PHR Allow free text in the Att. field while retaining customer contact suggestions.
 
 @session_start();
 $s_id = session_id();
@@ -949,6 +954,12 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	}
 	if ($udskriv_til == 'oioubl') $oioubl = "on";
 
+	// safety: ordrer.pbs / mail_fakt / mail_bilag are all varchar(2). Clamp any
+	// over-long value so a legacy/long code can't crash the write ("value too long
+	// for type character varying(2)"). No-op for normal values (''/on/BS/FI).
+	if (strlen((string)$pbs) > 2)        $pbs        = substr((string)$pbs, 0, 2);
+	if (strlen((string)$mail_fakt) > 2)  $mail_fakt  = substr((string)$mail_fakt, 0, 2);
+	if (strlen((string)$mail_bilag) > 2) $mail_bilag = substr((string)$mail_bilag, 0, 2);
 	$qtxt = "update ordrer set sprog = '$formularsprog', email='$email',mail_fakt='$mail_fakt',phone='$phone',pbs='$pbs',";
 	$qtxt .= "udskriv_til='$udskriv_til',  mail_bilag='$mail_bilag',ean='$ean' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -1547,7 +1558,7 @@ if ($b_submit) {
 		$y = "ialt" . $x;
 		$ialt[$x] = if_isset($_POST, NULL, $y);
 		if (($godkend == "on") && ($status == 0)) {
-			if ($vis_saet) $fakturadato = date("d-m-Y");
+			# if ($vis_saet) $fakturadato = date("d-m-Y");
 			$leveres[$x] = $antal[$x];
 			if (isset($linje_id[$x]) && $varenr[$x]) batch($linje_id[$x]);
 		}
@@ -2550,6 +2561,10 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$tilbudnr = (int)if_isset($tilbudnr, 0);
 		$sag_id = (int)if_isset($sag_id, NULL); #20250528
 		$sagsnr = (int)if_isset($sagsnr, 0);
+		if (!$valuta) { #20260715
+			$valuta = 'DKK';
+			$valutakurs = 100;
+		}
 		$nr = (int)if_isset($nr, 0);
 		$qtxt = "insert into ordrer";
 		$qtxt .= "(ordrenr,konto_id,kontonr,kundeordnr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,";
@@ -4784,61 +4799,32 @@ function ordreside($id, $regnskab)
 		print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_land\">" . findtekst('593|Lande', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"land\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$land\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		if (!$sag_id && count($a_kontakt) <= 1) { #20140826 #20260409 show dropdown when multiple contacts
 			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"kontakt\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kontakt\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-		} else { #20260409 select dropdown with option to type custom name
+		} else { #20260807 editable contact field with suggestions
 			if (empty($kontakt) && count($a_kontakt) > 0) $kontakt = $a_kontakt[0]; # default to first contact
-			$kontaktInList = in_array($kontakt, $a_kontakt);
 			print "<script language=\"javascript\" type=\"text/javascript\">\n";
 			print "var kontaktTlfMap = {};\n";
 			for ($y = 0; $y < count($a_kontakt); $y++) {
-				$jsName = addslashes($a_kontakt[$y]);
-				$jsTlf = addslashes($a_mobil[$y]);
-				print "kontaktTlfMap['$jsName'] = '$jsTlf';\n";
+				$jsName = json_encode(html_entity_decode($a_kontakt[$y], ENT_QUOTES, 'UTF-8'));
+				$jsTlf = json_encode(html_entity_decode($a_mobil[$y], ENT_QUOTES, 'UTF-8'));
+				print "kontaktTlfMap[$jsName] = $jsTlf;\n";
 			}
 			print "</script>\n";
 			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . "</td><td colspan=\"2\">";
-			print "<input type='hidden' name='kontakt' id='kontakt_hidden' value=\"$kontakt\">\n";
-			# Select dropdown (visible by default if current value is in list or empty)
-			$selStyle = (!$kontaktInList && !empty($kontakt)) ? "display:none" : "";
-			$txtStyle = (!$kontaktInList && !empty($kontakt)) ? "" : "display:none";
-			print "<select class='inputbox' id='kontakt_select' style=\"width:200px;$selStyle\" onchange=\"javascript:docChange = true;\" $disabled>\n";
+			print "<input class='inputbox' type='text' name='kontakt' id='kontakt_input' list='kontakt_options' style=\"width:200px\" value=\"$kontakt\" onchange=\"javascript:docChange = true;\" $disabled>\n";
+			print "<datalist id='kontakt_options'>\n";
 			for ($y = 0; $y < count($a_kontakt); $y++) {
-				$sel = ($a_kontakt[$y] == $kontakt) ? " selected" : "";
-				print "<option value=\"$a_kontakt[$y]\"$sel>$a_kontakt[$y]</option>\n";
+				print "<option value=\"$a_kontakt[$y]\"></option>\n";
 			}
-			print "<option value='__custom__'>-- Skriv selv --</option>\n";
-			print "</select>\n";
-			# Text input (hidden by default, shown when "Skriv selv" is picked)
-			$customVal = (!$kontaktInList && !empty($kontakt)) ? $kontakt : "";
-			print "<input class='inputbox' type='text' id='kontakt_custom' style=\"width:170px;$txtStyle\" value=\"$customVal\" placeholder='Skriv navn...' $disabled>";
-			print "<a href='#' id='kontakt_back_link' style=\"margin-left:4px;font-size:11px;$txtStyle\">Liste</a>";
+			print "</datalist>\n";
 			print "</td></tr>\n";
 			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . " " . strtolower(findtekst('49|Tlf', $sprog_id)) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"kontakt_tlf\" id=\"kontakt_tlf\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kontakt_tlf\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 			print "<script language=\"javascript\" type=\"text/javascript\">
-							$('#kontakt_select').on('change', function () {
+							$('#kontakt_input').on('input change', function () {
 								var val = $(this).val();
-								if (val == '__custom__') {
-									$(this).hide();
-									$('#kontakt_custom').show().focus();
-									$('#kontakt_back_link').show();
-									$('#kontakt_hidden').val('');
-									$('#kontakt_tlf').val('');
-								} else {
-									$('#kontakt_hidden').val(val);
-									if (kontaktTlfMap.hasOwnProperty(val)) {
-										$('#kontakt_tlf').val(kontaktTlfMap[val]);
-									}
+								if (kontaktTlfMap.hasOwnProperty(val)) {
+									$('#kontakt_tlf').val(kontaktTlfMap[val]);
 								}
 								docChange = true;
-							});
-							$('#kontakt_custom').on('input', function () {
-								$('#kontakt_hidden').val($(this).val());
-								docChange = true;
-							});
-							$('#kontakt_back_link').on('click', function (e) {
-								e.preventDefault();
-								$('#kontakt_custom').hide().val('');
-								$(this).hide();
-								$('#kontakt_select').show().val($('#kontakt_select option:first').val()).trigger('change');
 							});
 						</script>\n";
 		}
@@ -6055,7 +6041,7 @@ function ordreside($id, $regnskab)
 			#cho __line__." $sum<br>";
 			$diff = afrund($samlet_pris - ($sum + $moms), 3);
 			$tmp = $sum + $moms;
-			if ($samlet_rabat) {
+			if ($samlet_rabat && $tmp != 0) { #20260706 Added $tmp to avoid division by zero
 				$ms = afrund($moms * 100 / ($sum + $moms), 2); #20150318
 				$r = db_fetch_array(db_select("select id,beskrivelse from varer where varenr = '$rvnr' or varenr_alias = '$rvnr' or stregkode = '$rvnr'", __FILE__ . " linje " . __LINE__));
 				opret_ordrelinje($id, $r['id'], $rvnr, 1, $r['beskrivelse'], $diff, $ms, 100, 'DO', '', '', '0', '', '', '', '', '', '0', '0', $lager[0], __LINE__);
@@ -6329,7 +6315,7 @@ function ordreside($id, $regnskab)
 			$txt3      = findtekst('1541|Vælg betalingsmåde', $sprog_id);
 
 			$tiltext   = findtekst('1532|Beløb til betaling stemmer ikke', $sprog_id);
-			if (($status == 2 && $bogfor != 0) || ($status > 0 && $hurtigfakt == 'on')) {
+			if ($del_ordre != 'on' && (($status == 2 && $bogfor != 0) || ($status > 0 && $hurtigfakt == 'on'))) {
 				$disabled = NULL;
 				$titletext = '';
 				$tmp = "";

@@ -1,0 +1,65 @@
+# Saldi/Danosoft client seed - off-limits paths (protected globs).
+# SALDI-INTEGRATION-AUDIT.md item 2.3: the shipped config/off-limits.txt only
+# locks generic globs (auth/billing/payments/migrations) that do not match a
+# single real path in the Saldi legacy PHP tree. Seeded verbatim it would
+# protect none of the client's actual money/ledger/payroll code. This file is
+# the Saldi-specific replacement: seeded into <client-repo>/config/off-limits.txt
+# by scripts/onboard-client.mjs (SALDI-INTEGRATION-AUDIT.md item 2.2) on day 1,
+# before the first ticket runs.
+#
+# Format matches config/off-limits.txt: one glob per line, blank lines and
+# lines starting with # are ignored. A task that touches ANY of these globs is
+# force-demoted to T1 (max supervision) and raises the protected_path_touched
+# escalation trigger. test-ratchet.mjs (this repo) additionally hard-blocks
+# M/D/R (modify/delete/rename) of every matched path unconditionally.
+
+# --- Saldi client-specific: money, ledger, payroll (audit item 2.3) ---
+# Finance module: general ledger, postings, VAT/tax handling.
+finans/**
+
+# Creditor (accounts payable) module.
+kreditor/**
+
+# Debitor (accounts receivable / invoicing) module.
+debitor/**
+
+# Payroll calculation entry points (sager/beregn_loen.php and variants).
+sager/beregn_loen*.php
+
+# Shared DB connection/credentials bootstrap used by every module above.
+includes/connect.php
+
+# --- Factory-side entries the ratchet needs (carried over from this repo's
+# config/off-limits.txt so a vendored/seeded client repo keeps the same
+# judgment-layer protections the factory itself runs under) ---
+
+# Auth: any auth code, anywhere.
+lib/auth/**
+**/auth/**
+
+# Money: billing and payments (generic globs kept for defense-in-depth even
+# though the Saldi-specific globs above are the ones that actually match).
+**/billing/**
+**/payments/**
+
+# Database shape and infrastructure.
+db/migrations/**
+infra/**
+
+# CI/CD definitions.
+.github/workflows/**
+
+# Secrets and environment.
+**/*.env
+**/secrets/**
+
+# The model gateway config (controls spend and the kill switch).
+gateway/litellm.config.yaml
+
+# The judgment layer itself (policy + schemas).
+config/**
+schema/**
+
+# Human-owned canonical context files.
+AGENTS.md
+CLAUDE.md
