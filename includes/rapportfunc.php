@@ -82,6 +82,7 @@
 // 20260513 CL/PHR kontokort & kontosaldo viser nu dato i toplinje og kontokort tager kun konti med bevægelser i perioden.
 // 20260518 CL/PHR kontokort & kontosaldo viser nu dato i toplinje. Kontokort tager kun konti med bevægelser i perioden. Null-safety og array-initialisering.
 // 20260723 sawaneh Fixed $rbox8->$box8 so the guard against a stock-tracked item used as a fee works in bogfor_rykker.
+// 20260807 CL/NTR Added the missing #opGridWrapper opening div (it was only ever closed) so the open items grid gets its intended flex:1/scrollable/padded region instead of no padding at all; gave several tables ids for future reference.
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -221,7 +222,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 		print "</div>";
 		print "<div class='content-noside'>";
-		print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" ><tbody><!--Tabel 1 start-->\n";
+		print "<table id='openpostOuterTable' width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" ><tbody><!--Tabel 1 start-->\n";
 		print "<div><center><select name='aabenpostmode' style='$topStyle' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
 		if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
 		elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
@@ -246,7 +247,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 a:link{text-decoration:none;}</style>\n";
 		print "<div id='opPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
 		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n";
+		print "<table id='openpostHeaderBarTable' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n";
 		$opTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 		print "<td width='7%'><a accesskey=l href=\"rapport.php\">
 			   <button class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start;' onMouseOver=\"this.style.cursor='pointer'\">$opTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
@@ -267,6 +268,10 @@ a:link{text-decoration:none;}</style>\n";
 		print "</td>";
 		print "</tbody></table><!--Tabel 1.2 slut-->\n\n";
 		print "</div>\n"; // <- close flex:0 wrapper around the blue bar
+		// Scrollable flex:1 region for everything below the header bar (vis_aabne_poster's grid,
+		// then the rykker overview). Closed by the two "close #opGridWrapper + #opPageFlex" prints
+		// below - this opening tag was missing, so that content rendered with no padding at all.
+		print "<div id='opGridWrapper' style='flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:8px 12px; box-sizing:border-box;'>\n";
 	}
 	if ($skjul_aabenpost != 'on') vis_aabne_poster($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart, $kun_debet, $kun_kredit, ($vis_alle_poster == 'on'));
 
@@ -294,7 +299,7 @@ a:link{text-decoration:none;}</style>\n";
 			while ($taeller < 4) {
 				$sum = array();
 				$taeller++;
-				print "<tr><td><div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"3\" border=\"0\" class='dataTable'><thead><!--Tabel 1.3 start-->\n"; // Tabel 1.3 ->
+				print "<tr><td><div class='dataTablediv'><table id='rykkerOverviewTable$taeller' width=100% cellpadding=\"0\" cellspacing=\"3\" border=\"0\" class='dataTable'><thead><!--Tabel 1.3 start-->\n"; // Tabel 1.3 ->
 				if ($taeller == 1) {
 					print "<tr  bgcolor='$bgcolor5'>";
 					print "<td width=10% align=center class='sub-title-kund-left'><br></td>";
