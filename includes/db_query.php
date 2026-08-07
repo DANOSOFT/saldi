@@ -31,6 +31,12 @@
 // 20250808 PHR Added to function db_escape_string: $qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
 // 20260305 PHR trying to prevent writing to db_modify.log if writing is in masterbase
 // 20260611 NTR Cache global and tenant db connections separately
+// 20260729 CL/SZ db_modify/transaktion: track write failures in $db_modify_fejl (reset on
+//                'begin', set when a webservice-mode write fails) so posting-path callers
+//                can detect a failed statement even though they ignore db_modify's return (SD-595)
+// 20260804 SZ transaktion(): only reset $db_modify_fejl on the outermost 'begin' (track nesting
+//             depth), so bogfor()'s own inner begin/commit no longer erases a failure recorded
+//             by the caller's outer transaction before bogfor() ran (SD-595)
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -233,8 +239,12 @@ if (!function_exists('db_modify')) {
 					#mysqli_query($connection, "ROLLBACK");
 				#}
 						
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
-				if ($webservice) return ('1'.chr(9)."$alerttekst");
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208";
+				if ($webservice) {
+					global $db_modify_fejl; #20260729 SZ surface write failures so posting-path callers can detect a failed statement even though they don't check this return value (SD-595)
+					$db_modify_fejl = true;
+					return ('1'.chr(9)."$alerttekst");
+				}
 				alert("$alerttekst");
 				exit;
 			}
@@ -416,11 +426,20 @@ if (!function_exists('transaktion')) {
 		global $db_type;
 		global $db;
 		global $connection; #20190704
+		global $db_modify_fejl; #20260729 SZ (SD-595)
+		global $db_transaktion_depth; #20260804 SZ track nesting so an inner begin() (e.g. bogfor() calling transaktion('begin') again inside an already-open outer transaction) doesn't wipe out an earlier failure recorded by the outer transaction (SD-595)
 
 		$temp = get_relative() . 'temp/' . $db;
 		$fp=fopen("$temp/.ht_modify.log","a");
 		fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n");
 		fwrite($fp,$qtext.";\n");
+		$qtext_trim = strtolower(trim($qtext));
+		if ($qtext_trim == 'begin') {
+			if (!$db_transaktion_depth) $db_modify_fejl = false; #20260729 SZ reset the write-failure flag only when opening the outermost transaction (SD-595)
+			$db_transaktion_depth = ($db_transaktion_depth ?: 0) + 1;
+		} elseif (($qtext_trim == 'commit' || $qtext_trim == 'rollback') && $db_transaktion_depth) {
+			$db_transaktion_depth--;
+		}
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 			$query = mysqli_query($connection, $qtext);
 		} else {
