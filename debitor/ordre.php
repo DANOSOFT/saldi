@@ -102,6 +102,7 @@
 // 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
 // 20260715 PHR Valuto was omittet when copying order
+// 20260806 PHR Show split-order button instead of invoice button when an order is only partly delivered.
 
 @session_start();
 $s_id = session_id();
@@ -6342,7 +6343,7 @@ function ordreside($id, $regnskab)
 			$txt3      = findtekst('1541|Vælg betalingsmåde', $sprog_id);
 
 			$tiltext   = findtekst('1532|Beløb til betaling stemmer ikke', $sprog_id);
-			if (($status == 2 && $bogfor != 0) || ($status > 0 && $hurtigfakt == 'on')) {
+			if ($del_ordre != 'on' && (($status == 2 && $bogfor != 0) || ($status > 0 && $hurtigfakt == 'on'))) {
 				$disabled = NULL;
 				$titletext = '';
 				$tmp = "";
