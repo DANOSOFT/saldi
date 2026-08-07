@@ -32,6 +32,8 @@
 // 20220818 PHR Added db_escape_string at line ~247 
 // 20250731 PHR PHP8
 // 20260723 sawaneh Removed misplaced ';' after date('U') so ffdage2/3 are subtracted again; R2/R3 fees are booked only after grace days.
+// 20260803 Sawaneh $rykkerfrist1 blev beregnet ud fra $dd foer den var sat, saa ffdage1 blev kasseret og der blev rykket
+//                  dagen efter forfald. Fristen regnes nu som dags dato minus ffdage1, som ved ffdage2/3.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -72,7 +74,8 @@ $r = db_fetch_array(db_select("select box5,box6,box7,box8 from grupper where art
 $ffdage1=(int)$r['box5'];
 $ffdage2=(int)$r['box6'];
 $ffdage3=(int)$r['box7'];
-$rykkerfrist1=usdate(forfaldsdag($dd,'netto',$ffdage1));
+$utid=date('U')-$ffdage1*3600*24;
+$rykkerfrist1=date("Y-m-d",$utid);
 
 $r = db_fetch_array(db_select("select id from formularer where beskrivelse LIKE '%inkassotekst'",__FILE__ . " linje " . __LINE__));
 if ($r['id']) {
