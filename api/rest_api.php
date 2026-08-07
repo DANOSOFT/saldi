@@ -62,6 +62,9 @@
 //                failed write in the posting transaction returns an error instead of the
 //                order id, since a failed statement aborts the Postgres transaction and the
 //                subsequent commit is silently treated as a rollback (SD-595)
+// 20260727 CL/SZ Validated/escaped $_GET['db'] in access_check() to close a
+//                pre-auth SQL injection on the master connection (SD-588)
+// 20260729 CoPilot/NTR - reported by codeRabbit - access check reworking missing db check and logging.
 // 20260728 CL/SZ Removed update_table/insert_into_table (unused arbitrary-SQL
 //                surface) and narrowed fetch_from_table() to the one known
 //                query shape actually used; hardened the access_check() API
@@ -970,19 +973,29 @@ function access_check(){
 	global $webservice;
 	global $regnaar;
 
-	if (!file_exists("../temp")) mkdir("../temp",0777);
-	if (!file_exists("../temp/$db")) mkdir("../temp/$db",0777);
-	$log=fopen("../temp/$db/rest_api.log","a");
-	if (isset($_GET['db'])) {
+	if (isset($_GET['db']) && is_string($_GET['db'])) {
 		$db=$_GET['db'];
-		(strpos($db,'_'))?list($master,$db_skriv_id)=explode('_',$db):$master=$db;
-		fwrite($log,__line__." $master,$db_skriv_id\n");
-	}	else {
-		fwrite($log,__line__." Missing db\n");
-		fclose($log);
+		if (!preg_match('/\A[A-Za-z_][A-Za-z0-9_]{0,24}\z/',$db)) {
+			return 'missing db';
+		}
+	} else {
 		return 'missing db';
 	}
-	$qtxt="select id,lukket from regnskab where db='$db'"; #20201223
+
+	if (!file_exists("../temp") && !mkdir("../temp",0750) && !file_exists("../temp")) {
+		return 'Unable to create temp directory';
+	}
+	if (!file_exists("../temp/$db") && !mkdir("../temp/$db",0750) && !file_exists("../temp/$db")) {
+		return 'Unable to create temp directory';
+	}
+	$log=fopen("../temp/$db/rest_api.log","a");
+	if (!$log) {
+		return 'Unable to open log file';
+	}
+	(strpos($db,'_'))?list($master,$db_skriv_id)=explode('_',$db):$master=$db;
+	fwrite($log,__line__." $master,$db_skriv_id\n");
+
+	$qtxt="select id,lukket from regnskab where db='".db_escape_string($db)."'"; #20201223
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['id']) {
