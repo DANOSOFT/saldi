@@ -22,8 +22,6 @@
 // 20260706 MJ Load reminder sections without reloading the open items report.
 // 20260706 MJ Paginated open item account rendering to avoid loading every account row at once.
 // 20260723 sawaneh Fixed $rbox8->$box8 in bogfor_rykker so a stock-tracked item used as a fee is blocked; removed dead commented-out code.
-// 20260807 CL/NTR Carry openpost_content=1 through the skjul/vis and rykker-section toggle links and basePageUrl (fixed a $kotno_fra typo too), so navigating within the report's own iframe doesn't re-trigger rapport.php's async shell and nest a second iframe inside it.
-// 20260807 CL/NTR Pad vis_aabne_poster()'s table directly instead of wrapping the whole report dispatch, since the header row above it already gets its spacing from $top_bund and a blanket wrapper double-padded it (affects both debitor and kreditor, which share this function).
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $art) {
 	?>
 	<script LANGUAGE="JavaScript">
@@ -108,19 +106,13 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 	print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">Luk</a></td>";
 	print "<td width=\"80%\" $top_bund>Rapport - $rapportart</td>";
 	print "<td width=\"10%\" $top_bund>";
-	if ($skjul_aabenpost=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off>Vis</a><td></tr>";
-	else print "<a href=rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on>Skjul</a><td></tr>";
+	if ($skjul_aabenpost=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off>Vis</a><td></tr>";
+	else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on>Skjul</a><td></tr>";
 	// <a accesskey=l href=\"rapport.php?rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til\"><br></a></td>";
 	print "</tbody></table></td></tr>\n"; #B slut
 
 	// echo "XX $dato_fra,$dato_til,$konto_fra,$konto_til,$art<br>";
-	// vis_aabne_poster() prints its own self-contained <table>...</table>, so padding it here
-	// doesn't touch the header row above (which already gets its spacing from $top_bund).
-	if ($skjul_aabenpost!='on') {
-		print "<div id='openpostTableWrap' style='padding:12px;'>";
-		vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art);
-		print "</div>";
-	}
+	if ($skjul_aabenpost!='on') vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art);
 	} else {
 		print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 	}
@@ -144,7 +136,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 	// if ($art=='D' && db_fetch_array(db_select("select * from ordrer where art LIKE 'R%'",__FILE__ . " linje " . __LINE__))) {
 		// print "<tr><td><br></td></tr>\n";
 		if (!$rykker_only) {
-			$rykkerBaseUrl="rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rykker_only=on&load_rykker=on";
+			$rykkerBaseUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rykker_only=on&load_rykker=on";
 			print "<script>
 function saldiToggleRykker(sectionId, frameId, url) {
 	var section = document.getElementById(sectionId);
@@ -185,16 +177,16 @@ function saldiToggleRykker(sectionId, frameId, url) {
 				print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"3\" border=\"0\"><tbody>\n";
 				if ($taeller==1) {
 					print "<tr><td width=10% align=center $top_bund><br></td><td width=80% align=center $top_bund>&Aring;bne&nbsp;rykkere</td><td width=10% align=center $top_bund>\n";
-					if ($load_rykker && $skjul_aaben_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_aaben_rykker=off>Skjul</a><td></tr>";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_aaben_rykker=on>Vis</a><td></tr>";
+					if ($load_rykker && $skjul_aaben_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_aaben_rykker=off>Skjul</a><td></tr>";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_aaben_rykker=on>Vis</a><td></tr>";
 				} elseif ($taeller==2) {
 					print "<tr><td width=10% align=center $top_bund><br></td><td width=80% align=center $top_bund>Bogf&oslash;rte&nbsp;rykkere</td><td width=10% align=center $top_bund>\n";
-					if ($load_rykker && $skjul_bogfort_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_bogfort_rykker=off>Skjul</a><td></tr>";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_bogfort_rykker=on>Vis</a><td></tr>";
+					if ($load_rykker && $skjul_bogfort_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_bogfort_rykker=off>Skjul</a><td></tr>";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_bogfort_rykker=on>Vis</a><td></tr>";
 				} else  {
 					print "<tr><td width=10% align=center $top_bund><br></td><td width=80% align=center $top_bund>Afsluttede&nbsp;rykkere</td><td width=10% align=center $top_bund>\n";
-					if ($load_rykker && $skjul_afsluttet_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_afsluttet_rykker=off>Skjul</a><td></tr>";
-					else print "<a href=rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_afsluttet_rykker=on>Vis</a><td></tr>";
+					if ($load_rykker && $skjul_afsluttet_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_afsluttet_rykker=off>Skjul</a><td></tr>";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&load_rykker=on&skjul_afsluttet_rykker=on>Vis</a><td></tr>";
 				}
 				print "</tbody></table></td></tr>";
 			}
@@ -535,7 +527,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 		$displayLast=$lastAccount;
 	}
 	$formIndex=0;
-	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&openpost_content=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&openpost_page_size=$openpostPageSize";
+	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&openpost_page_size=$openpostPageSize";
 	if ($kontoantal > $openpostPageSize) {
 		print "<tr><td colspan=10 align=center>";
 		if ($openpostPage > 1) print "<a href=\"$basePageUrl&openpost_page=".($openpostPage-1)."\">Forrige</a>&nbsp;";
