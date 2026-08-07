@@ -58,6 +58,10 @@
 // 20260608 PHR removed fakturadate from insert_shop_order. It is set in 'fakturer_ordre'
 // 20260622 PHR Improved set fakturadate in 'fakturer_ordre
 // 20260717 CX/PHR Corrected lev_date to levdate in 'fakturer_ordre'
+// 20260729 CL/SZ fakturer_ordre: check $db_modify_fejl before the transaction commits so a
+//                failed write in the posting transaction returns an error instead of the
+//                order id, since a failed statement aborts the Postgres transaction and the
+//                subsequent commit is silently treated as a rollback (SD-595)
 // 20260727 CL/SZ Validated/escaped $_GET['db'] in access_check() to close a
 //                pre-auth SQL injection on the master connection (SD-588)
 // 20260729 CoPilot/NTR - reported by codeRabbit - access check reworking missing db check and logging.
@@ -657,6 +661,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	global $baseCurrency,$brugernavn;
 	global $webservice;
 	global $regnaar;
+	global $db_modify_fejl; #20260729 SZ (SD-595)
 	#return "$nettosum,$momssum";
 	
 	include("../includes/ordrefunc.php");
@@ -723,6 +728,11 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	}
 	transaktion('commit');
+	if ($db_modify_fejl) { #20260729 SZ a write failed while setting fakturadate; do not report success (SD-595)
+		fwrite($log,__line__." Svar : Database write failed while updating fakturadato for order $saldi_id\n");
+		fclose($log);
+		return "Database write failed while updating fakturadato for order $saldi_id";
+	}
 	$qtxt="select fakturadate from ordrer where id='$saldi_id'";
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -765,9 +775,16 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	if ($svar != 'OK') {
 		fwrite($log,__line__." Svar : $svar\n");
 		fclose($log);
+		transaktion('rollback'); #20260805 CL/SZ close the outer transaction on failure too, not just success - otherwise db_transaktion_depth never returns to 0 and the next invoice call in this request won't reset $db_modify_fejl (SD-595, CodeRabbit)
 		return($svar);
 	}
-	// Send invoice email to customer if enabled
+	transaktion ('commit');
+	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; Postgres rolls it back on commit but $svar was reported OK, so surface the failure instead of a phantom success id (SD-595)
+		fclose($log);
+		return "Database write failed while posting order $saldi_id";
+	}
+	// Send invoice email to customer if enabled - after the commit/failure check
+	// so a failed posting write never triggers a customer email (SD-595, CodeRabbit) #20260805 CL/SZ
 	try {
 		$email_result = send_api_invoice_email($saldi_id);
 		fwrite($log,__line__." Invoice email result: $email_result\n");
@@ -777,9 +794,8 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		fwrite($log,__line__." Invoice email fatal error: " . $e->getMessage() . "\n");
 	}
 	fclose ($log);
-	transaktion ('commit');
-	
-	return($saldi_id); 
+
+	return($saldi_id);
 }
 
 function create_credit_note($shop_ordre_id) {
@@ -892,6 +908,13 @@ function create_credit_note($shop_ordre_id) {
 	$log = fopen("../temp/$db/rest_api.log", "a");
 	fwrite($log, __line__ . " fakturer_ordre result: $result\n");
 	fclose($log);
+
+	// fakturer_ordre() returns $credit_saldi_id back verbatim on success, or an
+	// error string on failure - propagate the failure instead of reporting the
+	// credit note as posted when it is still unposted (SD-595, CodeRabbit) #20260805 CL/SZ
+	if ($result != $credit_saldi_id) {
+		return "Credit note $credit_saldi_id created but invoicing failed: $result";
+	}
 
 	return $credit_saldi_id;
 }
