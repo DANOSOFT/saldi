@@ -23,6 +23,7 @@
 // 20260706 MJ Paginated open item account rendering to avoid loading every account row at once.
 // 20260723 sawaneh Fixed $rbox8->$box8 in bogfor_rykker so a stock-tracked item used as a fee is blocked; removed dead commented-out code.
 // 20260807 CL/NTR Carry openpost_content=1 through the skjul/vis and rykker-section toggle links and basePageUrl (fixed a $kotno_fra typo too), so navigating within the report's own iframe doesn't re-trigger rapport.php's async shell and nest a second iframe inside it.
+// 20260807 CL/NTR Pad vis_aabne_poster()'s table directly instead of wrapping the whole report dispatch, since the header row above it already gets its spacing from $top_bund and a blanket wrapper double-padded it (affects both debitor and kreditor, which share this function).
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $art) {
 	?>
 	<script LANGUAGE="JavaScript">
@@ -113,7 +114,13 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ar
 	print "</tbody></table></td></tr>\n"; #B slut
 
 	// echo "XX $dato_fra,$dato_til,$konto_fra,$konto_til,$art<br>";
-	if ($skjul_aabenpost!='on') vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art);
+	// vis_aabne_poster() prints its own self-contained <table>...</table>, so padding it here
+	// doesn't touch the header row above (which already gets its spacing from $top_bund).
+	if ($skjul_aabenpost!='on') {
+		print "<div id='openpostTableWrap' style='padding:12px;'>";
+		vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art);
+		print "</div>";
+	}
 	} else {
 		print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 	}
