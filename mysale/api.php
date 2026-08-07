@@ -942,6 +942,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	if ($svar != 'OK') {
 		fwrite($log,__line__." Svar : $svar\n");
 		fclose($log);
+		transaktion('rollback'); #20260805 CL/SZ close the outer transaction on failure too, not just success - otherwise db_transaktion_depth never returns to 0 and the next invoice call in this request won't reset $db_modify_fejl (SD-595, CodeRabbit)
 		return($svar);
 	}
 	fclose ($log);

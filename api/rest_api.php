@@ -772,9 +772,16 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	if ($svar != 'OK') {
 		fwrite($log,__line__." Svar : $svar\n");
 		fclose($log);
+		transaktion('rollback'); #20260805 CL/SZ close the outer transaction on failure too, not just success - otherwise db_transaktion_depth never returns to 0 and the next invoice call in this request won't reset $db_modify_fejl (SD-595, CodeRabbit)
 		return($svar);
 	}
-	// Send invoice email to customer if enabled
+	transaktion ('commit');
+	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; Postgres rolls it back on commit but $svar was reported OK, so surface the failure instead of a phantom success id (SD-595)
+		fclose($log);
+		return "Database write failed while posting order $saldi_id";
+	}
+	// Send invoice email to customer if enabled - after the commit/failure check
+	// so a failed posting write never triggers a customer email (SD-595, CodeRabbit) #20260805 CL/SZ
 	try {
 		$email_result = send_api_invoice_email($saldi_id);
 		fwrite($log,__line__." Invoice email result: $email_result\n");
@@ -784,10 +791,6 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		fwrite($log,__line__." Invoice email fatal error: " . $e->getMessage() . "\n");
 	}
 	fclose ($log);
-	transaktion ('commit');
-	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; Postgres rolls it back on commit but $svar was reported OK, so surface the failure instead of a phantom success id (SD-595)
-		return "Database write failed while posting order $saldi_id";
-	}
 
 	return($saldi_id);
 }
@@ -902,6 +905,13 @@ function create_credit_note($shop_ordre_id) {
 	$log = fopen("../temp/$db/rest_api.log", "a");
 	fwrite($log, __line__ . " fakturer_ordre result: $result\n");
 	fclose($log);
+
+	// fakturer_ordre() returns $credit_saldi_id back verbatim on success, or an
+	// error string on failure - propagate the failure instead of reporting the
+	// credit note as posted when it is still unposted (SD-595, CodeRabbit) #20260805 CL/SZ
+	if ($result != $credit_saldi_id) {
+		return "Credit note $credit_saldi_id created but invoicing failed: $result";
+	}
 
 	return $credit_saldi_id;
 }
