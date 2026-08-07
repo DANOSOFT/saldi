@@ -36,6 +36,7 @@
 // 20250903 PHR	Changed 5 year calculation to include months.
 // 20260130 PHR - Improved check for empty fiscal year before deletion and used ICONSVG icons.
 // 20260730 MJ Tilfoejede Momsperioder-knap; fjernede linket fra finans-sidebaren i main.php
+// 20260801 MJ Sat begge knapper til samme bredde (200px)
 
 @session_start();
 $s_id = session_id();
@@ -302,10 +303,10 @@ foreach($fiscalYears as $index => $row){
 }
 ($bgcolor1 != $bgcolor) ? $bgcolor1 = $bgcolor : $bgcolor1 = $bgcolor5;
 print "<td  bgcolor='$bgcolor1' colspan='9'><br></td>";
-print "<tr><td colspan=\"9\" style=\"text-align:center\"><a class='button green medium' href=\"regnskabskort.php\" title=\"" . findtekst('507|Klik her for at oprette nyt regnskabsår.', $sprog_id) . "\">" . findtekst('508|Opret nyt regnskabsår', $sprog_id) . "</a></td></tr>";
+print "<tr><td colspan=\"9\" style=\"text-align:center\"><a class='button green medium' style='width:200px;display:inline-block;box-sizing:border-box;' href=\"regnskabskort.php\" title=\"" . findtekst('507|Klik her for at oprette nyt regnskabsår.', $sprog_id) . "\">" . findtekst('508|Opret nyt regnskabsår', $sprog_id) . "</a></td></tr>";
 
 if (check_permissions(array(2, 3, 4))) {
-	print "<tr><td colspan=\"9\" style=\"text-align:center\"><a class='button gray medium' href=\"../finans/moms_periode.php\">" . findtekst('3366|Momsperioder', $sprog_id) . "</a></td></tr>";
+	print "<tr><td colspan=\"9\" style=\"text-align:center\"><a class='button gray medium' style='width:200px;display:inline-block;box-sizing:border-box;' href=\"../finans/moms_periode.php\">" . findtekst('3366|Momsperioder', $sprog_id) . "</a></td></tr>";
 }
 
 if ($x < 1) {
