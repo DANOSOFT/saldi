@@ -49,9 +49,12 @@ explicitly skipped).
 ```sql
 CREATE TABLE stripe_catalog (id SERIAL PRIMARY KEY, varenr text, stripe_price_id varchar(255),
   stripe_product_id varchar(255), unit_ore integer,
-  interval varchar(10) NOT NULL DEFAULT 'month', interval_count integer NOT NULL DEFAULT 1,
+  billing_interval varchar(10) NOT NULL DEFAULT 'month', interval_count integer NOT NULL DEFAULT 1,
   currency varchar(3) NOT NULL DEFAULT 'DKK',
   active boolean NOT NULL DEFAULT true, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
+-- NB: the column is billing_interval, not "interval" - INTERVAL is a reserved word in
+-- PostgreSQL (and MySQL) and would fail the CREATE TABLE. It still maps to Stripe's
+-- recurring[interval] value.
 
 CREATE TABLE stripe_events (id SERIAL PRIMARY KEY, event_id varchar(255) NOT NULL,
   event_type varchar(100), payload text, status varchar(30) NOT NULL DEFAULT 'received',
