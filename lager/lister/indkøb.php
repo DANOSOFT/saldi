@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
+// 20260807 CL/MS Converted hardcoded Danish UI text to findtekst() calls for multi-language support
 
 @session_start();
 $s_id = session_id();
@@ -411,7 +412,6 @@ $columns[] = array(
     "field" => "momspris",
     "headerName" => findtekst('949|Salgspris', $sprog_id),
     "description" => "(".findtekst('2747|Inkl. moms', $sprog_id).")",
-    "headerName" => "DG",
     "hidden" => true,
     "type" => "number",
     "align" => "right",
@@ -424,7 +424,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "dg",
-    "headerName" => "DG",
+    "headerName" => findtekst('3377|DG', $sprog_id),
     "type" => "number",
     "align" => "right",
     "hidden" => true,
@@ -442,7 +442,7 @@ $columns[] = array(
 
 $columns[] = array(
     "field" => "sales_last_6_months",
-    "headerName" => "6".findtekst('3378|md.', $sprog_id),
+    "headerName" => "6".findtekst('3378|md.', $sprog_id), #6md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -453,7 +453,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_3_months",
-    "headerName" => "3".findtekst('3378|md.', $sprog_id),
+    "headerName" => "3".findtekst('3378|md.', $sprog_id), #3md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -461,7 +461,7 @@ $columns[] = array(
 );
 $columns[] = array(
     "field" => "sales_last_1_month",
-    "headerName" => "1".findtekst('3378|md.', $sprog_id),
+    "headerName" => "1".findtekst('3378|md.', $sprog_id), #1md.
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
@@ -803,7 +803,7 @@ $steps[] = array(
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => findtekst('3380|Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag', $sprog_id)."<br><br>".findtekst('3381|Hold musen over et beholdningstal', $sprog_id)
+    "content" => findtekst('3380|Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag', $sprog_id)."<br><br>".findtekst('3381|Hold musen over et beholdningstal for at se hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".lager_total",
@@ -815,7 +815,7 @@ $steps[] = array(
 );
 $steps[] = array(
     "selector" => ".volume_lager",
-    "content" => findtekst('2652|Hvis varen skal bestilles i bestemte mængder', $sprog_id)." 8."
+    "content" => findtekst('2652|Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.', $sprog_id)." 8."
 );
 $steps[] = array(
     "selector" => ".genbestil",

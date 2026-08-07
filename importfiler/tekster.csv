@@ -426,7 +426,7 @@
 426	Klik her for at sætte individuelle rabatter og varegrupper for de enkelte prisgrupper	Click here to set individual discounts and product groups for the individual price groups	Klikk her for å angi individuelle rabatter og produktgrupper for de enkelte prisgruppene
 427	Prislister	Price lists	Prislister
 428	Rabat	Discount	Rabatt
-429	Varegruppe	Category	Kategori
+429	Varegruppe	Product group	Varegruppe
 430	Aktiv	Active	Aktiv
 431	Skriv den generelle rabat for varer fra $beskrivelse	Write the general discount for items from $beskrivelse	Skriv den generelle rabatten for varer fra $beskrivelse
 432	Vælg den generelle varegruppe til varer fra $beskrivelse	Select the general item group for items from $beskrivelse	Velg den generelle varegruppen for varer fra $beskrivelse
@@ -951,7 +951,7 @@
 951	Leverandør	Supplier	Leverandør
 952	Lev. varenr.	Suppl. item no.	Lev. varenr.
 953	Ordrebeholdning	Order book	Ordrebeholdning
-954	Indkøbsforslag	Purchase suggestions	Kjøpsforslag
+954	Indkøbsforslag	Purchase suggestions	Innkjøpsforslag
 955	Alle varer fra lev.	All products from supl.	Alle varer fra lev.
 956	Kun mangler	Only missing	Bare mangler
 957	Vareliste	Item list	Vareliste
@@ -2645,11 +2645,11 @@
 2645	Klik her for at vende tilbage til varelisten	Click here to return to the product list	Klikk her for å gå tilbake til varelisten
 2646	Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Order status shows how many products are in offers, orders, or purchase suggestions.<br><br>Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Ordrestatus viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.<br><br>Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.
 2647	Viser hvor mange enheder af varen der er på lager	Shows how many units of the product are in stock	Viser hvor mange enheter av varen som er på lager
-2648	Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.	Here you can see how much the system recommends you to reorder. This is calculated based on stock levels, orders, and other factors.	Her ser du hvor mye systemet anbefaler at du bestiller på nytt. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.
+2648	Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.	Here you can see how much the system recommends you to reorder. This is calculated based on stock levels, orders, and other factors.	Her ser du hvor mye systemet anbefaler at du gjenbestiller. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.
 2649	Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned	See how much of the product you have sold over the past 6 months, 3 months, or the most recent month	Se hvor mye du har solgt av varen i løpet av de siste 6 månedene, 3 månedene eller den siste måneden
 2650	Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører.	When you create a new purchase list, only products with an associated supplier will be shown.<br><br>Order suggestions will automatically be linked to the top supplier on the product card if multiple suppliers are listed.	Når du oppretter en ny innkjøpsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag blir automatisk knyttet til den øverste leverandøren på varekortet hvis det finnes flere leverandører.
 2651	Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum.	These are used for reordering. When the stock level drops below the minimum, the system suggests reordering enough to reach the maximum.	Disse brukes til gjenbestilling. Når beholdningen faller under minimum, foreslår systemet å bestille nok til å nå maksimum.
-2652	Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.	If the product needs to be ordered in specific quantities, you can configure the system to order in batches of, for example,	Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i for eksempel partier på f.eks.
+2652	Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.	If the product needs to be ordered in specific quantities, you can configure the system to order in batches of, for example,	Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i partier på f.eks.
 2653	Klik for at autoudfylde alle beregnede genbestillingsværdier	Click to auto-fill all calculated reorder values	Klikk for å autofylle alle beregnede gjenbestillingsverdier
 2654	Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.	Create a purchase suggestion based on the entered product values. It will either create a new order for the supplier or add the product to an open purchase suggestion with today’s date.	Opprett et innkjøpsforslag basert på de registrerte vareverdiene. Det oppretter enten en ny ordre til leverandøren eller legger varen til et åpent innkjøpsforslag med dagens dato.
 2655	Søg efter et eksisterende serienummer i dit system	Search for an existing serial number in your system	Søk etter et eksisterende serienummer i systemet ditt
@@ -3372,13 +3372,13 @@
 3372	Fejl ved oprettelse af bestillinger	Error creating orders	Feil ved opprettelse av bestillinger
 3373	Ingen værdier angivet	No values entered	Ingen verdier angitt
 3374	Indkøbsordre	Purchase order	Innkjøpsordre
-3375	Gen.	Reord.	Gen.
+3375	Gen.	Reord.	Gjen.
 3376	Salgspris u.m.	Sales price ex. VAT	Salgspris u.mva.
 3377	DG	GM	DG
 3378	md.	mo.	mnd.
 3379	Vis udgået	Show discontinued	Vis utgått
 3380	Viser hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.	Shows how many products are in offers, orders, or purchase suggestions.	Viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.
-3381	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.			
+3381	Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.
 3382			
 3383			
 3384			
