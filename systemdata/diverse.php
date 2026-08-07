@@ -1195,6 +1195,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		if ($qtxt)
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
+	} elseif ($sektion == 'stripe_valg') {
+		include_once("diverseIncludes/stripeValg.php");
+		stripeValgSave();
+		#######################################################################################
 	} elseif ($sektion == 'labels') {
 		// Generate template from form data
 		$valg           = if_isset($_GET['valg']);
@@ -2329,6 +2333,7 @@ if ($menu != 'T') {
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst('788|Variantrelaterede valg', $sprog_id)."</a></td></tr>\n";
 		// print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=stripe_valg>Stripe abonnement</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</a></td></tr>\n";
@@ -2368,6 +2373,10 @@ if ($sektion == "productOptions" || $sektion == "label") {
 if ($sektion == "variant_valg") variant_valg();
 // if ($sektion == "shop_valg") shop_valg();
 if ($sektion == "api_valg") api_valg();
+if ($sektion == "stripe_valg") {
+	include_once("diverseIncludes/stripeValg.php");
+	stripeValg();
+}
 if ($sektion == "labels") labels($valg);
 if ($sektion == "pricelists") {
 	include("diverseIncludes/pricelists.php");
