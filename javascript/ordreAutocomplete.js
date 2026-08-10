@@ -344,34 +344,22 @@
                 // First try the form that the input belongs to (most reliable)
                 if (input.form) {
                     const formIdInput = input.form.querySelector('input[name="id"]');
-                    console.log('Searching for ID in input.form:', input.form);
-                    console.log('Found in form?', formIdInput);
                     if (formIdInput) orderId = formIdInput.value;
                 }
 
-                // If not found in form (or no form), try global scope
-                if (!orderId) {
+                // If not found in form (or still '0'), try global scope
+                if (!orderId || orderId === '0') {
                     const idInput = document.querySelector('input[name="id"]');
-                    console.log('Searching for ID globally, found:', idInput);
                     if (idInput) orderId = idInput.value;
                 }
             }
             if (!kontoId) {
                 const kontoInput = document.querySelector('input[name="konto_id"]');
-                console.log('kontoInput element:', kontoInput);
-                console.log('kontoInput value:', kontoInput ? kontoInput.value : 'NOT FOUND');
                 if (kontoInput) kontoId = kontoInput.value;
             }
 
-            // Also log ALL hidden inputs with name="id" on the page
-            const allIdInputs = document.querySelectorAll('input[name="id"]');
-            console.log('All input[name="id"] on page:', allIdInputs.length);
-            allIdInputs.forEach((el, i) => {
-                console.log(`  [${i}] type=${el.type} value=${el.value} form=${el.form ? el.form.id || el.form.name || 'unnamed' : 'none'}`);
-            });
-
             let redirectUrl = 'ordre.php?';
-            if (orderId) {
+            if (orderId && orderId !== '0') {
                 redirectUrl += `id=${orderId}&`;
             }
             if (kontoId) {
@@ -382,19 +370,28 @@
 
             redirectUrl = redirectUrl.replace(/[?&]$/, '');
 
-            console.log('FINAL redirectUrl:', redirectUrl);
-
             var submitButton = document.getElementById("submit");
             submitButton.formAction = redirectUrl;
             submitButton.click();
             //window.location.href = redirectUrl;
         } else if (type === 'customer') {
             const urlParams = new URLSearchParams(window.location.search);
-            const orderId = urlParams.get('id');
+            let orderId = urlParams.get('id');
+
+            // Same fallback as item branch — form hidden input is authoritative when URL lacks a valid id
+            if (!orderId || orderId === '0') {
+                const formIdInput = input.form ? input.form.querySelector('input[name="id"]') : null;
+                if (formIdInput) orderId = formIdInput.value;
+                if (!orderId || orderId === '0') {
+                    const idInput = document.querySelector('input[name="id"]');
+                    if (idInput) orderId = idInput.value;
+                }
+            }
 
             var submitButton = document.getElementById("submit");
             if (input.name === 'newAccountNo') {
-                submitButton.formAction = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
+                const orderParam = (orderId && orderId !== '0') ? `id=${orderId}&` : '';
+                submitButton.formAction = `ordre.php?${orderParam}swap_account=swap&newAccountNo=${value}`;
             } else {
                 submitButton.formAction = `ordre.php?konto_id=${id}`;
             }

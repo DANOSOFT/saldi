@@ -1624,7 +1624,7 @@ $columns[] = array(
 );
  $columns[] = array(
         "field" => "hvem",
-        "headerName" => 'Udført af',
+        "headerName" => findtekst('3367|Udført af', $sprog_id),
         "width" => "1",
         "type" => "dropdown",
         "hidden" => false,

@@ -3690,6 +3690,11 @@ function ordreside($id, $regnskab)
 		$afd = if_isset($r['afd']);
 		if (!$performed_by && isset($r['ref'])) $performed_by = $r['ref']; // 20260802 MJ auto-udfyld Udfoert af paa nye ordrer
 	}
+	// 20260810 MJ Normaliser performed_by til medarbejdernavn een gang foer formular-output
+	if (!empty($performed_by)) {
+		$_r_pb = db_fetch_array(db_select("select ansatte.navn from ansatte,brugere where brugere.brugernavn='" . db_escape_string($performed_by) . "' and ansatte.id=" . nr_cast('brugere.ansat_id'), __FILE__ . " linje " . __LINE__));
+		if (!empty($_r_pb['navn'])) $performed_by = $_r_pb['navn'];
+	}
 	$afd = (int)$afd;
 	$afd_navn = NULL;
 	$qtxt = "select beskrivelse,box1 from grupper where art = 'AFD' and kodenr = '$afd'";
@@ -4083,7 +4088,7 @@ function ordreside($id, $regnskab)
 		print "&nbsp;+&nbsp;$betalingsdage\n";
 		print "</td></tr>";
 		print "<tr class='tableTexting2'><td><b>" . findtekst('1097|Vor ref.', $sprog_id) . "</b></td><td>$ref &nbsp; $afd_navn</td></tr>\n";
-		if (trim($performed_by ?? '') != '') print "<tr class='tableTexting2'><td><b>Udført af</b></td><td>" . htmlspecialchars($performed_by, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
+		if (trim($performed_by ?? '') != '') print "<tr class='tableTexting2'><td><b>" . findtekst('3367|Udført af', $sprog_id) . "</b></td><td>" . htmlspecialchars($performed_by, ENT_QUOTES, 'UTF-8') . "</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td><td>$fakturanr</td></tr>\n";
 		$tmp = dkdecimal($valutakurs, 2);
 		if ($valuta) print "<tr class='tableTexting2'><td><b>" . findtekst('552|Valuta / Kurs', $sprog_id) . "</b></td><td>$valuta / $tmp</td></tr>\n";
@@ -5162,14 +5167,10 @@ function ordreside($id, $regnskab)
 			if (count($ansat) > 0) print "</select></td></tr>\n";
 
 			#####
-			if ($performed_by != '' && !in_array($performed_by, $ansat)) {
-				$r2 = db_fetch_array(db_select("select ansatte.navn from ansatte,brugere where brugere.brugernavn='" . db_escape_string($performed_by ?? '') . "' and ansatte.id=".nr_cast('brugere.ansat_id')."", __FILE__ . " linje " . __LINE__));
-				if (!empty($r2['navn'])) $performed_by = $r2['navn'];
-			}
 			print "<INPUT TYPE = 'hidden' NAME = 'oldperformed_by' VALUE = \"" . htmlspecialchars($performed_by ?? '', ENT_QUOTES, 'UTF-8') . "\">";
 			for ($x=0;$x<count($ansat);$x++) {
 				if (!$x) {
-				print "<tr><td>Udført af</td>\n";
+				print "<tr><td>" . findtekst('3367|Udført af', $sprog_id) . "</td>\n";
 				print "<td><select style=\"width:130px;\" class = 'inputbox' name=\"performed_by\" $disabled>\n";
 				print "<option>" . htmlspecialchars($performed_by ?? '', ENT_QUOTES, 'UTF-8') . "</option>\n";
 				if (trim($performed_by) != '') print "<option value=\"\"></option>\n";
