@@ -10,8 +10,8 @@
 // 20260803 MJ Ordrelås — forhindrer at to brugere redigerer samme bilag samtidigt
 // 20260810 MJ Atomisk erhvervelse via ON CONFLICT; session-bundet frigivelse; heartbeat-funktion
 
-// Locks expire after 30 minutes of inactivity
-define('RECORD_LOCK_TTL', 1800);
+// Locks expire after 10 minutes of inactivity (heartbeat fires every 5 min, so max 10 min after crash)
+define('RECORD_LOCK_TTL', 600);
 
 // Create the record_locks table if it doesn't exist yet.
 // betweenUpdates.php also handles this, but only when the app version is ahead
@@ -58,13 +58,23 @@ function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) 
         __FILE__ . " linje " . __LINE__
     );
 
-    // Atomically attempt to acquire — if another row exists the INSERT is silently skipped
-    db_modify(
-        "INSERT INTO record_locks (tabel, record_id, brugernavn, session_id, locked_at)"
-        . " VALUES ('$tabel_esc', $rid, '$brug_esc', '$sess_esc', $now)"
-        . " ON CONFLICT (tabel, record_id) DO NOTHING",
-        __FILE__ . " linje " . __LINE__
-    );
+    // Atomically attempt to acquire — if another row exists the INSERT is silently skipped.
+    // MySQL uses INSERT IGNORE; PostgreSQL uses ON CONFLICT DO NOTHING.
+    global $db_type;
+    if (strtolower($db_type ?? '') === 'mysql' || strtolower($db_type ?? '') === 'mysqli') {
+        db_modify(
+            "INSERT IGNORE INTO record_locks (tabel, record_id, brugernavn, session_id, locked_at)"
+            . " VALUES ('$tabel_esc', $rid, '$brug_esc', '$sess_esc', $now)",
+            __FILE__ . " linje " . __LINE__
+        );
+    } else {
+        db_modify(
+            "INSERT INTO record_locks (tabel, record_id, brugernavn, session_id, locked_at)"
+            . " VALUES ('$tabel_esc', $rid, '$brug_esc', '$sess_esc', $now)"
+            . " ON CONFLICT (tabel, record_id) DO NOTHING",
+            __FILE__ . " linje " . __LINE__
+        );
+    }
 
     // Re-read to determine who owns the lock after the atomic insert
     $r = db_fetch_array(db_select(
@@ -72,17 +82,17 @@ function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) 
         __FILE__ . " linje " . __LINE__
     ));
 
-    if (!$r || $r['brugernavn'] === $brugernavn) {
-        // We own the lock — refresh timestamp and session to keep it alive
+    if (!$r || ($r['brugernavn'] === $brugernavn && $r['session_id'] === $session_id)) {
+        // We own the lock — refresh timestamp to keep it alive
         db_modify(
-            "UPDATE record_locks SET locked_at=$now, session_id='$sess_esc'"
-            . " WHERE tabel='$tabel_esc' AND record_id=$rid AND brugernavn='$brug_esc'",
+            "UPDATE record_locks SET locked_at=$now"
+            . " WHERE tabel='$tabel_esc' AND record_id=$rid AND brugernavn='$brug_esc' AND session_id='$sess_esc'",
             __FILE__ . " linje " . __LINE__
         );
         return null;
     }
 
-    // Different user holds the lock
+    // Different user OR same user in a different session holds the lock
     return $r;
 }
 

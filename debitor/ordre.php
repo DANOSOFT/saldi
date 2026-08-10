@@ -142,6 +142,20 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 
+// 20260810 MJ Tjek ordrelaas foer ethvert form-POST paa eksisterende ordrer — forhindrer at
+// en concurrent POST gemmer data naar en anden bruger holder laassen
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['clear_delivery'])) {
+	$_pre_id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+	if ($_pre_id > 0 && !empty($brugernavn)) {
+		include_once('../includes/record_lock.php');
+		$_pre_conflict = order_lock_check_acquire('ordrer', $_pre_id, $brugernavn, session_id());
+		if ($_pre_conflict) {
+			header('Location: ordre.php?id=' . $_pre_id);
+			exit;
+		}
+	}
+}
+
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
 	$clear_id = (int)$_POST['id'];

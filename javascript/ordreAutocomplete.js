@@ -2,7 +2,6 @@
 
 (function () {
     'use strict';
-    console.log('ordreAutocomplete.js loaded - version with logging');
 
     const CONFIG = {
         minSearchLength: 1,
@@ -76,7 +75,6 @@
     }
 
     function setupAutocomplete(input, type) {
-        console.log('setupAutocomplete called for:', input.name, type);
         const dropdown = document.createElement('div');
         dropdown.className = 'ordre-autocomplete-dropdown';
         dropdown.style.display = 'none';
@@ -320,14 +318,6 @@
         const value = selected.dataset.value;
         const id = selected.dataset.id;
 
-        console.log('=== ordreAutocomplete handleSelection ===');
-        console.log('type:', type);
-        console.log('selected value:', value);
-        console.log('selected id:', id);
-        console.log('input.name:', input.name);
-        console.log('window.location.href:', window.location.href);
-        console.log('window.location.search:', window.location.search);
-
         // Set value of the imput to selected value - moved from individual statements in type if statement
         input.value = value;
 
@@ -335,9 +325,6 @@
             const urlParams = new URLSearchParams(window.location.search);
             let orderId = urlParams.get('id');
             let kontoId = urlParams.get('konto_id');
-            console.log('orderId from URL:', orderId);
-            console.log('kontoId from URL:', kontoId);
-
             // Fallback: read from form hidden inputs (page is often loaded via POST, so URL may not have these)
             // Also treat id=0 as missing — '0' is truthy in JS but means no real order yet
             if (!orderId || orderId === '0') {
