@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.08.03
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.08.10
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -393,6 +393,14 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		locked_at BIGINT NOT NULL DEFAULT 0,
 		CONSTRAINT record_locks_unique UNIQUE (tabel, record_id)
 	)", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260810 MJ Ny kolonne performed_by i ordrer — erstatter fejlaglig brug af hvem-feltet til Udfoert af
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE ordrer ADD COLUMN performed_by varchar(255) NOT NULL DEFAULT ''", __FILE__ . " linje " . __LINE__);
+	db_modify("UPDATE ordrer SET performed_by = hvem WHERE hvem != ''", __FILE__ . " linje " . __LINE__);
+	db_modify("UPDATE ordrer SET hvem = '' WHERE hvem != ''", __FILE__ . " linje " . __LINE__);
 }
 
 ?>
