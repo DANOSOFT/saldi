@@ -399,8 +399,9 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='performed_by'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE ordrer ADD COLUMN performed_by varchar(255) NOT NULL DEFAULT ''", __FILE__ . " linje " . __LINE__);
-	db_modify("UPDATE ordrer SET performed_by = hvem WHERE hvem != ''", __FILE__ . " linje " . __LINE__);
-	db_modify("UPDATE ordrer SET hvem = '' WHERE hvem != ''", __FILE__ . " linje " . __LINE__);
 }
+// Idempotent: kopier hvem til performed_by og nulstil hvem uanset om kolonnen netop blev oprettet
+db_modify("UPDATE ordrer SET performed_by = hvem WHERE hvem != '' AND performed_by = ''", __FILE__ . " linje " . __LINE__);
+db_modify("UPDATE ordrer SET hvem = '' WHERE hvem != '' AND performed_by != ''", __FILE__ . " linje " . __LINE__);
 
 ?>
