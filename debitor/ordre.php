@@ -3327,7 +3327,7 @@ function ordreside($id, $regnskab)
 	$order_lock_conflict = null;
 	if ($id > 0) {
 		include_once('../includes/record_lock.php');
-		$order_lock_conflict = order_lock_check_acquire('ordrer', $id, $brugernavn, $s_id);
+		$order_lock_conflict = order_lock_check_acquire('ordrer', $id, $brugernavn, session_id());
 	}
 
 	$sag_id = if_isset($r, NULL, 'sag_id') * 1; #20210719
@@ -3762,15 +3762,21 @@ function ordreside($id, $regnskab)
 		print "<meta http-equiv=\"refresh\" content=\"4;URL=$returside\">";
 		exit;
 	}
-	// -- Frigiv ordrelås ved navigering væk (bedst mulig indsats via beforeunload) — 20260803 MJ
+	// -- Frigiv ordrelås ved navigering væk; heartbeat hvert 5. min — 20260803 MJ / 20260810 MJ
 	if ($id > 0) {
 		print "<script type=\"text/javascript\">"
 			. "(function(){"
-			. "var _lid=" . (int)$id . ";"
+			. "var _lid=" . (int)$id . ",_saving=false;"
+			. "document.addEventListener('submit',function(){_saving=true;},true);"
 			. "window.addEventListener('beforeunload',function(){"
+			. "if(_saving)return;"
 			. "var d=new FormData();d.append('tabel','ordrer');d.append('record_id',_lid);"
 			. "navigator.sendBeacon('../includes/lock_release.php',d);"
 			. "});"
+			. "setInterval(function(){"
+			. "var d=new FormData();d.append('tabel','ordrer');d.append('record_id',_lid);"
+			. "navigator.sendBeacon('../includes/lock_heartbeat.php',d);"
+			. "},300000);"
 			. "})();"
 			. "</script>\n";
 	}

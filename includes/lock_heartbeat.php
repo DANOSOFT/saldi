@@ -4,10 +4,10 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/lock_release.php --- patch 5.0.0 --- 2026-08-03 ---
+// --- includes/lock_heartbeat.php --- patch 5.0.0 --- 2026-08-10 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260803 MJ AJAX-endpoint: frigiv ordrelås ved browser-luk (sendBeacon)
+// 20260810 MJ AJAX-endpoint: forny ordrelaas fra JS heartbeat (sendBeacon hvert 5. minut)
 
 @session_start();
 $s_id = session_id();
@@ -16,7 +16,6 @@ include("connect.php");
 include("std_func.php");
 
 // Look up the user's database and brugernavn from the global online table.
-// connect.php connects to the master DB; online table lives there.
 $r_online = db_fetch_array(db_select(
     "SELECT db, brugernavn FROM online WHERE session_id='" . db_escape_string($s_id) . "' ORDER BY logtime DESC LIMIT 1",
     __FILE__ . " linje " . __LINE__,
@@ -38,7 +37,7 @@ if ($r_online && $r_online['db']) {
     $record_id = isset($_POST['record_id']) ? (int)$_POST['record_id'] : 0;
 
     if ($record_id > 0 && in_array($tabel, ['ordrer']) && $brugernavn) {
-        order_lock_release($tabel, $record_id, $brugernavn, $s_id);
+        order_lock_refresh($tabel, $record_id, $brugernavn, $s_id);
     }
 }
 

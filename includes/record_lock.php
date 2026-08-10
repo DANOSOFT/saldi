@@ -4,10 +4,11 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/record_lock.php --- patch 5.0.0 --- 2026-08-03 ---
+// --- includes/record_lock.php --- patch 5.0.0 --- 2026-08-10 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260803 MJ Ordrelås — forhindrer at to brugere redigerer samme bilag samtidigt
+// 20260810 MJ Atomisk erhvervelse via ON CONFLICT; session-bundet frigivelse; heartbeat-funktion
 
 // Locks expire after 30 minutes of inactivity
 define('RECORD_LOCK_TTL', 1800);
@@ -37,17 +38,18 @@ function _ensure_record_locks_table() {
 }
 
 // Check for a conflicting lock and acquire the lock for the current user.
-// Lock identity is brugernavn (not session_id) so the same user is never
-// blocked by their own old lock after a session change or iframe reload.
-// Returns null if the lock was acquired (or already held by this user).
-// Returns the existing lock row array if a different user holds it.
+// Uses INSERT ... ON CONFLICT DO NOTHING so two concurrent requests cannot
+// both succeed — the loser's INSERT is silently dropped and the re-read
+// reveals the winner. Returns null when the lock is ours; returns the
+// conflicting row when a different user holds it.
 function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) {
     _ensure_record_locks_table();
 
     $expire    = time() - RECORD_LOCK_TTL;
+    $now       = time();
     $tabel_esc = db_escape_string($tabel);
     $brug_esc  = db_escape_string($brugernavn);
-    $sess_esc  = db_escape_string($session_id);
+    $sess_esc  = db_escape_string($session_id ?? '');
     $rid       = (int)$record_id;
 
     // Remove stale locks for this record
@@ -56,43 +58,72 @@ function order_lock_check_acquire($tabel, $record_id, $brugernavn, $session_id) 
         __FILE__ . " linje " . __LINE__
     );
 
+    // Atomically attempt to acquire — if another row exists the INSERT is silently skipped
+    db_modify(
+        "INSERT INTO record_locks (tabel, record_id, brugernavn, session_id, locked_at)"
+        . " VALUES ('$tabel_esc', $rid, '$brug_esc', '$sess_esc', $now)"
+        . " ON CONFLICT (tabel, record_id) DO NOTHING",
+        __FILE__ . " linje " . __LINE__
+    );
+
+    // Re-read to determine who owns the lock after the atomic insert
     $r = db_fetch_array(db_select(
         "SELECT * FROM record_locks WHERE tabel='$tabel_esc' AND record_id=$rid",
         __FILE__ . " linje " . __LINE__
     ));
 
-    if ($r) {
-        if ($r['brugernavn'] === $brugernavn) {
-            // Same user (session may differ after reload/iframe change) — refresh lock
-            db_modify(
-                "UPDATE record_locks SET locked_at=" . time() . ", session_id='$sess_esc'"
-                . " WHERE tabel='$tabel_esc' AND record_id=$rid AND brugernavn='$brug_esc'",
-                __FILE__ . " linje " . __LINE__
-            );
-            return null;
-        }
-        // Different user holds the lock
-        return $r;
+    if (!$r || $r['brugernavn'] === $brugernavn) {
+        // We own the lock — refresh timestamp and session to keep it alive
+        db_modify(
+            "UPDATE record_locks SET locked_at=$now, session_id='$sess_esc'"
+            . " WHERE tabel='$tabel_esc' AND record_id=$rid AND brugernavn='$brug_esc'",
+            __FILE__ . " linje " . __LINE__
+        );
+        return null;
     }
 
-    // Unclaimed — acquire it
-    db_modify(
-        "INSERT INTO record_locks (tabel, record_id, brugernavn, session_id, locked_at)"
-        . " VALUES ('$tabel_esc', $rid, '$brug_esc', '$sess_esc', " . time() . ")",
-        __FILE__ . " linje " . __LINE__
-    );
-    return null;
+    // Different user holds the lock
+    return $r;
 }
 
-// Release the lock held by the given user for a specific record.
-function order_lock_release($tabel, $record_id, $brugernavn) {
+// Refresh the lock timestamp while the user is still on the page (heartbeat).
+// Only updates if this session still owns the lock — a new tab that re-acquired
+// will have its own session_id and won't be overwritten.
+function order_lock_refresh($tabel, $record_id, $brugernavn, $session_id) {
+    _ensure_record_locks_table();
+
+    $now       = time();
+    $tabel_esc = db_escape_string($tabel);
+    $brug_esc  = db_escape_string($brugernavn);
+    $sess_esc  = db_escape_string($session_id ?? '');
+    $rid       = (int)$record_id;
+
+    db_modify(
+        "UPDATE record_locks SET locked_at=$now"
+        . " WHERE tabel='$tabel_esc' AND record_id=$rid"
+        . " AND brugernavn='$brug_esc' AND session_id='$sess_esc'",
+        __FILE__ . " linje " . __LINE__
+    );
+}
+
+// Release the lock held by this user+session for a specific record.
+// Including session_id in the predicate ensures a different tab of the same
+// user cannot accidentally release a lock it no longer owns.
+function order_lock_release($tabel, $record_id, $brugernavn, $session_id = null) {
     _ensure_record_locks_table();
 
     $tabel_esc = db_escape_string($tabel);
     $brug_esc  = db_escape_string($brugernavn);
     $rid       = (int)$record_id;
+
+    $where = "tabel='$tabel_esc' AND record_id=$rid AND brugernavn='$brug_esc'";
+    if ($session_id !== null) {
+        $sess_esc = db_escape_string($session_id);
+        $where   .= " AND session_id='$sess_esc'";
+    }
+
     db_modify(
-        "DELETE FROM record_locks WHERE tabel='$tabel_esc' AND record_id=$rid AND brugernavn='$brug_esc'",
+        "DELETE FROM record_locks WHERE $where",
         __FILE__ . " linje " . __LINE__
     );
 }
