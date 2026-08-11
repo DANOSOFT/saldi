@@ -34,6 +34,10 @@
 if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI only'; exit; }
 chdir(__DIR__);
 
+// db_query.php's get_relative()/logging read these; unset under CLI (notice-spam).
+if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/tools/stripe_print_link.php';
+if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
+
 if ($argc < 2) {
 	fwrite(STDERR, "Usage: php tools/stripe_print_link.php <ordre-id> [<ordre-id> ...]\n");
 	exit(2);

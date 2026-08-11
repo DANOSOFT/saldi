@@ -56,6 +56,10 @@ if (php_sapi_name() !== 'cli') {
 
 chdir(__DIR__); // includes below are ../includes/... like every admin/ page
 
+// db_query.php's get_relative()/logging read these; unset under CLI (notice-spam).
+if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/admin/stripe_setup.php';
+if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
+
 $options = getopt('', ['db:', 'csv::', 'dry-run', 'help']);
 if (isset($options['help']) || !isset($options['db'])) {
 	fwrite(STDERR, "Usage: php admin/stripe_setup.php --db=<regnskab-db> [--csv=<file>] [--dry-run]\n");
