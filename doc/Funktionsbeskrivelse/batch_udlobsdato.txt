@@ -1,0 +1,561 @@
+=====================================
+Batch and expiry-date handling (FEFO)
+=====================================
+
+Technical description of the batch system in Saldi ERP: what a user has to switch on and in
+which order, what happens in the database at each step, which code path runs, and what is
+still missing relative to the original requirements specification (v1.0, 2025-12-25).
+
+Feature history: merged as PR #283 (branch batch-managment, 2026-05-15); the expiry-date
+fields on draft purchase orders followed in July; three defects found and fixed 2026-08-11
+(see §7). A companion end-user guide (non-technical, 20 pages) is distributed separately as a
+PDF and is not kept in the repository.
+
+______________________________________________________________________________________________
+
+1. Two layers, one feature
+--------------------------
+
+The batch system is two mechanisms stacked on top of each other:
+
+  Layer          Age             Controlled by                                   What it does
+  -------------  --------------  ----------------------------------------------  ----------------------------------------------
+  Batch control  Original Saldi  grupper.box9 = 'on' for the item's product      Every receipt creates a batch_kob row; every
+                                 group (art='VG')                                delivery consumes from a specific batch_kob
+                                                                                 row and writes batch_salg. Purchase → sale
+                                                                                 traceability.
+  Expiry dates   PR #283         batch_kob.due_date / batch_no per batch; the    Expiry date and supplier batch number per
+                                 item-card section additionally requires         batch, FEFO allocation, batch overview, expiry
+                                 settings.batchExpiryEnabled                     report, dashboard warning.
+
+The expiry layer only ever decorates batches that batch control already produces. An item
+whose product group has no batch control gets no expiry-date fields at goods receipt, and
+therefore never gets a due_date.
+
+Everything is opt-in and nothing is enabled by default — a fresh database has the
+batchExpiryEnabled setting off, box9 empty on all product groups, batch_kob.due_date
+NULL on all rows and varer.has_due_date = false.
+
+Three tables carry the whole thing:
+
+  Table        Meaning                                         Grows on
+  -----------  ----------------------------------------------  ------------------------------
+  batch_kob    one row = one physical batch received. antal =  goods receipt
+               received, rest = still on the shelf
+  batch_salg   one row = one drawdown from one batch_kob row   delivery
+               (batch_kob_id)
+  reservation  temporary link between a sales-order line and   order approval / batch picking
+               a batch_kob row (or a not-yet-received
+               purchase line)
+
+______________________________________________________________________________________________
+
+2. Setup, in order (A–Z)
+------------------------
+
+Step A — switch the feature on for the company
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Settings → Miscellaneous → Product-related options (diverse.php?sektion=productOptions)
+→ Use batch and expiry date handling / Anvend batch- og udløbsdatostyring.
+
+Stored as settings(var_name='batchExpiryEnabled', var_grp='items'), off by default
+(productOptions.php:115 reads it,
+diverse.php:775 writes it). Until it is ticked, the
+expiry-date section does not appear on the item card at all. Deliberately a manual step: no
+customer gets the feature merely by upgrading.
+
+The switch controls the item card only. The goods-receipt columns, the reports and the
+dashboard warning are governed by batch control on the product group (step B), so an
+installation already using expiry dates keeps working unchanged.
+
+Step B — enable batch control on the product group
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Settings → Product groups (systemdata/syssetup.php?valg=varer).
+
+Each VG row has two checkbox columns that matter here:
+
+- Stock-ført (box8) — the group is stock-managed. Must be ticked first.
+- Batch-kontrol (box9) — the group is under batch control. **The master switch for the
+  batch machinery itself.**
+
+Ticking Batch-kontrol without Stock-ført is rejected with
+"Der kan kun føres batchkontrol på lagerførte varer"
+(saveData.php:114-117).
+
+The flag is stored per fiscal year (grupper.fiscal_year). Every lookup joins on the
+current year — item_has_due_date() and the column-header check in
+openOrderData.php:320 — so after a new
+fiscal year is created the flag must exist on that year's group rows as well.
+
+Enabling batch control changes delivery behaviour for every item in the group: deliveries
+then run through batch_salg_lev() and consume named batches. Not a cosmetic flag.
+
+Step C — set shelf life on the item card (optional)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Lager → Varekort, section Expiry date / Udløbsdato
+(showExpirySettings.php). The section
+is only rendered when both conditions from steps A and B hold — the company setting is on
+and the item's product group has batch control
+(varekort.php:1727):
+
+- Item has expiry date (varer.has_due_date)
+- Default shelf life (days) (varer.default_shelf_life_days) — only shown when the
+  checkbox is ticked
+- Batch overview button — opens the item's batch list (saved, stock-managed items only)
+
+Only default_shelf_life_days has an effect: it pre-fills the expiry date on goods receipt
+with today + n days. The has_due_date checkbox is saved and read back, but **no business
+logic reads it** — see §8.
+
+Both fields are only written when the section was actually on screen: it posts a hidden
+expiry_section marker (showExpirySettings.php:38)
+and the save only touches the two columns when that marker is present
+(varekort.php:345 and :956).
+So turning the feature off, or moving an item to a group without batch control, hides the
+section without wiping a shelf life set earlier.
+
+Step D — set the warning horizon per user
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Warn about expiry (days before) on the user data page
+(brugerdata.php:143-147).
+
+That page is linked from exactly one place in the codebase: the Settings button on the classic
+main menu (index/menu.php:346-347). It is not reachable from
+the top-menu design and not registered in settingsRegistry.php, so the settings search box
+cannot find it either. In practice every user therefore runs on the default of 30 days. Note
+that
+Settings → Miscellaneous → Personal options (diverse.php?sektion=userSettings →
+syssetupIncludes/userSettings.php) is a different page — menu design and colours — and does
+not
+contain this field. Worth relocating; see §8 item 9.
+
+Stored as settings(var_name='due_date_warning_days', var_grp='lager', bruger_id=<user>),
+default 30 days. It drives the yellow "warning" colour band and the dashboard notice and
+nothing else — it never blocks anything.
+
+______________________________________________________________________________________________
+
+3. Buying: order → approval → receipt
+-------------------------------------
+
+3.1 Order entry
+~~~~~~~~~~~~~~~
+
+On a purchase order (Kreditor → Ordre), two extra columns appear — Expiry date and
+Batch no. — but only if at least one line on the order belongs to a batch-controlled
+product group (openOrderData.php:318-331).
+The input fields are printed per line, again only for batch-controlled items
+(openOrderLines.php:173-208):
+
+- Expiry date — HTML date input. Pre-filled with today + default_shelf_life_days when
+  the item has a default shelf life and no date has been entered yet. The pre-fill is a
+  suggestion in the input; it becomes real when the order is saved.
+- Batch no. — free text, max 100 chars, the supplier's batch/lot number.
+
+item_has_due_date() is misleadingly named: it reads grupper.box9, joined on the current
+fiscal year. It never looks at varer.has_due_date.
+
+Both fields are editable while the order is a draft (status 0) and while it is approved and
+awaiting receipt (status ≥ 1). On save they are written to ordrelinjer.batch_due_date /
+ordrelinjer.batch_batch_no — the date validated against ^\d{4}-\d{2}-\d{2}$, the batch no
+escaped and truncated to 100 chars
+(ordre.php:534 parses, :864
+writes; ordreM.php:403 and :735
+for the other order screen).
+
+Neither field is mandatory, and a date in the past is accepted.
+
+copy_row() deliberately skips both order-line columns when order lines are copied, so a
+copied order starts without an expiry date (std_func.php:642).
+
+3.2 What receipt writes to the database
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+kreditor/modtag.php reads batch_due_date / batch_batch_no off each order line
+(modtag.php:122-123) and then branches on the group
+flags:
+
+    box8 != 'on'                 (not stock-managed)
+       └─ INSERT batch_kob (…, due_date, batch_no)      no `rest` column at all
+          modtag.php:184
+    
+    box8 == 'on', box9 != 'on'   (stock-managed, no batch control)
+       └─ INSERT batch_kob (…, rest, due_date, batch_no)
+          modtag.php:219
+    
+    box8 == 'on', box9 == 'on'   (batch control — the real path)
+       ├─ leveres > 0 → reservation()   modtag.php:397
+       └─ leveres < 0 → returnering()   modtag.php:449
+
+The third path is the interesting one, because the batch row may already exist: if a sales
+order reserved goods still in transit, reservation.batch_kob_id already points at a
+placeholder batch. So reservation() re-reads the expiry data off the order line and either
+inserts a new batch_kob or updates the existing one
+(modtag.php:422-433). It then rewires the reservation
+rows: in-transit reservations (batch_salg_id < 0) are re-pointed at the now-real
+batch_kob_id, and batch_salg_id is reset to 0.
+
+rest is set to leveres − (already reserved), so goods promised to a customer before arrival
+are never offered to anyone else.
+
+kobsdate on the batch comes from the purchase order's Delivery date, not from the day the
+receipt is performed — useful when constructing test data.
+
+A fourth receipt path exists: the scan-based Varemodtagelse list in lager/modtagelse.php,
+which matches received quantities to open KO orders by item and also copies
+due_date / batch_no off the matched line
+(modtagelse.php:270-275). It ignores box8/box9 and
+reservations entirely.
+
+Net effect: a due_date can only land on a batch if the group has box9='on', because that
+is the only case where the input fields are printed. The other two INSERTs support the columns
+but always receive NULL in practice.
+
+______________________________________________________________________________________________
+
+4. Selling: order → delivery
+----------------------------
+
+levering() validates the order and calls linjeopdat() per line
+(ordrefunc.php:122-405). linjeopdat() loads the
+group's box1..box9 and branches
+(ordrefunc.php:427-435):
+
+    box8 != 'on'   → INSERT batch_salg with batch_kob_id = 0. No stock, no batch. Done.
+                     ordrefunc.php:479
+    
+    box8 == 'on'   → update varer.beholdning + lagerstatus, then:
+       ├─ box9 == 'on'  → batch_salg_lev()   (or krediter() if antal < 0)
+       └─ box9 != 'on'  → inline drawdown, `order by id`   ordrefunc.php:581
+
+4.1 Batch-controlled items (box9='on') — where FEFO lives
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    batch_salg_lev()                       ordrefunc.php:670
+      │
+      ├─ any reservation rows for this order line?
+      │     NO  → batch($linje_id)         ordrefunc.php:1047
+      │            SELECT * FROM batch_kob
+      │            WHERE vare_id=… AND rest>0 [AND lager=…]
+      │            ORDER BY fefo_order_clause()   ← ordrefunc.php:1085-1087
+      │            fills quantities top-down, INSERTs reservation rows
+      │     YES → use what the user picked
+      │
+      └─ per reservation row:
+            UPDATE batch_kob SET rest = rest − reserved
+            INSERT batch_salg (batch_kob_id, …)
+            DELETE the reservation row
+            lagerstatus() adjusts the warehouse balance
+
+The FEFO clause, fefo_order_clause():
+
+    CASE WHEN due_date IS NULL THEN 1 ELSE 0 END,   -- undated batches last
+    due_date  ASC,                                  -- earliest expiry first
+    kobsdate  ASC,                                  -- FIFO tiebreaker
+    id        ASC                                   -- stable
+
+The NULL-last arm is why it is safe everywhere: with no expiry dates anywhere it collapses to
+kobsdate ASC, id ASC, i.e. the previous FIFO behaviour plus a deterministic tiebreaker.
+
+Call sites:
+
+  Place                                          File
+  ---------------------------------------------  ----------------------------
+  Automatic allocation at delivery               ordrefunc.php:1085-1087
+  Manual batch-selection popup on an order line  debitor/batch.php:141-142
+  Item batch overview                            lager/batch_oversigt.php:106
+  Manual stock correction on the item card       includes/std_func.php:1507
+
+Manual selection: clicking the batch icon on a sales-order line (shown only for
+batch-controlled items with quantity > 0, debitor/ordre.php:7026)
+opens batch.php, which lists candidates FEFO-ordered and pre-fills quantities in that order.
+Saving writes reservation rows, and batch_salg_lev() then honours them instead of calling
+batch().
+
+Two dead copies of that picker exist — debitor/ordre.php:7128
+and finans/ordre.php:1797 — both commented out, both still on
+kobsdate. Worth knowing before someone "fixes" the wrong one.
+
+4.2 Stock-managed but not batch-controlled (box8 on, box9 off)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Inline loop at ordrefunc.php:581:
+... WHERE rest > 0 AND lager = … ORDER BY id. Insertion order, deliberately left alone —
+these items can never have a due_date (§3.1), so FEFO would be a no-op, while changing the
+depletion order would shift FIFO cost-price assignment for every ordinary stock item.
+
+______________________________________________________________________________________________
+
+5. Returns, credit notes, costing
+---------------------------------
+
+- Sales return / credit note on a batch-controlled item → krediter()
+  (ordrefunc.php:787) walks batch_salg rows backwards
+  (order by id desc) and adds quantity back to batch_kob.rest. The batch keeps its original
+  due_date — correct: returned goods do not become fresher.
+- Purchase return (KK / negative receipt) → returnering()
+  (modtag.php:449) tops rest back up on the referenced batch
+  and inserts a new negative batch_kob row carrying due_date / batch_no from the line.
+- Non-batch-controlled negative sale → the reversal block at
+  ordrefunc.php:526-560, capped by
+  min($tmp, $antal−$rest, $bs_antal) so it cannot put back more than was taken.
+- Costing ignores expiry entirely. Cost of goods sold for non-batch-controlled items is FIFO
+  over ORDER BY fakturadate, id (ordrefunc.php:1868,
+  guarded by $fifo && !$box9); for batch-controlled items the cost comes from the specific
+  batch_kob.pris consumed. An expiring batch is not written down and not revalued —
+  explicitly out of scope in the spec (§9), and the code matches.
+
+______________________________________________________________________________________________
+
+6. The read side
+----------------
+
+All three consumers filter due_date IS NOT NULL AND rest > 0 and colour by
+batch_expiry_status(): red expired (due_date < today), yellow warning (within the user's
+warning days), green ok.
+
+- Batch overview (batch_oversigt.php:106) — per item,
+  FEFO-ordered, so the top row is the batch FEFO will pick next.
+- Expiry report (udlobsrapport.php:94-115) —
+  7/14/30/60/90/all filter, Show expired only, CSV export, inventory value = rest ×
+varer.kostpris.
+- Dashboard banner (dashboard.php:133-160, duplicated
+  at 284-310 for the finance dashboard) — counts batches and distinct items expiring within
+the
+  horizon, red if anything is already expired, links to the report. Rendered above the
+dashboard
+  title; skipped entirely when the count is 0.
+
+______________________________________________________________________________________________
+
+7. Fixed 2026-08-11
+-------------------
+
+Three defects found by end-to-end testing on ssl12. All three had to be fixed before any part
+of the feature was usable.
+
+7.1 Expiry date and batch number could never be saved
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+openOrderLines.php printed the inputs, openOrder.php:113 read them back from the database,
+modtag.php consumed them at receipt — but **nothing wrote $_POST['batch_due_date'] into
+ordrelinjer**. The line UPDATE in kreditor/ordre.php listed
+beskrivelse, antal, leveres, leveret, pris, rabat, projekt, omvbet, lager and stopped.
+
+Consequence: ordrelinjer.batch_due_date stayed NULL → batch_kob.due_date stayed NULL →
+batch overview, expiry report and dashboard banner had nothing to show, ever. **The whole
+expiry layer was inert from the day it merged.** No customer had usable expiry data, so there
+is nothing to migrate.
+
+Fixed by parsing the posted arrays per line and appending both columns to the UPDATE, in both
+order screens (ordre.php:534 / :864,
+ordreM.php:403 / :735).
+Three-state logic: not posted → leave the columns alone; posted empty → write NULL; value →
+write it. Without the first state, saving an order that mixes batch-controlled and ordinary
+items would wipe dates off lines whose inputs were not on screen.
+
+7.2 Automatic allocation used FIFO, not FEFO
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+batch() — the auto-reservation called by batch_salg_lev() when nobody picked batches by
+hand — ordered candidates by kobsdate alone. Reproduced on ssl12: with four batches of one
+item, a sale consumed the batch expiring 31-12-2027 and left the one expiring in 4 days on the
+shelf. Spec §4.1 / acceptance criterion 3 unmet.
+
+Fixed by swapping in fefo_order_clause()
+(ordrefunc.php:1085-1087) and re-verified: the
+earliest-expiring batch is now consumed first, and consumption walks down the FEFO order
+across
+batches. ordrefunc.php now includes stdFunc/fefo.php itself
+(:120) rather than relying on std_func.php having been
+loaded first — it is also included from includes/opdat_3.4.php and elsewhere.
+
+7.3 Column headers misaligned on draft orders
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every line prints two empty pad cells when status < 1
+(openOrderLines.php:194, added June 2026
+to align the delete button) while the header printed only one, so on a draft order the date
+input sat under the Batch no. header and the batch no. hung past the edge. Invisible until the
+two labelled columns appeared. Fixed at
+openOrderData.php:313.
+
+7.4 Item-card section gated by a company setting
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The section was printed on every item card unconditionally, and $batchItem (loaded from box9
+at varekort.php:466 and :1490) was never used. Now gated on
+batchExpiryEnabled && box9 == 'on', with the expiry_section marker protecting existing
+shelf-life values from being blanked when the section is hidden (§2 step C).
+
+______________________________________________________________________________________________
+
+8. Known gaps
+-------------
+
+Differences from requirements specification v1.0 that remain. None break existing
+functionality; they are missing behaviour, not defects in what exists.
+
+1. varer.has_due_date is inert. The gate everywhere is the product group's box9, never
+   the item checkbox — item_has_due_date() deliberately reads grupper.box9 despite its name.
+   The item card writes and reads the column and nothing else touches it. Two consequences:
+   ticking it on an item does nothing, and it cannot be used to exclude a single item inside a
+   batch-controlled group.
+2. No validation. Expiry date is never required at goods receipt, and a date in the past is
+   accepted (spec §4.3.1 and §4.3.4).
+3. No warnings at point of sale. Nothing warns when an expired or near-expiry batch is sold,
+   and the batch-selection popup shows neither expiry date nor batch number — only purchase
+   order number, quantity and remaining stock (spec §4.4, §5.4).
+4. No expired-inventory report. The separate "Days since expiry" write-off report of spec
+   §6.2 does not exist; Show expired only on the expiry report covers part of it. PDF export
+   is not implemented (CSV is).
+5. No REST API support. None of the four endpoints in spec §7 exist.
+6. No menu entries. udlobsrapport.php and batch_oversigt.php are reachable only from the
+   dashboard banner and the item-card button.
+7. No override logging. Manually picking a different batch than FEFO suggests is possible but
+   not logged (spec §4.2).
+8. Warehouse is not part of the FEFO filter in every path. batch() filters on lager only
+   when $lager is set; the batch overview and the expiry report show all warehouses together
+   with a warehouse column.
+9. The warning-days setting is effectively unreachable. It sits on
+   systemdata/brugerdata.php, linked only from the classic main menu
+   (index/menu.php:346-347) and absent from
+   settingsRegistry.php, so top-menu users can neither browse nor search to it. Everyone runs
+on
+   the default 30 days. The natural fix is to add the field to
+   systemdata/syssetupIncludes/userSettings.php (Personal options, already in the sidebar and
+   the search index) — both pages would write the same per-user settings row, so they stay in
+   sync. Not done: it changes a page outside this feature's scope.
+
+______________________________________________________________________________________________
+
+9. Helper functions
+-------------------
+
+All in includes/stdFunc/fefo.php, included from
+includes/std_func.php, includes/topmenu/std_func.php and includes/ordrefunc.php, so they
+are available everywhere without an extra include.
+
+    /**
+     * FEFO ORDER BY clause (without the "ORDER BY" keyword). Safe for items with no
+     * expiry dates - degenerates to FIFO on kobsdate.
+     *
+     * @return string
+     */
+    fefo_order_clause();
+    
+    /**
+     * Full SELECT for available batches of an item, FEFO-ordered. Currently unused -
+     * every call site builds its own SELECT and appends fefo_order_clause().
+     *
+     * @param int $vare_id     Item ID.
+     * @param int $lager       Warehouse ID, 0 = no warehouse filter.
+     * @param int $variant_id  Variant ID, 0 = no variant filter.
+     * @return string          Complete SQL query.
+     */
+    fefo_batch_query($vare_id, $lager = 0, $variant_id = 0);
+    
+    /**
+     * True when the item's product group has batch control enabled
+     * (grupper.box9 = 'on', art='VG', current fiscal year).
+     *
+     * @param int $vare_id
+     * @return bool
+     */
+    item_has_due_date($vare_id);
+    
+    /**
+     * @param int $vare_id
+     * @return int  varer.default_shelf_life_days, or 0 if not set.
+     */
+    item_default_shelf_life($vare_id);
+    
+    /**
+     * @param int|null $user_id  Per-user setting; falls back to 30 days.
+     * @return int
+     */
+    get_due_date_warning_days($user_id = NULL);
+    
+    /**
+     * @param string|null $due_date      Expiry date as 'Y-m-d', or NULL.
+     * @param int         $warning_days
+     * @return string  'expired' | 'warning' | 'ok' | 'none'
+     */
+    batch_expiry_status($due_date, $warning_days = 30);
+    
+    /**
+     * @param string|null $due_date
+     * @return int|null  Days until expiry, negative if already expired, null if no date.
+     */
+    days_until_expiry($due_date);
+
+______________________________________________________________________________________________
+
+10. Data model
+--------------
+
+    grupper                      art='VG', per fiscal_year
+      box8            varchar    'on' = stock-managed         (prerequisite)
+      box9            varchar    'on' = batch control         (master switch)
+    
+    varer
+      has_due_date    boolean    item card checkbox - stored, not used in logic
+      default_shelf_life_days
+                      integer    pre-fills expiry date at goods receipt
+    
+    ordrelinjer                  carries the values from order entry to receipt
+      batch_due_date  date
+      batch_batch_no  varchar(100)
+    
+    batch_kob                    one row per received batch
+      due_date        date       expiry date, NULL = no expiry tracking
+      batch_no        varchar(100)
+                                 supplier's batch number
+      kobsdate        date       purchase order's delivery date
+      rest            numeric    remaining quantity - every query filters rest > 0
+    
+    settings
+      var_name='batchExpiryEnabled',    var_grp='items'
+                                 'on'/'off' - shows the expiry section on the item card,
+                                 off by default
+      var_name='due_date_warning_days', var_grp='lager', bruger_id=<user>
+                                 warning horizon in days, default 30
+
+Indexes: idx_batch_kob_due_date on (due_date) and idx_batch_kob_vare_due on
+(vare_id, due_date).
+
+Migrations live in includes/opdat_4.2.php:51-95
+(repeated defensively in opdat_4.3.php), and the columns are part of CREATE TABLE for new
+databases in admin/opret.php. All columns are nullable with
+harmless defaults, so existing data and integrations are unaffected: existing batches get
+due_date = NULL and behave exactly as before. The batchExpiryEnabled setting needs no
+migration — a missing settings row reads as off.
+
+______________________________________________________________________________________________
+
+11. Test fixture
+----------------
+
+The scenario that discriminates FEFO from FIFO, verified on ssl12 (test 111, group
+1 Diverse with Stock-ført + Batch-kontrol):
+
+  Batch      Batch no.    Expiry           Purchase date  Qty
+  ---------  -----------  ---------------  -------------  ---
+  oldest id  LOT-OLD      31-12-2027       today          10
+  middle     LOT-OLDEST   31-12-2027       today          10
+  newer      LOT-SOONEST  today + 28 days  today          5
+  newest id  LOT-URGENT   today + 4 days   today          5
+
+Sell 1 without touching the batch button:
+
+- FEFO (correct): LOT-URGENT drops.
+- FIFO (the old bug): LOT-OLD drops — lowest id wins because all purchase dates tie.
+
+Both rules must be made to disagree, or the test proves nothing: giving the earliest expiry to
+the newest row is the cheapest way to do that. Note that all four purchase dates tying is what
+makes the id order visible; when purchase dates differ, the old code followed
+oldest-purchase-first instead.

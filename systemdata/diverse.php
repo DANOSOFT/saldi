@@ -94,6 +94,7 @@
 // 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
 // 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+// 20260811 Sawaneh Save 'batchExpiryEnabled' setting (batch/expiry date section on the item card)
 
 @session_start();
 $s_id = session_id();
@@ -770,6 +771,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			include_once("../includes/emballage_schema.php");
 			ensure_emballage_schema();
 		}
+		# Normalised to a fixed literal - never interpolate the posted value into the settings query.
+		$batchExpiryEnabled = (if_isset($_POST, null, 'batchExpiryEnabled') === 'on') ? 'on' : 'off';
+		update_settings_value("batchExpiryEnabled", "items", $batchExpiryEnabled, "Enable batch and expiry date handling on the item card");
 
 		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
 		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
