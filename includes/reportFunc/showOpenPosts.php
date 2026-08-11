@@ -33,6 +33,7 @@
 // 20260528 PHR Bottomline was overlooked 20260513
 // 20260702 CX/PHR Build "Udlign alle" from unaligned openpost balance when showing all posts.
 // 20260706 MJ Paginated and batched debtor open items report queries for large databases.
+// 20260807 CL/NTR Gave the two variants of this table an id (visAabnePosterTableT / visAabnePosterTable) for future reference; padding for this grid comes from rapportfunc.php's #opGridWrapper.
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
@@ -60,13 +61,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	
 	
 	if ($menu=='T') {
-		print "<tr><td><div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
+		print "<tr><td><div class='dataTablediv'><table id='visAabnePosterTableT' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
 		print "<tr><th>Kontonr.</th>";
 		if ($usePBS) print "<th>PBS</th>";
 		print "<th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>>90</th><th align=right  class='text-right'>60-90</th><th align=right class='text-right'>30-60</th><th align=right class='text-right'>8-30</th><th align=right class='text-right'>0-8</th><th align=right class='text-right'>I alt</th><th align=right</th>";
 		print "</thead><tbody>";
 	} else {
-		print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
+		print "<tr><td><table id='visAabnePosterTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
 		print "<tr><td>Kontonr.</th>";
 		if ($usePBS) {
 			$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';

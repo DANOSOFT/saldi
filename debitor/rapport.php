@@ -36,6 +36,8 @@
 // 20260702 CX/PHR Split comma-separated openpost autoudlign account list
 // 20260706 MJ Release session before long read-only reports to avoid blocking navigation.
 // 20260706 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
+// 20260807 CL/NTR Generalize the async report shell to kontokort/kontosaldo/accountChart (not just openpost), drop the shell's inline padding, and add Cache-Control: no-store + pageshow/persisted reload so the back button can't restore a frozen shell/iframe.
+// 20260807 CL/NTR Skip the async shell for requests already inside its own iframe (Sec-Fetch-Dest: iframe), so report links that don't carry the *_content flag forward don't nest a second shell+iframe inside the first.
 
 @session_start();
 $s_id = session_id();
@@ -427,32 +429,37 @@ if (!isset($konto_fra))
 if (!isset($konto_til))
 	$konto_til = NULL;
 
-if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE && in_array($submit, array('openpost', 'kontokort', 'kontosaldo', 'accountChart'))) {
+$asyncReports = array('openpost', 'kontokort', 'kontosaldo', 'accountChart');
+if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE && in_array($submit, $asyncReports)) {
 	session_write_close();
 }
 
-if ($submit == 'openpost' && !isset($_GET['openpost_content']) && !isset($_POST['openpost_content'])) {
+$asyncContentParam = $rapportart . '_content';
+// Any navigation happening inside the shell's own iframe (a link/form on the report that
+// forgot to carry the *_content flag forward) still reports Sec-Fetch-Dest: iframe, so this
+// catches it and renders content directly instead of nesting a second shell+iframe inside the first.
+$isInsideIframe = isset($_SERVER['HTTP_SEC_FETCH_DEST']) && $_SERVER['HTTP_SEC_FETCH_DEST'] == 'iframe';
+if (in_array($submit, $asyncReports) && !$isInsideIframe && !isset($_GET[$asyncContentParam]) && !isset($_POST[$asyncContentParam])) {
 	$writeActions = array('mail kontoudtog', 'opret rykker', 'ryk alle', 'slet', 'udskriv', 'ny rykker', 'afslut', 'inkasso');
 	$isWriteAction = in_array($initialSubmitValue, $writeActions) || strstr((string)$initialSubmitValue, 'bogf');
 	if (!$isWriteAction) {
-		$params = array(
-			'rapportart' => 'openpost',
-			'submit' => 'ok',
-			'dato_fra' => $dato_fra,
-			'dato_til' => $dato_til,
-			'konto_fra' => $konto_fra,
-			'konto_til' => $konto_til,
-			'openpost_content' => 1
-		);
-		foreach (array('vis_aabenpost', 'vis_alle_poster', 'skjul_aabenpost', 'kun_debet', 'kun_kredit', 'showPBS', 'openpost_page', 'openpost_page_size') as $key) {
-			if (isset($_GET[$key])) $params[$key] = $_GET[$key];
-			elseif (isset($_POST[$key])) $params[$key] = $_POST[$key];
-		}
+		// Forward every incoming filter/paging param as-is; each report type has its own set
+		// (openpost_page, showPBS, ...) so we don't hardcode a per-report field list here.
+		$params = array_merge($_GET, $_POST);
+		$params['rapportart'] = $rapportart;
+		$params['submit'] = 'ok';
+		$params[$asyncContentParam] = 1;
 		$frameSrc = 'rapport.php?' . str_replace('&', '&amp;', http_build_query($params));
-		print "<div id='openpostAsyncShell' style='padding:12px;'>";
-		print "<div id='openpostAsyncStatus' style='padding:10px; text-align:center;'>Indl&aelig;ser &aring;bne poster...</div>";
-		print "<iframe id='openpostAsyncFrame' data-src='$frameSrc' style='width:100%; min-height:720px; border:0;' onload=\"document.getElementById('openpostAsyncStatus').style.display='none'; this.style.minHeight=Math.max(720, (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body ? this.contentWindow.document.body.scrollHeight + 40 : 720)) + 'px';\"></iframe>";
-		print "<script>setTimeout(function(){var frame=document.getElementById('openpostAsyncFrame'); if(frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.getAttribute('data-src'));}, 10);</script>";
+		// Cache-Control: no-store keeps this transitional shell out of the back-forward cache,
+		// so navigating back triggers a fresh request instead of restoring a frozen shell/iframe.
+		header('Cache-Control: no-store');
+		print "<div id='rapportAsyncShell'>";
+		print "<div id='rapportAsyncStatus' style='padding:10px; text-align:center;'>Indl&aelig;ser...</div>";
+		print "<iframe id='rapportAsyncFrame' data-src='$frameSrc' style='width:100%; min-height:720px; border:0;' onload=\"document.getElementById('rapportAsyncStatus').style.display='none'; this.style.minHeight=Math.max(720, (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body ? this.contentWindow.document.body.scrollHeight + 40 : 720)) + 'px';\"></iframe>";
+		print "<script>";
+		print "setTimeout(function(){var frame=document.getElementById('rapportAsyncFrame'); if(frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.getAttribute('data-src'));}, 10);";
+		print "window.addEventListener('pageshow', function(e){ if (e.persisted) location.reload(); });";
+		print "</script>";
 		print "</div>";
 		print "</html>";
 		exit;
