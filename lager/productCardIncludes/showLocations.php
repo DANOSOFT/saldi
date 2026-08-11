@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productcardIncludes/showLocations.php --- lap 5.0.0 --- 2026-08-10 ---
+// --- lager/productcardIncludes/showLocations.php --- lap 4.1.0 --- 2024-06-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2004-2026 DANOSOFT ApS
+// Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20230910 PHR Added orderlookup for incoming and outgoing orders ($orderInOutput & $orderOutOutput)
 // 20231018 PHR Inserted  '&& !count($variantVarerId)' to avoid deleteing variants from lagertatus
