@@ -35,7 +35,7 @@ include_once(__DIR__ . '/stripeSettings.php');
 // Pinned API version: every request states it explicitly so a Stripe account
 // upgrade can never change response shapes under us. The sandbox/live accounts
 // are created against this version (deploy runbook step 5.2).
-if (!defined('SALDI_STRIPE_API_VERSION')) define('SALDI_STRIPE_API_VERSION', '2026-06-24.dahlia');
+if (!defined('SALDI_STRIPE_API_VERSION')) define('SALDI_STRIPE_API_VERSION', '2026-07-29.dahlia'); // = sandbox account default, recorded 2026-08-07
 
 if (!function_exists('stripeHttpRequest')) {
 	/**
