@@ -64,11 +64,20 @@ if (!function_exists('shopApiUrl')) {
 			}
 			$clean[$name] = ($value === null ? '' : (string)$value);
 		}
+		// A fragment has to be lifted off first: appending the query after it would leave
+		// the parameters inside the fragment, which is never sent to the server, so the
+		// shop would receive no sku, price or stock at all.
+		$fragment = '';
+		$hash = strpos($endpoint, '#');
+		if ($hash !== false) {
+			$fragment = substr($endpoint, $hash);
+			$endpoint = substr($endpoint, 0, $hash);
+		}
 		$query = http_build_query($clean);
 		if ($query === '') {
-			return $endpoint;
+			return $endpoint . $fragment;
 		}
-		return $endpoint . (strpos($endpoint, '?') === false ? '?' : '&') . $query;
+		return $endpoint . (strpos($endpoint, '?') === false ? '?' : '&') . $query . $fragment;
 	}
 }
 
@@ -153,20 +162,34 @@ if (!function_exists('shopApiRequest')) {
 		// is logged exactly as loudly as a failure - a truncated sync must not be
 		// quieter than the fire-and-forget behaviour this file replaced.
 		$budget = (float)$options['timeBudget'];
-		if ($budget > 0 && $spent >= $budget) {
-			$result['skipped'] = true;
-			$result['error']   = 'shop sync time budget of ' . (int)$budget . 's used up in this request';
-			shopApiLogFailure($log, $options['context'], $url, $result);
-			return $result;
-		}
 
 		$attempts = 1 + max(0, (int)$options['retries']);
 		for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+			// The budget is a deadline, not a pre-flight check. Testing it only before the
+			// first attempt would let a call start with milliseconds left and then block for
+			// the whole timeout, so what remains also caps this attempt's timeouts. Less
+			// than a second left counts as used up: curl takes whole seconds, so a shorter
+			// cap would overshoot the budget anyway.
+			$remaining = ($budget > 0) ? $budget - $spent : 0;
+			if ($budget > 0 && $remaining < 1) {
+				if ($attempt === 1) {
+					$result['skipped'] = true;
+					$result['error']   = 'shop sync time budget of ' . (int)$budget . 's used up in this request';
+					shopApiLogFailure($log, $options['context'], $url, $result);
+					return $result;
+				}
+				break;
+			}
+			$callOptions = $options;
+			if ($budget > 0) {
+				$callOptions['timeout']        = max(1, min((int)$options['timeout'], (int)floor($remaining)));
+				$callOptions['connectTimeout'] = max(1, min((int)$options['connectTimeout'], (int)$callOptions['timeout']));
+			}
 			$result['attempts'] = $attempt;
 			$started = microtime(true);
 			$call = function_exists('curl_init')
-				? shopApiCurlCall($url, $options)
-				: shopApiShellCall($url, $options);
+				? shopApiCurlCall($url, $callOptions)
+				: shopApiShellCall($url, $callOptions);
 			$spent += microtime(true) - $started;
 			$result['httpCode'] = $call['httpCode'];
 			$result['body']     = $call['body'];
@@ -199,7 +222,16 @@ if (!function_exists('shopApiRequest')) {
 				}
 				break;
 			}
-			usleep(300000 * $attempt);
+			// The pause before a retry is part of the time the request thread is held, so it
+			// is counted and capped like the call itself.
+			$pause = 300000 * $attempt;
+			if ($budget > 0) {
+				$pause = (int)min($pause, max(0, ($budget - $spent) * 1000000));
+			}
+			if ($pause > 0) {
+				usleep($pause);
+				$spent += $pause / 1000000;
+			}
 		}
 
 		shopApiLogFailure($log, $options['context'], $url, $result, $options['maxBodyLog']);
