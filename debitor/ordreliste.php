@@ -56,6 +56,7 @@
 // 20260630 CDX/NTR Fixed land (country) column from printing the countries outside the table and searchable bar not existing.
 // 20260701 Sawaneh Fixed: 'Performed by' is display-only and no longer cleared on return to the list.
 // 20260731 MJ Rettet kolonneoverskrift for hvem til findtekst('3367|Udført af')
+// 20260812 MJ Ret kolonne og filtrering fra hvem til performed_by
 // 20260701 CDX/NTR Fixed the default search to handle numeric comparisons and fixed TEXT searches from throwing fatal errors.
 
 @session_start();
@@ -1623,7 +1624,7 @@ $columns[] = array(
     }
 );
  $columns[] = array(
-        "field" => "hvem",
+        "field" => "performed_by",
         "headerName" => findtekst('3367|Udført af', $sprog_id),
         "width" => "1",
         "type" => "dropdown",
@@ -1639,9 +1640,9 @@ $columns[] = array(
                 else                         $status_condition = "(status = 1 OR status = 2)";
             }
             $options = array();
-            $q = db_select("SELECT DISTINCT hvem FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND hvem IS NOT NULL AND hvem != '' ORDER BY hvem", __FILE__ . " linje " . __LINE__);
+            $q = db_select("SELECT DISTINCT performed_by FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND performed_by IS NOT NULL AND performed_by != '' ORDER BY performed_by", __FILE__ . " linje " . __LINE__);
             while ($r = db_fetch_array($q)) {
-                $options[] = $r['hvem'];
+                $options[] = $r['performed_by'];
             }
             return $options;
         },

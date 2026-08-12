@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-08-03 ---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-08-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,7 @@
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
 // 20260728 MJ Fix: kreditorOrdreAutocomplete sendte ikke konto_id til itemSearch; viste varer.kostpris i stedet for leverandoerspecifik vl.kostpris
+// 20260812 MJ Tjek ordrelaas foer POST-skrivninger — samme moenster som debitor/ordre.php
 
 @session_start();
 $s_id=session_id();
@@ -103,6 +104,19 @@ $valg=NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+
+// 20260812 MJ Tjek ordrelaas foer ethvert form-POST paa eksisterende ordrer
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+	$_pre_id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+	if ($_pre_id > 0 && !empty($brugernavn)) {
+		include_once('../includes/record_lock.php');
+		$_pre_conflict = order_lock_check_acquire('ordrer', $_pre_id, $brugernavn, session_id());
+		if ($_pre_conflict) {
+			header('Location: ordre.php?id=' . $_pre_id);
+			exit;
+		}
+	}
+}
 
 $returside = if_isset($_GET,NULL,'returside');
 ########

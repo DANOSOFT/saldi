@@ -104,8 +104,10 @@
 // 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
 // 20260731 MJ Rettet "Performed by"-label til findtekst('3367|Udført af') i visning og redigering
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
-// 20260715 PHR Valuto was omittet when copying order
+// 20260715 PHR Valuta was omittet when copying order
 // 20260803 MJ ordrer.vis_lev_addr er varchar(2); 'off' (3 tegn) sprængte kolonnen og udløste db_modify-fejl efter varen var gemt
+// 20260806 CX/PHR Show split-order button instead of invoice button when an order is only partly delivered.
+// 20260807 CX/PHR Allow free text in the Att. field while retaining customer contact suggestions.
 
 @session_start();
 $s_id = session_id();
@@ -142,9 +144,9 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 
-// 20260810 MJ Tjek ordrelaas foer ethvert form-POST paa eksisterende ordrer — forhindrer at
-// en concurrent POST gemmer data naar en anden bruger holder laassen
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['clear_delivery'])) {
+// 20260812 MJ Tjek ordrelaas foer ethvert form-POST paa eksisterende ordrer — forhindrer at
+// en concurrent POST gemmer data naar en anden bruger holder laassen (inkl. clear_delivery)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$_pre_id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 	if ($_pre_id > 0 && !empty($brugernavn)) {
 		include_once('../includes/record_lock.php');
@@ -1148,7 +1150,7 @@ if ($b_submit) {
 	$omdan_t_fakt = if_isset($_POST, NULL, 'omdan_t_fakt');
 	$kreditnota   = if_isset($_POST, NULL, 'kreditnota');
 	$ref          = trim(if_isset($_POST, NULL, 'ref'));
-	$performed_by = if_isset($_POST, NULL, 'performed_by');
+	$performed_by = is_string($_POST['performed_by'] ?? null) ? trim($_POST['performed_by']) : null;
 	$oldRef       = trim(if_isset($_POST, NULL, 'oldRef'));
 	$extAfd       = if_isset($_POST, NULL, 'extAfd');
 	$afd          = if_isset($_POST, NULL, 'afd');
@@ -2385,7 +2387,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				// Respekter submitted performed_by selv naar tom; fald kun tilbage til gemt vaerdi
 				// naar feltet ikke var submitted, saa rydning til blank bevares.
 				if (isset($_POST['performed_by'])) {
-					$performed_by = $_POST['performed_by'];
+					$performed_by = is_string($_POST['performed_by']) ? trim($_POST['performed_by']) : '';
 				} elseif (!$performed_by) {
 					$r = db_fetch_array(db_select("select performed_by from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 					if ($r) $performed_by = $r['performed_by'];
@@ -2457,52 +2459,49 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	}
 	// ------------------------------------------------------------------
 	// Save/update delivery address based on company name + account_id
-	// 20260803 MJ SD-533 Use raw @pg_query (not db_modify) so any failure — table not yet
-	//   created, FK mismatch, OPcache serving stale schema — is silently absorbed and the
-	//   stock-item save always completes. delivery_addresses is an enhancement; it must
-	//   never block the core Gem save.
+	// 20260812 MJ Atomisk: promote den nye adresse foerst, demot derefter alle andre.
+	//   Raekkefoelgen sikrer at der aldrig er nul primary addresses ved en fejl.
 	// ------------------------------------------------------------------
 	if (($b_submit == 'Gem' || $b_submit == 'save') && $id && $konto_id) {
 		if (!empty($lev_navn) && !empty($lev_addr1) && !empty($lev_postnr) && !empty($lev_bynavn)) {
-			global $connection;
-			// Demote all existing primary addresses for this customer
-			@pg_query($connection, "UPDATE delivery_addresses
-					SET is_primary = 'f'
-					WHERE account_id = '" . db_escape_string($konto_id) . "'");
+			$_da_konto = db_escape_string($konto_id);
+			$_da_navn  = db_escape_string($lev_navn);
+			$_da_a1    = db_escape_string($lev_addr1);
+			$_da_a2    = db_escape_string($lev_addr2);
+			$_da_pnr   = db_escape_string($lev_postnr);
+			$_da_by    = db_escape_string($lev_bynavn);
+			$_da_land  = db_escape_string($lev_land);
+			$_da_kont  = db_escape_string($lev_kontakt);
+			$_da_mail  = db_escape_string($lev_email);
 
-			// Look for existing address with same account_id and company_name
-			$qtxt_find = "SELECT id FROM delivery_addresses
-						WHERE account_id = '" . db_escape_string($konto_id) . "'
-							AND company_name = '" . db_escape_string($lev_navn) . "'
-						LIMIT 1";
-			$existing = db_fetch_array(db_select($qtxt_find, __FILE__ . " L " . __LINE__));
+			$_da_existing = db_fetch_array(db_select(
+				"SELECT id FROM delivery_addresses WHERE account_id='$_da_konto' AND company_name='$_da_navn' LIMIT 1",
+				__FILE__ . " linje " . __LINE__
+			));
 
-			if ($existing) {
-				@pg_query($connection, "UPDATE delivery_addresses SET
-									address_line1 = '" . db_escape_string($lev_addr1) . "',
-									address_line2 = '" . db_escape_string($lev_addr2) . "',
-									postal_code   = '" . db_escape_string($lev_postnr) . "',
-									city          = '" . db_escape_string($lev_bynavn) . "',
-									country       = '" . db_escape_string($lev_land) . "',
-									contact_name  = '" . db_escape_string($lev_kontakt) . "',
-									email         = '" . db_escape_string($lev_email) . "',
-									is_primary    = 't'
-								WHERE id = " . (int)$existing['id']);
+			if ($_da_existing) {
+				$_da_id = (int)$_da_existing['id'];
+				db_modify(
+					"UPDATE delivery_addresses SET address_line1='$_da_a1', address_line2='$_da_a2', postal_code='$_da_pnr', city='$_da_by', country='$_da_land', contact_name='$_da_kont', email='$_da_mail', is_primary='t' WHERE id=$_da_id",
+					__FILE__ . " linje " . __LINE__
+				);
 			} else {
-				@pg_query($connection, "INSERT INTO delivery_addresses
-								(account_id, company_name, address_line1, address_line2,
-								postal_code, city, country, contact_name, email, is_primary, sort_order)
-								VALUES (
-									'" . db_escape_string($konto_id) . "',
-									'" . db_escape_string($lev_navn) . "',
-									'" . db_escape_string($lev_addr1) . "',
-									'" . db_escape_string($lev_addr2) . "',
-									'" . db_escape_string($lev_postnr) . "',
-									'" . db_escape_string($lev_bynavn) . "',
-									'" . db_escape_string($lev_land) . "',
-									'" . db_escape_string($lev_kontakt) . "',
-									'" . db_escape_string($lev_email) . "',
-									't', 0)");
+				db_modify(
+					"INSERT INTO delivery_addresses (account_id, company_name, address_line1, address_line2, postal_code, city, country, contact_name, email, is_primary, sort_order) VALUES ('$_da_konto', '$_da_navn', '$_da_a1', '$_da_a2', '$_da_pnr', '$_da_by', '$_da_land', '$_da_kont', '$_da_mail', 't', 0)",
+					__FILE__ . " linje " . __LINE__
+				);
+				$_da_new = db_fetch_array(db_select(
+					"SELECT id FROM delivery_addresses WHERE account_id='$_da_konto' AND company_name='$_da_navn' ORDER BY id DESC LIMIT 1",
+					__FILE__ . " linje " . __LINE__
+				));
+				$_da_id = $_da_new ? (int)$_da_new['id'] : 0;
+			}
+
+			if ($_da_id) {
+				db_modify(
+					"UPDATE delivery_addresses SET is_primary='f' WHERE account_id='$_da_konto' AND id != $_da_id",
+					__FILE__ . " linje " . __LINE__
+				);
 			}
 		}
 	}
