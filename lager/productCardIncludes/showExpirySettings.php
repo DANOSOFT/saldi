@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 // Expiry date settings section on item card.
 // Shows toggle for has_due_date and input for default_shelf_life_days.
+// 20260811 Sawaneh Added hidden 'expiry_section' marker so varekort.php can tell a hidden
+//                  section apart from an unticked checkbox when saving.
 global $has_due_date, $default_shelf_life_days;
 
 $has_due_date_checked = ($has_due_date == 'on') ? 'checked' : '';
@@ -31,6 +33,9 @@ $shelf_life_display = ($has_due_date == 'on') ? '' : 'display:none;';
 $shelf_life_val = ($default_shelf_life_days !== null && $default_shelf_life_days !== '') ? intval($default_shelf_life_days) : '';
 
 print "<tr><td colspan='2'><hr></td></tr>\n";
+// Marker so varekort.php only writes has_due_date / default_shelf_life_days when this
+// section was actually rendered - see the $expirySectionPosted guard there.
+print "<input type='hidden' name='expiry_section' value='1'>\n";
 print "<tr><td colspan='2'><b>".findtekst('5001|Udl&oslash;bsdato', $sprog_id)."</b></td></tr>\n";
 
 print "<tr><td>".findtekst('5002|Varen har udl&oslash;bsdato', $sprog_id)."</td>\n";
