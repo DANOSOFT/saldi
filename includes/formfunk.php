@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-08-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,8 @@
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
+// 20260805 MJ konto_udtog: tilfoej udtog-pladsholder til at vise udestående saldo fra openpost
+// 20260812 MJ konto_udtog: konverter beloeb per-raekke via valuta/valutakurs (som skyldig/forfalden)
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -646,14 +648,30 @@ if (!function_exists('find_form_tekst')) {
 					} elseif ($tabel == "adresser" || $tabel == "konto") {
 						if ($variabel == 'udtog') {
 							// 20260805 MJ konto_udtog: udestående saldo fra openpost
+							// 20260812 MJ Konverter beløb per-række via valuta/valutakurs som skyldig/forfalden
 							if ($formular == 11) {
 								$kid = (int)$id;
 							} else {
 								$r2 = db_fetch_array(db_select("select konto_id from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
 								$kid = (int)$r2['konto_id'];
 							}
-							$r2 = db_fetch_array(db_select("select sum(amount) as saldo from openpost where konto_id='$kid' and udlignet='0'", __FILE__ . " linje " . __LINE__));
-							$streng[$x] = dkdecimal((float)$r2['saldo'], 2);
+							$_udtog_q   = db_select("select amount,valuta,valutakurs from openpost where konto_id='$kid' and udlignet='0'", __FILE__ . " linje " . __LINE__);
+							$_udtog_sum = 0;
+							while ($_udtog_r = db_fetch_array($_udtog_q)) {
+								$_udtog_valuta = $_udtog_r['valuta'] ?: 'DKK';
+								$_udtog_kurs   = (float)($_udtog_r['valutakurs'] ?: 100);
+								$_udtog_dkk    = $_udtog_r['amount'] * $_udtog_kurs / 100;
+								if ($deb_valuta != 'DKK' && $deb_valuta != $_udtog_valuta)
+									$_udtog_amount = $_udtog_dkk * 100 / $deb_valutakurs;
+								elseif ($deb_valuta == $_udtog_valuta)
+									$_udtog_amount = $_udtog_r['amount'];
+								else
+									$_udtog_amount = $_udtog_dkk;
+								if ($deb_valuta == 'DKK')
+									$_udtog_amount = $_udtog_dkk;
+								$_udtog_sum += $_udtog_amount;
+							}
+							$streng[$x] = dkdecimal(afrund($_udtog_sum, 2), 2);
 							$q2 = NULL;
 						} elseif ($variabel == 'valuta') {
 							$qtxt = "select gruppe from adresser where id='$id'";
