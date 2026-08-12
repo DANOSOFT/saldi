@@ -2259,6 +2259,10 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			   API</button></a></td></tr>\n";
 
+		print "<tr><td align=left><a href=diverse.php?sektion=stripe_valg>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			   Stripe abonnement</button></a></td></tr>\n";
+
 		print "<tr><td align=left><a href=diverse.php?sektion=labels>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('791|Mærkater', $sprog_id)."</button></a></td></tr>\n";
