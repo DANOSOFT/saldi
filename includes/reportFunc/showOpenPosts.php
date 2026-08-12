@@ -41,6 +41,12 @@
 //                  the other four aging columns.
 // 20260812 Sawaneh Review: the firm-name search folds case with mb_strtolower/mb_strtoupper,
 //                  so names containing ae, oe or aa match regardless of case.
+// 20260812 Sawaneh Review: $opColWidths is the single source of the report's width and every
+//                  report-wide colspan is derived from it, so the footer and pagination no
+//                  longer span a phantom tenth column when there are no BS customers. The BS
+//                  toggle carries the same view state as the pagination links, showPBS is read
+//                  from $_REQUEST and posted back, and the scroll wrapper reports whether it
+//                  was opened so the caller closes only what exists.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -104,8 +110,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	global $db_type;
 	global $menu;
 	global $sprog_id;
+	global $opGridWrapperOpen;
 
-	(isset($_GET['showPBS']))?$showPBS = $_GET['showPBS']:$showPBS=1;
+	// $_REQUEST, not $_GET: the report's own form posts back to rapport.php, and reading the
+	// flag from GET alone made every action button ("Mail kontoudtog", "Ryk alle", ...) fall
+	// back to showing BS customers again.
+	$showPBS = (int)if_isset($_REQUEST, 1, 'showPBS');
+	$opGridWrapperOpen = false;
 	$qtxt= "select id from adresser where art = 'S' and pbs_nr > '0'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $usePBS=1;
 	else {
@@ -131,6 +142,41 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$konto_fraHtml=htmlspecialchars((string)$konto_fra,ENT_QUOTES);
 	$konto_tilHtml=htmlspecialchars((string)$konto_til,ENT_QUOTES);
 
+	$currentdate=date("Y-m-d");
+	if ($dato_fra && $dato_til) {
+		$fromdate=usdate($dato_fra);
+		$todate=usdate($dato_til);
+	}	elseif ($dato_fra && !$dato_til) {
+		$todate=usdate($dato_fra);
+	} else $todate = $currentdate;
+	$openpostPage=(int)if_isset($_REQUEST, 1, 'openpost_page');
+	$openpostPageSize=(int)if_isset($_REQUEST, 100, 'openpost_page_size');
+	if ($openpostPage < 1) $openpostPage=1;
+	if ($openpostPageSize < 25) $openpostPageSize=25;
+	elseif ($openpostPageSize > 500) $openpostPageSize=500;
+	$openpostOffset=($openpostPage-1)*$openpostPageSize;
+
+	// Every link back into the report has to carry the current view: the date and account
+	// filter, which mode is showing and the page size. Built once, so the BS toggle in the
+	// header cannot drop what the pagination links keep - toggling it used to reset the
+	// report to the default mode and page size.
+	$opStateParams = "rapportart=openpost&submit=ok&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl"
+		. "&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl&openpost_page_size=$openpostPageSize";
+	if ($vis_alle) $opStateParams.="&vis_alle_poster=on";
+	elseif ($kun_debet) $opStateParams.="&kun_debet=on";
+	elseif ($kun_kredit) $opStateParams.="&kun_kredit=on";
+	else $opStateParams.="&vis_aabenpost=on";
+
+	// One source of truth for the report's width: Kontonr, PBS (only when the account has BS
+	// customers), company name, the five aging columns, I alt, and the trailing cell holding
+	// the kontoudtog checkbox. Every report-wide colspan is derived from it, so a column
+	// added or removed cannot leave the footer, action row and pagination spanning a width
+	// the table does not have.
+	$opColWidths = $usePBS
+		? array(9, 7, 22, 8, 8, 8, 8, 8, 9, 13)
+		: array(10, 26, 8, 8, 8, 8, 8, 10, 14);
+	$opColCount = count($opColWidths);
+
 	if ($menu=='T') {
 		print "<tr><td><div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
 		print "<tr><th>Kontonr.</th>";
@@ -138,11 +184,6 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>>90</th><th align=right  class='text-right'>60-90</th><th align=right class='text-right'>30-60</th><th align=right class='text-right'>8-30</th><th align=right class='text-right'>0-8</th><th align=right class='text-right'>I alt</th><th align=right</th>";
 		print "</thead><tbody>";
 	} else {
-		if ($usePBS) {
-			$opColWidths = array(9, 7, 22, 8, 8, 8, 8, 8, 9, 13);
-		} else {
-			$opColWidths = array(10, 26, 8, 8, 8, 8, 8, 10, 14);
-		}
 		$opColgroupHtml = "<colgroup>";
 		foreach ($opColWidths as $opColW) { $opColgroupHtml .= "<col style='width:{$opColW}%'>"; }
 		$opColgroupHtml .= "</colgroup>";
@@ -165,9 +206,9 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<td>Kontonr.</td>";
 		if ($usePBS) {
 			if ($showPBS) {
-				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl&showPBS=0'>skjul BS</a></td>";
+				print "<td title='Skjul PBS kunder'><a href='rapport.php?$opStateParams&showPBS=0'>skjul BS</a></td>";
 			} else {
-				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl&showPBS=1'>vis BS</a></td>";
+				print "<td title='Vis PBS kunder'><a href='rapport.php?$opStateParams&showPBS=1'>vis BS</a></td>";
 			}
 		}
 		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
@@ -175,28 +216,18 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "</div>\n";
 
 		print "<div id='opGridWrapper'><table id='opGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$opColgroupHtml<tbody>\n";
+		// openpost() closes the wrappers after this function returns, and it is only called
+		// when the report is actually shown ("Skjul aabne poster" skips it), so it has to be
+		// told whether this div was ever opened.
+		$opGridWrapperOpen = true;
 	}
-
-	$currentdate=date("Y-m-d");
-	if ($dato_fra && $dato_til) {
-		$fromdate=usdate($dato_fra);
-		$todate=usdate($dato_til);
-	}	elseif ($dato_fra && !$dato_til) {
-		$todate=usdate($dato_fra);
-	} else $todate = $currentdate;
-	$openpostPage=(int)if_isset($_REQUEST, 1, 'openpost_page');
-	$openpostPageSize=(int)if_isset($_REQUEST, 100, 'openpost_page_size');
-	if ($openpostPage < 1) $openpostPage=1;
-	if ($openpostPageSize < 25) $openpostPageSize=25;
-	elseif ($openpostPageSize > 500) $openpostPageSize=500;
-	$openpostOffset=($openpostPage-1)*$openpostPageSize;
 
 	print "<form name=aabenpost action=rapport.php method=post>";
 
 	if ($menu=='T') {
 		print "";
 	} else {
-		print "<tr><td colspan=10><hr></td></tr>\n";
+		print "<tr><td colspan='$opColCount'><hr></td></tr>\n";
 	}
 
 	$accountPosts=$accountIndex=array();
@@ -275,15 +306,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$formIndex=0;
 	$displayFirst=($kontoantal) ? $openpostOffset+1 : 0;
 	$displayLast=min($kontoantal, $openpostOffset+$pageAccountCount);
-	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl&openpost_page_size=$openpostPageSize";
-	if ($vis_alle) $basePageUrl.="&vis_alle_poster=on";
-	elseif ($kun_debet) $basePageUrl.="&kun_debet=on";
-	elseif ($kun_kredit) $basePageUrl.="&kun_kredit=on";
-	else $basePageUrl.="&vis_aabenpost=on";
+	$basePageUrl="rapport.php?$opStateParams";
 	if (!$showPBS) $basePageUrl.="&showPBS=0";
 	if ($kontoantal > $openpostPageSize) {
-		$colspan = $usePBS ? 10 : 9;
-		print "<tr><td colspan='$colspan' align='center'>";
+		print "<tr><td colspan='$opColCount' align='center'>";
 		if ($openpostPage > 1) print "<a href=\"$basePageUrl&openpost_page=".($openpostPage-1)."\">Forrige</a>&nbsp;";
 		print "Viser $displayFirst-$displayLast af $kontoantal";
 		if ($openpostPage < $totalPages) print "&nbsp;<a href=\"$basePageUrl&openpost_page=".($openpostPage+1)."\">N&aelig;ste</a>";
@@ -480,7 +506,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
 	} else {
 		print "</tbody><tfoot>";
-		print "<tr><td colspan=10><hr></td></tr>\n";
+		print "<tr><td colspan='$opColCount'><hr></td></tr>\n";
 		print "<tr><td colspan='$colspan'><br></td><td><b>I alt (viste)</b></td>";
 	}
 
@@ -514,12 +540,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	print "<input type=hidden name=konto_fra value=\"$konto_fraHtml\">";
 	print "<input type=hidden name=konto_til value=\"$konto_tilHtml\">";
 	print "<input type=hidden name=kontoantal value=$formIndex>";
+	print "<input type=hidden name=showPBS value=\"" . (int)$showPBS . "\">";
 	print "<input type=hidden name=openpost_page value=$openpostPage>";
 	print "<input type=hidden name=openpost_page_size value=$openpostPageSize></td></tr>";
 
 	if ($kontoart=='D') {
 		$overlib4="<span class='CellComment'>".findtekst(242,$sprog_id)."</span>";
-		print "<tr><td colspan='10' align='center' class='border-hr-top'><span title=\"Klik her for at maile kontoudtog til de modtagere som er afm&aelig;rket herover\">";
+		print "<tr><td colspan='$opColCount' align='center' class='border-hr-top'><span title=\"Klik her for at maile kontoudtog til de modtagere som er afm&aelig;rket herover\">";
 		print "<input type=submit value=\"Mail kontoudtog\" name=\"submit\"></span>&nbsp;&nbsp;";
 		print "<span title='Klik her for at oprette rykker til de som er afm&aelig;rkede herover'>";
 		print "<input type=submit value=\"Opret rykker\" name=\"submit\"></span>&nbsp;&nbsp;";
@@ -542,7 +569,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "</tr>\n";
 	}
 	if ($kontoantal > $openpostPageSize) {
-		print "<tr><td colspan='10' align='center' class='border-hr-top'>";
+		print "<tr><td colspan='$opColCount' align='center' class='border-hr-top'>";
 		if ($openpostPage > 1) print "<a href=\"$basePageUrl&openpost_page=".($openpostPage-1)."\">Forrige</a>&nbsp;";
 		print "Side $openpostPage af $totalPages";
 		if ($openpostPage < $totalPages) print "&nbsp;<a href=\"$basePageUrl&openpost_page=".($openpostPage+1)."\">N&aelig;ste</a>";

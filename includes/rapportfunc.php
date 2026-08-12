@@ -82,6 +82,8 @@
 // 20260513 CL/PHR kontokort & kontosaldo viser nu dato i toplinje og kontokort tager kun konti med bevægelser i perioden.
 // 20260518 CL/PHR kontokort & kontosaldo viser nu dato i toplinje. Kontokort tager kun konti med bevægelser i perioden. Null-safety og array-initialisering.
 // 20260723 sawaneh Fixed $rbox8->$box8 so the guard against a stock-tracked item used as a fee works in bogfor_rykker.
+// 20260812 Sawaneh Close #opGridWrapper only when vis_aabne_poster() opened it - with 'Skjul aabne
+//                  poster' the report never renders, so the page got an unmatched </div>.
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -119,6 +121,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	global $sprog_id;
 	global $bruger_id;
 	global $menu;
+	global $opGridWrapperOpen;
 
 	if ($dato_fra && $dato_til) {
 		$fromdate = usdate($dato_fra);
@@ -445,7 +448,10 @@ a:link{text-decoration:none;}</style>\n";
 		}
 	}
 	if ($menu != 'T' && !$opWrapperClosed) {
-		print "</div></div>"; // <- close #opGridWrapper + #opPageFlex
+		// vis_aabne_poster() opens #opGridWrapper, and it only runs when the report is shown -
+		// with "Skjul aabne poster" nothing but #opPageFlex is open, so closing two divs here
+		// left the page with an unmatched </div>.
+		print $opGridWrapperOpen ? "</div></div>" : "</div>";
 	}
 }
 
