@@ -243,8 +243,9 @@ if ($mp_client_id) {
 	// UseCanonicalName Off that follows the request's Host header, so a crafted Host on a
 	// login request could make this code delete the real webhook and register the payment
 	// callback at an attacker's address. It is read from settings instead.
-	$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_base_url'", __FILE__ . " linje " . __LINE__);
-	$mp_webhook_base = trim((string)(db_fetch_array($q)['var_value'] ?? ''));
+	$q = db_select("SELECT id, var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_base_url'", __FILE__ . " linje " . __LINE__);
+	$mp_base_row = db_fetch_array($q);
+	$mp_webhook_base = trim((string)($mp_base_row['var_value'] ?? ''));
 
 	// Installations reconciled before this change have no setting yet, and their marker
 	// holds a url Vipps has already accepted. Adopting it keeps them working instead of
@@ -255,7 +256,14 @@ if ($mp_client_id) {
 		if (!empty($mp_seed['scheme']) && !empty($mp_seed['host'])) {
 			$mp_webhook_base = $mp_seed['scheme'] . '://' . $mp_seed['host'] . (isset($mp_seed['port']) ? ':' . $mp_seed['port'] : '');
 			$mp_seed_value = db_escape_string($mp_webhook_base);
-			db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_base_url', 'mobilepay', '$mp_seed_value', 'Canonical https base url for the MobilePay webhook callback, e.g. https://pos.example.dk')", __FILE__ . " linje " . __LINE__);
+			// The row may already exist with an empty value, which is what got us here, so
+			// insert only when there is nothing to update - two rows for the same
+			// var_grp/var_name would make every later read pick one of them at random.
+			if (!empty($mp_base_row['id'])) {
+				db_modify("UPDATE settings SET var_value = '$mp_seed_value' WHERE id = " . (int)$mp_base_row['id'], __FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_base_url', 'mobilepay', '$mp_seed_value', 'Canonical https base url for the MobilePay webhook callback, e.g. https://pos.example.dk')", __FILE__ . " linje " . __LINE__);
+			}
 			error_log("betweenUpdates.php: MobilePay webhook_base_url was not configured - adopted '$mp_webhook_base' from the existing reconciled url");
 		}
 	}

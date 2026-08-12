@@ -198,11 +198,23 @@ if (!function_exists('mobilepay_webhook_sync')) {
 				$expectedExists = true;
 				continue;
 			}
-			if (strpos($webhook['url'], 'webhook_recive.php?db=' . $db) === false) {
-				continue; // another account's webhook, not ours to touch
+			// The db has to match exactly. A substring test would treat every account whose
+			// name merely starts with this one's as ours - with databases 'acme' and 'acme2'
+			// a run for 'acme' would delete acme2's webhook and stop Vipps delivering that
+			// tenant's payment callbacks.
+			$webhookPath  = (string)parse_url($webhook['url'], PHP_URL_PATH);
+			$webhookQuery = (string)parse_url($webhook['url'], PHP_URL_QUERY);
+			$webhookArgs  = array();
+			parse_str($webhookQuery, $webhookArgs);
+			if (basename($webhookPath) !== 'webhook_recive.php'
+				|| !isset($webhookArgs['db']) || $webhookArgs['db'] !== $db) {
+				continue; // another account's webhook, or not a POS callback at all
 			}
-			if (!isset($webhook['id'])) {
-				$result['errors'][] = 'stale webhook ' . $webhook['url'] . ' has no id and cannot be deleted';
+			// The id comes from the same untrusted body: an array or object here would make
+			// rawurlencode() raise a TypeError and take down the login request that runs
+			// this reconciliation.
+			if (!isset($webhook['id']) || !is_scalar($webhook['id']) || (string)$webhook['id'] === '') {
+				$result['errors'][] = 'stale webhook ' . $webhook['url'] . ' has no usable id and cannot be deleted';
 				$result['staleDeleteFailed'] = true;
 				continue;
 			}
