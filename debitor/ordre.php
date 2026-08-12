@@ -6811,7 +6811,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 				// Check if ordered quantity exceeds available stock
 				if (in_array($gruppe, $stockGrp) && ($antal - $leveret) > $stockQty) { ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
 					$txtColor = 'red';
-					$qtyTitle = "Obs!! Antal (" . dkdecimal($antal - $leveret, 0) . ") overstiger beholdning (" . dkdecimal($$stockQty, 0) . ")"; ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
+					$qtyTitle = "Obs!! Antal (" . dkdecimal($antal - $leveret, 0) . ") overstiger beholdning (" . dkdecimal($stockQty, 0) . ")"; ## NTR - 20260518 - Changed it so stock required doesn't count already delivered.
 				} elseif (in_array($gruppe, $stockGrp) && $min_lager > 0 && $stockQty < $min_lager) {
 					$txtColor = 'red';
 					$qtyTitle = "Obs!! Beholdning (" . dkdecimal($stockQty, 0) . ") mindre end " . dkdecimal($min_lager, 0);
