@@ -233,9 +233,16 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 			bogfor($kladde_id, $kladdenote,'');
 			db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
 			transaktion('commit');
-			genberegn($regnaar);
-			equalizeMatchingRecords();
-			if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+			# 20260812 CL/LH (SD-644): SD-595-moenster som i includes/ordrefunc.php:1631 - en fejlet
+			# skrivning (fx trigger-RAISE fra periodelaasen) har afbrudt transaktionen, saa 'commit'
+			# reelt var rollback. Rapporter fejlen i stedet for at vise succes og koere genberegn().
+			if ($db_modify_fejl) {
+				print "<BODY onLoad=\"javascript:alert('" . addslashes("Bogfoering fejlede - databasen afviste transaktionen. Ingen posteringer er gemt.") . "')\">";
+			} else {
+				genberegn($regnaar);
+				equalizeMatchingRecords();
+				if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+			}
 		}
 	} elseif ($simuler) {
 		transaktion('begin');
