@@ -1284,7 +1284,7 @@ $custom_columns = array(
             return $options;
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>$value</td>";
+            return "<td align='{$column['align']}'>" . htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') . "</td>";
         },
     ),
 );

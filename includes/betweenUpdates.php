@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026.08.10
+// --- includes/betweenUpdates.php --- patch 5.0.0--- 2026-08-12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -146,10 +146,14 @@ db_modify("CREATE INDEX IF NOT EXISTS kostpriser_vare_id_transdate_idx ON kostpr
 // 20260801 MJ SD-532 omdoebte ansatte_save.php til at bruge kolonnen 'mobile', men DB-omdoebningen
 // daekkede kun adresser-tabellen. Paa aeldre databaser hedder kolonnen stadig 'fax', og INSERT fejler.
 // 20260802 MJ SD-532 tilfoejede tjek for at 'mobile' ikke allerede eksisterer (undgaar fejl hvis begge kolonner findes)
+// 20260812 MJ Haandter tilfaelde hvor begge kolonner eksisterer: kopier fax-data til mobile, ryd fax
 $_has_fax    = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'ansatte' AND column_name = 'fax'", __FILE__ . " linje " . __LINE__));
 $_has_mobile = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'ansatte' AND column_name = 'mobile'", __FILE__ . " linje " . __LINE__));
 if ($_has_fax && !$_has_mobile) {
     db_modify("ALTER TABLE ansatte RENAME COLUMN fax TO mobile", __FILE__ . " linje " . __LINE__);
+} elseif ($_has_fax && $_has_mobile) {
+    db_modify("UPDATE ansatte SET mobile = fax WHERE (mobile IS NULL OR mobile = '') AND fax != ''", __FILE__ . " linje " . __LINE__);
+    db_modify("ALTER TABLE ansatte DROP COLUMN fax", __FILE__ . " linje " . __LINE__);
 }
 
 #####
@@ -400,8 +404,11 @@ $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='or
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE ordrer ADD COLUMN performed_by varchar(255) NOT NULL DEFAULT ''", __FILE__ . " linje " . __LINE__);
 }
-// Idempotent: kopier hvem til performed_by og nulstil hvem uanset om kolonnen netop blev oprettet
-db_modify("UPDATE ordrer SET performed_by = hvem WHERE hvem != '' AND performed_by = ''", __FILE__ . " linje " . __LINE__);
-db_modify("UPDATE ordrer SET hvem = '' WHERE hvem != '' AND performed_by != ''", __FILE__ . " linje " . __LINE__);
+// Idempotent: kopier hvem til performed_by og nulstil hvem — kun hvis hvem-kolonnen eksisterer
+$_has_hvem = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' AND column_name='hvem'", __FILE__ . " linje " . __LINE__));
+if ($_has_hvem) {
+	db_modify("UPDATE ordrer SET performed_by = hvem WHERE hvem != '' AND performed_by = ''", __FILE__ . " linje " . __LINE__);
+	db_modify("UPDATE ordrer SET hvem = '' WHERE hvem != '' AND performed_by != ''", __FILE__ . " linje " . __LINE__);
+}
 
 ?>

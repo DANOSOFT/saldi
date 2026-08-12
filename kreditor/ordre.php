@@ -1222,7 +1222,7 @@ function ordreside($id) {
 	$order_lock_conflict = null;
 	if ($id > 0) {
 		include_once('../includes/record_lock.php');
-		$order_lock_conflict = order_lock_check_acquire('ordrer', $id, $brugernavn, $s_id);
+		$order_lock_conflict = order_lock_check_acquire('ordrer', $id, $brugernavn, session_id());
 	}
 
 	if ($id) {

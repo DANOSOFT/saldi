@@ -4,11 +4,12 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/record_lock.php --- patch 5.0.0 --- 2026-08-10 ---
+// --- includes/record_lock.php --- patch 5.0.0 --- 2026-08-12 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260803 MJ Ordrelås — forhindrer at to brugere redigerer samme bilag samtidigt
 // 20260810 MJ Atomisk erhvervelse via ON CONFLICT; session-bundet frigivelse; heartbeat-funktion
+// 20260812 MJ Ret table_schema-tjek til at virke med baade MySQL og PostgreSQL
 
 // Locks expire after 10 minutes of inactivity (heartbeat fires every 5 min, so max 10 min after crash)
 define('RECORD_LOCK_TTL', 600);
@@ -19,8 +20,12 @@ define('RECORD_LOCK_TTL', 600);
 function _ensure_record_locks_table() {
     static $ensured = false;
     if ($ensured) return;
+    global $db_type;
+    $_rl_schema_cond = (strtolower($db_type ?? '') === 'mysql' || strtolower($db_type ?? '') === 'mysqli')
+        ? "table_schema = DATABASE()"
+        : "table_schema = 'public'";
     $r = db_fetch_array(db_select(
-        "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='record_locks' LIMIT 1",
+        "SELECT 1 FROM information_schema.tables WHERE $_rl_schema_cond AND table_name='record_locks' LIMIT 1",
         __FILE__ . " linje " . __LINE__
     ));
     if (!$r) {

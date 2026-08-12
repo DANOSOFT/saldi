@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-08-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -639,6 +639,8 @@ if (!function_exists('find_form_tekst')) {
 							$variabel = "fakturadate";
 						if ($variabel == "tlf")
 							$variabel = "phone";
+						if ($variabel == "hvem")
+							$variabel = "performed_by"; // 20260812 MJ ordre_hvem-pladsholder laeses fra performed_by
 						if ($variabel) {
 							$qtxt = "select $variabel from ordrer where id=$id";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
