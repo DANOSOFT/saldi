@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-10 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-08-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -96,18 +96,20 @@
 // 20260610 CL/PHR Bilagsikon skiftet fra bilag.php til documents.php (source=debitorOrdrer)
 // 20260611 LOE Added UI for hvem and updated its logic
 // 20260630 Sawaneh Made 'Performed by' (hvem) display-only: removed its order-locking side effects, added a blank option so it can be cleared, and made clearing to blank persist on save
-// 20260802 MJ Auto-udfyld 'Udfoert af' med indlogget medarbejder paa nye ordrer
-// 20260810 MJ Erstat hvem med performed_by til Udfoert af — hvem er reserveret til bilagslaasning
 // 20260701 NTR Updated the first plukliste buttons to be the same logic as the second plukliste.
 // 20260702 PHR Disabled "if ($vis_saet) $fakturadato = date("d-m-Y");"
 // 20260706 PHR Added $tmp to avoid division by zero
 // 20260708 MJ Default fakturadato to today when pressing Invoice and the field is empty.
-// 20260731 MJ Rettet "Performed by"-label til findtekst('3367|Udført af') i visning og redigering
 // 20260709 Sawaneh Show delivery address + Extra fields together on open orders (setting-controlled), fixed the Show-delivery-address checkbox, and moved the plukliste/writing-field buttons to the action row
 // 20260715 PHR Valuta was omittet when copying order
+// 20260731 MJ Rettet "Performed by"-label til findtekst('3367|Udført af') i visning og redigering
+// 20260802 MJ Auto-udfyld 'Udfoert af' med indlogget medarbejder paa nye ordrer
 // 20260803 MJ ordrer.vis_lev_addr er varchar(2); 'off' (3 tegn) sprængte kolonnen og udløste db_modify-fejl efter varen var gemt
 // 20260806 CX/PHR Show split-order button instead of invoice button when an order is only partly delivered.
 // 20260807 CX/PHR Allow free text in the Att. field while retaining customer contact suggestions.
+// 20260810 MJ Erstat hvem med performed_by til Udfoert af — hvem er reserveret til bilagslaasning
+// 20260812 MJ Laastjek daekker nu alle POST-kald inkl. clear_delivery; leveringsadresse-gemning
+//             atomisk (promote-foerst); performed_by fra POST valideres som skaert streng
 
 @session_start();
 $s_id = session_id();
