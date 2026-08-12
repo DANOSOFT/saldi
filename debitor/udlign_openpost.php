@@ -13,7 +13,7 @@ $s_id=session_id();
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
 //
-// En dansk oversaettelse af licensen kan laeses her:
+// En dansk oversaettelse af licensen kan laeses her: 
 // http://www.fundanemt.com/gpl_da.html
 //
 // Copyright (c) 2004-2006 DanOSoft ApS
@@ -49,8 +49,18 @@ if ($_POST['submit']) {
 }
 
 if($post_id[0]=="" || $regnaar=="" || $maaned_fra=="" || $maaned_til=="" || $konto_fra=="" || $konto_til=="") {
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?rapportart=Kontokort&regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok\">";
-	exit;
+    $params = array(
+        'rapportart' => 'Kontokort',
+        'regnaar'    => $regnaar,
+        'maaned_fra' => $maaned_fra,
+        'maaned_til' => $maaned_til,
+        'konto_fra'  => $konto_fra,
+        'konto_til'  => $konto_til,
+        'submit'     => 'ok'
+    );
+    $url = 'rapport.php?' . http_build_query($params);
+    header("Location: $url");
+    exit;
 }
 
 $query = db_select("select * from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__);

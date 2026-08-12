@@ -4,8 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------lager/minmaxstock.php------------patch 5.0.0-------2026.07.29----
-// -------------------fuld_stykliste.php------Patch 5.0.0--2026.07.28---
+// -----------lager/minmaxstock.php------------patch 3.9.0-------2020.03.13----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,12 +16,11 @@
 // It is forbidden to use this program in competition with Saldi.DK ApS
 // or other proprietor of the program without prior written agreement.
 //
-// The program is published with the hope that it will be beneficial, 
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
-// See GNU General Public License for more details.
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
 //
-//
-// Copyright (c) 2003-2026 DANOSOFT ApS
+// Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260729 LOE Initiated some variables to array, and guarded against unset groups and items to avoid warnings and errors.
@@ -40,6 +38,11 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php"); 
 
+
+$vGr = array();
+$stk = array();
+$stock = array();
+
 $afd=if_isset($_GET,0,'afd');
 $vgrp=if_isset($_GET, NULL,'vgrp');
 $vnr=if_isset($_GET, NULL,'vnr');
@@ -53,9 +56,9 @@ $itemMax = array();
 $itemDescription = array();
 
 if ($popup) $returside="../includes/luk.php";
-else $returside="rapport.php?varenr=$vnr&afd=$afd&varegruppe=$vrgp&varenavn=$vname";
+else $returside="rapport.php?varenr=$vnr&afd=$afd&varegruppe=$vgrp&varenavn=$vname";
 
-$lokMinMax=if_isset($_POST['lokMinMax']);
+$lokMinMax=if_isset($_POST,NULL,'lokMinMax');
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -133,8 +136,6 @@ while ($r = db_fetch_array($q)) {
 		$variant_id[$x]=$r['variant_id'];
 		$stockNo[$x]=$r['lager'];
 		$stock[$x]=$r['beholdning'];
-#if ($stockItemId[$x]==809) echo __line__." 809 $stockNo[$x] -> $stock[$x]<br>";
-#if ($stockItemId[$x]==1746) echo __line__." 1746 $stockNo[$x] -> $stock[$x]<br>";
 		$x++;
 	}
 }
@@ -147,17 +148,18 @@ print "<td width='80px' align='center'>Køb</td><tr>";
 fwrite($fp,"Afd;Varenr;Beskrivelse;Beholdning;Min;Max;".mb_convert_encoding('Køb', 'ISO-8859-1', 'UTF-8')."\n");
 if (empty($vGr) || empty($itemGrp)) {
 	print "<tr><td colspan='7' align='center'>".findtekst('1685|Item does not belong to any item group - check item and settings!',$sprog_id)."</td></tr>";
+} elseif (empty($stk)) {
+	print "<tr><td colspan='7' align='center'>No stock locations match the selected department!</td></tr>"; //to be translated by Sors at a later time.
+} elseif (empty($stock)) {
+	print "<tr><td colspan='7' align='center'>No stock data found for the selected filters!</td></tr>";
 }
 for ($a=0;$a<count($vGr);$a++) {
 	if (in_array($vGr[$a],$itemGrp)) {
+		$stocksum = 0; // initialize per group
 		for ($b=0;$b<count($itemId);$b++) {
-#			$stocksum=0;
 			for ($c=0;$c<count($stk);$c++) {
 				for ($d=0;$d<count($stock);$d++) {
-#if ($ItemId[$b]==809 && $stockNo[$d]=='3') echo __line__." 809 $stockNo[$d] -> $stock[$d]<br>";
-#if ($ItemId[$b]=1746 && $stockNo[$d]=='3') echo __line__." 1746 $stockNo[$d] -> $stock[$d] ($b)<br>";
 				if ($stk[$c]==$stockNo[$d] && $itemId[$b]==$stockItemId[$d]) $stocksum+=$stock[$d];
-#if ($ItemId[$b]=1746) echo "$itemId[$b]==$stockItemId[$d] && $stockNo[$d]==$stk[$c] && $itemMin[$b]>0 && $itemMax[$b]>0 && $itemGrp[$b]==$vGr[$a] && $itemMin[$b]+1<$stock[$d]<br>";
 					$min=$itemMin[$b];
 					if ($db=='bizsys_49') $min++;
 					if ($itemId[$b]==$stockItemId[$d] && $stockNo[$d]==$stk[$c] && $itemMin[$b]>0 && $itemMax[$b]>0 
