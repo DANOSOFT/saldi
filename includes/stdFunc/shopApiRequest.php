@@ -22,6 +22,10 @@
 // the exit status away, let unescaped item data reach the shell and had every call
 // overwrite the same curl.txt.
 // 20260727 Sawaneh Created.
+// 20260812 Sawaneh Review: a wall-clock budget bounds the whole sync in one request, only
+//                  transport-class failures degrade an endpoint (a 4xx is about one item,
+//                  not the host), and the shared php error log gets scheme/host/path
+//                  instead of the query string and the response body.
 
 if (!function_exists('shopApiUrl')) {
 	/**
@@ -103,6 +107,7 @@ if (!function_exists('shopApiRequest')) {
 	function shopApiRequest($endpoint, array $params = array(), $log = null, array $options = array()) {
 		static $degraded = array();
 		static $failCount = array();
+		static $spent = 0.0;
 
 		$options += array(
 			'context'        => '',
@@ -112,6 +117,7 @@ if (!function_exists('shopApiRequest')) {
 			'userAgent'      => 'Saldi shop sync',
 			'maxBodyLog'     => 500,
 			'failThreshold'  => 3,
+			'timeBudget'     => 30,
 		);
 		$result = array(
 			'ok'       => false,
@@ -140,12 +146,28 @@ if (!function_exists('shopApiRequest')) {
 			return $result;
 		}
 
+		// One item can fan out to three endpoints, and every part item in $partOf adds
+		// more calls, so per-call timeouts alone do not bound how long the request
+		// thread is held: a shop that answers slowly but successfully never counts as
+		// degraded. The budget covers the whole sync in this php process. Running out
+		// is logged exactly as loudly as a failure - a truncated sync must not be
+		// quieter than the fire-and-forget behaviour this file replaced.
+		$budget = (float)$options['timeBudget'];
+		if ($budget > 0 && $spent >= $budget) {
+			$result['skipped'] = true;
+			$result['error']   = 'shop sync time budget of ' . (int)$budget . 's used up in this request';
+			shopApiLogFailure($log, $options['context'], $url, $result);
+			return $result;
+		}
+
 		$attempts = 1 + max(0, (int)$options['retries']);
 		for ($attempt = 1; $attempt <= $attempts; $attempt++) {
 			$result['attempts'] = $attempt;
+			$started = microtime(true);
 			$call = function_exists('curl_init')
 				? shopApiCurlCall($url, $options)
 				: shopApiShellCall($url, $options);
+			$spent += microtime(true) - $started;
 			$result['httpCode'] = $call['httpCode'];
 			$result['body']     = $call['body'];
 
@@ -163,11 +185,17 @@ if (!function_exists('shopApiRequest')) {
 				? $call['error']
 				: 'http status ' . $call['httpCode'];
 			if (!$call['transient'] || $attempt === $attempts) {
-				$failCount[$endpointKey] = (isset($failCount[$endpointKey]) ? $failCount[$endpointKey] : 0) + 1;
-				// No response at all means every further call would pay the same timeout, so stop
-				// at once. Other failures need to repeat before the endpoint counts as degraded.
-				if ($call['unreachable'] || $failCount[$endpointKey] >= (int)$options['failThreshold']) {
-					$degraded[$endpointKey] = $result['error'];
+				// Only transport-class failures say anything about the host. A 4xx is about
+				// this one item - an unknown sku or a bad parameter - and the shop is
+				// answering perfectly well, so it must not count towards degrading the
+				// endpoint for every other item in this request.
+				if ($call['transient']) {
+					$failCount[$endpointKey] = (isset($failCount[$endpointKey]) ? $failCount[$endpointKey] : 0) + 1;
+					// No response at all means every further call would pay the same timeout, so
+					// stop at once. A 5xx needs to repeat before the endpoint counts as degraded.
+					if ($call['unreachable'] || $failCount[$endpointKey] >= (int)$options['failThreshold']) {
+						$degraded[$endpointKey] = $result['error'];
+					}
 				}
 				break;
 			}
@@ -276,6 +304,31 @@ if (!function_exists('shopApiShellCall')) {
 	}
 }
 
+if (!function_exists('shopApiRedactUrl')) {
+	/**
+	 * Reduces a shop url to scheme, host and path for the shared php error log.
+	 *
+	 * @param string $url  Full url that was called.
+	 * @return string  'https://host/path' with the query string replaced by '?...', or
+	 *                 '(url withheld)' when the url cannot be parsed.
+	 */
+	function shopApiRedactUrl($url) {
+		$parts = parse_url((string)$url);
+		if (!$parts || empty($parts['host'])) {
+			return '(url withheld)';
+		}
+		$redacted = (isset($parts['scheme']) ? $parts['scheme'] . '://' : '') . $parts['host'];
+		if (isset($parts['port'])) {
+			$redacted .= ':' . $parts['port'];
+		}
+		$redacted .= isset($parts['path']) ? $parts['path'] : '';
+		if (isset($parts['query']) && $parts['query'] !== '') {
+			$redacted .= '?...';
+		}
+		return $redacted;
+	}
+}
+
 if (!function_exists('shopApiLogFailure')) {
 	/**
 	 * Writes a failed webshop call to the account log and to the php error log.
@@ -288,10 +341,16 @@ if (!function_exists('shopApiLogFailure')) {
 	 * @return void
 	 */
 	function shopApiLogFailure($log, $context, $url, array $result, $maxBodyLog = 500) {
-		$line = date('Y-m-d H:i:s') . ' SHOP SYNC FAILED ' . ($context !== '' ? $context . ' ' : '')
+		$head = date('Y-m-d H:i:s') . ' SHOP SYNC FAILED ' . ($context !== '' ? $context . ' ' : '')
 			. 'http ' . (int)$result['httpCode'] . ' after ' . (int)$result['attempts'] . ' attempt(s)'
 			. ($result['skipped'] ? ' (skipped)' : '')
-			. ' - ' . $result['error'] . ' - ' . $url;
+			. ' - ' . $result['error'];
+
+		// The account log is inside the account's own temp directory, so it may hold the
+		// whole url and the response. The php error log is shared between the accounts on
+		// the server and read by operators, so it gets scheme, host and path only - the
+		// query string carries item numbers, barcodes, cost and sales prices.
+		$line = $head . ' - ' . $url;
 		if (isset($result['body']) && $result['body'] !== '' && !$result['skipped']) {
 			$body = preg_replace('/\s+/', ' ', $result['body']);
 			$line .= ' - response: ' . substr($body, 0, max(0, (int)$maxBodyLog));
@@ -299,7 +358,7 @@ if (!function_exists('shopApiLogFailure')) {
 		if (is_resource($log)) {
 			fwrite($log, $line . "\n");
 		}
-		error_log('saldi: ' . $line);
+		error_log('saldi: ' . $head . ' - ' . shopApiRedactUrl($url));
 	}
 }
 ?>

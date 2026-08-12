@@ -54,8 +54,6 @@ function updateShopCostPrice($productId) {
 		$params = array(
 			'sku'       => $sku,
 			'costPrice' => $costPrice,
-			'file'      => __FILE__,
-			'line'      => __LINE__,
 			'rand'      => $rand,
 		);
 		$res = shopApiRequest($api_fil, $params, $log, array('context' => "updateShopCostPrice productId $productId"));

@@ -63,6 +63,9 @@
 // 20260727 Sawaneh sync_shop_price/sync_shop_vare send shop updates with shopApiRequest() instead of backgrounded
 //                 shell curl/wget: exit status and http code are captured, failures are logged and returned,
 //                 item data is url-encoded so it can no longer reach the shell, and the shared curl.txt is gone
+// 20260812 Sawaneh Review: sync_shop_vare initialises the stock values before the lagerstatus lookup, so a
+//                 product without a row no longer warns or sends empty parameters, and __FILE__/__LINE__ are
+//                 no longer sent to the shop - they belong in the local log, not in the shop's access log
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1839,8 +1842,6 @@ if (!function_exists('sync_shop_vare')) {
 				'stock'        => $variant_beholdning,
 				'stockno'      => $lager,
 				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''), # always empty, no query here selects lagerbeh - kept so the url is unchanged
-				'file'         => __FILE__,
-				'line'         => __LINE__,
 			);
 			foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
 				if (!$endpoint) {
@@ -1852,6 +1853,11 @@ if (!function_exists('sync_shop_vare')) {
 				}
 			}
 		} else {
+			# A product with no lagerstatus row for this warehouse leaves the query below
+			# without a result, so the values are initialised first. Otherwise php 8 warns
+			# about undefined variables and the sync url is built with them missing.
+			$stock = $itemNo = $itemNoAlias = $costPrice = '';
+			$totalStock = 0;
 			$qtxt = "select varer.varenr, varer.varenr_alias, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
 			$qtxt .= "where lagerstatus.vare_id='$vare_id' and lagerstatus.lager='$lager' and varer.id='$vare_id'";
 			// echo $qtxt;  // Debug line removed
@@ -1863,7 +1869,7 @@ if (!function_exists('sync_shop_vare')) {
 			} #$stock=$itemNo=NULL; #20210225
 			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$totalStock = $r['total_stock'];
+				$totalStock = (isset($r['total_stock']) && $r['total_stock'] !== null) ? $r['total_stock'] : 0;
 			}
 			$qtxt = "select shop_id from shop_varer where saldi_id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
@@ -1996,8 +2002,6 @@ if (!function_exists('sync_shop_vare')) {
 							'itemNoAlias'  => $productNoAlias,
 							'sku'          => $productNo,
 							'skuAlias'     => $productNoAlias,
-							'file'         => __FILE__,
-							'line'         => __LINE__,
 						);
 						$partCostParams = array(
 							'costPrice' => $costPrice,
