@@ -71,14 +71,18 @@ $art           = if_isset($_GET, NULL, 'art');
 $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
-// 20260812 MJ Begraens til relative stier — afviser protokoller (javascript:, http://) og absolutte URL'er
+// 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
 $returside = (function($s) {
     $s = trim((string)$s);
     if ($s === '' || $s === 'ordreliste.php') return $s; // 'ordreliste.php' normaliseres nedenfor linje 93
-    if (preg_match('/[a-zA-Z][a-zA-Z0-9+\-.]*:/', $s)) return ''; // afvis protokol-URL'er
-    if (substr($s, 0, 2) === '//') return '';                      // afvis protokol-relative URL'er
-    if (substr($s, 0, 3) !== '../') return '';                     // kraev relativ sti
-    return $s;
+    if (!mb_check_encoding($s, 'UTF-8')) return '';       // afvis ugyldig UTF-8 (json_encode returnerer false)
+    if (preg_match('/[a-zA-Z][a-zA-Z0-9+\-.]*:/', $s)) return ''; // afvis protokol-URL'er (javascript:, http://)
+    if (substr($s, 0, 2) === '//') return '';             // afvis protokol-relative URL'er (//evil.com)
+    // Godkend relative stier (../x) og rod-relative stier (/x) — begge er same-origin
+    // nav_back_url() gemmer $_SERVER['REQUEST_URI'] som /debitor/... saa rod-relative skal accepteres
+    if (substr($s, 0, 3) === '../') return $s;
+    if (substr($s, 0, 1) === '/') return $s;
+    return '';
 })($returside);
 $locat      = if_isset($_GET, NULL, 'locat');
 
@@ -462,7 +466,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 			} else {
 				print "<table width=100% height=100%><tbody>";
-				if ($returside) $href="\"" . htmlspecialchars($returside, ENT_QUOTES, 'UTF-8') . "\" accesskey=\"L\"";
+				if ($returside) $href="\"" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\" accesskey=\"L\"";
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</a></td>";
 				print "<td width=\"80%\" $top_bund align=\"center\" title=\"".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id).">";
