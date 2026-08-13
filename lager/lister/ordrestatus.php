@@ -439,9 +439,11 @@ $columns[] = array(
 );
 
 // Filtersetup
-// TODO: filterName er ikke oversat endnu. grid.php bruger navnet som nøgle til brugerens
-//       gemte filteropsætning, så en oversat tekst nulstiller filtervalgene ved sprogskift.
-//       Oversæt de tre filterName nedenfor når gridet bruger en sproguafhængig nøgle.
+// TODO: filterName og de enkelte valgs "name" er ikke oversat endnu. grid.php bruger begge
+//       som nøgle til brugerens gemte filteropsætning, så en oversat tekst nulstiller
+//       filtervalgene ved sprogskift. Oversæt dem når gridet bruger en sproguafhængig nøgle.
+//       Valgnavne der kommer fra databasen (varegrupper, leverandører) er sproguafhængige
+//       i forvejen og udgør ikke et problem.
 $filters = array();
 
 // Vargrupper
@@ -492,7 +494,7 @@ $filters[] = array(
     "joinOperator" => "and",
     "options" => array(
         array(
-            "name" => findtekst('3379|Vis udgået', $sprog_id),
+            "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",
             "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",
