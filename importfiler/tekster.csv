@@ -5053,4 +5053,23 @@
 5053	Bilag	Voucher no.	Bilag
 5054	Tekst	Text	Tekst
 5055	Beløb	Amount	Beløp
+5056	Datointerval:	Date range:	Datointervall:
+5057	dage omkring bilagsdatoen	days around the voucher date	dager rundt bilagsdatoen
+5058	Beløbstolerance:	Amount tolerance:	Beløpstoleranse:
+5059	Tillad afvigelse på 0,5 %	Allow deviation of 0.5 %	Tillat avvik på 0,5 %
+5060	Medtag allerede bogførte bilag	Include already posted vouchers	Ta med allerede bokførte bilag
+5061	Match	Match	Treff
+5062	100 % match	100 % match	100 % treff
+5063	Dato matcher	Date matches	Dato stemmer
+5064	Beløb matcher	Amount matches	Beløp stemmer
+5065	Viser $m resultater	Showing $m results	Viser $m resultater
+5066	Match valgte	Match selected	Match valgte
+5067	Nogle af de valgte matches er ikke 100 % sikre. Vil du fortsætte?	Some of the selected matches are not 100 % certain. Do you want to continue?	Noen av de valgte treffene er ikke 100 % sikre. Vil du fortsette?
+5068	Klik for at se bilaget	Click to see attachment	Klikk for å se vedlegget
+5069	Zoom ud	Zoom out	Zoom ut
+5070	Zoom ind	Zoom in	Zoom inn
+5071	Tilpas til bredde	Fit to width	Tilpass til bredde
+5072	Åbn i ny fane	Open in new tab	Åpne i ny fane
+5073	Formatet kan ikke forhåndsvises	This format cannot be previewed	Formatet kan ikke forhåndsvises
+5074	Kunne ikke indlæse dokumentet	Could not load the document	Kunne ikke laste dokumentet
 
