@@ -3,7 +3,9 @@
 print "<div style=\"float:left; width:379px;\">\n";
 print "<h3>&nbsp;</h3>\n";
 print "<div class=\"contentA\">\n";
-print "<div class=\"row\"><div class=\"left\">".findtekst('376|CVR-nr.', $sprog_id)."<!--tekst 376--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"cvrnr\" value=\"$cvrnr\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+$cvr_titel = htmlspecialchars(findtekst('5057|Tast CVR-nr. efterfulgt af *, + eller / for opslag, eller lad Auto-opslag være afmærket for opslag ved 8 cifre (Data leveres af CVR API)', $sprog_id),ENT_COMPAT,$charset);
+print "<div class=\"row\"><div class=\"left\">".findtekst('376|CVR-nr.', $sprog_id)."<!--tekst 376--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"cvrnr\" value=\"$cvrnr\" title=\"$cvr_titel\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('5056|Auto-opslag', $sprog_id)."</div><div class=\"right\"><input class=\"textSpaceSmall\" type=\"checkbox\" name=\"auto_lookup_cvr\" title=\"$cvr_titel\" checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<div class=\"row\"><div class=\"left\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"tlf\" value=\"$tlf\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
@@ -58,26 +60,28 @@ print "</select></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 
 // Query til ansvarlig
 	$x=0;
+	$gruppeid=array();
 	$q=db_select("select * from grupper where art='brgrp'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		$gruppe_id[$x]=$r['id']*1;
-		$rettigheder[$x]=(substr($r['box2'],2,1)); //finder opret/ret sag rettighed
+		$rettigheder[$x]=(substr((string)$r['box2'],2,1)); //finder opret/ret sag rettighed
 		if($rettigheder[$x]==1) $gruppeid[$x]=$gruppe_id[$x]; // finder de gruppe_id'er som har rettighed til opret/ret sag
-	} 
-	
-	$in_str = "'".implode("', '", $gruppeid)."'"; // formatere '$gruppeid[]' til f.eks. '52','77' osv.
-	
+	}
+
 	$x=0;
 	$kontoansvarlig_id = array();
-	$q=db_select("select * from ansatte where konto_id=1 and gruppe IN ($in_str) order by id",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$kontoansvarlig_id[$x]=$r['id'];
-		$kontoansvarlig_initialer[$x]=$r['initialer'];
-		$ansvarlig[$x]=htmlspecialchars($r['navn']);
-		$x++;
+	if ($gruppeid) {
+		$in_str = "'".implode("', '", $gruppeid)."'"; // formatere '$gruppeid[]' til f.eks. '52','77' osv.
+		$q=db_select("select * from ansatte where konto_id=1 and gruppe IN ($in_str) order by id",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			$kontoansvarlig_id[$x]=$r['id'];
+			$kontoansvarlig_initialer[$x]=$r['initialer'];
+			$ansvarlig[$x]=htmlspecialchars($r['navn']);
+			$x++;
+		}
 	}
-	
+
 print "<div class=\"row\"><div class=\"left\">".findtekst('386|Kundeansvarlig', $sprog_id)."<!--tekst 386--></div>\n";
 print "<div class=\"right\"><select style=\"width:194px;\" name=\"kontoansvarlig\" onchange=\"javascript:docChange = true;\">\n"; 
 	for ($x=0;$x<count($kontoansvarlig_id);$x++) {
