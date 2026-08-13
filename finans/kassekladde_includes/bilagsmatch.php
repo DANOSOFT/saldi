@@ -125,6 +125,21 @@
 //                   Gave the icon a button-like chip (background + border, darkens on
 //                   hover/focus) so it reads as its own control at a glance, independent of
 //                   the tooltip text.
+// 20260813 CL/SZ - CodeRabbit review fixes: row.filename/row.bilag are pool-file-derived
+//                   strings, not app-controlled, so they now go through
+//                   PopupManager.escapeHtml() before landing in the Type icon's
+//                   title/data-filename/data-bilag attributes (a quote in a filename could
+//                   otherwise break out of the markup) - and the pinned-preview filepath is
+//                   now built with encodeURIComponent(filename) rather than the raw string,
+//                   for the same reason applied to URLs. The pinned dialog's aria-label was
+//                   the icon's own "click to open" tooltip text, not the document's name -
+//                   changed to aria-labelledby pointing at the title span
+//                   bmOpenPinnedPreview() already fills in. bmRefetch()'s fetch chain had no
+//                   .catch(): bmSetLoading(true) already creates the dimmer on first call,
+//                   so a failed/invalid response left popup() (and the close button/dimmer
+//                   click-to-close it wires up) never called - the user was stuck looking at
+//                   a dimmed screen with no way out. Now renders the existing empty-result
+//                   state on failure instead of nothing.
 ?>
 
 <?php
@@ -308,7 +323,14 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
         ["pf. id - hidden", "pf_id", "style='display:none;'", "style='display:none;'", 'pf_id'],
         ["kl. id - hidden", "kladde_id", "style='display:none;'", "style='display:none;'", 'kladde_id'],
         ["filename - hidden", "filename", "style='display:none;'", "class='bilags-filename' style='display:none;'", 'filename'],
-        ["<?= $bm_col_type ?>", (row) => `<img src='${typeIcon}' title='${row.filename ?? ''}&#10;<?= $bm_pin_open_tooltip ?>' class='bilags-type-icon' tabindex='0' role='button' aria-label='<?= $bm_pin_open_tooltip ?>' data-filename='${row.filename ?? ''}' data-bilag='${row.bilag ?? ''}'/>`, "class='bilags-type'", "class='bilags-type'", 'type'],
+        ["<?= $bm_col_type ?>", (row) => {
+            // Pool filenames come from uploaded documents, not app-controlled strings -
+            // a name containing a quote, &, or < would otherwise break out of these
+            // attributes (or corrupt the tooltip) since template strings don't escape.
+            const safeFilename = PopupManager.escapeHtml(row.filename ?? '');
+            const safeBilag = PopupManager.escapeHtml(row.bilag ?? '');
+            return `<img src='${typeIcon}' title='${safeFilename}&#10;<?= $bm_pin_open_tooltip ?>' class='bilags-type-icon' tabindex='0' role='button' aria-label='<?= $bm_pin_open_tooltip ?>' data-filename='${safeFilename}' data-bilag='${safeBilag}'/>`;
+        }, "class='bilags-type'", "class='bilags-type'", 'type'],
         ["<?= $bm_col_dato ?>", "file_date", "class='bilags-date'", null, 'dato'],
         ["<?= $bm_col_bilag ?>", "bilag", "class='bilags-bilag'", null, 'bilag'],
         ["<?= $bm_col_tekst ?>", "description", "class='bilags-description'", "class='bilags-description'", 'tekst'],
@@ -552,6 +574,18 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
             .then(data => {
                 if (seq !== bmRequestSeq) return; // superseded by a later request - drop it
                 popuper.popup(data, <?= json_encode($bm_title) ?>);
+            })
+            .catch(err => {
+                if (seq !== bmRequestSeq) return;
+                // bmSetLoading(true) above already created the dimmer (getPopupContainer()
+                // does that lazily on first call), so a request/parse failure here can't
+                // just do nothing - without a render, the close button and the dimmer's
+                // click-to-close handler (wired inside popup()'s onResult) never exist,
+                // leaving the user stuck looking at a dimmed screen with no way out.
+                // Rendering an empty result set reuses the existing "0 fundet" empty state
+                // and keeps every close affordance working.
+                console.error('Bilagsmatch: failed to fetch matches', err);
+                popuper.popup([], <?= json_encode($bm_title) ?>);
             })
             .finally(() => {
                 if (seq === bmRequestSeq) bmSetLoading(false);
@@ -1083,8 +1117,10 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
 			bmRenderPinnedStatus('error', BM_PIN_LOAD_ERROR);
 			return;
 		}
-		var filepath = "<?php echo $puljeFolder; ?>" + filename;
-		var ext = filepath.split('.').pop().toLowerCase();
+		// encodeURIComponent, not the raw filename - a name with a space, #, ?, % or quote
+		// would otherwise corrupt the URL or break out of the src="..." attribute below.
+		var ext = filename.split('.').pop().toLowerCase();
+		var filepath = "<?php echo $puljeFolder; ?>" + encodeURIComponent(filename);
 
 		// Probe existence first - a missing pool file would otherwise render the server's
 		// raw 404 HTML page inside the embed/img instead of a clean message (FR-22).
@@ -1121,7 +1157,7 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
 		bmPinnedCurrentFilename = filename;
 
 		var win = bmPinnedEl('bmPinnedPreview');
-		var filepath = "<?php echo $puljeFolder; ?>" + filename;
+		var filepath = "<?php echo $puljeFolder; ?>" + encodeURIComponent(filename);
 		bmPinnedEl('bmPinnedTitle').textContent = filename + (bilag ? ' · ' + BM_COL_BILAG + ' ' + bilag : '');
 		// FR-15: consistent open-in-tab/download affordances regardless of file type,
 		// rather than relying on the PDF viewer's own (image types have none at all).
@@ -1305,7 +1341,7 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
 <!-- Pinned document preview (kravsspecifikation popup fast.pdf) - created once, hidden by
      default, shown/positioned/filled in by bmOpenPinnedPreview(). Lives outside
      #popup-container so PopupManager re-renders never touch it. -->
-<div id='bmPinnedPreview' class='bm-pinned-preview' style='display:none;' role='dialog' aria-label='<?= $bm_pin_open_tooltip ?>'>
+<div id='bmPinnedPreview' class='bm-pinned-preview' style='display:none;' role='dialog' aria-labelledby='bmPinnedTitle'>
     <div id='bmPinnedTitlebar' class='bm-pinned-titlebar'>
         <span id='bmPinnedTitle' class='bm-pinned-title'></span>
         <div class='bm-pinned-toolbar'>

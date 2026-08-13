@@ -64,6 +64,16 @@
 //                   unconditional as before). Lets a caller add a "some of these aren't
 //                   certain, continue anyway?" check without PopupManager itself knowing
 //                   anything about what "certain" means for that caller's data.
+// 20260813 CL/SZ - CodeRabbit review fixes: escapeHtml() used a textContent/innerHTML
+//                   round-trip that escapes &/</> but leaves ' and " untouched - exactly
+//                   the characters that break out of a quoted attribute, which is the
+//                   main reason to call this helper. Rewrote it as explicit entity
+//                   replacement covering both quote types. Also moved the initial
+//                   updateSummary() call out from inside the selectAllHeader-only
+//                   if-block so it always runs: a caller supplying isRowChecked can render
+//                   a different checked state than preSelectFn, and without this the
+//                   initial summary/footer text/disableExitWhenEmpty state only got
+//                   corrected for callers that also set selectAllHeader.
 
 /**
  * Describes a single column in a PopupManager table.
@@ -286,7 +296,17 @@ class PopupManager {
                 html += `<td ${checkboxColStyle}><input class='active-checkbox' type='checkbox' ${checked ? 'checked' : ''}/></td>\n`;
                 this.columns.forEach(
                     column => {
-                        html += `<td ${column.columnAtt}>${(typeof column.selector == "function" ? column.selector(item) : item[column.selector]) ?? '' }</td>\n`;
+                        // A function selector returns markup the caller built on purpose
+                        // (icons, badges, links) and is trusted as-is - same as before. A
+                        // plain string selector is a raw data lookup (item[key]) with no
+                        // caller code in between to escape it, so it goes through
+                        // escapeHtml() here instead: without this, a pool file/journal
+                        // line field containing HTML (subject, description, account -
+                        // all can carry AI-extraction or upload-derived text) rendered
+                        // straight into the DOM and executed on render, no click needed.
+                        html += (typeof column.selector == "function")
+                            ? `<td ${column.columnAtt}>${column.selector(item) ?? ''}</td>\n`
+                            : `<td ${column.columnAtt}>${PopupManager.escapeHtml(item[column.selector])}</td>\n`;
                     }
                 );
 
@@ -337,11 +357,13 @@ class PopupManager {
                 });
                 updateSummary();
             });
-            // Sets its initial checked/indeterminate state from the rows as pre-selected
-            // above - summaryFn/footerTextFn get redundantly recomputed with the same
-            // numbers they were already given, which is harmless.
-            updateSummary();
         }
+        // Recomputes summary/footer text and the exit button's disabled state from the
+        // checkboxes as actually rendered, rather than trusting initialSelected (computed
+        // above from preSelectFn) - a caller supplying isRowChecked can render a different
+        // checked state than preSelectFn would, which previously only got corrected when
+        // selectAllHeader was also enabled (this call lived inside that if-block).
+        updateSummary();
 
         // Event listeners for results
         popupMenuCon.querySelectorAll('.autocomplete-item').forEach(item => {
@@ -373,7 +395,19 @@ class PopupManager {
                 })
                 .map(row => {
                     const tds = row.querySelectorAll("td");
-                    return Object.fromEntries(this.columnKeys.map((key, i) => [key, tds[i + 1]?.innerHTML ?? '']));
+                    return Object.fromEntries(this.columnKeys.map((key, i) => {
+                        const cell = tds[i + 1];
+                        if (!cell) return [key, ''];
+                        // Function-selector cells hold caller-built markup callers may
+                        // depend on (e.g. Bilagsmatch's confirmExit reads a CSS class name
+                        // out of the Match badge's HTML) - innerHTML, unchanged. Plain
+                        // string-selector cells are now escapeHtml()'d text (see the render
+                        // loop above), so innerHTML would hand back HTML entities instead of
+                        // the real value (an attach call keyed on an entity-encoded filename
+                        // would never find the actual file) - textContent decodes correctly.
+                        const isMarkup = typeof this.columns[i].selector === 'function';
+                        return [key, (isMarkup ? cell.innerHTML : cell.textContent) ?? ''];
+                    }));
                 });
             if (!this.confirmExit(resultArr)) return;
             this.exitCall(resultArr);
@@ -411,14 +445,21 @@ class PopupManager {
     }
 
     /**
-     * Escapes a string for safe insertion as HTML text content.
+     * Escapes a string for safe insertion as HTML text content OR inside a quoted
+     * attribute value (single or double). The textContent/innerHTML round-trip used
+     * previously only escapes &/</> - it leaves ' and " untouched, which is exactly what
+     * breaks out of a quoted attribute, so this escapes both explicitly instead.
      * @param {string} text
      * @returns {string}
      */
     static escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        // Not `!text` - that would also blank out a legitimate 0 or false cell value.
+        if (text === null || text === undefined) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 }

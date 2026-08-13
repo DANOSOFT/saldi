@@ -99,8 +99,12 @@ while ($r_norm_catchup = db_fetch_array($q_norm_catchup)) {
 // returned verbatim (e.g. "kr" instead of "DKK") before normalizePoolCurrency() existed.
 // fetchbilagsmatch.php's currency hard gate is a plain UPPER(TRIM(...)) string match, so an
 // unrecognized alias silently excluded that file from every candidate regardless of score.
-// Self-limiting the same way: once a row's currency is already normalized, this is a no-op.
-$q_currency_catchup = db_select("SELECT id, currency FROM pool_files WHERE currency IS NOT NULL AND currency != '' AND currency !~ '^[A-Z]{3}$'", __FILE__ . " linje " . __LINE__);
+// Self-limiting the same way: once a row's currency is already normalized, this is a no-op -
+// so scanning every non-empty row (rather than pre-filtering to "doesn't already look like a
+// 3-letter code") is what's correct here. That prefilter used to exclude DKR/NKR/SKR: they're
+// 3 uppercase letters too, so they matched "looks like a code already" and were skipped even
+// though normalizePoolCurrency() maps them to DKK/NOK/SEK.
+$q_currency_catchup = db_select("SELECT id, currency FROM pool_files WHERE currency IS NOT NULL AND currency != ''", __FILE__ . " linje " . __LINE__);
 while ($r_currency_catchup = db_fetch_array($q_currency_catchup)) {
 	$normalized_currency = normalizePoolCurrency($r_currency_catchup['currency']);
 	if ($normalized_currency !== null && $normalized_currency !== $r_currency_catchup['currency']) {
