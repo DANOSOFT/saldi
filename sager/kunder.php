@@ -111,13 +111,18 @@
 			</div><!-- end of wrapper -->  
 		<!-- <div id=\"footer\"><p>Pluder | Pluder</p></div> -->
 		<script type=\"text/javascript\" src=\"../javascript/jquery.kunder.js\"></script>";
+		// These come from the tekster table, which administration can edit, and they are
+		// printed straight into a <script> block. Without JSON_HEX_TAG a translation holding
+		// "</script>" would close the block and everything after it would be parsed as html -
+		// stored XSS by way of a translation. The other three flags keep &, ' and " out of the
+		// output for the same reason, so the string cannot terminate an attribute either.
 		$cvr_tekster = json_encode(array(
 			'fejl'           => findtekst('5058|CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.', $sprog_id),
 			'QUOTA_EXCEEDED' => findtekst('5059|Kvoten for CVR-opslag er opbrugt.', $sprog_id),
 			'NOT_FOUND'      => findtekst('5060|CVR-nummeret blev ikke fundet.', $sprog_id),
 			'INVALID_VAT'    => findtekst('5061|CVR-nummeret er ikke gyldigt.', $sprog_id),
 			'soeger'         => findtekst('5062|Søger...', $sprog_id)
-		));
+		), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
 		print "<script type=\"text/javascript\">var cvrLookupProxy = 'cvrLookupProxy.php'; var cvrAutoFelter = ['cvrnr']; var cvrTekster = $cvr_tekster;</script>
 		<script type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>";
 		print "</body></html>";

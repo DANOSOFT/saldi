@@ -24,6 +24,11 @@
 // 20260728 NTR CVR-nr. lookup now triggers on a trailing *, +, or /, or on 8 digits when "Auto-lookup CVR nr." is checked
 // 20260730 Sawaneh Read current values from the visible field when a form also emits a hidden
 //                  duplicate of the same name (sager/kunder.php), so overwrite detection works
+// 20260813 Sawaneh Review: only the newest lookup may write to the form. Answers do not come
+//                  back in the order they were sent, so a slower older reply used to land last -
+//                  raising the overwrite prompt for a lookup the user had already abandoned, and
+//                  writing its values if the prompt was accepted. The superseded request is
+//                  aborted and both its callbacks are guarded by the sequence number.
 
 function cvrField(name) {
 	var visible = $("[name=" + name + "]").not("[type=hidden]");
@@ -126,7 +131,22 @@ function showConfirmOverlay(existingData, incomingData) {
 	});
 }
 
+// Only the newest lookup is allowed to write to the form. Two can be in flight at once -
+// a CVR number and a phone number, or the same field corrected while the first request is
+// still running - and answers do not come back in the order they were sent. Without this,
+// the slower older answer lands last and overwrites the newer one's values.
+var cvrLoebenummer = 0;
+var cvrAktivKald   = null;
+
 function cvrapi(param, country, type, felt, noegle){
+	var minTur   = ++cvrLoebenummer;
+	var erNyeste = function () { return minTur === cvrLoebenummer; };
+
+	// Drop the previous request rather than paying for an answer that may not be used. Its
+	// callbacks are guarded by their own erNyeste() as well, for the case where it already
+	// left the network and abort() comes too late.
+	if (cvrAktivKald && typeof cvrAktivKald.abort === 'function') cvrAktivKald.abort();
+
 	// A failed lookup must release the dedup key, otherwise retyping the same number never
 	// retries. Only the key belonging to this request is cleared, so a newer lookup started
 	// in the meantime keeps its own.
@@ -141,7 +161,7 @@ function cvrapi(param, country, type, felt, noegle){
 
 	cvrStatus(felt, cvrTekst('soeger'), false);
 
-	jQuery.ajax
+	cvrAktivKald = jQuery.ajax
 	({
 		type: "GET",
 		dataType: brugProxy ? "json" : "jsonp",
@@ -150,6 +170,10 @@ function cvrapi(param, country, type, felt, noegle){
 			: "//cvrapi.dk/api?"+type+"="+param+"&country="+country,
 		success: function (b)
 		{
+			// A newer lookup has been started since this one left: its answer is the one the
+			// user is waiting for, so this reply is stale and must not touch the form or the
+			// status line.
+			if (!erNyeste()) return;
 			if (!b || b.error) {
 				frigivNoegle();
 				cvrFejl(felt, b ? b.error : '');
@@ -168,6 +192,9 @@ function cvrapi(param, country, type, felt, noegle){
 		},
 		error: function ()
 		{
+			// Also covers the abort above: the superseded request reports an error, and its
+			// message must not replace the newer lookup's "Søger..." line.
+			if (!erNyeste()) return;
 			frigivNoegle();
 			cvrFejl(felt, '');
 		}
