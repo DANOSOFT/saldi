@@ -63,8 +63,8 @@
 // 20260729 MJ Rettet fejl: location.reload() gensendte POST-data og oprettede dubletter via auto-balance forududfyldning
 // 20260729 MJ Rettet fejl: clipDragSourceId-rest forhindrede fil-drop naar forrige clip-drag ikke var ryddet op
 // 20260729 MJ Rettet fejl: upload-succces opdaterer nu kun clip-ikonet i DOM istedet for at genindlaese siden
-
-ob_start(); //Starter output buffering
+// 20260812 LOE .kassekladde-scroll-container; increased the subtraction in height to leave more room for the footer buttons.
+ob_start(); //Starter output buffering  
 
 register_shutdown_function(function() {
     $e = error_get_last();
@@ -4287,7 +4287,7 @@ body {
        .kassekladde-footer row below (padding+border+margin+button row is
        ~70-80px on its own), so the footer's tail was clipped once html/body
        stopped allowing page-level scroll. */
-    height: calc(100vh - 130px);
+    height: calc(100vh - 150px);
     overflow-y: auto;
     border: 1px solid #ddd;
     margin-bottom: 10px;
