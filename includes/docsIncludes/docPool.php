@@ -38,6 +38,11 @@
 //                 save action - every write here (pulje-folder sync, and the rename/metadata-edit
 //                 path in docPool()) left norm_amount NULL/stale, so Bilagsmatch's amount_score
 //                 always scored 0 for files that entered the pool through this file.
+// 20260813 CL/SZ - Both CREATE TABLE IF NOT EXISTS pool_files fallbacks in this file (used
+//                 only when the table doesn't exist yet at all) were missing norm_amount,
+//                 which the very next INSERT/UPDATE in each of those code paths already
+//                 references - a brand-new tenant's first pool file would fail with
+//                 "column norm_amount does not exist". Added the column to both.
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 /**
  * Log message to a file in temp/$db/docPool.log
@@ -116,6 +121,7 @@ function syncPuljeFilesToDatabase($docFolder, $db) {
 			subject text,
 			account varchar(50),
 			amount varchar(50),
+			norm_amount numeric(15,3),
 			file_date varchar(50),
 			invoice_number varchar(100),
 			description text,
@@ -833,6 +839,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								subject text,
 								account varchar(50),
 								amount varchar(50),
+								norm_amount numeric(15,3),
 								file_date varchar(50),
 								invoice_number varchar(100),
 								description text,
