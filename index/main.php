@@ -29,6 +29,7 @@
 //                  This possibly has changes across everything, but I have tested it, and it has also fixed rendering prematurely.
 // 20260716 MJ      Tilfoejede Momsperioder-link i Finans-sidebar.
 // 20260730 NTR - Added translation to momsperioder.
+// 20260730 MJ Fjernede Momsperioder-link fra Finans-sidebaren; linket er nu en knap i regnskabsaar.php
 @session_start();
 $s_id = session_id();
 
@@ -201,9 +202,6 @@ function brightenColor($color, $amount = 0.2) {
         }
         if (check_permissions(array(4))) {
           echo '<li><a href="#" id="rapport" onclick=\'update_iframe("/finans/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
-        }
-        if (check_permissions(array(2, 3, 4))) {
-          echo '<li><a href="#" id="moms_periode" onclick=\'update_iframe("/finans/moms_periode.php")\'>'.findtekst('3366|Momsperioder', $sprog_id).'</a></li>';
         }
         ?>
       </ul>
