@@ -260,7 +260,11 @@ if ($action === 'save') {
 	$finalAmount = !empty($newAmount) ? $newAmount : $existingAmount;
 	$finalInvoiceNumber = !empty($newInvoiceNumber) ? $newInvoiceNumber : $existingInvoiceNumber;
 	$finalDescription = !empty($newDescription) ? $newDescription : $existingDescription;
-	$finalCurrency = !empty($newCurrency) ? $newCurrency : $existingCurrency;
+	// Normalize aliases like "kr"/"kr." to "DKK" - fetchbilagsmatch.php's currency hard
+	// gate is a plain string match, so an unrecognized currency string (as returned
+	// verbatim by the AI extraction API) would silently exclude this file from every
+	// match regardless of how well amount/date/text otherwise line up.
+	$finalCurrency = normalizePoolCurrency(!empty($newCurrency) ? $newCurrency : $existingCurrency) ?? '';
 
 	// Format date using the normalization function (handles Danish months, etc.)
 	$dateToUse = !empty($newDate) ? $newDate : $existingDate;

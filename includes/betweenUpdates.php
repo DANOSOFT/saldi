@@ -75,6 +75,42 @@ if (!$already_backfilled) {
 	);
 }
 
+// Ongoing catch-up (unlike the one-time backfill above, this has no settings flag - it
+// stays cheap and self-limiting because the WHERE clause only ever matches rows still
+// missing norm_amount). Several other pool_files write paths (docPool.php's pulje-folder
+// sync and rename/edit flow, restapi/models/attachment/AttachmentModel.php's REST upload)
+// wrote `amount` without ever computing `norm_amount`, so rows written through them before
+// those call sites were fixed are still stuck at norm_amount = NULL - the same reason
+// Bilagsmatch's amount_score always scored 0 for them.
+include_once(__DIR__ . "/docsIncludes/poolAmountNormalizer.php");
+$q_norm_catchup = db_select("SELECT id, amount FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
+while ($r_norm_catchup = db_fetch_array($q_norm_catchup)) {
+	$normalized_catchup = normalizePoolAmount($r_norm_catchup['amount']);
+	if ($normalized_catchup !== null) {
+		db_modify(
+			"UPDATE pool_files SET norm_amount = " . db_escape_string((string) $normalized_catchup) . " WHERE id = " . (int) $r_norm_catchup['id'],
+			__FILE__ . " linje " . __LINE__
+		);
+	}
+}
+
+// Same reasoning as the norm_amount catch-up above, for currency: extractInvoiceHandler.php
+// and the REST attachment upload path stored whatever currency string the AI extraction API
+// returned verbatim (e.g. "kr" instead of "DKK") before normalizePoolCurrency() existed.
+// fetchbilagsmatch.php's currency hard gate is a plain UPPER(TRIM(...)) string match, so an
+// unrecognized alias silently excluded that file from every candidate regardless of score.
+// Self-limiting the same way: once a row's currency is already normalized, this is a no-op.
+$q_currency_catchup = db_select("SELECT id, currency FROM pool_files WHERE currency IS NOT NULL AND currency != '' AND currency !~ '^[A-Z]{3}$'", __FILE__ . " linje " . __LINE__);
+while ($r_currency_catchup = db_fetch_array($q_currency_catchup)) {
+	$normalized_currency = normalizePoolCurrency($r_currency_catchup['currency']);
+	if ($normalized_currency !== null && $normalized_currency !== $r_currency_catchup['currency']) {
+		db_modify(
+			"UPDATE pool_files SET currency = '" . db_escape_string($normalized_currency) . "' WHERE id = " . (int) $r_currency_catchup['id'],
+			__FILE__ . " linje " . __LINE__
+		);
+	}
+}
+
 // Bilagsmatch text-similarity scoring uses pg_trgm when available; on tenants where
 // CREATE EXTENSION isn't permitted (managed hosting without superuser), fetchbilagsmatch.php
 // falls back to ILIKE/position() matching instead - this must never block the migration.
@@ -94,6 +130,37 @@ if (!$trgm_attempted) {
 		VALUES ('pg_trgm_extension_attempted', 'system', 'yes', 'Whether pg_trgm CREATE EXTENSION has been attempted for Bilagsmatch text scoring')",
 		__FILE__ . " linje " . __LINE__
 	);
+}
+
+// The Bilagsmatch tekst_id block was renumbered from 5032-5047 to 5040-5055 (see
+// finans/kassekladde_includes/bilagsmatch.php, "Renumber Bilagsmatch tekst_id block to
+// avoid collision with upstream") because upstream/master independently claimed 5032-5039
+// for unrelated GS1/POS strings. Tenants that had already exercised the feature under the
+// OLD numbering got those 16 rows inserted into `tekster` via findtekst()'s self-healing
+// insert - so the overlapping ids 5040-5047 still hold the OLD strings (Type/preview
+// tooltip/lookup tooltip/Bilagsmatch title/Dato/Bilag/Tekst/Beløb) while the current code
+// asks those same ids for the NEW strings (Konto/Modkonto/Valuta/Præcision/Annullér/summary
+// template/"0 fundet"/empty-message). findtekst() always prefers an existing DB row over
+// tekster.csv, so the Bilagsmatch popup silently showed the wrong label for all 8 ids -
+// e.g. "Voucher no." (old 5045) instead of the live "0 matches selected · 0 found" summary
+// (new 5045). Clear only rows still holding the exact old value (same pattern as the
+// Stillingsliste fix below) so the next findtekst() call re-reads the correct text from
+// tekster.csv (now at 5048-5055) and re-inserts it.
+$bilagsmatch_stale_tekster = [
+	[5040, 1, 'Type'], [5040, 2, 'Type'], [5040, 3, 'Type'],
+	[5041, 1, 'Klik for at forhåndsvise/åbne dokumentet'], [5041, 2, 'Click to preview/open the document'], [5041, 3, 'Klikk for å forhåndsvise/åpne dokumentet'],
+	[5042, 1, 'Slå konto op'], [5042, 2, 'Look up account'], [5042, 3, 'Slå opp konto'],
+	[5043, 1, 'Bilagsmatch'], [5043, 2, 'Voucher match'], [5043, 3, 'Bilagsmatch'],
+	[5044, 1, 'Dato'], [5044, 2, 'Date'], [5044, 3, 'Dato'],
+	[5045, 1, 'Bilag'], [5045, 2, 'Voucher no.'], [5045, 3, 'Bilag'],
+	[5046, 1, 'Tekst'], [5046, 2, 'Text'], [5046, 3, 'Tekst'],
+	[5047, 1, 'Beløb'], [5047, 2, 'Amount'], [5047, 3, 'Beløp'],
+];
+foreach ($bilagsmatch_stale_tekster as $stale) {
+	$qtxt = "select id from tekster where sprog_id = '$stale[1]' and tekst_id = '$stale[0]' and tekst = '" . db_escape_string($stale[2]) . "'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 $qtxt = "Select id from tekster where sprog_id = '1' and tekst_id = '38' and tekst = 'Stillingsliste'";
@@ -334,6 +401,22 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='moms_periode_luk' AND column_name='note' LIMIT 1";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER TABLE moms_periode_luk ADD COLUMN note TEXT", __FILE__ . " linje " . __LINE__);
+}
+
+// 20260812 CL/SZ - Bilagsmatch's pinned-preview attachment icon tooltip (tekst_id 5068) was
+// reworded from "Click to open the document" to "Click to see attachment" now that the
+// hover preview is gone and this icon is the only way to view an attachment. findtekst()
+// always prefers an existing DB row over tekster.csv (same issue as the ids-5040-5047 block
+// above), so clear only rows still holding the exact old text - the next findtekst() call
+// re-reads the new text from tekster.csv and re-inserts it.
+$bilagsmatch_stale_tooltip_5068 = [
+	[5068, 1, 'Klik for at åbne dokumentet'], [5068, 2, 'Click to open the document'], [5068, 3, 'Klikk for å åpne dokumentet'],
+];
+foreach ($bilagsmatch_stale_tooltip_5068 as $stale) {
+	$qtxt = "select id from tekster where sprog_id = '$stale[1]' and tekst_id = '$stale[0]' and tekst = '" . db_escape_string($stale[2]) . "'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 ?>

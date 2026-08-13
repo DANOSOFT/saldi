@@ -1,6 +1,11 @@
 <?php
 
-class AttachmentModel 
+// 20260810 CL/SZ pool_files.norm_amount was only ever populated by extractInvoiceHandler.php's
+//                 save action - inserts made via this REST endpoint left norm_amount NULL, so
+//                 Bilagsmatch's amount_score always scored 0 for files uploaded through the API.
+require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
+
+class AttachmentModel
 {
     private $filename;
     private $filepath;
@@ -556,15 +561,18 @@ class AttachmentModel
                 $fileDate = isset($metadata['date']) && $metadata['date'] ? $metadata['date'] : $fileDate;
                 $invoiceNumber = isset($metadata['invoiceNumber']) ? $metadata['invoiceNumber'] : '';
                 $description = isset($metadata['invoiceDescription']) ? $metadata['invoiceDescription'] : '';
-                $currency = isset($metadata['currency']) ? $metadata['currency'] : '';
+                $currency = isset($metadata['currency']) ? normalizePoolCurrency($metadata['currency']) ?? '' : '';
             }
 
             // Insert into database
-            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, currency) VALUES (
+            $normAmount = normalizePoolAmount($amount);
+            $normAmountSql = ($normAmount === null) ? 'NULL' : db_escape_string((string) $normAmount);
+            $qtxt = "INSERT INTO pool_files (filename, subject, account, amount, norm_amount, file_date, invoice_number, description, currency) VALUES (
                 '" . db_escape_string($filename) . "',
                 '" . db_escape_string($subject) . "',
                 '" . db_escape_string($account) . "',
                 '" . db_escape_string($amount) . "',
+                $normAmountSql,
                 '" . db_escape_string($fileDate) . "',
                 '" . db_escape_string($invoiceNumber) . "',
                 '" . db_escape_string($description) . "',
