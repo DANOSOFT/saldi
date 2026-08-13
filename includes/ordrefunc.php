@@ -113,6 +113,10 @@
 //             elseif(!$svar) branch, right after $fejl (which is never reassigned), making it
 //             dead code and leaving the committed-success path unchecked; moved it back to
 //             sit unconditionally before the shared return (SD-595)
+// 20260813 Sawaneh function krediter: replacement serial row insert interpolated the whole
+//             $batch_kob_id array as literal "Array" causing a SQL syntax error, so the fresh
+//             salgslinje_id=0 row was never created on credit; insert batch_kob_id '0' like the
+//             credit path in linjeopdat, and initialize $batch_kob_id as array
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -791,6 +795,7 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 	$kobsbelob = 0;
 	$a = 0;
 	$res_sum = 0;
+	$batch_kob_id = array();
 
 	$row = db_fetch_array(db_select("select posnr, kred_linje_id from ordrelinjer where id='$linje_id'", __FILE__ . " linje " . __LINE__));
 	$kred_linje_id = $row['kred_linje_id'];
@@ -831,7 +836,7 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 		$q = db_select("select * from serienr where salgslinje_id=-$kred_linje_id", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$serienr = $r['serienr'];
-			db_modify("insert into serienr (kobslinje_id, vare_id, batch_kob_id, serienr, batch_salg_id, salgslinje_id) values ('$linje_id','$vare_id', $batch_kob_id, '$r[serienr]','0','0')", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into serienr (kobslinje_id, vare_id, batch_kob_id, serienr, batch_salg_id, salgslinje_id) values ('$linje_id','$vare_id', '0', '$r[serienr]','0','0')", __FILE__ . " linje " . __LINE__);
 		}
 	}
 	#xit;
