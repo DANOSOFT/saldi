@@ -482,6 +482,9 @@ $columns[] = array(
 );
 
 // Filtersetup
+// TODO: filterName er ikke oversat endnu. grid.php bruger navnet som nøgle til brugerens
+//       gemte filteropsætning, så en oversat tekst nulstiller filtervalgene ved sprogskift.
+//       Oversæt de tre filterName nedenfor når gridet bruger en sproguafhængig nøgle.
 $filters = array();
 
 // Vargrupper
@@ -497,7 +500,7 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
-    "filterName" => findtekst('774|Varegrupper', $sprog_id),
+    "filterName" => "Varegrupper",
     "joinOperator" => "or",
     "options" => $VGs
 );
@@ -521,14 +524,14 @@ while ($row = db_fetch_array($q)) {
     );
 }
 $filters[] = array(
-    "filterName" => findtekst('988|Leverandører', $sprog_id),
+    "filterName" => "Leverandøre",
     "joinOperator" => "or",
     "options" => $levs
 );
 
 // Misc
 $filters[] = array(
-    "filterName" => findtekst('782|Diverse', $sprog_id),
+    "filterName" => "Misc",
     "joinOperator" => "and",
     "options" => array(
         array(
