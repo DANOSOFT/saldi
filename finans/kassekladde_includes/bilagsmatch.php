@@ -997,6 +997,27 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
 		return { left: left, top: top, width: width, height: height };
 	}
 
+	// Guards two ways a persisted rect can go bad: a malformed/partial sessionStorage blob
+	// (=> NaNpx styles applied straight to the window), and a rect saved against a larger
+	// viewport that would now place the titlebar off-screen - unrecoverable, since the drag
+	// clamp in bmWirePinnedWindow() only bounds *future* drags, not the position applied on
+	// open, and the titlebar is what you'd need to reach to drag it back. Falls back to the
+	// default rect on invalid input; otherwise clamps to the current viewport using the same
+	// margin/minimums the drag/resize handlers themselves enforce.
+	function bmClampPinnedRect(rect) {
+		if (!rect
+			|| !Number.isFinite(rect.left) || !Number.isFinite(rect.top)
+			|| !Number.isFinite(rect.width) || !Number.isFinite(rect.height)) {
+			return bmDefaultPinnedRect();
+		}
+		var margin = 4, minWidth = 300, minHeight = 260;
+		var width = Math.max(minWidth, Math.min(rect.width, window.innerWidth - margin * 2));
+		var height = Math.max(minHeight, Math.min(rect.height, window.innerHeight - margin * 2));
+		var left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+		var top = Math.max(margin, Math.min(rect.top, window.innerHeight - height - margin));
+		return { left: left, top: top, width: width, height: height };
+	}
+
 	function bmApplyPinnedRect(rect) {
 		var win = bmPinnedEl('bmPinnedPreview');
 		if (!win) return;
@@ -1165,7 +1186,7 @@ $bm_pin_loading       = findtekst('3277|Indlæser', $sprog_id);
 		bmPinnedEl('bmPinnedDownload').href = filepath;
 		win.style.display = 'flex';
 		bmWirePinnedWindow();
-		bmApplyPinnedRect(bmLoadPinnedRect() || bmDefaultPinnedRect());
+		bmApplyPinnedRect(bmClampPinnedRect(bmLoadPinnedRect()));
 		bmRenderPinnedContent(filename);
 
 		// NFR-4: focus moves into the window on open (its close button - a sensible,
