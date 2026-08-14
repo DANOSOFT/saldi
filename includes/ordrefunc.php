@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-07-29 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-08-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -113,6 +113,7 @@
 //             elseif(!$svar) branch, right after $fejl (which is never reassigned), making it
 //             dead code and leaving the committed-success path unchecked; moved it back to
 //             sit unconditionally before the shared return (SD-595)
+// 20260812 MJ Ret kopier-ordre INSERT til at skrive performed_by i stedet for hvem
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -891,7 +892,7 @@ function krediter_pos($id)
 	$lev_adr = db_escape_string($r['lev_adr']);
 	$orderCost = $r['kostpris'] * -1;
 	$moms = $r['moms'] * -1;
-	$hvem = db_escape_string($r['hvem']);
+	$performed_by = db_escape_string($r['performed_by']); // 20260812 MJ laes fra performed_by (ikke hvem)
 	$uxtid = db_escape_string($r['uxtid']);
 	$pbs = db_escape_string($r['pbs']);
 	$mail = db_escape_string($r['mail']);
@@ -947,7 +948,7 @@ function krediter_pos($id)
 	$qtxt .= "udskriv_til,kundeordnr,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,";
 	$qtxt .= "lev_kontakt,ean,institution,betalingsbet,betalingsdage,kontonr,cvrnr";
 	$qtxt .= ",art,valuta,valutakurs,sprog,ordredate,levdate,notes,ordrenr,sum,";
-	$qtxt .= "momssats,status,ref,kred_ord_id,lev_adr,kostpris,moms,hvem,tidspkt,";
+	$qtxt .= "momssats,status,ref,kred_ord_id,lev_adr,kostpris,moms,performed_by,tidspkt,";
 	$qtxt .= "pbs,mail,mail_cc,mail_bcc,mail_subj,mail_text,";
 	$qtxt .= "felt_1,felt_2,felt_3,felt_4,felt_5,vis_lev_addr,betalt,projekt,nr, betalings_id)";
 	$qtxt .= " VALUES ";
@@ -955,7 +956,7 @@ function krediter_pos($id)
 	$qtxt .= "'$udskriv_til','$kundeordnr','$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn',";
 	$qtxt .= "'$lev_kontakt','$ean','$institution','$betalingsbet','$betalingsdage','$kontonr','$cvrnr',";
 	$qtxt .= "'$art','$valuta','$valutakurs','$sprog','$ordredate','$levdate','$notes','$ordrenr','$sum',";
-	$qtxt .= "'$orderVatRate','1','$brugernavn','$kred_ord_id','$lev_adr','$orderCost','$moms','$hvem','$tidspkt',";
+	$qtxt .= "'$orderVatRate','1','$brugernavn','$kred_ord_id','$lev_adr','$orderCost','$moms','$performed_by','$tidspkt',";
 	$qtxt .= "'$pbs','$mail','$mail_cc','$mail_bcc','$mail_subj','$mail_text','";
 	$qtxt .= "$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$vis_lev_addr','$betalt','$projekt','$ny_nr', '$betalings_id')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -4961,7 +4962,7 @@ function opret_ordre($sag_id, $konto_id)
 		($lev_firmanavn) ? $vis_lev_addr = 'on' : $vis_lev_addr = '';
 		$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
 		$afd = (int)$afd;
-		db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,kontakt_tlf,pbs,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,sag_id,tilbudnr,datotid,nr,returside,sagsnr,procenttillag,kundeordnr,afd) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$kontakt_tlf','$pbs','0','0','$udf_firmanavn','$udf_addr1','$udf_addr2','$udf_postnr','$udf_bynavn','$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$sag_id','$tilbudnr','$tidspkt','$tilbud_nr','$returside','$sagsnr','$default_procenttillag','$kundeordnr','$afd')", __FILE__ . " linje " . __LINE__);
+		db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,performed_by,tidspkt,ref,valuta,sprog,kontakt,kontakt_tlf,pbs,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,sag_id,tilbudnr,datotid,nr,returside,sagsnr,procenttillag,kundeordnr,afd) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$kontakt_tlf','$pbs','0','0','$udf_firmanavn','$udf_addr1','$udf_addr2','$udf_postnr','$udf_bynavn','$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$sag_id','$tilbudnr','$tidspkt','$tilbud_nr','$returside','$sagsnr','$default_procenttillag','$kundeordnr','$afd')", __FILE__ . " linje " . __LINE__);
 		$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query))
 			$id = $row['id'];
@@ -5160,7 +5161,7 @@ function opret_ordre_kopi($sag_id, $konto_id)
 		$tidspkt = date("U");
 		$default_procenttillag *= 1;
 		($lev_firmanavn) ? $vis_lev_addr = 'on' : $vis_lev_addr = '';
-		db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,kontakt_tlf,pbs,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,sag_id,tilbudnr,datotid,nr,returside,sagsnr,procenttillag) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$kontakt_tlf','$pbs','0','0','$udf_firmanavn','$udf_addr1','$udf_addr2','$udf_postnr','$udf_bynavn','$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$sag_id','$tilbudnr','$tidspkt','$tilbud_nr','$returside','$sagsnr','$default_procenttillag')", __FILE__ . " linje " . __LINE__);
+		db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,performed_by,tidspkt,ref,valuta,sprog,kontakt,kontakt_tlf,pbs,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,sag_id,tilbudnr,datotid,nr,returside,sagsnr,procenttillag) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$kontakt_tlf','$pbs','0','0','$udf_firmanavn','$udf_addr1','$udf_addr2','$udf_postnr','$udf_bynavn','$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$sag_id','$tilbudnr','$tidspkt','$tilbud_nr','$returside','$sagsnr','$default_procenttillag')", __FILE__ . " linje " . __LINE__);
 
 		$r = db_fetch_array(db_select("select max(id) as id from ordrer where sag_id = '$sag_id'", __FILE__ . " linje " . __LINE__));
 		$nyordre_id = $r['id'];

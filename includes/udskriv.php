@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 5.0.0 --- 2026.05.12 ---
+// --- includes/udskriv.php --- patch 5.0.0 --- 2026-08-03 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -73,9 +73,6 @@ $returside    = if_isset($_GET, NULL, 'returside');
 $locat      = if_isset($_GET, NULL, 'locat');
 
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
-	
-	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
-	elseif (!$returside) $returside = '../debitor/ordreliste.php';
     if (!$pdftk || !file_exists($pdftk)) {
         error_log("ERROR: pdftk is not installed. Please install pdftk first.");
         
@@ -428,9 +425,9 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 					if($art == 'DO'){
 						if($value == 'faktura'){
 							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=$returside";
-
 						}else{
-							$href = "../debitor/ordreliste.php";
+							// 20260803 MJ gaa tilbage til specifik ordre (tilbud/ordre), ikke listesiden
+							$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
 						}
 					}else{
 					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=$returside";
