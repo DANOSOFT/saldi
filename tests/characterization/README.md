@@ -73,4 +73,111 @@ database state, not on page output.
 Verified 2026-07-23: all suites green in the container; deliberately breaking
 the simulate dispatch (posting for real) fails 2 tests.
 
+## What is pinned (SD-600, order-creation scope item 2)
+
+`order-creation/` characterizes what each `INSERT INTO ordrer` implementation
+writes to `ordrer`/`adresser`, ahead of any unification design. The July 2026
+debt audit's ticket named three implementations; reading the actual callers
+found the "classic UI" one it named is far narrower than assumed, and missed
+the real main UI path entirely. Scope was corrected (Lui, 2026-08-07) to
+these **four** - a fifth, POS's `opret_posordre()`, was deliberately split
+into its own follow-up ticket (structurally different: no customer, hardcoded
+"Kontant", `pos_events` logging, live at the till on customer installs):
+
+- **Classic UI - case quotes** (`ClassicOrderCreationCharacterizationTest`,
+  `includes/ordrefunc.php::opret_ordre()`): reached in production ONLY from
+  `sager/sager.php:2106/2108`'s "new quote for this case" button - there is
+  no plain "new order without a case" trigger of this function. `art` is
+  hardcoded `'DO'`; `ordrenr` comes from the shared `get_next_order_number('DO')`
+  helper; `tilbudnr`/`nr` are per-case sequences.
+- **Classic UI - plain new order** (`OrdrePageOrderCreationCharacterizationTest`,
+  `debitor/ordre.php`'s own direct INSERT, ~line 782-810): the actual main
+  "New order" flow, reached by `GET ordre.php?konto_id=<id>` with no `id`
+  param - a full session-driven page, not a bare function, so it's driven
+  the way `finans/bogfor.php` is in the SD-601 suite (see
+  `support/run_order_create_ordre_page.php`). Also uses
+  `get_next_order_number('DO')`. `hvem` ends up empty here too, but for a
+  different reason than the webshop path: it's simply never assigned before
+  this INSERT on a plain GET (only a later `$_POST['hvem']` save sets it),
+  not a deliberate hardcode.
+- **Webshop** (`ShopOrderCreationCharacterizationTest`,
+  `api/rest_api.php::insert_shop_order()`): only reachable through the
+  file's own `?action=insert_shop_order` GET dispatch behind
+  `access_check()` - see `support/run_order_create_shop.php` and
+  `Fixtures::apiAccess()`. Also uses `get_next_order_number('DO')` (same
+  helper as both classic paths). `hvem` is hardcoded `''` (a deliberate
+  omission, unlike the plain-new-order path's uninitialized one). A
+  brand-new shop customer is created with `adresser.art='D'` and `kontonr`
+  set to the digits of their phone number.
+- **JWT REST** (`JwtOrderCreationCharacterizationTest`,
+  `restapi/services/OrderService.php::createOrder()` +
+  `restapi/models/orders/OrderModel.php::save()`): ordering uses its own
+  unlocked `MAX(ordrenr)+1`, not `get_next_order_number()` - the one path of
+  the four that doesn't share the order-numbering helper. Two discrepancies
+  pinned here, independent of unification direction: `OrderModel::save()`'s
+  INSERT column list omits `tlf`, so a freshly created order's phone number
+  is in the immediate API response but gone on the next GET;
+  `OrderService::createNewDebtor()` hardcodes `adresser.art='D'`, so a
+  brand-new supplier created via `POST /v1/creditor/orders` is filed as a
+  debtor.
+
+**Design note for the eventual shared implementation** (Lui, 2026-08-07):
+20+ more `INSERT INTO ordrer` sites exist outside SD-600's scope entirely
+(rykker/dunning, genfakturer, csv2ordre import, kreditor-side purchase
+orders, purchase suggestions). Out of scope for this ticket, but the shared
+function's signature should be designed so those can migrate to it later.
+
+**First real run (2026-08-14), against an ambient (non-docker-compose) Postgres
+tenant pair, Saul's go-ahead** - two runner bugs and one fixture bug found and
+fixed, plus one significant open finding on the classic-quote path:
+
+- Fixed: `run_order_create_jwt.php` and `run_order_create_shop.php` chdir into
+  `remoteBooking/`/`api/` (so the app's own `../includes/...` relative includes
+  resolve) but never set `$_SERVER['REQUEST_URI']` first. `get_relative()`
+  (`includes/db_query.php`) derives its `../` depth from `REQUEST_URI`'s slash
+  count, not cwd, so without it `db_select()`'s `temp/<db>/` logging path
+  resolved one level too shallow and `fopen()` failed on the missing
+  directory. Both runners now set `REQUEST_URI` the same way
+  `bootstrap_ordrefunc.php`/`run_bogfor_page.php` already did.
+- Fixed: `Fixtures::sag()` inserted a `sager.kontonr` column that does not
+  exist in the schema (checked `admin/opret.php`'s `CREATE TABLE sager` and
+  every `opdat_*.php`/`betweenUpdates2.php` migration - it was never added).
+  `sager/sager.php` itself writes this same nonexistent column in three
+  places (`:1233`, `:2729`, `:4230`); since `db_modify()` swallows Postgres
+  errors, those inserts/updates likely no-op silently in production too, but
+  that is `sager.php`'s bug to fix, not this fixture's job to replicate -
+  dropped the column from the fixture's own INSERT.
+- **Open finding, not yet resolved - classic-quote suite paused**:
+  `includes/ordrefunc.php:4876` (`opret_ordre()`) sets
+  `$tilbudnr = $r['sagsnr'] . '-01'` (and the increment branch at `:4871-4873`
+  produces the same `"<n>-<nn>"` shape) for every quote on a case, first or
+  subsequent - but `ordrer.tilbudnr` is `numeric(15,0)`. The insert fails
+  with a Postgres numeric-syntax error every time, silently swallowed by
+  `db_modify()`, so on this schema `opret_ordre()`'s only production caller
+  (the "new quote for this case" button, `sager/sager.php:2106/2108`) creates
+  no `ordrer` row at all. The code already carries its own TODO admitting the
+  gap: `// bindestreg foran tilbudsnr. database skal ændres fra integer til
+  text` (`:4876`, and the near-duplicate at `:5069`). Not yet confirmed
+  whether real tenant databases have `tilbudnr` as `text` via an
+  out-of-repo hotfix - **paused pending Nicolai/Lui**, same treatment as the
+  earlier 5-vs-3-implementations scope surprise. `ClassicOrderCreationCharacterizationTest`
+  is left failing/unmodified rather than rewritten to pin the failure, since
+  what "current behavior" means here depends on that answer.
+- Webshop, JWT, and the plain-new-order (`debitor/ordre.php`) suites all
+  route through `includes/online.php`'s session bootstrap, which does one
+  `db_select()` before the session resolves `$db` to the tenant - at that
+  point `get_relative()`'s `temp/` (no per-db subdirectory yet) is the
+  **shared, global** log path. In this sandbox those files
+  (`temp/.ht_select.log`, `temp/.ht_online.log`, `temp/.ht_modify.log`) are
+  owned by `www-data` mode 644 from prior real web-server traffic, and the
+  test process runs as a different OS user with no passwordless sudo -
+  `fopen(..., 'a')` fails and the page dies. This is a local-sandbox
+  permissions artifact, not an app or test bug (in a real deployment the web
+  server process owns these files) - blocked pending
+  `chmod a+w temp/.ht_select.log temp/.ht_online.log temp/.ht_modify.log`
+  (or equivalent) being run outside this harness.
+
 <!-- 20260723 CL/LH SD-601: created. -->
+<!-- 20260805 CL/SZ SD-600: added order-creation/ characterization. -->
+<!-- 20260807 CL/SZ SD-600: scope widened to 4 impls per Lui; added debitor/ordre.php direct-insert coverage. -->
+<!-- 20260814 CL/SZ SD-600: first real-tenant run; fixed 2 runner bugs + 1 fixture bug; found tilbudnr/numeric(15,0) mismatch, paused pending Nicolai/Lui. -->
