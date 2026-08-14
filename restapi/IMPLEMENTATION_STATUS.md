@@ -47,9 +47,11 @@ Audit updated 2026-07-15. The source code is authoritative where this file and
   source-code string and directory path. It is a random 256-bit value stored
   outside the repo at `restapi/.ht_jwt_secret.bin` (git-ignored), loaded by
   `_jwtLoadSecret()` in `restapi/core/JwtSecretProvisioning.php`. There is no
-  fallback secret of any kind - if the file is missing or unreadable, every
-  REST endpoint fails closed with a 500 ("REST API is not configured") rather
-  than signing with a guessable value.
+  fallback secret of any kind - a missing file is provisioned automatically
+  (see SD-634 below), but if that provisioning fails, or the file is
+  otherwise unreadable or invalid, every REST endpoint fails closed with a
+  500 ("REST API is not configured") rather than signing with a guessable
+  value.
   - **JWT signing secret is per install, not per tenant** (confirmed SD-634):
     `JWT::secretPath()` is a fixed path relative to the codebase, not a
     per-tenant path, so every tenant database served by one codebase install
@@ -63,10 +65,14 @@ Audit updated 2026-07-15. The source code is authoritative where this file and
     file, and it only ran on a fresh install; since the file is git-ignored, an
     existing install that upgraded in place got a permanently dead REST API.
     `_jwtLoadSecret()` now self-heals by provisioning the file on first use
-    (`_jwtProvisionSecret()`, race-safe via `fopen(..., 'xb')`) if it's
-    missing, instead of just failing. An existing secret is never overwritten,
-    and a directory the web server user can't write to still fails closed,
-    now with an actionable log line naming the exact path.
+    (`_jwtProvisionSecret()`) if it's missing, instead of just failing.
+    Published via a same-directory 0600 temp file plus `link()` rather than
+    a direct `fopen($path, 'xb')`, so the mode is never left to umask and no
+    reader can ever observe a partial write at the final path. An existing
+    secret is never overwritten (`link()` fails atomically if `$path`
+    already exists), and a directory the web server user can't write to
+    still fails closed, now with an actionable log line naming the exact
+    path.
 - JWT authentication verifies identity and the selected account, but the shared endpoint layer
   does not enforce per-user Saldi permissions for individual REST operations.
 - The legacy API-key IP allowlist is not applied to JWT requests.

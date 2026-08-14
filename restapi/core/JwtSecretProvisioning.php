@@ -14,29 +14,45 @@
 //                created restapi/.ht_jwt_secret.bin, and it only runs on a
 //                fresh install; the file is git-ignored (.gitignore's .ht*
 //                rule), so a git pull/deploy never ships it.
+// 20260814 CL/SZ SD-634 (CodeRabbit): publish via a same-directory 0600 temp
+//                file + link(), not a direct fopen('xb') on the final path -
+//                that exposed the path before fwrite() completed (a
+//                concurrent _jwtLoadSecret() could read a partial file and
+//                500) and left the mode to umask (0644 under a common 0022
+//                umask, letting any local user read the secret and forge
+//                tokens for every tenant).
 
 if (!function_exists('_jwtProvisionSecret')) {
     /**
      * Best-effort, race-safe creation of the JWT secret file if it does not
      * already exist (SD-634).
      *
-     * fopen(..., 'xb') opens with O_CREAT|O_EXCL: it atomically fails if the
-     * file already exists, so two requests racing to provision the same file
-     * for the first time can never overwrite one another's secret (or one
-     * install.php wrote moments earlier) - the loser just returns here and
-     * falls through to _jwtLoadSecret()'s read of the file the winner wrote.
+     * Written to a same-directory temp file first (0600, so the mode never
+     * depends on umask), then published with link() rather than rename():
+     * link() atomically fails with EEXIST if $path already exists, so a
+     * concurrent request racing to provision the same file - or one
+     * install.php just wrote - can never be overwritten, unlike rename()
+     * which would silently replace it. Only a complete, correctly-permissioned
+     * file is ever visible at $path; a reader never sees a partial write.
      */
     function _jwtProvisionSecret(string $path): void
     {
-        $fp = @fopen($path, 'xb');
+        $dir = dirname($path);
+        $tmp = $dir . '/.ht_jwt_secret_' . bin2hex(random_bytes(8)) . '.tmp';
+
+        $fp = @fopen($tmp, 'xb');
         if ($fp === false) {
-            return; // already exists, or the directory isn't writable - is_readable() below sorts out which
+            return; // directory not writable - is_readable() on $path below sorts out the real failure
         }
         $written = @fwrite($fp, random_bytes(32));
         fclose($fp);
-        if ($written !== 32) {
-            @unlink($path); // don't leave a short/corrupt secret file behind for the next request to trip over
+        if ($written !== 32 || !@chmod($tmp, 0600)) {
+            @unlink($tmp);
+            return;
         }
+
+        @link($tmp, $path); // no-op if $path already exists (lost the race) - EEXIST is not an error here
+        @unlink($tmp); // always scratch, whether or not the link() above succeeded
     }
 }
 
@@ -55,7 +71,8 @@ if (!function_exists('_jwtLoadSecret')) {
             throw new \RuntimeException(
                 'JWT secret file not found or unreadable: ' . $path . '. The web server user must be '
                 . 'able to create and read files in ' . dirname($path) . ' - fix permissions there, or '
-                . 'create it manually with: php -r "file_put_contents(\'' . $path . '\', random_bytes(32));"'
+                . 'create it manually (owner-only, and only if it does not already exist) with: '
+                . 'test -f \'' . $path . '\' || (umask 077 && php -r "file_put_contents(\'' . $path . '\', random_bytes(32));")'
             );
         }
         $secret = file_get_contents($path);
