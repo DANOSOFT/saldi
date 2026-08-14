@@ -26,6 +26,7 @@ $s_id=session_id();
 
 // 2012.09.20 Tilføjet integration med ebconnect
 // 2015.12.23 Rettet addslashes til db_escape_string
+// 2026.08.14 Sawaneh SST-726 Int-cast id and whitelist doktype from request
 
 #$testdok="Tester"; # Skal slettes naar test er faerdig
 $css="../css/standard.css";
@@ -39,8 +40,11 @@ include("../includes/oioublfunk.php");
 include("../includes/var2str.php");
 include("../includes/topline_settings.php");
 
-$id        = if_isset($_GET['id']);
-$doktype   = if_isset($_GET['doktype']);
+$id        = (int)if_isset($_GET['id']);
+$doktype   = strtolower(if_isset($_GET['doktype']));
+if ($doktype != "faktura" && $doktype != "kreditnota") {
+	$doktype = "";
+}
 $returside = if_isset($_GET['returside']);
 if ($popup) $returside = "../includes/luk.php";
 else $returside = "ordre.php?id=$id";
