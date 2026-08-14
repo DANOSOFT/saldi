@@ -168,16 +168,43 @@ fixed, plus one significant open finding on the classic-quote path:
   `db_select()` before the session resolves `$db` to the tenant - at that
   point `get_relative()`'s `temp/` (no per-db subdirectory yet) is the
   **shared, global** log path. In this sandbox those files
-  (`temp/.ht_select.log`, `temp/.ht_online.log`, `temp/.ht_modify.log`) are
+  (`temp/.ht_select.log`, `temp/.ht_online.log`, `temp/.ht_modify.log`) were
   owned by `www-data` mode 644 from prior real web-server traffic, and the
-  test process runs as a different OS user with no passwordless sudo -
-  `fopen(..., 'a')` fails and the page dies. This is a local-sandbox
-  permissions artifact, not an app or test bug (in a real deployment the web
-  server process owns these files) - blocked pending
-  `chmod a+w temp/.ht_select.log temp/.ht_online.log temp/.ht_modify.log`
-  (or equivalent) being run outside this harness.
+  test process runs as a different OS user - `fopen(..., 'a')` failed and the
+  page died. Local-sandbox permissions artifact, not an app or test bug (in a
+  real deployment the web server process owns these files). **Resolved**:
+  Saul ran `chmod a+w temp/.ht_select.log temp/.ht_online.log
+  temp/.ht_modify.log` outside this harness; JWT and OrdrePage suites are now
+  fully green.
+- **Second open finding, not yet resolved - one Shop scenario paused**:
+  `api/rest_api.php::insert_shop_order()` reads
+  `$gruppe = if_isset($_GET['gruppe'])` with no fallback default (unlike
+  `$art`/`$lager`, which do default when missing, `:1229` vs `:1201/:1214`).
+  When a webshop order creates a brand-new debtor without a `gruppe` param,
+  it runs `select box1 from grupper where art='DG' and kodenr = '$gruppe'`
+  (`:427`) with `$gruppe=''` - but `grupper.kodenr` is `integer`, so Postgres
+  throws "invalid input syntax for integer" and the whole call fails. Notably,
+  the JWT REST path (`OrderService::createNewDebtor()`) *does* default this
+  (`$mappedData->kundegruppe ?? 1`) - an inconsistency directly relevant to
+  SD-600's unification goal, not just an isolated bug. **Paused pending
+  Nicolai/Lui**, same treatment as tilbudnr above -
+  `test_creating_an_order_for_an_unknown_phone_number_creates_a_new_debtor_keyed_by_that_number`
+  is left failing/unmodified.
+- Two smaller discrepancies were pinned (not paused) since they're pure
+  PHP-level facts, true regardless of which tenant schema is loaded: (1)
+  `insert_shop_order()`'s success return value is `$r['id']` straight from
+  `db_fetch_array()`, never cast (`:477`) - a numeric **string**, not an int
+  as the runner's own header comment previously assumed; the 3 return-value
+  assertions in `ShopOrderCreationCharacterizationTest` now check the numeric
+  string shape instead. (2) `OrderService::getOrCreateDebtor()`'s `id` field
+  is a genuine int when it just created the debtor (`getLastInsertId()`
+  casts `(int)`) but a raw pg string when matched via
+  `getUserByPhone()`/`getUserByKontoId()` (no cast) - same value,
+  inconsistent type; `JwtOrderCreationCharacterizationTest`'s reused-debtor
+  comparison is now `assertEquals`, not `assertSame`.
 
 <!-- 20260723 CL/LH SD-601: created. -->
 <!-- 20260805 CL/SZ SD-600: added order-creation/ characterization. -->
 <!-- 20260807 CL/SZ SD-600: scope widened to 4 impls per Lui; added debitor/ordre.php direct-insert coverage. -->
 <!-- 20260814 CL/SZ SD-600: first real-tenant run; fixed 2 runner bugs + 1 fixture bug; found tilbudnr/numeric(15,0) mismatch, paused pending Nicolai/Lui. -->
+<!-- 20260814 CL/SZ SD-600: temp/ perms fixed by Saul, JWT+OrdrePage now green; found gruppe/kodenr mismatch (paused) + pinned 2 int-vs-string discrepancies. -->

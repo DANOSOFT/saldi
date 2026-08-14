@@ -10,10 +10,12 @@
 //
 // rest_api.php ends with `exit(json_encode($value))` (its own production
 // contract, not a characterization convention) - $value is insert_shop_order()'s
-// raw return value: an int (the new ordrer.id) on success, or a human-readable
-// string on rejection (duplicate, bad IP, wrong key, etc). That raw value is
-// this runner's entire stdout; the test decodes it itself rather than via
-// CharacterizationTestCase::runChildJson() (which requires a JSON *object*).
+// raw return value: the new ordrer.id as a numeric STRING on success (it's
+// `$r['id']` straight from db_fetch_array(), never cast - api/rest_api.php:477),
+// or a human-readable string on rejection (duplicate, bad IP, wrong key, etc).
+// That raw value is this runner's entire stdout; the test decodes it itself
+// rather than via CharacterizationTestCase::runChildJson() (which requires a
+// JSON *object*).
 //
 // argv: 1 = tenant db (e.g. saldi_chartest)
 //       2 = JSON-encoded assoc array of $_GET params for action=insert_shop_order
@@ -24,6 +26,7 @@
 // History:
 // 20260805 CL/SZ SD-600: created.
 // 20260814 CL/SZ SD-600: set REQUEST_URI so get_relative()'s temp/ path depth matches the api/ chdir.
+// 20260814 CL/SZ SD-600: corrected this comment - the success return value is a numeric string, not an int.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_order_create_shop.php <tenant_db> <json_get_params>\n");

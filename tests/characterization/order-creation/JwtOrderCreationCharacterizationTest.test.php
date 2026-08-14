@@ -22,6 +22,9 @@
 //
 // History:
 // 20260805 CL/SZ SD-600: created.
+// 20260814 CL/SZ SD-600: first real run - loosened accountId's reused-debtor
+//   comparison to assertEquals; getOrCreateDebtor() returns 'id' as int when
+//   creating vs a raw pg string when matched by phone/konto_id.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -89,7 +92,12 @@ final class JwtOrderCreationCharacterizationTest extends CharacterizationTestCas
         ]);
 
         $this->assertTrue($second['success'] ?? false);
-        $this->assertSame($first['data']['accountId'], $second['data']['accountId'], 'a second order for the same phone number reuses the debtor, not a new one');
+        // Loose comparison, not assertSame: OrderService::getOrCreateDebtor()
+        // returns 'id' as a genuine int when it just created the debtor
+        // (getLastInsertId() casts (int)) but as a raw pg string when it's
+        // matched via getUserByPhone()/getUserByKontoId() (no cast there) -
+        // same value, inconsistent type depending on which branch ran.
+        $this->assertEquals($first['data']['accountId'], $second['data']['accountId'], 'a second order for the same phone number reuses the debtor, not a new one');
         $this->assertNotSame($first['data']['id'], $second['data']['id'], 'each call still creates a new order row');
     }
 

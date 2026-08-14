@@ -13,6 +13,10 @@
 //
 // History:
 // 20260805 CL/SZ SD-600: created.
+// 20260814 CL/SZ SD-600: first real run - insert_shop_order() returns a numeric
+//   string not an int, corrected the 3 return-value assertions accordingly.
+//   Left test_creating_an_order_for_an_unknown_phone_number_creates_a_new_debtor_keyed_by_that_number
+//   failing/unmodified: paused pending Nicolai/Lui, see README (gruppe/kodenr finding).
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -68,7 +72,9 @@ final class ShopOrderCreationCharacterizationTest extends CharacterizationTestCa
             'tlf' => '',
         ]);
 
-        $this->assertIsInt($out['return'], "insert_shop_order() returns the new ordrer.id on success.\nstdout: {$out['raw']['stdout']}\nstderr: {$out['raw']['stderr']}");
+        // insert_shop_order() returns $r['id'] straight from db_fetch_array()
+        // uncast (api/rest_api.php:477) - a numeric string, not an int.
+        $this->assertMatchesRegularExpression('/^\d+$/', (string)$out['return'], "insert_shop_order() returns the new ordrer.id on success.\nstdout: {$out['raw']['stdout']}\nstderr: {$out['raw']['stderr']}");
         $this->assertNotNull($out['order'], 'an order row is created, findable by shop_id');
         $this->assertSame($debtor['id'], (int)$out['order']['konto_id'], 'ordrer.konto_id is the existing debtor matched by saldi_kontonr');
         $this->assertSame($debtor['kontonr'], $out['order']['kontonr']);
@@ -107,7 +113,8 @@ final class ShopOrderCreationCharacterizationTest extends CharacterizationTestCa
     {
         $debtor = self::$fx->debtor();
         $first = $this->createShopOrder(['saldi_kontonr' => $debtor['kontonr'], 'gruppe' => $debtor['gruppe']]);
-        $this->assertIsInt($first['return']);
+        // insert_shop_order() returns a numeric string on success, not an int - see createShopOrder()'s sibling assertion above.
+        $this->assertMatchesRegularExpression('/^\d+$/', (string)$first['return']);
 
         // Re-run with the SAME shop_ordre_id (bypass the auto-incrementing default).
         $apiAccess = self::$fx->apiAccess();
