@@ -62,10 +62,10 @@ function check_permissions($permarr)
   return !empty($filtered);
 }
 
-$aktiver = (int)if_isset($_GET['aktiver']);
-$deleteYear = (int)if_isset($_GET['deleteYear']);
-$deleteEmptyYear = (int)if_isset($_GET['deleteEmptyYear']);
-$set_alle = (int)if_isset($_GET['set_alle']);
+$aktiver = (int)filter_input(INPUT_GET, 'aktiver', FILTER_VALIDATE_INT);
+$deleteYear = (int)filter_input(INPUT_GET, 'deleteYear', FILTER_VALIDATE_INT);
+$deleteEmptyYear = (int)filter_input(INPUT_GET, 'deleteEmptyYear', FILTER_VALIDATE_INT);
+$set_alle = (int)filter_input(INPUT_GET, 'set_alle', FILTER_VALIDATE_INT);
 
 if ($set_alle) {
 	db_modify("update brugere set regnskabsaar = '$set_alle'", __FILE__ . " linje " . __LINE__);
