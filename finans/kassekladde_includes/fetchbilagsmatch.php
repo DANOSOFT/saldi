@@ -30,6 +30,10 @@
 //                   new indexed pool_files.norm_amount column instead of parsing amounts at
 //                   query time.
 // 20260731 NTR - fixed previous rework, it was missing norm_amount in the with statement for pf and trimmed the currency codes.
+// 20260810 CL/LH - removed the inline norm_amount alias again: once betweenUpdates.php has
+//                   created the real pool_files.norm_amount column (which it now does on
+//                   every install), SELECT * plus the alias made pf.norm_amount ambiguous,
+//                   so the query errored and the endpoint always returned "0 fundet".
 
     // Start buffering
     ob_start();
@@ -81,8 +85,11 @@
     // kassekladde.valuta is an integer code, not a currency string - it points at
     // grupper(art='VK').kodenr, whose box1 holds the actual ISO code (same lookup the
     // main kassekladde grid uses in build_kassekladde_query()). No match -> base currency.
-    // pool_files.amount is text and sometimes '' (blank import), so it's converted to
-    // numeric per-row with NULL sentinel default instead of via a precomputed column.
+    // pool_files.norm_amount is the migrated NUMERIC column (populated at write time via
+    // poolAmountNormalizer.php, created + backfilled in betweenUpdates.php). It must NOT
+    // be recomputed here: a) SELECT * already carries the real column, so an alias with
+    // the same name makes every pf.norm_amount reference ambiguous and kills the whole
+    // query, and b) a bare ::numeric cast throws on Danish-formatted amounts ('682,93').
     $qtxt = "
         WITH kl AS (
             SELECT k.*,
@@ -95,7 +102,6 @@
         ), pf AS (
             SELECT *,
                 (CASE WHEN file_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN file_date::date ELSE NULL END) AS safe_file_date,
-                NULLIF(TRIM(amount), '')::numeric as norm_amount,
                 UPPER(TRIM(COALESCE(NULLIF(currency, ''), '$base_currency_escaped'))) AS currency_code
             FROM pool_files
         )
