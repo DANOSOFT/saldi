@@ -21,6 +21,7 @@
 // ----------------------------------------------------------------------
 // 2015.01.23 Hente virksomhedsdata fra CVR med CVRapi - tak Niels Rune https://github.com/nielsrune
 // 20260706 MJ Add plain 8-digit trigger, confirmation overlay with type="button" to prevent accidental form submission
+// 20260728 NTR CVR-nr. lookup now triggers on a trailing *, +, or /, or on 8 digits when "Auto-lookup CVR nr." is checked
 
 $(document).keydown(function(e){
 	// Tryk på F2 aktiverer rubrikken kundenr. eller CVR-nr., hvis kundenr. allerede er aktivt
@@ -135,22 +136,28 @@ function cvrapi(param, country, type){
 
 var pattern = /^[\*\/\+]\d{8}[\*\/\+]$/;
 var plainCvr = /^\d{8}$/;
+var trailingSymbolCvr = /^(\d{8})[\*\/\+]$/;
 
 $("[name=ny_kontonr]").keyup(function(e){
         var ny_kontonr = $("[name=ny_kontonr]").val();
-        if(pattern.test(ny_kontonr)){
-		ny_kontonr = $("[name=ny_kontonr]").val().substr(1,8);
+        var trailingMatch = trailingSymbolCvr.exec(ny_kontonr);
+        if(trailingMatch){
+		ny_kontonr = trailingMatch[1];
 		$("[name=ny_kontonr]").val(ny_kontonr);
+                cvrapi(ny_kontonr, 'dk', 'vat');
+        } else if(plainCvr.test(ny_kontonr) && $("[name=auto_lookup_cvr]").is(':checked')){
                 cvrapi(ny_kontonr, 'dk', 'vat');
         }
 });
 
 $("[name=cvrnr]").keyup(function(e){
 	var cvrnr = $("[name=cvrnr]").val();
-	if(pattern.test(cvrnr)){
-		cvrnr = cvrnr.substr(1,8);
+	var trailingMatch = trailingSymbolCvr.exec(cvrnr);
+	if(trailingMatch){
+		cvrnr = trailingMatch[1];
+		$("[name=cvrnr]").val(cvrnr);
 		cvrapi(cvrnr, 'dk', 'vat');
-	} else if(e.which == 13 && plainCvr.test(cvrnr)){
+	} else if(plainCvr.test(cvrnr) && $("[name=auto_lookup_cvr]").is(':checked')){
 		cvrapi(cvrnr, 'dk', 'vat');
 	}
 });
