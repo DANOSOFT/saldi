@@ -78,12 +78,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Only change kksort to "pos"
                     const url = new URL(window.location.href);
                     url.searchParams.set('kksort', 'pos');
-
+                    url.searchParams.set('kkdir', 'asc');
                     window.location.href = url.toString();
                 })
                 .catch(error => {
                     console.error(error);
                     alert('Could not save new order!');
+                      // The DOM was already reordered optimistically before this fetch;
+                    // since the save failed, reload to rebuild the table from the
+                    // actual persisted pos values instead of leaving an unsaved,
+                    // out-of-sync order on screen.
+                    window.location.reload();
                 });
             },
             onMove: evt => {
