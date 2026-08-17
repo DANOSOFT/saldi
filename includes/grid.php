@@ -19,6 +19,8 @@ Regards:) 20260220 LOE
 20260513 PK - Added class="navbutton" to the navigation buttons with svg, as those buttons were too high compared to the page selector buttons
 */
 // 20260620 MJ Recover from invalid saved datatable setup so stale user grid state does not block page loading.
+// 20260817 Sawaneh Sort descending columns NULLS LAST, honor defaultSortDirection on
+//                  first header click and validate the request-sourced sort value.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -762,25 +764,49 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
     return $query;
 }
 
-# Replace the bare sort field with its sqlOverride when defined, so ORDER BY is unambiguous.
+/**
+ * Builds the ORDER BY expression from the request-sourced sort value.
+ * Replaces the bare sort field with its sqlOverride when defined, so ORDER BY is unambiguous.
+ * The field must match a configured column or a plain identifier and the direction is
+ * normalized to asc/desc before either is placed into the query.
+ * Descending sorts append NULLS LAST because Postgres defaults DESC to NULLS FIRST,
+ * which would let rows without a value displace the newest rows at the top.
+ *
+ * @param string $sort The sort value, e.g. "field" or "field desc".
+ * @param array $columns The grid's column definitions.
+ * @return string The validated ORDER BY expression.
+ */
 function apply_sort_sqlOverride($sort, $columns) {
     if (!$sort || !is_array($columns)) return $sort;
     $parts = preg_split('/\s+/', trim($sort), 2);
     $field = $parts[0];
-    $dir   = isset($parts[1]) ? $parts[1] : '';
-    $override = null;
-    if (isset($columns[$field]) && is_array($columns[$field]) && !empty($columns[$field]['sqlOverride'])) {
-        $override = $columns[$field]['sqlOverride'];
+    $dir   = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
+    if ($dir != 'asc' && $dir != 'desc') {
+        $dir = '';
+    }
+    $sortColumn = null;
+    if (isset($columns[$field]) && is_array($columns[$field])
+        && isset($columns[$field]['field']) && $columns[$field]['field'] === $field) {
+        $sortColumn = $columns[$field];
     } else {
         foreach ($columns as $col) {
-            if (is_array($col) && isset($col['field']) && $col['field'] === $field && !empty($col['sqlOverride'])) {
-                $override = $col['sqlOverride'];
+            if (is_array($col) && isset($col['field']) && $col['field'] === $field) {
+                $sortColumn = $col;
                 break;
             }
         }
     }
-    if ($override) $field = $override;
-    return trim($field . ' ' . $dir);
+    if (!$sortColumn && !preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/', $field)) {
+        return '1';
+    }
+    if ($sortColumn && !empty($sortColumn['sqlOverride'])) {
+        $field = $sortColumn['sqlOverride'];
+    }
+    $orderBy = trim($field . ' ' . $dir);
+    if ($dir == 'desc') {
+        $orderBy .= ' NULLS LAST';
+    }
+    return $orderBy;
 }
 
 
@@ -1026,10 +1052,11 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaCol
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
         if ($column["sortable"]) {
+            $sort_dir = (isset($column['defaultSortDirection']) && $column['defaultSortDirection'] == 'desc') ? 'desc' : 'asc';
             echo "<th 
                 class='$column[field] sortable-td' 
                 style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;' 
-                onclick=\"setSort$id('$column[field]')\"
+                onclick=\"setSort$id('$column[field]', '$sort_dir')\"
             >";
             echo "<span class='sortable'>$column[headerName]</span>";
         } else {
@@ -2253,13 +2280,17 @@ SCRIPT;
 function render_sort_script($id) {
     echo <<<SCRIPT
     <script>
-        function setSort$id(header) {
+        function setSort$id(header, defaultDir) {
             const sortBox = document.getElementsByName('sort[$id]')[0];
-            if (sortBox.value !== header) {
-                sortBox.value=header;
-            } else if (sortBox.value === header) {
-                sortBox.value=header + " desc";
+            const parts = sortBox.value.trim().split(/\s+/);
+            const currentDir = (parts[1] || 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+            let dir;
+            if (parts[0] === header) {
+                dir = currentDir === 'desc' ? 'asc' : 'desc';
+            } else {
+                dir = defaultDir === 'desc' ? 'desc' : 'asc';
             }
+            sortBox.value = dir === 'desc' ? header + ' desc' : header;
             sortBox.form.submit();
         }
     </script>
