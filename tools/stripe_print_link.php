@@ -35,7 +35,9 @@ if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI on
 chdir(__DIR__);
 
 // db_query.php's get_relative()/logging read these; unset under CLI (notice-spam).
-if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/tools/stripe_print_link.php';
+// Depth-3 URI on purpose: get_relative() counts slashes, and a depth-2 URI
+// makes temp/ resolve to tools/temp/ (stray dir) instead of the install's temp/.
+if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/install/tools/stripe_print_link.php';
 if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
 
 if ($argc < 2) {

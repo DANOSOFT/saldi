@@ -57,7 +57,10 @@ if (php_sapi_name() !== 'cli') {
 chdir(__DIR__); // includes below are ../includes/... like every admin/ page
 
 // db_query.php's get_relative()/logging read these; unset under CLI (notice-spam).
-if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/admin/stripe_setup.php';
+// The fake URI must be DEPTH-3 (as on a sub-directory install): get_relative()
+// counts its slashes, and a depth-2 URI makes temp/ resolve to admin/temp/ -
+// a stray dir - instead of the install's temp/.
+if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/install/admin/stripe_setup.php';
 if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
 
 $options = getopt('', ['db:', 'csv::', 'dry-run', 'help']);
