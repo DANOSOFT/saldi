@@ -122,6 +122,18 @@ print "<!--function send_mails start-->";
 			$mailtext = str_replace('$firmanavn',$r['firmanavn'],$mailtext);
 		}
 	}
+	# 20260817 CL/LH $abonnementslink: signed Stripe subscription link derived from
+	# THIS order at send time (never stored on the order - the recurring clone in
+	# debitor/genfakturer.php drops stored fields). Must be substituted BEFORE the
+	# generic $-token resolvers below, which would otherwise look the token up as
+	# an ordrer column. Styled link in the HTML body; the AltBody build flattens
+	# anchors to "text: url". Disabled/unconfigured/no mappable lines -> ''.
+	if (strpos($mailtext,'$abonnementslink') !== false || strpos($subjekt,'$abonnementslink') !== false) {
+		include_once(__DIR__ . "/subscriptionLink.php");
+		$abonnementslink = subscriptionLinkUrl($ordre_id);
+		$mailtext = str_replace('$abonnementslink', $abonnementslink ? "<a href=\"$abonnementslink\">Tilmeld automatisk betaling</a>" : '', $mailtext);
+		$subjekt  = str_replace('$abonnementslink', '', $subjekt);
+	}
 	$mailtext = str_replace("\n\r","\n\r<br>",$mailtext);
 
 	(isset($bilagnavn) && $bilagnavn)?$bilagnavn=$bilagnavn:$bilagnavn="Bilag"; #2013.11.21 Hvis bilag-navn er tom, insættes 'Bilag' som navn
@@ -257,9 +269,16 @@ print "<!--function send_mails start-->";
 					list($var,$tmp) = explode(',',$var,2);
 				}
 				$var=trim($var);
-				$r=db_fetch_array(db_select("select $var from ordrer where id='$ordre_id'",__FILE__ . " linje " . __LINE__));
-				$ordliste[$a]=$r[$var];
-			} 
+				# 20260817 CL/LH tier-1 allowlist: token must be a real ordrer
+				# column - closes the SQL interpolation surface (unknown -> '').
+				include_once(__DIR__ . "/mailTokenAllowlist.php");
+				if (ordrer_mail_token_allowed($var)) {
+					$r=db_fetch_array(db_select("select $var from ordrer where id='$ordre_id'",__FILE__ . " linje " . __LINE__));
+					$ordliste[$a]=$r[$var];
+				} else {
+					$ordliste[$a]='';
+				}
+			}
 			$subjekt.=$ordliste[$a]." ";
 		}
 	}
@@ -282,10 +301,16 @@ print "<!--function send_mails start-->";
 					list($var,$tmp) = explode(',',$var,2);
 				}
 				$var=trim($var);
-				$qtxt="select $var from ordrer where id='$ordre_id'";
-				#cho "$qtxt<br>";
-				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$ordliste[$a]=$r[$var];
+				# 20260817 CL/LH tier-1 allowlist (as in the subject resolver above)
+				include_once(__DIR__ . "/mailTokenAllowlist.php");
+				if (ordrer_mail_token_allowed($var)) {
+					$qtxt="select $var from ordrer where id='$ordre_id'";
+					#cho "$qtxt<br>";
+					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					$ordliste[$a]=$r[$var];
+				} else {
+					$ordliste[$a]='';
+				}
 				if ($br) {
 					$ordliste[$a].="<br>".$br;
 				}
@@ -374,6 +399,10 @@ print "<!--function send_mails start-->";
 	$mail->IsHTML(true);                               // send as HTML
 
 	$ren_text=html_entity_decode($mailtext,ENT_COMPAT,$charset);
+	# 20260817 CL/LH flatten anchors to "text: url" BEFORE the tag conversion -
+	# the plain-text part otherwise carries raw <a ...> markup (spam scoring).
+	# Also repairs the existing $betalingslink button's plain-text rendering.
+	$ren_text=preg_replace('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is','$2: $1',$ren_text);
 	$ren_text=str_replace("<br>","\n",$ren_text);
 	$ren_text=str_replace("<b>","*",$ren_text);
 	$ren_text=str_replace("</b>","*",$ren_text);

@@ -168,6 +168,15 @@ function send_invoice_pdf($ordre_id, $db, $db_id) {
     $mailtext = str_replace('$kontakt', $kontakt, $mailtext);
     $mailtext = str_replace('$fakturanr', $fakturanr, $mailtext);
     $mailtext = str_replace('$ordrenr', $ordrenr, $mailtext);
+    // 20260817 CL/LH $abonnementslink parity: this mailer delivers unknown
+    // tokens VERBATIM to customers, so the token must be handled here too.
+    // Plain "label: url" form - this body is nl2br'ed text, not rich HTML.
+    if (strpos($mailtext, '$abonnementslink') !== false || strpos($subjekt, '$abonnementslink') !== false) {
+        include_once(__DIR__ . '/../includes/formFuncIncludes/subscriptionLink.php');
+        $abonnementslink = subscriptionLinkUrl($ordre_id);
+        $mailtext = str_replace('$abonnementslink', $abonnementslink ? "Tilmeld automatisk betaling: $abonnementslink" : '', $mailtext);
+        $subjekt  = str_replace('$abonnementslink', '', $subjekt);
+    }
     
     fwrite($log, "Subject: $subjekt\n");
     fwrite($log, "Sending to: $customer_email from $sender_email\n");
@@ -482,7 +491,9 @@ function send_invoice_email($to_email, $from_email, $from_name, $subject, $body,
         
         $mail->Subject = $subject;
         $mail->Body = nl2br($body);
-        $mail->AltBody = strip_tags($body);
+        // 20260817 CL/LH flatten anchors to "text: url" INSIDE the strip_tags -
+        // plain strip_tags deletes the href and silently drops the URL entirely.
+        $mail->AltBody = strip_tags(preg_replace('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is', '$2: $1', $body));
         $mail->isHTML(true);
         
         // Attach PDF
