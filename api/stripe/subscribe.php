@@ -150,6 +150,11 @@ function stripe_kr($ore) { return number_format($ore / 100, 2, ',', '.'); }
 // ---------- request handling ----------
 if (!$stripe_boot_ok) stripe_fail_page(503, 'Midlertidigt utilgængelig', 'Prøv igen om lidt, eller besvar fakturamailen.');
 
+// Master switch (stripe_valg "Aktiv"): off = no new signups, full stop.
+if (stripe_setting('enabled', 'off') !== 'on') {
+	stripe_fail_page(503, 'Ikke tilgængelig', 'Abonnementstilmelding er ikke aktiveret. Din faktura er stadig gyldig og kan betales som hidtil - besvar fakturamailen ved spørgsmål.');
+}
+
 $isPost   = ($_SERVER['REQUEST_METHOD'] === 'POST');
 $order_id = (int)($isPost ? (isset($_POST['id']) ? $_POST['id'] : 0) : (isset($_GET['id']) ? $_GET['id'] : 0));
 $sig      = (string)($isPost ? (isset($_POST['sig']) ? $_POST['sig'] : '') : (isset($_GET['sig']) ? $_GET['sig'] : ''));

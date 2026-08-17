@@ -8,10 +8,11 @@ Full grounded plan (external): `Saldi payment/stripe-native-grounded-implementat
 
 ---
 
-## 1. Settings — `settings` table, `var_grp='stripe'`, exactly EIGHT rows
+## 1. Settings — `settings` table, `var_grp='stripe'`, exactly NINE rows
 
 | var_name | Written by | Read by | Notes |
 |---|---|---|---|
+| `enabled` | stripe_valg page (checkbox) | subscribe, link printer, mailer | `on` \| `off` (default off). Master switch: off = no NEW signups (subscribe renders a friendly not-active page, no links are minted). The webhook is deliberately NOT gated — events for already-running subscriptions must never be dropped. |
 | `mode` | stripe_valg page | subscribe, webhook, mailer, seed | `test` \| `live` |
 | `secret_key` | stripe_valg page | stripeHttp, subscribe, webhook | one key; prefix must match mode; NO mode-suffixed key names |
 | `webhook_secret` | stripe_valg page | webhook | `whsec_...` |

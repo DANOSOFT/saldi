@@ -42,6 +42,12 @@ function stripeValgSave() {
 	}
 	$fejl = [];
 
+	# enabled - the explicit master switch (default off). Off = no new signups:
+	# links render a friendly not-active page and no Checkout Sessions are
+	# created. The webhook is deliberately NOT gated by this - events for
+	# already-running subscriptions must never be dropped.
+	update_settings_value('enabled', 'stripe', if_isset($_POST['stripe_enabled']) ? 'on' : 'off', 'Stripe-abonnement aktiv (til/fra)');
+
 	# mode
 	$mode = if_isset($_POST['stripe_mode']);
 	if ($mode == 'test' || $mode == 'live') {
@@ -129,6 +135,10 @@ function stripeValg() {
 
 	print "<tr><td title='Regnskabet som webhook og links er låst til. Sættes via SALDI_STRIPE_DB eller includes/stripeIncludes/.ht_stripe_db på serveren - ikke her.'>Regnskab (låst):</td>";
 	print "<td colspan='3'>" . ($target_db ? $target_db : "<b style='color:red'>IKKE KONFIGURERET - integrationen er inaktiv</b>") . "</td></tr>";
+
+	$enabled = (stripe_setting('enabled', 'off') == 'on');
+	print "<tr><td title='Hovedafbryder. Uden flueben viser abonnementslinks en venlig ikke-aktiv-side og der oprettes ingen nye abonnementer. Webhooken modtager stadig events for allerede oprettede abonnementer.'>Aktiv:</td>";
+	print "<td colspan='3'><input type='checkbox' name='stripe_enabled' value='1'" . ($enabled ? " checked" : "") . "></td></tr>";
 
 	print "<tr><td>Mode:</td><td colspan='3'><select name='stripe_mode'>";
 	print "<option value=''" . ($mode == '' ? " selected" : "") . "></option>";

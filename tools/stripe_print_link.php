@@ -58,6 +58,7 @@ for ($i = 1; $i < $argc; $i++) {
 	$order_id = (int)$argv[$i];
 	$fail = '';
 	if ($order_id < 1) $fail = 'ugyldigt ordre-id';
+	if (!$fail && stripe_setting('enabled', 'off') !== 'on')                 $fail = 'integrationen er ikke aktiveret (flueben Aktiv i stripe_valg)';
 	if (!$fail && !in_array(stripe_setting('mode'), ['test', 'live'], true)) $fail = 'mode ikke sat (stripe_valg)';
 	if (!$fail && !stripe_setting('secret_key'))                             $fail = 'secret_key ikke sat';
 	if (!$fail && strlen(stripe_setting('link_secret')) < 64)                $fail = 'link_secret mangler (gem stripe_valg en gang)';
