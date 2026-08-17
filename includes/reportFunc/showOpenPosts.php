@@ -38,6 +38,8 @@
 //                  the other four aging columns.
 // 20260812 Sawaneh Review: the firm-name search folds case with mb_strtolower/mb_strtoupper,
 //                  so names containing ae, oe or aa match regardless of case.
+// 20260814 Sawaneh SST-717 Settle-all restored for accounts whose open remainder is offset
+//                  by already-settled valutadiff rows (whole balance ~0 when all posts loaded).
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -423,7 +425,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				ret_openpost($konto_id[$x]);
 				$tmp=dkdecimal($kontrol,2);
 			} else $tmp=dkdecimal($y,2);
-			if ($accountAligned=="0" && abs($openY)<0.01 && abs($openKontrol)<0.01) {
+			# Valutadiff rows are booked as already settled, so the open remainder alone can
+			# differ from zero while the whole account balances. When settled posts are loaded
+			# too (Vis alle poster or a historical to-date), the whole balance decides as well.
+			$allPostsLoaded = ($vis_alle || $todate != $currentdate);
+			$canSettleAll = ($accountAligned=="0" && ((abs($openY)<0.01 && abs($openKontrol)<0.01)
+				|| ($allPostsLoaded && abs($y)<0.01 && abs($kontrol)<0.01)));
+			if ($canSettleAll) {
 				$udlign.=$konto_id[$x].",";
 				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl&udlign=$konto_id[$x]\">$tmp</a></td>";
 			}
