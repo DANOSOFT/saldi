@@ -40,6 +40,10 @@
 //                  so names containing ae, oe or aa match regardless of case.
 // 20260814 Sawaneh SST-717 Settle-all restored for accounts whose open remainder is offset
 //                  by already-settled valutadiff rows (whole balance ~0 when all posts loaded).
+// 20260817 Sawaneh Dated and debet/kredit views judge and display accounts by their open-post
+//                  balance instead of the sum of all posts, so fully settled accounts (e.g. after
+//                  currency-difference settlements) no longer show as owing; reminder amounts
+//                  skip settled posts. Vis alle poster keeps the full sums.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -333,7 +337,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 					);
 				}
 				list($forfaldsdag_plus8,$forfaldsdag_plus30,$forfaldsdag_plus60,$forfaldsdag_plus90)=$agingDateCache[$agingKey];
-				if ($forfaldsdag<$todate){$rykkerbelob=$rykkerbelob+$amount;}
+				if (!$aligned && $forfaldsdag<$todate){$rykkerbelob=$rykkerbelob+$amount;}
 				if (!$aligned && $forfaldsdag<$todate && $forfaldsdag_plus8>$todate) {
 					$forfalden=$forfalden+$amount;
 				}
@@ -353,11 +357,28 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			if (!$aligned) $openY=$openY+$amount;
 #			}
 		}
-		if ($kun_debet && $y<=0) {$accountAligned=1;$y=0;$kontrol=0;}  
-		elseif ($kun_kredit && $y>=0) {$accountAligned=1;$y=0;$kontrol=0;}  
+		// Vis alle poster keeps the historical full sums; every other view judges and shows the
+		// account by what is actually open, so settled posts cannot drag a settled account back
+		// onto the list (e.g. currency-difference groups that do not net to 0.00 in DKK).
+		if ($vis_alle) {
+			$visY=$y;
+			$visKontrol=$kontrol;
+		} else {
+			$visY=$openY;
+			$visKontrol=$openKontrol;
+		}
+		if ($kun_debet && $visY<=0) {$accountAligned=1;$y=$kontrol=$openY=$openKontrol=$visY=$visKontrol=0;}
+		elseif ($kun_kredit && $visY>=0) {$accountAligned=1;$y=$kontrol=$openY=$openKontrol=$visY=$visKontrol=0;}
 		$kontrol=afrund($kontrol,2);
-		#		($y>0) ? $y=afrund($y,2) : $y=afrund($y,2);
-		if (abs($y) >= 0.01 || ($todate == $currentdate && ($accountAligned=="0" || $kontrol)))	{	
+		$visKontrol=afrund($visKontrol,2);
+		if ($vis_alle) {
+			$visAccount = (abs($y) >= 0.01 || ($todate == $currentdate && ($accountAligned=="0" || $kontrol)));
+		} elseif ($todate == $currentdate) {
+			$visAccount = ($accountAligned=="0" || abs($visKontrol) >= 0.01);
+		} else {
+			$visAccount = (abs($visKontrol) >= 0.01);
+		}
+		if ($visAccount)	{
 			if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 			elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 		
@@ -366,8 +387,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$forfaldsum_plus30=$forfaldsum_plus30+$forfalden_plus30;
 			$forfaldsum_plus60=$forfaldsum_plus60+$forfalden_plus60;
 			$forfaldsum_plus90=$forfaldsum_plus90+$forfalden_plus90;
-			$sum=$sum+$y;
-			$kontrolsum+=$kontrol;
+			$sum=$sum+$visY;
+			$kontrolsum+=$visKontrol;
 			$formIndex++;
 			print "<tr bgcolor=\"$linjebg\">";
 			print "<input type=hidden name='konto_id[$formIndex]' value='$konto_id[$x]'>";
@@ -421,10 +442,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				$color="rgb(0, 0, 0)";
 				print "<td align=right></td>";
 			}
-			if (afrund($kontrol,2)!=afrund($y,2)) {
+			if (afrund($visKontrol,2)!=afrund($visY,2)) {
 				ret_openpost($konto_id[$x]);
-				$tmp=dkdecimal($kontrol,2);
-			} else $tmp=dkdecimal($y,2);
+				$tmp=dkdecimal($visKontrol,2);
+			} else $tmp=dkdecimal($visY,2);
 			# Valutadiff rows are booked as already settled, so the open remainder alone can
 			# differ from zero while the whole account balances. When settled posts are loaded
 			# too (Vis alle poster or a historical to-date), the whole balance decides as well.
