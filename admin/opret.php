@@ -107,6 +107,7 @@
 //                $_POST handling (SD-615)
 // 20260804 SZ Also terminate on the webservice "Session expired" include return,
 //             instead of relying only on $db != $sqdb (SD-615)
+// 20260818 CL/LH Corrected Stripe table boolean default definitions
 
 @session_start();
 $s_id=session_id();
@@ -313,6 +314,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // MySQL-specific adjustments
     $id_column = 'id INT AUTO_INCREMENT NOT NULL';
     $boolean_type = 'TINYINT(1) DEFAULT 0';
+    $stripe_active_type = 'TINYINT(1) NOT NULL DEFAULT 1';
     $decimal_type = 'DECIMAL';
     $text_type = 'TEXT';
 	$longlat = "`long` $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -325,6 +327,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // PostgreSQL-specific adjustments
     $id_column = 'id SERIAL NOT NULL';
     $boolean_type = 'BOOLEAN DEFAULT FALSE';
+    $stripe_active_type = 'BOOLEAN NOT NULL DEFAULT true';
     $decimal_type = 'NUMERIC';
     $text_type = 'TEXT';
 	$longlat = "\"long\" $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -641,7 +644,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt = "CREATE TABLE stripe_catalog ($id_column, varenr text, stripe_price_id varchar(255), ";
 	$qtxt.= "stripe_product_id varchar(255), unit_ore integer, billing_interval varchar(10) NOT NULL DEFAULT 'month', ";
 	$qtxt.= "interval_count integer NOT NULL DEFAULT 1, currency varchar(3) NOT NULL DEFAULT 'DKK', ";
-	$qtxt.= "active $boolean_type NOT NULL DEFAULT true, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))";
+	$qtxt.= "active $stripe_active_type, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt = "CREATE TABLE stripe_events ($id_column, event_id varchar(255) NOT NULL, event_type varchar(100), ";

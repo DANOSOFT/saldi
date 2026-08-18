@@ -32,17 +32,19 @@
 //                an aborted send. Existing templates with real column tokens
 //                render byte-identically. (Tier 2 - an explicit list of the
 //                tokens templates actually use - is a follow-up ticket.)
+// 20260818 CL/LH Scoped mail token column cache to the tenant database.
 
 if (!function_exists('ordrer_mail_token_allowed')) {
 	function ordrer_mail_token_allowed($var) {
-		static $cols = null;
+		global $db;
+		static $cols = [];
 		if (!is_string($var) || !preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $var)) return false;
-		if ($cols === null) {
-			$cols = [];
+		if (!isset($cols[$db])) {
+			$cols[$db] = [];
 			$q = db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'ordrer'", __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) $cols[strtolower($r['column_name'])] = true;
+			while ($r = db_fetch_array($q)) $cols[$db][strtolower($r['column_name'])] = true;
 		}
-		if (!isset($cols[strtolower($var)])) {
+		if (!isset($cols[$db][strtolower($var)])) {
 			error_log("sendMail: unknown mail template token '" . preg_replace('/[^A-Za-z0-9_]/', '', $var) . "' rendered as empty");
 			return false;
 		}

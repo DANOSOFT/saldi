@@ -31,8 +31,19 @@
 //                stop - never continue against the global db.
 //                Same idiom as api/bet_func.php logon(): locator lookup is in
 //                stripeConfigDb(), then db_connect() to the tenant.
+// 20260818 CL/LH Added false-return handling for Stripe database writes.
 
 include_once(__DIR__ . '/stripeSettings.php');
+
+$webservice = true; // db_modify() returns control on failure instead of exiting
+
+if (!function_exists('stripe_db_modify')) {
+	function stripe_db_modify($qtext, $spor) {
+		$result = db_modify($qtext, $spor);
+		if (!is_string($result) || strncmp($result, '0' . chr(9), 2) !== 0) return false;
+		return $result;
+	}
+}
 
 $stripe_boot_ok    = false;
 $stripe_target_db  = stripeConfigDb(); // '' = unresolved -> fail closed

@@ -27,6 +27,7 @@
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
 // 20-09-2024 PBLM added betalingsLink functionality
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260818 CL/LH Disabled shared-key payment-link minting in mail templates.
 	
 /*if(!class_exists('phpmailer')) {
 	ini_set("include_path", ".:../phpmailer");
@@ -97,13 +98,9 @@ print "<!--function send_mails start-->";
 			$mailtext = str_replace('$firmanavn',$r['firmanavn'],$mailtext);
 		}
 	}
-	if (strpos($mailtext,'$betalingslink')) {
-		# 20260817 CL/LH this called the non-existent betalingslink() and fataled
-		# on every template carrying the token - the helper defines paymentLink()
-		# (same call shape as includes/formfunk.php:811-814).
-		include_once(__DIR__ . "/paymentLink.php");
-		$betalingsLink = paymentLink($ordre_id);
-		$mailtext = str_replace('$betalingslink',$betalingsLink,$mailtext);
+	if (strpos($mailtext,'$betalingslink') !== false) {
+		# Payment-link minting disabled pending per-tenant key handling.
+		$mailtext = str_replace('$betalingslink','',$mailtext);
 	}
 	# 20260817 CL/LH $abonnementslink parity with sendMail.php (derived at send
 	# time, before the generic resolvers; '' when not a subscription customer).

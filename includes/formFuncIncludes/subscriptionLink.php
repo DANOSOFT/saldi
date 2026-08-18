@@ -31,6 +31,7 @@
 //                and the mail sends normally) - never throws, never alerts:
 //                a customer without subscription lines is the NORMAL case.
 //                Contract: doc/stripe/INTERFACE_CONTRACT.md
+// 20260818 CL/LH Guarded subscription links when stripe_catalog is unavailable.
 
 include_once(__DIR__ . '/../stripeIncludes/stripeSettings.php');
 include_once(__DIR__ . '/../stripeIncludes/stripeLink.php');
@@ -54,6 +55,12 @@ if (!function_exists('subscriptionLinkUrl')) {
 		if (!stripe_setting('public_base_url')) return '';
 		$o = db_fetch_array(db_select("select id, art from ordrer where id = " . $ordre_id, __FILE__ . " linje " . __LINE__));
 		if (!$o || $o['art'] !== 'DO') return '';
+		static $catalog_exists = [];
+		if (!isset($catalog_exists[$db])) {
+			$r = db_fetch_array(db_select("select to_regclass('stripe_catalog') as table_name", __FILE__ . " linje " . __LINE__));
+			$catalog_exists[$db] = !empty($r['table_name']);
+		}
+		if (!$catalog_exists[$db]) return '';
 		// At least one line must map to an active catalog row - otherwise this
 		// simply is not a subscription customer.
 		$q = db_select("select l.id from ordrelinjer l join stripe_catalog c on c.active = true and c.varenr = l.varenr where l.ordre_id = " . $ordre_id . " limit 1", __FILE__ . " linje " . __LINE__);

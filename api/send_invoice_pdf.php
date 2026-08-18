@@ -493,7 +493,7 @@ function send_invoice_email($to_email, $from_email, $from_name, $subject, $body,
         $mail->Body = nl2br($body);
         // 20260817 CL/LH flatten anchors to "text: url" INSIDE the strip_tags -
         // plain strip_tags deletes the href and silently drops the URL entirely.
-        $mail->AltBody = strip_tags(preg_replace('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is', '$2: $1', $body));
+        $mail->AltBody = strip_tags(preg_replace('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is', '$2: $1', $body) ?? $body);
         $mail->isHTML(true);
         
         // Attach PDF

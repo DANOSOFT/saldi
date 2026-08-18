@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: signed subscription link endpoint.
 //                Contract: doc/stripe/INTERFACE_CONTRACT.md.
+// 20260818 CL/LH Moved per-order rate limit after link verification.
 //
 // GET  = verify HMAC, load the order, match every line against stripe_catalog,
 //        render a Danish confirm page. ZERO Stripe calls, ZERO writes - mail
@@ -51,12 +52,12 @@ if (isset($_GET['db']) || isset($_POST['db']) || isset($_REQUEST['db'])) {
 	exit;
 }
 
-include("../../includes/connect.php");
-include("../../includes/stripeIncludes/stripeBootstrap.php");
-include("../../includes/stripeIncludes/stripeLink.php");
-include("../../includes/stripeIncludes/stripeRateLimit.php");
-include("../../includes/stripeIncludes/stripeAlertMail.php");
-include("../../includes/stripeIncludes/stripeHttp.php");
+include(__DIR__ . "/../../includes/connect.php");
+include(__DIR__ . "/../../includes/stripeIncludes/stripeBootstrap.php");
+include(__DIR__ . "/../../includes/stripeIncludes/stripeLink.php");
+include(__DIR__ . "/../../includes/stripeIncludes/stripeRateLimit.php");
+include(__DIR__ . "/../../includes/stripeIncludes/stripeAlertMail.php");
+include(__DIR__ . "/../../includes/stripeIncludes/stripeHttp.php");
 
 // ---------- page shells (self-contained, Danish, no JS) ----------
 function stripe_page($title, $bodyHtml, $status = 200) {
@@ -160,12 +161,15 @@ $order_id = (int)($isPost ? (isset($_POST['id']) ? $_POST['id'] : 0) : (isset($_
 $sig      = (string)($isPost ? (isset($_POST['sig']) ? $_POST['sig'] : '') : (isset($_GET['sig']) ? $_GET['sig'] : ''));
 $ip       = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : 'unknown';
 
-if (!stripe_rate_limit('sub_ip_' . $ip, 120, 600) || !stripe_rate_limit('sub_ord_' . $order_id, 30, 600)) {
+if (!stripe_rate_limit('sub_ip_' . $ip, 120, 600)) {
 	stripe_fail_page(429, 'For mange forsøg', 'Vent et par minutter og prøv igen.');
 }
 if ($order_id < 1 || !stripe_link_verify($order_id, $sig)) {
 	stripe_log("subscribe: bad signature for order $order_id from $ip");
 	stripe_fail_page(403, 'Linket er ugyldigt', 'Linket er ugyldigt eller udløbet. Brug linket fra din seneste faktura, eller besvar fakturamailen.');
+}
+if (!stripe_rate_limit('sub_ord_' . $order_id, 30, 600)) {
+	stripe_fail_page(429, 'For mange forsøg', 'Vent et par minutter og prøv igen.');
 }
 
 // Order-level guards. NB: nextfakt is deliberately never selected - no stripe

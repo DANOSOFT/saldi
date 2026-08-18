@@ -105,9 +105,11 @@ The subscribe endpoint sends `client_reference_id=<order_id>` **plus both** meta
   copies subscription metadata onto every invoice it generates; this is what makes
   RENEWAL invoices resolvable. Non-optional.
 
-The webhook resolves identity in this order: (1) the invoice's subscription metadata
-(`invoice.subscription_details.metadata`, else `GET /v1/subscriptions/<id>`),
-(2) the `stripe_customers` row as cache. `stripe_customers` is upserted from **both**
+The webhook resolves identity in this order: (1) the Basil/Dahlia invoice subscription
+metadata (`invoice.parent.subscription_details.metadata`, with legacy
+`invoice.subscription_details.metadata` fallback), (2) the local `stripe_customers` row,
+then (3) `GET /v1/subscriptions/<id>` as the final fallback. `stripe_customers` is
+upserted from **both**
 `checkout.session.completed` and `invoice.paid`, so webhook ordering races cannot orphan
 the first payment. Truly unresolvable customer -> `unmapped_customer` -> **5xx** (the one
 documented exception to 200-always) so Stripe's retry ladder absorbs ordering races.

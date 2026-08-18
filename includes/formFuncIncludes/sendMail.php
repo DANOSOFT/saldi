@@ -29,6 +29,7 @@
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250603 PHR enhanced use of variables in mailtext. 
+// 20260818 CL/LH Preserved plain-text mail bodies when anchor flattening fails.
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
@@ -402,7 +403,7 @@ print "<!--function send_mails start-->";
 	# 20260817 CL/LH flatten anchors to "text: url" BEFORE the tag conversion -
 	# the plain-text part otherwise carries raw <a ...> markup (spam scoring).
 	# Also repairs the existing $betalingslink button's plain-text rendering.
-	$ren_text=preg_replace('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is','$2: $1',$ren_text);
+	$ren_text=preg_replace('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is','$2: $1',$ren_text) ?? $ren_text;
 	$ren_text=str_replace("<br>","\n",$ren_text);
 	$ren_text=str_replace("<b>","*",$ren_text);
 	$ren_text=str_replace("</b>","*",$ren_text);

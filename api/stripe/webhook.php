@@ -25,6 +25,7 @@
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: Stripe webhook receiver. Contract:
 //                doc/stripe/INTERFACE_CONTRACT.md.
+// 20260818 CL/LH Hardened claims, DB failures, and invoice identity.
 //
 // PILOT MODE OF RECORD = record-only: verify + dedupe + record + PDF + alert;
 // nothing is booked. The import path is gated behind the import_enabled
@@ -61,15 +62,40 @@ function stripe_wh_respond($status, $msg) {
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') stripe_wh_respond(405, 'method_not_allowed');
 if (isset($_GET['db']) || isset($_POST['db'])) stripe_wh_respond(400, 'bad_request');
 
-include("../../includes/connect.php");
-include("../../includes/stripeIncludes/stripeBootstrap.php");
-include("../../includes/stripeIncludes/stripeHttp.php");
-include("../../includes/stripeIncludes/stripeAlertMail.php");
+include(__DIR__ . '/../../includes/connect.php');
+include(__DIR__ . '/../../includes/stripeIncludes/stripeBootstrap.php');
+include(__DIR__ . '/../../includes/stripeIncludes/stripeHttp.php');
+include(__DIR__ . '/../../includes/stripeIncludes/stripeAlertMail.php');
 
 if (!$stripe_boot_ok) stripe_wh_respond(503, 'unavailable');
 
+function stripe_wh_db_select($qtext) {
+	http_response_code(500);
+	$query = db_select($qtext, __FILE__ . " linje " . __LINE__);
+	if ($query === false) {
+		stripe_log('webhook: database read failed - responding 500');
+		stripe_wh_respond(500, 'database_failed');
+	}
+	http_response_code(200);
+	return $query;
+}
+
+function stripe_wh_db_modify($qtext) {
+	http_response_code(500);
+	$result = stripe_db_modify($qtext, __FILE__ . " linje " . __LINE__);
+	if ($result !== false) http_response_code(200);
+	return $result;
+}
+
+function stripe_wh_require_modify($qtext) {
+	if (stripe_wh_db_modify($qtext) === false) {
+		stripe_log('webhook: database write failed - responding 500');
+		stripe_wh_respond(500, 'database_failed');
+	}
+}
+
 // 2. Boot asserts (contract par. 6): never process against a half-deployed install.
-$tblChk = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='stripe_events' AND column_name='event_id'", __FILE__ . " linje " . __LINE__));
+$tblChk = db_fetch_array(stripe_wh_db_select("SELECT column_name FROM information_schema.columns WHERE table_name='stripe_events' AND column_name='event_id'"));
 if (!$tblChk) {
 	stripe_log('webhook: BOOT ASSERT FAILED - stripe_events table missing (partial deploy?)');
 	stripe_wh_respond(503, 'not_provisioned');
@@ -77,7 +103,7 @@ if (!$tblChk) {
 $importEnabled = (stripe_setting('import_enabled', 'off') === 'on');
 if ($importEnabled) {
 	$svc = dirname(__DIR__, 2) . '/restapi/services/ExternalPaidInvoiceImportService.php';
-	$idxChk = db_fetch_array(db_select("SELECT indexname FROM pg_indexes WHERE tablename='ordrer' AND indexname='ordrer_stripe_paid_invoice_uidx'", __FILE__ . " linje " . __LINE__));
+	$idxChk = db_fetch_array(stripe_wh_db_select("SELECT indexname FROM pg_indexes WHERE tablename='ordrer' AND indexname='ordrer_stripe_paid_invoice_uidx'"));
 	$fnOk = false;
 	if (function_exists('get_next_order_number')) {
 		$rf = new ReflectionFunction('get_next_order_number');
@@ -130,25 +156,37 @@ $eventType = (string)$event['type'];
 $obj       = $event['data']['object'];
 $mode      = stripe_setting('mode');
 $liveMode  = !empty($event['livemode']);
+if (!in_array($mode, ['test', 'live'], true)) {
+	stripe_log('webhook: invalid Stripe mode configuration - responding 503');
+	stripe_wh_respond(503, 'config_error');
+}
 
 // 5. Dedupe via the DB unique index, with an ownership token so a concurrent
 // duplicate delivery can never double-process. The token borrows the error
 // column for the microseconds between insert and claim-check.
 $eventIdEsc = db_escape_string($eventId);
 $token = bin2hex(random_bytes(16));
-$existing = db_fetch_array(db_select("select id, status, received_at from stripe_events where event_id = '$eventIdEsc'", __FILE__ . " linje " . __LINE__));
+$existing = db_fetch_array(stripe_wh_db_select("select id, status from stripe_events where event_id = '$eventIdEsc'"));
 if ($existing) {
-	$isStale = ($existing['status'] === 'received') && (strtotime($existing['received_at']) < time() - 900);
-	if (!$isStale) stripe_wh_respond(200, 'duplicate');
+	if ($existing['status'] !== 'received') stripe_wh_respond(200, 'duplicate');
 	// Crashed mid-processing >15 min ago: claim it for reprocessing.
-	db_modify("update stripe_events set status = 'retrying', error = '$token' where id = " . (int)$existing['id'] . " and status = 'received'", __FILE__ . " linje " . __LINE__);
-	$claim = db_fetch_array(db_select("select error from stripe_events where id = " . (int)$existing['id'], __FILE__ . " linje " . __LINE__));
+	$staleSql = ($db_type === 'mysql' || $db_type === 'mysqli')
+		? 'received_at < CURRENT_TIMESTAMP - INTERVAL 15 MINUTE'
+		: "received_at < CURRENT_TIMESTAMP - INTERVAL '15 minutes'";
+	stripe_wh_require_modify("update stripe_events set status = 'retrying', error = '$token' where id = " . (int)$existing['id']
+		. " and status = 'received' and $staleSql");
+	$claim = db_fetch_array(stripe_wh_db_select("select error from stripe_events where id = " . (int)$existing['id']));
 	if (!$claim || $claim['error'] !== $token) stripe_wh_respond(200, 'duplicate');
 	$rowId = (int)$existing['id'];
 } else {
-	db_modify("insert into stripe_events (event_id, event_type, payload, status, error) values ('$eventIdEsc', '"
-		. db_escape_string($eventType) . "', '" . db_escape_string(base64_encode($rawBody)) . "', 'received', '$token')", __FILE__ . " linje " . __LINE__);
-	$mine = db_fetch_array(db_select("select id, error from stripe_events where event_id = '$eventIdEsc'", __FILE__ . " linje " . __LINE__));
+	$insertResult = stripe_wh_db_modify("insert into stripe_events (event_id, event_type, payload, status, error) values ('$eventIdEsc', '"
+		. db_escape_string($eventType) . "', '" . db_escape_string(base64_encode($rawBody)) . "', 'received', '$token')");
+	$mine = db_fetch_array(stripe_wh_db_select("select id, error from stripe_events where event_id = '$eventIdEsc'"));
+	if ($insertResult === false) {
+		if ($mine && $mine['error'] !== $token) stripe_wh_respond(200, 'duplicate');
+		stripe_log("webhook: stripe_events insert failed for $eventId - responding 500");
+		stripe_wh_respond(500, 'store_failed');
+	}
 	if (!$mine) {
 		// Insert failed outright (not a duplicate - the row is absent): 5xx so Stripe retries.
 		stripe_log("webhook: stripe_events insert failed for $eventId - responding 500");
@@ -157,14 +195,14 @@ if ($existing) {
 	if ($mine['error'] !== $token) stripe_wh_respond(200, 'duplicate'); // concurrent delivery won the index race
 	$rowId = (int)$mine['id'];
 }
-db_modify("update stripe_events set error = null where id = $rowId", __FILE__ . " linje " . __LINE__);
+stripe_wh_require_modify("update stripe_events set error = null where id = $rowId");
 
 function stripe_wh_finish($rowId, $status, $respCode, $respMsg, $orderId = 0, $invoiceNumber = '', $error = '') {
 	$set = "status = '" . db_escape_string($status) . "', processed_at = CURRENT_TIMESTAMP";
 	if ($orderId > 0)            $set .= ", saldi_order_id = " . (int)$orderId;
 	if ($invoiceNumber !== '')   $set .= ", invoice_number = '" . db_escape_string($invoiceNumber) . "'";
 	if ($error !== '')           $set .= ", error = '" . db_escape_string(stripe_redact($error)) . "'";
-	db_modify("update stripe_events set $set where id = " . (int)$rowId, __FILE__ . " linje " . __LINE__);
+	stripe_wh_require_modify("update stripe_events set $set where id = " . (int)$rowId);
 	stripe_wh_respond($respCode, $respMsg);
 }
 
@@ -177,7 +215,7 @@ if (($mode === 'live') !== $liveMode) stripe_wh_finish($rowId, 'ignored_mode', 2
 function stripe_wh_upsert_customer($customerId, $subscriptionId, $kontoId, $kontonr, $orderId, $status = 'active') {
 	$cEsc = db_escape_string((string)$customerId);
 	if ($cEsc === '') return;
-	$r = db_fetch_array(db_select("select id from stripe_customers where stripe_customer_id = '$cEsc'", __FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(stripe_wh_db_select("select id from stripe_customers where stripe_customer_id = '$cEsc'"));
 	$subEsc = db_escape_string((string)$subscriptionId);
 	if ($r) {
 		$set = "updated_at = CURRENT_TIMESTAMP, status = '" . db_escape_string($status) . "'";
@@ -185,25 +223,29 @@ function stripe_wh_upsert_customer($customerId, $subscriptionId, $kontoId, $kont
 		if ((int)$kontoId > 0)   $set .= ", konto_id = " . (int)$kontoId;
 		if ($kontonr !== '')     $set .= ", kontonr = '" . db_escape_string($kontonr) . "'";
 		if ((int)$orderId > 0)   $set .= ", order_id = " . (int)$orderId;
-		db_modify("update stripe_customers set $set where id = " . (int)$r['id'], __FILE__ . " linje " . __LINE__);
+		stripe_wh_require_modify("update stripe_customers set $set where id = " . (int)$r['id']);
 	} else {
-		db_modify("insert into stripe_customers (stripe_customer_id, stripe_subscription_id, konto_id, kontonr, order_id, status, updated_at) values ('$cEsc', "
+		stripe_wh_require_modify("insert into stripe_customers (stripe_customer_id, stripe_subscription_id, konto_id, kontonr, order_id, status, updated_at) values ('$cEsc', "
 			. ($subEsc !== '' ? "'$subEsc'" : "null") . ", " . ((int)$kontoId > 0 ? (int)$kontoId : "null") . ", "
 			. ($kontonr !== '' ? "'" . db_escape_string($kontonr) . "'" : "null") . ", " . ((int)$orderId > 0 ? (int)$orderId : "null")
-			. ", '" . db_escape_string($status) . "', CURRENT_TIMESTAMP)", __FILE__ . " linje " . __LINE__);
+			. ", '" . db_escape_string($status) . "', CURRENT_TIMESTAMP)");
 	}
 }
 
-// Identity for an invoice event: subscription metadata primary (Stripe copies
-// subscription_data metadata onto every invoice), stripe_customers as cache.
+// Identity for an invoice event: Basil/Dahlia subscription metadata first,
+// then the local customer cache, with the Stripe API as the final fallback.
 function stripe_wh_resolve_identity($inv) {
 	$meta = [];
-	if (isset($inv['subscription_details']['metadata']) && is_array($inv['subscription_details']['metadata'])) {
+	$subscriptionId = '';
+	if (isset($inv['parent']['subscription_details']['metadata']) && is_array($inv['parent']['subscription_details']['metadata'])) {
+		$meta = $inv['parent']['subscription_details']['metadata'];
+	} elseif (isset($inv['subscription_details']['metadata']) && is_array($inv['subscription_details']['metadata'])) {
 		$meta = $inv['subscription_details']['metadata'];
 	}
-	if ((empty($meta['saldi_order_id']) || empty($meta['saldi_konto_id'])) && !empty($inv['subscription']) && is_string($inv['subscription'])) {
-		$resp = stripeHttpRequest('GET', '/v1/subscriptions/' . rawurlencode($inv['subscription']));
-		if ($resp['ok'] && isset($resp['body']['metadata']) && is_array($resp['body']['metadata'])) $meta = $resp['body']['metadata'];
+	if (isset($inv['parent']['subscription_details']['subscription']) && is_string($inv['parent']['subscription_details']['subscription'])) {
+		$subscriptionId = $inv['parent']['subscription_details']['subscription'];
+	} elseif (!empty($inv['subscription']) && is_string($inv['subscription'])) {
+		$subscriptionId = $inv['subscription'];
 	}
 	$orderId = isset($meta['saldi_order_id']) ? (int)$meta['saldi_order_id'] : 0;
 	$kontoId = isset($meta['saldi_konto_id']) ? (int)$meta['saldi_konto_id'] : 0;
@@ -211,7 +253,7 @@ function stripe_wh_resolve_identity($inv) {
 	if (!$orderId || !$kontoId) {
 		$cEsc = db_escape_string((string)(isset($inv['customer']) ? $inv['customer'] : ''));
 		if ($cEsc !== '') {
-			$r = db_fetch_array(db_select("select konto_id, kontonr, order_id from stripe_customers where stripe_customer_id = '$cEsc'", __FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(stripe_wh_db_select("select konto_id, kontonr, order_id from stripe_customers where stripe_customer_id = '$cEsc'"));
 			if ($r) {
 				if (!$orderId) $orderId = (int)$r['order_id'];
 				if (!$kontoId) $kontoId = (int)$r['konto_id'];
@@ -219,11 +261,20 @@ function stripe_wh_resolve_identity($inv) {
 			}
 		}
 	}
+	if ((!$orderId || !$kontoId) && $subscriptionId !== '') {
+		$resp = stripeHttpRequest('GET', '/v1/subscriptions/' . rawurlencode($subscriptionId));
+		if ($resp['ok'] && isset($resp['body']['metadata']) && is_array($resp['body']['metadata'])) {
+			$remoteMeta = $resp['body']['metadata'];
+			if (!$orderId && !empty($remoteMeta['saldi_order_id'])) $orderId = (int)$remoteMeta['saldi_order_id'];
+			if (!$kontoId && !empty($remoteMeta['saldi_konto_id'])) $kontoId = (int)$remoteMeta['saldi_konto_id'];
+			if ($kontonr === '' && isset($remoteMeta['saldi_kontonr'])) $kontonr = (string)$remoteMeta['saldi_kontonr'];
+		}
+	}
 	return ['order_id' => $orderId, 'konto_id' => $kontoId, 'kontonr' => $kontonr];
 }
 
-// Best-effort PDF into bilag/<db>/pulje + a pool_files row. 5s cap; failure is
-// a warning, never fatal (the money-side record + alert must still land).
+// PDF download/write into bilag/<db>/pulje is best-effort with a 5s cap.
+// Once written, failure to record the pool_files row is a retryable DB error.
 function stripe_wh_attach_pdf($inv, $db) {
 	if (empty($inv['invoice_pdf'])) return 'no pdf url';
 	$number = preg_replace('/[^A-Za-z0-9_-]/', '_', (string)(isset($inv['number']) ? $inv['number'] : $inv['id']));
@@ -238,12 +289,13 @@ function stripe_wh_attach_pdf($inv, $db) {
 	curl_close($ch);
 	if ($pdf === false || $code !== 200 || strncmp((string)$pdf, '%PDF', 4) !== 0) return 'download failed (' . $code . ')';
 	if (@file_put_contents($dir . '/' . $file, $pdf) === false) return 'write failed';
-	$kr = number_format(((int)(isset($inv['amount_paid']) ? $inv['amount_paid'] : 0)) / 100, 2, ',', '.');
-	db_modify("insert into pool_files (filename, subject, amount, file_date, invoice_number, description, currency) values ('"
+	$amountOre = (int)(isset($inv['amount_paid']) ? $inv['amount_paid'] : 0);
+	$kr = number_format($amountOre / 100, 2, ',', '.');
+	$normAmount = number_format($amountOre / 100, 2, '.', '');
+	stripe_wh_require_modify("insert into pool_files (filename, subject, amount, norm_amount, file_date, invoice_number, description, currency) values ('"
 		. db_escape_string($file) . "', 'Stripe faktura " . db_escape_string((string)$inv['number']) . "', '"
-		. db_escape_string($kr) . "', '" . db_escape_string(date('Y-m-d')) . "', '"
-		. db_escape_string((string)$inv['number']) . "', 'Stripe abonnementsfaktura (automatisk hentet af webhook)', 'DKK')",
-		__FILE__ . " linje " . __LINE__);
+		. db_escape_string($kr) . "', $normAmount, '" . db_escape_string(date('Y-m-d')) . "', '"
+		. db_escape_string((string)$inv['number']) . "', 'Stripe abonnementsfaktura (automatisk hentet af webhook)', 'DKK')");
 	return '';
 }
 
@@ -254,7 +306,7 @@ if ($eventType === 'checkout.session.completed') {
 	$kontoId = isset($obj['metadata']['saldi_konto_id']) ? (int)$obj['metadata']['saldi_konto_id'] : 0;
 	$kontonr = '';
 	if ($orderId > 0) {
-		$r = db_fetch_array(db_select("select kontonr, firmanavn from ordrer where id = $orderId", __FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(stripe_wh_db_select("select kontonr, firmanavn from ordrer where id = $orderId"));
 		$kontonr = $r ? (string)$r['kontonr'] : '';
 		$firma   = $r ? (string)$r['firmanavn'] : '';
 	} else { $firma = ''; }
@@ -338,7 +390,7 @@ if ($eventType === 'charge.refunded') {
 	$kontonr = '';
 	$cEsc = db_escape_string((string)(isset($obj['customer']) ? $obj['customer'] : ''));
 	if ($cEsc !== '') {
-		$r = db_fetch_array(db_select("select kontonr from stripe_customers where stripe_customer_id = '$cEsc'", __FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(stripe_wh_db_select("select kontonr from stripe_customers where stripe_customer_id = '$cEsc'"));
 		if ($r) $kontonr = (string)$r['kontonr'];
 	}
 	$refKr = number_format(((int)(isset($obj['amount_refunded']) ? $obj['amount_refunded'] : 0)) / 100, 2, ',', '.');
