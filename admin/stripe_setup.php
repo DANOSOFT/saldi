@@ -47,6 +47,7 @@
 //      varenr exists in varer (varenr discipline).
 //
 // Exit codes: 0 = clean, 1 = completed with warnings, 2 = errors.
+// 20260818 CL/LH Anchored branch-added include paths to __DIR__.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -78,10 +79,10 @@ function out($msg)  { print $msg . "\n"; }
 function warn($msg) { global $warnings; $warnings++; print "WARNING: $msg\n"; }
 function err($msg)  { global $errors; $errors++; fwrite(STDERR, "ERROR: $msg\n"); }
 
-include("../includes/db_query.php");
-include("../includes/connect.php");
-include("../includes/stripeIncludes/stripeSettings.php");
-include("../includes/stripeIncludes/stripeHttp.php");
+include(__DIR__ . '/../includes/db_query.php');
+include(__DIR__ . '/../includes/connect.php');
+include(__DIR__ . '/../includes/stripeIncludes/stripeSettings.php');
+include(__DIR__ . '/../includes/stripeIncludes/stripeHttp.php');
 
 // Tenant: the resolver is the only authority; --db is just a confirmation.
 $target = stripeConfigDb();

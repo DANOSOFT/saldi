@@ -27,6 +27,7 @@
 //                ONLY when the id+sig pair verifies - otherwise no link, so
 //                the page cannot be used to probe or forward signatures.
 //                No DB writes, no Stripe calls.
+// 20260818 CL/LH Anchored branch-added include paths to __DIR__.
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
@@ -34,9 +35,9 @@ header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 
-include("../../includes/connect.php");
-include("../../includes/stripeIncludes/stripeBootstrap.php");
-include("../../includes/stripeIncludes/stripeLink.php");
+include(__DIR__ . '/../../includes/connect.php');
+include(__DIR__ . '/../../includes/stripeIncludes/stripeBootstrap.php');
+include(__DIR__ . '/../../includes/stripeIncludes/stripeLink.php');
 
 $order_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $sig      = isset($_GET['sig']) ? (string)$_GET['sig'] : '';

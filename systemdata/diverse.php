@@ -94,6 +94,7 @@
 // 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
 // 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+// 20260818 CL/LH Use stable Stripe settings include paths.
 
 @session_start();
 $s_id = session_id();
@@ -1196,7 +1197,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
 	} elseif ($sektion == 'stripe_valg') {
-		include_once("diverseIncludes/stripeValg.php");
+		include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
 		stripeValgSave();
 		#######################################################################################
 	} elseif ($sektion == 'labels') {
@@ -2378,7 +2379,7 @@ if ($sektion == "variant_valg") variant_valg();
 // if ($sektion == "shop_valg") shop_valg();
 if ($sektion == "api_valg") api_valg();
 if ($sektion == "stripe_valg") {
-	include_once("diverseIncludes/stripeValg.php");
+	include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
 	stripeValg();
 }
 if ($sektion == "labels") labels($valg);

@@ -30,6 +30,7 @@
 //                gap -> no URL, with the reason on stderr. CLI only.
 //
 // Usage: php tools/stripe_print_link.php <ordre-id> [<ordre-id> ...]
+// 20260818 CL/LH Anchored branch-added include paths to __DIR__.
 
 if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI only'; exit; }
 chdir(__DIR__);
@@ -45,10 +46,10 @@ if ($argc < 2) {
 	exit(2);
 }
 
-include("../includes/db_query.php");
-include("../includes/connect.php");
-include("../includes/stripeIncludes/stripeBootstrap.php");
-include("../includes/stripeIncludes/stripeLink.php");
+include(__DIR__ . '/../includes/db_query.php');
+include(__DIR__ . '/../includes/connect.php');
+include(__DIR__ . '/../includes/stripeIncludes/stripeBootstrap.php');
+include(__DIR__ . '/../includes/stripeIncludes/stripeLink.php');
 
 if (!$stripe_boot_ok) {
 	fwrite(STDERR, "ERROR: tenant unresolved or connection failed (SALDI_STRIPE_DB / .ht_stripe_db)\n");
