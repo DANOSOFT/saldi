@@ -56,7 +56,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260223 PHR Fixed currency error (Valutakurs)
 // 20260608 PHR removed fakturadate from insert_shop_order. It is set in 'fakturer_ordre'
-// 20260622 PHR Improved set fakturadate in 'fakturer_ordre
+// 20260622 PHR Improved set fakturadate in 'fakturer_ordre'
 // 20260717 CX/PHR Corrected lev_date to levdate in 'fakturer_ordre'
 // 20260729 CL/SZ fakturer_ordre: check $db_modify_fejl before the transaction commits so a
 //                failed write in the posting transaction returns an error instead of the
