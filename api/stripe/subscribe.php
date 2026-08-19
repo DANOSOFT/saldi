@@ -195,6 +195,17 @@ if (!$parkReason) {
 	}
 }
 
+// Per-debtor opt-out ("Ingen kortbetaling" on the debitorkort): even an already
+// emailed, validly signed link parks. Checked after the already-subscribed page
+// (an active subscription keeps its truthful message) and never gates the webhook.
+if (!$parkReason && (int)$order['konto_id'] > 0) {
+	$fc = db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'adresser' and column_name = 'stripe_fravalg'", __FILE__ . " linje " . __LINE__));
+	if ($fc) {
+		$a = db_fetch_array(db_select("select stripe_fravalg from adresser where id = " . (int)$order['konto_id'], __FILE__ . " linje " . __LINE__));
+		if ($a && trim((string)$a['stripe_fravalg']) !== '') $parkReason = 'DEBTOR_OPTOUT';
+	}
+}
+
 $match = $parkReason ? ['ok' => false, 'reason' => $parkReason, 'detail' => ''] : stripe_match_order($order_id);
 
 if (!$match['ok']) {

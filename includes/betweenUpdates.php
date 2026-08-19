@@ -420,5 +420,12 @@ $qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'stripe_customers' A
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("CREATE INDEX idx_stripe_customers_konto_id ON stripe_customers (konto_id)", __FILE__ . " linje " . __LINE__);
 }
+// 20260819 CL/LH Per-debtor opt-out for kortbetaling ("Ingen kortbetaling" on the
+// debitorkort): overrides templates and catalog - the link helper renders '' and
+// subscribe.php parks. Does NOT touch already-running subscriptions.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='stripe_fravalg'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE adresser ADD stripe_fravalg varchar(2)", __FILE__ . " linje " . __LINE__);
+}
 
 ?>

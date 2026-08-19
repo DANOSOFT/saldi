@@ -53,8 +53,20 @@ if (!function_exists('subscriptionLinkUrl')) {
 		if (!stripe_setting('secret_key')) return '';
 		if (strlen(stripe_setting('link_secret')) < 64) return '';
 		if (!stripe_setting('public_base_url')) return '';
-		$o = db_fetch_array(db_select("select id, art from ordrer where id = " . $ordre_id, __FILE__ . " linje " . __LINE__));
+		$o = db_fetch_array(db_select("select id, art, konto_id from ordrer where id = " . $ordre_id, __FILE__ . " linje " . __LINE__));
 		if (!$o || $o['art'] !== 'DO') return '';
+		// Per-debtor opt-out ("Ingen kortbetaling" on the debitorkort) beats
+		// templates and catalog. Column-existence is cached per tenant so a
+		// mid-deploy install without the migration simply has no opt-outs yet.
+		static $fravalg_col = [];
+		if (!isset($fravalg_col[$db])) {
+			$fc = db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'adresser' and column_name = 'stripe_fravalg'", __FILE__ . " linje " . __LINE__));
+			$fravalg_col[$db] = !empty($fc['column_name']);
+		}
+		if ($fravalg_col[$db] && (int)$o['konto_id'] > 0) {
+			$a = db_fetch_array(db_select("select stripe_fravalg from adresser where id = " . (int)$o['konto_id'], __FILE__ . " linje " . __LINE__));
+			if ($a && trim((string)$a['stripe_fravalg']) !== '') return '';
+		}
 		static $catalog_exists = [];
 		if (!isset($catalog_exists[$db])) {
 			$r = db_fetch_array(db_select("select to_regclass('stripe_catalog') as table_name", __FILE__ . " linje " . __LINE__));
