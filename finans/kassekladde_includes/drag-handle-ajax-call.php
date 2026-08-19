@@ -2,7 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     let unsavedChanges = false;
     let pendingDragEvt = null;
-    let retryDrag = false;
+    let retryDrag = false; 
 
     document.querySelectorAll('#kassekladde-tbody input, #kassekladde-tbody select, #kassekladde-tbody textarea').forEach(el => {
         el.addEventListener('input', () => { unsavedChanges = true; });
@@ -69,11 +69,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         ids
                     })
                 })
-                .then(res => res.json())
-                .then(data => {
-                    if (!data.success) {
-                        alert('Could not save new order!');
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Could not save new order');
                     }
+
+                    // Keep kladde_id, kkdir, tjek, etc.
+                    // Only change kksort to "pos"
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('kksort', 'pos');
+                    url.searchParams.set('kkdir', 'asc');
+                    window.location.href = url.toString();
+                })
+                .catch(error => {
+                    console.error(error);
+                    alert('Could not save new order!');
+                      // The DOM was already reordered optimistically before this fetch;
+                    // since the save failed, reload to rebuild the table from the
+                    // actual persisted pos values instead of leaving an unsaved,
+                    // out-of-sync order on screen.
+                    window.location.reload();
                 });
             },
             onMove: evt => {

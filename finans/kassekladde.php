@@ -64,6 +64,7 @@
 // 20260729 MJ Rettet fejl: clipDragSourceId-rest forhindrede fil-drop naar forrige clip-drag ikke var ryddet op
 // 20260729 MJ Rettet fejl: upload-succces opdaterer nu kun clip-ikonet i DOM istedet for at genindlaese siden
 // 20260812 LOE .kassekladde-scroll-container; increased the subtraction in height to leave more room for the footer buttons.
+// 20260814 LOE Position-based sorting: fixed a bug where the positioning control was not visible and reordered positions did not persist.
 ob_start(); //Starter output buffering  
 
 register_shutdown_function(function() {
@@ -2453,9 +2454,10 @@ if ($r && !$kksort) $kksort = $r['box1'];
 if ($r) $kontrolkonto = $r['box2'];
 if ($r) $kkdir = ($r['box4'] == 'desc') ? 'desc' : 'asc';
 if ($kladde_id) {
-	if ($kksort != 'transdate,bilag' && $kksort != 'amount')
+	if ($kksort != 'transdate,bilag' && $kksort != 'amount' && $kksort != 'bilag,transdate' && $kksort != 'pos')
 		$kksort = 'bilag,transdate';
 	if (!isset($kkdir) || ($kkdir != 'asc' && $kkdir != 'desc')) $kkdir = 'asc';
+	
 	$id = array();
 	$bilag = array();
 	$dato = array();
@@ -2513,16 +2515,20 @@ if ($kladde_id) {
 		$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 		$fejl = 1;
 	} else {
+	################### 
 		$_dir = ($kkdir == 'desc') ? 'DESC' : 'ASC';
-		if ($kksort == 'bilag,transdate') {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
+		if ($kksort == 'pos') {
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+		} elseif ($kksort == 'bilag,transdate') {
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'transdate,bilag') {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by transdate $_dir, bilag $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by transdate $_dir, bilag $_dir, id $_dir";
 		} elseif ($kksort == 'amount') {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} else {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		}
+	##################
 	}
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$bilagssum = 0;
@@ -2885,15 +2891,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 		#######
 		// Display row number ($y) as the visual line number - stored pos is used for ordering only
-		if(isset($bilag[$y+1])){
-			if((($bilag[$y] == $bilag[$y+1]) && ($transdate[$y] == $transdate[$y+1])) || (($bilag[$y] == $bilag[$y-1]) && ($transdate[$y] == $transdate[$y-1]))){
-				print "<td class='drag-handle' style='cursor:move;' data-id='{$id[$y]}' data-pos='" . (isset($pos[$y]) ? $pos[$y] : 0) . "'>&#x2630; $y</td>";
-			}else{
-				print "<td></td>";
-			}
-		}
-
-		######
+		print "<td class='drag-handle'
+			style='cursor:move;'
+			data-id='{$id[$y]}'
+			data-pos='" . (isset($pos[$y]) ? $pos[$y] : 0) . "'>
+			&#x2630; $y
+		</td>";
+		###### 
 
 		// Add Plus and Delete buttons
 		// Plus button - always enabled
