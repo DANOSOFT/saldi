@@ -141,6 +141,16 @@ function stripe_match_order($order_id) {
 		$res['total_ore'] += (int)$cat['unit_ore'] * (int)round($antal);
 	}
 	if (!$res['lines']) { $res['reason'] = 'NO_ITEMS'; $res['detail'] = 'ordren har ingen linjer med varenr'; return $res; }
+	// Merge duplicate lines (same varenr twice on the order, e.g. one line per
+	// regnskab): Stripe rejects a subscription carrying the same price on two
+	// items, so duplicates become one item with the summed quantity. The total
+	// is additive and unchanged.
+	$merged = [];
+	foreach ($res['lines'] as $l) {
+		if (isset($merged[$l['price_id']])) $merged[$l['price_id']]['antal'] += $l['antal'];
+		else $merged[$l['price_id']] = $l;
+	}
+	$res['lines'] = array_values($merged);
 	if (count($res['lines']) > 20) { $res['reason'] = 'TOO_MANY_ITEMS'; $res['detail'] = count($res['lines']) . ' linjer (Stripe-max er 20)'; return $res; }
 	$res['ok'] = true;
 	return $res;
