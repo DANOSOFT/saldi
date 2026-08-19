@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-07-29 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-08-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,7 @@
 // 20260729 MJ Rettet fejl: clipDragSourceId-rest forhindrede fil-drop naar forrige clip-drag ikke var ryddet op
 // 20260729 MJ Rettet fejl: upload-succces opdaterer nu kun clip-ikonet i DOM istedet for at genindlaese siden
 // 20260812 LOE .kassekladde-scroll-container; increased the subtraction in height to leave more room for the footer buttons.
+// 20260812 CX/PHR - Preserve and display the journal line VAT code; apply account default VAT when the account changes.
 ob_start(); //Starter output buffering  
 
 register_shutdown_function(function() {
@@ -170,20 +171,48 @@ function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_code
 }
 
 function resolve_lookup_vat_code($explicit_vat, $current_account, $current_type, $existing_account, $existing_type, $existing_vat, $regnaar, $vat_codes) {
-    if ($explicit_vat !== null) {
-        return normalize_vat_code($explicit_vat, $vat_codes);
-    }
-
     $current_account = trim((string)$current_account);
     $current_type = trim(strtoupper((string)$current_type));
     $existing_account = trim((string)$existing_account);
     $existing_type = trim(strtoupper((string)$existing_type));
 
-    if ($existing_account !== '' && $current_account === $existing_account && $current_type === $existing_type) {
+    if ($current_account !== $existing_account || $current_type !== $existing_type) {
+        return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+    }
+
+    if ($explicit_vat !== null) {
+        return normalize_vat_code($explicit_vat, $vat_codes);
+    }
+
+    if ($existing_account !== '') {
         return normalize_vat_code($existing_vat, $vat_codes);
     }
 
     return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+}
+
+function resolve_post_vat_code($row_id, $field, $current_account, $current_type, $submitted_vat, $regnaar, $vat_codes) {
+    $row_id = (int)$row_id;
+    $account_field = ($field === 'kreditvat') ? 'kredit' : 'debet';
+    $type_field = ($field === 'kreditvat') ? 'k_type' : 'd_type';
+    $existing_account = '';
+    $existing_type = '';
+
+    if ($row_id) {
+        $qtxt = "select $account_field,$type_field from kassekladde where id='$row_id'";
+        if ($row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $existing_account = trim((string)$row[$account_field]);
+            $existing_type = trim(strtoupper((string)$row[$type_field]));
+        }
+    }
+
+    $current_account = trim((string)$current_account);
+    $current_type = trim(strtoupper((string)$current_type));
+    if ($current_account !== $existing_account || $current_type !== $existing_type) {
+        return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+    }
+
+    return normalize_vat_code($submitted_vat, $vat_codes);
 }
 
 function ensure_cash_vat_columns() {
@@ -647,9 +676,25 @@ if ($_POST) {
 		$y = "kred" . $x;
 		$kredit[$x] = trim(if_isset($_POST[$y], ''));
 		$y = "dvat" . $x;
-		$debetvat[$x] = normalize_vat_code(if_isset($_POST[$y], ''), $vat_codes);
+		$debetvat[$x] = resolve_post_vat_code(
+			if_isset($id, 0, $x),
+			'debetvat',
+			$debet[$x],
+			$d_type[$x],
+			if_isset($_POST[$y], ''),
+			$regnaar,
+			$vat_codes
+		);
 		$y = "kvat" . $x;
-		$kreditvat[$x] = normalize_vat_code(if_isset($_POST[$y], ''), $vat_codes);
+		$kreditvat[$x] = resolve_post_vat_code(
+			if_isset($id, 0, $x),
+			'kreditvat',
+			$kredit[$x],
+			$k_type[$x],
+			if_isset($_POST[$y], ''),
+			$regnaar,
+			$vat_codes
+		);
 		$y = "fakt" . $x;
 		$faktura[$x] = trim(if_isset($_POST[$y], '')); #20130731
 		$y = "belo" . $x;
@@ -1420,8 +1465,10 @@ function build_kassekladde_query($kladde_id, $kksort) {
             k.beskrivelse,
             k.d_type,
             k.debet,
+            k.debetvat,
             k.k_type,
             k.kredit,
+            k.kreditvat,
             k.faktura,
             k.amount as belob,
             k.momsfri,
@@ -1576,11 +1623,12 @@ $columns = array(
 			$value = strip_tags($value);
 			$debettext = '';
 			if ($row['d_type'] == 'F' && $value) {
-				$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+				$query2 = db_select("select beskrivelse from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$debettext = $row2['beskrivelse'];
-					if (trim($row2['moms']))
-						$debettext = $debettext . " - " . trim($row2['moms']);
+					$saved_vat = get_saved_vat_code($row, 'debetvat');
+					if ($saved_vat !== null && $saved_vat !== '')
+						$debettext = $debettext . " - " . $saved_vat;
 				}
 			} elseif (($row['d_type'] == 'D' || $row['d_type'] == 'K') && $value) {
 				$query2 = db_select("select firmanavn from adresser where kontonr='$value' and art = '{$row['d_type']}'", __FILE__ . " linje " . __LINE__);
@@ -1662,11 +1710,12 @@ $columns = array(
 			$value =strip_tags($value);
 			$kredittext = '';
 			if ($row['k_type'] == 'F' && $value) {
-				$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+				$query2 = db_select("select beskrivelse from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$kredittext = trim($row2['beskrivelse']);
-					if (trim($row2['moms']))
-						$kredittext = $kredittext . " - " . trim($row2['moms']);
+					$saved_vat = get_saved_vat_code($row, 'kreditvat');
+					if ($saved_vat !== null && $saved_vat !== '')
+						$kredittext = $kredittext . " - " . $saved_vat;
 				}
 			} elseif (($row['k_type'] == 'D' || $row['k_type'] == 'K') && $value) {
 				$query2 = db_select("select firmanavn from adresser where kontonr='$value' and art = '{$row['k_type']}'", __FILE__ . " linje " . __LINE__);

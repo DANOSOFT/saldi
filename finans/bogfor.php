@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 5.0.0 --- 2026.03.16 ---
+// ---------------finans/bogfor.php---------- patch 5.0.0 --- 2026.08.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -57,6 +57,7 @@
 //                 (which already wraps the call together with the tmpkassekl cleanup) keeps ownership of
 //                 the transaction; transaktion('rollback') before an early exit is kept since those paths
 //                 still terminate the request immediately.
+// 20260812 CX/PHR - Use the VAT code saved on each cash-journal line during validation, simulation and posting.
 
 
 @session_start();
@@ -367,10 +368,10 @@ for ($y=1; $y<=$posteringer; $y++) {
 	if ($debet[$y]>0)  $d_amount[$y]=$dkkamount[$y];
 	if ($kredit[$y]>0) $k_amount[$y]=$dkkamount[$y];
 	if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)) {
-	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], ((!isset($d_type[$y]) || !$d_type[$y] || $d_type[$y]=='F') && isset($debetvat[$y])) ? $debetvat[$y] : NULL);
+	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], $debetvat[$y]);
 	}
 	if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)){
-		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], ((!isset($k_type[$y]) || !$k_type[$y] || $k_type[$y]=='F') && isset($kreditvat[$y])) ? $kreditvat[$y] : NULL);
+		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], $kreditvat[$y]);
 	}
 }
 /*
@@ -824,8 +825,8 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			if (!$afd[$y]){$afd[$y]=0;}
 			if (!isset ($d_momsart[$y])) $d_momsart[$y] = NULL;
 			if (!isset ($k_momsart[$y])) $k_momsart[$y] = NULL;
-			if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], ((!isset($d_type[$y]) || !$d_type[$y] || $d_type[$y]=='F') && isset($debetvat[$y])) ? $debetvat[$y] : NULL);
-			if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], ((!isset($k_type[$y]) || !$k_type[$y] || $k_type[$y]=='F') && isset($kreditvat[$y])) ? $kreditvat[$y] : NULL);
+			if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], $debetvat[$y]);
+			if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], $kreditvat[$y]);
 		} elseif (!$row['debet'] && !$row['kredit'] && $row['id']) { #20170516
 			db_modify("delete from kassekladde where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
 		}
@@ -1144,26 +1145,27 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	}
 }
 ######################################################################################################################################
-function momsberegning($konto,$amount,$momsart,$kontrol,$vat_override=NULL) {
+function momsberegning($konto,$amount,$momsart,$kontrol,$lineVat=NULL) {
 	global $connection;
 	global $regnaar;
 	global $db;
 	global $brugernavn;
-	
+
 	$nettoamount=$amount;
 	$errorTxt=$moms=$momskto=$modkto=NULL;
-	
-	$override_used = ($vat_override !== NULL);
-	if ($override_used) {
-		$konto_moms = trim((string)$vat_override);
-	} else {
-		$r=db_fetch_array(db_select("select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
-		$konto_moms = trim(if_isset($r['moms'], ''));
-	}
 
-	if ($konto_moms) {
-		$a=substr($konto_moms,0,1); #Foerste tegn i strengen
-		$b=substr($konto_moms,1);   #Andet tegn i strengen
+	$a=substr($momsart,0,1); #Foerste tegn i strengen
+	$b=substr($momsart,1,1); #Andet tegn i strengen
+
+	// The VAT code shown and saved on the cash-journal line is authoritative.
+	// NULL is reserved for legacy rows and falls back to the account setup.
+	if ($lineVat === NULL) {
+		$r=db_fetch_array(db_select("select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
+		$effectiveVat=trim(if_isset($r['moms'], ''));
+	} else {
+		$effectiveVat=trim($lineVat);
+	}
+	if ($effectiveVat) {
 		if ((($a=='E')||($a=='Y')) && $b) {
 			$c=$a.'M';
 			$qtxt = "select box1,box2,box3 from grupper where ";
@@ -1178,13 +1180,15 @@ function momsberegning($konto,$amount,$momsart,$kontrol,$vat_override=NULL) {
 				$momskto=trim($row['box1']);
 				$modkto=trim($row['box3']);
 			}
-		} else {	
+		} else {
+			$a=substr($effectiveVat,0,1);
+			$b=substr($effectiveVat,1);
 #Hvis en momspligtig vare koebes i EU beregnes der EU moms. $kontrol er kun sat hvis der er tale om en kreditor
 # og nedenst&aring;ende tr&aelig;der s&aring;ledes ikke i kraft naar der er tale om en finanskonto med EU moms.
-			if (!$override_used && $a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
-				$a=substr($kontrol,0,1);	
+			if ($a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
+				$a=substr($kontrol,0,1);
 				$b=substr($kontrol,1.1);
-			} 
+			}
 			$c=$a.'M';
 			$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
