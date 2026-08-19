@@ -66,13 +66,15 @@ function stripeValgSave() {
 		}
 	}
 
-	# webhook_secret - blank means unchanged
+	# webhook_secret - blank means unchanged. The secret is opaque to us (only
+	# used as HMAC key), so validate just the prefix and printable-ASCII-no-
+	# whitespace - a masked copy (whsec_ + bullet chars) still gets rejected.
 	$webhook_secret = trim((string)if_isset($_POST['stripe_webhook_secret'], ''));
 	if ($webhook_secret !== '') {
-		if (preg_match('/^whsec_[A-Za-z0-9]+$/', $webhook_secret)) {
+		if (preg_match('/^whsec_[\x21-\x7E]+$/', $webhook_secret)) {
 			update_settings_value('webhook_secret', 'stripe', db_escape_string($webhook_secret), 'Stripe webhook signing secret');
 		} else {
-			$fejl[] = 'Webhook secret afvist: forventet whsec_... (feltet er IKKE gemt)';
+			$fejl[] = 'Webhook secret afvist: forventet whsec_ efterfulgt af selve nøglen - kopieret mens den var skjult (prikker)? (feltet er IKKE gemt)';
 		}
 	}
 
