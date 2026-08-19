@@ -89,6 +89,3 @@ index/ch/
 # Live Service
 /index/redirect.php
 email.php
-
-# Stripe integration: per-install tenant pin, never committed (doc/stripe/INTERFACE_CONTRACT.md)
-includes/stripeIncludes/.ht_stripe_db
