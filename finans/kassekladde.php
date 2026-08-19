@@ -64,6 +64,7 @@
 // 20260729 MJ Rettet fejl: clipDragSourceId-rest forhindrede fil-drop naar forrige clip-drag ikke var ryddet op
 // 20260729 MJ Rettet fejl: upload-succces opdaterer nu kun clip-ikonet i DOM istedet for at genindlaese siden
 // 20260812 LOE .kassekladde-scroll-container; increased the subtraction in height to leave more room for the footer buttons.
+// 20260817 Sawaneh - Fixed fatal error: shortcuts ('=', 'D', 'K', genvej letters) in the debit/credit field were sent to the VAT lookup against kontoplan.kontonr (numeric) and aborted the query.
 ob_start(); //Starter output buffering  
 
 register_shutdown_function(function() {
@@ -153,6 +154,21 @@ function get_saved_vat_code($row, $field) {
     return trim((string)$row[$field]);
 }
 
+/**
+ * Tells whether a cash journal debit/credit value is an actual account number.
+ *
+ * The debit/credit fields also accept shortcuts such as '=' (copy from the line
+ * above), 'D'/'K' (debtor/creditor lookup) and the single letter shortcuts held
+ * in kontoplan.genvej. Those are translated later in the request, so any value
+ * reaching an account number query before that point may still be a shortcut.
+ * kontoplan.kontonr is numeric, so a shortcut would abort the query.
+ *
+ * @return bool  True when the value can be used as kontoplan.kontonr.
+ */
+function is_account_number($value) {
+    return ctype_digit(trim((string)$value));
+}
+
 function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_codes) {
     $account_no = trim((string)$account_no);
     $account_type = trim(strtoupper((string)$account_type));
@@ -160,7 +176,10 @@ function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_code
     if ($account_no === '' || ($account_type !== '' && $account_type !== 'F')) {
         return '';
     }
-    $qtxt = "select moms from kontoplan where kontonr='" . db_escape_string($account_no) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
+    if (!is_account_number($account_no) || !is_account_number($regnaar)) {
+        return '';
+    }
+    $qtxt = "select moms from kontoplan where kontonr='" . (int)$account_no . "' and regnskabsaar='" . (int)$regnaar . "'";
     $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     if ($row = db_fetch_array($query)) {
         return normalize_vat_code(if_isset($row['moms'], ''), $vat_codes);
@@ -302,11 +321,11 @@ if (
     && isset($_POST['action'])
     && $_POST['action'] === 'lookup_vat'
 ) {
-    $kontonr = db_escape_string(trim($_POST['kontonr']));
-    $regnaar_vat = db_escape_string(trim($_POST['regnaar']));
+    $kontonr = trim(if_isset($_POST, '', 'kontonr'));
+    $regnaar_vat = trim(if_isset($_POST, '', 'regnaar'));
     $vat = '';
-    if ($kontonr && $regnaar_vat) {
-        $qtxt = "select moms from kontoplan where kontonr='$kontonr' and regnskabsaar='$regnaar_vat'";
+    if (is_account_number($kontonr) && is_account_number($regnaar_vat)) {
+        $qtxt = "select moms from kontoplan where kontonr='" . (int)$kontonr . "' and regnskabsaar='" . (int)$regnaar_vat . "'";
         $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         if ($row = db_fetch_array($query)) {
             $vat = trim(if_isset($row['moms'], ''));
