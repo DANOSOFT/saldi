@@ -31,7 +31,10 @@
 //
 //   --db       Must equal stripeConfigDb()'s answer (belt and braces - the
 //              script refuses to run against any other regnskab).
-//   --csv      Optional ingest: semicolon-separated lines "varenr;unit_ore[;navn]".
+//   --csv      Optional ingest: semicolon-separated lines
+//              "varenr;unit_ore[;navn[;interval[;interval_count]]]"
+//              interval: month|year (default month), interval_count: 1-12
+//              (e.g. 3-month billing = month;3, yearly = year;1).
 //              Inserts stripe_catalog rows for varenr without an active row.
 //   --dry-run  No writes at all - neither DB nor Stripe. Prints the plan.
 //
@@ -125,19 +128,26 @@ if ($csv !== '') {
 			err("csv line $lineNo: expected 'varenr;unit_ore[;navn]' - got '$line'");
 			continue;
 		}
-		$varenr  = $parts[0];
-		$unitOre = (int)$parts[1];
+		$varenr   = $parts[0];
+		$unitOre  = (int)$parts[1];
+		$interval = isset($parts[3]) && $parts[3] !== '' ? strtolower($parts[3]) : 'month';
+		$intCount = isset($parts[4]) && $parts[4] !== '' ? (int)$parts[4] : 1;
+		if (!in_array($interval, ['month', 'year'], true) || $intCount < 1 || $intCount > 12) {
+			err("csv line $lineNo: invalid interval '$interval;$intCount' (expected month|year and 1-12)");
+			continue;
+		}
 		$q = db_select("select id from stripe_catalog where active = true and varenr = '" . db_escape_string($varenr) . "'", __FILE__ . " linje " . __LINE__);
 		if (db_fetch_array($q)) {
 			out("csv: '$varenr' already has an active row - skipped");
 			continue;
 		}
+		$per = ($intCount > 1 ? "$intCount x " : '') . $interval;
 		if ($dryRun) {
-			out("csv: would insert '$varenr' at $unitOre øre/md");
+			out("csv: would insert '$varenr' at $unitOre øre / $per");
 		} else {
 			db_modify("insert into stripe_catalog (varenr, unit_ore, billing_interval, interval_count, currency, active) values ('"
-				. db_escape_string($varenr) . "', " . $unitOre . ", 'month', 1, 'DKK', true)", __FILE__ . " linje " . __LINE__);
-			out("csv: inserted '$varenr' at $unitOre øre/md");
+				. db_escape_string($varenr) . "', " . $unitOre . ", '" . db_escape_string($interval) . "', " . $intCount . ", 'DKK', true)", __FILE__ . " linje " . __LINE__);
+			out("csv: inserted '$varenr' at $unitOre øre / $per");
 		}
 	}
 }
