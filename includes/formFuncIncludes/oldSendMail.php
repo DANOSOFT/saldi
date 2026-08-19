@@ -27,6 +27,7 @@
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
 // 20-09-2024 PBLM added betalingsLink functionality
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20260818 CL/LH Disabled shared-key payment-link minting in mail templates.
 	
 /*if(!class_exists('phpmailer')) {
 	ini_set("include_path", ".:../phpmailer");
@@ -97,9 +98,17 @@ print "<!--function send_mails start-->";
 			$mailtext = str_replace('$firmanavn',$r['firmanavn'],$mailtext);
 		}
 	}
-	if (strpos($mailtext,'$betalingslink')) {
-		$betalingsLink = betalingslink($ordre_id);
-		$mailtext = str_replace('$betalingslink',$betalingsLink,$mailtext);
+	if (strpos($mailtext,'$betalingslink') !== false) {
+		# Payment-link minting disabled pending per-tenant key handling.
+		$mailtext = str_replace('$betalingslink','',$mailtext);
+	}
+	# 20260817 CL/LH $abonnementslink parity with sendMail.php (derived at send
+	# time, before the generic resolvers; '' when not a subscription customer).
+	if (strpos($mailtext,'$abonnementslink') !== false || strpos($subjekt,'$abonnementslink') !== false) {
+		include_once(__DIR__ . "/subscriptionLink.php");
+		$abonnementslink = subscriptionLinkUrl($ordre_id);
+		$mailtext = str_replace('$abonnementslink', $abonnementslink ? "<a href=\"$abonnementslink\">Tilmeld automatisk betaling</a>" : '', $mailtext);
+		$subjekt  = str_replace('$abonnementslink', '', $subjekt);
 	}
 	$mailtext = str_replace("\n\r","\n\r<br>",$mailtext);
 
@@ -165,9 +174,15 @@ print "<!--function send_mails start-->";
 		for ($a=0;$a<count($ordliste);$a++) {
 			if (substr($ordliste[$a],0,1)=='$') {
 				$tmp=substr($ordliste[$a],1);
-				$r=db_fetch_array(db_select("select $tmp from ordrer where id='$ordre_id'",__FILE__ . " linje " . __LINE__));
-				$ordliste[$a]=$r[$tmp];
-			} 
+				# 20260817 CL/LH tier-1 allowlist (see mailTokenAllowlist.php)
+				include_once(__DIR__ . "/mailTokenAllowlist.php");
+				if (ordrer_mail_token_allowed($tmp)) {
+					$r=db_fetch_array(db_select("select $tmp from ordrer where id='$ordre_id'",__FILE__ . " linje " . __LINE__));
+					$ordliste[$a]=$r[$tmp];
+				} else {
+					$ordliste[$a]='';
+				}
+			}
 			$subjekt.=$ordliste[$a]." ";
 		}
 	}
@@ -184,9 +199,15 @@ print "<!--function send_mails start-->";
 					if (!$br) $br=" ".$br; #Eller æder den linjeskiftet hvis der ikke er noget efter <br>  
 				}
 				$tmp=trim($tmp);
-				$qtxt="select $tmp from ordrer where id='$ordre_id'";
-				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$ordliste[$a]=$r[$tmp];
+				# 20260817 CL/LH tier-1 allowlist (see mailTokenAllowlist.php)
+				include_once(__DIR__ . "/mailTokenAllowlist.php");
+				if (ordrer_mail_token_allowed($tmp)) {
+					$qtxt="select $tmp from ordrer where id='$ordre_id'";
+					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					$ordliste[$a]=$r[$tmp];
+				} else {
+					$ordliste[$a]='';
+				}
 				if ($br) {
 					$ordliste[$a].="<br>".$br;
 				}

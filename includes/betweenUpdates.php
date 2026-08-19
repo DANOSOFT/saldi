@@ -336,4 +336,89 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     db_modify("ALTER TABLE moms_periode_luk ADD COLUMN note TEXT", __FILE__ . " linje " . __LINE__);
 }
 
+// 20260807 CL/LH Stripe subscriptions: four tables + indexes for the native Stripe
+// integration (doc/stripe/INTERFACE_CONTRACT.md). Placed HERE and in admin/opret.php,
+// deliberately NOT in opdat_4.3.php - its opdat_to('4.3.0') gate has already run on
+// existing tenants, so anything added there is silently skipped (see the 20260728 note
+// at the top of this file). All statements are idempotent. Indexes exist only here:
+// the partial unique index is PostgreSQL-only syntax.
+// NB: column is billing_interval, not "interval" - INTERVAL is a reserved word in
+// PostgreSQL/MySQL. No stripe code may ever read or write ordrer.nextfakt.
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_catalog'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE stripe_catalog (
+		id SERIAL PRIMARY KEY,
+		varenr text,
+		stripe_price_id varchar(255),
+		stripe_product_id varchar(255),
+		unit_ore integer,
+		billing_interval varchar(10) NOT NULL DEFAULT 'month',
+		interval_count integer NOT NULL DEFAULT 1,
+		currency varchar(3) NOT NULL DEFAULT 'DKK',
+		active boolean NOT NULL DEFAULT true,
+		created_at timestamp DEFAULT CURRENT_TIMESTAMP)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_events'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE stripe_events (
+		id SERIAL PRIMARY KEY,
+		event_id varchar(255) NOT NULL,
+		event_type varchar(100),
+		payload text,
+		status varchar(30) NOT NULL DEFAULT 'received',
+		saldi_order_id integer,
+		invoice_number varchar(30),
+		error text,
+		received_at timestamp DEFAULT CURRENT_TIMESTAMP,
+		processed_at timestamp)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_customers'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE stripe_customers (
+		id SERIAL PRIMARY KEY,
+		stripe_customer_id varchar(255) NOT NULL,
+		stripe_subscription_id varchar(255),
+		konto_id integer,
+		kontonr varchar(30),
+		order_id integer,
+		status varchar(30) NOT NULL DEFAULT 'active',
+		created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+		updated_at timestamp)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stripe_import_failures'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "CREATE TABLE stripe_import_failures (
+		id SERIAL PRIMARY KEY,
+		event_id varchar(255),
+		stripe_invoice_id varchar(255),
+		reason varchar(50),
+		http_code integer,
+		message text,
+		payload_json text,
+		created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+		resolved_at timestamp)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+// Indexes: replay-safety (unique event), one active mapping per varenr (partial
+// unique - PostgreSQL only), and the webhook's two customer lookups.
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'stripe_events' AND indexname = 'stripe_events_event_id_uidx'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE UNIQUE INDEX stripe_events_event_id_uidx ON stripe_events (event_id)", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'stripe_catalog' AND indexname = 'stripe_catalog_varenr_active_uidx'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE UNIQUE INDEX stripe_catalog_varenr_active_uidx ON stripe_catalog (varenr) WHERE active", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'stripe_customers' AND indexname = 'idx_stripe_customers_customer_id'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE INDEX idx_stripe_customers_customer_id ON stripe_customers (stripe_customer_id)", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'stripe_customers' AND indexname = 'idx_stripe_customers_konto_id'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("CREATE INDEX idx_stripe_customers_konto_id ON stripe_customers (konto_id)", __FILE__ . " linje " . __LINE__);
+}
+
 ?>
