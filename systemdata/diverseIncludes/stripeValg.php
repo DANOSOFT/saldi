@@ -177,6 +177,14 @@ function stripeValg() {
 
 	# Read-only visning af varenr <-> Stripe price mappingen (redigeres via seed-
 	# scriptet admin/stripe_setup.php; en redigerbar grid-side kommer separat).
+	# Tabellen oprettes først ved regnskabs-login (betweenUpdates) - guard, saa
+	# siden ikke doer paa en frisk deploy hvor login endnu ikke er sket.
+	$cat_tbl = db_fetch_array(db_select("select to_regclass('stripe_catalog') as t", __FILE__ . " linje " . __LINE__));
+	if (!$cat_tbl || empty($cat_tbl['t'])) {
+		print "<tr><td colspan='6'><hr></td></tr>";
+		print "<tr><td colspan='4'>Stripe-tabellerne er ikke oprettet i dette regnskab endnu - log ud og ind igen, så oprettes de automatisk.</td></tr>";
+		return;
+	}
 	print "<tr><td colspan='6'><hr></td></tr>";
 	print "<tr><td colspan='4'><b>Varenr &harr; Stripe price (læsning)</b></td></tr>";
 	print "<tr><td><b>Varenr</b></td><td><b>Stripe price</b></td><td align='right'><b>Pris/md ekskl. moms</b></td><td><b>Interval</b></td><td><b>Aktiv</b></td></tr>";
