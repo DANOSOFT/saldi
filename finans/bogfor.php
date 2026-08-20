@@ -234,10 +234,20 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 			transaktion('begin');
 			bogfor($kladde_id, $kladdenote,'');
 			db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
-			transaktion('commit');
-			genberegn($regnaar);
-			equalizeMatchingRecords();
-			if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+			# 20260812 CL/LH (SD-644): SD-595-moenster som i includes/ordrefunc.php:1631 - en fejlet
+			# skrivning (fx trigger-RAISE fra periodelaasen) maa aldrig rapporteres som succes.
+			# Flaget tjekkes FOER commit og der rulles eksplicit tilbage: paa PostgreSQL er
+			# transaktionen allerede afbrudt, men paa MySQL/InnoDB ville et COMMIT ellers
+			# persistere de foregaaende succesfulde statements som en delvis kladde.
+			if ($db_modify_fejl) {
+				transaktion('rollback');
+				print "<BODY onLoad=\"javascript:alert('" . addslashes("Bogfoering fejlede - databasen afviste transaktionen. Ingen posteringer er gemt.") . "')\">";
+			} else {
+				transaktion('commit');
+				genberegn($regnaar);
+				equalizeMatchingRecords();
+				if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+			}
 		}
 	} elseif ($simuler) {
 		transaktion('begin');
