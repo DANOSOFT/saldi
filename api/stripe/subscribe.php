@@ -26,6 +26,8 @@
 // 20260807 CL/LH Created: signed subscription link endpoint.
 //                Contract: doc/stripe/INTERFACE_CONTRACT.md.
 // 20260818 CL/LH Moved per-order rate limit after link verification.
+// 20260820 CL/LH Presentation only: page shells moved to stripeIncludes/
+//                stripePage.php, new customer-facing design. No logic changes.
 //
 // GET  = verify HMAC, load the order, match every line against stripe_catalog,
 //        render a Danish confirm page. ZERO Stripe calls, ZERO writes - mail
@@ -54,38 +56,22 @@ if (isset($_GET['db']) || isset($_POST['db']) || isset($_REQUEST['db'])) {
 
 include(__DIR__ . "/../../includes/connect.php");
 include(__DIR__ . "/../../includes/stripeIncludes/stripeBootstrap.php");
+include(__DIR__ . "/../../includes/stripeIncludes/stripePage.php");
 include(__DIR__ . "/../../includes/stripeIncludes/stripeLink.php");
 include(__DIR__ . "/../../includes/stripeIncludes/stripeRateLimit.php");
 include(__DIR__ . "/../../includes/stripeIncludes/stripeAlertMail.php");
 include(__DIR__ . "/../../includes/stripeIncludes/stripeHttp.php");
 
-// ---------- page shells (self-contained, Danish, no JS) ----------
-function stripe_page($title, $bodyHtml, $status = 200) {
-	http_response_code($status);
-	ob_end_clean();
-	print "<!DOCTYPE html><html lang='da'><head><meta charset='utf-8'>";
-	print "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-	print "<meta name='robots' content='noindex,nofollow'>";
-	print "<title>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</title>";
-	print "<style>body{font-family:Arial,Helvetica,sans-serif;background:#f4f4f4;margin:0;padding:2em 1em}
-.card{max-width:560px;margin:0 auto;background:#fff;border:1px solid #ddd;border-radius:6px;padding:2em}
-h1{font-size:1.3em;margin-top:0}table{width:100%;border-collapse:collapse;margin:1em 0}
-td,th{padding:.4em .2em;text-align:left;border-bottom:1px solid #eee}td.r,th.r{text-align:right}
-.total td{font-weight:bold;border-top:2px solid #333;border-bottom:none}
-.btn{display:inline-block;background:#356e35;color:#fff;border:none;border-radius:4px;padding:.7em 1.6em;font-size:1em;cursor:pointer}
-.muted{color:#666;font-size:.85em}</style></head><body><div class='card'>" . $bodyHtml . "</div></body></html>";
-	exit;
-}
+// ---------- page shells (shared shell in stripePage.php, Danish, no JS) ----------
 function stripe_fail_page($status, $headline, $text) {
-	stripe_page($headline, "<h1>" . htmlspecialchars($headline, ENT_QUOTES, 'UTF-8') . "</h1><p>"
-		. htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . "</p>", $status);
+	stripe_status_page($status, 'warn', $headline, [$text]);
 }
 function stripe_park_page() {
 	// Deliberately vague: no varenr, prices or reasons leak to the visitor.
-	stripe_page('Kontakt os', "<h1>Vi kan ikke oprette abonnementet automatisk</h1>"
-		. "<p>Der er en detalje på din aftale, som vi lige skal se på manuelt, før automatisk betaling kan sættes op.</p>"
-		. "<p>Vi er allerede blevet adviseret og vender tilbage til dig. Du kan også blot besvare fakturamailen.</p>"
-		. "<p class='muted'>Din faktura er stadig gyldig og kan betales som hidtil.</p>", 200);
+	stripe_status_page(200, 'info', 'Vi kan ikke oprette abonnementet automatisk',
+		['Der er en detalje på din aftale, som vi lige skal se på manuelt, før automatisk betaling kan sættes op.',
+		 'Vi er allerede blevet adviseret og vender tilbage til dig.'],
+		"<div class='box'><p>Vil du selv kontakte os, kan du blot besvare fakturamailen eller skrive til <a href='mailto:" . STRIPE_PAGE_SUPPORT . "'>" . STRIPE_PAGE_SUPPORT . "</a>.</p></div>");
 }
 
 // ---------- order matching (shared by GET and POST) ----------
@@ -141,6 +127,16 @@ function stripe_match_order($order_id) {
 		$res['total_ore'] += (int)$cat['unit_ore'] * (int)round($antal);
 	}
 	if (!$res['lines']) { $res['reason'] = 'NO_ITEMS'; $res['detail'] = 'ordren har ingen linjer med varenr'; return $res; }
+	// Merge duplicate lines (same varenr twice on the order, e.g. one line per
+	// regnskab): Stripe rejects a subscription carrying the same price on two
+	// items, so duplicates become one item with the summed quantity. The total
+	// is additive and unchanged.
+	$merged = [];
+	foreach ($res['lines'] as $l) {
+		if (isset($merged[$l['price_id']])) $merged[$l['price_id']]['antal'] += $l['antal'];
+		else $merged[$l['price_id']] = $l;
+	}
+	$res['lines'] = array_values($merged);
 	if (count($res['lines']) > 20) { $res['reason'] = 'TOO_MANY_ITEMS'; $res['detail'] = count($res['lines']) . ' linjer (Stripe-max er 20)'; return $res; }
 	$res['ok'] = true;
 	return $res;
@@ -153,7 +149,8 @@ if (!$stripe_boot_ok) stripe_fail_page(503, 'Midlertidigt utilgængelig', 'Prøv
 
 // Master switch (stripe_valg "Aktiv"): off = no new signups, full stop.
 if (stripe_setting('enabled', 'off') !== 'on') {
-	stripe_fail_page(503, 'Ikke tilgængelig', 'Abonnementstilmelding er ikke aktiveret. Din faktura er stadig gyldig og kan betales som hidtil - besvar fakturamailen ved spørgsmål.');
+	// The shared shell already appends the "faktura stadig gyldig" note.
+	stripe_fail_page(503, 'Ikke tilgængelig', 'Abonnementstilmelding er ikke aktiveret. Besvar fakturamailen ved spørgsmål.');
 }
 
 $isPost   = ($_SERVER['REQUEST_METHOD'] === 'POST');
@@ -189,9 +186,20 @@ elseif (trim((string)$order['valuta']) !== '' && strtoupper(trim($order['valuta'
 if (!$parkReason) {
 	$sub = db_fetch_array(db_select("select stripe_subscription_id from stripe_customers where konto_id = " . (int)$order['konto_id'] . " and status in ('active','trialing','past_due')", __FILE__ . " linje " . __LINE__));
 	if ($sub) {
-		stripe_page('Abonnement findes allerede', "<h1>Du har allerede et aktivt abonnement</h1>"
-			. "<p>Automatisk betaling er allerede sat op for jeres aftale, så du behøver ikke foretage dig noget.</p>"
-			. "<p class='muted'>Er det en fejl, eller ønsker du at ændre noget, så besvar fakturamailen.</p>");
+		stripe_status_page(200, 'ok', 'Du har allerede et aktivt abonnement',
+			['Automatisk betaling er allerede sat op for jeres aftale, så du behøver ikke foretage dig noget.'],
+			'', 'Er det en fejl, eller ønsker du at ændre noget, så besvar fakturamailen.');
+	}
+}
+
+// Per-debtor opt-out ("Ingen kortbetaling" on the debitorkort): even an already
+// emailed, validly signed link parks. Checked after the already-subscribed page
+// (an active subscription keeps its truthful message) and never gates the webhook.
+if (!$parkReason && (int)$order['konto_id'] > 0) {
+	$fc = db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'adresser' and column_name = 'stripe_fravalg'", __FILE__ . " linje " . __LINE__));
+	if ($fc) {
+		$a = db_fetch_array(db_select("select stripe_fravalg from adresser where id = " . (int)$order['konto_id'], __FILE__ . " linje " . __LINE__));
+		if ($a && trim((string)$a['stripe_fravalg']) !== '') $parkReason = 'DEBTOR_OPTOUT';
 	}
 }
 
@@ -227,18 +235,19 @@ if (!$isPost) {
 		: 'pr. ' . ($match['interval_count'] > 1 ? $match['interval_count'] . ' x ' : '') . ($match['interval'] === 'year' ? 'år' : $match['interval']);
 	$firm = htmlspecialchars($order['firmanavn'], ENT_QUOTES, 'UTF-8');
 	stripe_page('Bekræft dit abonnement',
-		"<h1>Dit Saldi-abonnement</h1>"
-		. "<p>$firm</p>"
-		. "<table><tr><th>Ydelse</th><th class='r'>Antal</th><th class='r'>Stk.</th><th class='r'>I alt</th></tr>"
+		"<p class='eyebrow'>$firm</p>"
+		. "<h1>Dit Saldi-abonnement</h1>"
+		. "<p>Beløbet svarer til din seneste faktura. Fremover trækkes det automatisk på dit betalingskort, og du modtager stadig faktura på mail.</p>"
+		. "<table><tr><th>Ydelse</th><th class='r'>Antal</th><th class='r'>Stk.pris</th><th class='r'>I alt</th></tr>"
 		. $rows
 		. "<tr class='total'><td colspan='3'>I alt $per, ekskl. moms</td><td class='r'>" . stripe_kr($match['total_ore']) . " kr</td></tr></table>"
-		. "<p>Beløbet svarer til din seneste faktura. Fremover trækkes det automatisk på dit betalingskort, og du modtager stadig faktura på mail.</p>"
 		. "<form method='post' action='subscribe.php'>"
 		. "<input type='hidden' name='id' value='" . (int)$order_id . "'>"
 		. "<input type='hidden' name='sig' value='" . htmlspecialchars($sig, ENT_QUOTES, 'UTF-8') . "'>"
 		. "<button class='btn' type='submit'>Fortsæt til betaling</button>"
 		. "</form>"
-		. "<p class='muted'>Du sendes videre til vores betalingspartner Stripe. Moms (25%) lægges til ved betaling. Abonnementet kan opsiges når som helst ved at besvare fakturamailen.</p>");
+		. "<p class='muted' style='margin:16px 0 0;text-align:center'>Du sendes videre til vores betalingspartner Stripe. Moms (25 %) lægges til ved betaling. Abonnementet kan opsiges når som helst ved at besvare fakturamailen.</p>"
+		. "<div class='trust'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='#6b7590' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='11' width='16' height='10' rx='2'/><path d='M8 11V7a4 4 0 0 1 8 0v4'/></svg>Sikker betaling via Stripe</div>");
 }
 
 // ---------- POST: create the Checkout Session ----------

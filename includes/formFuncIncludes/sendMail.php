@@ -132,7 +132,8 @@ print "<!--function send_mails start-->";
 	if (strpos($mailtext,'$abonnementslink') !== false || strpos($subjekt,'$abonnementslink') !== false) {
 		include_once(__DIR__ . "/subscriptionLink.php");
 		$abonnementslink = subscriptionLinkUrl($ordre_id);
-		$mailtext = str_replace('$abonnementslink', $abonnementslink ? "<a href=\"$abonnementslink\">Tilmeld automatisk betaling</a>" : '', $mailtext);
+		# 20260820 CL/LH styled CTA block (shared builder) instead of a naked anchor.
+		$mailtext = str_replace('$abonnementslink', subscriptionLinkHtml($abonnementslink), $mailtext);
 		$subjekt  = str_replace('$abonnementslink', '', $subjekt);
 	}
 	$mailtext = str_replace("\n\r","\n\r<br>",$mailtext);
@@ -408,6 +409,9 @@ print "<!--function send_mails start-->";
 	$ren_text=str_replace("<b>","*",$ren_text);
 	$ren_text=str_replace("</b>","*",$ren_text);
 	$ren_text=str_replace("<hr>","------------------------------",$ren_text);
+	# 20260820 CL/LH the CTA block's <table> markup (and any other template HTML)
+	# must not reach the plain-text part raw - anchors are already flattened above.
+	$ren_text=strip_tags($ren_text);
 	$mail->Subject  =  "$subjekt";
 	$mail->Body     =  "$mailtext";
 	$mail->AltBody  =  "$ren_text";

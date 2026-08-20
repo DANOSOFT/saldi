@@ -66,13 +66,15 @@ function stripeValgSave() {
 		}
 	}
 
-	# webhook_secret - blank means unchanged
+	# webhook_secret - blank means unchanged. The secret is opaque to us (only
+	# used as HMAC key), so validate just the prefix and printable-ASCII-no-
+	# whitespace - a masked copy (whsec_ + bullet chars) still gets rejected.
 	$webhook_secret = trim((string)if_isset($_POST['stripe_webhook_secret'], ''));
 	if ($webhook_secret !== '') {
-		if (preg_match('/^whsec_[A-Za-z0-9]+$/', $webhook_secret)) {
+		if (preg_match('/^whsec_[\x21-\x7E]+$/', $webhook_secret)) {
 			update_settings_value('webhook_secret', 'stripe', db_escape_string($webhook_secret), 'Stripe webhook signing secret');
 		} else {
-			$fejl[] = 'Webhook secret afvist: forventet whsec_... (feltet er IKKE gemt)';
+			$fejl[] = 'Webhook secret afvist: forventet whsec_ efterfulgt af selve nøglen - kopieret mens den var skjult (prikker)? (feltet er IKKE gemt)';
 		}
 	}
 
@@ -175,6 +177,14 @@ function stripeValg() {
 
 	# Read-only visning af varenr <-> Stripe price mappingen (redigeres via seed-
 	# scriptet admin/stripe_setup.php; en redigerbar grid-side kommer separat).
+	# Tabellen oprettes først ved regnskabs-login (betweenUpdates) - guard, saa
+	# siden ikke doer paa en frisk deploy hvor login endnu ikke er sket.
+	$cat_tbl = db_fetch_array(db_select("select to_regclass('stripe_catalog') as t", __FILE__ . " linje " . __LINE__));
+	if (!$cat_tbl || empty($cat_tbl['t'])) {
+		print "<tr><td colspan='6'><hr></td></tr>";
+		print "<tr><td colspan='4'>Stripe-tabellerne er ikke oprettet i dette regnskab endnu - log ud og ind igen, så oprettes de automatisk.</td></tr>";
+		return;
+	}
 	print "<tr><td colspan='6'><hr></td></tr>";
 	print "<tr><td colspan='4'><b>Varenr &harr; Stripe price (læsning)</b></td></tr>";
 	print "<tr><td><b>Varenr</b></td><td><b>Stripe price</b></td><td align='right'><b>Pris/md ekskl. moms</b></td><td><b>Interval</b></td><td><b>Aktiv</b></td></tr>";
