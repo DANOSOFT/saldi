@@ -56,6 +56,9 @@
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
 // 20260814 LH Rykkerprint: pass rykker ordre-id to send_mails (was hardcoded 0) so mail-template variables like $kontonr work in rykker mails
 // 20260820 CX/PHR Keep reminder amounts unchanged when the open item and reminder use the same currency.
+// 20260820 Sawaneh Supplier order print totals now match the printed line sums and the
+//                  booked amounts: sum of rounded line sums, VAT on the total (1-3 oere diff).
+//                  Supplier orders no longer print VAT-inclusive prices (customer setting).
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -1878,11 +1881,12 @@ if (!function_exists('formularprint')) {
 									$linjesum[$x] = afrund($linjesum[$x] - ($linjesum[$x] * (100 - $procent[$x]) / 100), 2);
 									$linjemoms[$x] = afrund($linjemoms[$x] - ($linjemoms[$x] * (100 - $procent[$x]) / 100), 2);
 								}
-								$sum += $linjesum[$x];
+								if ($art == 'KO' || $art == 'KK') $sum += $l_sum[$x]; #20260820 Kreditorordrer: summen skal svare til de udskrevne (afrundede) linjesummer
+								else $sum += $linjesum[$x];
 								if ($momsfri[$x] != 'on' && !$omvbet[$x]) {
 									$moms += afrund($l_sum[$x] * $varemomssats[$x] / 100, 3); #Decimaltal aendret til 3 2010.12.17 grundet momsdiff (0,01 kr) i ordre id 371 i saldi_297
 									$momssum += afrund($linjesum[$x], 2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
-									if ($incl_moms && !$b2b) {
+									if ($incl_moms && !$b2b && $art != 'KO' && $art != 'KK') { #20260820 Kunde-momsindstillingen gaelder ikke leverandoerordrer
 										$tmp = afrund($pris[$x] + $pris[$x] * $varemomssats[$x] / 100, 2);
 										if ($rabatart[$x] == "amount")
 											$linjesum[$x] = ($tmp - $rabat[$x]) * $antal[$x];
@@ -2191,6 +2195,10 @@ if (!function_exists('formularprint')) {
 							$y = $ya;
 						$y = $y - $linjeafstand;
 					}
+				}
+				if (!$preview && ($art == 'KO' || $art == 'KK')) { #20260820 Kreditorordrer: moms af totalen som ved skaerm og bogfoering (kreditor/orderIncludes/openOrderLines.php)
+					($art == 'KK') ? $moms = $momssum / 100 * $momssats - 0.0001 : $moms = $momssum / 100 * $momssats + 0.0001;
+					$moms = afrund($moms, 3);
 				}
 				if ($brugsamletpris) {
 					$r = db_fetch_array(db_select("select sum,moms from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
