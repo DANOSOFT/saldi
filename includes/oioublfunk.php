@@ -36,6 +36,8 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260416 - PHR Migrated to Peppol BIS 3.0 (EN 16931 compliant) structure
 // 20260507 - PHR Reverted to pure OIOUBL-2.02 (Peppol ikke kompatibel med EAN-modtagere)
+// 20260820 Sawaneh Invoices include an extra IBAN/SWIFT payment means when IBAN
+//                  is filled in under Systemdata/Stamdata (foreign e-invoices)
 
 $oioxmlubl="OIOUBL";
 
@@ -176,6 +178,8 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	$egen_bank_navn=htmlspecialchars($egen_bank_navn, ENT_QUOTES);
 	$egen_tlf=htmlspecialchars($egen_tlf, ENT_QUOTES);
 	$egen_cvrnr=str_replace(" ","",$r_egen['cvrnr']);
+	$egen_iban=htmlspecialchars(str_replace(" ","",if_isset($r_egen,'','iban')), ENT_QUOTES);
+	$egen_swift=htmlspecialchars(str_replace(" ","",if_isset($r_egen,'','swift')), ENT_QUOTES);
 
 	if (is_numeric($egen_cvrnr)) $egen_cvrnr = 'DK'.$egen_cvrnr;
 	$cvrnr_num = preg_replace('/^DK/', '', $cvrnr);
@@ -281,6 +285,22 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$l_retur.="</cac:FinancialInstitutionBranch>\n";
 		$l_retur.="</cac:PayeeFinancialAccount>\n";
 		$l_retur.="</cac:PaymentMeans>\n";
+		if ($egen_iban) {
+			$l_retur.="<cac:PaymentMeans>\n";
+			$l_retur.="<cbc:PaymentMeansCode listID=\"urn:oioubl:codelist:paymentmeanscode-1.1\">31</cbc:PaymentMeansCode>\n";
+			$l_retur.="<cbc:PaymentChannelCode listID=\"urn:oioubl:codelist:paymentchannelcode-1.1\">IBAN</cbc:PaymentChannelCode>\n";
+			$l_retur.="<cac:PayeeFinancialAccount>\n";
+			$l_retur.="<cbc:ID schemeID=\"IBAN\">".$egen_iban."</cbc:ID>\n";
+			if ($egen_swift) {
+				$l_retur.="<cac:FinancialInstitutionBranch>\n";
+				$l_retur.="<cac:FinancialInstitution>\n";
+				$l_retur.="<cbc:ID schemeID=\"BIC\">".$egen_swift."</cbc:ID>\n";
+				$l_retur.="</cac:FinancialInstitution>\n";
+				$l_retur.="</cac:FinancialInstitutionBranch>\n";
+			}
+			$l_retur.="</cac:PayeeFinancialAccount>\n";
+			$l_retur.="</cac:PaymentMeans>\n";
+		}
 		if ($r_faktura['betalingsbet']) {
 			$l_retur.="<cac:PaymentTerms>\n";
 			$l_retur.="<cbc:Note>".htmlspecialchars($r_faktura['betalingsbet'], ENT_QUOTES).($r_faktura['betalingsdage']?" ".htmlspecialchars($r_faktura['betalingsdage'], ENT_QUOTES)." dage":"")."</cbc:Note>\n";
