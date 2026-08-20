@@ -1082,6 +1082,7 @@ if ($b_submit) {
 	else $lev_bynavn = db_escape_string($lev_bynavn);
 	$lev_kontakt = if_isset($_POST, NULL, 'lev_kontakt') ? db_escape_string(trim($_POST['lev_kontakt'])) : '';
 	$vis_lev_addr = if_isset($_POST, NULL, 'vis_lev_addr');
+	if ($vis_lev_addr != 'on') $vis_lev_addr = ''; // ordrer.vis_lev_addr er varchar(2) ('on'/''): 'off' fra gemt brugerindstilling overflow'er og vaelter hele ordre-opdateringen
 	update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
 	$felt_1 = db_escape_string(trim($_POST['felt_1']));
@@ -5262,7 +5263,7 @@ function ordreside($id, $regnskab)
 			<label style="white-space:nowrap;cursor:pointer;"><?= htmlspecialchars(findtekst('355|Vis leveringsadresse', $sprog_id)) ?>
 			<input type="checkbox" id="vis_lev_addr" name="vis_lev_addr" value="on" <?= $vis_addr == 'on' ? 'checked' : '' ?> onchange="document.getElementById('submit').click();"></label>
 		<?php } else { ?>
-			<input type='hidden' id='vis_lev_addr' name='vis_lev_addr' value='<?= $vis_addr ?? 'on' ?>'><input type="button" onclick="
+			<input type='hidden' id='vis_lev_addr' name='vis_lev_addr' value='<?= ($vis_addr ?? '') == 'on' ? 'on' : '' ?>'><input type="button" onclick="
 			var field = document.getElementById('vis_lev_addr');
 			field.value = field.value === 'on' ? '' : 'on';
 			document.getElementById('submit').click();"
