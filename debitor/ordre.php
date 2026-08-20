@@ -104,6 +104,9 @@
 // 20260715 PHR Valuta was omittet when copying order
 // 20260806 CX/PHR Show split-order button instead of invoice button when an order is only partly delivered.
 // 20260807 CX/PHR Allow free text in the Att. field while retaining customer contact suggestions.
+// 20260818 Sawaneh Credit notes: only cap the quantity when the line points the wrong way or more
+//                  is credited than invoiced, so it can be reduced. Handles invoice lines that are
+//                  themselves negative. Shows the max in the alert. Removed debug_kreditnota logging.
 
 @session_start();
 $s_id = session_id();
@@ -890,7 +893,6 @@ if ($b_submit == 'Credit') $b_submit = 'Krediter';
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$id = $_POST['id'];
 	$sum = if_isset($_POST, NULL, 'sum');
-	file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." === NEW REQUEST === b_submit=$b_submit id=$id status=".if_isset($_POST,0,'status')." linjeantal=".if_isset($_POST,0,'linjeantal')."\n", FILE_APPEND);
 
 	$phone = trim($_POST['phone']);
 	$phone = str_replace(' ', '', $phone);
@@ -1201,7 +1203,6 @@ if ($b_submit) {
 	}
 	if (!isset($momsfri[0])) $momsfri[0] = '';
 	if (strstr($b_submit, "Kred") && $status < 3) {
-		file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1015: Kred+status<3 => doInvoice (status=$status)\n", FILE_APPEND);
 		$b_submit = "doInvoice";
 	}
 	if (strstr($b_submit, 'Modtag')) $b_submit = "Lever";
@@ -1806,10 +1807,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		}
 	} elseif ($id && ($kontonr) && ($status < 3)) {
 		$sum = 0;
-		$db_lines = db_fetch_array(db_select("select count(*) as cnt from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__));
-		file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1581: SAVE LOOP start id=$id art=$art linjeantal=$linjeantal db_lines=".$db_lines['cnt']." b_submit=$b_submit\n", FILE_APPEND);
 		for ($x = 1; $x <= $linjeantal; $x++) {
-			file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L1583: x=$x varenr=$varenr[$x] vare_id=$vare_id[$x] antal=$antal[$x] saet=$saet[$x] samlevare=$samlevare[$x] linje_id=$linje_id[$x]\n", FILE_APPEND);
 			#      $antal[$x]*=1;
 			$vare_id[$x] = (int)$vare_id[$x];
 			if ($lagerantal > 1) {
@@ -1830,21 +1828,21 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			}
 			elseif ($vare_id[$x] || isset($_GET['varenr'])) { #20241229
 				if ($art == 'DK') { # DK = Kreditnota
-					#          if ($antal[$x]>0) {
-					#            $antal[$x]=$antal[$x]*-1;
-					#            print "<BODY onLoad=\"javascript:alert('Der kan ikke krediteres et negativt antal. Antal reguleret (Varenr: $varenr[$x])')\">\n";
-					#          }
-
 					$kred_linje_id[$x] *= 1;
 					if (!$folgevare[$x] || $folgevare[$x] > 0) {
 						$qtxt = "select antal from ordrelinjer where id = '$kred_linje_id[$x]' and (vare_id='$vare_id[$x]' or vare_id='0')"; #Vare_id er med for ikke at taelle delvarer med v. samlevarer.
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						if ($antal[$x] + $r['antal'] > 0) { #20260521
-							$antal[$x] = $r['antal'] * -1;
-							$alert = findtekst('1832|Der kan højst krediteres', $sprog_id);
-							$alert1 = findtekst('1833|Antal reguleret', $sprog_id);
-							$alert2 = findtekst('917|Varenr.', $sprog_id);
-							print "<BODY onLoad=\"javascript:alert('$alert " . dkdecimal($row['antal'], 2) . ". $alert1 ($alert2: $varenr[$x])')\">\n";
+
+						if ($kred_linje_id[$x] > 0 && $r) {
+							$forkert_fortegn = ($antal[$x] * $r['antal'] > 0);
+							$krediteret_for_meget = (($antal[$x] + $r['antal']) * $r['antal'] < 0);
+							if ($forkert_fortegn || $krediteret_for_meget) {
+								$antal[$x] = $r['antal'] * -1;
+								$alert = findtekst('1832|Der kan højst krediteres', $sprog_id);
+								$alert1 = findtekst('1833|Antal reguleret', $sprog_id);
+								$alert2 = findtekst('917|Varenr.', $sprog_id);
+								print "<BODY onLoad=\"javascript:alert('$alert " . dkdecimal($r['antal'], 2) . ". $alert1 ($alert2: $varenr[$x])')\">\n";
+							}
 						}
 					}
 					if ($antaldiff[$x]) db_modify("update ordrelinjer set antal=$antal[$x] where id=$linje_id[$x]", __FILE__ . " linje " . __LINE__);
@@ -3150,8 +3148,6 @@ if ($b_submit == 'del_ordre') {
 }
 ########################## FAKTURER   - SKAL VAERE PLACERET EFTER "del_ordre" ################################
 if ($b_submit == 'doInvoice' && $status < 3) {
-	$db_lines2 = db_fetch_array(db_select("select count(*) as cnt from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__));
-	file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." L2697: doInvoice id=$id art=$art linjeantal=$linjeantal db_lines=".$db_lines2['cnt']." hurtigfakt=$hurtigfakt\n", FILE_APPEND);
 	if (!$fakturadate) {
 		$fakturadate = date("Y-m-d");
 		db_modify("update ordrer set fakturadate='$fakturadate' where id = '$id'", __FILE__ . " linje " . __LINE__);
