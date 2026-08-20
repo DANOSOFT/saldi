@@ -141,6 +141,16 @@ function stripe_match_order($order_id) {
 		$res['total_ore'] += (int)$cat['unit_ore'] * (int)round($antal);
 	}
 	if (!$res['lines']) { $res['reason'] = 'NO_ITEMS'; $res['detail'] = 'ordren har ingen linjer med varenr'; return $res; }
+	// Merge duplicate lines (same varenr twice on the order, e.g. one line per
+	// regnskab): Stripe rejects a subscription carrying the same price on two
+	// items, so duplicates become one item with the summed quantity. The total
+	// is additive and unchanged.
+	$merged = [];
+	foreach ($res['lines'] as $l) {
+		if (isset($merged[$l['price_id']])) $merged[$l['price_id']]['antal'] += $l['antal'];
+		else $merged[$l['price_id']] = $l;
+	}
+	$res['lines'] = array_values($merged);
 	if (count($res['lines']) > 20) { $res['reason'] = 'TOO_MANY_ITEMS'; $res['detail'] = count($res['lines']) . ' linjer (Stripe-max er 20)'; return $res; }
 	$res['ok'] = true;
 	return $res;
@@ -192,6 +202,17 @@ if (!$parkReason) {
 		stripe_page('Abonnement findes allerede', "<h1>Du har allerede et aktivt abonnement</h1>"
 			. "<p>Automatisk betaling er allerede sat op for jeres aftale, så du behøver ikke foretage dig noget.</p>"
 			. "<p class='muted'>Er det en fejl, eller ønsker du at ændre noget, så besvar fakturamailen.</p>");
+	}
+}
+
+// Per-debtor opt-out ("Ingen kortbetaling" on the debitorkort): even an already
+// emailed, validly signed link parks. Checked after the already-subscribed page
+// (an active subscription keeps its truthful message) and never gates the webhook.
+if (!$parkReason && (int)$order['konto_id'] > 0) {
+	$fc = db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'adresser' and column_name = 'stripe_fravalg'", __FILE__ . " linje " . __LINE__));
+	if ($fc) {
+		$a = db_fetch_array(db_select("select stripe_fravalg from adresser where id = " . (int)$order['konto_id'], __FILE__ . " linje " . __LINE__));
+		if ($a && trim((string)$a['stripe_fravalg']) !== '') $parkReason = 'DEBTOR_OPTOUT';
 	}
 }
 

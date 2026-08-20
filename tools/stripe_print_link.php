@@ -67,9 +67,16 @@ for ($i = 1; $i < $argc; $i++) {
 	if (!$fail && strlen(stripe_setting('link_secret')) < 64)                $fail = 'link_secret mangler (gem stripe_valg en gang)';
 	if (!$fail && !stripe_setting('public_base_url'))                        $fail = 'public_base_url ikke sat';
 	if (!$fail) {
-		$o = db_fetch_array(db_select("select id, art, firmanavn from ordrer where id = $order_id", __FILE__ . " linje " . __LINE__));
+		$o = db_fetch_array(db_select("select id, art, firmanavn, konto_id from ordrer where id = $order_id", __FILE__ . " linje " . __LINE__));
 		if (!$o)                    $fail = 'ordren findes ikke';
 		elseif ($o['art'] !== 'DO') $fail = "ordren er ikke en debitorordre (art={$o['art']})";
+	}
+	if (!$fail && (int)$o['konto_id'] > 0) {
+		$fc = db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'adresser' and column_name = 'stripe_fravalg'", __FILE__ . " linje " . __LINE__));
+		if ($fc) {
+			$a = db_fetch_array(db_select("select stripe_fravalg from adresser where id = " . (int)$o['konto_id'], __FILE__ . " linje " . __LINE__));
+			if ($a && trim((string)$a['stripe_fravalg']) !== '') $fail = 'debitor har "Ingen kortbetaling" på debitorkortet';
+		}
 	}
 	if (!$fail) {
 		$q = db_select("select l.varenr from ordrelinjer l join stripe_catalog c on c.active = true and c.varenr = l.varenr where l.ordre_id = $order_id limit 1", __FILE__ . " linje " . __LINE__);
