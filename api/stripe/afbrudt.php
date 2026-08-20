@@ -28,6 +28,8 @@
 //                the page cannot be used to probe or forward signatures.
 //                No DB writes, no Stripe calls.
 // 20260818 CL/LH Anchored branch-added include paths to __DIR__.
+// 20260820 CL/LH Presentation only: shared shell from stripePage.php. The
+//                retry link still renders ONLY on a verified id+sig pair.
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
@@ -37,6 +39,7 @@ header('Referrer-Policy: no-referrer');
 
 include(__DIR__ . '/../../includes/connect.php');
 include(__DIR__ . '/../../includes/stripeIncludes/stripeBootstrap.php');
+include(__DIR__ . '/../../includes/stripeIncludes/stripePage.php');
 include(__DIR__ . '/../../includes/stripeIncludes/stripeLink.php');
 
 $order_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -45,20 +48,8 @@ $retry    = '';
 if ($stripe_boot_ok && $order_id > 0 && stripe_link_verify($order_id, $sig)) {
 	$retry = 'subscribe.php?id=' . $order_id . '&sig=' . htmlspecialchars($sig, ENT_QUOTES, 'UTF-8');
 }
-?>
-<!DOCTYPE html><html lang="da"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>Betaling afbrudt</title>
-<style>body{font-family:Arial,Helvetica,sans-serif;background:#f4f4f4;margin:0;padding:2em 1em}
-.card{max-width:560px;margin:0 auto;background:#fff;border:1px solid #ddd;border-radius:6px;padding:2em}
-h1{font-size:1.3em;margin-top:0}.muted{color:#666;font-size:.85em}
-.btn{display:inline-block;background:#356e35;color:#fff;border-radius:4px;padding:.7em 1.6em;text-decoration:none}</style></head><body>
-<div class="card">
-<h1>Betalingen blev afbrudt</h1>
-<p>Der er ikke trukket noget beløb, og der er ikke oprettet noget abonnement.</p>
-<?php if ($retry) { ?>
-<p><a class="btn" href="<?php print $retry; ?>">Prøv igen</a></p>
-<?php } ?>
-<p class="muted">Din faktura er stadig gyldig og kan betales som hidtil. Spørgsmål? Besvar blot fakturamailen.</p>
-</div></body></html>
+
+stripe_status_page(200, 'stop', 'Betalingen blev afbrudt',
+	['Der er ikke trukket noget beløb, og der er ikke oprettet noget abonnement.'],
+	$retry ? "<a class='btn' href='" . $retry . "'>Prøv igen</a>" : '',
+	'Din faktura er stadig gyldig og kan betales som hidtil. Spørgsmål? Besvar blot fakturamailen.');
