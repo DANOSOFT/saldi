@@ -44,6 +44,8 @@
 // 20260303 PHR removed call to old phpmailer
 // 20260602 PHR Removed echo "Mail sent to ...";
 // 20260706 MJ Use kontakt_emails 'kontoudtog' address when sending account statements.
+// 20260819 Sawaneh Show a confirmation per sent mail instead of a blank page when
+//                  sending account statements with 'Send mail(s)'.
 
 @session_start();
 $s_id=session_id();
@@ -95,9 +97,18 @@ else {
 }
 
 if ($send_mails) {
-	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	$sent_emails = send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
+	print "<div style=\"text-align: center;\"><br>";
+	if ($sent_emails) {
+		$senttxt = findtekst('5056|Mail sendt til', $sprog_id);
+		foreach ($sent_emails as $sent_email) {
+			print $senttxt." ".htmlspecialchars($sent_email, ENT_QUOTES)."<br>";
+		}
+	} else {
+		print findtekst('5057|Ingen mails afsendt', $sprog_id)."<br>";
+	}
 	print "<form name=luk action=../includes/luk.php method=post>";
-	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
+	print "<br><input type=submit value=\"Luk\" name=\"luk\">";
 	print "</form></div>";
 	exit;
 } elseif ($send_pdfs) {
@@ -105,7 +116,7 @@ if ($send_mails) {
 		$qtxt="select kontonr,art from adresser where id='$konto_id[$x]'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		#		echo "kontoprint($r[kontonr],$r[kontonr],$fra[$x],$til[$x],$r[art],$email[$x])<br>";
-		$svar=kontoprint($r['kontonr'],$r['kontonr'],$fra[$x],$til[$x],$r['art'],$email[$x]);
+		kontoprint($r['kontonr'],$r['kontonr'],$fra[$x],$til[$x],$r['art'],$email[$x]);
 	}
 	print "<form name=luk action=../includes/luk.php method=post>";
 	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
@@ -594,8 +605,6 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 				exit;
 			}
 			$sent_emails[] = $email[$x];
-			#echo "Kontoudtog sendt til $email[$x]<br>";
-
 		}
 	}
 	return $sent_emails;
