@@ -107,7 +107,8 @@ print "<!--function send_mails start-->";
 	if (strpos($mailtext,'$abonnementslink') !== false || strpos($subjekt,'$abonnementslink') !== false) {
 		include_once(__DIR__ . "/subscriptionLink.php");
 		$abonnementslink = subscriptionLinkUrl($ordre_id);
-		$mailtext = str_replace('$abonnementslink', $abonnementslink ? "<a href=\"$abonnementslink\">Tilmeld automatisk betaling</a>" : '', $mailtext);
+		# 20260820 CL/LH styled CTA block (shared builder) instead of a naked anchor.
+		$mailtext = str_replace('$abonnementslink', subscriptionLinkHtml($abonnementslink), $mailtext);
 		$subjekt  = str_replace('$abonnementslink', '', $subjekt);
 	}
 	$mailtext = str_replace("\n\r","\n\r<br>",$mailtext);
@@ -305,10 +306,14 @@ print "<!--function send_mails start-->";
 	#	$mail->AddAttachment("/tmp/image.jpg", "new.jpg");
 	$mail->IsHTML(true);                               // send as HTML
 	$ren_text=html_entity_decode($mailtext,ENT_COMPAT,$charset);
+	# 20260820 CL/LH parity with sendMail.php: flatten anchors to "text: url",
+	# then strip remaining tags (the CTA block's <table>) from the plain part.
+	$ren_text=preg_replace('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is','$2: $1',$ren_text) ?? $ren_text;
 	$ren_text=str_replace("<br>","\n",$ren_text);
 	$ren_text=str_replace("<b>","*",$ren_text);
 	$ren_text=str_replace("</b>","*",$ren_text);
 	$ren_text=str_replace("<hr>","------------------------------",$ren_text);
+	$ren_text=strip_tags($ren_text);
 	$mail->Subject  =  "$subjekt";
 	$mail->Body     =  "$mailtext";
 	$mail->AltBody  =  "$ren_text";
