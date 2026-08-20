@@ -27,23 +27,18 @@
 //                reads nothing, writes nothing, books nothing - a query
 //                parameter is not proof of payment. The webhook is the only
 //                source of truth for what happened.
+// 20260820 CL/LH Presentation only: shared shell from stripePage.php (pure
+//                markup helpers, no DB/session - the page stays dumb).
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
-?>
-<!DOCTYPE html><html lang="da"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>Tak for din tilmelding</title>
-<style>body{font-family:Arial,Helvetica,sans-serif;background:#f4f4f4;margin:0;padding:2em 1em}
-.card{max-width:560px;margin:0 auto;background:#fff;border:1px solid #ddd;border-radius:6px;padding:2em}
-h1{font-size:1.3em;margin-top:0}.muted{color:#666;font-size:.85em}</style></head><body>
-<div class="card">
-<h1>Tak for din tilmelding!</h1>
-<p>Automatisk betaling er nu sat op. Du modtager en bekræftelse og kvittering fra Stripe på mail.</p>
-<p>Du behøver ikke foretage dig mere - fremtidige fakturaer betales automatisk, og du modtager dem fortsat på mail.</p>
-<p class="muted">Spørgsmål? Besvar blot fakturamailen.</p>
-</div></body></html>
+
+include(__DIR__ . '/../../includes/stripeIncludes/stripePage.php');
+
+stripe_status_page(200, 'ok', 'Tak for din tilmelding!',
+	['Automatisk betaling er nu sat op. Du modtager en bekræftelse og kvittering fra Stripe på mail.',
+	 'Du behøver ikke foretage dig mere - fremtidige fakturaer betales automatisk, og du modtager dem fortsat på mail.'],
+	'', 'Spørgsmål? Besvar blot fakturamailen.');
