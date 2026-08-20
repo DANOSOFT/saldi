@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-08-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,8 @@
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
+// 20260814 LH Rykkerprint: pass rykker ordre-id to send_mails (was hardcoded 0) so mail-template variables like $kontonr work in rykker mails
+// 20260820 CX/PHR Keep reminder amounts unchanged when the open item and reminder use the same currency.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -2611,6 +2613,7 @@ if (!function_exists('rykkerprint')) {
 					#				if ($r['felt_5']) $email[$mailantal]=$r['felt_5'];
 					$email[$mailantal] = $r['email'];
 					$mailsprog[$mailantal] = strtolower($r['sprog']);
+					$mailRykkerId[$mailantal] = $rykker_id[$q]; // 20260814 LH
 					#			$form_nr[$mailantal]=$formular;
 				} else
 					$nomailantal++;
@@ -2662,10 +2665,12 @@ if (!function_exists('rykkerprint')) {
 							$valuta = $r2['valuta'];
 							$valutakurs = (float) $r2['valutakurs'];
 							$dkkamount = $r2['amount'] * $valutakurs / 100;
-							if ($deb_valuta != "DKK")
+							if ($deb_valuta == $valuta)
+								$amount = $r2['amount'];
+							elseif ($deb_valuta != "DKK")
 								$amount = $dkkamount * 100 / $deb_valutakurs;
 							else
-								$amount = $r2['amount'];
+								$amount = $dkkamount;
 						}
 					} else {
 						$faktnr = '';
@@ -2739,7 +2744,7 @@ if (!function_exists('rykkerprint')) {
 					return ("../temp/$db/$pfliste[$x].pdf");
 					exit;
 				} else
-				$svar = send_mails(0, "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], '', '', '', 0);
+				$svar = send_mails($mailRykkerId[$x], "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], '', '', '', 0);
 			}
 		}
 		if ($nomailantal > 0) {
