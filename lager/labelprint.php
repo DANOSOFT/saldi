@@ -35,6 +35,8 @@
 // 2020-11-06 PHR img created if not exist; 20201106
 // 2021-02-04 PHR Added brotherTD
 // 2021-04-07	PHR Added  '&& $stregkode' as labelprint from creditororder failed with line disabled and and failed with line enabled. 
+// 20260819 CL/NTR Mit salg layouts are matched on '$minpris'/'$minbeskrivelse' rather than a bare
+//                 'minpris', so a layout using only $minbeskrivelse also counts as mit salg.
 
 @session_start();
 $s_id=session_id();
@@ -64,27 +66,31 @@ if (isset($_COOKIE['mylabel'])) {
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$id        = if_isset($_GET['id'])*1;
-$labelId   = if_isset($_GET['labelId']);
-$img       = if_isset($_GET['src']);
-$stregkode = if_isset($_GET['stregkode']);
-$varenr    = if_isset($_GET['varenr']);
-$account   = if_isset($_GET['account'])*1;
-$condition = if_isset($_GET['condition']);
-$page      = if_isset($_GET['page']);
-$labelName = if_isset($_GET['labelName']);
-$printIds  = if_isset($_GET['printIds']);
-$print     = strtolower(if_isset($_GET['print']));
-$qty       = if_isset($_POST['qty']);
-if (!$labelName) $labelName=if_isset($_POST['labelName']);
+$id        = (int) if_isset($_GET, 0, ['id']);
+$labelId   = if_isset($_GET, null, ['labelId']);
+$img       = if_isset($_GET, null, ['src']);
+$stregkode = if_isset($_GET, null, ['stregkode']);
+$varenr    = if_isset($_GET, null, ['varenr']);
+$account   = (int) if_isset($_GET, 0, ['account']);
+$condition = if_isset($_GET, null, ['condition']);
+$page      = if_isset($_GET, null, ['page']);
+$labelName = if_isset($_GET, null, ['labelName']);
+$printIds  = if_isset($_GET, null, ['printIds']);
+$print     = strtolower(if_isset($_GET, null, ['print']));
+$qty       = if_isset($_POST, null, ['qty']);
+if (!$labelName) $labelName=if_isset($_POST, null, ['labelName']);
 
 if (!$labelName) {
 	$x=0;
 	$qtxt="select labeltype,labelname,labeltext from labels where account_id=0 order by labelname";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while($r=db_fetch_array($q)) {
+	while($r=db_fetch_array($q)) {
 		if ($account) {
-			if ($print == $r['labeltype'] && strpos($r['labeltext'],'minpris')) {
+			# Only a mit salg layout can show the debitor's own description and price, so those are
+			# the only ones worth offering here. Printing without an account takes every layout, as
+			# newlabel.php falls back to the item's own description and price.
+			$mySaleLabel=(strpos($r['labeltext'],'$minpris') !== false || strpos($r['labeltext'],'$minbeskrivelse') !== false);
+			if ($print == $r['labeltype'] && $mySaleLabel) {
 				$labelNames[$x]=$r['labelname'];
 				$x++;
 			}
@@ -108,7 +114,7 @@ if (!$labelName) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		exit;
-	} elseif ($labelNames[0]) $labelName = $labelNames[0];
+	} elseif ($labelNames) $labelName = $labelNames[0];
 } elseif ((strtolower(substr($labelName,0,9)) == 'brothertd') && !$qty) {
 	$action = "labelprint.php?id=$id&varenr=$varenr&account=$account&condition=$condition&page=$page&printIds=$printIds";
 	$action.= "&stregkode=$stregkode&src=$img&labelId=$labelId";
@@ -128,7 +134,7 @@ if (!$labelName) {
 }  
 
 $banned=array('<?','<?php','?>');
-$qtxt="select labeltext from labels where labelname='$labelName' and account_id='0'";
+$qtxt="select labeltext from labels where labelname='". db_escape_string($labelName) ."' and account_id='0'";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 if ($r['labeltext']) $txt=$r['labeltext'];
 else {
