@@ -54,6 +54,7 @@
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
+// 20260820 CDX/PHR Keep reminder amounts unchanged when the open item and reminder use the same currency.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -668,10 +669,12 @@ if (!function_exists('find_form_tekst')) {
 						$qtxt = "select * from openpost where konto_id='$id' and udlignet='0'";
 						$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						while ($r2 = db_fetch_array($q2)) {
-							if (!$r2['valuta'])
+							if (!$r2['valuta']) {
 								$r2['valuta'] = 'DKK';
-							if (!$r2['valutakurs'])
+							}
+							if (!$r2['valutakurs']) {
 								$r2['valutakurs'] = 100;
+							}
 							$valuta = $r2['valuta'];
 							$valutakurs = (float) $r2['valutakurs'];
 							$dkkamount = $r2['amount'] * $valutakurs / 100;
@@ -2662,10 +2665,13 @@ if (!function_exists('rykkerprint')) {
 							$valuta = $r2['valuta'];
 							$valutakurs = (float) $r2['valutakurs'];
 							$dkkamount = $r2['amount'] * $valutakurs / 100;
-							if ($deb_valuta != "DKK")
-								$amount = $dkkamount * 100 / $deb_valutakurs;
-							else
+							if ($deb_valuta == $valuta) {
 								$amount = $r2['amount'];
+							} elseif ($deb_valuta != "DKK") {
+								$amount = $dkkamount * 100 / $deb_valutakurs;
+							} else {
+								$amount = $dkkamount;
+							}
 						}
 					} else {
 						$faktnr = '';
