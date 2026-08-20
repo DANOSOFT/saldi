@@ -28,6 +28,8 @@
 // 20-09-2024 PBLM added betalingsLink functionality
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260818 CL/LH Disabled shared-key payment-link minting in mail templates.
+// 20260819 Sawaneh Echo 'Mail sent to' confirmation like sendMail.php does, so
+//                  callers show it regardless of which mailer is loaded.
 	
 /*if(!class_exists('phpmailer')) {
 	ini_set("include_path", ".:../phpmailer");
@@ -46,6 +48,7 @@ print "<!--function send_mails start-->";
 	global $exec_path;
 #	global $id; // hent 'mail_bilag' fra ordrer + leveringsaddr.
 	global $returside;
+	global $sprog_id;
 
 	$email=str_replace(' ','',$email);
 	if (strpos($email,';')) $emails=explode(';',$email);
@@ -336,6 +339,7 @@ print "<!--function send_mails start-->";
 			alert($tekst);
 		}
 	}
+	echo findtekst('5056|Mail sendt til', $sprog_id)." ".htmlspecialchars($email, ENT_QUOTES)."<br>";
 	return("Mail sent to $email");
 	print "<!--function send_mails slut-->";
 }

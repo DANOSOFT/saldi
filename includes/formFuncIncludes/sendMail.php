@@ -30,6 +30,8 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250603 PHR enhanced use of variables in mailtext. 
 // 20260818 CL/LH Preserved plain-text mail bodies when anchor flattening fails.
+// 20260819 Sawaneh 'Mail sent to' confirmation translated via findtekst and
+//                  recipient escaped before output.
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
@@ -43,6 +45,7 @@ print "<!--function send_mails start-->";
 	global $exec_path;
 #	global $id; // hent 'mail_bilag' fra ordrer + leveringsaddr.
 	global $returside;
+	global $sprog_id;
 
 	$email=str_replace(' ','',$email);
 	if (strpos($email,';')) $emails=explode(';',$email);
@@ -456,7 +459,7 @@ print "<!--function send_mails start-->";
 			alert($tekst);
 		}
 	}
-	echo "Mail sent to $email<br>";
+	echo findtekst('5056|Mail sendt til', $sprog_id)." ".htmlspecialchars($email, ENT_QUOTES)."<br>";
 	return("Mail sent to $email");
 	print "<!--function send_mails slut-->";
 }
