@@ -36,6 +36,12 @@
 // 20260702 CX/PHR Split comma-separated openpost autoudlign account list
 // 20260706 MJ Release session before long read-only reports to avoid blocking navigation.
 // 20260706 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
+// 20260805 Sawaneh Removed the open items iframe shell; its padded wrapper leaked 12px onto every report opened afterwards and broke the sticky header.
+// 20260812 Sawaneh The openpost path now reads dato_fra/dato_til/konto_fra/konto_til from the query
+//                  string before the saved report settings are written. Every link back into the
+//                  report (pagination, BS toggle, view mode) used to overwrite box2-box5 with
+//                  empty values, after which openpost() reloaded an empty filter and showed all
+//                  debtors at today's date. That update is escaped now that it carries request data.
 
 @session_start();
 $s_id = session_id();
@@ -45,7 +51,6 @@ $title = "Debitorrapport";
 $modulnr = 12;
 
 $tmp = NULL;
-$initialSubmitValue = isset($_POST['submit']) ? strtolower(trim($_POST['submit'])) : (isset($_GET['submit']) ? strtolower(trim($_GET['submit'])) : NULL);
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -245,6 +250,18 @@ if (isset($_POST['saft'])) {
 	exit();
 }
 
+// A link back into the report - pagination, the BS toggle, the view-mode dropdown - carries
+// its filter in the query string, and it has to be read before the block below. That block
+// writes the saved report settings, and with these variables still undefined it wrote empty
+// values over them; openpost() then reloaded that empty filter, so every link back into the
+// report showed all debtors at today's date no matter what was asked for.
+if ($openpost) {
+	if (isset($_GET['dato_fra']))  $dato_fra  = $_GET['dato_fra'];
+	if (isset($_GET['dato_til']))  $dato_til  = $_GET['dato_til'];
+	if (isset($_GET['konto_fra'])) $konto_fra = $_GET['konto_fra'];
+	if (isset($_GET['konto_til'])) $konto_til = $_GET['konto_til'];
+}
+
 if (isset($_POST['submit']) || $rapportart) {
 	#	$husk=$_POST['husk'];
 	if (!$rapportart) {
@@ -253,7 +270,14 @@ if (isset($_POST['submit']) || $rapportart) {
 		$dato_fra = $_POST['dato_fra'];
 		$dato_til = $_POST['dato_til'];
 	} else {
-		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+		$qtxt  = "update grupper set box1='" . db_escape_string((string) $husk) . "'";
+		$qtxt .= ", box2='" . db_escape_string((string) $dato_fra) . "'";
+		$qtxt .= ", box3='" . db_escape_string((string) $dato_til) . "'";
+		$qtxt .= ", box4='" . db_escape_string((string) $konto_fra) . "'";
+		$qtxt .= ", box5='" . db_escape_string((string) $konto_til) . "'";
+		$qtxt .= ", box6='" . db_escape_string((string) $rapportart) . "'";
+		$qtxt .= " where art='DRV' and kodenr='" . (int) $bruger_id . "'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$submit = 'ok';
 	}
 	#	$md=$_POST['md'];
@@ -429,34 +453,6 @@ if (!isset($konto_til))
 
 if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE && in_array($submit, array('openpost', 'kontokort', 'kontosaldo', 'accountChart'))) {
 	session_write_close();
-}
-
-if ($submit == 'openpost' && !isset($_GET['openpost_content']) && !isset($_POST['openpost_content'])) {
-	$writeActions = array('mail kontoudtog', 'opret rykker', 'ryk alle', 'slet', 'udskriv', 'ny rykker', 'afslut', 'inkasso');
-	$isWriteAction = in_array($initialSubmitValue, $writeActions) || strstr((string)$initialSubmitValue, 'bogf');
-	if (!$isWriteAction) {
-		$params = array(
-			'rapportart' => 'openpost',
-			'submit' => 'ok',
-			'dato_fra' => $dato_fra,
-			'dato_til' => $dato_til,
-			'konto_fra' => $konto_fra,
-			'konto_til' => $konto_til,
-			'openpost_content' => 1
-		);
-		foreach (array('vis_aabenpost', 'vis_alle_poster', 'skjul_aabenpost', 'kun_debet', 'kun_kredit', 'showPBS', 'openpost_page', 'openpost_page_size') as $key) {
-			if (isset($_GET[$key])) $params[$key] = $_GET[$key];
-			elseif (isset($_POST[$key])) $params[$key] = $_POST[$key];
-		}
-		$frameSrc = 'rapport.php?' . str_replace('&', '&amp;', http_build_query($params));
-		print "<div id='openpostAsyncShell' style='padding:12px;'>";
-		print "<div id='openpostAsyncStatus' style='padding:10px; text-align:center;'>Indl&aelig;ser &aring;bne poster...</div>";
-		print "<iframe id='openpostAsyncFrame' data-src='$frameSrc' style='width:100%; min-height:720px; border:0;' onload=\"document.getElementById('openpostAsyncStatus').style.display='none'; this.style.minHeight=Math.max(720, (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body ? this.contentWindow.document.body.scrollHeight + 40 : 720)) + 'px';\"></iframe>";
-		print "<script>setTimeout(function(){var frame=document.getElementById('openpostAsyncFrame'); if(frame && !frame.getAttribute('src')) frame.setAttribute('src', frame.getAttribute('data-src'));}, 10);</script>";
-		print "</div>";
-		print "</html>";
-		exit;
-	}
 }
 
 $submit($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D', $returside);
