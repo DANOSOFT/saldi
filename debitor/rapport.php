@@ -36,6 +36,8 @@
 // 20260702 CX/PHR Split comma-separated openpost autoudlign account list
 // 20260706 MJ Release session before long read-only reports to avoid blocking navigation.
 // 20260706 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
+// 20260813 Sawaneh Pass the open post aging filter, amount sort and account search on to the
+//                  asynchronously loaded report frame.
 
 @session_start();
 $s_id = session_id();
@@ -444,7 +446,7 @@ if ($submit == 'openpost' && !isset($_GET['openpost_content']) && !isset($_POST[
 			'konto_til' => $konto_til,
 			'openpost_content' => 1
 		);
-		foreach (array('vis_aabenpost', 'vis_alle_poster', 'skjul_aabenpost', 'kun_debet', 'kun_kredit', 'showPBS', 'openpost_page', 'openpost_page_size') as $key) {
+		foreach (array('vis_aabenpost', 'vis_alle_poster', 'skjul_aabenpost', 'kun_debet', 'kun_kredit', 'showPBS', 'openpost_page', 'openpost_page_size', 'aging_bucket', 'order_by', 'order_dir', 'kontonr') as $key) {
 			if (isset($_GET[$key])) $params[$key] = $_GET[$key];
 			elseif (isset($_POST[$key])) $params[$key] = $_POST[$key];
 		}

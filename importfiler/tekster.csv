@@ -5054,3 +5054,9 @@
 5054	Tekst	Text	Tekst
 5055	Beløb	Amount	Beløp
 
+5056	Klik for kun at vise konti med et beløb i denne kolonne	Click to show only accounts with an amount in this column	Klikk for å bare vise konti med et beløp i denne kolonnen
+5057	Klik for at fjerne filteret	Click to remove the filter	Klikk for å fjerne filteret
+5058	Klik for at sortere efter beløb	Click to sort by amount	Klikk for å sortere etter beløp
+5059	Ryd filter	Clear filter	Fjern filter
+5060	Filtreret	Filtered	Filtrert
+5061	I alt (filtreret)	Total (filtered)	Totalt (filtrert)
