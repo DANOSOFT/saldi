@@ -105,6 +105,9 @@
 //                     out-of-stock warning, delivery address + extra fields) via findtekst(), tekst_id 9902-9909
 // 20260729 NTR Fixed $r being set to a bool due to && without guarding parenteses, causing error when trying to assign $timezone.
 //              Changed the tekst_id's of the previous translation to be 3032-3039 instead.
+// 20260819 CL/NTR Added loadLabelText()/saveLabelText() so the label editor reads and writes the same
+//                 storage lager/labelprint.php prints from. Raw HTML help text now names
+//                 $minbeskrivelse/$minpris as the default; translated via findtekst(), tekst_id 5056.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -2294,6 +2297,74 @@ function api_valg() {
 	}
 } # endfunc api_valg
 
+/**
+ * Reads the stored text for one label.
+ *
+ * Item labels ($valg='box1') live in the labels table since 4.0; grupper.box1 is only the
+ * pre-4.0 fallback. lager/labelprint.php resolves them in the same order, so the editor has to
+ * as well - otherwise an edit is written somewhere the print never looks. Address labels
+ * ($valg='box2') only ever live in grupper.
+ *
+ * @param string $valg      'box1' for item labels, 'box2' for address labels
+ * @param string $labelName Name of the label to read
+ * @return array{labeltext: string, labeltype: string}
+ */
+function loadLabelText($valg, $labelName) {
+    $label = array('labeltext' => '', 'labeltype' => 'sheet');
+    if ($valg == 'box1') {
+        // account_id is null on labels created before the insert below started setting it; they are
+        // still editable here and a save heals them to 0, which is all lager/labelprint.php reads.
+        $qtxt = "select labeltext, labeltype from labels where labelname = '" . db_escape_string($labelName) . "'";
+        $qtxt.= " and (account_id = '0' or account_id is null)";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $label['labeltext'] = $r['labeltext'];
+            if ($r['labeltype']) $label['labeltype'] = $r['labeltype'];
+            return $label;
+        }
+        if ($labelName != 'Standard') return $label;
+    }
+    $qtxt = "select $valg from grupper where art = 'LABEL'";
+    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $label['labeltext'] = $r[$valg];
+    return $label;
+}
+
+/**
+ * Writes one label back to storage.
+ *
+ * Item labels go to the labels table, which is what lager/labelprint.php reads, and are mirrored
+ * into grupper.box1 so the pre-4.0 fallback cannot serve a stale template. Address labels only go
+ * to grupper. Rows left with a NULL account_id by older inserts are healed to 0 on update, since
+ * labelprint.php only ever selects account_id 0.
+ *
+ * @param string $valg      'box1' for item labels, 'box2' for address labels
+ * @param string $labelName Name of the label to write
+ * @param string $labelText Full label template
+ * @param string $labelType 'sheet' or 'label'
+ * @return void
+ */
+function saveLabelText($valg, $labelName, $labelText, $labelType) {
+    $labelText = db_escape_string($labelText);
+    $labelType = db_escape_string($labelType);
+    $labelName = db_escape_string($labelName);
+    if ($valg != 'box1' || $labelName == 'Standard') {
+        $qtxt = "select id from grupper where art = 'LABEL'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $qtxt = "update grupper set $valg = '$labelText' where id = '$r[id]'";
+        } else {
+            $qtxt = "insert into grupper (art, $valg) values ('LABEL', '$labelText')";
+        }
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    }
+    if ($valg != 'box1') return;
+    $qtxt = "select id from labels where labelname = '$labelName'";
+    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+        $qtxt = "update labels set labeltext = '$labelText', labeltype = '$labelType', account_id = '0' where id = '$r[id]'";
+    } else {
+        $qtxt = "insert into labels (account_id, labelname, labeltype, labeltext) values ('0', '$labelName', '$labelType', '$labelText')";
+    }
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 function labels($valg) {
     global $sprog_id;
     global $bgcolor;
@@ -2346,18 +2417,10 @@ function labels($valg) {
         print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips och tricks.', $sprog_id)."'><!--tekst 737-->";
         print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
         
-        if ($labelName == 'Standard') {
-            // Standard label is stored in grupper table
-            $qtxt = "select $valg from grupper where art = 'LABEL'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $labelText = $r[$valg];
-            }
-        } elseif ($valg == 'box1' && in_array($labelName, $labelNames)) {
-            $qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $labelText = $r['labeltext'];
-                $labelType = $r['labeltype'];
-            }
+        if ($labelName == 'Standard' || ($valg == 'box1' && in_array($labelName, $labelNames))) {
+            $label     = loadLabelText($valg, $labelName);
+            $labelText = $label['labeltext'];
+            $labelType = $label['labeltype'];
         }
         
         if (empty($labelType)) $labelType = 'sheet';
@@ -2446,7 +2509,7 @@ Pris $pris<br>
 			print "<tr><td colspan='4'>";
 			print "<div style='margin-bottom: 10px;'>";
 			print "<h3>Rå HTML Editor</h3>";
-			print "<p style='color: #666; font-size: 12px;'>Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$beskrivelse, \$pris, \$img, osv.</p>";
+			print "<p style='color: #666; font-size: 12px;'>".findtekst('5056|Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$minbeskrivelse, \$minpris, \$img, osv. \$minbeskrivelse og \$minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. \$beskrivelse og \$pris henter altid varens egen.', $sprog_id)."<!--tekst 5056--></p>";
 			print "</div>";
 			print "<textarea name='rawHTML' style='width: 100%; height: 400px; font-family: monospace; font-size: 12px;'>" . htmlspecialchars($labelText) . "</textarea>";
 			print "</td></tr>";
@@ -2689,6 +2752,10 @@ function parseLabelTemplate($labelText) {
 }
 
 function generateLabelTemplate($data) {
+    // $minbeskrivelse/$minpris are the default: they show the customer's own text and price from
+    // Mit salg, and lager/labelprint_includes/newlabel.php falls back to the item's own when
+    // printing without an account, so they work in both places where $beskrivelse/$pris only work
+    // from the item card.
     $template = "\$cols={$data['cols']};\n";
     $template.= "\$rows={$data['rows']};\n";
     $template.= "\$txtlen={$data['txtlen']};\n";

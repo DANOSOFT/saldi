@@ -28,6 +28,8 @@
 // 20200812 PHR Added ' and hidden is 'FALSE' 
 // 20201205 PHR timestamp written to lastprint when printed
 // 20240123 PHR Added $firstprint & $lastprint.
+// 20260819 CL/NTR $minbeskrivelse/$minpris fall back to the item's own description and price when
+//                 no mit salg rows were read, so a print without an account is not left blank.
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -35,6 +37,7 @@ $cols=$rows=1;
 $txtlen=100;
 $endbottom=$endtop=0;
 $createdate=$ip=$ipLine=NULL;
+$barcode=$description=$price=$createdate=$firstprint=$lastprint=array();
 for ($x=0;$x<count($line);$x++) {
 	if (substr($line[$x],0,3)=='$ip') {
 		list($tmp,$ip)=explode("=",$line[$x]);
@@ -88,7 +91,6 @@ if (($varenr || $stregkode) && (!$account || !$condition)) {
 		$account=$b;
 	}
 }
-
 for ($a=1;$a<=$rows;$a++) {
 	for ($b=1;$b<=$cols;$b++) {
 		$barcode[$a][$b]=NULL;
@@ -99,6 +101,7 @@ for ($a=1;$a<=$rows;$a++) {
 $fp=fopen($filename,'w');
 fwrite ($fp, $top);
 for ($l=0;$l<count($labels);$l++) {
+	$myLabelRows=0;
 	if ($account && $condition) {
 		$qtxt =" select id from adresser where kontonr = '$account' and art='D'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -123,6 +126,7 @@ for ($l=0;$l<count($labels);$l++) {
 		if ($qtxt) {
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array($q)) {
+				$myLabelRows=1;
 				if ($labels[$l]) {
 					$row=$col=1;
 				} else {
@@ -175,16 +179,25 @@ for ($l=0;$l<count($labels);$l++) {
 		for ($b=1;$b<=$cols;$b++) {
 			$labelTxt=$txt;
 			$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
-			$labelTxt=str_replace('$minbeskrivelse',$description[$a][$b],$labelTxt);
+			# Uden mit salg data - et print uden konto - ville labelen komme ud tom, så
+			# $minbeskrivelse/$minpris falder tilbage til varens egen beskrivelse og pris.
+			if ($myLabelRows) {
+				$minbeskrivelse=$description[$a][$b];
+				$minpris=$price[$a][$b];
+			} else {
+				$minbeskrivelse=$r['beskrivelse'];
+				$minpris=dkdecimal($salgspris,2);
+			}
+			$labelTxt=str_replace('$minbeskrivelse',$minbeskrivelse,$labelTxt);
 			$labelTxt=str_replace('$beskrivelse',$r['beskrivelse'],$labelTxt);
-			$labelTxt=str_replace('$minpris',$price[$a][$b],$labelTxt);
+			$labelTxt=str_replace('$minpris',$minpris,$labelTxt);
 			$labelTxt=str_replace('$varenr',$r['varenr'],$labelTxt);
 			$labelTxt=str_replace('$trademark',$r['trademark'],$labelTxt);
 			$labelTxt=str_replace('$barcode',$barcode[$a][$b],$labelTxt);
 			$labelTxt=str_replace('$urlbarcode',urlencode($barcode[$a][$b]),$labelTxt);
-			$labelTxt=str_replace('$createdate',if_isset($createdate[$a][$b],NULL),$labelTxt);
-			$labelTxt=str_replace('$firstprint',if_isset($firstprint[$a][$b],NULL),$labelTxt);
-			$labelTxt=str_replace('$lastprint',if_isset($lastprint[$a][$b],NULL),$labelTxt);
+			$labelTxt=str_replace('$createdate',if_isset($createdate, null, [$a, $b]),$labelTxt);
+			$labelTxt=str_replace('$firstprint',if_isset($firstprint, null, [$a, $b]),$labelTxt);
+			$labelTxt=str_replace('$lastprint',if_isset($lastprint, null, [$a, $b]),$labelTxt);
 			if ($brotherTD) $labelTxt=str_replace('$stregkode',$barcode[$a][$b],$labelTxt);
 			elseif ($stregkode) {
 				$labelTxt=str_replace('$stregkode',$stregkode,$labelTxt);
