@@ -30,6 +30,9 @@
 //                  undgaa falsk positiv i injecttjek() paa semikolon i PL/pgSQL-kroppen.
 // 20260720 MJ  Bulk unlock, note-felt paa luk-handling, posteringsantal pr. maaned.
 // 20260720 MJ  Bugfix: bulk_luk/bulk_aaben frigjort fra maaned-guard (bulk forms sender ikke maaned).
+// 20260815 CL/SZ SD-646: guard against the betweenUpdates.php migration not
+//                having run yet - friendly message instead of querying/writing
+//                a possibly-absent moms_periode_luk table.
 
 @session_start();
 $s_id = session_id();
@@ -51,9 +54,14 @@ $md[9]='september'; $md[10]='oktober'; $md[11]='november'; $md[12]='december';
 // --- permission: require finans access (modulnr 2, bit >= 1) ---
 $kan_aendre = ($rettigheder && substr($rettigheder, 2, 1) >= '1');
 
+// SD-646: guard against the migration (includes/betweenUpdates.php) not having
+// run yet on this tenant - self-heals at next login, but until then this page
+// must not query/write moms_periode_luk at all.
+$moms_periode_luk_ready = moms_periode_luk_schema_ready();
+
 // --- handle toggle action ---
 $msg = '';
-if ($_POST && $kan_aendre) {
+if ($_POST && $kan_aendre && $moms_periode_luk_ready) {
     $action = if_isset($_POST, NULL, 'action');
     $aar    = (int)if_isset($_POST, NULL, 'aar');
     $maaned = (int)if_isset($_POST, NULL, 'maaned');
@@ -133,8 +141,10 @@ if (isset($_GET['msg'])) $msg = htmlspecialchars($_GET['msg']);
 
 // Load current status for the year
 $status_map = [];
-$q = db_select("SELECT * FROM moms_periode_luk WHERE kalender_aar = $vis_aar ORDER BY kalender_maaned", __FILE__." linje ".__LINE__);
-while ($r = db_fetch_array($q)) $status_map[$r['kalender_maaned']] = $r;
+if ($moms_periode_luk_ready) {
+    $q = db_select("SELECT * FROM moms_periode_luk WHERE kalender_aar = $vis_aar ORDER BY kalender_maaned", __FILE__." linje ".__LINE__);
+    while ($r = db_fetch_array($q)) $status_map[$r['kalender_maaned']] = $r;
+}
 
 // Transaction count per month
 $trans_map = [];
@@ -170,6 +180,16 @@ if ($msg) print "<div style='padding:8px 12px; margin-bottom:12px; background:#d
 if (!$kan_aendre) {
     print "<div style='padding:8px 12px; color:#c00;'>Du har ikke rettighed til at aendre periodestatuser.</div>";
 }
+
+// SD-646: absent-schema guard - the migration (includes/betweenUpdates.php) hasn't
+// run for this tenant yet. It self-heals at next login, so this is a friendly
+// wait message, not an error; nothing below this queries/writes moms_periode_luk.
+if (!$moms_periode_luk_ready) {
+    print "<div style='padding:8px 12px; color:#856404; background:#fff3cd; border-radius:4px;'>"
+        . "Periodelaasning er ved at blive aktiveret paa denne konto og er endnu ikke klar. "
+        . "Log ud og ind igen; kontakt support hvis beskeden stadig vises efter genlogin."
+        . "</div>";
+} else {
 
 // Year navigation
 print "<div style='margin-bottom:12px;'>";
@@ -277,6 +297,8 @@ print "<p style='margin-top:16px; color:#666; font-size:0.9em;'>"
     . "Lukkede maaneder blokerer <em>alle</em> posteringsveje via databasetrigger. "
     . "En genaabnelse tillader bogfoering igen og logges i ovenstaaende tabel."
     . "</p>";
+
+} // end if ($moms_periode_luk_ready) - SD-646
 
 print "</div>";
 
