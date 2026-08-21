@@ -65,6 +65,8 @@
 // 20260812 LOE .kassekladde-scroll-container; increased the subtraction in height to leave more room for the footer buttons.
 // 20260812 CX/PHR - Preserve and display the journal line VAT code; apply account default VAT when the account changes.
 // 20260819 CX/PHR - Synchronize VAT exemption with both VAT fields and confirm intentional one-sided VAT.
+// 20260820 Sawaneh Shortcut letters (genvej) in debit/credit crashed the VAT lookup with a numeric
+//                  SQL error; non-numeric input is now resolved via genvej before querying kontonr.
 
 ob_start(); //Starter output buffering  
 
@@ -162,6 +164,16 @@ function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_code
 
     if ($account_no === '' || ($account_type !== '' && $account_type !== 'F')) {
         return '';
+    }
+    if (!is_numeric($account_no)) {
+        if (strlen($account_no) != 1) {
+            return '';
+        }
+        $qtxt = "select kontonr from kontoplan where genvej='" . db_escape_string(strtoupper($account_no)) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
+        if (!$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            return '';
+        }
+        $account_no = trim($row['kontonr']);
     }
     $qtxt = "select moms from kontoplan where kontonr='" . db_escape_string($account_no) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
     $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
