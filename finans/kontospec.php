@@ -27,6 +27,7 @@
 // 20210708 LOE - Translated some of these texts from Danish to English and Norsk
 // 20250113 PHR fiscal_year
 // 20251203 LOE Updated the file to use grid framework
+// 20260821 CL/SZ Faktura column now links to ordre.php/pos_ordre.php via ordre_id
 
 
 $fakturanr = array();
