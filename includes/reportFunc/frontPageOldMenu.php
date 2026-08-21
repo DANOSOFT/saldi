@@ -26,6 +26,8 @@
 // 20251123 Fixed multiroute/paylist problem
 // next line can be removed in 2026
 // 20260522 LOE Added salg_postnr button.
+// 20260821 CL/SZ Shortened "Salg pr. Postnummer" button label to "Salg pr. Postnr" to
+//                prevent truncation
 db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
 
 
