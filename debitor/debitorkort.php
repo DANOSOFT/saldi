@@ -99,6 +99,8 @@
 //                expanded one just before navigating away; toggling still works normally
 //                within the same page view, it just no longer survives a reload
 // 20260727 NTR Added a if statement around $an_id as if there was no ansatte with that id, it would throw an error and set an_id to 0 instead of unset.
+// 20260820 Sawaneh Save no longer rewrites kontakt_emails/adresser.email when the POST lacks the
+//                kontakt_email fields, so partial or stale submits cannot wipe stored email addresses
 @session_start();
 $s_id = session_id();
 
@@ -701,7 +703,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			if (!$gl_kontotype || ($kontotype == $gl_kontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
 				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
-				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
+				$qtxt .= "mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
 				$qtxt .= "kreditmax = '$kreditmax',betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', ean = '$ean', ";
 				$qtxt .= "institution = '$institution', notes = '$notes',gruppe='$gruppe', ";
 				$qtxt .= "kontoansvarlig='$kontoansvarlig',bank_reg='$bank_reg',bank_konto='$bank_konto',swift='$swift',";
@@ -717,8 +719,11 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-				// Process primary email (index 1) from form fields
+				// Only rewrite kontakt_emails and adresser.email when the form actually posted
+				// the email fields; a POST without them (stale tab, partial form) must leave
+				// the stored addresses untouched.
 				if (isset($_POST['kontakt_email_val'][1])) {
+					// Process primary email (index 1) from form fields
 					$ke_id = isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0;
 					$ke_val = db_escape_string(trim($_POST['kontakt_email_val'][1]));
 					$ke_type = isset($_POST['kontakt_email_type'][1]) ? db_escape_string(trim($_POST['kontakt_email_type'][1])) : 'hoved';
@@ -731,45 +736,45 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						$r_new_ke = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kontakt_emails', 'id')) AS id", __FILE__ . " linje " . __LINE__));
 						$primary_ke_id = $r_new_ke ? intval($r_new_ke['id']) : 0;
 					}
-				}
 
-				// Process extra emails from JSON hidden field
-				$primary_ke_id = isset($primary_ke_id) ? intval($primary_ke_id) : (isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0);
-				$existing_extra_ids = array();
-				$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
-				while ($r_ex = db_fetch_array($q_ex)) {
-					$existing_extra_ids[] = intval($r_ex['id']);
-				}
+					// Process extra emails from JSON hidden field
+					$primary_ke_id = isset($primary_ke_id) ? intval($primary_ke_id) : $ke_id;
+					if (isset($_POST['kontakt_emails_json'])) {
+						$existing_extra_ids = array();
+						$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
+						while ($r_ex = db_fetch_array($q_ex)) {
+							$existing_extra_ids[] = intval($r_ex['id']);
+						}
 
-				$posted_ids = array();
-				if (isset($_POST['kontakt_emails_json']) && $_POST['kontakt_emails_json']) {
-					$json_emails = json_decode($_POST['kontakt_emails_json'], true);
-					if (is_array($json_emails)) {
-						foreach ($json_emails as $je) {
-							$je_id = intval($je['id']);
-							$je_val = db_escape_string(trim($je['email']));
-							$je_type = db_escape_string(trim($je['type']));
-							if ($je_id && $je_val) {
-								db_modify("UPDATE kontakt_emails SET email = '$je_val', email_type = '$je_type' WHERE id = '$je_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-								$posted_ids[] = $je_id;
-							} elseif (!$je_id && $je_val) {
-								db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+						$posted_ids = array();
+						$json_emails = json_decode($_POST['kontakt_emails_json'], true);
+						if (is_array($json_emails)) {
+							foreach ($json_emails as $je) {
+								$je_id = intval($je['id']);
+								$je_val = db_escape_string(trim($je['email']));
+								$je_type = db_escape_string(trim($je['type']));
+								if ($je_id && $je_val) {
+									db_modify("UPDATE kontakt_emails SET email = '$je_val', email_type = '$je_type' WHERE id = '$je_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+									$posted_ids[] = $je_id;
+								} elseif (!$je_id && $je_val) {
+									db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+								}
+							}
+						}
+
+						// Delete extras that were removed
+						foreach ($existing_extra_ids as $old_id) {
+							if (!in_array($old_id, $posted_ids)) {
+								db_modify("DELETE FROM kontakt_emails WHERE id = '$old_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 							}
 						}
 					}
-				}
 
-				// Delete extras that were removed
-				foreach ($existing_extra_ids as $old_id) {
-					if (!in_array($old_id, $posted_ids)) {
-						db_modify("DELETE FROM kontakt_emails WHERE id = '$old_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-					}
+					// Sync primary email back to adresser.email for backward compatibility
+					$r_primary = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
+					$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
+					db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 				}
-
-				// Sync primary email back to adresser.email for backward compatibility
-				$r_primary = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
-				$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
-				db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 
 				
 				//####
