@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-08-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,29 +20,31 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
-//20260603 CL/PHR Bilagsvedhæftning opdateret: tjekker nu documents-tabellen
-//                  (source=debitorOrdrer) før fallback til gammelt bilag-system
 //
 // 20211028 PHR moved this function rom ../formfunc,php  
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250603 PHR enhanced use of variables in mailtext. 
+//20260603 CL/PHR Document attachment updated: now checks the documents table
+//         (source=debitorOrdrer) before fallback to old document system
 // 20260818 CL/LH Preserved plain-text mail bodies when anchor flattening fails.
+// 20260824 PHR Set $smtp to localhost if $sqcb == 'test' to avoid mailing from testserter.
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
-	global $charset;
-	global $db,$db_id,$deb_valuta,$deb_valutakurs;
-	global $mailantal;
-	global $formular,$formularsprog;
-	global $webservice;
 	global $ansat_id;
 	global $bruger_id;
+	global $db,$db_id,$deb_valuta,$deb_valutakurs;
+	global $charset;
 	global $exec_path;
-#	global $id; // hent 'mail_bilag' fra ordrer + leveringsaddr.
+	global $formular,$formularsprog;
+	global $mailantal;
 	global $returside;
+	global $sqdb;
+	global $webservice;
+#	global $id; // hent 'mail_bilag' fra ordrer + leveringsaddr.
 
 	$email=str_replace(' ','',$email);
 	if (strpos($email,';')) $emails=explode(';',$email);
@@ -185,11 +187,17 @@ print "<!--function send_mails start-->";
 	$debug_msg .= "  afsendermails[0]: " . var_export($afsendermails[0], true) . "\n";
 	$debug_msg .= "  afsendernavn: " . var_export($afsendernavn, true) . "\n";
 	$debug_msg .= "  from: " . var_export($from, true) . "\n";
-	
+
 	($row['felt_1'])?$smtp=$row['felt_1']:$smtp='localhost';
-	($row['felt_2'])?$smtp_user=$row['felt_2']:$smtp_user=NULL;
-	($row['felt_3'])?$smtp_pwd=$row['felt_3']:$smtp_pwd=NULL;
-	($row['felt_4'])?$smtp_enc=$row['felt_4']:$smtp_enc=NULL;
+	($row['felt_2'])?$smtp_user = $row['felt_2']:$smtp_user = NULL;
+	($row['felt_3'])?$smtp_pwd  = $row['felt_3']:$smtp_pwd  = NULL;
+	($row['felt_4'])?$smtp_enc  = $row['felt_4']:$smtp_enc  = NULL;
+
+	if ($sqdb == 'test') {
+		$smtp = 'localhost';
+		$smtp_user = $smtp_pwd = $smtp_enc = NULL;
+	}
+
 
 	if ($row['mailfakt'] && $ansat_id) {
 		$r = db_fetch_array(db_select("select * from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
