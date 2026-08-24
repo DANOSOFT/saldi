@@ -1,6 +1,6 @@
 <?php
 
-// ------------lager/varespor.php---------------------patch 3.5.8--2015.09.02--
+// ------------lager/varespor.php---------------------patch 5.0.0--2026.08.19--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,11 +19,55 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 DANOSOFT ApS
 // ----------------------------------------------------------------------------
 //
 // 20140626 Tilføjet lagerregulering og ændret variabelnavn for dækningsbidrag.
 // 20150902	Linjer med 0 i antal undertrykkes og linjer uden ordre_id vises som Lagerreguleret
+// 20260819 CDX/PHR Saml fragmenterede batchlinjer, vis lager og saml lagerreguleringer nederst.
+
+function varesporBatchRows($table, $vareId, $excludeZero = false) {
+	if ($table !== 'batch_kob' && $table !== 'batch_salg') {
+		return array();
+	}
+	$where = "vare_id=" . (int)$vareId;
+	if ($excludeZero) {
+		$where .= " and antal != '0'";
+	}
+	$q = db_select("select * from $table where $where order by fakturadate,id", __FILE__ . " linje " . __LINE__);
+	$groups = array();
+	$order = array();
+	while ($row = db_fetch_array($q)) {
+		$lineId = (int)$row['linje_id'];
+		$stockNo = (int)$row['lager'];
+		if ($lineId > 0) {
+			$key = 'line:' . $lineId;
+		} elseif (!empty($row['modtime'])) {
+			$key = 'time:' . $row['modtime'] . ':stock:' . $stockNo;
+		} else {
+			$key = 'row:' . $row['id'];
+		}
+		if (!isset($groups[$key])) {
+			$groups[$key] = $row;
+			$groups[$key]['antal'] = 0;
+			$groups[$key]['total_price'] = 0;
+			$groups[$key]['stock_numbers'] = array();
+			$order[] = $key;
+		}
+		$groups[$key]['antal'] += (float)$row['antal'];
+		$groups[$key]['total_price'] += (float)$row['pris'] * (float)$row['antal'];
+		if ($stockNo > 0) {
+			$groups[$key]['stock_numbers'][$stockNo] = $stockNo;
+		}
+	}
+	$result = array();
+	foreach ($order as $key) {
+		ksort($groups[$key]['stock_numbers'], SORT_NUMERIC);
+		$groups[$key]['stock_display'] = implode(', ', $groups[$key]['stock_numbers']);
+		$result[] = $groups[$key];
+	}
+	return $result;
+}
 
 @session_start();
 $s_id=session_id();
@@ -44,7 +88,14 @@ $title=findtekst('2236|Varespor', $sprog_id);
 if ($popup) $returside="../includes/luk.php";
 else $returside="lagerstatus.php";
 
-$vare_id=$_GET['vare_id'];
+$vare_id=(int)$_GET['vare_id'];
+
+$stockNames = array();
+$stockQuery = db_select("select kodenr,beskrivelse from grupper where art='LG' order by kodenr", __FILE__ . " linje " . __LINE__);
+while ($stockRow = db_fetch_array($stockQuery)) {
+	$stockNames[(int)$stockRow['kodenr']] = $stockRow['beskrivelse'];
+}
+$showStock = count($stockNames) > 1;
 
 $query = db_select("select * from varer where id=$vare_id",__FILE__ . " linje " . __LINE__);
 $row = db_fetch_array($query);
@@ -86,42 +137,53 @@ print "<tr><td><br></td></tr>";
 
 ########################################################################################
 
-print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('2744|Tilgang', $sprog_id))." ===</b></td></tr>";
+$batchColspan = $showStock ? 6 : 5;
+print "<tr><td colspan=$batchColspan align=center><b>=== ".strtoupper(findtekst('2744|Tilgang', $sprog_id))." ===</b></td></tr>";
 print "<tr><td>".findtekst('438|Dato', $sprog_id)."</td>
 	<td align=right>".findtekst('916|Antal', $sprog_id)."</td>
+	" . ($showStock ? "<td align=right>Lager</td>" : "") . "
 	<td align=right>".findtekst('28|Firmanavn', $sprog_id)."</td>
 	<td align=right>".findtekst('1515|Købsordre', $sprog_id)."</td>
 	<td align=right>".findtekst('978|Købspris', $sprog_id)."</td></tr>";
 
-print "<tr><td colspan=5><hr></td></tr>";
+print "<tr><td colspan=$batchColspan><hr></td></tr>";
 
 $kontosum=0;
 $z=0;
 $kobsliste=array();
-$query = db_select("select * from batch_kob where vare_id=$vare_id and antal != '0' order by fakturadate",__FILE__ . " linje " . __LINE__);# 20150902
-while ($row = db_fetch_array($query)) {
+$stockAdjustments=array();
+foreach (varesporBatchRows('batch_kob', $vare_id, true) as $row) {
+	if (!$row['ordre_id']) {
+		$row['signed_antal'] = abs((float)$row['antal']);
+		$stockAdjustments[] = $row;
+		continue;
+	}
 	if ($row['ordre_id']) {
 		$q1 = db_select("select ordrenr, firmanavn from ordrer where id=$row[ordre_id]",__FILE__ . " linje " . __LINE__);
 		$r1 = db_fetch_array($q1); 
 	} else $r1=NULL;
 	print "<tr><td>".dkdato($row['fakturadate'])."</td>
 		<td align=right>".dkdecimal($row['antal'])."</td>";
+		if ($showStock) {
+			$stockTitle = array();
+			foreach ($row['stock_numbers'] as $stockNo) if (isset($stockNames[$stockNo])) $stockTitle[] = $stockNames[$stockNo];
+			print "<td align='right' title='".htmlspecialchars(implode(', ', $stockTitle), ENT_QUOTES, 'UTF-8')."'>".htmlspecialchars($row['stock_display'], ENT_QUOTES, 'UTF-8')."</td>";
+		}
 		if ($r1['firmanavn']) print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>";
-		else print "<td align=\"right\">".findtekst('2237|Lagerreguleret', $sprog_id)."</td>";
 		print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[ordrenr]</u></td>";
 	$kobsantal=$kobsantal+$row['antal'];
-	$kobspris=$row['pris']*$row['antal'];	 
+	$kobspris=$row['total_price'];
 	$kobssum=$kobssum+$kobspris;
 	$tmp=dkdecimal($kobspris);
 	print "<td align=right>$tmp</td>";
 }
 $tmp=dkdecimal($kobssum);
-print "<tr><td colspan=5><hr></td></tr>";
+print "<tr><td colspan=$batchColspan><hr></td></tr>";
 print "<tr><td>".findtekst('2238|Købt i alt', $sprog_id)."</td>
 		<td align=right>".dkdecimal($kobsantal)."</td>
-		<td align=right colspan=3>$tmp</td>";
+		<td align=right colspan=".($showStock ? 4 : 3).">$tmp</td>";
 		
-print "<tr><td colspan=5><hr></td></tr>";
+print "<tr><td colspan=$batchColspan><hr></td></tr>";
 print "<tr><td colspan=5><br></td></tr>";
 print "<tr><td colspan=5><br></td></tr>";
 
@@ -171,33 +233,41 @@ print "<tr><td colspan=5><br></td></tr>";
 
 
 ########################################################################################
-print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('2745|Afgang', $sprog_id))." ===</b></td></tr>";
+print "<tr><td colspan=$batchColspan align=center><b>=== ".strtoupper(findtekst('2745|Afgang', $sprog_id))." ===</b></td></tr>";
 print "<tr><td>".findtekst('438|Dato', $sprog_id)."</td>
 	<td align=right>".findtekst('916|Antal', $sprog_id)."</td>
+	" . ($showStock ? "<td align=right>Lager</td>" : "") . "
 	<td align=right>".findtekst('28|Firmanavn', $sprog_id)."</td>
 	<td align=right>".findtekst('643|Faktura', $sprog_id)."</td>
 	<td align=right>".findtekst('949|Salgspris', $sprog_id)."</td></tr>";
-print "<tr><td colspan=5><hr></td></tr>";
+print "<tr><td colspan=$batchColspan><hr></td></tr>";
 
 $salgssum=0;
 $salgsantal=0;
 
-$query = db_select("select * from batch_salg where vare_id=$vare_id order by fakturadate",__FILE__ . " linje " . __LINE__);
-while ($row = db_fetch_array($query)) {
+foreach (varesporBatchRows('batch_salg', $vare_id) as $row) {
+	if (!$row['ordre_id']) {
+		$row['signed_antal'] = abs((float)$row['antal']) * -1;
+		$stockAdjustments[] = $row;
+		continue;
+	}
 	if ($row['ordre_id']) {
 		$q1 = db_select("select ordrenr,firmanavn,fakturanr from ordrer where id=$row[ordre_id]",__FILE__ . " linje " . __LINE__);
 		$r1 = db_fetch_array($q1); 
 	} else $r1=NULL;
 	print "<tr><td>".dkdato($row['fakturadate'])."</td>
 		<td align=right>".dkdecimal($row['antal'])."</td>";
+	if ($showStock) {
+		$stockTitle = array();
+		foreach ($row['stock_numbers'] as $stockNo) if (isset($stockNames[$stockNo])) $stockTitle[] = $stockNames[$stockNo];
+		print "<td align='right' title='".htmlspecialchars(implode(', ', $stockTitle), ENT_QUOTES, 'UTF-8')."'>".htmlspecialchars($row['stock_display'], ENT_QUOTES, 'UTF-8')."</td>";
+	}
 	if ($row['ordre_id'])	{
 		print "<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:d_ordre=window.open('../debitor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','d_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>
 		<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:d_ordre=window.open('../debitor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','d_ordre','$jsvars')\"><u>$r1[fakturanr]</u></td>";
-	} else {
-		print "<td align=\"right\">".findtekst('2237|Lagerreguleret', $sprog_id)."</td><td></td>";
 	}
 	$salgsantal=$salgsantal+$row['antal'];
-	$salgspris=$row['pris']*$row['antal'];	 
+	$salgspris=$row['total_price'];
 	$salgssum=$salgssum+$salgspris;
 	$tmp=dkdecimal($salgspris);
 	print "<td align=right>$tmp</td>";
@@ -205,12 +275,12 @@ while ($row = db_fetch_array($query)) {
 	$antal=$antal+$row['antal'];
 }
 $tmp=dkdecimal($salgssum);
-print "<tr><td colspan=5><hr></td></tr>";
+print "<tr><td colspan=$batchColspan><hr></td></tr>";
 print "<tr><td>".findtekst('2241|Solgt i alt', $sprog_id)."</td>
-	<td align=right>".dkdecimal($salgsantal)."</td>
-	<td align=right colspan=3>$tmp</td>";
+		<td align=right>".dkdecimal($salgsantal)."</td>
+		<td align=right colspan=".($showStock ? 4 : 3).">$tmp</td>";
 
-print "<tr><td colspan=5><hr></td></tr>";
+print "<tr><td colspan=$batchColspan><hr></td></tr>";
 print "<tr><td colspan=5><br></td></tr>";
 print "<tr><td colspan=5><br></td></tr>";
 
@@ -259,10 +329,41 @@ print "<tr><td colspan=5><hr></td></tr>";
 
 ##########################################################################
 
+usort($stockAdjustments, function($a, $b) {
+	$dateCompare = strcmp((string)$a['fakturadate'], (string)$b['fakturadate']);
+	if ($dateCompare) return $dateCompare;
+	return (int)$a['id'] - (int)$b['id'];
+});
+
+print "<tr><td colspan=$batchColspan><br></td></tr>";
+print "<tr><td colspan=$batchColspan align=center><b>=== LAGERREGULERINGER ===</b></td></tr>";
+print "<tr><td>".findtekst('438|Dato', $sprog_id)."</td>
+	<td align=right>".findtekst('916|Antal', $sprog_id)."</td>
+	" . ($showStock ? "<td align=right>Lager</td>" : "") . "
+	<td colspan=".($showStock ? 3 : 3)."></td></tr>";
+print "<tr><td colspan=$batchColspan><hr></td></tr>";
+
+$adjustmentTotal = 0;
+foreach ($stockAdjustments as $row) {
+	$adjustmentTotal += $row['signed_antal'];
+	print "<tr><td>".dkdato($row['fakturadate'])."</td>
+		<td align=right>".dkdecimal($row['signed_antal'])."</td>";
+	if ($showStock) {
+		$stockTitle = array();
+		foreach ($row['stock_numbers'] as $stockNo) if (isset($stockNames[$stockNo])) $stockTitle[] = $stockNames[$stockNo];
+		print "<td align='right' title='".htmlspecialchars(implode(', ', $stockTitle), ENT_QUOTES, 'UTF-8')."'>".htmlspecialchars($row['stock_display'], ENT_QUOTES, 'UTF-8')."</td>";
+	}
+	print "<td colspan=3></td></tr>";
+}
+print "<tr><td colspan=$batchColspan><hr></td></tr>";
+print "<tr><td>I alt</td><td align=right>".dkdecimal($adjustmentTotal)."</td><td colspan=".($showStock ? 4 : 3)."></td></tr>";
+print "<tr><td colspan=$batchColspan><hr></td></tr>";
+
+##########################################################################
+
 print "</tbody></table>";
 
 
 
 ?>
 </html>
-
