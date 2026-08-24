@@ -59,6 +59,8 @@
 //                 still terminate the request immediately.
 // 20260812 CX/PHR - Use the VAT code saved on each cash-journal line during validation, simulation and posting.
 // 20260819 CX/PHR - Fall back to account VAT unless a confirmed journal line has VAT on only one side.
+// 20260822 Sawaneh Show journal id and note in heading and above movements so output identifies the journal;
+//                  print icon on the simulation/posting view prints just the report
 
 
 @session_start();
@@ -108,16 +110,18 @@ while (!checkdate($rsmd,$rsdd,$rsaar)) {
 }
 $regnslut=$rsaar."-".$rsmd."-".$rsdd;
 
-if ($kladde_id) {	
-	$row =db_fetch_array(db_select("select bogfort from kladdeliste where id = $kladde_id",__FILE__ . " linje " . __LINE__));
+$kladdenote_vis='';
+if ($kladde_id) {
+	$row =db_fetch_array(db_select("select bogfort, kladdenote from kladdeliste where id = $kladde_id",__FILE__ . " linje " . __LINE__));
 	if ($row['bogfort']=='V') {
 		print "<BODY onLoad=\"javascript:alert('Kladden er allerede bogf&oslash;rt - kladden lukkes')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 		exit;
 	}
+	$kladdenote_vis = htmlentities(stripslashes(trim((string)$row['kladdenote'])), ENT_QUOTES, $charset);
 }
 if ($funktion=='bogfor') {
-	$overskrift = findtekst('2209|Bogfør kassekladde', $sprog_id);
+	$overskrift = findtekst('2209|Bogfør kassekladde', $sprog_id).", ".findtekst('1087|Kladde', $sprog_id)." $kladde_id";
 	$href="<a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>";
 } elseif ($funktion=='simuler') {
 	$overskrift="".findtekst(1085,$sprog_id)." ".findtekst(1086,$sprog_id).", ".findtekst(1087,$sprog_id)." $kladde_id"; #20210319
@@ -446,6 +450,12 @@ if ($funktion=='bogfor') {
 	print "</tr><tr><td height=10px><hr></td></tr>";
 }
 $d_sum=0; $k_sum=0;
+$kladde_vis = findtekst('601|Kassekladde', $sprog_id)." $kladde_id";
+if ($kladdenote_vis) $kladde_vis .= " &ndash; $kladdenote_vis";
+print "<style>@media print { .no-print, input[type=submit], button { display:none !important; } }</style>";
+print "<tr><td align=center valign=\"top\" style='padding-top:10px'><b>$kladde_vis</b>&nbsp;
+	<a class='no-print' href='javascript:void(0)' onclick='window.print(); return false;'>
+	<img src='../ikoner/print.png' style='border:0; vertical-align:middle;' title='Print'></a></td></tr>";
 print "<tr><td align = center valign=\"top\"><center><table width='75%' style='margin-top:20px' class='dataTableSmall' border=1 cellspacing=0 cellpadding=0><tbody>";
 print "<tr><td colspan=\"6\" class='tableHeader'><b>".findtekst(1088,$sprog_id)."</b></td></tr>
 	<tr><td class='tableText'>$font ".findtekst(440,$sprog_id)."</td>

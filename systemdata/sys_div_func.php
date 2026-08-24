@@ -2509,7 +2509,7 @@ Pris $pris<br>
 			print "<tr><td colspan='4'>";
 			print "<div style='margin-bottom: 10px;'>";
 			print "<h3>Rå HTML Editor</h3>";
-			print "<p style='color: #666; font-size: 12px;'>".findtekst('5056|Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$minbeskrivelse, \$minpris, \$img, osv. \$minbeskrivelse og \$minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. \$beskrivelse og \$pris henter altid varens egen.', $sprog_id)."<!--tekst 5056--></p>";
+			print "<p style='color: #666; font-size: 12px;'>".findtekst('5057|Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$minbeskrivelse, \$minpris, \$img, osv. \$minbeskrivelse og \$minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. \$beskrivelse og \$pris henter altid varens egen.', $sprog_id)."<!--tekst 5056--></p>";
 			print "</div>";
 			print "<textarea name='rawHTML' style='width: 100%; height: 400px; font-family: monospace; font-size: 12px;'>" . htmlspecialchars($labelText) . "</textarea>";
 			print "</td></tr>";
