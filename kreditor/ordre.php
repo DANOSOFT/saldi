@@ -67,19 +67,16 @@
 $s_id=session_id();
 
 ?>
-	<script type="text/javascript">
+<script type="text/javascript">
+	function serienummer(linje_id, antal) {
+		window.open("serienummer.php?linje_id=" + linje_id, "",
+			"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
+	}
 
-function serienummer(linje_id, antal) {
-	window.open("serienummer.php?linje_id=" + linje_id, "",
-		"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
-}
-
-function batch(linje_id, antal) {
-	window.open("batch.php?linje_id=" + linje_id, "",
-		"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
-}
-//
--->
+	function batch(linje_id, antal) {
+		window.open("batch.php?linje_id=" + linje_id, "",
+			"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
+	}
 </script>
 
 <!--<script type="text/javascript">

@@ -65,6 +65,9 @@
 // 20260812 LOE .kassekladde-scroll-container; increased the subtraction in height to leave more room for the footer buttons.
 // 20260812 CX/PHR - Preserve and display the journal line VAT code; apply account default VAT when the account changes.
 // 20260819 CX/PHR - Synchronize VAT exemption with both VAT fields and confirm intentional one-sided VAT.
+// 20260820 Sawaneh Shortcut letters (genvej) in debit/credit crashed the VAT lookup with a numeric
+//                  SQL error; non-numeric input is now resolved via genvej before querying kontonr.
+// 20260822 Sawaneh Print-only header with journal id, date and note so printouts identify the journal (JOB-055)
 
 ob_start(); //Starter output buffering  
 
@@ -162,6 +165,16 @@ function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_code
 
     if ($account_no === '' || ($account_type !== '' && $account_type !== 'F')) {
         return '';
+    }
+    if (!is_numeric($account_no)) {
+        if (strlen($account_no) != 1) {
+            return '';
+        }
+        $qtxt = "select kontonr from kontoplan where genvej='" . db_escape_string(strtoupper($account_no)) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
+        if (!$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            return '';
+        }
+        $account_no = trim($row['kontonr']);
     }
     $qtxt = "select moms from kontoplan where kontonr='" . db_escape_string($account_no) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
     $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -1467,11 +1480,13 @@ else setcookie("saldi_ktrkto",$kontrolkonto,time()-3600);
 ob_end_flush();	//Sender det "bufferede" output afsted...
 */
 
+$kladdedate = '';
 if ($kladde_id) {
-	$query = db_select("select kladdenote, bogfort from kladdeliste where id = $kladde_id", __FILE__ . " linje " . __LINE__);
+	$query = db_select("select kladdenote, bogfort, kladdedate from kladdeliste where id = $kladde_id", __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	$kladdenote = htmlentities(stripslashes($row['kladdenote']), ENT_QUOTES, $charset);
 	$bogfort = $row['bogfort'];
+	$kladdedate = trim((string)$row['kladdedate']);
 }
 $x = 0;
 ($visipop) ? $ny = NULL : $ny = findtekst('39|Ny', $sprog_id); #20210628
@@ -1492,6 +1507,13 @@ if (!$simuler) {
 	($udskriv) ? $height = '' : $height = 'height="100%"';
 	if ($udskriv) {
 		print "<div class='print-view'>";
+	}
+	if ($kladde_id) {
+		$printHead = "<b>".findtekst('601|Kassekladde', $sprog_id)." $kladde_id</b>";
+		if ($kladdedate) $printHead .= " &ndash; ".implode('-', array_reverse(explode('-', $kladdedate)));
+		if ($kladdenote) $printHead .= " &ndash; $kladdenote";
+		if ($bogfort == 'S') $printHead .= " (".findtekst('1085|Simuleret', $sprog_id).")";
+		print "<div class='kassekladde-print-header' style='display:none; font-size:12pt; margin-bottom:6px;'>$printHead</div>";
 	}
 	if ($menu != 'T') {
 		#print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
@@ -2096,6 +2118,9 @@ print '<style>
 
     /* Print styles */
     @media print {
+        .kassekladde-print-header {
+            display: block !important;
+        }
         /* Hide navigation and non-essential elements - including Saldi framework elements */
         .sidebar,
         .side-menu,
