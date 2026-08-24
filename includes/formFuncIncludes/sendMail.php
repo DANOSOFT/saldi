@@ -30,7 +30,7 @@
 //20260603 CL/PHR Document attachment updated: now checks the documents table
 //         (source=debitorOrdrer) before fallback to old document system
 // 20260818 CL/LH Preserved plain-text mail bodies when anchor flattening fails.
-// 20260824 PHR Set $smtp to localhost if $sqcb == 'test' to avoid mailing from testserter.
+// 20260824 PHR Set $smtp to localhost if $sqdb == 'test' to avoid mailing from test servers.
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
