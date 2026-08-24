@@ -23,6 +23,8 @@
 // Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //20260526 LOE Created new report using new datagrid based on postnr.php where department column and date range filter have been added.
+//20260709 SZ Replaced old top menu with Grid Framework header on Sales by Zip Code report
+//20260709 SZ Fixed header/footer styling to match Finance -> Reports -> Balance
 
 @session_start();
 
@@ -111,11 +113,15 @@ if ($menu == 'T') {
     include("../includes/top_menu.php");
     print "<div id='header'><div class='headerbtnLft'>$leftbutton</div><span class='headerTxt'>$title</span><div class='headerbtnRght'></div></div><div class='maincontentLargeHolder'>";
 } elseif ($menu == 'S') {
-    print "<tr><td colspan='5' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
-        <td width='10%'><a href='../debitor/rapport.php' accesskey='L'><button style='$buttonStyle; width:100%'>" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>
-        <td width='80%' style='$topStyle' align='center'>".findtekst('3360|Salg pr. postnummer', $sprog_id)."</td>
-        <td width='5%' style='$topStyle'><br></td></tr>
-        </tbody></table></td></tr></tbody></table>";
+    // Grid Framework header — same back-button/title-bar styling as Finance -> Reports -> Balance
+    // (kontosaldo() in includes/rapportfunc.php). Sticky behaviour + footer/pagination for this
+    // report are already handled by create_datagrid() below, so only the header visuals change here.
+    $tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+    print "<tr><td colspan='5' height='8'><table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>
+        <td width='10%' align='left'><a href='../debitor/rapport.php' accesskey='L'><button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$tilbage_icon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>
+        <td width='80%' align='center' style='$topStyle'>Sales by zip code</td>
+        <td width='10%' style='$topStyle'><br></td>
+        </tr></tbody></table></td></tr></tbody></table>";
 } else {
     print "<tr><td colspan='4' height='8'><table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody><tr>
         <td width='10%' $top_bund><a href='../debitor/rapport.php' accesskey='L'>Luk</a></td>
@@ -330,6 +336,39 @@ create_datagrid('salg_postnr', $grid_data);
     padding: 2px;
     font-size: 0.85em;
     text-align: center;
+}
+/* includes/grid.php's .datatable thead border-bottom uses $bgcolordark, which is
+   never actually assigned anywhere in this codebase — it renders as an invalid/empty
+   CSS color, so browsers fall back to a hard black border. Override with a light
+   gray here rather than touching the shared global (affects every create_datagrid()
+   report sitewide). */
+#datatable-wrapper-salg_postnr .datatable thead {
+    border-bottom: 2px solid #ccc;
+}
+/* Footer restyle to match salgsstat.php's Grid Framework footer bar look
+   (background/border colour, pill-shaped nav buttons) — create_datagrid()'s
+   own pagination markup/JS is left untouched, only its CSS is overridden. */
+#datatable-wrapper-salg_postnr .datatable tfoot,
+#datatable-wrapper-salg_postnr .datatable tfoot tr,
+#datatable-wrapper-salg_postnr .datatable tfoot td {
+    background-color: <?= $bgcolor ?>;
+    border-top: 1px solid #b8bec8;
+}
+#datatable-wrapper-salg_postnr #footer-box {
+    gap: 20px;
+    line-height: 1;
+}
+#datatable-wrapper-salg_postnr .navbutton {
+    height: 20px;
+    min-width: 20px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    color: #000;
+    border: 1px solid #b8bec8;
+    border-radius: 4px;
 }
 </style>
 

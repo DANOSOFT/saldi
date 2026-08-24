@@ -70,6 +70,35 @@
 // 20260526 LOE Added salg_rapport.php with sales report based on postnr and departments, to handle sales report for customers with postnr and departments. Based on datagrid, with flexible search and sorting.
 // 20260603 PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
 // 20260610 CL/PHR Fjernet mb_convert_encoding ISO-8859-1 konvertering ved CSV-skrivning
+// 20260707 CL/SZ Added Grid Framework sticky header and footer to Item Sales report
+// 20260710 SZ Fixed 'Bestilt' (Ordered) column: open PO lines now count regardless of
+//             levdate (incl. 31-12-2099 placeholder and empty dates), and new items with
+//             an open PO but no prior stock/sales history now appear in the report
+// 20260710 SZ Added Grid Framework sticky header+footer (varegruppe(), summary + Detaljeret views)
+//             and fixed misaligned columns between the header row and data/Summeret rows
+// 20260715 CL/SZ Restored the ordrer.levdate range filter on the 'Bestilt' (Ordered) query
+//             (see 20260710 above) per explicit request; open POs with a placeholder/no
+//             delivery date, or one outside the report period, are excluded again
+// 20260716 CL/SZ Performance: summary/non-Detaljeret mode (varegruppe()) now bulk-fetches
+//             varer/kostpriser/beholdning and aggregates Koeb/Salg via SQL sum(case when...)
+//             instead of running 2-6 queries PER ITEM, removing the N+1 pattern that made
+//             large item reports slow/unstable. Detaljeret mode is unchanged (still needs
+//             actual transaction rows to print).
+// 20260716 CL/SZ Performance: item-gathering phase (building $vare_id/$v_id from the varer/
+//             batch_salg/batch_kob/ordrelinjer queries, ~line 620) now uses array_flip()-based
+//             O(1) lookups instead of in_array()'s O(n) scan - this PHP-side cost was independent
+//             of the per-item query fix above and, on a large report, just as significant (measured
+//             ~50x faster at 3000 items/180k transactions locally). Verified byte-identical output
+//             across all filter combinations before/after both fixes.
+// 20260716 CL/SZ Fixed 'Bestilt' (Ordered) column per requirement-spec-stock-report-ordered-
+//             column.md R1-R4: (R1/R2, ~line 708) open PO lines now count regardless of levdate,
+//             including the codebase's '2099-12-31' placeholder and NULL/empty dates. (R3, ~line
+//             699-718) the 'per supplier' view no longer depends on a vare_lev catalog row existing
+//             for the item - it now scopes the Ordered query directly to the order's actual
+//             supplier (ordrer.konto_id), so a brand-new item with an open PO shows up, and with
+//             the correct per-supplier quantity, consistently with the 'per item number' view.
+//             Verified against all 6 acceptance criteria in the spec. Confirmed working on the
+//             production server (no blank page) after the performance fixes above.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -107,6 +136,27 @@ if ($lokMinMax) {
 	$afd        = isset($_POST['afd']) ? $_POST['afd'] : null;
 	print print "<meta http-equiv=\"refresh\" content=\"0;URL=minmaxstock.php?vgrp=$varegruppe&vnr=$varenr&vname=$varenavn&afd=$afd\">";
 }
+// 20260714 SZ - hydrate from $_GET first (this is the only source for plain navigation - pagination,
+// back button, direct links - which is always a GET request with no $_POST at all), then let an actual
+// form submit (POST) overlay on top. Same "GET baseline, POST overlay" shape as includes/salgsstat.php's
+// input handling, chosen over the previous if($_POST)/else($_GET) fork specifically because that fork
+// pattern is what caused lager/pricelist.php's pagination to silently reset every filter to its default:
+// a later elseif branch (added for csv/autoprint there) intercepted the GET case before it reached the
+// $_GET reads. Making $_GET the unconditional baseline means a future added branch can no longer do that.
+$varegruppe = isset($_GET['varegruppe']) ? $_GET['varegruppe'] : null;
+$afd        = isset($_GET['afd'])        ? $_GET['afd']        : null;
+$ref        = isset($_GET['ref'])        ? $_GET['ref']        : null;
+$lev        = isset($_GET['lev'])        ? $_GET['lev']        : null;
+$date_from  = isset($_GET['date_from'])  ? $_GET['date_from']  : null;
+$date_to    = isset($_GET['date_to'])    ? $_GET['date_to']    : null;
+$varenr     = isset($_GET['varenr'])     ? $_GET['varenr']     : null;
+$varenavn   = isset($_GET['varenavn'])   ? $_GET['varenavn']   : null;
+$detaljer   = isset($_GET['detaljer'])   ? $_GET['detaljer']   : null;
+$kun_salg   = isset($_GET['kun_salg'])   ? $_GET['kun_salg']   : null;
+$lagertal   = isset($_GET['lagertal'])   ? $_GET['lagertal']   : null;
+$vk_kost    = isset($_GET['vk_kost'])    ? $_GET['vk_kost']    : null; #20260715 CL/SZ - vk_kost was missing from the GET baseline (only ever read from $_POST below), so every GET-only pagination request reset it to NULL regardless of the original submit's value, permanently mismatching the chunk-cache key and defeating the cache on every page 2+ click
+$submit     = isset($_GET['submit'])     ? $_GET['submit']     : null;
+
 if (isset($_POST['submit']) && $_POST['submit']) {
 	$submit=strtolower(trim($_POST['submit']));
 	$varegruppe=trim($_POST['varegruppe']);
@@ -124,19 +174,6 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 	$vk_kost      = isset($_POST['vk_kost']) ? $_POST['vk_kost'] : null;
 	$varenr       = trim($varenr);
 	$varenavn     = trim($varenavn);
-} else {
-	$varegruppe = isset($_GET['varegruppe']) ? $_GET['varegruppe'] : null;
-	$afd        = isset($_GET['afd'])        ? $_GET['afd']        : null;
-	$ref        = isset($_GET['ref'])        ? $_GET['ref']        : null;
-	$lev        = isset($_GET['lev'])        ? $_GET['lev']        : null;
-	$date_from  = isset($_GET['date_from'])  ? $_GET['date_from']  : null;
-	$date_to    = isset($_GET['date_to'])    ? $_GET['date_to']    : null;
-	$varenr     = isset($_GET['varenr'])     ? $_GET['varenr']     : null;
-	$varenavn   = isset($_GET['varenavn'])   ? $_GET['varenavn']   : null;
-	$detaljer   = isset($_GET['detaljer'])   ? $_GET['detaljer']   : null;
-	$kun_salg   = isset($_GET['kun_salg'])   ? $_GET['kun_salg']   : null;
-	$lagertal   = isset($_GET['lagertal'])   ? $_GET['lagertal']   : null;
-	$submit     = isset($_GET['submit'])     ? $_GET['submit']     : null;
 }
 
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
@@ -411,6 +448,12 @@ function varegruppe($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,
 	if ($detaljer) $cols=12;
 	elseif ($kun_salg) $cols=11;
 	else $cols=18;
+	// 20260710 SZ Grid Framework (sticky header+footer, internal scroll, mirrors includes/salgsstat.php).
+	// Covers both the default summary view and the 'Detaljeret' view. The two use different internal
+	// table structures below (Detaljeret has no single shared column set - see $vrDetailMode).
+	$vrGridMode = ($menu=='S');
+	$vrDetailMode = ($vrGridMode && $detaljer);
+	$vrTitleExtra = '';
 
 	$v_gr = array();
 	$v_navn = array();
@@ -441,6 +484,13 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		print "</div><!-- end of header -->
 			<div class=\"maincontentLargeHolder\">\n";
 		print "<table class='dataTable' width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	} elseif ($vrGridMode) {
+		// Grid Framework header bar - mirrors includes/salgsstat.php's $ssPageFlex header. The full title
+		// (incl. afd/lev/ref suffixes) and the grid table itself aren't printed until further down, once
+		// $vrTitleExtra / $lagergruppe are known - see the matching branches below.
+		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
+		print "<div id='vrPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
+		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
 	} elseif ($menu=='S') {
 		print "<table width = 100% cellpadding='1' cellspacing='1' border='0'><tbody>";
 
@@ -449,7 +499,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 
 		print "<td width='10%'>$luk<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 		print findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-		
+
 		print "<td width='80%' align='center' style='$topStyle'>".findtekst('1142|Rapport', $sprog_id)." | ".findtekst('2746|Varesalg', $sprog_id)." | ".dkdato($date_from)." - ".dkdato($date_to);
 	} else {
 		print "<table width = 100% cellpadding='1' cellspacing='1' border='0'><tbody>";
@@ -461,13 +511,17 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	}
 	if ($afd) {
 		$r=db_fetch_array(db_select("select beskrivelse from grupper where art = 'AFD' and kodenr = '$afd'",__FILE__ . " linje " . __LINE__));
-		print " | $r[beskrivelse]";
+		$vrTitleExtra .= " | $r[beskrivelse]";
+		if (!$vrGridMode) print " | $r[beskrivelse]";
 	}
 	if ($lev) {
 		$r = db_fetch_array(db_select("select kontonr,firmanavn from adresser where id='$lev'",__FILE__ . " linje " . __LINE__));
 		$lev_nr=$r['kontonr'];
 		$lev_navn=$r['firmanavn'];
-		if ($lev_navn) print " | $lev_nr ($lev_navn)";
+		if ($lev_navn) {
+			$vrTitleExtra .= " | $lev_nr ($lev_navn)";
+			if (!$vrGridMode) print " | $lev_nr ($lev_navn)";
+		}
 		$x=0;
 		$q=db_select("select vare_id from vare_lev where lev_id='$lev'",__FILE__ . " linje " . __LINE__);
 		while($r=db_fetch_array($q)) {
@@ -485,10 +539,27 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			$ref_navn=$r['navn'];
 		}
 		if (!$ref_navn) $ref_navn=$ref_brugernavn;
-		if ($ref_navn) print " | $ref_navn";
+		if ($ref_navn) {
+			$vrTitleExtra .= " | $ref_navn";
+			if (!$vrGridMode) print " | $ref_navn";
+		}
 	}
 	if ($menu=='T') {
 
+	} elseif ($vrGridMode) {
+		// Full header bar now that $vrTitleExtra/$luk are known - back button (with icon, matching
+		// includes/salgsstat.php) / title / CSV export (reuses the existing CSV feature as the header's
+		// 3rd button, in place of salgsstat's "advanced search" button, since this report's own filter
+		// form lives on the front page (forside()), reached via Back).
+		$vrTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+		print "<td width='10%' align='left'>$luk
+			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$vrTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " | " . findtekst('2746|Varesalg', $sprog_id) . " | " . dkdato($date_from) . " - " . dkdato($date_to) . $vrTitleExtra . "</td>";
+		print "<td width='10%' align='center'><a href='../temp/$db/salgsrapport.csv' target='_blank'>
+			   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+		print "</tr></tbody></table>";
+		print "</div>\n"; // <- close flex:0 wrapper around the header bar
 	} elseif ($menu=='S') {
 	print "</td>";
 	print "<td width='10%'><a href='../temp/$db/salgsrapport.csv' target='_blank'>";
@@ -500,7 +571,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	print "<td width='10%' $top_bund><a href='../temp/$db/salgsrapport.csv' target='_blank'>CSV</a></td>";
 	print "</tbody></table>"; #B slut
 	}
-	print "</td></tr>\n";
+	if (!$vrGridMode) print "</td></tr>\n"; // vrGridMode's header bar already closed its own table above
 	$lagergruppe=array();
 	if ($gruppenr) {
 		$qtxt="select box8,box9 from grupper where kodenr ='$gruppenr' and art='VG' and fiscal_year = '$regnaar'";
@@ -550,15 +621,33 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	if ($lagertal) $qtxt="select id,gruppe,samlevare from varer $tmp order by gruppe,beskrivelse";
 	else $qtxt="select id,gruppe,samlevare from varer $tmp order by beskrivelse";
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
+	// 20260716 CL/SZ - array_flip()-based O(1) lookups instead of in_array()'s O(n) scan for every
+	// varer/batch_salg/batch_kob/ordrelinjer row below. On a large item report (thousands of items x
+	// thousands of transaction rows) these repeated linear scans were an O(n^2)-ish PHP-side cost,
+	// independent of - and in addition to - the per-item SQL query-count fix above. Ported from the
+	// same already-optimized reference version; isset() on a flipped array's keys is behaviorally
+	// identical to in_array() on the original values (duplicate values collapse harmlessly, since only
+	// presence is checked, and these arrays hold unique ids already).
+	$lev_vare_id_lookup = array_flip($lev_vare_id);
+	// 20260716 CL/SZ - $vare_id_textmatch_lookup: matches the varenr/varenavn/gruppe search filters
+	// ($tmp above) regardless of $lev, unlike $vare_id/$vare_id_lookup below which are also gated on the
+	// vare_lev catalog association when filtering "per supplier". A brand-new item can have an open PO
+	// with a real supplier (ordrer.konto_id) before anyone has ever added a vare_lev catalog row for it -
+	// without this, such an item passed R1/R2 (levdate handling, "new item" via open PO) in the per-item
+	// view but silently failed to appear at all when filtering per supplier. See its use below, where the
+	// "Ordered" query is additionally scoped to ordrer.konto_id = $lev.
+	$vare_id_textmatch_lookup = array();
 	while ($r = db_fetch_array($q)) {
-		if (!$lev || in_array($r['id'],$lev_vare_id)) {
-			if (!$r['samlevare'] || in_array($r['gruppe'],$lagergruppe)) { #20151105
+		if (!$r['samlevare'] || in_array($r['gruppe'],$lagergruppe)) { #20151105
+			$vare_id_textmatch_lookup[$r['id']]=1;
+			if (!$lev || isset($lev_vare_id_lookup[$r['id']])) {
 				$x++;
 				$vare_id[$x]=$r['id'];
 			}
 		}
 	}
-	$v_id=$ov_qty=array();
+	$vare_id_lookup = array_flip($vare_id);
+	$v_id=$v_id_lookup=$ov_qty=array();
 	$x=0;
 	# finder alle konti med bevaegelser i den anfoerte periode eller aabne poster fra foer perioden
 	$qtxt="select batch_salg.vare_id,batch_salg.pris,varer.gruppe,varer.beskrivelse from batch_salg,varer";
@@ -571,9 +660,11 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	else $qtxt.="and batch_salg.fakturadate>='$date_from' order by varer.beskrivelse ";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
-		if ((in_array(trim($row['vare_id']),$vare_id))&&(!in_array(trim($row['vare_id']), $v_id))) {
+		$row_vare_id = trim($row['vare_id']);
+		if (isset($vare_id_lookup[$row_vare_id]) && !isset($v_id_lookup[$row_vare_id])) {
 			$x++;
-			$v_id[$x]=trim($row['vare_id']);
+			$v_id[$x]=$row_vare_id;
+			$v_id_lookup[$row_vare_id]=1;
 			$v_gr[$x]=trim($row['gruppe']);
 			$v_navn[$x]=trim(strip_tags($row['beskrivelse']));
 			$ov_qty[$x]=0;
@@ -585,9 +676,11 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	else $qtxt.=" and batch_kob.fakturadate>='$date_from' order by varer.beskrivelse";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
-		if ((in_array(trim($row['vare_id']), $vare_id))&&(!in_array(trim($row['vare_id']), $v_id))) {
+		$row_vare_id = trim($row['vare_id']);
+		if (isset($vare_id_lookup[$row_vare_id]) && !isset($v_id_lookup[$row_vare_id])) {
 			$x++;
-			$v_id[$x]=trim($row['vare_id']);
+			$v_id[$x]=$row_vare_id;
+			$v_id_lookup[$row_vare_id]=1;
 			$v_gr[$x]=trim($row['gruppe']);
 			$v_navn[$x]=trim(strip_tags($row['beskrivelse']));
 			$ov_qty[$x]=0;
@@ -598,24 +691,26 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	$qtxt = "select ordrelinjer.vare_id,ordrelinjer.varenr,ordrelinjer.beskrivelse,sum(ordrelinjer.antal-ordrelinjer.leveret) as qty,";
 	$qtxt.= "varer.gruppe from ordrer,ordrelinjer,varer where ";
 	$qtxt.= "ordrer.status < '3' and ordrer.status > '0' and ordrelinjer.ordre_id = ordrer.id and ordrelinjer.vare_id = varer.id and ";
+	if ($lev) $qtxt.= "ordrer.konto_id = '$lev' and "; #20260716 CL/SZ - R3: scope open POs to the actual supplier the order was placed with (ordrer.konto_id), not the vare_lev catalog association used to build $vare_id above - keeps the "per supplier" Ordered figures consistent with the "per item" view instead of silently excluding a new item's open PO just because nobody has added a vare_lev row for it yet
 	for ($g=0;$g<count($lagergruppe);$g++) {
 		($g)?$qtxt .= "or ":$qtxt .= "( ";
 		$qtxt .= "varer.gruppe = '$lagergruppe[$g]' ";
 	}
 	if ($g) $qtxt .= ") and ";
-	$qtxt.= "ordrelinjer.leveret < ordrelinjer.antal and ordrer.levdate >= '$date_from' and ordrer.levdate <= '$date_to' ";
+	$qtxt.= "ordrelinjer.leveret < ordrelinjer.antal and (ordrer.levdate is null or ordrer.levdate = '2099-12-31' or (ordrer.levdate >= '$date_from' and ordrer.levdate <= '$date_to')) "; #20260716 CL/SZ - keep the levdate range filter (20260715) for orders with a real expected delivery date, but also always include open POs with no levdate or the codebase's standard '2099-12-31' placeholder (see lager/salg_rapport.php, finans/bankReconcile.php, admin/admin_panel.php for the same convention) regardless of the report's date range - these represent "unknown delivery date", not "delivery outside this period"
 	$qtxt.= "group by ordrelinjer.vare_id,ordrelinjer.varenr,ordrelinjer.beskrivelse,varer.gruppe order by ordrelinjer.varenr";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (in_array($r['vare_id'],$v_id)) {
+		if (isset($v_id_lookup[$r['vare_id']])) {
 			for ($v=0;$v<=$x;$v++) {
 				if ($r['vare_id'] == $v_id[$v]) {
 					$ov_qty[$v]=$r['qty'];
 				}
 			}
-		} elseif (in_array($r['vare_id'],$lev_vare_id)) {
+		} elseif (!$kun_salg && isset($vare_id_textmatch_lookup[$r['vare_id']])) { #20260710 SZ - was $lev_vare_id: new items with no stock history but an open PO were dropped unless filtering by supplier. Skipped in kun_salg mode, which has no Bestilt column. #20260716 CL/SZ - was $vare_id_lookup: that's gated on the vare_lev catalog association (see $vare_id above), which excluded a brand-new item's open PO under "per supplier" even though the order's actual konto_id matches - the query above now filters by konto_id directly instead, so this check only needs to confirm the item matches the varenr/varenavn/gruppe search filters
 			$x++;
 			$v_id[$x]=trim($r['vare_id']);
+			$v_id_lookup[$r['vare_id']]=1;
 			$v_gr[$x]=trim($r['gruppe']);
 			$v_navn[$x]=trim(strip_tags($r['beskrivelse']));
 			$ov_qty[$x]=trim($r['qty']);
@@ -627,10 +722,128 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	} else {
 		array_multisort($v_navn,$v_id,$v_gr,$ov_qty);
 	}
-	$csvfile=fopen("../temp/$db/salgsrapport.csv","w");
+	// 20260715 CL/SZ - per-request-content cache for the expensive per-item Koeb/Salg loop below
+	// (find_kostpris()/find_varemomssats() fan-out), keyed by every filter that affects its output plus
+	// a fresh count($v_id) staleness check (cheap - $v_id is already rebuilt above on every request).
+	// Only clicking through pages 2+ on the SAME filter combination benefits - the first "OK" submit
+	// still has to compute everything once. Scoped entirely to $vrGridMode; legacy non-grid views are
+	// untouched. On a cache hit the CSV file is intentionally left alone (see below) rather than
+	// rewritten, since it doesn't vary by page and was already written correctly by the request that
+	// populated this cache.
+	$vrCacheData = NULL;
+	if ($vrGridMode) {
+		$vrCacheFile = "../temp/$db/rapport_cache_" . md5(serialize(array($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref,$gruppenr))) . ".txt";
+		if (file_exists($vrCacheFile) && (time() - filemtime($vrCacheFile) < 1200)) {
+			$vrCacheRaw = @file_get_contents($vrCacheFile);
+			if ($vrCacheRaw !== false) {
+				$vrCacheTry = @unserialize($vrCacheRaw);
+				if (is_array($vrCacheTry) && isset($vrCacheTry['totalRows']) && $vrCacheTry['totalRows'] == count($v_id)) {
+					$vrCacheData = $vrCacheTry;
+				}
+			}
+		}
+	}
+	if ($vrCacheData === NULL) {
+		$csvfile=fopen("../temp/$db/salgsrapport.csv","w");
+	} else {
+		$csvfile=fopen("php://memory","w"); // cache hit - header block below still writes to a handle, just not the real CSV file
+	}
 	fwrite($csvfile, "\"\";\"\";\"Rapport | Varesalg | ".dkdato($date_from)." - ".dkdato($date_to)."\"\r\n");
 
-	if (!$detaljer) {
+	if ($vrGridMode) {
+		// Real (server-side) pagination for the Grid Framework footer - same $vr_page/$vr_per_page
+		// query-param pattern includes/salgsstat.php uses. Total row count is simply count($v_id): this
+		// report's item loop is flat (unlike salgsstat's per-account nesting), so only the per-item DATA
+		// row/block print needs to respect the page window - group-subtotal/grand-total rows always
+		// print (see the item loop and the "Summeret" block further down). Shared by both the summary
+		// and Detaljeret variants - pagination in Detaljeret mode is per ITEM (its whole Køb/Salg/
+		// Lagerreguleret block), not per individual transaction line.
+		$vrValidPageSizes=array(50,100,250,500,100000);
+		$vrPerPage=(int) (isset($_GET['vr_per_page']) ? $_GET['vr_per_page'] : 0);
+		if (!in_array($vrPerPage,$vrValidPageSizes)) $vrPerPage=50;
+		$vrPage=(int) (isset($_GET['vr_page']) ? $_GET['vr_page'] : 0);
+		if ($vrPage<1) $vrPage=1;
+		$vrTotalRows=count($v_id);
+		$vrTotalPages=max(1,ceil($vrTotalRows/$vrPerPage));
+		if ($vrPage>$vrTotalPages) $vrPage=$vrTotalPages;
+		$vrPageStart=($vrPage-1)*$vrPerPage;
+		$vrPageEnd=$vrPageStart+$vrPerPage;
+	}
+	if ($vrDetailMode) {
+		// Detaljeret has no single shared column set - each item prints its own Køb (6 cols), Salg
+		// (9 cols) and Lagerreguleret (2 cols) sub-sections, each with its own column-title row, exactly
+		// as the old chrome already did. So unlike the summary view, this uses table-layout:auto (no
+		// colgroup) to preserve each section's own natural column widths, and makes every section's own
+		// column-title row sticky (not just one at the very top) via a shared .vr-col-title-row class -
+		// so whichever section is currently scrolled into view keeps its own header pinned, matching how
+		// includes/salgsstat.php pins its (single) column-title row while its account data scrolls.
+		print "<style>
+#vrGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
+#vrGridTable { width:100%; }
+#vrGridTable tr.vr-col-title-row td { position:sticky; top:0; z-index:10; background-color:$bgcolor; box-sizing:border-box; }
+</style>\n";
+		print "<div id='vrGridWrapper'><table id='vrGridTable' width=100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	} elseif ($vrGridMode) {
+		// Same colgroup widths drive both the sticky column-title row and every data/total row below it
+		// (all in the same #vrGridTable) - this is the fix for the reported "header columns don't match
+		// data columns" bug (see the per-item Beholdning/Værdi condition fix and the Summeret-row fixes
+		// further down, which had the same class of bug: a column shown in the header under one condition
+		// but populated in the data/total rows under a different, inconsistent condition).
+		if ($kun_salg) {
+			$vrColgroupHtml = "<colgroup><col style='width:9%'><col style='width:8%'><col style='width:6%'><col style='width:20%'><col style='width:8%'><col style='width:9%'><col style='width:9%'><col style='width:9%'><col style='width:8%'><col style='width:7%'><col style='width:7%'></colgroup>";
+		} elseif ($lagertal && count($lagergruppe)) {
+			$vrColgroupHtml = "<colgroup><col style='width:7%'><col style='width:6%'><col style='width:5%'><col style='width:13%'><col style='width:6%'><col style='width:6%'><col style='width:5%'><col style='width:5%'><col style='width:6%'><col style='width:5%'><col style='width:6%'><col style='width:5%'><col style='width:5%'><col style='width:4%'><col style='width:4%'><col style='width:6%'><col style='width:6%'></colgroup>";
+		} else {
+			$vrColgroupHtml = "<colgroup><col style='width:8%'><col style='width:6%'><col style='width:5%'><col style='width:15%'><col style='width:6%'><col style='width:7%'><col style='width:6%'><col style='width:6%'><col style='width:7%'><col style='width:6%'><col style='width:7%'><col style='width:6%'><col style='width:6%'><col style='width:5%'><col style='width:4%'></colgroup>";
+		}
+		print "<style>
+#vrGridWrapper { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:0 8px 68px 8px; box-sizing:border-box; }
+#vrGridTable { border-collapse:separate; border-spacing:0; width:100%; table-layout:fixed; }
+#vrGridTable th { position:sticky; top:0; z-index:10; padding:6px 4px; background-color:$bgcolor; box-sizing:border-box; text-align:left; }
+#vrGridTable td { box-sizing:border-box; padding:4px; overflow-wrap:anywhere; word-break:break-word; }
+#vrGridTable th.text-right { text-align:right; }
+</style>\n";
+		print "<div id='vrGridWrapper'><table id='vrGridTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\">$vrColgroupHtml<tbody>";
+		if ($kun_salg) {
+			print "<tr class='vr-col-title-row'><th>".findtekst('917|Varenr.', $sprog_id)."</th>
+			<th>(alias)</th>
+			<th>".findtekst('945|Enhed', $sprog_id)."</th>
+			<th>".findtekst('914|Beskrivelse', $sprog_id)."</th>
+			<th>(alias)</th>
+			<th class='text-right'>".findtekst('950|Kostpris', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('974|Solgt', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('949|Salgspris', $sprog_id)."</th>
+			<th class='text-right'>DB</th>
+			<th class='text-right'>DG</th>
+			<th class='text-right'>".findtekst('975|På lager', $sprog_id)."</th></tr>\n"; #20210402
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Solgt;Salgspris;DB;DG;". 'På lager' ."\r\n");
+		} else {
+			print "<tr class='vr-col-title-row'><th>".findtekst('917|Varenr.', $sprog_id)."</th>
+			<th>(alias)</th>
+			<th>".findtekst('945|Enhed', $sprog_id)."</th>
+			<th>".findtekst('914|Beskrivelse', $sprog_id)."</th>
+			<th>(alias)</th>
+			<th class='text-right'>".findtekst('950|Kostpris', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('976|Bestilt', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('977|Købt', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('978|Købspris', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('974|Solgt', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('949|Salgspris', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('770|Moms', $sprog_id)."</th>
+			<th class='text-right'>".findtekst('979|Reguleret', $sprog_id)."</th>
+			<th class='text-right'>DB</th>
+			<th class='text-right'>DG</th>";
+			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Bestilt;". 'Købt' .";". 'Købspris' .";");
+			fwrite($csvfile, "Solgt;Salgspris;". '+moms' .";Reguleret;DB;DG");
+			if ($lagertal && count($lagergruppe)) {
+				print "<th class='text-right'>".findtekst('980|Beholdning', $sprog_id)."</th>
+				<th class='text-right'>".findtekst('476|Værdi', $sprog_id)."</th>";
+				fwrite($csvfile,";Beholdning;". 'Værdi');
+			}
+			print "</tr>\n";
+			fwrite($csvfile,"\r\n");
+		}
+	} elseif (!$detaljer) {
 		if ($kun_salg) {
 			print "<tr><td><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
 			<td><b>(alias)</b></td>
@@ -642,7 +855,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<td align=\"right\"><b>".findtekst('949|Salgspris', $sprog_id)."</b></td>
 			<td align=\"right\"><b>DB</b></td>
 			<td align=\"right\"><b>DG</b></td>
-			<td align=\"right\"><b>".findtekst('975|På lager', $sprog_id)."</b></td>"; #20210402
+			<td align=\"right\"><b>".findtekst('975|På lager', $sprog_id)."</b></td></tr>"; #20210402
 			fwrite($csvfile, "Varenr;Varenr (alias);Enhed;Beskrivelse;Beskrivelse (alias);Kostpris;Solgt;Salgspris;DB;DG;". 'På lager' ."\r\n");
 		} else {
 			print "<tr><td><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
@@ -672,45 +885,172 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			fwrite($csvfile,"\r\n");
 		}
 	}
+	$vrAllChunks = array();
+	if ($vrCacheData !== NULL) {
+		// 20260715 CL/SZ - cache hit: skip the whole expensive per-item loop below entirely (that's the
+		// fix - see the cache lookup above) and just restore the grand totals it would have accumulated,
+		// plus the $x/$linjebg state the loop naturally leaves behind, so the unchanged Summeret footer
+		// code further down still renders correctly.
+		$tt_kobt=$vrCacheData['tt_kobt']; $tt_solgt=$vrCacheData['tt_solgt']; $tt_regul=$vrCacheData['tt_regul'];
+		$tt_k_pris=$vrCacheData['tt_k_pris']; $tt_s_pris=$vrCacheData['tt_s_pris']; $tt_moms=$vrCacheData['tt_moms'];
+		$tt_kost=$vrCacheData['tt_kost']; $tt_dkBi=$vrCacheData['tt_dkBi']; $tt_stockvalue=$vrCacheData['tt_stockvalue'];
+		$vrAllChunks = $vrCacheData['chunks'];
+		$x = count($v_id);
+		$linjebg = $vrCacheData['linjebg'];
+		for ($vrCi=$vrPageStart; $vrCi<min($vrPageEnd,count($vrAllChunks)); $vrCi++) {
+			if (isset($vrAllChunks[$vrCi])) print $vrAllChunks[$vrCi];
+		}
+	} else {
 	$tt_kobt=$tt_solgt=$tt_regul=$tt_k_pris=$tt_s_pris=$tt_moms=$tt_kost=$tt_dkBi=$tt_stockvalue=0;
-	$beskrivelse=$enhed=$varenr=$varenr_alias=$beskrivelse_alias=array();
-	for ($x=0;$x<count($v_id);$x++) {
-		$beholdning[$x]=0;
-	$qtxt="select * from varer where id='$v_id[$x]'";
-	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$varenr[$x]=$r['varenr'];
-	$varenr_alias[$x]=$r['varenr_alias'];
-	$enhed[$x]=$r['enhed'];
-	$beskrivelse[$x]=$r['beskrivelse'];
-	$beskrivelse_alias[$x]=$r['beskrivelse_alias'];
-	$v_kostpris[$x]=$r['kostpris'];
-	$samlevare[$x]=$r['samlevare'];
-		if ($kun_salg || ($lagertal && in_array($v_gr[$x],$lagergruppe) && !$samlevare[$x])) {
-			$qtxt = "select sum(antal) as beholdning from batch_kob where vare_id='$v_id[$x]'";
-			if ($date_to != date("Y-m-d")) $qtxt.= " and fakturadate <= '$date_to'"; //20240404
-			$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$beholdning[$x]+=$r2['beholdning'];
-			$qtxt = "select sum(antal) as beholdning from batch_salg where vare_id='$v_id[$x]'";
-			if ($date_to != date("Y-m-d")) $qtxt.= " and fakturadate <= '$date_to'"; //20240404
-			$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$beholdning[$x]-=$r2['beholdning'];
+	// 20260714 SZ - renamed from $varenr to $v_varenr: this per-row array was shadowing the function's
+	// own $varenr parameter (the search-filter string, e.g. from the "Varenr." search box). Once shadowed,
+	// every $varenr reference below this point silently became the FULL per-row array instead of the
+	// original search string - harmless everywhere it was only ever printed, but $vrBaseUrl further down
+	// (built from the same now-clobbered $varenr) feeds it through http_build_query(), which serializes
+	// an array as varenr[0]=...&varenr[1]=...&varenr[2]=... for every single row in the report. On a
+	// large report this produces a pagination link with thousands of query params - long enough to trip
+	// the server's URI-length limit (414 Request-URI Too Long). Matches the existing $v_id/$v_gr/$v_navn/
+	// $v_kostpris per-row naming convention already used elsewhere in this same function.
+	// 20260716 CL/SZ - bulk-fetch varer/kostpriser/beholdning for every item in ONE query each instead of
+	// 2-4 queries PER ITEM (the N+1 pattern that made this report crawl on large item counts - e.g. ~4000
+	// items meant 8000-16000 round-trips just for this block). Ported from an already-optimized, already
+	// production-tested version of this file provided by the team; behaviourally identical (same gating
+	// conditions per item), just fetched as one indexed lookup instead of one query per item.
+	$beskrivelse=$enhed=$v_varenr=$varenr_alias=$beskrivelse_alias=array();
+	$vare_data = $kostpris_data = $beholdning_data = $stock_vare_id = array();
+	if ($v_id) {
+		$qtxt = "select id,varenr,varenr_alias,enhed,beskrivelse,beskrivelse_alias,kostpris,samlevare from varer ";
+		$qtxt.= "where id in (".lagerRapportIntList($v_id).")";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$vare_data[$r['id']] = $r;
 		}
 		if ($date_to != date('Y-m-d')) { #20220321
-			$qtxt="select kostpris from kostpriser where vare_id = $v_id[$x] and transdate < '$date_to' order by transdate desc limit 1";
-			$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$v_kostpris[$x]=$r2['kostpris'];
+			$qtxt = "select k.vare_id,k.kostpris from kostpriser k ";
+			$qtxt.= "join (select vare_id,max(transdate) as transdate from kostpriser ";
+			$qtxt.= "where vare_id in (".lagerRapportIntList($v_id).") and transdate < '$date_to' group by vare_id) s ";
+			$qtxt.= "on k.vare_id=s.vare_id and k.transdate=s.transdate";
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$kostpris_data[$r['vare_id']] = $r['kostpris'];
+			}
 		}
 	}
 	for ($x=0;$x<count($v_id);$x++) {
+		$beholdning[$x]=0;
+		$r = if_isset($vare_data, array(), $v_id[$x]);
+		$v_varenr[$x]=if_isset($r,null,'varenr');
+		$varenr_alias[$x]=if_isset($r,null,'varenr_alias');
+		$enhed[$x]=if_isset($r,null,'enhed');
+		$beskrivelse[$x]=if_isset($r,null,'beskrivelse');
+		$beskrivelse_alias[$x]=if_isset($r,null,'beskrivelse_alias');
+		$v_kostpris[$x]=if_isset($r,null,'kostpris');
+		$samlevare[$x]=if_isset($r,null,'samlevare');
+		if ($date_to != date('Y-m-d')) { #20220321 - matches the original per-item behavior: when this
+			// override is in effect, it ALWAYS replaces $v_kostpris[$x] (even with null if no kostpriser
+			// row exists for this item), rather than silently keeping the varer.kostpris fallback.
+			$v_kostpris[$x]=if_isset($kostpris_data,null,$v_id[$x]);
+		}
+		if ($kun_salg || ($lagertal && in_array($v_gr[$x],$lagergruppe) && !$samlevare[$x])) {
+			$stock_vare_id[$x] = $v_id[$x];
+		}
+	}
+	if (!empty($stock_vare_id)) {
+		$stock_date_filter = "";
+		if ($date_to != date("Y-m-d")) $stock_date_filter = " and fakturadate <= '$date_to'"; //20240404
+		$qtxt = "select vare_id,sum(antal) as beholdning from batch_kob ";
+		$qtxt.= "where vare_id in (".lagerRapportIntList($stock_vare_id).")$stock_date_filter group by vare_id";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$beholdning_data[$r['vare_id']] = if_isset($beholdning_data, 0, $r['vare_id']) + $r['beholdning'];
+		}
+		$qtxt = "select vare_id,sum(antal) as beholdning from batch_salg ";
+		$qtxt.= "where vare_id in (".lagerRapportIntList($stock_vare_id).")$stock_date_filter group by vare_id";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$beholdning_data[$r['vare_id']] = if_isset($beholdning_data, 0, $r['vare_id']) - $r['beholdning'];
+		}
+		for ($x=0;$x<count($v_id);$x++) {
+			$beholdning[$x] = if_isset($beholdning_data, 0, $v_id[$x]);
+		}
+	}
+	// 20260716 CL/SZ - same source: the Koeb/Salg per-item loop below normally runs 2+ queries PER ITEM
+	// (batch_kob, batch_salg, plus an ordrelinjer/find_kostpris lookup per transaction line) even in
+	// summary/non-detaljer mode, where only the per-item TOTALS (not individual transaction rows) are
+	// ever displayed. $summaryMode replaces that with two SQL-side aggregate queries (one per item, done
+	// as a single grouped query for the whole report) computing exactly the same totals via SQL sum(case
+	// when...). Scoped ONLY to !$detaljer - the Detaljeret view still needs actual transaction rows to
+	// print, so it keeps running the original per-item queries unchanged (see the per-item loop below).
+	$summaryMode = !$detaljer;
+	$purchaseSummary = $saleSummary = array();
+	if ($summaryMode && $v_id) {
+		$qtxt = "select vare_id,";
+		$qtxt.= "sum(case when coalesce(linje_id,0) != 0 then antal else 0 end) as kobt,";
+		$qtxt.= "sum(case when coalesce(linje_id,0) != 0 then pris*antal else 0 end) as k_pris,";
+		$qtxt.= "sum(case when coalesce(linje_id,0) = 0 and coalesce(ordre_id,0) = 0 then antal else 0 end) as regul ";
+		$qtxt.= "from batch_kob where vare_id in (".lagerRapportIntList($v_id).") ";
+		$qtxt.= "and fakturadate <= '$date_to' and fakturadate >= '$date_from' group by vare_id";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$purchaseSummary[$r['vare_id']] = $r;
+		}
+		$qtxt = "select batch_salg.vare_id,";
+		$qtxt.= "sum(case when coalesce(batch_salg.ordre_id,0) != 0 and ordrelinjer.id is not null then batch_salg.antal else 0 end) as solgt,";
+		$qtxt.= "sum(case when coalesce(batch_salg.ordre_id,0) != 0 and ordrelinjer.id is not null then batch_salg.pris*batch_salg.antal else 0 end) as s_pris,";
+		$qtxt.= "sum(case when coalesce(batch_salg.ordre_id,0) != 0 and ordrelinjer.id is not null then ";
+		$qtxt.= "(case when coalesce(ordrelinjer.momsfri,'') != '' or coalesce(ordrelinjer.omvbet,'') != '' or ordrelinjer.momssats is null then 0 else batch_salg.pris/100*ordrelinjer.momssats end)*batch_salg.antal else 0 end) as moms,";
+		$qtxt.= "sum(case when coalesce(batch_salg.ordre_id,0) != 0 and ordrelinjer.id is not null then coalesce(ordrelinjer.kostpris,0)*batch_salg.antal else 0 end) as kost,";
+		$qtxt.= "sum(case when not (coalesce(batch_salg.ordre_id,0) != 0 and ordrelinjer.id is not null) then -batch_salg.antal else 0 end) as regul,";
+		// 20260716 CL/SZ - solgt_cnt: counts rows that are an actual linked sale (matches the original
+		// per-item loop's "$ok" gate). The group-subtotal accumulators ($g_sum/$g_moms/$g_dkBi/$g_solgt)
+		// must only be touched when at least one such row exists for the item - otherwise a group whose
+		// items only ever had regulering entries (no real sale) would show "0,00" instead of staying
+		// blank, since $t_s_pris/etc default to 0 either way once summed.
+		$qtxt.= "sum(case when coalesce(batch_salg.ordre_id,0) != 0 and ordrelinjer.id is not null then 1 else 0 end) as solgt_cnt ";
+		$qtxt.= "from batch_salg left join ordrelinjer on ordrelinjer.id=batch_salg.linje_id ";
+		if ($afd || $ref) $qtxt.="left join ordrer on batch_salg.ordre_id=ordrer.id ";
+		$qtxt.= "where batch_salg.vare_id in (".lagerRapportIntList($v_id).") ";
+		$qtxt.= "and batch_salg.fakturadate <= '$date_to' and batch_salg.fakturadate >= '$date_from' ";
+		$qtxt.= "and batch_salg.antal != '0' and batch_salg.fakturadate is not null ";
+		if ($afd) $qtxt.="and ordrer.afd=$afd ";
+		if ($ref) $qtxt.="and (ordrer.ref='$ref_navn' or ordrer.ref='$ref_brugernavn') ";
+		$qtxt.= "group by batch_salg.vare_id";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$saleSummary[$r['vare_id']] = $r;
+		}
+	}
+	for ($x=0;$x<count($v_id);$x++) {
+		// 20260715 CL/SZ - single outer capture per item, replacing the two separate inner ob_start()/
+		// ob_get_clean() pairs that used to wrap the detaljer block and the summary row individually
+		// (see 20260710 comments below removed) - this now captures everything printed for item $x in
+		// one pass (Koeb/Salg detail rows or the summary row, plus any group header/subtotal/separator
+		// that fires during this same iteration), so it can be replayed verbatim from cache on a later
+		// page-click for the exact same filters. NOTE: group header/subtotal/separator rows, which used
+		// to always print regardless of page, are now gated by the same page window as the item's own
+		// row (bundled into the same chunk) - a page now only shows the group subtotal for a group whose
+		// rows are actually on that page, rather than every group's subtotal on every page.
+		if ($vrGridMode) ob_start();
 		$fakturadate=$bk_id=$linje_id=$k_ordre_id=$k_antal=$pris=array();
 		$t_kobt=$t_regul=$t_k_pris=$t_moms=$y=0;
+		if ($summaryMode) {
+			// 20260716 CL/SZ - pull this item's totals from the aggregate query above instead of running
+			// its own batch_kob query + ordrelinjer/find_varemomssats lookups per transaction line.
+			$r = if_isset($purchaseSummary, array(), $v_id[$x]);
+			$t_kobt   = if_isset($r, 0, 'kobt');
+			$t_k_pris = if_isset($r, 0, 'k_pris');
+			$t_regul  = if_isset($r, 0, 'regul');
+			$tt_kobt  += $t_kobt;
+			$tt_k_pris += $t_k_pris;
+			$tt_regul += $t_regul;
+		} elseif (!$kun_salg) {
 		$qtxt = "select * from batch_kob where vare_id='$v_id[$x]' ";
-		if (!$kun_salg) $qtxt.="and fakturadate <= '$date_to' and fakturadate >= '$date_from' ";
+		$qtxt.="and fakturadate <= '$date_to' and fakturadate >= '$date_from' ";
 		$qtxt.= " order by fakturadate,ordre_id";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$ok=1;
-			if (!$kun_salg && $r['fakturadate'] && $r['fakturadate'] <= $date_to && $r['fakturadate'] >= $date_from) {
+			if ($r['fakturadate']) {
 				$bk_id[$y]=$r['id'];
 #				$bs_id[$y]=NULL;
 				$linje_id[$y]=$r['linje_id'];
@@ -751,15 +1091,16 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$y++;
 			}
 		}
+		}
 		if ($detaljer) {
 			print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
-			print "<tr><td colspan=\"5\"><b>$varenr[$x] $beskrivelse[$x]</b></td></tr>\n";
+			print "<tr><td colspan=\"5\"><b>$v_varenr[$x] $beskrivelse[$x]</b></td></tr>\n";
 			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
 				print "<tr><td colspan=\"5\"><b>Alias: $varenr_alias[$x] $beskrivelse_alias[$x]</b></td></tr>\n";
 			}
-			fwrite($csvfile,";;;;\"$varenr[$x] ".$beskrivelse[$x]."\"\r\n");
+			fwrite($csvfile,";;;;\"$v_varenr[$x] ".$beskrivelse[$x]."\"\r\n");
 			if ($varenr_alias[$x] || $beskrivelse_alias[$x]) {
 				fwrite($csvfile,";;;;\"Alias: $varenr_alias[$x] ".$beskrivelse_alias[$x]."\"\r\n");
 			}
@@ -767,7 +1108,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 #			print "<tr><td colspan=\"3\"><b>$beskrivelse[$x]</b></td></tr>\n";
 			print "<tr><td></td></tr>\n";
 			if (!$kun_salg) {
-				print "<tr>";
+				print "<tr" . ($vrDetailMode ? " class='vr-col-title-row'" : "") . ">";
 				print "<td>".findtekst('981|Købsdato', $sprog_id)."</td>";
 				print "<td align='right'>".findtekst('916|Antal', $sprog_id)."</td>";
 				print "<td align='right'>".findtekst('915|Pris', $sprog_id)."</td>";
@@ -803,6 +1144,38 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		$s_antal=array();
 #		$pris=array();
 		$t_dkBi=$t_kost=$t_moms=$t_s_pris=$t_solgt=$t_stockvalue=0;
+		if ($summaryMode) {
+			// 20260716 CL/SZ - same aggregate-instead-of-per-item-query approach as the purchase (Køb)
+			// block above, for the sale (Salg) side - see the $purchaseSummary comment above for why. Group
+			// subtotals ($g_sum/$g_moms/$g_dkBi/$g_solgt), used by the "lagertal" group-subtotal row further
+			// down, are only ever consumed in this same !$detaljer mode, so they're accumulated here in PHP
+			// (cheap - once per item, not per transaction) instead of via SQL group by.
+			$r = if_isset($saleSummary, array(), $v_id[$x]);
+			$t_solgt  = if_isset($r, 0, 'solgt');
+			$t_s_pris = if_isset($r, 0, 's_pris');
+			$t_moms   = if_isset($r, 0, 'moms');
+			$t_kost   = ($vk_kost) ? $v_kostpris[$x] * $t_solgt : if_isset($r, 0, 'kost');
+			$t_regul += if_isset($r, 0, 'regul');
+			$t_dkBi   = $t_s_pris - $t_kost;
+			$tt_solgt += $t_solgt;
+			$tt_s_pris += $t_s_pris;
+			$tt_moms  += $t_moms;
+			$tt_kost  += $t_kost;
+			$tt_dkBi  += $t_dkBi;
+			$tt_regul += if_isset($r, 0, 'regul');
+			if (if_isset($r, 0, 'solgt_cnt') > 0) {
+				$vg=$v_gr[$x];
+				if (!isset($g_sum[$vg])) $g_sum[$vg]=0;
+				if (!isset($g_moms[$vg])) $g_moms[$vg]=0;
+				if (!isset($g_dkBi[$vg])) $g_dkBi[$vg]=0;
+				if (!isset($g_solgt[$vg])) $g_solgt[$vg]=0;
+				if (!isset($g_stockvalue[$vg])) $g_stockvalue[$vg]=0;
+				$g_sum[$vg]+=$t_s_pris;
+				$g_moms[$vg]+=$t_moms;
+				$g_solgt[$vg]+=$t_solgt;
+				$g_dkBi[$vg]+=$t_dkBi;
+			}
+		} else {
 		$qtxt="select * from batch_salg";
 		if ($afd || $ref) $qtxt.=",ordrer";
 		$qtxt.=" where batch_salg.vare_id='$v_id[$x]'";
@@ -890,11 +1263,12 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 #				else $tt_regul+=$r['antal'];
 			}
 		}
+		}
 		$t_s_pris=afrund($t_s_pris,2); #20190830
 		if ($t_s_pris && $t_dkBi) $t_dg=$t_dkBi*100/$t_s_pris;
 		else $t_dg=100;
 		if ($detaljer) {
-			print "<tr>";
+			print "<tr" . ($vrDetailMode ? " class='vr-col-title-row'" : "") . ">";
 			print "<td>".findtekst('982|Salgsdato', $sprog_id)."</td>";
 			print "<td align=\"right\">".findtekst('916|Antal', $sprog_id)."</td>";
 			print "<td align=\"right\">".findtekst('915|Pris', $sprog_id)."</td>";
@@ -942,7 +1316,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			fwrite($csvfile, dkdecimal($t_dg,2)."\r\n");
 			if (!$kun_salg) print "<tr><td colspan=\"$cols\"><hr></td></tr>\n";
 			if (!$afd && !$lev && !$ref && !$kun_salg) {
-			print "<tr><td>".findtekst('2237|Lagerreguleret', $sprog_id)."</td><td align=\"right\">".findtekst('916|Antal', $sprog_id)."</td></tr>\n";
+			print "<tr" . ($vrDetailMode ? " class='vr-col-title-row'" : "") . "><td>".findtekst('2237|Lagerreguleret', $sprog_id)."</td><td align=\"right\">".findtekst('916|Antal', $sprog_id)."</td></tr>\n";
 			fwrite($csvfile, "Lagerreguleret;Antal\r\n");
 			$fd=array_unique($fakturadate); #20160804
 			sort($fd);
@@ -985,12 +1359,12 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				fwrite($csvfile, $r['beskrivelse']."\r\n");
 			}
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-			print "<tr bgcolor='$linjebg'><td>$varenr[$x]</td>";
+			print "<tr bgcolor='$linjebg'><td>$v_varenr[$x]</td>";
 			print "<td>$varenr_alias[$x]</td>";
 			print "<td>$enhed[$x]</td>";
 			print "<td>$beskrivelse[$x]</td>";
 			print "<td>$beskrivelse_alias[$x]</td>";
-			fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\";");
+			fwrite($csvfile, "\"$v_varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\";");
 			if ($kun_salg) {
 				print "<td align='right'>".dkdecimal($v_kostpris[$x],2)."</td>";
 				fwrite($csvfile, dkdecimal($v_kostpris[$x],2).";");
@@ -1028,7 +1402,15 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				fwrite($csvfile, dkdecimal($t_dg,2).";");
 #				print "<td align='right'>".dkdecimal($t_kobt+$t_regul-$t_solgt,2)."</td>";#20151105
 #				fwrite($csvfile, dkdecimal($t_kobt+$t_regul-$t_solgt,2).";");
-				if ($lagertal && in_array($v_gr[$x],$lagergruppe)) {
+				// 20260710 SZ - was "in_array($v_gr[$x],$lagergruppe)": the column header decides whether
+				// to show Beholdning/Værdi using count($lagergruppe) globally (see above), but this
+				// per-row check used a different, per-item condition - so whenever the report mixed items
+				// from a stock-tracked group and a non-stock-tracked group, some rows printed 2 fewer
+				// cells than the header, throwing every column after Beholdning out of alignment for those
+				// rows. Using the same condition as the header keeps every row's cell count consistent
+				// with it; $beholdning[$x] is already safely 0 for items outside a lagergruppe (see the
+				// per-item lookup above), so this is a correct 0,00 value, not a fabricated one.
+				if ($lagertal && count($lagergruppe)) {
 					print "<td align='right'>".dkdecimal($beholdning[$x],2)."</td>";#20180925
 					fwrite($csvfile, dkdecimal($beholdning[$x],2).";");
 					print "<td align='right'>".dkdecimal($beholdning[$x]*$v_kostpris[$x],2)."</td>";#20180925
@@ -1103,6 +1485,27 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			print "<tr bgcolor='$linjebg'><td colspan=\"$cols\"><hr></td></tr>\n";
 			fwrite($csvfile, "-------------\r\n");
 		}
+		if ($vrGridMode) {
+			$vrAllChunks[$x] = ob_get_clean();
+		}
+	}
+	if ($vrGridMode) {
+		// 20260715 CL/SZ - loop finished computing every item (needed regardless of page, to get correct
+		// grand totals) - save what it produced so a later page-click with the exact same filters can
+		// skip straight to printing instead of recomputing. Only the current page's chunks print now;
+		// the rest were still captured above (ob_get_clean ran for every item, not just this page's).
+		for ($vrCi=$vrPageStart; $vrCi<min($vrPageEnd,count($vrAllChunks)); $vrCi++) {
+			if (isset($vrAllChunks[$vrCi])) print $vrAllChunks[$vrCi];
+		}
+		@file_put_contents($vrCacheFile, serialize(array(
+			'totalRows' => count($v_id),
+			'chunks' => $vrAllChunks,
+			'tt_kobt' => $tt_kobt, 'tt_solgt' => $tt_solgt, 'tt_regul' => $tt_regul,
+			'tt_k_pris' => $tt_k_pris, 'tt_s_pris' => $tt_s_pris, 'tt_moms' => $tt_moms,
+			'tt_kost' => $tt_kost, 'tt_dkBi' => $tt_dkBi, 'tt_stockvalue' => $tt_stockvalue,
+			'linjebg' => $linjebg,
+		)));
+	}
 	}
 	if (!$detaljer) {
 		if ($tt_s_pris && $tt_dkBi) $tt_dg=$tt_dkBi*100/$tt_s_pris;
@@ -1112,13 +1515,19 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		fwrite($csvfile, "-------------\r\n");
 		if ($kun_salg) {
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
+			// 20260710 SZ - added the missing closing </tr> (this row was left open, relying on the
+			// browser to auto-close it once the next <tr> below started) and a trailing blank cell so
+			// this row's cell count (11) matches the "kun salg" column header (Varenr..PåLager, 11 cols) -
+			// there's no running "total på lager" value tracked anywhere to put here, so it stays blank,
+			// same as the other untracked totals below (e.g. Beholdning in the non-kun_salg branch).
 			print "<tr bgcolor='$linjebg'><td Colspan=\"5\"><b>Summeret</b></td>
 			<td align=\"right\">".findtekst('950|Kostpris', $sprog_id)."</td>
 			<td align=\"right\">".findtekst('974|Solgt', $sprog_id)."</td>
 			<td align=\"right\">".findtekst('949|Salgspris', $sprog_id)."</td>
 			<td align=\"right\">DB</td>
-			<td align=\"right\">DG</td>";
-		fwrite($csvfile, "Kostpris;Solgt;Salgspris;DB;DG\r\n");
+			<td align=\"right\">DG</td>
+			<td align=\"right\"></td></tr>";
+		fwrite($csvfile, "Kostpris;Solgt;Salgspris;DB;DG;\r\n");
 		} else {
 			($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 			print "<tr bgcolor='$linjebg'><td Colspan=\"5\"><b>".findtekst('983|Summeret', $sprog_id)."</b></td>
@@ -1131,20 +1540,26 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			<td align=\"right\">".findtekst('770|Moms', $sprog_id)."</td>
 			<td align=\"right\">".findtekst('984|Samlet til-/afgang i perioden', $sprog_id)."</td>
 			<td align=\"right\">DB</td>
-			<td align=\"right\">DG</td>
-<!--			<td align=\"right\"></td>  -->
-			<td align=\"right\"></td>";
-			if ($lagertal && $tt_stockvalue) print "<td align=\"right\">".findtekst('2748|Samlet lagerværdi', $sprog_id)."</td>";
+			<td align=\"right\">DG</td>";
+			// 20260710 SZ - unified with the same count($lagergruppe)&&$lagertal condition used by the
+			// column header/data rows above (was $lagertal && $tt_stockvalue, which could disagree with
+			// the header - e.g. if every tracked item happened to have zero stock value - and which,
+			// combined with the unconditional blank cell that used to follow this block regardless, gave
+			// this row 16 cells against the header's 15 whenever the extra columns weren't shown).
+			if ($lagertal && count($lagergruppe)) {
+				print "<td align=\"right\"></td>";
+				print "<td align=\"right\">".findtekst('2748|Samlet lagerværdi', $sprog_id)."</td>";
+			}
 			print "</tr>\n";
 			fwrite($csvfile, "Summeret;;;;;Kostpris;;". 'Købspris' .";;Salgspris;Moms;;DB;DG;;". 'Værdi' ."\r\n");
 		}
-		if (!isset($varenr[$x])) $varenr[$x]=$enhed[$x]=$beskrivelse[$x]=$varenr_alias[$x]=$beskrivelse_alias[$x]=NULL;
-		print "<tr><td>$varenr[$x]</td>";
+		if (!isset($v_varenr[$x])) $v_varenr[$x]=$enhed[$x]=$beskrivelse[$x]=$varenr_alias[$x]=$beskrivelse_alias[$x]=NULL;
+		print "<tr><td>$v_varenr[$x]</td>";
 		print "<td>$varenr_alias[$x]</td>";
 		print "<td>$enhed[$x]</td>";
 		print "<td>$beskrivelse[$x]</td>";
 		print "<td>$beskrivelse_alias[$x]</td>";
-		fwrite($csvfile, "\"$varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\"");
+		fwrite($csvfile, "\"$v_varenr[$x]\";\"$varenr_alias[$x]\";\"$enhed[$x]\";\"".$beskrivelse[$x]."\";\"".$beskrivelse_alias[$x]."\"");
 		if (!$kun_salg) {
 #			print "<td align='right'> <b>".dkdecimal($tt_kobt,2)."</b></td>";
 #			fwrite($csvfile, dkdecimal($tt_kobt,2).";");
@@ -1180,18 +1595,122 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		if (!$kun_salg) {
 #			print "<td align='right'><b>".dkdecimal($tt_kobt+$tt_regul-$tt_solgt,2)."</b></td>";
 #			fwrite($csvfile, dkdecimal($tt_kobt+$tt_regul-$tt_solgt,2).";");
-			print "<td align='right'> <b></b></td>";
-			fwrite($csvfile, ";");
-			if ($lagertal && $tt_stockvalue) {
+			// 20260710 SZ - this pair (Beholdning-placeholder blank + Værdi) was previously split: the
+			// blank printed unconditionally (a 16th cell with NO matching column at all whenever the
+			// header is in its plain 15-column layout) and the Værdi cell gated on $lagertal &&
+			// $tt_stockvalue. Unified both under the same count($lagergruppe)&&$lagertal condition the
+			// header/data rows use, so this row is 15 cells in the plain case and 17 in the
+			// stock-tracked case, matching the header in both.
+			if ($lagertal && count($lagergruppe)) {
+				print "<td align='right'> <b></b></td>";
+				fwrite($csvfile, ";");
 				print "<td align='right'> <b>".dkdecimal($tt_stockvalue,2)."</b></td>";
 				fwrite($csvfile, ";".dkdecimal($tt_stockvalue,2));
 			}
+		} else {
+			// 20260710 SZ - trailing blank cell so this row's count (11) matches the "kun salg" header
+			// and the Summeret label row above it (no running "total på lager" value is tracked).
+			print "<td align='right'> <b></b></td>";
+			fwrite($csvfile, ";");
 		}
 		print "</tr>\n";
 		fwrite($csvfile, "\r\n");
 	}
-	print "</tbody></table>";
+	if ($vrGridMode) {
+		// Close #vrGridTable/#vrGridWrapper opened in the header block, then print the fixed Grid
+		// Framework footer with real (server-side) pagination - same $vrPageStart/$vrPageEnd-driven
+		// print-time filtering as the item loop above, and the same link/markup/CSS technique
+		// includes/salgsstat.php uses for its own #ssPageFooterBar.
+		print "</tbody></table>"; // close #vrGridTable
+		print "</div>\n"; // close #vrGridWrapper
+
+		$vrTxt1 = lcfirst(findtekst('2767|Af', $sprog_id));
+		$vrTxt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+		$vrOffsetFrom = $vrTotalRows ? (($vrPage - 1) * $vrPerPage) + 1 : 0;
+		$vrOffsetTo = min($vrTotalRows, $vrPage * $vrPerPage);
+		$vrBaseUrl = "rapport.php?" . http_build_query(array(
+			'varegruppe' => $varegruppe,
+			'afd' => $afd,
+			'lev' => $lev,
+			'ref' => $ref,
+			'date_from' => $date_from,
+			'date_to' => $date_to,
+			'varenr' => $varenr,
+			'varenavn' => $varenavn,
+			'detaljer' => $detaljer,
+			'kun_salg' => $kun_salg,
+			'lagertal' => $lagertal,
+			'vk_kost' => $vk_kost,
+			'submit' => 'ok',
+		));
+		$vrPrevIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
+		$vrNextIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
+
+		print "<style>
+#vrPageFooterBar { position:fixed; left:0; right:0; bottom:0; width:100%; margin:0; z-index:1000; background-color:$bgcolor; border-top:1px solid #b8bec8; padding:6px 12px; display:flex; align-items:center; justify-content:flex-end; gap:20px; flex-wrap:wrap; box-sizing:border-box; line-height:1; }
+#vrPageFooterBar #vrNavButtons { display:flex; align-items:center; gap:3px; }
+#vrPageFooterBar #vrNavButtons .navbutton { height:20px; min-width:20px; padding:0 4px; display:inline-flex; align-items:center; justify-content:center; background:#f0f0f0; color:#000; border:1px solid #b8bec8; border-radius:4px; text-decoration:none; }
+#vrPageFooterBar #vrNavButtons a.navbutton { cursor:pointer; }
+#vrPageFooterBar #vrNavButtons span.navbutton { opacity:0.5; }
+#vrPageFooterBar #vrNavButtons .navbutton.current { text-decoration:underline; }
+</style>\n";
+		print "<div id='vrPageFooterBar'>";
+		print "<span id='vrPageStatus'>" . ($vrTotalRows ? "$vrOffsetFrom-$vrOffsetTo $vrTxt1 $vrTotalRows" : "0 $vrTxt1 0") . "</span>";
+		print "<span>$vrTxt2 <select id='vrPageSize' onchange=\"window.location.href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=1&vr_per_page=' + this.value;\">";
+		foreach (array(50, 100, 250, 500, 100000) as $vrOpt) {
+			$vrSel = ($vrOpt == $vrPerPage) ? " selected" : "";
+			$vrLabel = ($vrOpt == 100000) ? "Alle" : $vrOpt;
+			print "<option value='$vrOpt'$vrSel>$vrLabel</option>";
+		}
+		print "</select></span>";
+		print "<span id='vrNavButtons'>";
+		if ($vrPage > 1)
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=" . ($vrPage - 1) . "&vr_per_page=$vrPerPage'>$vrPrevIcon</a>";
+		else
+			print "<span class='navbutton'>$vrPrevIcon</span>";
+		$vrPageRange = 2;
+		$vrStartPage = max(1, $vrPage - $vrPageRange);
+		$vrEndPage = min($vrTotalPages, $vrPage + $vrPageRange);
+		if ($vrStartPage > 1) {
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=1&vr_per_page=$vrPerPage'>1</a>";
+			if ($vrStartPage > 2)
+				print "<span>...</span>";
+		}
+		for ($vrP = $vrStartPage; $vrP <= $vrEndPage; $vrP++) {
+			if ($vrP == $vrPage)
+				print "<span class='navbutton current'>$vrP</span>";
+			else
+				print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=$vrP&vr_per_page=$vrPerPage'>$vrP</a>";
+		}
+		if ($vrEndPage < $vrTotalPages) {
+			if ($vrEndPage < $vrTotalPages - 1)
+				print "<span>...</span>";
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=$vrTotalPages&vr_per_page=$vrPerPage'>$vrTotalPages</a>";
+		}
+		if ($vrPage < $vrTotalPages)
+			print "<a class='navbutton' href='" . htmlspecialchars($vrBaseUrl, ENT_QUOTES) . "&vr_page=" . ($vrPage + 1) . "&vr_per_page=$vrPerPage'>$vrNextIcon</a>";
+		else
+			print "<span class='navbutton'>$vrNextIcon</span>";
+		print "</span>";
+		print "</div>\n";
+		print "</div>\n"; // close #vrPageFlex
+	} else {
+		print "</tbody></table>";
+	}
 	fclose($csvfile);
+}
+#############################################################################################################
+// 20260716 CL/SZ - builds a safe, comma-separated integer list for "id in (...)" from an array of ids
+// (some sparse, e.g. $stock_vare_id) - used by the bulk varer/kostpriser/beholdning/batch_kob/batch_salg
+// lookups above instead of one query per item.
+function lagerRapportIntList($values) {
+	$ints = array();
+	foreach ($values as $value) {
+		$value = (int)$value;
+		if ($value) $ints[$value] = $value;
+	}
+	if (!$ints) return "0";
+	return implode(",", $ints);
 }
 #############################################################################################################
 

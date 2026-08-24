@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------admin/restore.php--------lap 5.0.0------2026-01-29-----------
+// --- admin/restore.php --- lap 5.0.0 --- 2026-07-02 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,8 @@
 // 20250511 LOE Various changes to ehance user's experience
 // 20260127 LOE Updated migrateMySQLToPostgreSQL for some isolated fixes.
 // 20260129 PHR Added some str_replace  and a call to connect.php before lookup in 'regnskab'
+// 20260702 CX/PHR Close target PostgreSQL connection and terminate active sessions before DROP DATABASE in restore
+
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -504,13 +506,20 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 		} else if ($db_type=='mysqli') { #RG_mysqli
 			$connection = db_connect ("$sqhost", "$squser", "$sqpass", "$sqdb");
 			mysqli_select_db($connection, $sqdb);
-		} 
-		
+		} else {
+			db_close($connection);
+			$connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);
+		}
+
 		// else {
 		// 	db_close($connection);
 		// }
 		db_modify("delete from online where db='$db'",__FILE__ . " linje " . __LINE__);
 		db_modify("update regnskab set version = '' where db='$db'",__FILE__ . " linje " . __LINE__);
+		if ($db_type=='postgresql') {
+			$escapedDb = pg_escape_string($connection, $db);
+			db_select("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$escapedDb' AND pid <> pg_backend_pid()", __FILE__ . " linje " . __LINE__);
+		}
 		db_modify("DROP DATABASE $db",__FILE__ . " linje " . __LINE__);
 		db_create($db);
 		print "<!-- Saldi-kommentar for at skjule uddata til siden \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres

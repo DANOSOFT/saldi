@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 5.0.0 --- 2026-06-08 ---
+// --- api/rest_api.php --- lap 5.0.0 --- 2026-07-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2026 saldi.dk aps
+// Copyright (c) 2016-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20180307 Tilføjet 'pos_betaling' i 'fakturer_ordre' 
 // 20180316 Tilføjet 'lagerstatus' i '$allowed_tables' i funktion 'fetch_from_table'
@@ -55,7 +55,22 @@
 // 04-02-2025 PBLM added discountType to insert_shop_orderline
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260223 PHR Fixed currency error (Valutakurs)
-// 20260806 PHR removed fakturadate from insert_shop_order. It is set in 'fakturer_ordre'
+// 20260608 PHR removed fakturadate from insert_shop_order. It is set in 'fakturer_ordre'
+// 20260622 PHR Improved set fakturadate in 'fakturer_ordre
+// 20260717 CX/PHR Corrected lev_date to levdate in 'fakturer_ordre'
+// 20260729 CL/SZ fakturer_ordre: check $db_modify_fejl before the transaction commits so a
+//                failed write in the posting transaction returns an error instead of the
+//                order id, since a failed statement aborts the Postgres transaction and the
+//                subsequent commit is silently treated as a rollback (SD-595)
+// 20260727 CL/SZ Validated/escaped $_GET['db'] in access_check() to close a
+//                pre-auth SQL injection on the master connection (SD-588)
+// 20260729 CoPilot/NTR - reported by codeRabbit - access check reworking missing db check and logging.
+// 20260728 CL/SZ Removed update_table/insert_into_table (unused arbitrary-SQL
+//                surface) and narrowed fetch_from_table() to the one known
+//                query shape actually used; hardened the access_check() API
+//                key comparison (SD-589)
+
+
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -70,143 +85,49 @@ $brugernavn=NULL;
 $db_skriv_id=NULL;
 $webservice='on';
 
-function fetch_from_table($select,$from,$where,$order_by,$limit) {
-	global $db,$db_skriv_id;
-	global $brugernavn;
-	global $webservice;
-	
-	$log=fopen("../temp/$db/rest_api.log","a");
-	
-	$allowed_tables = array('adresser','batch_kob','batch_salg','kassekladde','lagerstatus','mylabel','openpost','ordrer','ordrelinjer');
-	array_push($allowed_tables,'transaktioner','varer','shop_ordrer','shop_varer','rental');
-	if ($_SERVER['REMOTE_ADDR'] == '91.235.100.32')  array_push($allowed_tables,'mysale','regnskab');
+// SD-589: fetch_from_table(), update_table() and insert_into_table() used to
+// take $select/$from/$where/$set/$fields/$values straight from $_GET and
+// interpolate them into SQL, guarded only by a ';' check and a table-name
+// allowlist that never touched $select/$where/$set — a single-statement
+// UNION/subquery (no ';' needed) was a general read/write SQL primitive over
+// the tenant DB for anyone past access_check(). Caller enumeration (only
+// api/rest_api_client.php, a 2017 reference client) found exactly one real,
+// working use: exporting varenr+beholdning from 'varer' for stock sync via
+// action=fetch_from_table. Its update_table call passes the misspelled
+// action 'update_tablee' and can never have worked; its insert_into_table
+// wrapper is an unwired manual query tool. Order creation already goes
+// through the separate, already-parameterized insert_shop_order/
+// insert_shop_orderline functions. update_table()/insert_into_table() are
+// therefore removed outright rather than replaced, and fetch_from_table() is
+// narrowed to the single known-good shape actually used: no table/column/
+// where-clause pass-through, no arbitrary SQL of any kind.
+function fetch_from_table($select, $from, $where, $order_by, $limit) {
+	global $db;
+	if(!isset($where)) $where = '';
 
-	fwrite($log,__line__." Query: select ".$select." from ".$from." where ".$where." order by ".$order_by." limit ".$limit."\n");
-	if (strpos($select,';') || strpos($from,';') || strpos($where,';') || strpos($order_by,';') || strpos($limit,';')) {
-		fwrite($log,__line__." sql_injection attempt\n");
-		fclose ($log);
-		return 'sql_injection attempt';
-		exit;
+	$log=fopen("../temp/$db/rest_api.log","a");
+
+	if ($from !== 'varer' || !in_array(str_replace(' ','',$select), array('varenr,beholdning'), true)) {
+		fwrite($log,__line__." rejected: unsupported select/from ($select / $from)\n");
+		fclose($log);
+		return 'unsupported query shape';
 	}
-	(strpos($from,','))?$q_tables=explode(',',$from):$q_tables[0]=$from;
-		fwrite($log,count($q_tables)." $q_tables[0] \n");
-	for ($i=0;$i<count($q_tables);$i++) {		
-		if (in_array($q_tables[$i],$allowed_tables)) fwrite($log,__line__." legal tabel ($q_tables[$i]) \n");
-		else {
-			fwrite($log,__line__." illegal tabel ($q_tables[$i]) \n");
-			fclose ($log);
-			return "illegal tabel ($q_tables[$i])";
-			exit;
-		}
+	if ('' !== $where) {
+		fwrite($log,__line__." rejected: where clause no longer supported ($where)\n");
+		fclose($log);
+		return 'unsupported query shape';
 	}
-	$qtxt="select $select from $from";
-	if ($where) $qtxt.=" where $where";
-	if ($order_by) $qtxt.=" order by $order_by";
-	if ($limit) $qtxt.=" limit $limit";
+
+	$qtxt="select varenr, beholdning from varer order by varenr";
 	fwrite($log,__line__." Query: $qtxt\n");
 	$result = array();
-	$x=0;
-	$y=0;
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($y < db_num_fields($q)) {
-		$fieldName[$y] = db_field_name($q,$y); 
-		$fieldType[$y] = db_field_type($q,$y);
-		$result[$x][$y]=$fieldName[$y]."(".$fieldType[$y].")";
-		fwrite($log,__line__." result ".$result[$x][$y]."\n");
-		$y++;
+	while ($r=db_fetch_array($q)) {
+		$result[] = array('varenr' => $r['varenr'], 'beholdning' => $r['beholdning']);
 	}
-	$x++;
-  while($result[$x]=db_fetch_array($q)) $x++;
-	fclose ($log);
+	fclose($log);
 	return $result;
 } #endfunc fetch_from_table
-
-function update_table($update,$set,$where) {
-	global $db,$db_skriv_id;
-	global $brugernavn;
-	global $webservice;
-	
-	$log=fopen("../temp/$db/rest_api.log","a");
-	$allowed_tables=array('ordrer','shop_ordrer','ordrelinjer','varer','shop_varer','vare_lev','adresser','ansatte','shop_adresser','kladdeliste','kassekladde');
-	fwrite($log,__line__." Query: update ".$update." set ".$set." where ".$where."\n");
-	if (strpos($update,';') || strpos($set,';') || strpos($where,';')) {
-		fwrite($log,__line__." sql_injection attempt\n");
-		fclose ($log);
-		return 'sql_injection attempt';
-		exit;
-	}
-	if (in_array($update,$allowed_tables)) fwrite($log,__line__." legal tabel ($update) \n");
-	else {
-		fwrite($log,__line__." illegal tabel ($update) \n");
-		fclose ($log);
-		return "illegal tabel ($update)";
-		exit;
-	}
-	(strpos($set,','))?$q_sets=explode(',',$set):$q_sets[0]=$set;
-	for ($i=0;$i<count($q_sets);$i++) {
-		list ($q_set_a,$q_set_b)=explode("=",$q_sets[$i]);
-		if (strtolower(trim($q_set_a))=='id') {
-			fwrite($log,__line__." illegal field ($q_sets[$i]) \n");
-			fclose ($log);
-			return "illegal field ($q_sets[$i])";
-			exit;
-	} else fwrite($log,__line__." legal field ($q_sets[$i]) \n");
-	}
-	$qtxt="update $update set $set where $where";
-#	if ($where) $qtxt.=" where $where";
-	fwrite($log,__line__." Query: $qtxt\n");
-	$result = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$x=0;
-	$y=0;
-	fclose ($log);
-	return $result;
-}
-
-function insert_into_table($insert,$fields,$values) {
-	global $db,$db_skriv_id;
-	global $brugernavn;
-	global $webservice;
-	
-	$log=fopen("../temp/$db/rest_api.log","a");
-
-	$valchk=explode(",",$values);
-	for ($x=0;$x<count($valchk);$x++) {
-		if (substr($valchk[$x],0,1) != "'" || substr($valchk[$x],-1) != "'") {
-			return "Each value must be surrounded by ' (apostrophes) !";
-		}
-	}
-	$allowed_tables=array('ordrer','shop_ordrer','ordrelinjer','varer','shop_varer','vare_lev','adresser','ansatte','shop_adresser','kladdeliste','kassekladde');
-	fwrite($log,__line__." Query: insert into ".$insert." fields ".$fields." values ".$values."\n");
-	if (strpos($insert,';') || strpos($fields,';') || strpos($values,';')) {
-		fwrite($log,__line__." sql_injection attempt\n");
-		fclose ($log);
-		return 'sql_injection attempt';
-		exit;
-	}
-	if (in_array($insert,$allowed_tables)) fwrite($log,__line__." legal tabel ($insert) \n");
-	else {
-		fwrite($log,__line__." illegal tabel ($insert) \n");
-		fclose ($log);
-		return "illegal tabel ($insert)";
-		exit;
-	}
-	(strpos($fields,','))?$q_fieldss=explode(',',$fields):$q_fieldss[0]=$fields;
-	for ($i=0;$i<count($q_fieldss);$i++) {
-		if (strtolower(trim($q_fieldss[$i]))=='id') {
-			fwrite($log,__line__." illegal field ($q_fieldss[$i]) \n");
-			fclose ($log);
-			return "illegal field ($q_fieldss[$i])";
-			exit;
-		} else fwrite($log,__line__." legal field ($q_fieldss[$i]) \n");
-	}
-	$qtxt="insert into $insert ($fields) values ($values)";
-	fwrite($log,__line__." Query: $qtxt\n");
-	$result = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$x=0;
-	$y=0;
-	fclose ($log);
-	return $result;
-}
 
 function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
 
@@ -740,6 +661,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	global $baseCurrency,$brugernavn;
 	global $webservice;
 	global $regnaar;
+	global $db_modify_fejl; #20260729 SZ (SD-595)
 	#return "$nettosum,$momssum";
 	
 	include("../includes/ordrefunc.php");
@@ -801,10 +723,25 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	} else {
-		$qtxt="update ordrer set fakturadate=ordredate where id='$saldi_id'";
+		$qtxt="update ordrer set fakturadate=ordredate, levdate=ordredate where id='$saldi_id'";
 		fwrite($log,__line__." $qtxt\n");
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	}
+	transaktion('commit');
+	if ($db_modify_fejl) { #20260729 SZ a write failed while setting fakturadate; do not report success (SD-595)
+		fwrite($log,__line__." Svar : Database write failed while updating fakturadato for order $saldi_id\n");
+		fclose($log);
+		return "Database write failed while updating fakturadato for order $saldi_id";
+	}
+	$qtxt="select fakturadate from ordrer where id='$saldi_id'";
+	fwrite($log,__line__." $qtxt\n");
+	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$fakturadate = $r['fakturadate'];
+	if (!$fakturadate) {
+		return "fakturadate not set";
+		exit;
+	}
+	transaktion('begin');
 	$qtxt="update ordrelinjer set leveres = antal where ordre_id='$saldi_id'";
 	fwrite($log,__line__." $qtxt\n");
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
@@ -838,9 +775,16 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	if ($svar != 'OK') {
 		fwrite($log,__line__." Svar : $svar\n");
 		fclose($log);
+		transaktion('rollback'); #20260805 CL/SZ close the outer transaction on failure too, not just success - otherwise db_transaktion_depth never returns to 0 and the next invoice call in this request won't reset $db_modify_fejl (SD-595, CodeRabbit)
 		return($svar);
 	}
-	// Send invoice email to customer if enabled
+	transaktion ('commit');
+	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; Postgres rolls it back on commit but $svar was reported OK, so surface the failure instead of a phantom success id (SD-595)
+		fclose($log);
+		return "Database write failed while posting order $saldi_id";
+	}
+	// Send invoice email to customer if enabled - after the commit/failure check
+	// so a failed posting write never triggers a customer email (SD-595, CodeRabbit) #20260805 CL/SZ
 	try {
 		$email_result = send_api_invoice_email($saldi_id);
 		fwrite($log,__line__." Invoice email result: $email_result\n");
@@ -850,9 +794,8 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		fwrite($log,__line__." Invoice email fatal error: " . $e->getMessage() . "\n");
 	}
 	fclose ($log);
-	transaktion ('commit');
-	
-	return($saldi_id); 
+
+	return($saldi_id);
 }
 
 function create_credit_note($shop_ordre_id) {
@@ -966,6 +909,13 @@ function create_credit_note($shop_ordre_id) {
 	fwrite($log, __line__ . " fakturer_ordre result: $result\n");
 	fclose($log);
 
+	// fakturer_ordre() returns $credit_saldi_id back verbatim on success, or an
+	// error string on failure - propagate the failure instead of reporting the
+	// credit note as posted when it is still unposted (SD-595, CodeRabbit) #20260805 CL/SZ
+	if ($result != $credit_saldi_id) {
+		return "Credit note $credit_saldi_id created but invoicing failed: $result";
+	}
+
 	return $credit_saldi_id;
 }
 
@@ -1033,19 +983,29 @@ function access_check(){
 	global $webservice;
 	global $regnaar;
 
-	if (!file_exists("../temp")) mkdir("../temp",0777);
-	if (!file_exists("../temp/$db")) mkdir("../temp/$db",0777);
-	$log=fopen("../temp/$db/rest_api.log","a");
-	if (isset($_GET['db'])) {
+	if (isset($_GET['db']) && is_string($_GET['db'])) {
 		$db=$_GET['db'];
-		(strpos($db,'_'))?list($master,$db_skriv_id)=explode('_',$db):$master=$db;
-		fwrite($log,__line__." $master,$db_skriv_id\n");
-	}	else {
-		fwrite($log,__line__." Missing db\n");
-		fclose($log);
+		if (!preg_match('/\A[A-Za-z_][A-Za-z0-9_]{0,24}\z/',$db)) {
+			return 'missing db';
+		}
+	} else {
 		return 'missing db';
 	}
-	$qtxt="select id,lukket from regnskab where db='$db'"; #20201223
+
+	if (!file_exists("../temp") && !mkdir("../temp",0750) && !file_exists("../temp")) {
+		return 'Unable to create temp directory';
+	}
+	if (!file_exists("../temp/$db") && !mkdir("../temp/$db",0750) && !file_exists("../temp/$db")) {
+		return 'Unable to create temp directory';
+	}
+	$log=fopen("../temp/$db/rest_api.log","a");
+	if (!$log) {
+		return 'Unable to open log file';
+	}
+	(strpos($db,'_'))?list($master,$db_skriv_id)=explode('_',$db):$master=$db;
+	fwrite($log,__line__." $master,$db_skriv_id\n");
+
+	$qtxt="select id,lukket from regnskab where db='".db_escape_string($db)."'"; #20201223
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['id']) {
@@ -1104,9 +1064,9 @@ function access_check(){
 		$api_key=trim($r['box1']);
 		if (strpos($r['box2'],',')) $ip_list=explode(',',trim($r['box2']));
 		else $ip_list[0]=trim($r['box2']);
-		if ($api_key != $_GET['key']) {
+		if (!$api_key || !hash_equals($api_key,(string) (isset($_GET['key']) ? $_GET['key'] : ''))) {
 			$log=fopen("../temp/$db/rest_api.log","a");
-			fwrite($log,__line__." Access denied (key) $api_key != $_GET[key]\n");
+			fwrite($log,__line__." Access denied (key)\n");
 			return "Access denied (key)";
 		} elseif (!in_array($ip,$ip_list) && !in_array('*',$ip_list)) {
 			fwrite($log,__line__." Access denied (key) ($ip) != $r[box2]\n");
@@ -1120,7 +1080,7 @@ function access_check(){
 	} elseif ($ip != '91.235.100.32') return 'Wrong IP';
 	return 'OK';
 }
-$possible_url = array("fetch_from_table,update_table,insert_shop_order,insert_shop_orderline");
+$possible_url = array("fetch_from_table,insert_shop_order,insert_shop_orderline");
 $value = "An error has occurred";
 if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 	$action=trim($_GET['action']);
@@ -1130,13 +1090,13 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 		fwrite($log,__line__." Action:".$_GET['action']."\n");
 		if ($action=='fetch_from_table') {
 			fclose ($log);
-			$select    = if_isset($_GET['select']);
-			$from      = if_isset($_GET['from']);
-			$where     = if_isset($_GET['where']);
-			$where     = str_replace("**","%",$where);
-			$order_by  = if_isset($_GET['order_by']);
-			$limit     = if_isset($_GET['limit']);
-			if ($select && $from) $value = fetch_from_table($select,$from,$where,$order_by,$limit);
+			// SD-589: select/from/where are no longer passed through to SQL —
+			// fetch_from_table() itself now only accepts the one known-good
+			// shape (varenr,beholdning from varer, no where clause).
+			$select = if_isset($_GET, false, ['select']);
+			$from   = if_isset($_GET, false, ['from']);
+			$where  = if_isset($_GET, '', ['where']);
+			if ($select && $from) $value = fetch_from_table($select,$from,$where,'','');
 ##############################################
 		} elseif ($action=='get_sold_labels') {
 			fclose ($log);
@@ -1145,14 +1105,6 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 		} elseif ($action=='get_all_labels') {
 			fclose ($log);
 			$value = get_all_labels();
-##############################################
-		} elseif ($action=='update_table') {
-			fclose ($log);
-			$value = update_table($_GET['update'],$_GET['set'],str_replace("**","%",$_GET['where']));
-##############################################
-		}	elseif ($action=='insert_into_table') {
-			fclose ($log);
-			$value = insert_into_table($_GET['insert'],$_GET['fields'],$_GET['values']);
 ##############################################
 		}	elseif ($action=='getNextAccountNo') {
 			fclose ($log);

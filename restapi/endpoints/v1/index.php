@@ -28,8 +28,7 @@ if (empty($path) || $path === 'index.php') {
         'message' => 'SALDI REST API v1',
         'version' => '1.0.0',
         'endpoints' => [
-            'auth' => '/auth/login, /auth/refresh',
-            'user' => '/user/tenants',
+            'auth' => '/auth/login.php, /auth/refresh.php',
             'vouchers' => '/vouchers',
             'invoices' => '/invoices',
             'customers' => '/customers',
@@ -52,7 +51,7 @@ if ($path_parts[0] === 'auth') {
     }
 }
 
-// Route user endpoints
+// Legacy unsupported route; do not advertise until cross-account identity is implemented.
 if ($path_parts[0] === 'user' && isset($path_parts[1]) && $path_parts[1] === 'tenants') {
     require_once __DIR__ . '/user/tenants.php';
     exit;
@@ -102,4 +101,3 @@ echo json_encode([
     'message' => 'Endpoint not found',
     'data' => null
 ]);
-

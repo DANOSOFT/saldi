@@ -1,0 +1,51 @@
+# R&C control-plane repository profile for DANOSOFT/saldi.
+#
+# Schema consumed by apps/control-plane/lib/repository-profile.ts
+# (loadRepositoryProfile) in the Darth Devy factory repo. This file is the
+# single source of truth the control plane reads when it operates against
+# THIS checkout (loadRepositoryProfile reads .clanker/verification.yaml and
+# .clanker/workflow.yaml from process.cwd() - whichever repo working tree the
+# control plane currently has checked out).
+#
+# SALDI-INTEGRATION-AUDIT gap G3: registers includes/usdecimal.php as a
+# characterized path now that its golden-master characterization suite
+# exists under tests/characterization/includes/usdecimal/ (see
+# FACTORY-ONBOARDING-NOTES.md for the human review step before this glob is
+# trusted for real auto_implement tickets).
+version: 1
+
+# Legacy PHP client repository (SALDI-INTEGRATION-AUDIT 3.1): required so the
+# delivery-mode bootstrap assertion in apps/control-plane/lib/env.ts treats
+# jobs against this profile as client-mode targets even when
+# DELIVERY_MODE_ENGINE is left at its default. DELIVERY_MODE_ENGINE=1 must
+# still be set to actually RUN a job against this profile (see
+# FACTORY-ONBOARDING-NOTES.md operator steps).
+projectKind: php
+
+required:
+  - id: phpunit-characterization
+    command: vendor/bin/phpunit --testsuite characterization
+
+recommended:
+  - id: phpcs
+    command: vendor/bin/phpcs
+    when: PHP static-analysis pass, once vendor/bin/phpcs is installed.
+
+# Saldi money paths (mirrors integrations/saldi/seed/off-limits.saldi.txt in
+# the factory repo). NOTE (clone-state finding): the clone's own
+# config/off-limits.txt currently seeds the GENERIC blueprint template, not
+# this Saldi-specific list, so these globs are NOT yet enforced by the
+# donor's off-limits mechanism in this checkout - only by this profile's
+# protectedPaths (read by the control plane) until an operator reseeds
+# config/off-limits.txt from the Saldi template.
+protectedPaths:
+  - finans/**
+  - kreditor/**
+  - debitor/**
+  - sager/beregn_loen*.php
+  - includes/connect.php
+
+# Characterized module registry (gap G3). Only includes/usdecimal.php has an
+# approved golden-master characterization suite as of this slice.
+characterizedPaths:
+  - includes/usdecimal.php

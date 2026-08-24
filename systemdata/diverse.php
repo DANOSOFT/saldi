@@ -91,16 +91,10 @@
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
 // 20260306 Sawaneh - Added Simple guides feature: sidebar overlay with hardcoded Finance + Scaffolding PDF links
 // 20260326 Sawaneh -Added ourRefStockSwitch setting
-
-// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
-
 // 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
 // 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
-
-
-
-
-
+// 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+// 20260818 CL/LH Use stable Stripe settings include paths.
 
 @session_start();
 $s_id = session_id();
@@ -651,7 +645,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$gs1parsing           = if_isset($_POST, null, 'gs1_parsing');
 		$ourRefStockSwitch    = if_isset($_POST, null, 'ourRefStockSwitch');
 		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
+		
 		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
+
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
@@ -1199,6 +1195,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		if ($qtxt)
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		#######################################################################################
+	} elseif ($sektion == 'stripe_valg') {
+		include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
+		stripeValgSave();
 		#######################################################################################
 	} elseif ($sektion == 'labels') {
 		// Generate template from form data
@@ -2260,6 +2260,10 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			   API</button></a></td></tr>\n";
 
+		print "<tr><td align=left><a href=diverse.php?sektion=stripe_valg>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			   Stripe abonnement</button></a></td></tr>\n";
+
 		print "<tr><td align=left><a href=diverse.php?sektion=labels>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('791|Mærkater', $sprog_id)."</button></a></td></tr>\n";
@@ -2334,6 +2338,7 @@ if ($menu != 'T') {
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst('788|Variantrelaterede valg', $sprog_id)."</a></td></tr>\n";
 		// print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=stripe_valg>Stripe abonnement</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</a></td></tr>\n";
@@ -2373,6 +2378,10 @@ if ($sektion == "productOptions" || $sektion == "label") {
 if ($sektion == "variant_valg") variant_valg();
 // if ($sektion == "shop_valg") shop_valg();
 if ($sektion == "api_valg") api_valg();
+if ($sektion == "stripe_valg") {
+	include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
+	stripeValg();
+}
 if ($sektion == "labels") labels($valg);
 if ($sektion == "pricelists") {
 	include("diverseIncludes/pricelists.php");

@@ -100,6 +100,11 @@
 // 20260420 NTR SST-578 Fixed QRcode always fetching kasse 2, instead of it's intended kasse
 // 20260605 CL/PHR function labels: fixed Standard label read from grupper (was incorrectly reading from labels table); added hidden editRawHTML to keep raw HTML mode after save
 // 20260709 Sawaneh Added "Show both delivery address and Extra fields on open orders" setting under Order-related options
+// 20260715 CDX/NTR Made the REST API Swagger link relative to the current installation
+// 20260727 CL/Sawaneh Translated the last four order-related settings (GS1, 'Vores ref.' stock,
+//                     out-of-stock warning, delivery address + extra fields) via findtekst(), tekst_id 9902-9909
+// 20260729 NTR Fixed $r being set to a bool due to && without guarding parenteses, causing error when trying to assign $timezone.
+//              Changed the tekst_id's of the previous translation to be 3032-3039 instead.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -109,7 +114,7 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	#	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone'];
 	#	else {
 	$qtxt = "select id,var_value from settings where var_name='timezone'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && (isset($r['var_value']))) {
+	if (($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && (isset($r['var_value']))) {
 		$timezone = $r['var_value'];
 		if ($timezone) {
 			date_default_timezone_set($timezone);
@@ -1547,7 +1552,7 @@ function removeDfmPickup(idx) {
 				if ($response === false) {
 					// Handle curl error
 					curl_close($ch);
-					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('5027|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
+					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
 					continue;
 				} else {
 					// Process response
@@ -1558,7 +1563,7 @@ function removeDfmPickup(idx) {
 				curl_close($ch);
 
 				if ($status_code !== 200 || !$accessToken) {
-					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('5027|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
+					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
 					continue;
 				}
 
@@ -1656,7 +1661,7 @@ function removeDfmPickup(idx) {
 			print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n";
 			print "<td title='MobilePay'>\n";
 			print "<a style='width:150px;' href='$mobilepay' target='_blank'>Se QR kode</a>\n";
-			print " <button onclick=\"window.location.href='sys_div_func_includes/regenerate_mobilepay_qr.php?pos_id=$i';\" class='inputbox' type='button'>" . findtekst('5028|Regenerér QR-kode', $sprog_id) . "</button>\n";
+			print " <button onclick=\"window.location.href='sys_div_func_includes/regenerate_mobilepay_qr.php?pos_id=$i';\" class='inputbox' type='button'>" . findtekst('5058|Regenerér QR-kode', $sprog_id) . "</button>\n";
 			print "</td></tr>\n";
 		}
 	}
@@ -1924,11 +1929,12 @@ function ordre_valg() {
 	print "<tr><td title='Dette felt deaktiverer visning af DG på ordre siden'>Skjul dækningsgrad</td><td><INPUT title='Dette felt deaktiverer visning af DG på ordre siden', class='inputbox' type='checkbox' name='showDG' $showDG></td></tr>";
 	print "<tr><td title='Angiv en e-mail adresse til modtagelse af pluklister'>Plukliste email</td><td><INPUT title='E-mail adresse til at sende pluklister til' class='inputbox' type='email' style='width:200px;' name='pluklisteEmail' value='$pluklisteEmail'></td></tr>";
 	print "<tr><td title='Aktiverer autosøgning/autocomplete på ordresider (bruger specifik indstilling)'>Anvend autosøgning på ordrer</td><td><INPUT title='Aktiverer autosøgning/autocomplete på ordresider' class='inputbox' type='checkbox' name='ordreAutocomplete' $ordreAutocomplete></td></tr>";
-	print "<tr><td title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)'>Anvend GS1 stregkodefortolkning</td><td><INPUT title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
-	print "<tr><td title=\"Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.\">If 'Our ref's stock is empty choose another</td><td><INPUT title=\"Opdater lager ud fra 'Vores ref.' når feltet ændres\" class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
-	$swT = function_exists('stock_warning_texts') ? stock_warning_texts(isset($sprog_id) ? $sprog_id : null) : array('setting_label' => 'Warn when selling out-of-stock items (popup + reason)', 'setting_title' => 'Show popup and require approval note when an out-of-stock item is added to a POS or Debtor order.');
-	print "<tr><td title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "'>" . $swT['setting_label'] . "</td><td><INPUT title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
-	print "<tr><td title='Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer'>Show both delivery address and Extra fields on open orders</td><td><INPUT title='Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
+	print "<tr><td title='".findtekst('5033|Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)', $sprog_id)."'>".findtekst('5032|Anvend GS1 stregkodefortolkning', $sprog_id)."</td><td><INPUT title='".findtekst('5033|Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)', $sprog_id)."' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
+	$ourRefStockTitle = htmlspecialchars(findtekst("5035|Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.", $sprog_id), ENT_QUOTES);
+	print "<tr><td title='$ourRefStockTitle'>".findtekst("5034|Vælg en anden vare, hvis lageret på 'Vores ref.' er tomt", $sprog_id)."</td><td><INPUT title='$ourRefStockTitle' class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
+	$stockWarningTitle = htmlspecialchars(findtekst('5037|Aktiverer popup-advarsel og krav om begrundelse ved salg af udsolgte varer i både POS og Debitor/Ordre. Godkendelsen logges på ordren.', $sprog_id), ENT_QUOTES);
+	print "<tr><td title='$stockWarningTitle'>".findtekst('5036|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
+	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
@@ -2234,6 +2240,7 @@ function api_valg() {
 	$api_fil3   = trim($r['box6']);
 
 	$x = 0;
+	$userId = array();
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (strpos($r['rettigheder'], '1') === false) {
@@ -2257,7 +2264,7 @@ function api_valg() {
 		if ($api_bruger) {
 			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
 			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
-			print "<tr><td>Swagger: </td><td td colspan='3'><a href='https://ssl12.saldi.dk/pblm/restapi/swagger-ui.html#/' target='_blank' style='$buttonStyle; text-decoration:none; display: inline-block; padding: 2px;'>Swagger</a></td></tr>";
+			print "<tr><td>Swagger: </td><td td colspan='3'><a href='../restapi/swagger-ui.html#/' target='_blank' style='$buttonStyle; text-decoration:none; display: inline-block; padding: 2px;'>Swagger</a></td></tr>";
 			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key' readonly></td></tr>";
 			print "<tr><td title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822-->".findtekst('821|Tilladte IP adresser', $sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";

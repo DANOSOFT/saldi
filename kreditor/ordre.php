@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-05-06---
+// --- kreditor/ordre.php --- patch 5.0.0 --- 2026-07-28---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,23 +61,22 @@
 // 20260225 PHR Order taken by ---
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
+// 20260728 MJ Fix: kreditorOrdreAutocomplete sendte ikke konto_id til itemSearch; viste varer.kostpris i stedet for leverandoerspecifik vl.kostpris
+
 @session_start();
 $s_id=session_id();
 
 ?>
-	<script type="text/javascript">
+<script type="text/javascript">
+	function serienummer(linje_id, antal) {
+		window.open("serienummer.php?linje_id=" + linje_id, "",
+			"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
+	}
 
-function serienummer(linje_id, antal) {
-	window.open("serienummer.php?linje_id=" + linje_id, "",
-		"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
-}
-
-function batch(linje_id, antal) {
-	window.open("batch.php?linje_id=" + linje_id, "",
-		"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
-}
-//
--->
+	function batch(linje_id, antal) {
+		window.open("batch.php?linje_id=" + linje_id, "",
+			"left=10,top=10,width=400,height=400,scrollbars=yes,resizable=yes,menubar=no,location=no")
+	}
 </script>
 
 <!--<script type="text/javascript">
@@ -1377,7 +1376,7 @@ function ansatopslag($sort, $fokus, $id){
 	sidehoved($id, "../kreditor/ordre.php", "../kreditor/kreditorkort.php", $fokus, "Leverand&oslash;rordre $id");
 	# print"<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	# print"<tr>
-	# <td valign=\"top\">";
+	//<td valign=\"top\">";
 	print"<table cellpadding='1' cellspacing='1' border='0	' width='100%' valign='top'
 	class='dataTable'>";
 	print"<tbody>
@@ -1568,9 +1567,9 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find, $lager) {
 				</tr>\n";
 				$vist=1;
 			}
-			# if ($konto_id && $y==1) print "
-			# <meta http-equiv=\"refresh\"
-			# content=\"0;URL=ordre.php?vare_id=$vare_id&fokus=$fokus&konto_id=$row2[lev_id]&id=$id\">";
+			// if ($konto_id && $y==1) print "
+			// <meta http-equiv=\"refresh\"
+			// content=\"0;URL=ordre.php?vare_id=$vare_id&fokus=$fokus&konto_id=$row2[lev_id]&id=$id\">";
 		}
 
 		if ($kontonr && !$vist && $row['samlevare']!='on' && !in_array($vare_id,$skjul_vare_id)) {

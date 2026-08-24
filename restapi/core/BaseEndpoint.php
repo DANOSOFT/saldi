@@ -10,6 +10,34 @@ require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/JWT.php';
 require_once __DIR__ . '/JWTAuth.php';
 
+// JWT signing secret (SD-587): install-specific, >=256 bits, stored outside the
+// repo at restapi/.ht_jwt_secret.bin (git-ignored, matches the .ht* pattern
+// already used for bank_integration/.ht_oauth_key.bin). Generate it once per
+// install with:
+//   php -r "file_put_contents(__DIR__.'/../.ht_jwt_secret.bin', random_bytes(32));"
+// (from restapi/core), or let index/install.php create it for new installs.
+if (!function_exists('_jwtLoadSecret')) {
+    function _jwtLoadSecret(): string {
+        $path = JWT::secretPath();
+        if (!is_readable($path)) {
+            throw new \RuntimeException('JWT secret file not found: ' . $path);
+        }
+        $secret = file_get_contents($path);
+        if ($secret === false || strlen($secret) < 32) {
+            throw new \RuntimeException('JWT secret file must contain at least 32 bytes (256 bits): ' . $path);
+        }
+        return $secret;
+    }
+}
+try {
+    JWT::setSecret(_jwtLoadSecret());
+} catch (\RuntimeException $e) {
+    error_log('JWT bootstrap failed: ' . $e->getMessage());
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'REST API is not configured', 'data' => null]);
+    exit;
+}
 
 abstract class BaseEndpoint
 {
@@ -62,7 +90,7 @@ abstract class BaseEndpoint
             return $this->db;
         }
         
-        // Try JWT tenant database
+        // Try the account database identified by the JWT tenant_id claim
         try {
             $tenantDb = JWTAuth::getTenantDatabase();
             if ($tenantDb) {
@@ -223,14 +251,14 @@ abstract class BaseEndpoint
             $this->userId = $payload['user_id'];
             $this->username = $payload['username'];
             
-            // Get tenant database from JWT token or X-Tenant-ID header
+            // Get the account database from the JWT or legacy X-Tenant-ID header
             $this->db = JWTAuth::getTenantDatabase();
             if (!$this->db) {
-                $this->sendResponse(false, null, 'Tenant database not found. Set X-Tenant-ID header.', 400);
+                $this->sendResponse(false, null, 'Account database not found. Login again or set the legacy X-Tenant-ID header to the numeric account ID.', 400);
                 return false;
             }
             
-            // Connect to tenant database (same as legacy access_check did)
+            // Connect to the selected account database
             global $sqhost, $squser, $sqpass;
             $conn = db_connect($sqhost, $squser, $sqpass, $this->db, __FILE__ . " linje " . __LINE__);
             if (!$conn) {
@@ -243,7 +271,7 @@ abstract class BaseEndpoint
         }
 
         // No valid authentication provided
-        $this->sendResponse(false, null, 'Valid Bearer token required. Login via POST /auth/login with username, password and account_name.', 401);
+        $this->sendResponse(false, null, 'Valid Bearer token required. Login via POST /auth/login.php with username, password and account_name.', 401);
         return false;
     }
 

@@ -66,7 +66,7 @@ function reminderCheck ($mailmodt_id,$email,$ffdage,$chkdate) {
 			$rykkerdate=usdate(forfaldsdag($r['forfaldsdate'],'netto',$ffdage));
 #	echo "$rykkerdate <= $dd<br>";
 			if ($rykkerdate <= $dd) {
-				if (!db_fetch_array(db_select("select id from ordrelinjer where enhed = '$r[id]'",__FILE__ . " linje " . __LINE__))) { #Tjekker om der allerede eksisterer en rykker p� ordren.
+				if (!db_fetch_array(db_select("select id from ordrelinjer where enhed = '$r[id]'",__FILE__ . " linje " . __LINE__))) { #Tjekker om der allerede eksisterer en rykker på ordren. #Checks if there's already a payment reminder on the order.
 					if (!in_array($r['konto_id'],$konto_id)) {
 						$konto_id[$x]=$r['konto_id']; #Liste over konto id numre der skal rykkes
 						$x++;

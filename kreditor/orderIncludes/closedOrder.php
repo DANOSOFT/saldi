@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/closedOrder.php ---patch 4.1.1 --2025-11-13--
+// --- kreditor/orderIncludes/closedOrder.php --- patch 5.0.0 --- 2026-07-06 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft.ApS
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi		
 // 20220629 MSC - Implementing new design
 // 20231219 MSC - Copy pasted new design into code
 // 20251113 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
+// 20260611 MJ - Changed closed creditor order print button to use translated text.
+// 20260706 MJ - Translate 'Udskriv' print button to 'Print'.
 
 print "<input type=\"hidden\" name=\"konto_id\" value=$konto_id>";
 print "<input type=\"hidden\" name=\"kontonr\" value=\"$kontonr\">";
@@ -247,6 +249,6 @@ if ($art != 'KK') {
 	print "<input type='submit' style='width:120px; border-radius:4px;' value=\"" . findtekst(2014, $sprog_id) . "\" ";
 	print "name = 'credit' onclick=\"javascript:docChange = false;\"></span></td>";
 	print "<td align=center><span title=\"" . findtekst(1506, $sprog_id) . "\">";
-	print "<input type='submit' style='width:120px; border-radius:4px;' value='Udskriv' name='print' ";
+	print "<input type='submit' style='width:120px; border-radius:4px;' value='Print' name='print' ";
 	print "onclick=\"javascript:docChange = false;\"></span></td>";
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * POST /auth/login
+ * POST /auth/login.php
  * OAuth2/JWT Login endpoint
  * 
  * Request body:
@@ -10,8 +10,8 @@
  *   "account_name": "account_name" (REQUIRED - account name matching regnskab column)
  * }
  * 
- * IMPORTANT: Users are stored in each tenant's database, not the master database.
- * The "account_name" parameter is REQUIRED to look up the tenant database from the regnskab table.
+ * IMPORTANT: Users are stored in each account database, not the registry database.
+ * The "account_name" parameter is REQUIRED to resolve the account database through the registry database's regnskab table.
  * 
  * Response:
  * {
@@ -71,16 +71,16 @@ class AuthLoginEndpoint extends BaseEndpoint
         $password = $data->password;
         $account_name = trim($data->account_name);
         
-        // First, connect to master database to look up tenant information
+        // First, connect to the registry database to look up account information
         global $sqhost, $squser, $sqpass, $sqdb;
         $master_connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);
         
         if (!$master_connection) {
-            $this->sendResponse(false, null, 'Master database connection failed', 500);
+            $this->sendResponse(false, null, 'Registry database connection failed', 500);
             return;
         }
         
-        // Find tenant by account_name (regnskab column)
+        // Find the account by account_name (regnskab column)
         $account_name_escaped = db_escape_string($account_name);
         $tenant_query = "select * from regnskab where regnskab='$account_name_escaped' limit 1";
         $tenant_result = db_fetch_array(db_select($tenant_query, __FILE__ . " linje " . __LINE__));
@@ -90,9 +90,9 @@ class AuthLoginEndpoint extends BaseEndpoint
             return;
         }
         
-        // Check if tenant is closed
+        // Check if the account is closed
         if ($tenant_result['lukket'] == 'on') {
-            $this->sendResponse(false, null, 'Tenant account is closed', 403);
+            $this->sendResponse(false, null, 'Account is closed', 403);
             return;
         }
         
@@ -104,15 +104,15 @@ class AuthLoginEndpoint extends BaseEndpoint
         
         $tenant_db = $tenant_result['db'];
         
-        // Now connect to the tenant database to check user
+        // Now connect to the account database to check the user
         $tenant_connection = db_connect($sqhost, $squser, $sqpass, $tenant_db, __FILE__ . " linje " . __LINE__);
         
         if (!$tenant_connection) {
-            $this->sendResponse(false, null, 'Tenant database connection failed', 500);
+            $this->sendResponse(false, null, 'Account database connection failed', 500);
             return;
         }
         
-        // Find user in tenant database (case-insensitive)
+        // Find the user in the account database (case-insensitive)
         $asIs = db_escape_string($username);
         $low = strtolower($username);
         $low = str_replace(['Æ', 'Ø', 'Å', 'É'], ['æ', 'ø', 'å', 'é'], $low);
@@ -155,7 +155,7 @@ class AuthLoginEndpoint extends BaseEndpoint
         // If user is admin, they have access to all regnskaber
         $is_admin = (strpos($user['rettigheder'], 'admin') !== false || $user['rettigheder'] == '*');
         
-        // Create JWT tokens (always include tenant_id since database is required)
+        // Create JWT tokens. tenant_id is the legacy claim name for regnskab.id.
         $accessTokenPayload = [
             'user_id' => $user['id'],
             'username' => $user['brugernavn'],
@@ -166,7 +166,8 @@ class AuthLoginEndpoint extends BaseEndpoint
         $refreshTokenPayload = [
             'user_id' => $user['id'],
             'username' => $user['brugernavn'],
-            'type' => 'refresh'
+            'type' => 'refresh',
+            'tenant_id' => $tenant['id']
         ];
         
         $accessToken = JWT::encode($accessTokenPayload, 3600); // 1 hour
@@ -193,10 +194,9 @@ class AuthLoginEndpoint extends BaseEndpoint
     
     protected function handleGet($id = null)
     {
-        $this->sendResponse(false, null, 'GET method not supported. Use POST to login.', 405);
+        $this->sendResponse(false, null, 'GET method not supported. Use POST /auth/login.php to login.', 405);
     }
 }
 
 $endpoint = new AuthLoginEndpoint();
 $endpoint->handleRequestMethod();
-
