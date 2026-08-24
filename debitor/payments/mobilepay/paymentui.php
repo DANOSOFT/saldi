@@ -16,7 +16,7 @@ function ui_output($pretty_amount, $status_text, $status_color, $raw_amount = nu
 	} else if ($status_color === "green") {
 		$amount = (int) $raw_amount;
 		$amount = $amount / 100;
-		header("Location: ../pos_ordre.php?id=$ordre_id&godkendt=OK&indbetaling=$indbetaling&amount=$amount&betaling=mobilepay");
+		header("Location: ../pos_ordre.php?id=$ordre_id&godkendt=OK&indbetaling=$indbetaling&amount=$amount&betaling=mobilepay&receipt_id=" . urlencode($ident));
 		exit;
 	}else if ($status_color === "yellow") {
 		$bg = "#ff0";
