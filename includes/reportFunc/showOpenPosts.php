@@ -34,6 +34,7 @@
 // 20260702 CX/PHR Build "Udlign alle" from unaligned openpost balance when showing all posts.
 // 20260706 MJ Paginated and batched debtor open items report queries for large databases.
 // 20260807 CL/NTR Gave the two variants of this table an id (visAabnePosterTableT / visAabnePosterTable) for future reference; padding for this grid comes from rapportfunc.php's #opGridWrapper.
+// 20260824 CL/NTR Flush the grid header to the client (ob_flush + flush, draining php.ini's output_buffering) before the heavy count/page queries, so the table skeleton is visible while the SQL runs.
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
@@ -79,6 +80,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		}
 		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
 	}
+	// Push the grid header out before the heavy count/page queries below, so the user sees
+	// the empty table immediately while the SQL runs (ob_flush drains php.ini's output_buffering).
+	if (ob_get_level() > 0) @ob_flush();
+	flush();
 
 	$currentdate=date("Y-m-d");
 	if ($dato_fra && $dato_til) {

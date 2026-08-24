@@ -83,6 +83,7 @@
 // 20260518 CL/PHR kontokort & kontosaldo viser nu dato i toplinje. Kontokort tager kun konti med bevægelser i perioden. Null-safety og array-initialisering.
 // 20260723 sawaneh Fixed $rbox8->$box8 so the guard against a stock-tracked item used as a fee works in bogfor_rykker.
 // 20260807 CL/NTR Added the missing #opGridWrapper opening div (it was only ever closed) so the open items grid gets its intended flex:1/scrollable/padded region instead of no padding at all; gave several tables ids for future reference.
+// 20260824 CL/NTR Flush the openpost topline to the client (ob_flush + flush, draining php.ini's output_buffering) before vis_aabne_poster's heavy queries run, so it renders while the SQL is still working.
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -273,6 +274,11 @@ a:link{text-decoration:none;}</style>\n";
 		// below - this opening tag was missing, so that content rendered with no padding at all.
 		print "<div id='opGridWrapper' style='flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; width:100%; background-color:$bgcolor; padding:8px 12px; box-sizing:border-box;'>\n";
 	}
+	// Push the topline out to the client before vis_aabne_poster's heavy queries run, so it
+	// renders while the SQL is still working. flush() alone is not enough: php.ini's
+	// output_buffering holds everything until its buffer fills, so drain that first.
+	if (ob_get_level() > 0) @ob_flush();
+	flush();
 	if ($skjul_aabenpost != 'on') vis_aabne_poster($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart, $kun_debet, $kun_kredit, ($vis_alle_poster == 'on'));
 
 	$opWrapperClosed = false;
