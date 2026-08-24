@@ -108,6 +108,8 @@
 // 20260819 CL/NTR Added loadLabelText()/saveLabelText() so the label editor reads and writes the same
 //                 storage lager/labelprint.php prints from. Raw HTML help text now names
 //                 $minbeskrivelse/$minpris as the default; translated via findtekst(), tekst_id 5056.
+// 20260824 CL/NTR loadLabelText()/saveLabelText() prefer account_id 0 over null legacy rows and only
+//                 touch global rows, matching what the label editor shows.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -2316,6 +2318,7 @@ function loadLabelText($valg, $labelName) {
         // still editable here and a save heals them to 0, which is all lager/labelprint.php reads.
         $qtxt = "select labeltext, labeltype from labels where labelname = '" . db_escape_string($labelName) . "'";
         $qtxt.= " and (account_id = '0' or account_id is null)";
+        $qtxt.= " order by account_id is null"; // if account_id is not null it'll be false, which is ordered before true.
         if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
             $label['labeltext'] = $r['labeltext'];
             if ($r['labeltype']) $label['labeltype'] = $r['labeltype'];
@@ -2357,6 +2360,8 @@ function saveLabelText($valg, $labelName, $labelText, $labelType) {
     }
     if ($valg != 'box1') return;
     $qtxt = "select id from labels where labelname = '$labelName'";
+    $qtxt.= " and (account_id = '0' or account_id is null)";
+    $qtxt.= " order by account_id is null";
     if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
         $qtxt = "update labels set labeltext = '$labelText', labeltype = '$labelType', account_id = '0' where id = '$r[id]'";
     } else {

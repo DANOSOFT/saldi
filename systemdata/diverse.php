@@ -97,6 +97,8 @@
 // 20260818 CL/LH Use stable Stripe settings include paths.
 // 20260819 CL/NTR Label saving routed through saveLabelText() so 'Standard' also reaches the labels
 //                 table that lager/labelprint.php prints from, and new labels get account_id 0.
+// 20260824 CL/NTR Label deletion only removes global rows (account_id 0 or null), matching what the
+//                 label editor shows.
 
 @session_start();
 $s_id = session_id();
@@ -1271,6 +1273,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 		} elseif ($deleteLabel && $labelName != 'Standard') {
 			$qtxt = "DELETE FROM labels WHERE labelname = '" . db_escape_string($labelName) . "'";
+			$qtxt.= " and (account_id = '0' or account_id is null)";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$labelName = 'Standard';
 		}

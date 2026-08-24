@@ -30,6 +30,9 @@
 // 20240123 PHR Added $firstprint & $lastprint.
 // 20260819 CL/NTR $minbeskrivelse/$minpris fall back to the item's own description and price when
 //                 no mit salg rows were read, so a print without an account is not left blank.
+// 20260824 CL/NTR Track mit salg rows per cell in $hasMyLabelRow instead of one flag per print, and
+//                 reset the cell arrays per label, so each cell falls back individually and no data
+//                 leaks from the previous label on the sheet.
 
 $line=explode("\n",$txt);
 $top=$txt='';
@@ -37,7 +40,7 @@ $cols=$rows=1;
 $txtlen=100;
 $endbottom=$endtop=0;
 $createdate=$ip=$ipLine=NULL;
-$barcode=$description=$price=$createdate=$firstprint=$lastprint=array();
+$barcode=$description=$price=$createdate=$firstprint=$lastprint=$hasMyLabelRow=array();
 for ($x=0;$x<count($line);$x++) {
 	if (substr($line[$x],0,3)=='$ip') {
 		list($tmp,$ip)=explode("=",$line[$x]);
@@ -91,17 +94,17 @@ if (($varenr || $stregkode) && (!$account || !$condition)) {
 		$account=$b;
 	}
 }
-for ($a=1;$a<=$rows;$a++) {
-	for ($b=1;$b<=$cols;$b++) {
-		$barcode[$a][$b]=NULL;
-		$description[$a][$b]=NULL;
-		$price[$a][$b]=NULL;
-	}
-}
 $fp=fopen($filename,'w');
 fwrite ($fp, $top);
 for ($l=0;$l<count($labels);$l++) {
-	$myLabelRows=0;
+	for ($a=1;$a<=$rows;$a++) {
+		for ($b=1;$b<=$cols;$b++) {
+			$barcode[$a][$b]=NULL;
+			$description[$a][$b]=NULL;
+			$price[$a][$b]=NULL;
+			$hasMyLabelRow[$a][$b]=false;
+		}
+	}
 	if ($account && $condition) {
 		$qtxt =" select id from adresser where kontonr = '$account' and art='D'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -126,13 +129,13 @@ for ($l=0;$l<count($labels);$l++) {
 		if ($qtxt) {
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array($q)) {
-				$myLabelRows=1;
 				if ($labels[$l]) {
 					$row=$col=1;
 				} else {
 					$row=$r['row'];
 					$col=$r['col'];
 				}
+				$hasMyLabelRow[$row][$col]=true;
 				$barcode[$row][$col]=$r['barcode'];
 				$createdate[$row][$col]=date('dmy',$r['created']);
 				$description[$row][$col]=$r['description'];
@@ -181,7 +184,7 @@ for ($l=0;$l<count($labels);$l++) {
 			$dkkpris=str_replace(',00',',-',dkdecimal($salgspris,2));
 			# Uden mit salg data - et print uden konto - ville labelen komme ud tom, så
 			# $minbeskrivelse/$minpris falder tilbage til varens egen beskrivelse og pris.
-			if ($myLabelRows) {
+			if ($hasMyLabelRow[$a][$b]) {
 				$minbeskrivelse=$description[$a][$b];
 				$minpris=$price[$a][$b];
 			} else {
