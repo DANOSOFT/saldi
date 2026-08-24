@@ -1547,21 +1547,28 @@ function removeDfmPickup(idx) {
 				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
 				$response = curl_exec($ch);
+				$status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
 				if ($response === false) {
 					// Handle curl error
-					$error = curl_error($ch);
-					echo "Curl error: " . $error;
+					curl_close($ch);
+					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
+					continue;
 				} else {
 					// Process response
 					$response = json_decode($response, true);
-					$accessToken = $response["access_token"];
+					$accessToken = if_isset($response, null, "access_token");
 				}
 
 				curl_close($ch);
 
+				if ($status_code !== 200 || !$accessToken) {
+					print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n<td title='MobilePay' style='color:red;'>" . findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id) . "</td></tr>\n";
+					continue;
+				}
+
 				# #########################################################
-				# 
+				#
 				# Create webhook
 				# 
 				# #########################################################
@@ -1654,6 +1661,7 @@ function removeDfmPickup(idx) {
 			print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n";
 			print "<td title='MobilePay'>\n";
 			print "<a style='width:150px;' href='$mobilepay' target='_blank'>Se QR kode</a>\n";
+			print " <button onclick=\"window.location.href='sys_div_func_includes/regenerate_mobilepay_qr.php?pos_id=$i';\" class='inputbox' type='button'>" . findtekst('5058|Regenerér QR-kode', $sprog_id) . "</button>\n";
 			print "</td></tr>\n";
 		}
 	}

@@ -330,7 +330,7 @@ if ($status < 3) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	setcookie("saldi_bet", '', time() - 3600);
 	$ms = afrund($sum + $moms, 3);
-	$receipt_id = (int) $receipt_id;
+	$receipt_id = db_escape_string((string) $receipt_id);
 	$qtxt = "select sum (amount*valutakurs/100) as paid from pos_betalinger where ordre_id='$id'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$leftToPay = $_POST['sum'] - $r['paid'];

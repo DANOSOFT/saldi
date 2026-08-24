@@ -125,23 +125,29 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
 $response = curl_exec($ch);
+$status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
 if ($response === false) {
     // Handle curl error
-    $error = curl_error($ch);
-    echo "Curl error: " . $error;
-exit;
+    curl_close($ch);
+    ui_output($pretty_amount, findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id), "red", $raw_amount, $indbetaling, $ordre_id);
+    exit;
 } else {
     // Process response
     $response = json_decode($response, true);
-    $accessToken = $response["access_token"];
+    $accessToken = if_isset($response, null, "access_token");
 }
 
 curl_close($ch);
 
+if ($status_code !== 200 || !$accessToken) {
+    ui_output($pretty_amount, findtekst('5057|MobilePay er ikke tilsluttet - tjek loginoplysninger', $sprog_id), "red", $raw_amount, $indbetaling, $ordre_id);
+    exit;
+}
+
 
 # #########################################################
-# 
+#
 # Start ordre
 # 
 # #########################################################
