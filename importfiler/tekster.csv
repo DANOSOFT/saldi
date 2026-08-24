@@ -5053,5 +5053,5 @@
 5053	Bilag	Voucher no.	Bilag
 5054	Tekst	Text	Tekst
 5055	Beløb	Amount	Beløp
-5056	Salg pr. Postnr	Sales by postcode	Salg pr. postnr
-
+5056	For at anvende CRM-systemet kræves det, at der er tilføjet ansatte under Stamdata i Indstillinger.<br>Gå til: System → Indstillinger → Stamdata for at tilføje ansatte.	Using the CRM system requires adding employees under Master Data in Settings.<br>Go to: System → Settings → Master Data to add employees.	For å bruke CRM-systemet må ansatte være lagt til under Stamdata i Innstillinger.<br>Gå til: System → Innstillinger → Stamdata for å legge til ansatte.
+5057	Salg pr. Postnr	Sales by postcode	Salg pr. postnr
