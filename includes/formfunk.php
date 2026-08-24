@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-07-06 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-08-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,11 @@
 // 20260702 CDX/NTR Changed the logic of already seen posnr, to posnr + varenr, so that discounts (rabat), which has the same posnr as the item, will be printed instead of forgoten.
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
+// 20260814 LH Rykkerprint: pass rykker ordre-id to send_mails (was hardcoded 0) so mail-template variables like $kontonr work in rykker mails
+// 20260820 CDX/PHR Keep reminder amounts unchanged when the open item and reminder use the same currency.
+// 20260820 Sawaneh Supplier order print totals now match the printed line sums and the
+//                  booked amounts: sum of rounded line sums, VAT on the total (1-3 oere diff).
+//                  Supplier orders no longer print VAT-inclusive prices (customer setting).
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -668,10 +673,12 @@ if (!function_exists('find_form_tekst')) {
 						$qtxt = "select * from openpost where konto_id='$id' and udlignet='0'";
 						$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						while ($r2 = db_fetch_array($q2)) {
-							if (!$r2['valuta'])
+							if (!$r2['valuta']) {
 								$r2['valuta'] = 'DKK';
-							if (!$r2['valutakurs'])
+							}
+							if (!$r2['valutakurs']) {
 								$r2['valutakurs'] = 100;
+							}
 							$valuta = $r2['valuta'];
 							$valutakurs = (float) $r2['valutakurs'];
 							$dkkamount = $r2['amount'] * $valutakurs / 100;
@@ -1876,11 +1883,12 @@ if (!function_exists('formularprint')) {
 									$linjesum[$x] = afrund($linjesum[$x] - ($linjesum[$x] * (100 - $procent[$x]) / 100), 2);
 									$linjemoms[$x] = afrund($linjemoms[$x] - ($linjemoms[$x] * (100 - $procent[$x]) / 100), 2);
 								}
-								$sum += $linjesum[$x];
+								if ($art == 'KO' || $art == 'KK') $sum += $l_sum[$x]; #20260820 Kreditorordrer: summen skal svare til de udskrevne (afrundede) linjesummer
+								else $sum += $linjesum[$x];
 								if ($momsfri[$x] != 'on' && !$omvbet[$x]) {
 									$moms += afrund($l_sum[$x] * $varemomssats[$x] / 100, 3); #Decimaltal aendret til 3 2010.12.17 grundet momsdiff (0,01 kr) i ordre id 371 i saldi_297
 									$momssum += afrund($linjesum[$x], 2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
-									if ($incl_moms && !$b2b) {
+									if ($incl_moms && !$b2b && $art != 'KO' && $art != 'KK') { #20260820 Kunde-momsindstillingen gaelder ikke leverandoerordrer
 										$tmp = afrund($pris[$x] + $pris[$x] * $varemomssats[$x] / 100, 2);
 										if ($rabatart[$x] == "amount")
 											$linjesum[$x] = ($tmp - $rabat[$x]) * $antal[$x];
@@ -2189,6 +2197,10 @@ if (!function_exists('formularprint')) {
 							$y = $ya;
 						$y = $y - $linjeafstand;
 					}
+				}
+				if (!$preview && ($art == 'KO' || $art == 'KK')) { #20260820 Kreditorordrer: moms af totalen som ved skaerm og bogfoering (kreditor/orderIncludes/openOrderLines.php)
+					($art == 'KK') ? $moms = $momssum / 100 * $momssats - 0.0001 : $moms = $momssum / 100 * $momssats + 0.0001;
+					$moms = afrund($moms, 3);
 				}
 				if ($brugsamletpris) {
 					$r = db_fetch_array(db_select("select sum,moms from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
@@ -2611,6 +2623,7 @@ if (!function_exists('rykkerprint')) {
 					#				if ($r['felt_5']) $email[$mailantal]=$r['felt_5'];
 					$email[$mailantal] = $r['email'];
 					$mailsprog[$mailantal] = strtolower($r['sprog']);
+					$mailRykkerId[$mailantal] = $rykker_id[$q]; // 20260814 LH
 					#			$form_nr[$mailantal]=$formular;
 				} else
 					$nomailantal++;
@@ -2662,10 +2675,13 @@ if (!function_exists('rykkerprint')) {
 							$valuta = $r2['valuta'];
 							$valutakurs = (float) $r2['valutakurs'];
 							$dkkamount = $r2['amount'] * $valutakurs / 100;
-							if ($deb_valuta != "DKK")
-								$amount = $dkkamount * 100 / $deb_valutakurs;
-							else
+							if ($deb_valuta == $valuta) {
 								$amount = $r2['amount'];
+							} elseif ($deb_valuta != "DKK") {
+								$amount = $dkkamount * 100 / $deb_valutakurs;
+							} else {
+								$amount = $dkkamount;
+							}
 						}
 					} else {
 						$faktnr = '';
@@ -2739,7 +2755,7 @@ if (!function_exists('rykkerprint')) {
 					return ("../temp/$db/$pfliste[$x].pdf");
 					exit;
 				} else
-				$svar = send_mails(0, "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], '', '', '', 0);
+				$svar = send_mails($mailRykkerId[$x], "$mappe/$pfliste[$x].pdf", $email[$x], $mailsprog[$x], $form_nr[$x], '', '', '', 0);
 			}
 		}
 		if ($nomailantal > 0) {

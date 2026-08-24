@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-07-29 ---
+// --- finans/kassekladde.php --- ver 5.0.0 --- 2026-08-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,6 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
 // 20240329 PHR - Alert when clicking clip, if not saved
 // 20240331 PHR - Prevent deletion of line if document attached
 // 20240401 PHR - Removed reset of '$kontrolsaldo' Why was it there?
@@ -64,7 +63,12 @@
 // 20260729 MJ Rettet fejl: clipDragSourceId-rest forhindrede fil-drop naar forrige clip-drag ikke var ryddet op
 // 20260729 MJ Rettet fejl: upload-succces opdaterer nu kun clip-ikonet i DOM istedet for at genindlaese siden
 // 20260812 LOE .kassekladde-scroll-container; increased the subtraction in height to leave more room for the footer buttons.
+// 20260812 CX/PHR - Preserve and display the journal line VAT code; apply account default VAT when the account changes.
 // 20260814 LOE Position-based sorting: fixed a bug where the positioning control was not visible and reordered positions did not persist.
+// 20260819 CX/PHR - Synchronize VAT exemption with both VAT fields and confirm intentional one-sided VAT.
+// 20260820 Sawaneh Shortcut letters (genvej) in debit/credit crashed the VAT lookup with a numeric
+//                  SQL error; non-numeric input is now resolved via genvej before querying kontonr.
+
 ob_start(); //Starter output buffering  
 
 register_shutdown_function(function() {
@@ -89,6 +93,7 @@ $belob_ligslut = $belob_ligstart = $beskrivelse_ligslut = NULL;
 $beskrivelse_ligstart = $bogfort = NULL;
 $dato_ligslut = $dato_ligstart = $debet_ligslut = $debet_ligstart = $d_type_ligslut = $d_type_ligstart = NULL;
 $faktura_ligstart = $faktura_ligslut = $find = $fokus = NULL;
+$vat_reset_notice = '';
 $intern_bilag = NULL;
 $k_type_ligslut = $k_type_ligstart = NULL;
 $kredit_ligslut = $kredit_ligstart = $kladde_id = $kladdenote = $kontrolkonto = $regnstart = NULL;
@@ -161,6 +166,16 @@ function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_code
     if ($account_no === '' || ($account_type !== '' && $account_type !== 'F')) {
         return '';
     }
+    if (!is_numeric($account_no)) {
+        if (strlen($account_no) != 1) {
+            return '';
+        }
+        $qtxt = "select kontonr from kontoplan where genvej='" . db_escape_string(strtoupper($account_no)) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
+        if (!$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            return '';
+        }
+        $account_no = trim($row['kontonr']);
+    }
     $qtxt = "select moms from kontoplan where kontonr='" . db_escape_string($account_no) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
     $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     if ($row = db_fetch_array($query)) {
@@ -170,21 +185,65 @@ function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_code
     return '';
 }
 
-function resolve_lookup_vat_code($explicit_vat, $current_account, $current_type, $existing_account, $existing_type, $existing_vat, $regnaar, $vat_codes) {
-    if ($explicit_vat !== null) {
-        return normalize_vat_code($explicit_vat, $vat_codes);
-    }
-
+function resolve_lookup_vat_code($explicit_vat, $current_account, $current_type, $existing_account, $existing_type, $existing_vat, $momsfri, $regnaar, $vat_codes) {
     $current_account = trim((string)$current_account);
     $current_type = trim(strtoupper((string)$current_type));
     $existing_account = trim((string)$existing_account);
     $existing_type = trim(strtoupper((string)$existing_type));
 
-    if ($existing_account !== '' && $current_account === $existing_account && $current_type === $existing_type) {
-        return normalize_vat_code($existing_vat, $vat_codes);
+    if ($current_account !== $existing_account || $current_type !== $existing_type) {
+        return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+    }
+
+    if ($explicit_vat !== null) {
+        $explicit_vat = normalize_vat_code($explicit_vat, $vat_codes);
+        if (!trim((string)$momsfri) && $explicit_vat === '') {
+            return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+        }
+        return $explicit_vat;
+    }
+
+    if ($existing_account !== '') {
+        $existing_vat = normalize_vat_code($existing_vat, $vat_codes);
+        if (!trim((string)$momsfri) && $existing_vat === '') {
+            return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+        }
+        return $existing_vat;
     }
 
     return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+}
+
+function resolve_post_vat_code($row_id, $field, $current_account, $current_type, $submitted_vat, $momsfri, $allow_blank, $regnaar, $vat_codes) {
+    $row_id = (int)$row_id;
+    $account_field = ($field === 'kreditvat') ? 'kredit' : 'debet';
+    $type_field = ($field === 'kreditvat') ? 'k_type' : 'd_type';
+    $existing_account = '';
+    $existing_type = '';
+
+    if ($row_id) {
+        $qtxt = "select $account_field,$type_field from kassekladde where id='$row_id'";
+        if ($row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $existing_account = trim((string)$row[$account_field]);
+            $existing_type = trim(strtoupper((string)$row[$type_field]));
+        }
+    }
+
+    $current_account = trim((string)$current_account);
+    $current_type = trim(strtoupper((string)$current_type));
+    $submitted_vat = normalize_vat_code($submitted_vat, $vat_codes);
+
+    // A blank VAT code is only an explicit choice when the line is marked VAT exempt.
+    // Otherwise use the financial account's configured VAT code.
+    if (!trim((string)$momsfri) && !$allow_blank && $submitted_vat === '') {
+        return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+    }
+
+    if ($current_account !== $existing_account || $current_type !== $existing_type) {
+        return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+    }
+
+    return $submitted_vat;
 }
 
 function ensure_cash_vat_columns() {
@@ -209,9 +268,10 @@ function ensure_cash_vat_columns() {
 ensure_cash_vat_columns();
 
 // Helper function to render VAT select dropdown
-function render_vat_select($name, $selected_value, $vat_codes, $charset) {
+function render_vat_select($name, $selected_value, $vat_codes, $charset, $account_vat = '') {
     $selected_value = normalize_vat_code($selected_value, $vat_codes);
-    $html = "<select class='inputbox' name='" . htmlspecialchars($name, ENT_QUOTES, $charset) . "' style='width:55px;background-color:#f5f5f5;' tabindex='-1' onchange='javascript:docChange = true;'>";
+    $account_vat = normalize_vat_code($account_vat, $vat_codes);
+    $html = "<select class='inputbox' name='" . htmlspecialchars($name, ENT_QUOTES, $charset) . "' data-account-vat='" . htmlspecialchars($account_vat, ENT_QUOTES, $charset) . "' style='width:55px;background-color:#f5f5f5;' tabindex='-1' onfocus=\"rememberVatValue(this);\" onchange=\"handleVatChange(this);\">";
     $html .= "<option value=''></option>";
     foreach ($vat_codes as $code => $desc) {
         $sel = ($selected_value === $code) ? " selected='selected'" : '';
@@ -281,6 +341,43 @@ print "<script>
 	function defokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
 		that.style.backgroundColor = bgcolor;
+	}
+	function rememberVatValue(field) {
+		field.dataset.previousValue = field.value;
+		if (document.forms[0] && document.forms[0].fokus) document.forms[0].fokus.value = field.name;
+	}
+	function handleVatChange(field) {
+		if (document.forms[0] && document.forms[0].fokus) document.forms[0].fokus.value = field.name;
+		var match = field.name.match(/^(dvat|kvat)(\\d+)$/);
+		var other = null;
+		if (match && document.forms[0]) {
+			var otherName = (match[1] === 'dvat' ? 'kvat' : 'dvat') + match[2];
+			other = document.forms[0].elements[otherName];
+			if (field.value !== '') {
+				var exemptField = document.forms[0].elements['moms' + match[2]];
+				if (exemptField) exemptField.checked = false;
+			}
+		}
+		if (other && ((field.value === '' && other.value !== '') || (field.value !== '' && other.value === ''))) {
+			if (!confirm('Der er kun angivet moms i det ene momsfelt. Er det tilsigtet?')) {
+				field.value = field.dataset.previousValue || '';
+			}
+		}
+		field.dataset.previousValue = field.value;
+		docChange = true;
+	}
+	function handleVatExempt(field) {
+		var match = field.name.match(/^moms(\\d+)$/);
+		if (!match || !document.forms[0]) return;
+		var debitVat = document.forms[0].elements['dvat' + match[1]];
+		var creditVat = document.forms[0].elements['kvat' + match[1]];
+		[debitVat, creditVat].forEach(function(vatField) {
+			if (!vatField) return;
+			vatField.value = field.checked ? '' : (vatField.dataset.accountVat || '');
+			vatField.dataset.previousValue = vatField.value;
+		});
+		if (document.forms[0].fokus) document.forms[0].fokus.value = field.name;
+		docChange = true;
 	}
 </script>";
 print '<script src="../javascript/Sortable.min.js"></script>';
@@ -511,6 +608,7 @@ if ($_GET) {
 		if_isset($existing_row, '', 'debet'),
 		if_isset($existing_row, '', 'd_type'),
 		if_isset($existing_row, '', 'debetvat'),
+		$momsfri[$x],
 		$regnaar,
 		$vat_codes
 	);
@@ -521,6 +619,7 @@ if ($_GET) {
 		if_isset($existing_row, '', 'kredit'),
 		if_isset($existing_row, '', 'k_type'),
 		if_isset($existing_row, '', 'kreditvat'),
+		$momsfri[$x],
 		$regnaar,
 		$vat_codes
 	);
@@ -647,10 +746,48 @@ if ($_POST) {
 		$k_type[$x] = substr(strtoupper(if_isset($_POST[$y], '')), 0, 1);
 		$y = "kred" . $x;
 		$kredit[$x] = trim(if_isset($_POST[$y], ''));
-		$y = "dvat" . $x;
-		$debetvat[$x] = normalize_vat_code(if_isset($_POST[$y], ''), $vat_codes);
-		$y = "kvat" . $x;
-		$kreditvat[$x] = normalize_vat_code(if_isset($_POST[$y], ''), $vat_codes);
+		$y = "moms" . $x;
+		$momsfri[$x] = if_isset($_POST[$y]);
+		$debetvat_field = "dvat" . $x;
+		$kreditvat_field = "kvat" . $x;
+		$submitted_debetvat = trim((string)if_isset($_POST[$debetvat_field], ''));
+		$submitted_kreditvat = trim((string)if_isset($_POST[$kreditvat_field], ''));
+		if ($momsfri[$x]) {
+			$submitted_debetvat = '';
+			$submitted_kreditvat = '';
+		} elseif ($submitted_debetvat !== '' || $submitted_kreditvat !== '') {
+			$momsfri[$x] = '';
+		}
+		$y = $debetvat_field;
+		$debetvat[$x] = resolve_post_vat_code(
+			if_isset($id, 0, $x),
+			'debetvat',
+			$debet[$x],
+			$d_type[$x],
+			$submitted_debetvat,
+			$momsfri[$x],
+			$submitted_kreditvat !== '',
+			$regnaar,
+			$vat_codes
+		);
+		if ($fokus === $y && !$momsfri[$x] && $submitted_debetvat === '' && $debetvat[$x] !== '') {
+			$vat_reset_notice = "Momskoden er sat tilbage til {$debetvat[$x]}, fordi linjen ikke er markeret som momsfri.";
+		}
+		$y = $kreditvat_field;
+		$kreditvat[$x] = resolve_post_vat_code(
+			if_isset($id, 0, $x),
+			'kreditvat',
+			$kredit[$x],
+			$k_type[$x],
+			$submitted_kreditvat,
+			$momsfri[$x],
+			$submitted_debetvat !== '',
+			$regnaar,
+			$vat_codes
+		);
+		if ($fokus === $y && !$momsfri[$x] && $submitted_kreditvat === '' && $kreditvat[$x] !== '') {
+			$vat_reset_notice = "Momskoden er sat tilbage til {$kreditvat[$x]}, fordi linjen ikke er markeret som momsfri.";
+		}
 		$y = "fakt" . $x;
 		$faktura[$x] = trim(if_isset($_POST[$y], '')); #20130731
 		$y = "belo" . $x;
@@ -669,8 +806,6 @@ if ($_POST) {
 		$forfaldsdato[$x] = trim(if_isset($_POST[$y], ''));
 		$y = "b_id" . $x;
 		$betal_id[$x] = trim(if_isset($_POST[$y], ''));
-		$y = "moms" . $x;
-		$momsfri[$x] = if_isset($_POST[$y]);
 		if (is_numeric($bilag[$x])) { #20230302 - you can't subtract 1 from a string
 			if (
 				$submit != 'lookup' && (!$bilag[$x] || $bilag[$x] == $bilag[$x - 1] || $bilag[$x] - 1 == $bilag[$x - 1])
@@ -1421,8 +1556,10 @@ function build_kassekladde_query($kladde_id, $kksort) {
             k.beskrivelse,
             k.d_type,
             k.debet,
+            k.debetvat,
             k.k_type,
             k.kredit,
+            k.kreditvat,
             k.faktura,
             k.amount as belob,
             k.momsfri,
@@ -1577,11 +1714,12 @@ $columns = array(
 			$value = strip_tags($value);
 			$debettext = '';
 			if ($row['d_type'] == 'F' && $value) {
-				$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+				$query2 = db_select("select beskrivelse from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$debettext = $row2['beskrivelse'];
-					if (trim($row2['moms']))
-						$debettext = $debettext . " - " . trim($row2['moms']);
+					$saved_vat = get_saved_vat_code($row, 'debetvat');
+					if ($saved_vat !== null && $saved_vat !== '')
+						$debettext = $debettext . " - " . $saved_vat;
 				}
 			} elseif (($row['d_type'] == 'D' || $row['d_type'] == 'K') && $value) {
 				$query2 = db_select("select firmanavn from adresser where kontonr='$value' and art = '{$row['d_type']}'", __FILE__ . " linje " . __LINE__);
@@ -1620,7 +1758,8 @@ $columns = array(
 			$vat = ($saved_vat === null) ? '' : $saved_vat;
 			$dtype = isset($row['d_type']) ? trim($row['d_type']) : '';
 			$debet = isset($row['debet']) ? trim($row['debet']) : '';
-			if ($saved_vat === null && $debet && $dtype != 'D' && $dtype != 'K') {
+			$other_vat = get_saved_vat_code($row, 'kreditvat');
+			if (!$row['momsfri'] && !$other_vat && ($saved_vat === null || $saved_vat === '') && $debet && $dtype != 'D' && $dtype != 'K') {
 				$query2 = db_select("select moms from kontoplan where kontonr='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$vat = isset($row2['moms']) ? trim($row2['moms']) : '';
@@ -1663,11 +1802,12 @@ $columns = array(
 			$value =strip_tags($value);
 			$kredittext = '';
 			if ($row['k_type'] == 'F' && $value) {
-				$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+				$query2 = db_select("select beskrivelse from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$kredittext = trim($row2['beskrivelse']);
-					if (trim($row2['moms']))
-						$kredittext = $kredittext . " - " . trim($row2['moms']);
+					$saved_vat = get_saved_vat_code($row, 'kreditvat');
+					if ($saved_vat !== null && $saved_vat !== '')
+						$kredittext = $kredittext . " - " . $saved_vat;
 				}
 			} elseif (($row['k_type'] == 'D' || $row['k_type'] == 'K') && $value) {
 				$query2 = db_select("select firmanavn from adresser where kontonr='$value' and art = '{$row['k_type']}'", __FILE__ . " linje " . __LINE__);
@@ -1706,7 +1846,8 @@ $columns = array(
 			$vat = ($saved_vat === null) ? '' : $saved_vat;
 			$ktype = isset($row['k_type']) ? trim($row['k_type']) : '';
 			$kredit = isset($row['kredit']) ? trim($row['kredit']) : '';
-			if ($saved_vat === null && $kredit && $ktype != 'D' && $ktype != 'K') {
+			$other_vat = get_saved_vat_code($row, 'debetvat');
+			if (!$row['momsfri'] && !$other_vat && ($saved_vat === null || $saved_vat === '') && $kredit && $ktype != 'D' && $ktype != 'K') {
 				$query2 = db_select("select moms from kontoplan where kontonr='$kredit' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$vat = isset($row2['moms']) ? trim($row2['moms']) : '';
@@ -2484,7 +2625,12 @@ if ($kladde_id) {
 	print "<script>
 		document.addEventListener('DOMContentLoaded', function() {
 			var element = document.querySelector('.kassekladde-scroll-container');
-			if (element) {
+			var focusName = " . json_encode((string)$fokus) . ";
+			var focusField = focusName && document.forms[0] ? document.forms[0].elements[focusName] : null;
+			if (focusField) {
+				focusField.focus();
+				focusField.scrollIntoView({block: 'center', inline: 'nearest'});
+			} else if (element) {
 				element.scrollTop = element.scrollHeight;
 			}
 		});
@@ -2610,7 +2756,7 @@ if ($kladde_id) {
 			$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$debet[$x]' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 			if ($row2 = db_fetch_array($query2)) {
 				$debettext[$x] = $row2['beskrivelse'];
-				if ($stored_debetvat === null) {
+				if (!$momsfri[$x] && !$stored_kreditvat && ($stored_debetvat === null || $stored_debetvat === '')) {
 					$debetvat[$x] = trim(if_isset($row2['moms'], ''));
 				}
 				if (trim($row2['moms']))
@@ -2630,7 +2776,7 @@ if ($kladde_id) {
 			$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$kredit[$x]' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 			if ($row2 = db_fetch_array($query2)) {
 				$kredittext[$x] = trim($row2['beskrivelse']);
-				if ($stored_kreditvat === null) {
+				if (!$momsfri[$x] && !$stored_debetvat && ($stored_kreditvat === null || $stored_kreditvat === '')) {
 					$kreditvat[$x] = trim(if_isset($row2['moms'], ''));
 				}
 				if (trim($row2['moms']))
@@ -2824,14 +2970,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\" title='$debettext[$y]' onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$y", if_isset($debetvat[$y], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$y", if_isset($debetvat[$y], ''), $vat_codes, $charset, lookup_account_vat_code($debet[$y], $d_type[$y], $regnaar, $vat_codes)) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$y' $de_fok value =\"$k_type[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (($d_type[$y] == 'D' || $d_type[$y] == 'K') && $debet[$y] && !$kredit[$y]) {
 			$lastPostingsAttr = sidste_5_forslag_attr($debet[$y], $d_type[$y], 'K', $charset);
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\"$lastPostingsAttr onchange='javascript:docChange = true;'></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" title= '$kredittext[$y]' onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset, lookup_account_vat_code($kredit[$y], $k_type[$y], $regnaar, $vat_codes)) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (!isset($valuta[$y])) $valuta[$y] = $baseCurrency;
 		if ($valuta[$y] == $baseCurrency) $title = "";
@@ -2883,10 +3029,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 
 		if ($momsfri[$y] == 'on') {
-			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='javascript:docChange = true;' ></td>\n";
+			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='handleVatExempt(this);' ></td>\n";
 
 		} else {
-			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y onchange='javascript:docChange = true;'></td>\n";
+			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y onchange='handleVatExempt(this);'></td>\n";
 		}
 
 		#######
@@ -3108,12 +3254,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		name='d_ty$x' $de_fok value =\"$d_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
 		name='debe$x' $de_fok value =\"$debet[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$x", if_isset($debetvat[$x], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td class='kk-col-vat_d'>" . render_vat_select("dvat$x", if_isset($debetvat[$x], ''), $vat_codes, $charset, lookup_account_vat_code($debet[$x], $d_type[$x], $regnaar, $vat_codes)) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;'
 		name='k_ty$x' $de_fok value =\"$k_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
 		name='kred$x' $de_fok value=\"$kredit[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$x", if_isset($kreditvat[$x], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$x", if_isset($kreditvat[$x], ''), $vat_codes, $charset, lookup_account_vat_code($kredit[$x], $k_type[$x], $regnaar, $vat_codes)) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
 		name='fakt$x' $de_fok value=\"$faktura[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;'
@@ -3158,9 +3304,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 		}
 		if ($momsfri[$x] == 'on') {
-			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' checked onchange='javascript:docChange = true;'></td>\n";
+			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' checked onchange='handleVatExempt(this);'></td>\n";
 		} else {
-			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' onchange='javascript:docChange = true;'></td>\n";
+			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' onchange='handleVatExempt(this);'></td>\n";
 		}
 	}
 	#cho __line__." X $x<br>";
@@ -3235,7 +3381,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td></td>\n";
 			}
 		}
-		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='javascript:docChange = true;'></td>\n";
+		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='handleVatExempt(this);'></td>\n";
 
 		print "</tr>\n";
 	}
@@ -4159,10 +4305,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	print "</tbody></table>";
 	print "<script language=\"javascript\">";
+	print "var savedFocus = " . json_encode((string)$fokus) . ";";
+	print "var savedFocusField = savedFocus && document.forms[0] ? document.forms[0].elements[savedFocus] : null;";
 	// preventScroll: focusing a field far down an existing draft (e.g. besk108 on a
 	// 109-line kladde) otherwise makes the browser auto-scroll the whole document to
 	// reveal it, dragging the sticky top bar up out of view.
-	print "document.kassekladde.$fokus.focus({preventScroll: true})";
+	print "if (savedFocusField) savedFocusField.focus({preventScroll: true});";
+	if ($vat_reset_notice) {
+		print "alert(" . json_encode($vat_reset_notice) . ");";
+	}
 	print "</script>";
 	// if ($menu == 'T') {
 	// 	include_once '../includes/topmenu/footer.php';

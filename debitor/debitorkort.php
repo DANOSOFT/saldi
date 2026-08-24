@@ -278,6 +278,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		update_settings_value("auto_lookup_cvr", "ordrer", $auto_lookup_cvr, "If CVR-nr. should be looked up automatically when 8 digits are entered", $bruger_id);
 
 		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
+		$stripe_fravalg = db_escape_string(if_isset($_POST['stripe_fravalg'], NULL));
 		$enduser_type = db_escape_string(if_isset($_POST['enduser_type'], ''));
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
@@ -575,14 +576,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$qtxt .= "art,gruppe,kontoansvarlig,oprettet,bank_reg,bank_konto,swift,pbs_nr,pbs,kontotype,";
 			$qtxt .= "fornavn,efternavn,lev_firmanavn,lev_fornavn,lev_efternavn,lev_addr1,lev_addr2,lev_postnr,";
 			$qtxt .= "lev_bynavn,lev_land,lev_kontakt,lev_tlf,lev_email,felt_1,felt_2,felt_3,felt_4,felt_5,";
-			$qtxt .= "vis_lev_addr,lukket,kategori,rabatgruppe,status,productlimit)";
+			$qtxt .= "vis_lev_addr,lukket,stripe_fravalg,kategori,rabatgruppe,status,productlimit)";
 			$qtxt .= " values ";
 			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email',";
 			$qtxt .= "'$mailfakt','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$ean','$institution','$notes','D',";
 			$qtxt .= "'$gruppe','$kontoansvarlig','$oprettet','$bank_reg','$bank_konto','$swift','$pbs_nr','$pbs','$kontotype',";
 			$qtxt .= "'$fornavn','$efternavn','$lev_firmanavn','$lev_fornavn','$lev_efternavn','$lev_addr1','$lev_addr2','$lev_postnr',";
 			$qtxt .= "'$lev_bynavn','$lev_land','$lev_kontakt','$lev_tlf','$lev_email','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5',";
-			$qtxt .= "'$vis_lev_addr','$lukket','$katString','$rabatgruppe','$status','" . usdecimal($productlimit) . "')";
+			$qtxt .= "'$vis_lev_addr','$lukket','$stripe_fravalg','$katString','$rabatgruppe','$status','" . usdecimal($productlimit) . "')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array($q);
@@ -709,7 +710,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				$qtxt .= "lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',";
 				$qtxt .= "lev_land='$lev_land',lev_kontakt='$lev_kontakt',lev_tlf='$lev_tlf',lev_email='$lev_email',";
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
-				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',kategori='$katString',";
+				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',stripe_fravalg='$stripe_fravalg',kategori='$katString',";
 				$qtxt .= "rabatgruppe='$rabatgruppe',status='$status', productlimit = '" . usdecimal($productlimit) . "' ";
 				if ($packagingModuleEnabled) $qtxt .= ", enduser_type='$enduser_type' ";
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
@@ -1123,6 +1124,7 @@ if ($id > 0) {
 	$felt_4 = htmlentities(trim($r['felt_4']), ENT_COMPAT, $charset);
 	$felt_5 = htmlentities(trim($r['felt_5']), ENT_COMPAT, $charset);
 	($r['lukket']) ? $lukket = 'checked' : $lukket = '';
+	(isset($r['stripe_fravalg']) && $r['stripe_fravalg']) ? $stripe_fravalg = 'checked' : $stripe_fravalg = '';
 
 	// Load kontakt_emails for this customer
 	$kontakt_email_ids = array();
@@ -1472,6 +1474,7 @@ if (!isset($bank_reg)) $bank_reg = NULL;
 if (!isset($bank_konto)) $bank_konto = NULL;
 if (!isset($swift)) $swift = NULL;
 if (!isset($lukket)) $lukket = NULL;
+if (!isset($stripe_fravalg)) $stripe_fravalg = NULL;
 if (!isset($lev_firmanavn)) $lev_firmanavn = NULL;
 if (!isset($lev_addr1)) $lev_addr1 = NULL;
 if (!isset($lev_addr2)) $lev_addr2 = NULL;
@@ -1914,6 +1917,7 @@ if ($new_status) {
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
+print "<tr bgcolor=$bg><td title=\"Tilbyd aldrig kortbetaling til denne debitor: abonnementslinket i fakturamails bliver tomt, og allerede udsendte links parkerer venligt. Stopper IKKE et abonnement der allerede er aktivt.\">Ingen kortbetaling</td><td><input class='inputbox' type=checkbox name=stripe_fravalg $stripe_fravalg></td></tr>\n";
 if ($packagingModuleEnabled) {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	$eu = isset($enduser_type) ? $enduser_type : '';
