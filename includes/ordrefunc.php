@@ -116,6 +116,8 @@
 // 20260825 CL/SZ functions opret_ordre and opret_ordre_kopi: tilbudnr was built as a hyphenated
 //                "<sagsnr>-01" string against a numeric(15,0) column, failing every insert.
 //                Per Nicolai, replaced with a plain max(tilbudnr)+1 scoped by sagsnr (SD-600)
+// 20260825 CL/SZ functions opret_ordre and opret_ordre_kopi: "insert into ordrer" now goes
+//                through includes/order_creation.php's order_creation_create() (SD-600)
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -4958,7 +4960,59 @@ function opret_ordre($sag_id, $konto_id)
 		($lev_firmanavn) ? $vis_lev_addr = 'on' : $vis_lev_addr = '';
 		$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
 		$afd = (int)$afd;
-		db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,kontakt_tlf,pbs,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,sag_id,tilbudnr,datotid,nr,returside,sagsnr,procenttillag,kundeordnr,afd) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$kontakt_tlf','$pbs','0','0','$udf_firmanavn','$udf_addr1','$udf_addr2','$udf_postnr','$udf_bynavn','$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$sag_id','$tilbudnr','$tidspkt','$tilbud_nr','$returside','$sagsnr','$default_procenttillag','$kundeordnr','$afd')", __FILE__ . " linje " . __LINE__);
+		order_creation_create(array(
+			'ordrenr' => $ordrenr,
+			'konto_id' => $konto_id,
+			'kontonr' => $kontonr,
+			'firmanavn' => $firmanavn,
+			'addr1' => $addr1,
+			'addr2' => $addr2,
+			'postnr' => $postnr,
+			'bynavn' => $bynavn,
+			'land' => $land,
+			'betalingsdage' => $betalingsdage,
+			'betalingsbet' => $betalingsbet,
+			'cvrnr' => $cvrnr,
+			'ean' => $ean,
+			'institution' => $institution,
+			'email' => $email,
+			'mail_fakt' => $mail_fakt,
+			'notes' => $notes,
+			'art' => 'DO',
+			'ordredate' => $ordredate,
+			'momssats' => $momssats,
+			'hvem' => $brugernavn,
+			'tidspkt' => $tidspkt,
+			'ref' => $ref,
+			'valuta' => $valuta,
+			'sprog' => $formularsprog,
+			'kontakt' => $kontakt,
+			'kontakt_tlf' => $kontakt_tlf,
+			'pbs' => $pbs,
+			'status' => '0',
+			'restordre' => '0',
+			'lev_navn' => $udf_firmanavn,
+			'lev_addr1' => $udf_addr1,
+			'lev_addr2' => $udf_addr2,
+			'lev_postnr' => $udf_postnr,
+			'lev_bynavn' => $udf_bynavn,
+			'lev_kontakt' => $lev_kontakt,
+			'vis_lev_addr' => $vis_lev_addr,
+			'felt_1' => $felt_1,
+			'felt_2' => $felt_2,
+			'felt_3' => $felt_3,
+			'felt_4' => $felt_4,
+			'felt_5' => $felt_5,
+			'sag_id' => $sag_id,
+			'tilbudnr' => $tilbudnr,
+			'datotid' => $tidspkt,
+			'nr' => $tilbud_nr,
+			'returside' => $returside,
+			'sagsnr' => $sagsnr,
+			'procenttillag' => $default_procenttillag,
+			'kundeordnr' => $kundeordnr,
+			'afd' => $afd,
+		));
 		$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query))
 			$id = $row['id'];
@@ -5151,7 +5205,57 @@ function opret_ordre_kopi($sag_id, $konto_id)
 		$tidspkt = date("U");
 		$default_procenttillag *= 1;
 		($lev_firmanavn) ? $vis_lev_addr = 'on' : $vis_lev_addr = '';
-		db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,kontakt_tlf,pbs,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,sag_id,tilbudnr,datotid,nr,returside,sagsnr,procenttillag) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$kontakt_tlf','$pbs','0','0','$udf_firmanavn','$udf_addr1','$udf_addr2','$udf_postnr','$udf_bynavn','$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$sag_id','$tilbudnr','$tidspkt','$tilbud_nr','$returside','$sagsnr','$default_procenttillag')", __FILE__ . " linje " . __LINE__);
+		order_creation_create(array(
+			'ordrenr' => $ordrenr,
+			'konto_id' => $konto_id,
+			'kontonr' => $kontonr,
+			'firmanavn' => $firmanavn,
+			'addr1' => $addr1,
+			'addr2' => $addr2,
+			'postnr' => $postnr,
+			'bynavn' => $bynavn,
+			'land' => $land,
+			'betalingsdage' => $betalingsdage,
+			'betalingsbet' => $betalingsbet,
+			'cvrnr' => $cvrnr,
+			'ean' => $ean,
+			'institution' => $institution,
+			'email' => $email,
+			'mail_fakt' => $mail_fakt,
+			'notes' => $notes,
+			'art' => 'DO',
+			'ordredate' => $ordredate,
+			'momssats' => $momssats,
+			'hvem' => $brugernavn,
+			'tidspkt' => $tidspkt,
+			'ref' => $ref,
+			'valuta' => $valuta,
+			'sprog' => $formularsprog,
+			'kontakt' => $kontakt,
+			'kontakt_tlf' => $kontakt_tlf,
+			'pbs' => $pbs,
+			'status' => '0',
+			'restordre' => '0',
+			'lev_navn' => $udf_firmanavn,
+			'lev_addr1' => $udf_addr1,
+			'lev_addr2' => $udf_addr2,
+			'lev_postnr' => $udf_postnr,
+			'lev_bynavn' => $udf_bynavn,
+			'lev_kontakt' => $lev_kontakt,
+			'vis_lev_addr' => $vis_lev_addr,
+			'felt_1' => $felt_1,
+			'felt_2' => $felt_2,
+			'felt_3' => $felt_3,
+			'felt_4' => $felt_4,
+			'felt_5' => $felt_5,
+			'sag_id' => $sag_id,
+			'tilbudnr' => $tilbudnr,
+			'datotid' => $tidspkt,
+			'nr' => $tilbud_nr,
+			'returside' => $returside,
+			'sagsnr' => $sagsnr,
+			'procenttillag' => $default_procenttillag,
+		));
 
 		$r = db_fetch_array(db_select("select max(id) as id from ordrer where sag_id = '$sag_id'", __FILE__ . " linje " . __LINE__));
 		$nyordre_id = $r['id'];
