@@ -81,17 +81,31 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			}
 		}
 	} else {
-		if ($konto_fra && $konto_fra!='*') {
-			$konto_fra=str_replace("*","%",$konto_fra);
-			$tmp1=strtolower($konto_fra);
-			$tmp2=strtoupper($konto_fra);
-			$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or ";
-			$qtxt = "upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
-		}	else $qtxt = "select id from adresser where art = '$kontoart' order by firmanavn";
+		# 20260818 MB-15: alphanumeric kontonr (e.g. from the open-posts report) ended in the
+		# firmanavn search below and found nothing - try an exact kontonr match first.
+		if ($konto_fra && $konto_fra==$konto_til && strpos($konto_fra,'*')===false) {
+			$tmp=db_escape_string($konto_fra);
+			$qtxt = "select id from adresser where kontonr = '$tmp' and art = '$kontoart'";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$x++;
-			$konto_id[$x]=$r['id'];
+			while ($r = db_fetch_array($q)) {
+				$x++;
+				$konto_id[$x]=$r['id'];
+			}
+		}
+		if (!$x) {
+			if ($konto_fra && $konto_fra!='*') {
+				$konto_fra=str_replace("*","%",$konto_fra);
+				$tmp1=db_escape_string(strtolower($konto_fra));
+				$tmp2=db_escape_string(strtoupper($konto_fra));
+				$konto_fra=db_escape_string($konto_fra);
+				$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or ";
+				$qtxt.= "upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
+			}	else $qtxt = "select id from adresser where art = '$kontoart' order by firmanavn";
+				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$x++;
+				$konto_id[$x]=$r['id'];
+			}
 		}
 	}
 	$kontoantal=$x;

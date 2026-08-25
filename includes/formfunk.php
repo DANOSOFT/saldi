@@ -56,6 +56,9 @@
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
 // 20260814 LH Rykkerprint: pass rykker ordre-id to send_mails (was hardcoded 0) so mail-template variables like $kontonr work in rykker mails
 // 20260820 CDX/PHR Keep reminder amounts unchanged when the open item and reminder use the same currency.
+// 20260820 Sawaneh Supplier order print totals now match the printed line sums and the
+//                  booked amounts: sum of rounded line sums, VAT on the total (1-3 oere diff).
+//                  Supplier orders no longer print VAT-inclusive prices (customer setting).
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -413,9 +416,7 @@ if (!function_exists('ombryd')) {
 			$lokation = $parts[1] ?? NULL;
 			$vare_note = $parts[2] ?? NULL;
 		}
-		error_log("tekst before wrap: " . json_encode($tekst) . " length: " . strlen($tekst) . " laengde: " . $laengde);
 		$tekst = wordwrap($tekst, $laengde, "\n", true);
-		error_log("tekst after wrap: " . json_encode($tekst));
 		$nytekst = "";
 		if (strstr($tekstinfo, 'ordrelinjer')) {
 			list($tmp, $Opkt) = explode("_", $tekstinfo);
@@ -1880,11 +1881,12 @@ if (!function_exists('formularprint')) {
 									$linjesum[$x] = afrund($linjesum[$x] - ($linjesum[$x] * (100 - $procent[$x]) / 100), 2);
 									$linjemoms[$x] = afrund($linjemoms[$x] - ($linjemoms[$x] * (100 - $procent[$x]) / 100), 2);
 								}
-								$sum += $linjesum[$x];
+								if ($art == 'KO' || $art == 'KK') $sum += $l_sum[$x]; #20260820 Kreditorordrer: summen skal svare til de udskrevne (afrundede) linjesummer
+								else $sum += $linjesum[$x];
 								if ($momsfri[$x] != 'on' && !$omvbet[$x]) {
 									$moms += afrund($l_sum[$x] * $varemomssats[$x] / 100, 3); #Decimaltal aendret til 3 2010.12.17 grundet momsdiff (0,01 kr) i ordre id 371 i saldi_297
 									$momssum += afrund($linjesum[$x], 2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
-									if ($incl_moms && !$b2b) {
+									if ($incl_moms && !$b2b && $art != 'KO' && $art != 'KK') { #20260820 Kunde-momsindstillingen gaelder ikke leverandoerordrer
 										$tmp = afrund($pris[$x] + $pris[$x] * $varemomssats[$x] / 100, 2);
 										if ($rabatart[$x] == "amount")
 											$linjesum[$x] = ($tmp - $rabat[$x]) * $antal[$x];
@@ -2079,22 +2081,37 @@ if (!function_exists('formularprint')) {
 								break;
 							}
 						}
-						if ($beskriv_z && isset($laengde[$beskriv_z]) && $laengde[$beskriv_z] > 0) {
+						// 20260818 LH MB-19: a template laengde wider than the physical span to the next
+						// column (typically antal) let long description lines print into the quantity
+						// column. Cap the wrap width by the span in points (xa is mm, x2.86 in skriv()),
+						// reserving room for a right-aligned neighbour's value.
+						$beskriv_laengde = ($beskriv_z && isset($laengde[$beskriv_z])) ? (int)$laengde[$beskriv_z] : 0;
+						if ($beskriv_z && $str[$beskriv_z] > 0) {
+							$next_xa = 0; $next_str = 0; $next_just = '';
+							for ($z_tmp = 1; $z_tmp <= $var_antal; $z_tmp++) {
+								if ($z_tmp != $beskriv_z && $xa[$z_tmp] > $xa[$beskriv_z] && (!$next_xa || $xa[$z_tmp] < $next_xa)
+									&& $variabel[$z_tmp] != 'lokation' && $variabel[$z_tmp] != 'vare_note' && substr($variabel[$z_tmp], 0, 8) != 'fritekst') {
+									$next_xa = $xa[$z_tmp]; $next_str = $str[$z_tmp]; $next_just = $justering[$z_tmp];
+								}
+							}
+							if ($next_xa) {
+								$reserve = ($next_just == 'H') ? 8 * 0.55 * ($next_str > 0 ? $next_str : $str[$beskriv_z]) : 0;
+								$span_chars = max(12, (int)(((($next_xa - $xa[$beskriv_z]) * 2.86) - $reserve) / (0.55 * $str[$beskriv_z])));
+								$beskriv_laengde = ($beskriv_laengde > 0) ? min($beskriv_laengde, $span_chars) : $span_chars;
+							}
+						}
+						if ($beskriv_z && $beskriv_laengde > 0) {
 							// Get the description text (handle tab-separated lokation/vare_note)
 							$check_tekst = $beskrivelse[$x];
 							if (strpos($check_tekst, chr(9)) !== false) {
 								list($check_tekst) = explode(chr(9), $check_tekst);
 							}
-							$wrappedText = wordwrap($check_tekst, $laengde[$beskriv_z], "\n", true);
+							$wrappedText = wordwrap($check_tekst, $beskriv_laengde, "\n", true);
 							$descLines = count(explode("\n", $wrappedText));
 							$totalHeightNeeded = ($descLines - 1) * $linjeafstand;
 
-							// DEBUG: Log to file
-							file_put_contents("../temp/debug_pagebreak.txt", "DEBUG line $x: y=$y, Opkt=$Opkt, descLines=$descLines, totalHeight=$totalHeightNeeded, laengde=".$laengde[$beskriv_z].", check=".($y - $totalHeightNeeded)."\n", FILE_APPEND);
-
 							// If description would spill to next page, move entire line to next page first
 							if ($descLines > 1 && ($y - $totalHeightNeeded) <= $Opkt && $y >= $Opkt) {
-								file_put_contents("../temp/debug_pagebreak.txt", "FORCING PAGE BREAK for line $x\n", FILE_APPEND);
 								// Force a page break before writing any fields
 								$y = skriv($id, "$str[$beskriv_z]", "$fed[$beskriv_z]", "$kursiv[$beskriv_z]", "$color[$beskriv_z]", "", "ordrelinjer_" . $Opkt, "$xa[$beskriv_z]", $Opkt - 1, "$justering[$beskriv_z]", "$form_font[$beskriv_z]", "$formular", __LINE__);
 							}
@@ -2112,11 +2129,15 @@ if (!function_exists('formularprint')) {
 							if ($variabel[$z] == "posnr")
 								$svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$posnr[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
 							elseif ($variabel[$z] == "varenr") {
-								// Determine wrap width from configured laengde, or compute from column span to beskrivelse
-								$vn_wrap = ($laengde[$z] > 0) ? (int)$laengde[$z]
-									: (($beskriv_z && $str[$z] > 0)
-										? max(12, (int)(($xa[$beskriv_z] - $xa[$z]) / (0.55 * $str[$z])))
-										: 0);
+								// 20260818 LH MB-20: xa positions are template units (mm, x2.86 -> points in skriv())
+								// but str is a point size - the missing 2.86 factor made the span ~3x too small, so
+								// item numbers wrapped after 12-15 chars although the column fits more. Compute the
+								// span in points, and never wrap earlier than the widest of the configured laengde
+								// and the physical span.
+								$vn_span = ($beskriv_z && $str[$z] > 0)
+									? max(12, (int)((($xa[$beskriv_z] - $xa[$z]) * 2.86) / (0.55 * $str[$z])))
+									: 0;
+								$vn_wrap = max((int)$laengde[$z], $vn_span);
 								if ($vn_wrap > 0 && mb_strlen($varenr[$x]) > $vn_wrap) {
 									$vn_wrapped = explode("\n", wordwrap($varenr[$x], $vn_wrap, "\n", true));
 								} else {
@@ -2184,7 +2205,7 @@ if (!function_exists('formularprint')) {
 							}
 						}
 						if ($z = $skriv_beskriv[$x]) {
-							$y2 = ombryd($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskrivelse[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", $laengde[$z], $formular, $linjeafstand);
+							$y2 = ombryd($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskrivelse[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", ($beskriv_laengde > 0 ? $beskriv_laengde : $laengde[$z]), $formular, $linjeafstand);
 						}
 						// Use the lowest y (most wrapped lines wins)
 						$y2 = min($y_after_varenr, $y2 ?? $y);
@@ -2193,6 +2214,10 @@ if (!function_exists('formularprint')) {
 							$y = $ya;
 						$y = $y - $linjeafstand;
 					}
+				}
+				if (!$preview && ($art == 'KO' || $art == 'KK')) { #20260820 Kreditorordrer: moms af totalen som ved skaerm og bogfoering (kreditor/orderIncludes/openOrderLines.php)
+					($art == 'KK') ? $moms = $momssum / 100 * $momssats - 0.0001 : $moms = $momssum / 100 * $momssats + 0.0001;
+					$moms = afrund($moms, 3);
 				}
 				if ($brugsamletpris) {
 					$r = db_fetch_array(db_select("select sum,moms from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
