@@ -110,6 +110,10 @@
 //                 $minbeskrivelse/$minpris as the default; translated via findtekst(), tekst_id 5056.
 // 20260824 CL/NTR loadLabelText()/saveLabelText() prefer account_id 0 over null legacy rows and only
 //                 touch global rows, matching what the label editor shows.
+// 20260826 CL/SZ  Added labelTemplateEditableVisually() and forced raw-HTML mode in labels() for any
+//                 label the visual editor's field model can't losslessly regenerate (imported
+//                 Brother/Dymo templates, hand-written raw HTML, ...) - saving via the visual editor
+//                 was silently discarding whatever it doesn't model (MB-18).
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -2473,7 +2477,16 @@ Pris $pris<br>
 </div>
 /bottom;';
         }
-        
+
+        // A label whose template the visual editor's narrow field model can't reproduce
+        // exactly (imported Brother/Dymo templates, hand-written raw HTML, ...) must stay in
+        // raw-HTML mode - opening it in the visual editor and saving would silently discard
+        // whatever it doesn't model (MB-18).
+        if (!$editRawHTML && !labelTemplateEditableVisually($labelText)) {
+            $editRawHTML = true;
+            $forcedRawHTML = true;
+        }
+
         if ($valg == 'box1') {
             // Label selection dropdown - only show if there are custom labels
             $hasMultipleOptions = count($labelNames) > 1 || (count($labelNames) == 1 && $labelName != 'Standard');
@@ -2515,6 +2528,9 @@ Pris $pris<br>
 			print "<div style='margin-bottom: 10px;'>";
 			print "<h3>Rå HTML Editor</h3>";
 			print "<p style='color: #666; font-size: 12px;'>".findtekst('5057|Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$minbeskrivelse, \$minpris, \$img, osv. \$minbeskrivelse og \$minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. \$beskrivelse og \$pris henter altid varens egen.', $sprog_id)."<!--tekst 5056--></p>";
+			if (!empty($forcedRawHTML)) {
+				print "<p style='color: #a94442; background-color: #f2dede; padding: 6px; font-size: 12px;'>Denne label indeholder formatering, som den visuelle editor ikke forstår, og kan derfor kun redigeres her som rå HTML - at gemme via den visuelle editor ville slette den formatering, den ikke kan vise.</p>";
+			}
 			print "</div>";
 			print "<textarea name='rawHTML' style='width: 100%; height: 400px; font-family: monospace; font-size: 12px;'>" . htmlspecialchars($labelText) . "</textarea>";
 			print "</td></tr>";
@@ -2525,7 +2541,9 @@ Pris $pris<br>
 			else print "<option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option><option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option>";
 			print "</select>";
 			print "<input type='submit' style='width:150px' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='saveRawHTML'>";
-			print "&nbsp;<input type='submit' style='width:150px' value='Skift til Visuel Editor' name='switchToVisual'>";
+			if (empty($forcedRawHTML)) {
+				print "&nbsp;<input type='submit' style='width:150px' value='Skift til Visuel Editor' name='switchToVisual'>";
+			}
 			if ($valg == 'box1') {
 			print "&nbsp;<input type='submit' style='width:150px' value='".findtekst('39|Ny', $sprog_id)." Label' name='newLabel'>";
 			if ($labelName != 'Standard') {
@@ -2860,8 +2878,26 @@ function generateLabelTemplate($data) {
     $template .= "<bottom>\n";
     $template .= "</div>\n";
     $template .= "/bottom;";
-    
+
     return $template;
+}
+
+/**
+ * True if regenerating $labelText through the visual editor's own field model
+ * (parseLabelTemplate() -> generateLabelTemplate()) reproduces it exactly (modulo
+ * whitespace). parseLabelTemplate() only understands a fixed, narrow set of CSS
+ * properties and content lines - anything else in the template (custom CSS like
+ * transform/rotate, margin shorthand, extra markup, more than 5 content lines, a
+ * hand-written raw-HTML structure, an imported Brother/Dymo template, ...) is invisible
+ * to it, so generateLabelTemplate() silently drops it on the very next visual-editor
+ * save. Saving via the visual editor must be refused whenever this returns false, or
+ * "changing one setting" ends up discarding the customer's whole template (MB-18).
+ */
+function labelTemplateEditableVisually($labelText) {
+    if (empty($labelText)) return true; // nothing to lose on a brand new label
+    $regenerated = generateLabelTemplate(parseLabelTemplate($labelText));
+    $normalize   = function ($s) { return preg_replace('/\s+/', '', $s); };
+    return $normalize($regenerated) === $normalize($labelText);
 } # endfunc labels
 
 function prislister()

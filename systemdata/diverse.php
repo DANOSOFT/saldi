@@ -99,6 +99,9 @@
 //                 table that lager/labelprint.php prints from, and new labels get account_id 0.
 // 20260824 CL/NTR Label deletion only removes global rows (account_id 0 or null), matching what the
 //                 label editor shows.
+// 20260826 CL/SZ  saveLabel now refuses to save when the label's current template isn't reproducible
+//                 by the visual editor's field model - it was silently discarding formatting it
+//                 doesn't understand on every save (MB-18).
 
 @session_start();
 $s_id = session_id();
@@ -1239,7 +1242,17 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$labelType = if_isset($_POST['labelType'], 'sheet');
 		saveLabelText($valg, $labelName, $rawHTML, $labelType);
 	} elseif ($saveLabel) {
-            // Generate template from form data (visual editor)
+            // Generate template from form data (visual editor). Refuse if the label's CURRENT
+            // template has formatting the visual editor's field model can't reproduce
+            // (imported Brother/Dymo templates, hand-written raw HTML, ...) - regenerating from
+            // that narrow model would silently discard whatever it doesn't understand, which is
+            // exactly MB-18 ("changing any setting destroys the whole configuration"). The UI
+            // already hides the visual editor for such labels (see labels() in
+            // sys_div_func.php); this is the authoritative check a form submit cannot bypass.
+    $existingLabel = loadLabelText($valg, $labelName);
+    if (!labelTemplateEditableVisually($existingLabel['labeltext'])) {
+        // Nothing saved - labels() below re-renders this label in raw-HTML mode.
+    } else {
     $formData = array(
         'cols'                  => if_isset($_POST['cols'], 1),
         'rows'                  => if_isset($_POST['rows'], 1),
@@ -1270,6 +1283,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
     $generatedTemplate = generateLabelTemplate($formData);
     $labelType         = if_isset($_POST['labelType'], 'sheet');
     saveLabelText($valg, $labelName, $generatedTemplate, $labelType);
+    }
 
 		} elseif ($deleteLabel && $labelName != 'Standard') {
 			$qtxt = "DELETE FROM labels WHERE labelname = '" . db_escape_string($labelName) . "'";
