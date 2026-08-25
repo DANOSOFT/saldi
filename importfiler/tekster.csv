@@ -3364,7 +3364,7 @@
 3364	Momsafstemning	VAT reconciliation	MVA-avstemming
 3365	OSS B2C EU-salg	B2C EU Sales	OSS B2C EU-salg
 3366	Momsperioder	Vat periods	MVA-perioder		
-3367			
+3367	Medtages på eFaktura når udfyldt	Included on eInvoice when filled in	Medtas på eFaktura når utfylt		
 3368			
 3369			
 3370			
@@ -5055,3 +5055,5 @@
 5055	Beløb	Amount	Beløp
 5056	For at anvende CRM-systemet kræves det, at der er tilføjet ansatte under Stamdata i Indstillinger.<br>Gå til: System → Indstillinger → Stamdata for at tilføje ansatte.	Using the CRM system requires adding employees under Master Data in Settings.<br>Go to: System → Settings → Master Data to add employees.	For å bruke CRM-systemet må ansatte være lagt til under Stamdata i Innstillinger.<br>Gå til: System → Innstillinger → Stamdata for å legge til ansatte.
 5057	Du kan redigere den komplette HTML skabelon her. Brug variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. $beskrivelse og $pris henter altid varens egen.	You can edit the complete HTML template here. Use variables such as $varenr, $minbeskrivelse, $minpris, $img, etc. $minbeskrivelse and $minpris show the customer's own text and price from Mit salg and fall back to the item's own when printing without an account. $beskrivelse and $pris always take the item's own.	Du kan redigere hele HTML-malen her. Bruk variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mitt salg og faller tilbake til varens egen når det skrives ut uten konto. $beskrivelse og $pris henter alltid varens egen.
+5058	Salg pr. Postnr	Sales by postcode	Salg pr. postnr
+
