@@ -17,6 +17,10 @@
 //   string not an int, corrected the 3 return-value assertions accordingly.
 //   Left test_creating_an_order_for_an_unknown_phone_number_creates_a_new_debtor_keyed_by_that_number
 //   failing/unmodified: paused pending Nicolai/Lui, see README (gruppe/kodenr finding).
+// 20260825 CL/SZ SD-600: gruppe finding resolved (default to 1, per Nicolai) and
+//   fixed in api/rest_api.php. Corrected this test's return-value assertion to
+//   match the numeric-string reality (was left as assertIsInt pending the fix)
+//   and added an assertion pinning the new debtor's gruppe=1 default.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -97,16 +101,23 @@ final class ShopOrderCreationCharacterizationTest extends CharacterizationTestCa
             'tlf' => $tlf,
         ]);
 
-        $this->assertIsInt($out['return'], "insert_shop_order() returns the new ordrer.id on success.\nstdout: {$out['raw']['stdout']}\nstderr: {$out['raw']['stderr']}");
+        // insert_shop_order() returns $r['id'] straight from db_fetch_array()
+        // uncast (api/rest_api.php:477) - a numeric string, not an int, same
+        // as the existing-debtor path above.
+        $this->assertMatchesRegularExpression('/^\d+$/', (string)$out['return'], "insert_shop_order() returns the new ordrer.id on success.\nstdout: {$out['raw']['stdout']}\nstderr: {$out['raw']['stderr']}");
         $this->assertNotNull($out['order']);
         $expectedKontonr = (string)((int)str_replace('+', '', $tlf));
         $this->assertSame($expectedKontonr, $out['order']['kontonr'], 'a brand-new shop customer is assigned the digits of their phone number as kontonr');
         $this->assertSame($tlf, trim((string)$out['order']['phone']), 'ordrer.phone keeps the "+" the kontonr strips');
 
-        $newDebtor = self::one('SELECT art, kontonr FROM adresser WHERE id = $1', [(int)$out['order']['konto_id']]);
+        $newDebtor = self::one('SELECT art, kontonr, gruppe FROM adresser WHERE id = $1', [(int)$out['order']['konto_id']]);
         $this->assertNotNull($newDebtor, 'a new adresser row is created for the unmatched phone number');
         $this->assertSame('D', $newDebtor['art'], 'new shop customers are always created as debtors (art=D)');
         $this->assertSame($expectedKontonr, $newDebtor['kontonr']);
+        // Fixed per Nicolai (SD-600): a missing gruppe param now defaults to 1,
+        // matching OrderService::createNewDebtor()'s JWT-path default, instead
+        // of throwing a Postgres integer error against grupper.kodenr.
+        $this->assertSame('1', (string)$newDebtor['gruppe'], 'a missing gruppe defaults to 1, matching the JWT path');
     }
 
     public function test_reimporting_the_same_shop_order_id_for_the_same_art_is_refused(): void

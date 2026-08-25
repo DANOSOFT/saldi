@@ -16,6 +16,9 @@
 //
 // History:
 // 20260805 CL/SZ SD-600: created.
+// 20260825 CL/SZ SD-600: tilbudnr fixed per Nicolai to a plain max(tilbudnr)+1
+//                scoped by sagsnr - updated assertions to match, and added a
+//                test that two different cases don't share a tilbudnr sequence.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -40,7 +43,7 @@ final class ClassicOrderCreationCharacterizationTest extends CharacterizationTes
         $this->assertSame('DO', $out['art'], "art is hardcoded to 'DO' regardless of context");
         $this->assertSame('0', (string)$out['status'], 'a freshly created quote starts at status 0');
         $this->assertSame($sag['id'], $out['sag_id'], 'ordrer.sag_id links back to the case');
-        $this->assertSame($sag['sagsnr'] . '-01', $out['tilbudnr'], 'first tilbudnr for a case is "<sagsnr>-01"');
+        $this->assertSame('1', (string)$out['tilbudnr'], 'first tilbudnr for a case is 1');
         $this->assertSame('1', (string)$out['nr'], 'first quote for a case gets nr=1');
     }
 
@@ -53,10 +56,26 @@ final class ClassicOrderCreationCharacterizationTest extends CharacterizationTes
         $second = $this->runCreate($sag['id'], $debtor['id']);
 
         $this->assertNotSame($first['id'], $second['id'], 'each call creates a new order row, not a re-save');
-        // Observed via ordrefunc.php:4867-4877: max(tilbudnr) is split on "-"
-        // and the numeric part incremented with a 2-digit zero-pad.
-        $this->assertSame($sag['sagsnr'] . '-02', $second['tilbudnr'], 'tilbudnr sequence number increments per case');
+        // Fixed per Nicolai (SD-600): tilbudnr is max(tilbudnr)+1 scoped by
+        // sagsnr (ordrefunc.php), a plain revision number - no more hyphenated
+        // "<sagsnr>-0N" string against the numeric(15,0) column.
+        $this->assertSame('2', (string)$second['tilbudnr'], 'tilbudnr sequence number increments per case');
         $this->assertSame('2', (string)$second['nr'], 'nr increments per case independently of tilbudnr');
+    }
+
+    public function test_two_different_cases_each_start_their_own_tilbudnr_at_one(): void
+    {
+        $debtorA = self::$fx->debtor();
+        $sagA = self::$fx->sag($debtorA);
+        $debtorB = self::$fx->debtor();
+        $sagB = self::$fx->sag($debtorB);
+
+        $this->runCreate($sagA['id'], $debtorA['id']);
+        $outB = $this->runCreate($sagB['id'], $debtorB['id']);
+
+        // tilbudnr is scoped by sagsnr, not global - a different case's
+        // quotes must not bump this case's tilbudnr sequence (SD-600).
+        $this->assertSame('1', (string)$outB['tilbudnr'], 'a different case starts its own tilbudnr at 1');
     }
 
     public function test_order_numbers_are_sequential_across_cases(): void

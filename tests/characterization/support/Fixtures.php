@@ -504,10 +504,9 @@ final class Fixtures
      * the case's own konto_id as both sag_id and konto_id, so that is what
      * this fixture mirrors.
      *
-     * `sagsnr` must be a bare integer, not a slug: opret_ordre() builds the
-     * first tilbudnr as "$sagsnr-01" and increments later ones by
-     * exploding on "-" (ordrefunc.php:4867-4877); a sagsnr containing its
-     * own dash would desync that split.
+     * `sagsnr` must be a bare integer: opret_ordre() scopes tilbudnr as
+     * max(tilbudnr)+1 filtered by sagsnr (ordrefunc.php, SD-600), and
+     * ordrer.sagsnr is numeric(15,0) - a non-numeric sagsnr wouldn't insert.
      *
      * @param array{id:int,kontonr:string} $debtor
      * @param array<string,mixed> $overrides

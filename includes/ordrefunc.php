@@ -113,6 +113,9 @@
 //             elseif(!$svar) branch, right after $fejl (which is never reassigned), making it
 //             dead code and leaving the committed-success path unchecked; moved it back to
 //             sit unconditionally before the shared return (SD-595)
+// 20260825 CL/SZ functions opret_ordre and opret_ordre_kopi: tilbudnr was built as a hyphenated
+//                "<sagsnr>-01" string against a numeric(15,0) column, failing every insert.
+//                Per Nicolai, replaced with a plain max(tilbudnr)+1 scoped by sagsnr (SD-600)
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -4906,17 +4909,12 @@ function opret_ordre($sag_id, $konto_id)
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
 		exit;
 	}
-	// Her oprettes tilbudsnr
-	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
-		$r = db_fetch_array(db_select("select max(tilbudnr) as tilbudnr from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__));
-		$tilbudsnummer = $r['tilbudnr'];
-		$ny_tilbudnr = explode("-", $tilbudsnummer); // Her fjerner jeg '-', og laver '$ny_tilbudnr' til et array
-		$ny_tilbudnr[1] = sprintf("%02s", ($ny_tilbudnr[1] + 1)); // Her lægges 1 til det sidste nummer. Bruger 'sprintf()' for at sikre et to cifret tal
-		$tilbudnr = implode("-", $ny_tilbudnr); // Her sætter jeg begge numre sammen igen med bindestreg
-	} else {
-		$r = db_fetch_array(db_select("select sagsnr from sager where id = $sag_id", __FILE__ . " linje " . __LINE__));
-		$tilbudnr = $r['sagsnr'] .= '-01'; // bindestreg foran tilbudsnr. database skal ændres fra integer til text
-	}
+	// Her oprettes tilbudsnr. tilbudnr er et revisionsnummer pr. sagsnr (ikke pr.
+	// sag_id) - max(tilbudnr)+1 for sagsnr'et, sa det altid er et rent tal (20260825 CL/SZ, SD-600)
+	$r = db_fetch_array(db_select("select sagsnr from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
+	$sagsnr = $r['sagsnr'];
+	$r = db_fetch_array(db_select("select max(tilbudnr) as tilbudnr from ordrer where sagsnr='$sagsnr'", __FILE__ . " linje " . __LINE__));
+	$tilbudnr = (int)$r['tilbudnr'] + 1;
 	// Her laves nr. Nr bliver brugt til visning af tilbuds-liste i sager.php
 	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
 		$r = db_fetch_array(db_select("select max(nr) as nr from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__));
@@ -4926,7 +4924,6 @@ function opret_ordre($sag_id, $konto_id)
 	}
 	// Her hentes oplysninger fra sager
 	$r = db_fetch_array(db_select("select * from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
-	$sagsnr = $r['sagsnr'];
 	$konto_id = $r['konto_id'];
 	//$firmanavn=htmlspecialchars($r['firmanavn']);
 	//$addr1=htmlspecialchars($r['addr1']);
@@ -5099,17 +5096,12 @@ function opret_ordre_kopi($sag_id, $konto_id)
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
 		exit;
 	}
-	// Her oprettes tilbudsnr
-	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
-		$r = db_fetch_array(db_select("select max(tilbudnr) as tilbudnr from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__));
-		$tilbudsnummer = $r['tilbudnr'];
-		$ny_tilbudnr = explode("-", $tilbudsnummer); // Her fjerner jeg '-', og laver '$ny_tilbudnr' til et array
-		$ny_tilbudnr[1] = sprintf("%02s", ($ny_tilbudnr[1] + 1)); // Her lægges 1 til det sidste nummer. Bruger 'sprintf()' for at sikre et to cifret tal
-		$tilbudnr = implode("-", $ny_tilbudnr); // Her sætter jeg begge numre sammen igen med bindestreg
-	} else {
-		$r = db_fetch_array(db_select("select sagsnr from sager where id = $sag_id", __FILE__ . " linje " . __LINE__));
-		$tilbudnr = $r['sagsnr'] .= '-01'; // bindestreg foran tilbudsnr. database skal ændres fra integer til text
-	}
+	// Her oprettes tilbudsnr. tilbudnr er et revisionsnummer pr. sagsnr (ikke pr.
+	// sag_id) - max(tilbudnr)+1 for sagsnr'et, sa det altid er et rent tal (20260825 CL/SZ, SD-600)
+	$r = db_fetch_array(db_select("select sagsnr from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
+	$sagsnr = $r['sagsnr'];
+	$r = db_fetch_array(db_select("select max(tilbudnr) as tilbudnr from ordrer where sagsnr='$sagsnr'", __FILE__ . " linje " . __LINE__));
+	$tilbudnr = (int)$r['tilbudnr'] + 1;
 	// Her laves nr. Nr bliver brugt til visning af tilbuds-liste i sager.php
 	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
 		$r = db_fetch_array(db_select("select max(nr) as nr from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__));
@@ -5119,7 +5111,6 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	}
 	// Her hentes oplysninger fra sager
 	$r = db_fetch_array(db_select("select * from sager where id='$sag_id'", __FILE__ . " linje " . __LINE__));
-	$sagsnr = $r['sagsnr'];
 	//$konto_id=$r['konto_id'];
 	//$firmanavn=htmlspecialchars($r['firmanavn']);
 	//$addr1=htmlspecialchars($r['addr1']);

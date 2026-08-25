@@ -104,6 +104,9 @@
 // 20260715 PHR Valuta was omittet when copying order
 // 20260806 CX/PHR Show split-order button instead of invoice button when an order is only partly delivered.
 // 20260807 CX/PHR Allow free text in the Att. field while retaining customer contact suggestions.
+// 20260825 CL/SZ tilbudnr is now a per-sagsnr revision number rather than globally unique
+//                (see ordrefunc.php), so the sibling-order lookup here now pairs it with
+//                sagsnr instead of matching on tilbudnr alone (SD-600)
 
 @session_start();
 $s_id = session_id();
@@ -1209,10 +1212,12 @@ if ($b_submit) {
 		db_modify("update ordrer set art='DO' where id='$id'", __FILE__ . " linje " . __LINE__);
 	}
 	if (($godkend == "on") && ($status == 0) && ($art == 'DO' || $art == 'DK') && $sag_id) { # Kopi af original Tilbud. 20140716
-		$r = db_fetch_array(db_select("select tilbudnr from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select("select tilbudnr, sagsnr from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
 
 		$x = 0;
-		$q = db_select("select art from ordrer where tilbudnr = '$r[tilbudnr]'", __FILE__ . " linje " . __LINE__);
+		// 20260825 CL/SZ tilbudnr is now a revision number scoped to sagsnr, not globally
+		//                unique, so it must be paired with sagsnr here too (SD-600)
+		$q = db_select("select art from ordrer where tilbudnr = '$r[tilbudnr]' and sagsnr = '$r[sagsnr]'", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$art_tjk[$x] = $r['art'];
 			$x++;

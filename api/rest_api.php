@@ -69,6 +69,8 @@
 //                surface) and narrowed fetch_from_table() to the one known
 //                query shape actually used; hardened the access_check() API
 //                key comparison (SD-589)
+// 20260825 CL/SZ insert_shop_order(): default a missing gruppe to 1, matching
+//                OrderService::createNewDebtor()'s JWT-path default (SD-600, per Nicolai)
 
 
 // ----------------------------------------------------------------------
@@ -1166,6 +1168,7 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$valuta         = if_isset($_GET['valuta']);
 			$valutakurs     = if_isset($_GET['valutakurs']);
 			$gruppe         = if_isset($_GET['gruppe']);
+			if (!$gruppe) $gruppe = 1; // 20260825 CL/SZ default like the JWT path (OrderService::createNewDebtor()) - a missing gruppe otherwise threw a Postgres integer error creating a new debtor (SD-600, per Nicolai)
 			$nettosum       = if_isset($_GET['nettosum'])*1;
 			$momssum        = if_isset($_GET['momssum'])*1;
 			$projekt        = if_isset($_GET['projekt']);
