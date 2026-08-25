@@ -105,6 +105,7 @@
 // 20260806 CX/PHR Show split-order button instead of invoice button when an order is only partly delivered.
 // 20260807 CX/PHR Allow free text in the Att. field while retaining customer contact suggestions.
 // 20260825 CL/SZ tilbudnr is now a per-sagsnr revision number rather than globally unique
+// 20260825 CL/SZ SD-600: "New order" insert now goes through includes/order_creation.php
 //                (see ordrefunc.php), so the sibling-order lookup here now pairs it with
 //                sagsnr instead of matching on tilbudnr alone (SD-600)
 
@@ -217,6 +218,7 @@ if (!empty($_GET['sag_id']) || !empty($_POST['sag_id'])) {
 
 include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
+include("../includes/order_creation.php");
 
 function bg_display_name($sprog_value) {
 	global $sprog_id;
@@ -791,16 +793,55 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$ordredate = date("Y-m-d");
 	$vis_lev_addr = '';
 	$afd = (int)$afd;
-	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
-	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,hvem,";
-	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
-	$qtxt .= "lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,procenttillag,omvbet)";
-	$qtxt .= " values ";
-	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
-	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','$ref','$hvem',";
-	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
-	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	order_creation_create(array(
+		'ordrenr' => $ordrenr,
+		'konto_id' => $konto_id,
+		'kontonr' => $kontonr,
+		'firmanavn' => $firmanavn,
+		'addr1' => $addr1,
+		'addr2' => $addr2,
+		'postnr' => $postnr,
+		'bynavn' => $bynavn,
+		'land' => $land,
+		'betalingsdage' => $betalingsdage,
+		'betalingsbet' => $betalingsbet,
+		'cvrnr' => $cvrnr,
+		'ean' => $ean,
+		'institution' => $institution,
+		'email' => $email,
+		'mail_fakt' => $mail_fakt,
+		'phone' => $phone,
+		'notes' => $notes,
+		'art' => 'DO',
+		'ordredate' => $ordredate,
+		'momssats' => $momssats,
+		'tidspkt' => $tidspkt,
+		'ref' => $ref,
+		'hvem' => $hvem,
+		'valuta' => $valuta,
+		'sprog' => $formularsprog,
+		'kontakt' => $kontakt,
+		'pbs' => $pbs,
+		'afd' => $afd,
+		'status' => '0',
+		'restordre' => '0',
+		'lev_navn' => $lev_firmanavn,
+		'lev_addr1' => $lev_addr1,
+		'lev_addr2' => $lev_addr2,
+		'lev_postnr' => $lev_postnr,
+		'lev_bynavn' => $lev_bynavn,
+		'lev_land' => $lev_land,
+		'lev_email' => $lev_email,
+		'lev_kontakt' => $lev_kontakt,
+		'vis_lev_addr' => $vis_lev_addr,
+		'felt_1' => $felt_1,
+		'felt_2' => $felt_2,
+		'felt_3' => $felt_3,
+		'felt_4' => $felt_4,
+		'felt_5' => $felt_5,
+		'procenttillag' => $default_procenttillag,
+		'omvbet' => $omkunde,
+	));
 
 	# Porto vare system
 	## Create a new order line on creation from the specified sku
