@@ -71,6 +71,11 @@
 //                key comparison (SD-589)
 // 20260825 CL/SZ insert_shop_order(): default a missing gruppe to 1, matching
 //                OrderService::createNewDebtor()'s JWT-path default (SD-600, per Nicolai)
+// 20260825 CL/SZ insert_shop_order(): "insert into ordrer" now goes through
+//                includes/order_creation.php's order_creation_create(), with a
+//                sql_filter option preserving the existing whole-string
+//                chk4utf8() call. Debtor/shop_adresser lookup+creation above it
+//                is untouched (SD-600)
 
 
 // ----------------------------------------------------------------------
@@ -80,6 +85,7 @@ date_default_timezone_set('Europe/Copenhagen');
 include("../includes/connect.php");
 include("../includes/db_query.php");
 include("../includes/std_func.php");
+include("../includes/order_creation.php");
 
 $db=NULL;
 $db_skriv_id=1;
@@ -367,30 +373,56 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	}
 	if (strtolower($betalingsbet) == 'kreditkort') $betalingsbet = 'Kreditkort';
 	fwrite($log,__line__." afd $afd\n");
-	$qtxt = "insert into ordrer ";
-	$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,";
-	$qtxt.= "addr2,postnr,bynavn,land,";
-	$qtxt.= "kontakt,email,udskriv_til,art,projekt,momssats,betalingsbet,";
-	$qtxt.= "betalingsdage,betalings_id,status,ordredate,valuta,valutakurs,afd,ref,hvem,";
-	$qtxt.= "felt_1,felt_2,felt_3,felt_4,felt_5,kundeordnr,cvrnr,ean,sum,moms,"; 
-	$qtxt.= "lev_navn,lev_addr1,lev_addr2,";
-	$qtxt.= "lev_postnr,lev_bynavn,lev_kontakt,";
-	$qtxt.= "tidspkt,phone,shop_status,shop_id,notes,sprog)";
-	$qtxt.= " values ";
-	$qtxt.= "('$ordrenr','$saldi_addr_id','$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."',";
-	$qtxt.= "'".db_escape_string($addr2)."','".db_escape_string($postnr)."','".db_escape_string($bynavn)."',";
-	$qtxt.= "'".db_escape_string($land)."','".db_escape_string($kontakt)."','".db_escape_string($email)."',";
 	$initial_status = ($art == 'DK') ? '1' : '0';
-	$qtxt.= "'$udskriv_til','$art','$projektnr','$momssats','$betalingsbet','$betalingsdage','$betalings_id','$initial_status',";
-	$qtxt.= "'$ordredate','$valuta','$valutakurs','$afd','$ref','','$ekstra1','$ekstra2','$ekstra3',";
-	$qtxt.= "'$ekstra4','$ekstra5','$shop_fakturanr','$cvrnr','$ean','$nettosum','$momssum',";
-	$qtxt.= "'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
-	$qtxt.= "'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_kontakt)."',";
-	$qtxt.= "'".db_escape_string($tidspkt)."','".db_escape_string($tlf)."','$shop_status',";
-	$qtxt.= "'$shopOrderId','".db_escape_string($notes)."','$sprog')";
-	fwrite($log,__line__." $qtxt\n");
-	$qtxt=chk4utf8 ($qtxt);
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	order_creation_create(array(
+		'ordrenr' => $ordrenr,
+		'konto_id' => $saldi_addr_id,
+		'kontonr' => $kontonr,
+		'firmanavn' => db_escape_string($firmanavn),
+		'addr1' => db_escape_string($addr1),
+		'addr2' => db_escape_string($addr2),
+		'postnr' => db_escape_string($postnr),
+		'bynavn' => db_escape_string($bynavn),
+		'land' => db_escape_string($land),
+		'kontakt' => db_escape_string($kontakt),
+		'email' => db_escape_string($email),
+		'udskriv_til' => $udskriv_til,
+		'art' => $art,
+		'projekt' => $projektnr,
+		'momssats' => $momssats,
+		'betalingsbet' => $betalingsbet,
+		'betalingsdage' => $betalingsdage,
+		'betalings_id' => $betalings_id,
+		'status' => $initial_status,
+		'ordredate' => $ordredate,
+		'valuta' => $valuta,
+		'valutakurs' => $valutakurs,
+		'afd' => $afd,
+		'ref' => $ref,
+		'hvem' => '',
+		'felt_1' => $ekstra1,
+		'felt_2' => $ekstra2,
+		'felt_3' => $ekstra3,
+		'felt_4' => $ekstra4,
+		'felt_5' => $ekstra5,
+		'kundeordnr' => $shop_fakturanr,
+		'cvrnr' => $cvrnr,
+		'ean' => $ean,
+		'sum' => $nettosum,
+		'moms' => $momssum,
+		'lev_navn' => db_escape_string($lev_firmanavn),
+		'lev_addr1' => db_escape_string($lev_addr1),
+		'lev_addr2' => db_escape_string($lev_addr2),
+		'lev_postnr' => db_escape_string($lev_postnr),
+		'lev_bynavn' => db_escape_string($lev_bynavn),
+		'lev_kontakt' => db_escape_string($lev_kontakt),
+		'tidspkt' => db_escape_string($tidspkt),
+		'phone' => db_escape_string($tlf),
+		'shop_status' => $shop_status,
+		'shop_id' => $shopOrderId,
+		'notes' => db_escape_string($notes),
+		'sprog' => $sprog,
+	), array('sql_filter' => 'chk4utf8'));
 	$qtxt="select id from ordrer where ordrenr='$ordrenr' and kontonr='$kontonr'";
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
