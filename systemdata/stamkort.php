@@ -223,8 +223,8 @@ print "</td></tr>";
 print "<tr><td>FI ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fi_nr\" value=\"$fi_nr\"></td></tr>";
 print "<td>Reg./".findtekst('592|Konto', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:50;' name=\"bank_reg\" value=\"$bank_reg\">";
 print "<input class=\"inputbox\" type=\"text\" style='width:100;' name=\"bank_konto\" value=\"$bank_konto\"></td></tr>";
-$tekst=findtekst('5076|Medtages på eFaktura når udfyldt', $sprog_id);
-print "<tr><td title=\"$tekst\">".findtekst('5075|IBAN', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' maxlength=\"40\" name=\"iban\" value=\"$iban\" title=\"$tekst\"></td></tr>";
+$tekst=findtekst('3367|Medtages på eFaktura når udfyldt', $sprog_id);
+print "<tr><td title=\"$tekst\">IBAN</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' maxlength=\"40\" name=\"iban\" value=\"$iban\" title=\"$tekst\"></td></tr>";
 print "<tr><td title=\"$tekst\">".findtekst('2228|SWIFT nr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' maxlength=\"15\" name=\"swift\" value=\"$swift\" title=\"$tekst\"></td></tr>";
 
 checkUserAndSetCountryConfig($countryConfig, $superUserPermission);
