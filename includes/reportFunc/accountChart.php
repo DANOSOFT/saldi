@@ -28,6 +28,9 @@
 // 20251002 MS Removed "Width=80%" and added padding to allow the Print/Email buttons to have the intended size, while still centering the text
 // 20260423 PHR Corrected call to text number for text
 // 20260429 PHR Removed 'unalign' from Openpost / AllAcount
+// 20260824 CL/SZ Restore caller's dato_fra/dato_til (not just konto_fra/til)
+//                when the saved KRV/DRV filter overwrites them - detail view
+//                was silently running against a stale date range (SST-672)
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -83,6 +86,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 	else $returnpath="../debitor/";
 
 	$tmp=$konto_fra;
+	$tmpDatoFra=$dato_fra;
+	$tmpDatoTil=$dato_til;
 	($kontoart=='D')?$tekst='DRV':$tekst='KRV';
 	$qtxt = "select * from grupper where art = '$tekst' and kodenr = '$bruger_id'";
 	if(isset($_GET['returside'])) $returside= $_GET['returside'];
@@ -105,6 +110,8 @@ if ($bruger_id == -1) echo "$qtxt<br>";
 		$returside="rapport.php?rapportart=$rapportart"; //&submit=ok&regnaar=$regnaar&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 		$konto_fra=$tmp;
 		$konto_til=$konto_fra;
+		$dato_fra=$tmpDatoFra;
+		$dato_til=$tmpDatoTil;
 	} elseif (!$returside) $returside="rapport.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 
 	if ($dato_fra && $dato_til) {
