@@ -38,6 +38,10 @@
 //                  the other four aging columns.
 // 20260812 Sawaneh Review: the firm-name search folds case with mb_strtolower/mb_strtoupper,
 //                  so names containing ae, oe or aa match regardless of case.
+// 20260824 CL/SZ Re-derive valutakurs from the valuta table when a foreign-
+//                currency row has kurs=100 (uncaptured rate), instead of
+//                treating it as 1:1 DKK parity - was producing DKK totals
+//                wildly out of sync with kontokort/accountChart (SST-672)
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -284,8 +288,17 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				$aligned = 0;
 			}
 			if (!$aligned) $accountAligned = 0;
-      if ((float)$r['valutakurs'] && $r['valuta']!='-') {
-				$kontrolAmount=afrund($r['amount']*$r['valutakurs']/100,2); //2012.03.30 afrunding rettet til 2 (Ørediff hos saldi_390) 
+			if ($r['valuta']) $valuta=$r['valuta']; // <- 2009.05.05
+			else $valuta=$baseCurrency;
+			if ($r['valutakurs']) $valutakurs=$r['valutakurs'];
+			else $valutakurs=100;
+			if ($valuta!=$baseCurrency && $valutakurs==100) { // 20260824 CL/SZ kurs=100 on a foreign-currency row is the "no real rate captured" placeholder, not parity - re-derive it like accountChart.php/generalLedger.php do (SST-672)
+				$r3=db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'",__FILE__ . " linje " . __LINE__));
+				$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r3[kodenr]' and valdate <= '$r[transdate]' order by valdate desc",__FILE__ . " linje " . __LINE__));
+				if ($r3['kurs']) $valutakurs=$r3['kurs']*1;
+			}
+			if ((float)$valutakurs && $r['valuta']!='-') {
+				$kontrolAmount=afrund($r['amount']*$valutakurs/100,2); //2012.03.30 afrunding rettet til 2 (Ørediff hos saldi_390)
 			} else {
 				$kontrolAmount=afrund($r['amount'],2);
 			}
@@ -306,11 +319,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				$oid=$r['id'];
 
 				$transdate=$r['transdate'];
-				
-				if ($r['valuta']) $valuta=$r['valuta']; // <- 2009.05.05
-				else $valuta=$baseCurrency;
-				if ($r['valutakurs']) $valutakurs=$r['valutakurs'];
-				else $valutakurs=100;
+
 #				$accountAligned="0";
 				($valuta==$baseCurrency)?$amount=afrund($r['amount'],2):$amount=afrund($r['amount'],3); //2012.04.03 se saldi_
 				if (!$forfaldsdag && $kontoart=='D' && $amount < 0) $forfaldsdag=$r['transdate'];
