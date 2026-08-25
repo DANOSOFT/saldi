@@ -37,6 +37,7 @@
 // 20260703 NTR - Added filtering out lines with 0 amount and not just empty description, so if either is empty, the line will be skipped. This is to avoid sending empty lines to EasyUBL, which I suspect crashes their code.
 // 20260706 CL/NTR - Changed the way headers are captured from EasyUBL responses, using CURLOPT_HEADERFUNCTION instead of splitting the header string, which can mis-split on HTTP/2 responses. This should improve reliability of header capture.
 // 20260722 NTR - Changed logic of antal 0 lines, from dropping the lines to changing their antal to 1 as well as changing price to 0, to try and avoid errors.
+// 20260825 - NTR - Set isAllowanceCharge based on price sign (negative price indicates allowance/charge)
 
     @session_start();
     $s_id=session_id();
@@ -789,7 +790,7 @@
                 "description" => $beskrivelse,
                 "accountingCost" => "",
                 "commodityCode" => "",
-                "isAllowanceCharge" => false,
+                "isAllowanceCharge" => $price >= 0 ? false : true, // 20260825 - NTR - Set isAllowanceCharge based on price sign (negative price indicates allowance/charge)
                 "item" => [
                     "buyersItemID" => "",
                     "sellersItemID" => ($res["varenr"] != "" && $res["varenr"] != null && $res["varenr"] != "null") ? strval($res["varenr"]) : "",
