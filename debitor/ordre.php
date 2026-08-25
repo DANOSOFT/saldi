@@ -281,7 +281,7 @@ if (isset($_POST['create_debtor'])) {
 	$email = if_isset($_POST['email']);
 	$phone = if_isset($_POST['phone']);
 	if (substr($email, 0, 11) == "debitoripad") {
-		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='$_GET[id]'", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$email = $r["email"];
 		$phone = $r["phone"];
@@ -317,7 +317,7 @@ if (isset($_POST['create_debtor'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_active_pricelist_file'])) {
-	$selectedId = $_POST['change_active_pricelist_file'];
+	$selectedId = (int)$_POST['change_active_pricelist_file']; // SD-639: was raw request input in SQL
 	db_modify("UPDATE grupper SET box4 = '' WHERE art = 'PL'", __FILE__ . " linje " . __LINE__);
 	db_modify("UPDATE grupper SET box4 = 'Yes' WHERE id = '" . $selectedId . "'", __FILE__ . " linje " . __LINE__);
 	error_log("Updated successfully for ID: " . htmlspecialchars($selectedId));
@@ -494,9 +494,9 @@ if (isset($_GET['vis_lev_addr']) && $id) {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 if (($kontakt = if_isset($_GET, NULL, 'kontakt')) && ($id)) {
-	db_modify("update ordrer set kontakt='$kontakt' where id='$id'", __FILE__ . " linje " . __LINE__);
+	db_modify("update ordrer set kontakt='" . db_escape_string($kontakt) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
 	if (isset($_GET['email']) && $_GET['email']) {
-		db_modify("update ordrer set email='$_GET[email]' where id='$id'", __FILE__ . " linje " . __LINE__);
+		db_modify("update ordrer set email='" . db_escape_string($_GET['email']) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
 	}
 }
 
@@ -888,7 +888,7 @@ elseif (isset($_POST['send']) && $_POST['send']) $b_submit = 'Send';
 else $b_submit  = if_isset($_POST, NULL, 'b_submit');
 if ($b_submit == 'Credit') $b_submit = 'Krediter';
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
-	$id = $_POST['id'];
+	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
 	$sum = if_isset($_POST, NULL, 'sum');
 	file_put_contents('../temp/debug_kreditnota.txt', date('H:i:s')." === NEW REQUEST === b_submit=$b_submit id=$id status=".if_isset($_POST,0,'status')." linjeantal=".if_isset($_POST,0,'linjeantal')."\n", FILE_APPEND);
 
@@ -900,7 +900,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$email = str_replace(' ', '', $email);
 	$email = db_escape_string($email);
 	if (substr($email, 0, 11) == "debitoripad") {
-		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='$_GET[id]'", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$email = $r["email"];
 		$phone = $r["phone"];
@@ -918,7 +918,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		alert("" . findtekst('1825|telefonummer må maks være på 15 cifre', $sprog_id) . "");
 		$phone = substr($phone, 0, 15);
 	}
-	$udskriv_til = $_POST['udskriv_til'];
+	$udskriv_til = db_escape_string($_POST['udskriv_til']); // SD-639: reaches an UPDATE ordrer statement below unescaped
 	if ($udskriv_til == 'localPrint') {
 		setcookie('localPrint', 'on', time() + 10000000000, '/', 'saldi.dk');
 		$localPrint = 'on';
@@ -927,7 +927,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		setcookie('localPrint', 'off', time() + 10, '/', 'saldi.dk');
 		$localPrint = NULL;
 	}
-	$formularsprog = if_isset($_POST, ($current_user_sprog ? $current_user_sprog : 'Dansk'), 'sprog'); # 2022113 Tilføjet 'sprog
+	$formularsprog = db_escape_string(if_isset($_POST, ($current_user_sprog ? $current_user_sprog : 'Dansk'), 'sprog')); # 2022113 Tilføjet 'sprog # SD-639: reaches an UPDATE ordrer statement below unescaped
 	$mail_bilag = if_isset($_POST, NULL, 'mail_bilag'); # 20131122 Tilføjet 'mail_bilag'
 	$genfakt = if_isset($_POST, NULL, 'genfakt');
 	if ($genfakt == '') $genfakt = '-';
@@ -960,6 +960,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	if (strlen((string)$pbs) > 2)        $pbs        = substr((string)$pbs, 0, 2);
 	if (strlen((string)$mail_fakt) > 2)  $mail_fakt  = substr((string)$mail_fakt, 0, 2);
 	if (strlen((string)$mail_bilag) > 2) $mail_bilag = substr((string)$mail_bilag, 0, 2);
+	$mail_bilag = db_escape_string($mail_bilag); // SD-639: raw request input, was reaching the UPDATE below unescaped - escaped AFTER the clamp above so a truncation can never land mid-escape-sequence
 	$qtxt = "update ordrer set sprog = '$formularsprog', email='$email',mail_fakt='$mail_fakt',phone='$phone',pbs='$pbs',";
 	$qtxt .= "udskriv_til='$udskriv_til',  mail_bilag='$mail_bilag',ean='$ean' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -970,7 +971,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	}
 }
 if (isset($_POST['opdat_mailtext'])) {
-	$id = $_POST['id'];
+	$id = (int)$_POST['id']; // SD-639: was raw request input reaching several SQL sinks in this handler unescaped
 	$mail_subj = db_escape_string(if_isset($_POST['mail_subj']));
 	$mail_text = db_escape_string(str_replace("\n", "<br>", if_isset($_POST['mail_text'])));
 	db_modify("update ordrer set mail_subj='$mail_subj',mail_text='$mail_text' where id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1024,7 +1025,7 @@ if ($b_submit) {
 	$ordrenr = $_POST['ordrenr'];
 	$kred_ord_id = $_POST['kred_ord_id'];
 	$art = $_POST['art'];
-	$kontonr = if_isset($_POST, 0, 'kontonr'); //don't cast to int, until tables are all updated such that no values like; 002343, 0048322, etc. which are currently valid, but would be changed if cast to int.
+	$kontonr = db_escape_string(if_isset($_POST, 0, 'kontonr')); //don't cast to int, until tables are all updated such that no values like; 002343, 0048322, etc. which are currently valid, but would be changed if cast to int. # SD-639: was raw request input reaching the SQL below unescaped
 	$rb = if_isset($_POST, 0, 'konto_id');
 	$konto_id = (int)$rb; #20210719
 	if ($id && $kontonr && !$konto_id) { #20150222
@@ -1054,7 +1055,7 @@ if ($b_submit) {
 		$phone = substr($phone, 0, 15);
 	}
 	if (substr($email, 0, 11) == "debitoripad") {
-		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='$_GET[id]'", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$email = $r["email"];
 		$phone = $r["phone"];
@@ -1082,6 +1083,7 @@ if ($b_submit) {
 	else $lev_bynavn = db_escape_string($lev_bynavn);
 	$lev_kontakt = if_isset($_POST, NULL, 'lev_kontakt') ? db_escape_string(trim($_POST['lev_kontakt'])) : '';
 	$vis_lev_addr = if_isset($_POST, NULL, 'vis_lev_addr');
+	if ($vis_lev_addr != 'on') $vis_lev_addr = ''; // ordrer.vis_lev_addr er varchar(2) ('on'/''): 'off' fra gemt brugerindstilling overflow'er og vaelter hele ordre-opdateringen
 	update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
 	$felt_1 = db_escape_string(trim($_POST['felt_1']));
@@ -5262,7 +5264,7 @@ function ordreside($id, $regnskab)
 			<label style="white-space:nowrap;cursor:pointer;"><?= htmlspecialchars(findtekst('355|Vis leveringsadresse', $sprog_id)) ?>
 			<input type="checkbox" id="vis_lev_addr" name="vis_lev_addr" value="on" <?= $vis_addr == 'on' ? 'checked' : '' ?> onchange="document.getElementById('submit').click();"></label>
 		<?php } else { ?>
-			<input type='hidden' id='vis_lev_addr' name='vis_lev_addr' value='<?= $vis_addr ?? 'on' ?>'><input type="button" onclick="
+			<input type='hidden' id='vis_lev_addr' name='vis_lev_addr' value='<?= ($vis_addr ?? '') == 'on' ? 'on' : '' ?>'><input type="button" onclick="
 			var field = document.getElementById('vis_lev_addr');
 			field.value = field.value === 'on' ? '' : 'on';
 			document.getElementById('submit').click();"

@@ -35,6 +35,66 @@
 // 20260706 MJ Paginated and batched debtor open items report queries for large databases.
 // 20260807 CL/NTR Gave the two variants of this table an id (visAabnePosterTableT / visAabnePosterTable) for future reference; padding for this grid comes from rapportfunc.php's #opGridWrapper.
 // 20260824 CL/NTR Flush the grid header to the client (ob_flush + flush, draining php.ini's output_buffering) before the heavy count/page queries, so the table skeleton is visible while the SQL runs.
+// 20260809 Sawaneh Escaped account filter before it reaches SQL and when it is re-emitted into
+//                  links/hidden fields. The 0-8 column now honours the same open-at-date rule as
+//                  the other four aging columns.
+// 20260812 Sawaneh Review: the firm-name search folds case with mb_strtolower/mb_strtoupper,
+//                  so names containing ae, oe or aa match regardless of case.
+
+if (!function_exists('openpost_account_filter')) {
+/**
+ * Normalizes the account filter of the open posts report into SQL-safe fragments.
+ *
+ * A numeric range is range-validated and cast to int. A firm-name search is escaped with
+ * db_escape_string(), and the LIKE metacharacters the user typed (%, _ and \) are neutralized
+ * before '*' is translated into '%'. Only '*' therefore acts as a wildcard, which is the
+ * wildcard the report has always documented.
+ *
+ * @param string|null $konto_fra  Start of the account number range, or a firm-name search pattern.
+ * @param string|null $konto_til  End of the account number range. Only used when both ends are numeric.
+ * @param string      $kontoart   Address type: 'D' for debtors, 'K' for creditors.
+ * @return array{
+ *   where: string,  Predicate on adresser, safe to interpolate into a query.
+ *   order: string,  Expression the accounts are sorted by.
+ * }
+ */
+function openpost_account_filter($konto_fra, $konto_til, $kontoart) {
+	$maxKontonr = 999999999999999; // widest value nr_cast() can convert on postgresql
+	$artEscaped = db_escape_string((string)$kontoart);
+	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
+		$range = array();
+		foreach (array($konto_fra, $konto_til) as $number) {
+			$number = (float)$number;
+			if ($number > $maxKontonr) $number = $maxKontonr;
+			elseif ($number < -$maxKontonr) $number = -$maxKontonr;
+			$range[] = (int)$number;
+		}
+		list($fra, $til) = $range;
+		return array(
+			'where' => nr_cast('adresser.kontonr')." >= '$fra' and ".nr_cast('adresser.kontonr')." <= '$til' and adresser.art = '$artEscaped'",
+			'order' => nr_cast('adresser.kontonr')
+		);
+	}
+	if ($konto_fra && $konto_fra != '*') {
+		$search = (string)$konto_fra;
+		$pattern = array();
+		// mb_ variants, not strtolower()/strtoupper(): those only fold ASCII, so a
+		// search for 'aarhus bageri' would miss 'Aarhus Bageri' the moment the name
+		// contains an æ, ø or å. db_escape_string() already requires mbstring.
+		foreach (array($search, mb_strtolower($search, 'UTF-8'), mb_strtoupper($search, 'UTF-8')) as $variant) {
+			$pattern[] = str_replace('*', '%', db_escape_string(addcslashes($variant, '\\%_')));
+		}
+		return array(
+			'where' => "(adresser.firmanavn like '$pattern[0]' or lower(adresser.firmanavn) like '$pattern[1]' or upper(adresser.firmanavn) like '$pattern[2]') and adresser.art = '$artEscaped'",
+			'order' => "adresser.firmanavn"
+		);
+	}
+	return array(
+		'where' => "adresser.art = '$artEscaped'",
+		'order' => "adresser.firmanavn"
+	);
+}
+}
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit,$vis_alle=false) {
@@ -61,6 +121,15 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$forfaldsum=$forfaldsum_plus8=$forfaldsum_plus30=$forfaldsum_plus60=$forfaldsum_plus90=$fromdate=$linjebg=$popup=$todate=NULL;
 	
 	
+	$dato_fraUrl=rawurlencode((string)$dato_fra);
+	$dato_tilUrl=rawurlencode((string)$dato_til);
+	$konto_fraUrl=rawurlencode((string)$konto_fra);
+	$konto_tilUrl=rawurlencode((string)$konto_til);
+	$dato_fraHtml=htmlspecialchars((string)$dato_fra,ENT_QUOTES);
+	$dato_tilHtml=htmlspecialchars((string)$dato_til,ENT_QUOTES);
+	$konto_fraHtml=htmlspecialchars((string)$konto_fra,ENT_QUOTES);
+	$konto_tilHtml=htmlspecialchars((string)$konto_til,ENT_QUOTES);
+
 	if ($menu=='T') {
 		print "<tr><td><div class='dataTablediv'><table id='visAabnePosterTableT' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
 		print "<tr><th>Kontonr.</th>";
@@ -73,9 +142,9 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		if ($usePBS) {
 			$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
 			if ($showPBS) {
-				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&showPBS=0'>skjul BS</a></td>";
+				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=0'>skjul BS</a></td>";
 			} else {
-				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&showPBS=1'>vis BS</a></td>";
+				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=1'>vis BS</a></td>";
 			}
 		}
 		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
@@ -108,19 +177,9 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	}
 
 	$accountPosts=$accountIndex=array();
-	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
-		$accountWhere = nr_cast('adresser.kontonr')." >= '$konto_fra' and ".nr_cast('adresser.kontonr')." <= '$konto_til' and adresser.art = '$kontoart'";
-		$accountOrder = nr_cast('adresser.kontonr');
-	} elseif ($konto_fra && $konto_fra!='*') {
-		$konto_fra=str_replace("*","%",$konto_fra);
-		$tmp1=strtolower($konto_fra);
-		$tmp2=strtoupper($konto_fra);
-		$accountWhere = "(adresser.firmanavn like '$konto_fra' or lower(adresser.firmanavn) like '$tmp1' or upper(adresser.firmanavn) like '$tmp2') and adresser.art = '$kontoart'";
-		$accountOrder = "adresser.firmanavn";
-	} else {
-		$accountWhere = "adresser.art = '$kontoart'";
-		$accountOrder = "adresser.firmanavn";
-	}
+	$accountFilter = openpost_account_filter($konto_fra,$konto_til,$kontoart);
+	$accountWhere = $accountFilter['where'];
+	$accountOrder = $accountFilter['order'];
 	if (!$showPBS) $accountWhere.= " and (adresser.pbs_nr is NULL or adresser.pbs_nr = '' or adresser.pbs_nr = '0')";
 	if ($kontoart=='D') $tmp="";
 	else $tmp="desc";
@@ -194,7 +253,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$displayFirst=($kontoantal) ? $openpostOffset+1 : 0;
 	$displayLast=min($kontoantal, $openpostOffset+$pageAccountCount);
 	$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
-	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til$openpostContentParam&openpost_page_size=$openpostPageSize";
+	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&openpost_page_size=$openpostPageSize";
 	if ($vis_alle) $basePageUrl.="&vis_alle_poster=on";
 	elseif ($kun_debet) $basePageUrl.="&kun_debet=on";
 	elseif ($kun_kredit) $basePageUrl.="&kun_kredit=on";
@@ -279,7 +338,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				}
 				list($forfaldsdag_plus8,$forfaldsdag_plus30,$forfaldsdag_plus60,$forfaldsdag_plus90)=$agingDateCache[$agingKey];
 				if ($forfaldsdag<$todate){$rykkerbelob=$rykkerbelob+$amount;}
-				if (($forfaldsdag<$todate)&&($forfaldsdag_plus8>$todate)){
+				if (!$aligned && $forfaldsdag<$todate && $forfaldsdag_plus8>$todate) {
 					$forfalden=$forfalden+$amount;
 				}
 				if (!$aligned && $forfaldsdag_plus8<=$todate && $forfaldsdag_plus30>$todate ) {
@@ -316,8 +375,9 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$formIndex++;
 			print "<tr bgcolor=\"$linjebg\">";
 			print "<input type=hidden name='konto_id[$formIndex]' value='$konto_id[$x]'>";
-			print "<td><a href=rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$konto_fra&kilde_kto_til=$konto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$kontonr[$x]&konto_til=$kontonr[$x]&submit=ok>";
-			print "<span title='Klik for detaljer'>$kontonr[$x]</span></a></td>";
+			$kontonrUrl=rawurlencode($kontonr[$x]);
+			print "<td><a href=\"rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$konto_fraUrl&kilde_kto_til=$konto_tilUrl&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$kontonrUrl&konto_til=$kontonrUrl&submit=ok\">";
+			print "<span title='Klik for detaljer'>".htmlspecialchars($kontonr[$x],ENT_QUOTES)."</span></a></td>";
 			if ($usePBS) print "<td>$pbs[$x]</td>";
 			print "<td>$firmanavn[$x]</td>";
 			$forfalden_plus90=afrund($forfalden_plus90,2);
@@ -371,7 +431,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			} else $tmp=dkdecimal($y,2);
 			if ($accountAligned=="0" && abs($openY)<0.01 && abs($openKontrol)<0.01) {
 				$udlign.=$konto_id[$x].",";
-				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&udlign=$konto_id[$x]\">$tmp</a></td>";
+				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl&udlign=$konto_id[$x]\">$tmp</a></td>";
 			}
 			else {print "<td align=right>$tmp</td>";}
 			if ((isset($kontoudtog[$x]) && $kontoudtog[$x]=='on') && ($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$formIndex] checked><span class='checkmarkOrdreliste'></span></label>";
@@ -426,10 +486,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	print "<td align=right><span style='color: $color;'>$tmp</span>";
 	print "<td align=right></td>";
 	print "<input type=hidden name=rapportart value=\"openpost\">";
-	print "<input type=hidden name=dato_fra value=$dato_fra>";
-	print "<input type=hidden name=dato_til value=$dato_til>";
-	print "<input type=hidden name=konto_fra value=$konto_fra>";
-	print "<input type=hidden name=konto_til value=$konto_til>";
+	print "<input type=hidden name=dato_fra value=\"$dato_fraHtml\">";
+	print "<input type=hidden name=dato_til value=\"$dato_tilHtml\">";
+	print "<input type=hidden name=konto_fra value=\"$konto_fraHtml\">";
+	print "<input type=hidden name=konto_til value=\"$konto_tilHtml\">";
 	print "<input type=hidden name=kontoantal value=$formIndex>";
 	print "<input type=hidden name=openpost_page value=$openpostPage>";
 	print "<input type=hidden name=openpost_page_size value=$openpostPageSize></td></tr>";
