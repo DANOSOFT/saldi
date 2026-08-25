@@ -37,6 +37,8 @@
 // 20260804 SZ transaktion(): only reset $db_modify_fejl on the outermost 'begin' (track nesting
 //             depth), so bogfor()'s own inner begin/commit no longer erases a failure recorded
 //             by the caller's outer transaction before bogfor() ran (SD-595)
+// 20260820 Sawaneh The fallback alert text used the HTML entity &aelig;, which JS alert() shows
+//                  literally; replaced with a literal æ like the rest of the string
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -239,7 +241,7 @@ if (!function_exists('db_modify')) {
 					#mysqli_query($connection, "ROLLBACK");
 				#}
 						
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208";
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if ($webservice) {
 					global $db_modify_fejl; #20260729 SZ surface write failures so posting-path callers can detect a failed statement even though they don't check this return value (SD-595)
 					$db_modify_fejl = true;
@@ -326,12 +328,12 @@ if (!function_exists('db_select')) {
 					fwrite($ff,date("U")."\n");
 					fclose($ff);
 				} 
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
 				alert("$alerttekst");
 			} else {
 				#	$customAlertText saettes i connect.php;
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				echo $fejltxt; 
 				alert("$alerttekst");
 				exit;
