@@ -121,7 +121,7 @@ class OrderService
             $order->setArt($mappedData->art ?? 'DO');
             
             // Check if user exists by phone number and get/create konto_id and kontonr
-            $debtorInfo = self::getOrCreateDebtor($mappedData);
+            $debtorInfo = self::getOrCreateDebtor($mappedData, $order->getArt());
             if ($debtorInfo === false) {
                 return ['success' => false, 'message' => 'Failed to create or find debtor'];
             }
@@ -187,7 +187,11 @@ class OrderService
             // Set system fields
             $order->setRef(self::getSaldiUser());
             $order->setStatus($mappedData->status ?? 0);
-            $order->setOrdrenr(self::getNextOrderNumber());
+            // order_creation_allocate_number() wraps the real, locked,
+            // art-scoped get_next_order_number() (includes/std_func.php) -
+            // replaces this class's own unscoped, unlocked
+            // "MAX(ordrenr) FROM ordrer" (SD-600 step 5b)
+            $order->setOrdrenr(order_creation_allocate_number($order->getArt()));
 
             // Save the order
             if ($order->save()) {
@@ -204,11 +208,14 @@ class OrderService
     /**
      * Get existing debtor or create new one if not found
      * According to ordrer.txt: check tlf in adresser, if exists use id and kontonr, if not create new
-     * 
+     *
      * @param object $data Order data
+     * @param string $orderArt The order's own art (e.g. 'DO', 'KO') - only used
+     *   if a new debtor must be created, to decide its own art via
+     *   order_creation_debtor_art_for_order_art() (SD-600 step 5c)
      * @return array|false Debtor info (id, kontonr, betalingsbet, betalingsdage) or false on error
      */
-    private static function getOrCreateDebtor($mappedData)
+    private static function getOrCreateDebtor($mappedData, $orderArt)
     {
         // First, check if user exists by phone number
         $existingDebtor = null;
@@ -249,7 +256,7 @@ class OrderService
                 ];
             } else {
                 // User doesn't exist, create new debtor
-                return self::createNewDebtor($mappedData);
+                return self::createNewDebtor($mappedData, $orderArt);
             }
         }
     }
@@ -293,14 +300,20 @@ class OrderService
 
     /**
      * Create new debtor in adresser table
-     * 
+     *
      * @param object $data Order data
+     * @param string $orderArt The order's own art (e.g. 'DO', 'KO') - decides
+     *   the new adresser row's own art via
+     *   order_creation_debtor_art_for_order_art() (SD-600 step 5c: this used
+     *   to hardcode 'D' regardless, filing a brand-new creditor-order
+     *   supplier as a debtor)
      * @return array|false New debtor info or false on error
      */
-    private static function createNewDebtor($mappedData)
+    private static function createNewDebtor($mappedData, $orderArt)
     {
         $nextKontonr = self::getNextKontonr();
-        
+        $debtorArt = order_creation_debtor_art_for_order_art($orderArt);
+
         // Prepare address data with defaults
         $addr1 = $mappedData->addr1 ?? '';
         $addr2 = $mappedData->addr2 ?? '';
@@ -315,11 +328,11 @@ class OrderService
 
         // Insert new debitor
         $qtxt = "INSERT INTO adresser (
-            firmanavn, tlf, email, addr1, addr2, postnr, bynavn, land, 
+            firmanavn, tlf, email, addr1, addr2, postnr, bynavn, land,
             ean, cvrnr, kontonr, betalingsbet, betalingsdage, art, gruppe, kontakt
         ) VALUES (
-            '{$mappedData->firmanavn}', '{$mappedData->telefon}', '{$mappedData->email}', '$addr1', '$addr2', 
-            '$postnr', '$bynavn', '$land', '$ean', '$cvrnr', '$nextKontonr', 'netto', 8, 'D', '$kundegruppe', '$kontakt'
+            '{$mappedData->firmanavn}', '{$mappedData->telefon}', '{$mappedData->email}', '$addr1', '$addr2',
+            '$postnr', '$bynavn', '$land', '$ean', '$cvrnr', '$nextKontonr', 'netto', 8, '$debtorArt', '$kundegruppe', '$kontakt'
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -432,23 +445,6 @@ class OrderService
         }
 
         return false;
-    }
-
-    /**
-     * Get next order number
-     * 
-     * @return int Next order number
-     */
-    private static function getNextOrderNumber()
-    {
-        $qtxt = "SELECT MAX(ordrenr) as max_ordrenr FROM ordrer";
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-        
-        if ($r = db_fetch_array($q)) {
-            return (int)$r['max_ordrenr'] + 1;
-        }
-
-        return 1;
     }
 
     /**

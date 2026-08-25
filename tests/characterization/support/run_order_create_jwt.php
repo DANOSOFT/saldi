@@ -26,6 +26,7 @@
 // History:
 // 20260805 CL/SZ SD-600: created.
 // 20260814 CL/SZ SD-600: set REQUEST_URI so get_relative()'s temp/ path depth matches the remoteBooking/ chdir.
+// 20260825 CL/SZ SD-600: include order_creation.php - OrderModel::save() now calls order_creation_insert().
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_order_create_jwt.php <tenant_db> <json_payload>\n");
@@ -61,6 +62,7 @@ chdir(dirname(__DIR__, 3) . '/remoteBooking');
 ob_start(); // legacy includes print stray HTML on some branches
 include('../includes/connect.php'); // connects to master, defines db_* + $sqhost/$squser/...
 include('../includes/std_func.php');
+include('../includes/order_creation.php');
 $db = $tenantDb;
 $connection = db_connect($sqhost, $squser, $sqpass, $db); // reconnect to the tenant, mirrors bootstrap_ordrefunc.php
 

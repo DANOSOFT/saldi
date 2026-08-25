@@ -3,6 +3,7 @@
 include_once __DIR__ . "/../../includes/db_query.php";
 include_once __DIR__ . "/../../includes/connect.php";
 include_once __DIR__ . "/../../includes/std_func.php";
+include_once __DIR__ . "/../../includes/order_creation.php";
 include_once __DIR__ . "/auth.php";
 include_once __DIR__ . "/logging.php";
 include_once __DIR__ . "/cors.php";
