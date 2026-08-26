@@ -25,27 +25,28 @@ use PHPUnit\Framework\TestCase;
  * reproducing the exact "user changes one setting" scenario from the ticket, confirmed
  * red (destroys the label) against the pre-fix code and green (refuses, preserves it) here.
  *
- * Requires a local Postgres reachable with includes/connect.php's checked-in dev credentials
- * (localhost/postgres), and a "saldi_chartest" database already cloned from the saldidb
- * template - the same tenant convention used by the MB-16/MB-17 suites.
+ * Connection details are never literals here (doc/ai/convention_no_hardcoded_secrets.md): the
+ * suite uses whatever the gitignored includes/connect.php says, exactly like the app does. The
+ * "saldi_chartest" tenant database must already exist on that host, cloned from an installed
+ * tenant; when it can't be reached the whole suite is skipped rather than errored.
  */
 final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
 {
     private const TENANT_DB = 'saldi_chartest';
     private const LABEL_NAME = 'MB18CharacterizationLabel';
 
-    // includes/connect.php's own checked-in dev defaults - see the same note in
-    // NewlabelCharacterizationTest / SaveLabelTextCharacterizationTest for why these are
-    // hardcoded here rather than read back off connect.php's own globals.
-    private const PG_HOST = 'localhost';
-    private const PG_USER = 'postgres';
-    private const PG_PASS = 'saul3112';
-
     private static string $repoRoot;
     private static string $originalCwd;
+    private static bool $connected = false;
 
     public static function setUpBeforeClass(): void
     {
+        // Must come BEFORE the require below - see the same note in
+        // SaveLabelTextCharacterizationTest for why: an included file's top-level code runs in
+        // the includer's scope, so connect.php's assignments would otherwise be trapped as
+        // locals of this method instead of landing in the true global scope db_connect() reads.
+        global $sqhost, $squser, $sqpass, $sqdb, $db_type, $db_encode, $connection, $db;
+
         self::$repoRoot = dirname(__DIR__, 3);
         self::$originalCwd = getcwd();
 
@@ -56,16 +57,27 @@ final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
         ob_start();
         require_once self::$repoRoot . '/systemdata/sys_div_func.php';
         $includeOutput = ob_get_clean();
-        self::assertSame('', $includeOutput, 'sys_div_func.php emitted output at include time');
+        // Only whitespace is tolerated: the gitignored includes/connect.php is a per-developer
+        // file and commonly ends with a closing PHP tag followed by a newline, which PHP emits
+        // verbatim at include time.
+        self::assertSame('', trim($includeOutput), 'sys_div_func.php emitted output at include time');
 
-        global $db, $connection;
         $db = self::TENANT_DB;
-        $connection = db_connect(self::PG_HOST, self::PG_USER, self::PG_PASS, $db);
+        $connection = @db_connect($sqhost, $squser, $sqpass, $db);
+        if (!$connection) {
+            self::markTestSkipped(
+                "tenant db '" . self::TENANT_DB . "' not reachable on host '$sqhost' as user '$squser' " .
+                '- clone it from an installed tenant first'
+            );
+        }
+        self::$connected = true;
     }
 
     public static function tearDownAfterClass(): void
     {
-        db_modify("delete from labels where labelname = '" . self::LABEL_NAME . "'", __FILE__ . ' linje ' . __LINE__);
+        if (self::$connected) {
+            db_modify("delete from labels where labelname = '" . self::LABEL_NAME . "'", __FILE__ . ' linje ' . __LINE__);
+        }
         chdir(self::$originalCwd);
     }
 
