@@ -100,12 +100,12 @@ if ($send_mails) {
 	$sent_emails = send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
 	print "<div style=\"text-align: center;\"><br>";
 	if ($sent_emails) {
-		$senttxt = findtekst('5056|Mail sendt til', $sprog_id);
+		$senttxt = findtekst('3370|Mail sendt til', $sprog_id);
 		foreach ($sent_emails as $sent_email) {
 			print $senttxt." ".htmlspecialchars($sent_email, ENT_QUOTES)."<br>";
 		}
 	} else {
-		print findtekst('5057|Ingen mails afsendt', $sprog_id)."<br>";
+		print findtekst('3371|Ingen mails afsendt', $sprog_id)."<br>";
 	}
 	print "<form name=luk action=../includes/luk.php method=post>";
 	print "<br><input type=submit value=\"Luk\" name=\"luk\">";

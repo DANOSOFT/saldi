@@ -339,7 +339,7 @@ print "<!--function send_mails start-->";
 			alert($tekst);
 		}
 	}
-	echo findtekst('5056|Mail sendt til', $sprog_id)." ".htmlspecialchars($email, ENT_QUOTES)."<br>";
+	echo findtekst('3370|Mail sendt til', $sprog_id)." ".htmlspecialchars($email, ENT_QUOTES)."<br>";
 	return("Mail sent to $email");
 	print "<!--function send_mails slut-->";
 }
