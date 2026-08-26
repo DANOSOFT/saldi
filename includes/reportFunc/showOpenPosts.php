@@ -45,6 +45,7 @@
 //                wildly out of sync with kontokort/accountChart (SST-672)
 // 20260824 CL/NTR Flush the grid header to the client (ob_flush + flush, draining php.ini's output_buffering) before the heavy count/page queries, so the table skeleton is visible while the SQL runs.
 // 20260826 CL/NTR openpost_content flag is read once (GET or POST) and now also carried on the udlign links, so they skip the async shell like pagination/PBS already did. Firm-name filter uses !empty() again, matching the legacy truthiness check.
+// 20260826 CL/NTR Re-derived valutakurs lookups (SST-672) are cached per request, keyed by currency + transdate, and the valuta query uses limit 1.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -275,6 +276,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "</td></tr>\n";
 	}
 	$agingDateCache=array();
+	$valutaGruppeCache=array();
+	$kursCache=array();
 	for ($x=1; $x<=$pageAccountCount; $x++) {
 		$amount=0;
 		$accountAligned=1;
@@ -302,9 +305,16 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			if ($r['valutakurs']) $valutakurs=$r['valutakurs'];
 			else $valutakurs=100;
 			if ($valuta!=$baseCurrency && $valutakurs==100) { // 20260824 CL/SZ kurs=100 on a foreign-currency row is the "no real rate captured" placeholder, not parity - re-derive it like accountChart.php/generalLedger.php do (SST-672)
-				$r3=db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'",__FILE__ . " linje " . __LINE__));
-				$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r3[kodenr]' and valdate <= '$r[transdate]' order by valdate desc",__FILE__ . " linje " . __LINE__));
-				if ($r3['kurs']) $valutakurs=$r3['kurs']*1;
+				$kursKey=$valuta . "|" . $r['transdate']; // 20260826 CL/NTR per-request cache: the same currency/date pair recurs across rows and accounts, so resolve it once
+				if (!isset($kursCache[$kursKey])) {
+					if (!isset($valutaGruppeCache[$valuta])) {
+						$r3=db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'",__FILE__ . " linje " . __LINE__));
+						$valutaGruppeCache[$valuta]=$r3 ? $r3['kodenr'] : '';
+					}
+					$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutaGruppeCache[$valuta]' and valdate <= '$r[transdate]' order by valdate desc limit 1",__FILE__ . " linje " . __LINE__));
+					$kursCache[$kursKey]=($r3 && $r3['kurs']) ? $r3['kurs']*1 : 0;
+				}
+				if ($kursCache[$kursKey]) $valutakurs=$kursCache[$kursKey];
 			}
 			if ((float)$valutakurs && $r['valuta']!='-') {
 				$kontrolAmount=afrund($r['amount']*$valutakurs/100,2); //2012.03.30 afrunding rettet til 2 (Ørediff hos saldi_390)
