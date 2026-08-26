@@ -115,6 +115,70 @@ final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
     }
 
     /**
+     * SirRolin's PR #508 review: deleting a 'Standard' label's raw HTML entirely and saving
+     * (leaving the stored labeltext truly empty) incorrectly stayed locked out of the visual
+     * editor on the next page load. The cause was upstream of this guard function itself -
+     * sys_div_func.php's labels() fills the display-only raw-HTML textarea for an empty
+     * 'Standard' label with a hardcoded placeholder template (written in the labels table's
+     * older $beskrivelse/$pris variable names, predating generateLabelTemplate()'s
+     * $minbeskrivelse/$minpris), and was running THIS guard against that placeholder instead of
+     * against what loadLabelText() actually returned. This test pins the fact that drives the
+     * bug: the placeholder itself is not visually editable, so it must never be the value
+     * labelTemplateEditableVisually() is asked to judge - labels() now saves the stored text
+     * to a separate variable before the placeholder substitution and guards on that instead.
+     */
+    public function testTheEmptyStandardDisplayPlaceholderIsNotItselfVisuallyEditable(): void
+    {
+        $placeholder = '$cols=1;
+$rows=1;
+$txtlen=50;
+<top>
+<style>
+#main {
+width: 100%;
+overflow:hidden;
+margin-top: 7mm;
+margin-bottom: 0mm;
+margin-right: 0mm;
+margin-left: 3mm;}
+
+p {
+width: 38.1mm;
+display: inline-block;
+height: 21.2mm;
+padding-bottom:0px;
+margin-top: 0mm;
+margin-bottom: 0mm;
+margin-right: 0mm;
+margin-left: 1mm;
+font-size: 12px}
+
+img {
+width: 90%;
+height: 5mm;
+margin-left:-4px}
+</style>
+<div id="main">
+</top>
+
+<p>
+$varenr<br>
+$beskrivelse<br>
+Pris $pris<br>
+<img src=\'$img\'><br>
+</p>
+
+<bottom>
+</div>
+/bottom;';
+
+        self::assertFalse(
+            labelTemplateEditableVisually($placeholder),
+            "labels()'s 'Standard'-and-empty display placeholder must never be passed to this guard"
+        );
+    }
+
+    /**
      * The literal MB-18 scenario: a customer's imported Brother label, and a visual-editor
      * save where only ONE setting (txtlen) is actually submitted - mirroring
      * systemdata/diverse.php's $saveLabel branch, which now checks this guard first. Before

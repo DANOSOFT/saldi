@@ -2431,7 +2431,16 @@ function labels($valg) {
             $labelText = $label['labeltext'];
             $labelType = $label['labeltype'];
         }
-        
+
+        // Captured before the 'Standard'-and-empty branch below fills $labelText with a
+        // display-only placeholder, so the visually-editable check further down judges what is
+        // actually stored (empty = nothing to lose) rather than that placeholder, which is
+        // written in the labels table's older $beskrivelse/$pris variable names and so never
+        // matches what generateLabelTemplate() itself produces (MB-18: an emptied-out label
+        // regenerates the placeholder on the next render and was wrongly staying locked out of
+        // the visual editor because of that mismatch).
+        $storedLabelText = $labelText;
+
         if (empty($labelType)) $labelType = 'sheet';
         if ($labelName == 'Standard' && empty($labelText)) {
             $labelText = '$cols=1;
@@ -2482,7 +2491,7 @@ Pris $pris<br>
         // exactly (imported Brother/Dymo templates, hand-written raw HTML, ...) must stay in
         // raw-HTML mode - opening it in the visual editor and saving would silently discard
         // whatever it doesn't model (MB-18).
-        if (!$editRawHTML && !labelTemplateEditableVisually($labelText)) {
+        if (!$editRawHTML && !labelTemplateEditableVisually($storedLabelText)) {
             $editRawHTML = true;
             $forcedRawHTML = true;
         }
