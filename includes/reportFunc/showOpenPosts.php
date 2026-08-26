@@ -46,6 +46,7 @@
 // 20260824 CL/NTR Flush the grid header to the client (ob_flush + flush, draining php.ini's output_buffering) before the heavy count/page queries, so the table skeleton is visible while the SQL runs.
 // 20260826 CL/NTR openpost_content flag is read once (GET or POST) and now also carried on the udlign links, so they skip the async shell like pagination/PBS already did. Firm-name filter uses !empty() again, matching the legacy truthiness check.
 // 20260826 CL/NTR Re-derived valutakurs lookups (SST-672) are cached per request, keyed by currency + transdate, and the valuta query uses limit 1.
+// 20260826 CL/NTR Count/page queries group openpost per account and apply the display loop's show-rule (unaligned post, net amount >= 0.01, kun_debet/kun_kredit sign) as a HAVING clause, so "Vis alle poster", past-date and kun_* pages are no longer cut from the unfiltered account superset and left (nearly) empty (MB-5).
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -200,13 +201,28 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$postWhere = "(openpost.udlignet is NULL or openpost.udlignet != '1')";
 	}
 	if ($todate != $currentdate) $postWhere = "openpost.transdate<='$todate' and $postWhere";
+	// The display loop below only prints an account when its selected posts net to something
+	// (abs($y) >= 0.01), contain an unaligned post, or (kun_debet/kun_kredit) fall on the wanted
+	// side of zero. When showing all posts or a past date that hides most accounts, so the count
+	// and page queries must apply the same rule - otherwise the pages are cut from the unfiltered
+	// superset and come out (nearly) empty ("Viser 401-500 af 5548" with 3 rows). The amount is
+	// converted like $kontrolAmount (valutakurs falls back to 100); the per-date re-derivation of
+	// placeholder rates is not repeated here, which only moves sub-øre rounding residues.
+	$baseAmount = "openpost.amount*(case when coalesce(openpost.valutakurs,0)=0 then 100 else openpost.valutakurs end)/100";
+	$accountHaving = array();
+	if ($vis_alle || $todate != $currentdate) {
+		$having = "abs(sum($baseAmount)) >= 0.01";
+		if ($todate == $currentdate) $having = "sum(case when openpost.udlignet is null or openpost.udlignet != '1' then 1 else 0 end) > 0 or $having";
+		$accountHaving[] = "($having)";
+	}
+	if ($kun_debet) $accountHaving[] = "sum($baseAmount) > 0";
+	elseif ($kun_kredit) $accountHaving[] = "sum($baseAmount) < 0";
+	$accountHaving = $accountHaving ? " having ".implode(" and ", $accountHaving) : "";
+	$accountSource = "(select openpost.konto_id from openpost where $postWhere group by openpost.konto_id$accountHaving) account_posts";
 	$totalKontoantal=0;
-	$qtxt = "select count(*) as account_count from (select distinct adresser.id from openpost ";
-	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select id from adresser where id=openpost.konto_id and $accountWhere offset 0) adresser ";
-	else $qtxt.= ", adresser ";
-	$qtxt.= "where $postWhere";
-	if ($db_type != 'postgresql') $qtxt.= " and openpost.konto_id=adresser.id and $accountWhere";
-	$qtxt.= ") account_count";
+	$qtxt = "select count(*) as account_count from $accountSource ";
+	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select id from adresser where id=account_posts.konto_id and $accountWhere offset 0) adresser";
+	else $qtxt.= ", adresser where account_posts.konto_id=adresser.id and $accountWhere";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $totalKontoantal=(int)$r['account_count'];
 	$totalPages=($totalKontoantal) ? ceil($totalKontoantal/$openpostPageSize) : 1;
 	if ($openpostPage > $totalPages) {
@@ -217,15 +233,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$qtxt.= "account_page.account_addr1, account_page.account_addr2, account_page.account_postnr, account_page.account_bynavn, ";
 	$qtxt.= "account_page.account_email, account_page.account_betalingsbet, account_page.account_betalingsdage, ";
 	$qtxt.= "account_page.account_pbs, account_page.account_pbs_nr, openpost.* from (";
-	$qtxt.= "select distinct adresser.id as account_id, adresser.kontonr as account_kontonr, adresser.firmanavn as account_firmanavn, ";
+	$qtxt.= "select adresser.id as account_id, adresser.kontonr as account_kontonr, adresser.firmanavn as account_firmanavn, ";
 	$qtxt.= "adresser.addr1 as account_addr1, adresser.addr2 as account_addr2, adresser.postnr as account_postnr, ";
 	$qtxt.= "adresser.bynavn as account_bynavn, adresser.email as account_email, adresser.betalingsbet as account_betalingsbet, ";
 	$qtxt.= "adresser.betalingsdage as account_betalingsdage, adresser.pbs as account_pbs, adresser.pbs_nr as account_pbs_nr, ";
-	$qtxt.= "$accountOrder as account_sort from openpost ";
-	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select * from adresser where id=openpost.konto_id and $accountWhere offset 0) adresser ";
-	else $qtxt.= ", adresser ";
-	$qtxt.= "where $postWhere";
-	if ($db_type != 'postgresql') $qtxt.= " and openpost.konto_id=adresser.id and $accountWhere";
+	$qtxt.= "$accountOrder as account_sort from $accountSource ";
+	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select * from adresser where id=account_posts.konto_id and $accountWhere offset 0) adresser";
+	else $qtxt.= ", adresser where account_posts.konto_id=adresser.id and $accountWhere";
 	$qtxt.= " order by account_sort limit $openpostPageSize offset $openpostOffset) account_page ";
 	$qtxt.= "join openpost on openpost.konto_id=account_page.account_id where $postWhere ";
 	$qtxt.= "order by account_page.account_sort, openpost.konto_id, openpost.faktnr, openpost.amount $tmp";
