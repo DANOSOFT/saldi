@@ -34,12 +34,13 @@
 // 20260702 CX/PHR Build "Udlign alle" from unaligned openpost balance when showing all posts.
 // 20260706 MJ Paginated and batched debtor open items report queries for large databases.
 // 20260807 CL/NTR Gave the two variants of this table an id (visAabnePosterTableT / visAabnePosterTable) for future reference; padding for this grid comes from rapportfunc.php's #opGridWrapper.
-// 20260824 CL/NTR Flush the grid header to the client (ob_flush + flush, draining php.ini's output_buffering) before the heavy count/page queries, so the table skeleton is visible while the SQL runs.
 // 20260809 Sawaneh Escaped account filter before it reaches SQL and when it is re-emitted into
 //                  links/hidden fields. The 0-8 column now honours the same open-at-date rule as
 //                  the other four aging columns.
 // 20260812 Sawaneh Review: the firm-name search folds case with mb_strtolower/mb_strtoupper,
 //                  so names containing ae, oe or aa match regardless of case.
+// 20260824 CL/NTR Flush the grid header to the client (ob_flush + flush, draining php.ini's output_buffering) before the heavy count/page queries, so the table skeleton is visible while the SQL runs.
+// 20260826 CL/NTR openpost_content flag is read once (GET or POST) and now also carried on the udlign links, so they skip the async shell like pagination/PBS already did. Firm-name filter uses !empty() again, matching the legacy truthiness check.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -75,7 +76,7 @@ function openpost_account_filter($konto_fra, $konto_til, $kontoart) {
 			'order' => nr_cast('adresser.kontonr')
 		);
 	}
-	if ($konto_fra && $konto_fra != '*') {
+	if (!empty($konto_fra) && $konto_fra != '*') {
 		$search = (string)$konto_fra;
 		$pattern = array();
 		// mb_ variants, not strtolower()/strtoupper(): those only fold ASCII, so a
@@ -129,6 +130,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$dato_tilHtml=htmlspecialchars((string)$dato_til,ENT_QUOTES);
 	$konto_fraHtml=htmlspecialchars((string)$konto_fra,ENT_QUOTES);
 	$konto_tilHtml=htmlspecialchars((string)$konto_til,ENT_QUOTES);
+	// Carry the async shell's content flag on every link back into this report (PBS toggle,
+	// pagination, udlign), so those requests render the report directly instead of re-entering
+	// the shell in debitor/rapport.php. The shell accepts the flag from GET or POST, so honour both.
+	$openpostContentParam = (isset($_GET['openpost_content']) || isset($_POST['openpost_content'])) ? '&openpost_content=1' : '';
 
 	if ($menu=='T') {
 		print "<tr><td><div class='dataTablediv'><table id='visAabnePosterTableT' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
@@ -140,7 +145,6 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<tr><td><table id='visAabnePosterTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
 		print "<tr><td>Kontonr.</th>";
 		if ($usePBS) {
-			$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
 			if ($showPBS) {
 				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=0'>skjul BS</a></td>";
 			} else {
@@ -252,7 +256,6 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$formIndex=0;
 	$displayFirst=($kontoantal) ? $openpostOffset+1 : 0;
 	$displayLast=min($kontoantal, $openpostOffset+$pageAccountCount);
-	$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
 	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&openpost_page_size=$openpostPageSize";
 	if ($vis_alle) $basePageUrl.="&vis_alle_poster=on";
 	elseif ($kun_debet) $basePageUrl.="&kun_debet=on";
@@ -431,7 +434,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			} else $tmp=dkdecimal($y,2);
 			if ($accountAligned=="0" && abs($openY)<0.01 && abs($openKontrol)<0.01) {
 				$udlign.=$konto_id[$x].",";
-				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl&udlign=$konto_id[$x]\">$tmp</a></td>";
+				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&udlign=$konto_id[$x]\">$tmp</a></td>";
 			}
 			else {print "<td align=right>$tmp</td>";}
 			if ((isset($kontoudtog[$x]) && $kontoudtog[$x]=='on') && ($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$formIndex] checked><span class='checkmarkOrdreliste'></span></label>";
@@ -510,6 +513,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				. '&konto_fra=' . rawurlencode($konto_fra)
 				. '&konto_til=' . rawurlencode($konto_til)
 				. ($vis_alle ? '&vis_alle_poster=on' : '&vis_aabenpost=on')
+				. $openpostContentParam
 				. '&udlign=' . rawurlencode($udlign);
 			print "	<input type='button' onclick=\"location.href='" . htmlspecialchars($udlignUrl, ENT_QUOTES) . "';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
 			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";
