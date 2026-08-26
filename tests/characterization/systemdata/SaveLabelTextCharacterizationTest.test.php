@@ -32,7 +32,7 @@ final class SaveLabelTextCharacterizationTest extends TestCase
     private static string $originalCwd;
     private static bool $connected = false;
     private static array $originalLabelsRows = [];
-    private static ?array $originalGrupperLabelRow = null;
+    private static array $originalGrupperLabelRows = [];
 
     public static function setUpBeforeClass(): void
     {
@@ -85,11 +85,20 @@ final class SaveLabelTextCharacterizationTest extends TestCase
 
     protected function setUp(): void
     {
+        // Deliberately NOT cleanUpFixtures(): restoring the snapshot here would put the tenant's
+        // real pre-existing 'Standard'/grupper LABEL data back before every test even runs, which
+        // breaks tests that assert on a clean slate (e.g. "no labels row exists yet"). Each test
+        // starts from nothing; tearDown() below is what puts the original data back afterwards.
+        self::deleteFixtures();
+    }
+
+    protected function tearDown(): void
+    {
         self::cleanUpFixtures();
     }
 
     /**
-     * 'Standard' and the grupper LABEL row are not test-exclusive fixtures - on a
+     * 'Standard' and the grupper LABEL rows are not test-exclusive fixtures - on a
      * saldi_chartest cloned from an installed tenant they can be that tenant's real label
      * template, so whatever is there before the suite touches anything must come back
      * afterwards instead of being left deleted.
@@ -105,20 +114,31 @@ final class SaveLabelTextCharacterizationTest extends TestCase
             self::$originalLabelsRows[] = $row;
         }
 
-        self::$originalGrupperLabelRow = db_fetch_array(db_select(
-            "select box1, box2 from grupper where art = 'LABEL'",
-            __FILE__ . ' linje ' . __LINE__
-        )) ?: null;
+        // grupper has no uniqueness constraint on art, so more than one 'LABEL' row is possible -
+        // capture every one of them, not just the first saveLabelText()/loadLabelText() would see.
+        $rows = db_select("select * from grupper where art = 'LABEL'", __FILE__ . ' linje ' . __LINE__);
+        while ($row = db_fetch_array($rows)) {
+            // db_fetch_array() returns both numeric and column-name keys for the same values
+            // (PGSQL_BOTH / MYSQLI_BOTH) - keep only the column names, and drop 'id' since
+            // restoring inserts a fresh row rather than reusing the old primary key.
+            $columns = array_filter($row, 'is_string', ARRAY_FILTER_USE_KEY);
+            unset($columns['id']);
+            self::$originalGrupperLabelRows[] = $columns;
+        }
     }
 
-    private static function cleanUpFixtures(): void
+    private static function deleteFixtures(): void
     {
         db_modify(
             "delete from labels where labelname in ('" . self::LABEL_NAME . "', 'Standard')",
             __FILE__ . ' linje ' . __LINE__
         );
         db_modify("delete from grupper where art = 'LABEL'", __FILE__ . ' linje ' . __LINE__);
+    }
 
+    private static function cleanUpFixtures(): void
+    {
+        self::deleteFixtures();
         self::restoreFixtureSnapshot();
     }
 
@@ -136,11 +156,13 @@ final class SaveLabelTextCharacterizationTest extends TestCase
             );
         }
 
-        if (self::$originalGrupperLabelRow !== null) {
+        foreach (self::$originalGrupperLabelRows as $row) {
+            $columns = array_keys($row);
+            $values  = array_map(function ($value) {
+                return $value === null ? 'NULL' : "'" . db_escape_string($value) . "'";
+            }, array_values($row));
             db_modify(
-                "insert into grupper (art, box1, box2) values ('LABEL', '" .
-                db_escape_string(self::$originalGrupperLabelRow['box1']) . "', '" .
-                db_escape_string(self::$originalGrupperLabelRow['box2']) . "')",
+                "insert into grupper (" . implode(', ', $columns) . ") values (" . implode(', ', $values) . ")",
                 __FILE__ . ' linje ' . __LINE__
             );
         }
