@@ -1928,8 +1928,13 @@ function ordre_valg() {
 	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 	
+<<<<<<< HEAD
 	$titleRev = "Hide revenue on order list"; 
 	print "<tr><td title='$titleRev'>Hide revenue on order List</td><td><INPUT title= '$titleRev' class='inputbox' type='checkbox' name='hideRevenueOnOrdreliste' $hideRevenueOnOrdreliste></td></tr>";
+=======
+	$titleRev = "Hide revenue on order list";
+	print "<tr><td title='$titleRev'>Turn Off Revenue Tracking</td><td><INPUT title= '$titleRev' class='inputbox' type='checkbox' name='hideRevenueOnOrdreliste' $hideRevenueOnOrdreliste></td></tr>";
+>>>>>>> d880b9b5 (Rename revenue tracking option in order list)
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td><td align = center><input class='button green medium' type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'></td>";
