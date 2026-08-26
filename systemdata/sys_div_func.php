@@ -110,6 +110,10 @@
 //                 $minbeskrivelse/$minpris as the default; translated via findtekst(), tekst_id 5056.
 // 20260824 CL/NTR loadLabelText()/saveLabelText() prefer account_id 0 over null legacy rows and only
 //                 touch global rows, matching what the label editor shows.
+// 20260826 SZ    kontoplan_io: removed the redundant "Eksportér kontoplan" header row that was
+//                 printed unconditionally right before the real (popup or non-popup) export row
+//                 of the same label, making it appear twice under System -> Indstillinger ->
+//                 Diverse -> Import & eksport (MB-26).
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -339,7 +343,6 @@ function kontoplan_io() {
 	$antal_regnskabsaar = $x;
 	print "<tr><td colspan='6'><hr></td></tr>";
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('1352|Indlæs/udlæs kontoplan', $sprog_id)."</b></u></td></tr>";
-	print "<tr><td colspan='6'><br>".findtekst('1353|Eksportér kontoplan', $sprog_id)."</td></tr>";
 	if ($popup) {
 		print "<form name=diverse action=diverse.php?sektion=kontoplan_io method=post>";
 		print "<tr><td colspan='2'></td>\n";
