@@ -37,6 +37,13 @@
 // 20260804 SZ transaktion(): only reset $db_modify_fejl on the outermost 'begin' (track nesting
 //             depth), so bogfor()'s own inner begin/commit no longer erases a failure recorded
 //             by the caller's outer transaction before bogfor() ran (SD-595)
+// 20260820 Sawaneh The fallback alert text used the HTML entity &aelig;, which JS alert() shows
+//                  literally; replaced with a literal æ like the rest of the string
+// 20260824 CL/SZ db_select(): ROLLBACK the connection on a Postgres query error - reproduced
+//                that without it, one failed query inside an open transaction ("current
+//                transaction is aborted...") silently fails every later query on that same
+//                connection for the rest of the request; confirmed harmless when no
+//                transaction is open (SST-672)
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -239,7 +246,7 @@ if (!function_exists('db_modify')) {
 					#mysqli_query($connection, "ROLLBACK");
 				#}
 						
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208";
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if ($webservice) {
 					global $db_modify_fejl; #20260729 SZ surface write failures so posting-path callers can detect a failed statement even though they don't check this return value (SD-595)
 					$db_modify_fejl = true;
@@ -283,7 +290,10 @@ if (!function_exists('db_select')) {
 			$qtext = str_replace(' like ', ' ilike ', $qtext);
 			$query = pg_query($use_connection, $qtext);
 			$errtxt = pg_last_error($use_connection);
-			if ($errtxt) error_log("db_select failed: $qtext");
+			if ($errtxt) {
+				error_log("db_select failed: $qtext");
+				pg_query($use_connection, "ROLLBACK"); // 20260824 CL/SZ a failed query inside an open transaction otherwise poisons every later query on this connection for the rest of the request ("current transaction is aborted..."); harmless no-op outside a transaction (SST-672)
+			}
 		}
 
 		if ($errtxt)	{		
@@ -326,12 +336,12 @@ if (!function_exists('db_select')) {
 					fwrite($ff,date("U")."\n");
 					fclose($ff);
 				} 
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
 				alert("$alerttekst");
 			} else {
 				#	$customAlertText saettes i connect.php;
-				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
+				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				echo $fejltxt; 
 				alert("$alerttekst");
 				exit;
