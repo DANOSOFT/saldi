@@ -31,6 +31,8 @@ final class SaveLabelTextCharacterizationTest extends TestCase
     private static string $repoRoot;
     private static string $originalCwd;
     private static bool $connected = false;
+    private static array $originalLabelsRows = [];
+    private static ?array $originalGrupperLabelRow = null;
 
     public static function setUpBeforeClass(): void
     {
@@ -70,6 +72,7 @@ final class SaveLabelTextCharacterizationTest extends TestCase
             );
         }
         self::$connected = true;
+        self::captureFixtureSnapshot();
     }
 
     public static function tearDownAfterClass(): void
@@ -85,6 +88,29 @@ final class SaveLabelTextCharacterizationTest extends TestCase
         self::cleanUpFixtures();
     }
 
+    /**
+     * 'Standard' and the grupper LABEL row are not test-exclusive fixtures - on a
+     * saldi_chartest cloned from an installed tenant they can be that tenant's real label
+     * template, so whatever is there before the suite touches anything must come back
+     * afterwards instead of being left deleted.
+     */
+    private static function captureFixtureSnapshot(): void
+    {
+        $rows = db_select(
+            "select account_id, labelname, labeltype, labeltext from labels " .
+            "where labelname in ('" . self::LABEL_NAME . "', 'Standard')",
+            __FILE__ . ' linje ' . __LINE__
+        );
+        while ($row = db_fetch_array($rows)) {
+            self::$originalLabelsRows[] = $row;
+        }
+
+        self::$originalGrupperLabelRow = db_fetch_array(db_select(
+            "select box1, box2 from grupper where art = 'LABEL'",
+            __FILE__ . ' linje ' . __LINE__
+        )) ?: null;
+    }
+
     private static function cleanUpFixtures(): void
     {
         db_modify(
@@ -92,6 +118,32 @@ final class SaveLabelTextCharacterizationTest extends TestCase
             __FILE__ . ' linje ' . __LINE__
         );
         db_modify("delete from grupper where art = 'LABEL'", __FILE__ . ' linje ' . __LINE__);
+
+        self::restoreFixtureSnapshot();
+    }
+
+    private static function restoreFixtureSnapshot(): void
+    {
+        foreach (self::$originalLabelsRows as $row) {
+            $accountId = $row['account_id'] === null
+                ? 'NULL'
+                : "'" . db_escape_string($row['account_id']) . "'";
+            db_modify(
+                "insert into labels (account_id, labelname, labeltype, labeltext) values " .
+                "($accountId, '" . db_escape_string($row['labelname']) . "', '" .
+                db_escape_string($row['labeltype']) . "', '" . db_escape_string($row['labeltext']) . "')",
+                __FILE__ . ' linje ' . __LINE__
+            );
+        }
+
+        if (self::$originalGrupperLabelRow !== null) {
+            db_modify(
+                "insert into grupper (art, box1, box2) values ('LABEL', '" .
+                db_escape_string(self::$originalGrupperLabelRow['box1']) . "', '" .
+                db_escape_string(self::$originalGrupperLabelRow['box2']) . "')",
+                __FILE__ . ' linje ' . __LINE__
+            );
+        }
     }
 
     /**
