@@ -33,7 +33,10 @@ $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 chdir(__DIR__); // so the ../includes/... relative includes below resolve like every other admin/*.php page
 include('../includes/connect.php');  // establishes $connection (master db), $sqhost/$squser/$sqpass
 include('../includes/std_func.php'); // moms_periode_luk_schema_status()
-
+/**
+ * Injected by /includes/connect.php, included below:
+ * @var Mixed $connection
+ */
 $master_connection = $connection;
 
 $tenants = db_select(

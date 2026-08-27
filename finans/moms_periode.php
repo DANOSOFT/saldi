@@ -52,6 +52,10 @@ $md[5]='maj';    $md[6]='juni';    $md[7]='juli';      $md[8]='august';
 $md[9]='september'; $md[10]='oktober'; $md[11]='november'; $md[12]='december';
 
 // --- permission: require finans access (modulnr 2, bit >= 1) ---
+/**
+ * Injected by /includes/online.php, included below:
+ * @var string $rettigheder 
+ */
 $kan_aendre = ($rettigheder && substr($rettigheder, 2, 1) >= '1');
 
 // SD-646: guard against the migration (includes/betweenUpdates.php) not having
