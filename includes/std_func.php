@@ -66,6 +66,9 @@
 // 20260812 Sawaneh Review: sync_shop_vare initialises the stock values before the lagerstatus lookup, so a
 //                 product without a row no longer warns or sends empty parameters, and __FILE__/__LINE__ are
 //                 no longer sent to the shop - they belong in the local log, not in the shop's access log
+// 20260815 CL/SZ Added moms_periode_luk_schema_status()/_ready()/_ensure_schema() -
+//                explicit, idempotent table/function/trigger health check + repair for
+//                the R5 periodelaasning migration (SD-646)
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -3040,6 +3043,126 @@ if (!function_exists('darkenColor')) {
         
         // Convert back to hex
         return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
+    }
+}
+
+if (!function_exists('moms_periode_luk_schema_status')) {
+    /**
+     * Independent existence check for each of the three DB objects the R5
+     * periodelaasning feature installs (SD-646): the moms_periode_luk table,
+     * the check_moms_periode_luk() PL/pgSQL function, and the
+     * tr_check_moms_periode_luk trigger on transaktioner. Gating solely on
+     * trigger existence (the original includes/betweenUpdates.php design)
+     * hides a partial install - e.g. the table created but the
+     * function/trigger step failing silently - from both the login-time
+     * repair and finans/moms_periode.php's own queries.
+     *
+     * @return array{table:bool, function:bool, trigger:bool}
+     */
+    function moms_periode_luk_schema_status() {
+        $table = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM information_schema.tables WHERE table_name = 'moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        $function = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM pg_proc WHERE proname = 'check_moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        $trigger = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM pg_trigger WHERE tgname = 'tr_check_moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        return ['table' => $table, 'function' => $function, 'trigger' => $trigger];
+    }
+}
+
+if (!function_exists('moms_periode_luk_schema_ready')) {
+    /** All three moms_periode_luk objects exist, i.e. period locking is actually enforced (SD-646). */
+    function moms_periode_luk_schema_ready() {
+        $s = moms_periode_luk_schema_status();
+        return $s['table'] && $s['function'] && $s['trigger'];
+    }
+}
+
+if (!function_exists('moms_periode_luk_ensure_schema')) {
+    /**
+     * Create whichever of the three moms_periode_luk objects are missing, in
+     * dependency order, and return the resulting status (SD-646). Safe to
+     * call on every login: idempotent, and a no-op once everything exists.
+     *
+     * Every write here uses raw pg_query(), not db_modify(): on failure
+     * db_modify() calls alert()+exit() outside webservice mode, which would
+     * abort the caller's whole request over a migration hiccup. A failed
+     * step here is logged instead and left for the next call to retry -
+     * that retry-on-next-login is the feature's whole self-healing design.
+     *
+     * @return array{table:bool, function:bool, trigger:bool}
+     */
+    function moms_periode_luk_ensure_schema() {
+        global $connection, $db;
+        $status = moms_periode_luk_schema_status();
+
+        if (!$status['table']) {
+            $ok = @pg_query($connection, "CREATE TABLE IF NOT EXISTS moms_periode_luk (
+                id               SERIAL PRIMARY KEY,
+                kalender_aar     INTEGER NOT NULL,
+                kalender_maaned  INTEGER NOT NULL CHECK (kalender_maaned BETWEEN 1 AND 12),
+                status           VARCHAR(6) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
+                lukket_af        VARCHAR(100),
+                lukket_dato      TIMESTAMP,
+                aabnet_af        VARCHAR(100),
+                aabnet_dato      TIMESTAMP,
+                UNIQUE (kalender_aar, kalender_maaned)
+            )");
+            if ($ok) {
+                $status['table'] = true;
+            } else {
+                error_log("SD-646: moms_periode_luk table creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        if ($status['table'] && !$status['function']) {
+            // pg_query() bruges her for at omgaa injecttjek(): PL/pgSQL-kroppen
+            // indeholder semikolon uden for enkeltcitater, som injecttjek() ville
+            // fejlfortolke som injection.
+            $fn  = "CREATE OR REPLACE FUNCTION check_moms_periode_luk() ";
+            $fn .= "RETURNS TRIGGER AS \$\$ ";
+            $fn .= "BEGIN ";
+            $fn .= "    IF EXISTS ( ";
+            $fn .= "        SELECT 1 FROM moms_periode_luk ";
+            $fn .= "        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
+            $fn .= "          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
+            $fn .= "          AND status = 'closed' ";
+            $fn .= "    ) THEN ";
+            $fn .= "        RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
+            $fn .= "            TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
+            $fn .= "    END IF; ";
+            $fn .= "    RETURN NEW; ";
+            $fn .= "END; ";
+            $fn .= "\$\$ LANGUAGE plpgsql";
+            $ok = @pg_query($connection, $fn);
+            if ($ok) {
+                $status['function'] = true;
+            } else {
+                error_log("SD-646: check_moms_periode_luk() function creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        if ($status['function'] && !$status['trigger']) {
+            $ok = @pg_query(
+                $connection,
+                "CREATE TRIGGER tr_check_moms_periode_luk "
+                . "BEFORE INSERT OR UPDATE ON transaktioner "
+                . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()"
+            );
+            if ($ok) {
+                $status['trigger'] = true;
+            } else {
+                error_log("SD-646: tr_check_moms_periode_luk trigger creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        return $status;
     }
 }
 ?>

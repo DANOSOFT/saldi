@@ -291,44 +291,13 @@ if ($mp_client_id) {
 	}
 }
 
-// R5 moms periodelaasning — opret tabel, funktion og trigger een gang ved login.
-// Kontrollen sker paa trigger-eksistens; er triggeren der, springes hele blokken over.
-$qtxt = "SELECT 1 FROM pg_trigger WHERE tgname='tr_check_moms_periode_luk' LIMIT 1";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-    db_modify("CREATE TABLE IF NOT EXISTS moms_periode_luk (
-        id               SERIAL PRIMARY KEY,
-        kalender_aar     INTEGER NOT NULL,
-        kalender_maaned  INTEGER NOT NULL CHECK (kalender_maaned BETWEEN 1 AND 12),
-        status           VARCHAR(6) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
-        lukket_af        VARCHAR(100),
-        lukket_dato      TIMESTAMP,
-        aabnet_af        VARCHAR(100),
-        aabnet_dato      TIMESTAMP,
-        UNIQUE (kalender_aar, kalender_maaned)
-    )", __FILE__ . " linje " . __LINE__);
-    // pg_query() bruges her for at omgaa injecttjek(): PL/pgSQL-kroppen indeholder
-    // semikolon uden for enkeltcitater, som injecttjek() ville fejlfortolke som injection.
-    $fn  = "CREATE OR REPLACE FUNCTION check_moms_periode_luk() ";
-    $fn .= "RETURNS TRIGGER AS \$\$ ";
-    $fn .= "BEGIN ";
-    $fn .= "    IF EXISTS ( ";
-    $fn .= "        SELECT 1 FROM moms_periode_luk ";
-    $fn .= "        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
-    $fn .= "          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
-    $fn .= "          AND status = 'closed' ";
-    $fn .= "    ) THEN ";
-    $fn .= "        RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
-    $fn .= "            TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
-    $fn .= "    END IF; ";
-    $fn .= "    RETURN NEW; ";
-    $fn .= "END; ";
-    $fn .= "\$\$ LANGUAGE plpgsql";
-    pg_query($connection, $fn);
-    pg_query($connection,
-        "CREATE TRIGGER tr_check_moms_periode_luk "
-        . "BEFORE INSERT OR UPDATE ON transaktioner "
-        . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()");
-}
+// R5 moms periodelaasning — opret/reparer tabel, funktion og trigger ved login.
+// SD-646: moms_periode_luk_ensure_schema() (includes/std_func.php) checker og
+// reparerer hvert af de tre objekter uafhaengigt (tabel/funktion/trigger), saa
+// en delvis installation - fx tabellen oprettet men funktion/trigger fejlede
+// stille - selvhelbreder ved dette login i stedet for kun at blive opdaget naar
+// selve triggeren mangler.
+moms_periode_luk_ensure_schema();
 
 // Add note column to moms_periode_luk if not present (idempotent guard).
 $qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='moms_periode_luk' AND column_name='note' LIMIT 1";
