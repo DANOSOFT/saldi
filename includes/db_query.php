@@ -487,16 +487,14 @@ if (!function_exists('tbl_exists')) {
  		global $connection,$db,$db_type;
 		if ($db_type=="mysql") {
 			# 20260812 CL/LH (SD-644): COUNT(*) returnerer altid en raekke - tjek vaerdien, ikke om der kom en raekke
-			$qtxt="SELECT COUNT(*) AS antal FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
-			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			($r && $r['antal'])?$tbl_exists=1:$tbl_exists=0;
+			# 20260827 CL/NTR (SD-644): SELECT 1 i stedet for COUNT(*) - COUNT(*) gav altid en raekke, saa "kom der en raekke" sagde intet om tabellen findes
+			$qtxt="SELECT 1 FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
+			(db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$tbl_exists=1:$tbl_exists=0;
 		}	elseif ($db_type=="mysqli") {
-			$qtxt="SELECT COUNT(*) AS antal FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
-			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			($r && $r['antal'])?$tbl_exists=1:$tbl_exists=0;
+			$qtxt="SELECT 1 FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
+			(db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$tbl_exists=1:$tbl_exists=0;
 		} else {
 			$qtxt="SELECT tablename FROM pg_tables where tablename='$table'";
-#			$r=db_fetch_array(
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			($r['tablename'])?$tbl_exists=1:$tbl_exists=0;
 		}
