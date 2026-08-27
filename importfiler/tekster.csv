@@ -348,7 +348,7 @@
 348	Debitorgruppe ikke valgt!	Debtor group not selected!	Gjeldegruppe ikke valgt!
 349	Kontonummer $ny_kontonr tildelt automatisk!	Account number $ new_account number assigned automatically!	Kontonummer $ new_account number tildeles automatisk!
 350	Der findes allerede en debitor med Kontonr	There is already a debtor with Account no	Det er allerede en skyldner med kontonr
-351	Kontonummer findes allerede	Account number already exists - not changed	Kontonummer eksisterer allerede
+351	Kontonummer findes allerede - ikke ændret	Account number already exists - not changed	Kontonummer eksisterer allerede - ikke endret
 352	Hint! Du skal sætte et - (minus) som pos.-nr. for at slette en kontaktperson	Hint! You must set a - (minus) as pos. no. to delete a contact	Hint! Du må sette et - (minus) som pos.-nr. for å slette en kontaktperson
 353	Privat	Private	Privat
 354	Erhverv	Business	Bedrift
