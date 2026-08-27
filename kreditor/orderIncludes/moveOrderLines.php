@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/moveOrderLines.php --- patch 5.0.0 --- 2026-07-08 ---
+// --- kreditor/orderIncludes/moveOrderLines.php --- patch 5.0.0 --- 2026-08-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20260226 PHR Changed posnr=posnr+1000000 to posnr=posnr+1000 as posnr is smallint
 // 20260602 PHR Definet $mQt as array if empty.
 // 20260708 MJ Guard all POST arrays; fetch antal/leveret from DB to fix index mismatch causing blank page; guard setval for MySQL.
+// 20260807 CL/NTR Use (float) instead of usdecimal() on DB-fetched antal/leveret; usdecimal() strips '.' as a thousands separator (Danish input format) which turned '2.000' into 2000, multiplying split quantities by 1000.
 
 print "<!-- BEGIN orderIncludes/moveOrderLines.php -->";
 #print "moveOrderLines.php<br>";
@@ -75,8 +76,8 @@ else {
 	# Loop over each orderline
 	for ($x = 1; $x <= count($linje_id); $x++) {
 		$r = db_fetch_array(db_select("SELECT antal, leveret FROM ordrelinjer WHERE id='$linje_id[$x]'", __FILE__ . " linje " . __LINE__));
-		$antal[$x]   = $r ? usdecimal($r['antal'],   2) : 0;
-		$leveret[$x] = $r ? usdecimal($r['leveret'], 2) : 0;
+		$antal[$x]   = $r ? (float)$r['antal']   : 0;
+		$leveret[$x] = $r ? (float)$r['leveret'] : 0;
 		if ($mQt[$x] && $antal[$x] == $mQt[$x]) {
 			$qtxt = "UPDATE ordrelinjer SET ordre_id = '$newId', posnr=posnr+1000 WHERE id='$linje_id[$x]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
