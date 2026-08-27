@@ -110,6 +110,10 @@
 //                 $minbeskrivelse/$minpris as the default; translated via findtekst(), tekst_id 5056.
 // 20260824 CL/NTR loadLabelText()/saveLabelText() prefer account_id 0 over null legacy rows and only
 //                 touch global rows, matching what the label editor shows.
+// 20260827 CL/SZ Removed the dead "MySalesTest" checkbox row and its duplicate mySale
+//                query (was mislabeled $mySaleTest but still read var_name='mySale');
+//                also dropped the debug echo block referencing it. Never saved
+//                ($_POST['mySaleTest'] was read nowhere) and had no consumer. MB-28.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -865,10 +869,6 @@ function div_valg() {
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	($r['var_value']) ? $mySale = "checked='checked'" : $mySale = NULL;
 
-	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
-	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	($r['var_value']) ? $mySaleTest = "checked='checked'" : $mySaleTest = NULL;
-
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySaleLabel'";
 	$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	($r['var_value']) ? $mySaleLabel = "checked='checked'" : $mySaleLabel = NULL;
@@ -963,24 +963,12 @@ function div_valg() {
 	print "<!-- 768 : Brug 'Mit salg' -->";
 	print "<input name='labelsize' class='inputbox' type='text' value='$labelsize'>\n";
 	print "</td></tr>\n";
-/*
-	echo "mySale: $mySale <br>";
-	echo "mySaleLabel: $mySaleLabel <br>";
-	echo "mySaleTest: $mySaleTest";
-*/
 	if ($mySale) {
 		print "<tr>\n<td title='Deaktivere labels for kunder så det kun er ejeren der kan oprette dem'>Deaktiver labels for kunder</td>\n";
 		print "<td title='Deaktiver labels for kunder'>\n";
 		print "<input name='mySaleLabel' class='inputbox' type='checkbox' $mySaleLabel>\n";
 		print "</td></tr>\n";
 	}
-
-	print "<tr>\n<td title='Test'>mySaleTest</td>\n";
-	print "<td title='mySaleTest'>\n";
-	print "<input name='mySaleTest' class='inputbox' type='checkbox' $mySaleTest>\n";
-	print "</td></tr>\n";
-
-
 
 	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst('194|Jobkort findes i debitorkonti. Her kan du definere opgavebeskrivelser til medarbejdere osv.', $sprog_id)."'>".findtekst('168|Brug jobkort', $sprog_id)."</td>\n";
 	print "<td title='".findtekst('194|Jobkort findes i debitorkonti. Her kan du definere opgavebeskrivelser til medarbejdere osv.', $sprog_id)."'>\n";
