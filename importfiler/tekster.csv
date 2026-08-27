@@ -348,7 +348,7 @@
 348	Debitorgruppe ikke valgt!	Debtor group not selected!	Gjeldegruppe ikke valgt!
 349	Kontonummer $ny_kontonr tildelt automatisk!	Account number $ new_account number assigned automatically!	Kontonummer $ new_account number tildeles automatisk!
 350	Der findes allerede en debitor med Kontonr	There is already a debtor with Account no	Det er allerede en skyldner med kontonr
-351	Kontonummer findes allerede	not changed	Kontonummer eksisterer allerede
+351	Kontonummer findes allerede - ikke ændret	Account number already exists - not changed	Kontonummer eksisterer allerede - ikke endret
 352	Hint! Du skal sætte et - (minus) som pos.-nr. for at slette en kontaktperson	Hint! You must set a - (minus) as pos. no. to delete a contact	Hint! Du må sette et - (minus) som pos.-nr. for å slette en kontaktperson
 353	Privat	Private	Privat
 354	Erhverv	Business	Bedrift
@@ -3364,18 +3364,18 @@
 3364	Momsafstemning	VAT reconciliation	MVA-avstemming
 3365	OSS B2C EU-salg	B2C EU Sales	OSS B2C EU-salg
 3366	Momsperioder	Vat periods	MVA-perioder		
-3367			
+3367	Medtages på eFaktura når udfyldt	Included on eInvoice when filled in	Medtas på eFaktura når utfylt		
 3368			
 3369			
-3370			
-3371			
-3372			
-3373			
-3374			
-3375			
-3376			
-3377			
-3378			
+3370	Mail sendt til	Mail sent to	E-post sendt til
+3371	Ingen mails afsendt	No mails were sent	Ingen e-poster sendt
+3372	Auto-opslag	Auto lookup	Auto-oppslag
+3373	Tast CVR-nr. efterfulgt af *, + eller / for opslag, eller lad Auto-opslag være afmærket for opslag ved 8 cifre (Data leveres af CVR API)	Enter the VAT no. followed by *, + or / to look it up, or leave Auto lookup ticked to look up on 8 digits (Data supplied by CVR API)	Tast inn org.nr. etterfulgt av *, + eller / for oppslag, eller la Auto-oppslag være avmerket for oppslag ved 8 siffer (Data leveres av CVR API)
+3374	CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.	The VAT lookup could not be completed. Please fill in the fields manually.	Oppslaget kunne ikke gjennomføres. Fyll ut feltene manuelt.
+3375	Kvoten for CVR-opslag er opbrugt.	The quota for VAT lookups has been used up.	Kvoten for oppslag er brukt opp.
+3376	CVR-nummeret blev ikke fundet.	The VAT number was not found.	Organisasjonsnummeret ble ikke funnet.
+3377	CVR-nummeret er ikke gyldigt.	The VAT number is not valid.	Organisasjonsnummeret er ikke gyldig.
+3378	Søger...	Searching...	Søker...
 3379			
 3380			
 3381			
@@ -5053,10 +5053,12 @@
 5053	Bilag	Voucher no.	Bilag
 5054	Tekst	Text	Tekst
 5055	Beløb	Amount	Beløp
+5056	For at anvende CRM-systemet kræves det, at der er tilføjet ansatte under Stamdata i Indstillinger.<br>Gå til: System → Indstillinger → Stamdata for at tilføje ansatte.	Using the CRM system requires adding employees under Master Data in Settings.<br>Go to: System → Settings → Master Data to add employees.	For å bruke CRM-systemet må ansatte være lagt til under Stamdata i Innstillinger.<br>Gå til: System → Innstillinger → Stamdata for å legge til ansatte.
+5057	Du kan redigere den komplette HTML skabelon her. Brug variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. $beskrivelse og $pris henter altid varens egen.	You can edit the complete HTML template here. Use variables such as $varenr, $minbeskrivelse, $minpris, $img, etc. $minbeskrivelse and $minpris show the customer's own text and price from Mit salg and fall back to the item's own when printing without an account. $beskrivelse and $pris always take the item's own.	Du kan redigere hele HTML-malen her. Bruk variabler som $varenr, $minbeskrivelse, $minpris, $img, osv. $minbeskrivelse og $minpris viser kundens egen tekst og pris fra Mitt salg og faller tilbake til varens egen når det skrives ut uten konto. $beskrivelse og $pris henter alltid varens egen.
+5058	Salg pr. Postnr	Sales by postcode	Salg pr. postnr
+5120	Ryd filter	Clear filter	Fjern filter
+5121	Vis kun konti med beløb i denne kolonne	Show only accounts with an amount in this column	Vis bare kontoer med beløp i denne kolonnen
+5122	Sortér efter beløb	Sort by amount	Sorter etter beløp
+5123	Kontonr., interval (fra:til) eller firmanavn (* = jokertegn)	Account no., range (from:to) or company name (* = wildcard)	Kontonr., intervall (fra:til) eller firmanavn (* = jokertegn)
+5124	Filter	Filter	Filter
 
-5056	Klik for kun at vise konti med et beløb i denne kolonne	Click to show only accounts with an amount in this column	Klikk for å bare vise konti med et beløp i denne kolonnen
-5057	Klik for at fjerne filteret	Click to remove the filter	Klikk for å fjerne filteret
-5058	Klik for at sortere efter beløb	Click to sort by amount	Klikk for å sortere etter beløp
-5059	Ryd filter	Clear filter	Fjern filter
-5060	Filtreret	Filtered	Filtrert
-5061	I alt (filtreret)	Total (filtered)	Totalt (filtrert)
