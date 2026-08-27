@@ -97,7 +97,15 @@
 // 20250924 PBLM - Alert for saved product is disabled
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
 // 20260213 LOE  - Updated the back button for debitorkort reference.
-// 20260827 LOE  - SD-652 Added a guard for $varenrAlias and initialized few variables.
+// 20260827 LOE  - SD-652 Added a guard for $varenrAlias and initialized few variables. Updated to use if_isset() for more variables to avoid undefined index notices.
+// 20260827 CL/SZ Defined the missing $icon_back and switched the "Tilbage"/
+//                "Luk"/"POS menuer"/"Ny" buttons in the $menu=='S' header
+//                to the standard icon+flex-start button style used
+//                elsewhere; also dropped a leftover debug console.log.
+// 20260827 CL/SZ CodeRabbit (MB-23 PR): htmlspecialchars() the plain returside
+//                href, and json_encode()+htmlspecialchars() the confirmClose()
+//                JS-string args (returside/opener/tekst) instead of raw
+//                interpolation; fixed a malformed </a><td> on the Ny button.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -234,6 +242,7 @@ if ($delete_category = if_isset($_GET, NULL, 'delete_category')) {
     db_modify("delete from grupper where id = '$delete_category'", __FILE__ . " linje " . __LINE__);
 }
 if ($delete_var_type = if_isset($_GET, NULL, 'delete_var_type')) {
+    $delete_var_type = (int) $delete_var_type;
     db_modify("delete from variant_varer where id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
     db_modify("delete from lagerstatus where vare_id='$id' and variant_id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
     db_modify("delete from shop_varer where saldi_id='$id' and saldi_variant = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
@@ -246,6 +255,7 @@ $saveItem = if_isset($_POST, NULL, 'saveItem');
 $submit = if_isset($_POST, NULL, 'submit');
 
 if ($deleteItem == 'Slet') {
+    $id = (int) if_isset($_POST, NULL, 'id');
     db_modify("delete from varer where id = $id", __FILE__ . " linje " . __LINE__);
     db_modify("delete from shop_varer where saldi_id = $id", __FILE__ . " linje " . __LINE__);
     db_modify("delete from vare_lev where vare_id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -295,11 +305,11 @@ if ($saveItem || $submit = trim($submit)) {
     $grossWeight = usdecimal((isset($_POST['grossWeight']) ? $_POST['grossWeight'] : 0), 3);
     $beskrivelseAlias = if_isset($_POST,NULL,'beskrivelseAlias');
     $grossWeightUnit = if_isset($_POST,NULL,'grossWeightUnit');
-    $varenr = db_escape_string(trim(if_isset($_POST,NULL,'varenr')));
-    $stregkode = db_escape_string(trim(if_isset($_POST,NULL,'stregkode')));
+    $varenr = db_escape_string(trim(if_isset($_POST, '','varenr')));
+    $stregkode = db_escape_string(trim(if_isset($_POST, '','stregkode')));
     $oldDescription = trim(if_isset($_POST,NULL,'oldDescription'));
-    $enhed = db_escape_string(trim(if_isset($_POST,NULL,'enhed')));
-    $enhed2 = db_escape_string(trim(if_isset($_POST,NULL,'enhed2')));
+    $enhed = db_escape_string(trim(if_isset($_POST, '','enhed')));
+    $enhed2 = db_escape_string(trim(if_isset($_POST, '','enhed2')));
 
     $forhold = usdecimal(if_isset($_POST,NULL,'forhold'), 2);
     $salgspris = usdecimal(if_isset($_POST,NULL,'salgspris'), 2);
@@ -337,13 +347,13 @@ if ($saveItem || $submit = trim($submit)) {
     $beholdning = if_isset($_POST, NULL, 'beholdning');
     $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $lukket = if_isset($_POST, NULL, 'lukket');
-    $serienr = db_escape_string(trim(if_isset($_POST,NULL,'serienr')));
+    $serienr = db_escape_string(trim(if_isset($_POST, '','serienr')));
     $has_due_date = (if_isset($_POST,NULL,'has_due_date') == 'on') ? 'true' : 'false';
     $default_shelf_life_days = if_isset($_POST,NULL,'default_shelf_life_days');
     if ($default_shelf_life_days !== null && $default_shelf_life_days !== '') $default_shelf_life_days = intval($default_shelf_life_days);
     else $default_shelf_life_days = null;
     #   list ($gruppe)           =  explode (':', if_isset($_POST,NULL,'gruppe'));
-    $notes = db_escape_string(trim(if_isset($_POST,NULL,'notes')));
+    $notes = db_escape_string(trim(if_isset($_POST, '','notes')));
     $note_on_orderline = (if_isset($_POST, NULL, 'note_on_orderline') == 'on') ? true : false;
     $notesInternal = db_escape_string(trim(if_isset($_POST, NULL, 'notesInternal')));
     $ordre_id = if_isset($_POST, NULL, 'ordre_id');
@@ -1204,40 +1214,55 @@ if ($menu == 'T') {
         $contains = true;
     }
 
+    $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8l-4 4 4 4M16 12H9"></path></svg>';
+
+    // $returside/$opener are request-controlled; confirmTekst/confirmUrl below are
+    // JS-string-encoded via json_encode() then HTML-attribute-escaped, since they're
+    // interpolated into javascript: hrefs, not just plain HTML attributes.
+    $confirmTekst = htmlspecialchars(json_encode((string)$tekst), ENT_QUOTES);
+
     if ($contains) {
         print "<td width='200px'>
-            <a href=\"$returside\" accesskey=L>
-            <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+            <a href=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\" accesskey=L>
+            <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor = 'pointer'\">"
             . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
-            
+
         print "<style>
             a {
                 text-decoration: none !important;
             } </style>";
-    }else{ 
+    }else{
        if ($opener != 'varer.php') {
+            $confirmUrl = htmlspecialchars(json_encode("$returside?id=$ordre_id&fokus=$fokus&vare_id=$id"), ENT_QUOTES);
             print "<td width=\"10%\">
-                <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&vare_id=$id','$tekst')\" accesskey=L>
-                <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
+                <a href=\"javascript:confirmClose($confirmUrl,$confirmTekst)\" accesskey=L>
+                <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">"
+                . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
         } else {
-            print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>
-                <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
+            $confirmUrl = htmlspecialchars(json_encode("$returside?"), ENT_QUOTES);
+            print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose($confirmUrl,$confirmTekst)\" accesskey=L>
+                <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">"
+                . $icon_back . findtekst('2172|Luk', $sprog_id) . "</button></a></td>\n";
         }
     }
+    print "<style>.center-btn{display:flex;align-items:center;text-decoration:none;gap:5px;}</style>\n";
     print "<td align='center' style='$topStyle'>".findtekst('566|Varekort', $sprog_id)."</td>\n";
     // print "<td width='10%' align='center' style='$topStyle'><br></td>\n";
 
     # Open pos menus
+    $icon_posmenu = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 -960 960 960" fill="#ffffff"><path d="M120-520v-320h320v320H120Zm0 400v-320h320v320H120Zm400-400v-320h320v320H520Zm0 400v-320h320v320H520ZM200-600h160v-160H200v160Zm400 0h160v-160H600v160Zm0 400h160v-160H600v160Zm-400 0h160v-160H200v160Z"/></svg>';
+    $add_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 -960 960 960" fill="#ffffff"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
     if ($id) {
         if ($usePos) {
             print "<td width='10%' align='right'>
-        <a href=\"javascript:console.log(getCookie('pos_menu_location'));confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>
-        <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . "POS menuer" . "</button></a></td>\n";
+        <a href=\"javascript:confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>
+        <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $icon_posmenu . "POS menuer" . "</button></a></td>\n";
         }
         # Create new item
+        $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?opener=$opener&returside=$returside&ordre_id=$id"), ENT_QUOTES);
         print "<td width='10%' align='right'>
-         <a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>
-         <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a><td>\n";
+         <a href=\"javascript:confirmClose($confirmNewUrl,$confirmTekst)\" accesskey=N>
+         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
     }
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
