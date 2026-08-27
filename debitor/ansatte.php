@@ -20,7 +20,8 @@
 // ----------------------------------------------------------------------
 //
 // 20221229 PHR Some cleanup
-// 20250913 LEO Added display of existing employees and top menu and "Delete all" button 
+// 20250913 LEO Added display of existing employees and top menu and "Delete all" button
+// 20260818 LH  MB-14: fixed "Uforudset hændelse" on save (guard missing 'mobile' column like kreditor/ansatte.php, redirect back to account)
 
 @session_start();
 $s_id=session_id();
@@ -45,9 +46,9 @@ include("../includes/topline_settings.php");
 
 if ($_POST){
  	$id=$_POST['id'];
- 	$submit=addslashes(trim($_POST['submit']));
-	$delete= if_isset($_POST['delete'],NULL);
-	$deleteAll= if_isset($_POST['deleteAll'],NULL);
+ 	$submit=addslashes(trim(if_isset($_POST,'','submit')));
+	$delete= if_isset($_POST,NULL,'delete');
+	$deleteAll= if_isset($_POST,NULL,'deleteAll');
  	$konto_id=$_POST['konto_id'];
  	$navn=addslashes(trim($_POST['navn']));
  	$addr1=addslashes(trim($_POST['addr1']));
@@ -58,9 +59,9 @@ if ($_POST){
  	$mobile=addslashes(trim($_POST['mobile']));
  	$mobil=addslashes(trim($_POST['mobil']));
  	$email=addslashes(trim($_POST['email']));
- 	$cprnr=addslashes(trim($_POST['cprnr']));
+ 	$cprnr=addslashes(trim(if_isset($_POST,'','cprnr')));
  	$notes=addslashes(trim($_POST['notes']));
- 	$ordre_id = $_GET['ordre_id'];
+ 	$ordre_id = if_isset($_POST,'','ordre_id');
  	$returside=$_POST['returside'];
  	$fokus=$_POST['fokus'];
 	$_private = if_isset($_POST,NULL,'privat');
@@ -168,14 +169,21 @@ if ($_POST){
 
 
 			if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
+			// The "mobile" column was added to ansatte in a later schema version. Older
+			// databases only have "mobil", so guard against writing a column that is missing
+			// (otherwise the insert/update fails with "Uforudset hændelse"). Same fix as kreditor/ansatte.php.
+			$has_mobile = (bool) db_fetch_array(db_select("select 1 as ok from information_schema.columns where table_name = 'ansatte' and column_name = 'mobile'", __FILE__ . " linje " . __LINE__));
 			if (($id==0)&&($navn)){
-				$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, mobile, mobil, email, cprnr, notes, lukket, posnr) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$mobile', '$mobil', '$email', '$cprnr', '$notes', '','$posnr')",__FILE__ . " linje " . __LINE__);
+				$mobile_col = $has_mobile ? "mobile, " : "";
+				$mobile_val = $has_mobile ? "'$mobile', " : "";
+				$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, {$mobile_col}mobil, email, cprnr, notes, lukket, posnr) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', {$mobile_val}'$mobil', '$email', '$cprnr', '$notes', '','$posnr')",__FILE__ . " linje " . __LINE__);
 				$query = db_select("select id from ansatte where konto_id = '$konto_id' and navn='$navn' order by id desc",__FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($query);
 				$id = $row['id'];
 			}
 			elseif ($id > 0){
-				db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', mobile = '$mobile', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '', posnr = '$posnr' where id = '$id'",__FILE__ . " linje " . __LINE__);
+				$mobile_set = $has_mobile ? "mobile = '$mobile', " : "";
+				db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', {$mobile_set}mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '', posnr = '$posnr' where id = '$id'",__FILE__ . " linje " . __LINE__);
 			}
 
 			//select navn from ansatte where konto_id and posnr = 1;
@@ -198,12 +206,16 @@ if ($_POST){
 
 
 			
-			if (!empty($_SERVER['HTTP_REFERER'])) {
-				header("Location: " . $_SERVER['HTTP_REFERER']);
-				exit;
+			// return to the account so the new contact person is visible in the list
+			// (the old HTTP_REFERER redirect broke when warnings had already sent output)
+			if($_private == 'privat'){
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus&privat=privat\">";
+			}elseif($_business == 'erhverv'){
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus&erhverv=erhverv\">";
+			}else{
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
 			}
-
-
+			exit;
 	}
 }
 
