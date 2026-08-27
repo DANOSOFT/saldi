@@ -291,44 +291,13 @@ if ($mp_client_id) {
 	}
 }
 
-// R5 moms periodelaasning — opret tabel, funktion og trigger een gang ved login.
-// Kontrollen sker paa trigger-eksistens; er triggeren der, springes hele blokken over.
-$qtxt = "SELECT 1 FROM pg_trigger WHERE tgname='tr_check_moms_periode_luk' LIMIT 1";
-if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-    db_modify("CREATE TABLE IF NOT EXISTS moms_periode_luk (
-        id               SERIAL PRIMARY KEY,
-        kalender_aar     INTEGER NOT NULL,
-        kalender_maaned  INTEGER NOT NULL CHECK (kalender_maaned BETWEEN 1 AND 12),
-        status           VARCHAR(6) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
-        lukket_af        VARCHAR(100),
-        lukket_dato      TIMESTAMP,
-        aabnet_af        VARCHAR(100),
-        aabnet_dato      TIMESTAMP,
-        UNIQUE (kalender_aar, kalender_maaned)
-    )", __FILE__ . " linje " . __LINE__);
-    // pg_query() bruges her for at omgaa injecttjek(): PL/pgSQL-kroppen indeholder
-    // semikolon uden for enkeltcitater, som injecttjek() ville fejlfortolke som injection.
-    $fn  = "CREATE OR REPLACE FUNCTION check_moms_periode_luk() ";
-    $fn .= "RETURNS TRIGGER AS \$\$ ";
-    $fn .= "BEGIN ";
-    $fn .= "    IF EXISTS ( ";
-    $fn .= "        SELECT 1 FROM moms_periode_luk ";
-    $fn .= "        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
-    $fn .= "          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
-    $fn .= "          AND status = 'closed' ";
-    $fn .= "    ) THEN ";
-    $fn .= "        RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
-    $fn .= "            TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
-    $fn .= "    END IF; ";
-    $fn .= "    RETURN NEW; ";
-    $fn .= "END; ";
-    $fn .= "\$\$ LANGUAGE plpgsql";
-    pg_query($connection, $fn);
-    pg_query($connection,
-        "CREATE TRIGGER tr_check_moms_periode_luk "
-        . "BEFORE INSERT OR UPDATE ON transaktioner "
-        . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()");
-}
+// R5 moms periodelaasning — opret/reparer tabel, funktion og trigger ved login.
+// SD-646: moms_periode_luk_ensure_schema() (includes/std_func.php) checker og
+// reparerer hvert af de tre objekter uafhaengigt (tabel/funktion/trigger), saa
+// en delvis installation - fx tabellen oprettet men funktion/trigger fejlede
+// stille - selvhelbreder ved dette login i stedet for kun at blive opdaget naar
+// selve triggeren mangler.
+moms_periode_luk_ensure_schema();
 
 // Add note column to moms_periode_luk if not present (idempotent guard).
 $qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name='moms_periode_luk' AND column_name='note' LIMIT 1";
@@ -427,5 +396,41 @@ $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ad
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE adresser ADD stripe_fravalg varchar(2)", __FILE__ . " linje " . __LINE__);
 }
+
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ansatte' and column_name = 'mobile'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# IF NOT EXISTS because betweenUpdates.php runs at login: two concurrent logins can both
+	# get past the check above, and one of the two ALTER statements would then fail.
+	$qtxt = "ALTER TABLE ansatte ADD COLUMN IF NOT EXISTS mobile text";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+
+// 20260827 NTR Tekst 351: ' - not changed' suffix added in all three languages. Delete rows still
+// holding the old text so findtekst() re-seeds them from tekster.csv. Guarded on the old values
+// because betweenUpdates.php runs at every login and customer-edited texts must not be wiped.
+$gamle_351 = array('Kontonummer findes allerede', 'not changed', 'Kontonummer eksisterer allerede');
+foreach ($gamle_351 as $gammel) {
+	db_modify("delete from tekster where tekst_id = '351' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
+}
+
+$cvr_gamle_tekster = array(
+	'Auto-opslag','Auto lookup','Auto-oppslag',
+	'CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.',
+	'The VAT lookup could not be completed. Please fill in the fields manually.',
+	'Oppslaget kunne ikke gjennomføres. Fyll ut feltene manuelt.',
+	'Kvoten for CVR-opslag er opbrugt.','The quota for VAT lookups has been used up.','Kvoten for oppslag er brukt opp.',
+	'CVR-nummeret blev ikke fundet.','The VAT number was not found.','Organisasjonsnummeret ble ikke funnet.',
+	'CVR-nummeret er ikke gyldigt.','The VAT number is not valid.','Organisasjonsnummeret er ikke gyldig.',
+	'Søger...','Searching...','Søker...'
+);
+foreach ($cvr_gamle_tekster as $cvr_tekst) {
+	$cvr_tekst = db_escape_string($cvr_tekst);
+	db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst = '$cvr_tekst'", __FILE__ . " linje " . __LINE__);
+}
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast CVR-nr. efterfulgt%'", __FILE__ . " linje " . __LINE__);
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Enter the VAT no. followed%'", __FILE__ . " linje " . __LINE__);
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast inn org.nr. etterfulgt%'", __FILE__ . " linje " . __LINE__);
 
 ?>

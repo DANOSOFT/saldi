@@ -54,14 +54,12 @@ function updateShopCostPrice($productId) {
 		$params = array(
 			'sku'       => $sku,
 			'costPrice' => $costPrice,
-			'file'      => __FILE__,
-			'line'      => __LINE__,
 			'rand'      => $rand,
 		);
 		$res = shopApiRequest($api_fil, $params, $log, array('context' => "updateShopCostPrice productId $productId"));
 		if (!$res['ok']) {
 			fclose($log);
-			return ('sync error: ' . $res['error']);
+			return ('sync error'); # detail stays in rest_api.log, it may name internal hosts
 		}
 	}
 	fclose($log);

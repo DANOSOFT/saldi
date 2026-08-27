@@ -33,6 +33,7 @@
 // 20260528 PHR Bottomline was overlooked 20260513
 // 20260702 CX/PHR Build "Udlign alle" from unaligned openpost balance when showing all posts.
 // 20260706 MJ Paginated and batched debtor open items report queries for large databases.
+// 20260807 CL/NTR Gave the two variants of this table an id (visAabnePosterTableT / visAabnePosterTable) for future reference; padding for this grid comes from rapportfunc.php's #opGridWrapper.
 // 20260809 Sawaneh Escaped account filter before it reaches SQL and when it is re-emitted into
 //                  links/hidden fields. The 0-8 column now honours the same open-at-date rule as
 //                  the other four aging columns.
@@ -42,6 +43,10 @@
 //                currency row has kurs=100 (uncaptured rate), instead of
 //                treating it as 1:1 DKK parity - was producing DKK totals
 //                wildly out of sync with kontokort/accountChart (SST-672)
+// 20260824 CL/NTR Flush the grid header to the client (ob_flush + flush, draining php.ini's output_buffering) before the heavy count/page queries, so the table skeleton is visible while the SQL runs.
+// 20260826 CL/NTR openpost_content flag is read once (GET or POST) and now also carried on the udlign links, so they skip the async shell like pagination/PBS already did. Firm-name filter uses !empty() again, matching the legacy truthiness check.
+// 20260826 CL/NTR Re-derived valutakurs lookups (SST-672) are cached per request, keyed by currency + transdate, and the valuta query uses limit 1.
+// 20260826 CL/NTR Count/page queries group openpost per account and apply the display loop's show-rule (unaligned post, net amount >= 0.01, kun_debet/kun_kredit sign) as a HAVING clause, so "Vis alle poster", past-date and kun_* pages are no longer cut from the unfiltered account superset and left (nearly) empty (MB-5).
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -77,7 +82,7 @@ function openpost_account_filter($konto_fra, $konto_til, $kontoart) {
 			'order' => nr_cast('adresser.kontonr')
 		);
 	}
-	if ($konto_fra && $konto_fra != '*') {
+	if (!empty($konto_fra) && $konto_fra != '*') {
 		$search = (string)$konto_fra;
 		$pattern = array();
 		// mb_ variants, not strtolower()/strtoupper(): those only fold ASCII, so a
@@ -131,18 +136,21 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$dato_tilHtml=htmlspecialchars((string)$dato_til,ENT_QUOTES);
 	$konto_fraHtml=htmlspecialchars((string)$konto_fra,ENT_QUOTES);
 	$konto_tilHtml=htmlspecialchars((string)$konto_til,ENT_QUOTES);
+	// Carry the async shell's content flag on every link back into this report (PBS toggle,
+	// pagination, udlign), so those requests render the report directly instead of re-entering
+	// the shell in debitor/rapport.php. The shell accepts the flag from GET or POST, so honour both.
+	$openpostContentParam = (isset($_GET['openpost_content']) || isset($_POST['openpost_content'])) ? '&openpost_content=1' : '';
 
 	if ($menu=='T') {
-		print "<tr><td><div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
+		print "<tr><td><div class='dataTablediv'><table id='visAabnePosterTableT' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
 		print "<tr><th>Kontonr.</th>";
 		if ($usePBS) print "<th>PBS</th>";
 		print "<th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>>90</th><th align=right  class='text-right'>60-90</th><th align=right class='text-right'>30-60</th><th align=right class='text-right'>8-30</th><th align=right class='text-right'>0-8</th><th align=right class='text-right'>I alt</th><th align=right</th>";
 		print "</thead><tbody>";
 	} else {
-		print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
+		print "<tr><td><table id='visAabnePosterTable' width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
 		print "<tr><td>Kontonr.</th>";
 		if ($usePBS) {
-			$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
 			if ($showPBS) {
 				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&showPBS=0'>skjul BS</a></td>";
 			} else {
@@ -151,6 +159,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		}
 		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
 	}
+	// Push the grid header out before the heavy count/page queries below, so the user sees
+	// the empty table immediately while the SQL runs (ob_flush drains php.ini's output_buffering).
+	if (ob_get_level() > 0) @ob_flush();
+	flush();
 
 	$currentdate=date("Y-m-d");
 	if ($dato_fra && $dato_til) {
@@ -189,13 +201,28 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$postWhere = "(openpost.udlignet is NULL or openpost.udlignet != '1')";
 	}
 	if ($todate != $currentdate) $postWhere = "openpost.transdate<='$todate' and $postWhere";
+	// The display loop below only prints an account when its selected posts net to something
+	// (abs($y) >= 0.01), contain an unaligned post, or (kun_debet/kun_kredit) fall on the wanted
+	// side of zero. When showing all posts or a past date that hides most accounts, so the count
+	// and page queries must apply the same rule - otherwise the pages are cut from the unfiltered
+	// superset and come out (nearly) empty ("Viser 401-500 af 5548" with 3 rows). The amount is
+	// converted like $kontrolAmount (valutakurs falls back to 100); the per-date re-derivation of
+	// placeholder rates is not repeated here, which only moves sub-øre rounding residues.
+	$baseAmount = "openpost.amount*(case when coalesce(openpost.valutakurs,0)=0 then 100 else openpost.valutakurs end)/100";
+	$accountHaving = array();
+	if ($vis_alle || $todate != $currentdate) {
+		$having = "abs(sum($baseAmount)) >= 0.01";
+		if ($todate == $currentdate) $having = "sum(case when openpost.udlignet is null or openpost.udlignet != '1' then 1 else 0 end) > 0 or $having";
+		$accountHaving[] = "($having)";
+	}
+	if ($kun_debet) $accountHaving[] = "sum($baseAmount) > 0";
+	elseif ($kun_kredit) $accountHaving[] = "sum($baseAmount) < 0";
+	$accountHaving = $accountHaving ? " having ".implode(" and ", $accountHaving) : "";
+	$accountSource = "(select openpost.konto_id from openpost where $postWhere group by openpost.konto_id$accountHaving) account_posts";
 	$totalKontoantal=0;
-	$qtxt = "select count(*) as account_count from (select distinct adresser.id from openpost ";
-	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select id from adresser where id=openpost.konto_id and $accountWhere offset 0) adresser ";
-	else $qtxt.= ", adresser ";
-	$qtxt.= "where $postWhere";
-	if ($db_type != 'postgresql') $qtxt.= " and openpost.konto_id=adresser.id and $accountWhere";
-	$qtxt.= ") account_count";
+	$qtxt = "select count(*) as account_count from $accountSource ";
+	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select id from adresser where id=account_posts.konto_id and $accountWhere offset 0) adresser";
+	else $qtxt.= ", adresser where account_posts.konto_id=adresser.id and $accountWhere";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $totalKontoantal=(int)$r['account_count'];
 	$totalPages=($totalKontoantal) ? ceil($totalKontoantal/$openpostPageSize) : 1;
 	if ($openpostPage > $totalPages) {
@@ -206,15 +233,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$qtxt.= "account_page.account_addr1, account_page.account_addr2, account_page.account_postnr, account_page.account_bynavn, ";
 	$qtxt.= "account_page.account_email, account_page.account_betalingsbet, account_page.account_betalingsdage, ";
 	$qtxt.= "account_page.account_pbs, account_page.account_pbs_nr, openpost.* from (";
-	$qtxt.= "select distinct adresser.id as account_id, adresser.kontonr as account_kontonr, adresser.firmanavn as account_firmanavn, ";
+	$qtxt.= "select adresser.id as account_id, adresser.kontonr as account_kontonr, adresser.firmanavn as account_firmanavn, ";
 	$qtxt.= "adresser.addr1 as account_addr1, adresser.addr2 as account_addr2, adresser.postnr as account_postnr, ";
 	$qtxt.= "adresser.bynavn as account_bynavn, adresser.email as account_email, adresser.betalingsbet as account_betalingsbet, ";
 	$qtxt.= "adresser.betalingsdage as account_betalingsdage, adresser.pbs as account_pbs, adresser.pbs_nr as account_pbs_nr, ";
-	$qtxt.= "$accountOrder as account_sort from openpost ";
-	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select * from adresser where id=openpost.konto_id and $accountWhere offset 0) adresser ";
-	else $qtxt.= ", adresser ";
-	$qtxt.= "where $postWhere";
-	if ($db_type != 'postgresql') $qtxt.= " and openpost.konto_id=adresser.id and $accountWhere";
+	$qtxt.= "$accountOrder as account_sort from $accountSource ";
+	if ($db_type == 'postgresql') $qtxt.= "cross join lateral (select * from adresser where id=account_posts.konto_id and $accountWhere offset 0) adresser";
+	else $qtxt.= ", adresser where account_posts.konto_id=adresser.id and $accountWhere";
 	$qtxt.= " order by account_sort limit $openpostPageSize offset $openpostOffset) account_page ";
 	$qtxt.= "join openpost on openpost.konto_id=account_page.account_id where $postWhere ";
 	$qtxt.= "order by account_page.account_sort, openpost.konto_id, openpost.faktnr, openpost.amount $tmp";
@@ -250,7 +275,6 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$formIndex=0;
 	$displayFirst=($kontoantal) ? $openpostOffset+1 : 0;
 	$displayLast=min($kontoantal, $openpostOffset+$pageAccountCount);
-	$openpostContentParam = isset($_GET['openpost_content']) ? '&openpost_content=1' : '';
 	$basePageUrl="rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&openpost_page_size=$openpostPageSize";
 	if ($vis_alle) $basePageUrl.="&vis_alle_poster=on";
 	elseif ($kun_debet) $basePageUrl.="&kun_debet=on";
@@ -266,6 +290,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "</td></tr>\n";
 	}
 	$agingDateCache=array();
+	$valutaGruppeCache=array();
+	$kursCache=array();
 	for ($x=1; $x<=$pageAccountCount; $x++) {
 		$amount=0;
 		$accountAligned=1;
@@ -293,9 +319,16 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			if ($r['valutakurs']) $valutakurs=$r['valutakurs'];
 			else $valutakurs=100;
 			if ($valuta!=$baseCurrency && $valutakurs==100) { // 20260824 CL/SZ kurs=100 on a foreign-currency row is the "no real rate captured" placeholder, not parity - re-derive it like accountChart.php/generalLedger.php do (SST-672)
-				$r3=db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'",__FILE__ . " linje " . __LINE__));
-				$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r3[kodenr]' and valdate <= '$r[transdate]' order by valdate desc",__FILE__ . " linje " . __LINE__));
-				if ($r3['kurs']) $valutakurs=$r3['kurs']*1;
+				$kursKey=$valuta . "|" . $r['transdate']; // 20260826 CL/NTR per-request cache: the same currency/date pair recurs across rows and accounts, so resolve it once
+				if (!isset($kursCache[$kursKey])) {
+					if (!isset($valutaGruppeCache[$valuta])) {
+						$r3=db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'",__FILE__ . " linje " . __LINE__));
+						$valutaGruppeCache[$valuta]=$r3 ? $r3['kodenr'] : '';
+					}
+					$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutaGruppeCache[$valuta]' and valdate <= '$r[transdate]' order by valdate desc limit 1",__FILE__ . " linje " . __LINE__));
+					$kursCache[$kursKey]=($r3 && $r3['kurs']) ? $r3['kurs']*1 : 0;
+				}
+				if ($kursCache[$kursKey]) $valutakurs=$kursCache[$kursKey];
 			}
 			if ((float)$valutakurs && $r['valuta']!='-') {
 				$kontrolAmount=afrund($r['amount']*$valutakurs/100,2); //2012.03.30 afrunding rettet til 2 (Ørediff hos saldi_390)
@@ -434,7 +467,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			} else $tmp=dkdecimal($y,2);
 			if ($accountAligned=="0" && abs($openY)<0.01 && abs($openKontrol)<0.01) {
 				$udlign.=$konto_id[$x].",";
-				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl&udlign=$konto_id[$x]\">$tmp</a></td>";
+				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam&udlign=$konto_id[$x]\">$tmp</a></td>";
 			}
 			else {print "<td align=right>$tmp</td>";}
 			if ((isset($kontoudtog[$x]) && $kontoudtog[$x]=='on') && ($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$formIndex] checked><span class='checkmarkOrdreliste'></span></label>";
@@ -513,6 +546,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				. '&konto_fra=' . rawurlencode($konto_fra)
 				. '&konto_til=' . rawurlencode($konto_til)
 				. ($vis_alle ? '&vis_alle_poster=on' : '&vis_aabenpost=on')
+				. $openpostContentParam
 				. '&udlign=' . rawurlencode($udlign);
 			print "	<input type='button' onclick=\"location.href='" . htmlspecialchars($udlignUrl, ENT_QUOTES) . "';\" title='Klik her for at udligne alle med saldoen' value='Udlign alle' />&nbsp;&nbsp;";
 			print "<span class='CellWithComment'><input type=submit value=\"Ryk alle\" name=\"submit\"> $overlib4</span></td>";

@@ -60,9 +60,15 @@
 // -------- And changed it to treat boolean falses as "set" so the value it returned the value instead of a hardcoded null.
 // 20260604 CL/PHR cvrnr_land/cvrnr_omr: added $baseCountry param — single-letter+digit CVR (NIF) treated as domestic; home country configurable via settings.baseCountry
 // 20260706 CX/PHR get_next_invoice_number uses SAVEPOINT when called inside an active transaction to avoid premature commit during invoice posting
-// 20260727 CL/PHR sync_shop_price/sync_shop_vare send shop updates with shopApiRequest() instead of backgrounded
+// 20260727 Sawaneh sync_shop_price/sync_shop_vare send shop updates with shopApiRequest() instead of backgrounded
 //                 shell curl/wget: exit status and http code are captured, failures are logged and returned,
 //                 item data is url-encoded so it can no longer reach the shell, and the shared curl.txt is gone
+// 20260812 Sawaneh Review: sync_shop_vare initialises the stock values before the lagerstatus lookup, so a
+//                 product without a row no longer warns or sends empty parameters, and __FILE__/__LINE__ are
+//                 no longer sent to the shop - they belong in the local log, not in the shop's access log
+// 20260815 CL/SZ Added moms_periode_luk_schema_status()/_ready()/_ensure_schema() -
+//                explicit, idempotent table/function/trigger health check + repair for
+//                the R5 periodelaasning migration (SD-646)
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1838,9 +1844,7 @@ if (!function_exists('sync_shop_vare')) {
 				'update_stock' => $shop_id,
 				'stock'        => $variant_beholdning,
 				'stockno'      => $lager,
-				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''),
-				'file'         => __FILE__,
-				'line'         => __LINE__,
+				'stockvalue'   => (isset($r['lagerbeh']) ? $r['lagerbeh'] : ''), # always empty, no query here selects lagerbeh - kept so the url is unchanged
 			);
 			foreach (array($api_fil, $api_fil2, $api_fil3) as $endpoint) {
 				if (!$endpoint) {
@@ -1852,6 +1856,11 @@ if (!function_exists('sync_shop_vare')) {
 				}
 			}
 		} else {
+			# A product with no lagerstatus row for this warehouse leaves the query below
+			# without a result, so the values are initialised first. Otherwise php 8 warns
+			# about undefined variables and the sync url is built with them missing.
+			$stock = $itemNo = $itemNoAlias = $costPrice = '';
+			$totalStock = 0;
 			$qtxt = "select varer.varenr, varer.varenr_alias, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
 			$qtxt .= "where lagerstatus.vare_id='$vare_id' and lagerstatus.lager='$lager' and varer.id='$vare_id'";
 			// echo $qtxt;  // Debug line removed
@@ -1863,7 +1872,7 @@ if (!function_exists('sync_shop_vare')) {
 			} #$stock=$itemNo=NULL; #20210225
 			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$totalStock = $r['total_stock'];
+				$totalStock = (isset($r['total_stock']) && $r['total_stock'] !== null) ? $r['total_stock'] : 0;
 			}
 			$qtxt = "select shop_id from shop_varer where saldi_id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
@@ -1907,7 +1916,9 @@ if (!function_exists('sync_shop_vare')) {
 					}
 				}
 			}
-			$stock = (int)$stock;
+			# lagerstatus.beholdning is numeric, so keep decimals - totalStock and variant stock
+			# are already sent undecimated. Default to 0 when the query above found no row.
+			$stock = (isset($stock) && $stock !== '' && $stock !== null) ? $stock : 0;
 
 			if ($itemNo) {
 				#			if (($shop_id || $itemNo) && is_numeric($stock)) {
@@ -1918,6 +1929,7 @@ if (!function_exists('sync_shop_vare')) {
 					'costPrice' => $costPrice,
 					'rand'      => $rand,
 				);
+				# api_fil3 is left out here as in the original code, this call never went to endpoint 3
 				foreach (array($api_fil, $api_fil2) as $endpoint) {
 					if (!$endpoint) {
 						continue;
@@ -1993,8 +2005,6 @@ if (!function_exists('sync_shop_vare')) {
 							'itemNoAlias'  => $productNoAlias,
 							'sku'          => $productNo,
 							'skuAlias'     => $productNoAlias,
-							'file'         => __FILE__,
-							'line'         => __LINE__,
 						);
 						$partCostParams = array(
 							'costPrice' => $costPrice,
@@ -3033,6 +3043,126 @@ if (!function_exists('darkenColor')) {
         
         // Convert back to hex
         return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
+    }
+}
+
+if (!function_exists('moms_periode_luk_schema_status')) {
+    /**
+     * Independent existence check for each of the three DB objects the R5
+     * periodelaasning feature installs (SD-646): the moms_periode_luk table,
+     * the check_moms_periode_luk() PL/pgSQL function, and the
+     * tr_check_moms_periode_luk trigger on transaktioner. Gating solely on
+     * trigger existence (the original includes/betweenUpdates.php design)
+     * hides a partial install - e.g. the table created but the
+     * function/trigger step failing silently - from both the login-time
+     * repair and finans/moms_periode.php's own queries.
+     *
+     * @return array{table:bool, function:bool, trigger:bool}
+     */
+    function moms_periode_luk_schema_status() {
+        $table = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM information_schema.tables WHERE table_name = 'moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        $function = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM pg_proc WHERE proname = 'check_moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        $trigger = (bool)db_fetch_array(db_select(
+            "SELECT 1 FROM pg_trigger WHERE tgname = 'tr_check_moms_periode_luk'",
+            __FILE__ . " linje " . __LINE__
+        ));
+        return ['table' => $table, 'function' => $function, 'trigger' => $trigger];
+    }
+}
+
+if (!function_exists('moms_periode_luk_schema_ready')) {
+    /** All three moms_periode_luk objects exist, i.e. period locking is actually enforced (SD-646). */
+    function moms_periode_luk_schema_ready() {
+        $s = moms_periode_luk_schema_status();
+        return $s['table'] && $s['function'] && $s['trigger'];
+    }
+}
+
+if (!function_exists('moms_periode_luk_ensure_schema')) {
+    /**
+     * Create whichever of the three moms_periode_luk objects are missing, in
+     * dependency order, and return the resulting status (SD-646). Safe to
+     * call on every login: idempotent, and a no-op once everything exists.
+     *
+     * Every write here uses raw pg_query(), not db_modify(): on failure
+     * db_modify() calls alert()+exit() outside webservice mode, which would
+     * abort the caller's whole request over a migration hiccup. A failed
+     * step here is logged instead and left for the next call to retry -
+     * that retry-on-next-login is the feature's whole self-healing design.
+     *
+     * @return array{table:bool, function:bool, trigger:bool}
+     */
+    function moms_periode_luk_ensure_schema() {
+        global $connection, $db;
+        $status = moms_periode_luk_schema_status();
+
+        if (!$status['table']) {
+            $ok = @pg_query($connection, "CREATE TABLE IF NOT EXISTS moms_periode_luk (
+                id               SERIAL PRIMARY KEY,
+                kalender_aar     INTEGER NOT NULL,
+                kalender_maaned  INTEGER NOT NULL CHECK (kalender_maaned BETWEEN 1 AND 12),
+                status           VARCHAR(6) NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
+                lukket_af        VARCHAR(100),
+                lukket_dato      TIMESTAMP,
+                aabnet_af        VARCHAR(100),
+                aabnet_dato      TIMESTAMP,
+                UNIQUE (kalender_aar, kalender_maaned)
+            )");
+            if ($ok) {
+                $status['table'] = true;
+            } else {
+                error_log("SD-646: moms_periode_luk table creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        if ($status['table'] && !$status['function']) {
+            // pg_query() bruges her for at omgaa injecttjek(): PL/pgSQL-kroppen
+            // indeholder semikolon uden for enkeltcitater, som injecttjek() ville
+            // fejlfortolke som injection.
+            $fn  = "CREATE OR REPLACE FUNCTION check_moms_periode_luk() ";
+            $fn .= "RETURNS TRIGGER AS \$\$ ";
+            $fn .= "BEGIN ";
+            $fn .= "    IF EXISTS ( ";
+            $fn .= "        SELECT 1 FROM moms_periode_luk ";
+            $fn .= "        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
+            $fn .= "          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
+            $fn .= "          AND status = 'closed' ";
+            $fn .= "    ) THEN ";
+            $fn .= "        RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
+            $fn .= "            TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
+            $fn .= "    END IF; ";
+            $fn .= "    RETURN NEW; ";
+            $fn .= "END; ";
+            $fn .= "\$\$ LANGUAGE plpgsql";
+            $ok = @pg_query($connection, $fn);
+            if ($ok) {
+                $status['function'] = true;
+            } else {
+                error_log("SD-646: check_moms_periode_luk() function creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        if ($status['function'] && !$status['trigger']) {
+            $ok = @pg_query(
+                $connection,
+                "CREATE TRIGGER tr_check_moms_periode_luk "
+                . "BEFORE INSERT OR UPDATE ON transaktioner "
+                . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()"
+            );
+            if ($ok) {
+                $status['trigger'] = true;
+            } else {
+                error_log("SD-646: tr_check_moms_periode_luk trigger creation failed for db=$db: " . pg_last_error($connection));
+            }
+        }
+
+        return $status;
     }
 }
 ?>
