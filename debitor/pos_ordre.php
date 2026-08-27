@@ -88,6 +88,7 @@
 // 20250701 PHR Check if order exists. if not set id to 0
 // 20250806 PHR php8 issue in sizeof($_POST)
 // 20250816 PHR Compared and merged changes from ssl7
+// 20260827 CDX/PHR Use supplier account lookup from the customer button in test_31.
 // 20251007 PHR Changed "$_POST['proforma'] == 'Proforma')" to "$_POST['proforma'])" 
 // 20260204 PHR Back button did not work if focus was 'Modtaget'
 // 20260211 PHR Updated cashCount 
@@ -1281,7 +1282,7 @@ if ($vare_id) {
 		if (!$modtaget || !$kontonr)
 			pos_kontoopslag('PO', "", $fokus, $id, "", "", "");
 	} elseif (isset($_POST['debitoropslag']) || isset($_POST['kreditoropslag'])) {
-		(isset($_POST['debitoropslag'])) ? $tmp = 'PO' : $tmp = 'KO';
+		(isset($_POST['debitoropslag']) && $db != 'test_31') ? $tmp = 'PO' : $tmp = 'KO';
 		kontoopslag($tmp, "", "kontonr", $id, "", "", "", "", "", "", "", "", "", "", "", "", "");
 	} elseif (isset($_POST['stamkunder']) || isset($_GET['stamkunder'])) {
 		stamkunder('PO', "", "varenr_ny", $id, "", "", "", "", "", "", "", $sum);
