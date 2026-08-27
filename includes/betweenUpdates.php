@@ -438,9 +438,12 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 }
 
 
-$qtxt = "Select id from tekster where sprog_id = '2' and tekst_id = '351' and tekst = 'not changed'";
-if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	db_modify("update tekster set tekst = 'Account number already exists - not changed' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
+// 20260827 NTR Tekst 351: ' - not changed' suffix added in all three languages. Delete rows still
+// holding the old text so findtekst() re-seeds them from tekster.csv. Guarded on the old values
+// because betweenUpdates.php runs at every login and customer-edited texts must not be wiped.
+$gamle_351 = array('Kontonummer findes allerede', 'not changed', 'Kontonummer eksisterer allerede');
+foreach ($gamle_351 as $gammel) {
+	db_modify("delete from tekster where tekst_id = '351' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
 }
 
 $cvr_gamle_tekster = array(
