@@ -496,18 +496,39 @@ if (!function_exists('tbl_exists')) {
 	function tbl_exists($table) {
  		global $connection,$db,$db_type;
 		if ($db_type=="mysql") {
-			$qtxt="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
+			# 20260812 CL/LH (SD-644): COUNT(*) returnerer altid en raekke - tjek vaerdien, ikke om der kom en raekke
+			# 20260827 CL/NTR (SD-644): SELECT 1 i stedet for COUNT(*) - COUNT(*) gav altid en raekke, saa "kom der en raekke" sagde intet om tabellen findes
+			$qtxt="SELECT 1 FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
 			(db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$tbl_exists=1:$tbl_exists=0;
 		}	elseif ($db_type=="mysqli") {
-			$qtxt="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
+			$qtxt="SELECT 1 FROM information_schema.tables WHERE table_schema = '$db' AND table_name = '$table'";
 			(db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$tbl_exists=1:$tbl_exists=0;
 		} else {
 			$qtxt="SELECT tablename FROM pg_tables where tablename='$table'";
-#			$r=db_fetch_array(
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			($r['tablename'])?$tbl_exists=1:$tbl_exists=0;
 		}
 		return($tbl_exists);
+	}
+}
+
+if (!function_exists('check_periode_luk')) {
+	# 20260812 CL/LH (SD-644) PHP-side periodelaas: PR #402 tilfoejede kaldene i finans/bogfor.php:227
+	# og includes/ordrefunc.php:1187 (og DB-triggeren i includes/betweenUpdates.php), men aldrig selve
+	# PHP-funktionen, saa al kassekladde-bogfoering fatalede. Returnerer en fejltekst hvis maaneden for
+	# $transdate er lukket i moms_periode_luk, ellers false. Triggeren er fortsat den haarde haandhaevelse;
+	# dette er den venlige forhaandskontrol.
+	function check_periode_luk($transdate) {
+		if (!$transdate || !tbl_exists('moms_periode_luk')) return false;
+		$transdate = db_escape_string($transdate);
+		$qtxt  = "SELECT kalender_aar, kalender_maaned FROM moms_periode_luk ";
+		$qtxt .= "WHERE kalender_aar = EXTRACT(YEAR FROM CAST('$transdate' AS DATE)) ";
+		$qtxt .= "AND kalender_maaned = EXTRACT(MONTH FROM CAST('$transdate' AS DATE)) ";
+		$qtxt .= "AND status = 'closed'";
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			return "Perioden ".sprintf('%02d',$r['kalender_maaned'])."-".$r['kalender_aar']." er lukket for bogfoering - kontakt bogholder for at genaabne.";
+		}
+		return false;
 	}
 }
 
