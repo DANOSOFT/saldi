@@ -97,6 +97,7 @@
 // 20250924 PBLM - Alert for saved product is disabled
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
 // 20260213 LOE  - Updated the back button for debitorkort reference.
+// 20260827 LOE  - SD-652 Added a guard for $varenrAlias and initialized few variables.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -125,8 +126,8 @@ $rabatgruppe = $ref = $returside = NULL;
 $tilbudgruppe = NULL;
 $varenr = $variant = $variantVarerVariantId = $vis_kost = NULL;
 
-$campaign_cost = $special_price = $special_from_date = $special_to_date = 0;
-$oldCost = $oldSale = $p_grp_kostpris = $p_grp_salgspris = $p_grp_retail_price = $p_grp_tier_price = 0;
+$campaign_cost = $special_price = $special_from_date = $special_to_date = $retail_price = $tier_price = 0;
+$oldCost = $oldSale = $oldRetailPrice = $p_grp_kostpris = $p_grp_salgspris = $p_grp_retail_price = $p_grp_tier_price = 0;
 $beskrivelse = $kat_id = $lagerbeh = $ny_lagerbeh = $varianter_id = $variantVarerId = $variantVarerQty = array();
 
 // 20221004
@@ -352,7 +353,7 @@ if ($saveItem || $submit = trim($submit)) {
     $vare_tekst_id = if_isset($_POST['vare_tekst_id']);
     $trademark = db_escape_string(trim(if_isset($_POST['trademark'])));
     $retail_price = usdecimal(if_isset($_POST['retail_price']), 2);
-    $oldRetailPrice .= if_isset($_POST['oldRetailPrice'], 0);
+    $oldRetailPrice = if_isset($_POST['oldRetailPrice'], 0);
     $specialType = if_isset($_POST['specialType']);
     $special_price = usdecimal(if_isset($_POST['special_price']), 2);
     $tier_price = usdecimal(if_isset($_POST['tier_price']), 2);
@@ -1558,8 +1559,11 @@ for ($x = 1; $x <= $vare_sprogantal; $x++) {
 }
 
 ($noEdit) ? $href = NULL : $href = "ret_varenr.php?id=$id";
+
 $query = db_select("SELECT varenr_alias FROM varer WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-$varenrAlias = db_fetch_array($query)['varenr_alias'];
+// Safely get varenr_alias; returns NULL if no matching row exists.
+$varenrAliasRow = db_fetch_array($query);
+$varenrAlias = $varenrAliasRow ? $varenrAliasRow['varenr_alias'] : NULL;
 if (substr($rettigheder,7,1) && $id) {
     print "<tr><td colspan=\"1\"></td>\n";
     print "<td colspan=\"1\" align=\"center\"><b>".findtekst('917|Varenr.', $sprog_id).": <a href=\"$href\">$varenr</a></b>";
