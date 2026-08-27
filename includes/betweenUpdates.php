@@ -428,4 +428,40 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE adresser ADD stripe_fravalg varchar(2)", __FILE__ . " linje " . __LINE__);
 }
 
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'ansatte' and column_name = 'mobile'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	# IF NOT EXISTS because betweenUpdates.php runs at login: two concurrent logins can both
+	# get past the check above, and one of the two ALTER statements would then fail.
+	$qtxt = "ALTER TABLE ansatte ADD COLUMN IF NOT EXISTS mobile text";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+
+// 20260827 NTR Tekst 351: ' - not changed' suffix added in all three languages. Delete rows still
+// holding the old text so findtekst() re-seeds them from tekster.csv. Guarded on the old values
+// because betweenUpdates.php runs at every login and customer-edited texts must not be wiped.
+$gamle_351 = array('Kontonummer findes allerede', 'not changed', 'Kontonummer eksisterer allerede');
+foreach ($gamle_351 as $gammel) {
+	db_modify("delete from tekster where tekst_id = '351' and tekst = '$gammel'", __FILE__ . " linje " . __LINE__);
+}
+
+$cvr_gamle_tekster = array(
+	'Auto-opslag','Auto lookup','Auto-oppslag',
+	'CVR-opslaget kunne ikke gennemføres. Udfyld felterne manuelt.',
+	'The VAT lookup could not be completed. Please fill in the fields manually.',
+	'Oppslaget kunne ikke gjennomføres. Fyll ut feltene manuelt.',
+	'Kvoten for CVR-opslag er opbrugt.','The quota for VAT lookups has been used up.','Kvoten for oppslag er brukt opp.',
+	'CVR-nummeret blev ikke fundet.','The VAT number was not found.','Organisasjonsnummeret ble ikke funnet.',
+	'CVR-nummeret er ikke gyldigt.','The VAT number is not valid.','Organisasjonsnummeret er ikke gyldig.',
+	'Søger...','Searching...','Søker...'
+);
+foreach ($cvr_gamle_tekster as $cvr_tekst) {
+	$cvr_tekst = db_escape_string($cvr_tekst);
+	db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst = '$cvr_tekst'", __FILE__ . " linje " . __LINE__);
+}
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast CVR-nr. efterfulgt%'", __FILE__ . " linje " . __LINE__);
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Enter the VAT no. followed%'", __FILE__ . " linje " . __LINE__);
+db_modify("delete from tekster where tekst_id between '5040' and '5046' and tekst like 'Tast inn org.nr. etterfulgt%'", __FILE__ . " linje " . __LINE__);
+
 ?>
