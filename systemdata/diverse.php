@@ -94,6 +94,11 @@
 // 20260708 NTR - Changed how we convert id1 to a int, to avoid a fatal error.
 // 20260709 Sawaneh Save "Show both delivery address and Extra fields on open orders" setting (showBothAddrExtra)
 // 20260710 SZ Added Settings search box (settingsSearch.php/.js/.css)
+// 20260818 CL/LH Use stable Stripe settings include paths.
+// 20260819 CL/NTR Label saving routed through saveLabelText() so 'Standard' also reaches the labels
+//                 table that lager/labelprint.php prints from, and new labels get account_id 0.
+// 20260824 CL/NTR Label deletion only removes global rows (account_id 0 or null), matching what the
+//                 label editor shows.
 
 @session_start();
 $s_id = session_id();
@@ -1195,6 +1200,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		if ($qtxt)
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
+	} elseif ($sektion == 'stripe_valg') {
+		include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
+		stripeValgSave();
+		#######################################################################################
 	} elseif ($sektion == 'labels') {
 		// Generate template from form data
 		$valg           = if_isset($_GET['valg']);
@@ -1216,59 +1225,19 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
         $templateFile = "../importfiler/$labelTemplate";
         if (file_exists($templateFile)) {
             $templateContent = file_get_contents($templateFile);
-            $qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$newLabelName', 'sheet', '" . db_escape_string($templateContent) . "')";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            saveLabelText($valg, $newLabelName, $templateContent, 'sheet');
             $labelName = $newLabelName;
         }
     } elseif ($saveRawHTML) {
         // Save raw HTML
-        $rawHTML = if_isset($_POST['rawHTML'], '');
-        $labelType = if_isset($_POST['labelType'], 'sheet');
-        
-        if ($labelName == 'Standard') {
-            // Update the standard label in grupper table
-            $qtxt = "SELECT id FROM grupper WHERE art = 'LABEL'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $qtxt = "UPDATE grupper SET $valg = '" . db_escape_string($rawHTML) . "' WHERE id = '$r[id]'";
-            } else {
-                $qtxt = "INSERT INTO grupper (art, $valg) VALUES ('LABEL', '" . db_escape_string($rawHTML) . "')";
-            }
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        } else {
-            // Update or create custom label in labels table
-            $qtxt = "SELECT id FROM labels WHERE labelname = '$labelName'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $qtxt = "UPDATE labels SET labeltext = '" . db_escape_string($rawHTML) . "', labeltype = '$labelType' WHERE id = '$r[id]'";
-            } else {
-                $qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$labelName', '$labelType', '" . db_escape_string($rawHTML) . "')";
-            }
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-
+        $rawHTML   = if_isset($_POST['rawHTML'], '');
+        $labelType = if_isset($_POST, 'sheet', ['labelType']);
+        saveLabelText($valg, $labelName, $rawHTML, $labelType);
     } elseif ($switchToVisual) {
 		// When switching from raw HTML to visual editor, we need to save the raw HTML first
 		$rawHTML   = if_isset($_POST['rawHTML'], '');
 		$labelType = if_isset($_POST['labelType'], 'sheet');
-		
-		if ($labelName == 'Standard') {
-			// Update the standard label in grupper table
-			$qtxt = "SELECT id FROM grupper WHERE art = 'LABEL'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "UPDATE grupper SET $valg = '" . db_escape_string($rawHTML) . "' WHERE id = '$r[id]'";
-			} else {
-				$qtxt = "INSERT INTO grupper (art, $valg) VALUES ('LABEL', '" . db_escape_string($rawHTML) . "')";
-			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		} else {
-			// Update or create custom label in labels table
-			$qtxt = "SELECT id FROM labels WHERE labelname = '$labelName'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$qtxt = "UPDATE labels SET labeltext = '" . db_escape_string($rawHTML) . "', labeltype = '$labelType' WHERE id = '$r[id]'";
-			} else {
-				$qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$labelName', '$labelType', '" . db_escape_string($rawHTML) . "')";
-			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		}
+		saveLabelText($valg, $labelName, $rawHTML, $labelType);
 	} elseif ($saveLabel) {
             // Generate template from form data (visual editor)
     $formData = array(
@@ -1299,27 +1268,12 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
     }
     
     $generatedTemplate = generateLabelTemplate($formData);
-    $labelType = if_isset($_POST['labelType'], 'sheet');
-    
-        $qtxt = "SELECT id FROM grupper WHERE art = 'LABEL'";
-        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-            $qtxt = "UPDATE grupper SET $valg = '" . db_escape_string($generatedTemplate) . "' WHERE id = '$r[id]'";
-        } else {
-            $qtxt = "INSERT INTO grupper (art, $valg) VALUES ('LABEL', '" . db_escape_string($generatedTemplate) . "')";
-        }
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    $labelType         = if_isset($_POST['labelType'], 'sheet');
+    saveLabelText($valg, $labelName, $generatedTemplate, $labelType);
 
-        // Update or create custom label in labels table
-        $qtxt = "SELECT id FROM labels WHERE labelname = '$labelName'";
-        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-            $qtxt = "UPDATE labels SET labeltext = '" . db_escape_string($generatedTemplate) . "', labeltype = '$labelType' WHERE id = '$r[id]'";
-        } else {
-            $qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$labelName', '$labelType', '" . db_escape_string($generatedTemplate) . "')";
-        }
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-    
 		} elseif ($deleteLabel && $labelName != 'Standard') {
-			$qtxt = "DELETE FROM labels WHERE labelname = '$labelName'";
+			$qtxt = "DELETE FROM labels WHERE labelname = '" . db_escape_string($labelName) . "'";
+			$qtxt.= " and (account_id = '0' or account_id is null)";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$labelName = 'Standard';
 		}
@@ -2255,6 +2209,10 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			   API</button></a></td></tr>\n";
 
+		print "<tr><td align=left><a href=diverse.php?sektion=stripe_valg>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			   Stripe abonnement</button></a></td></tr>\n";
+
 		print "<tr><td align=left><a href=diverse.php?sektion=labels>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('791|Mærkater', $sprog_id)."</button></a></td></tr>\n";
@@ -2329,6 +2287,7 @@ if ($menu != 'T') {
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst('788|Variantrelaterede valg', $sprog_id)."</a></td></tr>\n";
 		// print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=stripe_valg>Stripe abonnement</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</a></td></tr>\n";
@@ -2368,6 +2327,10 @@ if ($sektion == "productOptions" || $sektion == "label") {
 if ($sektion == "variant_valg") variant_valg();
 // if ($sektion == "shop_valg") shop_valg();
 if ($sektion == "api_valg") api_valg();
+if ($sektion == "stripe_valg") {
+	include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
+	stripeValg();
+}
 if ($sektion == "labels") labels($valg);
 if ($sektion == "pricelists") {
 	include("diverseIncludes/pricelists.php");

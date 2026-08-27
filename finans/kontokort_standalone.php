@@ -25,6 +25,9 @@
 // ----------------------------------------------------------------------
 //
 //20260429 LOE Created standalone version of kontokort repoort for easy navigation
+//20260824 CL/SZ Cast konto_fra/konto_til to int - unescaped GET values hit the
+//                numeric(15,0) kontonr columns and threw "invalid input syntax
+//                for type numeric" (SST-672)
 @session_start();
 $s_id = session_id();
 
@@ -44,8 +47,8 @@ $aar_fra     = if_isset($_GET, null, 'aar_fra');
 $aar_til     = if_isset($_GET, null, 'aar_til');
 $dato_fra    = if_isset($_GET, null, 'dato_fra');
 $dato_til    = if_isset($_GET, null, 'dato_til');
-$konto_fra   = if_isset($_GET, null, 'konto_fra');
-$konto_til   = if_isset($_GET, null, 'konto_til');
+$konto_fra   = (int) if_isset($_GET, null, 'konto_fra');
+$konto_til   = (int) if_isset($_GET, null, 'konto_til');
 $rapportart  = if_isset($_GET, null, 'rapportart');
 $ansat_fra   = if_isset($_GET, null, 'ansat_fra');
 $ansat_til   = if_isset($_GET, null, 'ansat_til');

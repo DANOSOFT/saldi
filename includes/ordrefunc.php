@@ -113,6 +113,14 @@
 //             elseif(!$svar) branch, right after $fejl (which is never reassigned), making it
 //             dead code and leaving the committed-success path unchecked; moved it back to
 //             sit unconditionally before the shared return (SD-595)
+// 20260824 Sawaneh JOB-056 function momsupdat: free-text lines (vare_id=0) with their own bogf_konto/momssats
+//             were invisible to the mixed-VAT detection, so the flat header-rate recalculation overwrote
+//             ordrer.moms with header rate on the whole order while bogfor_nu posts VAT per line rate
+//             (invoice 14239: 89.40 DKK ledger imbalance)
+// 20260824 Sawaneh JOB-056 function bogfor_nu: new pre-flight check forkontrolPosteringsbalance rejects an
+//             out-of-balance order BEFORE any transaktioner/openpost rows are written (previously the
+//             imbalance was detected after posting, with no rollback for callers outside bogfor).
+//             Also guarded the vatAccount rounding loops against infinite loop on empty SM account list
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -1667,9 +1675,11 @@ function momsupdat($id)
 			$antal_diff_moms++;
 			continue;
 		}
-		if ($r['vare_id'] && $r['momsfri'] != 'on' && !$r['omvbet']) {
+		if (($r['vare_id'] || $r['bogf_konto'] > 0) && $r['momsfri'] != 'on' && !$r['omvbet']) {
 			if ($r['momssats'] > 0 && $r['momssats'] < $momssats)
 				$varemomssats = $r['momssats'];
+			elseif (!$r['vare_id']) # fritekstlinje med egen konto: momssatsen er valgt bevidst og maa ikke overskrives
+				$varemomssats = $r['momssats'] * 1;
 			else {
 				if ($r['momssats'] != $momssats)
 					db_modify("update ordrelinjer set momssats=$momssats where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
@@ -1684,7 +1694,7 @@ function momsupdat($id)
 			if ($r['procent'] || $r['procent'] == '0')
 				$linjemoms *= $r['procent'] / 100;
 			$moms += afrund($linjemoms, 2);
-		} else if ($r['vare_id'])
+		} else if ($r['vare_id'] || $r['bogf_konto'] > 0)
 			$antal_diff_moms++;
 	}
 	if (!$antal_diff_moms && $art != 'PO') {
@@ -2220,6 +2230,98 @@ function bogfor_indbetaling($id, $webservice) {
 	return ('OK');
 }
 ######################################################################################################################################
+function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
+{
+	# 20260824 Sawaneh JOB-056
+	# Toerkoersel af posteringsberegningen i bogfor_nu: forudsiger den debet/kredit-difference
+	# bogfoeringen vil skabe, saa en ordre i ubalance kan afvises FOER der skrives til
+	# transaktioner/openpost. Tolerancerne spejler dem kursdifference-/oeredifference-
+	# posteringerne allerede opfanger, saa ordrer der bogfoeres rent i dag paavirkes ikke.
+	global $baseCurrency;
+	if (!$valutakurs)
+		$valutakurs = 100;
+	$maxdif = 2;
+	if (is_numeric($id))
+		$tmp = "ordre_id = '" . $id . "'";
+	else {
+		$idliste = explode(",", $id);
+		$antal = count($idliste);
+		$tmp = "(ordre_id = '" . $idliste[0] . "'";
+		for ($x = 1; $x < $antal; $x++)
+			$tmp .= " or ordre_id = '" . $idliste[$x] . "'";
+		$tmp .= ")";
+	}
+	$p = 0;
+	$projekt = array();
+	$q = db_select("select distinct(coalesce(projekt,'')) as projekt from ordrelinjer where $tmp and vare_id >'0'", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$p++;
+		$projekt[$p] = trim($r['projekt']);
+	}
+	$projektantal = ($p) ? $p : 1;
+	if (!$p)
+		$projekt[1] = '';
+	$kontrol = afrund(afrund($headerTotal, 3) * $valutakurs / 100, 3);
+	for ($t = 1; $t <= 2; $t++) {
+		for ($p = 1; $p <= $projektantal; $p++) {
+			$y = 0;
+			$konto = $vatkonto = $net = $vat = array();
+			if ($t == 1)
+				$qtxt = "select * from ordrelinjer where $tmp and coalesce(projekt,'')='$projekt[$p]' and posnr>='0' and bogf_konto > 0 order by bogf_konto,vat_account";
+			else
+				$qtxt = "select * from ordrelinjer where $tmp and coalesce(projekt,'')='$projekt[$p]' and posnr<'0' order by bogf_konto,vat_account";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				if ($valutakurs != 100)
+					$maxdif += 2;
+				if (!in_array($r['bogf_konto'], $konto)) {
+					$y++;
+					$konto[$y] = $r['bogf_konto'];
+					$vatkonto[$y] = $r['vat_account'] * 1;
+					if ($r['rabatart'] == 'amount') {
+						$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']);
+						($r['procent'] || $r['procent'] != '') ? $net[$y] = $linjesum * $r['procent'] / 100 : $net[$y] = $linjesum;
+					} else {
+						$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
+						($r['procent'] || $r['procent'] != '') ? $net[$y] = $linjesum * $r['procent'] / 100 : $net[$y] = $linjesum;
+						$net[$y] = afrund($net[$y], 3);
+					}
+					($r['momssats'] && !$r['momsfri']) ? $vat[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $vat[$y] = 0;
+				} else {
+					for ($a = 1; $a <= $y; $a++) {
+						if ($konto[$a] == $r['bogf_konto'] && $vatkonto[$a] == $r['vat_account']) {
+							if ($r['rabatart'] == 'amount')
+								$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']);
+							else
+								$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
+							($r['procent'] || $r['procent'] != '') ? $net[$a] += $linjesum * $r['procent'] / 100 : $net[$a] += $linjesum;
+							$net[$a] = afrund($net[$a], 3);
+							if ($r['momssats'] && !$r['momsfri'])
+								$vat[$a] += afrund($linjesum / 100 * $r['momssats'], 3);
+						}
+					}
+				}
+			}
+			for ($x = 1; $x <= $y; $x++) {
+				if (!$konto[$x] || !$net[$x])
+					continue;
+				if ($t == 1)
+					$kontrol -= afrund($net[$x] * $valutakurs / 100, 3) + afrund($vat[$x] * $valutakurs / 100, 3);
+				else
+					$kontrol -= afrund($net[$x], 3) + afrund($vat[$x], 3);
+			}
+		}
+	}
+	$diff = afrund($kontrol, 2);
+	if (!$diff)
+		return NULL;
+	if ($valuta != $baseCurrency && abs($diff) <= $maxdif)
+		return NULL;
+	if (abs($diff) < 0.05)
+		return NULL;
+	return $diff;
+}
+######################################################################################################################################
 function bogfor_nu($id, $kilde) {
 
 	include("../includes/genberegn.php");
@@ -2426,6 +2528,16 @@ function bogfor_nu($id, $kilde) {
 		$konto_id = '0';
 		$kontonr = NULL;
 	}
+	# 20260824 Sawaneh JOB-056 ->
+	if ($art != 'PO' && ($balancediff = forkontrolPosteringsbalance($id, $sum, $valuta, $valutakurs))) {
+		$svar = "Bogf&oslash;ring afbrudt: ordren balancerer ikke (difference " . dkdecimal($balancediff, 2) . " $baseCurrency). ";
+		$svar .= "Ordrens moms stemmer ikke med ordrelinjernes momssatser - &aring;bn ordren, kontroller konto og momssats p&aring; linjerne og gem den igen f&oslash;r bogf&oslash;ring.";
+		$message = $db . " | Bogfoering blokeret foer postering: ordre_id=$id, diff=$balancediff | " . __FILE__ . " linje " . __LINE__ . " | " . $brugernavn . " " . date("Y-m-d H:i:s");
+		$headers = 'From: fejl@saldi.dk' . "\r\n" . 'Reply-To: fejl@saldi.dk' . "\r\n" . 'X-Mailer: PHP/' . phpversion();
+		mail('fejl@saldi.dk', 'SALDI Fejl', $message, $headers);
+		return ($svar);
+	}
+	# <- 20260824 Sawaneh JOB-056
 	if ($konto_id && $kontonr) {
 		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'", __FILE__ . " linje " . __LINE__));
 		$debitorgruppe = $r['gruppe'];
@@ -2915,7 +3027,7 @@ function bogfor_nu($id, $kilde) {
 	}
 	$moms = afrund($moms, 2);
 	$lineVatTotal = afrund($lineVatTotal, 2);
-	while (afrund($moms - $lineVatTotal, 2) >= 0.01) { #20190311
+	while (count($vatAccount) && afrund($moms - $lineVatTotal, 2) >= 0.01) { #20190311 #20260824 Sawaneh JOB-056 count() da tom kontoliste ellers giver uendelig loekke
 		for ($v = 0; $v < count($vatAccount); $v++) {
 			if (afrund($moms - $lineVatTotal, 2) >= 0.01) {
 				$vatAmount[$v] += 0.01;
@@ -2925,7 +3037,7 @@ function bogfor_nu($id, $kilde) {
 			}
 		}
 	}
-	while (afrund($lineVatTotal - $moms, 2) >= 0.01) { #20190311
+	while (count($vatAccount) && afrund($lineVatTotal - $moms, 2) >= 0.01) { #20190311 #20260824 Sawaneh JOB-056 count()
 		for ($v = 0; $v < count($vatAccount); $v++) {
 			if (afrund($lineVatTotal - $moms, 2) >= 0.01) {
 				$vatAmount[$v] -= 0.01;
