@@ -112,6 +112,7 @@
 // 20230524 PHR - Moved functions to folder loenIncludes.
 // 20240220 PK - Added javascript that prevent user from double click.
 // 20260731 PHR - Added cache busting for warning when selecting a former employee in ret_loen.
+// 20260810 CX/PHR - Corrected quoting in print icon onclick handlers.
 
 @session_start();
 $s_id = session_id();
@@ -267,9 +268,9 @@ if ($funktion == 'ret_loen') {
 				<li>".findtekst('2784|Løn', $sprog_id)."</li>";
 }
 if ($funktion == 'ret_loen')
-	print "<li style='float:right;'><a href='#' title='".findtekst('2788|Udskriv skema', $sprog_id)."' onclick='printDiv('printableArea')' style='background-image: none;'><img src='../img/printIcon2.png' alt='".findtekst('2788|Udskriv skema', $sprog_id)."' class='printIcon' /></a></li>"; #20150623-2
+	print "<li style='float:right;'><a href='#' title='".findtekst('2788|Udskriv skema', $sprog_id)."' onclick=\"printDiv('printableArea'); return false;\" style='background-image: none;'><img src='../img/printIcon2.png' alt='".findtekst('2788|Udskriv skema', $sprog_id)."' class='printIcon' /></a></li>"; #20150623-2
 if ($funktion == 'loenafregning')
-	print "<li style='float:right;'><a href='#' title='".findtekst('2788|Udskriv skema', $sprog_id)."' onclick='printDiv('printableArea')' style='background-image: none;'><img src='../img/printIcon2.png' alt='".findtekst('2788|Udskriv skema', $sprog_id)."' class='printIcon' /></a></li>";
+	print "<li style='float:right;'><a href='#' title='".findtekst('2788|Udskriv skema', $sprog_id)."' onclick=\"printDiv('printableArea'); return false;\" style='background-image: none;'><img src='../img/printIcon2.png' alt='".findtekst('2788|Udskriv skema', $sprog_id)."' class='printIcon' /></a></li>";
 print "
 			</ul>
 			</div><!-- end of breadcrumbbar -->
