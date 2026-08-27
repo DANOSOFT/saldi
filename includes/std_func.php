@@ -68,7 +68,8 @@
 //                 no longer sent to the shop - they belong in the local log, not in the shop's access log
 // 20260815 CL/SZ Added moms_periode_luk_schema_status()/_ready()/_ensure_schema() -
 //                explicit, idempotent table/function/trigger health check + repair for
-//                the R5 periodelaasning migration (SD-646)
+//                the R5 periodelaasning migration (SD-646) 
+// 20260827 LOE Checked for $r in the function sync_shop_vare, sync_shop_price before using it to avoid undefined variable notice. My comment of '#20211013 removed as associated comments have been earlier deleted
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1737,13 +1738,15 @@ if(!function_exists("sync_shop_price")){
 	  $costPrice = 0;
 	  $shop_id = $rand = ''; # never assigned in this function, kept empty as in the original url
 	  $failed = 0;
+	  $api_fil =$api_fil2=$api_fil3= NULL;
 	  $log = fopen("../temp/$db/rest_api.log", "a");
 	  $qtxt = "select box4, box5, box6 from grupper where art='API'";
 	  fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	  $api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
-	  $api_fil2 = trim($r["box5"]);
-	  $api_fil3 = trim($r["box6"]);
+	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$api_fil = trim($r['box4']); 
+		$api_fil2 = trim($r["box5"]);
+		$api_fil3 = trim($r["box6"]);   
+	  }
 	  if (!$api_fil) {
 		fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 		fclose($log);
@@ -1792,13 +1795,15 @@ if (!function_exists('sync_shop_vare')) {
 		global $bruger_id,$db,$regnaar;
 		$costPrice = 0;
 		$failed = 0;
+		$api_fil =$api_fil2=$api_fil3= NULL;
 		$log = fopen("../temp/$db/rest_api.log", "a");
 		$qtxt = "select box4, box5, box6 from grupper where art='API'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
-		$api_fil2 = trim($r["box5"]);
-		$api_fil3 = trim($r["box6"]);
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$api_fil = trim($r['box4']); 
+			$api_fil2 = trim($r["box5"]);
+			$api_fil3 = trim($r["box6"]);
+		}
 		
 		if (!$api_fil) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");

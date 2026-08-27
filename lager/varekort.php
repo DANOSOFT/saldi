@@ -129,6 +129,7 @@ $varenr = $variant = $variantVarerVariantId = $vis_kost = NULL;
 $campaign_cost = $special_price = $special_from_date = $special_to_date = $retail_price = $tier_price = 0;
 $oldCost = $oldSale = $oldRetailPrice = $p_grp_kostpris = $p_grp_salgspris = $p_grp_retail_price = $p_grp_tier_price = 0;
 $beskrivelse = $kat_id = $lagerbeh = $ny_lagerbeh = $varianter_id = $variantVarerId = $variantVarerQty = array();
+$docfolder=$changeStock=$delvare = $opener =$funktion=$konto_id=$delete_category = $delete_var_type = $rename_category = $show_subcat = $deleteItem = $saveItem = $submit = $acceptStockChange = $cancelStockChange = NULL;
 
 // 20221004
 $on_price_list = 1;
@@ -207,19 +208,19 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
 if (!$numberOfStocks)
     $numberOfStocks = 1;
 
-$opener = if_isset($_GET['opener']);
-$id = if_isset($_GET['id']) * 1;
+$opener = if_isset($_GET, NULL, 'opener');
+$id = (int) if_isset($_GET, NULL, 'id');
 if (isset($_GET['returside']) && $returside = $_GET['returside']) {
-    $ordre_id = if_isset($_GET['ordre_id']) * 1;
-    $fokus = if_isset($_GET['fokus']);
-    $vare_lev_id = if_isset($_GET['leverandor']);
-    $vis_samlevarer = if_isset($_GET['vis_samlevarer']);
+    $ordre_id = if_isset($_GET, NULL, 'ordre_id') * 1;
+    $fokus = if_isset($_GET, NULL, 'fokus');
+    $vare_lev_id = if_isset($_GET, NULL, 'leverandor');
+    $vis_samlevarer = if_isset($_GET, NULL, 'vis_samlevarer');
     setcookie("saldi", $returside, $ordre_id, $fokus, $vare_lev_id);
 }
-if ($funktion = if_isset($_GET['funktion'])) {
-    $funktion(if_isset($_GET['sort']), if_isset($_GET['fokus']), $id, if_isset($_GET['vis_kost']), '', if_isset($_GET['find']), 'varekort.php');
+if ($funktion = if_isset($_GET, NULL, 'funktion')) {
+    $funktion(if_isset($_GET, NULL, 'sort'), if_isset($_GET, NULL, 'fokus'), $id, if_isset($_GET, NULL, 'vis_kost'), '', if_isset($_GET, NULL, 'find'), 'varekort.php');
 }
-if ($konto_id = if_isset($_GET['konto_id'])) {
+if ($konto_id = if_isset($_GET, NULL, 'konto_id')) {
     db_modify("insert into vare_lev (lev_id, vare_id, posnr) values ('$konto_id', '$id', '1')", __FILE__ . " linje " . __LINE__);
 }
 if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0) {
@@ -229,38 +230,37 @@ if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0) {
         db_modify("update varer set delvare =  'on' where id = '$vare_id'", __FILE__ . " linje " . __LINE__);
     }
 }
-if ($delete_category = if_isset($_GET['delete_category'])) {
+if ($delete_category = if_isset($_GET, NULL, 'delete_category')) {
     db_modify("delete from grupper where id = '$delete_category'", __FILE__ . " linje " . __LINE__);
 }
-if ($delete_var_type = if_isset($_GET['delete_var_type'])) {
+if ($delete_var_type = if_isset($_GET, NULL, 'delete_var_type')) {
     db_modify("delete from variant_varer where id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
     db_modify("delete from lagerstatus where vare_id='$id' and variant_id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
     db_modify("delete from shop_varer where saldi_id='$id' and saldi_variant = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
 }
-$rename_category = if_isset($_GET['rename_category']);
-$show_subcat = if_isset($_GET['show_subcat']);
+$rename_category = if_isset($_GET, NULL, 'rename_category');
+$show_subcat = if_isset($_GET, NULL, 'show_subcat');
 
-$deleteItem = if_isset($_POST['deleteItem']);
-$saveItem = if_isset($_POST['saveItem']);
-$submit = if_isset($_POST['submit']);
+$deleteItem = if_isset($_POST, NULL, 'deleteItem');
+$saveItem = if_isset($_POST, NULL, 'saveItem');
+$submit = if_isset($_POST, NULL, 'submit');
 
 if ($deleteItem == 'Slet') {
-    $id = if_isset($_POST['id']);
     db_modify("delete from varer where id = $id", __FILE__ . " linje " . __LINE__);
     db_modify("delete from shop_varer where saldi_id = $id", __FILE__ . " linje " . __LINE__);
     db_modify("delete from vare_lev where vare_id = '$id'", __FILE__ . " linje " . __LINE__);
     print "<meta http-equiv=\"refresh\" content=\"0;URL=varer.php\">";
     exit;
 }
-$acceptStockChange = if_isset($_POST['acceptStockChange']);
-$cancelStockChange = if_isset($_POST['cancelStockChange']);
+$acceptStockChange = if_isset($_POST, NULL, 'acceptStockChange');
+$cancelStockChange = if_isset($_POST, NULL, 'cancelStockChange');
 
 #$acceptStockChange=1;
 if ($acceptStockChange) {
-    $initials = if_isset($_POST['initials']);
-    $reason = if_isset($_POST['reason']);
-    $beholdning = if_isset($_POST['beholdning']);
-    $ny_beholdning = if_isset($_POST['ny_beholdning']);
+    $initials = if_isset($_POST, NULL, 'initials');
+    $reason = if_isset($_POST, NULL, 'reason');
+    $beholdning = if_isset($_POST, NULL, 'beholdning');
+    $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $stockchange = $ny_beholdning - $beholdning;
     $qtxt = "select kostpris from varer where id=$id";
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -270,8 +270,8 @@ if ($acceptStockChange) {
     $qtxt .= "('$id','" . db_escape_string($userName) . "','" . db_escape_string($initials) . "','" . db_escape_string($reason) . "',";
     $qtxt .= "'" . $stockchange . "','" . date("U") . "')";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-    $lagerbeh = if_isset($_POST['lagerbeh'], array());
-    $ny_lagerbeh = if_isset($_POST['ny_lagerbeh'], array());
+    $lagerbeh = if_isset($_POST, array(), 'lagerbeh');
+    $ny_lagerbeh = if_isset($_POST, array(), 'ny_lagerbeh');
     for ($x = 1; $x <= count($ny_lagerbeh); $x++) {
         #       if ($ny_lagerbeh[$x]!=$lagerbeh[$x]) {
         lagerreguler($id, $ny_lagerbeh[$x], $cost, $x, date("Y-m-d"), '0');
@@ -289,119 +289,121 @@ if (isset($_POST['supplierLookUp']) && $_POST['supplierLookUp'])
     $submit = 'supplierLookUp';
 
 if ($saveItem || $submit = trim($submit)) {
-    $id = if_isset($_POST['id']);
-    $beskrivelse = if_isset($_POST['beskrivelse']);
-    $beskrivelse[0] = trim(if_isset($_POST['beskrivelse0'])); # fordi fokus ikke fungerer på array navne
+    $id = if_isset($_POST, NULL, 'id');
+    $beskrivelse = if_isset($_POST, NULL,'beskrivelse');
+    $beskrivelse[0] = trim(if_isset($_POST, NULL,'beskrivelse0')); # fordi fokus ikke fungerer på array navne
     $grossWeight = usdecimal((isset($_POST['grossWeight']) ? $_POST['grossWeight'] : 0), 3);
-    $beskrivelseAlias = if_isset($_POST['beskrivelseAlias']);
-    $grossWeightUnit = if_isset($_POST['grossWeightUnit'], '');
-    $varenr = db_escape_string(trim(if_isset($_POST['varenr'])));
-    $stregkode = db_escape_string(trim(if_isset($_POST['stregkode'])));
-    $oldDescription = trim(if_isset($_POST['oldDescription']));
-    $enhed = db_escape_string(trim(if_isset($_POST['enhed'])));
-    $enhed2 = db_escape_string(trim(if_isset($_POST['enhed2'])));
-    $forhold = usdecimal(if_isset($_POST['forhold']), 2);
-    $salgspris = usdecimal(if_isset($_POST['salgspris']), 2);
-    $salgspris2 = usdecimal(if_isset($_POST['salgspris2']), 2);
-    $kostpris = if_isset($_POST['kostpris']);
-    $gl_kostpris = if_isset($_POST['gl_kostpris']);
-    $commissionItem = if_isset($_POST['commissionItem']);
-    $kostpris2 = if_isset($_POST['kostpris2']);
-    $montage = usdecimal(if_isset($_POST['montage']), 2); # montagepris til stillads
-    $demontage = usdecimal(if_isset($_POST['demontage']), 2); # demontagepris til stillads
+    $beskrivelseAlias = if_isset($_POST,NULL,'beskrivelseAlias');
+    $grossWeightUnit = if_isset($_POST,NULL,'grossWeightUnit');
+    $varenr = db_escape_string(trim(if_isset($_POST,NULL,'varenr')));
+    $stregkode = db_escape_string(trim(if_isset($_POST,NULL,'stregkode')));
+    $oldDescription = trim(if_isset($_POST,NULL,'oldDescription'));
+    $enhed = db_escape_string(trim(if_isset($_POST,NULL,'enhed')));
+    $enhed2 = db_escape_string(trim(if_isset($_POST,NULL,'enhed2')));
+
+    $forhold = usdecimal(if_isset($_POST,NULL,'forhold'), 2);
+    $salgspris = usdecimal(if_isset($_POST,NULL,'salgspris'), 2);
+    $salgspris2 = usdecimal(if_isset($_POST,NULL,'salgspris2'), 2);
+    $kostpris = if_isset($_POST,NULL,'kostpris');
+    $gl_kostpris = if_isset($_POST,NULL,'gl_kostpris');
+    $commissionItem = if_isset($_POST,NULL,'commissionItem');
+    $kostpris2 = if_isset($_POST, NULL, 'kostpris2');
+    $montage = usdecimal(if_isset($_POST,NULL,'montage'), 2); # montagepris til stillads
+    $demontage = usdecimal(if_isset($_POST,NULL,'demontage'), 2); # demontagepris til stillads
     $netWeight = usdecimal((isset($_POST['netWeight']) ? $_POST['netWeight'] : 0), 3);
-    $netWeightUnit = if_isset($_POST['netWeightUnit'], '');
-    $length = usdecimal(if_isset($_POST['length'], 0), 0);
-    $width = usdecimal(if_isset($_POST['width'], 0), 0);
-    $height = usdecimal(if_isset($_POST['height'], 0), 0);
-    $indhold = usdecimal(if_isset($_POST['indhold'], 0), 2);
-    $provisionsfri = trim(if_isset($_POST['provisionsfri']));
-    $publiceret = if_isset($_POST['publiceret']);
-    $publ_pre = if_isset($_POST['publ_pre']);
-    list($leverandor) = explode(':', if_isset($_POST['leverandor']));
-    $vare_lev_id = if_isset($_POST['vare_lev_id']);
-    $lev_varenr = if_isset($_POST['lev_varenr']);
-    $lev_antal = if_isset($_POST['lev_antal']);
-    $lev_pos = if_isset($_POST['lev_pos']);
-    $gruppe = (int) if_isset($_POST['gruppe']);
-    $ny_gruppe = if_isset($_POST['ny_gruppe']);
-    $dvrg_nr[0] = if_isset($_POST['dvrg']) * 1; # DebitorVareRabatGruppe
-    $prisgruppe = if_isset($_POST['prisgruppe']) * 1;
-    $tilbudgruppe = if_isset($_POST['tilbudgruppe']) * 1;
-    $rabatgruppe = if_isset($_POST['rabatgruppe']) * 1;
-    $operation = if_isset($_POST['operation']) * 1;
-    $min_lager = if_isset($_POST['min_lager']);
-    $max_lager = if_isset($_POST['max_lager']);
-    $volume_lager = if_isset($_POST['volume_lager']);
-    $beholdning = if_isset($_POST['beholdning']);
-    $ny_beholdning = if_isset($_POST['ny_beholdning']);
-    $lukket = if_isset($_POST['lukket']);
-    $serienr = db_escape_string(trim(if_isset($_POST['serienr'])));
-    $has_due_date = (if_isset($_POST['has_due_date']) == 'on') ? 'true' : 'false';
-    $default_shelf_life_days = if_isset($_POST['default_shelf_life_days']);
+    $netWeightUnit = if_isset($_POST, NULL,'netWeightUnit');
+    $length = usdecimal(if_isset($_POST, 0, 'length'), 0);
+    $width = usdecimal(if_isset($_POST, 0, 'width'), 0);
+    $height = usdecimal(if_isset($_POST, 0, 'height'), 0);
+    $indhold = usdecimal(if_isset($_POST, 0, 'indhold'), 2);
+    $provisionsfri = trim(if_isset($_POST, NULL, 'provisionsfri'));
+    $publiceret = if_isset($_POST, NULL, 'publiceret');
+    $publ_pre = if_isset($_POST, NULL, 'publ_pre');
+    list($leverandor) = explode(':', if_isset($_POST, NULL, 'leverandor'));
+    $vare_lev_id = if_isset($_POST, NULL, 'vare_lev_id');
+    $lev_varenr = if_isset($_POST, NULL, 'lev_varenr');
+    $lev_antal = if_isset($_POST, NULL, 'lev_antal');
+    $lev_pos = if_isset($_POST, NULL, 'lev_pos');
+    $gruppe = (int) if_isset($_POST, NULL, 'gruppe');
+    $ny_gruppe = if_isset($_POST, NULL, 'ny_gruppe');
+    $dvrg_nr[0] = (int) if_isset($_POST, NULL, 'dvrg') ; # DebitorVareRabatGruppe
+    $prisgruppe = (int)if_isset($_POST, NULL, 'prisgruppe');
+    $tilbudgruppe = (int) if_isset($_POST, NULL, 'tilbudgruppe');
+    $rabatgruppe = (int) if_isset($_POST, NULL, 'rabatgruppe');
+    $operation = (int) if_isset($_POST, NULL, 'operation');
+    $min_lager = if_isset($_POST, NULL, 'min_lager');
+    $max_lager = if_isset($_POST, NULL, 'max_lager');
+    $volume_lager = if_isset($_POST, NULL, 'volume_lager');
+    $beholdning = if_isset($_POST, NULL, 'beholdning');
+    $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
+    $lukket = if_isset($_POST, NULL, 'lukket');
+    $serienr = db_escape_string(trim(if_isset($_POST,NULL,'serienr')));
+    $has_due_date = (if_isset($_POST,NULL,'has_due_date') == 'on') ? 'true' : 'false';
+    $default_shelf_life_days = if_isset($_POST,NULL,'default_shelf_life_days');
     if ($default_shelf_life_days !== null && $default_shelf_life_days !== '') $default_shelf_life_days = intval($default_shelf_life_days);
     else $default_shelf_life_days = null;
-    #   list ($gruppe)           =  explode (':', if_isset($_POST['gruppe']));
-    $notes = db_escape_string(trim(if_isset($_POST['notes'])));
-    $note_on_orderline = (if_isset($_POST['note_on_orderline']) == 'on') ? true : false;
-    $notesInternal = db_escape_string(trim(if_isset($_POST['notesInternal'])));
-    $ordre_id = if_isset($_POST['ordre_id']);
-    $returside = if_isset($_POST['returside']);
-    $fokus = if_isset($_POST['fokus']);
-    $vare_sprogantal = if_isset($_POST['vare_sprogantal']);
-    $vare_sprog_id = if_isset($_POST['vare_sprog_id']);
-    $vare_tekst_id = if_isset($_POST['vare_tekst_id']);
-    $trademark = db_escape_string(trim(if_isset($_POST['trademark'])));
-    $retail_price = usdecimal(if_isset($_POST['retail_price']), 2);
-    $oldRetailPrice = if_isset($_POST['oldRetailPrice'], 0);
-    $specialType = if_isset($_POST['specialType']);
-    $special_price = usdecimal(if_isset($_POST['special_price']), 2);
-    $tier_price = usdecimal(if_isset($_POST['tier_price']), 2);
-    $special_from_date = usdate(if_isset($_POST['special_from_date']));
-    $special_to_date = usdate(if_isset($_POST['special_to_date']));
-    $special_from_time = if_isset($_POST['special_from_time']);
-    $special_to_time = if_isset($_POST['special_to_time']);
-    $colli = usdecimal(if_isset($_POST['colli']), 2);
-    $colli_webfragt = usdecimal(if_isset($_POST['colli_webfragt']), 2);
-    $outer_colli = usdecimal(if_isset($_POST['outer_colli']), 2);
-    $open_colli_price = usdecimal(if_isset($_POST['open_colli_price']), 2);
-    $outer_colli_price = usdecimal(if_isset($_POST['outer_colli_price']), 2);
-    $campaign_cost = usdecimal(if_isset($_POST['campaign_cost']), 2);
-    $folgevarenr = db_escape_string(trim(if_isset($_POST['folgevarenr'])));
-    $location = db_escape_string(trim(if_isset($_POST['location'])));
-    $numberOfStocks = if_isset($_POST['lagerantal']);
-    $lagerid = if_isset($_POST['lagerid']);
-    $lagerlok = if_isset($_POST['lagerlok']);
-    $m_type = if_isset($_POST['m_type']);
-    $m_rabat_array = if_isset($_POST['m_rabat_array'], array());
-    $m_antal_array = if_isset($_POST['m_antal_array'], array());
-    $kat_valg = if_isset($_POST['kat_valg']);
-    $kat_id = if_isset($_POST['kat_id']);
-    $ny_kategori = if_isset($_POST['ny_kategori']);
-    $rename_category = if_isset($_POST['rename_category']);
-    $vare_varianter = if_isset($_POST['vare_varianter']);
+    #   list ($gruppe)           =  explode (':', if_isset($_POST,NULL,'gruppe'));
+    $notes = db_escape_string(trim(if_isset($_POST,NULL,'notes')));
+    $note_on_orderline = (if_isset($_POST, NULL, 'note_on_orderline') == 'on') ? true : false;
+    $notesInternal = db_escape_string(trim(if_isset($_POST, NULL, 'notesInternal')));
+    $ordre_id = if_isset($_POST, NULL, 'ordre_id');
+    $returside = if_isset($_POST, NULL, 'returside');
+    $fokus = if_isset($_POST, NULL, 'fokus');
+    $vare_sprogantal = if_isset($_POST, NULL, 'vare_sprogantal');
+    $vare_sprog_id = if_isset($_POST, NULL, 'vare_sprog_id');
+    $vare_tekst_id = if_isset($_POST, NULL, 'vare_tekst_id');
+    $trademark = db_escape_string(trim(if_isset($_POST, NULL, 'trademark')));
+
+    $retail_price = usdecimal(if_isset($_POST, NULL,'retail_price'), 2);
+    $oldRetailPrice = if_isset($_POST, 0, 'oldRetailPrice');
+    $specialType = if_isset($_POST, NULL, 'specialType');
+    $special_price = usdecimal(if_isset($_POST, NULL, 'special_price'), 2);
+    $tier_price = usdecimal(if_isset($_POST, NULL, 'tier_price'), 2);
+    $special_from_date = usdate(if_isset($_POST, NULL, 'special_from_date'));
+    $special_to_date = usdate(if_isset($_POST, NULL, 'special_to_date'));
+    $special_from_time = if_isset($_POST, NULL, 'special_from_time');
+    $special_to_time = if_isset($_POST, NULL, 'special_to_time');
+    $colli = usdecimal(if_isset($_POST, NULL, 'colli'), 2);
+    $colli_webfragt = usdecimal(if_isset($_POST, NULL, 'colli_webfragt'), 2);
+    $outer_colli = usdecimal(if_isset($_POST, NULL, 'outer_colli'), 2);
+    $open_colli_price = usdecimal(if_isset($_POST, NULL, 'open_colli_price'), 2);
+    $outer_colli_price = usdecimal(if_isset($_POST, NULL, 'outer_colli_price'), 2);
+    $campaign_cost = usdecimal(if_isset($_POST, NULL, 'campaign_cost'), 2);
+    $folgevarenr = db_escape_string(trim(if_isset($_POST, NULL, 'folgevarenr')));
+    $location = db_escape_string(trim(if_isset($_POST, NULL, 'location')));
+    $numberOfStocks = if_isset($_POST, NULL, 'lagerantal');
+    $lagerid = if_isset($_POST, NULL, 'lagerid');
+    $lagerlok = if_isset($_POST, NULL, 'lagerlok');
+    $m_type = if_isset($_POST, NULL, 'm_type');
+    $m_rabat_array = if_isset($_POST, array(), 'm_rabat_array');
+    $m_antal_array = if_isset($_POST, array(), 'm_antal_array');
+    $kat_valg = if_isset($_POST, NULL, 'kat_valg');
+    $kat_id = if_isset($_POST, NULL, 'kat_id');
+    $ny_kategori = if_isset($_POST, NULL, 'ny_kategori');
+    $rename_category = if_isset($_POST, NULL, 'rename_category');
+    $vare_varianter = if_isset($_POST, NULL, 'vare_varianter');
     $useVariants = $vare_varianter;
-    $varianter_id = if_isset($_POST['varianter_id'], array());
-    $var_type = if_isset($_POST['var_type']);
-    $var_type_beh = if_isset($_POST['var_type_beh']);
-    $var_type_stregk = if_isset($_POST['var_type_stregk']);
-    $variant_vare_id = if_isset($_POST['variant_vare_id']);
-    $variant_vare_stregkode = if_isset($_POST['variant_vare_stregkode']);
-    $variantVarerQty = if_isset($_POST['variant_varer_beholdning'], array());
-    $lagerbeh = if_isset($_POST['lagerbeh']);
-    $ny_lagerbeh = if_isset($_POST['ny_lagerbeh'], array());
+    $varianter_id = if_isset($_POST, array(), 'varianter_id');
+    $var_type = if_isset($_POST, NULL, 'var_type');
+    $var_type_beh = if_isset($_POST, NULL, 'var_type_beh');
+    $var_type_stregk = if_isset($_POST, NULL, 'var_type_stregk');
+    $variant_vare_id = if_isset($_POST, NULL, 'variant_vare_id');
+    $variant_vare_stregkode = if_isset($_POST, NULL, 'variant_vare_stregkode');
+    $variantVarerQty = if_isset($_POST, array(), 'variant_varer_beholdning');
+    $lagerbeh = if_isset($_POST, NULL, 'lagerbeh');
+    $ny_lagerbeh = if_isset($_POST, array(), 'ny_lagerbeh');
     #20221004
-    $on_price_list = if_isset($_POST['on_price_list']);
-    $tier_price_multiplier = usdecimal(if_isset($_POST['tier_price_multiplier']), 2);
-    $tier_price_method = if_isset($_POST['tier_price_method']);
-    $tier_price_rounding = if_isset($_POST['tier_price_rounding']);
-    $salgspris_multiplier = usdecimal(if_isset($_POST['salgspris_multiplier']), 2);
-    $salgspris_method = if_isset($_POST['salgspris_method']);
-    $salgspris_rounding = if_isset($_POST['salgspris_rounding']);
-    $retail_price_multiplier = usdecimal(if_isset($_POST['retail_price_multiplier']), 2);
-    $retail_price_method = if_isset($_POST['retail_price_method']);
-    $retail_price_rounding = if_isset($_POST['retail_price_rounding']);
-    $show_advanced_price_calc = if_isset($_POST['show_advanced_price_calc']);
+    $on_price_list = if_isset($_POST, NULL, 'on_price_list');
+    $tier_price_multiplier = usdecimal(if_isset($_POST, NULL, 'tier_price_multiplier'), 2);
+    $tier_price_method = if_isset($_POST, NULL, 'tier_price_method');
+    $tier_price_rounding = if_isset($_POST, NULL, 'tier_price_rounding');
+    $salgspris_multiplier = usdecimal(if_isset($_POST, NULL, 'salgspris_multiplier'), 2);
+    $salgspris_method = if_isset($_POST, NULL, 'salgspris_method');
+    $salgspris_rounding = if_isset($_POST, NULL, 'salgspris_rounding');
+    $retail_price_multiplier = usdecimal(if_isset($_POST, NULL, 'retail_price_multiplier'), 2);
+    $retail_price_method = if_isset($_POST, NULL, 'retail_price_method');
+    $retail_price_rounding = if_isset($_POST, NULL, 'retail_price_rounding');
+    $show_advanced_price_calc = if_isset($_POST, NULL, 'show_advanced_price_calc');
 
     if (!$kat_id)
         $kat_id = array();
@@ -698,20 +700,20 @@ if ($saveItem || $submit = trim($submit)) {
             $tier_price = (float) $r['box4'];
     }
     ######## Styklister ->
-    $delvare = if_isset($_POST['delvare']);
-    $samlevare = if_isset($_POST['samlevare']);
-    $fokus = if_isset($_POST['fokus']);
-    $be_af_ant = if_isset($_POST['be_af_ant'], array());
-    $be_af_id = if_isset($_POST['be_af_id'], array());
-    $ant_be_af = if_isset($_POST['ant_be_af'], 0);
-    $indg_i_id = if_isset($_POST['indg_i_id'], array());
-    $indg_i_ant = if_isset($_POST['indg_i_ant'], array());
-    $ant_indg_i = if_isset($_POST['ant_indg_i'], 0);
-    $indg_i_pos = if_isset($_POST['indg_i_pos'], array());
-    $be_af_pos = if_isset($_POST['be_af_pos'], array());
-    $be_af_vare_id = if_isset($_POST['be_af_vare_id'], array());
-    $be_af_vnr = if_isset($_POST['be_af_vnr'], array());
-    $be_af_beskrivelse = if_isset($_POST['be_af_beskrivelse'], array());
+    $delvare = if_isset($_POST, NULL, 'delvare');
+    $samlevare = if_isset($_POST, NULL, 'samlevare');
+    $fokus = if_isset($_POST, NULL, 'fokus');
+    $be_af_ant = if_isset($_POST, array(), 'be_af_ant');
+    $be_af_id = if_isset($_POST, array(), 'be_af_id');
+    $ant_be_af = if_isset($_POST, 0, 'ant_be_af');
+    $indg_i_id = if_isset($_POST, array(), 'indg_i_id');
+    $indg_i_ant = if_isset($_POST, array(), 'indg_i_ant');
+    $ant_indg_i = if_isset($_POST, 0, 'ant_indg_i');
+    $indg_i_pos = if_isset($_POST, array(), 'indg_i_pos');
+    $be_af_pos = if_isset($_POST, array(), 'be_af_pos');
+    $be_af_vare_id = if_isset($_POST, array(), 'be_af_vare_id');
+    $be_af_vnr = if_isset($_POST, array(), 'be_af_vnr');
+    $be_af_beskrivelse = if_isset($_POST, array(), 'be_af_beskrivelse');
 
 
     #   if ($deleteItem=='Slet') {
