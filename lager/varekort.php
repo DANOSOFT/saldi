@@ -101,6 +101,10 @@
 //                "Luk"/"POS menuer"/"Ny" buttons in the $menu=='S' header
 //                to the standard icon+flex-start button style used
 //                elsewhere; also dropped a leftover debug console.log.
+// 20260827 CL/SZ CodeRabbit (MB-23 PR): htmlspecialchars() the plain returside
+//                href, and json_encode()+htmlspecialchars() the confirmClose()
+//                JS-string args (returside/opener/tekst) instead of raw
+//                interpolation; fixed a malformed </a><td> on the Ny button.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -1207,9 +1211,14 @@ if ($menu == 'T') {
 
     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8l-4 4 4 4M16 12H9"></path></svg>';
 
+    // $returside/$opener are request-controlled; confirmTekst/confirmUrl below are
+    // JS-string-encoded via json_encode() then HTML-attribute-escaped, since they're
+    // interpolated into javascript: hrefs, not just plain HTML attributes.
+    $confirmTekst = htmlspecialchars(json_encode((string)$tekst), ENT_QUOTES);
+
     if ($contains) {
         print "<td width='200px'>
-            <a href=\"$returside\" accesskey=L>
+            <a href=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\" accesskey=L>
             <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor = 'pointer'\">"
             . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
@@ -1219,12 +1228,14 @@ if ($menu == 'T') {
             } </style>";
     }else{
        if ($opener != 'varer.php') {
+            $confirmUrl = htmlspecialchars(json_encode("$returside?id=$ordre_id&fokus=$fokus&vare_id=$id"), ENT_QUOTES);
             print "<td width=\"10%\">
-                <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&vare_id=$id','$tekst')\" accesskey=L>
+                <a href=\"javascript:confirmClose($confirmUrl,$confirmTekst)\" accesskey=L>
                 <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">"
                 . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
         } else {
-            print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>
+            $confirmUrl = htmlspecialchars(json_encode("$returside?"), ENT_QUOTES);
+            print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose($confirmUrl,$confirmTekst)\" accesskey=L>
                 <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">"
                 . $icon_back . findtekst('2172|Luk', $sprog_id) . "</button></a></td>\n";
         }
@@ -1243,9 +1254,10 @@ if ($menu == 'T') {
         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $icon_posmenu . "POS menuer" . "</button></a></td>\n";
         }
         # Create new item
+        $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?opener=$opener&returside=$returside&ordre_id=$id"), ENT_QUOTES);
         print "<td width='10%' align='right'>
-         <a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>
-         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a><td>\n";
+         <a href=\"javascript:confirmClose($confirmNewUrl,$confirmTekst)\" accesskey=N>
+         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
     }
     print "</td></tbody></table>\n";
     print "</td></tr>\n";

@@ -45,6 +45,15 @@ function _nav_path(string $url): string {
     return rtrim($url, '?&');
 }
 
+function _nav_is_safe_target(string $url): bool {
+    // Reject anything with a URI scheme (incl. javascript:) or a protocol-relative
+    // //host/... prefix — htmlspecialchars() alone doesn't stop a browser from
+    // treating either as an absolute/external navigation target.
+    if (preg_match('#^[a-zA-Z][a-zA-Z0-9+.\-]*:#', $url)) return false;
+    if (strpos($url, '//') === 0) return false;
+    return true;
+}
+
 function nav_push(?string $current_url = null, bool $popup = false): void {
     if ($popup) return;
     if ($current_url === null) $current_url = $_SERVER['REQUEST_URI'];
@@ -79,8 +88,10 @@ function nav_back_url(?string $returside = null): string {
     if (count($stack) >= 2) {
         return $stack[count($stack) - 2];
     }
-    // Priority 2: explicit returside — fallback for direct/bookmarked links
-    if ($returside && strpos($returside, 'luk.php') === false) {
+    // Priority 2: explicit returside — fallback for direct/bookmarked links.
+    // Request-controlled, so it's validated here (unlike the stack above, which
+    // only ever holds relative REQUEST_URI values PHP itself recorded).
+    if ($returside && strpos($returside, 'luk.php') === false && _nav_is_safe_target($returside)) {
         return $returside;
     }
     return NAV_DEFAULT_URL;
