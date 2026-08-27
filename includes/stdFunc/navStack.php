@@ -29,7 +29,11 @@ function _nav_write(array $stack): void {
 
 function _nav_should_record(string $url): bool {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') return false;
-    foreach (['luk.php', 'logud.php', 'login.php', 'ajax=1'] as $p) {
+    // index/main.php is the SPA shell that hosts every other page in its
+    // content iframe, not content itself — recording it lets nav_back_url()
+    // hand a back button the shell's own URL, which gets loaded *into* the
+    // iframe and nests a second shell (and sidebar) inside the first.
+    foreach (['luk.php', 'logud.php', 'login.php', 'ajax=1', 'index/main.php'] as $p) {
         if (strpos($url, $p) !== false) return false;
     }
     return true;
