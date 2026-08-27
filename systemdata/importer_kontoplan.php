@@ -31,6 +31,8 @@
 //                  message; file charset detected on upload and lines with an invalid charset are
 //                  rejected instead of aborting the transaction; validation shared between preview
 //                  and import; charset, separator and column names whitelisted before use in SQL.
+// 20260827 Sawaneh JOB-086 review: cookie set before online.php sends output; preview field count
+//                  follows the chosen separator; non-numeric opening balances flag the row as error.
 
 @session_start();
 $s_id=session_id();
@@ -41,16 +43,9 @@ $css="../css/standard.css";
 
 $returside="diverse.php?sektion=div_io";
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/topline_settings.php");
-
-$title = findtekst('1356|Importér', $sprog_id)." ".findtekst('612|Kontoplan', $sprog_id);
 $charsets = array('UTF-8' => 'UTF-8', 'ISO-8859-15' => 'ISO-8859-15 (Windows)', 'cp865' => 'cp865 (DOS)', 'macintosh' => 'MAC');
 $splitters = array('Semikolon' => ';', 'Komma' => ',', 'Tabulator' => chr(9));
 $kolonner = array('Kontonr', 'Beskrivelse', 'Kontotype', 'Moms', 'Fra_kto', 'map_to', 'primo');
-$filnavn = "../temp/".$db."_".str_replace(" ", "_", $brugernavn).".csv";
 
 $file_charset = $_POST['file_charset'] ?? '';
 $splitter = $_POST['splitter'] ?? '';
@@ -70,6 +65,14 @@ foreach ($feltnavn as $i => $navn) {
 	if (!in_array($navn, $kolonner)) $feltnavn[$i] = '';
 }
 if ($gemValg) setcookie('saldi_kto_imp', $file_charset."|".$splitter."|".implode(";", $feltnavn));
+
+include("../includes/connect.php");
+include("../includes/online.php");
+include("../includes/std_func.php");
+include("../includes/topline_settings.php");
+
+$title = findtekst('1356|Importér', $sprog_id)." ".findtekst('612|Kontoplan', $sprog_id);
+$filnavn = "../temp/".$db."_".str_replace(" ", "_", $brugernavn).".csv";
 
 print "<div align=\"center\">";
 
@@ -141,14 +144,13 @@ function find_splitter($filnavn) {
 	$linje = '';
 	$antal = array();
 	$fp = fopen($filnavn, "r");
-	if (!$fp) return array('', 0);
+	if (!$fp) return array('', array());
 	for ($y = 1; $y < 4; $y++) $linje = fgets($fp);
 	fclose($fp);
 	foreach ($splitters as $navn => $tegn) $antal[$navn] = substr_count((string)$linje, $tegn);
 	arsort($antal);
-	$navn = key($antal);
-	if (!$antal[$navn]) return array('', 0);
-	return array($navn, $antal[$navn]);
+	if (!$antal[key($antal)]) return array('', $antal);
+	return array(key($antal), $antal);
 }
 
 function tjek_kolonner($feltnavn, $feltantal) {
@@ -198,7 +200,9 @@ function tjek_linje($linje, $file_charset, $splitTegn, $feltnavn, $feltantal, &$
 		} elseif ($navn == 'map_to') {
 			$felt[$y] = (int)$felt[$y];
 		} elseif ($navn == 'primo' && !is_numeric($felt[$y])) {
-			$felt[$y] = usdecimal($felt[$y]);
+			if (!$felt[$y]) $felt[$y] = '0';
+			elseif (preg_match('/^-?(\d+|\d{1,3}(\.\d{3})+)(,\d+)?$/', $felt[$y])) $felt[$y] = usdecimal($felt[$y]);
+			else $fejl = 1;
 		}
 	}
 	return array('felt' => $felt, 'fejl' => $fejl);
@@ -208,8 +212,8 @@ function vis_data($file_charset, $filnavn, $splitter, $feltnavn, $feltantal) {
 	global $charset, $charsets, $splitters, $kolonner, $regnaar, $sprog_id;
 
 	list($fundet, $antal) = find_splitter($filnavn);
-	if ($antal) $feltantal = $antal;
 	if (!$splitter) $splitter = $fundet;
+	if (!empty($antal[$splitter])) $feltantal = $antal[$splitter];
 	$cols = $feltantal + 1;
 	$feltnavn = tjek_kolonner($feltnavn, $feltantal);
 
