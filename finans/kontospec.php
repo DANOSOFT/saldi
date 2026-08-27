@@ -27,6 +27,7 @@
 // 20210708 LOE - Translated some of these texts from Danish to English and Norsk
 // 20250113 PHR fiscal_year
 // 20251203 LOE Updated the file to use grid framework
+// 20260821 CL/SZ Faktura column now links to ordre.php/pos_ordre.php via ordre_id
 
 
 $fakturanr = array();
@@ -178,9 +179,9 @@ $allTransactions = array();
 
 if ($kontonr) {
     // Get inventory transactions
-    list($transdate, $faktura, $ordrenr, $bilag_arr, $beskrivelse, $debet, $kredit) = lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $start, $slut);
+    list($transdate, $faktura, $ordrenr, $bilag_arr, $beskrivelse, $debet, $kredit, $ordre_id_res) = lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $start, $slut);
     $valg = "and kontonr = '$kontonr'";
-    
+
     // Add inventory transactions to array
     if (is_array($transdate) && count($transdate) > 0) {
         for ($i = 0; $i < count($transdate); $i++) {
@@ -193,6 +194,8 @@ if ($kontonr) {
                 'kredit' => isset($kredit[$i]) ? $kredit[$i] : 0,
                 'faktura' => isset($faktura[$i]) ? $faktura[$i] : '',
                 'ordrenr' => isset($ordrenr[$i]) ? $ordrenr[$i] : 0,
+                'ordre_id' => isset($ordre_id_res[$i]) ? $ordre_id_res[$i] : 0,
+                'pos' => 0,
                 'kladde_id' => '',
                 'afd' => '',
                 'projekt' => ''
@@ -217,6 +220,8 @@ while ($r = db_fetch_array($q)) {
             'kredit' => $r['kredit'],
             'faktura' => $r['faktura'],
             'ordrenr' => 0,
+            'ordre_id' => $r['ordre_id'] ? $r['ordre_id'] : 0,
+            'pos' => 0,
             'kladde_id' => $r['kladde_id'],
             'afd' => $r['afd'],
             'projekt' => $r['projekt']
@@ -229,6 +234,28 @@ if (!empty($allTransactions)) {
     usort($allTransactions, function($a, $b) {
         return strcmp($a['transdate'], $b['transdate']);
     });
+}
+
+// Resolve which orders are POS orders, so the faktura link can point to
+// pos_ordre.php instead of ordre.php (transaktioner has no order-type column)
+$ordre_ids = array();
+foreach ($allTransactions as $trans) {
+    if ($trans['ordre_id'] > 0) {
+        $ordre_ids[(int)$trans['ordre_id']] = true;
+    }
+}
+if (!empty($ordre_ids)) {
+    $q = db_select("select id, art from ordrer where id in (" . implode(',', array_keys($ordre_ids)) . ")", __FILE__ . " linje " . __LINE__);
+    $ordre_art = array();
+    while ($r = db_fetch_array($q)) {
+        $ordre_art[$r['id']] = $r['art'];
+    }
+    foreach ($allTransactions as &$trans) {
+        if ($trans['ordre_id'] > 0 && isset($ordre_art[$trans['ordre_id']]) && $ordre_art[$trans['ordre_id']] == 'PO') {
+            $trans['pos'] = 1;
+        }
+    }
+    unset($trans);
 }
 
 // Create temporary table for grid
@@ -248,6 +275,8 @@ $createTempTable = "CREATE TEMPORARY TABLE $tempTableName (
     kredit DECIMAL(15,2),
     faktura VARCHAR(100),
     ordrenr VARCHAR(100),
+    ordre_id INTEGER,
+    pos SMALLINT,
     kladde_id VARCHAR(100),
     afd VARCHAR(100),
     projekt VARCHAR(100)
@@ -267,7 +296,7 @@ if (!empty($allTransactions)) {
         $afd_value = substr($trans['afd'], 0, 100);
         $projekt_value = substr($trans['projekt'], 0, 100);
         
-        $insertSQL = "INSERT INTO $tempTableName (transdate, bilag, beskrivelse, kontonr, debet, kredit, faktura, ordrenr, kladde_id, afd, projekt) VALUES (
+        $insertSQL = "INSERT INTO $tempTableName (transdate, bilag, beskrivelse, kontonr, debet, kredit, faktura, ordrenr, ordre_id, pos, kladde_id, afd, projekt) VALUES (
             '" . db_escape_string($trans['transdate']) . "',
             '" . db_escape_string($bilag_value) . "',
             '" . db_escape_string($beskrivelse_value) . "',
@@ -276,6 +305,8 @@ if (!empty($allTransactions)) {
             " . (floatval($trans['kredit']) ? floatval($trans['kredit']) : 0) . ",
             '" . db_escape_string($faktura_value) . "',
             '" . db_escape_string($ordrenr_value) . "',
+            " . (int)$trans['ordre_id'] . ",
+            " . (int)$trans['pos'] . ",
             '" . db_escape_string($kladde_id_value) . "',
             '" . db_escape_string($afd_value) . "',
             '" . db_escape_string($projekt_value) . "'
@@ -427,6 +458,11 @@ $columns = [
         'align' => 'right',
         'render' => function($value, $row, $column) {
             $title = isset($row['ordrenr']) && $row['ordrenr'] ? "title='Ordrenr: {$row['ordrenr']}'" : '';
+            $ordre_id = isset($row['ordre_id']) ? intval($row['ordre_id']) : 0;
+            if ($value !== '' && $value !== null && $ordre_id > 0) {
+                $target = (isset($row['pos']) && $row['pos']) ? '../debitor/pos_ordre.php' : 'ordre.php';
+                return "<td align='right' $title><a href='{$target}?id={$ordre_id}&returside=kontospec.php' style='text-decoration: underline;'>$value</a></td>";
+            }
             return "<td align='right' $title>$value</td>";
         }
     ],
@@ -600,7 +636,7 @@ db_modify("DROP TABLE IF EXISTS $tempTableName", __FILE__ . " linje " . __LINE__
 function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $regnslut) {
     global $regnaar;
 
-    $beskrivelse = $bilag = $debet = $fakturanr = $kredit = $ordrenr = $transdate = array();
+    $beskrivelse = $bilag = $debet = $fakturanr = $kredit = $ordrenr = $transdate = $ordre_id = array();
     
     $r = db_fetch_array(db_select("select kontotype from kontoplan where kontonr='$kontonr' order by regnskabsaar desc limit 1", __FILE__ . " linje " . __LINE__));
     $kontotype = $r ? $r['kontotype'] : '';
@@ -636,6 +672,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
         $kobskredit = array();
         $k_fakturanr = array();
         $k_ordrenr = array();
+        $k_ordre_id = array();
         
         $q = db_select("select vare_id,ordre_id,antal,kobsdate,fakturanr,ordrenr from batch_kob,ordrer where kobsdate >= '$regnstart' and kobsdate <= '$regnslut' and ordrer.id=batch_kob.ordre_id order by kobsdate,vare_id", __FILE__ . " linje " . __LINE__);
         while ($r = db_fetch_array($q)) {
@@ -657,6 +694,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
                         if ($kontotype == 'D') {
                             $k_fakturanr[$z] = $r['fakturanr'];
                             $k_ordrenr[$z] = $r['ordrenr'];
+                            $k_ordre_id[$z] = $r['ordre_id'];
                             $kobsdate[$z] = $r['kobsdate'];
                             if ($r['antal'] > 0) {
                                 $kobskredit[$z] = $r['antal'] * $kostpris[$y];
@@ -669,6 +707,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
                         } elseif (in_array($kontonr, $varelager_i)) {
                             $k_fakturanr[$z] = $r['fakturanr'];
                             $k_ordrenr[$z] = $r['ordrenr'];
+                            $k_ordre_id[$z] = $r['ordre_id'];
                             $kobsdate[$z] = $r['kobsdate'];
                             if ($r['antal'] > 0) {
                                 $kobsdebet[$z] = $r['antal'] * $kostpris[$y];
@@ -690,6 +729,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
         $salgskredit = array();
         $s_fakturanr = array();
         $s_ordrenr = array();
+        $s_ordre_id = array();
         
         $q = db_select("select ordre_id,vare_id,antal,salgsdate,fakturanr,ordrenr from batch_salg,ordrer where salgsdate >= '$regnstart' and salgsdate <= '$regnslut' and ordrer.id=batch_salg.ordre_id order by salgsdate,ordre_id", __FILE__ . " linje " . __LINE__);
         while ($r = db_fetch_array($q)) {
@@ -711,6 +751,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
                         if ($kontotype == 'D') {
                             $s_fakturanr[$z] = $r['fakturanr'];
                             $s_ordrenr[$z] = $r['ordrenr'];
+                            $s_ordre_id[$z] = $r['ordre_id'];
                             $salgsdate[$z] = $r['salgsdate'];
                             if ($r['antal'] > 0) {
                                 $salgsdebet[$z] = $r['antal'] * $kostpris[$y];
@@ -723,6 +764,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
                         } elseif (in_array($kontonr, $varelager_u)) {
                             $s_fakturanr[$z] = $r['fakturanr'];
                             $s_ordrenr[$z] = $r['ordrenr'];
+                            $s_ordre_id[$z] = $r['ordre_id'];
                             $salgsdate[$z] = $r['salgsdate'];
                             if ($r['antal'] > 0) {
                                 $salgskredit[$z] = $r['antal'] * $kostpris[$y];
@@ -746,6 +788,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
         $bil = array();
         $fakt = array();
         $ordre = array();
+        $ordreid = array();
         $besk = array();
         $deb = array();
         $kre = array();
@@ -756,6 +799,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
                 $bil[$y] = 0;
                 $fakt[$y] = isset($k_fakturanr[$kd]) ? $k_fakturanr[$kd] : '';
                 $ordre[$y] = isset($k_ordrenr[$kd]) ? $k_ordrenr[$kd] : 0;
+                $ordreid[$y] = isset($k_ordre_id[$kd]) ? $k_ordre_id[$kd] : 0;
                 $besk[$y] = "lagertransaktion - Køb";
                 $deb[$y] = isset($kobsdebet[$kd]) ? $kobsdebet[$kd] : 0;
                 $kre[$y] = isset($kobskredit[$kd]) ? $kobskredit[$kd] : 0;
@@ -767,6 +811,7 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
                 $bil[$y] = 0;
                 $fakt[$y] = isset($s_fakturanr[$sd]) ? $s_fakturanr[$sd] : '';
                 $ordre[$y] = isset($s_ordrenr[$sd]) ? $s_ordrenr[$sd] : 0;
+                $ordreid[$y] = isset($s_ordre_id[$sd]) ? $s_ordre_id[$sd] : 0;
                 $besk[$y] = "lagertransaktion - Salg";
                 $deb[$y] = isset($salgsdebet[$sd]) ? $salgsdebet[$sd] : 0;
                 $kre[$y] = isset($salgskredit[$sd]) ? $salgskredit[$sd] : 0;
@@ -793,13 +838,14 @@ function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $r
             $transdate[$y] = $trd[$y];
             $fakturanr[$y] = isset($fakt[$y]) ? $fakt[$y] : '';
             $ordrenr[$y] = isset($ordre[$y]) ? $ordre[$y] : 0;
+            $ordre_id[$y] = isset($ordreid[$y]) ? $ordreid[$y] : 0;
             $bilag[$y] = isset($bil[$y]) ? $bil[$y] : '';
             $beskrivelse[$y] = isset($besk[$y]) ? $besk[$y] : '';
             $debet[$y] = isset($deb[$y]) ? $deb[$y] : 0;
             $kredit[$y] = isset($kre[$y]) ? $kre[$y] : 0;
         }
     }
-    return array($transdate, $fakturanr, $ordrenr, $bilag, $beskrivelse, $debet, $kredit);
+    return array($transdate, $fakturanr, $ordrenr, $bilag, $beskrivelse, $debet, $kredit, $ordre_id);
 }
 
 print "</td></tr></tbody></table>";
