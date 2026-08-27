@@ -57,11 +57,17 @@ function _nav_is_safe_target(string $url): bool {
     // Browsers strip leading control characters/whitespace before parsing a URL's
     // scheme, so "\tjavascript:..." would otherwise slip past the checks below.
     $trimmed = preg_replace('/^[\x00-\x20]+/', '', $url);
-    // Reject anything with a URI scheme (incl. javascript:) or a protocol-relative
-    // //host/... prefix — htmlspecialchars() alone doesn't stop a browser from
-    // treating either as an absolute/external navigation target.
+    // Reject anything with a URI scheme (incl. javascript:) — htmlspecialchars()
+    // alone doesn't stop a browser from treating it as an absolute navigation target.
     if (preg_match('#^[a-zA-Z][a-zA-Z0-9+.\-]*:#', $trimmed)) return false;
-    if (strpos($trimmed, '//') === 0) return false;
+    // Reject a leading pair of '/' and/or '\' in any combination. Browsers
+    // normalize backslashes to forward slashes for special (http/https) URLs, so
+    // "\\host/path" parses the same as "//host/path" — both are protocol-relative,
+    // i.e. an external target, not just a plain "//" prefix.
+    $lead = substr($trimmed, 0, 2);
+    if (strlen($lead) === 2 && strpbrk($lead[0], '/\\') !== false && strpbrk($lead[1], '/\\') !== false) {
+        return false;
+    }
     return true;
 }
 
