@@ -8,6 +8,7 @@
  *   http://www.gnu.org/licenses/gpl.html
  *
  * Revision: $Id: jquery.autocomplete.js 15 2009-08-22 10:30:27Z joern.zaefferer $
+ * 20260805 CX/PHR Added configurable response field separator.
  */
 
 ;(function($) {
@@ -388,7 +389,7 @@ $.Autocompleter = function(input, options) {
 		for (var i=0; i < rows.length; i++) {
 			var row = $.trim(rows[i]);
 			if (row) {
-				row = row.split("|");
+				row = row.split(options.separator);
 				parsed[parsed.length] = {
 					data: row,
 					value: row[0],
@@ -425,6 +426,7 @@ $.Autocompleter.defaults = {
 	width: 0,
 	multiple: false,
 	multipleSeparator: ", ",
+	separator: "|",
 	highlight: function(value, term) {
 		return value.replace(new RegExp("(?![^&;]+;)(?!<[^<>]*)(" + term.replace(/([\^\$\(\)\[\]\{\}\*\.\+\?\|\\])/gi, "\\$1") + ")(?![^<>]*>)(?![^&;]+;)", "gi"), "<strong>$1</strong>");
 	},

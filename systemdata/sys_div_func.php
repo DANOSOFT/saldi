@@ -101,6 +101,15 @@
 // 20260605 CL/PHR function labels: fixed Standard label read from grupper (was incorrectly reading from labels table); added hidden editRawHTML to keep raw HTML mode after save
 // 20260709 Sawaneh Added "Show both delivery address and Extra fields on open orders" setting under Order-related options
 // 20260715 CDX/NTR Made the REST API Swagger link relative to the current installation
+// 20260727 CL/Sawaneh Translated the last four order-related settings (GS1, 'Vores ref.' stock,
+//                     out-of-stock warning, delivery address + extra fields) via findtekst(), tekst_id 9902-9909
+// 20260729 NTR Fixed $r being set to a bool due to && without guarding parenteses, causing error when trying to assign $timezone.
+//              Changed the tekst_id's of the previous translation to be 3032-3039 instead.
+// 20260819 CL/NTR Added loadLabelText()/saveLabelText() so the label editor reads and writes the same
+//                 storage lager/labelprint.php prints from. Raw HTML help text now names
+//                 $minbeskrivelse/$minpris as the default; translated via findtekst(), tekst_id 5056.
+// 20260824 CL/NTR loadLabelText()/saveLabelText() prefer account_id 0 over null legacy rows and only
+//                 touch global rows, matching what the label editor shows.
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -110,7 +119,7 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	#	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone'];
 	#	else {
 	$qtxt = "select id,var_value from settings where var_name='timezone'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)) && (isset($r['var_value']))) {
+	if (($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) && (isset($r['var_value']))) {
 		$timezone = $r['var_value'];
 		if ($timezone) {
 			date_default_timezone_set($timezone);
@@ -1917,11 +1926,12 @@ function ordre_valg() {
 	print "<tr><td title='Dette felt deaktiverer visning af DG på ordre siden'>Skjul dækningsgrad</td><td><INPUT title='Dette felt deaktiverer visning af DG på ordre siden', class='inputbox' type='checkbox' name='showDG' $showDG></td></tr>";
 	print "<tr><td title='Angiv en e-mail adresse til modtagelse af pluklister'>Plukliste email</td><td><INPUT title='E-mail adresse til at sende pluklister til' class='inputbox' type='email' style='width:200px;' name='pluklisteEmail' value='$pluklisteEmail'></td></tr>";
 	print "<tr><td title='Aktiverer autosøgning/autocomplete på ordresider (bruger specifik indstilling)'>Anvend autosøgning på ordrer</td><td><INPUT title='Aktiverer autosøgning/autocomplete på ordresider' class='inputbox' type='checkbox' name='ordreAutocomplete' $ordreAutocomplete></td></tr>";
-	print "<tr><td title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)'>Anvend GS1 stregkodefortolkning</td><td><INPUT title='Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
-	print "<tr><td title=\"Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.\">If 'Our ref's stock is empty choose another</td><td><INPUT title=\"Opdater lager ud fra 'Vores ref.' når feltet ændres\" class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
-	$swT = function_exists('stock_warning_texts') ? stock_warning_texts(isset($sprog_id) ? $sprog_id : null) : array('setting_label' => 'Warn when selling out-of-stock items (popup + reason)', 'setting_title' => 'Show popup and require approval note when an out-of-stock item is added to a POS or Debtor order.');
-	print "<tr><td title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "'>" . $swT['setting_label'] . "</td><td><INPUT title='" . htmlspecialchars($swT['setting_title'], ENT_QUOTES) . "' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
-	print "<tr><td title='Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer'>Show both delivery address and Extra fields on open orders</td><td><INPUT title='Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
+	print "<tr><td title='".findtekst('5033|Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)', $sprog_id)."'>".findtekst('5032|Anvend GS1 stregkodefortolkning', $sprog_id)."</td><td><INPUT title='".findtekst('5033|Aktiverer GS1 stregkode-fortolkning ved varesøgning på ordrelinjer (understøtter GTIN, udløbsdato, serienummer m.m.)', $sprog_id)."' class='inputbox' type='checkbox' name='gs1_parsing' $gs1parsing></td></tr>";
+	$ourRefStockTitle = htmlspecialchars(findtekst("5035|Hvis dette felt afmærkes opdateres lageret på ordren ud fra 'Vores ref.' når feltet ændres. Det er slået fra som standard, så andre databaser ikke påvirkes.", $sprog_id), ENT_QUOTES);
+	print "<tr><td title='$ourRefStockTitle'>".findtekst("5034|Vælg en anden vare, hvis lageret på 'Vores ref.' er tomt", $sprog_id)."</td><td><INPUT title='$ourRefStockTitle' class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
+	$stockWarningTitle = htmlspecialchars(findtekst('5037|Aktiverer popup-advarsel og krav om begrundelse ved salg af udsolgte varer i både POS og Debitor/Ordre. Godkendelsen logges på ordren.', $sprog_id), ENT_QUOTES);
+	print "<tr><td title='$stockWarningTitle'>".findtekst('5036|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
+	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
@@ -2289,6 +2299,77 @@ function api_valg() {
 	}
 } # endfunc api_valg
 
+/**
+ * Reads the stored text for one label.
+ *
+ * Item labels ($valg='box1') live in the labels table since 4.0; grupper.box1 is only the
+ * pre-4.0 fallback. lager/labelprint.php resolves them in the same order, so the editor has to
+ * as well - otherwise an edit is written somewhere the print never looks. Address labels
+ * ($valg='box2') only ever live in grupper.
+ *
+ * @param string $valg      'box1' for item labels, 'box2' for address labels
+ * @param string $labelName Name of the label to read
+ * @return array{labeltext: string, labeltype: string}
+ */
+function loadLabelText($valg, $labelName) {
+    $label = array('labeltext' => '', 'labeltype' => 'sheet');
+    if ($valg == 'box1') {
+        // account_id is null on labels created before the insert below started setting it; they are
+        // still editable here and a save heals them to 0, which is all lager/labelprint.php reads.
+        $qtxt = "select labeltext, labeltype from labels where labelname = '" . db_escape_string($labelName) . "'";
+        $qtxt.= " and (account_id = '0' or account_id is null)";
+        $qtxt.= " order by account_id is null"; // if account_id is not null it'll be false, which is ordered before true.
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $label['labeltext'] = $r['labeltext'];
+            if ($r['labeltype']) $label['labeltype'] = $r['labeltype'];
+            return $label;
+        }
+        if ($labelName != 'Standard') return $label;
+    }
+    $qtxt = "select $valg from grupper where art = 'LABEL'";
+    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $label['labeltext'] = $r[$valg];
+    return $label;
+}
+
+/**
+ * Writes one label back to storage.
+ *
+ * Item labels go to the labels table, which is what lager/labelprint.php reads, and are mirrored
+ * into grupper.box1 so the pre-4.0 fallback cannot serve a stale template. Address labels only go
+ * to grupper. Rows left with a NULL account_id by older inserts are healed to 0 on update, since
+ * labelprint.php only ever selects account_id 0.
+ *
+ * @param string $valg      'box1' for item labels, 'box2' for address labels
+ * @param string $labelName Name of the label to write
+ * @param string $labelText Full label template
+ * @param string $labelType 'sheet' or 'label'
+ * @return void
+ */
+function saveLabelText($valg, $labelName, $labelText, $labelType) {
+    $labelText = db_escape_string($labelText);
+    $labelType = db_escape_string($labelType);
+    $labelName = db_escape_string($labelName);
+    if ($valg != 'box1' || $labelName == 'Standard') {
+        $qtxt = "select id from grupper where art = 'LABEL'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $qtxt = "update grupper set $valg = '$labelText' where id = '$r[id]'";
+        } else {
+            $qtxt = "insert into grupper (art, $valg) values ('LABEL', '$labelText')";
+        }
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    }
+    if ($valg != 'box1') return;
+    $qtxt = "select id from labels where labelname = '$labelName'";
+    $qtxt.= " and (account_id = '0' or account_id is null)";
+    $qtxt.= " order by account_id is null";
+    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+        $qtxt = "update labels set labeltext = '$labelText', labeltype = '$labelType', account_id = '0' where id = '$r[id]'";
+    } else {
+        $qtxt = "insert into labels (account_id, labelname, labeltype, labeltext) values ('0', '$labelName', '$labelType', '$labelText')";
+    }
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 function labels($valg) {
     global $sprog_id;
     global $bgcolor;
@@ -2341,18 +2422,10 @@ function labels($valg) {
         print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips och tricks.', $sprog_id)."'><!--tekst 737-->";
         print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
         
-        if ($labelName == 'Standard') {
-            // Standard label is stored in grupper table
-            $qtxt = "select $valg from grupper where art = 'LABEL'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $labelText = $r[$valg];
-            }
-        } elseif ($valg == 'box1' && in_array($labelName, $labelNames)) {
-            $qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
-            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-                $labelText = $r['labeltext'];
-                $labelType = $r['labeltype'];
-            }
+        if ($labelName == 'Standard' || ($valg == 'box1' && in_array($labelName, $labelNames))) {
+            $label     = loadLabelText($valg, $labelName);
+            $labelText = $label['labeltext'];
+            $labelType = $label['labeltype'];
         }
         
         if (empty($labelType)) $labelType = 'sheet';
@@ -2441,7 +2514,7 @@ Pris $pris<br>
 			print "<tr><td colspan='4'>";
 			print "<div style='margin-bottom: 10px;'>";
 			print "<h3>Rå HTML Editor</h3>";
-			print "<p style='color: #666; font-size: 12px;'>Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$beskrivelse, \$pris, \$img, osv.</p>";
+			print "<p style='color: #666; font-size: 12px;'>".findtekst('5057|Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$minbeskrivelse, \$minpris, \$img, osv. \$minbeskrivelse og \$minpris viser kundens egen tekst og pris fra Mit salg og falder tilbage til varens egen, når der printes uden konto. \$beskrivelse og \$pris henter altid varens egen.', $sprog_id)."<!--tekst 5056--></p>";
 			print "</div>";
 			print "<textarea name='rawHTML' style='width: 100%; height: 400px; font-family: monospace; font-size: 12px;'>" . htmlspecialchars($labelText) . "</textarea>";
 			print "</td></tr>";
@@ -2684,6 +2757,10 @@ function parseLabelTemplate($labelText) {
 }
 
 function generateLabelTemplate($data) {
+    // $minbeskrivelse/$minpris are the default: they show the customer's own text and price from
+    // Mit salg, and lager/labelprint_includes/newlabel.php falls back to the item's own when
+    // printing without an account, so they work in both places where $beskrivelse/$pris only work
+    // from the item card.
     $template = "\$cols={$data['cols']};\n";
     $template.= "\$rows={$data['rows']};\n";
     $template.= "\$txtlen={$data['txtlen']};\n";

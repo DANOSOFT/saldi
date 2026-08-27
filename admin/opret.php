@@ -103,6 +103,11 @@
 // 20250503 LOE Use conditionals to adjust for MySQL vs PostgreSQL
 // 20250510 LOE Optimized to work with mysql database, long and lat now using decimal instead of int
 // 20250804	PHR Corrected error in create  proforma
+// 20260803 CL/SZ Require an authenticated session unconditionally, before any
+//                $_POST handling (SD-615)
+// 20260804 SZ Also terminate on the webservice "Session expired" include return,
+//             instead of relying only on $db != $sqdb (SD-615)
+// 20260818 CL/LH Corrected Stripe table boolean default definitions
 
 @session_start();
 $s_id=session_id();
@@ -114,14 +119,11 @@ include("../includes/std_func.php");
 
 $modulnr=101;
 
-
-if (!isset($_POST['regnskab'])||!$_POST['brugernavn']||!$_POST['passwd']||!$_POST['passwd2']) {
-	include("../includes/online.php");
-	if ($db != $sqdb) {
-		print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
-		print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
-		exit;
-	}
+$online_result=include("../includes/online.php"); // the only auth check, must run for every request regardless of $_POST content (SD-615)
+if ($online_result === 'Session expired' || $db != $sqdb) {
+	print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
+	exit;
 }
 
 # if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 0pt 1px;\" align=\"center\" background=\"../img/knap_bg.gif\";";
@@ -162,12 +164,9 @@ if ($_POST){
 	$brugernavn=db_escape_string(trim($_POST['brugernavn']));
 	$passwd=db_escape_string(trim($_POST['passwd']));
 	$passwd2=db_escape_string(trim($_POST['passwd2']));
-	(isset($_POST['posteringer']))?$posteringer=$_POST['posteringer']:$posteringer=0;
-	(isset($_POST['brugerantal']))?$brugerantal=$_POST['brugerantal']:$brugerantal=0;
+	(isset($_POST['posteringer']))?$posteringer=(int)$_POST['posteringer']:$posteringer=0;
+	(isset($_POST['brugerantal']))?$brugerantal=(int)$_POST['brugerantal']:$brugerantal=0;
 	(isset($_POST['std_kto_plan']))?$std_kto_plan=$_POST['std_kto_plan']:$std_kto_plan=NULL;
-
-	$posteringer*=1;
-	$brugerantal*=1;
 	if ((($revisorregnskab && $passwd) || !$revisorregnskab)  && $passwd!=$passwd2 ) {
 		print "<BODY onLoad=\"javascript:alert('Adgangskoder er ikke ens')\">";
 		forside($regnskab,$brugernavn);
@@ -315,6 +314,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // MySQL-specific adjustments
     $id_column = 'id INT AUTO_INCREMENT NOT NULL';
     $boolean_type = 'TINYINT(1) DEFAULT 0';
+    $stripe_active_type = 'TINYINT(1) NOT NULL DEFAULT 1';
     $decimal_type = 'DECIMAL';
     $text_type = 'TEXT';
 	$longlat = "`long` $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -327,6 +327,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
     // PostgreSQL-specific adjustments
     $id_column = 'id SERIAL NOT NULL';
     $boolean_type = 'BOOLEAN DEFAULT FALSE';
+    $stripe_active_type = 'BOOLEAN NOT NULL DEFAULT true';
     $decimal_type = 'NUMERIC';
     $text_type = 'TEXT';
 	$longlat = "\"long\" $decimal_type(10,6), lat $decimal_type(9,6)";
@@ -351,7 +352,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "pbs_nr text,pbs_date date,mailfakt varchar(2),udskriv_til varchar(10),felt_1 text,felt_2 text,";
 	$qtxt.= "felt_3 text,felt_4 text,felt_5 text,vis_lev_addr varchar(2),kontotype varchar(15),fornavn varchar(60),";
 	$qtxt.= "efternavn varchar(60),lev_firmanavn varchar(90),lev_fornavn varchar(60),lev_efternavn varchar(60),lev_addr1 varchar(60),"; $qtxt.= "lev_addr2 varchar(60),lev_postnr varchar(15),lev_bynavn varchar(60),lev_land varchar(60),lev_kontakt varchar(60),";
-	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),kategori varchar(15),saldo $decimal_type(15,3),";
+	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),stripe_fravalg varchar(2),kategori varchar(15),saldo $decimal_type(15,3),";
 	$qtxt.= "invoiced date,mysale varchar(2),hidden varchar(2),medlem text,$longlat,PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -637,6 +638,30 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 
 	$qtxt = "CREATE TABLE kds_records ($id_column, data text, bumped $boolean_type, timestamp integer, ";
 	$qtxt.= "time_to_complete integer, rush $boolean_type, last_undo $boolean_type, sort_timestamp integer, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	######## Stripe subscriptions (doc/stripe/INTERFACE_CONTRACT.md; indexes live in includes/betweenUpdates.php) ########
+	$qtxt = "CREATE TABLE stripe_catalog ($id_column, varenr text, stripe_price_id varchar(255), ";
+	$qtxt.= "stripe_product_id varchar(255), unit_ore integer, billing_interval varchar(10) NOT NULL DEFAULT 'month', ";
+	$qtxt.= "interval_count integer NOT NULL DEFAULT 1, currency varchar(3) NOT NULL DEFAULT 'DKK', ";
+	$qtxt.= "active $stripe_active_type, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_events ($id_column, event_id varchar(255) NOT NULL, event_type varchar(100), ";
+	$qtxt.= "payload text, status varchar(30) NOT NULL DEFAULT 'received', saldi_order_id integer, ";
+	$qtxt.= "invoice_number varchar(30), error text, received_at timestamp DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "processed_at timestamp, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_customers ($id_column, stripe_customer_id varchar(255) NOT NULL, ";
+	$qtxt.= "stripe_subscription_id varchar(255), konto_id integer, kontonr varchar(30), order_id integer, ";
+	$qtxt.= "status varchar(30) NOT NULL DEFAULT 'active', created_at timestamp DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "updated_at timestamp, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+	$qtxt = "CREATE TABLE stripe_import_failures ($id_column, event_id varchar(255), stripe_invoice_id varchar(255), ";
+	$qtxt.= "reason varchar(50), http_code integer, message text, payload_json text, ";
+	$qtxt.= "created_at timestamp DEFAULT CURRENT_TIMESTAMP, resolved_at timestamp, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE notifications ($id_column, msg varchar(255), read_status integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);

@@ -99,6 +99,8 @@
 //                expanded one just before navigating away; toggling still works normally
 //                within the same page view, it just no longer survives a reload
 // 20260727 NTR Added a if statement around $an_id as if there was no ansatte with that id, it would throw an error and set an_id to 0 instead of unset.
+// 20260820 Sawaneh Save no longer rewrites kontakt_emails/adresser.email when the POST lacks the
+//                kontakt_email fields, so partial or stale submits cannot wipe stored email addresses
 @session_start();
 $s_id = session_id();
 
@@ -274,7 +276,11 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$vis_lev_addr = db_escape_string(if_isset($_POST['vis_lev_addr'], NULL));
 		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
+		$auto_lookup_cvr = db_escape_string(if_isset($_POST['auto_lookup_cvr'], NULL));
+		update_settings_value("auto_lookup_cvr", "ordrer", $auto_lookup_cvr, "If CVR-nr. should be looked up automatically when 8 digits are entered", $bruger_id);
+
 		$lukket = db_escape_string(if_isset($_POST['lukket'], NULL));
+		$stripe_fravalg = db_escape_string(if_isset($_POST['stripe_fravalg'], NULL));
 		$enduser_type = db_escape_string(if_isset($_POST['enduser_type'], ''));
 		(isset($_POST['password'])) ? $password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit = db_escape_string(trim($_POST['productlimit']));
@@ -572,14 +578,14 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$qtxt .= "art,gruppe,kontoansvarlig,oprettet,bank_reg,bank_konto,swift,pbs_nr,pbs,kontotype,";
 			$qtxt .= "fornavn,efternavn,lev_firmanavn,lev_fornavn,lev_efternavn,lev_addr1,lev_addr2,lev_postnr,";
 			$qtxt .= "lev_bynavn,lev_land,lev_kontakt,lev_tlf,lev_email,felt_1,felt_2,felt_3,felt_4,felt_5,";
-			$qtxt .= "vis_lev_addr,lukket,kategori,rabatgruppe,status,productlimit)";
+			$qtxt .= "vis_lev_addr,lukket,stripe_fravalg,kategori,rabatgruppe,status,productlimit)";
 			$qtxt .= " values ";
 			$qtxt .= "('$ny_kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$tlf','$mobile','$email',";
 			$qtxt .= "'$mailfakt','$web','$betalingsdage','$kreditmax','$betalingsbet','$cvrnr','$ean','$institution','$notes','D',";
 			$qtxt .= "'$gruppe','$kontoansvarlig','$oprettet','$bank_reg','$bank_konto','$swift','$pbs_nr','$pbs','$kontotype',";
 			$qtxt .= "'$fornavn','$efternavn','$lev_firmanavn','$lev_fornavn','$lev_efternavn','$lev_addr1','$lev_addr2','$lev_postnr',";
 			$qtxt .= "'$lev_bynavn','$lev_land','$lev_kontakt','$lev_tlf','$lev_email','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5',";
-			$qtxt .= "'$vis_lev_addr','$lukket','$katString','$rabatgruppe','$status','" . usdecimal($productlimit) . "')";
+			$qtxt .= "'$vis_lev_addr','$lukket','$stripe_fravalg','$katString','$rabatgruppe','$status','" . usdecimal($productlimit) . "')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array($q);
@@ -697,7 +703,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			if (!$gl_kontotype || ($kontotype == $gl_kontotype) || (!isset($a_id))) {
 				$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
 				$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', mobile = '$mobile', ";
-				$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
+				$qtxt .= "mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
 				$qtxt .= "kreditmax = '$kreditmax',betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', ean = '$ean', ";
 				$qtxt .= "institution = '$institution', notes = '$notes',gruppe='$gruppe', ";
 				$qtxt .= "kontoansvarlig='$kontoansvarlig',bank_reg='$bank_reg',bank_konto='$bank_konto',swift='$swift',";
@@ -706,15 +712,18 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				$qtxt .= "lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',";
 				$qtxt .= "lev_land='$lev_land',lev_kontakt='$lev_kontakt',lev_tlf='$lev_tlf',lev_email='$lev_email',";
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
-				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',kategori='$katString',";
+				$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',stripe_fravalg='$stripe_fravalg',kategori='$katString',";
 				$qtxt .= "rabatgruppe='$rabatgruppe',status='$status', productlimit = '" . usdecimal($productlimit) . "' ";
 				if ($packagingModuleEnabled) $qtxt .= ", enduser_type='$enduser_type' ";
 				#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 				$qtxt .= "where id = '$id'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-				// Process primary email (index 1) from form fields
+				// Only rewrite kontakt_emails and adresser.email when the form actually posted
+				// the email fields; a POST without them (stale tab, partial form) must leave
+				// the stored addresses untouched.
 				if (isset($_POST['kontakt_email_val'][1])) {
+					// Process primary email (index 1) from form fields
 					$ke_id = isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0;
 					$ke_val = db_escape_string(trim($_POST['kontakt_email_val'][1]));
 					$ke_type = isset($_POST['kontakt_email_type'][1]) ? db_escape_string(trim($_POST['kontakt_email_type'][1])) : 'hoved';
@@ -727,45 +736,45 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						$r_new_ke = db_fetch_array(db_select("SELECT currval(pg_get_serial_sequence('kontakt_emails', 'id')) AS id", __FILE__ . " linje " . __LINE__));
 						$primary_ke_id = $r_new_ke ? intval($r_new_ke['id']) : 0;
 					}
-				}
 
-				// Process extra emails from JSON hidden field
-				$primary_ke_id = isset($primary_ke_id) ? intval($primary_ke_id) : (isset($_POST['kontakt_email_id'][1]) ? intval($_POST['kontakt_email_id'][1]) : 0);
-				$existing_extra_ids = array();
-				$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
-				while ($r_ex = db_fetch_array($q_ex)) {
-					$existing_extra_ids[] = intval($r_ex['id']);
-				}
+					// Process extra emails from JSON hidden field
+					$primary_ke_id = isset($primary_ke_id) ? intval($primary_ke_id) : $ke_id;
+					if (isset($_POST['kontakt_emails_json'])) {
+						$existing_extra_ids = array();
+						$q_ex = db_select("SELECT id FROM kontakt_emails WHERE konto_id = '$id' AND id != '$primary_ke_id' ORDER BY id", __FILE__ . " linje " . __LINE__);
+						while ($r_ex = db_fetch_array($q_ex)) {
+							$existing_extra_ids[] = intval($r_ex['id']);
+						}
 
-				$posted_ids = array();
-				if (isset($_POST['kontakt_emails_json']) && $_POST['kontakt_emails_json']) {
-					$json_emails = json_decode($_POST['kontakt_emails_json'], true);
-					if (is_array($json_emails)) {
-						foreach ($json_emails as $je) {
-							$je_id = intval($je['id']);
-							$je_val = db_escape_string(trim($je['email']));
-							$je_type = db_escape_string(trim($je['type']));
-							if ($je_id && $je_val) {
-								db_modify("UPDATE kontakt_emails SET email = '$je_val', email_type = '$je_type' WHERE id = '$je_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-								$posted_ids[] = $je_id;
-							} elseif (!$je_id && $je_val) {
-								db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+						$posted_ids = array();
+						$json_emails = json_decode($_POST['kontakt_emails_json'], true);
+						if (is_array($json_emails)) {
+							foreach ($json_emails as $je) {
+								$je_id = intval($je['id']);
+								$je_val = db_escape_string(trim($je['email']));
+								$je_type = db_escape_string(trim($je['type']));
+								if ($je_id && $je_val) {
+									db_modify("UPDATE kontakt_emails SET email = '$je_val', email_type = '$je_type' WHERE id = '$je_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+									$posted_ids[] = $je_id;
+								} elseif (!$je_id && $je_val) {
+									db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$id', '$je_val', '$je_type')", __FILE__ . " linje " . __LINE__);
+								}
+							}
+						}
+
+						// Delete extras that were removed
+						foreach ($existing_extra_ids as $old_id) {
+							if (!in_array($old_id, $posted_ids)) {
+								db_modify("DELETE FROM kontakt_emails WHERE id = '$old_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 							}
 						}
 					}
-				}
 
-				// Delete extras that were removed
-				foreach ($existing_extra_ids as $old_id) {
-					if (!in_array($old_id, $posted_ids)) {
-						db_modify("DELETE FROM kontakt_emails WHERE id = '$old_id' AND konto_id = '$id'", __FILE__ . " linje " . __LINE__);
-					}
+					// Sync primary email back to adresser.email for backward compatibility
+					$r_primary = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
+					$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
+					db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 				}
-
-				// Sync primary email back to adresser.email for backward compatibility
-				$r_primary = db_fetch_array(db_select("SELECT email FROM kontakt_emails WHERE konto_id = '$id' ORDER BY id LIMIT 1", __FILE__ . " linje " . __LINE__));
-				$sync_email = $r_primary ? db_escape_string($r_primary['email']) : '';
-				db_modify("UPDATE adresser SET email = '$sync_email' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 
 				
 				//####
@@ -1120,6 +1129,7 @@ if ($id > 0) {
 	$felt_4 = htmlentities(trim($r['felt_4']), ENT_COMPAT, $charset);
 	$felt_5 = htmlentities(trim($r['felt_5']), ENT_COMPAT, $charset);
 	($r['lukket']) ? $lukket = 'checked' : $lukket = '';
+	(isset($r['stripe_fravalg']) && $r['stripe_fravalg']) ? $stripe_fravalg = 'checked' : $stripe_fravalg = '';
 
 	// Load kontakt_emails for this customer
 	$kontakt_email_ids = array();
@@ -1397,6 +1407,8 @@ function validateDebitorkort(form) {
 
 print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
+$auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
+$auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
 if ($vis_addr == "on") {
 	print "<input type=hidden name=\"felt_1\" value='$felt_1'>\n";
 	print "<input type=hidden name=\"felt_2\" value='$felt_2'>\n";
@@ -1446,7 +1458,7 @@ print "</select></td>\n";
 print "<td align=right>" . findtekst('355|Vis leveringsadresse', $sprog_id) . "<!--tekst 355--><input class='inputbox' type=\"checkbox\" name=\"vis_lev_addr\" $vis_lev_addr> <a href=\"labelprint.php?id=$id\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></td></tr>\n";
 print "<tr><td valign=top height=250px><table border=0 width=100%><tbody>"; # TABEL 1.2.1 ->
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td>" . findtekst('357|Kundenr.', $sprog_id) . "<!--tekst 357--></td><td><input class='inputbox' type='text' size='25' name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('357|Kundenr.', $sprog_id) . "<!--tekst 357--></td><td><input class='inputbox' type='text' size='25' name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af *, +, eller / for automatisk opslag, eller marker 'Auto-lookup CVR nr.' for opslag ved 8 cifre (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 
 if (!isset($firmanavn)) $firmanavn = NULL;
 if (!isset($addr1)) $addr1 = NULL;
@@ -1467,6 +1479,7 @@ if (!isset($bank_reg)) $bank_reg = NULL;
 if (!isset($bank_konto)) $bank_konto = NULL;
 if (!isset($swift)) $swift = NULL;
 if (!isset($lukket)) $lukket = NULL;
+if (!isset($stripe_fravalg)) $stripe_fravalg = NULL;
 if (!isset($lev_firmanavn)) $lev_firmanavn = NULL;
 if (!isset($lev_addr1)) $lev_addr1 = NULL;
 if (!isset($lev_addr2)) $lev_addr2 = NULL;
@@ -1827,7 +1840,9 @@ if ($drg = $x) {
 print "</tbody></table></td>"; # <- TABEL 1.2.1
 print "<td valign=top><table border=0 width=100%><tbody>"; # TABEL 1.2.2 ->
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 376--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>Auto-lookup CVR nr.</td><td><input class='inputbox' type=\"checkbox\" name=\"auto_lookup_cvr\" $auto_lookup_cvr_checked onchange=\"javascript:docChange = true;\"></td></tr>\n";
+($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
+print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 376--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af *, +, eller / for automatisk opslag, eller marker 'Auto-lookup CVR nr.' for opslag ved 8 cifre (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
@@ -1907,6 +1922,7 @@ if ($new_status) {
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
+print "<tr bgcolor=$bg><td title=\"Tilbyd aldrig kortbetaling til denne debitor: abonnementslinket i fakturamails bliver tomt, og allerede udsendte links parkerer venligt. Stopper IKKE et abonnement der allerede er aktivt.\">Ingen kortbetaling</td><td><input class='inputbox' type=checkbox name=stripe_fravalg $stripe_fravalg></td></tr>\n";
 if ($packagingModuleEnabled) {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	$eu = isset($enduser_type) ? $enduser_type : '';
@@ -1951,13 +1967,8 @@ if ($vis_addr == "on") {
     print "<tr bgcolor=$bg><td height=\"25px\">" . findtekst('502|Kontakt', $sprog_id) . "</td><td height=\"25px\"><input class='inputbox' type='text' size=\"25px\" name=lev_kontakt value=\"$lev_kontakt\" onchange=\"javascript:docChange = true;\">\n";
     ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
     print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "</td><td><input class='inputbox' type='text' size='25' name=lev_tlf value=\"$lev_tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>";
-	$oLibTxt = findtekst('2217|Sæt grænse for, hvor mange varer en kunde kan oprette', $sprog_id);
-	print "<span onmouseover=\"return overlib('$oLibTxt', WIDTH=600);\" onmouseout=\"return nd();\">" . findtekst('2215|Varegrænse', $sprog_id) . "</span>";
-	print "</td><td><input type='text' class='inputbox' name=\"productlimit\" size=\"25\" value=\"" . dkdecimal($productlimit, 0) . "\"></td></tr>\n";
- 
-    
+
+
     // Additional delivery addresses section
    
     ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;

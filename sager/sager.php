@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- lap 5.0.0 --- 2026-03-12 ---
+// --- sager/sager.php --- lap 5.0.0 --- 2026-08-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2012-2026 Saldi.dk ApS
+// Copyright (c) 2012-2026 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // Har lagt al javascript i en separat fil ved navn 'jquery.sager.js' + diverse html rettelser
 // HTML rettelser til liste-visning og oprettelse af sag
@@ -51,6 +51,7 @@
 // 20240531 Addad $regnaar to function akkordliste()
 // 20241126 PHP8
 // 20260312 PHP8
+// 20260805 CX/PHR Cache-bust autocomplete scripts after adding safe field separators.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -97,9 +98,9 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 		<script type=\"text/javascript\" src=\"../javascript/jquery-1.8.0.min.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery-ui-1.9.2.custom.min.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/ui.datepicker-da.js\"></script>
-		<script type=\"text/javascript\" src=\"../javascript/jquery.autocomplete.js\"></script>
+		<script type=\"text/javascript\" src=\"../javascript/jquery.autocomplete.js?v=20260805\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery.pajinate.js\"></script>
-		<script type=\"text/javascript\" src=\"../javascript/jquery.sager.js\"></script>
+		<script type=\"text/javascript\" src=\"../javascript/jquery.sager.js?v=20260805\"></script>
 		
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>

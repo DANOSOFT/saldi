@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 5.0.0 --- 2026.03.16 ---
+// ---------------finans/bogfor.php---------- patch 5.0.0 --- 2026.08.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,14 @@
 // 20251210 PHR - Missing financialYear in vat account lookup for E & Y
 // 20260316 PHR Better error handling for missing debitor group
 // 20260417 Sawaneh: overwrite vat selection
+// 20260730 CL/NTR function bogfor: Removed the internal transaktion('begin')/('commit') so the caller
+//                 (which already wraps the call together with the tmpkassekl cleanup) keeps ownership of
+//                 the transaction; transaktion('rollback') before an early exit is kept since those paths
+//                 still terminate the request immediately.
+// 20260812 CX/PHR - Use the VAT code saved on each cash-journal line during validation, simulation and posting.
+// 20260819 CX/PHR - Fall back to account VAT unless a confirmed journal line has VAT on only one side.
+// 20260822 Sawaneh Show journal id and note in heading and above movements so output identifies the journal;
+//                  print icon on the simulation/posting view prints just the report
 
 
 @session_start();
@@ -102,16 +110,18 @@ while (!checkdate($rsmd,$rsdd,$rsaar)) {
 }
 $regnslut=$rsaar."-".$rsmd."-".$rsdd;
 
-if ($kladde_id) {	
-	$row =db_fetch_array(db_select("select bogfort from kladdeliste where id = $kladde_id",__FILE__ . " linje " . __LINE__));
+$kladdenote_vis='';
+if ($kladde_id) {
+	$row =db_fetch_array(db_select("select bogfort, kladdenote from kladdeliste where id = $kladde_id",__FILE__ . " linje " . __LINE__));
 	if ($row['bogfort']=='V') {
 		print "<BODY onLoad=\"javascript:alert('Kladden er allerede bogf&oslash;rt - kladden lukkes')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 		exit;
 	}
+	$kladdenote_vis = htmlentities(stripslashes(trim((string)$row['kladdenote'])), ENT_QUOTES, $charset);
 }
 if ($funktion=='bogfor') {
-	$overskrift = findtekst('2209|Bogfør kassekladde', $sprog_id);
+	$overskrift = findtekst('2209|Bogfør kassekladde', $sprog_id).", ".findtekst('1087|Kladde', $sprog_id)." $kladde_id";
 	$href="<a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>";
 } elseif ($funktion=='simuler') {
 	$overskrift="".findtekst(1085,$sprog_id)." ".findtekst(1086,$sprog_id).", ".findtekst(1087,$sprog_id)." $kladde_id"; #20210319
@@ -217,13 +227,22 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 		include("../includes/online.php");
 	}
 	if ($bogfor) {
-		transaktion('begin');
-		bogfor($kladde_id, $kladdenote,'');
-		db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
-		transaktion('commit');
-		genberegn($regnaar);
-		equalizeMatchingRecords();
-		if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+		$periode_fejl = NULL;
+		$q_dates = db_select("SELECT DISTINCT transdate FROM kassekladde WHERE kladde_id=$kladde_id", __FILE__." linje ".__LINE__);
+		while ($rd = db_fetch_array($q_dates)) {
+			if ($err = check_periode_luk($rd['transdate'])) { $periode_fejl = $err; break; }
+		}
+		if ($periode_fejl) {
+			print "<BODY onLoad=\"javascript:alert('" . addslashes($periode_fejl) . "')\">";
+		} else {
+			transaktion('begin');
+			bogfor($kladde_id, $kladdenote,'');
+			db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
+			transaktion('commit');
+			genberegn($regnaar);
+			equalizeMatchingRecords();
+			if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+		}
 	} elseif ($simuler) {
 		transaktion('begin');
 		bogfor($kladde_id, $kladdenote,'on');
@@ -354,10 +373,10 @@ for ($y=1; $y<=$posteringer; $y++) {
 	if ($debet[$y]>0)  $d_amount[$y]=$dkkamount[$y];
 	if ($kredit[$y]>0) $k_amount[$y]=$dkkamount[$y];
 	if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)) {
-	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], ((!isset($d_type[$y]) || !$d_type[$y] || $d_type[$y]=='F') && isset($debetvat[$y])) ? $debetvat[$y] : NULL);
+	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], $debetvat[$y], trim((string)$kreditvat[$y]) !== '');
 	}
 	if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)){
-		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], ((!isset($k_type[$y]) || !$k_type[$y] || $k_type[$y]=='F') && isset($kreditvat[$y])) ? $kreditvat[$y] : NULL);
+		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], $kreditvat[$y], trim((string)$debetvat[$y]) !== '');
 	}
 }
 /*
@@ -431,6 +450,12 @@ if ($funktion=='bogfor') {
 	print "</tr><tr><td height=10px><hr></td></tr>";
 }
 $d_sum=0; $k_sum=0;
+$kladde_vis = findtekst('601|Kassekladde', $sprog_id)." $kladde_id";
+if ($kladdenote_vis) $kladde_vis .= " &ndash; $kladdenote_vis";
+print "<style>@media print { .no-print, input[type=submit], button { display:none !important; } }</style>";
+print "<tr><td align=center valign=\"top\" style='padding-top:10px'><b>$kladde_vis</b>&nbsp;
+	<a class='no-print' href='javascript:void(0)' onclick='window.print(); return false;'>
+	<img src='../ikoner/print.png' style='border:0; vertical-align:middle;' title='Print'></a></td></tr>";
 print "<tr><td align = center valign=\"top\"><center><table width='75%' style='margin-top:20px' class='dataTableSmall' border=1 cellspacing=0 cellpadding=0><tbody>";
 print "<tr><td colspan=\"6\" class='tableHeader'><b>".findtekst(1088,$sprog_id)."</b></td></tr>
 	<tr><td class='tableText'>$font ".findtekst(440,$sprog_id)."</td>
@@ -695,7 +720,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 		return("Kladden er allerede bogført");
 		exit;
 	}
-	
+
 	$d_momsart=array(); $k_momsart=array();
 	if ($kladdenote) db_modify("update kladdeliste set kladdenote = '$kladdenote' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
 	$y=0;
@@ -811,8 +836,8 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			if (!$afd[$y]){$afd[$y]=0;}
 			if (!isset ($d_momsart[$y])) $d_momsart[$y] = NULL;
 			if (!isset ($k_momsart[$y])) $k_momsart[$y] = NULL;
-			if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], ((!isset($d_type[$y]) || !$d_type[$y] || $d_type[$y]=='F') && isset($debetvat[$y])) ? $debetvat[$y] : NULL);
-			if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], ((!isset($k_type[$y]) || !$k_type[$y] || $k_type[$y]=='F') && isset($kreditvat[$y])) ? $kreditvat[$y] : NULL);
+			if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y], $debetvat[$y], trim((string)$kreditvat[$y]) !== '');
+			if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)&&(substr($momsart,0,1)!='E')&&(substr($momsart,0,1)!='Y')) list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y], $kreditvat[$y], trim((string)$debetvat[$y]) !== '');
 		} elseif (!$row['debet'] && !$row['kredit'] && $row['id']) { #20170516
 			db_modify("delete from kassekladde where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
 		}
@@ -966,6 +991,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 		$kontodebet[$y]=array();  
 		for ($i=1;$i<=$b_antal;$i++) {
 			if ($bilag[$i]!=$bilag[$i-1] && $bilag[$i]!=$bilag[$i+1] && (!$debet[$i]||!$kredit[$i]) && $valuta[$i] != $valuta[$i-1]) { # 20131117 -- 20140228 tilføjet: && $valuta[$i] != $valuta[$i-1] 
+				transaktion('rollback');
 				print "<BODY onLoad=\"javascript:alert('Manglende modpostering i bilag $bilag[$i]!')\">";
 				exit;
 			}
@@ -1029,9 +1055,10 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 					} 
 */					
 				} elseif (($kontokredit[$y] || $kontodebet[$y]) && !$b_diffkonto[$i] && $valuta[$i])  { #20131028 -- 20140228 tilføjet: && $valuta[$i
+				transaktion('rollback');
 				print "<BODY onLoad=\"javascript:alert('Manglende konto til valutadiffencer! (bilag: $b_bilag[$i])')\">";
 				exit;
-			} 
+			}
 		}
 	}
 	if (abs($tjeksum)<=0.01) { # && $transtjek==$transantal){
@@ -1055,6 +1082,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 		}
 #xit;
 	} else {
+		transaktion('rollback');
 		print "<tr><td align=center>$font Der er konstateret en afvigelse!\nKladde ikke bogført\nKontakt venligst Saldi's udviklerteam!</td></tr>";
 		exit;
 	}
@@ -1128,26 +1156,27 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	}
 }
 ######################################################################################################################################
-function momsberegning($konto,$amount,$momsart,$kontrol,$vat_override=NULL) {
+function momsberegning($konto,$amount,$momsart,$kontrol,$lineVat=NULL,$allowBlank=false) {
 	global $connection;
 	global $regnaar;
 	global $db;
 	global $brugernavn;
-	
+
 	$nettoamount=$amount;
 	$errorTxt=$moms=$momskto=$modkto=NULL;
-	
-	$override_used = ($vat_override !== NULL);
-	if ($override_used) {
-		$konto_moms = trim((string)$vat_override);
-	} else {
-		$r=db_fetch_array(db_select("select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
-		$konto_moms = trim(if_isset($r['moms'], ''));
-	}
 
-	if ($konto_moms) {
-		$a=substr($konto_moms,0,1); #Foerste tegn i strengen
-		$b=substr($konto_moms,1);   #Andet tegn i strengen
+	$a=substr($momsart,0,1); #Foerste tegn i strengen
+	$b=substr($momsart,1,1); #Andet tegn i strengen
+
+	// This function is only called for lines that are not marked VAT exempt.
+	// A missing line VAT code therefore falls back to the account setup.
+	if (($lineVat === NULL || trim((string)$lineVat) === '') && !$allowBlank) {
+		$r=db_fetch_array(db_select("select moms from kontoplan where kontonr='$konto' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
+		$effectiveVat=trim(if_isset($r['moms'], ''));
+	} else {
+		$effectiveVat=trim($lineVat);
+	}
+	if ($effectiveVat) {
 		if ((($a=='E')||($a=='Y')) && $b) {
 			$c=$a.'M';
 			$qtxt = "select box1,box2,box3 from grupper where ";
@@ -1162,13 +1191,15 @@ function momsberegning($konto,$amount,$momsart,$kontrol,$vat_override=NULL) {
 				$momskto=trim($row['box1']);
 				$modkto=trim($row['box3']);
 			}
-		} else {	
+		} else {
+			$a=substr($effectiveVat,0,1);
+			$b=substr($effectiveVat,1);
 #Hvis en momspligtig vare koebes i EU beregnes der EU moms. $kontrol er kun sat hvis der er tale om en kreditor
 # og nedenst&aring;ende tr&aelig;der s&aring;ledes ikke i kraft naar der er tale om en finanskonto med EU moms.
-			if (!$override_used && $a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
-				$a=substr($kontrol,0,1);	
+			if ($a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
+				$a=substr($kontrol,0,1);
 				$b=substr($kontrol,1.1);
-			} 
+			}
 			$c=$a.'M';
 			$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);

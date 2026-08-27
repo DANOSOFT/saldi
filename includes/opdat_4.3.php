@@ -24,6 +24,9 @@
 // Copyright (c) 2022-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20260702 NTR Initial version of opdat_4.3.php with update steps for version 4.3.0.
+// 20260721 CL/SZ Added pool_files.norm_amount column + index + one-time backfill, and a
+//                 one-time guarded attempt at CREATE EXTENSION pg_trgm, for the Bilagsmatch
+//                 scoring engine rewrite.
 // 20260727 NTR Removed current version parameter, as it was incorrect and resulted in no update.
 //              opdat_func now automatically fetches the version from the database.
 
@@ -529,6 +532,11 @@ function opdat_4_3($majorNo, $subNo, $fixNo){
 			$qtxt = "ALTER TABLE pool_files ALTER COLUMN id SET DEFAULT nextval('pool_files_id_seq')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+
+		// Bilagsmatch norm_amount/pg_trgm setup lives in includes/betweenUpdates.php, not
+		// here - see the comment there for why (this opdat_to('4.3.0', ...) gate had
+		// already run on tenants before this feature was added to it, so appending new
+		// statements inside this closure meant they'd never execute on those DBs).
 
 		// Create kontakt_emails table for multiple emails per customer
 		$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='kontakt_emails'";
