@@ -3,9 +3,9 @@
 print "<div style=\"float:left; width:379px;\">\n";
 print "<h3>&nbsp;</h3>\n";
 print "<div class=\"contentA\">\n";
-$cvr_titel = htmlspecialchars(findtekst('5057|Tast CVR-nr. efterfulgt af *, + eller / for opslag, eller lad Auto-opslag være afmærket for opslag ved 8 cifre (Data leveres af CVR API)', $sprog_id),ENT_COMPAT,$charset);
+$cvr_titel = htmlspecialchars(findtekst('3373|Tast CVR-nr. efterfulgt af *, + eller / for opslag, eller lad Auto-opslag være afmærket for opslag ved 8 cifre (Data leveres af CVR API)', $sprog_id),ENT_COMPAT,$charset);
 print "<div class=\"row\"><div class=\"left\">".findtekst('376|CVR-nr.', $sprog_id)."<!--tekst 376--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"cvrnr\" value=\"$cvrnr\" title=\"$cvr_titel\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
-print "<div class=\"row\"><div class=\"left\">".findtekst('5056|Auto-opslag', $sprog_id)."</div><div class=\"right\"><input class=\"textSpaceSmall\" type=\"checkbox\" name=\"auto_lookup_cvr\" title=\"$cvr_titel\" checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
+print "<div class=\"row\"><div class=\"left\">".findtekst('3372|Auto-opslag', $sprog_id)."</div><div class=\"right\"><input class=\"textSpaceSmall\" type=\"checkbox\" name=\"auto_lookup_cvr\" title=\"$cvr_titel\" checked></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<div class=\"row\"><div class=\"left\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></div><div class=\"right\"><input class=\"text textIndent\" type=\"text\" name=\"tlf\" value=\"$tlf\" onchange=\"javascript:docChange = true;\"></div><div class=\"clear\"></div></div><!-- end of row -->\n";
 //($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
