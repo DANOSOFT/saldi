@@ -16,19 +16,7 @@ function _nav_file(): string {
     return dirname(__DIR__, 2) . '/temp/nav_' . preg_replace('/[^a-zA-Z0-9]/', '', session_id()) . '.json';
 }
 
-function _nav_read(): array {
-    $file = _nav_file();
-    if (!is_file($file)) return [];
-    $data = json_decode(file_get_contents($file), true);
-    return is_array($data) ? $data : [];
-}
-
-function _nav_write(array $stack): void {
-    file_put_contents(_nav_file(), json_encode($stack), LOCK_EX);
-}
-
-function _nav_should_record(string $url): bool {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') return false;
+function _nav_is_recordable(string $url): bool {
     // index/main.php is the SPA shell that hosts every other page in its
     // content iframe, not content itself — recording it lets nav_back_url()
     // hand a back button the shell's own URL, which gets loaded *into* the
@@ -39,6 +27,26 @@ function _nav_should_record(string $url): bool {
     return true;
 }
 
+function _nav_read(): array {
+    $file = _nav_file();
+    if (!is_file($file)) return [];
+    $data = json_decode(file_get_contents($file), true);
+    if (!is_array($data)) return [];
+    // Re-filter on every read, not just on push: a stack file written before
+    // index/main.php was excluded can still hold that entry, and nav_back_url()
+    // must never hand it out just because it predates this rule.
+    return array_values(array_filter($data, '_nav_is_recordable'));
+}
+
+function _nav_write(array $stack): void {
+    file_put_contents(_nav_file(), json_encode($stack), LOCK_EX);
+}
+
+function _nav_should_record(string $url): bool {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') return false;
+    return _nav_is_recordable($url);
+}
+
 function _nav_path(string $url): string {
     $url = preg_replace('/[&?]returside=[^&]*/', '', $url);
     $url = preg_replace('/#.*$/', '', $url);
@@ -46,11 +54,14 @@ function _nav_path(string $url): string {
 }
 
 function _nav_is_safe_target(string $url): bool {
+    // Browsers strip leading control characters/whitespace before parsing a URL's
+    // scheme, so "\tjavascript:..." would otherwise slip past the checks below.
+    $trimmed = preg_replace('/^[\x00-\x20]+/', '', $url);
     // Reject anything with a URI scheme (incl. javascript:) or a protocol-relative
     // //host/... prefix — htmlspecialchars() alone doesn't stop a browser from
     // treating either as an absolute/external navigation target.
-    if (preg_match('#^[a-zA-Z][a-zA-Z0-9+.\-]*:#', $url)) return false;
-    if (strpos($url, '//') === 0) return false;
+    if (preg_match('#^[a-zA-Z][a-zA-Z0-9+.\-]*:#', $trimmed)) return false;
+    if (strpos($trimmed, '//') === 0) return false;
     return true;
 }
 
