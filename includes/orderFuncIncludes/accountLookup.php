@@ -294,10 +294,6 @@ TOGGLESCRIPT;
     </script>
 HTML;
 
-    if ($o_art == 'KO') {
-        return;
-    }
-
     // ============ SD-338: Create new customer form ============
     // Store searched kontonr before we potentially replace it
     $searched_kontonr = $kontonr;
