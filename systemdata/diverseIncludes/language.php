@@ -58,5 +58,10 @@ function language () {
     print "</select></td></tr>";
     print "<tr><td colspan='2'><small>".findtekst('2716|Nuværende sprog', $sprog_id).": ".findtekst('1|Dansk', $cookieLanguageId)."</small></td></tr>";
     print "</form>";
-    
+
+    // 20260828 CL/SZ Restored the link to tekster.php that lived on the removed dead "Sprog"
+    // form (SirRolin, MB-27 review) - its own visible text now states what it does, instead
+    // of an underlined language name with only a hover title explaining it.
+    print "<tr><td colspan='2'><a href='tekster.php?sprog_id=$cookieLanguageId'>".findtekst('2717|Klik her for at rette tekster', $sprog_id)."</a></td></tr>";
+
 } # endfunc sprog
