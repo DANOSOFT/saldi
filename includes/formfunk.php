@@ -55,6 +55,8 @@
 // 20260702 PK/NTR added order_stock_warning_log to print on formular 3 (delivery note (følgeseddel)).
 // 20260706 MJ Creditor PDF filenames now use creditorSuggestion/creditorOrder/creditorInvoice prefix.
 // 20260814 LH Rykkerprint: pass rykker ordre-id to send_mails (was hardcoded 0) so mail-template variables like $kontonr work in rykker mails
+// 20260819 Sawaneh kontoprint: removed debug output and duplicate 'Mail sent to'
+//                  confirmation when mailing account statements as PDF.
 // 20260820 CDX/PHR Keep reminder amounts unchanged when the open item and reminder use the same currency.
 // 20260820 Sawaneh Supplier order print totals now match the printed line sums and the
 //                  booked amounts: sum of rounded line sums, VAT on the total (1-3 oere diff).
@@ -2895,10 +2897,6 @@ if (!function_exists('kontoprint')) {
 					if (!$kontovaluta)
 						$kontovaluta = 'DKK';
 
-					// Debug output to see what currency is detected
-					if ($bruger_id == '-1') {
-						echo "Customer ID: $konto_id[$i], Group: $r[gruppe], Currency: $kontovaluta<br>";
-					}
 					if ($email)
 						$mailantal++;
 					else
@@ -2913,31 +2911,17 @@ if (!function_exists('kontoprint')) {
 						$dagskurs = 100;
 					else {
 						$qtxt = "select kodenr from grupper where box1 = '$kontovaluta' and art='VK'";
-						if ($bruger_id == '-1')
-							echo "Currency lookup query: $qtxt<br>";
 						$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						$valutakode = $r1['kodenr'];
-
-						if ($bruger_id == '-1') {
-							echo "Currency: $kontovaluta, Valutakode: $valutakode<br>";
-						}
 
 						// Check if valutakode is valid before proceeding
 						if (!empty($valutakode) && is_numeric($valutakode)) {
 							$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$dato_til' order by valdate desc limit 1";
-							if ($bruger_id == '-1')
-								echo "Exchange rate query: $qtxt<br>";
 							$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$dagskurs = $r1['kurs'];
-							if ($bruger_id == '-1') {
-								echo "Exchange rate found: $dagskurs<br>";
-							}
 						} else {
 							// Fallback: use default exchange rate
 							$dagskurs = 100;
-							if ($bruger_id == '-1') {
-								echo "Using fallback exchange rate: $dagskurs<br>";
-							}
 						}
 					}
 					if ($dato_fra > '1970-01-01') {
@@ -3033,23 +3017,16 @@ if (!function_exists('kontoprint')) {
 					elseif ($deb_valuta==$valuta) $amount=$r2['amount'];
 					else $amount=$dkkamount;
 					*/
-						if ($bruger_id == '-1') {
-							echo "$kontovaluta==$r1[valuta] - $baseCurrency<br>";
-						}
 						if ($kontovaluta == $r1['valuta'])
 							$saldo += afrund($r1['amount'], 2);
 						elseif ($kontovaluta != $baseCurrency) {
 							$qtxt = "select kodenr from grupper where box1 = '$kontovaluta' and art='VK'";
-							if ($bruger_id == '-1')
-								echo "$qtxt<br>";
 							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$valutakode = $r2['kodenr'];
 
 							// Check if valutakode is valid before proceeding
 							if (!empty($valutakode) && is_numeric($valutakode)) {
 								$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$r1[transdate]' order by valdate desc limit 1";
-								if ($bruger_id == '-1')
-									echo "$qtxt<br>";
 								$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 								if ($r2 && !empty($r2['kurs'])) {
 									$saldo += afrund($r1['amount'] * $r1['valutakurs'] / $r2['kurs'], 2);
@@ -3066,10 +3043,6 @@ if (!function_exists('kontoprint')) {
 							$saldo += afrund($r1['amount'], 2);
 						}
 						#			$saldo+=$amount; 20150316
-						if ($bruger_id == '-1') {
-							echo "$saldo<br>";
-							#exit;
-						}
 						$dkkforfalden += $dkkamount;
 						$belob = dkdecimal($amount, 2);
 						for ($z = 1; $z <= $var_antal; $z++) {
@@ -3153,8 +3126,7 @@ if (!function_exists('kontoprint')) {
 					#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
 					#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
 				}
-				$svar = send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
-				echo "$svar<br>";
+				send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
 			}
 		}
 		if ($nomailantal > 0) {
