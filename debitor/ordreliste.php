@@ -2653,11 +2653,11 @@ print "</div>";  // END LEFT
 
 // ------------------------------------------------------------ 
 // CENTER — Turnover Summary
-// ------------------------------------------------------------
+// ------------------------------------------------------------ 
 $hideRevenueOnOrdreliste = get_settings_value("hideRevenueOnOrdreliste", "ordreliste", "off") === "on";
 if ($valg == "faktura") {
 print "<div id='center-turnover-f' style='flex:1; text-align:left;'>";
-        print "<div>";
+    print "<div>";
     if(!$hideRevenueOnOrdreliste) {
         print "<a href='ordreliste.php?genberegn=1&valg=$valg'>
                     <b>" . findtekst('878|Samlet omsætning / db / dg (ekskl. moms.)', $sprog_id) . "</b>

@@ -651,7 +651,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$stockWarningEnabled  = if_isset($_POST, null, 'stockWarningEnabled');
 		
 		$showBothAddrExtra    = if_isset($_POST, null, 'showBothAddrExtra');
-		$hideRevenueOnOrdreliste = if_isset($_POST, null, 'hideRevenueOnOrdreliste');
+		$hideRevenueOnOrdreliste = if_isset($_POST, null, 'hideRevenueOnOrdreliste'); 
 
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("pluklisteEmail", "ordre", $pluklisteEmail, "Email address to send plukliste to");
