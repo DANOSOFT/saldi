@@ -74,6 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error('Could not save new order');
                     }
 
+                    // Do not navigate away if the user made changes while
+                    // the reorder request was in flight.
+                    if (unsavedChanges) {
+                        return;
+                    }
+
                     // Keep kladde_id, kkdir, tjek, etc.
                     // Only change kksort to "pos"
                     const url = new URL(window.location.href);
@@ -88,7 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // since the save failed, reload to rebuild the table from the
                     // actual persisted pos values instead of leaving an unsaved,
                     // out-of-sync order on screen.
-                    window.location.reload();
+                    if (!unsavedChanges) {
+                        window.location.reload();
+                    }
                 });
             },
             onMove: evt => {
