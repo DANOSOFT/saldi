@@ -36,6 +36,8 @@
 // 20260702 CX/PHR Split comma-separated openpost autoudlign account list
 // 20260706 MJ Release session before long read-only reports to avoid blocking navigation.
 // 20260706 MJ Load debtor open items report content asynchronously so the page renders before the heavy table.
+// 20260817 Sawaneh SST-717 Openpost GET requests keep their dato/konto filters, which the
+//                  async iframe and udlign links pass but the page previously dropped.
 // 20260807 CL/NTR Generalize the async report shell to kontokort/kontosaldo/accountChart (not just openpost), drop the shell's inline padding, and add Cache-Control: no-store + pageshow/persisted reload so the back button can't restore a frozen shell/iframe.
 // 20260807 CL/NTR Skip the async shell for requests already inside its own iframe (Sec-Fetch-Dest: iframe), so report links that don't carry the *_content flag forward don't nest a second shell+iframe inside the first.
 // 20260824 CL/NTR Prototype: openpost drops the iframe shell - the shell stream-fetches the report and document.write()s it over itself chunk by chunk (progressive rendering like the iframe had), so Back/bfcache can never restore a nested or frozen frame; Cache-Control: no-store now sent before any output on openpost requests.
@@ -210,6 +212,14 @@ if (isset($_GET['ny_rykker'])) {
 $rapportart = NULL;
 if (isset($_POST['openpost']) || $openpost)
 	$rapportart = 'openpost';
+if ($openpost) {
+	# Openpost GET requests (0,00 links, Udlign alle, pagination, iframe reload) must keep
+	# their filters; escaped here because the values are also stored in the DRV row below.
+	if (!isset($dato_fra) && isset($_GET['dato_fra'])) $dato_fra = db_escape_string($_GET['dato_fra']);
+	if (!isset($dato_til) && isset($_GET['dato_til'])) $dato_til = db_escape_string($_GET['dato_til']);
+	if (!isset($konto_fra) && isset($_GET['konto_fra'])) $konto_fra = db_escape_string($_GET['konto_fra']);
+	if (!isset($konto_til) && isset($_GET['konto_til'])) $konto_til = db_escape_string($_GET['konto_til']);
+}
 if (isset($_POST['kontosaldo']))
 	$rapportart = 'kontosaldo';
 if (isset($_POST['kontokort']))

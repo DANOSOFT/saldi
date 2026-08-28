@@ -39,6 +39,12 @@
 //                  the other four aging columns.
 // 20260812 Sawaneh Review: the firm-name search folds case with mb_strtolower/mb_strtoupper,
 //                  so names containing ae, oe or aa match regardless of case.
+// 20260814 Sawaneh SST-717 Settle-all restored for accounts whose open remainder is offset
+//                  by already-settled valutadiff rows (whole balance ~0 when all posts loaded).
+// 20260817 Sawaneh Dated and debet/kredit views judge and display accounts by their open-post
+//                  balance instead of the sum of all posts, so fully settled accounts (e.g. after
+//                  currency-difference settlements) no longer show as owing; reminder amounts
+//                  skip settled posts. Vis alle poster keeps the full sums.
 // 20260824 CL/SZ Re-derive valutakurs from the valuta table when a foreign-
 //                currency row has kurs=100 (uncaptured rate), instead of
 //                treating it as 1:1 DKK parity - was producing DKK totals
@@ -53,6 +59,9 @@
 //                  per-account bucket maths moved unchanged into openpost_account_aging(); when a
 //                  filter or sort is active it runs as a streaming pre-pass over every matching
 //                  account before the count and the pagination, so pages and counts stay right.
+// 20260828 Sawaneh SD-140: the SST-717/SST-730 open-balance rules (visY/visKontrol, reminder
+//                  amounts skip settled posts) live in the shared helpers, so the filter/sort
+//                  pre-pass judges accounts exactly like the rendered page.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -219,7 +228,7 @@ if (!function_exists('openpost_account_aging')) {
  *   openY: float,             Sum of the open posts.
  *   kontrol: float,           Control sum of all posts, rounded per row.
  *   openKontrol: float,       Control sum of the open posts.
- *   rykkerbelob: float,       Sum of the posts due before $todate.
+ *   rykkerbelob: float,       Sum of the open posts due before $todate.
  *   accountAligned: int,      1 when every post is settled at $todate.
  * }
  */
@@ -283,7 +292,7 @@ function openpost_account_aging($posts, $todate, $currentdate, $kontoart, &$agin
 			);
 		}
 		list($forfaldsdag_plus8,$forfaldsdag_plus30,$forfaldsdag_plus60,$forfaldsdag_plus90) = $agingDateCache[$agingKey];
-		if ($forfaldsdag < $todate) $aging['rykkerbelob'] += $amount;
+		if (!$aligned && $forfaldsdag < $todate) $aging['rykkerbelob'] += $amount;
 		if (!$aligned && $forfaldsdag < $todate && $forfaldsdag_plus8 > $todate) $aging['forfalden'] += $amount;
 		if (!$aligned && $forfaldsdag_plus8 <= $todate && $forfaldsdag_plus30 > $todate) $aging['forfalden_plus8'] += $amount;
 		if (!$aligned && $forfaldsdag_plus30 <= $todate && $forfaldsdag_plus60 > $todate) $aging['forfalden_plus30'] += $amount;
@@ -299,22 +308,44 @@ function openpost_account_aging($posts, $todate, $currentdate, $kontoart, &$agin
 if (!function_exists('openpost_account_visible')) {
 /**
  * Applies the kun_debet/kun_kredit mode to an account's sums and tells whether the account is
- * listed at all. Same rule the rendering has always used, shared with the pre-pass so the account
- * count and the pages only contain accounts that are actually listed.
+ * listed at all. Same rule the rendering uses, shared with the pre-pass so the account count and
+ * the pages only contain accounts that are actually listed.
  *
- * @param array  $aging        Result of openpost_account_aging(). y, kontrol and accountAligned are
- *                             zeroed here when the account falls outside the debet/kredit mode.
+ * Vis alle poster keeps the historical full sums; every other view judges and shows the account
+ * by what is actually open, so settled posts cannot drag a settled account back onto the list
+ * (e.g. currency-difference groups that do not net to 0.00 in DKK).
+ *
+ * @param array  $aging        Result of openpost_account_aging(). visY/visKontrol are added: the
+ *                             sums the view displays. All sums and accountAligned are zeroed when
+ *                             the account falls outside the debet/kredit mode.
  * @param string $todate       Report date, Y-m-d.
  * @param string $currentdate  Today, Y-m-d.
  * @param string $kun_debet    'on' to list only accounts in debit.
  * @param string $kun_kredit   'on' to list only accounts in credit.
+ * @param bool   $vis_alle     True when every post is shown (Vis alle poster).
  * @return bool
  */
-function openpost_account_visible(&$aging, $todate, $currentdate, $kun_debet, $kun_kredit) {
-	if ($kun_debet && $aging['y'] <= 0) {$aging['accountAligned'] = 1; $aging['y'] = 0; $aging['kontrol'] = 0;}
-	elseif ($kun_kredit && $aging['y'] >= 0) {$aging['accountAligned'] = 1; $aging['y'] = 0; $aging['kontrol'] = 0;}
+function openpost_account_visible(&$aging, $todate, $currentdate, $kun_debet, $kun_kredit, $vis_alle = false) {
+	if ($vis_alle) {
+		$aging['visY'] = $aging['y'];
+		$aging['visKontrol'] = $aging['kontrol'];
+	} else {
+		$aging['visY'] = $aging['openY'];
+		$aging['visKontrol'] = $aging['openKontrol'];
+	}
+	if (($kun_debet && $aging['visY'] <= 0) || ($kun_kredit && $aging['visY'] >= 0)) {
+		$aging['accountAligned'] = 1;
+		$aging['y'] = $aging['kontrol'] = $aging['openY'] = $aging['openKontrol'] = $aging['visY'] = $aging['visKontrol'] = 0;
+	}
 	$aging['kontrol'] = afrund($aging['kontrol'],2);
-	return (abs($aging['y']) >= 0.01 || ($todate == $currentdate && ($aging['accountAligned'] == "0" || $aging['kontrol'])));
+	$aging['visKontrol'] = afrund($aging['visKontrol'],2);
+	if ($vis_alle) {
+		return (abs($aging['y']) >= 0.01 || ($todate == $currentdate && ($aging['accountAligned'] == "0" || $aging['kontrol'])));
+	}
+	if ($todate == $currentdate) {
+		return ($aging['accountAligned'] == "0" || abs($aging['visKontrol']) >= 0.01);
+	}
+	return (abs($aging['visKontrol']) >= 0.01);
 }
 }
 
@@ -496,11 +527,11 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		// rendering, then page the resulting account ids - filtering the rows of one page would
 		// return wrong pages and counts. The account superset is the same $accountGroup the count
 		// below uses, so a filtered page never shows an account the unfiltered report leaves out.
-		$bucketKey=($agingBucket) ? $buckets[$agingBucket]['key'] : 'y';
+		$bucketKey=($agingBucket) ? $buckets[$agingBucket]['key'] : 'visY';
 		$sortedAccounts=array();
-		$addAccount=function($accountId, $posts) use (&$sortedAccounts, &$agingDateCache, $bucketKey, $agingBucket, $todate, $currentdate, $kontoart, $kun_debet, $kun_kredit) {
+		$addAccount=function($accountId, $posts) use (&$sortedAccounts, &$agingDateCache, $bucketKey, $agingBucket, $todate, $currentdate, $kontoart, $kun_debet, $kun_kredit, $vis_alle) {
 			$aging=openpost_account_aging($posts, $todate, $currentdate, $kontoart, $agingDateCache);
-			if (!openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit)) return;
+			if (!openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit, $vis_alle)) return;
 			$amount=afrund($aging[$bucketKey],2);
 			if ($agingBucket && abs($amount) < 0.01) return;
 			$sortedAccounts[]=array((int)$accountId, $amount, count($sortedAccounts));
@@ -618,7 +649,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	for ($x=1; $x<=$pageAccountCount; $x++) {
 		if (!isset($accountPosts[$x])) continue;
 		$aging=openpost_account_aging($accountPosts[$x], $todate, $currentdate, $kontoart, $agingDateCache);
-		if (openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit)) {
+		if (openpost_account_visible($aging, $todate, $currentdate, $kun_debet, $kun_kredit, $vis_alle)) {
 			$accountAligned=$aging['accountAligned'];
 			$rykkerbelob=$aging['rykkerbelob'];
 			$forfalden=$aging['forfalden'];
@@ -630,6 +661,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$openKontrol=$aging['openKontrol'];
 			$y=$aging['y'];
 			$openY=$aging['openY'];
+			$visY=$aging['visY'];
+			$visKontrol=$aging['visKontrol'];
 			if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 			elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 		
@@ -638,8 +671,8 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$forfaldsum_plus30=$forfaldsum_plus30+$forfalden_plus30;
 			$forfaldsum_plus60=$forfaldsum_plus60+$forfalden_plus60;
 			$forfaldsum_plus90=$forfaldsum_plus90+$forfalden_plus90;
-			$sum=$sum+$y;
-			$kontrolsum+=$kontrol;
+			$sum=$sum+$visY;
+			$kontrolsum+=$visKontrol;
 			$formIndex++;
 			print "<tr bgcolor=\"$linjebg\">";
 			print "<input type=hidden name='konto_id[$formIndex]' value='$konto_id[$x]'>";
@@ -693,11 +726,17 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				$color="rgb(0, 0, 0)";
 				print "<td align=right></td>";
 			}
-			if (afrund($kontrol,2)!=afrund($y,2)) {
+			if (afrund($visKontrol,2)!=afrund($visY,2)) {
 				ret_openpost($konto_id[$x]);
-				$tmp=dkdecimal($kontrol,2);
-			} else $tmp=dkdecimal($y,2);
-			if ($accountAligned=="0" && abs($openY)<0.01 && abs($openKontrol)<0.01) {
+				$tmp=dkdecimal($visKontrol,2);
+			} else $tmp=dkdecimal($visY,2);
+			# Valutadiff rows are booked as already settled, so the open remainder alone can
+			# differ from zero while the whole account balances. When settled posts are loaded
+			# too (Vis alle poster or a historical to-date), the whole balance decides as well.
+			$allPostsLoaded = ($vis_alle || $todate != $currentdate);
+			$canSettleAll = ($accountAligned=="0" && ((abs($openY)<0.01 && abs($openKontrol)<0.01)
+				|| ($allPostsLoaded && abs($y)<0.01 && abs($kontrol)<0.01)));
+			if ($canSettleAll) {
 				$udlign.=$konto_id[$x].",";
 				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fraUrl&dato_til=$dato_tilUrl&konto_fra=$konto_fraUrl&konto_til=$konto_tilUrl$openpostContentParam$stateUrl&udlign=$konto_id[$x]\">$tmp</a></td>";
 			}
