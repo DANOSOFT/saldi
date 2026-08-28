@@ -64,6 +64,7 @@
 // 20260729 MJ Rettet fejl: upload-succces opdaterer nu kun clip-ikonet i DOM istedet for at genindlaese siden
 // 20260812 LOE .kassekladde-scroll-container; increased the subtraction in height to leave more room for the footer buttons.
 // 20260812 CX/PHR - Preserve and display the journal line VAT code; apply account default VAT when the account changes.
+// 20260814 LOE Position-based sorting: fixed a bug where the positioning control was not visible and reordered positions did not persist.
 // 20260819 CX/PHR - Synchronize VAT exemption with both VAT fields and confirm intentional one-sided VAT.
 // 20260820 Sawaneh Shortcut letters (genvej) in debit/credit crashed the VAT lookup with a numeric
 //                  SQL error; non-numeric input is now resolved via genvej before querying kontonr.
@@ -495,10 +496,13 @@ if (!isset($tidspkt))
 	$tidspkt = 0;
 if (!isset($row['tidspkt']))
 	$row['tidspkt'] = null;
+$kksort    = null;
+$kkdir     = null;
+$returside = null;
 
-$visipop = if_isset($_GET['visipop']);
-$udskriv = if_isset($_GET['udskriv']);
-if ($tjek = if_isset($_GET['tjek'])) {
+$visipop = if_isset($_GET, null, 'visipop');
+$udskriv = if_isset($_GET, null, 'udskriv');
+if ($tjek = if_isset($_GET, null, 'tjek')) {
 	$tidspkt = microtime();
 	list($a, $b) = explode(" ", $tidspkt);
 	$qtxt = "select bogfort,tidspkt,hvem from kladdeliste where (bogfort = '-' or bogfort = 'S') and id = $tjek";
@@ -580,7 +584,7 @@ $r = db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' 
 ($r['box4'])  ? $forskellige_datoer = 1 : $forskellige_datoer = 0;
 ($r['box10']) ? $vis_bet_id = 1         : $vis_bet_id = 0;
 if ($_GET) {
-	$returside = if_isset($_GET['returside']);
+	$returside = if_isset($_GET, null, 'returside');
 	if (!$returside)           $returside = "../finans/kladdeliste.php";
 	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
 	$sort            =       if_isset($_GET, 		null,   'sort');
@@ -729,6 +733,7 @@ if ($_POST) {
 	$ny_kladdenote = db_escape_string(trim(if_isset($_POST['ny_kladdenote'], '')));
 	$antal_ny      = if_isset($_POST['antal_ny']);
 	$antal_ex      = if_isset($_POST['antal_ex']);
+	$antal         = 0;
 	$fokus         = if_isset($_POST['fokus']);
 	#$momsfri       = if_isset($_POST['momsfri']);
 	$id            = if_isset($_POST['id']);
@@ -1514,13 +1519,11 @@ else setcookie("saldi_ktrkto",$kontrolkonto,time()-3600);
 ob_end_flush();	//Sender det "bufferede" output afsted...
 */
 
-$kladdedate = '';
 if ($kladde_id) {
-	$query = db_select("select kladdenote, bogfort, kladdedate from kladdeliste where id = $kladde_id", __FILE__ . " linje " . __LINE__);
+	$query = db_select("select kladdenote, bogfort from kladdeliste where id = $kladde_id", __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	$kladdenote = htmlentities(stripslashes($row['kladdenote']), ENT_QUOTES, $charset);
 	$bogfort = $row['bogfort'];
-	$kladdedate = trim((string)$row['kladdedate']);
 }
 $x = 0;
 ($visipop) ? $ny = NULL : $ny = findtekst('39|Ny', $sprog_id); #20210628
@@ -1541,13 +1544,6 @@ if (!$simuler) {
 	($udskriv) ? $height = '' : $height = 'height="100%"';
 	if ($udskriv) {
 		print "<div class='print-view'>";
-	}
-	if ($kladde_id) {
-		$printHead = "<b>".findtekst('601|Kassekladde', $sprog_id)." $kladde_id</b>";
-		if ($kladdedate) $printHead .= " &ndash; ".implode('-', array_reverse(explode('-', $kladdedate)));
-		if ($kladdenote) $printHead .= " &ndash; $kladdenote";
-		if ($bogfort == 'S') $printHead .= " (".findtekst('1085|Simuleret', $sprog_id).")";
-		print "<div class='kassekladde-print-header' style='display:none; font-size:12pt; margin-bottom:6px;'>$printHead</div>";
 	}
 	if ($menu != 'T') {
 		#print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
@@ -2152,9 +2148,6 @@ print '<style>
 
     /* Print styles */
     @media print {
-        .kassekladde-print-header {
-            display: block !important;
-        }
         /* Hide navigation and non-essential elements - including Saldi framework elements */
         .sidebar,
         .side-menu,
@@ -2641,9 +2634,10 @@ if ($r && !$kksort) $kksort = $r['box1'];
 if ($r) $kontrolkonto = $r['box2'];
 if ($r) $kkdir = ($r['box4'] == 'desc') ? 'desc' : 'asc';
 if ($kladde_id) {
-	if ($kksort != 'transdate,bilag' && $kksort != 'amount')
+	if ($kksort != 'transdate,bilag' && $kksort != 'amount' && $kksort != 'bilag,transdate' && $kksort != 'pos')
 		$kksort = 'bilag,transdate';
 	if (!isset($kkdir) || ($kkdir != 'asc' && $kkdir != 'desc')) $kkdir = 'asc';
+	
 	$id = array();
 	$bilag = array();
 	$dato = array();
@@ -2706,16 +2700,20 @@ if ($kladde_id) {
 		$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 		$fejl = 1;
 	} else {
+	################### 
 		$_dir = ($kkdir == 'desc') ? 'DESC' : 'ASC';
-		if ($kksort == 'bilag,transdate') {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
+		if ($kksort == 'pos') {
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
+		} elseif ($kksort == 'bilag,transdate') {
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
 		} elseif ($kksort == 'transdate,bilag') {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by transdate $_dir, bilag $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by transdate $_dir, bilag $_dir, id $_dir";
 		} elseif ($kksort == 'amount') {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by amount $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		} else {
-		    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag $_dir, transdate $_dir, id $_dir";
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by pos $_dir, bilag $_dir, transdate $_dir, id $_dir";
 		}
+	##################
 	}
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$bilagssum = 0;
@@ -2955,7 +2953,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if ($vis_bilag && !$fejl && isset($id[$y])) { #### use
 			$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
 			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$hasDoc = ($dokument[$y] || $docRow) ? true : false;
+			$hasDoc = (($dokument[$y] ?? null) || $docRow) ? true : false;
 			if ($hasDoc) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
@@ -3078,15 +3076,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 		#######
 		// Display row number ($y) as the visual line number - stored pos is used for ordering only
-		if(isset($bilag[$y+1])){
-			if((($bilag[$y] == $bilag[$y+1]) && ($transdate[$y] == $transdate[$y+1])) || (($bilag[$y] == $bilag[$y-1]) && ($transdate[$y] == $transdate[$y-1]))){
-				print "<td class='drag-handle' style='cursor:move;' data-id='{$id[$y]}' data-pos='" . (isset($pos[$y]) ? $pos[$y] : 0) . "'>&#x2630; $y</td>";
-			}else{
-				print "<td></td>";
-			}
-		}
-
-		######
+		print "<td class='drag-handle'
+			style='cursor:move;'
+			data-id='{$id[$y]}'
+			data-pos='" . (isset($pos[$y]) ? $pos[$y] : 0) . "'>
+			&#x2630; $y
+		</td>";
+		###### 
 
 		// Add Plus and Delete buttons
 		// Plus button - always enabled
@@ -3097,7 +3093,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 		// Delete button - disabled if document attached
 		$qtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$id[$y]'";
-		$hasDoc = ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__)));
+		$hasDoc = (($dokument[$y] ?? null) || db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__)));
 
 		if ($hasDoc) {
 			$deleteTitle = "Remove attached document first";
@@ -3222,10 +3218,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($x == 1) {
 				$next = $last_bilag;
 			} else {
-				$next = $bilag[$x-1] + 1;
+				$next = ($bilag[$x-1] ?? 0) + 1;
 			}
 		} else {
-			$next = $bilag[$x-1] + 1;
+			$next = ($bilag[$x-1] ?? 0) + 1;
 		}
 		if($dato[$x] == ''){
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
@@ -3236,8 +3232,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if ($vis_bilag && !$fejl) { #20140425
 			#if ($kladde_id && $intern_bilag) print "<td title='".findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id)."'><a href='../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$x]&bilag=$bilag[$x]&ny=ja&kilde_id=$kladde_id&fokus=bila$x'><img  style='border: 0px solid' src='../ikoner/clip.png'></a></td>\n";
 			if ($intern_bilag) {
-				$id[$y]        = (int)if_isset($id[$y],0);
-				$dokument[$y] = if_isset($dokument[$y],NULL);
+				$id[$y]        = (int)($id[$y] ?? 0);
+				$dokument[$y] = $dokument[$y] ?? NULL;
 				$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
 				if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					$clip = 'paper.png';
@@ -3279,10 +3275,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($x == 1) {
 				$next = $last_bilag;
 			} else {
-				$next = $bilag[$x-1] + 1;
+				$next = ($bilag[$x-1] ?? 0) + 1;
 			}
 		} else {
-			$next = $bilag[$x-1] + 1;
+			$next = ($bilag[$x-1] ?? 0) + 1;
 		}
 		if($dato[$x] == ''){
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
