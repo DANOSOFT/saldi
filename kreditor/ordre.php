@@ -62,6 +62,8 @@
 // 20260421 LOE Set antal to 1 if empty
 // 20260506 sawaneh Added create_creditor POST handler and redirect to kontoopslag when typed kontonr/firmanavn has no match
 // 20260728 MJ Fix: kreditorOrdreAutocomplete sendte ikke konto_id til itemSearch; viste varer.kostpris i stedet for leverandoerspecifik vl.kostpris
+// 20260811 Sawaneh Save batch_due_date/batch_batch_no on the order line - the expiry date and
+//                  batch no fields were rendered and read back, but never written on save.
 
 @session_start();
 $s_id=session_id();
@@ -526,6 +528,18 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
 			$projekt[$x] = if_isset($projekt, NULL,$x);
+			# Expiry date / batch no for batch controlled items. NULL means the inputs were not
+			# rendered for this line, so the columns must be left untouched when saving.
+			$batch_due_date[$x] = $batch_batch_no[$x] = NULL;
+			$tmp_due = if_isset($_POST, NULL, 'batch_due_date');
+			if (is_array($tmp_due) && isset($tmp_due[$x])) {
+				$tmp_due = trim($tmp_due[$x]);
+				$batch_due_date[$x] = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $tmp_due)) ? $tmp_due : '';
+			}
+			$tmp_bno = if_isset($_POST, NULL, 'batch_batch_no');
+			if (is_array($tmp_bno) && isset($tmp_bno[$x])) {
+				$batch_batch_no[$x] = db_escape_string(substr(trim($tmp_bno[$x]), 0, 100));
+			}
 		}
 		if ($sletstart && $sletslut && $sletstart<$sletslut) {
 			for ($x=$sletstart; $x<=$sletslut; $x++) {
@@ -842,7 +856,14 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					if ($rabat[$x] === '' || $rabat[$x] === null) $rabat[$x] = 0;
 					$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 						$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]',  ";
-						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager' where id='$linje_id[$x]'";
+						$qtxt.= "omvbet='$omvbet[$x]',lager='$lager'";
+						if (if_isset($batch_due_date, NULL, $x) !== NULL) {
+							$qtxt.= ",batch_due_date=" . ($batch_due_date[$x] ? "'$batch_due_date[$x]'" : "NULL");
+						}
+						if (if_isset($batch_batch_no, NULL, $x) !== NULL) {
+							$qtxt.= ",batch_batch_no=" . ($batch_batch_no[$x] !== '' ? "'$batch_batch_no[$x]'" : "NULL");
+						}
+						$qtxt.= " where id='$linje_id[$x]'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} 
 #					if ($leveret[$x]!=$tidl_lev[$x]) {

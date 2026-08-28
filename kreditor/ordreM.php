@@ -55,6 +55,8 @@
 // 20220124 MLH added kundeordnr / Rekv.nr.
 // 20220124 MLH added udskriv_til, email and mail_fakt
 // 20230105 MLH added mail_text and mail_subj
+// 20260811 Sawaneh Save batch_due_date/batch_batch_no on the order line - the expiry date and
+//                  batch no fields were rendered and read back, but never written on save.
 
 @session_start();
 $s_id=session_id();
@@ -398,6 +400,18 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 		if ($godkend == "on" && $status==0) $leveres[$x]=$antal[$x];
 		if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 		if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
+		# Expiry date / batch no for batch controlled items. NULL means the inputs were not
+		# rendered for this line, so the columns must be left untouched when saving.
+		$batch_due_date[$x] = $batch_batch_no[$x] = NULL;
+		$tmp_due = if_isset($_POST, NULL, 'batch_due_date');
+		if (is_array($tmp_due) && isset($tmp_due[$x])) {
+			$tmp_due = trim($tmp_due[$x]);
+			$batch_due_date[$x] = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $tmp_due)) ? $tmp_due : '';
+		}
+		$tmp_bno = if_isset($_POST, NULL, 'batch_batch_no');
+		if (is_array($tmp_bno) && isset($tmp_bno[$x])) {
+			$batch_batch_no[$x] = db_escape_string(substr(trim($tmp_bno[$x]), 0, 100));
+		}
 #			$projekt[$x]=$projekt[$x];
 	}
 	if ($sletstart && $sletslut && $sletstart<$sletslut) {
@@ -716,7 +730,14 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 						if ($omvbet[$x]) $omvbet[$x]='on';
 					$qtxt = "update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', ";
 					$qtxt.= "leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]', omvbet='$omvbet[$x]', ";
-					$qtxt.= "lager='$lager' where id='$linje_id[$x]'";
+					$qtxt.= "lager='$lager'";
+					if (if_isset($batch_due_date, NULL, $x) !== NULL) {
+						$qtxt.= ",batch_due_date=" . ($batch_due_date[$x] ? "'$batch_due_date[$x]'" : "NULL");
+					}
+					if (if_isset($batch_batch_no, NULL, $x) !== NULL) {
+						$qtxt.= ",batch_batch_no=" . ($batch_batch_no[$x] !== '' ? "'$batch_batch_no[$x]'" : "NULL");
+					}
+					$qtxt.= " where id='$linje_id[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} 
 #					if ($leveret[$x]!=$tidl_lev[$x]) {

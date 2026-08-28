@@ -121,6 +121,11 @@
 //             out-of-balance order BEFORE any transaktioner/openpost rows are written (previously the
 //             imbalance was detected after posting, with no rollback for callers outside bogfor).
 //             Also guarded the vatAccount rounding loops against infinite loop on empty SM account list
+// 20260811 Sawaneh function batch: automatic batch reservation now uses fefo_order_clause() instead
+//                  of 'order by kobsdate', so the batch expiring first is drawn first (FEFO).
+//                  Items without due dates are unaffected - they still come out in kobsdate order.
+
+include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	/* echo "<!--function levering start-->"; */
@@ -1082,10 +1087,13 @@ function batch($linje_id)
 		$x = 0;
 		$rest = array();
 		$lev_rest = $leveres;
-		if ($lager)
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by kobsdate", __FILE__ . " linje " . __LINE__);
-		else
-			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by kobsdate", __FILE__ . " linje " . __LINE__);
+		# FEFO: batches with the earliest due_date are drawn first. Batches without a due_date
+		# sort last and then by kobsdate, so items without expiry dates keep the old FIFO order.
+		if ($lager) {
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 and lager = $lager order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
+		} else {
+			$query = db_select("select * from batch_kob where vare_id=$vare_id and rest > 0 order by " . fefo_order_clause(), __FILE__ . " linje " . __LINE__);
+		}
 		while ($row = db_fetch_array($query)) {
 			$x++;
 			$batch_kob_id[$x] = $row['id'];

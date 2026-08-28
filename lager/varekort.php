@@ -97,6 +97,9 @@
 // 20250924 PBLM - Alert for saved product is disabled
 // 20260127 Saul - - fixed.  Asking if you want to edit this 'text' if its new item.
 // 20260213 LOE  - Updated the back button for debitorkort reference.
+// 20260811 Sawaneh Expiry date section is now shown only when 'batchExpiryEnabled' (Varerelaterede
+//                  valg) is on and the item's product group has batch control (box9). Expiry fields
+//                  are only saved when the section was posted, so a hidden section cannot blank them.
 // 20260827 CL/SZ Defined the missing $icon_back and switched the "Tilbage"/
 //                "Luk"/"POS menuer"/"Ny" buttons in the $menu=='S' header
 //                to the standard icon+flex-start button style used
@@ -162,6 +165,7 @@ include("productCardIncludes/percentageField.php");
 include_once("../includes/emballage_schema.php");
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
+$batchExpiryEnabled = (get_settings_value("batchExpiryEnabled", "items", "off") === "on");
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='specialtype'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -344,10 +348,16 @@ if ($saveItem || $submit = trim($submit)) {
     $ny_beholdning = if_isset($_POST['ny_beholdning']);
     $lukket = if_isset($_POST['lukket']);
     $serienr = db_escape_string(trim(if_isset($_POST['serienr'])));
+    # Only trust the expiry fields when the section was actually rendered, so a hidden
+    # section can never blank out an existing due date setup on save.
+    $expirySectionPosted = (if_isset($_POST['expiry_section']) == '1');
     $has_due_date = (if_isset($_POST['has_due_date']) == 'on') ? 'true' : 'false';
     $default_shelf_life_days = if_isset($_POST['default_shelf_life_days']);
-    if ($default_shelf_life_days !== null && $default_shelf_life_days !== '') $default_shelf_life_days = intval($default_shelf_life_days);
-    else $default_shelf_life_days = null;
+    if ($default_shelf_life_days !== null && $default_shelf_life_days !== '') {
+        $default_shelf_life_days = intval($default_shelf_life_days);
+    } else {
+        $default_shelf_life_days = null;
+    }
     #   list ($gruppe)           =  explode (':', if_isset($_POST['gruppe']));
     $notes = db_escape_string(trim(if_isset($_POST['notes'])));
     $note_on_orderline = (if_isset($_POST['note_on_orderline']) == 'on') ? true : false;
@@ -951,8 +961,10 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "salgspris_rounding='$salgspris_rounding',salgspris_multiplier='$salgspris_multiplier',";// 20221004
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
             $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision',";// 20221004
-            $qtxt .= "has_due_date=$has_due_date,";
-            $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
+            if ($expirySectionPosted) {
+                $qtxt .= "has_due_date=$has_due_date,";
+                $qtxt .= "default_shelf_life_days=" . ($default_shelf_life_days !== null ? "'$default_shelf_life_days'" : "NULL") . ",";
+            }
             $qtxt .= "note_on_orderline=" . ($note_on_orderline ? 'true' : 'false');
             $qtxt .= " where id = '$id'";
 
@@ -1733,9 +1745,13 @@ if (!$varenr) {
     print "\n<!-- productCardIncludes/showLocations.php begin -->\n";
     include('productCardIncludes/showLocations.php');
     print "\n<!-- productCardIncludes/showLocations.php end -->\n";
-    print "\n<!-- productCardIncludes/showExpirySettings.php begin -->\n";
-    include('productCardIncludes/showExpirySettings.php');
-    print "\n<!-- productCardIncludes/showExpirySettings.php end -->\n";
+    # Expiry date section requires both the company setting (Varerelaterede valg) and
+    # batch control on the item's product group (grupper.box9).
+    if ($batchExpiryEnabled && trim((string) $batchItem) == 'on') {
+        print "\n<!-- productCardIncludes/showExpirySettings.php begin -->\n";
+        include('productCardIncludes/showExpirySettings.php');
+        print "\n<!-- productCardIncludes/showExpirySettings.php end -->\n";
+    }
     print "</tbody></table></td>";#  <- Diverse tabel
 #################### KATEGORIER ###########################
     print "<td valign=\"top\" height=\"200px\">";

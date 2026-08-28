@@ -99,6 +99,7 @@
 //                 table that lager/labelprint.php prints from, and new labels get account_id 0.
 // 20260824 CL/NTR Label deletion only removes global rows (account_id 0 or null), matching what the
 //                 label editor shows.
+// 20260811 Sawaneh Save 'batchExpiryEnabled' setting (batch/expiry date section on the item card)
 
 @session_start();
 $s_id = session_id();
@@ -775,6 +776,9 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			include_once("../includes/emballage_schema.php");
 			ensure_emballage_schema();
 		}
+		# Normalised to a fixed literal - never interpolate the posted value into the settings query.
+		$batchExpiryEnabled = (if_isset($_POST, null, 'batchExpiryEnabled') === 'on') ? 'on' : 'off';
+		update_settings_value("batchExpiryEnabled", "items", $batchExpiryEnabled, "Enable batch and expiry date handling on the item card");
 
 		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
 		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
