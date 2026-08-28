@@ -118,6 +118,13 @@
 //                condition merge accidentally deleted - includes/udskriv.php:423 reads that file to
 //                pick the post-print redirect target, so this wasn't just a warning, it silently
 //                broke that redirect for every order since #356 merged.
+// 20260828 CL/SZ SD-660 (CodeRabbit, PR #526): the invoice form posts to ordre.php without
+//                valg, so the unconditional file_put_contents above was clearing the
+//                remembered redirect target on every invoice save - the exact same
+//                unconditional-overwrite behaviour the original pre-#356 code had, just
+//                newly visible now that it's restored. Only write the file when valg is
+//                actually present on this request; otherwise leave the previously-written
+//                value alone.
 
 @session_start();
 $s_id = session_id();
@@ -3427,7 +3434,9 @@ function ordreside($id, $regnskab)
 		$digitalStatus = if_isset($row, NULL, 'digital_status');
 		$ordredate = if_isset($row, null, 'ordredate') ?? date("y-m-d");
 		$opValue = if_isset($_GET, NULL, 'valg');
-		file_put_contents("../temp/$db/area$bruger_id.txt", $opValue, LOCK_EX);
+		if ($opValue !== NULL) {
+			file_put_contents("../temp/$db/area$bruger_id.txt", $opValue, LOCK_EX);
+		}
 		$ordredato = dkdato($ordredate);
 		if (if_isset($row, NULL, 'levdate')) {
 			$levdato = dkdato(if_isset($row, NULL, 'levdate'));
