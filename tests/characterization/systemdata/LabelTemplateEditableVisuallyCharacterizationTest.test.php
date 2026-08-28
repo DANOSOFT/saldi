@@ -241,7 +241,7 @@ Pris $pris<br>
             return;
         }
         $formData = $this->visualEditorFormData(array_merge(parseLabelTemplate($existing['labeltext']), $postFields));
-        saveLabelText('box1', $labelName, generateLabelTemplate($formData), if_isset($postFields['labelType'], 'sheet'));
+        saveLabelText('box1', $labelName, generateLabelTemplate($formData), if_isset($postFields, 'sheet', 'labelType'));
     }
 
     private function visualEditorFormData(array $overrides): array
