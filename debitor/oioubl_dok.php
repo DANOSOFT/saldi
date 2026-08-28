@@ -40,12 +40,13 @@ include("../includes/oioublfunk.php");
 include("../includes/var2str.php");
 include("../includes/topline_settings.php");
 
-$id        = (int)if_isset($_GET['id']);
-$doktype   = strtolower(if_isset($_GET['doktype']));
+$id        = (int)if_isset($_GET, 0,['id']);
+$doktype   = strtolower(if_isset($_GET, '', ['doktype']));
 if ($doktype != "faktura" && $doktype != "kreditnota") {
 	$doktype = "";
 }
-$returside = if_isset($_GET['returside']);
+// overriden immediately after by the next line, so this is redundant
+//$returside = if_isset($_GET, null, ['returside']);
 if ($popup) $returside = "../includes/luk.php";
 else $returside = "ordre.php?id=$id";
 
